@@ -18,8 +18,8 @@ function Watermark() {
     const plan = usePlan()
     const isFreeUser = plan === 'free'
     const watermarkConfig = org?.config?.config?.customization?.general?.watermark ?? org?.config?.config?.general?.watermark
-    // Free plan + OSS: always show. Paid plans: respect admin setting (default true).
-    const showWatermark = isOSSMode() || isFreeUser || watermarkConfig !== false
+    // Free plan: always show. Otherwise respect admin setting (default true).
+    const showWatermark = isFreeUser || watermarkConfig !== false
 
     if (showWatermark) {
         return (

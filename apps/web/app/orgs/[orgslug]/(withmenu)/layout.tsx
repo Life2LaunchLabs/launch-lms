@@ -31,7 +31,7 @@ function OrgFooter() {
   const plan = usePlan()
   const watermarkConfig = org?.config?.config?.customization?.general?.watermark ?? org?.config?.config?.general?.watermark
   const isFree = plan === 'free'
-  const showWatermark = isOSSMode() || isFree || watermarkConfig !== false
+  const showWatermark = isFree || watermarkConfig !== false
 
   return (
     <footer className="w-full py-8 mt-12">
