@@ -8,6 +8,7 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import CourseThumbnailLanding from '@components/Objects/Thumbnails/CourseThumbnailLanding'
 import UserAvatar from '@components/Objects/UserAvatar'
 import { useTranslation } from 'react-i18next'
+import InProgressSection from '@components/Landings/InProgressSection'
 
 interface LandingCustomProps {
   landing: {
@@ -246,6 +247,15 @@ function LandingCustom({ landing, orgslug }: LandingCustomProps) {
                 </div>
               )}
             </div>
+          </div>
+        )
+      case 'in-progress':
+        return (
+          <div
+            key="in-progress"
+            className="py-8 mx-2 sm:mx-4 lg:mx-16 w-full"
+          >
+            <InProgressSection orgslug={orgslug} />
           </div>
         )
       default:

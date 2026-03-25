@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { getUriWithOrg } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import { BookCopy, SquareLibrary } from 'lucide-react'
+import InProgressSection from '@components/Landings/InProgressSection'
 
 interface LandingClassicProps {
   courses: any[]
@@ -31,6 +32,9 @@ function LandingClassic({ courses, collections, orgslug, org_id }: LandingClassi
   return (
     <div className="w-full">
       <GeneralWrapperStyled>
+        {/* In Progress */}
+        <InProgressSection orgslug={orgslug} />
+
         {/* Collections */}
         <div className="flex flex-col space-y-2 mb-6">
           <div className="flex items-center justify-between">

@@ -2624,6 +2624,11 @@
           "featured_courses": {
             "label": "Courses",
             "description": "Add a section to showcase selected courses"
+          },
+          "in_progress": {
+            "label": "In Progress",
+            "description": "Show courses the user is currently enrolled in",
+            "editor_description": "This section automatically displays courses the logged-in user is currently enrolled in. No configuration needed."
           }
         },
         "add_section": "Add Section",

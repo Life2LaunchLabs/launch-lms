@@ -84,7 +84,12 @@ export interface LandingHeroSection {
   contentAlign?: 'left' | 'center' | 'right';
 }
 
-export type LandingSection = LandingTextAndImageSection | LandingHeroSection | LandingLogos | LandingPeople | LandingFeaturedCourses;
+export interface LandingInProgress {
+  type: 'in-progress';
+  title: string;
+}
+
+export type LandingSection = LandingTextAndImageSection | LandingHeroSection | LandingLogos | LandingPeople | LandingFeaturedCourses | LandingInProgress;
 
 export interface LandingObject {
   sections: LandingSection[];
