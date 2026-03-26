@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 import { Metadata } from 'next'
+import { redirect } from 'next/navigation'
 import { getOrgCourses } from '@services/courses/courses'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getOrgCollections } from '@services/courses/collections'
@@ -82,6 +83,11 @@ export async function generateMetadata(props: MetadataProps): Promise<Metadata> 
 const OrgHomePage = async (params: any) => {
   const orgslug = (await params.params).orgslug
   const session = await getServerSession()
+
+  if (!session) {
+    redirect('/welcome')
+  }
+
   const access_token = session?.tokens?.access_token
   const courses = await getOrgCourses(
     orgslug,
