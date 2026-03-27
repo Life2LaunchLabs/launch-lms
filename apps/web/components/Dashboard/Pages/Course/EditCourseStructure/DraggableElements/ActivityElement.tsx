@@ -4,6 +4,7 @@ import { deleteActivity, updateActivity } from '@services/courses/activities'
 import { revalidateTags } from '@services/utils/ts/requests'
 import {
   Backpack,
+  CheckSquare,
   Eye,
   File,
   FilePenLine,
@@ -275,6 +276,10 @@ const ACTIVITIES = {
   'TYPE_SCORM': {
     displayNameKey: 'scorm',
     Icon: Package
+  },
+  'TYPE_QUIZ': {
+    displayNameKey: 'quiz',
+    Icon: CheckSquare
   }
 }
 
@@ -323,7 +328,7 @@ const ActivityElementOptions = ({ activity, isMobile }: { activity: any; isMobil
 
   return (
     <>
-      {activity.activity_type === 'TYPE_DYNAMIC' && (
+      {(activity.activity_type === 'TYPE_DYNAMIC' || activity.activity_type === 'TYPE_QUIZ') && (
         <Link
           href={
             getUriWithOrg(org.slug, '') +

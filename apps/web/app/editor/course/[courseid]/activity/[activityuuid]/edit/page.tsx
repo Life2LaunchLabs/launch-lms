@@ -8,6 +8,7 @@ import EditorOptionsProvider from '@components/Contexts/Editor/EditorContext'
 import AIEditorProvider from '@components/Contexts/AI/AIEditorContext'
 import { getServerSession } from '@/lib/auth/server'
 import EditorWrapper from '@components/Objects/Editor/EditorWrapper'
+import QuizActivityEditor from '@components/Objects/Activities/Quiz/Editor/QuizActivityEditor'
 
 
 type MetadataProps = {
@@ -52,6 +53,16 @@ const EditActivity = async (params: any) => {
     revalidate: 180,
     tags: ['organizations'],
   }, access_token)
+
+  if (activity.activity_type === 'TYPE_QUIZ') {
+    return (
+      <QuizActivityEditor
+        activity={activity}
+        course={courseInfo}
+        org={org}
+      />
+    )
+  }
 
   return (
     <EditorOptionsProvider options={{ isEditable: true }}>

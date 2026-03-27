@@ -1107,7 +1107,7 @@
     "assignment": "Assignment",
     "learning_material": "Learning Material",
     "current": "Current",
-    "quiz": "Quiz",
+    "quiz": "Questions",
     "file_submission": "File Submission",
     "form": "Form",
     "interactive": "Interactive",
@@ -2176,7 +2176,8 @@
             "assignments": "Assignments",
             "dynamic": "Dynamic",
             "dynamic_page": "Dynamic Page",
-            "scorm": "Scorm"
+            "scorm": "Scorm",
+            "quiz": "Quiz"
           },
           "toasts": {
             "deleting": "Deleting activity...",
@@ -3257,8 +3258,8 @@
         },
         "task_types": {
           "quiz": {
-            "title": "Quiz",
-            "description": "Questions with multiple choice answers"
+            "title": "Questions",
+            "description": "Multiple choice questions with grading"
           },
           "file_submission": {
             "title": "File submission",

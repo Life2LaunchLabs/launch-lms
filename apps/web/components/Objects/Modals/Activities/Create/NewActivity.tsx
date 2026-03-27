@@ -9,6 +9,7 @@ import VideoModal from './NewActivityModal/VideoActivityModal'
 import Image from 'next/image'
 import DocumentPdfModal from './NewActivityModal/DocumentActivityModal'
 import Assignment from './NewActivityModal/AssignmentActivityModal'
+import QuizModal from './NewActivityModal/QuizActivityModal'
 import { useTranslation } from 'react-i18next'
 
 function NewActivityModal({
@@ -25,7 +26,7 @@ function NewActivityModal({
   return (
     <>
       {selectedView === 'home' && (
-        <div className="grid grid-cols-4 gap-2 mt-2.5 w-full">
+        <div className="grid grid-cols-4 gap-2 mt-2.5 w-full" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
           <ActivityOption
             onClick={() => {
               setSelectedView('dynamic')
@@ -74,6 +75,24 @@ function NewActivityModal({
               {t('dashboard.courses.structure.activity.types.assignments')}
             </div>
           </ActivityOption>
+          <ActivityOption
+            onClick={() => {
+              setSelectedView('quiz')
+            }}
+          >
+            <div className="h-20 rounded-lg m-0.5 flex flex-col items-center justify-end text-center bg-white hover:cursor-pointer">
+              <div className="w-full h-full flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-violet-100 flex items-center justify-center">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-violet-600">
+                    <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+            <div className="flex text-sm h-5 font-medium text-gray-500 items-center justify-center text-center">
+              Quiz
+            </div>
+          </ActivityOption>
         </div>
       )}
 
@@ -108,6 +127,14 @@ function NewActivityModal({
           chapterId={chapterId}
           course={course}
           closeModal={closeModal}
+        />)
+      }
+
+      {selectedView === 'quiz' && (
+        <QuizModal
+          submitActivity={submitActivity}
+          chapterId={chapterId}
+          course={course}
         />)
       }
     </>
