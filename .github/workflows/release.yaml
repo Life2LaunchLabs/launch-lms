@@ -11,7 +11,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: learnhouse/app
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build:
@@ -149,7 +149,7 @@ jobs:
             fi
             echo "---"
             echo ""
-            echo "**Docker image:** \`ghcr.io/learnhouse/app:${{ steps.version.outputs.version }}\`"
+            echo "**Docker image:** \`ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}\`"
           } > /tmp/changelog.md
 
       - name: Create GitHub Release
