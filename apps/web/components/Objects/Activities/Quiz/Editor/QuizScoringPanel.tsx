@@ -56,17 +56,7 @@ export default function QuizScoringPanel({ activity, editor, onClose }: Props) {
   }
 
   const removeVector = (idx: number) => {
-    const removed = vectors[idx].key
     setVectors(v => v.filter((_, i) => i !== idx))
-    // Remove that vector from all option scores
-    setOptionScores(os => {
-      const next = { ...os }
-      for (const oId of Object.keys(next)) {
-        const { [removed]: _, ...rest } = next[oId]
-        next[oId] = rest
-      }
-      return next
-    })
   }
 
   const addCategorySet = () => {
