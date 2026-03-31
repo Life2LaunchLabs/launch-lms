@@ -55,6 +55,19 @@ export async function getCourseMetadata(
   return res
 }
 
+export async function getGuestOnboardingCourse(
+  org_slug: string,
+  next: any,
+  access_token?: string | null
+) {
+  const result = await fetch(
+    `${getAPIUrl()}courses/org_slug/${org_slug}/guest-onboarding`,
+    RequestBodyWithAuthHeader('GET', null, next, access_token || undefined)
+  )
+  const res = await errorHandling(result)
+  return res
+}
+
 export async function updateCourse(course_uuid: any, data: any, access_token:any) {
   const result: any = await fetch(
     `${getAPIUrl()}courses/${course_uuid}`,

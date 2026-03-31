@@ -18,6 +18,8 @@ from src.security.auth import (
     JWT_REFRESH_COOKIE_NAME,
     JWT_COOKIE_NAME,
 )
+from src.security.cookies import get_cookie_domain_for_request, is_request_secure
+from src.services.guest_sessions import transfer_guest_session_data_to_user
 from src.services.auth.utils import signWithGoogle
 from src.services.dev.dev import isDevModeEnabled
 from src.services.security.rate_limiting import (
@@ -48,81 +50,6 @@ def get_token_expiry_ms() -> Optional[int]:
 
 
 router = APIRouter()
-
-
-def get_cookie_domain_for_request(request: Request) -> str | None:
-    """
-    Determine the appropriate cookie domain based on the request origin.
-
-    - For custom domains: Returns None (cookie is host-specific)
-    - For configured domain/subdomains: Returns the configured cookie domain
-    - For localhost: Returns None
-    """
-    origin = request.headers.get("origin", "")
-    referer = request.headers.get("referer", "")
-    host = request.headers.get("host", "")
-
-    # Get the configured domain
-    config_domain = get_learnhouse_config().hosting_config.domain
-    config_cookie_domain = get_learnhouse_config().hosting_config.cookie_config.domain
-
-    # Check origin, referer, or host
-    check_value = origin or referer or host
-    if not check_value:
-        return config_cookie_domain
-
-    # Remove protocol if present
-    check_value = check_value.replace("https://", "").replace("http://", "")
-    # Remove path and port
-    check_value = check_value.split("/")[0].split(":")[0]
-
-    # Localhost always gets no domain
-    if "localhost" in check_value or "127.0.0.1" in check_value:
-        return None
-
-    # Check if it's a subdomain of the configured domain
-    is_subdomain = check_value.endswith(f".{config_domain}") or check_value == config_domain
-
-    if is_subdomain:
-        # Use configured cookie domain for subdomains
-        return config_cookie_domain
-    else:
-        # Custom domain - no domain restriction (host-specific cookie)
-        return None
-
-
-def is_request_secure(request: Request | None) -> bool:
-    """
-    Determine if the request is over HTTPS.
-    Only trusts X-Forwarded-Proto when the direct connection is from a local proxy.
-    """
-    if not request:
-        return not isDevModeEnabled()
-
-    # Only trust proxy headers if connection comes from a local reverse proxy
-    direct_ip = request.client.host if request.client else None
-    trust_proxy = False
-    if direct_ip:
-        import ipaddress
-        try:
-            addr = ipaddress.ip_address(direct_ip)
-            trust_proxy = addr.is_loopback or addr.is_private
-        except ValueError:
-            pass
-
-    if trust_proxy:
-        forwarded_proto = request.headers.get("x-forwarded-proto", "")
-        if forwarded_proto.lower() == "https":
-            return True
-        if forwarded_proto.lower() == "http":
-            return False
-
-    # Check the URL scheme
-    if request.url.scheme == "https":
-        return True
-
-    # Fall back to dev mode check
-    return not isDevModeEnabled()
 
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str, request: Request = None):
@@ -301,6 +228,12 @@ async def login(
     refresh_token = create_refresh_token(data={"sub": username})
 
     set_auth_cookies(response, access_token, refresh_token, request)
+    transfer_guest_session_data_to_user(
+        request=request,
+        response=response,
+        db_session=db_session,
+        user=UserRead.model_validate(user),
+    )
 
     user = UserRead.model_validate(user)
 
@@ -351,6 +284,12 @@ async def third_party_login(
     refresh_token = create_refresh_token(data={"sub": user.email})
 
     set_auth_cookies(response, access_token, refresh_token, request)
+    transfer_guest_session_data_to_user(
+        request=request,
+        response=response,
+        db_session=db_session,
+        user=UserRead.model_validate(user),
+    )
 
     user = UserRead.model_validate(user)
 

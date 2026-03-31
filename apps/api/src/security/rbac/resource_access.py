@@ -693,7 +693,7 @@ class ResourceAccessChecker:
         if not resource:
             return False, False
 
-        is_public = getattr(resource, 'public', False)
+        is_public = getattr(resource, 'public', False) or getattr(resource, 'guest_access', False)
         is_published = getattr(resource, 'published', True) if config.has_published_field else True
 
         return is_public, is_published

@@ -58,11 +58,18 @@ const TESTIMONIALS = [
 interface WelcomeClientProps {
   org: any
   orgslug: string
+  onboardingCourse: any | null
 }
 
-export default function WelcomeClient({ org, orgslug }: WelcomeClientProps) {
+export default function WelcomeClient({ org, orgslug, onboardingCourse }: WelcomeClientProps) {
   const { t } = useTranslation()
-  const signupHref = getUriWithOrg(orgslug, '/signup')
+  const firstOnboardingActivity = onboardingCourse?.chapters?.[0]?.activities?.[0]
+  const signupHref = firstOnboardingActivity
+    ? getUriWithOrg(
+        orgslug,
+        `/onboarding/course/${onboardingCourse.course_uuid.replace('course_', '')}/activity/${firstOnboardingActivity.activity_uuid.replace('activity_', '')}`
+      )
+    : getUriWithOrg(orgslug, '/signup')
   const loginHref = getUriWithOrg(orgslug, '/login')
   const [activeTab, setActiveTab] = useState<HeroTab>('courses')
   const [activeTestimonial, setActiveTestimonial] = useState(0)
@@ -144,7 +151,7 @@ export default function WelcomeClient({ org, orgslug }: WelcomeClientProps) {
                     href={signupHref}
                     className="px-4 py-1.5 text-[15px] font-bold bg-white text-black rounded-lg hover:bg-white/90 transition-colors"
                   >
-                    {t('auth.sign_up')}
+                    Get Started
                   </Link>
                   <Link
                     href={loginHref}

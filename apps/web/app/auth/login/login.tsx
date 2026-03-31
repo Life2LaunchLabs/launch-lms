@@ -9,7 +9,7 @@ import { useFormik } from 'formik'
 import React, { useState, useEffect } from 'react'
 import { AlertTriangle, Lock, Mail, Shield, X, Clock } from 'lucide-react'
 import { checkSSOEnabled, redirectToSSOLogin } from '@services/auth/sso'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@components/Contexts/AuthContext'
 import { getLEARNHOUSE_TOP_DOMAIN_VAL, getDeploymentMode } from '@services/config/config'
@@ -29,7 +29,9 @@ const LoginClient = (props: LoginClientProps) => {
   const [ssoEnabled, setSsoEnabled] = useState(false)
   const [ssoLoading, setSsoLoading] = useState(false)
   const router = useRouter();
+  const searchParams = useSearchParams()
   const session = useLHSession() as any;
+  const nextUrl = searchParams.get('next')
 
   // Error state with type information
   const [error, setError] = useState('')
@@ -52,7 +54,7 @@ const LoginClient = (props: LoginClientProps) => {
       document.cookie = `learnhouse_oauth_org_id=${props.org.id}${baseAttributes}${domainAttr}`;
     }
     // Use absolute URL with current origin for custom domain support
-    signIn('google', { callbackUrl: `${window.location.origin}/redirect_from_auth` });
+    signIn('google', { callbackUrl: nextUrl || `${window.location.origin}/redirect_from_auth` });
   };
 
   // Check if SSO is enabled for this organization (requires enterprise plan)
@@ -152,7 +154,7 @@ const LoginClient = (props: LoginClientProps) => {
       }
 
       // Use absolute URL with current origin for custom domain support
-      const callbackUrl = `${window.location.origin}/redirect_from_auth`;
+      const callbackUrl = nextUrl || `${window.location.origin}/redirect_from_auth`;
 
       const res = await signIn('credentials', {
         redirect: false,

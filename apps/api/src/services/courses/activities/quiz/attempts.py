@@ -20,6 +20,7 @@ from src.db.courses.quiz import (
 from src.db.courses.courses import Course
 from src.db.users import AnonymousUser, PublicUser
 from src.security.rbac import AccessAction, check_resource_access
+from src.services.guest_sessions import LearningActor
 from src.services.courses.activities.quiz.scoring import (
     compute_result_bundle,
     compute_scores,
@@ -64,6 +65,7 @@ async def submit_quiz_attempt(
     activity_uuid: str,
     submission: QuizAttemptSubmit,
     current_user: PublicUser | AnonymousUser,
+    actor: LearningActor,
     db_session: Session,
 ) -> QuizResultRead:
     """
@@ -76,13 +78,16 @@ async def submit_quiz_attempt(
     await check_resource_access(
         request, db_session, current_user, course.course_uuid, AccessAction.READ
     )
+    if actor.is_guest and (not course.guest_access or not course.published):
+        raise HTTPException(status_code=403, detail="Guest access is not enabled for this course")
 
     # Create attempt
     now = datetime.utcnow()
     attempt = QuizAttempt(
         attempt_uuid=f"quizattempt_{uuid4()}",
         activity_id=activity.id,  # type: ignore
-        user_id=current_user.id,  # type: ignore
+        user_id=actor.user_id,
+        guest_session_id=actor.guest_session_id,
         org_id=activity.org_id,
         course_id=activity.course_id,
         started_at=now,
@@ -135,6 +140,7 @@ async def get_my_latest_result(
     request: Request,
     activity_uuid: str,
     current_user: PublicUser | AnonymousUser,
+    actor: LearningActor,
     db_session: Session,
 ) -> QuizResultRead | None:
     """
@@ -146,16 +152,20 @@ async def get_my_latest_result(
     await check_resource_access(
         request, db_session, current_user, course.course_uuid, AccessAction.READ
     )
+    if actor.is_guest and (not course.guest_access or not course.published):
+        raise HTTPException(status_code=403, detail="Guest access is not enabled for this course")
 
     # Find the latest completed attempt for this user + activity
+    statement = select(QuizAttempt).where(
+        QuizAttempt.activity_id == activity.id,
+        QuizAttempt.completed_at.is_not(None),  # type: ignore
+    )
+    if actor.user_id is not None:
+        statement = statement.where(QuizAttempt.user_id == actor.user_id)
+    else:
+        statement = statement.where(QuizAttempt.guest_session_id == actor.guest_session_id)
     attempt = db_session.exec(
-        select(QuizAttempt)
-        .where(
-            QuizAttempt.activity_id == activity.id,
-            QuizAttempt.user_id == current_user.id,
-            QuizAttempt.completed_at.is_not(None),  # type: ignore
-        )
-        .order_by(QuizAttempt.completed_at.desc())  # type: ignore
+        statement.order_by(QuizAttempt.completed_at.desc())  # type: ignore
     ).first()
 
     if not attempt:

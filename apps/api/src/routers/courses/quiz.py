@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from src.core.events.database import get_db_session
 from src.db.courses.quiz import QuizAttemptSubmit, QuizResultRead
-from src.db.users import PublicUser
+from src.db.users import AnonymousUser, PublicUser
 from src.security.auth import get_current_user
+from src.services.guest_sessions import resolve_learning_actor
 from src.services.courses.activities.quiz.attempts import (
     get_my_latest_result,
     submit_quiz_attempt,
@@ -17,27 +18,31 @@ router = APIRouter()
 @router.post("/{activity_uuid}/attempts", response_model=QuizResultRead)
 async def api_submit_quiz_attempt(
     request: Request,
+    response: Response,
     activity_uuid: str,
     submission: QuizAttemptSubmit,
-    current_user: PublicUser = Depends(get_current_user),
+    current_user: PublicUser | AnonymousUser = Depends(get_current_user),
     db_session=Depends(get_db_session),
 ) -> QuizResultRead:
     """Submit a completed quiz attempt and receive computed results."""
+    actor = resolve_learning_actor(request, response, current_user, db_session)
     return await submit_quiz_attempt(
-        request, activity_uuid, submission, current_user, db_session
+        request, activity_uuid, submission, current_user, actor, db_session
     )
 
 
 @router.get("/{activity_uuid}/my-result")
 async def api_get_my_quiz_result(
     request: Request,
+    response: Response,
     activity_uuid: str,
-    current_user: PublicUser = Depends(get_current_user),
+    current_user: PublicUser | AnonymousUser = Depends(get_current_user),
     db_session=Depends(get_db_session),
 ):
     """Get the current user's most recent result for this quiz, or 404 if none."""
+    actor = resolve_learning_actor(request, response, current_user, db_session)
     result = await get_my_latest_result(
-        request, activity_uuid, current_user, db_session
+        request, activity_uuid, current_user, actor, db_session
     )
     if result is None:
         raise HTTPException(status_code=404, detail="No quiz result found")

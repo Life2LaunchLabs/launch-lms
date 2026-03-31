@@ -9,8 +9,13 @@ class TrailBase(SQLModel):
     org_id: int = Field(
         sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"))
     )
-    user_id: int = Field(
-        sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"))
+    user_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=True)
+    )
+    guest_session_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(Integer, ForeignKey("guestsession.id", ondelete="CASCADE"), nullable=True)
     )
 
 
@@ -19,8 +24,13 @@ class Trail(TrailBase, table=True):
     org_id: int = Field(
         sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True)
     )
-    user_id: int = Field(
-        sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True)
+    user_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=True, index=True)
+    )
+    guest_session_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(Integer, ForeignKey("guestsession.id", ondelete="CASCADE"), nullable=True, index=True)
     )
     trail_uuid: str = ""
     creation_date: str = ""
@@ -38,7 +48,8 @@ class TrailRead(BaseModel):
     id: Optional[int] = None
     trail_uuid: Optional[str] = None
     org_id: int
-    user_id: int
+    user_id: Optional[int] = None
+    guest_session_id: Optional[int] = None
     creation_date: Optional[str] = None
     update_date: Optional[str] = None
     runs: list[TrailRunRead]

@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { getAPIUrl, getUriWithOrg } from '@services/config/config'
 import { BookOpenCheck, CheckCircle, ChevronLeft, ChevronRight, UserRoundPen, Edit2, Maximize2, Minimize2 } from 'lucide-react'
-import { markActivityAsComplete, unmarkActivityAsComplete } from '@services/courses/activity'
+import { markActivityAsComplete, startCourse, unmarkActivityAsComplete } from '@services/courses/activity'
 import { usePathname, useRouter } from 'next/navigation'
 import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
 import { getCourseThumbnailMediaDirectory, getUserAvatarMediaDirectory } from '@services/media/media'
@@ -65,6 +65,7 @@ interface ActivityClientProps {
   orgslug: string
   activity: any
   course: any
+  guestMode?: boolean
 }
 
 interface ActivityActionsProps {
@@ -74,6 +75,7 @@ interface ActivityActionsProps {
   orgslug: string
   assignment: any
   showNavigation?: boolean
+  guestMode?: boolean
 }
 
 // Custom hook for activity position
@@ -101,7 +103,7 @@ function useActivityPosition(course: any, activityId: string) {
   }, [course, activityId]);
 }
 
-function ActivityActions({ activity, activityid, course, orgslug, assignment, showNavigation = true }: ActivityActionsProps) {
+function ActivityActions({ activity, activityid, course, orgslug, assignment, showNavigation = true, guestMode = false }: ActivityActionsProps) {
   
   const { t } = useTranslation();
   const { contributorStatus } = useContributorStatus(course.course_uuid);
@@ -111,17 +113,34 @@ function ActivityActions({ activity, activityid, course, orgslug, assignment, sh
 
   // Add SWR for trail data
   const { data: trailData } = useSWR(
-    `${getAPIUrl()}trail/org/${org?.id}/trail`,
+    guestMode
+      ? (org?.id ? `${getAPIUrl()}trail/org/${org?.id}/trail` : null)
+      : (!org?.id || !access_token ? null : `${getAPIUrl()}trail/org/${org?.id}/trail`),
     (url) => swrFetcher(url, access_token)
   );
-
 
   return (
     <div className="flex space-x-2 items-center">
       {activity && activity.published == true && activity.content.paid_access != false && (
-        <AuthenticatedClientElement checkMethod="authentication">
-          {activity.activity_type != 'TYPE_ASSIGNMENT' && (
-            <>
+        guestMode ? (
+          <>
+            {activity.activity_type != 'TYPE_ASSIGNMENT' && (
+              <MarkStatus
+                activity={activity}
+                activityid={activityid}
+                course={course}
+                orgslug={orgslug}
+                trailData={trailData}
+                guestMode={true}
+              />
+            )}
+            {showNavigation && (
+              <NextActivityButton course={course} currentActivityId={activity.id} orgslug={orgslug} guestMode={true} />
+            )}
+          </>
+        ) : (
+          <AuthenticatedClientElement checkMethod="authentication">
+            {activity.activity_type != 'TYPE_ASSIGNMENT' && (
               <MarkStatus
                 activity={activity}
                 activityid={activityid}
@@ -129,10 +148,8 @@ function ActivityActions({ activity, activityid, course, orgslug, assignment, sh
                 orgslug={orgslug}
                 trailData={trailData}
               />
-            </>
-          )}
-          {activity.activity_type == 'TYPE_ASSIGNMENT' && (
-            <>
+            )}
+            {activity.activity_type == 'TYPE_ASSIGNMENT' && (
               <AssignmentSubmissionProvider assignment_uuid={assignment?.assignment_uuid}>
                 <AssignmentTools
                   assignment={assignment}
@@ -142,12 +159,12 @@ function ActivityActions({ activity, activityid, course, orgslug, assignment, sh
                   orgslug={orgslug}
                 />
               </AssignmentSubmissionProvider>
-            </>
-          )}
-          {showNavigation && (
-            <NextActivityButton course={course} currentActivityId={activity.id} orgslug={orgslug} />
-          )}
-        </AuthenticatedClientElement>
+            )}
+            {showNavigation && (
+              <NextActivityButton course={course} currentActivityId={activity.id} orgslug={orgslug} />
+            )}
+          </AuthenticatedClientElement>
+        )
       )}
     </div>
   );
@@ -156,6 +173,7 @@ function ActivityActions({ activity, activityid, course, orgslug, assignment, sh
 function ActivityClient(props: ActivityClientProps) {
   const { t } = useTranslation()
   const activityid = props.activityid
+  const guestMode = props.guestMode === true
 
   function getRelativeTime(date: Date): string {
     const now = new Date();
@@ -190,6 +208,7 @@ function ActivityClient(props: ActivityClientProps) {
   const [markStatusButtonActive, setMarkStatusButtonActive] = React.useState(false);
   const [isFocusMode, setIsFocusMode] = React.useState(false);
   const isInitialRender = useRef(true);
+  const hasAttemptedGuestCourseStart = useRef(false)
   const { contributorStatus } = useContributorStatus(courseuuid);
   const router = useRouter();
 
@@ -223,11 +242,23 @@ function ActivityClient(props: ActivityClientProps) {
     }
   }, [activityid, activityUuidForTracking, courseUuidForTracking, activityTypeForTracking, track])
 
-  // Add SWR for trail data
   const { data: trailData, error: error } = useSWR(
-    `${getAPIUrl()}trail/org/${org?.id}/trail`,
+    guestMode
+      ? (org?.id ? `${getAPIUrl()}trail/org/${org?.id}/trail` : null)
+      : (!org?.id || !access_token ? null : `${getAPIUrl()}trail/org/${org?.id}/trail`),
     (url) => swrFetcher(url, access_token)
   )
+  const effectiveTrailData = trailData
+
+  useEffect(() => {
+    if (!guestMode || !org?.id || !course?.course_uuid) return
+    if (hasAttemptedGuestCourseStart.current) return
+    hasAttemptedGuestCourseStart.current = true
+
+    startCourse(course.course_uuid, orgslug, access_token)
+      .then(() => mutate(`${getAPIUrl()}trail/org/${org?.id}/trail`))
+      .catch(() => {})
+  }, [guestMode, org?.id, course?.course_uuid, orgslug, access_token])
 
   // Memoize activity position calculation
   const { allActivities, currentIndex } = useActivityPosition(course, activityid);
@@ -295,7 +326,8 @@ function ActivityClient(props: ActivityClientProps) {
     if (!activity) return;
     
     const cleanCourseUuid = course.course_uuid?.replace('course_', '');
-    router.push(getUriWithOrg(orgslug, '') + `/course/${cleanCourseUuid}/activity/${activity.cleanUuid}`);
+    const basePath = guestMode ? '/onboarding/course' : '/course'
+    router.push(getUriWithOrg(orgslug, '') + `${basePath}/${cleanCourseUuid}/activity/${activity.cleanUuid}`);
   };
 
   // Initialize focus mode from localStorage
@@ -405,17 +437,17 @@ function ActivityClient(props: ActivityClientProps) {
                                 fill="none"
                                 strokeLinecap="round"
                                 strokeDasharray={2 * Math.PI * 14}
-                                strokeDashoffset={2 * Math.PI * 14 * (1 - (trailData?.runs?.find((run: any) => run.course_uuid === course.course_uuid)?.steps?.filter((step: any) => step.complete)?.length || 0) / (course.chapters?.reduce((acc: number, chapter: any) => acc + chapter.activities.length, 0) || 1))}
+                                strokeDashoffset={2 * Math.PI * 14 * (1 - (effectiveTrailData?.runs?.find((run: any) => run.course_uuid === course.course_uuid)?.steps?.filter((step: any) => step.complete)?.length || 0) / (course.chapters?.reduce((acc: number, chapter: any) => acc + chapter.activities.length, 0) || 1))}
                               />
                             </svg>
                             <div className="absolute inset-0 flex items-center justify-center">
                               <span className="text-xs font-bold text-gray-800">
-                                {Math.round(((trailData?.runs?.find((run: any) => run.course_uuid === course.course_uuid)?.steps?.filter((step: any) => step.complete)?.length || 0) / (course.chapters?.reduce((acc: number, chapter: any) => acc + chapter.activities.length, 0) || 1)) * 100)}%
+                                {Math.round(((effectiveTrailData?.runs?.find((run: any) => run.course_uuid === course.course_uuid)?.steps?.filter((step: any) => step.complete)?.length || 0) / (course.chapters?.reduce((acc: number, chapter: any) => acc + chapter.activities.length, 0) || 1)) * 100)}%
                               </span>
                             </div>
                           </div>
                           <div className="text-xs text-gray-600">
-                            {trailData?.runs?.find((run: any) => run.course_uuid === course.course_uuid)?.steps?.filter((step: any) => step.complete)?.length || 0} {t('common.of')} {course.chapters?.reduce((acc: number, chapter: any) => acc + chapter.activities.length, 0) || 0}
+                            {effectiveTrailData?.runs?.find((run: any) => run.course_uuid === course.course_uuid)?.steps?.filter((step: any) => step.complete)?.length || 0} {t('common.of')} {course.chapters?.reduce((acc: number, chapter: any) => acc + chapter.activities.length, 0) || 0}
                           </div>
                         </motion.div>
                         
@@ -473,7 +505,7 @@ function ActivityClient(props: ActivityClientProps) {
                             course={course}
                             currentActivityId={activity.activity_uuid ? activity.activity_uuid.replace('activity_', '') : activityid.replace('activity_', '')}
                             orgslug={orgslug}
-                            trailData={trailData}
+                            trailData={effectiveTrailData}
                           />
                           <motion.button
                             whileHover={{ scale: 1.05 }}
@@ -554,6 +586,7 @@ function ActivityClient(props: ActivityClientProps) {
                               orgslug={orgslug}
                               assignment={assignment}
                               showNavigation={false}
+                              guestMode={guestMode}
                             />
                             <button
                               onClick={() => navigateToActivity(nextActivity)}
@@ -590,7 +623,8 @@ function ActivityClient(props: ActivityClientProps) {
                     courseUuid={course.course_uuid}
                     thumbnailImage={course.thumbnail_image}
                     course={course}
-                    trailData={trailData}
+                    trailData={effectiveTrailData}
+                    guestMode={guestMode}
                   />
                 ) : (
                   <div className="space-y-4 pt-0 relative">
@@ -647,7 +681,7 @@ function ActivityClient(props: ActivityClientProps) {
                           orgslug={orgslug}
                           course={course}
                           enableNavigation={true}
-                          trailData={trailData}
+                          trailData={effectiveTrailData}
                         />
 
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center w-full gap-3">
@@ -745,7 +779,7 @@ function ActivityClient(props: ActivityClientProps) {
                                       course={course}
                                       currentActivityId={activity.activity_uuid ? activity.activity_uuid.replace('activity_', '') : activityid.replace('activity_', '')}
                                       orgslug={orgslug}
-                                      trailData={trailData}
+                                      trailData={effectiveTrailData}
                                     />
                                     {contributorStatus === 'ACTIVE' && activity.activity_type == 'TYPE_DYNAMIC' && (
                                       <Link
@@ -812,6 +846,7 @@ function ActivityClient(props: ActivityClientProps) {
                               course={course}
                               currentActivityId={activity.id}
                               orgslug={orgslug}
+                              guestMode={guestMode}
                             />
                           </div>
                           <div className="flex items-center justify-between sm:justify-end space-x-2 order-2 sm:order-none">
@@ -822,11 +857,13 @@ function ActivityClient(props: ActivityClientProps) {
                               orgslug={orgslug}
                               assignment={assignment}
                               showNavigation={false}
+                              guestMode={guestMode}
                             />
                             <NextActivityButton
                               course={course}
                               currentActivityId={activity.id}
                               orgslug={orgslug}
+                              guestMode={guestMode}
                             />
                           </div>
                         </div>
@@ -862,6 +899,7 @@ export function MarkStatus(props: {
   course: any
   orgslug: string,
   trailData: any
+  guestMode?: boolean
 }) {
   const { t } = useTranslation()
   const router = useRouter()
@@ -946,18 +984,29 @@ export function MarkStatus(props: {
       const willCompleteAll = areAllActivitiesCompleted();
       setIsLoading(true);
       
-      await markActivityAsComplete(
-        props.orgslug,
-        props.course.course_uuid,
-        props.activity.activity_uuid,
-        session.data?.tokens?.access_token
-      );
-
+      if (props.guestMode) {
+        await markActivityAsComplete(
+          props.orgslug,
+          props.course.course_uuid,
+          props.activity.activity_uuid,
+          session.data?.tokens?.access_token
+        );
+      } else {
+        await markActivityAsComplete(
+          props.orgslug,
+          props.course.course_uuid,
+          props.activity.activity_uuid,
+          session.data?.tokens?.access_token
+        );
+      }
       await mutate(`${getAPIUrl()}trail/org/${org?.id}/trail`);
       
       if (willCompleteAll) {
         const cleanCourseUuid = props.course.course_uuid.replace('course_', '');
-        router.push(getUriWithOrg(props.orgslug, '') + `/course/${cleanCourseUuid}/activity/end`);
+        const nextPath = props.guestMode
+          ? `/onboarding/course/${cleanCourseUuid}/activity/end`
+          : `/course/${cleanCourseUuid}/activity/end`
+        router.push(getUriWithOrg(props.orgslug, '') + nextPath);
       }
     } catch (error) {
       console.error('Error marking activity as complete:', error);
@@ -971,13 +1020,21 @@ export function MarkStatus(props: {
     try {
       setIsLoading(true);
       
-      await unmarkActivityAsComplete(
-        props.orgslug,
-        props.course.course_uuid,
-        props.activity.activity_uuid,
-        session.data?.tokens?.access_token
-      );
-
+      if (props.guestMode) {
+        await unmarkActivityAsComplete(
+          props.orgslug,
+          props.course.course_uuid,
+          props.activity.activity_uuid,
+          session.data?.tokens?.access_token
+        );
+      } else {
+        await unmarkActivityAsComplete(
+          props.orgslug,
+          props.course.course_uuid,
+          props.activity.activity_uuid,
+          session.data?.tokens?.access_token
+        );
+      }
       await mutate(`${getAPIUrl()}trail/org/${org?.id}/trail`);
     } catch (error) {
       toast.error(t('activities.failed_unmark_complete'));
@@ -1012,7 +1069,7 @@ export function MarkStatus(props: {
   }
 
   // Don't show progress tracking for non-members
-  if (!isUserPartOfTheOrg) {
+  if (!props.guestMode && !isUserPartOfTheOrg) {
     return null;
   }
 
@@ -1119,7 +1176,7 @@ export function MarkStatus(props: {
   )
 }
 
-function NextActivityButton({ course, currentActivityId, orgslug }: { course: any, currentActivityId: string, orgslug: string }) {
+function NextActivityButton({ course, currentActivityId, orgslug, guestMode = false }: { course: any, currentActivityId: string, orgslug: string, guestMode?: boolean }) {
   const { t } = useTranslation();
   const router = useRouter();
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -1155,7 +1212,8 @@ function NextActivityButton({ course, currentActivityId, orgslug }: { course: an
 
   const navigateToActivity = () => {
     const cleanCourseUuid = course.course_uuid?.replace('course_', '');
-    router.push(getUriWithOrg(orgslug, '') + `/course/${cleanCourseUuid}/activity/${nextActivity.cleanUuid}`);
+    const basePath = guestMode ? '/onboarding/course' : '/course'
+    router.push(getUriWithOrg(orgslug, '') + `${basePath}/${cleanCourseUuid}/activity/${nextActivity.cleanUuid}`);
   };
 
   return (
@@ -1172,7 +1230,7 @@ function NextActivityButton({ course, currentActivityId, orgslug }: { course: an
   );
 }
 
-function PreviousActivityButton({ course, currentActivityId, orgslug }: { course: any, currentActivityId: string, orgslug: string }) {
+function PreviousActivityButton({ course, currentActivityId, orgslug, guestMode = false }: { course: any, currentActivityId: string, orgslug: string, guestMode?: boolean }) {
   const { t } = useTranslation();
   const router = useRouter();
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -1208,7 +1266,8 @@ function PreviousActivityButton({ course, currentActivityId, orgslug }: { course
 
   const navigateToActivity = () => {
     const cleanCourseUuid = course.course_uuid?.replace('course_', '');
-    router.push(getUriWithOrg(orgslug, '') + `/course/${cleanCourseUuid}/activity/${previousActivity.cleanUuid}`);
+    const basePath = guestMode ? '/onboarding/course' : '/course'
+    router.push(getUriWithOrg(orgslug, '') + `${basePath}/${cleanCourseUuid}/activity/${previousActivity.cleanUuid}`);
   };
 
   return (

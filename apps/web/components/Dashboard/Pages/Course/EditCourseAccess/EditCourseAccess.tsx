@@ -40,6 +40,7 @@ function EditCourseAccess(props: EditCourseAccessProps) {
 
     // Track local public state
     const [isClientPublic, setIsClientPublic] = useState<boolean | undefined>(undefined);
+    const [isGuestAccessEnabled, setIsGuestAccessEnabled] = useState<boolean>(false);
     const hasInitializedRef = useRef(false);
     const previousPublicRef = useRef<boolean | undefined>(undefined);
 
@@ -47,10 +48,11 @@ function EditCourseAccess(props: EditCourseAccessProps) {
     useEffect(() => {
         if (!isLoading && courseStructure?.public !== undefined && !hasInitializedRef.current) {
             setIsClientPublic(courseStructure.public);
+            setIsGuestAccessEnabled(courseStructure.guest_access === true);
             previousPublicRef.current = courseStructure.public;
             hasInitializedRef.current = true;
         }
-    }, [isLoading, courseStructure?.public]);
+    }, [isLoading, courseStructure?.public, courseStructure?.guest_access]);
 
     // Sync public state changes to context
     useEffect(() => {
@@ -138,6 +140,30 @@ function EditCourseAccess(props: EditCourseAccessProps) {
                                 functionToExecute={() => handleSetPublic(false)}
                                 status="info"
                             />
+                        </div>
+                        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <h3 className="text-base font-semibold text-slate-800">Guest onboarding access</h3>
+                                    <p className="mt-1 text-sm text-slate-500">
+                                        Let signed-out visitors open this published course directly and keep onboarding progress until they create an account.
+                                    </p>
+                                </div>
+                                <label className="inline-flex items-center gap-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={isGuestAccessEnabled}
+                                        onChange={(e) => {
+                                            const checked = e.target.checked
+                                            setIsGuestAccessEnabled(checked)
+                                            syncChanges({ guest_access: checked }, true)
+                                        }}
+                                    />
+                                    <span className="text-sm font-medium text-slate-700">
+                                        {isGuestAccessEnabled ? 'Enabled' : 'Disabled'}
+                                    </span>
+                                </label>
+                            </div>
                         </div>
                         {!isClientPublic && <UserGroupsSection usergroups={usergroups} />}
                     </div>

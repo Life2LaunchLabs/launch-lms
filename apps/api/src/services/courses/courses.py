@@ -284,6 +284,37 @@ async def get_course_meta(
     return course_read
 
 
+async def get_guest_onboarding_course_by_orgslug(
+    request: Request,
+    current_user: PublicUser | AnonymousUser,
+    org_slug: str,
+    db_session: Session,
+) -> FullCourseRead:
+    statement = (
+        select(Course, Organization)
+        .join(Organization, Organization.id == Course.org_id)  # type: ignore
+        .where(
+            Organization.slug == org_slug,
+            Course.guest_access == True,
+            Course.published == True,
+        )
+        .order_by(Course.id.asc())  # type: ignore
+    )
+    result = db_session.exec(statement).first()
+
+    if not result:
+        raise HTTPException(status_code=404, detail="No guest onboarding course found")
+
+    course, _org = result
+    return await get_course_meta(
+        request=request,
+        course_uuid=course.course_uuid,
+        with_unpublished_activities=False,
+        current_user=current_user,
+        db_session=db_session,
+    )
+
+
 async def get_courses_orgslug(
     request: Request,
     current_user: PublicUser | AnonymousUser,
@@ -1487,7 +1518,7 @@ async def get_course_user_rights(
     # Handle anonymous users
     if current_user.id == 0:
         # Anonymous users can only read public courses
-        if course.public:
+        if course.public or course.guest_access:
             rights["permissions"]["read"] = True
         return rights
 
@@ -1548,7 +1579,7 @@ async def get_course_user_rights(
     is_instructor = rights["roles"]["is_instructor"]
 
     # READ permissions
-    if course.public or is_course_owner or is_admin or is_maintainer_role or is_instructor or has_user_permissions:
+    if course.public or course.guest_access or is_course_owner or is_admin or is_maintainer_role or is_instructor or has_user_permissions:
         rights["permissions"]["read"] = True
 
     # CREATE permissions (course creation)

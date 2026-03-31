@@ -20,7 +20,6 @@ export default function QuizLaunchButton({ activity }: Props) {
   const [existingResult, setExistingResult] = useState<any>(undefined) // undefined = loading
 
   useEffect(() => {
-    if (!access_token) { setExistingResult(null); return }
     getMyQuizResult(activity.activity_uuid, access_token)
       .then(r => setExistingResult(r ?? null))
       .catch(() => setExistingResult(null))

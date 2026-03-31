@@ -33,8 +33,13 @@ class TrailRun(SQLModel, table=True):
     org_id: int = Field(
         sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"))
     )
-    user_id: int = Field(
-        sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True)
+    user_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=True, index=True)
+    )
+    guest_session_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(Integer, ForeignKey("guestsession.id", ondelete="CASCADE"), nullable=True, index=True)
     )
     # timestamps
     creation_date: str
@@ -47,7 +52,8 @@ class TrailRunCreate(SQLModel):
     trail_id: int
     course_id: int
     org_id: int
-    user_id: int
+    user_id: Optional[int] = None
+    guest_session_id: Optional[int] = None
     creation_date: str
     update_date: str
 
@@ -62,6 +68,7 @@ class TrailRunRead(BaseModel):
     course_id: Optional[int] = None
     org_id: Optional[int] = None
     user_id: Optional[int] = None
+    guest_session_id: Optional[int] = None
     # course object
     course: Optional[dict] = None
     # timestamps

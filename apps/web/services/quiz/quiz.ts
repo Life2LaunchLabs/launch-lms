@@ -6,7 +6,7 @@ const base = () => `${getAPIUrl()}quizzes`
 export async function submitQuizAttempt(
   activityUuid: string,
   payload: { answers: { question_uuid: string; answer_json: any }[] },
-  access_token: string
+  access_token?: string
 ) {
   const res = await fetch(
     `${base()}/${activityUuid}/attempts`,
@@ -18,7 +18,7 @@ export async function submitQuizAttempt(
 
 export async function getMyQuizResult(
   activityUuid: string,
-  access_token: string
+  access_token?: string
 ): Promise<any | null> {
   const res = await fetch(
     `${base()}/${activityUuid}/my-result`,

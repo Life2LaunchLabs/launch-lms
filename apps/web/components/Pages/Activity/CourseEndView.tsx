@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 const ReactConfetti = dynamic(() => import('react-confetti'), { ssr: false });
-import { Trophy, ArrowLeft, BookOpen, Target, Download, Shield } from 'lucide-react';
+import { Trophy, ArrowLeft, BookOpen, Target, Download, Shield, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { getUriWithOrg } from '@services/config/config';
 import { getCourseThumbnailMediaDirectory } from '@services/media/media';
@@ -19,6 +19,7 @@ interface CourseEndViewProps {
   thumbnailImage: string;
   course: any;
   trailData: any;
+  guestMode?: boolean;
 }
 
 const CourseEndView: React.FC<CourseEndViewProps> = ({ 
@@ -27,7 +28,8 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
   courseUuid, 
   thumbnailImage, 
   course, 
-  trailData 
+  trailData,
+  guestMode = false,
 }) => {
   const { t, i18n } = useTranslation();
   const { width, height } = useWindowSize();
@@ -78,6 +80,7 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
   // Fetch user certificate when course is completed
   useEffect(() => {
     const fetchUserCertificate = async () => {
+      if (guestMode) return;
       if (!isCourseCompleted) return;
 
       if (!session?.data?.tokens?.access_token) {
@@ -113,7 +116,7 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
     };
 
     fetchUserCertificate();
-  }, [isCourseCompleted, courseUuid, session?.data?.tokens?.access_token, org?.id]);
+  }, [guestMode, isCourseCompleted, courseUuid, session?.data?.tokens?.access_token, org?.id]);
 
   // Generate PDF using canvas
   const downloadCertificate = async () => {
@@ -413,6 +416,61 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
       percentage: progressPercentage
     };
   }, [trailData, course, isCourseCompleted]);
+
+  if (guestMode) {
+    const signupHref = getUriWithOrg(
+      orgslug,
+      `/signup?next=${encodeURIComponent(getUriWithOrg(orgslug, `/onboarding/course/${courseUuid.replace('course_', '')}/activity/end`))}`
+    )
+
+    if (isCourseCompleted) {
+      return (
+        <div className="min-h-[70vh] flex flex-col items-center justify-center text-center px-4 relative overflow-hidden">
+          <div className="fixed inset-0 pointer-events-none">
+            <ReactConfetti
+              width={width}
+              height={height}
+              numberOfPieces={160}
+              recycle={false}
+              colors={['#2563eb', '#10b981', '#f59e0b']}
+            />
+          </div>
+
+          <div className="bg-white rounded-2xl p-8 nice-shadow max-w-3xl w-full space-y-6 relative z-10">
+            <div className="flex flex-col items-center space-y-6">
+              <div className="bg-emerald-100 p-4 rounded-full">
+                <Trophy className="w-16 h-16 text-emerald-600" />
+              </div>
+            </div>
+
+            <h1 className="text-4xl font-bold text-gray-900">{t('courses.congratulations')}</h1>
+            <p className="text-xl text-gray-600">
+              You finished <span className="font-semibold text-gray-900">{courseName}</span>.
+            </p>
+            <p className="text-gray-500">
+              Create your account to save this onboarding progress to your new profile.
+            </p>
+
+            <div className="flex flex-col sm:flex-row justify-center gap-3 pt-4">
+              <Link
+                href={signupHref}
+                className="inline-flex items-center justify-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-full hover:bg-blue-700 transition duration-200"
+              >
+                <UserPlus className="w-5 h-5" />
+                <span>Create Account</span>
+              </Link>
+              <Link
+                href={getUriWithOrg(orgslug, `/login?next=${encodeURIComponent(getUriWithOrg(orgslug, `/onboarding/course/${courseUuid.replace('course_', '')}/activity/end`))}`)}
+                className="inline-flex items-center justify-center space-x-2 bg-gray-100 text-gray-800 px-6 py-3 rounded-full hover:bg-gray-200 transition duration-200"
+              >
+                <span>Log In</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      );
+    }
+  }
 
   if (isCourseCompleted) {
     // Show congratulations for completed course

@@ -25,6 +25,10 @@ class UserCreate(UserBase):
     password: str
 
 
+class UserSignupCreate(UserCreate):
+    pass
+
+
 class UserUpdate(UserBase):
     username: str
     first_name: Optional[str] = None

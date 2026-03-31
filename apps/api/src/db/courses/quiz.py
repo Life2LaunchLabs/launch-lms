@@ -11,8 +11,13 @@ class QuizAttempt(SQLModel, table=True):
     activity_id: int = Field(
         sa_column=Column(Integer, ForeignKey("activity.id", ondelete="CASCADE"), index=True)
     )
-    user_id: int = Field(
-        sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True)
+    user_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=True, index=True)
+    )
+    guest_session_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(Integer, ForeignKey("guestsession.id", ondelete="CASCADE"), nullable=True, index=True)
     )
     org_id: int = Field(
         sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"))
@@ -66,7 +71,8 @@ class QuizAttemptRead(SQLModel):
     id: int
     attempt_uuid: str
     activity_id: int
-    user_id: int
+    user_id: Optional[int]
+    guest_session_id: Optional[int] = None
     started_at: datetime
     completed_at: Optional[datetime]
 

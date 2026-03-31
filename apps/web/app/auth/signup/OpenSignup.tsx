@@ -1,7 +1,7 @@
 'use client'
 import { useFormik } from 'formik'
-import { useRouter } from 'next/navigation'
-import React, { useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
+import React from 'react'
 import FormLayout, {
   FormField,
   FormLabelAndMessage,
@@ -51,9 +51,10 @@ function OpenSignUpComponent() {
   const { t } = useTranslation()
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const org = useOrg() as any
-  const router = useRouter()
+  const searchParams = useSearchParams()
   const [error, setError] = React.useState('')
   const [message, setMessage] = React.useState('')
+  const nextUrl = searchParams.get('next')
   const formik = useFormik({
     initialValues: {
       org_slug: org?.slug,
@@ -91,8 +92,6 @@ function OpenSignUpComponent() {
     },
   })
 
-  useEffect(() => { }, [org])
-
   const handleGoogleSignIn = () => {
     // Store org context in cookies before OAuth redirect
     if (org?.slug) {
@@ -105,7 +104,7 @@ function OpenSignUpComponent() {
       document.cookie = `learnhouse_oauth_org_id=${org.id}${baseAttributes}${domainAttr}`;
     }
     // Use absolute URL with current origin for custom domain support
-    signIn('google', { callbackUrl: `${window.location.origin}/redirect_from_auth` });
+    signIn('google', { callbackUrl: nextUrl || `${window.location.origin}/redirect_from_auth` });
   };
 
   return (
@@ -133,7 +132,7 @@ function OpenSignUpComponent() {
             {t('auth.verification_email_sent_message')}
           </p>
           <hr className="border-green-200" />
-          <Link className="flex items-center gap-2 text-sm font-medium hover:underline" href="/login">
+          <Link className="flex items-center gap-2 text-sm font-medium hover:underline" href={nextUrl ? `/login?next=${encodeURIComponent(nextUrl)}` : '/login'}>
             <User size={14} />
             <span>{t('auth.login')}</span>
           </Link>
@@ -271,7 +270,7 @@ function OpenSignUpComponent() {
       {/* Login Link */}
       <p className="text-center text-gray-600 mt-6">
         {t('auth.already_have_account')}{' '}
-        <Link href="/login" className="font-semibold text-gray-900 hover:underline">
+        <Link href={nextUrl ? `/login?next=${encodeURIComponent(nextUrl)}` : '/login'} className="font-semibold text-gray-900 hover:underline">
           {t('auth.login')}
         </Link>
       </p>

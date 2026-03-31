@@ -220,6 +220,7 @@ export async function signup(body: NewAccountBody): Promise<any> {
     headers: HeadersConfig,
     body: JSON.stringify(body),
     redirect: 'follow',
+    credentials: 'include',
   }
 
   const res = await fetch(`${getAPIUrl()}users/${body.org_id}`, requestOptions)
@@ -238,6 +239,7 @@ export async function signUpWithInviteCode(
     headers: HeadersConfig,
     body: JSON.stringify(body),
     redirect: 'follow',
+    credentials: 'include',
   }
 
   const res = await fetch(

@@ -1,7 +1,7 @@
 import json
 import logging
 from typing import Literal, List, Optional, Union
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, UploadFile, Query
 from pydantic import BaseModel, EmailStr
 from sqlmodel import Session
 import redis
@@ -25,6 +25,7 @@ from src.db.users import (
     UserRead,
     UserReadPublic,
     UserSession,
+    UserSignupCreate,
     UserUpdate,
     UserUpdatePassword,
 )
@@ -43,6 +44,7 @@ from src.services.users.users import (
     update_user_password,
 )
 from src.services.courses.courses import get_user_courses
+from src.services.guest_sessions import transfer_guest_session_data_to_user
 
 
 logger = logging.getLogger(__name__)
@@ -152,9 +154,10 @@ async def api_get_authorization_status(
 async def api_create_user_with_orgid(
     *,
     request: Request,
+    response: Response,
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
-    user_object: UserCreate,
+    user_object: UserSignupCreate,
     org_id: int,
 ) -> UserRead:
     """
@@ -171,16 +174,30 @@ async def api_create_user_with_orgid(
             detail="You need an invite to join this organization",
         )
     else:
-        return await create_user(request, db_session, current_user, user_object, org_id)
+        user = await create_user(
+            request,
+            db_session,
+            current_user,
+            user_object,
+            org_id,
+        )
+        transfer_guest_session_data_to_user(
+            request=request,
+            response=response,
+            db_session=db_session,
+            user=PublicUser.model_validate(user),
+        )
+        return user
 
 
 @router.post("/{org_id}/invite/{invite_code}", response_model=UserRead, tags=["users"])
 async def api_create_user_with_orgid_and_invite(
     *,
     request: Request,
+    response: Response,
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
-    user_object: UserCreate,
+    user_object: UserSignupCreate,
     invite_code: str,
     org_id: int,
 ) -> UserRead:
@@ -193,9 +210,16 @@ async def api_create_user_with_orgid_and_invite(
         await get_org_join_mechanism(request, org_id, current_user, db_session)
         == "inviteOnly"
     ):
-        return await create_user_with_invite(
+        user = await create_user_with_invite(
             request, db_session, current_user, user_object, org_id, invite_code
         )
+        transfer_guest_session_data_to_user(
+            request=request,
+            response=response,
+            db_session=db_session,
+            user=PublicUser.model_validate(user),
+        )
+        return user
     else:
         raise HTTPException(
             status_code=403,
@@ -207,6 +231,7 @@ async def api_create_user_with_orgid_and_invite(
 async def api_create_user_without_org(
     *,
     request: Request,
+    response: Response,
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
     user_object: UserCreate,
@@ -214,7 +239,14 @@ async def api_create_user_without_org(
     """
     Create User
     """
-    return await create_user_without_org(request, db_session, current_user, user_object)
+    user = await create_user_without_org(request, db_session, current_user, user_object)
+    transfer_guest_session_data_to_user(
+        request=request,
+        response=response,
+        db_session=db_session,
+        user=PublicUser.model_validate(user),
+    )
+    return user
 
 
 @router.get("/id/{user_id}", response_model=UserReadPublic, tags=["users"])
