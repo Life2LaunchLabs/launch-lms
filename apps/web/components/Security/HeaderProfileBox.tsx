@@ -40,7 +40,7 @@ interface CustomRoleInfo {
   description?: string;
 }
 
-export const HeaderProfileBox = ({ primaryColor = '' }: { primaryColor?: string }) => {
+export const HeaderProfileBox = ({ primaryColor = '', compact = false }: { primaryColor?: string; compact?: boolean }) => {
   const session = useLHSession() as any
   const { isAdmin, loading, userRoles, rights } = useAdminStatus()
   const org = useOrg() as any
@@ -171,13 +171,18 @@ export const HeaderProfileBox = ({ primaryColor = '' }: { primaryColor?: string 
           <div className="flex items-center space-x-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
+                {compact ? (
+                  <button className={`cursor-pointer flex items-center rounded-lg p-1.5 transition-colors ${colors.profileHover}`}>
+                    <UserAvatar border="border-2" rounded="rounded-lg" width={30} shadow={primaryColor ? '' : undefined} />
+                  </button>
+                ) : (
                 <button className={`cursor-pointer flex items-center space-x-3 rounded-lg p-2 transition-colors ${colors.profileHover}`}>
                   <UserAvatar border="border-2" rounded="rounded-lg" width={30} shadow={primaryColor ? '' : undefined} />
                   <div className="flex flex-col items-start space-y-0">
                     <div className="flex items-center space-x-2">
                       <p className={`text-sm font-semibold capitalize ${colors.profileName}`}>{session.data.user.username}</p>
                       {userRoleInfo && userRoleInfo.name !== 'USER' && (
-                        <Tooltip 
+                        <Tooltip
                           content={userRoleInfo.description}
                           sideOffset={15}
                           side="bottom"
@@ -190,7 +195,7 @@ export const HeaderProfileBox = ({ primaryColor = '' }: { primaryColor?: string 
                       )}
                       {/* Custom roles */}
                       {customRoles.map((customRole, index) => (
-                        <Tooltip 
+                        <Tooltip
                           key={index}
                           content={customRole.description || `${t('roles.custom_role')}: ${customRole.name}`}
                           sideOffset={15}
@@ -207,6 +212,7 @@ export const HeaderProfileBox = ({ primaryColor = '' }: { primaryColor?: string 
                   </div>
                   <CaretDown aria-hidden="true" size={16} weight="fill" className={colors.profileMuted} />
                 </button>
+                )}
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end">
                 <DropdownMenuLabel>

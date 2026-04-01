@@ -8,6 +8,7 @@ import { getUriWithOrg } from '@services/config/config'
 import { fetchRAGChatSessions, RAGChatSession } from '@services/ai/ai'
 import { HeaderProfileBox } from '@components/Security/HeaderProfileBox'
 import MenuLinks from './OrgMenuLinks'
+import { OrgMenuSidebar } from './OrgMenuSidebar'
 import { getOrgLogoMediaDirectory } from '@services/media/media'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
@@ -23,7 +24,6 @@ import {
   ChatCircle,
   SquaresFour,
   ChalkboardSimple,
-  Signpost,
 } from '@phosphor-icons/react'
 import { DiscordIcon } from '@components/Objects/Icons/DiscordIcon'
 import {
@@ -50,7 +50,6 @@ import {
 export const OrgMenu = (props: any) => {
   const orgslug = props.orgslug
   const session = useLHSession() as any;
-  const access_token = session?.data?.tokens?.access_token;
   const org = useOrg() as any;
   const [isMenuOpen, setIsMenuOpen] = React.useState(false)
   const [isFocusMode, setIsFocusMode] = useState(false)
@@ -149,59 +148,42 @@ export const OrgMenu = (props: any) => {
         }}
       >
         <div className="flex items-center justify-between w-full max-w-(--breakpoint-2xl) mx-auto px-4 sm:px-6 lg:px-8 h-full">
-          <div className="flex items-center space-x-5 md:w-auto w-full">
-            <div className="logo flex md:w-auto w-full justify-center">
-              <Link href={getUriWithOrg(orgslug, '/')}>
-                <div className="flex w-auto h-9 rounded-md items-center m-auto py-1 justify-center">
-                  {org?.logo_image ? (
-                    <img
-                      src={`${getOrgLogoMediaDirectory(org.org_uuid, org?.logo_image)}`}
-                      alt="Learnhouse"
-                      style={{ width: 'auto', height: '100%' }}
-                      className="rounded-md"
-                    />
-                  ) : (
-                    <LearnHouseLogo logoFilter={colors.logoFilter} />
-                  )}
-                </div>
-              </Link>
-            </div>
+          {/* Left: hamburger + logo + nav links (desktop only) */}
+          <div className="flex items-center gap-3">
+            <button
+              className={`p-1.5 rounded-lg focus:outline-hidden transition-colors ${colors.iconBtn}`}
+              onClick={toggleMenu}
+              aria-label="Open menu"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <Link href={getUriWithOrg(orgslug, '/')}>
+              <div className="flex w-auto h-9 rounded-md items-center m-auto py-1 justify-center">
+                {org?.logo_image ? (
+                  <img
+                    src={`${getOrgLogoMediaDirectory(org.org_uuid, org?.logo_image)}`}
+                    alt="Learnhouse"
+                    style={{ width: 'auto', height: '100%' }}
+                    className="rounded-md"
+                  />
+                ) : (
+                  <LearnHouseLogo logoFilter={colors.logoFilter} />
+                )}
+              </div>
+            </Link>
             <div className="hidden md:flex">
               <MenuLinks orgslug={orgslug} primaryColor={primaryColor} />
             </div>
           </div>
 
-          {/* Search Section */}
-          <div className="hidden md:flex flex-1 justify-center max-w-lg px-4">
-            <SearchBar orgslug={orgslug} className="w-full" primaryColor={primaryColor} />
-          </div>
-
+          {/* Right: desktop icons + search + user */}
           <div className="flex items-center space-x-2">
-            {/* Progress / Trail */}
+            {/* Desktop-only action icons */}
             <AuthenticatedClientElement checkMethod="authentication">
-              <div className="hidden md:flex">
-                <TooltipProvider delayDuration={0}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Link
-                        href={getUriWithOrg(orgslug, '/trail')}
-                        className={`p-2 rounded-lg transition-colors ${colors.iconBtn}`}
-                        aria-label={t('courses.progress')}
-                      >
-                        <Signpost size={20} weight="fill" />
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="text-xs">
-                      {t('courses.progress')}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            </AuthenticatedClientElement>
-            {/* Boards */}
-            {rf?.boards?.enabled && (
-              <AuthenticatedClientElement checkMethod="authentication">
-                <div className="hidden md:flex">
+              <div className="hidden md:flex items-center space-x-1">
+                {rf?.boards?.enabled && (
                   <TooltipProvider delayDuration={0}>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -218,13 +200,8 @@ export const OrgMenu = (props: any) => {
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                </div>
-              </AuthenticatedClientElement>
-            )}
-            {/* AI Copilot */}
-            {rf?.ai?.enabled && config?.admin_toggles?.ai?.copilot_enabled !== false && (
-              <AuthenticatedClientElement checkMethod="authentication">
-                <div className="hidden md:flex">
+                )}
+                {rf?.ai?.enabled && config?.admin_toggles?.ai?.copilot_enabled !== false && (
                   <CopilotMenuButton
                     orgslug={orgslug}
                     iconBtnClass={colors.iconBtn}
@@ -233,10 +210,11 @@ export const OrgMenu = (props: any) => {
                     bubbleOpen={bubbleOpen}
                     onOpenBubble={openBubbleWithSession}
                   />
-                </div>
-              </AuthenticatedClientElement>
-            )}
-            {/* Dashboard Dropdown - Only visible to admins */}
+                )}
+              </div>
+            </AuthenticatedClientElement>
+
+            {/* Dashboard Dropdown — desktop, admins only */}
             {session?.status === 'authenticated' && rights?.dashboard?.action_access && (
               <div className="hidden md:flex">
                 <DropdownMenu>
@@ -244,17 +222,12 @@ export const OrgMenu = (props: any) => {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <DropdownMenuTrigger asChild>
-                          <button
-                            className={`p-2 rounded-lg transition-colors ${colors.iconBtn}`}
-                            aria-label={t('common.dashboard')}
-                          >
+                          <button className={`p-2 rounded-lg transition-colors ${colors.iconBtn}`} aria-label={t('common.dashboard')}>
                             <SquaresFour size={20} weight="fill" />
                           </button>
                         </DropdownMenuTrigger>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom" className="text-xs">
-                        {t('common.dashboard')}
-                      </TooltipContent>
+                      <TooltipContent side="bottom" className="text-xs">{t('common.dashboard')}</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                   <DropdownMenuContent align="end" className="w-56">
@@ -279,7 +252,7 @@ export const OrgMenu = (props: any) => {
               </div>
             )}
 
-            {/* Help Dropdown - Only visible to admins/maintainers/instructors */}
+            {/* Help Dropdown — desktop, admins only */}
             {session?.status === 'authenticated' && rights?.dashboard?.action_access && (
               <div className="hidden md:flex">
                 <DropdownMenu>
@@ -287,17 +260,12 @@ export const OrgMenu = (props: any) => {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <DropdownMenuTrigger asChild>
-                          <button
-                            className={`p-2 rounded-lg transition-colors ${colors.iconBtn}`}
-                            aria-label={t('common.help')}
-                          >
+                          <button className={`p-2 rounded-lg transition-colors ${colors.iconBtn}`} aria-label={t('common.help')}>
                             <Question size={20} weight="fill" />
                           </button>
                         </DropdownMenuTrigger>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom" className="text-xs">
-                        {t('common.help')}
-                      </TooltipContent>
+                      <TooltipContent side="bottom" className="text-xs">{t('common.help')}</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                   <DropdownMenuContent align="end" className="w-56">
@@ -307,43 +275,25 @@ export const OrgMenu = (props: any) => {
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <a
-                        href="https://docs.learnhouse.app"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2"
-                      >
+                      <a href="https://docs.learnhouse.app" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
                         <Book size={16} weight="fill" />
                         <span>{t('common.help_menu.documentation')}</span>
                       </a>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <a
-                        href="https://learnhouse.app"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2"
-                      >
+                      <a href="https://learnhouse.app" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
                         <Globe size={16} weight="fill" />
                         <span>{t('common.help_menu.website')}</span>
                       </a>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <a
-                        href="https://discord.gg/learnhouse"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2"
-                      >
+                      <a href="https://discord.gg/learnhouse" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
                         <DiscordIcon size={16} />
                         <span>{t('common.help_menu.discord')}</span>
                       </a>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => setFeedbackModalOpen(true)}
-                      className="flex items-center gap-2"
-                    >
+                    <DropdownMenuItem onClick={() => setFeedbackModalOpen(true)} className="flex items-center gap-2">
                       <ChatCircleDots size={16} weight="fill" />
                       <span>{t('common.help_menu.report_feedback')}</span>
                     </DropdownMenuItem>
@@ -352,48 +302,31 @@ export const OrgMenu = (props: any) => {
               </div>
             )}
 
+            {/* Search — desktop full, mobile compact */}
+            <div className="hidden md:flex">
+              <SearchBar orgslug={orgslug} primaryColor={primaryColor} />
+            </div>
+            <div className="md:hidden flex">
+              <SearchBar orgslug={orgslug} isMobile={true} primaryColor={primaryColor} />
+            </div>
+
+            {/* User — desktop full (name+email), mobile compact (avatar only) */}
             <div className="hidden md:flex">
               <HeaderProfileBox primaryColor={primaryColor} />
             </div>
-            <button
-              className={`md:hidden focus:outline-hidden ${colors.text}`}
-              onClick={toggleMenu}
-            >
-              {isMenuOpen ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              )}
-            </button>
+            <div className="md:hidden flex">
+              <HeaderProfileBox primaryColor={primaryColor} compact />
+            </div>
           </div>
         </div>
       </nav>
-      <div
-        className={`fixed inset-x-0 bg-white/80 backdrop-blur-lg md:hidden shadow-lg transition-all duration-300 ease-in-out ${
-          isMenuOpen ? 'opacity-100' : '-top-full opacity-0'
-        }`}
-        style={{
-          zIndex: 'var(--z-nav-menu)',
-          top: isMenuOpen ? topOffset + 60 : undefined
-        }}
-      >
-        <div className="flex flex-col px-4 py-3 space-y-4 justify-center items-center">
-          {/* Mobile Search */}
-          <div className="w-full px-2">
-            <SearchBar orgslug={orgslug} isMobile={true} />
-          </div>
-          <div className='py-4'>
-            <MenuLinks orgslug={orgslug} />
-          </div>
-          <div className="border-t border-gray-200">
-            <HeaderProfileBox />
-          </div>
-        </div>
-      </div>
+
+      {/* Mobile sidebar */}
+      <OrgMenuSidebar
+        orgslug={orgslug}
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+      />
 
       {/* Feedback Modal */}
       <FeedbackModal
