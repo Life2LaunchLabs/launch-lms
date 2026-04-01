@@ -67,3 +67,16 @@ export async function updateQuizResults(
   if (!res.ok) throw new Error('Failed to update results')
   return res.json()
 }
+
+export async function updateQuizSettings(
+  activityUuid: string,
+  data: { quiz_mode?: 'categories' | 'graded'; grading_rules?: any },
+  access_token: string
+) {
+  const res = await fetch(
+    `${base()}/${activityUuid}/settings`,
+    RequestBodyWithAuthHeader('PUT', data, null, access_token)
+  )
+  if (!res.ok) throw new Error('Failed to update quiz settings')
+  return res.json()
+}

@@ -18,6 +18,27 @@ from src.services.courses.activities.versioning import create_activity_version
 logger = logging.getLogger(__name__)
 
 
+QUIZ_DEFAULT_DETAILS = {
+    "quiz_mode": "categories",
+    "grading_rules": {
+        "pass_percent": 70,
+        "max_attempts": None,
+    },
+    "scoring_vectors": [],
+    "category_scoring_vectors": [],
+    "graded_scoring_vectors": [
+        {
+            "key": "correct",
+            "label": "Correct",
+            "type": "binary",
+            "low_label": "False",
+            "high_label": "True",
+        }
+    ],
+    "option_scores": {},
+}
+
+
 ####################################################
 # CRUD
 ####################################################
@@ -53,7 +74,18 @@ async def create_activity(
     await check_resource_access(request, db_session, current_user, course.course_uuid, AccessAction.CREATE)
 
     # Create Activity
-    activity = Activity(**activity_object.model_dump())
+    activity_data = activity_object.model_dump()
+    if activity_data.get("activity_type") == "TYPE_QUIZ":
+        details = dict(activity_data.get("details") or {})
+        details.setdefault("quiz_mode", QUIZ_DEFAULT_DETAILS["quiz_mode"])
+        details.setdefault("grading_rules", dict(QUIZ_DEFAULT_DETAILS["grading_rules"]))
+        details.setdefault("scoring_vectors", [dict(vector) for vector in QUIZ_DEFAULT_DETAILS["scoring_vectors"]])
+        details.setdefault("category_scoring_vectors", [dict(vector) for vector in QUIZ_DEFAULT_DETAILS["category_scoring_vectors"]])
+        details.setdefault("graded_scoring_vectors", [dict(vector) for vector in QUIZ_DEFAULT_DETAILS["graded_scoring_vectors"]])
+        details.setdefault("option_scores", dict(QUIZ_DEFAULT_DETAILS["option_scores"]))
+        activity_data["details"] = details
+
+    activity = Activity(**activity_data)
 
     activity.activity_uuid = str(f"activity_{uuid4()}")
     activity.creation_date = str(datetime.now())

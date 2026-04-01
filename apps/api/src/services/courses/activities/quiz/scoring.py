@@ -5,7 +5,7 @@ Activity.details shape expected by these functions:
 {
   "scoring_vectors": [
     { "key": "extraversion", "label": "Extraversion",
-      "type": "unidirectional",           # "unidirectional" (0–1) or "bidirectional" (-1–1)
+      "type": "unidirectional",           # "unidirectional" (0–1), "bidirectional" (-1–1), or "binary" (false/true)
       "low_label": "Introvert",
       "high_label": "Extrovert" }
   ],
@@ -59,13 +59,14 @@ def compute_scores(
     """
     Aggregate per-vector scores from the options the user selected.
 
-    Returns a dict keyed by vector key, value in [0, 1] for unidirectional
-    or [-1, 1] for bidirectional, normalized by the number of select answers.
+    Returns a dict keyed by vector key, value in [0, 1] for unidirectional,
+    [-1, 1] for bidirectional, or 0/1 for binary vectors.
     """
     if not vectors:
         return {}
 
     vector_keys = [v["key"] for v in vectors]
+    vector_types = {v["key"]: v.get("type", "unidirectional") for v in vectors}
     totals: dict[str, float] = {k: 0.0 for k in vector_keys}
     select_count = 0
 
@@ -83,8 +84,15 @@ def compute_scores(
     if select_count == 0:
         return {k: 0.0 for k in vector_keys}
 
-    # Normalize by question count so the result is still in [0,1] / [-1,1]
-    return {k: totals[k] / select_count for k in vector_keys}
+    normalized: dict[str, float] = {}
+    for key in vector_keys:
+        avg = totals[key] / select_count
+        if vector_types.get(key) == "binary":
+            normalized[key] = 1.0 if avg >= 0.5 else 0.0
+        else:
+            normalized[key] = avg
+
+    return normalized
 
 
 def match_result_option(

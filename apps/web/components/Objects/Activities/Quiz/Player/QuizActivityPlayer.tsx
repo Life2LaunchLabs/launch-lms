@@ -6,6 +6,8 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { useCourse } from '@components/Contexts/CourseContext'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
 import { getMyQuizResult, submitQuizAttempt } from '@services/quiz/quiz'
+import { getAPIUrl } from '@services/config/config'
+import { mutate } from 'swr'
 import QuizResultsView from './QuizResultsView'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -24,6 +26,7 @@ interface SelectSlide {
   question_uuid: string
   question_text: string
   display_style?: 'image' | 'text'
+  show_responses?: boolean
   option_count: 2 | 3 | 4
   options: QuizOption[]
   background_gradient_seed?: string
@@ -399,6 +402,9 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
       })
       const r = await submitQuizAttempt(activity.activity_uuid, { answers: answerPayload }, access_token)
       setResult(r)
+      if (r?.result_json?.quiz_mode === 'graded' && r?.result_json?.graded_result?.passed && org?.id) {
+        void mutate(`${getAPIUrl()}trail/org/${org.id}/trail`)
+      }
       setShowResults(true)
     } catch {
       setShowResults(true)
@@ -424,7 +430,8 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
       const sel = currentSlide as SelectSlide
       const selUuid = answers.get(sel.question_uuid)
       const opt = selUuid ? sel.options.find(o => o.option_uuid === selUuid) : null
-      if (opt && (opt.info_message || opt.info_image_block_object)) {
+      const canShowResponse = sel.show_responses !== false
+      if (canShowResponse && opt && (opt.info_message || opt.info_image_block_object)) {
         openResponse()
         return
       }

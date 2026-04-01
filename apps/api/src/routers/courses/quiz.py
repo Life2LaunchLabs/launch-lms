@@ -9,6 +9,7 @@ from src.services.courses.activities.quiz.attempts import (
     submit_quiz_attempt,
     update_quiz_categories,
     update_quiz_scoring,
+    update_quiz_settings,
     update_quiz_results,
 )
 
@@ -88,4 +89,18 @@ async def api_update_quiz_results(
     """Save result options (teacher only)."""
     return await update_quiz_results(
         request, activity_uuid, results_data, current_user, db_session
+    )
+
+
+@router.put("/{activity_uuid}/settings")
+async def api_update_quiz_settings(
+    request: Request,
+    activity_uuid: str,
+    settings_data: dict,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session=Depends(get_db_session),
+):
+    """Save quiz mode and grading rules (teacher only)."""
+    return await update_quiz_settings(
+        request, activity_uuid, settings_data, current_user, db_session
     )

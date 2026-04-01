@@ -30,6 +30,9 @@ export default function QuizLaunchButton({ activity }: Props) {
 
   const hasResult = !!existingResult
   const loading = existingResult === undefined
+  const gradedResult = existingResult?.result_json?.graded_result
+  const attemptsRemaining = gradedResult?.attempts_remaining
+  const canRetake = attemptsRemaining === null || attemptsRemaining === undefined || attemptsRemaining > 0
 
   return (
     <>
@@ -50,13 +53,20 @@ export default function QuizLaunchButton({ activity }: Props) {
                 <Trophy size={15} />
                 View Results
               </button>
-              <button
-                onClick={openTake}
-                className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-sm font-bold transition-colors outline-none"
-              >
-                <RotateCcw size={15} />
-                Retake Quiz
-              </button>
+              {canRetake ? (
+                <button
+                  onClick={openTake}
+                  className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-sm font-bold transition-colors outline-none"
+                >
+                  <RotateCcw size={15} />
+                  Retake Quiz
+                </button>
+              ) : (
+                <div className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-neutral-100 text-neutral-400 text-sm font-bold">
+                  <RotateCcw size={15} />
+                  No retakes left
+                </div>
+              )}
             </div>
           </div>
         ) : (

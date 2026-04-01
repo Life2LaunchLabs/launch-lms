@@ -6,7 +6,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from fastapi import HTTPException, Request
-from sqlmodel import Session, select
+from sqlmodel import Session, select, func
 
 from src.db.courses.activities import Activity
 from src.db.courses.quiz import (
@@ -25,6 +25,7 @@ from src.services.courses.activities.quiz.scoring import (
     compute_result_bundle,
     compute_scores,
 )
+from src.services.trail.trail import add_activity_to_trail
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -81,6 +82,28 @@ async def submit_quiz_attempt(
     if actor.is_guest and (not course.guest_access or not course.published):
         raise HTTPException(status_code=403, detail="Guest access is not enabled for this course")
 
+    # Pull scoring config from activity.details
+    details = activity.details or {}
+    quiz_mode = details.get("quiz_mode", "categories")
+    grading_rules: dict = details.get("grading_rules", {}) or {}
+    max_attempts = grading_rules.get("max_attempts")
+    vectors: list[dict] = details.get("scoring_vectors", [])
+    option_scores: dict = details.get("option_scores", {})
+    category_sets: list[dict] = details.get("category_sets", [])
+    result_options: list[dict] = details.get("result_options", [])
+
+    existing_attempts_statement = select(func.count(QuizAttempt.id)).where(
+        QuizAttempt.activity_id == activity.id
+    )
+    if actor.user_id is not None:
+        existing_attempts_statement = existing_attempts_statement.where(QuizAttempt.user_id == actor.user_id)
+    else:
+        existing_attempts_statement = existing_attempts_statement.where(QuizAttempt.guest_session_id == actor.guest_session_id)
+    existing_attempts = db_session.exec(existing_attempts_statement).one() or 0
+
+    if quiz_mode == "graded" and max_attempts is not None and existing_attempts >= max_attempts:
+        raise HTTPException(status_code=403, detail="No attempts remaining for this quiz")
+
     # Create attempt
     now = datetime.utcnow()
     attempt = QuizAttempt(
@@ -110,17 +133,51 @@ async def submit_quiz_attempt(
         db_session.add(db_answer)
     db_session.commit()
 
-    # Pull scoring config from activity.details
-    details = activity.details or {}
-    vectors: list[dict] = details.get("scoring_vectors", [])
-    option_scores: dict = details.get("option_scores", {})
-    category_sets: list[dict] = details.get("category_sets", [])
-    result_options: list[dict] = details.get("result_options", [])
-
     # Compute scores
     raw_answers = [a.answer_json for a in submission.answers]
     scores = compute_scores(raw_answers, option_scores, vectors)
     result_json = compute_result_bundle(scores, vectors, category_sets, result_options)
+
+    if quiz_mode == "graded":
+        correct_score = float(scores.get("correct", 0.0))
+        score_percent = round(correct_score * 100, 1)
+        pass_percent = float(grading_rules.get("pass_percent", 70))
+        attempt_number = int(existing_attempts) + 1
+
+        prior_results_statement = (
+            select(QuizResult.result_json)
+            .join(QuizAttempt, QuizResult.attempt_id == QuizAttempt.id)
+            .where(QuizAttempt.activity_id == activity.id)
+        )
+        if actor.user_id is not None:
+            prior_results_statement = prior_results_statement.where(QuizAttempt.user_id == actor.user_id)
+        else:
+            prior_results_statement = prior_results_statement.where(QuizAttempt.guest_session_id == actor.guest_session_id)
+        prior_results = db_session.exec(prior_results_statement).all()
+
+        historical_scores = []
+        for prior in prior_results:
+            graded_result = (prior or {}).get("graded_result", {})
+            if isinstance(graded_result, dict):
+                historical_scores.append(float(graded_result.get("score_percent", 0.0)))
+        best_score_percent = max(historical_scores + [score_percent]) if historical_scores else score_percent
+        attempts_remaining = None if max_attempts is None else max(0, int(max_attempts) - attempt_number)
+        passed = score_percent >= pass_percent
+
+        result_json["quiz_mode"] = "graded"
+        result_json["graded_result"] = {
+            "score_percent": score_percent,
+            "pass_percent": pass_percent,
+            "passed": passed,
+            "attempt_number": attempt_number,
+            "attempts_remaining": attempts_remaining,
+            "max_attempts": max_attempts,
+            "best_score_percent": best_score_percent,
+            "correct_answers": int(round(correct_score * len([a for a in raw_answers if a.get("type") == "select"]))),
+            "question_count": len([a for a in raw_answers if a.get("type") == "select"]),
+        }
+    else:
+        result_json["quiz_mode"] = "categories"
 
     # Persist result
     result = QuizResult(
@@ -132,6 +189,9 @@ async def submit_quiz_attempt(
     db_session.add(result)
     db_session.commit()
     db_session.refresh(result)
+
+    if quiz_mode == "graded" and result_json.get("graded_result", {}).get("passed"):
+        await add_activity_to_trail(request, actor, activity_uuid, db_session)
 
     return _build_result_read(result, attempt)
 
@@ -199,6 +259,10 @@ async def update_quiz_scoring(
 
     details = dict(activity.details or {})
     details["scoring_vectors"] = scoring_data.get("scoring_vectors", [])
+    if "category_scoring_vectors" in scoring_data:
+        details["category_scoring_vectors"] = scoring_data.get("category_scoring_vectors", [])
+    if "graded_scoring_vectors" in scoring_data:
+        details["graded_scoring_vectors"] = scoring_data.get("graded_scoring_vectors", [])
     details["option_scores"] = scoring_data.get("option_scores", {})
     activity.details = details
     activity.update_date = str(datetime.utcnow())
@@ -252,6 +316,35 @@ async def update_quiz_results(
 
     details = dict(activity.details or {})
     details["result_options"] = results_data.get("result_options", [])
+    activity.details = details
+    activity.update_date = str(datetime.utcnow())
+    db_session.add(activity)
+    db_session.commit()
+    db_session.refresh(activity)
+    return activity.details  # type: ignore
+
+
+async def update_quiz_settings(
+    request: Request,
+    activity_uuid: str,
+    settings_data: dict,
+    current_user: PublicUser | AnonymousUser,
+    db_session: Session,
+) -> dict:
+    """
+    Save quiz_mode and grading_rules into Activity.details.
+    Teachers only (requires UPDATE permission on the course).
+    """
+    activity, course = await _get_activity_and_course(activity_uuid, db_session)
+    await check_resource_access(
+        request, db_session, current_user, course.course_uuid, AccessAction.UPDATE
+    )
+
+    details = dict(activity.details or {})
+    if "quiz_mode" in settings_data:
+        details["quiz_mode"] = settings_data.get("quiz_mode", "categories")
+    if "grading_rules" in settings_data:
+        details["grading_rules"] = settings_data.get("grading_rules", {})
     activity.details = details
     activity.update_date = str(datetime.utcnow())
     db_session.add(activity)

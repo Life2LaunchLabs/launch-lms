@@ -115,8 +115,10 @@ export default function ActivityHeader({ course, activity, activityid, courseuui
     setIsLoading(true)
     const basePath = guestMode ? '/onboarding/course' : '/course'
     try {
-      await markActivityAsComplete(orgslug, course.course_uuid, activity.activity_uuid, session.data?.tokens?.access_token)
-      await mutate(`${getAPIUrl()}trail/org/${org?.id}/trail`)
+      if (!(activity.activity_type === 'TYPE_QUIZ' && activity.details?.quiz_mode === 'graded')) {
+        await markActivityAsComplete(orgslug, course.course_uuid, activity.activity_uuid, session.data?.tokens?.access_token)
+        await mutate(`${getAPIUrl()}trail/org/${org?.id}/trail`)
+      }
     } catch (_) {}
     if (nextActivity) {
       router.push(getUriWithOrg(orgslug, '') + `${basePath}/${cleanCourseUuid}/activity/${nextActivity.cleanUuid}`)

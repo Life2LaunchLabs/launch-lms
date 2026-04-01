@@ -738,13 +738,15 @@ function NextActivityButton({ course, currentActivityId, activity, orgslug, gues
     const basePath = guestMode ? '/onboarding/course' : '/course';
 
     try {
-      await markActivityAsComplete(
-        orgslug,
-        course.course_uuid,
-        activity.activity_uuid,
-        session.data?.tokens?.access_token
-      );
-      await mutate(`${getAPIUrl()}trail/org/${org?.id}/trail`);
+      if (!(activity.activity_type === 'TYPE_QUIZ' && activity.details?.quiz_mode === 'graded')) {
+        await markActivityAsComplete(
+          orgslug,
+          course.course_uuid,
+          activity.activity_uuid,
+          session.data?.tokens?.access_token
+        );
+        await mutate(`${getAPIUrl()}trail/org/${org?.id}/trail`);
+      }
     } catch (_) {
       // Continue navigation even if marking fails
     }

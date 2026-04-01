@@ -26,13 +26,32 @@ interface QuizOption {
 interface ScoringVector {
   key: string
   label: string
-  type: 'unidirectional' | 'bidirectional'
+  type: 'unidirectional' | 'bidirectional' | 'binary'
   low_label: string
   high_label: string
 }
 
 type Tab = 'question' | 'scoring' | 'response'
 type DisplayStyle = 'image' | 'text'
+
+function getDefaultCorrectVector(): ScoringVector {
+  return {
+    key: 'correct',
+    label: 'Correct',
+    type: 'binary',
+    low_label: 'False',
+    high_label: 'True',
+  }
+}
+
+function getActiveScoringVectors(details: any): ScoringVector[] {
+  const quizMode = details?.quiz_mode === 'graded' ? 'graded' : 'categories'
+  if (quizMode === 'graded') {
+    const gradedVectors = details?.graded_scoring_vectors || details?.scoring_vectors || []
+    return gradedVectors.length > 0 ? gradedVectors : [getDefaultCorrectVector()]
+  }
+  return details?.category_scoring_vectors || details?.scoring_vectors || []
+}
 
 function makeDefaultOption(): QuizOption {
   const uuid = uuidv4()
@@ -322,27 +341,42 @@ function ScoringCard({ opt, idx, vectors, optionScores, onScoreChange }: {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {vectors.map(vec => {
             const val = optionScores[opt.option_uuid]?.[vec.key] ?? 0
+            const isBinary = vec.type === 'binary'
             return (
               <div key={vec.key} style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 4 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <span style={{ color: '#374151', fontSize: 10, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>
-                    {vec.label || vec.key}
-                  </span>
-                  <span style={{ color: '#6b7280', fontSize: 10 }}>{val.toFixed(2)}</span>
-                </div>
-                <input
-                  type="range"
-                  min={vec.type === 'bidirectional' ? -1 : 0}
-                  max={1}
-                  step={0.05}
-                  value={val}
-                  onChange={e => onScoreChange(opt.option_uuid, vec.key, parseFloat(e.target.value))}
-                  style={{ width: '100%', height: 4, accentColor: '#7c3aed', display: 'block' }}
-                />
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 9, color: '#9ca3af' }}>{vec.low_label || 'Low'}</span>
-                  <span style={{ fontSize: 9, color: '#9ca3af' }}>{vec.high_label || 'High'}</span>
-                </div>
+                {isBinary ? (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#374151', cursor: 'pointer', fontWeight: 700 }}>
+                    <input
+                      type="checkbox"
+                      checked={val >= 0.5}
+                      onChange={e => onScoreChange(opt.option_uuid, vec.key, e.target.checked ? 1 : 0)}
+                      style={{ width: 14, height: 14, accentColor: '#7c3aed' }}
+                    />
+                    <span>{vec.label || vec.key}</span>
+                  </label>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <span style={{ color: '#374151', fontSize: 10, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>
+                        {vec.label || vec.key}
+                      </span>
+                      <span style={{ color: '#6b7280', fontSize: 10 }}>{val.toFixed(2)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={vec.type === 'bidirectional' ? -1 : 0}
+                      max={1}
+                      step={0.05}
+                      value={val}
+                      onChange={e => onScoreChange(opt.option_uuid, vec.key, parseFloat(e.target.value))}
+                      style={{ width: '100%', height: 4, accentColor: '#7c3aed', display: 'block' }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 9, color: '#9ca3af' }}>{vec.low_label || 'Low'}</span>
+                      <span style={{ fontSize: 9, color: '#9ca3af' }}>{vec.high_label || 'High'}</span>
+                    </div>
+                  </>
+                )}
               </div>
             )
           })}
@@ -396,7 +430,7 @@ function QuizSelectBlockComponent(props: any) {
   const [optionScores, setOptionScores] = useState<Record<string, Record<string, number>>>(
     activity?.details?.option_scores || {}
   )
-  const [vectors, setVectors] = useState<ScoringVector[]>(activity?.details?.scoring_vectors || [])
+  const [vectors, setVectors] = useState<ScoringVector[]>(getActiveScoringVectors(activity?.details))
   const scoringSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {

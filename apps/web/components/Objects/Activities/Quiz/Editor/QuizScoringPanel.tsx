@@ -9,7 +9,7 @@ import toast from 'react-hot-toast'
 interface ScoringVector {
   key: string
   label: string
-  type: 'unidirectional' | 'bidirectional'
+  type: 'unidirectional' | 'bidirectional' | 'binary'
   low_label: string
   high_label: string
 }
@@ -201,6 +201,7 @@ export default function QuizScoringPanel({ activity, editor, onClose }: Props) {
               >
                 <option value="unidirectional">Unidirectional (0 → 1)</option>
                 <option value="bidirectional">Bidirectional (−1 → 1)</option>
+                <option value="binary">Binary (True / False)</option>
               </select>
             </div>
           ))}
@@ -267,18 +268,32 @@ export default function QuizScoringPanel({ activity, editor, onClose }: Props) {
                           {vectors.map(vec => (
                             <div key={vec.key} className="flex items-center gap-2">
                               <span className="text-xs text-neutral-500 w-20 truncate">{vec.label || vec.key}</span>
-                              <input
-                                type="range"
-                                min={vec.type === 'bidirectional' ? -1 : 0}
-                                max={1}
-                                step={0.05}
-                                value={cat.scores?.[vec.key] ?? 0.5}
-                                onChange={e => setCategoryScore(catSet.key, cat.uuid, vec.key, parseFloat(e.target.value))}
-                                className="flex-1 h-1.5 accent-amber-500"
-                              />
-                              <span className="text-xs text-neutral-500 w-8 text-right">
-                                {(cat.scores?.[vec.key] ?? 0.5).toFixed(2)}
-                              </span>
+                              {vec.type === 'binary' ? (
+                                <label className="flex-1 flex items-center gap-2 text-xs text-neutral-600">
+                                  <input
+                                    type="checkbox"
+                                    checked={(cat.scores?.[vec.key] ?? 0) >= 0.5}
+                                    onChange={e => setCategoryScore(catSet.key, cat.uuid, vec.key, e.target.checked ? 1 : 0)}
+                                    className="accent-amber-500 w-4 h-4"
+                                  />
+                                  <span>{vec.high_label || 'True'}</span>
+                                </label>
+                              ) : (
+                                <>
+                                  <input
+                                    type="range"
+                                    min={vec.type === 'bidirectional' ? -1 : 0}
+                                    max={1}
+                                    step={0.05}
+                                    value={cat.scores?.[vec.key] ?? 0.5}
+                                    onChange={e => setCategoryScore(catSet.key, cat.uuid, vec.key, parseFloat(e.target.value))}
+                                    className="flex-1 h-1.5 accent-amber-500"
+                                  />
+                                  <span className="text-xs text-neutral-500 w-8 text-right">
+                                    {(cat.scores?.[vec.key] ?? 0.5).toFixed(2)}
+                                  </span>
+                                </>
+                              )}
                             </div>
                           ))}
                         </div>
