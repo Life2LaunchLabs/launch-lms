@@ -12,8 +12,12 @@ export default Node.create({
     return {
       question_uuid: { default: '' },
       question_text: { default: '' },
+      display_style: { default: 'image' },
       option_count: { default: 2 },
       options: { default: [] },
+      background_gradient_seed: { default: '' },
+      background_image_file_id: { default: null },
+      background_image_block_object: { default: null },
       show_responses: { default: false },
     }
   },

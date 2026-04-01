@@ -174,6 +174,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   const insertSelectBlock = (optionCount: 2 | 3 | 4) => {
     if (!editor) return
     const questionUuid = uuidv4()
+    const backgroundSeed = uuidv4()
     const options = Array.from({ length: optionCount }, () => ({
       option_uuid: uuidv4(), label: '', image_file_id: null, image_block_object: null,
       gradient_seed: uuidv4(), info_message: '', info_image_file_id: null,
@@ -181,7 +182,16 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
     }))
     editor.chain().insertContentAt(editor.state.doc.content.size, {
       type: 'quizSelectBlock',
-      attrs: { question_uuid: questionUuid, question_text: '', option_count: optionCount, options },
+      attrs: {
+        question_uuid: questionUuid,
+        question_text: '',
+        display_style: 'image',
+        option_count: optionCount,
+        options,
+        background_gradient_seed: backgroundSeed,
+        background_image_file_id: null,
+        background_image_block_object: null,
+      },
     }).run()
   }
 
@@ -311,9 +321,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
               <div className="relative">
                 <div className="sticky top-0 z-10 flex items-center gap-1.5 px-6 py-2 bg-white/90 backdrop-blur border-b border-neutral-100">
                   <span className="text-xs text-neutral-400 mr-1">Add:</span>
-                  <button type="button" onClick={() => insertSelectBlock(2)} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-medium outline-none transition-colors"><ListChecks size={13} /> 2-opt</button>
-                  <button type="button" onClick={() => insertSelectBlock(3)} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-medium outline-none transition-colors"><ListChecks size={13} /> 3-opt</button>
-                  <button type="button" onClick={() => insertSelectBlock(4)} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-medium outline-none transition-colors"><ListChecks size={13} /> 4-opt</button>
+                  <button type="button" onClick={() => insertSelectBlock(2)} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-medium outline-none transition-colors"><ListChecks size={13} /> Multiple choice</button>
                   <button type="button" onClick={insertInfoBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium outline-none transition-colors"><InfoIcon size={13} /> Info slide</button>
                 </div>
                 <div className="max-w-2xl mx-auto py-8 px-6 space-y-4">

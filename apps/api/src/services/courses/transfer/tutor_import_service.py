@@ -256,6 +256,19 @@ def _make_learning_items(values: list[str]) -> str:
     return json.dumps(items)
 
 
+def _split_learning_values(values: list[Any]) -> list[str]:
+    split_values: list[str] = []
+    for value in values:
+        if value is None:
+            continue
+        parts = str(value).replace("\r\n", "\n").replace("\r", "\n").split("\n")
+        for part in parts:
+            cleaned = part.strip()
+            if cleaned:
+                split_values.append(cleaned)
+    return split_values
+
+
 def _get_url_extension(url: str) -> str:
     path = unquote(urlparse(url).path)
     _, ext = os.path.splitext(path)
@@ -266,6 +279,21 @@ def _basename_from_url(url: str, fallback: str) -> str:
     path = unquote(urlparse(url).path)
     basename = os.path.basename(path)
     return basename or fallback
+
+
+def _get_tutor_video_url(video_meta: Any) -> str | None:
+    if not isinstance(video_meta, list):
+        return None
+
+    for video in video_meta:
+        if not isinstance(video, dict):
+            continue
+        for key in ("source_html5", "source_external_url"):
+            url = video.get(key)
+            if url and _get_url_extension(url) in SUPPORTED_VIDEO_EXTENSIONS:
+                return url
+
+    return None
 
 
 def extract_downloadable_media(item: dict[str, Any]) -> list[dict[str, str]]:
@@ -701,10 +729,10 @@ async def _import_single_tutor_course(
 
     benefits = (course_data.get("meta") or {}).get("_tutor_course_benefits") or []
     materials = (course_data.get("meta") or {}).get("_tutor_course_material_includes") or []
-    learning_values = [str(item) for item in benefits if item]
+    learning_values = _split_learning_values(benefits)
     for material in materials:
         if material:
-            learning_values.append(f"Materials: {material}")
+            learning_values.extend(_split_learning_values([f"Materials: {material}"]))
     learnings = _make_learning_items(learning_values)
 
     tags = ",".join(
@@ -756,6 +784,28 @@ async def _import_single_tutor_course(
         )
         if thumbnail_filename:
             new_course.thumbnail_image = thumbnail_filename
+            db_session.add(new_course)
+            db_session.commit()
+            db_session.refresh(new_course)
+
+    course_video_url = _get_tutor_video_url((course_data.get("meta") or {}).get("_video"))
+    if course_video_url:
+        progress = _read_progress(temp_dir)
+        progress.current_media_name = _basename_from_url(course_video_url, "course-overview-video")
+        progress.message = f"Downloading course overview video for {course_name}"
+        _write_progress(temp_dir, progress)
+        course_video_filename = await _store_remote_file(
+            url=course_video_url,
+            org_uuid=organization.org_uuid,
+            directory=f"courses/{new_course.course_uuid}/thumbnails",
+            prefix="thumbnail_video",
+            kind="video",
+        )
+        if course_video_filename:
+            new_course.thumbnail_video = course_video_filename
+            new_course.thumbnail_type = (
+                ThumbnailType.BOTH if new_course.thumbnail_image else ThumbnailType.VIDEO
+            )
             db_session.add(new_course)
             db_session.commit()
             db_session.refresh(new_course)

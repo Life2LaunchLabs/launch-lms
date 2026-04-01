@@ -23,8 +23,11 @@ interface SelectSlide {
   type: 'quizSelectBlock'
   question_uuid: string
   question_text: string
+  display_style?: 'image' | 'text'
   option_count: 2 | 3 | 4
   options: QuizOption[]
+  background_gradient_seed?: string
+  background_image_block_object?: any
 }
 
 interface InfoSlide {
@@ -135,16 +138,30 @@ function SlideFrame({
   const selectedUuid = answers.get(sel.question_uuid) || null
   const hasSelection = !!selectedUuid
   const isGrid = sel.option_count === 4
+  const isTextStyle = sel.display_style === 'text'
+  const questionBgUrl = buildImageUrl(sel.background_image_block_object)
+  const questionBg = getGradient(sel.background_gradient_seed || sel.question_uuid || 'question')
 
   return (
-    <div style={{ height: '100vh', position: 'relative', overflow: 'hidden', background: '#000' }}>
+    <div style={{ height: '100vh', position: 'relative', overflow: 'hidden', background: isTextStyle ? (questionBgUrl ? '#000' : questionBg) : '#000' }}>
+      {isTextStyle && questionBgUrl && (
+        <img src={questionBgUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      )}
+      {isTextStyle && (
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.28)' }} />
+      )}
+
       <div style={{
         position: 'absolute', inset: 0,
-        display: isGrid ? 'grid' : 'flex',
-        gridTemplateColumns: isGrid ? '1fr 1fr' : undefined,
-        gridTemplateRows: isGrid ? '1fr 1fr' : undefined,
-        flexDirection: isGrid ? undefined : 'column',
-        gap: 0,
+        display: isTextStyle ? 'flex' : (isGrid ? 'grid' : 'flex'),
+        gridTemplateColumns: !isTextStyle && isGrid ? '1fr 1fr' : undefined,
+        gridTemplateRows: !isTextStyle && isGrid ? '1fr 1fr' : undefined,
+        flexDirection: isTextStyle ? 'column' : (isGrid ? undefined : 'column'),
+        gap: isTextStyle ? 12 : 0,
+        alignItems: isTextStyle ? 'center' : undefined,
+        justifyContent: isTextStyle ? 'center' : undefined,
+        padding: isTextStyle ? '120px 24px 96px' : 0,
+        boxSizing: 'border-box',
       }}>
         {sel.options.map((opt) => {
           const isSelected = selectedUuid === opt.option_uuid
@@ -160,35 +177,51 @@ function SlideFrame({
               style={{
                 position: 'relative',
                 overflow: 'hidden',
-                background: imgUrl ? '#000' : bg,
+                background: isTextStyle ? 'rgba(255,255,255,0.94)' : (imgUrl ? '#000' : bg),
                 cursor: 'pointer',
                 userSelect: 'none',
-                flex: isGrid ? undefined : '1 1 0',
-                filter: hasSelection && !isSelected ? 'grayscale(1) brightness(0.55)' : 'none',
-                // scale handled by keyframe when popping, otherwise transition
+                flex: isTextStyle ? '0 0 auto' : (isGrid ? undefined : '1 1 0'),
+                width: isTextStyle ? '100%' : undefined,
+                maxWidth: isTextStyle ? 320 : undefined,
+                minHeight: isTextStyle ? 56 : undefined,
+                borderRadius: isTextStyle ? 999 : 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                filter: hasSelection && !isSelected
+                  ? (isTextStyle ? 'opacity(0.55)' : 'grayscale(1) brightness(0.55)')
+                  : 'none',
                 transform: isPopping ? undefined : (isSelected ? 'scale(1.02)' : 'scale(1)'),
-                boxShadow: isSelected ? '0 10px 30px rgba(0,0,0,0.45)' : 'none',
+                boxShadow: isSelected
+                  ? (isTextStyle ? '0 18px 40px rgba(0,0,0,0.3)' : '0 10px 30px rgba(0,0,0,0.45)')
+                  : 'none',
                 zIndex: isSelected ? 2 : 1,
-                transition: isPopping ? 'none' : 'filter 200ms ease, transform 180ms cubic-bezier(.2,.9,.2,1), box-shadow 200ms ease',
+                transition: isPopping ? 'none' : 'filter 200ms ease, transform 180ms cubic-bezier(.2,.9,.2,1), box-shadow 200ms ease, opacity 200ms ease',
               }}
             >
-              {/* White border on selected */}
               {isSelected && (
-                <div style={{ position: 'absolute', inset: 0, border: '3px solid #fff', boxSizing: 'border-box', zIndex: 3, pointerEvents: 'none' }} />
+                <div style={{ position: 'absolute', inset: 0, border: isTextStyle ? '3px solid rgba(17,24,39,0.9)' : '3px solid #fff', borderRadius: isTextStyle ? 999 : 0, boxSizing: 'border-box', zIndex: 3, pointerEvents: 'none' }} />
               )}
-              {imgUrl && (
+              {!isTextStyle && imgUrl && (
                 <img src={imgUrl} alt={opt.label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
               )}
-              {/* Centered label pill */}
               <div style={{
-                position: 'absolute', left: '50%', top: '50%',
-                transform: 'translate(-50%, -50%)',
-                maxWidth: '86%', textAlign: 'center',
-                padding: '0.22em 0.45em',
-                background: 'rgba(255,255,255,0.92)',
-                color: '#000', fontWeight: 900,
-                lineHeight: 1.15, borderRadius: '0.12em',
-                fontSize: 15, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                position: isTextStyle ? 'relative' : 'absolute',
+                left: isTextStyle ? undefined : '50%',
+                top: isTextStyle ? undefined : '50%',
+                transform: isTextStyle ? undefined : 'translate(-50%, -50%)',
+                width: isTextStyle ? '100%' : undefined,
+                maxWidth: isTextStyle ? '100%' : '86%',
+                textAlign: 'center',
+                padding: isTextStyle ? '0 18px' : '0.22em 0.45em',
+                background: isTextStyle ? 'transparent' : 'rgba(255,255,255,0.92)',
+                color: '#000',
+                fontWeight: 900,
+                lineHeight: 1.15,
+                borderRadius: isTextStyle ? 999 : '0.12em',
+                fontSize: 15,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
               }}>
                 {opt.label || '\u00A0'}
               </div>

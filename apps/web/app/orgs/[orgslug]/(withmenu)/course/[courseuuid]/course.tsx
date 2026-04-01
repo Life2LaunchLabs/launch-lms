@@ -135,6 +135,22 @@ const CourseClient = (props: any) => {
 
   useEffect(() => {
     if (!course) return
+
+    if (course.thumbnail_type === 'both' && course.thumbnail_video) {
+      setActiveThumbnailType('video')
+      return
+    }
+
+    if (course.thumbnail_type === 'video' && course.thumbnail_video) {
+      setActiveThumbnailType('video')
+      return
+    }
+
+    setActiveThumbnailType('image')
+  }, [course?.thumbnail_type, course?.thumbnail_video, course])
+
+  useEffect(() => {
+    if (!course) return
     getLearningTags(course)
   }, [course])
 
