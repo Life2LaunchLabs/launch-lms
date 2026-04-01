@@ -43,9 +43,15 @@ def validate_video_content(content: bytes) -> bool:
 
     magic_bytes = content[:12]
 
-    # MP4: starts with specific ftyp box signatures
+    # ISO BMFF family: mp4/mov/m4v containers
     if (magic_bytes[4:8] == b'ftyp' and
-        (b'mp4' in magic_bytes[8:12] or b'M4V' in magic_bytes[8:12] or b'isom' in magic_bytes[8:12])):
+        (
+            b'mp4' in magic_bytes[8:12]
+            or b'M4V' in magic_bytes[8:12]
+            or b'isom' in magic_bytes[8:12]
+            or b'qt  ' in magic_bytes[8:12]
+            or b'mov' in magic_bytes[8:12]
+        )):
         return True
 
     # WebM: EBML header
@@ -99,8 +105,8 @@ FILE_TYPES = {
         'validator': validate_image_content
     },
     'video': {
-        'extensions': ['.mp4', '.webm'],
-        'mime_types': ['video/mp4', 'video/webm'],
+        'extensions': ['.mp4', '.webm', '.mov'],
+        'mime_types': ['video/mp4', 'video/webm', 'video/quicktime'],
         'max_size': None,  # No limit
         'validator': validate_video_content
     },

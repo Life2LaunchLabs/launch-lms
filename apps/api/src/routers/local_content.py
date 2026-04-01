@@ -157,6 +157,7 @@ def _check_content_access(
 _MIME_TYPES = {
     '.mp4': 'video/mp4',
     '.webm': 'video/webm',
+    '.mov': 'video/quicktime',
     '.mp3': 'audio/mpeg',
     '.wav': 'audio/wav',
     '.ogg': 'audio/ogg',

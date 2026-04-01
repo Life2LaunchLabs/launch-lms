@@ -5,7 +5,7 @@ import CourseCreationTypeSelector from '@components/Objects/Modals/Course/Create
 import AICourseCreationModal from '@components/Objects/Modals/Course/Create/AICourse/AICourseCreationModal'
 import { BookCopy, Search, X, Trash2, ChevronLeft, ChevronRight, Upload, Users, Info } from 'lucide-react'
 import ScormCourseImport from '../../../../../ee/components/Modals/ScormCourseImport'
-import { ImportTypeSelector, LearnHouseCourseImport } from '@components/Objects/Modals/Course/Import'
+import { ImportTypeSelector, LearnHouseCourseImport, TutorCourseImport } from '@components/Objects/Modals/Course/Import'
 import CourseThumbnail, { removeCoursePrefix } from '@components/Objects/Thumbnails/CourseThumbnail'
 import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
 import NewCourseButton from '@components/Objects/StyledElements/Buttons/NewCourseButton'
@@ -44,7 +44,7 @@ function CoursesHome(params: CourseProps) {
   const isCreatingCourse = searchParams.get('new') ? true : false
   const [newCourseModal, setNewCourseModal] = React.useState(isCreatingCourse)
   const [importCourseModal, setImportCourseModal] = React.useState(false)
-  const [importType, setImportType] = React.useState<'select' | 'scorm' | 'learnhouse'>('select')
+  const [importType, setImportType] = React.useState<'select' | 'scorm' | 'learnhouse' | 'tutor'>('select')
   const [creationType, setCreationType] = React.useState<'select' | 'scratch' | 'ai'>('select')
   const [aiCourseModalOpen, setAiCourseModalOpen] = React.useState(false)
   const orgslug = params.orgslug
@@ -231,7 +231,7 @@ function CoursesHome(params: CourseProps) {
     mutateCourses()
   }
 
-  const handleImportTypeSelect = (type: 'scorm' | 'learnhouse') => {
+  const handleImportTypeSelect = (type: 'scorm' | 'learnhouse' | 'tutor') => {
     setImportType(type)
   }
 
@@ -253,6 +253,14 @@ function CoursesHome(params: CourseProps) {
             closeModal={closeImportCourseModal}
           />
         )
+      case 'tutor':
+        return (
+          <TutorCourseImport
+            orgId={Number(params.org_id)}
+            orgslug={orgslug}
+            closeModal={closeImportCourseModal}
+          />
+        )
       default:
         return <ImportTypeSelector onSelectType={handleImportTypeSelect} currentPlan={currentPlan} />
     }
@@ -264,6 +272,8 @@ function CoursesHome(params: CourseProps) {
         return t('dashboard.courses.import_scorm')
       case 'learnhouse':
         return t('dashboard.courses.import_learnhouse')
+      case 'tutor':
+        return 'Import Tutor LMS'
       default:
         return t('dashboard.courses.import_course')
     }
@@ -275,6 +285,8 @@ function CoursesHome(params: CourseProps) {
         return t('dashboard.courses.import_scorm_description')
       case 'learnhouse':
         return t('dashboard.courses.import_learnhouse_description')
+      case 'tutor':
+        return 'Import Tutor LMS JSON course exports and convert them into LearnHouse courses'
       default:
         return t('dashboard.courses.import_select_type')
     }

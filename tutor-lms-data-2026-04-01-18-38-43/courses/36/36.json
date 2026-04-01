@@ -1,0 +1,1243 @@
+{
+    "schema_version": "2.0.0",
+    "exported_at": "April 1, 2026 6:38 pm",
+    "keep_media_files": true,
+    "keep_user_data": false,
+    "data": [
+        {
+            "content_type": "courses",
+            "data": {
+                "course": {
+                    "ID": 36,
+                    "post_author": "3",
+                    "post_date": "2026-03-01 18:56:08",
+                    "post_date_gmt": "2026-03-02 02:56:08",
+                    "post_content": "<p data-start=\"29\" data-end=\"193\">This is the part of life no one really teaches you how to navigate<br data-start=\"95\" data-end=\"98\" \/>how you think, what drives you, what you need, and how you make decisions when things get real.<\/p><p data-start=\"195\" data-end=\"307\">You\u2019ll build awareness of what\u2019s happening inside you and why it matters in real life.<\/p><p data-start=\"309\" data-end=\"390\">You\u2019ll explore two core parts of yourself: what drives you and how you operate.<\/p><p data-start=\"354\" data-end=\"388\">Each week follows a simple rhythm:<\/p><p data-start=\"390\" data-end=\"609\">New Start: Get oriented and meet the parts of you<br data-start=\"440\" data-end=\"443\" \/>Discover: Explore what matters and what motivates you<br data-start=\"497\" data-end=\"500\" \/>Insight: Understand how your mind, body, and inner compass work<br data-start=\"564\" data-end=\"567\" \/>Reflect: Connect it all and make it yours<\/p><p data-start=\"611\" data-end=\"796\">You\u2019ll build a Launching Portfolio along the way.<br data-start=\"660\" data-end=\"663\" \/>Not for grades. Not for anyone else.<br data-start=\"699\" data-end=\"702\" \/>It\u2019s your space to notice patterns, capture insights, and build a map of who you are becoming.<\/p><p data-start=\"798\" data-end=\"882\">This isn\u2019t about fixing yourself.<br data-start=\"831\" data-end=\"834\" \/>It\u2019s about learning how to work <em data-start=\"866\" data-end=\"872\">with<\/em> yourself.<\/p><p data-start=\"884\" data-end=\"982\" data-is-last-node=\"\" data-is-only-node=\"\">Because the better you know your inner world, the easier it becomes to navigate everything else.<\/p>",
+                    "post_title": "Uncover Your Inner World",
+                    "post_excerpt": "",
+                    "post_status": "publish",
+                    "comment_status": "closed",
+                    "ping_status": "closed",
+                    "post_password": "",
+                    "post_name": "ground-inner-world-foundations",
+                    "to_ping": "",
+                    "pinged": "",
+                    "post_modified": "2026-03-02 02:56:09",
+                    "post_modified_gmt": "2026-03-02 02:56:09",
+                    "post_content_filtered": "",
+                    "post_parent": 0,
+                    "guid": "https:\/\/life2launch-core.com\/?post_type=courses&#038;p=36",
+                    "menu_order": 0,
+                    "post_type": "courses",
+                    "post_mime_type": "",
+                    "comment_count": "0",
+                    "filter": "raw",
+                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Your-Inner-World.jpg",
+                    "meta": {
+                        "_tutor_course_price_type": [
+                            "free"
+                        ],
+                        "_wp_old_slug": [
+                            "new-course"
+                        ],
+                        "_tutor_course_settings": [
+                            {
+                                "maximum_students": "",
+                                "enrollment_expiry": "",
+                                "enable_content_drip": 0,
+                                "content_drip_type": "",
+                                "enable_tutor_bp": 0,
+                                "course_enrollment_period": "no",
+                                "enrollment_starts_at": "",
+                                "enrollment_ends_at": "",
+                                "pause_enrollment": "no"
+                            }
+                        ],
+                        "_video": [
+                            {
+                                "source": "html5",
+                                "source_video_id": "813",
+                                "source_html5": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Inner-World-Overview.mov"
+                            }
+                        ],
+                        "_tutor_enable_qa": [
+                            "yes"
+                        ],
+                        "_tutor_is_public_course": [
+                            "no"
+                        ],
+                        "tutor_course_sale_price": [
+                            "0"
+                        ],
+                        "_course_duration": [
+                            {
+                                "hours": "1",
+                                "minutes": "0"
+                            }
+                        ],
+                        "_tutor_course_level": [
+                            "all_levels"
+                        ],
+                        "_tutor_course_started": [
+                            "1767000165"
+                        ],
+                        "_wp_old_date": [
+                            "2025-12-18",
+                            "2025-12-29",
+                            "2025-12-31",
+                            "2026-01-04",
+                            "2026-01-25",
+                            "2026-01-28",
+                            "2026-02-09"
+                        ],
+                        "tutor_course_certificate_template": [
+                            "template_5"
+                        ],
+                        "ekit_post_views_count": [
+                            "149"
+                        ],
+                        "_thumbnail_id": [
+                            "808"
+                        ],
+                        "_tutor_course_benefits": [
+                            "Understand what drives you, how you operate, and how to reset when things feel loud or stuck."
+                        ],
+                        "_tutor_course_material_includes": [
+                            "Videos, quests and reflection exercises"
+                        ]
+                    },
+                    "taxonomies": {
+                        "categories": [],
+                        "tags": []
+                    },
+                    "contents": [
+                        {
+                            "ID": 749,
+                            "post_author": "3",
+                            "post_date": "2026-03-01 21:36:54",
+                            "post_date_gmt": "2026-03-01 21:36:54",
+                            "post_content": "Your Inner World: The Building Blocks\r\n\r\nYour Inner World is made up of the internal systems that shape how you think, feel, decide, and move through life.\r\nThese building blocks work together every day, whether you are aware of them or not.\r\n\r\nIn CORE, we focus on two connected parts of your Inner World.\r\n\r\nPersonal Drivers\r\nThese reflect what matters most to you.\r\nYour dreams, ambitions, interests, culture, and values influence what motivates you and what kind of life feels meaningful.\r\n\r\nPersonal drivers shape your goals, your sense of purpose, and the choices you are drawn toward.\r\nThey help explain why some paths energize you while others drain you.\r\n\r\nYour Personal Operating System\r\nThis is how you function on a daily basis.\r\n\r\nYour mind affects how you process information, focus, create, and regulate emotions.\r\nYour body influences energy, awareness, and your ability to meet basic needs.\r\nYour inner compass guides decisions through intuition, talents, beliefs, and personal meaning.\r\n\r\nTogether, these systems determine how you show up, respond to challenges, and navigate change.\r\n\r\nWhy these building blocks matter\r\n\r\nWhen you understand your Inner World, you gain clarity and self-agency.\r\nYou can make choices that fit how you work, not how others expect you to work.\r\n\r\nA real constraint to name is that many systems do not slow down for inner awareness.\r\nSchool, work, and life often reward speed over understanding.\r\n\r\nCORE creates space to build this foundation intentionally, so your future decisions are grounded, not reactive.\r\n\r\nThis is the starting point for designing a life that actually fits you.",
+                            "post_title": "Your Inner World - Personal Drivers & Personal Operating System Pillars",
+                            "post_excerpt": "",
+                            "post_status": "publish",
+                            "comment_status": "closed",
+                            "ping_status": "closed",
+                            "post_password": "",
+                            "post_name": "personal-drivers-2",
+                            "to_ping": "",
+                            "pinged": "",
+                            "post_modified": "2026-03-01 21:36:54",
+                            "post_modified_gmt": "2026-03-01 21:36:54",
+                            "post_content_filtered": "",
+                            "post_parent": 36,
+                            "guid": "https:\/\/life2launch-core.com\/topics\/personal-drivers\/",
+                            "menu_order": 1,
+                            "post_type": "topics",
+                            "post_mime_type": "",
+                            "comment_count": "0",
+                            "filter": "raw",
+                            "children": [
+                                {
+                                    "ID": 817,
+                                    "post_author": "3",
+                                    "post_date": "2026-01-28 23:59:40",
+                                    "post_date_gmt": "2026-01-28 23:59:40",
+                                    "post_content": "<p data-start=\"190\" data-end=\"225\"><strong data-start=\"190\" data-end=\"225\">The Pillars of Your Inner World<\/strong><\/p><p data-start=\"227\" data-end=\"361\">Your Inner World has a structure.<br data-start=\"260\" data-end=\"263\" \/>It is not abstract or mysterious.<br data-start=\"296\" data-end=\"299\" \/>It is something you can understand, strengthen, and work with.<\/p><p data-start=\"363\" data-end=\"491\">In CORE, your Inner World is built on two main pillars.<br data-start=\"418\" data-end=\"421\" \/>Together, they shape how you experience life and how you make choices.<\/p><p data-start=\"493\" data-end=\"525\"><strong data-start=\"493\" data-end=\"525\">Pillar One: Personal Drivers<\/strong><\/p><p data-start=\"527\" data-end=\"567\">Your personal drivers are what move you.<\/p><p data-start=\"569\" data-end=\"731\">They include your values, interests, culture, dreams, and ambitions.<br data-start=\"637\" data-end=\"640\" \/>They influence what motivates you, what drains you, and what kind of life feels meaningful.<\/p><p data-start=\"733\" data-end=\"877\">When your choices align with your drivers, life feels more focused and energizing.<br data-start=\"815\" data-end=\"818\" \/>When they do not, even \u201cgood\u201d opportunities can feel wrong.<\/p><p data-start=\"879\" data-end=\"978\">This pillar helps you name what matters to you so your decisions come from intention, not pressure.<\/p><p data-start=\"980\" data-end=\"1021\"><strong data-start=\"980\" data-end=\"1021\">Pillar Two: Personal Operating System<\/strong><\/p><p data-start=\"1023\" data-end=\"1085\">Your personal operating system is how you function day to day.<\/p><p data-start=\"1087\" data-end=\"1228\">It includes your mind, body, and inner compass.<br data-start=\"1134\" data-end=\"1137\" \/>This pillar shapes how you think, feel, regulate energy, manage stress, and make decisions.<\/p><p data-start=\"1230\" data-end=\"1398\">Understanding your operating system helps you work with yourself instead of against yourself.<br data-start=\"1323\" data-end=\"1326\" \/>It shows you how to support focus, well-being, and clarity in real life.<\/p><p data-start=\"1400\" data-end=\"1433\"><strong data-start=\"1400\" data-end=\"1433\">How the pillars work together<\/strong><\/p><p data-start=\"1435\" data-end=\"1566\">Your drivers point you toward the life you want.<br data-start=\"1483\" data-end=\"1486\" \/>Your operating system determines how sustainably you can move in that direction.<\/p><p data-start=\"1568\" data-end=\"1696\">Strong drivers without self-awareness can lead to burnout.<br data-start=\"1626\" data-end=\"1629\" \/>Strong self-awareness without clear drivers can lead to indecision.<\/p><p data-start=\"1698\" data-end=\"1794\">CORE helps you build both, so your inner foundation is steady before you design your outer life.<\/p>",
+                                    "post_title": "Your Inner World Overview: Video",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "your-inner-world-overview-video",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-02-10 00:54:27",
+                                    "post_modified_gmt": "2026-02-10 00:54:27",
+                                    "post_content_filtered": "",
+                                    "post_parent": 749,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/ground-inner-world-foundations\/lessons\/overview\/",
+                                    "menu_order": 0,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_thumbnail_id": [
+                                            "809"
+                                        ],
+                                        "_video": [
+                                            {
+                                                "source": "html5",
+                                                "source_video_id": "814",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Inner-World-Pillars-Ben-and-Denise.mov",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "00",
+                                                    "minutes": "1",
+                                                    "seconds": "28"
+                                                },
+                                                "duration_sec": "87.9",
+                                                "playtime": "1:28"
+                                            }
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "15"
+                                        ],
+                                        "_wp_old_slug": [
+                                            "overview",
+                                            "the-pillars-of-your-inner-world-overview-video"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/CORE-OVERVIEW-5.jpg",
+                                    "attachment_links": []
+                                }
+                            ]
+                        },
+                        {
+                            "ID": 753,
+                            "post_author": "3",
+                            "post_date": "2026-02-10 01:15:36",
+                            "post_date_gmt": "2026-02-10 01:15:36",
+                            "post_content": "Personal Drivers\r\nThese reflect what matters most to you.\r\nYour dreams, ambitions, interests, culture, and values influence what motivates you and what kind of life feels meaningful.\r\n\r\nPersonal drivers shape your goals, your sense of purpose, and the choices you are drawn toward.\r\nThey help explain why some paths energize you while others drain you.",
+                            "post_title": "Inner World: Your Personal Drives",
+                            "post_excerpt": "",
+                            "post_status": "publish",
+                            "comment_status": "closed",
+                            "ping_status": "closed",
+                            "post_password": "",
+                            "post_name": "personal-drivers-3",
+                            "to_ping": "",
+                            "pinged": "",
+                            "post_modified": "2026-02-10 01:15:36",
+                            "post_modified_gmt": "2026-02-10 01:15:36",
+                            "post_content_filtered": "",
+                            "post_parent": 36,
+                            "guid": "https:\/\/life2launch-core.com\/topics\/personal-drivers\/",
+                            "menu_order": 2,
+                            "post_type": "topics",
+                            "post_mime_type": "",
+                            "comment_count": "0",
+                            "filter": "raw",
+                            "children": [
+                                {
+                                    "ID": 823,
+                                    "post_author": "3",
+                                    "post_date": "2026-01-29 00:09:27",
+                                    "post_date_gmt": "2026-01-29 00:09:27",
+                                    "post_content": "<p data-start=\"61\" data-end=\"127\">Welcome to <strong data-start=\"72\" data-end=\"92\">Personal Drivers<\/strong>, part of your Inner World journey.<\/p><p data-start=\"129\" data-end=\"265\">This section helps you explore what pulls you forward\u2014what gives you energy, motivation, and meaning as you design your life and future.<\/p><p data-start=\"267\" data-end=\"491\">We\u2019ll look at the experiences, values, culture, and interests that shape who you are and what matters to you. You\u2019ll start noticing patterns in what excites you, what feels important, and what kind of life you want to build.<\/p><p data-start=\"493\" data-end=\"672\">Through a series of activities, you\u2019ll capture insights in your Launching Journal, experiment with reflection tools, and begin connecting your personal story to the choices ahead.<\/p><p data-start=\"674\" data-end=\"778\">There are no right answers here. This is about curiosity, exploration, and learning more about yourself.<\/p><p data-start=\"780\" data-end=\"903\" data-is-last-node=\"\" data-is-only-node=\"\">By the end of this section, you\u2019ll have a clearer sense of what drives you\u2014and how those drivers can guide your next steps.<\/p>",
+                                    "post_title": "Your Personal Drivers - Video Overview",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "your-personal-drivers-video-overview",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-02-10 01:17:24",
+                                    "post_modified_gmt": "2026-02-10 01:17:24",
+                                    "post_content_filtered": "",
+                                    "post_parent": 753,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/ground-inner-world-foundations\/lessons\/personal-drivers-pillar\/",
+                                    "menu_order": 0,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_thumbnail_id": [
+                                            "822"
+                                        ],
+                                        "_video": [
+                                            {
+                                                "source": "html5",
+                                                "source_video_id": "820",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Inner-World-Personal-Drivers-Pillars-Denise.mov",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "00",
+                                                    "minutes": "0",
+                                                    "seconds": "31"
+                                                },
+                                                "duration_sec": "31.066667",
+                                                "playtime": "0:31"
+                                            }
+                                        ],
+                                        "_wp_old_slug": [
+                                            "personal-drivers-pillar",
+                                            "personal-drivers-pillar-video",
+                                            "personal-drivers-pillar-video-overview"
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "10"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Personal-Drivers-Pillar.jpg",
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 829,
+                                    "post_author": "3",
+                                    "post_date": "2026-01-29 00:30:28",
+                                    "post_date_gmt": "2026-01-29 00:30:28",
+                                    "post_content": "<p data-start=\"144\" data-end=\"208\">This Quest is about giving your insights one place to live.<\/p><p data-start=\"210\" data-end=\"361\">Ideas, reflections, and moments of clarity show up everywhere.<br data-start=\"272\" data-end=\"275\" \/>A Launching Journal helps you gather them into a single, real space you can return to.<\/p><p data-start=\"431\" data-end=\"539\">During CORE, you will add to this journal as you learn more about your Inner World and who you are becoming.<\/p><p data-start=\"579\" data-end=\"591\"><strong data-start=\"579\" data-end=\"591\">Supplies<\/strong><\/p><ul data-start=\"593\" data-end=\"689\"><li data-start=\"593\" data-end=\"618\"><p data-start=\"595\" data-end=\"618\">A notebook or journal<\/p><\/li><li data-start=\"619\" data-end=\"636\"><p data-start=\"621\" data-end=\"636\">Pen or pencil<\/p><\/li><li data-start=\"637\" data-end=\"689\"><p data-start=\"639\" data-end=\"689\">Optional: colored pens, markers, or highlighters<\/p><\/li><\/ul>",
+                                    "post_title": "Create Your Own Launching Journal Portfolio",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "create-your-own-launching-journal-portfolio",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 00:53:20",
+                                    "post_modified_gmt": "2026-01-29 00:53:20",
+                                    "post_content_filtered": "",
+                                    "post_parent": 753,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/ground-inner-world-foundations\/lessons\/create-your-own-launching-journal-portfolio\/",
+                                    "menu_order": 1,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_thumbnail_id": [
+                                            "827"
+                                        ],
+                                        "_video": [
+                                            {
+                                                "source": "html5",
+                                                "source_video_id": "828",
+                                                "poster": "826",
+                                                "poster_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/IMG_9131-rotated.jpg",
+                                                "source_html5": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Create-Your-Own-Launching-Journal.mov",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "00",
+                                                    "minutes": "1",
+                                                    "seconds": "19"
+                                                },
+                                                "duration_sec": "79.133333",
+                                                "playtime": "1:19"
+                                            }
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "7"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/IMG_9132-rotated.jpg",
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 910,
+                                    "post_author": "3",
+                                    "post_date": "2026-02-10 00:50:43",
+                                    "post_date_gmt": "2026-02-10 00:50:43",
+                                    "post_content": "<p data-start=\"48\" data-end=\"124\">This reflection helps you pause and look at the bigger picture of your life.<\/p><p data-start=\"126\" data-end=\"397\">In this activity, you\u2019ll capture your vision across key areas\u2014career, education, relationships, personal growth, health, and the kind of life you want to build. It\u2019s a chance to put your aspirations into words and begin identifying the steps that move you toward them.<\/p><p data-start=\"399\" data-end=\"528\">This becomes your personal checkpoint, a place you can return to when you need motivation or want to see how far you\u2019ve come.<\/p><p data-start=\"530\" data-end=\"711\" data-is-last-node=\"\" data-is-only-node=\"\">It\u2019s not about having everything figured out. It\u2019s about giving your future direction and creating a living reference for your journey forward.<\/p><p data-start=\"530\" data-end=\"711\" data-is-last-node=\"\" data-is-only-node=\"\">\u00a0<\/p><p data-start=\"530\" data-end=\"711\" data-is-last-node=\"\" data-is-only-node=\"\">Attached Worksheet, draw or write reflections in your launching journal<br \/>My Vision Journey Reflection\u00a0<\/p>",
+                                    "post_title": "Introduction Journal: My Vision Journey Reflection",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "introduction-journal-my-vision-journey-reflection",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-02-10 00:53:06",
+                                    "post_modified_gmt": "2026-02-10 00:53:06",
+                                    "post_content_filtered": "",
+                                    "post_parent": 753,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/ground-inner-world-foundations\/lessons\/introduction-activity-my-vision-journey-reflection\/",
+                                    "menu_order": 2,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_thumbnail_id": [
+                                            "908"
+                                        ],
+                                        "_tutor_attachments": [
+                                            [
+                                                "909"
+                                            ]
+                                        ],
+                                        "_edit_lock": [
+                                            "1770685771:3"
+                                        ],
+                                        "_wp_old_slug": [
+                                            "introduction-activity-my-vision-journey-reflection"
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "4"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/02\/My-Vision-Journey-Reflection.png",
+                                    "attachment_links": [
+                                        "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/02\/Reflection-My-Vision-Journey.pdf"
+                                    ]
+                                },
+                                {
+                                    "ID": 836,
+                                    "post_author": "3",
+                                    "post_date": "2026-01-29 00:49:21",
+                                    "post_date_gmt": "2026-01-29 00:49:21",
+                                    "post_content": "<p class=\"cvGsUA direction-ltr align-start para-style-body\"><span class=\"a_GcMg font-feature-liga-off font-feature-clig-off font-feature-calt-off text-decoration-none text-strikethrough-none\">Understanding your core values is crucial for making decisions that align with your true self and help you speak your authentic truth. This exercise will help you identify and prioritize your values, guiding you in life choices and goals.<\/span><\/p><p class=\"cvGsUA direction-ltr align-start para-style-body\"><span class=\"a_GcMg font-feature-liga-off font-feature-clig-off font-feature-calt-off text-decoration-none text-strikethrough-none\">Instructions:<\/span><span class=\"a_GcMg font-feature-liga-off font-feature-clig-off font-feature-calt-off text-decoration-none text-strikethrough-none\"> Turn to a blank page in your launching journal, open up the attachment worksheet and write at the bottom of the page 15-20 values that resonate with you or feel important. Aim for a broad selection without overthinking.<br \/><br \/>Now draw a sun and rray in the middle of your page and write your top 5-10 values around it like rays, each representing a facet of your brilliance and guiding light.<br \/><br \/><\/span><\/p><p>Attached Worksheets or draw or write reflections in your launching journal<br \/>Your Values: Sunray\u00a0<br \/>Your Values: Reflection<\/p>",
+                                    "post_title": "Activity: Your Sunray of Values",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "activity-your-sunray-of-values",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-02-10 00:39:57",
+                                    "post_modified_gmt": "2026-02-10 00:39:57",
+                                    "post_content_filtered": "",
+                                    "post_parent": 753,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/ground-inner-world-foundations\/lessons\/your-sunray-of-values\/",
+                                    "menu_order": 3,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_thumbnail_id": [
+                                            "835"
+                                        ],
+                                        "_video": [
+                                            {
+                                                "source": "html5",
+                                                "source_video_id": "833",
+                                                "poster": "834",
+                                                "poster_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Screenshot-2026-01-28-164807.png",
+                                                "source_html5": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Your-Values-Sunrays.mov",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "00",
+                                                    "minutes": "1",
+                                                    "seconds": "33"
+                                                },
+                                                "duration_sec": "92.767",
+                                                "playtime": "1:33"
+                                            }
+                                        ],
+                                        "_tutor_attachments": [
+                                            [
+                                                "831",
+                                                "897"
+                                            ]
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "5"
+                                        ],
+                                        "_wp_old_slug": [
+                                            "your-sunray-of-values"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Screenshot-2026-01-28-164742.png",
+                                    "attachment_links": [
+                                        "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Your-Values-Sunrays.pdf"
+                                    ]
+                                },
+                                {
+                                    "ID": 845,
+                                    "post_author": "3",
+                                    "post_date": "2026-01-29 01:36:05",
+                                    "post_date_gmt": "2026-01-29 01:36:05",
+                                    "post_content": "<p data-start=\"159\" data-end=\"231\">On a blank page in your Launching Journal, explore harmony in your life.<\/p><p data-start=\"233\" data-end=\"444\">Harmony can show up in different places.<br data-start=\"273\" data-end=\"276\" \/>With yourself, in quiet or creative time.<br data-start=\"317\" data-end=\"320\" \/>With others, like family, friends, or community.<br data-start=\"368\" data-end=\"371\" \/>With the natural world, spending time outside or connecting with animals.<\/p><p data-start=\"446\" data-end=\"511\">Use words, sketches, or simple notes.<br data-start=\"483\" data-end=\"486\" \/>There is no right format.<\/p><p data-start=\"513\" data-end=\"538\">Reflect on these prompts:<\/p><ul data-start=\"539\" data-end=\"687\"><li data-start=\"539\" data-end=\"586\"><p data-start=\"541\" data-end=\"586\">Where do you feel the most harmony right now?<\/p><\/li><li data-start=\"587\" data-end=\"628\"><p data-start=\"589\" data-end=\"628\">Where does harmony feel harder to find?<\/p><\/li><li data-start=\"629\" data-end=\"687\"><p data-start=\"631\" data-end=\"687\">What environments or experiences help your system reset?<\/p><\/li><\/ul><p data-start=\"689\" data-end=\"846\">Understanding your personal drivers related to harmony gives you an anchor.<br data-start=\"764\" data-end=\"767\" \/>It becomes a place you can return to when you need rest, grounding, or clarity.<\/p>",
+                                    "post_title": "Journal Reflection: Creating Harmony with Yourself, Others and Nature",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "journal-reflection-creating-harmony-with-yourself-others-and-nature",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-02-10 00:40:23",
+                                    "post_modified_gmt": "2026-02-10 00:40:23",
+                                    "post_content_filtered": "",
+                                    "post_parent": 753,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/ground-inner-world-foundations\/lessons\/creating-harmony-with-yourself-others-and-nature-journal-reflection\/",
+                                    "menu_order": 4,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_thumbnail_id": [
+                                            "844"
+                                        ],
+                                        "_video": [
+                                            {
+                                                "source": "html5",
+                                                "source_video_id": "841",
+                                                "poster": "843",
+                                                "poster_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Harmonies-jpg.jpeg",
+                                                "source_html5": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Three-Harmonies.mov",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "00",
+                                                    "minutes": "1",
+                                                    "seconds": "22"
+                                                },
+                                                "duration_sec": "81.934",
+                                                "playtime": "1:22"
+                                            }
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "4"
+                                        ],
+                                        "_wp_old_slug": [
+                                            "creating-harmony-with-yourself-others-and-nature-journal-reflection"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Screenshot-2026-01-28-173523.png",
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 903,
+                                    "post_author": "3",
+                                    "post_date": "2026-02-10 00:30:26",
+                                    "post_date_gmt": "2026-02-10 00:30:26",
+                                    "post_content": "<p data-start=\"60\" data-end=\"197\">You are not just one moment in time. You carry stories, traditions, and experiences shaped by the people and places that came before you.<\/p><p data-start=\"199\" data-end=\"354\">In this activity, you\u2019ll create a <strong data-start=\"233\" data-end=\"269\">Cultural &amp; Lineage Heritage Tree<\/strong> in your Launching Journal to explore what has shaped you and what you carry forward.<\/p><p data-start=\"356\" data-end=\"412\">Start by drawing a tree across a journal page or print the handout that is attached.<\/p><p data-start=\"414\" data-end=\"662\"><strong data-start=\"414\" data-end=\"453\">Roots \u2014 Personal Roots &amp; Traditions<\/strong><br data-start=\"453\" data-end=\"456\" \/>In the roots, add family origins, cultural backgrounds, traditions, foods, languages, stories, or places connected to your family or upbringing. Include anything that feels like part of where you come from.<\/p><p data-start=\"664\" data-end=\"868\"><strong data-start=\"664\" data-end=\"695\">Trunk \u2014 Lifestyle &amp; Beliefs<\/strong><br data-start=\"695\" data-end=\"698\" \/>In the trunk, write the everyday experiences and beliefs shaping your life now\u2014family values, routines, communities, or environments that influence how you see the world.<\/p><p data-start=\"870\" data-end=\"1066\"><strong data-start=\"870\" data-end=\"916\">Branches \u2014 Creative Expression &amp; Interests<\/strong><br data-start=\"916\" data-end=\"919\" \/>On the branches, add how you express yourself\u2014music, art, fashion, sports, gaming, storytelling, or other interests that show who you are becoming.<\/p><p data-start=\"1068\" data-end=\"1227\">There is no right way to do this. Use words, drawings, symbols, or colors. Include what you know, what you\u2019re curious about, and what you want to explore more.<\/p><p data-start=\"1229\" data-end=\"1386\" data-is-last-node=\"\" data-is-only-node=\"\">Even if parts of your story feel unclear or disconnected, this exercise helps you see that you come from somewhere\u2014and that your story continues through you.<\/p><p data-start=\"1229\" data-end=\"1386\" data-is-last-node=\"\" data-is-only-node=\"\">Attached Worksheet or draw or write reflections in your launching journal:<br \/>Your Heritage Tree<\/p><p data-start=\"1229\" data-end=\"1386\" data-is-last-node=\"\" data-is-only-node=\"\">\u00a0<\/p><p data-start=\"1229\" data-end=\"1386\" data-is-last-node=\"\" data-is-only-node=\"\">\u00a0<\/p><p data-start=\"1229\" data-end=\"1386\" data-is-last-node=\"\" data-is-only-node=\"\">\u00a0<\/p>",
+                                    "post_title": "Activity: Create Your Cultural & Lineage Heritage Tree",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "activity-create-your-cultural-lineage-heritage-tree",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-02-10 00:38:22",
+                                    "post_modified_gmt": "2026-02-10 00:38:22",
+                                    "post_content_filtered": "",
+                                    "post_parent": 753,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/ground-inner-world-foundations\/lessons\/activity-create-your-cultural-lineage-heritage-tree\/",
+                                    "menu_order": 5,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_tutor_attachments": [
+                                            [
+                                                "899"
+                                            ]
+                                        ],
+                                        "_thumbnail_id": [
+                                            "907"
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "5"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/02\/Core-Heritage-Tree-Image-1.png",
+                                    "attachment_links": [
+                                        "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/02\/Heritage-Tree.pdf"
+                                    ]
+                                },
+                                {
+                                    "ID": 913,
+                                    "post_author": "3",
+                                    "post_date": "2026-02-10 01:12:27",
+                                    "post_date_gmt": "2026-02-10 01:12:27",
+                                    "post_content": "<p data-start=\"53\" data-end=\"134\">The world is facing big challenges\u2014and each of us feels pulled to different ones.<\/p><p data-start=\"136\" data-end=\"477\">To help guide global progress, countries around the world created the <strong data-start=\"206\" data-end=\"246\">Sustainable Development Goals (SDGs)<\/strong>\u201417 shared goals focused on improving life for people and protecting the planet. They address challenges like poverty, education, health, climate change, equality, and building strong communities so everyone has a chance to thrive.<\/p><p data-start=\"479\" data-end=\"628\">The SDGs are a helpful framework for understanding the major issues facing our world today and seeing how different challenges connect to each other.<\/p><p data-start=\"630\" data-end=\"724\">In this activity, you\u2019ll explore the SDGs and identify which global issues matter most to you.<\/p><p data-start=\"726\" data-end=\"942\">Review the list of Sustainable Development Goals provided. As you look through them, notice which ones spark emotion, curiosity, or motivation. Which challenges make you want to help, change something, or learn more?<\/p><p data-start=\"944\" data-end=\"1005\">Choose the <strong data-start=\"955\" data-end=\"1005\">three goals that matter most to you right now.<\/strong><\/p><p data-start=\"1007\" data-end=\"1075\">Then open your Launching Journal or use the printable page provided.<\/p><p data-start=\"1077\" data-end=\"1119\">Add the three goals you chose and reflect:<\/p><p data-start=\"1121\" data-end=\"1265\">\u2022 Why does this issue matter to me?<br data-start=\"1156\" data-end=\"1159\" \/>\u2022 How does it connect to my life or experiences?<br data-start=\"1207\" data-end=\"1210\" \/>\u2022 How might I want to help or contribute in the future?<\/p><p data-start=\"1267\" data-end=\"1312\">Add drawings, words, or images if you\u2019d like.<\/p><p data-start=\"1314\" data-end=\"1466\" data-is-last-node=\"\" data-is-only-node=\"\">This activity helps you see how your personal drivers connect to the wider world\u2014and how the life you design can also make a difference beyond yourself.<\/p>",
+                                    "post_title": "Activity: What World Issues Matter Most to You?",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "activity-what-world-issues-matter-most-to-you",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-02-10 01:12:27",
+                                    "post_modified_gmt": "2026-02-10 01:12:27",
+                                    "post_content_filtered": "",
+                                    "post_parent": 753,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/ground-inner-world-foundations\/lessons\/activity-what-world-issues-matter-most-to-you\/",
+                                    "menu_order": 6,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_thumbnail_id": [
+                                            "911"
+                                        ],
+                                        "_video": [
+                                            {
+                                                "source": "external_url",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "https:\/\/www.youtube.com\/watch?v=wGxPw6wFuzg",
+                                                "source_shortcode": "",
+                                                "source_youtube": "",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "9",
+                                                    "seconds": "0"
+                                                }
+                                            }
+                                        ],
+                                        "_tutor_attachments": [
+                                            [
+                                                "912"
+                                            ]
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "4"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/02\/SdGs.jpg",
+                                    "attachment_links": [
+                                        "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/02\/SDG.png"
+                                    ]
+                                },
+                                {
+                                    "ID": 905,
+                                    "post_author": "3",
+                                    "post_date": "2026-02-10 00:35:17",
+                                    "post_date_gmt": "2026-02-10 00:35:17",
+                                    "post_content": "<p data-start=\"61\" data-end=\"139\">Now it\u2019s time to pause and look back at what you\u2019ve discovered about yourself.<\/p><p data-start=\"141\" data-end=\"372\">In this reflection activity, you\u2019ll review your journal entries and activities connected to your <strong data-start=\"238\" data-end=\"258\">Personal Drivers, <\/strong>your Dreams &amp; Ambitions, Hobbies &amp; Interests, and Culture &amp; Values and identify the insights that stand out most.<\/p><p data-start=\"374\" data-end=\"443\">Open your Launching Journal or print the <strong data-start=\"410\" data-end=\"437\">Inner World: Reflection<\/strong> attachment<\/p><p data-start=\"445\" data-end=\"640\">Start by reviewing your past activities and journal notes. Then identify your <strong data-start=\"523\" data-end=\"557\">Top 3 Personal Driver Insights<\/strong>\u2014the patterns, motivations, or discoveries that feel most true about you right now.<\/p><p data-start=\"642\" data-end=\"686\">Next, write short reflections for each area:<\/p><p data-start=\"688\" data-end=\"952\">\u2022 Dreams &amp; Ambitions \u2013 What future or lifestyle ideas keep showing up for you?<br data-start=\"766\" data-end=\"769\" \/>\u2022 Hobbies &amp; Interests \u2013 What activities or interests give you energy or curiosity?<br data-start=\"851\" data-end=\"854\" \/>\u2022 Culture &amp; Values \u2013 What values or cultural influences shape your choices and sense of belonging?<\/p><p data-start=\"954\" data-end=\"1053\">There are no right or wrong answers. This is about noticing what feels real and consistent for you.<\/p><p data-start=\"1055\" data-end=\"1181\">This reflection helps you connect the dots between what you enjoy, what matters to you, and where you might want to head next.<\/p>",
+                                    "post_title": "Activity: Inner World \u2013 Personal Drivers Final Reflections",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "activity-inner-world-personal-drivers-final-reflections",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-02-10 00:36:47",
+                                    "post_modified_gmt": "2026-02-10 00:36:47",
+                                    "post_content_filtered": "",
+                                    "post_parent": 753,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/ground-inner-world-foundations\/lessons\/activity-inner-world-personal-drivers-final-reflections\/",
+                                    "menu_order": 7,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_tutor_attachments": [
+                                            [
+                                                "904"
+                                            ]
+                                        ],
+                                        "_thumbnail_id": [
+                                            "906"
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "4"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/02\/Final-Inner-World-Reflections.png",
+                                    "attachment_links": [
+                                        "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/02\/Inner-World-Personal-Drivers-Pillar-Reflections.pdf"
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "ID": 39,
+                            "post_author": "3",
+                            "post_date": "2026-02-10 01:16:47",
+                            "post_date_gmt": "2026-02-10 01:16:47",
+                            "post_content": "Your Personal Operating System\r\nThis is how you function on a daily basis.\r\n\r\nYour mind affects how you process information, focus, create, and regulate emotions.\r\nYour body influences energy, awareness, and your ability to meet basic needs.\r\nYour inner compass guides decisions through intuition, talents, beliefs, and personal meaning.\r\n\r\nTogether, these systems determine how you show up, respond to challenges, and navigate change.",
+                            "post_title": "Inner World: Personal Operating System (Mind, Body and Inner Compass)",
+                            "post_excerpt": "",
+                            "post_status": "publish",
+                            "comment_status": "closed",
+                            "ping_status": "closed",
+                            "post_password": "",
+                            "post_name": "personal-operating-system",
+                            "to_ping": "",
+                            "pinged": "",
+                            "post_modified": "2026-02-10 01:16:47",
+                            "post_modified_gmt": "2026-02-10 01:16:47",
+                            "post_content_filtered": "",
+                            "post_parent": 36,
+                            "guid": "https:\/\/life2launch-core.com\/topics\/personal-operating-system\/",
+                            "menu_order": 3,
+                            "post_type": "topics",
+                            "post_mime_type": "",
+                            "comment_count": "0",
+                            "filter": "raw",
+                            "children": [
+                                {
+                                    "ID": 915,
+                                    "post_author": "3",
+                                    "post_date": "2026-02-10 01:20:56",
+                                    "post_date_gmt": "2026-02-10 01:20:56",
+                                    "post_content": "",
+                                    "post_title": "Your Personal Personal Operating System - Video Overview",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "your-personal-personal-operating-system-video-overview",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-02-10 01:20:56",
+                                    "post_modified_gmt": "2026-02-10 01:20:56",
+                                    "post_content_filtered": "",
+                                    "post_parent": 39,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/ground-inner-world-foundations\/lessons\/your-personal-personal-operating-system-video-overview\/",
+                                    "menu_order": 1,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_thumbnail_id": [
+                                            "914"
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "2"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/02\/Inner-World-Personal-Ops-System-image.jpg",
+                                    "attachment_links": []
+                                }
+                            ]
+                        },
+                        {
+                            "ID": 40,
+                            "post_author": "3",
+                            "post_date": "2026-03-02 01:47:48",
+                            "post_date_gmt": "2026-03-02 01:47:48",
+                            "post_content": "Mind Awarness it's connected to your BRAIN and your BODY\r\nYour mind is your thoughts, ideas, imagination, and inner voice.\r\nIt\u2019s powered by your brain, the physical control center that helps you remember, focus, and solve problems.\r\nAnd it\u2019s influenced by your body, especially your nervous system, which affects whether you feel calm, stressed, energized, or shut down.\r\n\r\nSo when we talk about your mind, we\u2019re really talking about how your whole system works together.\r\n\r\nFirst, Cognitive Processing \u2014 how you think and solve problems.\r\nSecond, Learning Styles \u2014 how you absorb and remember information best.\r\nThird, Creativity \u2014 how you generate ideas and think outside the box.\r\nFourth, Focus and Concentration \u2014 how you manage attention and get things done.\r\nAnd fifth, Emotional Regulation \u2014 how you handle emotions and respond under pressure.\r\n\r\nThe goal is simple.\r\nUnderstand your system so you can use it on purpose. Because when you know how your mind works, you can start designing how you show up.\r\n\r\n",
+                            "post_title": "Inner World: Optimize Your Mind",
+                            "post_excerpt": "",
+                            "post_status": "publish",
+                            "comment_status": "closed",
+                            "ping_status": "closed",
+                            "post_password": "",
+                            "post_name": "self-awareness-and-reflection",
+                            "to_ping": "",
+                            "pinged": "",
+                            "post_modified": "2026-03-02 01:47:48",
+                            "post_modified_gmt": "2026-03-02 01:47:48",
+                            "post_content_filtered": "",
+                            "post_parent": 36,
+                            "guid": "https:\/\/life2launch-core.com\/topics\/self-awareness-and-reflection\/",
+                            "menu_order": 4,
+                            "post_type": "topics",
+                            "post_mime_type": "",
+                            "comment_count": "0",
+                            "filter": "raw",
+                            "children": [
+                                {
+                                    "ID": 917,
+                                    "post_author": "3",
+                                    "post_date": "2026-03-01 22:08:11",
+                                    "post_date_gmt": "2026-03-01 22:08:11",
+                                    "post_content": "<p data-start=\"156\" data-end=\"470\">Activity:<\/p><p data-start=\"74\" data-end=\"130\"><strong data-start=\"74\" data-end=\"130\">What is your MIND awareness STAR rating?<\/strong><\/p><p data-start=\"74\" data-end=\"130\"><strong>Step #1:<\/strong><\/p><p data-start=\"74\" data-end=\"130\">In your journal, write the five mind awareness areas:<br \/>(see image or attachment)\u00a0<\/p><ol><li data-start=\"213\" data-end=\"266\"><strong data-start=\"635\" data-end=\"659\">Cognitive Processing<\/strong> \u2014 how you think and solve problems.<\/li><li data-start=\"213\" data-end=\"266\"><strong data-start=\"706\" data-end=\"725\">Learning Styles<\/strong> \u2014 how you absorb and remember information best.<\/li><li data-start=\"213\" data-end=\"266\"><strong data-start=\"783\" data-end=\"797\">Creativity<\/strong> \u2014 how you generate ideas and think outside the box.<\/li><li data-start=\"213\" data-end=\"266\"><strong data-start=\"860\" data-end=\"887\" data-is-only-node=\"\">Focus and Concentration<\/strong> \u2014 how you manage attention and get things done.<\/li><li data-start=\"213\" data-end=\"266\"><strong data-start=\"949\" data-end=\"973\">Emotional Regulation<\/strong> \u2014 how you handle emotions and respond under pressure.<\/li><\/ol><p data-start=\"268\" data-end=\"285\"><strong>Step #2:<\/strong> Add STARS to each of your mind awareness areas based on:<\/p><p data-start=\"268\" data-end=\"285\">(4-5 stars) I have ease and flow in this area.<br \/>(2 or 3 stars) I'm neutral in this area<br \/>(1 star) I struggle with this area<\/p><p data-start=\"597\" data-end=\"609\"><strong>Step #3:\u00a0<\/strong><\/p><ul><li data-start=\"597\" data-end=\"609\">4-5 star areas: note why they help you optimize so easily<\/li><li data-start=\"597\" data-end=\"609\">2-3 star areas: note what would help you gain more awareness about these areas<\/li><li data-start=\"597\" data-end=\"609\">1-star areas: note why improving it would matter to life your ulimate lifestyle, overcome barriers and\/or move you forward<\/li><\/ul><p data-start=\"156\" data-end=\"470\">=========================================<\/p><p data-start=\"1105\" data-end=\"1188\" data-is-last-node=\"\" data-is-only-node=\"\"><strong>Journal prompt:<\/strong> <br \/>Which MIND awareness area, if improved, would make the biggest difference in my life?<\/p>",
+                                    "post_title": "What is your MIND awareness STAR rating?",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "what-is-your-mind-awareness-star-rating",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-03-02 01:44:35",
+                                    "post_modified_gmt": "2026-03-02 01:44:35",
+                                    "post_content_filtered": "",
+                                    "post_parent": 40,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/ground-inner-world-foundations\/lessons\/mind\/",
+                                    "menu_order": 1,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_wp_old_slug": [
+                                            "mind",
+                                            "mind-awareness-snapshot"
+                                        ],
+                                        "_thumbnail_id": [
+                                            "920"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/03\/Inner-World-Mind-Awareness-Image.png",
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 922,
+                                    "post_author": "3",
+                                    "post_date": "2026-03-02 02:07:51",
+                                    "post_date_gmt": "2026-03-02 02:07:51",
+                                    "post_content": "<p data-start=\"331\" data-end=\"459\"><strong>Step 1: Read the animals below.<\/strong><br data-start=\"362\" data-end=\"365\" \/>Circle the one that feels most like your thinking style right now.<br data-start=\"431\" data-end=\"434\" \/>You can also combine two.<\/p><hr data-start=\"461\" data-end=\"464\" \/><p data-start=\"466\" data-end=\"564\">\ud83e\udd85 Eagle<br data-start=\"474\" data-end=\"477\" \/>Sees the big picture. Strategic. Notices patterns from above.<br data-start=\"538\" data-end=\"541\" \/>May miss small details.<\/p><p data-start=\"566\" data-end=\"655\">\ud83d\udc3f Squirrel<br data-start=\"577\" data-end=\"580\" \/>Quick, energetic, jumps between ideas.<br data-start=\"618\" data-end=\"621\" \/>Can get distracted but moves fast.<\/p><p data-start=\"657\" data-end=\"726\">\ud83e\udd89 Owl<br data-start=\"663\" data-end=\"666\" \/>Thoughtful. Observes before acting.<br data-start=\"701\" data-end=\"704\" \/>Needs time to process.<\/p><p data-start=\"728\" data-end=\"825\">\ud83d\udc2c Dolphin<br data-start=\"738\" data-end=\"741\" \/>Creative, playful thinker. Learns through interaction.<br data-start=\"795\" data-end=\"798\" \/>Gets bored with repetition.<\/p><p data-start=\"827\" data-end=\"912\">\ud83d\udc18 Elephant<br data-start=\"838\" data-end=\"841\" \/>Strong memory. Steady. Reliable.<br data-start=\"873\" data-end=\"876\" \/>May take longer to shift directions.<\/p><p data-start=\"914\" data-end=\"1009\">\ud83d\udc06 Cheetah<br data-start=\"924\" data-end=\"927\" \/>Fast decision-maker. Works well under pressure.<br data-start=\"974\" data-end=\"977\" \/>May move before thinking deeply.<\/p><p data-start=\"1011\" data-end=\"1112\">\ud83d\udc1d Bee<br data-start=\"1017\" data-end=\"1020\" \/>Focused when there\u2019s structure. Productive in systems.<br data-start=\"1074\" data-end=\"1077\" \/>Struggles when things feel chaotic.<\/p><p data-start=\"1114\" data-end=\"1208\">\ud83d\udc22 Turtle<br data-start=\"1123\" data-end=\"1126\" \/>Slow and steady processor. Deep thinker.<br data-start=\"1166\" data-end=\"1169\" \/>Needs time but produces strong results.<br \/><br \/><\/p><p data-start=\"1215\" data-end=\"1241\"><strong>Step 2: Journal Reflection<\/strong><\/p><p data-start=\"1243\" data-end=\"1249\">Write:<\/p><p data-start=\"1251\" data-end=\"1296\">The animal that matches my mind right now is\u2026<\/p><p data-start=\"1298\" data-end=\"1306\">Because\u2026<\/p><p data-start=\"1308\" data-end=\"1366\">When my mind is at its best, I feel like this animal when\u2026<\/p><p data-start=\"1368\" data-end=\"1406\">When my mind struggles, it feels like\u2026<\/p><p data-start=\"583\" data-end=\"637\" data-is-last-node=\"\" data-is-only-node=\"\">\u00a0<\/p>",
+                                    "post_title": "What Animal Is Your Mind?",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "what-animal-is-your-mind",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-03-02 02:55:48",
+                                    "post_modified_gmt": "2026-03-02 02:55:48",
+                                    "post_content_filtered": "",
+                                    "post_parent": 40,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/ground-inner-world-foundations\/lessons\/what-animal-is-my-mind\/",
+                                    "menu_order": 2,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_wp_old_slug": [
+                                            "what-animal-is-my-mind"
+                                        ],
+                                        "_thumbnail_id": [
+                                            "925"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/03\/What-animal-is-in-your-mind_.png",
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 924,
+                                    "post_author": "3",
+                                    "post_date": "2026-03-02 02:47:05",
+                                    "post_date_gmt": "2026-03-02 02:47:05",
+                                    "post_content": "<h3 data-start=\"44\" data-end=\"87\">Learn the Language of Your Mind<\/h3><p data-start=\"89\" data-end=\"136\">Look at the exercise file: <strong data-start=\"101\" data-end=\"124\">Mind Function Areas<\/strong> attachment.<\/p><p data-start=\"138\" data-end=\"166\">You\u2019ll see three categories:<\/p><p><strong data-start=\"291\" data-end=\"317\">1. Information Processing<\/strong><br data-start=\"317\" data-end=\"320\" \/>Memory \u2014 remembering and recalling information<br data-start=\"366\" data-end=\"369\" \/>Attention \u2014 focusing on what matters<br data-start=\"405\" data-end=\"408\" \/>Perception \u2014 interpreting what\u2019s happening around you<\/p><hr data-start=\"465\" data-end=\"468\" \/><p data-start=\"470\" data-end=\"656\"><strong data-start=\"470\" data-end=\"490\">2. Cognitive Skills<\/strong><br data-start=\"490\" data-end=\"493\" \/>Language \u2014 understanding and expressing ideas<br data-start=\"538\" data-end=\"541\" \/>Problem-Solving \u2014 finding solutions<br data-start=\"576\" data-end=\"579\" \/>Reasoning \u2014 thinking logically<br data-start=\"609\" data-end=\"612\" \/>Decision-Making \u2014 choosing between options<\/p><hr data-start=\"658\" data-end=\"661\" \/><p data-start=\"663\" data-end=\"830\"><strong data-start=\"663\" data-end=\"684\">3. Cognitive Control<\/strong><br data-start=\"684\" data-end=\"687\" \/>Executive Function \u2014 managing time and tasks<br data-start=\"731\" data-end=\"734\" \/>Metacognition \u2014 understanding how you think<br data-start=\"777\" data-end=\"780\" \/>Mental Flexibility \u2014 adapting when things change<\/p><p data-start=\"663\" data-end=\"830\">Journal Exercise:\u00a0<br \/>Write in your launch journal:<\/p><ul><li data-start=\"663\" data-end=\"830\">Which areas need support?<\/li><li data-start=\"663\" data-end=\"830\">Which areas are strengths?<\/li><\/ul><p data-start=\"663\" data-end=\"830\">====================================<\/p><p data-start=\"233\" data-end=\"287\">These are not labels. They are functions of your mind.<\/p><p data-start=\"289\" data-end=\"449\">If you\u2019ve ever been labeled \u2014 ADHD, Autistic, Dyslexic, Anxious, Gifted, Learning Difficulties, Too Intense, Too Quiet, Too Distracted, Too Sensitive \u2014 pause.<\/p><p data-start=\"451\" data-end=\"532\">Schools use labels like these to fit you into their systems, but that's WRONG. Your job is to understand how your mind works and get your needs met.\u00a0<\/p><p data-start=\"583\" data-end=\"637\" data-is-last-node=\"\" data-is-only-node=\"\">\u00a0<\/p>",
+                                    "post_title": "Cognative Processing: Learn the Language of Your Mind",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "cognative-processing-learn-the-language-of-your-mind",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-03-02 04:38:22",
+                                    "post_modified_gmt": "2026-03-02 04:38:22",
+                                    "post_content_filtered": "",
+                                    "post_parent": 40,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/ground-inner-world-foundations\/lessons\/learn-the-language-of-your-mind\/",
+                                    "menu_order": 3,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_thumbnail_id": [
+                                            "923"
+                                        ],
+                                        "_video": [
+                                            {
+                                                "source": "youtube",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "https:\/\/youtu.be\/0O1u5OEc5eY?si=Ta15FqmWM77f9WP7",
+                                                "source_shortcode": "",
+                                                "source_youtube": "https:\/\/youtu.be\/0O1u5OEc5eY?si=Ta15FqmWM77f9WP7",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "0",
+                                                    "seconds": "0"
+                                                }
+                                            }
+                                        ],
+                                        "_tutor_attachments": [
+                                            [
+                                                "921"
+                                            ]
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "2"
+                                        ],
+                                        "_wp_old_slug": [
+                                            "learn-the-language-of-your-mind"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/03\/Cognative-Mind.png",
+                                    "attachment_links": [
+                                        "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/03\/Mind-Function-Areas.pdf"
+                                    ]
+                                },
+                                {
+                                    "ID": 927,
+                                    "post_author": "3",
+                                    "post_date": "2026-03-02 03:08:47",
+                                    "post_date_gmt": "2026-03-02 03:08:47",
+                                    "post_content": "<h2 data-start=\"120\" data-end=\"164\">Learning Styles &amp; How to Share Your Needs<\/h2><p data-start=\"166\" data-end=\"262\">\ud83d\udc40 <strong data-start=\"169\" data-end=\"188\">Visual Learning<\/strong><br data-start=\"188\" data-end=\"191\" \/>Learn best by seeing. Pictures, diagrams, charts, color coding, videos.<\/p><p data-start=\"264\" data-end=\"414\">Try saying:<br data-start=\"275\" data-end=\"278\" \/>\u201cI understand this better when I can see an example.\u201d<br data-start=\"331\" data-end=\"334\" \/>\u201cCould you show a diagram or write it out?\u201d<br data-start=\"377\" data-end=\"380\" \/>\u201cSeeing it step-by-step helps me.\u201d<\/p><hr data-start=\"416\" data-end=\"419\" \/><p data-start=\"421\" data-end=\"523\">\ud83d\udc42 <strong data-start=\"424\" data-end=\"445\">Auditory Learning<\/strong><br data-start=\"445\" data-end=\"448\" \/>Learn best by hearing. Discussions, explanations, podcasts, talking it out.<\/p><p data-start=\"525\" data-end=\"660\">Try saying:<br data-start=\"536\" data-end=\"539\" \/>\u201cIt helps me to hear it explained out loud.\u201d<br data-start=\"583\" data-end=\"586\" \/>\u201cCan we talk this through?\u201d<br data-start=\"613\" data-end=\"616\" \/>\u201cI understand better when I can discuss it.\u201d<\/p><hr data-start=\"662\" data-end=\"665\" \/><p data-start=\"667\" data-end=\"769\">\u270b <strong data-start=\"669\" data-end=\"693\">Kinesthetic Learning<\/strong><br data-start=\"693\" data-end=\"696\" \/>Learn best by doing. Hands-on activities, movement, building, practicing.<\/p><p data-start=\"771\" data-end=\"895\">Try saying:<br data-start=\"782\" data-end=\"785\" \/>\u201cI learn faster when I can try it myself.\u201d<br data-start=\"827\" data-end=\"830\" \/>\u201cCan I practice this hands-on?\u201d<br data-start=\"861\" data-end=\"864\" \/>\u201cDoing it helps me understand.\u201d<\/p><hr data-start=\"897\" data-end=\"900\" \/><p data-start=\"902\" data-end=\"1002\">\ud83d\udcd6 <strong data-start=\"905\" data-end=\"933\">Reading\/Writing Learning<\/strong><br data-start=\"933\" data-end=\"936\" \/>Learn best through words. Reading, note-taking, journaling, lists.<\/p><p data-start=\"1004\" data-end=\"1138\">Try saying:<br data-start=\"1015\" data-end=\"1018\" \/>\u201cI remember this better if I can write it down.\u201d<br data-start=\"1066\" data-end=\"1069\" \/>\u201cCan I see written instructions?\u201d<br data-start=\"1102\" data-end=\"1105\" \/>\u201cReading it helps me process it.\u201d<\/p><hr data-start=\"1140\" data-end=\"1143\" \/><h2 data-start=\"1145\" data-end=\"1162\">Journal Prompt<\/h2><p data-start=\"1164\" data-end=\"1170\">Write:<\/p><p data-start=\"1172\" data-end=\"1222\">The learning style that feels strongest for me is\u2026<\/p>",
+                                    "post_title": "Learning Styles: How to Share Your Needs",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "learning-styles-how-to-share-your-needs",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-03-02 04:38:54",
+                                    "post_modified_gmt": "2026-03-02 04:38:54",
+                                    "post_content_filtered": "",
+                                    "post_parent": 40,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/ground-inner-world-foundations\/lessons\/learning-styles-how-to-share-your-needs\/",
+                                    "menu_order": 4,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_thumbnail_id": [
+                                            "926"
+                                        ],
+                                        "_video": [
+                                            {
+                                                "source": "youtube",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "https:\/\/youtu.be\/fQYW6vYSGXs?si=nNOCeGPWJ4RlncwC",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "0",
+                                                    "seconds": "0"
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/03\/MInd-Learning-Style.png",
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 930,
+                                    "post_author": "3",
+                                    "post_date": "2026-03-02 03:47:05",
+                                    "post_date_gmt": "2026-03-02 03:47:05",
+                                    "post_content": "<h2 data-start=\"92\" data-end=\"113\">Creativity Insight<\/h2><p data-start=\"115\" data-end=\"136\">Everyone is creative.<\/p><p data-start=\"138\" data-end=\"227\">Creativity is not just art. It\u2019s how you think, adapt, solve problems, and express ideas.<\/p><p data-start=\"229\" data-end=\"271\">Creative skills fall into four main areas:<\/p><h3 data-start=\"273\" data-end=\"297\">1. Idea Generation<\/h3><p data-start=\"298\" data-end=\"418\">\u2022 Imagination \u2014 picturing new possibilities<br data-start=\"341\" data-end=\"344\" \/>\u2022 Originality \u2014 thinking differently<br data-start=\"380\" data-end=\"383\" \/>\u2022 Fluency \u2014 generating many ideas<\/p><h3 data-start=\"420\" data-end=\"445\">2. Idea Development<\/h3><p data-start=\"446\" data-end=\"585\">\u2022 Elaboration \u2014 improving and expanding ideas<br data-start=\"491\" data-end=\"494\" \/>\u2022 Adaptability \u2014 adjusting when things change<br data-start=\"539\" data-end=\"542\" \/>\u2022 Experimentation \u2014 trying new approaches<\/p><h3 data-start=\"587\" data-end=\"611\">3. Problem Solving<\/h3><p data-start=\"612\" data-end=\"761\">\u2022 Analytical thinking \u2014 breaking problems down<br data-start=\"658\" data-end=\"661\" \/>\u2022 Resourcefulness \u2014 finding workable solutions<br data-start=\"707\" data-end=\"710\" \/>\u2022 Risk-taking \u2014 trying something even when unsure<\/p><h3 data-start=\"763\" data-end=\"791\">4. Creative Expression<\/h3><p data-start=\"792\" data-end=\"932\">\u2022 Emotional expression \u2014 sharing feelings and perspective<br data-start=\"849\" data-end=\"852\" \/>\u2022 Playfulness \u2014 curiosity and fun<br data-start=\"885\" data-end=\"888\" \/>\u2022 Communication \u2014 expressing ideas clearly<\/p><p data-start=\"934\" data-end=\"966\">These creativity skills develop with awareness, practice, and experience.<\/p><p data-start=\"934\" data-end=\"966\">Journal Prompt:\u00a0<br \/>Which creative skill area feels strongest for me right now, and which one do I want to grow?<\/p><p data-start=\"934\" data-end=\"966\">\u00a0<\/p><h3 data-start=\"934\" data-end=\"966\">Take the Adobe Creative Archetype <a href=\"https:\/\/mycreativetype.com\/\">Assessment<\/a><\/h3><p data-start=\"968\" data-end=\"1067\">The Adobe Creative Archetypes help you see which of these strengths show up most naturally for you.<\/p><p data-start=\"726\" data-end=\"807\">Adobe\u2019s assessment often identifies one dominant creative style from these types:<\/p><p data-start=\"809\" data-end=\"1236\">The Artist \u2013 Expressive, visual, aesthetic-driven<br data-start=\"858\" data-end=\"861\" \/>The Thinker \u2013 Analytical, strategic, reflective<br data-start=\"908\" data-end=\"911\" \/>The Adventurer \u2013 Bold, experimental, risk-taking<br data-start=\"959\" data-end=\"962\" \/>The Maker \u2013 Hands-on, practical, builder<br data-start=\"1002\" data-end=\"1005\" \/>The Producer \u2013 Organized, structured, execution-focused<br data-start=\"1060\" data-end=\"1063\" \/>The Dreamer \u2013 Imaginative, idea-driven, visionary<br data-start=\"1112\" data-end=\"1115\" \/>The Innovator \u2013 Future-oriented, problem-solving, disruptive<br data-start=\"1175\" data-end=\"1178\" \/>The Visionary \u2013 Big-picture, conceptual, systems thinker<br \/><br \/>Print out your assessment or write some notes in your journal as a creative reminder of the natural abilities you have!\u00a0<\/p>",
+                                    "post_title": "Creativity: New Insights and Take the Archetype Assessment",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "creativity-new-insights-and-take-the-archetype-assessment",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-03-02 04:39:32",
+                                    "post_modified_gmt": "2026-03-02 04:39:32",
+                                    "post_content_filtered": "",
+                                    "post_parent": 40,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/ground-inner-world-foundations\/lessons\/mind-what-is-your-creativity-type-assessment\/",
+                                    "menu_order": 5,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_thumbnail_id": [
+                                            "929"
+                                        ],
+                                        "_video": [
+                                            {
+                                                "source": "youtube",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "https:\/\/youtu.be\/tTtjETjGDFY?si=wavUnmMuGQdh7ZdC",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "0",
+                                                    "seconds": "0"
+                                                }
+                                            }
+                                        ],
+                                        "_wp_old_slug": [
+                                            "mind-what-is-your-creativity-type-assessment",
+                                            "what-is-your-creativity-type-assessment",
+                                            "what-is-your-creativity-insights-take-the-archetype-assessment"
+                                        ],
+                                        "_tutor_attachments": [
+                                            [
+                                                "928"
+                                            ]
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "4"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/03\/Adobe-Creative-Types.png",
+                                    "attachment_links": [
+                                        "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/03\/Mind-Creativity-Workbook.pdf"
+                                    ]
+                                },
+                                {
+                                    "ID": 933,
+                                    "post_author": "3",
+                                    "post_date": "2026-03-02 04:31:13",
+                                    "post_date_gmt": "2026-03-02 04:31:13",
+                                    "post_content": "<h2 data-start=\"51\" data-end=\"110\">Creating a Life You Love: Focus &amp; Concentrate<\/h2><p data-start=\"112\" data-end=\"252\">1\ufe0f\u20e3 \ud83d\udccb <strong data-start=\"119\" data-end=\"138\">Task Management<\/strong><br data-start=\"138\" data-end=\"141\" \/>If you can organize and prioritize, you turn ideas into action.<br data-start=\"204\" data-end=\"207\" \/>Dreams only move forward when tasks get done.<\/p><p data-start=\"254\" data-end=\"359\">2\ufe0f\u20e3 \ud83c\udfaf <strong data-start=\"261\" data-end=\"285\">Attention Management<\/strong><br data-start=\"285\" data-end=\"288\" \/>Your attention is your power.<br data-start=\"317\" data-end=\"320\" \/>Where you place it shapes your results.<\/p><p data-start=\"361\" data-end=\"494\">3\ufe0f\u20e3 \ud83e\udded <strong data-start=\"368\" data-end=\"387\">Self-Regulation<\/strong><br data-start=\"387\" data-end=\"390\" \/>Life will test you.<br data-start=\"409\" data-end=\"412\" \/>The ability to reset, shift, and stay steady keeps you moving instead of reacting.<\/p><p data-start=\"496\" data-end=\"602\">4\ufe0f\u20e3 \ud83d\udd0b <strong data-start=\"503\" data-end=\"528\">Mindfulness &amp; Stamina<\/strong><br data-start=\"528\" data-end=\"531\" \/>Big goals take time.<br data-start=\"551\" data-end=\"554\" \/>Sustained effort builds confidence and momentum.<\/p><p data-start=\"604\" data-end=\"744\">5\ufe0f\u20e3 \u26a1 <strong data-start=\"610\" data-end=\"633\">Optimal Performance<\/strong><br data-start=\"633\" data-end=\"636\" \/>When you understand what helps you get \u201cin the zone,\u201d you can design conditions where you do your best work.<br \/><br \/><\/p><p data-start=\"72\" data-end=\"90\"><strong data-start=\"72\" data-end=\"90\">Journal Prompt:<\/strong><\/p><p data-start=\"92\" data-end=\"248\" data-is-last-node=\"\" data-is-only-node=\"\">Which of the five focus areas is strongest for me right now, which one needs the most support, and how would strengthening it help me build the life I want?<\/p><p data-start=\"604\" data-end=\"744\"><br \/><br \/><\/p>",
+                                    "post_title": "Focus & Concentrate: 5 Areas to Create the Life You Love",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "focus-concentrate-5-areas-to-create-the-life-you-love",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-03-02 04:47:30",
+                                    "post_modified_gmt": "2026-03-02 04:47:30",
+                                    "post_content_filtered": "",
+                                    "post_parent": 40,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/ground-inner-world-foundations\/lessons\/focus\/",
+                                    "menu_order": 6,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_video": [
+                                            {
+                                                "source": "youtube",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "https:\/\/youtu.be\/3TljhJx2JTY?si=tQdo_1qQicmwAX4T",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "0",
+                                                    "seconds": "0"
+                                                }
+                                            }
+                                        ],
+                                        "_tutor_attachments": [
+                                            [
+                                                "932"
+                                            ]
+                                        ],
+                                        "_wp_old_slug": [
+                                            "focus"
+                                        ],
+                                        "_thumbnail_id": [
+                                            "934"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/03\/Cat-Focus.png",
+                                    "attachment_links": [
+                                        "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/03\/Mind-Focus-and-Concentration-1.pdf"
+                                    ]
+                                },
+                                {
+                                    "ID": 935,
+                                    "post_author": "3",
+                                    "post_date": "2026-03-02 04:49:55",
+                                    "post_date_gmt": "2026-03-02 04:49:55",
+                                    "post_content": "<h1 data-start=\"108\" data-end=\"144\"><br \/>\ud83e\udde0 Emotional Regulation Snapshot<\/h1><p>\u00a0<\/p><h3 data-start=\"145\" data-end=\"177\">How Do I Handle My Emotions?<\/h3><p data-start=\"179\" data-end=\"288\">Emotional regulation is not about hiding emotions.<br data-start=\"229\" data-end=\"232\" \/>It\u2019s about noticing, managing, choosing, and recovering.<br \/><br \/>Take a free <a href=\"https:\/\/www.psychologytoday.com\/us\/tests\/relationships\/emotion-regulation-test\">emotional regulation assessment<\/a> by Psychology Today<\/p><hr data-start=\"290\" data-end=\"293\" \/><h2 data-start=\"295\" data-end=\"321\">1\ufe0f\u20e3 \ud83d\udc40 Self-Awareness<\/h2><p data-start=\"322\" data-end=\"349\"><strong data-start=\"322\" data-end=\"349\">Notice What\u2019s Happening<\/strong><\/p><p data-start=\"351\" data-end=\"435\">Skills:<br \/>\u2022 Acknowledge Emotions<br data-start=\"381\" data-end=\"384\" \/>\u2022 Tune In<br data-start=\"393\" data-end=\"396\" \/>\u2022 Be Present<br data-start=\"408\" data-end=\"411\" \/>\u2022 Reflect Thoughtfully<\/p><p data-start=\"437\" data-end=\"486\">Contrast:<br \/>\u2022 Ignore Inner Signals<br data-start=\"469\" data-end=\"472\" \/>\u2022 Disconnect<\/p><p data-start=\"488\" data-end=\"589\">\u270d Journal:<br \/>When I start to feel stressed or upset, I usually\u2026<br data-start=\"549\" data-end=\"552\" \/>The first signal my body gives me is\u2026<\/p><hr data-start=\"591\" data-end=\"594\" \/><h2 data-start=\"596\" data-end=\"623\">2\ufe0f\u20e3 \u2696\ufe0f Self-Management<\/h2><p data-start=\"624\" data-end=\"639\"><strong data-start=\"624\" data-end=\"639\">Stay Steady<\/strong><\/p><p data-start=\"641\" data-end=\"790\">Skills:<br \/>\u2022 Stay in Control<br data-start=\"666\" data-end=\"669\" \/>\u2022 Keep Your Cool<br data-start=\"685\" data-end=\"688\" \/>\u2022 Manage Intensity<br data-start=\"706\" data-end=\"709\" \/>\u2022 Adapt and Adjust<br data-start=\"727\" data-end=\"730\" \/>\u2022 Manage Stress<br data-start=\"745\" data-end=\"748\" \/>\u2022 Practice Self-Care<br data-start=\"768\" data-end=\"771\" \/>\u2022 Achieve Balance<\/p><p data-start=\"792\" data-end=\"859\">Contrast:<br \/>\u2022 Overwhelm<br data-start=\"813\" data-end=\"816\" \/>\u2022 Lose Composure<br data-start=\"832\" data-end=\"835\" \/>\u2022 Crumble Under Stress<\/p><p data-start=\"861\" data-end=\"942\">\u270d Journal:<br \/>When emotions rise, I tend to\u2026<br data-start=\"902\" data-end=\"905\" \/>One thing that helps me calm down is\u2026<\/p><hr data-start=\"944\" data-end=\"947\" \/><h2 data-start=\"949\" data-end=\"980\">3\ufe0f\u20e3 \ud83e\udded Decision &amp; Behavior<\/h2><p data-start=\"981\" data-end=\"1004\"><strong data-start=\"981\" data-end=\"1004\">Choose, Don\u2019t React<\/strong><\/p><p data-start=\"1006\" data-end=\"1113\">Skills:<br \/>\u2022 Choose Wisely<br data-start=\"1029\" data-end=\"1032\" \/>\u2022 Recover Quickly<br data-start=\"1049\" data-end=\"1052\" \/>\u2022 Stay on Task<br data-start=\"1066\" data-end=\"1069\" \/>\u2022 Follow Through<br data-start=\"1085\" data-end=\"1088\" \/>\u2022 Persist in Challenges<\/p><p data-start=\"1115\" data-end=\"1192\">Contrast:<br \/>\u2022 Act Impulsively<br data-start=\"1142\" data-end=\"1145\" \/>\u2022 React Hastily<br data-start=\"1160\" data-end=\"1163\" \/>\u2022 Quit Early<br data-start=\"1175\" data-end=\"1178\" \/>\u2022 Stay Stuck<\/p><p data-start=\"1194\" data-end=\"1282\">\u270d Journal:<br \/>When I feel triggered, I usually\u2026<br data-start=\"1238\" data-end=\"1241\" \/>One way I could pause before reacting is\u2026<\/p><hr data-start=\"1284\" data-end=\"1287\" \/><h2 data-start=\"1289\" data-end=\"1311\">4\ufe0f\u20e3 \ud83c\udf31 Resilience<\/h2><p data-start=\"1312\" data-end=\"1327\"><strong data-start=\"1312\" data-end=\"1327\">Bounce Back<\/strong><\/p><p data-start=\"1329\" data-end=\"1402\">Skills:<br \/>\u2022 Recover Quickly<br data-start=\"1354\" data-end=\"1357\" \/>\u2022 Persist in Challenges<br data-start=\"1380\" data-end=\"1383\" \/>\u2022 Achieve Balance<\/p><p data-start=\"1404\" data-end=\"1483\">Contrast:<br \/>\u2022 Dwell on Difficulties<br data-start=\"1437\" data-end=\"1440\" \/>\u2022 Neglect Well-Being<br data-start=\"1460\" data-end=\"1463\" \/>\u2022 Lose Equilibrium<\/p><p data-start=\"1485\" data-end=\"1579\">\u270d Journal:<br \/>After something hard happens, I usually\u2026<br data-start=\"1536\" data-end=\"1539\" \/>What helps me reset and move forward is\u2026<\/p><hr data-start=\"1581\" data-end=\"1584\" \/><h2 data-start=\"1586\" data-end=\"1608\">\ud83d\udd04 Final Reflection<\/h2><p><img class=\"alignnone size-medium wp-image-938\" src=\"https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/03\/Emotional-Regulation-Image-2-300x185.png\" alt=\"\" width=\"300\" height=\"185\" \/><\/p><p data-start=\"1610\" data-end=\"1654\">Which area feels strongest for me right now?<\/p><p data-start=\"1656\" data-end=\"1686\">Which area needs more support?<\/p><p data-start=\"1688\" data-end=\"1752\">How would strengthening this area help me build the life I want?<\/p>",
+                                    "post_title": "Emotional Regulation: How Do I Handle My Emotions",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "emotional-regulation-how-do-i-handle-my-emotions",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-03-02 05:18:42",
+                                    "post_modified_gmt": "2026-03-02 05:18:42",
+                                    "post_content_filtered": "",
+                                    "post_parent": 40,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/ground-inner-world-foundations\/lessons\/emotional-regulation\/",
+                                    "menu_order": 7,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_wp_old_slug": [
+                                            "emotional-regulation"
+                                        ],
+                                        "_tutor_attachments": [
+                                            [
+                                                "936"
+                                            ]
+                                        ],
+                                        "_video": [
+                                            {
+                                                "source": "youtube",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "https:\/\/youtu.be\/1DmphC3Wozo?si=QJe3hX7NOCv2QbZp",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "0",
+                                                    "seconds": "0"
+                                                }
+                                            }
+                                        ],
+                                        "_thumbnail_id": [
+                                            "937"
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "1"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/03\/Emotional-Regulation-Image.png",
+                                    "attachment_links": [
+                                        "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/03\/Emotional-Regulation.pdf"
+                                    ]
+                                },
+                                {
+                                    "ID": 939,
+                                    "post_author": "3",
+                                    "post_date": "2026-03-02 05:28:37",
+                                    "post_date_gmt": "2026-03-02 05:28:37",
+                                    "post_content": "<h3 data-start=\"45\" data-end=\"68\"><strong data-start=\"45\" data-end=\"68\">Coach D\u2019s go-to reset mindset is:<\/strong><\/h3><p data-start=\"70\" data-end=\"203\">I can\u2019t control everything that happens to me, but I can control how I think about it, how I respond emotionally, and what I do next.<\/p><p data-start=\"63\" data-end=\"196\">I can\u2019t control everything that happens to me, but I can control how I think about it, how I respond emotionally, and what I do next.<\/p><p data-start=\"198\" data-end=\"221\">Now in your journal fill in the blanks:<\/p><p data-start=\"223\" data-end=\"279\">Something that happened is ____________________________.<\/p><p data-start=\"281\" data-end=\"338\">The first thought I had was ____________________________.<\/p><p data-start=\"340\" data-end=\"412\">A more helpful way I can think about it is ____________________________.<\/p><p data-start=\"414\" data-end=\"470\">The emotion I\u2019m feeling is ____________________________.<\/p><p data-start=\"472\" data-end=\"544\">A healthy way I can respond emotionally is ____________________________.<\/p><p data-start=\"546\" data-end=\"606\">The next action I will take is ____________________________.<\/p>",
+                                    "post_title": "Coach D's: Go-To Mindset Reset",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "coach-ds-go-to-mindset-reset",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-03-02 05:42:16",
+                                    "post_modified_gmt": "2026-03-02 05:42:16",
+                                    "post_content_filtered": "",
+                                    "post_parent": 40,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/ground-inner-world-foundations\/lessons\/coach-ds\/",
+                                    "menu_order": 8,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_wp_old_slug": [
+                                            "coach-ds",
+                                            "coach-ds-mindest-reset"
+                                        ],
+                                        "_thumbnail_id": [
+                                            "940"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/03\/MIndset-Is-Everything.png",
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 941,
+                                    "post_author": "3",
+                                    "post_date": "2026-03-02 05:45:29",
+                                    "post_date_gmt": "2026-03-02 05:45:29",
+                                    "post_content": "<h1 data-start=\"58\" data-end=\"89\">\ud83e\udde0 Thinking Styles Check-In<\/h1><h3 data-start=\"90\" data-end=\"131\">Fixed \u2022 Black &amp; White \u2022 Growth \u2022 Grey<\/h3><p data-start=\"151\" data-end=\"184\">\u00a0<\/p><h2 data-start=\"191\" data-end=\"225\">Step 1: Choose a Real Situation<\/h2><p data-start=\"227\" data-end=\"253\">Write a current challenge:<\/p><p data-start=\"255\" data-end=\"312\">Right now, I\u2019m dealing with ____________________________.<\/p><hr data-start=\"314\" data-end=\"317\" \/><h2 data-start=\"319\" data-end=\"348\">Step 2: Notice the Thought<\/h2><p data-start=\"350\" data-end=\"387\">The thought I\u2019m having about this is:<\/p><p data-start=\"389\" data-end=\"434\">____________________________________________.<\/p><hr data-start=\"436\" data-end=\"439\" \/><h2 data-start=\"441\" data-end=\"479\">Step 3: Identify the Thinking Style<\/h2><p data-start=\"481\" data-end=\"513\">Circle which one it sounds like:<\/p><p data-start=\"515\" data-end=\"559\">\u25a1 Fixed Mindset<br data-start=\"530\" data-end=\"533\" \/>\u201cThis is just how I am.\u201d<\/p><p data-start=\"561\" data-end=\"638\">\u25a1 Black &amp; White Thinking<br data-start=\"585\" data-end=\"588\" \/>\u201cThis is either total success or total failure.\u201d<\/p><p data-start=\"640\" data-end=\"696\">\u25a1 Growth Mindset<br data-start=\"656\" data-end=\"659\" \/>\u201cI can improve or learn from this.\u201d<\/p><p data-start=\"698\" data-end=\"756\">\u25a1 Grey Thinking<br data-start=\"713\" data-end=\"716\" \/>\u201cThere\u2019s more than one way to see this.\u201d<\/p><hr data-start=\"758\" data-end=\"761\" \/><h2 data-start=\"763\" data-end=\"782\">Step 4: Shift It<\/h2><p data-start=\"784\" data-end=\"834\">Rewrite your thought using Growth + Grey thinking:<\/p><p data-start=\"836\" data-end=\"869\">A more balanced thought could be:<\/p><p data-start=\"871\" data-end=\"916\">____________________________________________.<\/p><hr data-start=\"918\" data-end=\"921\" \/><h2 data-start=\"923\" data-end=\"949\">Step 5: Coach D\u2019s Go-To<\/h2><p data-start=\"951\" data-end=\"963\">Finish this:<\/p><p data-start=\"965\" data-end=\"1018\">Even if I can\u2019t control the situation, I can control:<\/p><p data-start=\"1020\" data-end=\"1163\">My thought: ____________________________<br data-start=\"1060\" data-end=\"1063\" \/>My emotional response: ____________________________<br data-start=\"1114\" data-end=\"1117\" \/>My next action: ____________________________<\/p>",
+                                    "post_title": "Coach D's: Thinking Styles Check-In",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "coach-ds-thinking-styles-check-in",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-03-02 05:45:29",
+                                    "post_modified_gmt": "2026-03-02 05:45:29",
+                                    "post_content_filtered": "",
+                                    "post_parent": 40,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/ground-inner-world-foundations\/lessons\/coach-ds-thinking-styles-check-in\/",
+                                    "menu_order": 9,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": [],
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": []
+                                }
+                            ]
+                        }
+                    ],
+                    "child_posts": [],
+                    "attachment_links": []
+                }
+            }
+        }
+    ]
+}

@@ -14,7 +14,7 @@ import { SafeImage, SafeVideo } from '@components/Objects/SafeImage'
 const MAX_FILE_SIZE = 8_000_000; // 8MB for images
 const MAX_VIDEO_FILE_SIZE = 100_000_000; // 100MB for videos
 const VALID_IMAGE_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png'] as const;
-const VALID_VIDEO_MIME_TYPES = ['video/mp4', 'video/webm'] as const;
+const VALID_VIDEO_MIME_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'] as const;
 
 type ValidImageMimeType = typeof VALID_IMAGE_MIME_TYPES[number];
 type ValidVideoMimeType = typeof VALID_VIDEO_MIME_TYPES[number];
@@ -76,7 +76,7 @@ function ThumbnailUpdate({ thumbnailType }: ThumbnailUpdateProps) {
       }
     } else {
       if (!VALID_VIDEO_MIME_TYPES.includes(file.type as ValidVideoMimeType)) {
-        showError(`Invalid file type: ${file.type}. Please upload only MP4 or WebM videos`);
+        showError(`Invalid file type: ${file.type}. Please upload only MP4, WebM, or MOV videos`);
         return false;
       }
 
@@ -285,7 +285,7 @@ function ThumbnailUpdate({ thumbnailType }: ThumbnailUpdateProps) {
           ref={videoInputRef}
           type="file"
           className="hidden"
-          accept=".mp4,.webm"
+          accept=".mp4,.webm,.mov"
           onChange={(e) => handleFileChange(e, 'video')}
         />
         <button

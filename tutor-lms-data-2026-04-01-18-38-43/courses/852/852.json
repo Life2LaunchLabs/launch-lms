@@ -1,0 +1,2306 @@
+{
+    "schema_version": "2.0.0",
+    "exported_at": "April 1, 2026 6:38 pm",
+    "keep_media_files": true,
+    "keep_user_data": false,
+    "data": [
+        {
+            "content_type": "courses",
+            "data": {
+                "course": {
+                    "ID": 852,
+                    "post_author": "1",
+                    "post_date": "2026-01-29 20:21:00",
+                    "post_date_gmt": "2026-01-30 04:21:00",
+                    "post_content": "<p><span style=\"font-weight: 400\">Being adaptable means you are flexible, you can predict potential problems, you know how change affects you, and you respond in a way that allows for change without getting overly stressed.<\/span><\/p><p>\u00a0<\/p><p><b>I CAN<\/b><\/p><ol><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Ican recognize when changes in the workplace offer me opportunities for growth.<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">I can embrace new challenges at work in order to improve and expand my skill set.<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">I can encourage others to share their ideas so that we work <\/span><span style=\"font-weight: 400\"><br \/><\/span><span style=\"font-weight: 400\">smarter toward our goals.<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">I can take care of my mental wellbeing even when I make mistakes or get negative feedback.<\/span><\/li><\/ol><p>\u00a0<\/p>",
+                    "post_title": "OES: Adaptability",
+                    "post_excerpt": "",
+                    "post_status": "private",
+                    "comment_status": "closed",
+                    "ping_status": "closed",
+                    "post_password": "",
+                    "post_name": "oes-adaptability",
+                    "to_ping": "",
+                    "pinged": "",
+                    "post_modified": "2026-01-29 20:25:10",
+                    "post_modified_gmt": "2026-01-29 20:25:10",
+                    "post_content_filtered": "",
+                    "post_parent": 0,
+                    "guid": "https:\/\/life2launch-core.com\/?post_type=courses&#038;p=852",
+                    "menu_order": 0,
+                    "post_type": "courses",
+                    "post_mime_type": "",
+                    "comment_count": "0",
+                    "filter": "raw",
+                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/OES-Adaptability.png",
+                    "meta": {
+                        "_tutor_course_price_type": [
+                            "free"
+                        ],
+                        "_tutor_course_settings": [
+                            {
+                                "maximum_students": 0,
+                                "enrollment_expiry": "",
+                                "enable_content_drip": 0,
+                                "content_drip_type": "",
+                                "enable_tutor_bp": 0,
+                                "course_enrollment_period": "no",
+                                "enrollment_starts_at": "",
+                                "enrollment_ends_at": "",
+                                "pause_enrollment": "no"
+                            }
+                        ],
+                        "_video": [
+                            []
+                        ],
+                        "_tutor_enable_qa": [
+                            "no"
+                        ],
+                        "_tutor_is_public_course": [
+                            "no"
+                        ],
+                        "_tutor_course_coming_soon_thumbnail_id": [
+                            "NaN"
+                        ],
+                        "tutor_course_sale_price": [
+                            "0"
+                        ],
+                        "_course_duration": [
+                            {
+                                "hours": "1",
+                                "minutes": "0"
+                            }
+                        ],
+                        "_tutor_course_level": [
+                            "all_levels"
+                        ],
+                        "_thumbnail_id": [
+                            "893"
+                        ],
+                        "ekit_post_views_count": [
+                            "13"
+                        ],
+                        "_tutor_course_started": [
+                            "1769718164"
+                        ],
+                        "_tutor_course_benefits": [
+                            "Being adaptable means you are flexible, you can predict potential problems, you know how change affects you, and you respond in a way that allows for change without getting overly stressed.\r\nSees when things change and recognizes that change can be an opportunity.\r\nOpen to new experiences, including work environments, roles, and tasks.\r\nAcknowledges the viewpoints of others and accepts suggestions to get the job done.\r\nHandles average amounts of stress, positively uses feedback, and learns from things that go wrong."
+                        ],
+                        "_tutor_course_enable_coming_soon": [
+                            "0"
+                        ],
+                        "_tutor_course_enable_curriculum_preview": [
+                            "0"
+                        ]
+                    },
+                    "taxonomies": {
+                        "categories": [],
+                        "tags": []
+                    },
+                    "contents": [
+                        {
+                            "ID": 853,
+                            "post_author": "1",
+                            "post_date": "2026-01-29 18:43:27",
+                            "post_date_gmt": "2026-01-29 18:43:27",
+                            "post_content": "",
+                            "post_title": "Welcome",
+                            "post_excerpt": "",
+                            "post_status": "publish",
+                            "comment_status": "closed",
+                            "ping_status": "closed",
+                            "post_password": "",
+                            "post_name": "welcome",
+                            "to_ping": "",
+                            "pinged": "",
+                            "post_modified": "2026-01-29 18:43:27",
+                            "post_modified_gmt": "2026-01-29 18:43:27",
+                            "post_content_filtered": "",
+                            "post_parent": 852,
+                            "guid": "https:\/\/life2launch-core.com\/topics\/welcome\/",
+                            "menu_order": 1,
+                            "post_type": "topics",
+                            "post_mime_type": "",
+                            "comment_count": "0",
+                            "filter": "raw",
+                            "children": [
+                                {
+                                    "ID": 854,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 18:45:14",
+                                    "post_date_gmt": "2026-01-29 18:45:14",
+                                    "post_content": "<p><span style=\"font-weight: 400\">\u201cAdaptability means the ability to be flexible and adjust to changing factors, conditions, or environments. Being adaptable is highly valued in almost all workplaces, since every industry and business can be unpredictable.\u201d\u00a0<\/span><\/p><p>\u00a0<\/p><p><span style=\"font-weight: 400\">(Indeed.com)<\/span><\/p>",
+                                    "post_title": "What is adaptability?",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "what-is-adaptability",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 18:53:48",
+                                    "post_modified_gmt": "2026-01-29 18:53:48",
+                                    "post_content_filtered": "",
+                                    "post_parent": 853,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/lessons\/what-is-adaptability\/",
+                                    "menu_order": 1,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_video": [
+                                            {
+                                                "source": "youtube",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "https:\/\/youtu.be\/fX0EMVKhPVo",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "0",
+                                                    "seconds": "30"
+                                                }
+                                            }
+                                        ],
+                                        "_thumbnail_id": [
+                                            "857"
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "4"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Screenshot-2026-01-29-105319.png",
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 856,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 18:52:50",
+                                    "post_date_gmt": "2026-01-29 18:52:50",
+                                    "post_content": "<p><img class=\"alignnone size-large wp-image-855\" src=\"https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Screenshot-2026-01-29-105012-1024x576.png\" alt=\"\" width=\"1024\" height=\"576\" \/><\/p><p><strong>T<\/strong><strong>raits<\/strong><\/p><ul><li>Sees when things change and recognizes that change can be an opportunity.<\/li><li>Open to new experiences, including work environments, roles, and tasks.<\/li><li>Acknowledges the viewpoints of others and accepts suggestions to get the job done.<\/li><li>Handles average amounts of stress, positively uses feedback, and learns from things that go wrong.<\/li><\/ul><p><b>Are Flexibility and Adaptability the Same?<\/b><\/p><p><span style=\"font-weight: 400\">Not exactly! Being <\/span><span style=\"font-weight: 400\">flexible<\/span><span style=\"font-weight: 400\"> means you know a change has occurred and you may be required to change your behavior and attitude.<\/span><\/p><p><span style=\"font-weight: 400\">Being <\/span><span style=\"font-weight: 400\">adaptable<\/span><span style=\"font-weight: 400\"> means:<\/span><\/p><ul><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">you are flexible.<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">you can predict potential problems.<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">you know how change affects you.<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">you respond in a way that allows for change without getting overly stressed.<\/span><\/li><\/ul><p><strong>I Can Statements<\/strong><\/p><ul><li>I can recognize when changes in the workplace offer me opportunities for growth.<\/li><\/ul><ul><li>I can embrace new challenges at work in order to improve and expand my skill set.<\/li><\/ul><ul><li>I can encourage others to share their ideas so that we work together toward our goals.<\/li><\/ul><ul><li>I can take care of my mental wellbeing even when I make mistakes or get negative feedback.<\/li><\/ul><p>\u00a0<\/p>",
+                                    "post_title": "Four Primary Traits of Adaptability",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "four-primary-traits-of-adaptability",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 18:52:50",
+                                    "post_modified_gmt": "2026-01-29 18:52:50",
+                                    "post_content_filtered": "",
+                                    "post_parent": 853,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/lessons\/four-primary-traits-of-adaptability\/",
+                                    "menu_order": 2,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_thumbnail_id": [
+                                            "855"
+                                        ],
+                                        "_video": [
+                                            {
+                                                "source": "youtube",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "https:\/\/youtu.be\/_YEzBauwE0Y",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "0",
+                                                    "seconds": "0"
+                                                }
+                                            }
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "3"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Screenshot-2026-01-29-105012.png",
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 858,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 18:55:27",
+                                    "post_date_gmt": "2026-01-29 18:55:27",
+                                    "post_content": "<p><strong>Relevant Terms<\/strong><\/p><p><b>FEEDBACK: <\/b><span style=\"font-weight: 400\">a helpful response to someone, which is used for improvement\u00a0<\/span><\/p><p><b>GIG WORKER: <\/b><span style=\"font-weight: 400\">Someone who works for a limited time period, as on a temporary, part-time, or project-based job<\/span><span style=\"font-weight: 400\"><br \/><\/span><\/p><p><b>STRESS: <\/b><span style=\"font-weight: 400\">The mental or emotional strain or tension that comes from experiencing a difficult situation<\/span><span style=\"font-weight: 400\"><br \/><\/span><\/p><p><b>FIXED MINDSET: <\/b><span style=\"font-weight: 400\">The belief that our abilities and intelligence are predetermined and do not change regardless of our efforts<\/span><\/p><p><b>GROWTH MINDSET: <\/b><span style=\"font-weight: 400\">The belief that our abilities can change over time, as we experience and learn more<\/span><\/p><p><b>MULTI-DISCIPLINARY: <\/b><span style=\"font-weight: 400\">combined or involving more than one discipline or field of study, or business and industry department<\/span><\/p><p><b>TRANSFERABLE SKILLS: <\/b><span style=\"font-weight: 400\">skills you can take from one job or task to another<\/span><\/p><p><b>WORK\/LIFE BALANCE: <\/b><span style=\"font-weight: 400\">a healthy balance of work and personal commitments<\/span><\/p>",
+                                    "post_title": "Relevant Terms",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "relevant-terms",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 18:55:27",
+                                    "post_modified_gmt": "2026-01-29 18:55:27",
+                                    "post_content_filtered": "",
+                                    "post_parent": 853,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/lessons\/relevant-terms\/",
+                                    "menu_order": 3,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_video": [
+                                            {
+                                                "source": "youtube",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "https:\/\/youtu.be\/OMl3J4vouXc",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "1",
+                                                    "seconds": "0"
+                                                }
+                                            }
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "1"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 859,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 19:05:02",
+                                    "post_date_gmt": "2026-01-29 19:05:02",
+                                    "post_content": "Let\u2019s start off our Adaptability training with looking at some common concepts and knowledge items surrounding adaptability and change. You\u2019ll take a 10 question assessment to check your knowledge. Keep your score to see how it compares at the end.",
+                                    "post_title": "Relevant Term Quiz",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "closed",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "relevant-term-quiz",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 19:05:02",
+                                    "post_modified_gmt": "2026-01-29 19:05:02",
+                                    "post_content_filtered": "",
+                                    "post_parent": 853,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/quizzes\/relevant-term-quiz\/",
+                                    "menu_order": 4,
+                                    "post_type": "tutor_quiz",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "tutor_quiz_option": [
+                                            {
+                                                "attempts_allowed": "10",
+                                                "feedback_mode": "retry",
+                                                "hide_question_number_overview": "0",
+                                                "hide_quiz_time_display": "0",
+                                                "max_questions_for_answer": "10",
+                                                "open_ended_answer_characters_limit": "500",
+                                                "pass_is_required": "0",
+                                                "passing_grade": "100",
+                                                "question_layout_view": "single_question",
+                                                "questions_order": "rand",
+                                                "quiz_auto_start": "0",
+                                                "short_answer_characters_limit": "200",
+                                                "time_limit": {
+                                                    "time_type": "minutes",
+                                                    "time_value": "0"
+                                                }
+                                            }
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "5"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": [],
+                                    "question_answer": [
+                                        {
+                                            "question": {
+                                                "question_id": "13",
+                                                "quiz_id": "859",
+                                                "question_title": "What is the definition of \\\"FEEDBACK\\\"?",
+                                                "question_description": "",
+                                                "answer_explanation": "",
+                                                "question_type": "multiple_choice",
+                                                "question_mark": "1.00",
+                                                "question_settings": {
+                                                    "answer_required": "1",
+                                                    "question_mark": "1",
+                                                    "question_type": "multiple_choice",
+                                                    "randomize_question": "1",
+                                                    "show_question_mark": "0",
+                                                    "has_multiple_correct_answer": "0"
+                                                },
+                                                "question_order": "1"
+                                            },
+                                            "answers": [
+                                                {
+                                                    "answer_id": "21",
+                                                    "belongs_question_id": "13",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "A negative comment about someone\\'s work",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "1"
+                                                },
+                                                {
+                                                    "answer_id": "22",
+                                                    "belongs_question_id": "13",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "A helpful response to someone, which is used for improvement",
+                                                    "is_correct": "1",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "2"
+                                                },
+                                                {
+                                                    "answer_id": "23",
+                                                    "belongs_question_id": "13",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Ignoring someone\\'s efforts",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "3"
+                                                },
+                                                {
+                                                    "answer_id": "24",
+                                                    "belongs_question_id": "13",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Praise without any suggestions",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "4"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "question": {
+                                                "question_id": "14",
+                                                "quiz_id": "859",
+                                                "question_title": "Who is a GIG WORKER?",
+                                                "question_description": "",
+                                                "answer_explanation": "",
+                                                "question_type": "multiple_choice",
+                                                "question_mark": "1.00",
+                                                "question_settings": {
+                                                    "answer_required": "1",
+                                                    "question_mark": "1",
+                                                    "question_type": "multiple_choice",
+                                                    "randomize_question": "1",
+                                                    "show_question_mark": "0",
+                                                    "has_multiple_correct_answer": "0"
+                                                },
+                                                "question_order": "2"
+                                            },
+                                            "answers": [
+                                                {
+                                                    "answer_id": "25",
+                                                    "belongs_question_id": "14",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Someone who works full-time for a single company",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "1"
+                                                },
+                                                {
+                                                    "answer_id": "26",
+                                                    "belongs_question_id": "14",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Someone who works part-time at multiple jobs simultaneously",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "2"
+                                                },
+                                                {
+                                                    "answer_id": "27",
+                                                    "belongs_question_id": "14",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Someone who works for a limited time period, as on a temporary, part-time, or project-based job",
+                                                    "is_correct": "1",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "3"
+                                                },
+                                                {
+                                                    "answer_id": "28",
+                                                    "belongs_question_id": "14",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Someone who does not work at all",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "4"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "question": {
+                                                "question_id": "15",
+                                                "quiz_id": "859",
+                                                "question_title": "What is STRESS?",
+                                                "question_description": "",
+                                                "answer_explanation": "",
+                                                "question_type": "multiple_choice",
+                                                "question_mark": "1.00",
+                                                "question_settings": {
+                                                    "answer_required": "1",
+                                                    "question_mark": "1",
+                                                    "question_type": "multiple_choice",
+                                                    "randomize_question": "1",
+                                                    "show_question_mark": "0",
+                                                    "has_multiple_correct_answer": "0"
+                                                },
+                                                "question_order": "3"
+                                            },
+                                            "answers": [
+                                                {
+                                                    "answer_id": "29",
+                                                    "belongs_question_id": "15",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "The feeling of being relaxed and calm",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "1"
+                                                },
+                                                {
+                                                    "answer_id": "30",
+                                                    "belongs_question_id": "15",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "The mental or emotional strain or tension that comes from experiencing a difficult situation",
+                                                    "is_correct": "1",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "2"
+                                                },
+                                                {
+                                                    "answer_id": "31",
+                                                    "belongs_question_id": "15",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "The state of being happy and content",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "3"
+                                                },
+                                                {
+                                                    "answer_id": "32",
+                                                    "belongs_question_id": "15",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "The feeling of excitement and anticipation",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "4"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "question": {
+                                                "question_id": "16",
+                                                "quiz_id": "859",
+                                                "question_title": "Which mindset believes that abilities and intelligence are predetermined and do not change?",
+                                                "question_description": "",
+                                                "answer_explanation": "",
+                                                "question_type": "multiple_choice",
+                                                "question_mark": "1.00",
+                                                "question_settings": {
+                                                    "answer_required": "1",
+                                                    "question_mark": "1",
+                                                    "question_type": "multiple_choice",
+                                                    "randomize_question": "1",
+                                                    "show_question_mark": "0",
+                                                    "has_multiple_correct_answer": "0"
+                                                },
+                                                "question_order": "4"
+                                            },
+                                            "answers": [
+                                                {
+                                                    "answer_id": "33",
+                                                    "belongs_question_id": "16",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Growth Mindset",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "1"
+                                                },
+                                                {
+                                                    "answer_id": "34",
+                                                    "belongs_question_id": "16",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Flexible Mindset",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "2"
+                                                },
+                                                {
+                                                    "answer_id": "35",
+                                                    "belongs_question_id": "16",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Fixed Mindset",
+                                                    "is_correct": "1",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "3"
+                                                },
+                                                {
+                                                    "answer_id": "36",
+                                                    "belongs_question_id": "16",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Adaptable Mindset",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "4"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "question": {
+                                                "question_id": "17",
+                                                "quiz_id": "859",
+                                                "question_title": "What does a GROWTH MINDSET entail?",
+                                                "question_description": "",
+                                                "answer_explanation": "",
+                                                "question_type": "multiple_choice",
+                                                "question_mark": "1.00",
+                                                "question_settings": {
+                                                    "answer_required": "1",
+                                                    "question_mark": "1",
+                                                    "question_type": "multiple_choice",
+                                                    "randomize_question": "1",
+                                                    "show_question_mark": "0",
+                                                    "has_multiple_correct_answer": "0"
+                                                },
+                                                "question_order": "5"
+                                            },
+                                            "answers": [
+                                                {
+                                                    "answer_id": "37",
+                                                    "belongs_question_id": "17",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Believing that abilities are fixed and unchangeable",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "1"
+                                                },
+                                                {
+                                                    "answer_id": "38",
+                                                    "belongs_question_id": "17",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Believing that abilities can change over time, as we experience and learn more",
+                                                    "is_correct": "1",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "2"
+                                                },
+                                                {
+                                                    "answer_id": "39",
+                                                    "belongs_question_id": "17",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Avoiding new challenges to stay comfortable",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "3"
+                                                },
+                                                {
+                                                    "answer_id": "40",
+                                                    "belongs_question_id": "17",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Ignoring feedback and improvement",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "4"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "question": {
+                                                "question_id": "18",
+                                                "quiz_id": "859",
+                                                "question_title": "What does MULTIDISCIPLINARY mean?",
+                                                "question_description": "",
+                                                "answer_explanation": "",
+                                                "question_type": "multiple_choice",
+                                                "question_mark": "1.00",
+                                                "question_settings": {
+                                                    "answer_required": "1",
+                                                    "question_mark": "1",
+                                                    "question_type": "multiple_choice",
+                                                    "randomize_question": "1",
+                                                    "show_question_mark": "0",
+                                                    "has_multiple_correct_answer": "0"
+                                                },
+                                                "question_order": "6"
+                                            },
+                                            "answers": [
+                                                {
+                                                    "answer_id": "41",
+                                                    "belongs_question_id": "18",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Involving only one field of study or business department",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "1"
+                                                },
+                                                {
+                                                    "answer_id": "42",
+                                                    "belongs_question_id": "18",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Combined or involving more than one discipline or field of study, or business and industry department",
+                                                    "is_correct": "1",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "2"
+                                                },
+                                                {
+                                                    "answer_id": "43",
+                                                    "belongs_question_id": "18",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Focusing only on technical skills",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "3"
+                                                },
+                                                {
+                                                    "answer_id": "44",
+                                                    "belongs_question_id": "18",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Avoiding collaboration between different fields",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "4"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "question": {
+                                                "question_id": "19",
+                                                "quiz_id": "859",
+                                                "question_title": "What are TRANSFERABLE SKILLS?",
+                                                "question_description": "",
+                                                "answer_explanation": "",
+                                                "question_type": "multiple_choice",
+                                                "question_mark": "1.00",
+                                                "question_settings": {
+                                                    "answer_required": "1",
+                                                    "question_mark": "1",
+                                                    "question_type": "multiple_choice",
+                                                    "randomize_question": "1",
+                                                    "show_question_mark": "0",
+                                                    "has_multiple_correct_answer": "0"
+                                                },
+                                                "question_order": "7"
+                                            },
+                                            "answers": [
+                                                {
+                                                    "answer_id": "45",
+                                                    "belongs_question_id": "19",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Skills specific to one job only",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "1"
+                                                },
+                                                {
+                                                    "answer_id": "46",
+                                                    "belongs_question_id": "19",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Skills you can take from one job or task to another",
+                                                    "is_correct": "1",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "2"
+                                                },
+                                                {
+                                                    "answer_id": "47",
+                                                    "belongs_question_id": "19",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Skills that are not useful in any job",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "3"
+                                                },
+                                                {
+                                                    "answer_id": "48",
+                                                    "belongs_question_id": "19",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Skills that are only relevant in academic settings",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "4"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "question": {
+                                                "question_id": "20",
+                                                "quiz_id": "859",
+                                                "question_title": "What is WORK\/LIFE BALANCE?",
+                                                "question_description": "",
+                                                "answer_explanation": "",
+                                                "question_type": "multiple_choice",
+                                                "question_mark": "1.00",
+                                                "question_settings": {
+                                                    "answer_required": "1",
+                                                    "question_mark": "1",
+                                                    "question_type": "multiple_choice",
+                                                    "randomize_question": "1",
+                                                    "show_question_mark": "0",
+                                                    "has_multiple_correct_answer": "0"
+                                                },
+                                                "question_order": "8"
+                                            },
+                                            "answers": [
+                                                {
+                                                    "answer_id": "49",
+                                                    "belongs_question_id": "20",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Focusing solely on work and ignoring personal commitments",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "1"
+                                                },
+                                                {
+                                                    "answer_id": "50",
+                                                    "belongs_question_id": "20",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "A healthy balance of work and personal commitments",
+                                                    "is_correct": "1",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "2"
+                                                },
+                                                {
+                                                    "answer_id": "51",
+                                                    "belongs_question_id": "20",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Prioritizing personal life over work always",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "3"
+                                                },
+                                                {
+                                                    "answer_id": "52",
+                                                    "belongs_question_id": "20",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Working all the time without breaks",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "4"
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "question": {
+                                                "question_id": "21",
+                                                "quiz_id": "859",
+                                                "question_title": "Describe a situation in which adaptability is important and explain why it is beneficial.",
+                                                "question_description": "",
+                                                "answer_explanation": "",
+                                                "question_type": "short_answer",
+                                                "question_mark": "1.00",
+                                                "question_settings": {
+                                                    "answer_required": "1",
+                                                    "question_mark": "1",
+                                                    "question_type": "short_answer",
+                                                    "randomize_question": "0",
+                                                    "show_question_mark": "0"
+                                                },
+                                                "question_order": "9"
+                                            },
+                                            "answers": [
+                                                {
+                                                    "answer_id": null,
+                                                    "belongs_question_id": null,
+                                                    "belongs_question_type": null,
+                                                    "answer_title": null,
+                                                    "is_correct": null,
+                                                    "image_id": null,
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": null,
+                                                    "answer_view_format": null,
+                                                    "answer_settings": null,
+                                                    "answer_order": null
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "ID": 860,
+                            "post_author": "1",
+                            "post_date": "2026-01-29 19:05:52",
+                            "post_date_gmt": "2026-01-29 19:05:52",
+                            "post_content": "Sees when things change and recognizes that change can be an opportunity",
+                            "post_title": "Trait #1",
+                            "post_excerpt": "",
+                            "post_status": "publish",
+                            "comment_status": "closed",
+                            "ping_status": "closed",
+                            "post_password": "",
+                            "post_name": "trait-1",
+                            "to_ping": "",
+                            "pinged": "",
+                            "post_modified": "2026-01-29 19:05:52",
+                            "post_modified_gmt": "2026-01-29 19:05:52",
+                            "post_content_filtered": "",
+                            "post_parent": 852,
+                            "guid": "https:\/\/life2launch-core.com\/topics\/trait-1\/",
+                            "menu_order": 2,
+                            "post_type": "topics",
+                            "post_mime_type": "",
+                            "comment_count": "0",
+                            "filter": "raw",
+                            "children": [
+                                {
+                                    "ID": 861,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 19:09:55",
+                                    "post_date_gmt": "2026-01-29 19:09:55",
+                                    "post_content": "<p><b>When change occurs, how do I see it as an opportunity for personal and workplace growth?<\/b><\/p><ol><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">What life event caused a big change for Naomi?<\/span><\/li><li><span style=\"font-weight: 400\"> How did she embrace change as an opportunity?<\/span><\/li><li><span style=\"font-weight: 400\"> What skills did she already have from her prior residential mortgage finance job, or as a family caregiver, that helped her transfer to the new career at the hospital?<\/span><\/li><\/ol><p><b>Transferable skills <\/b><span style=\"font-weight: 400\">are those things you already know how to do which can be used in different situations. They are things you can take from one job to another.<\/span><\/p><p><span style=\"font-weight: 400\">When change happens we can embrace it by taking time to reflect on the transferable skills we have.\u00a0 We are often just being asked to apply our skills in a different way.\u00a0<\/span><\/p>",
+                                    "post_title": "Change as an Opportunity",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "change-as-an-opportunity",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 19:09:55",
+                                    "post_modified_gmt": "2026-01-29 19:09:55",
+                                    "post_content_filtered": "",
+                                    "post_parent": 860,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/lessons\/change-as-an-opportunity\/",
+                                    "menu_order": 1,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_video": [
+                                            {
+                                                "source": "youtube",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "http:\/\/www.youtube.com\/watch?v=VgdK_jwrnGA",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "0",
+                                                    "seconds": "0"
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 864,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 19:28:50",
+                                    "post_date_gmt": "2026-01-29 19:28:50",
+                                    "post_content": "<p><b>Transferable Skills:\u00a0<\/b><\/p><p><span style=\"font-weight: 400\">What They Are and Why They Matter<\/span><\/p><p><b>T<\/b><b>ransferable skills <\/b><span style=\"font-weight: 400\">are those things you already know how to do which can be used in different situations. They are things you can take from one job to another.<\/span><\/p><p><span style=\"font-weight: 400\">When change happens we can embrace it by taking time to reflect on the transferable skills we have.\u00a0 We are often just being asked to apply our skills in a different way.<\/span><\/p><p><strong>Download the handout and brainstorm some transferable skills.<\/strong><\/p>",
+                                    "post_title": "Transferable skills",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "closed",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "transferable-skills",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 19:28:50",
+                                    "post_modified_gmt": "2026-01-29 19:28:50",
+                                    "post_content_filtered": "",
+                                    "post_parent": 860,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/assignments\/transferable-skills\/",
+                                    "menu_order": 2,
+                                    "post_type": "tutor_assignments",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_tutor_course_id_for_assignments": [
+                                            "852"
+                                        ],
+                                        "assignment_option": [
+                                            {
+                                                "time_duration": {
+                                                    "time": "weeks",
+                                                    "value": 0
+                                                },
+                                                "deadline_from_start": "0",
+                                                "total_mark": "10",
+                                                "pass_mark": "5",
+                                                "upload_files_limit": "1",
+                                                "upload_file_size_limit": "2",
+                                                "is_retry_allowed": "1",
+                                                "attempts_allowed": "5"
+                                            }
+                                        ],
+                                        "_tutor_assignment_total_mark": [
+                                            "10"
+                                        ],
+                                        "_tutor_assignment_pass_mark": [
+                                            "5"
+                                        ],
+                                        "_tutor_assignment_attachments": [
+                                            [
+                                                "863"
+                                            ]
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "2"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": [
+                                        "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/OES-WR_-T1-Transferable-Skills-Adaptability.docx"
+                                    ]
+                                },
+                                {
+                                    "ID": 865,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 19:34:12",
+                                    "post_date_gmt": "2026-01-29 19:34:12",
+                                    "post_content": "<p>Change is inevitable - how you deal with it is what matters and makes you stand out. Being adaptable and facing a challenge demonstrates to others that you want to grow.<br \/>Employers notice when you take on more work\u2013and you position yourself in line for that next promotion!<\/p><p><strong>Tell Your Story<\/strong><\/p><ul><li>Tell about how you approach unexpected challenges or changes in your work? Can you give an example of how you turned a challenge into an opportunity?<\/li><li>Can you tell about or describe a time when you faced a significant change in your school, job or life?\u00a0 How did you adapt to this change, and what was the outcome?<\/li><\/ul><p><b>Job Seekers Toolbox<\/b><\/p><ul><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Can you add \u201cadaptable\u201d to the skills on your Career Bio or resume\u2019? Can you add any transferable skills? Add context on your resum\u00e9 to let a prospective employer know you prepare for challenges in the workplace.<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Tell about a transferable skill you used in a new situation.\u00a0 What is the skill and how were you able to \u201ctransfer\u201d it from one situation or job to another opportunity?\u00a0<\/span><\/li><\/ul>",
+                                    "post_title": "Career Connected Learning",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "career-connected-learning-2",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 19:48:00",
+                                    "post_modified_gmt": "2026-01-29 19:48:00",
+                                    "post_content_filtered": "",
+                                    "post_parent": 860,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/lessons\/job-seekers-toolbox\/",
+                                    "menu_order": 3,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_video": [
+                                            {
+                                                "source": "youtube",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "https:\/\/youtu.be\/jKI7XoxeiMU",
+                                                "source_shortcode": "",
+                                                "source_youtube": "https:\/\/youtu.be\/jKI7XoxeiMU",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "0",
+                                                    "seconds": "15"
+                                                }
+                                            }
+                                        ],
+                                        "_wp_old_slug": [
+                                            "job-seekers-toolbox"
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "1"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": []
+                                }
+                            ]
+                        },
+                        {
+                            "ID": 866,
+                            "post_author": "1",
+                            "post_date": "2026-01-29 19:34:29",
+                            "post_date_gmt": "2026-01-29 19:34:29",
+                            "post_content": "Open to new experiences including work environments, roles, and tasks",
+                            "post_title": "Trait #2",
+                            "post_excerpt": "",
+                            "post_status": "publish",
+                            "comment_status": "closed",
+                            "ping_status": "closed",
+                            "post_password": "",
+                            "post_name": "trait-2",
+                            "to_ping": "",
+                            "pinged": "",
+                            "post_modified": "2026-01-29 19:34:29",
+                            "post_modified_gmt": "2026-01-29 19:34:29",
+                            "post_content_filtered": "",
+                            "post_parent": 852,
+                            "guid": "https:\/\/life2launch-core.com\/topics\/trait-2\/",
+                            "menu_order": 3,
+                            "post_type": "topics",
+                            "post_mime_type": "",
+                            "comment_count": "0",
+                            "filter": "raw",
+                            "children": [
+                                {
+                                    "ID": 867,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 19:39:38",
+                                    "post_date_gmt": "2026-01-29 19:39:38",
+                                    "post_content": "<p><b>Essential Question<\/b><\/p><p><span style=\"font-weight: 400\">How will embracing challenges at work help me improve and expand <\/span><span style=\"font-weight: 400\"><br \/><\/span><span style=\"font-weight: 400\">my skill set?<\/span><\/p><p><strong>Start With a Positive Attitude<\/strong><\/p><p><span style=\"font-weight: 400\">Being adaptable means you\u2019re ready to change course if necessary.<\/span><\/p><p><span style=\"font-weight: 400\">Approaching each challenge with a<\/span><b> positive attitude<\/b> <span style=\"font-weight: 400\"><br \/><\/span><span style=\"font-weight: 400\">allows you to adapt more quickly to reach a solution!<\/span><\/p><p><span style=\"font-weight: 400\">A <\/span><b>negative attitude<\/b><span style=\"font-weight: 400\"> makes it more difficult to find a solution.<\/span><\/p><ol><li><b>Skill Development: <\/b><span style=\"font-weight: 400\">Embracing challenges helps you develop new skills and improve existing ones, making you more versatile and capable in your job.<\/span><\/li><li><b>Problem-Solving Abilities: <\/b><span style=\"font-weight: 400\">Facing and overcoming challenges enhances your problem-solving abilities, enabling you to handle difficult situations more effectively.<\/span><\/li><li><span style=\"font-weight: 400\"><b>Career Growth: <\/b>Taking on challenges can lead to new opportunities and responsibilities, contributing to your professional growth and career advancement.<\/span><\/li><\/ol><ul><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Are you open to new ideas and methods?<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Are you able to see setbacks or failures as an opportunity to learn and grow?<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Can you step back and see the big picture?<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Can you approach change with curiosity and creativity?<\/span><\/li><\/ul><p>\u00a0<\/p>",
+                                    "post_title": "Start With a Positive Attitude",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "start-with-a-positive-attitude",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 19:39:38",
+                                    "post_modified_gmt": "2026-01-29 19:39:38",
+                                    "post_content_filtered": "",
+                                    "post_parent": 866,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/lessons\/start-with-a-positive-attitude\/",
+                                    "menu_order": 1,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": [],
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 868,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 19:40:32",
+                                    "post_date_gmt": "2026-01-29 19:40:32",
+                                    "post_content": "<ul><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Meta Fab Employees have to embrace change, new ideas, new roles, new experiences, and consistently embrace challenges.<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Things are changing faster and faster.\u00a0 The company has to anticipate and embrace change in machinery, roles, markets, and tasks.\u00a0<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Let\u2019s dive into some challenges that come with change, especially as it relates to awareness of effective listening and communication.<\/span><\/li><\/ul><p><b>As you watch, think about: <\/b><span style=\"font-weight: 400\">How do Meta Fab employees adapt to constant change and new challenges?\u00a0 Why is listening and effective communication essential for success?\u00a0 <\/span><\/p>",
+                                    "post_title": "Navigating Change: Meta Fab",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "navigating-change-meta-fab",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 19:40:32",
+                                    "post_modified_gmt": "2026-01-29 19:40:32",
+                                    "post_content_filtered": "",
+                                    "post_parent": 866,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/lessons\/navigating-change-meta-fab\/",
+                                    "menu_order": 2,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_video": [
+                                            {
+                                                "source": "youtube",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "http:\/\/www.youtube.com\/watch?v=KIHe03K5YkA",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "0",
+                                                    "seconds": "0"
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 872,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 19:42:34",
+                                    "post_date_gmt": "2026-01-29 19:42:34",
+                                    "post_content": "<p><b>PROBLEM\/SCENARIO:<\/b><\/p><p><span style=\"font-weight: 400\">MetaFab is considering a major investment in new equipment to stay competitive, causing excitement and unease among the team. The lack of communication from leadership and rumors of phasing out old equipment have led to concerns about job security and the fast pace of technological changes. The leadership needs to address these concerns, clarify the plan, and reassure the team during this transition.<\/span><\/p><p><b>Activity\u00a0<\/b><\/p><p><b>Scenario: <\/b><span style=\"font-weight: 400\">You are working together as part of a Meta Fabs team to discuss the new piece of equipment the company is purchasing that will help increase production.\u00a0\u00a0<\/span><\/p><p><span style=\"font-weight: 400\">Your small group of managers and technicians are meeting to communicate <\/span><span style=\"font-weight: 400\">with employees <\/span><span style=\"font-weight: 400\">the plan to purchase the new equipment.\u00a0 <\/span><span style=\"font-weight: 400\">The goal of the team meeting is to create a list of potential concerns and questions the employees might have, and how to reduce their fears and anxiety <\/span><span style=\"font-weight: 400\">.\u00a0\u00a0<\/span><\/p><p><span style=\"font-weight: 400\">Be sure to provide possible solutions that will help support all employees when the company announces the purchase of the new equipment.<\/span><\/p><p><b>Wrap-Up Questions:<\/b><\/p><ol><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Why can change create anxiety and fear?<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">How can a manager and team work to alleviate the challenges that come with change?<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">What is the most important aspect of management for supporting people through a change in the workplace?<\/span><\/li><\/ol>",
+                                    "post_title": "MetaFab: Industry Scenario",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "closed",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "metafab-industry-scenario",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 19:43:43",
+                                    "post_modified_gmt": "2026-01-29 19:43:43",
+                                    "post_content_filtered": "",
+                                    "post_parent": 866,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/assignments\/metafab-industry-scenario\/",
+                                    "menu_order": 3,
+                                    "post_type": "tutor_assignments",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_tutor_course_id_for_assignments": [
+                                            "852"
+                                        ],
+                                        "assignment_option": [
+                                            {
+                                                "time_duration": {
+                                                    "time": "weeks",
+                                                    "value": 0
+                                                },
+                                                "deadline_from_start": "0",
+                                                "total_mark": "10",
+                                                "pass_mark": "5",
+                                                "upload_files_limit": "1",
+                                                "upload_file_size_limit": "2",
+                                                "is_retry_allowed": "1",
+                                                "attempts_allowed": "5"
+                                            }
+                                        ],
+                                        "_tutor_assignment_total_mark": [
+                                            "10"
+                                        ],
+                                        "_tutor_assignment_pass_mark": [
+                                            "5"
+                                        ],
+                                        "_tutor_assignment_attachments": [
+                                            [
+                                                "869"
+                                            ]
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": [
+                                        "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/OES-WR_-T3-MetaFab-Adaptability.docx"
+                                    ]
+                                },
+                                {
+                                    "ID": 873,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 19:45:35",
+                                    "post_date_gmt": "2026-01-29 19:45:35",
+                                    "post_content": "<p><span style=\"font-weight: 400\">When we acknowledge our ability to learn, grow, and improve, we are more likely to:<\/span><\/p><ul><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">reach our goals,<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">learn more advanced skills, and<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">be recognized for our valuable contributions.<\/span><\/li><\/ul><p><b>Keyen (Keke) Singer: Co-Director NASU <\/b><b>University of Oregon<\/b><\/p><ul><li>How does Keyen\u2019s role in NASU require her to understand and respect different perspectives and values when advocating for others?<\/li><\/ul><ul><li>Why does Keyen believe it\u2019s okay to struggle with embracing your culture while adapting to a new environment, and how can this struggle help you grow?<\/li><\/ul><p><b>NASU<\/b><span style=\"font-weight: 400\"> is the <\/span><b>N<\/b><span style=\"font-weight: 400\">ative <\/span><b>A<\/b><span style=\"font-weight: 400\">merican <\/span><b>S<\/b><span style=\"font-weight: 400\">tudent <\/span><b>U<\/b><span style=\"font-weight: 400\">nion is <\/span><span style=\"font-weight: 400\">a multiethnic group that supports the educational goals of Indigenous Peoples, Alaskan Natives, and American Indians at the University of Oregon.<\/span><\/p>",
+                                    "post_title": "Adopt a Growth Mindset",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "adopt-a-growth-mindset",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 20:25:08",
+                                    "post_modified_gmt": "2026-01-29 20:25:08",
+                                    "post_content_filtered": "",
+                                    "post_parent": 866,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/lessons\/adopt-a-growth-mindset\/",
+                                    "menu_order": 4,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_video": [
+                                            {
+                                                "source": "external_url",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "https:\/\/drive.google.com\/file\/d\/1NHSvHBeF8YyZ806voX4ZytDcb_W75HR0\/view?usp=sharing",
+                                                "source_shortcode": "",
+                                                "source_youtube": "",
+                                                "source_vimeo": "",
+                                                "source_embedded": "https:\/\/drive.google.com\/file\/d\/1NHSvHBeF8YyZ806voX4ZytDcb_W75HR0\/view?usp=sharing",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "0",
+                                                    "seconds": "0"
+                                                }
+                                            }
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "5"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 874,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 19:47:25",
+                                    "post_date_gmt": "2026-01-29 19:47:25",
+                                    "post_content": "<p>When we take on challenges at work, we open ourselves up to learning new skills. Being open to new experiences including work environments, roles, and tasks show you have a growth mindset.<\/p><p><strong>Tell Your Story<\/strong><\/p><ul><li>Tell about an experience where you took on a challenging task or role that was outside your comfort zone? How did this experience help you develop new skills?<\/li><li>Tell how you stay motivated when faced with tasks or projects that require you to learn new skills or knowledge? Can you provide an example of how this attitude has benefited your work?<\/li><\/ul><p><b>Job Seekers Toolbox<\/b><\/p><p><span style=\"font-weight: 400\">Three-Step Approach to Your<\/span><b> Job Search:<\/b><\/p><ol><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Make a list of skills you already have. Include technical and workplace skills. Also include any certifications you\u2019ve received.<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Go online and research jobs\/careers\/opportunities that match the skills you have (see the Oregon CIS Job Search icon below). You are likely to find jobs you already knew about, but there may be some surprises, too.<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Based on your research, make a list of positions you want more information on.<\/span><\/li><\/ol>",
+                                    "post_title": "Career Connected Learning",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "career-connected-learning",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 19:47:25",
+                                    "post_modified_gmt": "2026-01-29 19:47:25",
+                                    "post_content_filtered": "",
+                                    "post_parent": 866,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/lessons\/career-connected-learning\/",
+                                    "menu_order": 5,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_video": [
+                                            {
+                                                "source": "youtube",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "https:\/\/youtu.be\/jKI7XoxeiMU",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "0",
+                                                    "seconds": "0"
+                                                }
+                                            }
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "2"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": []
+                                }
+                            ]
+                        },
+                        {
+                            "ID": 875,
+                            "post_author": "1",
+                            "post_date": "2026-01-29 19:48:20",
+                            "post_date_gmt": "2026-01-29 19:48:20",
+                            "post_content": "Acknowledges the viewpoints of others and accepts suggestions to get the job done.",
+                            "post_title": "Trait #3",
+                            "post_excerpt": "",
+                            "post_status": "publish",
+                            "comment_status": "closed",
+                            "ping_status": "closed",
+                            "post_password": "",
+                            "post_name": "trait-3",
+                            "to_ping": "",
+                            "pinged": "",
+                            "post_modified": "2026-01-29 19:48:20",
+                            "post_modified_gmt": "2026-01-29 19:48:20",
+                            "post_content_filtered": "",
+                            "post_parent": 852,
+                            "guid": "https:\/\/life2launch-core.com\/topics\/trait-3\/",
+                            "menu_order": 4,
+                            "post_type": "topics",
+                            "post_mime_type": "",
+                            "comment_count": "0",
+                            "filter": "raw",
+                            "children": [
+                                {
+                                    "ID": 876,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 19:49:35",
+                                    "post_date_gmt": "2026-01-29 19:49:35",
+                                    "post_content": "<p><strong>Essential Question<\/strong><\/p><p><span style=\"font-weight: 400\">How will listening to my colleagues\u2019 ideas create a positive and <\/span><span style=\"font-weight: 400\"><br \/><\/span><span style=\"font-weight: 400\">successful workplace?<\/span><\/p>",
+                                    "post_title": "Considering Other Viewpoints",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "considering-other-viewpoints",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 19:49:35",
+                                    "post_modified_gmt": "2026-01-29 19:49:35",
+                                    "post_content_filtered": "",
+                                    "post_parent": 875,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/lessons\/considering-other-viewpoints\/",
+                                    "menu_order": 1,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_video": [
+                                            {
+                                                "source": "youtube",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "https:\/\/youtu.be\/FMDRcOsHCK8",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "0",
+                                                    "seconds": "0"
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 877,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 19:50:31",
+                                    "post_date_gmt": "2026-01-29 19:50:31",
+                                    "post_content": "<p>Listen for what skills are important when coming together to work on a project such as building drones. Why are skills such as understanding the importance of communication, understanding your knowledge &amp; strengths and those of your team essential for success in innovative projects?<\/p>",
+                                    "post_title": "Industry Video: Umatilla Tribes Drone Program",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "industry-video-umatilla-tribes-drone-program",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 19:50:31",
+                                    "post_modified_gmt": "2026-01-29 19:50:31",
+                                    "post_content_filtered": "",
+                                    "post_parent": 875,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/lessons\/industry-video-umatilla-tribes-drone-program\/",
+                                    "menu_order": 2,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_video": [
+                                            {
+                                                "source": "external_url",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "https:\/\/drive.google.com\/file\/d\/1x-8Pf1Ux_9JlYpcuotoCoWwMTgEiH1aF\/view?usp=sharing",
+                                                "source_shortcode": "",
+                                                "source_youtube": "",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "0",
+                                                    "seconds": "0"
+                                                }
+                                            }
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "1"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 878,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 19:51:29",
+                                    "post_date_gmt": "2026-01-29 19:51:29",
+                                    "post_content": "<ul><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">University of Oregon brings together multi-disciplinary teams to solve real world problems.\u00a0\u00a0<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Listen to how many viewpoints they consider to get the job done.<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">See how many you can write down while you listen to the video.<\/span><\/li><\/ul>",
+                                    "post_title": "Big Ideas",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "big-ideas",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 19:51:29",
+                                    "post_modified_gmt": "2026-01-29 19:51:29",
+                                    "post_content_filtered": "",
+                                    "post_parent": 875,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/lessons\/big-ideas\/",
+                                    "menu_order": 3,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_video": [
+                                            {
+                                                "source": "youtube",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "https:\/\/www.youtube.com\/watch?v=yP3Lz8DJoro",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "0",
+                                                    "seconds": "0"
+                                                }
+                                            }
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "1"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 879,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 19:55:20",
+                                    "post_date_gmt": "2026-01-29 19:55:20",
+                                    "post_content": "You just created an \u201cadd on\u201d for your gas tank that allows your car to go 100 miles on a gallon of gas. Brilliant! Now you have to assemble a multidisciplinary team to bring your product to market, and create a profit. Who do you need on your team? How will you find the team you need? Will you need to go outside your organization?",
+                                    "post_title": "A Multi-disciplinary Team",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "closed",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "a-multi-disciplinary-team",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 19:55:20",
+                                    "post_modified_gmt": "2026-01-29 19:55:20",
+                                    "post_content_filtered": "",
+                                    "post_parent": 875,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/quizzes\/a-multi-disciplinary-team\/",
+                                    "menu_order": 4,
+                                    "post_type": "tutor_quiz",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "tutor_quiz_option": [
+                                            {
+                                                "attempts_allowed": "10",
+                                                "feedback_mode": "retry",
+                                                "hide_question_number_overview": "0",
+                                                "hide_quiz_time_display": "0",
+                                                "max_questions_for_answer": "10",
+                                                "open_ended_answer_characters_limit": "500",
+                                                "pass_is_required": "0",
+                                                "passing_grade": "100",
+                                                "question_layout_view": "single_question",
+                                                "questions_order": "rand",
+                                                "quiz_auto_start": "0",
+                                                "short_answer_characters_limit": "200",
+                                                "time_limit": {
+                                                    "time_type": "minutes",
+                                                    "time_value": "0"
+                                                }
+                                            }
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "3"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": [],
+                                    "question_answer": [
+                                        {
+                                            "question": {
+                                                "question_id": "22",
+                                                "quiz_id": "879",
+                                                "question_title": "Make a list of team members you think you will need.",
+                                                "question_description": "",
+                                                "answer_explanation": "",
+                                                "question_type": "open_ended",
+                                                "question_mark": "0.00",
+                                                "question_settings": {
+                                                    "answer_required": "1",
+                                                    "question_mark": "",
+                                                    "question_type": "open_ended",
+                                                    "randomize_question": "0",
+                                                    "show_question_mark": "0"
+                                                },
+                                                "question_order": "1"
+                                            },
+                                            "answers": [
+                                                {
+                                                    "answer_id": null,
+                                                    "belongs_question_id": null,
+                                                    "belongs_question_type": null,
+                                                    "answer_title": null,
+                                                    "is_correct": null,
+                                                    "image_id": null,
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": null,
+                                                    "answer_view_format": null,
+                                                    "answer_settings": null,
+                                                    "answer_order": null
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "ID": 880,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 19:56:18",
+                                    "post_date_gmt": "2026-01-29 19:56:18",
+                                    "post_content": "<p><span style=\"font-weight: 400\">Daniel works in accounting. He talks about the industry standard of working late nights during the busy season.\u00a0 How did Daniel and his company work together to find an adaptable solution by first understanding each others\u2019 viewpoints?\u00a0 <\/span><span style=\"font-weight: 400\"><br \/><\/span><span style=\"font-weight: 400\">What was the win-win that they came up with?<\/span><\/p><p>\u00a0<\/p><p><b>Navigate to Advocate<\/b><\/p><ul><li><span style=\"font-weight: 400\">You just learned how Daniel navigated an alternate work schedule at KDP.<\/span><\/li><li><span style=\"font-weight: 400\">How can understanding our rights and responsibilities as students or employees help us navigate systems for support more effectively?\u00a0<\/span><\/li><li><span style=\"font-weight: 400\">What tools are in place for us to be able to understand our rights and responsibilities?<\/span><\/li><li><span style=\"font-weight: 400\">Why is persistence essential?\u00a0 How can we adapt to being persistent as needed?<\/span><\/li><\/ul><p><b>Share experiences in the following areas:\u00a0<\/b><\/p><ul><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Was there a time you can think of when knowing your rights and responsibilities enabled you to engage with support systems effectively?\u00a0\u00a0<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Was there a time when\u00a0 a lack of understanding hindered your ability to access the support you needed?<\/span><span style=\"font-weight: 400\"><br \/><\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Where can you find help, or who can you talk to, if you need help navigating a solution for your needs?<\/span><\/li><\/ul>",
+                                    "post_title": "KDP Certified Public Accountant",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "kdp-certified-public-accountant",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 19:57:00",
+                                    "post_modified_gmt": "2026-01-29 19:57:00",
+                                    "post_content_filtered": "",
+                                    "post_parent": 875,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/lessons\/kdp-certified-public-accountant\/",
+                                    "menu_order": 5,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_video": [
+                                            {
+                                                "source": "youtube",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "https:\/\/www.youtube.com\/watch?v=cGkoOMhn4fI",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "0",
+                                                    "seconds": "0"
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 881,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 19:58:39",
+                                    "post_date_gmt": "2026-01-29 19:58:39",
+                                    "post_content": "<p><strong>Summary<\/strong><\/p><p><span style=\"font-weight: 400\">Asking for advice, getting help from others, and acknowledging that we don\u2019t have all the answers enables us to face changes and adapt accordingly.<\/span><\/p><p><strong>Tell Your Story<\/strong><\/p><ul><li>Tell how you typically approach asking for help when faced with a new or unfamiliar task? Can you share an example of how this approach has helped you successfully adapt to a change?<\/li><li>Tell about and describe a situation where you had to seek advice or assistance from others to overcome a challenge at work? What was the outcome, and how did it help you adapt to the situation?<\/li><\/ul><p><strong>Job Seeker's Toolbox<\/strong><\/p><p><b>Cover Letter Checkpoint<\/b><\/p><p><span style=\"font-weight: 400\">Draft a brief description of how you demonstrate adaptability on the job. You can tailor this example to fit the specific jobs you apply for, but it will help to have the general description written.<\/span><\/p><p><b>Interview Checkpoint<\/b><\/p><ul><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Describe a time you relied on your coworkers\u2019 suggestions in order to finish a job successfully.<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Describe a time you learned a new skill because you were open to getting advice and assistance from a coworker.<\/span><\/li><\/ul>",
+                                    "post_title": "Career Connected Learning",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "career-connected-learning-3",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 19:58:39",
+                                    "post_modified_gmt": "2026-01-29 19:58:39",
+                                    "post_content_filtered": "",
+                                    "post_parent": 875,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/lessons\/career-connected-learning-3\/",
+                                    "menu_order": 6,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_video": [
+                                            {
+                                                "source": "youtube",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "https:\/\/youtu.be\/jKI7XoxeiMU",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "0",
+                                                    "seconds": "0"
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": []
+                                }
+                            ]
+                        },
+                        {
+                            "ID": 882,
+                            "post_author": "1",
+                            "post_date": "2026-01-29 19:59:02",
+                            "post_date_gmt": "2026-01-29 19:59:02",
+                            "post_content": "Handles average amounts of stress, positively uses feedback, and learns from things that go wrong.  ",
+                            "post_title": "Trait #4",
+                            "post_excerpt": "",
+                            "post_status": "publish",
+                            "comment_status": "closed",
+                            "ping_status": "closed",
+                            "post_password": "",
+                            "post_name": "trait-4",
+                            "to_ping": "",
+                            "pinged": "",
+                            "post_modified": "2026-01-29 19:59:02",
+                            "post_modified_gmt": "2026-01-29 19:59:02",
+                            "post_content_filtered": "",
+                            "post_parent": 852,
+                            "guid": "https:\/\/life2launch-core.com\/topics\/trait-4\/",
+                            "menu_order": 5,
+                            "post_type": "topics",
+                            "post_mime_type": "",
+                            "comment_count": "0",
+                            "filter": "raw",
+                            "children": [
+                                {
+                                    "ID": 883,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 20:00:32",
+                                    "post_date_gmt": "2026-01-29 20:00:32",
+                                    "post_content": "<p><strong>Essential Question<\/strong><\/p><p><span style=\"font-weight: 400\">How can I protect my mental well being, even when I make <\/span><span style=\"font-weight: 400\">mistakes on the job and receive negative feedback?<\/span><\/p><p><span style=\"font-weight: 400\">Stress occurs in our personal and workplace lives. <\/span><span style=\"font-weight: 400\">Ignoring it doesn\u2019t make it go away.<\/span><\/p><p><span style=\"font-weight: 400\">A growth mindset helps us be more adaptable.<\/span><\/p><ul><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">We can keep negative emotions in check when we make mistakes.<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">We can change course and fix a problem.<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">We can see failure as an opportunity for growth.<\/span><\/li><\/ul><p><strong>Dealing with Stress<\/strong><\/p><p><span style=\"font-weight: 400\">We all need a strategy for dealing with stress.\u00a0<\/span><\/p><ul><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Make a list of strategies you currently use to handle stress.\u00a0<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Do an internet search to learn about other ways to reduce stress.<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Practice stress-reducing techniques before you need them.<\/span><\/li><\/ul>",
+                                    "post_title": "Handling Stress",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "handling-stress",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 20:00:32",
+                                    "post_modified_gmt": "2026-01-29 20:00:32",
+                                    "post_content_filtered": "",
+                                    "post_parent": 882,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/lessons\/handling-stress\/",
+                                    "menu_order": 1,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_video": [
+                                            {
+                                                "source": "youtube",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "https:\/\/youtu.be\/cbkodi7_CW8",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "0",
+                                                    "seconds": "0"
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 884,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 20:02:03",
+                                    "post_date_gmt": "2026-01-29 20:02:03",
+                                    "post_content": "<ul><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">How did Jessica embrace and handle the stress of having to step into her new role quickly, when the mentor left abruptly.<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Jessica talks about how teaching is not a 9-5 job, but one that emotionally vests you in the work you do.\u00a0 Why is it important to understand the physical and mental aspects of the job you plan to enter and if that is a good fit for your long-term well-being?<\/span><\/li><\/ul><p>Interested in learning more? Watch <a href=\"https:\/\/www.youtube.com\/watch?v=lVKCUb84KC0\"><span style=\"font-weight: 400\">Jessica\u2019s Q&amp;A<\/span><\/a><span style=\"font-weight: 400\">\u00a0 <\/span><\/p>",
+                                    "post_title": "Jessica West\u2019s Story",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "jessica-wests-story",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 20:02:03",
+                                    "post_modified_gmt": "2026-01-29 20:02:03",
+                                    "post_content_filtered": "",
+                                    "post_parent": 882,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/lessons\/jessica-wests-story\/",
+                                    "menu_order": 2,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_video": [
+                                            {
+                                                "source": "youtube",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "https:\/\/www.youtube.com\/watch?v=ww4DA58eT38",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "0",
+                                                    "seconds": "0"
+                                                }
+                                            }
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "1"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 885,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 20:02:55",
+                                    "post_date_gmt": "2026-01-29 20:02:55",
+                                    "post_content": "<p><span style=\"font-weight: 400\">If you have \u201cwork\/life balance,\u201d you understand that along with hard work, you need to include things outside of work that you enjoy, and that help you refresh.\u00a0 Too much work, or for that matter, too much fun, puts your time and energy out of balance and can affect your commitments and priorities.<\/span><\/p><p><b>Stress Less<\/b><\/p><p><span style=\"font-weight: 400\">Work\/ life balance is essential for our mental well- being and our approach to life.\u00a0 Stress can be a real part of life, but being aware of our stressors and how to effectively manage them is important.<\/span><\/p><p><span style=\"font-weight: 400\">Review the checklist on the right.\u00a0 Add up the total of\u00a0 your current stressors and <\/span><span style=\"font-weight: 400\"><br \/><\/span><span style=\"font-weight: 400\">then answer the following questions:<\/span><\/p><ul><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">What are some common stressors among us?<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">How do you usually cope with stress?<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Are there any new strategies you'd like to try based on the items you marked on the checklist?<\/span><\/li><\/ul><p><b><i>Where can we find additional support for stress if we need it?<\/i><\/b><\/p><p><b>Stressors Checklist: What\u2019s Your #?<\/b><\/p><ul><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Academic pressure<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Family conflicts<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Peer pressure<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Relationship issues<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Financial concerns<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Time management difficulties<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Health problems<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Future uncertainties<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Social media overload<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Personal insecurities<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Lack of sleep<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Performance anxiety<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Balancing extracurricular activities<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Bullying or harassment<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Other <\/span><\/li><\/ul>",
+                                    "post_title": "Work\/Life Balance",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "work-life-balance",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 20:02:55",
+                                    "post_modified_gmt": "2026-01-29 20:02:55",
+                                    "post_content_filtered": "",
+                                    "post_parent": 882,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/lessons\/work-life-balance\/",
+                                    "menu_order": 3,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": [],
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 886,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 20:03:53",
+                                    "post_date_gmt": "2026-01-29 20:03:53",
+                                    "post_content": "<ul><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Listen to how Erica used feedback to help her be successful in the workplace.\u00a0 <\/span><b>Why is listening to feedback from the audience you serve essential?<\/b><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Erica talks about\u00a0 how where she works, and her job environment are essential for work-life balance.\u00a0 She enjoys being an educator working for a non-profit instead of working in a classroom.\u00a0 <\/span><b>Why do you think it\u2019s important to understand work-life balance as a way to manage stress?<\/b><\/li><\/ul><p>Interested in learning more? Watch <a href=\"https:\/\/youtu.be\/LXPbWimWtBc\"><span style=\"font-weight: 400\">Erica\u2019s Q&amp;A\u00a0<\/span><\/a><span style=\"font-weight: 400\">\u00a0<\/span><\/p>",
+                                    "post_title": "Erica Carmona\u2019s Story",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "erica-carmonas-story",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 20:03:53",
+                                    "post_modified_gmt": "2026-01-29 20:03:53",
+                                    "post_content_filtered": "",
+                                    "post_parent": 882,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/lessons\/erica-carmonas-story\/",
+                                    "menu_order": 4,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_video": [
+                                            {
+                                                "source": "youtube",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "http:\/\/www.youtube.com\/watch?v=HzYMCwiK0Ys",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "0",
+                                                    "seconds": "0"
+                                                }
+                                            }
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "2"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 887,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 20:09:07",
+                                    "post_date_gmt": "2026-01-29 20:09:07",
+                                    "post_content": "Feedback, whether it is positive or negative, is about giving and receiving information that will help others perform better. Making a mistake or failing to complete a task correctly causes stress. Taking responsibility, rather than taking offense, reduces stress. Admitting that our plan may not work allows us to redirect our efforts to follow-up action.",
+                                    "post_title": "Responding to Feedback",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "closed",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "responding-to-feedback",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 20:09:07",
+                                    "post_modified_gmt": "2026-01-29 20:09:07",
+                                    "post_content_filtered": "",
+                                    "post_parent": 882,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/quizzes\/responding-to-feedback\/",
+                                    "menu_order": 5,
+                                    "post_type": "tutor_quiz",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "tutor_quiz_option": [
+                                            {
+                                                "attempts_allowed": "10",
+                                                "feedback_mode": "retry",
+                                                "hide_question_number_overview": "0",
+                                                "hide_quiz_time_display": "0",
+                                                "max_questions_for_answer": "10",
+                                                "open_ended_answer_characters_limit": "500",
+                                                "pass_is_required": "0",
+                                                "passing_grade": "100",
+                                                "question_layout_view": "single_question",
+                                                "questions_order": "rand",
+                                                "quiz_auto_start": "0",
+                                                "short_answer_characters_limit": "200",
+                                                "time_limit": {
+                                                    "time_type": "minutes",
+                                                    "time_value": "0"
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": [],
+                                    "question_answer": [
+                                        {
+                                            "question": {
+                                                "question_id": "23",
+                                                "quiz_id": "887",
+                                                "question_title": "Feedback Faults",
+                                                "question_description": "<p>What went wrong with this feedback?<\/p><p>During a project review meeting, Hannah, the project manager, notices some errors in the work presented by Leopoldo, one of her team members. Instead of addressing the issues tactfully, Hannah bluntly criticizes Leopoldo\u2019s work in front of the entire team, pointing out every mistake she found without offering any constructive feedback.<\/p><p>Leopoldo feels embarrassed and demoralized by Hannah\u2019s approach. He becomes defensive and shuts down, unable to effectively absorb the feedback or participate in the discussion. The rest of the team feels uncomfortable witnessing the exchange, and the meeting becomes tense and unproductive.<\/p><p>What three strategies could have been done differently in this feedback scenario?<\/p>",
+                                                "answer_explanation": "",
+                                                "question_type": "open_ended",
+                                                "question_mark": "1.00",
+                                                "question_settings": {
+                                                    "answer_required": "1",
+                                                    "question_mark": "1",
+                                                    "question_type": "open_ended",
+                                                    "randomize_question": "0",
+                                                    "show_question_mark": "0"
+                                                },
+                                                "question_order": "1"
+                                            },
+                                            "answers": [
+                                                {
+                                                    "answer_id": null,
+                                                    "belongs_question_id": null,
+                                                    "belongs_question_type": null,
+                                                    "answer_title": null,
+                                                    "is_correct": null,
+                                                    "image_id": null,
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": null,
+                                                    "answer_view_format": null,
+                                                    "answer_settings": null,
+                                                    "answer_order": null
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "question": {
+                                                "question_id": "24",
+                                                "quiz_id": "887",
+                                                "question_title": "Industry Scenario: Adaptability in Action",
+                                                "question_description": "<p><span style=\"font-weight: 400\">You are a shift supervisor at a retail store and the other shift supervisors you work with are complaining about the store manager to the new employees they are training.\u00a0 How would you address the problem?\u00a0\u00a0\u00a0\u00a0<\/span><\/p>",
+                                                "answer_explanation": "",
+                                                "question_type": "multiple_choice",
+                                                "question_mark": "1.00",
+                                                "question_settings": {
+                                                    "answer_required": "1",
+                                                    "question_mark": "1",
+                                                    "question_type": "multiple_choice",
+                                                    "randomize_question": "0",
+                                                    "show_question_mark": "0",
+                                                    "has_multiple_correct_answer": "1"
+                                                },
+                                                "question_order": "2"
+                                            },
+                                            "answers": [
+                                                {
+                                                    "answer_id": "53",
+                                                    "belongs_question_id": "24",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Ignore the problem it isn\u2019t your problem.",
+                                                    "is_correct": "0",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "1"
+                                                },
+                                                {
+                                                    "answer_id": "54",
+                                                    "belongs_question_id": "24",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Talk to the store manager and let them know what is going on, it isn\u2019t professional and it\u2019s causing issues with the store morale and employees are feeling uncomfortable.",
+                                                    "is_correct": "1",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "2"
+                                                },
+                                                {
+                                                    "answer_id": "55",
+                                                    "belongs_question_id": "24",
+                                                    "belongs_question_type": "multiple_choice",
+                                                    "answer_title": "Follow the store protocols of reporting issues like this to the district manager or the human resources team as outlined in the employee handbook.",
+                                                    "is_correct": "1",
+                                                    "image_id": "0",
+                                                    "image_url": "",
+                                                    "answer_two_gap_match": "",
+                                                    "answer_view_format": "text",
+                                                    "answer_settings": null,
+                                                    "answer_order": "3"
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                },
+                                {
+                                    "ID": 888,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 20:11:02",
+                                    "post_date_gmt": "2026-01-29 20:11:02",
+                                    "post_content": "<p>Inevitably, we will have problems that come up that we can\u2019t solve by ourselves. It can be helpful to get an outside perspective. It is important to have a plan to deal with stress. A growth mindset leads us to success with less stress.<\/p><p><strong>Tell Your Story<\/strong><\/p><ul><li>Tell about how you typically manage stress when faced with demanding tasks or tight deadlines? Can you share a specific strategy or plan that helps you stay focused and effective?<\/li><li>Tell about or describe a time when you made a mistake or failed to complete a task correctly? How did you take responsibility for the situation, and what steps did you take to reduce stress and address the issue?<\/li><\/ul><p><strong>Job Seeker\u2019s Toolbox<br \/><\/strong><\/p><p><b>Career Bio or Resume\u2019 Checkpoint<\/b><\/p><p><span style=\"font-weight: 400\">Have you listed adaptability as a skill on your Career Bio or resume\u2019? What evidence do you have?<\/span><\/p><p><b>Interview Checkpoint<\/b><\/p><ul><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Describe a time that you had to make a change. What role did listening to other viewpoints play in helping you adapt?<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Describe a time when you had to adapt and change, which created stress. How did you handle the stress?<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Describe a time when you were asked to do something you had never done before. How did you react? What did you learn?<\/span><\/li><li style=\"font-weight: 400\"><span style=\"font-weight: 400\">Give an example of a time you demonstrated you had a growth mindset.<\/span><\/li><\/ul>",
+                                    "post_title": "Career Connected Learning",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "career-connected-learning-4",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 20:11:02",
+                                    "post_modified_gmt": "2026-01-29 20:11:02",
+                                    "post_content_filtered": "",
+                                    "post_parent": 882,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/lessons\/career-connected-learning-4\/",
+                                    "menu_order": 6,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_video": [
+                                            {
+                                                "source": "youtube",
+                                                "source_video_id": "",
+                                                "poster": "",
+                                                "poster_url": "",
+                                                "source_html5": "",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "https:\/\/youtu.be\/jKI7XoxeiMU",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "0",
+                                                    "minutes": "0",
+                                                    "seconds": "0"
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": []
+                                }
+                            ]
+                        },
+                        {
+                            "ID": 889,
+                            "post_author": "1",
+                            "post_date": "2026-01-29 20:18:46",
+                            "post_date_gmt": "2026-01-29 20:18:46",
+                            "post_content": "",
+                            "post_title": "Conclusion",
+                            "post_excerpt": "",
+                            "post_status": "publish",
+                            "comment_status": "closed",
+                            "ping_status": "closed",
+                            "post_password": "",
+                            "post_name": "whats-next",
+                            "to_ping": "",
+                            "pinged": "",
+                            "post_modified": "2026-01-29 20:18:46",
+                            "post_modified_gmt": "2026-01-29 20:18:46",
+                            "post_content_filtered": "",
+                            "post_parent": 852,
+                            "guid": "https:\/\/life2launch-core.com\/topics\/whats-next\/",
+                            "menu_order": 6,
+                            "post_type": "topics",
+                            "post_mime_type": "",
+                            "comment_count": "0",
+                            "filter": "raw",
+                            "children": [
+                                {
+                                    "ID": 892,
+                                    "post_author": "1",
+                                    "post_date": "2026-01-29 20:18:20",
+                                    "post_date_gmt": "2026-01-29 20:18:20",
+                                    "post_content": "<p><b>Project Based Learning: <\/b><b>Industry Activities<\/b><\/p><p><span style=\"font-weight: 400\">Oregon Industry supported projects are a great way to dig in deeper on the concepts taught in OES.<\/span><\/p><p><span style=\"font-weight: 400\">Companies will provide resources, training &amp; materials or offer various contests for students.<\/span><\/p><p><span style=\"font-weight: 400\">For the latest information and options: <\/span><span style=\"font-weight: 400\"><br \/><\/span><a href=\"https:\/\/docs.google.com\/document\/d\/1LtqdC-DrTz2wB9pLu7k6WGouUzM7scQCpyYn31-Z6uY\/view\"><span style=\"font-weight: 400\">click here<\/span><\/a><span style=\"font-weight: 400\">.<\/span><\/p><p><b>\u00a0<\/b><b>Career Technical Connections<\/b><\/p><ul><li><a href=\"https:\/\/docs.google.com\/presentation\/d\/1hDPEbOtiWK03GYiQY2taEMsujh_4FH6hawtZxEmCHfc\/edit?usp=drive_link\">Construction Technology<\/a><\/li><li><a href=\"https:\/\/docs.google.com\/presentation\/d\/1_DZAKxVNRwGkjAssMTic8usWX6FWd6T5qoUTFzfSxw4\/edit?usp=drive_link\">Cosmetology<\/a><\/li><li><a href=\"https:\/\/docs.google.com\/presentation\/d\/1szI1GpLiVLA46ACmIh3B9GczKNxPAzX5BAfHhKhX2uM\/edit?usp=sharing\">Manufacturing<\/a><\/li><li><a href=\"https:\/\/docs.google.com\/presentation\/d\/1LFU5qOiH1IquZcXckU00aueSqYdO_K5KniYl1Qd4jj0\/edit?usp=drive_link\">Diesel Technology<\/a><\/li><li><a href=\"https:\/\/docs.google.com\/presentation\/d\/1ThgHGI-sw5v0Q3PH3nfcCvm4hOZifwwIxs27MMNUU8g\/edit?usp=drive_link\">Health Services<\/a><\/li><li><a href=\"https:\/\/docs.google.com\/presentation\/d\/10tHsjbQzxM3qRj5DBLA4GKZXb_vimCkueL6jlqgyU6U\/edit?usp=drive_link\">Information Technology<\/a><\/li><\/ul><p><strong>Share your feedback<\/strong><\/p><p>Please take a few moments to share your experience. Your answers will help us understand how OES supports this goal. No personal data is collected<\/p><p><a href=\"https:\/\/forms.gle\/6jZGg8WzEqoAnZMZ9\">https:\/\/forms.gle\/6jZGg8WzEqoAnZMZ9<\/a><\/p>",
+                                    "post_title": "What's Next?",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "whats-next",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 20:18:20",
+                                    "post_modified_gmt": "2026-01-29 20:18:20",
+                                    "post_content_filtered": "",
+                                    "post_parent": 889,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/new-course\/lessons\/whats-next\/",
+                                    "menu_order": 1,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "ekit_post_views_count": [
+                                            "2"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": false,
+                                    "attachment_links": []
+                                }
+                            ]
+                        }
+                    ],
+                    "child_posts": [],
+                    "attachment_links": []
+                }
+            }
+        }
+    ]
+}

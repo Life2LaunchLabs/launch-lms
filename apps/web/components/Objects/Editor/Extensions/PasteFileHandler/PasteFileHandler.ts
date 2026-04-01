@@ -25,6 +25,7 @@ const MIME_TYPE_MAP: Record<string, FileTypeMapping> = {
   'image/gif': { blockType: 'blockImage', label: 'image', upload: uploadNewImageFile },
   'video/mp4': { blockType: 'blockVideo', label: 'video', upload: uploadNewVideoFile },
   'video/webm': { blockType: 'blockVideo', label: 'video', upload: uploadNewVideoFile },
+  'video/quicktime': { blockType: 'blockVideo', label: 'video', upload: uploadNewVideoFile },
   'application/pdf': { blockType: 'blockPDF', label: 'PDF', upload: uploadNewPDFFile },
 }
 

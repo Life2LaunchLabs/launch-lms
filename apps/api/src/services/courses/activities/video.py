@@ -80,7 +80,7 @@ async def create_video_activity(
             detail="Video : No video file provided",
         )
 
-    if video_file.content_type not in ["video/mp4", "video/webm"]:
+    if video_file.content_type not in ["video/mp4", "video/webm", "video/quicktime"]:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Video : Wrong video format"
         )

@@ -11,8 +11,8 @@ export const FILE_TYPES = {
     maxSize: 10 * 1024 * 1024, // 10MB
   },
   video: {
-    extensions: ['.mp4', '.webm'],
-    mimeTypes: ['video/mp4', 'video/webm'],
+    extensions: ['.mp4', '.webm', '.mov'],
+    mimeTypes: ['video/mp4', 'video/webm', 'video/quicktime'],
     maxSize: 100 * 1024 * 1024, // 100MB
   },
   document: {

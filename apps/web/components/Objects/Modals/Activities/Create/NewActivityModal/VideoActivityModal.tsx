@@ -11,7 +11,7 @@ import BarLoader from 'react-spinners/BarLoader'
 import { Youtube, Upload } from 'lucide-react'
 import { constructAcceptValue } from '@/lib/constants'
 
-const SUPPORTED_FILES = constructAcceptValue(['mp4', 'webm'])
+const SUPPORTED_FILES = constructAcceptValue(['mp4', 'webm', 'mov'])
 
 interface VideoDetails {
   startTime: number

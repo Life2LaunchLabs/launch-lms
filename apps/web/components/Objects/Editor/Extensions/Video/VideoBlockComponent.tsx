@@ -179,12 +179,12 @@ function VideoBlockComponent(props: ExtendedNodeViewProps) {
     const file = e.dataTransfer.files[0]
     const fileExtension = file?.name.split('.').pop()?.toLowerCase()
 
-    if (file && fileExtension && ['mp4', 'webm'].includes(fileExtension)) {
+    if (file && fileExtension && ['mp4', 'webm', 'mov'].includes(fileExtension)) {
       setVideo(file)
       setError(null)
       handleUpload(file)
     } else {
-      setError('Please upload a supported video format (MP4 or WebM)')
+      setError('Please upload a supported video format (MP4, WebM, or MOV)')
     }
   }
 

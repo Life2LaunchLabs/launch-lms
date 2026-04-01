@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter, Depends, UploadFile, Form, Request, Query
+from fastapi import APIRouter, Depends, UploadFile, Form, Request, Query, File
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
 from sqlmodel import Session
@@ -54,9 +54,13 @@ from src.services.courses.transfer import (
     export_courses_batch,
     analyze_import_package,
     import_courses,
+    analyze_tutor_import_files,
+    import_tutor_courses,
+    get_tutor_import_progress,
     ImportOptions,
     ImportAnalysisResponse,
     ImportResult,
+    TutorImportProgressResponse,
 )
 
 
@@ -211,6 +215,60 @@ async def api_import_courses(
     return await import_courses(
         request, import_request.temp_id, org_id, options, current_user, db_session
     )
+
+
+@router.post("/import/tutor/analyze")
+async def api_analyze_tutor_import(
+    request: Request,
+    org_id: int,
+    tutor_files: List[UploadFile] = File(...),
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+) -> ImportAnalysisResponse:
+    """
+    Analyze Tutor LMS JSON export files for import.
+
+    Upload one or more Tutor LMS course JSON files. The endpoint stores the
+    normalized payload temporarily and returns the courses that can be imported.
+    """
+    return await analyze_tutor_import_files(
+        request, tutor_files, org_id, current_user, db_session
+    )
+
+
+@router.post("/import/tutor")
+async def api_import_tutor_courses(
+    request: Request,
+    org_id: int,
+    import_request: ImportRequest,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+) -> ImportResult:
+    """
+    Import Tutor LMS courses from a previously analyzed Tutor package.
+    """
+    options = ImportOptions(
+        course_uuids=import_request.course_uuids,
+        name_prefix=import_request.name_prefix,
+        set_private=import_request.set_private,
+        set_unpublished=import_request.set_unpublished,
+    )
+
+    return await import_tutor_courses(
+        request, import_request.temp_id, org_id, options, current_user, db_session
+    )
+
+
+@router.get("/import/tutor/progress")
+async def api_get_tutor_import_progress(
+    org_id: int,
+    temp_id: str,
+    _current_user: PublicUser = Depends(get_current_user),
+) -> TutorImportProgressResponse:
+    """
+    Read server-side Tutor LMS import progress for a previously analyzed package.
+    """
+    return get_tutor_import_progress(temp_id)
 
 
 @router.post("/")

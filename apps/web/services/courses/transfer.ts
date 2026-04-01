@@ -17,6 +17,7 @@ export interface ImportCourseInfo {
   chapters_count: number
   activities_count: number
   has_thumbnail: boolean
+  media_count?: number
 }
 
 export interface ImportAnalysisResponse {
@@ -45,6 +46,15 @@ export interface ImportResult {
   successful: number
   failed: number
   courses: ImportCourseResult[]
+}
+
+export interface TutorImportProgressResponse {
+  status: string
+  total_media: number
+  completed_media: number
+  current_media_name?: string | null
+  current_course_name?: string | null
+  message?: string | null
 }
 
 export type ExportStatus =
@@ -298,6 +308,91 @@ export async function importCourses(
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Import failed' }))
     throw new Error(error.detail || 'Failed to import courses')
+  }
+
+  return response.json()
+}
+
+/**
+ * Analyze Tutor LMS JSON exports for import
+ */
+export async function analyzeTutorImportFiles(
+  files: File[],
+  org_id: number,
+  access_token: string | null | undefined
+): Promise<ImportAnalysisResponse> {
+  const formData = new FormData()
+  files.forEach((file) => formData.append('tutor_files', file))
+
+  const response = await fetch(
+    `${getAPIUrl()}courses/import/tutor/analyze?org_id=${org_id}`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+      },
+      body: formData,
+    }
+  )
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Tutor analysis failed' }))
+    throw new Error(error.detail || 'Failed to analyze Tutor LMS files')
+  }
+
+  return response.json()
+}
+
+/**
+ * Import Tutor LMS courses from an analyzed package
+ */
+export async function importTutorCourses(
+  temp_id: string,
+  org_id: number,
+  options: ImportOptions,
+  access_token: string | null | undefined
+): Promise<ImportResult> {
+  const response = await fetch(
+    `${getAPIUrl()}courses/import/tutor?org_id=${org_id}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${access_token}`,
+      },
+      body: JSON.stringify({
+        temp_id,
+        ...options,
+      }),
+    }
+  )
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Tutor import failed' }))
+    throw new Error(error.detail || 'Failed to import Tutor LMS courses')
+  }
+
+  return response.json()
+}
+
+export async function getTutorImportProgress(
+  temp_id: string,
+  org_id: number,
+  access_token: string | null | undefined
+): Promise<TutorImportProgressResponse> {
+  const response = await fetch(
+    `${getAPIUrl()}courses/import/tutor/progress?org_id=${org_id}&temp_id=${encodeURIComponent(temp_id)}`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+      },
+    }
+  )
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Tutor progress failed' }))
+    throw new Error(error.detail || 'Failed to read Tutor import progress')
   }
 
   return response.json()

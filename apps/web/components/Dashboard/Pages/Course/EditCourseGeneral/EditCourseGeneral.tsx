@@ -83,6 +83,23 @@ function EditCourseGeneral(props: EditCourseStructureProps) {
 
   // Initialize learnings as a JSON array if it's not already
   const initializeLearnings = useCallback((learnings: any) => {
+    const fromPlainText = (text: string) => {
+      const parts = text
+        .split(/\n|,/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+
+      if (parts.length > 0) {
+        return JSON.stringify(parts.map((item, index) => ({
+          id: `imported-${index + 1}`,
+          text: item,
+          emoji: '📝'
+        })))
+      }
+
+      return JSON.stringify([{ id: 'default-1', text: text, emoji: '📝' }])
+    }
+
     if (!learnings) {
       return JSON.stringify([{ id: 'default-1', text: '', emoji: '📝' }]);
     }
@@ -93,20 +110,12 @@ function EditCourseGeneral(props: EditCourseStructureProps) {
         return learnings;
       }
       if (typeof learnings === 'string') {
-        return JSON.stringify([{
-          id: 'default-1',
-          text: learnings,
-          emoji: '📝'
-        }]);
+        return fromPlainText(learnings);
       }
       return JSON.stringify([{ id: 'default-1', text: '', emoji: '📝' }]);
     } catch (e) {
       if (typeof learnings === 'string') {
-        return JSON.stringify([{
-          id: 'default-1',
-          text: learnings,
-          emoji: '📝'
-        }]);
+        return fromPlainText(learnings);
       }
       return JSON.stringify([{ id: 'default-1', text: '', emoji: '📝' }]);
     }

@@ -2,6 +2,7 @@ export const ACCEPTED_FILE_FORMATS = {
     video: 'video/*',
     mp4: 'video/mp4',
     webm: 'video/webm',
+    mov: 'video/quicktime',
     // Removed 'image: image/*' to prevent SVG uploads - use specific formats instead
     jpg: 'image/jpeg',
     png: 'image/png',

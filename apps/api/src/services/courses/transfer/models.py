@@ -29,6 +29,7 @@ class ImportCourseInfo(BaseModel):
     chapters_count: int = 0
     activities_count: int = 0
     has_thumbnail: bool = False
+    media_count: int = 0
 
 
 class ImportAnalysisResponse(BaseModel):
@@ -61,3 +62,13 @@ class ImportResult(BaseModel):
     successful: int
     failed: int
     courses: list[ImportCourseResult]
+
+
+class TutorImportProgressResponse(BaseModel):
+    """Progress state for Tutor LMS imports"""
+    status: str = "pending"
+    total_media: int = 0
+    completed_media: int = 0
+    current_media_name: Optional[str] = None
+    current_course_name: Optional[str] = None
+    message: Optional[str] = None

@@ -12,6 +12,11 @@ from .import_service import (
     import_courses,
     cleanup_old_temp_imports,
 )
+from .tutor_import_service import (
+    analyze_tutor_import_files,
+    import_tutor_courses,
+    get_tutor_import_progress,
+)
 from .models import (
     ExportManifest,
     ExportCourseInfo,
@@ -19,6 +24,7 @@ from .models import (
     ImportCourseInfo,
     ImportOptions,
     ImportResult,
+    TutorImportProgressResponse,
 )
 
 __all__ = [
@@ -28,6 +34,9 @@ __all__ = [
     # Import
     "analyze_import_package",
     "import_courses",
+    "analyze_tutor_import_files",
+    "import_tutor_courses",
+    "get_tutor_import_progress",
     "cleanup_old_temp_imports",
     # Models
     "ExportManifest",
@@ -36,4 +45,5 @@ __all__ = [
     "ImportCourseInfo",
     "ImportOptions",
     "ImportResult",
+    "TutorImportProgressResponse",
 ]

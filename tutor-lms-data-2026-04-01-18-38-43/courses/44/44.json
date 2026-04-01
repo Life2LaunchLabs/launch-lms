@@ -1,0 +1,509 @@
+{
+    "schema_version": "2.0.0",
+    "exported_at": "April 1, 2026 6:38 pm",
+    "keep_media_files": true,
+    "keep_user_data": false,
+    "data": [
+        {
+            "content_type": "courses",
+            "data": {
+                "course": {
+                    "ID": 44,
+                    "post_author": "3",
+                    "post_date": "2026-02-17 17:43:29",
+                    "post_date_gmt": "2026-02-18 01:43:29",
+                    "post_content": "<p>[video width=\"1920\" height=\"1080\" mp4=\"https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/CORE-Framework-Overview.mp4\"][\/video]<\/p><p data-start=\"214\" data-end=\"377\"><strong data-start=\"214\" data-end=\"377\">CORE is a place to figure things out, build what\u2019s missing, and help design the tools you wish existed, while navigating real life alongside other young people.<\/strong><\/p><h2 data-start=\"379\" data-end=\"409\">What is Life2Launch\u2019s CORE?\u00a0\u00a0<\/h2><p data-start=\"411\" data-end=\"627\">Life2Launch\u2019s CORE is a five-month learning and co-creation experience designed to support you through the life transition you\u2019re facing right now, whether that\u2019s school, work, identity, direction, or what comes next.<\/p><p data-start=\"629\" data-end=\"804\">From <strong data-start=\"634\" data-end=\"663\">January through June 2026<\/strong>, you\u2019ll get access to life and career readiness tools, resources, and support that help you slow down, get clear, and make intentional next-step choices that fit you.<\/p><p data-start=\"806\" data-end=\"922\">CORE is not a class.<br data-start=\"826\" data-end=\"829\" \/>It\u2019s not a one-size-fits-all program.<br data-start=\"866\" data-end=\"869\" \/>It\u2019s a shared learning space built with young people that is free and accessible.<\/p><p class=\"text-base md:text-lg text-muted-foreground max-w-3xl mx-auto mb-6 animate-fade-up opacity-0 leading-relaxed\">\u00a0<\/p>",
+                    "post_title": "Welcome to the Life2Launch CORE Experience",
+                    "post_excerpt": "",
+                    "post_status": "publish",
+                    "comment_status": "closed",
+                    "ping_status": "closed",
+                    "post_password": "",
+                    "post_name": "what-is-life2launch-core",
+                    "to_ping": "",
+                    "pinged": "",
+                    "post_modified": "2026-02-18 01:43:30",
+                    "post_modified_gmt": "2026-02-18 01:43:30",
+                    "post_content_filtered": "",
+                    "post_parent": 0,
+                    "guid": "https:\/\/life2launch-core.com\/?post_type=courses&#038;p=44",
+                    "menu_order": 0,
+                    "post_type": "courses",
+                    "post_mime_type": "",
+                    "comment_count": "0",
+                    "filter": "raw",
+                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/CORE-OVERVIEW-2-1.jpg",
+                    "meta": {
+                        "_tutor_course_price_type": [
+                            "free"
+                        ],
+                        "_wp_old_slug": [
+                            "new-course"
+                        ],
+                        "_tutor_course_settings": [
+                            {
+                                "maximum_students": 0,
+                                "enrollment_expiry": "",
+                                "enable_content_drip": 0,
+                                "content_drip_type": "",
+                                "enable_tutor_bp": 0,
+                                "course_enrollment_period": "no",
+                                "enrollment_starts_at": "",
+                                "enrollment_ends_at": "",
+                                "pause_enrollment": "no"
+                            }
+                        ],
+                        "_video": [
+                            {
+                                "source": "html5",
+                                "source_youtube": "https:\/\/www.youtube.com\/watch?v=AI8D9mFnl2c&pp=0gcJCTwKAYcqIYzv",
+                                "source_video_id": "726",
+                                "poster": "727",
+                                "poster_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Welcome-to-CORE-thumbnail.png",
+                                "source_html5": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Welcome-to-the-CORE-Experience.mov"
+                            }
+                        ],
+                        "_tutor_enable_qa": [
+                            "no"
+                        ],
+                        "_tutor_is_public_course": [
+                            "yes"
+                        ],
+                        "tutor_course_sale_price": [
+                            "0"
+                        ],
+                        "_course_duration": [
+                            {
+                                "hours": "0",
+                                "minutes": "10"
+                            }
+                        ],
+                        "_tutor_course_level": [
+                            "all_levels"
+                        ],
+                        "_thumbnail_id": [
+                            "725"
+                        ],
+                        "_wp_old_date": [
+                            "2025-12-18",
+                            "2025-12-31",
+                            "2026-01-04",
+                            "2026-01-05",
+                            "2026-01-06",
+                            "2026-01-07",
+                            "2026-01-16",
+                            "2026-01-18",
+                            "2026-01-19",
+                            "2026-01-28"
+                        ],
+                        "tutor_course_certificate_template": [
+                            "none"
+                        ],
+                        "ekit_post_views_count": [
+                            "202"
+                        ],
+                        "_tutor_course_started": [
+                            "1767655307"
+                        ],
+                        "_tutor_attachments": [
+                            [
+                                738
+                            ]
+                        ],
+                        "_tutor_course_benefits": [
+                            "Get clear on your life launching journey, and make intentional choices that fit, using your Inner World awareness, Outer World skills, and real-life action to guide your next steps."
+                        ],
+                        "_tutor_course_target_audience": [
+                            "CORE is for young people who are in school, working, or in between and navigating a major life transition, who want space, tools, and support to figure out what\u2019s next without pressure or pretending."
+                        ],
+                        "_tutor_course_material_includes": [
+                            "Weekly short videos and activities to explore real-life topics at your own pace\r\nA youth community forum where you can ask questions, share insights, and learn from peers\r\nLive weekly coaching sessions with Coach D, you can join for guidance, reflection, and support\r\nCreating a physical Life Launching Portfolio\u2014a collection of insights, tools, and reflections you build over time to support your next steps"
+                        ]
+                    },
+                    "taxonomies": {
+                        "categories": [],
+                        "tags": []
+                    },
+                    "contents": [
+                        {
+                            "ID": 46,
+                            "post_author": "3",
+                            "post_date": "2026-01-05 00:42:29",
+                            "post_date_gmt": "2026-01-05 00:42:29",
+                            "post_content": "CORE is for young people who are in school, working, or in between and navigating a major life transition, who want space, tools, and support to figure out what\u2019s next without pressure or pretending.\r\n\r\n- Young people graduating high school or college and unsure what comes next\r\n- Students who have stepped away or dropped out and want to re-engage on their own terms\r\n- Young adults working but questioning whether this path really fits\r\n- Young people between school, jobs, or directions and exploring next steps\r\n- Creatives, builders, explorers, and non-linear thinkers looking for clarity and confidence",
+                            "post_title": "Who is this for?",
+                            "post_excerpt": "",
+                            "post_status": "publish",
+                            "comment_status": "closed",
+                            "ping_status": "closed",
+                            "post_password": "",
+                            "post_name": "who-is-this-for",
+                            "to_ping": "",
+                            "pinged": "",
+                            "post_modified": "2026-01-05 00:42:29",
+                            "post_modified_gmt": "2026-01-05 00:42:29",
+                            "post_content_filtered": "",
+                            "post_parent": 44,
+                            "guid": "https:\/\/life2launch-core.com\/topics\/who-is-this-for\/",
+                            "menu_order": 1,
+                            "post_type": "topics",
+                            "post_mime_type": "",
+                            "comment_count": "0",
+                            "filter": "raw",
+                            "children": [
+                                {
+                                    "ID": 550,
+                                    "post_author": "3",
+                                    "post_date": "2026-01-05 23:13:44",
+                                    "post_date_gmt": "2026-01-05 23:13:44",
+                                    "post_content": "<p>CORE is for young people who are in school, working, or in between and navigating a major life transition, who want space, tools, and support to figure out what\u2019s next without pressure or pretending.<\/p><ul><li>Young people in or graduating from high school or college and unsure what comes next<\/li><li>Students who have stepped away or dropped out and want to re-engage on their own terms<\/li><li>Young adults working but questioning whether this path really fits<\/li><li>\u00a0Young people between school, jobs, or directions, and exploring next steps<\/li><li>Creatives, builders, explorers, and non-linear thinkers looking for clarity and confidence<\/li><\/ul>",
+                                    "post_title": "Co-creating with Young People Living the Launchin Experience",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "co-creating-with-young-people-living-the-launchin-experience",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-18 20:04:31",
+                                    "post_modified_gmt": "2026-01-18 20:04:31",
+                                    "post_content_filtered": "",
+                                    "post_parent": 46,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/what-is-life2launch-core\/lessons\/who-is-this-for\/",
+                                    "menu_order": 1,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "1",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "ekit_post_views_count": [
+                                            "72"
+                                        ],
+                                        "_wp_old_slug": [
+                                            "who-is-this-for",
+                                            "who-is-participating-in-core"
+                                        ],
+                                        "_thumbnail_id": [
+                                            "725"
+                                        ],
+                                        "_video": [
+                                            {
+                                                "source": "html5",
+                                                "source_video_id": "728",
+                                                "poster": "729",
+                                                "poster_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Co-creating-with-YP-Launching-Thumbnail.png",
+                                                "source_html5": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Co-creating-with-Young-People-Launching.mov",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "00",
+                                                    "minutes": "1",
+                                                    "seconds": "31"
+                                                },
+                                                "duration_sec": "91.091667",
+                                                "playtime": "1:31"
+                                            }
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/CORE-OVERVIEW-2-1.jpg",
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 551,
+                                    "post_author": "3",
+                                    "post_date": "2026-01-05 23:13:44",
+                                    "post_date_gmt": "2026-01-05 23:13:44",
+                                    "post_content": "<p>A deep dive into the Life Launching Framework\u2014understanding your Inner World, Outer World, and how Lifestyle Designing, Belonging, and Real-World Navigating work together<\/p><ul><li>Weekly short videos and activities to explore real-life topics at your own pace<\/li><li>A youth community forum where you can ask questions, share insights, and learn from peers<\/li><li>Live weekly coaching sessions with Coach D, you can join for guidance, reflection, and support<\/li><li>Creating a physical Life Launching Portfolio\u2014a collection of insights, tools, and reflections you build over time to support your next steps<\/li><\/ul><p>CORE\u00a0is the foundation of\u00a0Life2Launch, co-created with youth shaping the LaunchPad navigation platform together.<\/p>",
+                                    "post_title": "What you will experience in CORE",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "what-you-will-experience-in-core",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-18 20:56:43",
+                                    "post_modified_gmt": "2026-01-18 20:56:43",
+                                    "post_content_filtered": "",
+                                    "post_parent": 46,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/what-is-life2launch-core\/lessons\/who-is-this-for\/",
+                                    "menu_order": 1,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_wp_old_slug": [
+                                            "who-is-this-for-2",
+                                            "what-core-is-about"
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "47"
+                                        ],
+                                        "_thumbnail_id": [
+                                            "733"
+                                        ],
+                                        "_video": [
+                                            {
+                                                "source": "html5",
+                                                "source_video_id": "734",
+                                                "poster": "730",
+                                                "poster_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Screenshot-2026-01-18-at-12.21.18-PM.png",
+                                                "source_html5": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Why-CORE.mov",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "00",
+                                                    "minutes": "1",
+                                                    "seconds": "46"
+                                                },
+                                                "duration_sec": "106.1",
+                                                "playtime": "1:46"
+                                            }
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/CORE-OVERVIEW-3-1.jpeg",
+                                    "attachment_links": []
+                                },
+                                {
+                                    "ID": 552,
+                                    "post_author": "3",
+                                    "post_date": "2026-01-05 23:20:36",
+                                    "post_date_gmt": "2026-01-05 23:20:36",
+                                    "post_content": "<p><img class=\"alignnone size-medium wp-image-720\" src=\"https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/CORE-OVERVIEW-300x169.jpg\" alt=\"\" width=\"300\" height=\"169\" \/><br \/>Our Life2Launch CORE framework was built over the last five years by youth to fill a gap that didn\u2019t exist, offering a holistic way to quiet the launching chaos of life, school, and career transitions.<\/p><p>(1) UNCOVER Your Inner World<br \/>Understand your personal operating system, what drives you, how your mind and body work, and what gives your life meaning.<\/p><p>(2) DISCOVER Your Outer World Skills<br \/>Strengthen the real-world skills and system know-how you need to move through life with confidence.<\/p><p>(3) DESIGN Your Lifestyle Pathways<br \/>Make intentional choices about how you want to live, learn, work, and grow, based on what actually fits you.<\/p><p>(4) BELONG Connection &amp; Support Systems<br \/>Build connection, support, and a sense of being seen so you can show up fully and take risks without going it alone.<\/p><p>(5) NAVIGATE Real Life<br \/>Use your awareness and skills to take action, adapt to change, and keep moving forward through life transitions.<\/p>",
+                                    "post_title": "CORE Framework Overview",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "core-framework-overview",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-18 21:52:41",
+                                    "post_modified_gmt": "2026-01-18 21:52:41",
+                                    "post_content_filtered": "",
+                                    "post_parent": 46,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/what-is-life2launch-core\/lessons\/life2launch-framework-five-core-areas\/",
+                                    "menu_order": 2,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_wp_old_slug": [
+                                            "life2launch-framework-five-core-areas",
+                                            "five-core-framework-areas"
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "43"
+                                        ],
+                                        "_thumbnail_id": [
+                                            "720"
+                                        ],
+                                        "_video": [
+                                            {
+                                                "source": "html5",
+                                                "source_video_id": "735",
+                                                "poster": "736",
+                                                "poster_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/CORE-Framework.jpg",
+                                                "source_html5": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/CORE-Framework.mov",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "00",
+                                                    "minutes": "2",
+                                                    "seconds": "16"
+                                                },
+                                                "duration_sec": "136.266667",
+                                                "playtime": "2:16"
+                                            }
+                                        ],
+                                        "_tutor_attachments": [
+                                            [
+                                                "737",
+                                                "738"
+                                            ]
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/CORE-OVERVIEW.jpg",
+                                    "attachment_links": [
+                                        "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/CORE-Framework-Overview.mp4",
+                                        "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/CORE-OVERVIEW.pdf"
+                                    ]
+                                },
+                                {
+                                    "ID": 840,
+                                    "post_author": "3",
+                                    "post_date": "2026-01-29 01:20:31",
+                                    "post_date_gmt": "2026-01-29 01:20:31",
+                                    "post_content": "<p data-start=\"147\" data-end=\"239\">CORE is built to follow a natural rhythm.<br data-start=\"188\" data-end=\"191\" \/>From new moon to full moon and back to new moon.<\/p><p data-start=\"241\" data-end=\"426\">We start fresh with a new moon.<br data-start=\"272\" data-end=\"275\" \/>We build awareness as energy grows.<br data-start=\"310\" data-end=\"313\" \/>We reach clarity and insight at the full moon.<br data-start=\"359\" data-end=\"362\" \/>Then we reflect, integrate, and begin again with more intention.<\/p><p data-start=\"428\" data-end=\"565\">This cycle helps you take big ideas and meaningful moments and break them into a flow that feels true to you.<\/p><p data-start=\"567\" data-end=\"641\" data-is-last-node=\"\" data-is-only-node=\"\">As you watch this video, notice how this rhythm shows up in your own life.<\/p>",
+                                    "post_title": "Why Moon Cycles?",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "why-moon-cycles",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-29 01:20:31",
+                                    "post_modified_gmt": "2026-01-29 01:20:31",
+                                    "post_content_filtered": "",
+                                    "post_parent": 46,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/what-is-life2launch-core\/lessons\/why-moon-cycles\/",
+                                    "menu_order": 3,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "0",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "_thumbnail_id": [
+                                            "838"
+                                        ],
+                                        "_video": [
+                                            {
+                                                "source": "html5",
+                                                "source_video_id": "837",
+                                                "poster": "839",
+                                                "poster_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/IMG_9051.jpeg",
+                                                "source_html5": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/Moon-Cycles.mov",
+                                                "source_external_url": "",
+                                                "source_shortcode": "",
+                                                "source_youtube": "",
+                                                "source_vimeo": "",
+                                                "source_embedded": "",
+                                                "runtime": {
+                                                    "hours": "00",
+                                                    "minutes": "1",
+                                                    "seconds": "23"
+                                                },
+                                                "duration_sec": "82.591927",
+                                                "playtime": "1:23"
+                                            }
+                                        ],
+                                        "ekit_post_views_count": [
+                                            "4"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/IMG_9058.jpeg",
+                                    "attachment_links": []
+                                }
+                            ]
+                        },
+                        {
+                            "ID": 49,
+                            "post_author": "1",
+                            "post_date": "2026-01-19 16:26:20",
+                            "post_date_gmt": "2026-01-19 16:26:20",
+                            "post_content": "",
+                            "post_title": "Ready to Thrive?",
+                            "post_excerpt": "",
+                            "post_status": "publish",
+                            "comment_status": "closed",
+                            "ping_status": "closed",
+                            "post_password": "",
+                            "post_name": "getting-started",
+                            "to_ping": "",
+                            "pinged": "",
+                            "post_modified": "2026-01-19 16:26:20",
+                            "post_modified_gmt": "2026-01-19 16:26:20",
+                            "post_content_filtered": "",
+                            "post_parent": 44,
+                            "guid": "https:\/\/life2launch-core.com\/topics\/getting-started\/",
+                            "menu_order": 4,
+                            "post_type": "topics",
+                            "post_mime_type": "",
+                            "comment_count": "0",
+                            "filter": "raw",
+                            "children": [
+                                {
+                                    "ID": 553,
+                                    "post_author": "3",
+                                    "post_date": "2026-01-05 23:30:05",
+                                    "post_date_gmt": "2026-01-05 23:30:05",
+                                    "post_content": "<p>This experience is designed to meet you where you are and move at a steady, supportive pace.<br \/><br \/>Start by reviewing the CORE schedule to see how the experience unfolds over the next five months. CORE begins on a New Moon and follows a moon-inspired learning rhythm each month, grounding first, then exploring, integrating, and acting. Each new area opens about every four weeks. Once an area opens, it stays available, so you can revisit tools and resources anytime as you need them<\/p><p>CORE Areas &amp; Dates (2026)<br \/><br \/>January 18 \u2013 February 15, 2026<br \/>Uncover: Your Inner World<\/p><p>February 17 \u2013 March 17, 2026<br \/>Discover: Your Outer World Skills<\/p><p>March 18 \u2013 April 16, 2026<br \/>Design: Lifestyle &amp; Pathway Design<\/p><p>April 17 \u2013 May 15, 2026<br \/>Belong: Connection &amp; Support Systems<\/p><p>May 16 \u2013 June 14, 2026<br \/>Navigate: Action &amp; Forward Movement<\/p><ul><li>Each month focuses on one part of the life launching framework<\/li><li>You\u2019ll explore through short videos, simple activities, and reflection<\/li><li>You can join live coaching sessions and connect with peers as much or as little as you want<\/li><li>There\u2019s no \u201ccatching up\u201d\u2014this is not linear or graded<\/li><li>You\u2019ll build your own Life Launching Portfolio as you go<\/li><li>What to do first<br \/>- Look over the schedule to understand the monthly flow<br \/>- Begin with the current focus area when it opens<br \/>- Engage at your own pace, this is about progress, not pressure<\/li><\/ul><p>CORE is here to support real life, not add more stress. Use what\u2019s helpful, skip what\u2019s not, and come back as needed.<\/p>",
+                                    "post_title": "Get Started!",
+                                    "post_excerpt": "",
+                                    "post_status": "publish",
+                                    "comment_status": "open",
+                                    "ping_status": "closed",
+                                    "post_password": "",
+                                    "post_name": "get-started",
+                                    "to_ping": "",
+                                    "pinged": "",
+                                    "post_modified": "2026-01-18 21:56:19",
+                                    "post_modified_gmt": "2026-01-18 21:56:19",
+                                    "post_content_filtered": "",
+                                    "post_parent": 49,
+                                    "guid": "https:\/\/life2launch-core.com\/courses\/what-is-life2launch-core\/lessons\/get-started\/",
+                                    "menu_order": 1,
+                                    "post_type": "lesson",
+                                    "post_mime_type": "",
+                                    "comment_count": "1",
+                                    "filter": "raw",
+                                    "meta": {
+                                        "ekit_post_views_count": [
+                                            "29"
+                                        ],
+                                        "_thumbnail_id": [
+                                            "733"
+                                        ]
+                                    },
+                                    "child_posts": [],
+                                    "thumbnail_url": "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/CORE-OVERVIEW-3-1.jpeg",
+                                    "attachment_links": []
+                                }
+                            ]
+                        }
+                    ],
+                    "child_posts": [
+                        {
+                            "ID": "747",
+                            "post_author": "3",
+                            "post_date": "2026-01-18 22:29:52",
+                            "post_date_gmt": "2026-01-18 22:29:52",
+                            "post_content": "Happy New Moon! Watch the quest videos and we will be getting started with the \"Your Inner World\" experience quest starting Tuesday, Jan 20.",
+                            "post_title": "Glad you are here!",
+                            "post_excerpt": "",
+                            "post_status": "publish",
+                            "comment_status": "closed",
+                            "ping_status": "closed",
+                            "post_password": "",
+                            "post_name": "glad-you-are-here",
+                            "to_ping": "",
+                            "pinged": "",
+                            "post_modified": "2026-01-18 22:29:52",
+                            "post_modified_gmt": "2026-01-18 22:29:52",
+                            "post_content_filtered": "",
+                            "post_parent": "44",
+                            "guid": "https:\/\/life2launch-core.com\/?p=747",
+                            "menu_order": "0",
+                            "post_type": "tutor_announcements",
+                            "post_mime_type": "",
+                            "comment_count": "0"
+                        }
+                    ],
+                    "attachment_links": [
+                        "https:\/\/life2launch-core.com\/wp-content\/uploads\/2026\/01\/CORE-OVERVIEW.pdf"
+                    ]
+                }
+            }
+        }
+    ]
+}
