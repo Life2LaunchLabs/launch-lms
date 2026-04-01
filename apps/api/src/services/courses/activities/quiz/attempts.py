@@ -89,6 +89,7 @@ async def submit_quiz_attempt(
     max_attempts = grading_rules.get("max_attempts")
     vectors: list[dict] = details.get("scoring_vectors", [])
     option_scores: dict = details.get("option_scores", {})
+    text_scores: dict = details.get("text_scores", {})
     category_sets: list[dict] = details.get("category_sets", [])
     result_options: list[dict] = details.get("result_options", [])
 
@@ -134,8 +135,11 @@ async def submit_quiz_attempt(
     db_session.commit()
 
     # Compute scores
-    raw_answers = [a.answer_json for a in submission.answers]
-    scores = compute_scores(raw_answers, option_scores, vectors)
+    scored_answers = [
+        {"question_uuid": a.question_uuid, "answer_json": a.answer_json}
+        for a in submission.answers
+    ]
+    scores = compute_scores(scored_answers, option_scores, text_scores, vectors)
     result_json = compute_result_bundle(scores, vectors, category_sets, result_options)
 
     if quiz_mode == "graded":
@@ -165,6 +169,16 @@ async def submit_quiz_attempt(
         passed = score_percent >= pass_percent
 
         result_json["quiz_mode"] = "graded"
+        graded_question_count = 0
+        for item in scored_answers:
+            answer_json = item.get("answer_json", {})
+            if answer_json.get("type") == "select":
+                graded_question_count += 1
+                continue
+            if answer_json.get("type") == "text":
+                rule = text_scores.get(item.get("question_uuid"), {})
+                if rule.get("mode") == "min_length":
+                    graded_question_count += 1
         result_json["graded_result"] = {
             "score_percent": score_percent,
             "pass_percent": pass_percent,
@@ -173,8 +187,8 @@ async def submit_quiz_attempt(
             "attempts_remaining": attempts_remaining,
             "max_attempts": max_attempts,
             "best_score_percent": best_score_percent,
-            "correct_answers": int(round(correct_score * len([a for a in raw_answers if a.get("type") == "select"]))),
-            "question_count": len([a for a in raw_answers if a.get("type") == "select"]),
+            "correct_answers": int(round(correct_score * graded_question_count)),
+            "question_count": graded_question_count,
         }
     else:
         result_json["quiz_mode"] = "categories"
@@ -258,12 +272,16 @@ async def update_quiz_scoring(
     )
 
     details = dict(activity.details or {})
-    details["scoring_vectors"] = scoring_data.get("scoring_vectors", [])
+    if "scoring_vectors" in scoring_data:
+        details["scoring_vectors"] = scoring_data.get("scoring_vectors", [])
     if "category_scoring_vectors" in scoring_data:
         details["category_scoring_vectors"] = scoring_data.get("category_scoring_vectors", [])
     if "graded_scoring_vectors" in scoring_data:
         details["graded_scoring_vectors"] = scoring_data.get("graded_scoring_vectors", [])
-    details["option_scores"] = scoring_data.get("option_scores", {})
+    if "option_scores" in scoring_data:
+        details["option_scores"] = scoring_data.get("option_scores", {})
+    if "text_scores" in scoring_data:
+        details["text_scores"] = scoring_data.get("text_scores", {})
     activity.details = details
     activity.update_date = str(datetime.utcnow())
     db_session.add(activity)

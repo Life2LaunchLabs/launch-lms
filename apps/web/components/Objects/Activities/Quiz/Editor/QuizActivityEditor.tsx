@@ -6,7 +6,7 @@ import Text from '@tiptap/extension-text'
 import { v4 as uuidv4 } from 'uuid'
 import {
   ArrowLeft, Save, Eye, EyeOff, ListChecks, Info as InfoIcon,
-  Plus, Trash2, Upload, X, Loader2,
+  Plus, Trash2, Upload, X, Loader2, Type,
 } from 'lucide-react'
 import Link from 'next/link'
 import { getUriWithOrg } from '@services/config/config'
@@ -15,6 +15,7 @@ import EditorOptionsProvider from '@components/Contexts/Editor/EditorContext'
 import { OrgProvider } from '@components/Contexts/OrgContext'
 import QuizSelectBlock from '@components/Objects/Editor/Extensions/QuizSelect/QuizSelectBlock'
 import QuizInfoBlock from '@components/Objects/Editor/Extensions/QuizInfo/QuizInfoBlock'
+import QuizTextBlock from '@components/Objects/Editor/Extensions/QuizText/QuizTextBlock'
 import { CourseProvider } from '@components/Contexts/CourseContext'
 import { updateActivity } from '@services/courses/activities'
 import { updateQuizScoring, updateQuizResults, updateQuizSettings } from '@services/quiz/quiz'
@@ -142,6 +143,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
       Document,
       Text,
       QuizSelectBlock.configure({ activity }),
+      QuizTextBlock.configure({ activity }),
       QuizInfoBlock.configure({ activity }),
     ],
     content: activity.content && Object.keys(activity.content).length > 0
@@ -276,6 +278,23 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
     editor.chain().insertContentAt(editor.state.doc.content.size, {
       type: 'quizInfoBlock',
       attrs: { slide_uuid: uuidv4(), gradient_seed: uuidv4(), title: '', body: '', image_block_object: null, image_file_id: null },
+    }).run()
+  }
+
+  const insertTextBlock = () => {
+    if (!editor) return
+    editor.chain().insertContentAt(editor.state.doc.content.size, {
+      type: 'quizTextBlock',
+      attrs: {
+        question_uuid: uuidv4(),
+        question_text: '',
+        description: '',
+        placeholder: '',
+        input_size: 'single_line',
+        background_gradient_seed: uuidv4(),
+        background_image_file_id: null,
+        background_image_block_object: null,
+      },
     }).run()
   }
 
@@ -542,6 +561,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                 <div className="sticky top-0 z-10 flex items-center gap-1.5 px-6 py-2 bg-white/90 backdrop-blur border-b border-neutral-100">
                   <span className="text-xs text-neutral-400 mr-1">Add:</span>
                   <button type="button" onClick={() => insertSelectBlock(2)} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-medium outline-none transition-colors"><ListChecks size={13} /> Multiple choice</button>
+                  <button type="button" onClick={insertTextBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-medium outline-none transition-colors"><Type size={13} /> Text question</button>
                   <button type="button" onClick={insertInfoBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium outline-none transition-colors"><InfoIcon size={13} /> Info slide</button>
                 </div>
                 <div className="max-w-2xl mx-auto py-8 px-6 space-y-4">

@@ -27,6 +27,7 @@ Activity.details shape expected by these functions:
 
 Answer format (from QuizAnswerInput):
   {"type": "select", "option_uuid": "o_abc123"}
+  {"type": "text", "text": "freeform answer"}
   {"type": "info"}   — info slides contribute nothing
 """
 
@@ -54,6 +55,7 @@ def _cosine_similarity(a: dict[str, float], b: dict[str, float]) -> float:
 def compute_scores(
     answers: list[dict],
     option_scores: dict[str, dict[str, float]],
+    text_scores: dict[str, dict],
     vectors: list[dict],
 ) -> dict[str, float]:
     """
@@ -66,31 +68,48 @@ def compute_scores(
         return {}
 
     vector_keys = [v["key"] for v in vectors]
-    vector_types = {v["key"]: v.get("type", "unidirectional") for v in vectors}
     totals: dict[str, float] = {k: 0.0 for k in vector_keys}
-    select_count = 0
+    counts: dict[str, int] = {k: 0 for k in vector_keys}
 
     for answer in answers:
-        if answer.get("type") != "select":
-            continue
-        option_uuid = answer.get("option_uuid")
-        if not option_uuid:
-            continue
-        scores = option_scores.get(option_uuid, {})
-        for k in vector_keys:
-            totals[k] += scores.get(k, 0.0)
-        select_count += 1
+        answer_json = answer.get("answer_json", answer)
+        answer_type = answer_json.get("type")
 
-    if select_count == 0:
-        return {k: 0.0 for k in vector_keys}
+        if answer_type == "select":
+            option_uuid = answer_json.get("option_uuid")
+            if not option_uuid:
+                continue
+            scores = option_scores.get(option_uuid, {})
+            for k in vector_keys:
+                totals[k] += scores.get(k, 0.0)
+                counts[k] += 1
+            continue
+
+        if answer_type == "text":
+            question_uuid = answer.get("question_uuid")
+            if not question_uuid:
+                continue
+            rule = text_scores.get(question_uuid, {})
+            if rule.get("mode") != "min_length":
+                continue
+            min_chars = max(0, int(rule.get("min_chars", 0) or 0))
+            raw_text = str(answer_json.get("text", "") or "")
+            text_value = raw_text.strip()
+            for k in vector_keys:
+                if k != "correct":
+                    continue
+                totals[k] += 1.0 if len(text_value) >= min_chars else 0.0
+                counts[k] += 1
+            continue
 
     normalized: dict[str, float] = {}
     for key in vector_keys:
-        avg = totals[key] / select_count
-        if vector_types.get(key) == "binary":
-            normalized[key] = 1.0 if avg >= 0.5 else 0.0
-        else:
-            normalized[key] = avg
+        count = counts.get(key, 0)
+        if count == 0:
+            normalized[key] = 0.0
+            continue
+        avg = totals[key] / count
+        normalized[key] = avg
 
     return normalized
 

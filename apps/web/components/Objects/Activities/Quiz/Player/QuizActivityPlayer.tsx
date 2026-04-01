@@ -1,6 +1,6 @@
 'use client'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, X } from 'lucide-react'
+import { CheckCircle2, ChevronLeft, X } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useCourse } from '@components/Contexts/CourseContext'
@@ -33,6 +33,17 @@ interface SelectSlide {
   background_image_block_object?: any
 }
 
+interface TextSlide {
+  type: 'quizTextBlock'
+  question_uuid: string
+  question_text: string
+  description?: string
+  placeholder?: string
+  input_size?: 'single_line' | 'short_answer' | 'open_ended'
+  background_gradient_seed?: string
+  background_image_block_object?: any
+}
+
 interface InfoSlide {
   type: 'quizInfoBlock'
   slide_uuid: string
@@ -42,7 +53,12 @@ interface InfoSlide {
   gradient_seed: string
 }
 
-type Slide = SelectSlide | InfoSlide
+type Slide = SelectSlide | TextSlide | InfoSlide
+
+interface TextScoringRule {
+  mode?: 'optional' | 'min_length'
+  min_chars?: number
+}
 
 // ── Keyframe CSS injected once ─────────────────────────────────────────────────
 
@@ -89,10 +105,22 @@ function getGradient(seed: string): string {
 }
 
 function extractSlides(content: any): Slide[] {
-  const nodes = content?.content || []
-  return nodes
-    .filter((n: any) => n.type === 'quizSelectBlock' || n.type === 'quizInfoBlock')
-    .map((n: any) => ({ type: n.type, ...n.attrs }))
+  const slides: Slide[] = []
+
+  const visit = (node: any) => {
+    if (!node || typeof node !== 'object') return
+
+    if (node.type === 'quizSelectBlock' || node.type === 'quizTextBlock' || node.type === 'quizInfoBlock') {
+      slides.push({ type: node.type, ...node.attrs })
+    }
+
+    if (Array.isArray(node.content)) {
+      node.content.forEach(visit)
+    }
+  }
+
+  visit(content)
+  return slides
 }
 
 // ── Single frame ───────────────────────────────────────────────────────────────
@@ -101,17 +129,21 @@ function SlideFrame({
   slide,
   isActive,
   answers,
+  textScoringRules,
   infoOverlay,
   popUuid,
   onSelectOption,
+  onTextAnswerChange,
   buildImageUrl,
 }: {
   slide: Slide
   isActive: boolean
   answers: Map<string, string>
+  textScoringRules: Record<string, TextScoringRule>
   infoOverlay: QuizOption | null
   popUuid: string | null      // option that just got the pop animation
   onSelectOption: (slide: SelectSlide, optUuid: string) => void
+  onTextAnswerChange: (slide: TextSlide, value: string) => void
   buildImageUrl: (blockObj: any) => string | null
 }) {
   // ── Info slide ──
@@ -132,6 +164,75 @@ function SlideFrame({
             </p>
           </div>
         )}
+      </div>
+    )
+  }
+
+  if (slide.type === 'quizTextBlock') {
+    const textSlide = slide as TextSlide
+    const value = answers.get(textSlide.question_uuid) || ''
+    const inputSize = textSlide.input_size || 'single_line'
+    const isSingleLine = inputSize === 'single_line'
+    const rows = inputSize === 'open_ended' ? 7 : 4
+    const rule = textScoringRules[textSlide.question_uuid] || {}
+    const minChars = Math.max(0, Number(rule.min_chars || 0))
+    const trimmedLength = value.trim().length
+    const hasMinLength = minChars > 0
+    const progressPct = hasMinLength ? Math.min(100, Math.round((trimmedLength / minChars) * 100)) : 0
+    const meetsMin = !hasMinLength || trimmedLength >= minChars
+    const backgroundUrl = buildImageUrl(textSlide.background_image_block_object)
+    const background = getGradient(textSlide.background_gradient_seed || textSlide.question_uuid || 'text-question')
+
+    return (
+      <div style={{ height: '100vh', position: 'relative', overflow: 'hidden', background: backgroundUrl ? '#000' : background }}>
+        {backgroundUrl && (
+          <img src={backgroundUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        )}
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.28)' }} />
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '120px 24px 96px', boxSizing: 'border-box' }}>
+          <div style={{ width: '100%', maxWidth: 340, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {textSlide.description && (
+              <p style={{ margin: 0, textAlign: 'center', color: '#fff', fontSize: 14, lineHeight: 1.5, textShadow: '0 2px 10px rgba(0,0,0,0.35)' }}>
+                {textSlide.description}
+              </p>
+            )}
+            <div style={{ background: 'rgba(255,255,255,0.96)', borderRadius: isSingleLine ? 999 : 28, boxShadow: '0 20px 60px rgba(16,24,40,0.16)', border: '1px solid rgba(16,24,40,0.06)', padding: 16 }}>
+              {isSingleLine ? (
+                <input
+                  value={value}
+                  onChange={e => onTextAnswerChange(textSlide, e.target.value)}
+                  placeholder={textSlide.placeholder || 'Type your answer...'}
+                  style={{ width: '100%', border: 'none', outline: 'none', fontSize: 16, color: '#111827', background: 'transparent' }}
+                />
+              ) : (
+                <textarea
+                  value={value}
+                  onChange={e => onTextAnswerChange(textSlide, e.target.value)}
+                  rows={rows}
+                  placeholder={textSlide.placeholder || 'Type your answer...'}
+                  style={{ width: '100%', border: 'none', outline: 'none', fontSize: 16, color: '#111827', background: 'transparent', resize: 'none', fontFamily: 'inherit', lineHeight: 1.5 }}
+                />
+              )}
+              {hasMinLength && (
+                <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                      Answer length
+                    </span>
+                    <div style={{ flex: 1, height: 5, borderRadius: 999, background: '#d1d5db', overflow: 'hidden' }}>
+                      <div style={{ width: `${progressPct}%`, height: '100%', borderRadius: 999, background: '#22c55e', transition: 'width 180ms ease' }} />
+                    </div>
+                    {meetsMin && <CheckCircle2 size={14} color="#16a34a" />}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#6b7280' }}>
+                    <span>{trimmedLength} chars</span>
+                    <span>Min {minChars}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -325,6 +426,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
 
   const content = editorPreviewContent || activity.content
   const slides = useMemo(() => extractSlides(content), [content])
+  const [textScoringRules, setTextScoringRules] = useState<Record<string, TextScoringRule>>(activity?.details?.text_scores || {})
 
   const [currentIdx, setCurrentIdx] = useState(0)
   const [answers, setAnswers] = useState<Map<string, string>>(new Map())
@@ -347,6 +449,18 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     return () => { mounted = false }
   }, [activity.activity_uuid, access_token, editorPreviewContent])
 
+  useEffect(() => {
+    if (!editorPreviewContent) return
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail?.textScores) {
+        setTextScoringRules(detail.textScores)
+      }
+    }
+    window.addEventListener('lh:quiz-scoring-updated', handler)
+    return () => window.removeEventListener('lh:quiz-scoring-updated', handler)
+  }, [editorPreviewContent])
+
   const currentSlide = slides[currentIdx]
   const isLastSlide = currentIdx === slides.length - 1
 
@@ -363,15 +477,22 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     if (showingResponse) return true
     if (!currentSlide) return true
     if (currentSlide.type === 'quizInfoBlock') return true
+    if (currentSlide.type === 'quizTextBlock') {
+      const slide = currentSlide as TextSlide
+      const rule = textScoringRules[slide.question_uuid] || {}
+      const minChars = Math.max(0, Number(rule.min_chars || 0))
+      if (minChars <= 0) return true
+      return (answers.get(slide.question_uuid) || '').trim().length >= minChars
+    }
     return answers.has((currentSlide as SelectSlide).question_uuid)
-  }, [showingResponse, currentSlide, answers])
+  }, [showingResponse, currentSlide, answers, textScoringRules])
 
   useEffect(() => {
     setNextVisible(isCurrentAnswered)
   }, [isCurrentAnswered])
 
   const canGoBack = showingResponse || currentIdx > 0
-  const progress = slides.length <= 1 ? 100 : Math.round((currentIdx / (slides.length - 1)) * 100)
+  const progress = slides.length <= 1 ? 100 : Math.round(((currentIdx + 1) / slides.length) * 100)
 
   // Open response slide with slide-up animation
   const openResponse = useCallback(() => {
@@ -392,6 +513,13 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
       const answerPayload = slides.map(slide => {
         if (slide.type === 'quizInfoBlock') {
           return { question_uuid: (slide as InfoSlide).slide_uuid, answer_json: { type: 'info' } }
+        }
+        if (slide.type === 'quizTextBlock') {
+          const s = slide as TextSlide
+          return {
+            question_uuid: s.question_uuid,
+            answer_json: { type: 'text', text: answers.get(s.question_uuid) || '' },
+          }
         }
         const s = slide as SelectSlide
         const selectedUuid = answers.get(s.question_uuid) || null
@@ -438,12 +566,18 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     }
 
     if (!isLastSlide) {
-      setNextVisible(false)
-      setCurrentIdx(i => i + 1)
+      const nextIdx = currentIdx + 1
+      const nextSlide = slides[nextIdx]
+      const nextIsImmediatelyAdvanceable =
+        nextSlide?.type === 'quizInfoBlock' ||
+        (nextSlide?.type === 'quizTextBlock' && Math.max(0, Number((textScoringRules[(nextSlide as TextSlide).question_uuid] || {}).min_chars || 0)) <= 0)
+
+      setNextVisible(nextIsImmediatelyAdvanceable)
+      setCurrentIdx(nextIdx)
       return
     }
     await doSubmit()
-  }, [showingResponse, isLastSlide, currentSlide, answers, openResponse, closeResponse, doSubmit])
+  }, [showingResponse, isLastSlide, currentSlide, answers, openResponse, closeResponse, doSubmit, currentIdx, slides, textScoringRules])
 
   const handleBack = () => {
     if (showingResponse) { closeResponse(); return }
@@ -464,6 +598,10 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     setAnswers(prev => new Map(prev).set(slide.question_uuid, optUuid))
     setPopUuid(optUuid)
     setTimeout(() => setPopUuid(null), 260)
+  }
+
+  const handleTextAnswerChange = (slide: TextSlide, value: string) => {
+    setAnswers(prev => new Map(prev).set(slide.question_uuid, value))
   }
 
   const handleRetake = () => {
@@ -518,7 +656,9 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
 
   const currentTitle = currentSlide.type === 'quizSelectBlock'
     ? (currentSlide as SelectSlide).question_text
-    : (currentSlide as InfoSlide).title
+    : currentSlide.type === 'quizTextBlock'
+      ? (currentSlide as TextSlide).question_text
+      : (currentSlide as InfoSlide).title
 
   // Background for the response slide
   const responseBg = responseOption
@@ -578,9 +718,11 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
             slide={slide}
             isActive={idx === currentIdx}
             answers={answers}
+            textScoringRules={textScoringRules}
             infoOverlay={null}
             popUuid={idx === currentIdx ? popUuid : null}
             onSelectOption={handleSelectOption}
+            onTextAnswerChange={handleTextAnswerChange}
             buildImageUrl={buildImageUrl}
           />
         ))}

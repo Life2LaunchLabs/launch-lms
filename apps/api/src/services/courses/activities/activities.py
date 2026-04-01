@@ -36,6 +36,7 @@ QUIZ_DEFAULT_DETAILS = {
         }
     ],
     "option_scores": {},
+    "text_scores": {},
 }
 
 
@@ -83,6 +84,7 @@ async def create_activity(
         details.setdefault("category_scoring_vectors", [dict(vector) for vector in QUIZ_DEFAULT_DETAILS["category_scoring_vectors"]])
         details.setdefault("graded_scoring_vectors", [dict(vector) for vector in QUIZ_DEFAULT_DETAILS["graded_scoring_vectors"]])
         details.setdefault("option_scores", dict(QUIZ_DEFAULT_DETAILS["option_scores"]))
+        details.setdefault("text_scores", dict(QUIZ_DEFAULT_DETAILS["text_scores"]))
         activity_data["details"] = details
 
     activity = Activity(**activity_data)

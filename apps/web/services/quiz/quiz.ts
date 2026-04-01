@@ -31,7 +31,7 @@ export async function getMyQuizResult(
 
 export async function updateQuizScoring(
   activityUuid: string,
-  data: { scoring_vectors: any[]; option_scores: Record<string, any> },
+  data: { scoring_vectors?: any[]; option_scores?: Record<string, any>; text_scores?: Record<string, any>; category_scoring_vectors?: any[]; graded_scoring_vectors?: any[] },
   access_token: string
 ) {
   const res = await fetch(
