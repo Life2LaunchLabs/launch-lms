@@ -269,6 +269,16 @@ def _split_learning_values(values: list[Any]) -> list[str]:
     return split_values
 
 
+def _default_correct_vector() -> dict[str, Any]:
+    return {
+        "key": "correct",
+        "label": "Correct",
+        "type": "binary",
+        "low_label": "False",
+        "high_label": "True",
+    }
+
+
 def _get_url_extension(url: str) -> str:
     path = unquote(urlparse(url).path)
     _, ext = os.path.splitext(path)
@@ -325,6 +335,159 @@ def extract_downloadable_media(item: dict[str, Any]) -> list[dict[str, str]]:
             media_items.append({"kind": kind, "url": url, "name": item.get("post_title") or "Attachment"})
 
     return media_items
+
+
+def _build_quiz_info_slide(item: dict[str, Any]) -> dict[str, Any] | None:
+    intro_text = _strip_html(item.get("post_content"))
+    if not intro_text:
+        return None
+
+    return {
+        "type": "quizInfoBlock",
+        "attrs": {
+            "slide_uuid": str(uuid4()),
+            "gradient_seed": str(uuid4()),
+            "title": item.get("post_title") or "",
+            "body": intro_text,
+            "image_block_object": None,
+            "image_file_id": None,
+        },
+    }
+
+
+def _build_quiz_question_text(question: dict[str, Any]) -> tuple[str, str]:
+    title = unescape(_first_non_empty(question.get("question_title"), "Untitled question"))
+    description = _strip_html(question.get("question_description"))
+    return title, description
+
+
+def _normalize_tutor_text_input_size(question_type: str) -> str:
+    if question_type == "open_ended":
+        return "open_ended"
+    if question_type == "short_answer":
+        return "short_answer"
+    return "single_line"
+
+
+def build_tutor_quiz_payload(item: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]] | None:
+    question_answer = item.get("question_answer") or []
+    if not question_answer:
+        return None
+
+    tutor_options = ((item.get("meta") or {}).get("tutor_quiz_option") or [{}])[0] or {}
+    pass_is_required = str(tutor_options.get("pass_is_required", "0")) == "1"
+    raw_passing_grade = tutor_options.get("passing_grade", 100)
+    try:
+        passing_grade = float(raw_passing_grade)
+    except (TypeError, ValueError):
+        passing_grade = 100.0
+
+    raw_attempts_allowed = tutor_options.get("attempts_allowed")
+    try:
+        attempts_allowed = int(raw_attempts_allowed)
+    except (TypeError, ValueError):
+        attempts_allowed = 0
+
+    content_nodes: list[dict[str, Any]] = []
+    intro_slide = _build_quiz_info_slide(item)
+    if intro_slide:
+        content_nodes.append(intro_slide)
+
+    option_scores: dict[str, dict[str, float]] = {}
+    text_scores: dict[str, dict[str, Any]] = {}
+
+    for question_entry in question_answer:
+        question = question_entry.get("question") or {}
+        question_type = str(question.get("question_type") or "").strip()
+        question_uuid = str(uuid4())
+        question_text, description = _build_quiz_question_text(question)
+        select_question_text = (
+            f"{question_text}\n\n{description}" if description and question_type == "multiple_choice" else question_text
+        )
+
+        if question_type in {"short_answer", "open_ended"}:
+            content_nodes.append(
+                {
+                    "type": "quizTextBlock",
+                    "attrs": {
+                        "question_uuid": question_uuid,
+                        "question_text": question_text,
+                        "description": description,
+                        "placeholder": "Type your answer...",
+                        "input_size": _normalize_tutor_text_input_size(question_type),
+                        "background_gradient_seed": str(uuid4()),
+                        "background_image_file_id": None,
+                        "background_image_block_object": None,
+                    },
+                }
+            )
+            text_scores[question_uuid] = {"mode": "min_length", "min_chars": 1}
+            continue
+
+        answers = question_entry.get("answers") or []
+        if question_type != "multiple_choice" or len(answers) < 2:
+            return None
+
+        sorted_answers = sorted(
+            answers,
+            key=lambda answer: int(answer.get("answer_order") or 0),
+        )
+        correct_answers = [answer for answer in sorted_answers if str(answer.get("is_correct")) == "1"]
+        if len(correct_answers) != 1:
+            return None
+
+        option_nodes = []
+        for answer in sorted_answers:
+            option_uuid = str(uuid4())
+            option_nodes.append(
+                {
+                    "option_uuid": option_uuid,
+                    "label": unescape(str(answer.get("answer_title") or "")),
+                    "image_file_id": None,
+                    "image_block_object": None,
+                    "gradient_seed": str(uuid4()),
+                    "info_message": "",
+                    "info_image_file_id": None,
+                    "info_image_block_object": None,
+                    "show_info_expanded": False,
+                }
+            )
+            option_scores[option_uuid] = {"correct": 1.0 if str(answer.get("is_correct")) == "1" else 0.0}
+
+        content_nodes.append(
+            {
+                "type": "quizSelectBlock",
+                "attrs": {
+                    "question_uuid": question_uuid,
+                    "question_text": select_question_text,
+                    "display_style": "text",
+                    "show_responses": False,
+                    "option_count": min(max(len(option_nodes), 2), 4),
+                    "options": option_nodes,
+                    "background_gradient_seed": str(uuid4()),
+                    "background_image_file_id": None,
+                    "background_image_block_object": None,
+                },
+            }
+        )
+
+    if not content_nodes:
+        return None
+
+    details = {
+        "import_source": "tutor_lms",
+        "quiz_mode": "graded",
+        "grading_rules": {
+            "pass_percent": passing_grade if pass_is_required else 0,
+            "max_attempts": attempts_allowed if attempts_allowed > 0 else None,
+        },
+        "scoring_vectors": [_default_correct_vector()],
+        "category_scoring_vectors": [],
+        "graded_scoring_vectors": [_default_correct_vector()],
+        "option_scores": option_scores,
+        "text_scores": text_scores,
+    }
+    return {"type": "doc", "content": content_nodes}, details
 
 
 def tutor_item_to_doc(
@@ -397,6 +560,8 @@ def tutor_item_to_doc(
 
 
 def _item_needs_dynamic_activity(item: dict[str, Any], media_items: list[dict[str, str]] | None = None) -> bool:
+    if build_tutor_quiz_payload(item):
+        return True
     media_items = media_items if media_items is not None else extract_downloadable_media(item)
     doc = tutor_item_to_doc(
         item,
@@ -468,7 +633,6 @@ def _build_course_info(tutor_course: dict[str, Any]) -> ImportCourseInfo:
             media_count += len(media_items)
             if _item_needs_dynamic_activity(child, media_items):
                 activities_count += 1
-            activities_count += len(media_items)
 
     course_id = str(course.get("ID") or uuid4())
     return ImportCourseInfo(
@@ -854,26 +1018,45 @@ async def _import_single_tutor_course(
 
         for child in topic.get("children") or []:
             media_items = extract_downloadable_media(child)
-            child_doc = tutor_item_to_doc(
+            published = (child.get("post_status") == "publish") if not options.set_unpublished else False
+            quiz_payload = build_tutor_quiz_payload(child)
+
+            if quiz_payload or media_items or tutor_item_to_doc(
                 child,
                 include_downloadable_media_links=False,
                 downloadable_media=media_items,
-            )
-            published = (child.get("post_status") == "publish") if not options.set_unpublished else False
-
-            if child_doc.get("content") or media_items:
-                if not child_doc.get("content"):
-                    child_doc = {"type": "doc", "content": []}
-                activity = await _create_tutor_activity(
-                    name=child.get("post_title") or f"Activity {activity_order}",
-                    content=child_doc,
-                    course=new_course,
-                    chapter=chapter,
-                    organization=organization,
-                    db_session=db_session,
-                    order=activity_order,
-                    published=published,
-                )
+            ).get("content"):
+                if quiz_payload:
+                    child_doc, child_details = quiz_payload
+                    activity = await _create_tutor_quiz_activity(
+                        name=child.get("post_title") or f"Quiz {activity_order}",
+                        content=child_doc,
+                        details=child_details,
+                        course=new_course,
+                        chapter=chapter,
+                        organization=organization,
+                        db_session=db_session,
+                        order=activity_order,
+                        published=published,
+                    )
+                else:
+                    child_doc = tutor_item_to_doc(
+                        child,
+                        include_downloadable_media_links=False,
+                        downloadable_media=media_items,
+                    )
+                    if not child_doc.get("content"):
+                        child_doc = {"type": "doc", "content": []}
+                    activity = await _create_tutor_activity(
+                        name=child.get("post_title") or f"Activity {activity_order}",
+                        content=child_doc,
+                        course=new_course,
+                        chapter=chapter,
+                        organization=organization,
+                        db_session=db_session,
+                        order=activity_order,
+                        published=published,
+                    )
 
                 media_nodes: list[dict[str, Any]] = []
                 for media in media_items:
@@ -921,6 +1104,49 @@ async def _create_tutor_activity(
         activity_sub_type=ActivitySubTypeEnum.SUBTYPE_DYNAMIC_PAGE,
         content=content,
         details={"import_source": "tutor_lms"},
+        published=published,
+        org_id=organization.id,
+        course_id=course.id,
+        activity_uuid=f"activity_{uuid4()}",
+        creation_date=str(datetime.now()),
+        update_date=str(datetime.now()),
+    )
+    db_session.add(activity)
+    db_session.commit()
+    db_session.refresh(activity)
+
+    db_session.add(
+        ChapterActivity(
+            chapter_id=chapter.id,
+            activity_id=activity.id,
+            course_id=course.id,
+            org_id=organization.id,
+            order=order,
+            creation_date=str(datetime.now()),
+            update_date=str(datetime.now()),
+        )
+    )
+    db_session.commit()
+    return activity
+
+
+async def _create_tutor_quiz_activity(
+    name: str,
+    content: dict[str, Any],
+    details: dict[str, Any],
+    course: Course,
+    chapter: Chapter,
+    organization: Organization,
+    db_session: Session,
+    order: int,
+    published: bool,
+) -> Activity:
+    activity = Activity(
+        name=name,
+        activity_type=ActivityTypeEnum.TYPE_QUIZ,
+        activity_sub_type=ActivitySubTypeEnum.SUBTYPE_QUIZ_STANDARD,
+        content=content,
+        details=details,
         published=published,
         org_id=organization.id,
         course_id=course.id,
