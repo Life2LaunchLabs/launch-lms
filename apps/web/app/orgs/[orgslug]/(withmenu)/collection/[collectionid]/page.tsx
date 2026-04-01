@@ -26,7 +26,7 @@ export async function generateMetadata(props: MetadataProps): Promise<Metadata> 
   let collection: any = null
   try {
     collection = await getCollectionById(
-      `collection_${params.collectionid}`,
+      params.collectionid,
       access_token || '',
       { revalidate: 0, tags: ['collections'] }
     )
@@ -40,7 +40,7 @@ export async function generateMetadata(props: MetadataProps): Promise<Metadata> 
     ? getOrgOgImageMediaDirectory(org?.org_uuid, seoConfig.default_og_image)
     : null
   const imageUrl = ogImageUrl || getOrgThumbnailMediaDirectory(org?.org_uuid, org?.thumbnail_image)
-  const canonical = getCanonicalUrl(params.orgslug, `/collections/${params.collectionid}`)
+  const canonical = getCanonicalUrl(params.orgslug, `/collection/${params.collectionid}`)
 
   return {
     title,
@@ -89,7 +89,7 @@ const CollectionPage = async (props: { params: MetadataProps['params'] }) => {
   let collection: any = null
   try {
     collection = await getCollectionById(
-      `collection_${params.collectionid}`,
+      params.collectionid,
       access_token || '',
       { revalidate: 0, tags: ['collections'] }
     )
@@ -99,7 +99,7 @@ const CollectionPage = async (props: { params: MetadataProps['params'] }) => {
 
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
     { name: 'Home', url: getCanonicalUrl(params.orgslug, '/') },
-    { name: 'Collections', url: getCanonicalUrl(params.orgslug, '/courses') },
+    { name: 'Courses', url: getCanonicalUrl(params.orgslug, '/courses') },
     { name: collection?.name || 'Collection', url: getCanonicalUrl(params.orgslug, `/collection/${params.collectionid}`) },
   ])
 

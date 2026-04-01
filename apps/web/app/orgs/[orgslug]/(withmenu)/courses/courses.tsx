@@ -6,7 +6,6 @@ import { useSearchParams } from 'next/navigation'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import TypeOfContentTitle from '@components/Objects/StyledElements/Titles/TypeOfContentTitle'
 import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
-import CourseThumbnail from '@components/Objects/Thumbnails/CourseThumbnail'
 import NewCourseButton from '@components/Objects/StyledElements/Buttons/NewCourseButton'
 import useAdminStatus from '@components/Hooks/useAdminStatus'
 import { useTranslation } from 'react-i18next'
@@ -14,13 +13,18 @@ import { BookCopy, ChevronLeft, ChevronRight, Search, X, Users, Info } from 'luc
 import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/FeatureDisabledView'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { PlanLevel } from '@services/plans/plans'
 import { getUserGroups, getUserGroupResources } from '@services/usergroups/usergroups'
 import { usePlan } from '@components/Hooks/usePlan'
+import { getAPIUrl } from '@services/config/config'
+import { swrFetcher } from '@services/utils/ts/requests'
+import useSWR from 'swr'
+import PublicCourseCard from '@components/Pages/Courses/PublicCourseCard'
+import CollectionsOverviewSection from '@components/Pages/Courses/CollectionsOverviewSection'
 
 interface CourseProps {
   orgslug: string
   courses: any
+  collections: any
   org_id: string | number
 }
 
@@ -36,6 +40,18 @@ function Courses(props: CourseProps) {
   const session = useLHSession() as any
   const access_token = session?.data?.tokens?.access_token
   const currentPlan = usePlan()
+  const isCollectionsEnabled = org?.config?.config?.resolved_features?.collections?.enabled === true
+  const isCoursesEnabled = org?.config?.config?.resolved_features?.courses?.enabled === true
+
+  const { data: trail } = useSWR(
+    isCoursesEnabled && org?.id && access_token ? `${getAPIUrl()}trail/org/${org.id}/trail` : null,
+    (url) => swrFetcher(url, access_token),
+    { revalidateOnFocus: false }
+  )
+  const trailRunsByCourseUuid = useMemo(() => {
+    const runs = trail?.runs || []
+    return new Map(runs.map((run: any) => [run.course.course_uuid, run]))
+  }, [trail])
 
   // Usergroup filter — only shown on personal/family plans
   const usergroupsAvailable = currentPlan === 'personal' || currentPlan === 'family'
@@ -175,6 +191,14 @@ function Courses(props: CourseProps) {
     <div className="w-full">
       <GeneralWrapperStyled>
         <div className="flex flex-col space-y-2 mb-2">
+          {isCollectionsEnabled && (
+            <CollectionsOverviewSection
+              collections={props.collections || []}
+              orgslug={orgslug}
+              org_id={props.org_id}
+            />
+          )}
+
           <div className="flex items-center justify-between">
             <TypeOfContentTitle title={t('courses.courses')} type="cou" />
             <AuthenticatedClientElement
@@ -273,7 +297,12 @@ function Courses(props: CourseProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {paginatedCourses.map((course: any) => (
               <div key={course.course_uuid} className="">
-                <CourseThumbnail course={course} orgslug={orgslug} />
+                <PublicCourseCard
+                  course={course}
+                  orgslug={orgslug}
+                  run={trailRunsByCourseUuid.get(course.course_uuid)}
+                  orgName={org?.name}
+                />
               </div>
             ))}
             {filteredCourses.length === 0 && searchQuery && (

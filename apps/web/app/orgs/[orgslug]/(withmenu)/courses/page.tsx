@@ -7,6 +7,7 @@ import { getOrgCourses } from '@services/courses/courses'
 import { getOrgThumbnailMediaDirectory, getOrgOgImageMediaDirectory } from '@services/media/media'
 import { getCanonicalUrl, getOrgSeoConfig, buildPageTitle, buildBreadcrumbJsonLd } from '@/lib/seo/utils'
 import { JsonLd } from '@components/SEO/JsonLd'
+import { getOrgCollections } from '@services/courses/collections'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string }>
@@ -81,6 +82,7 @@ const CoursesPage = async (params: any) => {
   const access_token = session?.tokens?.access_token
 
   let courses: any[] = []
+  let collections: any[] = []
   try {
     courses = await getOrgCourses(
       orgslug,
@@ -92,6 +94,20 @@ const CoursesPage = async (params: any) => {
     // The client component will show the feature disabled view
     if (error?.status === 403) {
       courses = []
+    } else {
+      throw error
+    }
+  }
+
+  try {
+    collections = await getOrgCollections(
+      org.id,
+      access_token ?? undefined,
+      { revalidate: 0, tags: ['collections'] }
+    )
+  } catch (error: any) {
+    if (error?.status === 403) {
+      collections = []
     } else {
       throw error
     }
@@ -122,7 +138,7 @@ const CoursesPage = async (params: any) => {
     <div>
       <JsonLd data={breadcrumbJsonLd} />
       <JsonLd data={coursesJsonLd} />
-      <Courses org_id={org.id} orgslug={orgslug} courses={courses} />
+      <Courses org_id={org.id} orgslug={orgslug} courses={courses} collections={collections} />
     </div>
   )
 }
