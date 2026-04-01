@@ -8,9 +8,10 @@ import { useTranslation } from 'react-i18next'
 interface CourseShareProps {
   courseName: string
   courseUrl: string
+  iconOnly?: boolean
 }
 
-function CourseShare({ courseName, courseUrl }: CourseShareProps) {
+function CourseShare({ courseName, courseUrl, iconOnly }: CourseShareProps) {
   const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -82,7 +83,7 @@ function CourseShare({ courseName, courseUrl }: CourseShareProps) {
         className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white nice-shadow text-neutral-600 hover:text-neutral-800 transition-colors text-sm font-medium"
       >
         <Share2 size={14} />
-        <span>{t('courses.share_course')}</span>
+        {!iconOnly && <span>{t('courses.share_course')}</span>}
       </button>
 
       {isOpen && (
