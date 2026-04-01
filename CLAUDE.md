@@ -318,6 +318,47 @@ docker build -t learnhouse .
 
 ---
 
+## Production Infrastructure
+
+**Infra repo**: `github.com/Life2LaunchLabs/learnhouse-infra`
+
+Deployed on a **DigitalOcean Ubuntu 24.04 Droplet** at `/opt/learnhouse`.
+
+### Stack
+- **Caddy** — host systemd service, handles TLS (Let's Encrypt), reverse proxies to `localhost:8080`
+- **LearnHouse container** — all-in-one image (`ghcr.io/life2launchlabs/learnhouse:prod`) bound to `127.0.0.1:8080`
+- **PostgreSQL** (`pgvector/pgvector:pg16`) — named Docker volume `pgdata`
+- **Redis** (`redis:7-alpine`) — named Docker volume `redisdata`, AOF persistence
+
+### Deployment Flow
+1. Push to `prod` branch triggers `build-community.yaml` → builds and pushes image to GHCR
+2. CI SSHes into droplet and runs `deploy.sh`:
+   - `git reset --hard origin/main` (syncs infra config)
+   - `docker compose pull` + `docker compose up -d --remove-orphans`
+   - `docker image prune -f`
+3. Secrets: `DROPLET_HOST`, `DROPLET_USER`, `DROPLET_SSH_KEY` stored as GitHub Actions repo secrets
+
+### Key Config Notes
+- All app config via `env_file: .env` (at `/opt/learnhouse/.env`, `chmod 600`)
+- `LEARNHOUSE_INTERNAL_API_URL=http://localhost/api/v1/` — **must** use localhost (not the public domain) so server-side Next.js calls hit the internal Nginx directly, avoiding a TLS loop through Caddy
+- `LEARNHOUSE_CONTENT_DELIVERY_TYPE` defaults to `filesystem` — uploaded media stored at `/app/api/content` inside the container
+- **No volume mount for `/app/api/content`** in the current `docker-compose.yml` — media is lost on redeploy (known issue to fix)
+
+### Known Infrastructure Issue: Media Persistence
+The LearnHouse container's `content/` directory (uploaded course photos, thumbnails, etc.) is not mounted as a Docker volume. Every redeploy wipes uploaded media. Fix requires adding to `docker-compose.yml`:
+```yaml
+services:
+  learnhouse:
+    volumes:
+      - content_data:/app/api/content
+
+volumes:
+  content_data:
+```
+Alternatively, switch to S3 storage (`LEARNHOUSE_CONTENT_DELIVERY_TYPE=s3api`).
+
+---
+
 ## Business Domain Concepts
 
 ### Plans
