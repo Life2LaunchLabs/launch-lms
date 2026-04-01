@@ -5,12 +5,11 @@ import {
   X,
   House,
   Books,
-  SquaresFour,
   ChatsCircle,
   Headphones,
   Cube,
   ShoppingBag,
-  Signpost,
+  Certificate,
 } from '@phosphor-icons/react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -30,7 +29,7 @@ interface OrgMenuSidebarProps {
 }
 
 const KNOWN_SUBPATHS = [
-  '/courses', '/course/', '/collections', '/trail', '/podcasts',
+  '/courses', '/course/', '/collection/', '/collections', '/trail', '/certificate', '/podcasts',
   '/communities', '/playgrounds', '/store', '/boards', '/copilot',
   '/activity/', '/assignment', '/editor', '/account', '/payments',
 ]
@@ -64,13 +63,12 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
 
   // Active state helpers
   const isHome = !KNOWN_SUBPATHS.some(p => pathname?.includes(p))
-  const isOnCourses = pathname?.includes('/courses') || pathname?.includes('/course/')
-  const isOnCollections = pathname?.includes('/collections')
+  const isOnCourses = pathname?.includes('/courses') || pathname?.includes('/course/') || pathname?.includes('/collection/')
   const isOnPodcasts = pathname?.includes('/podcasts')
   const isOnCommunities = pathname?.includes('/communities')
   const isOnPlaygrounds = pathname?.includes('/playgrounds')
   const isOnStore = pathname?.includes('/store')
-  const isOnTrail = pathname?.includes('/trail')
+  const isOnTrail = pathname?.includes('/trail') || pathname?.includes('/certificate')
 
   const navItems = [
     {
@@ -86,13 +84,6 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
       icon: <Books size={18} weight="fill" />,
       active: isOnCourses,
       show: isEnabled('courses'),
-    },
-    {
-      href: '/collections',
-      label: t('collections.collections'),
-      icon: <SquaresFour size={18} weight="fill" />,
-      active: isOnCollections,
-      show: isEnabled('collections'),
     },
     {
       href: '/podcasts',
@@ -196,15 +187,15 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
 
             {session?.status === 'authenticated' && (
               <Link
-                href={getUriWithOrg(orgslug, '/trail')}
+                href={getUriWithOrg(orgslug, '/certificate')}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
                   isOnTrail
                     ? 'bg-gray-100 text-gray-900 font-semibold'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium'
                 }`}
               >
-                <Signpost size={18} weight="fill" />
-                <span>{t('courses.progress') || 'Progress'}</span>
+                <Certificate size={18} weight="fill" />
+                <span>Certificates</span>
               </Link>
             )}
           </nav>

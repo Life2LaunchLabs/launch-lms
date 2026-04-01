@@ -1,6 +1,6 @@
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg } from '@services/config/config'
-import { Books, SquaresFour, ChatsCircle, Headphones, Cube, ShoppingBag } from '@phosphor-icons/react'
+import { Books, ChatsCircle, Headphones, Cube, ShoppingBag } from '@phosphor-icons/react'
 import Link from 'next/link'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -14,7 +14,6 @@ function MenuLinks(props: { orgslug: string; primaryColor?: string }) {
   const isEnabled = (feature: string) => rf?.[feature]?.enabled === true
 
   const isCoursesEnabled = isEnabled('courses')
-  const isCollectionsEnabled = isEnabled('collections')
   const showCommunities = isEnabled('communities')
   const showPodcasts = isEnabled('podcasts')
   const showPlaygrounds = isEnabled('playgrounds')
@@ -27,14 +26,6 @@ function MenuLinks(props: { orgslug: string; primaryColor?: string }) {
           <LinkItem
             link="/courses"
             type="courses"
-            orgslug={props.orgslug}
-            primaryColor={props.primaryColor}
-          ></LinkItem>
-        )}
-        {isCollectionsEnabled && (
-          <LinkItem
-            link="/collections"
-            type="collections"
             orgslug={props.orgslug}
             primaryColor={props.primaryColor}
           ></LinkItem>
@@ -90,14 +81,6 @@ const LinkItem = (props: any) => {
             <span>{t('courses.courses')}</span>
           </>
         )}
-
-        {props.type == 'collections' && (
-          <>
-            <SquaresFour size={20} weight="fill" />{' '}
-            <span>{t('collections.collections')}</span>
-          </>
-        )}
-
         {props.type == 'podcasts' && (
           <>
             <Headphones size={20} weight="fill" />{' '}
