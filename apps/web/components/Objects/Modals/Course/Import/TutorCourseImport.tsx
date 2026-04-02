@@ -12,6 +12,7 @@ import {
   ArrowLeft,
   BookOpen,
   Layers,
+  ScrollText,
 } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { revalidateTags } from '@services/utils/ts/requests'
@@ -63,6 +64,7 @@ function TutorCourseImport({
   const [isImporting, setIsImporting] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
   const [importProgress, setImportProgress] = useState<TutorImportProgressResponse | null>(null)
+  const [showLogs, setShowLogs] = useState(false)
   const [importResult, setImportResult] = useState<{
     successful: number
     failed: number
@@ -118,6 +120,7 @@ function TutorCourseImport({
       current_media_name: null,
       current_course_name: null,
       message: 'Preparing Tutor LMS import',
+      logs: [],
     })
 
     try {
@@ -148,6 +151,17 @@ function TutorCourseImport({
         },
         access_token
       )
+
+      try {
+        const progress = await getTutorImportProgress(
+          analysisResult.temp_id,
+          orgId,
+          access_token
+        )
+        setImportProgress(progress)
+      } catch {
+        // Ignore final progress refresh failure after import completes.
+      }
 
       setImportResult({
         successful: result.successful,
@@ -184,6 +198,7 @@ function TutorCourseImport({
     setImportError(null)
     setImportProgress(null)
     setImportResult(null)
+    setShowLogs(false)
   }
 
   useEffect(() => {
@@ -195,6 +210,51 @@ function TutorCourseImport({
   }, [])
 
   const selectedCount = courseSelections.filter((course) => course.include).length
+  const progressLogs = importProgress?.logs || []
+
+  const renderLogs = () => (
+    <div className="rounded-lg border border-gray-200 bg-white">
+      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+        <div className="inline-flex items-center gap-2 text-sm font-medium text-gray-800">
+          <ScrollText size={16} />
+          Import log
+        </div>
+        <div className="text-xs text-gray-500">{progressLogs.length} entries</div>
+      </div>
+      <div className="max-h-72 space-y-2 overflow-y-auto p-3">
+        {progressLogs.length === 0 ? (
+          <div className="text-sm text-gray-500">No log entries yet.</div>
+        ) : (
+          progressLogs.map((entry, index) => (
+            <div
+              key={`${entry.timestamp}-${index}`}
+              className={`rounded-md border px-3 py-2 text-sm ${
+                entry.level === 'error'
+                  ? 'border-red-200 bg-red-50'
+                  : entry.level === 'warning'
+                    ? 'border-amber-200 bg-amber-50'
+                    : 'border-gray-200 bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="font-medium text-gray-800">{entry.message}</div>
+                <div className="shrink-0 text-xs text-gray-500">
+                  {new Date(entry.timestamp).toLocaleTimeString()}
+                </div>
+              </div>
+              {(entry.course_name || entry.activity_name) && (
+                <div className="mt-1 text-xs text-gray-600">
+                  {entry.course_name && <span>Course: {entry.course_name}</span>}
+                  {entry.course_name && entry.activity_name && <span> · </span>}
+                  {entry.activity_name && <span>Activity: {entry.activity_name}</span>}
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  )
 
   return (
     <div className="min-w-[500px]">
@@ -344,22 +404,34 @@ function TutorCourseImport({
       )}
 
       {step === 'importing' && (
-        <div className="space-y-4 py-10 text-center">
-          <BarLoader width="100%" color="#111827" />
-          <p className="text-sm text-gray-500">
-            {importProgress?.message || 'Downloading media and creating LearnHouse courses from Tutor LMS content...'}
-          </p>
-          <div className="space-y-1 text-sm text-gray-600">
-            <div>
-              Media progress: {importProgress?.completed_media ?? 0} / {importProgress?.total_media ?? 0}
+        <div className="space-y-4 py-4">
+          <div className="space-y-4 text-center">
+            <BarLoader width="100%" color="#111827" />
+            <p className="text-sm text-gray-500">
+              {importProgress?.message || 'Downloading media and creating LearnHouse courses from Tutor LMS content...'}
+            </p>
+            <div className="space-y-1 text-sm text-gray-600">
+              <div>
+                Media progress: {importProgress?.completed_media ?? 0} / {importProgress?.total_media ?? 0}
+              </div>
+              {importProgress?.current_course_name && (
+                <div>Course: {importProgress.current_course_name}</div>
+              )}
+              {importProgress?.current_media_name && (
+                <div className="truncate">Current media: {importProgress.current_media_name}</div>
+              )}
             </div>
-            {importProgress?.current_course_name && (
-              <div>Course: {importProgress.current_course_name}</div>
-            )}
-            {importProgress?.current_media_name && (
-              <div className="truncate">Current media: {importProgress.current_media_name}</div>
-            )}
           </div>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setShowLogs((prev) => !prev)}
+              className="text-sm text-gray-600 hover:text-gray-900"
+            >
+              {showLogs ? 'Hide import log' : 'Show import log'}
+            </button>
+          </div>
+          {showLogs && renderLogs()}
         </div>
       )}
 
@@ -381,6 +453,8 @@ function TutorCourseImport({
               </div>
             ))}
           </div>
+
+          {renderLogs()}
 
           <Button
             onClick={() => {

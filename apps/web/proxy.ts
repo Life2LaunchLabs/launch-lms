@@ -351,6 +351,27 @@ export default async function proxy(req: NextRequest) {
     return response;
   }
 
+  // Auth gate: redirect unauthenticated users to the welcome page for protected routes.
+  // Exemptions:
+  //   - (guest) paths: /welcome, /onboarding  (public by design)
+  //   - Individual course/activity pages: /course/[uuid] and /course/[uuid]/activity/[id]
+  //     (the server component checks the course's public flag and redirects if needed)
+  {
+    const hasSession = req.cookies.get('learnhouse_has_session')?.value
+    if (!hasSession) {
+      const isGuestPath =
+        pathname === '/welcome' ||
+        pathname.startsWith('/welcome/') ||
+        pathname === '/onboarding' ||
+        pathname.startsWith('/onboarding/')
+      const isPublicCoursePath = /^\/course\/[^/]+(\/activity\/[^/]+)?$/.test(pathname)
+
+      if (!isGuestPath && !isPublicCoursePath) {
+        return NextResponse.redirect(new URL('/welcome', req.url))
+      }
+    }
+  }
+
   // Custom Domain Detection - check before multi-org mode
   if (isCustomDomain(fullhost, instanceInfo.frontend_domain)) {
     const resolvedOrg = await getResolvedCustomDomain(fullhost as string)

@@ -64,6 +64,15 @@ class ImportResult(BaseModel):
     courses: list[ImportCourseResult]
 
 
+class TutorImportLogEntry(BaseModel):
+    """A single Tutor import diagnostic event."""
+    timestamp: str
+    level: str = "info"
+    message: str
+    course_name: Optional[str] = None
+    activity_name: Optional[str] = None
+
+
 class TutorImportProgressResponse(BaseModel):
     """Progress state for Tutor LMS imports"""
     status: str = "pending"
@@ -72,3 +81,4 @@ class TutorImportProgressResponse(BaseModel):
     current_media_name: Optional[str] = None
     current_course_name: Optional[str] = None
     message: Optional[str] = None
+    logs: list[TutorImportLogEntry] = []

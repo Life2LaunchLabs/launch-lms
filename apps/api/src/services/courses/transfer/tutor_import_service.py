@@ -10,7 +10,7 @@ import shutil
 from datetime import datetime
 from html import unescape
 from typing import Any
-from urllib.parse import unquote, urlparse
+from urllib.parse import quote, unquote, urlparse
 from uuid import uuid4
 
 from bs4 import BeautifulSoup, NavigableString, Tag
@@ -47,6 +47,7 @@ from .models import (
     ImportCourseResult,
     ImportOptions,
     ImportResult,
+    TutorImportLogEntry,
     TutorImportProgressResponse,
 )
 
@@ -56,9 +57,12 @@ MAX_TUTOR_FILES = 20
 MAX_TUTOR_TOTAL_SIZE = 50 * 1024 * 1024
 SUPPORTED_VIDEO_EXTENSIONS = {".mp4", ".webm", ".mov"}
 SUPPORTED_DOCUMENT_EXTENSIONS = {".pdf"}
+SUPPORTED_OFFICE_EXTENSIONS = {".docx", ".pptx"}
 SUPPORTED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 SUPPORTED_AUDIO_EXTENSIONS = {".mp3", ".wav", ".ogg", ".m4a"}
 PROGRESS_FILENAME = "progress.json"
+EMBED_VIDEO_KEYS = ("source_youtube", "source_vimeo", "source_embedded")
+MAX_PROGRESS_LOGS = 200
 
 
 def _strip_html(value: str | None) -> str:
@@ -291,6 +295,55 @@ def _basename_from_url(url: str, fallback: str) -> str:
     return basename or fallback
 
 
+def _is_embeddable_external_url(url: str) -> bool:
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return False
+
+    hostname = (parsed.hostname or "").lower()
+    if hostname in {
+        "drive.google.com",
+        "docs.google.com",
+        "youtube.com",
+        "www.youtube.com",
+        "youtu.be",
+        "www.youtu.be",
+        "vimeo.com",
+        "www.vimeo.com",
+        "player.vimeo.com",
+    }:
+        return True
+    return False
+
+
+def _normalize_embed_url(url: str) -> str:
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return url
+
+    hostname = (parsed.hostname or "").lower()
+    path = parsed.path or ""
+
+    if hostname == "drive.google.com":
+        parts = [part for part in path.split("/") if part]
+        if len(parts) >= 3 and parts[0] == "file" and parts[1] == "d":
+            file_id = parts[2]
+            return f"https://drive.google.com/file/d/{file_id}/preview"
+
+    if hostname == "docs.google.com":
+        parts = [part for part in path.split("/") if part]
+        if len(parts) >= 3 and parts[0] in {"document", "presentation"} and parts[1] == "d":
+            doc_id = parts[2]
+            return f"https://docs.google.com/{parts[0]}/d/{doc_id}/preview"
+
+    if _get_url_extension(url) in SUPPORTED_OFFICE_EXTENSIONS:
+        return f"https://view.officeapps.live.com/op/embed.aspx?src={quote(url, safe='')}"
+
+    return url
+
+
 def _get_tutor_video_url(video_meta: Any) -> str | None:
     if not isinstance(video_meta, list):
         return None
@@ -333,6 +386,82 @@ def extract_downloadable_media(item: dict[str, Any]) -> list[dict[str, str]]:
         if url not in seen_urls:
             seen_urls.add(url)
             media_items.append({"kind": kind, "url": url, "name": item.get("post_title") or "Attachment"})
+
+    return media_items
+
+
+def extract_embeddable_media(item: dict[str, Any]) -> list[dict[str, str]]:
+    media_items: list[dict[str, str]] = []
+    seen_urls: set[str] = set()
+    meta = item.get("meta") or {}
+
+    for video in meta.get("_video") or []:
+        if not isinstance(video, dict):
+            continue
+
+        for key in EMBED_VIDEO_KEYS:
+            url = video.get(key)
+            if not url or url in seen_urls:
+                continue
+
+            seen_urls.add(url)
+            media_items.append(
+                {
+                    "kind": "embed",
+                    "url": url,
+                    "name": item.get("post_title") or "Embedded Video",
+                }
+            )
+
+        external_url = video.get("source_external_url")
+        if external_url and _is_embeddable_external_url(external_url) and external_url not in seen_urls:
+            seen_urls.add(external_url)
+            media_items.append(
+                {
+                    "kind": "embed",
+                    "url": external_url,
+                    "name": item.get("post_title") or "Embedded Video",
+                }
+            )
+
+    for url in item.get("attachment_links") or []:
+        ext = _get_url_extension(url)
+        if ext in SUPPORTED_OFFICE_EXTENSIONS and url not in seen_urls:
+            seen_urls.add(url)
+            media_items.append(
+                {
+                    "kind": "embed",
+                    "url": url,
+                    "name": item.get("post_title") or "Embedded Document",
+                }
+            )
+
+    return media_items
+
+
+def extract_inline_image_media(item: dict[str, Any]) -> list[dict[str, str]]:
+    media_items: list[dict[str, str]] = []
+    seen_urls: set[str] = set()
+    content = item.get("post_content")
+    if not content:
+        return media_items
+
+    soup = BeautifulSoup(str(content), "html.parser")
+    for image in soup.find_all("img"):
+        url = image.get("src")
+        if not url or url in seen_urls:
+            continue
+        if _get_url_extension(url) not in SUPPORTED_IMAGE_EXTENSIONS:
+            continue
+
+        seen_urls.add(url)
+        media_items.append(
+            {
+                "kind": "image",
+                "url": url,
+                "name": image.get("alt") or item.get("post_title") or "Image",
+            }
+        )
 
     return media_items
 
@@ -494,13 +623,17 @@ def tutor_item_to_doc(
     item: dict[str, Any],
     include_downloadable_media_links: bool = True,
     downloadable_media: list[dict[str, str]] | None = None,
+    include_embeddable_media_links: bool = True,
+    embeddable_media: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     doc = html_to_tiptap_doc(item.get("post_content"))
     meta = item.get("meta") or {}
     video_meta = meta.get("_video") or []
     attachment_links = list(item.get("attachment_links") or [])
     downloadable_media = downloadable_media if downloadable_media is not None else extract_downloadable_media(item)
+    embeddable_media = embeddable_media if embeddable_media is not None else extract_embeddable_media(item)
     downloadable_urls = {media["url"] for media in downloadable_media}
+    embeddable_urls = {media["url"] for media in embeddable_media}
 
     if video_meta:
         urls = []
@@ -516,7 +649,9 @@ def tutor_item_to_doc(
             )
         cleaned_urls = [
             url for url in urls
-            if url and (include_downloadable_media_links or url not in downloadable_urls)
+            if url
+            and (include_downloadable_media_links or url not in downloadable_urls)
+            and (include_embeddable_media_links or url not in embeddable_urls)
         ]
         if cleaned_urls:
             append_heading(doc, "Media", 3)
@@ -525,7 +660,8 @@ def tutor_item_to_doc(
     if attachment_links:
         filtered_attachments = [
             url for url in attachment_links
-            if include_downloadable_media_links or url not in downloadable_urls
+            if (include_downloadable_media_links or url not in downloadable_urls)
+            and (include_embeddable_media_links or url not in embeddable_urls)
         ]
         if filtered_attachments:
             append_heading(doc, "Attachments", 3)
@@ -563,12 +699,47 @@ def _item_needs_dynamic_activity(item: dict[str, Any], media_items: list[dict[st
     if build_tutor_quiz_payload(item):
         return True
     media_items = media_items if media_items is not None else extract_downloadable_media(item)
+    embeddable_media = extract_embeddable_media(item)
+    inline_image_media = extract_inline_image_media(item)
     doc = tutor_item_to_doc(
         item,
         include_downloadable_media_links=False,
         downloadable_media=media_items,
+        include_embeddable_media_links=False,
+        embeddable_media=embeddable_media,
     )
-    return bool(doc.get("content"))
+    return bool(doc.get("content") or embeddable_media or inline_image_media)
+
+
+def _create_embed_block_node_from_url(media: dict[str, str]) -> dict[str, Any] | None:
+    url = media.get("url")
+    if not url:
+        return None
+
+    normalized_url = _normalize_embed_url(url)
+
+    return {
+        "type": "blockEmbed",
+        "attrs": {
+            "embedUrl": normalized_url,
+            "embedCode": None,
+            "embedType": "url",
+            "embedHeight": 420,
+            "embedWidth": "100%",
+            "alignment": "center",
+        },
+    }
+
+
+def _image_file_type_from_extension(ext: str) -> str:
+    ext = ext.lower()
+    if ext == ".png":
+        return "image/png"
+    if ext == ".webp":
+        return "image/webp"
+    if ext == ".gif":
+        return "image/gif"
+    return "image/jpeg"
 
 
 async def _download_remote_bytes(url: str) -> tuple[bytes, str | None]:
@@ -690,6 +861,29 @@ def _read_progress(temp_dir: str) -> TutorImportProgressResponse:
     return TutorImportProgressResponse(**data)
 
 
+def _append_progress_log(
+    temp_dir: str,
+    *,
+    message: str,
+    level: str = "info",
+    course_name: str | None = None,
+    activity_name: str | None = None,
+) -> None:
+    progress = _read_progress(temp_dir)
+    progress.logs.append(
+        TutorImportLogEntry(
+            timestamp=datetime.utcnow().isoformat(),
+            level=level,
+            message=message,
+            course_name=course_name,
+            activity_name=activity_name,
+        )
+    )
+    if len(progress.logs) > MAX_PROGRESS_LOGS:
+        progress.logs = progress.logs[-MAX_PROGRESS_LOGS:]
+    _write_progress(temp_dir, progress)
+
+
 def get_tutor_import_progress(temp_id: str) -> TutorImportProgressResponse:
     temp_dir = os.path.join(TEMP_TUTOR_IMPORT_DIR, temp_id)
     if not os.path.exists(temp_dir):
@@ -743,6 +937,7 @@ async def analyze_tutor_import_files(
             TutorImportProgressResponse(
                 status="pending",
                 message="Ready to import Tutor LMS courses",
+                logs=[],
             ),
         )
     except Exception as exc:
@@ -800,6 +995,11 @@ async def import_tutor_courses(
         message="Preparing Tutor LMS import",
     )
     _write_progress(temp_dir, progress)
+    _append_progress_log(
+        temp_dir,
+        message=f"Starting import for {len(selected_courses)} Tutor course(s)",
+        level="info",
+    )
 
     results = []
     successful = 0
@@ -845,6 +1045,11 @@ async def import_tutor_courses(
             progress.current_course_name = None
             progress.message = f"Failed importing a course: {exc}"
             _write_progress(temp_dir, progress)
+            _append_progress_log(
+                temp_dir,
+                message=f"Course import failed: {exc}",
+                level="error",
+            )
             results.append(
                 ImportCourseResult(
                     original_uuid=selected_uuid,
@@ -862,6 +1067,7 @@ async def import_tutor_courses(
     progress.current_course_name = None
     progress.message = "Tutor import complete"
     _write_progress(temp_dir, progress)
+    _append_progress_log(temp_dir, message="Tutor import complete", level="info")
 
     return ImportResult(
         total_courses=len(options.course_uuids),
@@ -890,6 +1096,12 @@ async def _import_single_tutor_course(
     progress.current_media_name = None
     progress.message = f"Importing {course_name}"
     _write_progress(temp_dir, progress)
+    _append_progress_log(
+        temp_dir,
+        message="Creating LearnHouse course",
+        level="info",
+        course_name=course_name,
+    )
 
     benefits = (course_data.get("meta") or {}).get("_tutor_course_benefits") or []
     materials = (course_data.get("meta") or {}).get("_tutor_course_material_includes") or []
@@ -951,6 +1163,12 @@ async def _import_single_tutor_course(
             db_session.add(new_course)
             db_session.commit()
             db_session.refresh(new_course)
+            _append_progress_log(
+                temp_dir,
+                message=f"Imported course thumbnail: {thumbnail_filename}",
+                level="info",
+                course_name=course_name,
+            )
 
     course_video_url = _get_tutor_video_url((course_data.get("meta") or {}).get("_video"))
     if course_video_url:
@@ -973,6 +1191,12 @@ async def _import_single_tutor_course(
             db_session.add(new_course)
             db_session.commit()
             db_session.refresh(new_course)
+            _append_progress_log(
+                temp_dir,
+                message=f"Imported course overview video: {course_video_filename}",
+                level="info",
+                course_name=course_name,
+            )
 
     author_user_id = current_user.created_by_user_id if isinstance(current_user, APITokenUser) else current_user.id
     db_session.add(
@@ -1018,18 +1242,30 @@ async def _import_single_tutor_course(
 
         for child in topic.get("children") or []:
             media_items = extract_downloadable_media(child)
+            embeddable_media = extract_embeddable_media(child)
+            inline_image_media = extract_inline_image_media(child)
+            activity_name = child.get("post_title") or f"Activity {activity_order}"
             published = (child.get("post_status") == "publish") if not options.set_unpublished else False
             quiz_payload = build_tutor_quiz_payload(child)
 
-            if quiz_payload or media_items or tutor_item_to_doc(
+            if quiz_payload or media_items or embeddable_media or inline_image_media or tutor_item_to_doc(
                 child,
                 include_downloadable_media_links=False,
                 downloadable_media=media_items,
+                include_embeddable_media_links=False,
+                embeddable_media=embeddable_media,
             ).get("content"):
                 if quiz_payload:
                     child_doc, child_details = quiz_payload
+                    _append_progress_log(
+                        temp_dir,
+                        message="Creating graded quiz activity",
+                        level="info",
+                        course_name=course_name,
+                        activity_name=activity_name,
+                    )
                     activity = await _create_tutor_quiz_activity(
-                        name=child.get("post_title") or f"Quiz {activity_order}",
+                        name=activity_name,
                         content=child_doc,
                         details=child_details,
                         course=new_course,
@@ -1044,11 +1280,20 @@ async def _import_single_tutor_course(
                         child,
                         include_downloadable_media_links=False,
                         downloadable_media=media_items,
+                        include_embeddable_media_links=False,
+                        embeddable_media=embeddable_media,
                     )
                     if not child_doc.get("content"):
                         child_doc = {"type": "doc", "content": []}
+                    _append_progress_log(
+                        temp_dir,
+                        message="Creating dynamic activity",
+                        level="info",
+                        course_name=course_name,
+                        activity_name=activity_name,
+                    )
                     activity = await _create_tutor_activity(
-                        name=child.get("post_title") or f"Activity {activity_order}",
+                        name=activity_name,
                         content=child_doc,
                         course=new_course,
                         chapter=chapter,
@@ -1059,6 +1304,31 @@ async def _import_single_tutor_course(
                     )
 
                 media_nodes: list[dict[str, Any]] = []
+                for media in embeddable_media:
+                    media_node = _create_embed_block_node_from_url(media)
+                    if media_node:
+                        media_nodes.append(media_node)
+                        _append_progress_log(
+                            temp_dir,
+                            message=f"Embedded external media: {media.get('url')}",
+                            level="info",
+                            course_name=course_name,
+                            activity_name=activity_name,
+                        )
+                for media in inline_image_media:
+                    media_node = await _create_embedded_media_block_from_url(
+                        media=media,
+                        activity=activity,
+                        course=new_course,
+                        chapter=chapter,
+                        organization=organization,
+                        db_session=db_session,
+                        temp_dir=temp_dir,
+                        course_name=course_name,
+                        activity_name=activity_name,
+                    )
+                    if media_node:
+                        media_nodes.append(media_node)
                 for media in media_items:
                     media_node = await _create_embedded_media_block_from_url(
                         media=media,
@@ -1069,6 +1339,7 @@ async def _import_single_tutor_course(
                         db_session=db_session,
                         temp_dir=temp_dir,
                         course_name=course_name,
+                        activity_name=activity_name,
                     )
                     if media_node:
                         media_nodes.append(media_node)
@@ -1083,8 +1354,22 @@ async def _import_single_tutor_course(
                     db_session.commit()
 
                 activity_order += 1
+            else:
+                _append_progress_log(
+                    temp_dir,
+                    message="Skipped item because no supported content was detected",
+                    level="warning",
+                    course_name=course_name,
+                    activity_name=activity_name,
+                )
 
     increase_feature_usage("courses", organization.id, db_session)
+    _append_progress_log(
+        temp_dir,
+        message="Finished course import",
+        level="info",
+        course_name=course_name,
+    )
     return new_course
 
 
@@ -1183,6 +1468,7 @@ async def _create_embedded_media_block_from_url(
     db_session: Session,
     temp_dir: str,
     course_name: str,
+    activity_name: str | None = None,
 ) -> dict[str, Any] | None:
     kind = media.get("kind")
     url = media.get("url")
@@ -1210,6 +1496,11 @@ async def _create_embedded_media_block_from_url(
         prefix = "block_video"
         block_type = BlockTypeEnum.BLOCK_VIDEO
         node_type = "blockVideo"
+    elif kind == "image":
+        folder_name = "imageBlock"
+        prefix = "block_image"
+        block_type = BlockTypeEnum.BLOCK_IMAGE
+        node_type = "blockImage"
     elif kind == "document":
         folder_name = "pdfBlock"
         prefix = "block_pdf"
@@ -1222,6 +1513,13 @@ async def _create_embedded_media_block_from_url(
         node_type = "blockAudio"
     else:
         mark_attempt_finished(f"Skipped {media_name}")
+        _append_progress_log(
+            temp_dir,
+            message=f"Skipped unsupported media type: {media_name}",
+            level="warning",
+            course_name=course_name,
+            activity_name=activity_name,
+        )
         return None
 
     filename = await _store_remote_file(
@@ -1233,6 +1531,13 @@ async def _create_embedded_media_block_from_url(
     )
     if not filename:
         mark_attempt_finished(f"Skipped {media_name}")
+        _append_progress_log(
+            temp_dir,
+            message=f"Failed to download or validate media: {media_name}",
+            level="warning",
+            course_name=course_name,
+            activity_name=activity_name,
+        )
         return None
 
     stem, ext = os.path.splitext(filename)
@@ -1243,6 +1548,7 @@ async def _create_embedded_media_block_from_url(
         "file_size": 0,
         "file_type": (
             "video/quicktime" if ext.lower() == ".mov"
+            else _image_file_type_from_extension(ext) if kind == "image"
             else "application/pdf" if kind == "document"
             else "audio/mpeg" if kind == "audio"
             else "video/mp4"
@@ -1266,14 +1572,34 @@ async def _create_embedded_media_block_from_url(
     db_session.refresh(block)
 
     mark_attempt_finished(f"Imported {media_name}")
+    _append_progress_log(
+        temp_dir,
+        message=f"Imported {kind} media block: {media_name}",
+        level="info",
+        course_name=course_name,
+        activity_name=activity_name,
+    )
     return {
         "type": node_type,
         "attrs": {
-            "blockObject": {
-                "block_uuid": block.block_uuid,
-                "content": block.content,
-                **({"size": "full"} if kind in {"video", "audio"} else {}),
-            }
+            **(
+                {
+                    "blockObject": {
+                        "block_uuid": block.block_uuid,
+                        "content": block.content,
+                    },
+                    "size": {"width": 720},
+                    "alignment": "center",
+                }
+                if kind == "image"
+                else {
+                    "blockObject": {
+                        "block_uuid": block.block_uuid,
+                        "content": block.content,
+                        **({"size": "full"} if kind in {"video", "audio"} else {}),
+                    }
+                }
+            )
         },
     }
 

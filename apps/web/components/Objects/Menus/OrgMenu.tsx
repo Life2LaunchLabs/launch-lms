@@ -40,6 +40,7 @@ import { isFeatureAvailable } from '@services/plans/plans'
 import { getMenuColorClasses } from '@services/utils/ts/colorUtils'
 import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
 import { useJoinBannerVisible, JOIN_BANNER_HEIGHT } from '@components/Objects/Banners/OrgJoinBanner'
+import { GuestHeader } from '@components/Objects/Menus/GuestHeader'
 import {
   Tooltip,
   TooltipContent,
@@ -133,6 +134,11 @@ export const OrgMenu = (props: any) => {
   // Only hide menu if we're in an activity page and focus mode is enabled
   if (pathname?.includes('/activity/') && isFocusMode) {
     return null;
+  }
+
+  // Unauthenticated users (e.g. viewing a public course) get a simple guest header
+  if (session?.status === 'unauthenticated') {
+    return <GuestHeader orgslug={orgslug} />
   }
 
   return (

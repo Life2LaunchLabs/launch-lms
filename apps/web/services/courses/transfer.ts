@@ -48,6 +48,14 @@ export interface ImportResult {
   courses: ImportCourseResult[]
 }
 
+export interface TutorImportLogEntry {
+  timestamp: string
+  level: string
+  message: string
+  course_name?: string | null
+  activity_name?: string | null
+}
+
 export interface TutorImportProgressResponse {
   status: string
   total_media: number
@@ -55,6 +63,7 @@ export interface TutorImportProgressResponse {
   current_media_name?: string | null
   current_course_name?: string | null
   message?: string | null
+  logs: TutorImportLogEntry[]
 }
 
 export type ExportStatus =

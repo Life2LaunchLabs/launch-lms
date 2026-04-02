@@ -7,7 +7,7 @@ import { getCourseThumbnailMediaDirectory, getOrgOgImageMediaDirectory } from '@
 import { getServerSession } from '@/lib/auth/server'
 import { getCanonicalUrl, getOrgSeoConfig, buildPageTitle, buildBreadcrumbJsonLd } from '@/lib/seo/utils'
 import { JsonLd } from '@components/SEO/JsonLd'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string; courseuuid: string }>
@@ -121,6 +121,11 @@ const CoursePage = async (params: any) => {
     )
   } catch (error: any) {
     fetchError = { status: error?.status }
+  }
+
+  // Unauthenticated user hitting a private course → send to welcome
+  if (!session && fetchError?.status === 401) {
+    redirect('/welcome')
   }
 
   // If truly not found (no auth token and no course), show 404

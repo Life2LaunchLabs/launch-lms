@@ -7,7 +7,7 @@ import { Metadata } from 'next'
 import { getServerSession } from '@/lib/auth/server'
 import { getCanonicalUrl, getOrgSeoConfig, buildBreadcrumbJsonLd } from '@/lib/seo/utils'
 import { JsonLd } from '@components/SEO/JsonLd'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string; courseuuid: string; activityid: string }>
@@ -125,8 +125,11 @@ const ActivityPage = async (params: any) => {
         access_token || null
       )
     ])
-  } catch (error) {
-    // If course or activity not found (404) or any error, show not found
+  } catch (error: any) {
+    // Unauthenticated user hitting a private course/activity → send to welcome
+    if (!session && (error?.status === 401 || error?.status === 403)) {
+      redirect('/welcome')
+    }
     notFound()
   }
 
