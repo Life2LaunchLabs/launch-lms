@@ -7,7 +7,8 @@ Provides dependency functions to enforce plan requirements at the router level.
 from fastapi import Depends, HTTPException, Request
 from sqlmodel import Session, select
 
-from src.core.deployment_mode import get_deployment_mode, EE_ONLY_FEATURES
+from src.core.capabilities import CORE_CAPABILITIES
+from src.core.deployment_mode import get_deployment_mode
 from src.core.events.database import get_db_session
 from src.db.organization_config import OrganizationConfig
 from src.db.communities.communities import Community
@@ -26,14 +27,13 @@ def _check_mode_bypass(feature_name: str) -> bool | None:
         HTTPException 403 if access is blocked (OSS + EE-only feature)
     """
     mode = get_deployment_mode()
-    if mode == 'ee':
-        return True
-    if mode == 'oss':
+    if mode == 'core':
         feature_key = feature_name.lower().replace(' ', '_')
-        if feature_key in EE_ONLY_FEATURES:
+        capability_key = "advanced_analytics" if feature_key == "analytics_advanced" else feature_key
+        if capability_key in CORE_CAPABILITIES and not CORE_CAPABILITIES[capability_key]:
             raise HTTPException(
                 status_code=403,
-                detail=f"{feature_name} is not available in OSS mode. Enterprise Edition is required.",
+                detail=f"{feature_name} is currently disabled in this LearnHouse build.",
             )
         return True
     return None  # SaaS — proceed with plan check
@@ -495,5 +495,4 @@ def require_plan_for_community(required_plan: PlanLevel, feature_name: str):
         return True
 
     return plan_dependency
-
 

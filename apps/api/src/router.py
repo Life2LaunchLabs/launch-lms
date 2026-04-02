@@ -22,9 +22,10 @@ from src.routers.podcasts import episodes as episodes_router_module
 from src.routers.boards import boards as boards_router_module
 from src.routers.playgrounds import playgrounds as playgrounds_router_module
 from src.routers.playgrounds import playgrounds_generator as playgrounds_generator_router
-from src.core.ee_hooks import register_ee_routers
 from src.services.dev.dev import isDevModeEnabledOrRaise
 from src.routers.utils import router as utils_router
+from src.routers.audit_logs import router as audit_logs_router
+from src.routers.superadmin import router as superadmin_router
 from src.security.auth import get_current_user
 from src.security.api_token_utils import require_non_api_token_user
 from src.security.features_utils.plan_check import require_plan, require_plan_for_boards, require_plan_for_certifications, require_plan_for_community, require_plan_for_usergroups, require_plan_for_playgrounds
@@ -238,8 +239,37 @@ v1_router.include_router(instance.router, prefix="/instance", tags=["instance"])
 # Plan limits (public, no auth — used by frontend pricing pages)
 v1_router.include_router(plans.router, prefix="/plans", tags=["plans"])
 
-# Register EE Routers if available
-register_ee_routers(v1_router)
+v1_router.include_router(
+    audit_logs_router,
+    prefix="/audit_logs",
+    tags=["audit-logs"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+
+# Temporary compatibility alias while the frontend finishes migrating
+# away from the old EE-prefixed path.
+v1_router.include_router(
+    audit_logs_router,
+    prefix="/ee/audit_logs",
+    tags=["audit-logs-legacy"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+
+v1_router.include_router(
+    superadmin_router,
+    prefix="/superadmin",
+    tags=["superadmin"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+
+# Temporary compatibility alias while the frontend finishes migrating
+# away from the old EE-prefixed path.
+v1_router.include_router(
+    superadmin_router,
+    prefix="/ee/superadmin",
+    tags=["superadmin-legacy"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
 
 v1_router.include_router(
     health.router,

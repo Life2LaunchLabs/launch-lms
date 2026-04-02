@@ -1,6 +1,5 @@
 'use client'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getDeploymentMode } from '@services/config/config'
 import type { PlanLevel } from '@services/plans/plans'
 
 /**
@@ -12,9 +11,6 @@ import type { PlanLevel } from '@services/plans/plans'
  */
 export function usePlan(): PlanLevel {
   const org = useOrg() as any
-  const mode = getDeploymentMode()
-  if (mode === 'oss') return 'enterprise'
-  if (mode === 'ee') return 'enterprise'
   const config = org?.config?.config
   const isV2 = config?.config_version?.startsWith('2')
   const plan = isV2 ? config?.plan : config?.cloud?.plan

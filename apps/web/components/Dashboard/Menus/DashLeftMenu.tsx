@@ -47,7 +47,7 @@ import React, { useEffect, useState } from 'react'
 import UserAvatar from '../../Objects/UserAvatar'
 import AdminAuthorization from '@components/Security/AdminAuthorization'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getUriWithOrg, getUriWithoutOrg, getAPIUrl } from '@services/config/config'
+import { getUriWithOrg, getUriWithoutOrg, getAPIUrl, getCoreCapabilities } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import {
   Tooltip,
@@ -69,7 +69,6 @@ import { cn } from '@/lib/utils'
 import useSWR, { mutate } from 'swr'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { getAssignmentsFromACourse } from '@services/courses/assignments'
-import { getDeploymentMode } from '@services/config/config'
 import PlanBadge from '@components/Dashboard/Shared/PlanRestricted/PlanBadge'
 import { usePlan } from '@components/Hooks/usePlan'
 
@@ -166,11 +165,8 @@ function DashLeftMenu() {
   if (!org || !session) return null
 
   const plan = usePlan()
-  const mode = getDeploymentMode()
-  const planLabel =
-    mode === 'ee' ? 'Enterprise Edition' :
-    mode === 'oss' ? 'OSS' :
-    plan  // SaaS: show actual plan name
+  const capabilities = getCoreCapabilities()
+  const planLabel = 'Core'
 
   // Feature visibility from API resolved_features
   const rf = org?.config?.config?.resolved_features
@@ -180,7 +176,8 @@ function DashLeftMenu() {
   const showPodcasts = isEnabled('podcasts')
   const showBoards = isEnabled('boards')
   const showPlaygrounds = isEnabled('playgrounds')
-  const showPayments = isEnabled('payments')
+  const showPayments = capabilities.payments && isEnabled('payments')
+  const showSSO = capabilities.sso
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -220,12 +217,10 @@ function DashLeftMenu() {
               </span>
               <span className={cn(
                 "text-[9px] font-medium uppercase tracking-wider",
-                mode === 'ee' ? "text-amber-400" :
-                mode === 'oss' ? "text-green-400" :
                 plan === 'enterprise' ? "text-amber-400" :
                 plan === 'pro' ? "text-purple-400" :
                 plan === 'standard' ? "text-blue-400" :
-                "text-white/40"
+                "text-green-400"
               )}>
                 {planLabel}
               </span>
@@ -521,12 +516,14 @@ function DashLeftMenu() {
                       <span className="flex items-center">{t('dashboard.organization.settings.tabs.api')}<PlanBadge currentPlan={plan} requiredPlan="pro" variant="dark" /></span>
                     </Link>
                   </HoverMenuItem>
-                  <HoverMenuItem asChild>
-                    <Link href="/dash/org/settings/sso" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                      <Lock size={16} weight="fill" />
-                      <span className="flex items-center">{t('dashboard.organization.settings.tabs.sso')}<PlanBadge currentPlan={plan} requiredPlan="enterprise" variant="dark" /></span>
-                    </Link>
-                  </HoverMenuItem>
+                  {showSSO && (
+                    <HoverMenuItem asChild>
+                      <Link href="/dash/org/settings/sso" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                        <Lock size={16} weight="fill" />
+                        <span className="flex items-center">{t('dashboard.organization.settings.tabs.sso')}<PlanBadge currentPlan={plan} requiredPlan="enterprise" variant="dark" /></span>
+                      </Link>
+                    </HoverMenuItem>
+                  )}
                   <HoverMenuItem asChild>
                     <Link href="/dash/org/settings/usage" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                       <ChartBar size={16} weight="fill" />

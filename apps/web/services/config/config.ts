@@ -159,14 +159,11 @@ export const getBackendUrl = () => getLEARNHOUSE_BACKEND_URL()
 
 // Multi Organization Mode
 export const isMultiOrgModeEnabled = () => {
-  // 1. Env var (backward compat for existing deploys)
-  const envVal = getConfig('NEXT_PUBLIC_LEARNHOUSE_MULTI_ORG')
-  if (envVal) return envVal === 'true'
-  // 2. Client-side: read cookie set by middleware
+  // 1. Client-side: read cookie set by middleware
   const cookieVal = getCookieValue('learnhouse_multi_org')
   if (cookieVal !== null) return cookieVal === 'true'
-  // 3. Default
-  return false
+  // 2. Core LearnHouse always supports multiple organizations.
+  return true
 }
 
 /**
@@ -286,30 +283,26 @@ export const getMainDomainUri = (path: string) => {
   return `${protocol}${domain}${path}`
 }
 
-export type DeploymentMode = 'saas' | 'oss' | 'ee'
+export type DeploymentMode = 'saas' | 'core'
 
 /**
  * Get the current deployment mode from the learnhouse_mode cookie set by middleware.
  * Single source of truth for mode detection on the frontend.
- * Defaults to 'oss' when cookie is absent (safe fallback — blocks EE features).
+ * Defaults to 'core' when cookie is absent.
  */
 export const getDeploymentMode = (): DeploymentMode => {
-  return (getCookieValue('learnhouse_mode') as DeploymentMode) || 'oss'
+  return (getCookieValue('learnhouse_mode') as DeploymentMode) || 'core'
 }
 
-/**
- * OSS mode — thin wrapper over getDeploymentMode() for backward compatibility.
- */
-export const isOSSMode = (): boolean => {
-  return getDeploymentMode() === 'oss'
-}
-
-/**
- * EE (Enterprise Edition) availability — thin wrapper over getDeploymentMode() for backward compatibility.
- */
-export const isEEAvailable = (): boolean => {
-  return getDeploymentMode() === 'ee'
-}
+export const getCoreCapabilities = () => ({
+  multi_org: true,
+  superadmin: true,
+  audit_logs: true,
+  payments: false,
+  sso: false,
+  scorm: false,
+  advanced_analytics: false,
+})
 
 // Collaboration server WebSocket URL
 export const getCollabUrl = () => getConfig('NEXT_PUBLIC_COLLAB_URL', 'ws://localhost:4000')
@@ -324,7 +317,6 @@ export const getDefaultOrg = () => {
   // 3. Default
   return 'default'
 }
-
 
 
 

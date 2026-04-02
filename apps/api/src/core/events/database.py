@@ -10,7 +10,6 @@ def import_all_models():
     # List of directories to scan for models
     model_configs = [
         {'base_dir': 'src/db', 'base_module_path': 'src.db'},
-        {'base_dir': 'ee/db', 'base_module_path': 'ee.db'}
     ]
     
     for config in model_configs:

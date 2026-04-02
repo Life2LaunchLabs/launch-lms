@@ -4,7 +4,6 @@ import CreateCourseModal from '@components/Objects/Modals/Course/Create/CreateCo
 import CourseCreationTypeSelector from '@components/Objects/Modals/Course/Create/CourseCreationTypeSelector'
 import AICourseCreationModal from '@components/Objects/Modals/Course/Create/AICourse/AICourseCreationModal'
 import { BookCopy, Search, X, Trash2, ChevronLeft, ChevronRight, Upload, Users, Info } from 'lucide-react'
-import ScormCourseImport from '../../../../../ee/components/Modals/ScormCourseImport'
 import { ImportTypeSelector, LearnHouseCourseImport, TutorCourseImport } from '@components/Objects/Modals/Course/Import'
 import CourseThumbnail, { removeCoursePrefix } from '@components/Objects/Thumbnails/CourseThumbnail'
 import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
@@ -44,7 +43,7 @@ function CoursesHome(params: CourseProps) {
   const isCreatingCourse = searchParams.get('new') ? true : false
   const [newCourseModal, setNewCourseModal] = React.useState(isCreatingCourse)
   const [importCourseModal, setImportCourseModal] = React.useState(false)
-  const [importType, setImportType] = React.useState<'select' | 'scorm' | 'learnhouse' | 'tutor'>('select')
+  const [importType, setImportType] = React.useState<'select' | 'learnhouse' | 'tutor'>('select')
   const [creationType, setCreationType] = React.useState<'select' | 'scratch' | 'ai'>('select')
   const [aiCourseModalOpen, setAiCourseModalOpen] = React.useState(false)
   const orgslug = params.orgslug
@@ -231,20 +230,12 @@ function CoursesHome(params: CourseProps) {
     mutateCourses()
   }
 
-  const handleImportTypeSelect = (type: 'scorm' | 'learnhouse' | 'tutor') => {
+  const handleImportTypeSelect = (type: 'learnhouse' | 'tutor') => {
     setImportType(type)
   }
 
   const getImportModalContent = () => {
     switch (importType) {
-      case 'scorm':
-        return (
-          <ScormCourseImport
-            orgId={Number(params.org_id)}
-            orgslug={orgslug}
-            closeModal={closeImportCourseModal}
-          />
-        )
       case 'learnhouse':
         return (
           <LearnHouseCourseImport
@@ -268,8 +259,6 @@ function CoursesHome(params: CourseProps) {
 
   const getImportModalTitle = () => {
     switch (importType) {
-      case 'scorm':
-        return t('dashboard.courses.import_scorm')
       case 'learnhouse':
         return t('dashboard.courses.import_learnhouse')
       case 'tutor':
@@ -281,8 +270,6 @@ function CoursesHome(params: CourseProps) {
 
   const getImportModalDescription = () => {
     switch (importType) {
-      case 'scorm':
-        return t('dashboard.courses.import_scorm_description')
       case 'learnhouse':
         return t('dashboard.courses.import_learnhouse_description')
       case 'tutor':

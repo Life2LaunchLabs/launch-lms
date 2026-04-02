@@ -115,7 +115,7 @@ export default function OrgDetailPage() {
   }
 
   const { data: org, isLoading } = useSWR(
-    accessToken ? `${getAPIUrl()}ee/superadmin/organizations/${orgId}` : null,
+    accessToken ? `${getAPIUrl()}superadmin/organizations/${orgId}` : null,
     (url: string) => swrFetcher(url, accessToken),
     { revalidateOnFocus: false }
   )
@@ -257,7 +257,7 @@ function UsageBar({
 
 function OverviewTab({ org, orgId, accessToken }: { org: any; orgId: string; accessToken: string }) {
   const { data: usageData } = useSWR(
-    accessToken ? `${getAPIUrl()}ee/superadmin/organizations/${orgId}/usage` : null,
+    accessToken ? `${getAPIUrl()}superadmin/organizations/${orgId}/usage` : null,
     (url: string) => swrFetcher(url, accessToken),
     { revalidateOnFocus: false }
   )
@@ -388,7 +388,7 @@ function CoursesTab({
 
   const { data, isLoading } = useSWR(
     accessToken
-      ? `${getAPIUrl()}ee/superadmin/organizations/${orgId}/courses?page=${page}&limit=20`
+      ? `${getAPIUrl()}superadmin/organizations/${orgId}/courses?page=${page}&limit=20`
       : null,
     (url: string) => swrFetcher(url, accessToken),
     { revalidateOnFocus: false }
@@ -512,7 +512,7 @@ function UsersTab({ orgId, accessToken }: { orgId: string; accessToken: string }
 
   const { data, isLoading } = useSWR(
     accessToken
-      ? `${getAPIUrl()}ee/superadmin/organizations/${orgId}/users?page=${page}&limit=20&search=${encodeURIComponent(search)}`
+      ? `${getAPIUrl()}superadmin/organizations/${orgId}/users?page=${page}&limit=20&search=${encodeURIComponent(search)}`
       : null,
     (url: string) => swrFetcher(url, accessToken),
     { revalidateOnFocus: false }
@@ -627,7 +627,7 @@ function AnalyticsTab({ orgId, accessToken }: { orgId: string; accessToken: stri
 
   const { data: analytics, isLoading } = useSWR(
     accessToken
-      ? `${getAPIUrl()}ee/superadmin/organizations/${orgId}/analytics?days=${days}`
+      ? `${getAPIUrl()}superadmin/organizations/${orgId}/analytics?days=${days}`
       : null,
     (url: string) => swrFetcher(url, accessToken),
     { revalidateOnFocus: false }
@@ -910,7 +910,7 @@ function PlanTab({
     setSaved(false)
     setError('')
     try {
-      const res = await fetch(`${getAPIUrl()}ee/superadmin/organizations/${orgId}/plan`, {
+      const res = await fetch(`${getAPIUrl()}superadmin/organizations/${orgId}/plan`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -925,7 +925,7 @@ function PlanTab({
       }
       setSaved(true)
       // Refresh org data so currentPlan updates
-      mutate(`${getAPIUrl()}ee/superadmin/organizations/${orgId}`)
+      mutate(`${getAPIUrl()}superadmin/organizations/${orgId}`)
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
       setError('Network error')
@@ -1052,7 +1052,7 @@ function SettingsTab({
     setError('')
     try {
       const res = await fetch(
-        `${getAPIUrl()}ee/superadmin/organizations/${orgId}/settings`,
+        `${getAPIUrl()}superadmin/organizations/${orgId}/settings`,
         {
           method: 'PUT',
           headers: {
@@ -1068,7 +1068,7 @@ function SettingsTab({
         return
       }
       setSaved(true)
-      mutate(`${getAPIUrl()}ee/superadmin/organizations/${orgId}`)
+      mutate(`${getAPIUrl()}superadmin/organizations/${orgId}`)
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
       setError('Network error')

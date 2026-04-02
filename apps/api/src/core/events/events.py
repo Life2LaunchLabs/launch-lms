@@ -6,7 +6,6 @@ from src.core.events.autoinstall import auto_install
 from src.core.events.content import check_content_directory
 from src.core.events.database import close_database, connect_to_db
 from src.core.events.logs import create_logs_dir
-from src.core.ee_hooks import run_ee_startup
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +53,8 @@ def startup_app(app: FastAPI) -> Callable:
         # Reconcile pack credits (Redis ↔ DB)
         _reconcile_packs()
 
-        # Start Enterprise Edition Startup tasks if available
-        run_ee_startup(app)
+        # Former EE startup work has either been folded into core startup
+        # or intentionally disabled until a native rebuild lands.
 
     return start_app
 

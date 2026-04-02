@@ -4,7 +4,6 @@ import lrnTextLogo from '@public/lrn-text.svg'
 import React, { useEffect } from 'react'
 import { useOrg } from '../Contexts/OrgContext'
 import { useTranslation } from 'react-i18next'
-import { isOSSMode } from '@services/config/config'
 import { usePlan } from '@components/Hooks/usePlan'
 
 function Watermark() {

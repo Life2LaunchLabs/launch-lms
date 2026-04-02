@@ -1,7 +1,6 @@
 from fastapi import Request
 
 from config.config import get_learnhouse_config
-from src.core.deployment_mode import get_deployment_mode
 from src.services.dev.dev import isDevModeEnabled
 
 
@@ -40,7 +39,7 @@ def is_request_secure(request: Request | None) -> bool:
     Only trusts X-Forwarded-Proto when the direct connection is from a local proxy.
     """
     if not request:
-        return not isDevModeEnabled() and get_deployment_mode() != "oss"
+        return not isDevModeEnabled()
 
     direct_ip = request.client.host if request.client else None
     trust_proxy = False

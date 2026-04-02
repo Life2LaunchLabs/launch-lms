@@ -3,6 +3,7 @@ import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getOrgThumbnailMediaDirectory, getOrgOgImageMediaDirectory } from '@services/media/media'
 import { getCanonicalUrl, getOrgSeoConfig, buildPageTitle, buildBreadcrumbJsonLd } from '@/lib/seo/utils'
 import { JsonLd } from '@components/SEO/JsonLd'
+import { getCoreCapabilities } from '@services/config/config'
 import { getPublicOffers } from '@services/payments/offers'
 import Store from './store'
 
@@ -43,8 +44,12 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
 export default async function StorePage({ params }: { params: PageParams }) {
   const { orgslug } = await params
   const org = await getOrganizationContextInfo(orgslug, { revalidate: 1800, tags: ['organizations'] })
+  const capabilities = getCoreCapabilities()
 
-  const paymentsEnabled = org?.config?.config?.resolved_features?.payments?.enabled ?? org?.config?.config?.features?.payments?.enabled !== false
+  const paymentsEnabled = capabilities.payments && (
+    org?.config?.config?.resolved_features?.payments?.enabled ??
+    org?.config?.config?.features?.payments?.enabled !== false
+  )
 
   if (!paymentsEnabled) {
     return (

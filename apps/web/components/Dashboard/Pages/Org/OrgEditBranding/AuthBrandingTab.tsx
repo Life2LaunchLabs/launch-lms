@@ -18,7 +18,6 @@ import { revalidateTags } from '@services/utils/ts/requests'
 import { mutate } from 'swr'
 import { getAPIUrl } from '@services/config/config'
 import UnsplashImagePicker from '@components/Dashboard/Pages/Course/EditCourseGeneral/UnsplashImagePicker'
-import { isOSSMode } from '@services/config/config'
 import { usePlan } from '@components/Hooks/usePlan'
 
 const SUPPORTED_FILES = constructAcceptValue(['png', 'jpg', 'webp'])

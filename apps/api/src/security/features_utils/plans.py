@@ -249,13 +249,14 @@ def get_plan_feature_config(plan: str, feature: str) -> dict:
 
 def is_feature_enabled_for_plan(plan: str, feature: str) -> bool:
     """Check if a feature is enabled for a given plan."""
+    from src.core.capabilities import CORE_CAPABILITIES
     from src.core.deployment_mode import get_deployment_mode
     mode = get_deployment_mode()
-    if mode == 'ee':
+    if mode == 'core':
+        capability_key = "advanced_analytics" if feature == "analytics_advanced" else feature
+        if capability_key in CORE_CAPABILITIES:
+            return CORE_CAPABILITIES[capability_key]
         return True
-    if mode == 'oss':
-        # OSS enables all non-EE features
-        return feature not in ('analytics', 'api', 'sso', 'audit_logs', 'scorm')
     return get_plan_feature_config(plan, feature).get("enabled", False)
 
 
@@ -269,7 +270,7 @@ def get_feature_limit_for_plan(plan: str, feature: str) -> int:
     from src.core.deployment_mode import get_deployment_mode
     mode = get_deployment_mode()
     if mode != 'saas':
-        return 0  # Unlimited in EE and OSS modes
+        return 0
     return get_plan_feature_config(plan, feature).get("limit", 0)
 
 
@@ -288,7 +289,7 @@ def get_ai_credit_limit(plan: str) -> int:
     from src.core.deployment_mode import get_deployment_mode
     mode = get_deployment_mode()
     if mode != 'saas':
-        return -1  # Unlimited in EE and OSS modes
+        return -1
     return AI_CREDIT_LIMITS.get(plan, 0)
 
 
@@ -302,7 +303,7 @@ def get_plan_limit(plan: str, feature: str) -> int:
     from src.core.deployment_mode import get_deployment_mode
     mode = get_deployment_mode()
     if mode != 'saas':
-        return 0  # Unlimited in EE and OSS modes
+        return 0
     plan_limits = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
     return plan_limits.get(feature, 0)
 
@@ -313,10 +314,8 @@ def plan_meets_requirement(current_plan: str, required_plan: str) -> bool:
     """
     from src.core.deployment_mode import get_deployment_mode
     mode = get_deployment_mode()
-    if mode == 'ee':
+    if mode == 'core':
         return True
-    if mode == 'oss':
-        return required_plan != 'enterprise'
     # SaaS: normal hierarchy check
     try:
         current_index = PLAN_HIERARCHY.index(current_plan)
@@ -333,4 +332,10 @@ def get_required_plan_for_feature(feature_key: str) -> PlanLevel | None:
     """
     Get the required plan level for a specific feature.
     """
+    from src.core.capabilities import CORE_CAPABILITIES
+    from src.core.deployment_mode import get_deployment_mode
+    if get_deployment_mode() == "core":
+        capability_key = "advanced_analytics" if feature_key == "analytics_advanced" else feature_key
+        if capability_key in CORE_CAPABILITIES and not CORE_CAPABILITIES[capability_key]:
+            return "enterprise"
     return FEATURE_PLAN_REQUIREMENTS.get(feature_key)

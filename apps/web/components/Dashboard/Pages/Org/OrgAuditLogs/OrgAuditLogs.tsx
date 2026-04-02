@@ -86,7 +86,7 @@ const OrgAuditLogs = () => {
     return params.toString()
   }
 
-  const logsUrl = org && access_token ? `${getAPIUrl()}ee/audit_logs/?${buildQuery()}` : null
+  const logsUrl = org && access_token ? `${getAPIUrl()}audit_logs/?${buildQuery()}` : null
   const { data, isLoading, isValidating } = useSWR(
     logsUrl,
     (url) => swrFetcher(url, access_token)
@@ -132,7 +132,7 @@ const OrgAuditLogs = () => {
       if (start) params.append('start_date', start)
       if (end) params.append('end_date', end)
 
-      const url = `${getAPIUrl()}ee/audit_logs/export?${params.toString()}`
+      const url = `${getAPIUrl()}audit_logs/export?${params.toString()}`
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${access_token}`

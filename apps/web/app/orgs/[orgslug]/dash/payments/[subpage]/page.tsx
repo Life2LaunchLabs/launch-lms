@@ -3,7 +3,7 @@ import React, { use } from 'react';
 import { motion } from 'motion/react'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import Link from 'next/link'
-import { getUriWithOrg } from '@services/config/config'
+import { getCoreCapabilities, getUriWithOrg } from '@services/config/config'
 import { Settings, Users, Gem, CreditCard, Layers, ShoppingBag, ExternalLink } from 'lucide-react'
 import { SiStripe } from '@icons-pack/react-simple-icons'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -29,6 +29,7 @@ function PaymentsPage(props: { params: Promise<PaymentsParams> }) {
   const org = useOrg() as any
   const subpage = params.subpage || 'overview'
   const currentPlan = usePlan()
+  const capabilities = getCoreCapabilities()
 
   const getPageTitle = () => {
     switch (subpage) {
@@ -61,7 +62,10 @@ function PaymentsPage(props: { params: Promise<PaymentsParams> }) {
   }
 
   const { h1, h2 } = getPageTitle()
-  const paymentsEnabled = org?.config?.config?.resolved_features?.payments?.enabled ?? org?.config?.config?.features?.payments?.enabled !== false
+  const paymentsEnabled = capabilities.payments && (
+    org?.config?.config?.resolved_features?.payments?.enabled ??
+    org?.config?.config?.features?.payments?.enabled !== false
+  )
 
   // Plan-based restriction (standard required)
   return (

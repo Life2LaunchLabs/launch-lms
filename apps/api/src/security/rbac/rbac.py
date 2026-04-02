@@ -27,21 +27,9 @@ async def _get_offer_for_usergroup(usergroup_id: int, db_session: Session) -> di
     Return offer metadata if a usergroup is the access-control group for a PaymentsOffer.
     Returns None if the usergroup is not tied to any offer.
     """
-    try:
-        from ee.db.payments.payments_offers import PaymentsOffer
-        stmt = select(PaymentsOffer).where(
-            PaymentsOffer.usergroup_id == usergroup_id,
-        )
-        offer = db_session.exec(stmt).first()
-        if offer:
-            return {
-                "offer_id": offer.id,
-                "offer_name": offer.name,
-                "amount": offer.amount,
-                "currency": offer.currency,
-            }
-    except Exception:
-        pass
+    # Payments are intentionally disabled in core right now. Keep the seam in
+    # place so a future native commerce implementation can attach offer metadata
+    # to usergroups without reintroducing the old EE package split.
     return None
 
 
@@ -364,11 +352,9 @@ async def authorization_verify_based_on_roles_and_authorship(
     # regardless of UserGroup membership state (e.g. if an admin removes them from the group).
     hasPaidEnrollmentAccess = False
     if action == "read":
-        try:
-            from ee.services.payments.payments_access import check_enrollment_access
-            hasPaidEnrollmentAccess = await check_enrollment_access(element_uuid, user_id, db_session)
-        except Exception:
-            pass  # payments module not available (community edition) — skip silently
+        # Payments are intentionally disabled in core for now, so paid-enrollment
+        # access checks are skipped until a future native implementation exists.
+        hasPaidEnrollmentAccess = False
     logger.info(f"[RBAC] hasPaidEnrollmentAccess={hasPaidEnrollmentAccess}")
 
     if isAuthor or isRole or hasUserGroupAccess or hasPaidEnrollmentAccess:

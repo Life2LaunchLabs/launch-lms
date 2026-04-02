@@ -4,7 +4,8 @@ Central feature resolution logic (v2 config).
 4-layer resolution: deployment mode → plan config → overrides → purchased packs → admin toggles.
 """
 
-from src.core.deployment_mode import get_deployment_mode, EE_ONLY_FEATURES
+from src.core.capabilities import CORE_CAPABILITIES
+from src.core.deployment_mode import get_deployment_mode
 from src.security.features_utils.plans import FEATURE_PLAN_REQUIREMENTS, get_plan_feature_config
 
 
@@ -90,7 +91,7 @@ def resolve_feature(feature: str, config: dict, org_id: int = 0) -> dict:
 
     # Always-on features WITH plan limits: enabled in all modes, but limit comes from plan
     if feature in ALWAYS_ON_WITH_LIMITS:
-        if mode in ("ee", "oss"):
+        if mode == "core":
             return {"enabled": True, "limit": 0, "required_plan": required_plan}
         # SaaS: always enabled, but respect the plan limit + overrides + packs
         plan = _get_plan_from_config(config)
@@ -108,13 +109,9 @@ def resolve_feature(feature: str, config: dict, org_id: int = 0) -> dict:
     admin_toggle = _get_admin_toggle(config, feature)
     admin_disabled = admin_toggle.get("disabled", False)
 
-    # EE mode: everything enabled & unlimited
-    if mode == "ee":
-        return {"enabled": not admin_disabled, "limit": 0, "required_plan": required_plan}
-
-    # OSS mode: EE features blocked, rest unlimited
-    if mode == "oss":
-        if feature in EE_ONLY_FEATURES:
+    # Core mode: capabilities decide what is intentionally available.
+    if mode == "core":
+        if feature in CORE_CAPABILITIES and not CORE_CAPABILITIES[feature]:
             return {"enabled": False, "limit": 0, "required_plan": required_plan}
         return {"enabled": not admin_disabled, "limit": 0, "required_plan": required_plan}
 

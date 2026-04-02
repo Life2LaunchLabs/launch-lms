@@ -13,7 +13,6 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { PageViewTracker } from '@components/Analytics/PageViewTracker'
 import { usePathname } from 'next/navigation'
-import { isOSSMode } from '@services/config/config'
 import { usePlan } from '@components/Hooks/usePlan'
 
 // Helper to convert hex to rgba

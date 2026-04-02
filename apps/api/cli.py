@@ -64,8 +64,14 @@ def install(
         user = UserCreate(
             username="admin", email=email, password=password
         )
-        install_create_organization_user(user, "default", db_session)
+        install_create_organization_user(
+            user,
+            "default",
+            db_session,
+            is_superadmin=True,
+        )
         print("Default organization user created ✅")
+        print("Default organization user granted superadmin access ✅")
 
         # Show the user how to login
         print("Installation completed ✅")

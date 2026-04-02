@@ -12,7 +12,7 @@ import { checkSSOEnabled, redirectToSSOLogin } from '@services/auth/sso'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@components/Contexts/AuthContext'
-import { getLEARNHOUSE_TOP_DOMAIN_VAL, getDeploymentMode } from '@services/config/config'
+import { getCoreCapabilities, getLEARNHOUSE_TOP_DOMAIN_VAL } from '@services/config/config'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useTranslation } from 'react-i18next'
 import { resendVerificationEmail } from '@services/auth/auth'
@@ -60,11 +60,7 @@ const LoginClient = (props: LoginClientProps) => {
   // Check if SSO is enabled for this organization (requires enterprise plan)
   useEffect(() => {
     const checkSSO = async () => {
-      // SSO is only available for enterprise plan (requires EE or SaaS/enterprise)
-      const orgConfig = props.org?.config?.config
-      const plan = orgConfig?.plan ?? orgConfig?.cloud?.plan
-      const mode = getDeploymentMode()
-      if (mode === 'oss' || (mode === 'saas' && plan !== 'enterprise')) {
+      if (!getCoreCapabilities().sso) {
         setSsoEnabled(false)
         return
       }

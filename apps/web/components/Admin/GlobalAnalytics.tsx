@@ -13,7 +13,7 @@ export default function GlobalAnalytics({ days = 30 }: { days?: number }) {
 
   const { data, isLoading, error } = useSWR(
     accessToken
-      ? `${getAPIUrl()}ee/superadmin/analytics/global?days=${days}`
+      ? `${getAPIUrl()}superadmin/analytics/global?days=${days}`
       : null,
     (url: string) => swrFetcher(url, accessToken),
     { revalidateOnFocus: false }

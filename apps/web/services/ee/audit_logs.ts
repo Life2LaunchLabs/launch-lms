@@ -13,12 +13,23 @@ export const getAuditLogs = async (orgId: number, accessToken: string, filters: 
   if (filters.start_date) queryParams.append("start_date", filters.start_date);
   if (filters.end_date) queryParams.append("end_date", filters.end_date);
 
-  const url = `${getAPIUrl()}ee/audit_logs/?${queryParams.toString()}`;
+  const url = `${getAPIUrl()}audit_logs/?${queryParams.toString()}`;
   return swrFetcher(url, accessToken);
 };
 
 export const getEEStatus = async (accessToken: string) => {
-  const url = `${getAPIUrl()}ee/status`;
-  return swrFetcher(url, accessToken);
+  void accessToken;
+  return {
+    enabled: false,
+    feature_model: 'core_capabilities',
+    capabilities: {
+      multi_org: true,
+      superadmin: true,
+      audit_logs: true,
+      payments: false,
+      sso: false,
+      scorm: false,
+      advanced_analytics: false,
+    },
+  };
 };
-

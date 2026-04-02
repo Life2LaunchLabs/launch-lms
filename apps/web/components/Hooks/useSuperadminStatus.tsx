@@ -8,7 +8,7 @@ export default function useSuperadminStatus() {
   const accessToken = session?.data?.tokens?.access_token
 
   const { data, error, isLoading } = useSWR(
-    accessToken ? `${getAPIUrl()}ee/superadmin/status` : null,
+    accessToken ? `${getAPIUrl()}superadmin/status` : null,
     (url: string) => swrFetcher(url, accessToken),
     {
       revalidateOnFocus: false,

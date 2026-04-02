@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import AdminAuthorization from '@components/Security/AdminAuthorization'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import ToolTip from '@components/Objects/StyledElements/Tooltip/Tooltip'
+import { getCoreCapabilities } from '@services/config/config'
 
 function DashMobileMenu() {
   const { t } = useTranslation()
@@ -16,9 +17,10 @@ function DashMobileMenu() {
   // Feature visibility from API resolved_features
   const rf = org?.config?.config?.resolved_features
   const isEnabled = (feature: string) => rf?.[feature]?.enabled === true
+  const capabilities = getCoreCapabilities()
   const showCommunities = isEnabled('communities')
   const showPodcasts = isEnabled('podcasts')
-  const showPayments = isEnabled('payments')
+  const showPayments = capabilities.payments && isEnabled('payments')
 
   return (
     <nav aria-label="Dashboard mobile actions" className="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-lg text-white shadow-xl">

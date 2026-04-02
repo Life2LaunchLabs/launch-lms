@@ -4,7 +4,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { toast } from 'react-hot-toast'
 import { mutate } from 'swr'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl, getCoreCapabilities } from '@services/config/config'
 import { revalidateTags } from '@services/utils/ts/requests'
 import { useTranslation } from 'react-i18next'
 import { PlanLevel, planMeetsRequirement } from '@services/plans/plans'
@@ -84,6 +84,7 @@ const OrgEditFeatures: React.FC = () => {
   const access_token = session?.data?.tokens?.access_token
   const org = useOrg() as any
   const currentPlan = usePlan()
+  const capabilities = getCoreCapabilities()
   const { rights } = useAdminStatus()
   const canEditOrgSettings = rights?.organizations?.action_update === true
 
@@ -93,7 +94,6 @@ const OrgEditFeatures: React.FC = () => {
   // Feature states
   const [collectionsEnabled, setCollectionsEnabled] = useState<boolean>(true)
   const [communitiesEnabled, setCommunitiesEnabled] = useState<boolean>(true)
-  const [paymentsEnabled, setPaymentsEnabled] = useState<boolean>(false)
   const [podcastsEnabled, setPodcastsEnabled] = useState<boolean>(false)
   const [boardsEnabled, setBoardsEnabled] = useState<boolean>(false)
   const [playgroundsEnabled, setPlaygroundsEnabled] = useState<boolean>(false)
@@ -106,7 +106,6 @@ const OrgEditFeatures: React.FC = () => {
     if (!rf) return
     setCollectionsEnabled(rf.collections?.enabled ?? true)
     setCommunitiesEnabled(rf.communities?.enabled ?? false)
-    setPaymentsEnabled(rf.payments?.enabled ?? false)
     setPodcastsEnabled(rf.podcasts?.enabled ?? false)
     setBoardsEnabled(rf.boards?.enabled ?? false)
     setPlaygroundsEnabled(rf.playgrounds?.enabled ?? false)
@@ -171,11 +170,6 @@ const OrgEditFeatures: React.FC = () => {
   const handleCommunitiesToggle = async (enabled: boolean) => {
     const success = await updateFeatureConfig('communities', enabled)
     if (success) setCommunitiesEnabled(enabled)
-  }
-
-  const handlePaymentsToggle = async (enabled: boolean) => {
-    const success = await updateFeatureConfig('payments', enabled)
-    if (success) setPaymentsEnabled(enabled)
   }
 
   const handlePodcastsToggle = async (enabled: boolean) => {
@@ -248,19 +242,23 @@ const OrgEditFeatures: React.FC = () => {
             onToggle={handleCommunitiesToggle}
           />
 
-          {/* Payments Toggle */}
-          <FeatureToggle
-            id="payments"
-            title={t('dashboard.organization.features.toggles.payments.title')}
-            description={t('dashboard.organization.features.toggles.payments.description')}
-            enabled={paymentsEnabled}
-            isUpdating={updatingFeature === 'payments'}
-            canEdit={canEditOrgSettings}
-            requiredPlan={rf?.payments?.required_plan}
-            currentPlan={currentPlan}
-            icon={<CreditCard size={20} className="text-gray-600" />}
-            onToggle={handlePaymentsToggle}
-          />
+          {!capabilities.payments && (
+            <div className="flex items-center justify-between space-x-2 rounded-lg border border-amber-200 bg-amber-50 p-4">
+              <div className="flex items-center space-x-4">
+                <div className="rounded-lg bg-white p-2 nice-shadow">
+                  <CreditCard size={20} className="text-amber-600" />
+                </div>
+                <div className="space-y-0.5">
+                  <h4 className="text-base font-medium text-amber-950">
+                    {t('dashboard.organization.features.toggles.payments.title')}
+                  </h4>
+                  <p className="text-sm text-amber-900">
+                    Payments are intentionally disabled in core for now and will need a future native rebuild.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Podcasts Toggle */}
           <FeatureToggle

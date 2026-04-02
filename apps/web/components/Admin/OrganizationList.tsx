@@ -57,6 +57,13 @@ interface VisitRow {
   views: number
 }
 
+interface CreateOrganizationPayload {
+  name: string
+  slug: string
+  email: string
+  description: string
+}
+
 function getLogoUrl(orgUuid: string, logoImage: string): string {
   if (logoImage.startsWith('http')) return logoImage
   return getOrgLogoMediaDirectory(orgUuid, logoImage)
@@ -75,6 +82,14 @@ function getFrontendDomain(): string {
       .find((c) => c.startsWith('learnhouse_frontend_domain='))
       ?.split('=')[1] || 'localhost:3000'
   )
+}
+
+function slugifyOrganizationName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
 }
 
 const PLANS = ['all', 'free', 'paid', 'standard', 'pro', 'enterprise'] as const
@@ -205,6 +220,16 @@ export default function OrganizationList() {
   const [sortBy, setSortBy] = useState<string>(searchParams.get('sort') || 'id')
   const [search, setSearch] = useState(searchParams.get('search') || '')
   const [debouncedSearch, setDebouncedSearch] = useState(searchParams.get('search') || '')
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [createSuccess, setCreateSuccess] = useState<string | null>(null)
+  const [createForm, setCreateForm] = useState<CreateOrganizationPayload>({
+    name: '',
+    slug: '',
+    email: '',
+    description: '',
+  })
 
   // Sync state to URL search params
   const updateUrl = useCallback((updates: Record<string, string | number>) => {
@@ -247,8 +272,8 @@ export default function OrganizationList() {
     return params.toString()
   }, [page, sortBy, debouncedSearch, planFilter])
 
-  const { data: orgData, isLoading, isValidating } = useSWR<PaginatedOrgResponse>(
-    accessToken ? `${getAPIUrl()}ee/superadmin/organizations?${queryParams}` : null,
+  const { data: orgData, isLoading, isValidating, mutate } = useSWR<PaginatedOrgResponse>(
+    accessToken ? `${getAPIUrl()}superadmin/organizations?${queryParams}` : null,
     (url: string) => swrFetcher(url, accessToken),
     { revalidateOnFocus: true, keepPreviousData: true }
   )
@@ -257,7 +282,7 @@ export default function OrganizationList() {
   const totalCount = orgData?.total ?? 0
 
   const { data: visitsData } = useSWR<{ data: VisitRow[] }>(
-    accessToken ? `${getAPIUrl()}ee/superadmin/organizations/visits` : null,
+    accessToken ? `${getAPIUrl()}superadmin/organizations/visits` : null,
     (url: string) => swrFetcher(url, accessToken),
     { revalidateOnFocus: false }
   )
@@ -311,6 +336,76 @@ export default function OrganizationList() {
     setSearch(value)
     setPage(1)
   }
+  const handleCreateFormChange = (field: keyof CreateOrganizationPayload, value: string) => {
+    setCreateError(null)
+    setCreateSuccess(null)
+    setCreateForm((current) => {
+      if (field === 'name') {
+        const nextSlug = current.slug === '' || current.slug === slugifyOrganizationName(current.name)
+          ? slugifyOrganizationName(value)
+          : current.slug
+        return { ...current, name: value, slug: nextSlug }
+      }
+      if (field === 'slug') {
+        return { ...current, slug: slugifyOrganizationName(value) }
+      }
+      return { ...current, [field]: value }
+    })
+  }
+  const resetCreateForm = () => {
+    setCreateForm({ name: '', slug: '', email: '', description: '' })
+    setCreateError(null)
+  }
+  const handleCreateOrganization = async () => {
+    const payload = {
+      name: createForm.name.trim(),
+      slug: slugifyOrganizationName(createForm.slug || createForm.name),
+      email: createForm.email.trim(),
+      description: createForm.description.trim(),
+      about: '',
+      socials: {},
+      links: {},
+      scripts: {},
+      logo_image: '',
+      thumbnail_image: '',
+      previews: {},
+      explore: false,
+      label: '',
+    }
+
+    if (!payload.name || !payload.slug || !payload.email) {
+      setCreateError('Name, slug, and contact email are required.')
+      return
+    }
+
+    setIsCreating(true)
+    setCreateError(null)
+    setCreateSuccess(null)
+
+    try {
+      const res = await fetch(`${getAPIUrl()}superadmin/organizations`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(body?.detail || 'Failed to create organization')
+      }
+
+      await mutate()
+      setCreateSuccess(`Created ${payload.name}.`)
+      resetCreateForm()
+    } catch (error: any) {
+      setCreateError(error?.message || 'Failed to create organization')
+    } finally {
+      setIsCreating(false)
+    }
+  }
 
   const domain = getFrontendDomain()
   const logoFallback = (
@@ -334,10 +429,90 @@ export default function OrganizationList() {
               className="bg-white/[0.05] border border-white/[0.08] rounded-lg pl-8 pr-3 py-1.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-white/20 w-64"
             />
           </div>
-          <span className="text-xs text-white/30">
-            {totalCount} org{totalCount !== 1 ? 's' : ''}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-white/30">
+              {totalCount} org{totalCount !== 1 ? 's' : ''}
+            </span>
+            <button
+              onClick={() => {
+                setIsCreateOpen((open) => !open)
+                setCreateError(null)
+                setCreateSuccess(null)
+              }}
+              className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/15 transition-colors"
+            >
+              {isCreateOpen ? 'Close' : 'Create Organization'}
+            </button>
+          </div>
         </div>
+        {isCreateOpen && (
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs text-white/40">Name</span>
+                <input
+                  type="text"
+                  value={createForm.name}
+                  onChange={(e) => handleCreateFormChange('name', e.target.value)}
+                  placeholder="Acme Academy"
+                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-white/20"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs text-white/40">Slug</span>
+                <input
+                  type="text"
+                  value={createForm.slug}
+                  onChange={(e) => handleCreateFormChange('slug', e.target.value)}
+                  placeholder="acme-academy"
+                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-white/20"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs text-white/40">Contact email</span>
+                <input
+                  type="email"
+                  value={createForm.email}
+                  onChange={(e) => handleCreateFormChange('email', e.target.value)}
+                  placeholder="team@acme.dev"
+                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-white/20"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs text-white/40">Description</span>
+                <input
+                  type="text"
+                  value={createForm.description}
+                  onChange={(e) => handleCreateFormChange('description', e.target.value)}
+                  placeholder="Short internal note for this org"
+                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-white/20"
+                />
+              </label>
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <p className="text-xs text-white/35">
+                The creating superadmin is added as an org admin automatically.
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={resetCreateForm}
+                  className="rounded-lg px-3 py-1.5 text-xs text-white/40 hover:bg-white/[0.05] hover:text-white/70 transition-colors"
+                >
+                  Reset
+                </button>
+                <button
+                  onClick={handleCreateOrganization}
+                  disabled={isCreating}
+                  className="rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-black hover:bg-white/90 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isCreating ? 'Creating...' : 'Create'}
+                </button>
+              </div>
+            </div>
+            {createError && <p className="mt-2 text-xs text-red-400">{createError}</p>}
+            {createSuccess && <p className="mt-2 text-xs text-emerald-400">{createSuccess}</p>}
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xs text-white/40 mr-1">Plan:</span>
@@ -363,10 +538,7 @@ export default function OrganizationList() {
               ['users_desc', 'Most users'],
               ['users_asc', 'Least users'],
               ['courses_desc', 'Most courses'],
-              ['most_visits', 'Most visits'],
-              ['most_trails', 'Most engaged'],
               ['most_admins', 'Most admins'],
-              ['payments_active', 'Payments'],
               ['recently_updated', 'Updated'],
               ['oldest', 'Oldest'],
             ] as const).map(([key, label]) => (

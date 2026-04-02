@@ -11,7 +11,7 @@ import {
 } from '@phosphor-icons/react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl, getDeploymentMode } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config'
 import { OrgUsageResponse, orgUsageFetcher } from '@services/orgs/usage'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { usePlan } from '@components/Hooks/usePlan'
@@ -30,7 +30,6 @@ interface AICreditsSummary {
 
 const PLAN_COLORS: Record<string, { bg: string; text: string }> = {
   free: { bg: 'bg-gray-100', text: 'text-gray-600' },
-  oss: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
   standard: { bg: 'bg-blue-100', text: 'text-blue-700' },
   pro: { bg: 'bg-purple-100', text: 'text-purple-700' },
   enterprise: { bg: 'bg-amber-100', text: 'text-amber-700' },
@@ -80,8 +79,6 @@ export default function OrgEditUsage() {
   )
 
   const ossMode = usageData?.oss_mode ?? false
-  const mode = getDeploymentMode()
-  const isSaaS = mode === 'saas'
   const plan = usePlan()
   const planStyle = PLAN_COLORS[plan] || PLAN_COLORS.free
   const features = usageData?.features
@@ -105,7 +102,7 @@ export default function OrgEditUsage() {
           <span
             className={`text-xs font-semibold px-3 py-1 rounded-full capitalize ${planStyle.bg} ${planStyle.text}`}
           >
-            {plan === 'oss' ? 'OSS' : plan}
+            {plan}
           </span>
         </div>
         <div className="p-6">

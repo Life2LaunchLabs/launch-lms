@@ -11,11 +11,18 @@ from datetime import datetime
 import asyncio
 import logging
 
-from src.core.ee_hooks import check_ee_activity_paid_access
 from src.security.rbac import check_resource_access, AccessAction
 from src.services.courses.activities.versioning import create_activity_version
 
 logger = logging.getLogger(__name__)
+
+
+async def check_core_activity_paid_access(**_: object) -> bool:
+    """
+    Payments are intentionally disabled in core for now.
+    Until native commerce returns, paid-access gating is treated as allowed.
+    """
+    return True
 
 
 QUIZ_DEFAULT_DETAILS = {
@@ -156,8 +163,8 @@ async def get_activity(
     # RBAC check
     await check_resource_access(request, db_session, current_user, course.course_uuid, AccessAction.READ)
 
-    # Paid access check (via EE hook with fallback to True if EE not available)
-    has_paid_access = await check_ee_activity_paid_access(
+    # Payments are disabled in core for now, so paid activity gating is bypassed.
+    has_paid_access = await check_core_activity_paid_access(
         request=request,
         activity_id=activity.id if activity.id else 0,
         user=current_user,

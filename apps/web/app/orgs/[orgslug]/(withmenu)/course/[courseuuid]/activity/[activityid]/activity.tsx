@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { getAPIUrl, getUriWithOrg } from '@services/config/config'
-import { BookOpenCheck, CheckCircle, ChevronLeft, ChevronRight, UserRoundPen, Edit2, Maximize2, Minimize2 } from 'lucide-react'
+import { AlertTriangle, BookOpenCheck, CheckCircle, ChevronLeft, ChevronRight, UserRoundPen, Edit2, Maximize2, Minimize2 } from 'lucide-react'
 import { markActivityAsComplete, startCourse } from '@services/courses/activity'
 import { usePathname, useRouter } from 'next/navigation'
 import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
@@ -36,7 +36,6 @@ const AssignmentStudentActivity = lazy(() => import('@components/Objects/Activit
 const AISidePanelContentWrapper = lazy(() => import('@components/Objects/Activities/AI/AIActivityAsk').then(mod => ({ default: mod.AISidePanelContentWrapper })))
 const AISidePanelInline = lazy(() => import('@components/Objects/Activities/AI/AIActivityAsk').then(mod => ({ default: mod.AISidePanelInline })))
 const AIChatBotProvider = lazy(() => import('@components/Contexts/AI/AIChatBotContext'))
-const ScormActivity = lazy(() => import('../../../../../../../../ee/components/Activities/ScormActivity'))
 const QuizLaunchButton = lazy(() => import('@components/Objects/Activities/Quiz/Player/QuizLaunchButton'))
 
 // Loading fallback component
@@ -48,6 +47,20 @@ const LoadingFallback = () => (
     </div>
   </div>
 );
+
+const ScormDisabledActivity = () => (
+  <div className="flex items-center justify-center min-h-[24rem] p-6">
+    <div className="max-w-md rounded-2xl border border-amber-200 bg-amber-50 px-6 py-8 text-center">
+      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm">
+        <AlertTriangle className="h-6 w-6 text-amber-600" />
+      </div>
+      <h2 className="text-lg font-semibold text-amber-950">SCORM is disabled</h2>
+      <p className="mt-2 text-sm text-amber-900">
+        SCORM playback is intentionally disabled in core for now and will need a future native rebuild.
+      </p>
+    </div>
+  </div>
+)
 
 interface ActivityClientProps {
   activityid: string
@@ -273,7 +286,7 @@ function ActivityClient(props: ActivityClientProps) {
       case 'TYPE_SCORM':
         return (
           <Suspense fallback={<LoadingFallback />}>
-            <ScormActivity course={course} activity={activity} />
+            <ScormDisabledActivity />
           </Suspense>
         );
       case 'TYPE_QUIZ':

@@ -115,6 +115,7 @@ function OrgListTooltip({ orgs }: { orgs: OrgMembership[] }) {
 export default function UserList() {
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
+  const sessionUserId = session?.data?.user?.id
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
@@ -133,6 +134,8 @@ export default function UserList() {
   const [minOrgs, setMinOrgs] = useState(
     Number(searchParams.get('min_orgs')) || 0
   )
+  const [pendingUserId, setPendingUserId] = useState<number | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const updateUrl = useCallback(
     (updates: Record<string, string | number>) => {
@@ -182,9 +185,10 @@ export default function UserList() {
     data: userData,
     isLoading,
     isValidating,
+    mutate,
   } = useSWR<PaginatedUserResponse>(
     accessToken
-      ? `${getAPIUrl()}ee/superadmin/users?${queryParams}`
+      ? `${getAPIUrl()}superadmin/users?${queryParams}`
       : null,
     (url: string) => swrFetcher(url, accessToken),
     { revalidateOnFocus: true, keepPreviousData: true }
@@ -217,6 +221,32 @@ export default function UserList() {
     setMinOrgs(val)
     setPage(1)
     updateUrl({ min_orgs: val, page: 1 })
+  }
+  const toggleSuperadmin = async (user: GlobalUser) => {
+    setPendingUserId(user.id)
+    setActionError(null)
+
+    try {
+      const res = await fetch(`${getAPIUrl()}superadmin/users/${user.id}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ is_superadmin: !user.is_superadmin }),
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(body?.detail || 'Failed to update user')
+      }
+
+      await mutate()
+    } catch (error: any) {
+      setActionError(error?.message || 'Failed to update user')
+    } finally {
+      setPendingUserId(null)
+    }
   }
 
   const avatarFallback = (
@@ -313,6 +343,7 @@ export default function UserList() {
             ))}
           </div>
         </div>
+        {actionError && <p className="text-xs text-red-400">{actionError}</p>}
       </div>
 
       {/* Table */}
@@ -353,6 +384,9 @@ export default function UserList() {
                   </th>
                   <th className="px-4 py-3 text-xs font-medium text-white/40 uppercase tracking-wider">
                     Updated
+                  </th>
+                  <th className="px-4 py-3 text-xs font-medium text-white/40 uppercase tracking-wider">
+                    Actions
                   </th>
                 </tr>
               </thead>
@@ -434,6 +468,26 @@ export default function UserList() {
                             ? new Date(u.update_date).toLocaleDateString()
                             : '—'}
                         </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => toggleSuperadmin(u)}
+                          disabled={pendingUserId === u.id || sessionUserId === u.id}
+                          className="rounded-lg border border-white/[0.08] px-2.5 py-1.5 text-xs text-white/60 hover:border-white/[0.16] hover:bg-white/[0.05] hover:text-white transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                          title={
+                            sessionUserId === u.id
+                              ? 'You cannot change your own superadmin status here'
+                              : u.is_superadmin
+                                ? 'Remove superadmin'
+                                : 'Grant superadmin'
+                          }
+                        >
+                          {pendingUserId === u.id
+                            ? 'Saving...'
+                            : u.is_superadmin
+                              ? 'Remove Superadmin'
+                              : 'Make Superadmin'}
+                        </button>
                       </td>
                     </tr>
                   )

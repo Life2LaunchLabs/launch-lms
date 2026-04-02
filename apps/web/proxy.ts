@@ -1,6 +1,7 @@
 import {
   getAPIUrl,
 } from './services/config/config'
+import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from './services/auth/cookies'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { stripPort, isSubdomainOf, isSameHost, extractSubdomain, isLocalhost as isLocalhostCheck } from './services/utils/ts/hostUtils'
@@ -9,7 +10,7 @@ import { stripPort, isSubdomainOf, isSameHost, extractSubdomain, isLocalhost as 
 interface InstanceInfo {
   multi_org_enabled: boolean
   default_org_slug: string
-  mode: 'saas' | 'oss' | 'ee'
+  mode: 'saas' | 'core'
   frontend_domain: string
   top_domain: string
 }
@@ -33,7 +34,7 @@ async function getInstanceInfo(): Promise<InstanceInfo> {
   } catch {
     // Backend unavailable — use defaults
   }
-  return { multi_org_enabled: false, default_org_slug: 'default', mode: 'oss' as const, frontend_domain: 'localhost:3000', top_domain: 'localhost' }
+  return { multi_org_enabled: true, default_org_slug: 'default', mode: 'core' as const, frontend_domain: 'localhost:3000', top_domain: 'localhost' }
 }
 
 // Set instance info cookies on a response so client-side can read them synchronously
@@ -357,7 +358,9 @@ export default async function proxy(req: NextRequest) {
   //   - Individual course/activity pages: /course/[uuid] and /course/[uuid]/activity/[id]
   //     (the server component checks the course's public flag and redirects if needed)
   {
-    const hasSession = req.cookies.get('learnhouse_has_session')?.value
+    const hasSession =
+      !!req.cookies.get(ACCESS_TOKEN_COOKIE)?.value ||
+      !!req.cookies.get(REFRESH_TOKEN_COOKIE)?.value
     if (!hasSession) {
       const isGuestPath =
         pathname === '/welcome' ||

@@ -1,6 +1,6 @@
 'use client'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
-import { getUriWithOrg } from '@services/config/config'
+import { getCoreCapabilities, getUriWithOrg } from '@services/config/config'
 import { TextIcon, LucideIcon, LayoutDashboardIcon, CodeIcon, KeyIcon, Palette, School, ToggleRight, Shield, Globe, Search, BarChart3 } from 'lucide-react'
 import Link from 'next/link'
 import React, { useEffect, use } from 'react';
@@ -22,6 +22,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import PlanBadge from '@components/Dashboard/Shared/PlanRestricted/PlanBadge'
 import { PlanLevel } from '@services/plans/plans'
 import { usePlan } from '@components/Hooks/usePlan'
+import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/FeatureDisabledView'
 
 export type OrgParams = {
   subpage: string
@@ -45,7 +46,6 @@ const getSettingTabs = (t: any): TabItem[] => [
   { id: 'ai', label: t('dashboard.organization.settings.tabs.ai') || 'AI', customIcon: '/learnhouse_ai_simple_colored.png', requiredPlan: 'standard' },
   { id: 'domains', label: t('dashboard.organization.settings.tabs.domains') || 'Domains', icon: Globe, requiredPlan: 'standard' },
   { id: 'api', label: t('dashboard.organization.settings.tabs.api') || 'API Access', icon: KeyIcon, requiredPlan: 'pro' },
-  { id: 'sso', label: t('dashboard.organization.settings.tabs.sso') || 'SSO', icon: Shield, requiredPlan: 'enterprise' },
   { id: 'usage', label: t('dashboard.organization.settings.tabs.usage') || 'Usage', icon: BarChart3 },
   { id: 'other', label: t('dashboard.organization.settings.tabs.other'), icon: CodeIcon },
 ]
@@ -86,9 +86,21 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
   const params = use(props.params);
   const org = useOrg() as any
   const currentPlan = usePlan()
+  const capabilities = getCoreCapabilities()
   const [H1Label, setH1Label] = React.useState('')
   const [H2Label, setH2Label] = React.useState('')
-  const SETTING_TABS = getSettingTabs(t)
+  const SETTING_TABS = React.useMemo(() => {
+    const tabs = getSettingTabs(t)
+    if (capabilities.sso) {
+      tabs.splice(8, 0, {
+        id: 'sso',
+        label: t('dashboard.organization.settings.tabs.sso') || 'SSO',
+        icon: Shield,
+        requiredPlan: 'enterprise',
+      })
+    }
+    return tabs
+  }, [capabilities.sso, t])
 
   function handleLabels() {
     if (params.subpage == 'general') {
@@ -117,7 +129,11 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
       setH2Label(t('dashboard.organization.settings.pages.api.subtitle') || 'Manage API tokens and access')
     } else if (params.subpage == 'sso') {
       setH1Label(t('dashboard.organization.settings.pages.sso.title') || 'Single Sign-On')
-      setH2Label(t('dashboard.organization.settings.pages.sso.subtitle') || 'Configure SSO for your organization')
+      setH2Label(
+        capabilities.sso
+          ? (t('dashboard.organization.settings.pages.sso.subtitle') || 'Configure SSO for your organization')
+          : 'SSO is currently disabled in core.'
+      )
     } else if (params.subpage == 'usage') {
       setH1Label(t('dashboard.organization.settings.pages.usage.title') || 'Usage')
       setH2Label(t('dashboard.organization.settings.pages.usage.subtitle') || 'Monitor your organization\'s resource usage and plan limits')
@@ -129,7 +145,7 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
 
   useEffect(() => {
     handleLabels()
-  }, [params.subpage, params, t])
+  }, [capabilities.sso, params.subpage, params, t])
 
   return (
     <div className="h-full w-full bg-[#f8f8f8] flex flex-col">
@@ -177,7 +193,15 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
         {params.subpage == 'ai' ? <OrgEditAI /> : ''}
         {params.subpage == 'domains' ? <OrgEditDomains /> : ''}
         {params.subpage == 'api' ? <OrgEditAPIAccess /> : ''}
-        {params.subpage == 'sso' ? <OrgEditSSO /> : ''}
+        {params.subpage == 'sso' ? (
+          capabilities.sso ? (
+            <OrgEditSSO />
+          ) : (
+            <FeatureDisabledView featureName="sso" orgslug={params.orgslug} context="dashboard">
+              <></>
+            </FeatureDisabledView>
+          )
+        ) : ''}
         {params.subpage == 'usage' ? <OrgEditUsage /> : ''}
         {params.subpage == 'other' ? <OrgEditOther /> : ''}
       </motion.div>

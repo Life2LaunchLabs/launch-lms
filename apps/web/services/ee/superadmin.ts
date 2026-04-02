@@ -1,7 +1,7 @@
 import { getAPIUrl } from '@services/config/config'
 
 export async function getSuperadminStatus(accessToken: string) {
-  const res = await fetch(`${getAPIUrl()}ee/superadmin/status`, {
+  const res = await fetch(`${getAPIUrl()}superadmin/status`, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -18,7 +18,7 @@ export async function getAllOrganizations(
   limit: number = 20
 ) {
   const res = await fetch(
-    `${getAPIUrl()}ee/superadmin/organizations?page=${page}&limit=${limit}`,
+    `${getAPIUrl()}superadmin/organizations?page=${page}&limit=${limit}`,
     {
       method: 'GET',
       headers: {
@@ -36,7 +36,7 @@ export async function getGlobalAnalytics(
   days: number = 30
 ) {
   const res = await fetch(
-    `${getAPIUrl()}ee/superadmin/analytics/global?days=${days}`,
+    `${getAPIUrl()}superadmin/analytics/global?days=${days}`,
     {
       method: 'GET',
       headers: {
@@ -55,7 +55,7 @@ export async function getOrgAnalytics(
   days: number = 30
 ) {
   const res = await fetch(
-    `${getAPIUrl()}ee/superadmin/organizations/${orgId}/analytics?days=${days}`,
+    `${getAPIUrl()}superadmin/organizations/${orgId}/analytics?days=${days}`,
     {
       method: 'GET',
       headers: {
