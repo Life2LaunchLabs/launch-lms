@@ -19,7 +19,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.14"
+          python-version: "3.14.3"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -27,7 +27,7 @@ jobs:
           version: latest
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --frozen
         working-directory: apps/api
 
       - name: Run tests

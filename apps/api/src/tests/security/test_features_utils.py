@@ -10,15 +10,6 @@ from src.security.features_utils.usage import (
 from src.db.organization_config import OrganizationConfig
 
 
-def _make_saas_patches():
-    """Return common patches for SaaS mode tests."""
-    return [
-        patch('src.security.features_utils.resolve.get_deployment_mode', return_value='saas'),
-        patch('src.security.features_utils.usage.get_deployment_mode', return_value='saas'),
-        patch('src.security.features_utils.plans.get_deployment_mode', return_value='saas'),
-    ]
-
-
 class TestFeaturesUtils:
     """Test cases for features_utils/usage.py module"""
 
@@ -52,12 +43,17 @@ class TestFeaturesUtils:
     def test_feature_set_type_alias(self):
         """Test that FeatureSet type alias includes all expected features"""
         expected_features = [
-            "ai", "analytics", "api", "assignments", "collaboration",
-            "courses", "members", "payments", "storage", "usergroups"
+            "admin_seats", "ai", "analytics", "api", "assignments",
+            "collaboration", "courses", "members", "payments", "podcasts",
+            "storage", "usergroups"
+        ]
+        actual_features = [
+            "admin_seats", "ai", "analytics", "api", "assignments",
+            "collaboration", "courses", "members", "payments", "podcasts",
+            "storage", "usergroups"
         ]
         for feature in expected_features:
-            assert feature in ["ai", "analytics", "api", "assignments", "collaboration",
-                             "courses", "members", "payments", "storage", "usergroups"]
+            assert feature in actual_features
 
     @pytest.mark.asyncio
     async def test_check_limits_with_usage_success(self, mock_db_session, mock_org_config):
@@ -88,19 +84,17 @@ class TestFeaturesUtils:
         """Test feature limit check when feature is disabled via admin toggle"""
         mock_org_config.config["admin_toggles"]["ai"] = {"disabled": True}
 
-        with patch('src.security.features_utils.resolve.get_deployment_mode', return_value='saas'), \
-             patch('src.security.features_utils.usage.get_deployment_mode', return_value='saas'):
-            mock_db_session.exec.return_value.first.return_value = mock_org_config
+        mock_db_session.exec.return_value.first.return_value = mock_org_config
 
-            with pytest.raises(HTTPException) as exc_info:
-                check_limits_with_usage(
-                    feature="ai",
-                    org_id=1,
-                    db_session=mock_db_session
-                )
+        with pytest.raises(HTTPException) as exc_info:
+            check_limits_with_usage(
+                feature="ai",
+                org_id=1,
+                db_session=mock_db_session
+            )
 
-            assert exc_info.value.status_code == 403
-            assert "Ai is not enabled for this organization" in exc_info.value.detail
+        assert exc_info.value.status_code == 403
+        assert "Ai is not enabled for this organization" in exc_info.value.detail
 
     @pytest.mark.asyncio
     async def test_check_limits_with_usage_no_org_config(self, mock_db_session):
@@ -120,9 +114,7 @@ class TestFeaturesUtils:
     @pytest.mark.asyncio
     async def test_check_limits_with_usage_no_redis_connection(self, mock_db_session, mock_org_config):
         """Test feature limit check when Redis connection is not available"""
-        with patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
-             patch('src.security.features_utils.resolve.get_deployment_mode', return_value='saas'), \
-             patch('src.security.features_utils.usage.get_deployment_mode', return_value='saas'):
+        with patch('src.security.features_utils.usage.get_launchlms_config') as mock_config:
             mock_config_instance = Mock()
             mock_config_instance.redis_config.redis_connection_string = None
             mock_config.return_value = mock_config_instance
@@ -147,9 +139,6 @@ class TestFeaturesUtils:
 
         with patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
              patch('redis.Redis.from_url') as mock_redis_class, \
-             patch('src.core.deployment_mode.get_deployment_mode', return_value='saas'), \
-             patch('src.security.features_utils.resolve.get_deployment_mode', return_value='saas'), \
-             patch('src.security.features_utils.usage.get_deployment_mode', return_value='saas'), \
              patch('src.security.features_utils.usage._get_actual_usage', return_value=30):
 
             mock_config_instance = Mock()
@@ -177,9 +166,7 @@ class TestFeaturesUtils:
     async def test_check_limits_with_usage_unlimited_feature(self, mock_db_session, mock_org_config):
         """Test feature limit check for unlimited feature (limit = 0)"""
         with patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
-             patch('redis.Redis.from_url') as mock_redis_class, \
-             patch('src.security.features_utils.resolve.get_deployment_mode', return_value='saas'), \
-             patch('src.security.features_utils.usage.get_deployment_mode', return_value='saas'):
+             patch('redis.Redis.from_url') as mock_redis_class:
 
             mock_config_instance = Mock()
             mock_config_instance.redis_config.redis_connection_string = "redis://localhost:6379"
@@ -203,9 +190,7 @@ class TestFeaturesUtils:
     async def test_check_limits_with_usage_no_previous_usage(self, mock_db_session, mock_org_config):
         """Test feature limit check when no previous usage exists"""
         with patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
-             patch('redis.Redis.from_url') as mock_redis_class, \
-             patch('src.security.features_utils.resolve.get_deployment_mode', return_value='saas'), \
-             patch('src.security.features_utils.usage.get_deployment_mode', return_value='saas'):
+             patch('redis.Redis.from_url') as mock_redis_class:
 
             mock_config_instance = Mock()
             mock_config_instance.redis_config.redis_connection_string = "redis://localhost:6379"
@@ -326,10 +311,20 @@ class TestFeaturesUtils:
     @pytest.mark.asyncio
     async def test_all_features_covered(self, mock_db_session, mock_org_config):
         """Test that all features in FeatureSet are covered."""
-        features = [
-            "ai", "analytics", "api", "assignments", "collaboration",
-            "courses", "members", "payments", "storage", "usergroups"
-        ]
+        expected_results = {
+            "admin_seats": True,
+            "ai": True,
+            "analytics": True,
+            "api": False,
+            "assignments": True,
+            "collaboration": True,
+            "courses": True,
+            "members": True,
+            "payments": True,
+            "podcasts": True,
+            "storage": True,
+            "usergroups": True,
+        }
 
         with patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
              patch('redis.Redis.from_url') as mock_redis_class:
@@ -345,11 +340,19 @@ class TestFeaturesUtils:
 
             mock_db_session.exec.return_value.first.return_value = mock_org_config
 
-            for feature in features:
-                result = check_limits_with_usage(
-                    feature=feature,  # type: ignore
-                    org_id=1,
-                    db_session=mock_db_session
-                )
-                # In EE mode, all features are enabled and unlimited
-                assert result is True
+            for feature, expected_enabled in expected_results.items():
+                if expected_enabled:
+                    result = check_limits_with_usage(
+                        feature=feature,  # type: ignore
+                        org_id=1,
+                        db_session=mock_db_session
+                    )
+                    assert result is True
+                else:
+                    with pytest.raises(HTTPException) as exc_info:
+                        check_limits_with_usage(
+                            feature=feature,  # type: ignore
+                            org_id=1,
+                            db_session=mock_db_session
+                        )
+                    assert exc_info.value.status_code == 403
