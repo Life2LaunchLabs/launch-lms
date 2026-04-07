@@ -1,5 +1,5 @@
 import pc from 'picocolors'
-import { VERSION, DEV_IMAGE } from '../constants.js'
+import { VERSION, DEV_IMAGE, LOCAL_CLI_COMMAND } from '../constants.js'
 
 const NPM_REGISTRY_URL = 'https://registry.npmjs.org/learnhouse'
 const GHCR_BASE = 'ghcr.io/learnhouse/app'
@@ -32,7 +32,7 @@ export async function checkForUpdates(): Promise<void> {
     if (compareVersions(latest, VERSION) > 0) {
       console.log()
       console.log(pc.yellow(`  Update available: ${VERSION} → ${pc.bold(latest)}`))
-      console.log(pc.dim(`  Run: npx learnhouse@latest`))
+      console.log(pc.dim(`  Run: ${LOCAL_CLI_COMMAND}`))
       console.log()
     }
   } catch {

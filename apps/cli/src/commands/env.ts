@@ -28,7 +28,7 @@ const CATEGORIES: Record<string, { label: string; keys: string[] }> = {
   security: {
     label: 'Security',
     keys: [
-      'NEXTAUTH_SECRET', 'LEARNHOUSE_AUTH_JWT_SECRET_KEY',
+      'NEXTAUTH_SECRET', 'LAUNCHLMS_AUTH_JWT_SECRET_KEY',
       'LEARNHOUSE_INITIAL_ADMIN_EMAIL', 'LEARNHOUSE_INITIAL_ADMIN_PASSWORD',
       'LEARNHOUSE_COOKIE_DOMAIN',
     ],

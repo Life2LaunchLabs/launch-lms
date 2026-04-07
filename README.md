@@ -38,22 +38,22 @@
 
 ## 🚀 Get Started
 
-LearnHouse has an official CLI that handles everything — self-hosting, updates, backups, and local development.
+LearnHouse includes a repo-local CLI that handles everything in this checkout — self-hosting, updates, backups, and local development.
 
 ### Self-host
 
 ```bash
-npx learnhouse@latest setup
+./launch-lms setup
 ```
 
 The setup wizard walks you through domain, database, admin account, and optional features. Once done, it generates all config files and starts your instance.
 
 ```bash
-npx learnhouse start       # Start services
-npx learnhouse stop        # Stop services
-npx learnhouse logs        # Stream logs
-npx learnhouse backup      # Backup database
-npx learnhouse doctor      # Diagnose issues
+./launch-lms start       # Start services
+./launch-lms stop        # Stop services
+./launch-lms logs        # Stream logs
+./launch-lms backup      # Backup database
+./launch-lms doctor      # Diagnose issues
 ```
 
 ### Development
@@ -61,10 +61,10 @@ npx learnhouse doctor      # Diagnose issues
 ```bash
 git clone https://github.com/learnhouse/learnhouse.git
 cd learnhouse
-npx learnhouse dev
+./launch-lms dev
 ```
 
-This spins up PostgreSQL and Redis, installs dependencies, and starts the API, Web, and Collab servers with hot reload.
+This repo-local launcher installs the CLI dependencies in `apps/cli` if needed, auto-builds the CLI, then spins up PostgreSQL and Redis, installs app dependencies, and starts the API, Web, and Collab servers with hot reload.
 
 > See the full [CLI documentation](apps/cli/README.md) for all commands and options.
 
@@ -110,7 +110,7 @@ This spins up PostgreSQL and Redis, installs dependencies, and starts the API, W
 ```bash
 git clone https://github.com/learnhouse/learnhouse.git
 cd learnhouse
-npx learnhouse dev
+./launch-lms dev
 ```
 
 - [Contributing Guide](CONTRIBUTING.md)

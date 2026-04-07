@@ -3,6 +3,7 @@ import path from 'node:path'
 import { execSync } from 'node:child_process'
 import * as p from '../utils/prompt.js'
 import pc from 'picocolors'
+import { LOCAL_CLI_COMMAND } from '../constants.js'
 import { readConfig, findInstallDir } from '../services/config-store.js'
 import { autoDetectDeploymentId, isContainerRunning, dockerExecToFile, dockerExecFromFile } from '../services/docker.js'
 
@@ -92,7 +93,7 @@ async function createBackup() {
     `  ${pc.dim('File:')} ${archivePath}`,
     `  ${pc.dim('Size:')} ${sizeMb} MB`,
     '',
-    `  ${pc.dim('Restore with:')} npx learnhouse backup --restore ${archivePath}`,
+    `  ${pc.dim('Restore with:')} ${LOCAL_CLI_COMMAND} backup --restore ${archivePath}`,
     '',
   ].join('\n'))
 }
@@ -200,7 +201,7 @@ async function restoreBackup(archivePath: string) {
   fs.rmSync(tmpDir, { recursive: true, force: true })
 
   p.log.success(pc.green(pc.bold('Restore complete!')))
-  p.log.info('You may want to restart services: npx learnhouse stop && npx learnhouse start')
+  p.log.info(`You may want to restart services: ${LOCAL_CLI_COMMAND} stop && ${LOCAL_CLI_COMMAND} start`)
 }
 
 export async function backupCommand(archivePath?: string, options?: { restore?: boolean }) {

@@ -89,7 +89,7 @@ export function generateEnvFile(config: SetupConfig): string {
     '# Security',
     '# =============================================================================',
     '',
-    `LEARNHOUSE_AUTH_JWT_SECRET_KEY=${jwtSecret}`,
+    `LAUNCHLMS_AUTH_JWT_SECRET_KEY=${jwtSecret}`,
     `LEARNHOUSE_INITIAL_ADMIN_EMAIL=${config.adminEmail}`,
     `LEARNHOUSE_INITIAL_ADMIN_PASSWORD=${config.adminPassword}`,
     '',

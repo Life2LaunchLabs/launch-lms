@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CLI_DIR="$ROOT_DIR/apps/cli"
+DIST_ENTRY="$CLI_DIR/dist/bin/launch-lms.js"
+CLI_NODE_MODULES="$CLI_DIR/node_modules"
+
+ensure_cli_dependencies() {
+  if [ -d "$CLI_NODE_MODULES" ]; then
+    return 0
+  fi
+
+  echo "Installing local CLI dependencies..."
+  (
+    cd "$CLI_DIR"
+    npm install
+  )
+}
+
+needs_build() {
+  if [ ! -f "$DIST_ENTRY" ]; then
+    return 0
+  fi
+
+  if [ "$CLI_DIR/package.json" -nt "$DIST_ENTRY" ] || [ "$CLI_DIR/tsup.config.ts" -nt "$DIST_ENTRY" ]; then
+    return 0
+  fi
+
+  while IFS= read -r file; do
+    if [ "$file" -nt "$DIST_ENTRY" ]; then
+      return 0
+    fi
+  done < <(find "$CLI_DIR/bin" "$CLI_DIR/src" -type f)
+
+  return 1
+}
+
+if needs_build; then
+  ensure_cli_dependencies
+  echo "Building local CLI..."
+  (
+    cd "$CLI_DIR"
+    npm run build
+  )
+fi
+
+exec node "$DIST_ENTRY" "$@"

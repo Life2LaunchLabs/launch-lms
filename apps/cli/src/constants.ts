@@ -1,4 +1,5 @@
 export const VERSION = '1.2.0'
+export const LOCAL_CLI_COMMAND = './launch-lms'
 export const APP_IMAGE = 'ghcr.io/life2launchlabs/launch-lms:latest'
 export const DEV_IMAGE = 'ghcr.io/life2launchlabs/launch-lms:dev'
 export const NGINX_IMAGE = 'nginx:alpine'

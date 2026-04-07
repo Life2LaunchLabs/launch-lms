@@ -3,13 +3,14 @@ import path from 'node:path'
 import { execSync } from 'node:child_process'
 import * as p from '@clack/prompts'
 import pc from 'picocolors'
+import { LOCAL_CLI_COMMAND } from '../constants.js'
 import { readConfig, findInstallDir } from '../services/config-store.js'
 import { autoDetectDeploymentId, isContainerRunning, dockerExecFromFile } from '../services/docker.js'
 
 export async function restoreCommand(archivePath: string) {
   if (!archivePath) {
     p.log.error('Please provide the path to a backup archive.')
-    p.log.info('Usage: npx learnhouse restore <backup-file.tar.gz>')
+    p.log.info(`Usage: ${LOCAL_CLI_COMMAND} restore <backup-file.tar.gz>`)
     process.exit(1)
   }
 
@@ -122,5 +123,5 @@ export async function restoreCommand(archivePath: string) {
   fs.rmSync(tmpDir, { recursive: true, force: true })
 
   p.log.success(pc.green(pc.bold('Restore complete!')))
-  p.log.info('You may want to restart services: npx learnhouse stop && npx learnhouse start')
+  p.log.info(`You may want to restart services: ${LOCAL_CLI_COMMAND} stop && ${LOCAL_CLI_COMMAND} start`)
 }

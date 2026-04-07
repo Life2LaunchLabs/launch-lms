@@ -1,5 +1,6 @@
 import * as p from '@clack/prompts'
 import pc from 'picocolors'
+import { LOCAL_CLI_COMMAND } from '../constants.js'
 import { findInstallDir, readConfig } from '../services/config-store.js'
 import { dockerComposeUp } from '../services/docker.js'
 
@@ -8,7 +9,7 @@ export async function startCommand() {
   const config = readConfig(dir)
   if (!config) {
     p.log.error('No LearnHouse installation found in the current directory.')
-    p.log.info('Run `npx learnhouse` to set up a new installation.')
+    p.log.info(`Run \`${LOCAL_CLI_COMMAND} setup\` to set up a new installation.`)
     process.exit(1)
   }
 

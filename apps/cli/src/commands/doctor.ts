@@ -3,6 +3,7 @@ import path from 'node:path'
 import { execSync } from 'node:child_process'
 import * as p from '@clack/prompts'
 import pc from 'picocolors'
+import { LOCAL_CLI_COMMAND } from '../constants.js'
 import { findInstallDir, readConfig } from '../services/config-store.js'
 import {
   autoDetectDeploymentId,
@@ -31,13 +32,13 @@ const REQUIRED_ENV_VARS = [
   'LEARNHOUSE_DOMAIN',
   'LEARNHOUSE_SQL_CONNECTION_STRING',
   'LEARNHOUSE_REDIS_CONNECTION_STRING',
-  'LEARNHOUSE_AUTH_JWT_SECRET_KEY',
+  'LAUNCHLMS_AUTH_JWT_SECRET_KEY',
   'NEXTAUTH_SECRET',
   'NEXTAUTH_URL',
 ]
 
 const SECRET_ENV_VARS = [
-  'LEARNHOUSE_AUTH_JWT_SECRET_KEY',
+  'LAUNCHLMS_AUTH_JWT_SECRET_KEY',
   'NEXTAUTH_SECRET',
   'POSTGRES_PASSWORD',
 ]
@@ -90,7 +91,7 @@ export async function doctorCommand() {
   p.log.step('Containers')
   const containers = listDeploymentContainers(id)
   if (containers.length === 0) {
-    warn('No containers found', 'Run: npx learnhouse start')
+    warn('No containers found', `Run: ${LOCAL_CLI_COMMAND} start`)
   } else {
     for (const c of containers) {
       const isUp = c.status.toLowerCase().startsWith('up')
@@ -98,9 +99,9 @@ export async function doctorCommand() {
       if (isUp) {
         pass(`${svcName} running`)
       } else if (c.status.toLowerCase().includes('restarting')) {
-        fail(`${svcName} is restarting`, 'Check logs: npx learnhouse logs')
+        fail(`${svcName} is restarting`, `Check logs: ${LOCAL_CLI_COMMAND} logs`)
       } else {
-        fail(`${svcName} — ${c.status}`, 'Run: npx learnhouse start')
+        fail(`${svcName} — ${c.status}`, `Run: ${LOCAL_CLI_COMMAND} start`)
       }
     }
   }
@@ -197,7 +198,7 @@ export async function doctorCommand() {
   p.log.step('Environment File')
   const envPath = path.join(installDir, '.env')
   if (!fs.existsSync(envPath)) {
-    fail('.env file missing', 'Run setup again: npx learnhouse setup')
+    fail('.env file missing', `Run setup again: ${LOCAL_CLI_COMMAND} setup`)
   } else {
     const envContent = fs.readFileSync(envPath, 'utf-8')
     const envMap = new Map<string, string>()

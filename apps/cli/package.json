@@ -50,8 +50,5 @@
   "engines": {
     "node": ">=18"
   },
-  "license": "GPL-3.0",
-  "publishConfig": {
-    "access": "public"
-  }
+  "license": "GPL-3.0"
 }

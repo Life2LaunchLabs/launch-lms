@@ -20,6 +20,7 @@ import { dockerComposeUp } from '../services/docker.js'
 import { waitForHealth } from '../services/health.js'
 import { checkPort } from '../utils/network.js'
 import { resolveAppImage } from '../services/version-check.js'
+import { LOCAL_CLI_COMMAND } from '../constants.js'
 
 const STEP_NAMES = [
   'Install Directory',
@@ -394,14 +395,14 @@ export async function setupCommand() {
       `  ${pc.cyan('Password:')}  ${config.adminPassword}`,
       '',
       `  ${pc.dim('Management commands:')}`,
-      `  ${pc.dim('$')} npx learnhouse start    ${pc.dim('Start services')}`,
-      `  ${pc.dim('$')} npx learnhouse stop     ${pc.dim('Stop services')}`,
-      `  ${pc.dim('$')} npx learnhouse logs     ${pc.dim('View logs')}`,
-      `  ${pc.dim('$')} npx learnhouse config   ${pc.dim('Show configuration')}`,
-      `  ${pc.dim('$')} npx learnhouse backup   ${pc.dim('Backup & restore')}`,
-      `  ${pc.dim('$')} npx learnhouse deployments ${pc.dim('Manage deployments')}`,
-      `  ${pc.dim('$')} npx learnhouse doctor   ${pc.dim('Diagnose issues')}`,
-      `  ${pc.dim('$')} npx learnhouse shell    ${pc.dim('Container shell')}`,
+      `  ${pc.dim('$')} ${LOCAL_CLI_COMMAND} start    ${pc.dim('Start services')}`,
+      `  ${pc.dim('$')} ${LOCAL_CLI_COMMAND} stop     ${pc.dim('Stop services')}`,
+      `  ${pc.dim('$')} ${LOCAL_CLI_COMMAND} logs     ${pc.dim('View logs')}`,
+      `  ${pc.dim('$')} ${LOCAL_CLI_COMMAND} config   ${pc.dim('Show configuration')}`,
+      `  ${pc.dim('$')} ${LOCAL_CLI_COMMAND} backup   ${pc.dim('Backup & restore')}`,
+      `  ${pc.dim('$')} ${LOCAL_CLI_COMMAND} deployments ${pc.dim('Manage deployments')}`,
+      `  ${pc.dim('$')} ${LOCAL_CLI_COMMAND} doctor   ${pc.dim('Diagnose issues')}`,
+      `  ${pc.dim('$')} ${LOCAL_CLI_COMMAND} shell    ${pc.dim('Container shell')}`,
       '',
     ].join('\n'))
   } else {

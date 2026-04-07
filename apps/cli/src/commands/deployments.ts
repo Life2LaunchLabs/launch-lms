@@ -3,6 +3,7 @@ import path from 'node:path'
 import { execSync } from 'node:child_process'
 import * as p from '../utils/prompt.js'
 import pc from 'picocolors'
+import { LOCAL_CLI_COMMAND } from '../constants.js'
 import { findInstallDir, readConfig } from '../services/config-store.js'
 import { autoDetectDeploymentId, dockerComposeDown, dockerComposeUp, dockerStats, dockerStatsForContainers, listDeploymentContainers } from '../services/docker.js'
 
@@ -29,7 +30,7 @@ function showDeployments() {
 
   if (!psOutput) {
     p.log.info('No LearnHouse deployments found.')
-    p.log.message(pc.dim('  Run npx learnhouse setup to create one.'))
+    p.log.message(pc.dim(`  Run ${LOCAL_CLI_COMMAND} setup to create one.`))
     return
   }
 

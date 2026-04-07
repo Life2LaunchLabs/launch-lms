@@ -10,6 +10,7 @@ import pc from 'picocolors'
 
 interface EnvVar {
   name: string
+  aliases?: string[]
   description: string
   /** Static string or factory (e.g. to generate a secret). */
   defaultValue: string | (() => string)
@@ -44,6 +45,7 @@ const API_ENV: AppEnvSpec = {
   vars: [
     {
       name: 'LEARNHOUSE_AUTH_JWT_SECRET_KEY',
+      aliases: ['LAUNCHLMS_AUTH_JWT_SECRET_KEY'],
       required: true,
       description: 'JWT signing secret (min 32 chars)',
       defaultValue: generateJwtSecret,
@@ -88,6 +90,7 @@ const COLLAB_ENV: AppEnvSpec = {
     },
     {
       name: 'LEARNHOUSE_AUTH_JWT_SECRET_KEY',
+      aliases: ['LAUNCHLMS_AUTH_JWT_SECRET_KEY'],
       required: true,
       description: 'JWT secret (must match API)',
       defaultValue: '', // filled from API value at write-time
@@ -154,6 +157,15 @@ function resolveDefault(v: EnvVar): string {
   return typeof v.defaultValue === 'function' ? v.defaultValue() : v.defaultValue
 }
 
+function getExistingValue(existing: Map<string, string>, envVar: EnvVar): string | undefined {
+  const keys = [envVar.name, ...(envVar.aliases || [])]
+  for (const key of keys) {
+    const value = existing.get(key)
+    if (value && value.length > 0) return value
+  }
+  return undefined
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // Main
 // ────────────────────────────────────────────────────────────────────────────
@@ -176,7 +188,7 @@ export async function checkDevEnv(root: string): Promise<boolean> {
   for (const app of ALL_APPS) {
     const existing = parseEnvFile(path.join(root, app.envFile))
     for (const v of app.vars) {
-      const val = existing.get(v.name)
+      const val = getExistingValue(existing, v)
       if (v.required && (!val || val.length === 0)) {
         missing.push({ app, envVar: v })
       }
@@ -226,7 +238,10 @@ export async function checkDevEnv(root: string): Promise<boolean> {
   const apiFile = path.join(root, API_ENV.envFile)
   const apiExisting = parseEnvFile(apiFile)
 
-  const jwtSecret = apiExisting.get('LEARNHOUSE_AUTH_JWT_SECRET_KEY') || generateJwtSecret()
+  const jwtSecret =
+    apiExisting.get('LAUNCHLMS_AUTH_JWT_SECRET_KEY') ||
+    apiExisting.get('LEARNHOUSE_AUTH_JWT_SECRET_KEY') ||
+    generateJwtSecret()
   const collabKey = apiExisting.get('COLLAB_INTERNAL_KEY') || 'dev-collab-internal-key-change-in-prod'
 
   // ── Write ──────────────────────────────────────────────────────────────
@@ -236,11 +251,11 @@ export async function checkDevEnv(root: string): Promise<boolean> {
     const toWrite = new Map<string, string>()
 
     for (const v of app.vars) {
-      const val = existing.get(v.name)
+      const val = getExistingValue(existing, v)
       if (!v.required || (val && val.length > 0)) continue
 
       if (v.name === 'LEARNHOUSE_AUTH_JWT_SECRET_KEY') {
-        toWrite.set(v.name, jwtSecret)
+        toWrite.set('LAUNCHLMS_AUTH_JWT_SECRET_KEY', jwtSecret)
       } else if (v.name === 'COLLAB_INTERNAL_KEY') {
         toWrite.set(v.name, collabKey)
       } else {
