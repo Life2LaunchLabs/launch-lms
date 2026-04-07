@@ -99,11 +99,11 @@ async def get_customers(
     stripe_api_key: str | None = None
     try:
         import stripe as stripe_mod
-        from config.config import get_launch-lms_config
+        from config.config import get_launch_lms_config
         config = db_session.exec(select(PaymentsConfig).where(PaymentsConfig.org_id == org_id)).first()
         if config and config.provider_specific_id and config.active:
             stripe_acc_id = config.provider_specific_id
-            lh_cfg = get_launch-lms_config()
+            lh_cfg = get_launch_lms_config()
             stripe_api_key = lh_cfg.payments_config.stripe.stripe_secret_key
             stripe_mod.api_key = stripe_api_key
     except Exception as e:
