@@ -192,7 +192,8 @@ class TestFeaturesUtils:
     async def test_check_limits_with_usage_no_previous_usage(self, mock_db_session, mock_org_config):
         """Test feature limit check when no previous usage exists"""
         with patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
-             patch('redis.Redis.from_url') as mock_redis_class:
+             patch('redis.Redis.from_url') as mock_redis_class, \
+             patch('src.security.features_utils.usage._get_actual_usage', return_value=0):
 
             mock_config_instance = Mock()
             mock_config_instance.redis_config.redis_connection_string = "redis://localhost:6379"
@@ -329,7 +330,8 @@ class TestFeaturesUtils:
         }
 
         with patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
-             patch('redis.Redis.from_url') as mock_redis_class:
+             patch('redis.Redis.from_url') as mock_redis_class, \
+             patch('src.security.features_utils.usage._get_actual_usage', return_value=0):
 
             mock_config_instance = Mock()
             mock_config_instance.redis_config.redis_connection_string = "redis://localhost:6379"

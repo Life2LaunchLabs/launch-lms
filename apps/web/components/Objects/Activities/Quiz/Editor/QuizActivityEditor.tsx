@@ -348,7 +348,14 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   // ── Scoring helpers ───────────────────────────────────────────────────
   const addVector = () => {
     setVectors(v => {
-      const next = [...v, { key: `dim_${uuidv4().slice(0, 6)}`, label: '', type: 'unidirectional', low_label: 'Low', high_label: 'High' }]
+      const newVector: ScoringVector = {
+        key: `dim_${uuidv4().slice(0, 6)}`,
+        label: '',
+        type: 'unidirectional',
+        low_label: 'Low',
+        high_label: 'High',
+      }
+      const next = [...v, newVector]
       if (quizMode === 'categories') setCategoryVectors(next)
       else setGradedVectors(next)
       return next
