@@ -61,10 +61,8 @@ class TestFeaturesUtils:
 
     @pytest.mark.asyncio
     async def test_check_limits_with_usage_success(self, mock_db_session, mock_org_config):
-        """Test successful feature limit check (EE mode — all features enabled & unlimited)"""
-        with patch('src.security.features_utils.resolve.get_deployment_mode', return_value='ee'), \
-             patch('src.security.features_utils.usage.get_deployment_mode', return_value='ee'), \
-             patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
+        """Test successful feature limit check when credits are available."""
+        with patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
              patch('redis.Redis.from_url') as mock_redis_class:
 
             mock_config_instance = Mock()
@@ -83,7 +81,6 @@ class TestFeaturesUtils:
                 db_session=mock_db_session
             )
 
-            # In EE mode, limit=0 (unlimited) so returns True immediately
             assert result is True
 
     @pytest.mark.asyncio
@@ -328,15 +325,13 @@ class TestFeaturesUtils:
 
     @pytest.mark.asyncio
     async def test_all_features_covered(self, mock_db_session, mock_org_config):
-        """Test that all features in FeatureSet are covered (EE mode — all enabled)"""
+        """Test that all features in FeatureSet are covered."""
         features = [
             "ai", "analytics", "api", "assignments", "collaboration",
             "courses", "members", "payments", "storage", "usergroups"
         ]
 
-        with patch('src.security.features_utils.resolve.get_deployment_mode', return_value='ee'), \
-             patch('src.security.features_utils.usage.get_deployment_mode', return_value='ee'), \
-             patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
+        with patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
              patch('redis.Redis.from_url') as mock_redis_class:
 
             mock_config_instance = Mock()

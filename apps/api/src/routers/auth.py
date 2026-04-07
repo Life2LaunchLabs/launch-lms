@@ -6,7 +6,6 @@ from sqlmodel import Session, select
 from src.db.users import AnonymousUser, User, UserRead
 from src.core.events.database import get_db_session
 from config.config import get_launchlms_config
-from src.core.deployment_mode import get_deployment_mode
 from src.security.auth import (
     authenticate_user,
     get_current_user,
@@ -204,8 +203,8 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Step 5: Check email verification (required for SaaS login only)
-    if not user.email_verified and get_deployment_mode() == 'saas':
+    # Step 5: Check email verification when explicitly enabled
+    if not user.email_verified and get_launchlms_config().general_config.require_email_verification:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={

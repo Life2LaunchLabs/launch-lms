@@ -24,23 +24,13 @@ async def get_non_api_token_user(user = Depends(get_current_user)):
     return await require_non_api_token_user(user)
 
 
-async def require_non_oss_mode():
-    """Dependency that blocks access in OSS mode (superadmin, etc.)."""
-    from src.core.deployment_mode import get_deployment_mode
-    from fastapi import HTTPException
-    if get_deployment_mode() == 'oss':
-        raise HTTPException(
-            status_code=403,
-            detail="This feature is not available in OSS mode.",
-        )
-
 def register_middlewares(app: FastAPI):
-    """Register Enterprise Edition middlewares."""
+    """Register optional middleware integrations."""
     app.add_middleware(EEAuditLogMiddleware)
-    logger.info("EE Middlewares registered")
+    logger.info("Optional middlewares registered")
 
 def register_routers(v1_router: APIRouter):
-    """Register Enterprise Edition routers."""
+    """Register optional routers."""
     # Cloud Internal
     v1_router.include_router(
         cloud_internal.router,
@@ -57,22 +47,6 @@ def register_routers(v1_router: APIRouter):
         dependencies=[Depends(require_plan("standard", "payments"))],
     )
     
-    # EE Info
-    v1_router.include_router(
-        info.router,
-        prefix="/ee",
-        tags=["ee"],
-        dependencies=[Depends(get_non_api_token_user)]
-    )
-
-    # Audit Logs
-    v1_router.include_router(
-        audit_logs.router,
-        prefix="/ee/audit_logs",
-        tags=["ee", "audit_logs"],
-        dependencies=[Depends(get_non_api_token_user)]
-    )
-
     # SCORM
     v1_router.include_router(
         scorm.router,
@@ -88,15 +62,7 @@ def register_routers(v1_router: APIRouter):
         tags=["sso", "auth"],
     )
 
-    # Superadmin
-    v1_router.include_router(
-        superadmin.router,
-        prefix="/ee/superadmin",
-        tags=["ee", "superadmin"],
-        dependencies=[Depends(require_non_oss_mode)],
-    )
-
-    logger.info("EE Routers registered")
+    logger.info("Optional routers registered")
 
 def on_startup(app: FastAPI):
     """Run Enterprise Edition startup tasks."""
@@ -119,4 +85,3 @@ async def check_activity_paid_access(request, activity_id, user, db_session) -> 
     """Check if a user has paid access to an activity."""
     from ee.services.payments.payments_access import check_activity_paid_access as ee_check_activity_paid_access
     return await ee_check_activity_paid_access(request, activity_id, user, db_session)
-

@@ -23,7 +23,6 @@ import UsageOverview from './UsageOverview'
 
 const PLAN_COLORS: Record<string, { bg: string; text: string }> = {
   free: { bg: 'bg-gray-100', text: 'text-gray-600' },
-  oss: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
   standard: { bg: 'bg-blue-100', text: 'text-blue-700' },
   pro: { bg: 'bg-purple-100', text: 'text-purple-700' },
   enterprise: { bg: 'bg-amber-100', text: 'text-amber-700' },
@@ -61,7 +60,7 @@ export default function DashboardHome() {
                 <span
                   className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full capitalize ${planStyle.bg} ${planStyle.text}`}
                 >
-                  {plan === 'oss' ? 'OSS' : `${plan} plan`}
+                  {`${plan} plan`}
                 </span>
                 {org?.name && (
                   <span className="text-xs text-gray-400">{org.name}</span>

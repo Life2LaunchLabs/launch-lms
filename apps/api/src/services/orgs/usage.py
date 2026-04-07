@@ -10,7 +10,6 @@ from src.security.features_utils.usage import (
     _get_redis_client,
     get_purchased_member_seats,
 )
-from src.core.deployment_mode import get_deployment_mode
 from src.security.features_utils.plans import (
     PlanLevel,
     get_plan_limit,
@@ -97,9 +96,6 @@ async def get_org_usage_and_limits(
     config = org_config.config or {}
     org_plan: PlanLevel = _get_plan_from_config(config)
 
-    # Determine deployment mode
-    mode = get_deployment_mode()
-
     # Get actual usage counts
     courses_usage = _get_actual_usage("courses", org_id, db_session)
     members_usage = _get_actual_usage("members", org_id, db_session)
@@ -110,9 +106,9 @@ async def get_org_usage_and_limits(
     members_resolved = resolve_feature("members", config, org_id)
     courses_limit = courses_resolved["limit"]
     members_limit = members_resolved["limit"]
-    members_plan_limit = 0 if mode != 'saas' else get_plan_limit(org_plan, "members")
-    members_purchased = 0 if mode != 'saas' else get_purchased_member_seats(org_id)
-    admin_seats_limit = 0 if mode != 'saas' else get_plan_limit(org_plan, "admin_seats")
+    members_plan_limit = get_plan_limit(org_plan, "members")
+    members_purchased = get_purchased_member_seats(org_id)
+    admin_seats_limit = get_plan_limit(org_plan, "admin_seats")
 
     def calc_remaining(usage: int, limit: int) -> int | str:
         if limit == 0:
@@ -127,7 +123,6 @@ async def get_org_usage_and_limits(
     response = {
         "org_id": org_id,
         "plan": org_plan,
-        "mode": mode,
         "features": {
             "courses": {
                 "usage": courses_usage,

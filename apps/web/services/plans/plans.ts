@@ -7,7 +7,7 @@
  * This file only provides:
  *   - PlanLevel type
  *   - Plan hierarchy for UI comparisons (plan badges, upgrade prompts)
- *   - Core capability helpers for globally disabled features
+ *   - Instance capability helpers for globally disabled features
  */
 
 import { getCoreCapabilities } from '@services/config/config'
@@ -18,7 +18,7 @@ export const PLAN_HIERARCHY: PlanLevel[] = ['free', 'personal', 'family', 'stand
 
 /**
  * Check if the current plan meets or exceeds the required plan level.
- * Only used in SaaS mode — EE/OSS bypass is handled in isFeatureAvailable().
+ * Used for org-plan comparisons in the UI.
  */
 export function planMeetsRequirement(
   currentPlan: PlanLevel,
@@ -30,13 +30,7 @@ export function planMeetsRequirement(
 }
 
 /**
- * Check if a feature is available based on deployment mode.
- *
- * In SaaS mode, feature availability is determined by `resolved_features`
- * from the API — this function only handles mode-level bypass:
- * - OSS: EE-only features blocked, all others allowed
- * - EE: all features allowed
- * - SaaS: always returns true (callers should check resolved_features)
+ * Check if a feature is available in this deployment.
  */
 export function isFeatureAvailable(featureKey: string, _currentPlan?: PlanLevel): boolean {
   const capabilities = getCoreCapabilities()

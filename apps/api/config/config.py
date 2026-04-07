@@ -28,7 +28,7 @@ class Judge0Config(BaseModel):
 class GeneralConfig(BaseModel):
     development_mode: bool
     sentry_config: SentryConfig
-    saas_mode: bool
+    require_email_verification: bool
     env: str
 
 
@@ -147,11 +147,12 @@ def get_launchlms_config() -> LaunchLMSConfig:
     # Environment (dev or prod)
     launchlms_env = os.environ.get("LAUNCHLMS_ENV", "dev")
 
-    # SaaS Mode (enables plan-based gating and usage limits)
-    env_saas_mode = os.environ.get("LAUNCHLMS_SAAS", "None")
-    saas_mode = (
-        env_saas_mode.lower() in ("true", "1", "yes") if env_saas_mode != "None"
-        else yaml_config.get("general", {}).get("saas_mode", False)
+    # Email verification requirement (disabled by default)
+    env_require_email_verification = os.environ.get("LAUNCHLMS_REQUIRE_EMAIL_VERIFICATION", "None")
+    require_email_verification = (
+        env_require_email_verification.lower() in ("true", "1", "yes")
+        if env_require_email_verification != "None"
+        else yaml_config.get("general", {}).get("require_email_verification", False)
     )
 
     # Security Config
@@ -397,7 +398,7 @@ def get_launchlms_config() -> LaunchLMSConfig:
         general_config=GeneralConfig(
             development_mode=bool(development_mode),
             sentry_config=SentryConfig(dsn=sentry_dsn),
-            saas_mode=bool(saas_mode),
+            require_email_verification=bool(require_email_verification),
             env=launchlms_env,
         ),
         hosting_config=hosting_config,

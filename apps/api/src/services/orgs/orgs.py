@@ -468,7 +468,7 @@ async def update_org_favicon(
         updated_config["customization"]["general"]["favicon_image"] = name_in_disk
     else:
         if "general" not in updated_config:
-            updated_config["general"] = {"enabled": True, "color": "", "footer_text": "", "watermark": True, "favicon_image": "", "auth_branding": {}}
+            updated_config["general"] = {"enabled": True, "color": "", "footer_text": "", "favicon_image": "", "auth_branding": {}}
         updated_config["general"]["favicon_image"] = name_in_disk
 
     org_config.config = updated_config
@@ -963,7 +963,7 @@ async def update_org_color_config(
         updated_config.setdefault("customization", {}).setdefault("general", {})
         updated_config["customization"]["general"]["color"] = color
     else:
-        updated_config.setdefault("general", {"enabled": True, "color": "", "watermark": True})
+        updated_config.setdefault("general", {"enabled": True, "color": ""})
         updated_config["general"]["color"] = color
 
     org_config.config = updated_config
@@ -1003,7 +1003,7 @@ async def update_org_footer_text_config(
         updated_config.setdefault("customization", {}).setdefault("general", {})
         updated_config["customization"]["general"]["footer_text"] = footer_text
     else:
-        updated_config.setdefault("general", {"enabled": True, "color": "", "footer_text": "", "watermark": True})
+        updated_config.setdefault("general", {"enabled": True, "color": "", "footer_text": ""})
         updated_config["general"]["footer_text"] = footer_text
 
     org_config.config = updated_config
@@ -1014,52 +1014,6 @@ async def update_org_footer_text_config(
     db_session.refresh(org_config)
 
     return {"detail": "Footer text configuration updated"}
-
-
-async def update_org_watermark_config(
-    request: Request,
-    watermark_enabled: bool,
-    org_id: int,
-    current_user: PublicUser | AnonymousUser,
-    db_session: Session,
-):
-    statement = select(Organization).where(Organization.id == org_id)
-    org = db_session.exec(statement).first()
-
-    if not org:
-        raise HTTPException(status_code=404, detail="Organization not found")
-
-    await rbac_check(request, org.org_uuid, current_user, "update", db_session)
-
-    statement = select(OrganizationConfig).where(OrganizationConfig.org_id == org.id)
-    org_config = db_session.exec(statement).first()
-
-    if org_config is None:
-        raise HTTPException(status_code=404, detail="Organization config not found")
-
-    updated_config = _deep_copy_config(org_config)
-
-    # Free plan always shows watermark (SaaS only)
-    from src.core.deployment_mode import get_deployment_mode
-    plan = updated_config.get("plan", updated_config.get("cloud", {}).get("plan", "free"))
-    if plan == "free" and not watermark_enabled and get_deployment_mode() == "saas":
-        raise HTTPException(status_code=403, detail="Watermark cannot be disabled on the free plan")
-
-    if _is_v2_config(updated_config):
-        updated_config.setdefault("customization", {}).setdefault("general", {})
-        updated_config["customization"]["general"]["watermark"] = watermark_enabled
-    else:
-        updated_config.setdefault("general", {})
-        updated_config["general"]["watermark"] = watermark_enabled
-
-    org_config.config = updated_config
-    org_config.update_date = str(datetime.now())
-
-    db_session.add(org_config)
-    db_session.commit()
-    db_session.refresh(org_config)
-
-    return {"detail": "Watermark configuration updated"}
 
 
 async def update_org_auth_branding_config(
@@ -1090,7 +1044,7 @@ async def update_org_auth_branding_config(
         updated_config.setdefault("customization", {})
         updated_config["customization"]["auth_branding"] = branding_data
     else:
-        updated_config.setdefault("general", {"enabled": True, "color": "", "footer_text": "", "watermark": True, "auth_branding": {}})
+        updated_config.setdefault("general", {"enabled": True, "color": "", "footer_text": "", "auth_branding": {}})
         updated_config["general"]["auth_branding"] = branding_data
 
     org_config.config = updated_config

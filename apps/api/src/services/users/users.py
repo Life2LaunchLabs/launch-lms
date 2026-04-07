@@ -3,11 +3,11 @@ from typing import Literal
 from uuid import uuid4
 from fastapi import HTTPException, Request, UploadFile, status
 from sqlmodel import Session, select
+from config.config import get_launchlms_config
 from src.security.features_utils.usage import (
     check_limits_with_usage,
     increase_feature_usage,
 )
-from src.core.deployment_mode import get_deployment_mode
 from src.services.users.usergroups import add_users_to_usergroup
 from src.services.users.emails import (
     send_account_creation_email,
@@ -72,8 +72,9 @@ async def create_user(
     user.user_uuid = f"user_{uuid4()}"
     user.password = security_hash_password(user_object.password) if user_object.password else ""
 
-    # OAuth users and OSS mode get auto-verified email
-    if is_oauth or get_deployment_mode() != 'saas':
+    email_verification_required = get_launchlms_config().general_config.require_email_verification
+
+    if is_oauth or not email_verification_required:
         user.email_verified = True
         user.email_verified_at = datetime.now(timezone.utc).isoformat()
         user.signup_method = signup_provider if is_oauth else "email"
@@ -163,7 +164,7 @@ async def create_user(
             user=user_read,
             email=user_read.email,
         )
-    else:
+    elif email_verification_required:
         # Import here to avoid circular imports
         from src.services.users.email_verification import send_verification_email
         try:
@@ -249,8 +250,9 @@ async def create_user_without_org(
     user.user_uuid = f"user_{uuid4()}"
     user.password = security_hash_password(user_object.password) if user_object.password else ""
 
-    # OAuth users and OSS mode get auto-verified email
-    if is_oauth or get_deployment_mode() != 'saas':
+    email_verification_required = get_launchlms_config().general_config.require_email_verification
+
+    if is_oauth or not email_verification_required:
         user.email_verified = True
         user.email_verified_at = datetime.now(timezone.utc).isoformat()
         user.signup_method = signup_provider if is_oauth else "email"
@@ -298,9 +300,7 @@ async def create_user_without_org(
 
     user_read = UserRead.model_validate(user)
 
-    # OAuth users get welcome email (already verified)
-    # Non-OAuth SaaS users get verification email (no org needed)
-    if is_oauth or get_deployment_mode() != 'saas':
+    if is_oauth or not email_verification_required:
         send_account_creation_email(
             user=user_read,
             email=user_read.email,

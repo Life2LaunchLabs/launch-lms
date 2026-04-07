@@ -31,7 +31,6 @@ interface AICreditsSummary {
 
 const PLAN_COLORS: Record<string, { bg: string; text: string }> = {
   free: { bg: 'bg-gray-100', text: 'text-gray-600' },
-  oss: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
   standard: { bg: 'bg-blue-100', text: 'text-blue-700' },
   pro: { bg: 'bg-purple-100', text: 'text-purple-700' },
   enterprise: { bg: 'bg-amber-100', text: 'text-amber-700' },
@@ -74,7 +73,6 @@ export default function UsageOverview() {
     { revalidateOnFocus: false }
   )
 
-  const ossMode = usageData?.oss_mode ?? false
   const plan = usePlan()
   const planStyle = PLAN_COLORS[plan] || PLAN_COLORS.free
   const features = usageData?.features
@@ -126,10 +124,10 @@ export default function UsageOverview() {
       <div className="bg-white rounded-xl nice-shadow p-5">
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-sm font-semibold text-gray-700">Plan & Usage</h3>
-          <span
-            className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full capitalize ${planStyle.bg} ${planStyle.text}`}
-          >
-            {plan === 'oss' ? 'OSS' : plan}
+            <span
+              className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full capitalize ${planStyle.bg} ${planStyle.text}`}
+            >
+            {plan}
           </span>
         </div>
 
@@ -145,7 +143,7 @@ export default function UsageOverview() {
         ) : (
           <div className="space-y-5">
             {meters.map((meter) => {
-              const isUnlimited = ossMode || meter.limit === 'unlimited'
+              const isUnlimited = meter.limit === 'unlimited'
               const limitText = isUnlimited ? 'Unlimited' : String(meter.limit)
               const barColor = isUnlimited
                 ? 'bg-green-500'

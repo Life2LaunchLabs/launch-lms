@@ -10,7 +10,6 @@ import { stripPort, isSubdomainOf, isSameHost, extractSubdomain, isLocalhost as 
 interface InstanceInfo {
   multi_org_enabled: boolean
   default_org_slug: string
-  mode: 'saas' | 'core'
   frontend_domain: string
   top_domain: string
 }
@@ -34,7 +33,7 @@ async function getInstanceInfo(): Promise<InstanceInfo> {
   } catch {
     // Backend unavailable — use defaults
   }
-  return { multi_org_enabled: true, default_org_slug: 'default', mode: 'core' as const, frontend_domain: 'localhost:3000', top_domain: 'localhost' }
+  return { multi_org_enabled: true, default_org_slug: 'default', frontend_domain: 'localhost:3000', top_domain: 'localhost' }
 }
 
 // Set instance info cookies on a response so client-side can read them synchronously
@@ -43,7 +42,6 @@ function setInstanceCookies(response: NextResponse, info: InstanceInfo) {
   response.cookies.set({ name: 'launchlms_default_org', value: info.default_org_slug, path: '/' })
   response.cookies.set({ name: 'launchlms_frontend_domain', value: info.frontend_domain, path: '/' })
   response.cookies.set({ name: 'launchlms_top_domain', value: info.top_domain, path: '/' })
-  response.cookies.set({ name: 'launchlms_mode', value: info.mode, path: '/' })
   return response
 }
 

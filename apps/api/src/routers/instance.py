@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session, select
 from src.db.organizations import Organization
 from src.core.events.database import get_db_session
-from src.core.deployment_mode import get_deployment_mode
 from src.core.capabilities import CORE_CAPABILITIES
 from config.config import get_launchlms_config
 
@@ -32,7 +31,6 @@ async def get_instance_info(db_session: Session = Depends(get_db_session)):
     top_domain = _strip_port(frontend_domain)
 
     return {
-        "mode": get_deployment_mode(),
         "multi_org_enabled": CORE_CAPABILITIES["multi_org"],
         "capabilities": CORE_CAPABILITIES,
         "default_org_slug": default_org_slug,

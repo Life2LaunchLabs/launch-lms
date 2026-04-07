@@ -1,9 +1,13 @@
 import logging
 from datetime import datetime
 import json
+from pathlib import Path
 from uuid import uuid4
+import boto3
+from botocore.exceptions import ClientError
 from fastapi import HTTPException
 from sqlmodel import Session, select
+from config.config import get_launchlms_config
 from src.db.organization_config import (
     OrganizationConfig,
     OrganizationConfigV2Base,
@@ -14,6 +18,120 @@ from src.db.user_organizations import UserOrganization
 from src.db.users import User, UserCreate, UserRead
 from src.security.security import security_hash_password
 from src.security.rbac.constants import ADMIN_ROLE_ID
+from src.services.utils.upload_content import ensure_directory_exists
+
+
+DEFAULT_ORG_BRANDING_DIR = Path(__file__).resolve().parents[5] / "branding"
+DEFAULT_ORG_BRANDING_ASSETS = {
+    "logo": ("logos", "logo", "Galaxy Launchpad Logo Half dome.png"),
+    "thumbnail": ("thumbnails", "thumbnail", "l2l on blue.png"),
+    "favicon": ("favicons", "favicon", "Galaxy Launchpad Logo Bug.png"),
+    "auth_background": ("auth_backgrounds", "auth_bg", "stacked-waves-haikei (1).png"),
+    "og_image": ("og_images", "og", "l2l on blue.png"),
+}
+
+
+def _store_org_asset_from_branding(org_uuid: str, directory: str, filename_prefix: str, source_name: str) -> str:
+    source_path = DEFAULT_ORG_BRANDING_DIR / source_name
+    if not source_path.exists():
+        logging.warning("Default branding asset not found: %s", source_path)
+        return ""
+
+    launchlms_config = get_launchlms_config()
+    filename = f"{uuid4()}_{filename_prefix}{source_path.suffix.lower()}"
+    local_path = Path("content") / "orgs" / org_uuid / directory / filename
+    ensure_directory_exists(str(local_path.parent))
+
+    if launchlms_config.hosting_config.content_delivery.type == "filesystem":
+        local_path.write_bytes(source_path.read_bytes())
+        return filename
+
+    if launchlms_config.hosting_config.content_delivery.type == "s3api":
+        content = source_path.read_bytes()
+        local_path.write_bytes(content)
+
+        s3 = boto3.client(
+            "s3",
+            endpoint_url=launchlms_config.hosting_config.content_delivery.s3api.endpoint_url,
+        )
+        bucket_name = (
+            launchlms_config.hosting_config.content_delivery.s3api.bucket_name
+            or "launch-lms-media"
+        )
+
+        try:
+            s3.upload_file(str(local_path), bucket_name, str(local_path))
+            s3.head_object(Bucket=bucket_name, Key=str(local_path))
+        except ClientError as exc:
+            logging.error("Failed to upload default org branding asset to S3: %s", exc)
+            raise HTTPException(status_code=500, detail="Failed to upload default org branding asset")
+        finally:
+            try:
+                local_path.unlink()
+            except OSError:
+                pass
+
+        return filename
+
+    logging.warning(
+        "Unsupported content delivery type for default org branding: %s",
+        launchlms_config.hosting_config.content_delivery.type,
+    )
+    return ""
+
+
+def _apply_default_org_branding(org: Organization, org_settings: OrganizationConfig, db_session: Session) -> None:
+    logo_filename = _store_org_asset_from_branding(
+        org.org_uuid,
+        *DEFAULT_ORG_BRANDING_ASSETS["logo"],
+    )
+    thumbnail_filename = _store_org_asset_from_branding(
+        org.org_uuid,
+        *DEFAULT_ORG_BRANDING_ASSETS["thumbnail"],
+    )
+    favicon_filename = _store_org_asset_from_branding(
+        org.org_uuid,
+        *DEFAULT_ORG_BRANDING_ASSETS["favicon"],
+    )
+    auth_background_filename = _store_org_asset_from_branding(
+        org.org_uuid,
+        *DEFAULT_ORG_BRANDING_ASSETS["auth_background"],
+    )
+    og_image_filename = _store_org_asset_from_branding(
+        org.org_uuid,
+        *DEFAULT_ORG_BRANDING_ASSETS["og_image"],
+    )
+
+    org.logo_image = logo_filename or org.logo_image
+    org.thumbnail_image = thumbnail_filename or org.thumbnail_image
+    org.socials = {
+        **(org.socials or {}),
+        "youtube": "@Life2Launch",
+        "instagram": "https://www.instagram.com/life2launch/",
+    }
+    org.update_date = str(datetime.now())
+
+    updated_config = dict(org_settings.config or {})
+    customization = updated_config.setdefault("customization", {})
+    general = customization.setdefault("general", {})
+    seo = customization.setdefault("seo", {})
+
+    general["color"] = "#081588"
+    general["favicon_image"] = favicon_filename
+    auth_branding = customization.setdefault("auth_branding", {})
+    auth_branding["background_type"] = "custom"
+    auth_branding["background_image"] = auth_background_filename
+    auth_branding["text_color"] = "light"
+    seo["default_og_image"] = og_image_filename
+
+    org_settings.config = updated_config
+    org_settings.update_date = str(datetime.now())
+
+    db_session.add(org)
+    db_session.add(org_settings)
+    db_session.commit()
+    db_session.refresh(org)
+    db_session.refresh(org_settings)
 
 
 # Install Default roles
@@ -460,9 +578,10 @@ def install_create_organization(org_object: OrganizationCreate, db_session: Sess
     db_session.refresh(org)
 
     # Org Config (v2 format)
+    org_plan = "enterprise" if org.slug == "default" else "free"
     org_config = OrganizationConfigV2Base(
         config_version="2.0",
-        plan="free",
+        plan=org_plan,
     )
 
     org_config = json.loads(org_config.model_dump_json())
@@ -479,6 +598,9 @@ def install_create_organization(org_object: OrganizationCreate, db_session: Sess
     db_session.commit()
     db_session.refresh(org_settings)
 
+    if org.slug == "default":
+        _apply_default_org_branding(org, org_settings, db_session)
+
     return org
 
 
@@ -494,7 +616,8 @@ def install_create_organization_user(
     # Complete the user object
     user.user_uuid = f"user_{uuid4()}"
     user.password = security_hash_password(user_object.password)
-    user.email_verified = False
+    user.email_verified = not get_launchlms_config().general_config.require_email_verification
+    user.email_verified_at = str(datetime.now()) if user.email_verified else None
     user.is_superadmin = is_superadmin
     user.creation_date = str(datetime.now())
     user.update_date = str(datetime.now())

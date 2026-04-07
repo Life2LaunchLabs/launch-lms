@@ -12,7 +12,6 @@ export interface FeatureUsage {
 export interface OrgUsageResponse {
   org_id: number
   plan: string
-  oss_mode: boolean
   features: {
     courses: FeatureUsage
     members: FeatureUsage

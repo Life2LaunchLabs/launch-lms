@@ -360,7 +360,7 @@ class TestEERouterProtection:
 
     @pytest.mark.asyncio
     async def test_audit_logs_router_protection(self, mock_api_token_user):
-        """Test that the legacy /ee/audit_logs alias is protected from API tokens"""
+        """Test that audit log routes are protected from API tokens."""
         with pytest.raises(HTTPException) as exc_info:
             await require_non_api_token_user(mock_api_token_user)
         assert exc_info.value.status_code == 403

@@ -171,7 +171,6 @@ class GeneralCustomization(BaseModel):
     color: str = ""
     footer_text: str = ""
     favicon_image: str = ""
-    watermark: bool = True
 
 
 class SeoOrgConfig(BaseModel):
@@ -198,13 +197,12 @@ class OrgGeneralConfig(BaseModel):
     enabled: bool = True
     color: str = ""
     footer_text: str = ""
-    watermark: bool = True
     favicon_image: str = ""
     auth_branding: AuthBrandingConfig = AuthBrandingConfig()
 
 
 class OrgCloudConfig(BaseModel):
-    plan: Literal["free", "personal", "personal-family", "standard", "pro", "enterprise", "oss"] = "free"
+    plan: Literal["free", "personal", "personal-family", "standard", "pro", "enterprise"] = "free"
     custom_domain: bool = False
 
 

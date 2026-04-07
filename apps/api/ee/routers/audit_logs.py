@@ -33,16 +33,14 @@ async def verify_org_admin_and_plan(
     if not org_config:
         raise HTTPException(status_code=403, detail="Organization configuration not found")
     
-    from src.core.deployment_mode import get_deployment_mode
-    if get_deployment_mode() != 'ee':
-        config_dict = org_config.config or {}
-        version = config_dict.get("config_version", "1.0")
-        plan = config_dict.get("plan", "free") if version.startswith("2") else config_dict.get("cloud", {}).get("plan", "free")
-        if plan != "enterprise":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Audit logs are only available on the Enterprise plan"
-            )
+    config_dict = org_config.config or {}
+    version = config_dict.get("config_version", "1.0")
+    plan = config_dict.get("plan", "free") if version.startswith("2") else config_dict.get("cloud", {}).get("plan", "free")
+    if plan != "enterprise":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Audit logs are only available on the Enterprise plan"
+        )
     
     # RBAC check for admin status (using 'update' as a proxy for admin actions)
     await rbac_check(request, org.org_uuid, current_user, "update", session)
@@ -210,4 +208,3 @@ async def get_audit_logs(
         "limit": limit,
         "offset": offset
     }
-

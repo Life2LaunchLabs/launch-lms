@@ -37,8 +37,6 @@ def _v2_migrate_config(config: dict) -> dict:
 
     # Extract plan
     plan = config.get("cloud", {}).get("plan", "free")
-    if plan == "oss":
-        plan = "free"  # "oss" was a mode, not a plan
 
     # Get plan defaults for comparison
     plan_defaults = PLAN_FEATURE_CONFIGS.get(plan, PLAN_FEATURE_CONFIGS["free"])
@@ -81,7 +79,6 @@ def _v2_migrate_config(config: dict) -> dict:
             "color": v1_general.get("color", "") if v1_general.get("color", "").startswith("#") else "",
             "footer_text": v1_general.get("footer_text", ""),
             "favicon_image": v1_general.get("favicon_image", ""),
-            "watermark": v1_general.get("watermark", True),
         },
         "auth_branding": v1_general.get("auth_branding", {
             "welcome_message": "",
@@ -135,10 +132,6 @@ def _v2_migrate_all_configs(db_session: Session, batch_size: int = 50) -> int:
                 config["active"] = True
                 patched = True
             general = config.get("customization", {}).get("general", {})
-            if "watermark" not in general:
-                config.setdefault("customization", {}).setdefault("general", {})
-                config["customization"]["general"]["watermark"] = True
-                patched = True
             color = general.get("color", "")
             if color and not color.startswith("#"):
                 config.setdefault("customization", {}).setdefault("general", {})

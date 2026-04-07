@@ -36,14 +36,18 @@ def install(
         # Create the Organization
         print("Creating default organization...")
         org = OrganizationCreate(
-            name="Default Organization",
-            description="Default Organization",
+            name="Life2Launch",
+            description="Life2Launch",
             slug="default",
             email="",
             logo_image="",
             thumbnail_image="",
             about="",
             label="",
+            socials={
+                "youtube": "@Life2Launch",
+                "instagram": "https://www.instagram.com/life2launch/",
+            },
         )
         install_create_organization(org, db_session)
         print("Default organization created ✅")

@@ -99,17 +99,11 @@ async def update_org_plan(
     if version.startswith("2"):
         # v2: plan is a top-level string
         existing["plan"] = body.plan
-        # Free plan forces watermark on
-        if body.plan == "free":
-            existing.setdefault("customization", {}).setdefault("general", {})
-            existing["customization"]["general"]["watermark"] = True
     else:
         # v1: plan is under cloud.plan, also update derived flags
         existing.setdefault("cloud", {})
         existing["cloud"]["plan"] = body.plan
         existing["cloud"]["custom_domain"] = plan_config["cloud"]["custom_domain"]
-        existing.setdefault("general", {})
-        existing["general"]["watermark"] = plan_config["general"]["watermark"]
 
     org_config.config = existing
     org_config.update_date = str(datetime.now())

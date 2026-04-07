@@ -7,7 +7,6 @@ from src.db.courses.courses import Course
 from src.db.roles import Role, RoleTypeEnum
 from sqlalchemy import or_
 from config.config import get_launchlms_config
-from src.core.deployment_mode import get_deployment_mode
 from typing import Literal, TypeAlias
 from fastapi import HTTPException
 from sqlmodel import Session, select, func
@@ -40,12 +39,6 @@ PLAN_BASED_FEATURES = {"courses", "members", "admin_seats"}
 # Features that use Redis for usage tracking (non-billing, rate limiting)
 REDIS_TRACKED_FEATURES = {"ai", "analytics", "api", "assignments", "collaboration",
                           "payments", "podcasts", "storage", "usergroups"}
-
-
-def _is_non_saas() -> bool:
-    """Check if deployment is in a non-SaaS mode (EE or OSS) — disables plan-based limits."""
-    return get_deployment_mode() != 'saas'
-
 
 def _get_redis_client():
     """Get a Redis client instance."""
@@ -341,13 +334,7 @@ def check_feature_access(
     db_session: Session,
 ) -> bool:
     """
-    Check if a feature is accessible based on plan level or OSS mode.
-
-    For features that require a minimum plan level (e.g., versioning requires 'standard'),
-    this function checks:
-    1. If OSS mode is enabled → allow access
-    2. If the organization's plan meets the required level → allow access
-    3. Otherwise → deny access with 403
+    Check if a feature is accessible based on the organization's plan.
 
     Args:
         feature: The feature key (e.g., 'versioning', 'ai')
@@ -360,10 +347,6 @@ def check_feature_access(
     Raises:
         HTTPException 403 if access is denied
     """
-    # OSS mode enables all features
-    if _is_non_saas():
-        return True
-
     # Get required plan for this feature
     required_plan = get_required_plan_for_feature(feature)
 
@@ -728,9 +711,6 @@ def check_ai_credits(
             detail="AI is not enabled for this organization",
         )
 
-    if _is_non_saas():
-        return True
-
     org_plan = _get_org_plan(org_config)
     r = _get_redis_client()
 
@@ -811,19 +791,6 @@ def get_ai_credits_summary(org_id: int, db_session: Session) -> dict:
     org_plan = _get_org_plan(org_config)
 
     r = _get_redis_client()
-
-    if _is_non_saas():
-        used_credits = r.get(f"ai_credits_used:{org_id}")
-        used_credits_count = int(used_credits) if used_credits else 0
-        return {
-            "plan": org_plan,
-            "mode": get_deployment_mode(),
-            "base_credits": "unlimited",
-            "purchased_credits": 0,
-            "total_credits": "unlimited",
-            "used_credits": used_credits_count,
-            "remaining_credits": "unlimited",
-        }
 
     base_credits = get_ai_credit_limit(org_plan)
 

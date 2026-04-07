@@ -7,37 +7,10 @@ Provides dependency functions to enforce plan requirements at the router level.
 from fastapi import Depends, HTTPException, Request
 from sqlmodel import Session, select
 
-from src.core.capabilities import CORE_CAPABILITIES
-from src.core.deployment_mode import get_deployment_mode
 from src.core.events.database import get_db_session
 from src.db.organization_config import OrganizationConfig
 from src.db.communities.communities import Community
 from src.security.features_utils.plans import PlanLevel, plan_meets_requirement
-
-
-def _check_mode_bypass(feature_name: str) -> bool | None:
-    """
-    Check mode-based bypass for plan dependencies.
-
-    Returns:
-        True if access should be granted without plan check
-        None if normal plan check should proceed (SaaS mode)
-
-    Raises:
-        HTTPException 403 if access is blocked (OSS + EE-only feature)
-    """
-    mode = get_deployment_mode()
-    if mode == 'core':
-        feature_key = feature_name.lower().replace(' ', '_')
-        capability_key = "advanced_analytics" if feature_key == "analytics_advanced" else feature_key
-        if capability_key in CORE_CAPABILITIES and not CORE_CAPABILITIES[capability_key]:
-            raise HTTPException(
-                status_code=403,
-                detail=f"{feature_name} is currently disabled in this Launch LMS build.",
-            )
-        return True
-    return None  # SaaS — proceed with plan check
-
 
 def get_org_plan(org_id: int, db_session: Session) -> PlanLevel:
     """
@@ -90,10 +63,6 @@ def require_plan(required_plan: PlanLevel, feature_name: str):
         request: Request,
         db_session: Session = Depends(get_db_session),
     ):
-        bypass = _check_mode_bypass(feature_name)
-        if bypass is not None:
-            return bypass
-
         org_id = None
 
         # Try to get org_id from path parameters first
@@ -143,10 +112,6 @@ def require_plan_for_usergroups(required_plan: PlanLevel, feature_name: str):
         request: Request,
         db_session: Session = Depends(get_db_session),
     ):
-        bypass = _check_mode_bypass(feature_name)
-        if bypass is not None:
-            return bypass
-
         org_id = None
 
         # Try to get org_id from path parameters first
@@ -209,10 +174,6 @@ def require_plan_for_certifications(required_plan: PlanLevel, feature_name: str)
         request: Request,
         db_session: Session = Depends(get_db_session),
     ):
-        bypass = _check_mode_bypass(feature_name)
-        if bypass is not None:
-            return bypass
-
         org_id = None
         path_params = request.path_params
 
@@ -308,9 +269,6 @@ def require_plan_for_boards(required_plan: PlanLevel, feature_name: str):
         request: Request,
         db_session: Session = Depends(get_db_session),
     ):
-        bypass = _check_mode_bypass(feature_name)
-        if bypass is not None:
-            return bypass
 
         org_id = None
 
@@ -372,9 +330,6 @@ def require_plan_for_playgrounds(required_plan: PlanLevel, feature_name: str):
         request: Request,
         db_session: Session = Depends(get_db_session),
     ):
-        bypass = _check_mode_bypass(feature_name)
-        if bypass is not None:
-            return bypass
 
         org_id = None
 
@@ -399,7 +354,7 @@ def require_plan_for_playgrounds(required_plan: PlanLevel, feature_name: str):
         if org_id is None:
             playground_uuid = request.path_params.get("playground_uuid")
             if playground_uuid:
-                from src.db.playgrounds import Playground
+                from src.dd.playgrounds import Playground
                 statement = select(Playground).where(Playground.playground_uuid == playground_uuid)
                 playground = db_session.exec(statement).first()
                 if playground:
@@ -444,9 +399,6 @@ def require_plan_for_community(required_plan: PlanLevel, feature_name: str):
         request: Request,
         db_session: Session = Depends(get_db_session),
     ):
-        bypass = _check_mode_bypass(feature_name)
-        if bypass is not None:
-            return bypass
 
         org_id = None
 
@@ -495,4 +447,3 @@ def require_plan_for_community(required_plan: PlanLevel, feature_name: str):
         return True
 
     return plan_dependency
-

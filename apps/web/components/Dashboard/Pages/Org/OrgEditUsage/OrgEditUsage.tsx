@@ -78,7 +78,7 @@ export default function OrgEditUsage() {
     { revalidateOnFocus: false }
   )
 
-  const ossMode = usageData?.oss_mode ?? false
+  const ossMode = true
   const plan = usePlan()
   const planStyle = PLAN_COLORS[plan] || PLAN_COLORS.free
   const features = usageData?.features
@@ -249,8 +249,7 @@ export default function OrgEditUsage() {
         </div>
       )}
 
-      {/* Buy More — SaaS only */}
-      {isSaaS && (
+      {(
         <div className="bg-white rounded-xl nice-shadow">
           <div className="p-6 flex items-center justify-between">
             <div>

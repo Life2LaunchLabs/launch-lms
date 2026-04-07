@@ -3,6 +3,7 @@ from typing import Optional, Union
 from fastapi import HTTPException, Request
 from pydantic import BaseModel, field_validator
 from sqlmodel import Session, select
+from config.config import get_launchlms_config
 from src.db.organizations import Organization
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, InternalUser, PublicUser, User
@@ -67,8 +68,11 @@ async def join_org(
             detail="User not found",
         )
 
-    # Check if user's email is verified
-    if not user.email_verified:
+    # Check if user's email is verified when explicitly required
+    if (
+        get_launchlms_config().general_config.require_email_verification
+        and not user.email_verified
+    ):
         raise HTTPException(
             status_code=403,
             detail="Please verify your email address before joining an organization.",

@@ -2,7 +2,7 @@
 Plan-based feature restriction utilities.
 
 Single source of truth for plan hierarchy, feature configs, and limits.
-Org config only stores the plan name (cloud.plan) — all feature settings
+Org config only stores the plan name (cloud.plan) and org feature settings
 are derived from these definitions at runtime.
 """
 
@@ -69,7 +69,6 @@ PLAN_FEATURE_CONFIGS: dict[str, dict] = {
             "versioning": {"enabled": False},
             "audit_logs": {"enabled": False},
         },
-        "general": {"watermark": True},
         "cloud": {"plan": "free", "custom_domain": False},
     },
     "personal": {
@@ -96,7 +95,6 @@ PLAN_FEATURE_CONFIGS: dict[str, dict] = {
             "versioning": {"enabled": False},
             "audit_logs": {"enabled": False},
         },
-        "general": {"watermark": False},
         "cloud": {"plan": "personal", "custom_domain": False},
     },
     "personal-family": {
@@ -123,7 +121,6 @@ PLAN_FEATURE_CONFIGS: dict[str, dict] = {
             "versioning": {"enabled": False},
             "audit_logs": {"enabled": False},
         },
-        "general": {"watermark": False},
         "cloud": {"plan": "personal-family", "custom_domain": False},
     },
     "standard": {
@@ -150,7 +147,6 @@ PLAN_FEATURE_CONFIGS: dict[str, dict] = {
             "versioning": {"enabled": False},
             "audit_logs": {"enabled": False},
         },
-        "general": {"watermark": False},
         "cloud": {"plan": "standard", "custom_domain": False},
     },
     "pro": {
@@ -177,7 +173,6 @@ PLAN_FEATURE_CONFIGS: dict[str, dict] = {
             "versioning": {"enabled": True},
             "audit_logs": {"enabled": False},
         },
-        "general": {"watermark": False},
         "cloud": {"plan": "pro", "custom_domain": True},
     },
     "enterprise": {
@@ -204,7 +199,6 @@ PLAN_FEATURE_CONFIGS: dict[str, dict] = {
             "versioning": {"enabled": True},
             "audit_logs": {"enabled": True},
         },
-        "general": {"watermark": False},
         "cloud": {"plan": "enterprise", "custom_domain": True},
     },
 }
@@ -249,14 +243,6 @@ def get_plan_feature_config(plan: str, feature: str) -> dict:
 
 def is_feature_enabled_for_plan(plan: str, feature: str) -> bool:
     """Check if a feature is enabled for a given plan."""
-    from src.core.capabilities import CORE_CAPABILITIES
-    from src.core.deployment_mode import get_deployment_mode
-    mode = get_deployment_mode()
-    if mode == 'core':
-        capability_key = "advanced_analytics" if feature == "analytics_advanced" else feature
-        if capability_key in CORE_CAPABILITIES:
-            return CORE_CAPABILITIES[capability_key]
-        return True
     return get_plan_feature_config(plan, feature).get("enabled", False)
 
 
@@ -267,10 +253,6 @@ def get_feature_limit_for_plan(plan: str, feature: str) -> int:
     Returns:
         The limit (0 = unlimited).
     """
-    from src.core.deployment_mode import get_deployment_mode
-    mode = get_deployment_mode()
-    if mode != 'saas':
-        return 0
     return get_plan_feature_config(plan, feature).get("limit", 0)
 
 
@@ -286,10 +268,6 @@ def get_ai_credit_limit(plan: str) -> int:
     Returns:
         The AI credit limit (0 = no access, -1 = unlimited)
     """
-    from src.core.deployment_mode import get_deployment_mode
-    mode = get_deployment_mode()
-    if mode != 'saas':
-        return -1
     return AI_CREDIT_LIMITS.get(plan, 0)
 
 
@@ -300,10 +278,6 @@ def get_plan_limit(plan: str, feature: str) -> int:
     Returns:
         The limit for the feature (0 means unlimited)
     """
-    from src.core.deployment_mode import get_deployment_mode
-    mode = get_deployment_mode()
-    if mode != 'saas':
-        return 0
     plan_limits = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
     return plan_limits.get(feature, 0)
 
@@ -312,11 +286,6 @@ def plan_meets_requirement(current_plan: str, required_plan: str) -> bool:
     """
     Check if the current plan meets or exceeds the required plan level.
     """
-    from src.core.deployment_mode import get_deployment_mode
-    mode = get_deployment_mode()
-    if mode == 'core':
-        return True
-    # SaaS: normal hierarchy check
     try:
         current_index = PLAN_HIERARCHY.index(current_plan)
     except ValueError:
@@ -332,10 +301,4 @@ def get_required_plan_for_feature(feature_key: str) -> PlanLevel | None:
     """
     Get the required plan level for a specific feature.
     """
-    from src.core.capabilities import CORE_CAPABILITIES
-    from src.core.deployment_mode import get_deployment_mode
-    if get_deployment_mode() == "core":
-        capability_key = "advanced_analytics" if feature_key == "analytics_advanced" else feature_key
-        if capability_key in CORE_CAPABILITIES and not CORE_CAPABILITIES[capability_key]:
-            return "enterprise"
     return FEATURE_PLAN_REQUIREMENTS.get(feature_key)

@@ -4,10 +4,6 @@ import type { PlanLevel } from '@services/plans/plans'
 
 /**
  * Single source of truth for the current org's effective plan.
- *
- * - Returns 'enterprise' in OSS mode (all features unlocked)
- * - Returns 'enterprise' in EE mode (all features unlocked)
- * - Returns the DB plan in SaaS mode
  */
 export function usePlan(): PlanLevel {
   const org = useOrg() as any

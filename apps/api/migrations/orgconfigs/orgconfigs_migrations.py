@@ -4,7 +4,6 @@ def migrate_v0_to_v1(v0_config):
         "general": {
             "enabled": v0_config["GeneralConfig"]["active"],
             "color": v0_config["GeneralConfig"]["color"],
-            "watermark": True,  # Default value as it's not present in v0
         },
         "features": {
             "courses": {

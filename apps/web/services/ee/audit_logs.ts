@@ -16,20 +16,3 @@ export const getAuditLogs = async (orgId: number, accessToken: string, filters: 
   const url = `${getAPIUrl()}audit_logs/?${queryParams.toString()}`;
   return swrFetcher(url, accessToken);
 };
-
-export const getEEStatus = async (accessToken: string) => {
-  void accessToken;
-  return {
-    enabled: false,
-    feature_model: 'core_capabilities',
-    capabilities: {
-      multi_org: true,
-      superadmin: true,
-      audit_logs: true,
-      payments: false,
-      sso: false,
-      scorm: false,
-      advanced_analytics: false,
-    },
-  };
-};

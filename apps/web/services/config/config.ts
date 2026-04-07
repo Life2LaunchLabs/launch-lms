@@ -283,25 +283,14 @@ export const getMainDomainUri = (path: string) => {
   return `${protocol}${domain}${path}`
 }
 
-export type DeploymentMode = 'saas' | 'core'
-
-/**
- * Get the current deployment mode from the launchlms_mode cookie set by middleware.
- * Single source of truth for mode detection on the frontend.
- * Defaults to 'core' when cookie is absent.
- */
-export const getDeploymentMode = (): DeploymentMode => {
-  return (getCookieValue('launchlms_mode') as DeploymentMode) || 'core'
-}
-
 export const getCoreCapabilities = () => ({
   multi_org: true,
   superadmin: true,
   audit_logs: true,
-  payments: false,
-  sso: false,
-  scorm: false,
-  advanced_analytics: false,
+  payments: true,
+  sso: true,
+  scorm: true,
+  advanced_analytics: true,
 })
 
 // Collaboration server WebSocket URL
@@ -317,6 +306,5 @@ export const getDefaultOrg = () => {
   // 3. Default
   return 'default'
 }
-
 
 

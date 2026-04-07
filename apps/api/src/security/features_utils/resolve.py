@@ -1,11 +1,9 @@
 """
 Central feature resolution logic (v2 config).
 
-4-layer resolution: deployment mode → plan config → overrides → purchased packs → admin toggles.
+4-layer resolution: plan config → overrides → purchased packs → admin toggles.
 """
 
-from src.core.capabilities import CORE_CAPABILITIES
-from src.core.deployment_mode import get_deployment_mode
 from src.security.features_utils.plans import FEATURE_PLAN_REQUIREMENTS, get_plan_feature_config
 
 
@@ -82,18 +80,14 @@ def resolve_feature(feature: str, config: dict, org_id: int = 0) -> dict:
     Returns:
         {"enabled": bool, "limit": int, "required_plan": str|None}  (limit=0 means unlimited)
     """
-    mode = get_deployment_mode()
     required_plan = FEATURE_PLAN_REQUIREMENTS.get(feature)
 
     # Always-on features without limits: enabled in all modes, unlimited, no admin toggle
     if feature in ALWAYS_ON_FEATURES and feature not in ALWAYS_ON_WITH_LIMITS:
         return {"enabled": True, "limit": 0, "required_plan": required_plan}
 
-    # Always-on features WITH plan limits: enabled in all modes, but limit comes from plan
+    # Always-on features WITH plan limits: enabled in all orgs, but limit comes from plan
     if feature in ALWAYS_ON_WITH_LIMITS:
-        if mode == "core":
-            return {"enabled": True, "limit": 0, "required_plan": required_plan}
-        # SaaS: always enabled, but respect the plan limit + overrides + packs
         plan = _get_plan_from_config(config)
         plan_config = get_plan_feature_config(plan, feature)
         plan_limit = plan_config.get("limit", 0)
@@ -108,38 +102,25 @@ def resolve_feature(feature: str, config: dict, org_id: int = 0) -> dict:
 
     admin_toggle = _get_admin_toggle(config, feature)
     admin_disabled = admin_toggle.get("disabled", False)
-
-    # Core mode: capabilities decide what is intentionally available.
-    if mode == "core":
-        if feature in CORE_CAPABILITIES and not CORE_CAPABILITIES[feature]:
-            return {"enabled": False, "limit": 0, "required_plan": required_plan}
-        return {"enabled": not admin_disabled, "limit": 0, "required_plan": required_plan}
-
-    # SaaS mode: full resolution
     plan = _get_plan_from_config(config)
 
-    # Layer 1: Plan
     plan_config = get_plan_feature_config(plan, feature)
     plan_enabled = plan_config.get("enabled", False)
     plan_limit = plan_config.get("limit", 0)
 
-    # Layer 2: Overrides
     overrides = _get_overrides(config, feature)
     force_enabled = overrides.get("force_enabled", False)
     extra_limit = overrides.get("extra_limit", 0)
 
     base_enabled = plan_enabled or force_enabled
 
-    # Layer 3: Purchased packs
     purchased_extra = _get_purchased_extra(org_id, feature) if org_id else 0
 
-    # Layer 4: Effective limit
     if plan_limit == 0:
-        effective_limit = 0  # unlimited stays unlimited
+        effective_limit = 0
     else:
         effective_limit = plan_limit + extra_limit + purchased_extra
 
-    # Layer 5: Admin toggle (can only restrict)
     effective_enabled = base_enabled and not admin_disabled
 
     return {"enabled": effective_enabled, "limit": effective_limit, "required_plan": required_plan}

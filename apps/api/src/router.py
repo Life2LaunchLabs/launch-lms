@@ -246,28 +246,10 @@ v1_router.include_router(
     dependencies=[Depends(get_non_api_token_user)],
 )
 
-# Temporary compatibility alias while the frontend finishes migrating
-# away from the old EE-prefixed path.
-v1_router.include_router(
-    audit_logs_router,
-    prefix="/ee/audit_logs",
-    tags=["audit-logs-legacy"],
-    dependencies=[Depends(get_non_api_token_user)],
-)
-
 v1_router.include_router(
     superadmin_router,
     prefix="/superadmin",
     tags=["superadmin"],
-    dependencies=[Depends(get_non_api_token_user)],
-)
-
-# Temporary compatibility alias while the frontend finishes migrating
-# away from the old EE-prefixed path.
-v1_router.include_router(
-    superadmin_router,
-    prefix="/ee/superadmin",
-    tags=["superadmin-legacy"],
     dependencies=[Depends(get_non_api_token_user)],
 )
 
