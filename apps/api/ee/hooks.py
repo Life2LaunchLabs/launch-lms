@@ -10,11 +10,8 @@ from ee.middleware.audit import EEAuditLogMiddleware
 from ee.services.audit import flush_audit_logs_to_db
 from ee.routers import cloud_internal
 from ee.routers import payments
-from ee.routers import info
-from ee.routers import audit_logs
 from ee.routers import scorm
 from ee.routers import sso
-from ee.routers import superadmin
 
 logger = logging.getLogger(__name__)
 

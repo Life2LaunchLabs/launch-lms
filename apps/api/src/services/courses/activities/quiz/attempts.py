@@ -12,7 +12,6 @@ from src.db.courses.activities import Activity
 from src.db.courses.quiz import (
     QuizAnswer,
     QuizAttempt,
-    QuizAttemptRead,
     QuizAttemptSubmit,
     QuizResult,
     QuizResultRead,

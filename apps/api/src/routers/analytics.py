@@ -25,7 +25,6 @@ from src.services.analytics.cache import get_cached_result, set_cached_result
 from src.services.analytics.events import ALLOWED_FRONTEND_EVENTS
 from src.services.analytics.queries import (
     ALL_QUERIES,
-    ADVANCED_QUERIES,
     DETAIL_QUERIES,
     COURSE_QUERIES,
     COURSE_DETAIL_QUERIES,

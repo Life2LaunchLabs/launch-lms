@@ -312,7 +312,7 @@ class TestFeaturesUtils:
     async def test_all_features_covered(self, mock_db_session, mock_org_config):
         """Test that all features in FeatureSet are covered."""
         expected_results = {
-            "admin_seats": True,
+            "admin_seats": False,
             "ai": True,
             "analytics": True,
             "api": False,

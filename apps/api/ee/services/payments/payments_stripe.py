@@ -29,8 +29,8 @@ class StripePaymentProvider(IPaymentProvider):
     # ------------------------------------------------------------------
 
     async def _get_credentials(self) -> dict[str, Any]:
-        launch-lms_config = get_launch_lms_config()
-        stripe_cfg = launch-lms_config.payments_config.stripe
+        launch_lms_config = get_launch_lms_config()
+        stripe_cfg = launch_lms_config.payments_config.stripe
 
         if not stripe_cfg.stripe_secret_key:
             raise HTTPException(status_code=400, detail="Stripe secret key not configured")
@@ -489,8 +489,8 @@ class StripePaymentProvider(IPaymentProvider):
         creds = await self._get_credentials()
         stripe.api_key = creds["stripe_secret_key"]
 
-        launch-lms_config = get_launch_lms_config()
-        client_id = launch-lms_config.payments_config.stripe.stripe_client_id
+        launch_lms_config = get_launch_lms_config()
+        client_id = launch_lms_config.payments_config.stripe.stripe_client_id
         if not client_id:
             raise HTTPException(status_code=400, detail="Stripe client ID not configured")
 
