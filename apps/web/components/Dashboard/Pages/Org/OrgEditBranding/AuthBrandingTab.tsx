@@ -293,7 +293,7 @@ export default function AuthBrandingTab() {
                       "w-4 h-4 bg-contain bg-no-repeat",
                       textColor === 'light' ? "opacity-60 invert" : "opacity-40"
                     )}
-                    style={{ backgroundImage: "url(/lrn.svg)" }}
+                    style={{ backgroundImage: "url(/logo-icon.svg)" }}
                   />
                 </div>
               )}

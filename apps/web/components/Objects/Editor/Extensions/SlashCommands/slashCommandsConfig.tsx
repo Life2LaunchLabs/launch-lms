@@ -28,7 +28,7 @@ import {
   Video,
 } from 'lucide-react'
 import Image from 'next/image'
-import lrnaiIcon from 'public/lrnai_icon.png'
+import lrnaiIcon from 'public/ai_icon.svg'
 import { SiYoutube } from '@icons-pack/react-simple-icons'
 import { SlashCommandItem, SlashCommandCategory } from './types'
 import React from 'react'

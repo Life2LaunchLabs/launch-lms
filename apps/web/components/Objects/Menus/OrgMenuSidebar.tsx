@@ -147,7 +147,7 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
               />
             ) : (
               <Image
-                src="/lrn-text.svg"
+                src="/logo-text.svg"
                 alt="Launch LMS"
                 width={110}
                 height={33}

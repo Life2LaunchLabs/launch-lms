@@ -205,8 +205,8 @@ function DashLeftMenu() {
             />
           ) : (
             <img
-              src="/lrn-dash.svg"
-              alt="Learnhouse logo"
+              src="/logo-icon.svg"
+              alt="Launch LMS logo"
               className="h-8 w-8"
             />
           )}

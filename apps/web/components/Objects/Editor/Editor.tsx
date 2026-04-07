@@ -616,7 +616,7 @@ const EditorLearnHouseLogo = () => {
         transition={animation.transition}
       >
         <Image
-          src="/lrn.svg"
+          src="/logo-icon.svg"
           alt="Launch LMS"
           width={14}
           height={14}

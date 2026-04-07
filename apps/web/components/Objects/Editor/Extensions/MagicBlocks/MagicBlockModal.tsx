@@ -11,7 +11,7 @@ import {
   startMagicBlockSession,
   iterateMagicBlock,
 } from '@services/ai/magicblocks'
-import lrnaiIcon from 'public/lrnai_icon.png'
+import lrnaiIcon from 'public/ai_icon.svg'
 import { useTranslation } from 'react-i18next'
 
 interface MagicBlockModalProps {

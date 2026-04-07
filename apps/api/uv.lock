@@ -773,7 +773,7 @@ wheels = [
 ]
 
 [[package]]
-name = "learnhouse-api"
+name = "launch-lms-api"
 version = "1.0.0"
 source = { virtual = "." }
 dependencies = [

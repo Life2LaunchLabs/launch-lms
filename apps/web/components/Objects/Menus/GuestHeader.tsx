@@ -36,7 +36,7 @@ export function GuestHeader({ orgslug }: { orgslug: string }) {
                 />
               ) : (
                 <Image
-                  src="/lrn-text.svg"
+                  src="/logo-text.svg"
                   alt="Launch LMS"
                   width={133}
                   height={40}

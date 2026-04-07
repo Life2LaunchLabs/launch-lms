@@ -41,7 +41,7 @@ export default function BoardTopBar({
         <Link href={getUriWithOrg(orgslug, '/boards')}>
           <div className="bg-black rounded-md w-[25px] h-[25px] flex items-center justify-center hover:opacity-80 transition-opacity">
             <Image
-              src="/lrn.svg"
+              src="/logo-icon.svg"
               alt="Launch LMS"
               width={14}
               height={14}
