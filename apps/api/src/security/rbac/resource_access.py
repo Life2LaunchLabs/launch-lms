@@ -35,6 +35,17 @@ from src.security.rbac.rbac import (
 logger = logging.getLogger(__name__)
 
 
+def _coerce_flag(value: object, default: bool = False) -> bool:
+    """Convert model flags to booleans without letting bare mocks read as truthy."""
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return bool(value)
+    return default
+
+
 class ResourceAccessChecker:
     """
     Unified access checker for courses, podcasts, and communities.
@@ -695,8 +706,8 @@ class ResourceAccessChecker:
 
         public_flag = getattr(resource, "public", False)
         guest_access_flag = getattr(resource, "guest_access", False)
-        is_public = bool(public_flag) or bool(guest_access_flag)
-        is_published = bool(getattr(resource, "published", True)) if config.has_published_field else True
+        is_public = _coerce_flag(public_flag) or _coerce_flag(guest_access_flag)
+        is_published = _coerce_flag(getattr(resource, "published", True), default=True) if config.has_published_field else True
 
         return is_public, is_published
 

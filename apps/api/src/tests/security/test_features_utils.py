@@ -59,7 +59,8 @@ class TestFeaturesUtils:
     async def test_check_limits_with_usage_success(self, mock_db_session, mock_org_config):
         """Test successful feature limit check when credits are available."""
         with patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
-             patch('redis.Redis.from_url') as mock_redis_class:
+             patch('redis.Redis.from_url') as mock_redis_class, \
+             patch('src.security.features_utils.usage._get_actual_usage', return_value=0):
 
             mock_config_instance = Mock()
             mock_config_instance.redis_config.redis_connection_string = "redis://localhost:6379"
@@ -166,7 +167,8 @@ class TestFeaturesUtils:
     async def test_check_limits_with_usage_unlimited_feature(self, mock_db_session, mock_org_config):
         """Test feature limit check for unlimited feature (limit = 0)"""
         with patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
-             patch('redis.Redis.from_url') as mock_redis_class:
+             patch('redis.Redis.from_url') as mock_redis_class, \
+             patch('src.security.features_utils.usage._get_actual_usage', return_value=0):
 
             mock_config_instance = Mock()
             mock_config_instance.redis_config.redis_connection_string = "redis://localhost:6379"
