@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { Loader2, AlertTriangle, ShieldAlert } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth, validateOAuthState } from '@components/Contexts/AuthContext'
-import { getLEARNHOUSE_DOMAIN_VAL } from '@services/config/config'
+import { getLAUNCHLMS_DOMAIN_VAL } from '@services/config/config'
 
 export default function GoogleCallbackPage() {
   const searchParams = useSearchParams()
@@ -74,7 +74,7 @@ export default function GoogleCallbackPage() {
         const cookies = document.cookie.split(';')
         for (const cookie of cookies) {
           const [name, value] = cookie.trim().split('=')
-          if (name === 'learnhouse_oauth_org_id' && value) {
+          if (name === 'launchlms_oauth_org_id' && value) {
             orgId = parseInt(value, 10)
             if (isNaN(orgId)) {
               orgId = undefined
@@ -88,7 +88,7 @@ export default function GoogleCallbackPage() {
 
       try {
         // redirect_uri must always match what was sent during authorization (main domain)
-        const domain = getLEARNHOUSE_DOMAIN_VAL()
+        const domain = getLAUNCHLMS_DOMAIN_VAL()
         const oauthRedirectUri = `${window.location.protocol}//${domain}/auth/callback/google`
 
         // Exchange code for tokens with our backend

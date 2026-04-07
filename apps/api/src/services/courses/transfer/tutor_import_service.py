@@ -1,7 +1,7 @@
 """
 Tutor LMS course import service.
 
-Imports Tutor LMS JSON exports directly into LearnHouse courses.
+Imports Tutor LMS JSON exports directly into Launch LMS courses.
 """
 
 import json
@@ -1098,7 +1098,7 @@ async def _import_single_tutor_course(
     _write_progress(temp_dir, progress)
     _append_progress_log(
         temp_dir,
-        message="Creating LearnHouse course",
+        message="Creating Launch LMS course",
         level="info",
         course_name=course_name,
     )

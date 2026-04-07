@@ -7,7 +7,7 @@ from src.db.users import UserRead
 from src.services.email.utils import send_email
 
 
-# Inline SVG logo (LearnHouse icon mark + wordmark, scaled down)
+# Inline SVG logo (PLACEHOLDER: replace with your own logo SVG)
 LOGO_SVG = """<svg width="140" height="20" viewBox="0 0 1488 218" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path d="M152 37C152 56.96 148.07 76.73 140.43 95.17C132.79 113.61 121.6 130.37 107.48 144.48C93.37 158.6 76.61 169.79 58.17 177.43C39.73 185.07 19.96 189 0 189V115.94C10.37 115.94 20.63 113.9 30.21 109.93C39.79 105.96 48.49 100.15 55.82 92.82C63.15 85.49 68.97 76.79 72.93 67.21C76.9 57.63 78.94 47.37 78.94 37H152Z" fill="black"/>
 <path d="M304 189C284.04 189 264.27 185.07 245.83 177.43C227.39 169.79 210.63 158.6 196.52 144.48C182.4 130.37 171.21 113.61 163.57 95.17C155.93 76.73 152 56.96 152 37H225.06C225.06 47.37 227.1 57.63 231.07 67.21C235.03 76.79 240.85 85.49 248.18 92.82C255.51 100.15 264.21 105.96 273.79 109.93C283.37 113.9 293.63 115.94 304 115.94V189Z" fill="black"/>
@@ -70,20 +70,19 @@ def send_account_creation_email(
     body_content = f"""
         <h1 style="{STYLES['h1']}">Welcome, {safe_username}!</h1>
         <p style="{STYLES['p']}">
-            Your LearnHouse account is ready. Get started by creating your own organization or joining one.
+            Your account is ready. Get started by creating your own organization or joining one.
         </p>
-        <a href="https://university.learnhouse.io" style="{STYLES['button']}">
+        <a href="#" style="{STYLES['button']}">
             Get Started
         </a>
     """
 
     return send_email(
         to=email,
-        subject=f"Welcome to LearnHouse, {safe_username}!",
+        subject=f"Welcome, {safe_username}!",
         body=_email_layout(
             title="Welcome",
             body_content=body_content,
-            footer_note="Need help? Visit <a href=\"https://university.learnhouse.io\" style=\"color: rgba(0,0,0,0.35); text-decoration: underline;\">LearnHouse Academy</a> to learn the basics.",
         ),
     )
 
@@ -191,7 +190,7 @@ def send_email_verification_email(
     body_content = f"""
         <h1 style="{STYLES['h1']}">Verify your email</h1>
         <p style="{STYLES['p']}">
-            Hi {safe_username}, welcome to LearnHouse! Click the button below to verify your email address and activate your account.
+            Hi {safe_username}, welcome! Click the button below to verify your email address and activate your account.
         </p>
         <a href="{verification_url}" style="{STYLES['button']}">
             Verify Email Address
@@ -207,6 +206,6 @@ def send_email_verification_email(
         body=_email_layout(
             title="Verify Email",
             body_content=body_content,
-            footer_note="This link expires in 1 hour. If you didn't create a LearnHouse account, you can safely ignore this email.",
+            footer_note="This link expires in 1 hour. If you didn't create an account, you can safely ignore this email.",
         ),
     )

@@ -1,6 +1,6 @@
 from fastapi import Request
 
-from config.config import get_learnhouse_config
+from config.config import get_launchlms_config
 from src.services.dev.dev import isDevModeEnabled
 
 
@@ -16,8 +16,8 @@ def get_cookie_domain_for_request(request: Request) -> str | None:
     referer = request.headers.get("referer", "")
     host = request.headers.get("host", "")
 
-    config_domain = get_learnhouse_config().hosting_config.domain
-    config_cookie_domain = get_learnhouse_config().hosting_config.cookie_config.domain
+    config_domain = get_launchlms_config().hosting_config.domain
+    config_cookie_domain = get_launchlms_config().hosting_config.cookie_config.domain
 
     check_value = origin or referer or host
     if not check_value:

@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { PlanLevel } from '@services/plans/plans'
 
 interface ImportTypeSelectorProps {
-  onSelectType: (type: 'learnhouse' | 'tutor') => void
+  onSelectType: (type: 'launch-lms' | 'tutor') => void
   currentPlan: PlanLevel
 }
 
@@ -33,7 +33,7 @@ function ImportTypeSelector({ onSelectType, currentPlan }: ImportTypeSelectorPro
 
         {/* LearnHouse Import Option */}
         <button
-          onClick={() => onSelectType('learnhouse')}
+          onClick={() => onSelectType('launch-lms')}
           className="group flex flex-col items-center p-6 rounded-xl border-2 border-gray-200 bg-white hover:border-black hover:shadow-lg transition-all duration-200"
         >
           <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center mb-4 group-hover:bg-blue-100 transition-colors">

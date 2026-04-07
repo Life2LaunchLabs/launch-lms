@@ -3,7 +3,7 @@ from typing import Annotated
 from sqlalchemy import create_engine
 from sqlmodel import SQLModel, Session
 import typer
-from config.config import get_learnhouse_config
+from config.config import get_launchlms_config
 from src.db.organizations import OrganizationCreate
 from src.db.users import UserCreate
 from src.services.setup.setup import (
@@ -19,9 +19,9 @@ def install(
     short: Annotated[bool, typer.Option(help="Install with predefined values")] = False
 ):
     # Get the database session
-    learnhouse_config = get_learnhouse_config()
+    launchlms_config = get_launchlms_config()
     engine = create_engine(
-        learnhouse_config.database_config.sql_connection_string, echo=False, pool_pre_ping=True  # type: ignore
+        launchlms_config.database_config.sql_connection_string, echo=False, pool_pre_ping=True  # type: ignore
     )
     SQLModel.metadata.create_all(engine)
 
@@ -51,16 +51,16 @@ def install(
         # Create Organization User
         print("Creating default organization user...")
         # Use email from environment variable if provided, otherwise default to "admin@school.dev"
-        email = os.environ.get("LEARNHOUSE_INITIAL_ADMIN_EMAIL", "admin@school.dev")
+        email = os.environ.get("LAUNCHLMS_INITIAL_ADMIN_EMAIL", "admin@school.dev")
         # Require password from environment variable
-        password = os.environ.get("LEARNHOUSE_INITIAL_ADMIN_PASSWORD")
+        password = os.environ.get("LAUNCHLMS_INITIAL_ADMIN_PASSWORD")
         if not password:
-            print("❌ Error: LEARNHOUSE_INITIAL_ADMIN_PASSWORD environment variable is required")
-            print("Please set LEARNHOUSE_INITIAL_ADMIN_PASSWORD environment variable before running installation.")
+            print("❌ Error: LAUNCHLMS_INITIAL_ADMIN_PASSWORD environment variable is required")
+            print("Please set LAUNCHLMS_INITIAL_ADMIN_PASSWORD environment variable before running installation.")
             raise typer.Exit(code=1)
-        print("Using password from LEARNHOUSE_INITIAL_ADMIN_PASSWORD environment variable")
+        print("Using password from LAUNCHLMS_INITIAL_ADMIN_PASSWORD environment variable")
         if email != "admin@school.dev":
-            print(f"Using email from LEARNHOUSE_INITIAL_ADMIN_EMAIL environment variable: {email}")
+            print(f"Using email from LAUNCHLMS_INITIAL_ADMIN_EMAIL environment variable: {email}")
         user = UserCreate(
             username="admin", email=email, password=password
         )
@@ -78,7 +78,7 @@ def install(
         print("")
         print("Login with the following credentials:")
         print("email: " + email)
-        print("password: (the password you set in LEARNHOUSE_INITIAL_ADMIN_PASSWORD)")
+        print("password: (the password you set in LAUNCHLMS_INITIAL_ADMIN_PASSWORD)")
         print("⚠️ Remember to change the password after logging in ⚠️")
 
     else:

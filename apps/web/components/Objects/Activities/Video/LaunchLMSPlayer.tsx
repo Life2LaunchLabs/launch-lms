@@ -20,7 +20,7 @@ interface VideoDetails {
   muted?: boolean
 }
 
-interface LearnHousePlayerProps {
+interface LaunchLMSPlayerProps {
   src: string
   details?: VideoDetails
   onReady?: () => void
@@ -40,7 +40,7 @@ function formatTime(seconds: number): string {
 
 const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2]
 
-const LearnHousePlayer: React.FC<LearnHousePlayerProps> = ({
+const LaunchLMSPlayer: React.FC<LaunchLMSPlayerProps> = ({
   src,
   details,
   onReady,
@@ -231,7 +231,7 @@ const LearnHousePlayer: React.FC<LearnHousePlayerProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`learnhouse-player relative w-full aspect-video overflow-hidden bg-black ${
+      className={`launch-lms-player relative w-full aspect-video overflow-hidden bg-black ${
         isMobile ? 'rounded-none' : 'rounded-xl shadow-md shadow-gray-300/25 outline outline-1 outline-neutral-200/40'
       }`}
       onMouseMove={!isMobile ? resetHideControlsTimer : undefined}
@@ -428,4 +428,4 @@ const LearnHousePlayer: React.FC<LearnHousePlayerProps> = ({
   )
 }
 
-export default LearnHousePlayer
+export default LaunchLMSPlayer

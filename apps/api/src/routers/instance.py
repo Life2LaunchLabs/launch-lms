@@ -4,7 +4,7 @@ from src.db.organizations import Organization
 from src.core.events.database import get_db_session
 from src.core.deployment_mode import get_deployment_mode
 from src.core.capabilities import CORE_CAPABILITIES
-from config.config import get_learnhouse_config
+from config.config import get_launchlms_config
 
 router = APIRouter()
 
@@ -27,7 +27,7 @@ async def get_instance_info(db_session: Session = Depends(get_db_session)):
     except Exception:
         pass
 
-    config = get_learnhouse_config()
+    config = get_launchlms_config()
     frontend_domain = config.hosting_config.frontend_domain
     top_domain = _strip_port(frontend_domain)
 

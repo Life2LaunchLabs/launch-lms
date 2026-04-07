@@ -5,7 +5,7 @@ import redis
 import json
 import asyncio
 
-from config.config import get_learnhouse_config
+from config.config import get_launchlms_config
 from src.services.ai.base import get_gemini_client
 from src.services.boards.schemas.boards_playground import (
     BoardsPlaygroundContext,
@@ -15,7 +15,7 @@ from src.services.boards.schemas.boards_playground import (
 
 logger = logging.getLogger(__name__)
 
-LH_CONFIG = get_learnhouse_config()
+LH_CONFIG = get_launchlms_config()
 
 BOARDS_PLAYGROUND_SESSION_KEY = "boards_playground_session:{session_uuid}"
 SESSION_TTL = 2160000  # 25 days

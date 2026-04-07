@@ -4,7 +4,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import AddUserGroup from '@components/Objects/Modals/Dash/OrgUserGroups/AddUserGroup'
 import EditUserGroup from '@components/Objects/Modals/Dash/OrgUserGroups/EditUserGroup'
 import ManageUsers from '@components/Objects/Modals/Dash/OrgUserGroups/ManageUsers'
-import LearnHouseSpinner from '@components/Objects/Loaders/LearnHouseSpinner'
+import LaunchLMSSpinner from '@components/Objects/Loaders/LaunchLMSSpinner'
 import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import PlanRestrictedFeature from '@components/Dashboard/Shared/PlanRestricted/PlanRestrictedFeature'
@@ -128,7 +128,7 @@ function OrgUserGroups() {
                     <div className="space-y-1">
                         {isInitialLoading ? (
                             <div className="py-20 flex justify-center">
-                                <LearnHouseSpinner size={36} />
+                                <LaunchLMSSpinner size={36} />
                             </div>
                         ) : filteredUsergroups.length === 0 ? (
                             <div className="py-16 text-center">

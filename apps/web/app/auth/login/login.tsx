@@ -12,7 +12,7 @@ import { checkSSOEnabled, redirectToSSOLogin } from '@services/auth/sso'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@components/Contexts/AuthContext'
-import { getCoreCapabilities, getLEARNHOUSE_TOP_DOMAIN_VAL } from '@services/config/config'
+import { getCoreCapabilities, getLAUNCHLMS_TOP_DOMAIN_VAL } from '@services/config/config'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useTranslation } from 'react-i18next'
 import { resendVerificationEmail } from '@services/auth/auth'
@@ -45,13 +45,13 @@ const LoginClient = (props: LoginClientProps) => {
   const handleGoogleSignIn = () => {
     // Store org context in cookies before OAuth redirect
     if (props.org?.slug) {
-      const topDomain = getLEARNHOUSE_TOP_DOMAIN_VAL();
+      const topDomain = getLAUNCHLMS_TOP_DOMAIN_VAL();
       const isSecure = window.location.protocol === 'https:';
       const secureAttr = isSecure ? '; secure' : '';
       const baseAttributes = `; path=/; SameSite=Lax${secureAttr}`;
       const domainAttr = topDomain === 'localhost' ? '' : `; domain=.${topDomain}`;
-      document.cookie = `learnhouse_oauth_orgslug=${props.org.slug}${baseAttributes}${domainAttr}`;
-      document.cookie = `learnhouse_oauth_org_id=${props.org.id}${baseAttributes}${domainAttr}`;
+      document.cookie = `launchlms_oauth_orgslug=${props.org.slug}${baseAttributes}${domainAttr}`;
+      document.cookie = `launchlms_oauth_org_id=${props.org.id}${baseAttributes}${domainAttr}`;
     }
     // Use absolute URL with current origin for custom domain support
     signIn('google', { callbackUrl: nextUrl || `${window.location.origin}/redirect_from_auth` });

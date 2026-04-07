@@ -1,6 +1,6 @@
 # Security Module Tests
 
-This directory contains comprehensive unit tests for the security module of the LearnHouse API.
+This directory contains comprehensive unit tests for the security module of the Launch LMS API.
 
 ## Test Structure
 

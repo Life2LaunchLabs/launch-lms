@@ -11,7 +11,7 @@ export default function NotFound() {
         <Image quality={100}
           width={270}
           height={100}
-          src={learnhouseIcon}
+          src={appIcon}
           alt="logo"
         />
         </div>

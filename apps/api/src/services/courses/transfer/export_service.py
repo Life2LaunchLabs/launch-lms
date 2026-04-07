@@ -120,7 +120,7 @@ async def export_courses_batch(
         # Create manifest
         manifest = ExportManifest(
             version="1.0.0",
-            format="learnhouse-course-export",
+            format="launch-lms-course-export",
             created_at=datetime.now().isoformat(),
             courses=manifest_courses,
         )

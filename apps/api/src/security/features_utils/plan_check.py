@@ -33,7 +33,7 @@ def _check_mode_bypass(feature_name: str) -> bool | None:
         if capability_key in CORE_CAPABILITIES and not CORE_CAPABILITIES[capability_key]:
             raise HTTPException(
                 status_code=403,
-                detail=f"{feature_name} is currently disabled in this LearnHouse build.",
+                detail=f"{feature_name} is currently disabled in this Launch LMS build.",
             )
         return True
     return None  # SaaS — proceed with plan check

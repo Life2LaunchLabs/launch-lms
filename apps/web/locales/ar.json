@@ -43,11 +43,11 @@
     "help": "مساعدة",
     "help_menu": {
       "documentation": "الوثائق",
-      "website": "موقع LearnHouse",
+      "website": "موقع Launch LMS",
       "discord": "Discord",
       "report_feedback": "الإبلاغ عن مشكلة أو ملاحظات",
       "feedback_title": "إرسال ملاحظات",
-      "feedback_description": "ساعدنا في تحسين LearnHouse من خلال مشاركة أفكارك أو الإبلاغ عن الأخطاء أو اقتراح ميزات جديدة.",
+      "feedback_description": "ساعدنا في تحسين Launch LMS من خلال مشاركة أفكارك أو الإبلاغ عن الأخطاء أو اقتراح ميزات جديدة.",
       "feedback_placeholder": "أخبرنا بما يدور في ذهنك...",
       "feedback_success": "شكراً لملاحظاتك!",
       "send_feedback": "إرسال ملاحظات",
@@ -476,14 +476,14 @@
     "import": {
       "scorm_package": "حزمة SCORM",
       "scorm_description": "استيراد حزم SCORM 1.2 أو SCORM 2004",
-      "learnhouse_courses": "دورات LearnHouse",
-      "learnhouse_description": "استيراد الدورات المصدرة من LearnHouse",
+      "launch-lms_courses": "دورات Launch LMS",
+      "launch-lms_description": "استيراد الدورات المصدرة من Launch LMS",
       "upload_package": "رفع الحزمة",
       "configure": "تكوين",
       "complete": "مكتمل",
       "click_to_upload": "انقر للرفع أو اسحب وأفلت",
-      "learnhouse_format": "تصدير دورة LearnHouse (.zip)",
-      "learnhouse_info": "ارفع حزمة تصدير دورات LearnHouse (.zip). ستتمكن من اختيار الدورات للاستيراد وتكوين خيارات الاستيراد.",
+      "launch-lms_format": "تصدير دورة Launch LMS (.zip)",
+      "launch-lms_info": "ارفع حزمة تصدير دورات Launch LMS (.zip). ستتمكن من اختيار الدورات للاستيراد وتكوين خيارات الاستيراد.",
       "analyze_package": "تحليل الحزمة",
       "ready_to_analyze": "جاهز للتحليل",
       "invalid_file_format": "يرجى رفع ملف .zip",
@@ -1280,7 +1280,7 @@
           "description": "أدر معلوماتك الشخصية، كلمات المرور، البريد الإلكتروني"
         }
       },
-      "learnhouse_university": "جامعة LearnHouse"
+      "launch-lms_university": "جامعة Launch LMS"
     },
     "courses": {
       "title": "الدورات",
@@ -1290,8 +1290,8 @@
       "import_course": "استيراد دورة",
       "import_scorm": "استيراد حزمة SCORM",
       "import_scorm_description": "استيراد حزمة SCORM لإنشاء دورة جديدة",
-      "import_learnhouse": "استيراد دورات LearnHouse",
-      "import_learnhouse_description": "استيراد الدورات من حزمة تصدير LearnHouse",
+      "import_launch-lms": "استيراد دورات Launch LMS",
+      "import_launch-lms_description": "استيراد الدورات من حزمة تصدير Launch LMS",
       "import_select_type": "اختر نوع الحزمة التي تريد استيرادها",
       "no_courses": "لا توجد دورات بعد",
       "create_course_placeholder": "أنشئ دورة لإضافة محتوى",
@@ -3379,7 +3379,7 @@
   "embed": {
     "not_supported_description": "هذا النوع من النشاط يتطلب المصادقة ولا يمكن تضمينه.",
     "not_supported_title": "هذا النشاط غير مدعوم",
-    "powered_by": "مدعوم من LearnHouse",
+    "powered_by": "مدعوم من Launch LMS",
     "visit_activity": "زيارة صفحة النشاط"
   },
   "analytics": {

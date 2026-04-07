@@ -23,7 +23,7 @@ import {
   Box,
 } from 'lucide-react'
 import learnhouseAI_icon from 'public/learnhouse_ai_simple.png'
-import learnhouseAI_logo_black from 'public/learnhouse_ai_black_logo.png'
+import aiLogoBlack from 'public/ai_icon.svg'
 import {
   AIEditorStateTypes,
   useAIEditor,
@@ -1017,7 +1017,7 @@ function AIEditorSidePanel(props: AIEditorSidePanelProps) {
                 isInputDisabled ? 'animate-pulse' : ''
               }`}
               width={24}
-              src={learnhouseAI_icon}
+              src={aiIcon}
               alt=""
             />
             <span className="text-sm font-semibold text-white/80">
@@ -1477,7 +1477,7 @@ const AIEditorSidePanelPlaceholder = (props: { sendMessage: (msg: string) => voi
             <Image
               width={80}
               className="mx-auto"
-              src={learnhouseAI_logo_black}
+              src={aiLogoBlack}
               alt=""
             />
             <p className="pt-3 text-lg font-semibold text-white/70 flex flex-col justify-center items-center">

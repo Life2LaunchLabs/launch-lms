@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
 
-const BACKEND_URL = (process.env.NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL || 'http://localhost:1338').replace(/\/+$/, '')
+const BACKEND_URL = (process.env.NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL || 'http://localhost:1338').replace(/\/+$/, '')
 
 // Cookie names (must match the API routes)
 const ACCESS_TOKEN_COOKIE = 'access_token_cookie'

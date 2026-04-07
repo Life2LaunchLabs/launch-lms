@@ -44,11 +44,11 @@
     "help": "Help",
     "help_menu": {
       "documentation": "Documentation",
-      "website": "LearnHouse Website",
+      "website": "Launch LMS Website",
       "discord": "Discord",
       "report_feedback": "Report Issue or Feedback",
       "feedback_title": "Send Feedback",
-      "feedback_description": "Help us improve LearnHouse by sharing your thoughts, reporting bugs, or suggesting new features.",
+      "feedback_description": "Help us improve Launch LMS by sharing your thoughts, reporting bugs, or suggesting new features.",
       "feedback_placeholder": "Tell us what's on your mind...",
       "feedback_success": "Thank you for your feedback!",
       "send_feedback": "Send Feedback",
@@ -473,14 +473,14 @@
     "import": {
       "scorm_package": "SCORM Package",
       "scorm_description": "Import SCORM 1.2 or SCORM 2004 packages",
-      "learnhouse_courses": "LearnHouse Courses",
-      "learnhouse_description": "Import courses exported from LearnHouse",
+      "launch-lms_courses": "Launch LMS Courses",
+      "launch-lms_description": "Import courses exported from Launch LMS",
       "upload_package": "Upload Package",
       "configure": "Configure",
       "complete": "Complete",
       "click_to_upload": "Click to upload or drag and drop",
-      "learnhouse_format": "LearnHouse course export (.zip)",
-      "learnhouse_info": "Upload a LearnHouse course export package (.zip). You'll be able to select which courses to import and configure import options.",
+      "launch-lms_format": "Launch LMS course export (.zip)",
+      "launch-lms_info": "Upload a Launch LMS course export package (.zip). You'll be able to select which courses to import and configure import options.",
       "analyze_package": "Analyze Package",
       "ready_to_analyze": "Ready to analyze",
       "invalid_file_format": "Please upload a .zip file",
@@ -1158,7 +1158,7 @@
     "not_supported_title": "This activity is not supported",
     "not_supported_description": "This type of activity requires authentication and cannot be embedded.",
     "visit_activity": "Visit Activity Page",
-    "powered_by": "Powered by LearnHouse"
+    "powered_by": "Powered by Launch LMS"
   },
   "assignments": {
     "submit_assignment": "Submit Assignment",
@@ -1529,7 +1529,7 @@
           "description": "Configure your personal settings, passwords, email"
         }
       },
-      "learnhouse_university": "LearnHouse University"
+      "launch-lms_university": "Launch LMS Academy"
     },
     "courses": {
       "title": "Courses",
@@ -2314,8 +2314,8 @@
         "footer_text": "Footer Text",
         "footer_text_placeholder": "Enter footer text...",
         "footer_text_desc": "Custom text displayed at the bottom of your organization pages",
-        "watermark_label": "\"Made with LearnHouse\" watermark",
-        "watermark_desc": "Show the LearnHouse branding watermark on your organization pages",
+        "watermark_label": "Watermark",
+        "watermark_desc": "Show the branding watermark on your organization pages",
         "watermark_free_plan": "Watermark is always shown on the free plan"
       },
       "images": {

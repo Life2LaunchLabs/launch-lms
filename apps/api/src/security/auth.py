@@ -3,7 +3,7 @@ from sqlmodel import Session
 from src.core.events.database import get_db_session
 from src.db.users import AnonymousUser, APITokenUser, PublicUser, User, UserRead
 from src.services.users.users import security_get_user
-from config.config import get_learnhouse_config
+from config.config import get_launchlms_config
 from pydantic import BaseModel
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
@@ -23,7 +23,7 @@ JWT_SECRET_KEY = SECRET_KEY
 JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=8)
 JWT_COOKIE_SAMESITE = "lax"
 JWT_COOKIE_SECURE = True
-JWT_COOKIE_DOMAIN = get_learnhouse_config().hosting_config.cookie_config.domain
+JWT_COOKIE_DOMAIN = get_launchlms_config().hosting_config.cookie_config.domain
 JWT_COOKIE_NAME = "access_token_cookie"
 
 

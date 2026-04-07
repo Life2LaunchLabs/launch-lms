@@ -6,7 +6,7 @@ from src.db.user_organizations import UserOrganization
 from src.db.courses.courses import Course
 from src.db.roles import Role, RoleTypeEnum
 from sqlalchemy import or_
-from config.config import get_learnhouse_config
+from config.config import get_launchlms_config
 from src.core.deployment_mode import get_deployment_mode
 from typing import Literal, TypeAlias
 from fastapi import HTTPException
@@ -49,7 +49,7 @@ def _is_non_saas() -> bool:
 
 def _get_redis_client():
     """Get a Redis client instance."""
-    LH_CONFIG = get_learnhouse_config()
+    LH_CONFIG = get_launchlms_config()
     redis_conn_string = LH_CONFIG.redis_config.redis_connection_string
 
     if not redis_conn_string:

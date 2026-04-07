@@ -39,11 +39,11 @@ async function getInstanceInfo(): Promise<InstanceInfo> {
 
 // Set instance info cookies on a response so client-side can read them synchronously
 function setInstanceCookies(response: NextResponse, info: InstanceInfo) {
-  response.cookies.set({ name: 'learnhouse_multi_org', value: String(info.multi_org_enabled), path: '/' })
-  response.cookies.set({ name: 'learnhouse_default_org', value: info.default_org_slug, path: '/' })
-  response.cookies.set({ name: 'learnhouse_frontend_domain', value: info.frontend_domain, path: '/' })
-  response.cookies.set({ name: 'learnhouse_top_domain', value: info.top_domain, path: '/' })
-  response.cookies.set({ name: 'learnhouse_mode', value: info.mode, path: '/' })
+  response.cookies.set({ name: 'launchlms_multi_org', value: String(info.multi_org_enabled), path: '/' })
+  response.cookies.set({ name: 'launchlms_default_org', value: info.default_org_slug, path: '/' })
+  response.cookies.set({ name: 'launchlms_frontend_domain', value: info.frontend_domain, path: '/' })
+  response.cookies.set({ name: 'launchlms_top_domain', value: info.top_domain, path: '/' })
+  response.cookies.set({ name: 'launchlms_mode', value: info.mode, path: '/' })
   return response
 }
 
@@ -70,7 +70,7 @@ async function resolveCustomDomain(domain: string): Promise<{ slug: string } | n
   }
 }
 
-// Check if the host is a custom domain (not a subdomain of LEARNHOUSE_DOMAIN)
+// Check if the host is a custom domain (not a subdomain of LAUNCHLMS_DOMAIN)
 function isCustomDomain(fullhost: string | null, domain: string): boolean {
   if (!fullhost) return false
   return !isSubdomainOf(fullhost, domain) && !isSameHost(fullhost, domain) && !isLocalhostCheck(fullhost)
@@ -104,16 +104,8 @@ export default async function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl
   const fullhost = req.headers ? req.headers.get('host') : ''
 
-  // SaaS mode: redirect learnhouse.io / www.learnhouse.io → learnhouse.app
-  if (instanceInfo.mode === 'saas' && fullhost) {
-    const bare = stripPort(fullhost)
-    if (bare === 'learnhouse.io' || bare === 'www.learnhouse.io') {
-      const target = new URL(`https://learnhouse.app${pathname}${search}`)
-      return NextResponse.redirect(target, 301)
-    }
-  }
   // Check both old and new cookie names for backward compatibility
-  const cookie_orgslug = req.cookies.get('learnhouse_orgslug')?.value || req.cookies.get('learnhouse_current_orgslug')?.value
+  const cookie_orgslug = req.cookies.get('launchlms_orgslug')?.value || req.cookies.get('launchlms_current_orgslug')?.value
 
   // Cache custom domain resolution within this middleware invocation
   let _resolvedCustomDomainOrg: { slug: string } | null | undefined = undefined
@@ -146,15 +138,15 @@ export default async function proxy(req: NextRequest) {
   }
 
   if (auth_paths.includes(pathname)) {
-    const LEARNHOUSE_DOMAIN = instanceInfo.frontend_domain
-    const LEARNHOUSE_TOP_DOMAIN = instanceInfo.top_domain
+    const LAUNCHLMS_DOMAIN = instanceInfo.frontend_domain
+    const LAUNCHLMS_TOP_DOMAIN = instanceInfo.top_domain
 
     // Resolve orgslug: custom domain > subdomain > cookie
     let orgslug: string | undefined
     let customDomain: string | undefined
 
     // 1. Check for custom domain first
-    if (isCustomDomain(fullhost, LEARNHOUSE_DOMAIN)) {
+    if (isCustomDomain(fullhost, LAUNCHLMS_DOMAIN)) {
       const resolvedOrg = await getResolvedCustomDomain(fullhost as string)
       if (resolvedOrg) {
         orgslug = resolvedOrg.slug
@@ -163,8 +155,8 @@ export default async function proxy(req: NextRequest) {
     }
 
     // 2. Try to extract from subdomain
-    if (!orgslug && fullhost && !isSameHost(fullhost, LEARNHOUSE_DOMAIN)) {
-      const extracted = extractSubdomain(fullhost, LEARNHOUSE_DOMAIN)
+    if (!orgslug && fullhost && !isSameHost(fullhost, LAUNCHLMS_DOMAIN)) {
+      const extracted = extractSubdomain(fullhost, LAUNCHLMS_DOMAIN)
       if (extracted && extracted !== 'auth' && extracted !== 'www' && extracted !== 'api' && extracted !== 'admin') {
         orgslug = extracted
       }
@@ -182,17 +174,17 @@ export default async function proxy(req: NextRequest) {
     // Set cookie if we have an orgslug
     if (orgslug) {
       // For custom domains, don't set domain on cookies (let them be host-specific)
-      const cookieDomain = customDomain ? '' : (LEARNHOUSE_TOP_DOMAIN == 'localhost' ? '' : `.${LEARNHOUSE_TOP_DOMAIN}`)
+      const cookieDomain = customDomain ? '' : (LAUNCHLMS_TOP_DOMAIN == 'localhost' ? '' : `.${LAUNCHLMS_TOP_DOMAIN}`)
 
       // Set both old and new cookie names for compatibility
       response.cookies.set({
-        name: 'learnhouse_current_orgslug',
+        name: 'launchlms_current_orgslug',
         value: orgslug,
         domain: cookieDomain,
         path: '/',
       })
       response.cookies.set({
-        name: 'learnhouse_orgslug',
+        name: 'launchlms_orgslug',
         value: orgslug,
         domain: cookieDomain,
         path: '/',
@@ -201,7 +193,7 @@ export default async function proxy(req: NextRequest) {
       // Set custom domain cookie if applicable
       if (customDomain) {
         response.cookies.set({
-          name: 'learnhouse_custom_domain',
+          name: 'launchlms_custom_domain',
           value: customDomain,
           path: '/',
         })
@@ -272,7 +264,7 @@ export default async function proxy(req: NextRequest) {
     const redirectPathname = '/'
 
     // Check if we have a custom domain cookie
-    const customDomain = req.cookies.get('learnhouse_custom_domain')?.value
+    const customDomain = req.cookies.get('launchlms_custom_domain')?.value
     let redirectUrl: URL
 
     if (customDomain) {
@@ -385,18 +377,18 @@ export default async function proxy(req: NextRequest) {
 
       // Set cookies for the org
       response.cookies.set({
-        name: 'learnhouse_current_orgslug',
+        name: 'launchlms_current_orgslug',
         value: resolvedOrg.slug,
         path: '/',
       })
       response.cookies.set({
-        name: 'learnhouse_orgslug',
+        name: 'launchlms_orgslug',
         value: resolvedOrg.slug,
         path: '/',
       })
       // Set custom domain cookie for link handling
       response.cookies.set({
-        name: 'learnhouse_custom_domain',
+        name: 'launchlms_custom_domain',
         value: fullhost as string,
         path: '/',
       })
@@ -412,16 +404,16 @@ export default async function proxy(req: NextRequest) {
   // Multi Organization Mode
   if (hosting_mode === 'multi') {
     // Get the organization slug from the URL
-    const LEARNHOUSE_DOMAIN = instanceInfo.frontend_domain
-    const LEARNHOUSE_TOP_DOMAIN = instanceInfo.top_domain
+    const LAUNCHLMS_DOMAIN = instanceInfo.frontend_domain
+    const LAUNCHLMS_TOP_DOMAIN = instanceInfo.top_domain
 
     let orgslug: string;
-    const extracted = extractSubdomain(fullhost, LEARNHOUSE_DOMAIN)
+    const extracted = extractSubdomain(fullhost, LAUNCHLMS_DOMAIN)
     if (extracted) {
       orgslug = extracted
     } else if (isLocalhostCheck(fullhost)) {
       orgslug = default_org as string
-    } else if (fullhost && !isSameHost(fullhost, LEARNHOUSE_DOMAIN)) {
+    } else if (fullhost && !isSameHost(fullhost, LAUNCHLMS_DOMAIN)) {
       orgslug = cookie_orgslug || (default_org as string)
     } else {
       orgslug = default_org as string
@@ -433,15 +425,15 @@ export default async function proxy(req: NextRequest) {
 
     // Set the cookie with the orgslug value (both old and new names)
     response.cookies.set({
-      name: 'learnhouse_current_orgslug',
+      name: 'launchlms_current_orgslug',
       value: orgslug,
-      domain: LEARNHOUSE_TOP_DOMAIN == 'localhost' ? '' : `.${LEARNHOUSE_TOP_DOMAIN}`,
+      domain: LAUNCHLMS_TOP_DOMAIN == 'localhost' ? '' : `.${LAUNCHLMS_TOP_DOMAIN}`,
       path: '/',
     })
     response.cookies.set({
-      name: 'learnhouse_orgslug',
+      name: 'launchlms_orgslug',
       value: orgslug,
-      domain: LEARNHOUSE_TOP_DOMAIN == 'localhost' ? '' : `.${LEARNHOUSE_TOP_DOMAIN}`,
+      domain: LAUNCHLMS_TOP_DOMAIN == 'localhost' ? '' : `.${LAUNCHLMS_TOP_DOMAIN}`,
       path: '/',
     })
 
@@ -452,7 +444,7 @@ export default async function proxy(req: NextRequest) {
   // Single Organization Mode
   if (hosting_mode === 'single') {
     // Get the default organization slug
-    const LEARNHOUSE_TOP_DOMAIN = instanceInfo.top_domain
+    const LAUNCHLMS_TOP_DOMAIN = instanceInfo.top_domain
     const orgslug = default_org as string
     const response = NextResponse.rewrite(
       new URL(`/orgs/${orgslug}${pathname}`, req.url)
@@ -460,15 +452,15 @@ export default async function proxy(req: NextRequest) {
 
     // Set the cookie with the orgslug value (both old and new names)
     response.cookies.set({
-      name: 'learnhouse_current_orgslug',
+      name: 'launchlms_current_orgslug',
       value: orgslug,
-      domain: LEARNHOUSE_TOP_DOMAIN == 'localhost' ? '' : `.${LEARNHOUSE_TOP_DOMAIN}`,
+      domain: LAUNCHLMS_TOP_DOMAIN == 'localhost' ? '' : `.${LAUNCHLMS_TOP_DOMAIN}`,
       path: '/',
     })
     response.cookies.set({
-      name: 'learnhouse_orgslug',
+      name: 'launchlms_orgslug',
       value: orgslug,
-      domain: LEARNHOUSE_TOP_DOMAIN == 'localhost' ? '' : `.${LEARNHOUSE_TOP_DOMAIN}`,
+      domain: LAUNCHLMS_TOP_DOMAIN == 'localhost' ? '' : `.${LAUNCHLMS_TOP_DOMAIN}`,
       path: '/',
     })
 

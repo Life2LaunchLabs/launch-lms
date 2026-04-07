@@ -26,11 +26,11 @@ from src.services.packs.packs import (
 # ============================================================================
 
 async def verify_platform_key(x_platform_key: str = Header(...)):
-    expected_key = os.getenv("LEARNHOUSE_PLATFORM_API_KEY", "")
+    expected_key = os.getenv("LAUNCHLMS_PLATFORM_API_KEY", "")
     if not expected_key:
         raise HTTPException(
             status_code=500,
-            detail="LEARNHOUSE_PLATFORM_API_KEY is not configured on the server",
+            detail="LAUNCHLMS_PLATFORM_API_KEY is not configured on the server",
         )
     if not hmac.compare_digest(x_platform_key, expected_key):
         raise HTTPException(status_code=403, detail="Invalid platform API key")

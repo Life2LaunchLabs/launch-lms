@@ -411,7 +411,7 @@ function Editor(props: Editor) {
                         <Image
                           className=""
                           width={20}
-                          src={learnhouseAI_icon}
+                          src={aiIcon}
                           alt=""
                         />
                       </i>{' '}
@@ -426,7 +426,7 @@ function Editor(props: Editor) {
                         <Image
                           className="opacity-50 grayscale"
                           width={20}
-                          src={learnhouseAI_icon}
+                          src={aiIcon}
                           alt=""
                         />
                       </i>
@@ -617,7 +617,7 @@ const EditorLearnHouseLogo = () => {
       >
         <Image
           src="/lrn.svg"
-          alt="LearnHouse"
+          alt="Launch LMS"
           width={14}
           height={14}
           className="invert"

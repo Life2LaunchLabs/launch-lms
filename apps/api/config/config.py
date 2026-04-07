@@ -95,7 +95,7 @@ class InternalPaymentsConfig(BaseModel):
     stripe: InternalStripeConfig
 
 
-class LearnHouseConfig(BaseModel):
+class LaunchLMSConfig(BaseModel):
     site_name: str
     site_description: str
     contact_email: str
@@ -111,7 +111,7 @@ class LearnHouseConfig(BaseModel):
     judge0_config: Judge0Config | None
 
 
-def get_learnhouse_config() -> LearnHouseConfig:
+def get_launchlms_config() -> LaunchLMSConfig:
 
     load_dotenv()
 
@@ -129,7 +129,7 @@ def get_learnhouse_config() -> LearnHouseConfig:
     # General Config
 
     # Development Mode
-    env_development_mode_str = os.environ.get("LEARNHOUSE_DEVELOPMENT_MODE", "None")
+    env_development_mode_str = os.environ.get("LAUNCHLMS_DEVELOPMENT_MODE", "None")
     if env_development_mode_str != "None":
         env_development_mode = env_development_mode_str.lower() in ("true", "1", "yes")
     else:
@@ -141,21 +141,21 @@ def get_learnhouse_config() -> LearnHouseConfig:
     )
 
     # Sentry config
-    env_sentry_dsn = os.environ.get("LEARNHOUSE_SENTRY_DSN")
+    env_sentry_dsn = os.environ.get("LAUNCHLMS_SENTRY_DSN")
     sentry_dsn = env_sentry_dsn or yaml_config.get("general", {}).get("sentry_dsn")
 
     # Environment (dev or prod)
-    learnhouse_env = os.environ.get("LEARNHOUSE_ENV", "dev")
+    launchlms_env = os.environ.get("LAUNCHLMS_ENV", "dev")
 
     # SaaS Mode (enables plan-based gating and usage limits)
-    env_saas_mode = os.environ.get("LEARNHOUSE_SAAS", "None")
+    env_saas_mode = os.environ.get("LAUNCHLMS_SAAS", "None")
     saas_mode = (
         env_saas_mode.lower() in ("true", "1", "yes") if env_saas_mode != "None"
         else yaml_config.get("general", {}).get("saas_mode", False)
     )
 
     # Security Config
-    env_auth_jwt_secret_key = os.environ.get("LEARNHOUSE_AUTH_JWT_SECRET_KEY")
+    env_auth_jwt_secret_key = os.environ.get("LAUNCHLMS_AUTH_JWT_SECRET_KEY")
     auth_jwt_secret_key = env_auth_jwt_secret_key or yaml_config.get(
         "security", {}
     ).get("auth_jwt_secret_key")
@@ -163,36 +163,36 @@ def get_learnhouse_config() -> LearnHouseConfig:
     # SECURITY: Validate JWT secret key exists and has sufficient entropy
     if not auth_jwt_secret_key:
         raise ValueError(
-            "SECURITY ERROR: LEARNHOUSE_AUTH_JWT_SECRET_KEY must be set. "
+            "SECURITY ERROR: LAUNCHLMS_AUTH_JWT_SECRET_KEY must be set. "
             "Generate a secure key with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
         )
     if len(auth_jwt_secret_key) < 32:
         raise ValueError(
-            "SECURITY ERROR: LEARNHOUSE_AUTH_JWT_SECRET_KEY must be at least 32 characters. "
+            "SECURITY ERROR: LAUNCHLMS_AUTH_JWT_SECRET_KEY must be at least 32 characters. "
             "Current length: {}. Generate a secure key with: python -c \"import secrets; print(secrets.token_urlsafe(32))\"".format(
                 len(auth_jwt_secret_key)
             )
         )
 
     # Check if environment variables are defined
-    env_site_name = os.environ.get("LEARNHOUSE_SITE_NAME")
-    env_site_description = os.environ.get("LEARNHOUSE_SITE_DESCRIPTION")
-    env_contact_email = os.environ.get("LEARNHOUSE_CONTACT_EMAIL")
-    env_domain = os.environ.get("LEARNHOUSE_DOMAIN")
-    os.environ.get("LEARNHOUSE_PORT")
-    env_ssl = os.environ.get("LEARNHOUSE_SSL")
-    env_port = os.environ.get("LEARNHOUSE_PORT")
-    env_use_default_org = os.environ.get("LEARNHOUSE_USE_DEFAULT_ORG")
-    env_allowed_origins = os.environ.get("LEARNHOUSE_ALLOWED_ORIGINS")
-    env_cookie_domain = os.environ.get("LEARNHOUSE_COOKIE_DOMAIN")
-    env_frontend_domain = os.environ.get("LEARNHOUSE_FRONTEND_DOMAIN")
+    env_site_name = os.environ.get("LAUNCHLMS_SITE_NAME")
+    env_site_description = os.environ.get("LAUNCHLMS_SITE_DESCRIPTION")
+    env_contact_email = os.environ.get("LAUNCHLMS_CONTACT_EMAIL")
+    env_domain = os.environ.get("LAUNCHLMS_DOMAIN")
+    os.environ.get("LAUNCHLMS_PORT")
+    env_ssl = os.environ.get("LAUNCHLMS_SSL")
+    env_port = os.environ.get("LAUNCHLMS_PORT")
+    env_use_default_org = os.environ.get("LAUNCHLMS_USE_DEFAULT_ORG")
+    env_allowed_origins = os.environ.get("LAUNCHLMS_ALLOWED_ORIGINS")
+    env_cookie_domain = os.environ.get("LAUNCHLMS_COOKIE_DOMAIN")
+    env_frontend_domain = os.environ.get("LAUNCHLMS_FRONTEND_DOMAIN")
 
     # Allowed origins should be a comma separated string
     if env_allowed_origins:
         env_allowed_origins = env_allowed_origins.split(",")
-    env_allowed_regexp = os.environ.get("LEARNHOUSE_ALLOWED_REGEXP")
-    env_self_hosted = os.environ.get("LEARNHOUSE_SELF_HOSTED")
-    env_sql_connection_string = os.environ.get("LEARNHOUSE_SQL_CONNECTION_STRING")
+    env_allowed_regexp = os.environ.get("LAUNCHLMS_ALLOWED_REGEXP")
+    env_self_hosted = os.environ.get("LAUNCHLMS_SELF_HOSTED")
+    env_sql_connection_string = os.environ.get("LAUNCHLMS_SQL_CONNECTION_STRING")
 
     
 
@@ -226,14 +226,14 @@ def get_learnhouse_config() -> LearnHouseConfig:
         "frontend_domain", "localhost:3000"
     )
 
-    env_content_delivery_type = os.environ.get("LEARNHOUSE_CONTENT_DELIVERY_TYPE")
+    env_content_delivery_type = os.environ.get("LAUNCHLMS_CONTENT_DELIVERY_TYPE")
     content_delivery_type: str = env_content_delivery_type or (
         (yaml_config.get("hosting_config", {}).get("content_delivery", {}).get("type"))
         or "filesystem"
     )  # default to filesystem
 
-    env_bucket_name = os.environ.get("LEARNHOUSE_S3_API_BUCKET_NAME")
-    env_endpoint_url = os.environ.get("LEARNHOUSE_S3_API_ENDPOINT_URL")
+    env_bucket_name = os.environ.get("LAUNCHLMS_S3_API_BUCKET_NAME")
+    env_endpoint_url = os.environ.get("LAUNCHLMS_S3_API_ENDPOINT_URL")
     bucket_name = (
         yaml_config.get("hosting_config", {})
         .get("content_delivery", {})
@@ -258,8 +258,8 @@ def get_learnhouse_config() -> LearnHouseConfig:
     ).get("sql_connection_string")
 
     # AI Config
-    env_gemini_api_key = os.environ.get("LEARNHOUSE_GEMINI_API_KEY")
-    env_is_ai_enabled_str = os.environ.get("LEARNHOUSE_IS_AI_ENABLED")
+    env_gemini_api_key = os.environ.get("LAUNCHLMS_GEMINI_API_KEY")
+    env_is_ai_enabled_str = os.environ.get("LAUNCHLMS_IS_AI_ENABLED")
 
     gemini_api_key = env_gemini_api_key or yaml_config.get("ai_config", {}).get(
         "gemini_api_key"
@@ -272,20 +272,20 @@ def get_learnhouse_config() -> LearnHouseConfig:
         is_ai_enabled = yaml_config.get("ai_config", {}).get("is_ai_enabled", False)
 
     # Redis config
-    env_redis_connection_string = os.environ.get("LEARNHOUSE_REDIS_CONNECTION_STRING")
+    env_redis_connection_string = os.environ.get("LAUNCHLMS_REDIS_CONNECTION_STRING")
     redis_connection_string = env_redis_connection_string or yaml_config.get(
         "redis_config", {}
     ).get("redis_connection_string")
 
     # Mailing config
-    env_email_provider = os.environ.get("LEARNHOUSE_EMAIL_PROVIDER")
-    env_resend_api_key = os.environ.get("LEARNHOUSE_RESEND_API_KEY")
-    env_system_email_address = os.environ.get("LEARNHOUSE_SYSTEM_EMAIL_ADDRESS")
-    env_smtp_host = os.environ.get("LEARNHOUSE_SMTP_HOST")
-    env_smtp_port = os.environ.get("LEARNHOUSE_SMTP_PORT")
-    env_smtp_username = os.environ.get("LEARNHOUSE_SMTP_USERNAME")
-    env_smtp_password = os.environ.get("LEARNHOUSE_SMTP_PASSWORD")
-    env_smtp_use_tls = os.environ.get("LEARNHOUSE_SMTP_USE_TLS")
+    env_email_provider = os.environ.get("LAUNCHLMS_EMAIL_PROVIDER")
+    env_resend_api_key = os.environ.get("LAUNCHLMS_RESEND_API_KEY")
+    env_system_email_address = os.environ.get("LAUNCHLMS_SYSTEM_EMAIL_ADDRESS")
+    env_smtp_host = os.environ.get("LAUNCHLMS_SMTP_HOST")
+    env_smtp_port = os.environ.get("LAUNCHLMS_SMTP_PORT")
+    env_smtp_username = os.environ.get("LAUNCHLMS_SMTP_USERNAME")
+    env_smtp_password = os.environ.get("LAUNCHLMS_SMTP_PASSWORD")
+    env_smtp_use_tls = os.environ.get("LAUNCHLMS_SMTP_USE_TLS")
 
     email_provider = env_email_provider or yaml_config.get("mailing_config", {}).get(
         "email_provider", "resend"
@@ -306,9 +306,9 @@ def get_learnhouse_config() -> LearnHouseConfig:
     )
 
     # Tinybird config — auto-enabled when API URL is set
-    env_tinybird_api_url = os.environ.get("LEARNHOUSE_TINYBIRD_API_URL")
-    env_tinybird_ingest_token = os.environ.get("LEARNHOUSE_TINYBIRD_INGEST_TOKEN")
-    env_tinybird_read_token = os.environ.get("LEARNHOUSE_TINYBIRD_READ_TOKEN")
+    env_tinybird_api_url = os.environ.get("LAUNCHLMS_TINYBIRD_API_URL")
+    env_tinybird_ingest_token = os.environ.get("LAUNCHLMS_TINYBIRD_INGEST_TOKEN")
+    env_tinybird_read_token = os.environ.get("LAUNCHLMS_TINYBIRD_READ_TOKEN")
 
     tinybird_api_url = env_tinybird_api_url or yaml_config.get("tinybird_config", {}).get("api_url", "")
     tinybird_ingest_token = env_tinybird_ingest_token or yaml_config.get("tinybird_config", {}).get("ingest_token", "")
@@ -323,9 +323,9 @@ def get_learnhouse_config() -> LearnHouseConfig:
         )
 
     # Judge0 config — auto-enabled when API URL is set
-    env_judge0_api_url = os.environ.get("LEARNHOUSE_JUDGE0_API_URL")
-    env_judge0_client_id = os.environ.get("LEARNHOUSE_JUDGE0_CLIENT_ID")
-    env_judge0_client_secret = os.environ.get("LEARNHOUSE_JUDGE0_CLIENT_SECRET")
+    env_judge0_api_url = os.environ.get("LAUNCHLMS_JUDGE0_API_URL")
+    env_judge0_client_id = os.environ.get("LAUNCHLMS_JUDGE0_CLIENT_ID")
+    env_judge0_client_secret = os.environ.get("LAUNCHLMS_JUDGE0_CLIENT_SECRET")
 
     judge0_api_url = env_judge0_api_url or yaml_config.get("judge0_config", {}).get("api_url", "")
     judge0_client_id = env_judge0_client_id or yaml_config.get("judge0_config", {}).get("client_id")
@@ -340,11 +340,11 @@ def get_learnhouse_config() -> LearnHouseConfig:
         )
 
     # Payments config
-    env_stripe_secret_key = os.environ.get("LEARNHOUSE_STRIPE_SECRET_KEY")
-    env_stripe_publishable_key = os.environ.get("LEARNHOUSE_STRIPE_PUBLISHABLE_KEY")
-    env_stripe_webhook_standard_secret = os.environ.get("LEARNHOUSE_STRIPE_WEBHOOK_STANDARD_SECRET")
-    env_stripe_webhook_connect_secret = os.environ.get("LEARNHOUSE_STRIPE_WEBHOOK_CONNECT_SECRET")
-    env_stripe_client_id = os.environ.get("LEARNHOUSE_STRIPE_CLIENT_ID")
+    env_stripe_secret_key = os.environ.get("LAUNCHLMS_STRIPE_SECRET_KEY")
+    env_stripe_publishable_key = os.environ.get("LAUNCHLMS_STRIPE_PUBLISHABLE_KEY")
+    env_stripe_webhook_standard_secret = os.environ.get("LAUNCHLMS_STRIPE_WEBHOOK_STANDARD_SECRET")
+    env_stripe_webhook_connect_secret = os.environ.get("LAUNCHLMS_STRIPE_WEBHOOK_CONNECT_SECRET")
+    env_stripe_client_id = os.environ.get("LAUNCHLMS_STRIPE_CLIENT_ID")
     
     stripe_secret_key = env_stripe_secret_key or yaml_config.get("payments_config", {}).get(
         "stripe", {}
@@ -389,8 +389,8 @@ def get_learnhouse_config() -> LearnHouseConfig:
         is_ai_enabled=bool(is_ai_enabled),
     )
 
-    # Create LearnHouseConfig object
-    config = LearnHouseConfig(
+    # Create LaunchLMSConfig object
+    config = LaunchLMSConfig(
         site_name=site_name,
         site_description=site_description,
         contact_email=contact_email,
@@ -398,7 +398,7 @@ def get_learnhouse_config() -> LearnHouseConfig:
             development_mode=bool(development_mode),
             sentry_config=SentryConfig(dsn=sentry_dsn),
             saas_mode=bool(saas_mode),
-            env=learnhouse_env,
+            env=launchlms_env,
         ),
         hosting_config=hosting_config,
         database_config=database_config,

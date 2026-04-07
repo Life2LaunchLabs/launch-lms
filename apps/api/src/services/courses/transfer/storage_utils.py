@@ -12,36 +12,36 @@ import os
 from typing import Optional
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
-from config.config import get_learnhouse_config
+from config.config import get_launchlms_config
 
 logger = logging.getLogger(__name__)
 
 
 def get_content_delivery_type() -> str:
     """Get the configured content delivery type."""
-    learnhouse_config = get_learnhouse_config()
-    return learnhouse_config.hosting_config.content_delivery.type
+    launchlms_config = get_launchlms_config()
+    return launchlms_config.hosting_config.content_delivery.type
 
 
 def get_storage_client():
     """
     Get boto3 S3 client if S3 is configured, otherwise return None.
     """
-    learnhouse_config = get_learnhouse_config()
-    content_delivery = learnhouse_config.hosting_config.content_delivery.type
+    launchlms_config = get_launchlms_config()
+    content_delivery = launchlms_config.hosting_config.content_delivery.type
 
     if content_delivery == "s3api":
         return boto3.client(
             "s3",
-            endpoint_url=learnhouse_config.hosting_config.content_delivery.s3api.endpoint_url,
+            endpoint_url=launchlms_config.hosting_config.content_delivery.s3api.endpoint_url,
         )
     return None
 
 
 def get_s3_bucket_name() -> str:
     """Get the S3 bucket name from config."""
-    learnhouse_config = get_learnhouse_config()
-    return learnhouse_config.hosting_config.content_delivery.s3api.bucket_name or "learnhouse-media"
+    launchlms_config = get_launchlms_config()
+    return launchlms_config.hosting_config.content_delivery.s3api.bucket_name or "launch-lms-media"
 
 
 def is_s3_enabled() -> bool:

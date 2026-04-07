@@ -10,8 +10,8 @@ import React, {
 } from 'react'
 import {
   getAPIUrl,
-  getLEARNHOUSE_TOP_DOMAIN_VAL,
-  getLEARNHOUSE_DOMAIN_VAL,
+  getLAUNCHLMS_TOP_DOMAIN_VAL,
+  getLAUNCHLMS_DOMAIN_VAL,
 } from '@services/config/config'
 import { isSubdomainOf, isSameHost, isLocalhost as isLocalhostCheck } from '@services/utils/ts/hostUtils'
 
@@ -70,8 +70,8 @@ interface SessionCache {
 
 const SESSION_CACHE_TTL = 10 * 60 * 1000 // 10 minutes
 const TOKEN_REFRESH_THRESHOLD = 60 * 1000 // 1 minute before expiry
-const AUTH_BROADCAST_CHANNEL = 'learnhouse_auth_sync'
-const OAUTH_STATE_COOKIE = 'learnhouse_oauth_state'
+const AUTH_BROADCAST_CHANNEL = 'launchlms_auth_sync'
+const OAUTH_STATE_COOKIE = 'launchlms_oauth_state'
 
 // Context
 interface AuthContextValue {
@@ -96,7 +96,7 @@ function generateSecureToken(length: number = 32): string {
 function isCustomDomain(): boolean {
   if (typeof window === 'undefined') return false
   const hostname = window.location.hostname
-  const domain = getLEARNHOUSE_DOMAIN_VAL()
+  const domain = getLAUNCHLMS_DOMAIN_VAL()
   return !isSubdomainOf(hostname, domain) && !isSameHost(hostname, domain) && !isLocalhostCheck(hostname)
 }
 
@@ -104,7 +104,7 @@ function isCustomDomain(): boolean {
 function getCookieAttributes(): { secureAttr: string; domainAttr: string; sameSiteAttr: string } {
   const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:'
   const secureAttr = isSecure ? '; Secure' : ''
-  const topDomain = getLEARNHOUSE_TOP_DOMAIN_VAL()
+  const topDomain = getLAUNCHLMS_TOP_DOMAIN_VAL()
 
   // For custom domains, don't set domain attribute (host-only cookie)
   // For localhost, don't set domain attribute
@@ -231,7 +231,7 @@ export function SessionProvider({
 
   // Check if a session might exist (marker cookie is set alongside httpOnly auth cookies)
   const hasSessionMarker = useCallback((): boolean => {
-    return typeof document !== 'undefined' && document.cookie.includes('learnhouse_has_session')
+    return typeof document !== 'undefined' && document.cookie.includes('launchlms_has_session')
   }, [])
 
   // Refresh access token using refresh token cookie
@@ -569,10 +569,10 @@ export function SessionProvider({
 
           if (options.orgSlug || options.orgId) {
             if (options.orgSlug) {
-              document.cookie = `learnhouse_oauth_orgslug=${options.orgSlug}${baseAttributes}${domainAttr}`
+              document.cookie = `launchlms_oauth_orgslug=${options.orgSlug}${baseAttributes}${domainAttr}`
             }
             if (options.orgId) {
-              document.cookie = `learnhouse_oauth_org_id=${options.orgId}${baseAttributes}${domainAttr}`
+              document.cookie = `launchlms_oauth_org_id=${options.orgId}${baseAttributes}${domainAttr}`
             }
           }
 
@@ -595,7 +595,7 @@ export function SessionProvider({
           setOAuthStateCookie(csrfToken)
 
           // Always use main domain for redirect URI — only one URI registered with Google
-          const redirectUri = `${window.location.protocol}//${getLEARNHOUSE_DOMAIN_VAL()}/auth/callback/google`
+          const redirectUri = `${window.location.protocol}//${getLAUNCHLMS_DOMAIN_VAL()}/auth/callback/google`
 
           // Get Google OAuth URL from server (client ID lives server-side only)
           const authResponse = await fetch('/api/auth/google/authorize', {
@@ -670,8 +670,8 @@ export function SessionProvider({
     // Clear any auth cookies on client side
     const { secureAttr, domainAttr, sameSiteAttr } = getCookieAttributes()
     const expireAttr = '; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-    document.cookie = `learnhouse_oauth_orgslug=; path=/${expireAttr}${secureAttr}${domainAttr}`
-    document.cookie = `learnhouse_oauth_org_id=; path=/${expireAttr}${secureAttr}${domainAttr}`
+    document.cookie = `launchlms_oauth_orgslug=; path=/${expireAttr}${secureAttr}${domainAttr}`
+    document.cookie = `launchlms_oauth_org_id=; path=/${expireAttr}${secureAttr}${domainAttr}`
 
     // Clear OAuth state
     clearOAuthStateCookie()
@@ -797,7 +797,7 @@ export async function signIn(
     setOAuthStateCookie(csrfToken)
 
     // Always use main domain for redirect URI — only one URI registered with Google
-    const redirectUri = `${window.location.protocol}//${getLEARNHOUSE_DOMAIN_VAL()}/auth/callback/google`
+    const redirectUri = `${window.location.protocol}//${getLAUNCHLMS_DOMAIN_VAL()}/auth/callback/google`
 
     // Get Google OAuth URL from server (client ID lives server-side only)
     const authResponse = await fetch('/api/auth/google/authorize', {
@@ -849,8 +849,8 @@ export async function signOut(options?: SignOutOptions): Promise<void> {
   // Clear cookies
   const { secureAttr, domainAttr, sameSiteAttr } = getCookieAttributes()
   const expireAttr = '; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-  document.cookie = `learnhouse_oauth_orgslug=; path=/${expireAttr}${secureAttr}${domainAttr}`
-  document.cookie = `learnhouse_oauth_org_id=; path=/${expireAttr}${secureAttr}${domainAttr}`
+  document.cookie = `launchlms_oauth_orgslug=; path=/${expireAttr}${secureAttr}${domainAttr}`
+  document.cookie = `launchlms_oauth_org_id=; path=/${expireAttr}${secureAttr}${domainAttr}`
 
   // Clear OAuth state
   clearOAuthStateCookie()

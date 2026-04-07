@@ -41,7 +41,7 @@ class TestCSRFOriginValidation:
     """Test origin checking logic."""
 
     def test_allowed_origin_exact_match(self):
-        with patch("src.security.csrf.get_learnhouse_config", return_value=_make_mock_config(
+        with patch("src.security.csrf.get_launchlms_config", return_value=_make_mock_config(
             allowed_origins=["https://example.com", "https://app.example.com"]
         )):
             from src.security.csrf import CSRFProtectionMiddleware
@@ -50,7 +50,7 @@ class TestCSRFOriginValidation:
             assert mw.is_allowed_origin("https://app.example.com") is True
 
     def test_disallowed_origin(self):
-        with patch("src.security.csrf.get_learnhouse_config", return_value=_make_mock_config(
+        with patch("src.security.csrf.get_launchlms_config", return_value=_make_mock_config(
             allowed_origins=["https://example.com"]
         )):
             from src.security.csrf import CSRFProtectionMiddleware
@@ -58,7 +58,7 @@ class TestCSRFOriginValidation:
             assert mw.is_allowed_origin("https://evil.com") is False
 
     def test_no_origin_no_referer_rejected(self):
-        with patch("src.security.csrf.get_learnhouse_config", return_value=_make_mock_config(
+        with patch("src.security.csrf.get_launchlms_config", return_value=_make_mock_config(
             allowed_origins=["https://example.com"]
         )):
             from src.security.csrf import CSRFProtectionMiddleware
@@ -66,7 +66,7 @@ class TestCSRFOriginValidation:
             assert mw.is_allowed_origin(None, None) is False
 
     def test_referer_fallback(self):
-        with patch("src.security.csrf.get_learnhouse_config", return_value=_make_mock_config(
+        with patch("src.security.csrf.get_launchlms_config", return_value=_make_mock_config(
             allowed_origins=["https://example.com"]
         )):
             from src.security.csrf import CSRFProtectionMiddleware
@@ -75,7 +75,7 @@ class TestCSRFOriginValidation:
             assert mw.is_allowed_origin(None, "https://example.com/some/page") is True
 
     def test_referer_fallback_disallowed(self):
-        with patch("src.security.csrf.get_learnhouse_config", return_value=_make_mock_config(
+        with patch("src.security.csrf.get_launchlms_config", return_value=_make_mock_config(
             allowed_origins=["https://example.com"]
         )):
             from src.security.csrf import CSRFProtectionMiddleware
@@ -83,7 +83,7 @@ class TestCSRFOriginValidation:
             assert mw.is_allowed_origin(None, "https://evil.com/page") is False
 
     def test_regex_origin_match(self):
-        with patch("src.security.csrf.get_learnhouse_config", return_value=_make_mock_config(
+        with patch("src.security.csrf.get_launchlms_config", return_value=_make_mock_config(
             allowed_origins=[],
             allowed_regexp=r"https://.*\.example\.com"
         )):
@@ -93,7 +93,7 @@ class TestCSRFOriginValidation:
             assert mw.is_allowed_origin("https://evil.com") is False
 
     def test_development_mode_localhost(self):
-        with patch("src.security.csrf.get_learnhouse_config", return_value=_make_mock_config(
+        with patch("src.security.csrf.get_launchlms_config", return_value=_make_mock_config(
             allowed_origins=[],
             development_mode=True
         )):
@@ -103,7 +103,7 @@ class TestCSRFOriginValidation:
             assert mw.is_allowed_origin("http://127.0.0.1:8000") is True
 
     def test_production_mode_no_localhost(self):
-        with patch("src.security.csrf.get_learnhouse_config", return_value=_make_mock_config(
+        with patch("src.security.csrf.get_launchlms_config", return_value=_make_mock_config(
             allowed_origins=[],
             development_mode=False
         )):
@@ -116,7 +116,7 @@ class TestCSRFExemptions:
     """Test CSRF exemption logic."""
 
     def _make_middleware(self):
-        with patch("src.security.csrf.get_learnhouse_config", return_value=_make_mock_config(
+        with patch("src.security.csrf.get_launchlms_config", return_value=_make_mock_config(
             allowed_origins=["https://example.com"]
         )):
             from src.security.csrf import CSRFProtectionMiddleware

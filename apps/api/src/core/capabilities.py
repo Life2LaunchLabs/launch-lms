@@ -1,7 +1,7 @@
 """
 Core product capability definitions.
 
-LearnHouse no longer ships separate OSS/EE product editions. Instead, the core
+Launch LMS no longer ships separate OSS/EE product editions. Instead, the core
 application exposes a fixed set of capabilities for self-hosted installs and a
 separate SaaS mode for hosted plan enforcement.
 """

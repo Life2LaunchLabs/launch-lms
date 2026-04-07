@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, Upload
 from pydantic import BaseModel, EmailStr
 from sqlmodel import Session
 import redis
-from config.config import get_learnhouse_config
+from config.config import get_launchlms_config
 from src.services.users.password_reset import (
     change_password_with_reset_code,
     change_password_with_reset_code_platform,
@@ -57,7 +57,7 @@ SESSION_CACHE_TTL = 600  # 10 minutes
 def _get_redis_client() -> Optional[redis.Redis]:
     """Return a Redis client or None if unavailable."""
     try:
-        config = get_learnhouse_config()
+        config = get_launchlms_config()
         conn_string = config.redis_config.redis_connection_string
         if not conn_string:
             return None

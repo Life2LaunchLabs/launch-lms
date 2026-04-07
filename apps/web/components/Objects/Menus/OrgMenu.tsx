@@ -280,24 +280,6 @@ export const OrgMenu = (props: any) => {
                       <span>{t('common.help')}</span>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <a href="https://docs.learnhouse.app" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-                        <Book size={16} weight="fill" />
-                        <span>{t('common.help_menu.documentation')}</span>
-                      </a>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <a href="https://learnhouse.app" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-                        <Globe size={16} weight="fill" />
-                        <span>{t('common.help_menu.website')}</span>
-                      </a>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <a href="https://discord.gg/learnhouse" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-                        <DiscordIcon size={16} />
-                        <span>{t('common.help_menu.discord')}</span>
-                      </a>
-                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => setFeedbackModalOpen(true)} className="flex items-center gap-2">
                       <ChatCircleDots size={16} weight="fill" />

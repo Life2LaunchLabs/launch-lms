@@ -8,7 +8,7 @@ import redis
 from datetime import datetime, timedelta
 from sqlmodel import Session, select
 from src.services.email.utils import send_email
-from config.config import get_learnhouse_config
+from config.config import get_launchlms_config
 from src.services.orgs.orgs import rbac_check
 from src.db.users import AnonymousUser, PublicUser, UserRead
 from src.db.organizations import (
@@ -27,7 +27,7 @@ async def create_invite_code(
     usergroup_id: Optional[int] = None,
 ):
     # Redis init
-    LH_CONFIG = get_learnhouse_config()
+    LH_CONFIG = get_launchlms_config()
     redis_conn_string = LH_CONFIG.redis_config.redis_connection_string
 
     if not redis_conn_string:
@@ -120,7 +120,7 @@ async def get_invite_codes(
     db_session: Session,
 ):
     # Redis init
-    LH_CONFIG = get_learnhouse_config()
+    LH_CONFIG = get_launchlms_config()
     redis_conn_string = LH_CONFIG.redis_config.redis_connection_string
 
     if not redis_conn_string:
@@ -182,7 +182,7 @@ async def get_invite_code(
     db_session: Session,
 ):
     # Redis init
-    LH_CONFIG = get_learnhouse_config()
+    LH_CONFIG = get_launchlms_config()
     redis_conn_string = LH_CONFIG.redis_config.redis_connection_string
 
     if not redis_conn_string:
@@ -247,7 +247,7 @@ async def delete_invite_code(
     db_session: Session,
 ):
     # Redis init
-    LH_CONFIG = get_learnhouse_config()
+    LH_CONFIG = get_launchlms_config()
     redis_conn_string = LH_CONFIG.redis_config.redis_connection_string
 
     if not redis_conn_string:
@@ -300,7 +300,7 @@ def send_invite_email(
     email: EmailStr,
     base_url: str,
 ):
-    LH_CONFIG = get_learnhouse_config()
+    LH_CONFIG = get_launchlms_config()
     redis_conn_string = LH_CONFIG.redis_config.redis_connection_string
 
     if not redis_conn_string:

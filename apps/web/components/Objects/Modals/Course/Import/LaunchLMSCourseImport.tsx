@@ -40,17 +40,17 @@ interface CourseSelection {
   include: boolean
 }
 
-interface LearnHouseCourseImportProps {
+interface LaunchLMSCourseImportProps {
   orgId: number
   orgslug: string
   closeModal: () => void
 }
 
-function LearnHouseCourseImport({
+function LaunchLMSCourseImport({
   orgId,
   orgslug,
   closeModal,
-}: LearnHouseCourseImportProps) {
+}: LaunchLMSCourseImportProps) {
   const { t } = useTranslation()
   const session = useLHSession() as any
   const access_token = session?.data?.tokens?.access_token
@@ -651,4 +651,4 @@ function LearnHouseCourseImport({
   )
 }
 
-export default LearnHouseCourseImport
+export default LaunchLMSCourseImport

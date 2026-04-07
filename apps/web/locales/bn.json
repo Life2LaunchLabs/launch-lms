@@ -43,11 +43,11 @@
     "help": "সহায়তা",
     "help_menu": {
       "documentation": "ডকুমেন্টেশন",
-      "website": "LearnHouse ওয়েবসাইট",
+      "website": "Launch LMS ওয়েবসাইট",
       "discord": "Discord",
       "report_feedback": "সমস্যা বা মতামত জানান",
       "feedback_title": "মতামত পাঠান",
-      "feedback_description": "আপনার মতামত শেয়ার করে, বাগ রিপোর্ট করে, অথবা নতুন ফিচার সাজেস্ট করে LearnHouse উন্নত করতে সাহায্য করুন।",
+      "feedback_description": "আপনার মতামত শেয়ার করে, বাগ রিপোর্ট করে, অথবা নতুন ফিচার সাজেস্ট করে Launch LMS উন্নত করতে সাহায্য করুন।",
       "feedback_placeholder": "আপনার মনে কী আছে বলুন...",
       "feedback_success": "আপনার মতামতের জন্য ধন্যবাদ!",
       "send_feedback": "মতামত পাঠান",
@@ -423,14 +423,14 @@
     "import": {
       "scorm_package": "SCORM প্যাকেজ",
       "scorm_description": "SCORM 1.2 বা SCORM 2004 প্যাকেজ আমদানি করুন",
-      "learnhouse_courses": "LearnHouse কোর্স",
-      "learnhouse_description": "LearnHouse থেকে রপ্তানি করা কোর্স আমদানি করুন",
+      "launch-lms_courses": "Launch LMS কোর্স",
+      "launch-lms_description": "Launch LMS থেকে রপ্তানি করা কোর্স আমদানি করুন",
       "upload_package": "প্যাকেজ আপলোড করুন",
       "configure": "কনফিগার করুন",
       "complete": "সম্পূর্ণ",
       "click_to_upload": "আপলোড করতে ক্লিক করুন বা টেনে আনুন",
-      "learnhouse_format": "LearnHouse কোর্স রপ্তানি (.zip)",
-      "learnhouse_info": "LearnHouse কোর্স রপ্তানি প্যাকেজ (.zip) আপলোড করুন। আপনি কোন কোর্স আমদানি করবেন তা নির্বাচন করতে এবং আমদানি বিকল্পগুলি কনফিগার করতে পারবেন।",
+      "launch-lms_format": "Launch LMS কোর্স রপ্তানি (.zip)",
+      "launch-lms_info": "Launch LMS কোর্স রপ্তানি প্যাকেজ (.zip) আপলোড করুন। আপনি কোন কোর্স আমদানি করবেন তা নির্বাচন করতে এবং আমদানি বিকল্পগুলি কনফিগার করতে পারবেন।",
       "analyze_package": "প্যাকেজ বিশ্লেষণ করুন",
       "ready_to_analyze": "বিশ্লেষণের জন্য প্রস্তুত",
       "invalid_file_format": "অনুগ্রহ করে একটি .zip ফাইল আপলোড করুন",
@@ -1126,7 +1126,7 @@
           "description": "আপনার ব্যক্তিগত সেটিংস, পাসওয়ার্ড এবং ইমেল কনফিগার করুন"
         }
       },
-      "learnhouse_university": "লার্নহাউস ইউনিভার্সিটি"
+      "launch-lms_university": "লার্নহাউস ইউনিভার্সিটি"
     },
     "courses": {
       "title": "কোর্সসমূহ",
@@ -1136,8 +1136,8 @@
       "import_course": "কোর্স আমদানি করুন",
       "import_scorm": "SCORM প্যাকেজ আমদানি করুন",
       "import_scorm_description": "নতুন কোর্স তৈরি করতে SCORM প্যাকেজ আমদানি করুন",
-      "import_learnhouse": "LearnHouse কোর্স আমদানি করুন",
-      "import_learnhouse_description": "LearnHouse রপ্তানি প্যাকেজ থেকে কোর্স আমদানি করুন",
+      "import_launch-lms": "Launch LMS কোর্স আমদানি করুন",
+      "import_launch-lms_description": "Launch LMS রপ্তানি প্যাকেজ থেকে কোর্স আমদানি করুন",
       "import_select_type": "আমদানি করতে প্যাকেজের ধরন নির্বাচন করুন",
       "no_courses": "এখনও কোনো কোর্স নেই",
       "create_course_placeholder": "কন্টেন্ট যোগ করতে কোর্স তৈরি করুন",

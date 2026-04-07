@@ -80,7 +80,7 @@ const OrgScripts: React.FC = () => {
         return
       }
 
-      const safeScriptId = `learnhouse-org-script-${scriptName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Math.random().toString(36).substr(2, 9)}`
+      const safeScriptId = `launch-lms-org-script-${scriptName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Math.random().toString(36).substr(2, 9)}`
 
       cleanupExistingScript(safeScriptId)
 
@@ -189,7 +189,7 @@ const OrgScripts: React.FC = () => {
     })
 
     return () => {
-      const scripts = document.querySelectorAll('script[id^="learnhouse-org-script-"]')
+      const scripts = document.querySelectorAll('script[id^="launch-lms-org-script-"]')
       scripts.forEach(script => {
         cleanupExistingScript(script.id)
       })

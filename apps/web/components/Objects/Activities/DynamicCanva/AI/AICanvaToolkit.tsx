@@ -148,7 +148,7 @@ function AICanvaToolkit(props: AICanvaToolkitProps) {
           <Image
             className="outline-1 outline-neutral-200/10 rounded-lg"
             width={24}
-            src={learnhouseAI_icon}
+            src={aiIcon}
             alt=""
           />
           <div>AI</div>

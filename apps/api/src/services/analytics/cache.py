@@ -12,7 +12,7 @@ import logging
 from typing import Optional
 
 import redis
-from config.config import get_learnhouse_config
+from config.config import get_launchlms_config
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ _KEY_PREFIX = "tb_cache"
 def _get_redis_client() -> Optional[redis.Redis]:
     """Return a Redis client or None if unavailable."""
     try:
-        config = get_learnhouse_config()
+        config = get_launchlms_config()
         conn_string = config.redis_config.redis_connection_string
         if not conn_string:
             return None

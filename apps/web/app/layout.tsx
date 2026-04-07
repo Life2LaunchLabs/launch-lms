@@ -2,10 +2,10 @@
 import '../styles/globals.css'
 import { SessionProvider } from '@components/Contexts/AuthContext'
 import LHSessionProvider from '@components/Contexts/LHSessionContext'
-import { getLEARNHOUSE_TOP_DOMAIN_VAL, getLEARNHOUSE_TELEMETRY_DISABLED_VAL } from '@services/config/config'
+import { getLAUNCHLMS_TOP_DOMAIN_VAL, getLAUNCHLMS_TELEMETRY_DISABLED_VAL } from '@services/config/config'
 
-const isDevEnv = getLEARNHOUSE_TOP_DOMAIN_VAL() === 'localhost'
-const isTelemetryDisabled = getLEARNHOUSE_TELEMETRY_DISABLED_VAL() === 'true'
+const isDevEnv = getLAUNCHLMS_TOP_DOMAIN_VAL() === 'localhost'
+const isTelemetryDisabled = getLAUNCHLMS_TELEMETRY_DISABLED_VAL() === 'true'
 import Script from 'next/script'
 import '../lib/i18n'
 import I18nProvider from '@components/Contexts/I18nContext'

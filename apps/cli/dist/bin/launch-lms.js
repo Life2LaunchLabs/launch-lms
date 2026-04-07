@@ -3612,18 +3612,18 @@ var {
   Help
 } = import_index.default;
 
-// bin/learnhouse.ts
+// bin/launch-lms.ts
 var import_picocolors18 = __toESM(require_picocolors(), 1);
 
 // src/constants.ts
-var VERSION = "1.1.0";
-var APP_IMAGE = "ghcr.io/learnhouse/app:latest";
-var DEV_IMAGE = "ghcr.io/learnhouse/app:dev";
+var VERSION = "1.2.0";
+var APP_IMAGE = "ghcr.io/life2launchlabs/launch-lms:latest";
+var DEV_IMAGE = "ghcr.io/life2launchlabs/launch-lms:dev";
 var POSTGRES_IMAGE = "postgres:16-alpine";
 var POSTGRES_AI_IMAGE = "pgvector/pgvector:pg16";
 var HEALTH_CHECK_TIMEOUT_MS = 18e4;
 var HEALTH_CHECK_INTERVAL_MS = 3e3;
-var CONFIG_FILENAME = "learnhouse.config.json";
+var CONFIG_FILENAME = "launch-lms.config.json";
 
 // src/ui/banner.ts
 var import_picocolors = __toESM(require_picocolors(), 1);
@@ -3663,12 +3663,12 @@ function buildInfoBox() {
   const empty = boxLine("");
   return [
     top,
-    boxLine(import_picocolors.default.bold(import_picocolors.default.white("LearnHouse")) + import_picocolors.default.dim(` // v${VERSION}`)),
+    boxLine(import_picocolors.default.bold(import_picocolors.default.white("Launch LMS")) + import_picocolors.default.dim(` // v${VERSION}`)),
     boxLine(sep),
-    boxLine(import_picocolors.default.white("Deploy LearnHouse with a single command.")),
+    boxLine(import_picocolors.default.white("Deploy Launch LMS with a single command.")),
     boxLine(import_picocolors.default.white("Handles configuration, Docker, SSL, DB.")),
     empty,
-    boxLine(import_picocolors.default.white("> ") + import_picocolors.default.dim("npx learnhouse@latest")),
+    boxLine(import_picocolors.default.white("> ") + import_picocolors.default.dim("launch-lms")),
     bot
   ];
 }
@@ -7308,37 +7308,37 @@ async function checkDevEnv(root) {
 }
 
 // src/commands/dev.ts
-var PROJECT_NAME = "learnhouse-dev";
-var DEV_COMPOSE = `name: learnhouse-dev
+var PROJECT_NAME = "launch-lms-dev";
+var DEV_COMPOSE = `name: launch-lms-dev
 
 services:
   db:
     image: pgvector/pgvector:pg16
-    container_name: learnhouse-db-dev
+    container_name: launch-lms-db-dev
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=learnhouse
-      - POSTGRES_PASSWORD=learnhouse
-      - POSTGRES_DB=learnhouse
+      - POSTGRES_USER=launchlms
+      - POSTGRES_PASSWORD=launchlms
+      - POSTGRES_DB=launchlms
     ports:
       - "5432:5432"
     volumes:
-      - learnhouse_db_dev_data:/var/lib/postgresql/data
+      - launch_lms_db_dev_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U learnhouse"]
+      test: ["CMD-SHELL", "pg_isready -U launchlms"]
       interval: 5s
       timeout: 4s
       retries: 5
 
   redis:
     image: redis:8.6.1-alpine
-    container_name: learnhouse-redis-dev
+    container_name: launch-lms-redis-dev
     restart: unless-stopped
     command: redis-server --appendonly yes
     ports:
       - "6379:6379"
     volumes:
-      - learnhouse_redis_dev_data:/data
+      - launch_lms_redis_dev_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -7346,8 +7346,8 @@ services:
       retries: 5
 
 volumes:
-  learnhouse_db_dev_data:
-  learnhouse_redis_dev_data:
+  launch_lms_db_dev_data:
+  launch_lms_redis_dev_data:
 `;
 function findProjectRoot() {
   let dir = process.cwd();
@@ -7418,7 +7418,7 @@ function isContainerRunning2(name) {
   }
 }
 function isInfraRunning() {
-  return isContainerRunning2("learnhouse-db-dev") && isContainerRunning2("learnhouse-redis-dev");
+  return isContainerRunning2("launch-lms-db-dev") && isContainerRunning2("launch-lms-redis-dev");
 }
 var serviceEnv = {};
 function spawnService(command, args, cwd, label, color) {
@@ -7458,11 +7458,11 @@ function killProcess(child) {
 async function devCommand(opts) {
   const root = findProjectRoot();
   if (!root) {
-    R2.error("Not inside a LearnHouse project.");
+    R2.error("Not inside a Launch LMS project.");
     R2.info("Run this command from within the learnhouse monorepo (must contain dev/docker-compose.yml, apps/api/, and apps/web/).");
     process.exit(1);
   }
-  We(import_picocolors17.default.cyan("LearnHouse Dev Mode"));
+  We(import_picocolors17.default.cyan("Launch LMS Dev Mode"));
   const envOk = await checkDevEnv(root);
   if (!envOk) process.exit(1);
   const eePath = path7.join(root, "apps", "api", "ee");
@@ -7536,8 +7536,8 @@ async function devCommand(opts) {
   const healthSpinner = bt2();
   healthSpinner.start("Waiting for DB and Redis to be healthy...");
   const [dbReady, redisReady] = await Promise.all([
-    waitForHealth2("DB", "docker", ["exec", "learnhouse-db-dev", "pg_isready", "-U", "learnhouse"]),
-    waitForHealth2("Redis", "docker", ["exec", "learnhouse-redis-dev", "redis-cli", "ping"])
+    waitForHealth2("DB", "docker", ["exec", "launch-lms-db-dev", "pg_isready", "-U", "launchlms"]),
+    waitForHealth2("Redis", "docker", ["exec", "launch-lms-redis-dev", "redis-cli", "ping"])
   ]);
   if (!dbReady || !redisReady) {
     healthSpinner.stop("Health checks failed");
@@ -7588,7 +7588,7 @@ async function devCommand(opts) {
   collabProc = startCollab();
   R2.success("API, Web, and Collab servers started");
   console.log();
-  console.log(import_picocolors17.default.dim("  Thank you for contributing to LearnHouse!"));
+  console.log(import_picocolors17.default.dim("  Thank you for contributing to Launch LMS!"));
   console.log();
   printControls();
   let shuttingDown = false;
@@ -7605,8 +7605,8 @@ async function devCommand(opts) {
       fs7.renameSync(eeDisabledPath, eePath);
     }
     console.log(import_picocolors17.default.dim("DB and Redis containers are still running for next session."));
-    console.log(import_picocolors17.default.dim("To stop them: docker compose -f .learnhouse/docker-compose.dev.yml -p learnhouse-dev down"));
-    console.log(import_picocolors17.default.dim("Thanks for building with LearnHouse!"));
+    console.log(import_picocolors17.default.dim("To stop them: docker compose -f .learnhouse/docker-compose.dev.yml -p launch-lms-dev down"));
+    console.log(import_picocolors17.default.dim("Thanks for building with Launch LMS!"));
     process.exit(0);
   };
   process.on("SIGINT", shutdown);
@@ -7664,7 +7664,7 @@ async function devCommand(opts) {
   });
 }
 
-// bin/learnhouse.ts
+// bin/launch-lms.ts
 var COMMANDS = [
   { name: "setup", desc: "Interactive setup wizard" },
   { name: "start", desc: "Start services" },
@@ -7684,21 +7684,21 @@ async function showWelcome() {
     console.log(`    ${import_picocolors18.default.cyan(cmd.name.padEnd(14))} ${import_picocolors18.default.dim(cmd.desc)}`);
   }
   console.log();
-  console.log(import_picocolors18.default.dim("  Run a command with: npx learnhouse <command>"));
-  console.log(import_picocolors18.default.dim("  Get started with:   npx learnhouse setup"));
+  console.log(import_picocolors18.default.dim("  Run a command with: launch-lms <command>"));
+  console.log(import_picocolors18.default.dim("  Get started with:   launch-lms setup"));
   console.log();
 }
 var program2 = new Command();
-program2.name("learnhouse").description("The official LearnHouse CLI \u2014 deploy, manage, and operate your LearnHouse instance").version(VERSION).action(showWelcome);
-program2.command("setup").description("Interactive setup wizard for LearnHouse").action(setupCommand);
-program2.command("start").description("Start LearnHouse services").action(startCommand);
-program2.command("stop").description("Stop LearnHouse services").action(stopCommand);
-program2.command("logs").description("Stream logs from LearnHouse services").action(logsCommand);
-program2.command("config").description("Show current LearnHouse configuration").action(configCommand);
-program2.command("backup").description("Backup & restore LearnHouse database").argument("[archive]", "Path to backup archive for restore").option("--restore", "Restore from a backup archive").action(backupCommand);
+program2.name("launch-lms").description("The Launch LMS CLI \u2014 deploy, manage, and operate your Launch LMS instance").version(VERSION).action(showWelcome);
+program2.command("setup").description("Interactive setup wizard for Launch LMS").action(setupCommand);
+program2.command("start").description("Start Launch LMS services").action(startCommand);
+program2.command("stop").description("Stop Launch LMS services").action(stopCommand);
+program2.command("logs").description("Stream logs from Launch LMS services").action(logsCommand);
+program2.command("config").description("Show current Launch LMS configuration").action(configCommand);
+program2.command("backup").description("Backup & restore Launch LMS database").argument("[archive]", "Path to backup archive for restore").option("--restore", "Restore from a backup archive").action(backupCommand);
 program2.command("deployments").description("Manage deployments & resource limits").action(deploymentsCommand);
-program2.command("doctor").description("Diagnose common issues with LearnHouse").action(doctorCommand);
-program2.command("shell").description("Open a shell in a LearnHouse container").action(shellCommand);
+program2.command("doctor").description("Diagnose common issues with Launch LMS").action(doctorCommand);
+program2.command("shell").description("Open a shell in a Launch LMS container").action(shellCommand);
 program2.command("dev").description("Start development environment (DB + Redis in Docker, API + Web locally)").option("--ee", "Enable Enterprise Edition features (keeps ee/ folder)").action(devCommand);
 var updateCheck = checkForUpdates();
 program2.parseAsync().then(() => updateCheck.catch(() => {

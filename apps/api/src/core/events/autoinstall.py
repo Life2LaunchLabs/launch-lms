@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 from sqlmodel import SQLModel, Session, select
 
 from cli import install
-from config.config import get_learnhouse_config
+from config.config import get_launchlms_config
 from src.db.organizations import Organization
 
 logger = logging.getLogger(__name__)
@@ -11,9 +11,9 @@ logger = logging.getLogger(__name__)
 
 def auto_install():
     # Get the database session
-    learnhouse_config = get_learnhouse_config()
+    launchlms_config = get_launchlms_config()
     engine = create_engine(
-        learnhouse_config.database_config.sql_connection_string, echo=False, pool_pre_ping=True  # type: ignore
+        launchlms_config.database_config.sql_connection_string, echo=False, pool_pre_ping=True  # type: ignore
     )
     SQLModel.metadata.create_all(engine)
 

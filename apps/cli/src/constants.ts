@@ -1,6 +1,6 @@
 export const VERSION = '1.2.0'
-export const APP_IMAGE = 'ghcr.io/learnhouse/app:latest'
-export const DEV_IMAGE = 'ghcr.io/learnhouse/app:dev'
+export const APP_IMAGE = 'ghcr.io/life2launchlabs/launch-lms:latest'
+export const DEV_IMAGE = 'ghcr.io/life2launchlabs/launch-lms:dev'
 export const NGINX_IMAGE = 'nginx:alpine'
 export const POSTGRES_IMAGE = 'postgres:16-alpine'
 export const POSTGRES_AI_IMAGE = 'pgvector/pgvector:pg16'
@@ -8,4 +8,4 @@ export const REDIS_IMAGE = 'redis:7.2.3-alpine'
 export const HEALTH_CHECK_URL_PATH = '/api/v1/health'
 export const HEALTH_CHECK_TIMEOUT_MS = 180_000 // 3 minutes
 export const HEALTH_CHECK_INTERVAL_MS = 3_000
-export const CONFIG_FILENAME = 'learnhouse.config.json'
+export const CONFIG_FILENAME = 'launch-lms.config.json'

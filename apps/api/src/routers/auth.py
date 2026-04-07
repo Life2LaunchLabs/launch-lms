@@ -5,7 +5,7 @@ from pydantic import BaseModel, EmailStr
 from sqlmodel import Session, select
 from src.db.users import AnonymousUser, User, UserRead
 from src.core.events.database import get_db_session
-from config.config import get_learnhouse_config
+from config.config import get_launchlms_config
 from src.core.deployment_mode import get_deployment_mode
 from src.security.auth import (
     authenticate_user,

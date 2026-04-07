@@ -16,7 +16,7 @@ class ExportCourseInfo(BaseModel):
 class ExportManifest(BaseModel):
     """Manifest file for exported package"""
     version: str = "1.0.0"
-    format: str = "learnhouse-course-export"
+    format: str = "launch-lms-course-export"
     created_at: str
     courses: list[ExportCourseInfo]
 

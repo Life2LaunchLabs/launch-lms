@@ -1,7 +1,7 @@
 import { getBackendUrl, getConfig } from '@services/config/config'
 
 function getMediaUrl() {
-  const mediaUrl = getConfig('NEXT_PUBLIC_LEARNHOUSE_MEDIA_URL');
+  const mediaUrl = getConfig('NEXT_PUBLIC_LAUNCHLMS_MEDIA_URL');
   if (mediaUrl) {
     return mediaUrl;
   } else {

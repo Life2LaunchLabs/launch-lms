@@ -55,7 +55,7 @@ const EMBEDDABLE_TYPES = ['TYPE_DYNAMIC', 'TYPE_VIDEO', 'TYPE_DOCUMENT']
 function EmbedActivityClient({ activity, course, activityId, orgslug }: EmbedActivityClientProps) {
   const { t } = useTranslation()
   const searchParams = useSearchParams()
-  const showLearnHouseLogo = searchParams.get('showlearnhouselogo') !== 'false'
+  const showLearnHouseLogo = searchParams.get('showlaunchlmslogo') !== 'false'
   const isEmbeddable = EMBEDDABLE_TYPES.includes(activity.activity_type)
 
   const getActivityUrl = () => {
@@ -69,8 +69,8 @@ function EmbedActivityClient({ activity, course, activityId, orgslug }: EmbedAct
         <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
           <div className="mb-6">
             <Image
-              src="/learnhouse_bigicon.png"
-              alt="LearnHouse"
+              src="/launch_lms_bigicon.png"
+              alt="Launch LMS"
               width={64}
               height={64}
               className="mx-auto"
@@ -148,7 +148,7 @@ function PoweredByBadge({ activityUrl }: { activityUrl: string }) {
       >
         <Image
           src="/lrn.svg"
-          alt="LearnHouse"
+          alt="Launch LMS"
           width={20}
           height={20}
         />

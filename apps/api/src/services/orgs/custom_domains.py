@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 # Reserved domains that cannot be used as custom domains
 RESERVED_DOMAIN_PATTERNS = [
-    r'.*\.learnhouse\.io$',
+    r'.*.launch-lms.io$',
     r'.*\.learnhouse\.app$',
     r'^learnhouse\.io$',
     r'^learnhouse\.app$',
@@ -35,7 +35,7 @@ RESERVED_DOMAIN_PATTERNS = [
 ]
 
 # Learnhouse domain for CNAME instructions
-LEARNHOUSE_DOMAIN = os.getenv('LEARNHOUSE_DOMAIN', 'learnhouse.io')
+LAUNCHLMS_DOMAIN = os.getenv('LAUNCHLMS_DOMAIN', 'launch-lms.io')
 
 
 def generate_verification_token() -> str:
@@ -76,14 +76,14 @@ def get_verification_instructions(domain: str, token: str, org_slug: str) -> Cus
     subdomain = _get_subdomain_prefix(domain)
 
     if subdomain:
-        txt_record_host = f"_learnhouse-verification.{subdomain}"
+        txt_record_host = f"_launch-lms-verification.{subdomain}"
         cname_record_host = subdomain
     else:
-        txt_record_host = "_learnhouse-verification"
+        txt_record_host = "_launch-lms-verification"
         cname_record_host = "@"
 
-    txt_record_value = f"learnhouse-verify={token}"
-    cname_record_value = f"{org_slug}.{LEARNHOUSE_DOMAIN}"
+    txt_record_value = f"launch-lms-verify={token}"
+    cname_record_value = f"{org_slug}.{LAUNCHLMS_DOMAIN}"
 
     instructions = f"""
 To verify your domain, add the following DNS records at your domain provider:
@@ -117,7 +117,7 @@ async def verify_domain_dns(domain: CustomDomain, db_session: Session, org_slug:
     Returns (success, message) tuple.
     """
     # Development mode bypass
-    if os.getenv('LEARNHOUSE_CUSTOM_DOMAIN_DEV_MODE') == 'true':
+    if os.getenv('LAUNCHLMS_CUSTOM_DOMAIN_DEV_MODE') == 'true':
         logger.warning(f"DEV MODE: Skipping DNS verification for {domain.domain}")
         domain.status = "verified"
         domain.verified_at = str(datetime.now())
@@ -131,8 +131,8 @@ async def verify_domain_dns(domain: CustomDomain, db_session: Session, org_slug:
         import dns.resolver
 
         # Check TXT record
-        txt_host = f"_learnhouse-verification.{domain.domain}"
-        expected_txt = f"learnhouse-verify={domain.verification_token}"
+        txt_host = f"_launch-lms-verification.{domain.domain}"
+        expected_txt = f"launch-lms-verify={domain.verification_token}"
 
         try:
             txt_answers = dns.resolver.resolve(txt_host, 'TXT')

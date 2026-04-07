@@ -8,8 +8,8 @@ export const ACCESS_TOKEN_MAX_AGE = 8 * 60 * 60 // 8 hours
 export const REFRESH_TOKEN_MAX_AGE = 30 * 24 * 60 * 60 // 30 days
 
 export function getDomainFromRequest(request: NextRequest): { domain: string; topDomain: string } {
-  const envDomain = getConfig('NEXT_PUBLIC_LEARNHOUSE_DOMAIN')
-  const envTopDomain = getConfig('NEXT_PUBLIC_LEARNHOUSE_TOP_DOMAIN')
+  const envDomain = getConfig('NEXT_PUBLIC_LAUNCHLMS_DOMAIN')
+  const envTopDomain = getConfig('NEXT_PUBLIC_LAUNCHLMS_TOP_DOMAIN')
   if (envDomain) {
     return {
       domain: envDomain,
@@ -17,8 +17,8 @@ export function getDomainFromRequest(request: NextRequest): { domain: string; to
     }
   }
 
-  const cookieDomain = request.cookies.get('learnhouse_frontend_domain')?.value
-  const cookieTopDomain = request.cookies.get('learnhouse_top_domain')?.value
+  const cookieDomain = request.cookies.get('launchlms_frontend_domain')?.value
+  const cookieTopDomain = request.cookies.get('launchlms_top_domain')?.value
   if (cookieDomain) {
     return {
       domain: cookieDomain,

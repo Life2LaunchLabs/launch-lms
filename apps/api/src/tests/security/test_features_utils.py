@@ -64,7 +64,7 @@ class TestFeaturesUtils:
         """Test successful feature limit check (EE mode — all features enabled & unlimited)"""
         with patch('src.security.features_utils.resolve.get_deployment_mode', return_value='ee'), \
              patch('src.security.features_utils.usage.get_deployment_mode', return_value='ee'), \
-             patch('src.security.features_utils.usage.get_learnhouse_config') as mock_config, \
+             patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
              patch('redis.Redis.from_url') as mock_redis_class:
 
             mock_config_instance = Mock()
@@ -123,7 +123,7 @@ class TestFeaturesUtils:
     @pytest.mark.asyncio
     async def test_check_limits_with_usage_no_redis_connection(self, mock_db_session, mock_org_config):
         """Test feature limit check when Redis connection is not available"""
-        with patch('src.security.features_utils.usage.get_learnhouse_config') as mock_config, \
+        with patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
              patch('src.security.features_utils.resolve.get_deployment_mode', return_value='saas'), \
              patch('src.security.features_utils.usage.get_deployment_mode', return_value='saas'):
             mock_config_instance = Mock()
@@ -148,7 +148,7 @@ class TestFeaturesUtils:
         # Use free plan so overage is not allowed
         mock_org_config.config["plan"] = "free"
 
-        with patch('src.security.features_utils.usage.get_learnhouse_config') as mock_config, \
+        with patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
              patch('redis.Redis.from_url') as mock_redis_class, \
              patch('src.core.deployment_mode.get_deployment_mode', return_value='saas'), \
              patch('src.security.features_utils.resolve.get_deployment_mode', return_value='saas'), \
@@ -179,7 +179,7 @@ class TestFeaturesUtils:
     @pytest.mark.asyncio
     async def test_check_limits_with_usage_unlimited_feature(self, mock_db_session, mock_org_config):
         """Test feature limit check for unlimited feature (limit = 0)"""
-        with patch('src.security.features_utils.usage.get_learnhouse_config') as mock_config, \
+        with patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
              patch('redis.Redis.from_url') as mock_redis_class, \
              patch('src.security.features_utils.resolve.get_deployment_mode', return_value='saas'), \
              patch('src.security.features_utils.usage.get_deployment_mode', return_value='saas'):
@@ -205,7 +205,7 @@ class TestFeaturesUtils:
     @pytest.mark.asyncio
     async def test_check_limits_with_usage_no_previous_usage(self, mock_db_session, mock_org_config):
         """Test feature limit check when no previous usage exists"""
-        with patch('src.security.features_utils.usage.get_learnhouse_config') as mock_config, \
+        with patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
              patch('redis.Redis.from_url') as mock_redis_class, \
              patch('src.security.features_utils.resolve.get_deployment_mode', return_value='saas'), \
              patch('src.security.features_utils.usage.get_deployment_mode', return_value='saas'):
@@ -231,7 +231,7 @@ class TestFeaturesUtils:
     @pytest.mark.asyncio
     async def test_increase_feature_usage_success(self, mock_db_session):
         """Test successful feature usage increase"""
-        with patch('src.security.features_utils.usage.get_learnhouse_config') as mock_config, \
+        with patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
              patch('redis.Redis.from_url') as mock_redis_class:
 
             mock_config_instance = Mock()
@@ -256,7 +256,7 @@ class TestFeaturesUtils:
     @pytest.mark.asyncio
     async def test_increase_feature_usage_no_previous_usage(self, mock_db_session):
         """Test feature usage increase when no previous usage exists"""
-        with patch('src.security.features_utils.usage.get_learnhouse_config') as mock_config, \
+        with patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
              patch('redis.Redis.from_url') as mock_redis_class:
 
             mock_config_instance = Mock()
@@ -280,7 +280,7 @@ class TestFeaturesUtils:
     @pytest.mark.asyncio
     async def test_decrease_feature_usage_success(self, mock_db_session):
         """Test successful feature usage decrease"""
-        with patch('src.security.features_utils.usage.get_learnhouse_config') as mock_config, \
+        with patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
              patch('redis.Redis.from_url') as mock_redis_class:
 
             mock_config_instance = Mock()
@@ -305,7 +305,7 @@ class TestFeaturesUtils:
     @pytest.mark.asyncio
     async def test_decrease_feature_usage_no_previous_usage(self, mock_db_session):
         """Test feature usage decrease when no previous usage exists"""
-        with patch('src.security.features_utils.usage.get_learnhouse_config') as mock_config, \
+        with patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
              patch('redis.Redis.from_url') as mock_redis_class:
 
             mock_config_instance = Mock()
@@ -336,7 +336,7 @@ class TestFeaturesUtils:
 
         with patch('src.security.features_utils.resolve.get_deployment_mode', return_value='ee'), \
              patch('src.security.features_utils.usage.get_deployment_mode', return_value='ee'), \
-             patch('src.security.features_utils.usage.get_learnhouse_config') as mock_config, \
+             patch('src.security.features_utils.usage.get_launchlms_config') as mock_config, \
              patch('redis.Redis.from_url') as mock_redis_class:
 
             mock_config_instance = Mock()

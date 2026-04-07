@@ -1,10 +1,10 @@
 {
-  "name": "learnhouse",
+  "name": "launch-lms",
   "version": "1.2.0",
-  "description": "The official LearnHouse CLI — deploy, manage, and operate your LearnHouse instance",
+  "description": "The Launch LMS CLI — deploy, manage, and operate your Launch LMS instance",
   "type": "module",
   "bin": {
-    "learnhouse": "./dist/bin/learnhouse.js"
+    "launch-lms": "./dist/bin/launch-lms.js"
   },
   "files": [
     "dist"
@@ -19,15 +19,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/learnhouse/learnhouse.git",
+    "url": "https://github.com/Life2LaunchLabs/learnhouse.git",
     "directory": "apps/cli"
   },
-  "homepage": "https://github.com/learnhouse/learnhouse/tree/main/apps/cli",
+  "homepage": "https://github.com/Life2LaunchLabs/learnhouse/tree/main/apps/cli",
   "bugs": {
-    "url": "https://github.com/learnhouse/learnhouse/issues"
+    "url": "https://github.com/Life2LaunchLabs/learnhouse/issues"
   },
   "keywords": [
-    "learnhouse",
+    "launch-lms",
     "lms",
     "self-hosted",
     "cli",
@@ -35,7 +35,7 @@
     "education",
     "learning-management-system"
   ],
-  "author": "LearnHouse",
+  "author": "Life2LaunchLabs",
   "devDependencies": {
     "@types/node": "^25.0.0",
     "tsup": "^8.0.1",

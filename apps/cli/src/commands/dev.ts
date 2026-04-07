@@ -6,38 +6,38 @@ import * as fs from 'node:fs'
 import { isDockerInstalled, isDockerRunning } from '../services/docker.js'
 import { checkDevEnv } from '../services/env-check.js'
 
-const PROJECT_NAME = 'learnhouse-dev'
+const PROJECT_NAME = 'launch-lms-dev'
 
-const DEV_COMPOSE = `name: learnhouse-dev
+const DEV_COMPOSE = `name: launch-lms-dev
 
 services:
   db:
     image: pgvector/pgvector:pg16
-    container_name: learnhouse-db-dev
+    container_name: launch-lms-db-dev
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=learnhouse
-      - POSTGRES_PASSWORD=learnhouse
-      - POSTGRES_DB=learnhouse
+      - POSTGRES_USER=launchlms
+      - POSTGRES_PASSWORD=launchlms
+      - POSTGRES_DB=launchlms
     ports:
       - "5432:5432"
     volumes:
-      - learnhouse_db_dev_data:/var/lib/postgresql/data
+      - launch_lms_db_dev_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U learnhouse"]
+      test: ["CMD-SHELL", "pg_isready -U launchlms"]
       interval: 5s
       timeout: 4s
       retries: 5
 
   redis:
     image: redis:8.6.1-alpine
-    container_name: learnhouse-redis-dev
+    container_name: launch-lms-redis-dev
     restart: unless-stopped
     command: redis-server --appendonly yes
     ports:
       - "6379:6379"
     volumes:
-      - learnhouse_redis_dev_data:/data
+      - launch_lms_redis_dev_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -45,8 +45,8 @@ services:
       retries: 5
 
 volumes:
-  learnhouse_db_dev_data:
-  learnhouse_redis_dev_data:
+  launch_lms_db_dev_data:
+  launch_lms_redis_dev_data:
 `
 
 function findProjectRoot(): string | null {
@@ -135,7 +135,7 @@ function isContainerRunning(name: string): boolean {
 }
 
 function isInfraRunning(): boolean {
-  return isContainerRunning('learnhouse-db-dev') && isContainerRunning('learnhouse-redis-dev')
+  return isContainerRunning('launch-lms-db-dev') && isContainerRunning('launch-lms-redis-dev')
 }
 
 let serviceEnv: Record<string, string> = {}
@@ -179,12 +179,12 @@ function killProcess(child: ChildProcess | null): Promise<void> {
 export async function devCommand(opts: { ee?: boolean }) {
   const root = findProjectRoot()
   if (!root) {
-    p.log.error('Not inside a LearnHouse project.')
+    p.log.error('Not inside a Launch LMS project.')
     p.log.info('Run this command from within the learnhouse monorepo (must contain dev/docker-compose.yml, apps/api/, and apps/web/).')
     process.exit(1)
   }
 
-  p.intro(pc.cyan('LearnHouse Dev Mode'))
+  p.intro(pc.cyan('Launch LMS Dev Mode'))
 
   // Check env files before anything else
   const envOk = await checkDevEnv(root)
@@ -282,8 +282,8 @@ export async function devCommand(opts: { ee?: boolean }) {
   healthSpinner.start('Waiting for DB and Redis to be healthy...')
 
   const [dbReady, redisReady] = await Promise.all([
-    waitForHealth('DB', 'docker', ['exec', 'learnhouse-db-dev', 'pg_isready', '-U', 'learnhouse']),
-    waitForHealth('Redis', 'docker', ['exec', 'learnhouse-redis-dev', 'redis-cli', 'ping']),
+    waitForHealth('DB', 'docker', ['exec', 'launch-lms-db-dev', 'pg_isready', '-U', 'launchlms']),
+    waitForHealth('Redis', 'docker', ['exec', 'launch-lms-redis-dev', 'redis-cli', 'ping']),
   ])
 
   if (!dbReady || !redisReady) {
@@ -347,7 +347,7 @@ export async function devCommand(opts: { ee?: boolean }) {
 
   p.log.success('API, Web, and Collab servers started')
   console.log()
-  console.log(pc.dim('  Thank you for contributing to LearnHouse!'))
+  console.log(pc.dim('  Thank you for contributing to Launch LMS!'))
   console.log()
 
   printControls()
@@ -372,8 +372,8 @@ export async function devCommand(opts: { ee?: boolean }) {
     }
 
     console.log(pc.dim('DB and Redis containers are still running for next session.'))
-    console.log(pc.dim('To stop them: docker compose -f .learnhouse/docker-compose.dev.yml -p learnhouse-dev down'))
-    console.log(pc.dim('Thanks for building with LearnHouse!'))
+    console.log(pc.dim('To stop them: docker compose -f .learnhouse/docker-compose.dev.yml -p launch-lms-dev down'))
+    console.log(pc.dim('Thanks for building with Launch LMS!'))
     process.exit(0)
   }
 

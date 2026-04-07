@@ -93,7 +93,7 @@ const OrgEditAI: React.FC = () => {
       requiredPlan="standard"
       customIcon={
         <Image
-          src="/learnhouse_ai_simple_colored.png"
+          src="/ai_icon.svg"
           alt="LearnHouse AI"
           width={32}
           height={32}
@@ -106,7 +106,7 @@ const OrgEditAI: React.FC = () => {
         {/* Header */}
         <div className="flex items-center gap-3">
           <Image
-            src="/learnhouse_ai_simple_colored.png"
+            src="/ai_icon.svg"
             alt="LearnHouse AI"
             width={28}
             height={28}

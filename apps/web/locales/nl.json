@@ -41,11 +41,11 @@
     "help": "Hulp",
     "help_menu": {
       "documentation": "Documentatie",
-      "website": "LearnHouse Website",
+      "website": "Launch LMS Website",
       "discord": "Discord",
       "report_feedback": "Probleem of feedback melden",
       "feedback_title": "Feedback Verzenden",
-      "feedback_description": "Help ons LearnHouse te verbeteren door je gedachten te delen, bugs te melden of nieuwe functies voor te stellen.",
+      "feedback_description": "Help ons Launch LMS te verbeteren door je gedachten te delen, bugs te melden of nieuwe functies voor te stellen.",
       "feedback_placeholder": "Vertel ons wat je denkt...",
       "feedback_success": "Bedankt voor je feedback!",
       "send_feedback": "Feedback Verzenden",
@@ -426,14 +426,14 @@
     "import": {
       "scorm_package": "SCORM Pakket",
       "scorm_description": "SCORM 1.2 of SCORM 2004 pakketten importeren",
-      "learnhouse_courses": "LearnHouse Cursussen",
-      "learnhouse_description": "Cursussen importeren die zijn geëxporteerd vanuit LearnHouse",
+      "launch-lms_courses": "Launch LMS Cursussen",
+      "launch-lms_description": "Cursussen importeren die zijn geëxporteerd vanuit Launch LMS",
       "upload_package": "Pakket Uploaden",
       "configure": "Configureren",
       "complete": "Voltooid",
       "click_to_upload": "Klik om te uploaden of sleep en zet neer",
-      "learnhouse_format": "LearnHouse cursus export (.zip)",
-      "learnhouse_info": "Upload een LearnHouse cursus export pakket (.zip). Je kunt selecteren welke cursussen je wilt importeren en importopties configureren.",
+      "launch-lms_format": "Launch LMS cursus export (.zip)",
+      "launch-lms_info": "Upload een Launch LMS cursus export pakket (.zip). Je kunt selecteren welke cursussen je wilt importeren en importopties configureren.",
       "analyze_package": "Pakket Analyseren",
       "ready_to_analyze": "Klaar om te analyseren",
       "invalid_file_format": "Upload alstublieft een .zip bestand",
@@ -1129,7 +1129,7 @@
           "description": "Configureer je persoonlijke instellingen, wachtwoord en e-mail"
         }
       },
-      "learnhouse_university": "LearnHouse University"
+      "launch-lms_university": "Launch LMS University"
     },
     "courses": {
       "title": "Cursussen",
@@ -1139,8 +1139,8 @@
       "import_course": "Cursus importeren",
       "import_scorm": "SCORM Pakket Importeren",
       "import_scorm_description": "Importeer een SCORM-pakket om een nieuwe cursus te maken",
-      "import_learnhouse": "LearnHouse Cursussen Importeren",
-      "import_learnhouse_description": "Importeer cursussen uit een LearnHouse export pakket",
+      "import_launch-lms": "Launch LMS Cursussen Importeren",
+      "import_launch-lms_description": "Importeer cursussen uit een Launch LMS export pakket",
       "import_select_type": "Selecteer het type pakket dat je wilt importeren",
       "no_courses": "Nog geen cursussen",
       "create_course_placeholder": "Maak een cursus aan om inhoud toe te voegen",
@@ -1764,8 +1764,8 @@
         "label_placeholder": "Selecteer een organisatielabel",
         "about": "Over de organisatie",
         "about_placeholder": "Gedetailleerde beschrijving van je organisatie",
-        "showcase_explore": "Weergeven op LearnHouse Explore",
-        "showcase_description": "Deel de cursussen en inhoud van je organisatie met de LearnHouse-gemeenschap. Schakel dit in om studenten te helpen waardevolle educatieve bronnen te vinden.",
+        "showcase_explore": "Weergeven op Launch LMS Explore",
+        "showcase_description": "Deel de cursussen en inhoud van je organisatie met de Launch LMS-gemeenschap. Schakel dit in om studenten te helpen waardevolle educatieve bronnen te vinden.",
         "save_changes": "Wijzigingen opslaan",
         "saving": "Opslaan...",
         "update_success": "Organisatiegegevens bijgewerkt",

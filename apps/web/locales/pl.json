@@ -41,11 +41,11 @@
     "help": "Pomoc",
     "help_menu": {
       "documentation": "Dokumentacja",
-      "website": "Strona LearnHouse",
+      "website": "Strona Launch LMS",
       "discord": "Discord",
       "report_feedback": "Zgłoś problem lub opinię",
       "feedback_title": "Wyślij Opinię",
-      "feedback_description": "Pomóż nam ulepszyć LearnHouse, dzieląc się swoimi przemyśleniami, zgłaszając błędy lub sugerując nowe funkcje.",
+      "feedback_description": "Pomóż nam ulepszyć Launch LMS, dzieląc się swoimi przemyśleniami, zgłaszając błędy lub sugerując nowe funkcje.",
       "feedback_placeholder": "Powiedz nam, co myślisz...",
       "feedback_success": "Dziękujemy za opinię!",
       "send_feedback": "Wyślij Opinię",
@@ -420,14 +420,14 @@
     "import": {
       "scorm_package": "Pakiet SCORM",
       "scorm_description": "Importuj pakiety SCORM 1.2 lub SCORM 2004",
-      "learnhouse_courses": "Kursy LearnHouse",
-      "learnhouse_description": "Importuj kursy wyeksportowane z LearnHouse",
+      "launch-lms_courses": "Kursy Launch LMS",
+      "launch-lms_description": "Importuj kursy wyeksportowane z Launch LMS",
       "upload_package": "Prześlij Pakiet",
       "configure": "Konfiguruj",
       "complete": "Zakończono",
       "click_to_upload": "Kliknij, aby przesłać lub przeciągnij i upuść",
-      "learnhouse_format": "Eksport kursu LearnHouse (.zip)",
-      "learnhouse_info": "Prześlij pakiet eksportu kursów LearnHouse (.zip). Będziesz mógł wybrać, które kursy zaimportować i skonfigurować opcje importu.",
+      "launch-lms_format": "Eksport kursu Launch LMS (.zip)",
+      "launch-lms_info": "Prześlij pakiet eksportu kursów Launch LMS (.zip). Będziesz mógł wybrać, które kursy zaimportować i skonfigurować opcje importu.",
       "analyze_package": "Analizuj Pakiet",
       "ready_to_analyze": "Gotowy do analizy",
       "invalid_file_format": "Prześlij plik .zip",
@@ -1123,7 +1123,7 @@
           "description": "Skonfiguruj swoje ustawienia osobiste, hasło i email"
         }
       },
-      "learnhouse_university": "LearnHouse University"
+      "launch-lms_university": "Launch LMS University"
     },
     "courses": {
       "title": "Kursy",
@@ -1133,8 +1133,8 @@
       "import_course": "Importuj kurs",
       "import_scorm": "Importuj Pakiet SCORM",
       "import_scorm_description": "Importuj pakiet SCORM, aby utworzyć nowy kurs",
-      "import_learnhouse": "Importuj Kursy LearnHouse",
-      "import_learnhouse_description": "Importuj kursy z pakietu eksportu LearnHouse",
+      "import_launch-lms": "Importuj Kursy Launch LMS",
+      "import_launch-lms_description": "Importuj kursy z pakietu eksportu Launch LMS",
       "import_select_type": "Wybierz typ pakietu, który chcesz zaimportować",
       "no_courses": "Brak kursów",
       "create_course_placeholder": "Utwórz kurs, aby dodać zawartość",
@@ -1758,8 +1758,8 @@
         "label_placeholder": "Wybierz etykietę organizacji",
         "about": "O organizacji",
         "about_placeholder": "Szczegółowy opis Twojej organizacji",
-        "showcase_explore": "Pokaż w LearnHouse Explore",
-        "showcase_description": "Udostępnij kursy i treści swojej organizacji społeczności LearnHouse. Włącz to, aby pomóc uczniom znaleźć wartościowe zasoby edukacyjne.",
+        "showcase_explore": "Pokaż w Launch LMS Explore",
+        "showcase_description": "Udostępnij kursy i treści swojej organizacji społeczności Launch LMS. Włącz to, aby pomóc uczniom znaleźć wartościowe zasoby edukacyjne.",
         "save_changes": "Zapisz zmiany",
         "saving": "Zapisywanie...",
         "update_success": "Informacje o organizacji zostały zaktualizowane",

@@ -8,8 +8,8 @@ import {
   getCookieOptions,
 } from '@services/auth/cookies'
 
-const BACKEND_URL = (getConfig('NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL') || 'http://localhost:1338').replace(/\/+$/, '')
-const PLATFORM_URL = (getConfig('LEARNHOUSE_PLATFORM_URL') || 'https://learnhouse.app').replace(/\/+$/, '')
+const BACKEND_URL = (getConfig('NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL') || 'http://localhost:1338').replace(/\/+$/, '')
+const PLATFORM_URL = getConfig('LAUNCHLMS_PLATFORM_URL').replace(/\/+$/, '')
 
 /**
  * Accepts an exchange code, fetches tokens from the platform (server-to-server),
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    response.cookies.set('learnhouse_has_session', '1', {
+    response.cookies.set('launchlms_has_session', '1', {
       ...cookieOptions,
       httpOnly: false,
       maxAge: REFRESH_TOKEN_MAX_AGE,

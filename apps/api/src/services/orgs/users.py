@@ -9,7 +9,7 @@ from sqlmodel import Session, select, func
 from src.security.features_utils.usage import decrease_feature_usage
 from src.services.orgs.invites import send_invite_email
 from src.services.email.utils import get_base_url_from_request
-from config.config import get_learnhouse_config
+from config.config import get_launchlms_config
 from src.services.orgs.orgs import rbac_check
 from src.security.rbac.constants import ADMIN_ROLE_ID
 from src.security.org_auth import is_org_member
@@ -455,7 +455,7 @@ async def invite_batch_users(
     current_user: PublicUser | AnonymousUser,
 ):
     # Redis init
-    LH_CONFIG = get_learnhouse_config()
+    LH_CONFIG = get_launchlms_config()
     redis_conn_string = LH_CONFIG.redis_config.redis_connection_string
 
     if not redis_conn_string:
@@ -546,7 +546,7 @@ async def get_list_of_invited_users(
     current_user: PublicUser | AnonymousUser,
 ):
     # Redis init
-    LH_CONFIG = get_learnhouse_config()
+    LH_CONFIG = get_launchlms_config()
     redis_conn_string = LH_CONFIG.redis_config.redis_connection_string
 
     if not redis_conn_string:
@@ -600,7 +600,7 @@ async def remove_invited_user(
     current_user: PublicUser | AnonymousUser,
 ):
     # Redis init
-    LH_CONFIG = get_learnhouse_config()
+    LH_CONFIG = get_launchlms_config()
     redis_conn_string = LH_CONFIG.redis_config.redis_connection_string
 
     if not redis_conn_string:

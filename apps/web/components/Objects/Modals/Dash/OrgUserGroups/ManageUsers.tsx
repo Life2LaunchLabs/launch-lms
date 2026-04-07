@@ -3,7 +3,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { getAPIUrl } from '@services/config/config'
 import { linkUsersToUserGroup, unlinkUsersFromUserGroup } from '@services/usergroups/usergroups'
 import { swrFetcher } from '@services/utils/ts/requests'
-import LearnHouseSpinner from '@components/Objects/Loaders/LearnHouseSpinner'
+import LaunchLMSSpinner from '@components/Objects/Loaders/LaunchLMSSpinner'
 import { Search, Check, Plus, Minus, ChevronLeft, ChevronRight, Users } from 'lucide-react'
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import toast from 'react-hot-toast'
@@ -292,7 +292,7 @@ function ManageUsers(props: ManageUsersProps) {
       <div className="space-y-1 max-h-[400px] overflow-y-auto relative">
         {isInitialLoading ? (
           <div className="py-16 flex justify-center">
-            <LearnHouseSpinner size={32} />
+            <LaunchLMSSpinner size={32} />
           </div>
         ) : orgUsers.length === 0 ? (
           <div className="py-12 text-center">
@@ -312,7 +312,7 @@ function ManageUsers(props: ManageUsersProps) {
           <>
           {isPageTransitioning && (
             <div className="absolute inset-0 bg-white/60 z-10 flex items-center justify-center rounded-lg">
-              <LearnHouseSpinner size={24} />
+              <LaunchLMSSpinner size={24} />
             </div>
           )}
           {orgUsers.map((user: any) => {

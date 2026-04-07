@@ -2,7 +2,7 @@ import React from 'react'
 import YouTube from 'react-youtube'
 import { getActivityVideoStreamUrl } from '@services/media/media'
 import { useOrg } from '@components/Contexts/OrgContext'
-import LearnHousePlayer from './LearnHousePlayer'
+import LaunchLMSPlayer from './LaunchLMSPlayer'
 
 interface VideoDetails {
   startTime?: number
@@ -59,7 +59,7 @@ function VideoActivity({ activity, course, orgUuid }: VideoActivityProps) {
                 {(() => {
                   const src = getVideoSrc()
                   return src ? (
-                    <LearnHousePlayer
+                    <LaunchLMSPlayer
                       key={activity.activity_uuid}
                       src={src}
                       details={activity.details}

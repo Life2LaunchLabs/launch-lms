@@ -37,7 +37,7 @@ export function GuestHeader({ orgslug }: { orgslug: string }) {
               ) : (
                 <Image
                   src="/lrn-text.svg"
-                  alt="LearnHouse"
+                  alt="Launch LMS"
                   width={133}
                   height={40}
                   style={{ height: 'auto', filter: colors.logoFilter }}

@@ -137,7 +137,7 @@ async def api_export_courses_batch(
     )
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"learnhouse-export-batch-{timestamp}.zip"
+    filename = f"launch-lms-export-batch-{timestamp}.zip"
 
     return StreamingResponse(
         io.BytesIO(zip_content),
@@ -155,7 +155,7 @@ async def api_analyze_import_package(
     current_user: PublicUser = Depends(get_current_user),
 ) -> ImportAnalysisResponse:
     """
-    Analyze a LearnHouse course export package for import.
+    Analyze a Launch LMS course export package for import.
 
     Upload a ZIP file containing exported courses. The endpoint will:
     1. Validate the package format
@@ -518,8 +518,8 @@ async def api_export_course(
     - Activities with their files (videos, documents, PDFs)
     - Dynamic activity blocks with their files (images, videos, PDFs)
 
-    The ZIP file follows the LearnHouse export format and can be imported
-    into any LearnHouse instance.
+    The ZIP file follows the Launch LMS export format and can be imported
+    into any Launch LMS instance.
 
     **Required Permissions:**
     - Read access to the course
@@ -529,7 +529,7 @@ async def api_export_course(
     zip_content = await export_course(request, course_uuid, current_user, db_session)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"learnhouse-export-{course_uuid}-{timestamp}.zip"
+    filename = f"launch-lms-export-{course_uuid}-{timestamp}.zip"
 
     return StreamingResponse(
         io.BytesIO(zip_content),

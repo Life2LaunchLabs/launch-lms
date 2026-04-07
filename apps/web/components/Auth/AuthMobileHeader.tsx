@@ -2,7 +2,7 @@
 import React from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import learnhouseIcon from 'public/learnhouse_bigicon_1.png'
+import appIcon from 'public/app_icon.svg'
 import { getOrgLogoMediaDirectory, getOrgAuthBackgroundMediaDirectory } from '@services/media/media'
 import { getUriWithOrg } from '@services/config/config'
 
@@ -66,8 +66,8 @@ export default function AuthMobileHeader({ org }: AuthMobileHeaderProps) {
               quality={100}
               width={40}
               height={40}
-              src={learnhouseIcon}
-              alt="LearnHouse"
+              src={appIcon}
+              alt="Launch LMS"
               className="object-contain"
             />
           )}

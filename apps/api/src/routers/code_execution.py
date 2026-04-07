@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 import httpx
 
-from config.config import get_learnhouse_config
+from config.config import get_launchlms_config
 from src.security.auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -36,11 +36,11 @@ class ExecuteBatchRequest(BaseModel):
 
 
 def _get_judge0_config():
-    config = get_learnhouse_config()
+    config = get_launchlms_config()
     if not config.judge0_config:
         raise HTTPException(
             status_code=503,
-            detail="Code execution is not configured. Set LEARNHOUSE_JUDGE0_API_URL.",
+            detail="Code execution is not configured. Set LAUNCHLMS_JUDGE0_API_URL.",
         )
     return config.judge0_config
 

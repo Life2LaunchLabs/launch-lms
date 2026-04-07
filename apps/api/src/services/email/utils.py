@@ -7,14 +7,14 @@ from urllib.parse import urlparse
 from pydantic import EmailStr
 from fastapi import Request
 import resend
-from config.config import get_learnhouse_config
+from config.config import get_launchlms_config
 
 logger = logging.getLogger(__name__)
 
 
 def _is_allowed_base_url(url: str) -> bool:
     """Validate that a URL is an allowed origin for email links."""
-    config = get_learnhouse_config()
+    config = get_launchlms_config()
     allowed_origins = config.hosting_config.allowed_origins
 
     # Check against configured allowed origins
@@ -74,7 +74,7 @@ def get_base_url_from_request(request: Request) -> str:
 
     # Fall back to configured frontend_domain (preferred over raw request URL
     # which would point to the API server, not the frontend)
-    config = get_learnhouse_config()
+    config = get_launchlms_config()
     frontend_domain = config.hosting_config.frontend_domain
     if frontend_domain:
         scheme = "https" if config.hosting_config.ssl else "http"
@@ -85,9 +85,9 @@ def get_base_url_from_request(request: Request) -> str:
 
 
 def send_email(to: EmailStr, subject: str, body: str):
-    lh_config = get_learnhouse_config()
+    lh_config = get_launchlms_config()
     mailing = lh_config.mailing_config
-    sender = f"LearnHouse <{mailing.system_email_address}>"
+    sender = f"Launch LMS <{mailing.system_email_address}>"
 
     if mailing.email_provider == "smtp":
         return _send_email_smtp(sender, to, subject, body, mailing)

@@ -1,7 +1,7 @@
 'use client'
 import { Building2, ArrowRight } from 'lucide-react'
 import React, { useState } from 'react'
-import { getLEARNHOUSE_DOMAIN_VAL } from '@services/config/config'
+import { getLAUNCHLMS_DOMAIN_VAL } from '@services/config/config'
 import { stripPort } from '@services/utils/ts/hostUtils'
 
 function OrgNotFound() {
@@ -13,7 +13,7 @@ function OrgNotFound() {
     if (!orgSlug.trim()) return
 
     setIsNavigating(true)
-    const domain = getLEARNHOUSE_DOMAIN_VAL()
+    const domain = getLAUNCHLMS_DOMAIN_VAL()
     const baseDomain = stripPort(domain)
     const cleanSlug = orgSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
     const protocol = window.location.protocol + '//'
@@ -49,7 +49,7 @@ function OrgNotFound() {
                 className="flex-1 bg-transparent outline-none text-gray-900 placeholder-gray-400"
                 autoFocus
               />
-              <span className="text-gray-400 text-sm">.{stripPort(getLEARNHOUSE_DOMAIN_VAL())}</span>
+              <span className="text-gray-400 text-sm">.{stripPort(getLAUNCHLMS_DOMAIN_VAL())}</span>
             </div>
 
             <button

@@ -261,15 +261,7 @@ export default function OrgEditUsage() {
                 Purchase additional AI credits or member seats.
               </p>
             </div>
-            <a
-              href="https://learnhouse.app"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700"
-            >
-              Buy More
-              <ArrowSquareOut size={14} weight="bold" />
-            </a>
+            <span className="text-sm text-gray-400">Contact your admin</span>
           </div>
         </div>
       )}

@@ -1,7 +1,7 @@
 import logging
 from typing import Callable
 from fastapi import FastAPI
-from config.config import LearnHouseConfig, get_learnhouse_config
+from config.config import LaunchLMSConfig, get_launchlms_config
 from src.core.events.autoinstall import auto_install
 from src.core.events.content import check_content_directory
 from src.core.events.database import close_database, connect_to_db
@@ -15,9 +15,9 @@ def _reconcile_packs():
     try:
         from sqlalchemy import create_engine
         from sqlmodel import Session
-        learnhouse_config = get_learnhouse_config()
+        launchlms_config = get_launchlms_config()
         engine = create_engine(
-            learnhouse_config.database_config.sql_connection_string,
+            launchlms_config.database_config.sql_connection_string,
             echo=False,
             pool_pre_ping=True,
         )
@@ -34,9 +34,9 @@ def _reconcile_packs():
 
 def startup_app(app: FastAPI) -> Callable:
     async def start_app() -> None:
-        # Get LearnHouse Config
-        learnhouse_config: LearnHouseConfig = get_learnhouse_config()
-        app.learnhouse_config = learnhouse_config  # type: ignore
+        # Get Launch LMS Config
+        launchlms_config: LaunchLMSConfig = get_launchlms_config()
+        app.launchlms_config = launchlms_config  # type: ignore
 
         # Connect to database
         await connect_to_db(app)

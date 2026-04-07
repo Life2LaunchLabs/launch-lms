@@ -4,7 +4,7 @@ import CreateCourseModal from '@components/Objects/Modals/Course/Create/CreateCo
 import CourseCreationTypeSelector from '@components/Objects/Modals/Course/Create/CourseCreationTypeSelector'
 import AICourseCreationModal from '@components/Objects/Modals/Course/Create/AICourse/AICourseCreationModal'
 import { BookCopy, Search, X, Trash2, ChevronLeft, ChevronRight, Upload, Users, Info } from 'lucide-react'
-import { ImportTypeSelector, LearnHouseCourseImport, TutorCourseImport } from '@components/Objects/Modals/Course/Import'
+import { ImportTypeSelector, LaunchLMSCourseImport, TutorCourseImport } from '@components/Objects/Modals/Course/Import'
 import CourseThumbnail, { removeCoursePrefix } from '@components/Objects/Thumbnails/CourseThumbnail'
 import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
 import NewCourseButton from '@components/Objects/StyledElements/Buttons/NewCourseButton'
@@ -43,7 +43,7 @@ function CoursesHome(params: CourseProps) {
   const isCreatingCourse = searchParams.get('new') ? true : false
   const [newCourseModal, setNewCourseModal] = React.useState(isCreatingCourse)
   const [importCourseModal, setImportCourseModal] = React.useState(false)
-  const [importType, setImportType] = React.useState<'select' | 'learnhouse' | 'tutor'>('select')
+  const [importType, setImportType] = React.useState<'select' | 'launch-lms' | 'tutor'>('select')
   const [creationType, setCreationType] = React.useState<'select' | 'scratch' | 'ai'>('select')
   const [aiCourseModalOpen, setAiCourseModalOpen] = React.useState(false)
   const orgslug = params.orgslug
@@ -230,15 +230,15 @@ function CoursesHome(params: CourseProps) {
     mutateCourses()
   }
 
-  const handleImportTypeSelect = (type: 'learnhouse' | 'tutor') => {
+  const handleImportTypeSelect = (type: 'launch-lms' | 'tutor') => {
     setImportType(type)
   }
 
   const getImportModalContent = () => {
     switch (importType) {
-      case 'learnhouse':
+      case 'launch-lms':
         return (
-          <LearnHouseCourseImport
+          <LaunchLMSCourseImport
             orgId={Number(params.org_id)}
             orgslug={orgslug}
             closeModal={closeImportCourseModal}
@@ -259,8 +259,8 @@ function CoursesHome(params: CourseProps) {
 
   const getImportModalTitle = () => {
     switch (importType) {
-      case 'learnhouse':
-        return t('dashboard.courses.import_learnhouse')
+      case 'launch-lms':
+        return t('dashboard.courses.import_launch_lms')
       case 'tutor':
         return 'Import Tutor LMS'
       default:
@@ -270,8 +270,8 @@ function CoursesHome(params: CourseProps) {
 
   const getImportModalDescription = () => {
     switch (importType) {
-      case 'learnhouse':
-        return t('dashboard.courses.import_learnhouse_description')
+      case 'launch-lms':
+        return t('dashboard.courses.import_launch_lms_description')
       case 'tutor':
         return 'Import Tutor LMS JSON course exports and convert them into LearnHouse courses'
       default:
@@ -371,7 +371,7 @@ function CoursesHome(params: CourseProps) {
         }
       )
       const timestamp = new Date().toISOString().split('T')[0]
-      downloadBlob(blob, `learnhouse-courses-export-${timestamp}.zip`)
+      downloadBlob(blob, `launch-lms-courses-export-${timestamp}.zip`)
       exportToast.complete(toastId, undefined, count, 'batch')
     } catch (error: any) {
       exportToast.error(toastId, error.message || t('courses.courses_exported_error'), undefined, count, 'batch')

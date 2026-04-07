@@ -7,7 +7,7 @@ import { motion } from 'motion/react'
 import toast from 'react-hot-toast'
 import { verifyStripeConnection } from '@services/payments/providers/stripe'
 import Image from 'next/image'
-import learnhouseIcon from 'public/learnhouse_bigicon_1.png'
+import appIcon from 'public/app_icon.svg'
 import { useTranslation } from 'react-i18next'
 
 function StripeConnectCallback() {
@@ -72,7 +72,7 @@ function StripeConnectCallback() {
             quality={100}
             width={50}
             height={50}
-            src={learnhouseIcon}
+            src={appIcon}
             alt=""
           />
         </div>

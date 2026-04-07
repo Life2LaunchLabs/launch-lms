@@ -4,7 +4,7 @@ import boto3
 from botocore.exceptions import ClientError
 import os
 from fastapi import HTTPException, UploadFile
-from config.config import get_learnhouse_config
+from config.config import get_launchlms_config
 from src.security.file_validation import validate_upload
 
 logger = logging.getLogger(__name__)
@@ -70,12 +70,12 @@ async def upload_content(
     allowed_formats: Optional[list[str]] = None,
 ):
     # Get Learnhouse Config
-    learnhouse_config = get_learnhouse_config()
+    launchlms_config = get_launchlms_config()
 
     file_format = file_and_format.split(".")[-1].strip().lower()
 
     # Get content delivery method
-    content_delivery = learnhouse_config.hosting_config.content_delivery.type
+    content_delivery = launchlms_config.hosting_config.content_delivery.type
 
     # Check if format file is allowed
     if allowed_formats:
@@ -99,10 +99,10 @@ async def upload_content(
     elif content_delivery == "s3api":
         s3 = boto3.client(
             "s3",
-            endpoint_url=learnhouse_config.hosting_config.content_delivery.s3api.endpoint_url,
+            endpoint_url=launchlms_config.hosting_config.content_delivery.s3api.endpoint_url,
         )
 
-        bucket_name = learnhouse_config.hosting_config.content_delivery.s3api.bucket_name or "learnhouse-media"
+        bucket_name = launchlms_config.hosting_config.content_delivery.s3api.bucket_name or "launch-lms-media"
         local_path = f"content/{type_of_dir}/{uuid}/{directory}/{file_and_format}"
         s3_key = local_path
 

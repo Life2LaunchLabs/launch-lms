@@ -1,7 +1,7 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
-from config.config import get_learnhouse_config
+from config.config import get_launchlms_config
 from migrations.orgconfigs.orgconfigs_migrations import migrate_to_v1_1, migrate_to_v1_2, migrate_v0_to_v1
 from src.core.events.database import get_db_session
 from src.db.organization_config import OrganizationConfig
@@ -25,7 +25,7 @@ async def config(
     current_user: PublicUser = Depends(get_authenticated_user),
 ):
     _require_superadmin(current_user)
-    config = get_learnhouse_config()
+    config = get_launchlms_config()
     config_dict = config.model_dump()
 
     # Redact sensitive values

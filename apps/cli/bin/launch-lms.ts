@@ -34,47 +34,47 @@ async function showWelcome() {
     console.log(`    ${pc.cyan(cmd.name.padEnd(14))} ${pc.dim(cmd.desc)}`)
   }
   console.log()
-  console.log(pc.dim('  Run a command with: npx learnhouse <command>'))
-  console.log(pc.dim('  Get started with:   npx learnhouse setup'))
+  console.log(pc.dim('  Run a command with: launch-lms <command>'))
+  console.log(pc.dim('  Get started with:   launch-lms setup'))
   console.log()
 }
 
 const program = new Command()
 
 program
-  .name('learnhouse')
-  .description('The official LearnHouse CLI — deploy, manage, and operate your LearnHouse instance')
+  .name('launch-lms')
+  .description('The Launch LMS CLI — deploy, manage, and operate your Launch LMS instance')
   .version(VERSION)
   .action(showWelcome)
 
 program
   .command('setup')
-  .description('Interactive setup wizard for LearnHouse')
+  .description('Interactive setup wizard for Launch LMS')
   .action(setupCommand)
 
 program
   .command('start')
-  .description('Start LearnHouse services')
+  .description('Start Launch LMS services')
   .action(startCommand)
 
 program
   .command('stop')
-  .description('Stop LearnHouse services')
+  .description('Stop Launch LMS services')
   .action(stopCommand)
 
 program
   .command('logs')
-  .description('Stream logs from LearnHouse services')
+  .description('Stream logs from Launch LMS services')
   .action(logsCommand)
 
 program
   .command('config')
-  .description('Show current LearnHouse configuration')
+  .description('Show current Launch LMS configuration')
   .action(configCommand)
 
 program
   .command('backup')
-  .description('Backup & restore LearnHouse database')
+  .description('Backup & restore Launch LMS database')
   .argument('[archive]', 'Path to backup archive for restore')
   .option('--restore', 'Restore from a backup archive')
   .action(backupCommand)
@@ -86,12 +86,12 @@ program
 
 program
   .command('doctor')
-  .description('Diagnose common issues with LearnHouse')
+  .description('Diagnose common issues with Launch LMS')
   .action(doctorCommand)
 
 program
   .command('shell')
-  .description('Open a shell in a LearnHouse container')
+  .description('Open a shell in a Launch LMS container')
   .action(shellCommand)
 
 program

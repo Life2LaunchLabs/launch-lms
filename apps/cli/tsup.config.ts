@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsup'
 
 export default defineConfig({
-  entry: ['bin/learnhouse.ts'],
+  entry: ['bin/launch-lms.ts'],
   format: ['esm'],
   target: 'node18',
   outDir: 'dist/bin',

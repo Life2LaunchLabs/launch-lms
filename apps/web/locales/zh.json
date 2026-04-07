@@ -41,11 +41,11 @@
     "help": "帮助",
     "help_menu": {
       "documentation": "文档",
-      "website": "LearnHouse 网站",
+      "website": "Launch LMS 网站",
       "discord": "Discord",
       "report_feedback": "报告问题或反馈",
       "feedback_title": "发送反馈",
-      "feedback_description": "通过分享您的想法、报告错误或建议新功能来帮助我们改进 LearnHouse。",
+      "feedback_description": "通过分享您的想法、报告错误或建议新功能来帮助我们改进 Launch LMS。",
       "feedback_placeholder": "告诉我们您的想法...",
       "feedback_success": "感谢您的反馈！",
       "send_feedback": "发送反馈",
@@ -435,14 +435,14 @@
     "import": {
       "scorm_package": "SCORM 包",
       "scorm_description": "导入 SCORM 1.2 或 SCORM 2004 包",
-      "learnhouse_courses": "LearnHouse 课程",
-      "learnhouse_description": "导入从 LearnHouse 导出的课程",
+      "launch-lms_courses": "Launch LMS 课程",
+      "launch-lms_description": "导入从 Launch LMS 导出的课程",
       "upload_package": "上传包",
       "configure": "配置",
       "complete": "完成",
       "click_to_upload": "点击上传或拖放",
-      "learnhouse_format": "LearnHouse 课程导出 (.zip)",
-      "learnhouse_info": "上传 LearnHouse 课程导出包 (.zip)。您可以选择要导入的课程并配置导入选项。",
+      "launch-lms_format": "Launch LMS 课程导出 (.zip)",
+      "launch-lms_info": "上传 Launch LMS 课程导出包 (.zip)。您可以选择要导入的课程并配置导入选项。",
       "analyze_package": "分析包",
       "ready_to_analyze": "准备分析",
       "invalid_file_format": "请上传 .zip 文件",
@@ -1138,7 +1138,7 @@
           "description": "管理您的个人信息、密码、电子邮件"
         }
       },
-      "learnhouse_university": "LearnHouse 大学"
+      "launch-lms_university": "Launch LMS 大学"
     },
     "courses": {
       "title": "课程",
@@ -1148,8 +1148,8 @@
       "import_course": "导入课程",
       "import_scorm": "导入 SCORM 包",
       "import_scorm_description": "导入 SCORM 包以创建新课程",
-      "import_learnhouse": "导入 LearnHouse 课程",
-      "import_learnhouse_description": "从 LearnHouse 导出包中导入课程",
+      "import_launch-lms": "导入 Launch LMS 课程",
+      "import_launch-lms_description": "从 Launch LMS 导出包中导入课程",
       "import_select_type": "选择要导入的包类型",
       "no_courses": "尚无课程",
       "create_course_placeholder": "创建课程以添加内容",
@@ -1773,8 +1773,8 @@
         "label_placeholder": "选择组织标签",
         "about": "关于组织",
         "about_placeholder": "关于您组织的详细描述",
-        "showcase_explore": "在 LearnHouse Explore 中展示",
-        "showcase_description": "与 LearnHouse 社区分享您组织的课程和内容。开启此项以帮助学习者发现您的宝贵教育资源。",
+        "showcase_explore": "在 Launch LMS Explore 中展示",
+        "showcase_description": "与 Launch LMS 社区分享您组织的课程和内容。开启此项以帮助学习者发现您的宝贵教育资源。",
         "save_changes": "保存更改",
         "saving": "保存中...",
         "update_success": "组织已更新",

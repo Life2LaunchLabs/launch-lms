@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlmodel import Session, select
-from config.config import get_learnhouse_config
+from config.config import get_launchlms_config
 from src.core.events.database import get_db_session
 from src.db.users import PublicUser, AnonymousUser, User
 from src.db.user_organizations import UserOrganization
@@ -64,7 +64,7 @@ def _get_read_client() -> httpx.AsyncClient | None:
     if _read_client is not None:
         return _read_client
 
-    config = get_learnhouse_config()
+    config = get_launchlms_config()
     tb = config.tinybird_config
     if tb is None:
         return None
@@ -303,7 +303,7 @@ async def analytics_status(
     if isinstance(current_user, AnonymousUser):
         raise HTTPException(status_code=401, detail="Authentication required")
 
-    config = get_learnhouse_config()
+    config = get_launchlms_config()
     return AnalyticsStatusResponse(configured=config.tinybird_config is not None)
 
 

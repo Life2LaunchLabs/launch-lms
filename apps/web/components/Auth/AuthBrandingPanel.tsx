@@ -1,12 +1,9 @@
 'use client'
 import React from 'react'
-import Image from 'next/image'
 import Link from 'next/link'
-import learnhouseIcon from 'public/learnhouse_bigicon_1.png'
 import { getOrgLogoMediaDirectory, getOrgAuthBackgroundMediaDirectory } from '@services/media/media'
 import { getUriWithOrg } from '@services/config/config'
 import { cn } from '@/lib/utils'
-import { usePlan } from '@components/Hooks/usePlan'
 
 interface AuthBrandingPanelProps {
   org: any
@@ -21,11 +18,6 @@ export default function AuthBrandingPanel({ org, welcomeText }: AuthBrandingPane
     background_image = '',
     text_color = 'light'
   } = authBranding
-
-  // Check if org has enterprise plan - hide LearnHouse branding for enterprise users
-  // In OSS mode, always show branding regardless of plan
-  const plan = usePlan()
-  const isEnterprise = plan === 'enterprise'
 
   const getBackgroundStyle = (): React.CSSProperties => {
     if (background_type === 'gradient' || !background_image) {
@@ -68,23 +60,6 @@ export default function AuthBrandingPanel({ org, welcomeText }: AuthBrandingPane
 
       {/* Content */}
       <div className="relative z-10 flex flex-col h-full p-10">
-        {/* Top bar with LearnHouse lrn.svg logo - hidden for enterprise users */}
-        {!isEnterprise && (
-          <div className="login-topbar">
-            <Link prefetch href="https://learnhouse.app" target="_blank">
-              <img
-                src="/lrn.svg"
-                alt="LearnHouse"
-                width={30}
-                height={30}
-                className={cn(
-                  "transition-opacity hover:opacity-100",
-                  text_color === 'light' ? "opacity-60 invert" : "opacity-40"
-                )}
-              />
-            </Link>
-          </div>
-        )}
 
         {/* Content - vertically and horizontally centered */}
         <div className="flex-1 flex items-center justify-center">
@@ -102,14 +77,9 @@ export default function AuthBrandingPanel({ org, welcomeText }: AuthBrandingPane
                     className="w-full h-full object-contain p-3"
                   />
                 ) : (
-                  <Image
-                    quality={100}
-                    width={96}
-                    height={96}
-                    src={learnhouseIcon}
-                    alt="LearnHouse"
-                    className="object-contain"
-                  />
+                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs font-medium">
+                    {org?.name?.slice(0, 2)?.toUpperCase() || 'LM'}
+                  </div>
                 )}
               </div>
             </Link>

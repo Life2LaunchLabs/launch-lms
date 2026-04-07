@@ -13,7 +13,7 @@ from pydantic import EmailStr
 from sqlmodel import Session, select
 from src.db.organizations import Organization, OrganizationRead
 from src.db.users import User, UserRead
-from config.config import get_learnhouse_config
+from config.config import get_launchlms_config
 from src.services.users.emails import send_email_verification_email
 from src.services.email.utils import get_base_url_from_request
 from src.services.security.rate_limiting import check_verification_resend_rate_limit
@@ -28,7 +28,7 @@ NO_ORG_UUID = "none"
 
 def get_redis_connection() -> redis.Redis:
     """Get Redis connection from config."""
-    LH_CONFIG = get_learnhouse_config()
+    LH_CONFIG = get_launchlms_config()
     redis_conn_string = LH_CONFIG.redis_config.redis_connection_string
 
     if not redis_conn_string:

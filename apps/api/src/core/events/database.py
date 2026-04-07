@@ -1,7 +1,7 @@
 import logging
 import os
 import importlib
-from config.config import get_learnhouse_config
+from config.config import get_launchlms_config
 from fastapi import FastAPI
 from sqlmodel import SQLModel, Session, create_engine
 from sqlalchemy import event
@@ -43,7 +43,7 @@ def import_all_models():
 # Import all models before creating engine
 import_all_models()
 
-learnhouse_config = get_learnhouse_config()
+launchlms_config = get_launchlms_config()
 
 # Check if we're in test mode
 is_testing = os.getenv("TESTING", "false").lower() == "true"
@@ -58,7 +58,7 @@ if is_testing:
 else:
     # Use configured database for production/development
     engine = create_engine(
-        learnhouse_config.database_config.sql_connection_string,  # type: ignore
+        launchlms_config.database_config.sql_connection_string,  # type: ignore
         echo=False, 
         pool_pre_ping=True,  # type: ignore
         pool_size=20,  # Increased from 5 to handle more concurrent requests
@@ -98,7 +98,7 @@ if not is_testing:
 
 async def connect_to_db(app: FastAPI):
     app.db_engine = engine  # type: ignore
-    logging.info("LearnHouse database has been started.")
+    logging.info("Launch LMS database has been started.")
     # Only create tables if not in test mode
     if not is_testing:
         SQLModel.metadata.create_all(engine)
@@ -108,5 +108,5 @@ def get_db_session():
         yield session
 
 async def close_database(app: FastAPI):
-    logging.info("LearnHouse has been shut down.")
+    logging.info("Launch LMS has been shut down.")
     return app

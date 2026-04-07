@@ -8,11 +8,11 @@ import { extractSubdomain, isLocalhost as isLocalhostCheck } from '@services/uti
  * Priority: env var > cookie (set by middleware) > default
  */
 async function getServerDomain(): Promise<string> {
-  const envVal = getConfig('NEXT_PUBLIC_LEARNHOUSE_DOMAIN')
+  const envVal = getConfig('NEXT_PUBLIC_LAUNCHLMS_DOMAIN')
   if (envVal) return envVal
   try {
     const cookieStore = await cookies()
-    const cookieVal = cookieStore.get('learnhouse_frontend_domain')?.value
+    const cookieVal = cookieStore.get('launchlms_frontend_domain')?.value
     if (cookieVal) return cookieVal
   } catch {
     // cookies() may throw outside of a request context
@@ -38,7 +38,7 @@ export interface OrgResolutionResult {
 /**
  * Resolves the organization context from multiple sources in priority order:
  * 1. Subdomain (e.g., myorg.learnhouse.io -> "myorg")
- * 2. Cookie (learnhouse_orgslug)
+ * 2. Cookie (launchlms_orgslug)
  * 3. Action token (for password reset, email verification links)
  *
  * Returns null if no org context can be determined.
@@ -110,11 +110,11 @@ async function resolveFromSubdomain(): Promise<ResolvedOrg | null> {
 async function resolveFromCookie(): Promise<ResolvedOrg | null> {
   try {
     const cookieStore = await cookies()
-    const orgslugCookie = cookieStore.get('learnhouse_orgslug')
+    const orgslugCookie = cookieStore.get('launchlms_orgslug')
 
     if (!orgslugCookie?.value) {
       // Try the old cookie name for backward compatibility
-      const legacyCookie = cookieStore.get('learnhouse_current_orgslug')
+      const legacyCookie = cookieStore.get('launchlms_current_orgslug')
       if (!legacyCookie?.value) {
         return null
       }
@@ -228,13 +228,13 @@ export async function getOrgSlug(): Promise<string | null> {
 
   // Fall back to cookie
   const cookieStore = await cookies()
-  const orgslugCookie = cookieStore.get('learnhouse_orgslug')
+  const orgslugCookie = cookieStore.get('launchlms_orgslug')
   if (orgslugCookie?.value) {
     return orgslugCookie.value
   }
 
   // Try legacy cookie
-  const legacyCookie = cookieStore.get('learnhouse_current_orgslug')
+  const legacyCookie = cookieStore.get('launchlms_current_orgslug')
   if (legacyCookie?.value) {
     return legacyCookie.value
   }

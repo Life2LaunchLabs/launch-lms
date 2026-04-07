@@ -43,11 +43,11 @@
     "help": "Hilfe",
     "help_menu": {
       "documentation": "Dokumentation",
-      "website": "LearnHouse Webseite",
+      "website": "Launch LMS Webseite",
       "discord": "Discord",
       "report_feedback": "Problem melden oder Feedback geben",
       "feedback_title": "Feedback senden",
-      "feedback_description": "Helfen Sie uns, LearnHouse zu verbessern, indem Sie Ihre Gedanken teilen, Fehler melden oder neue Funktionen vorschlagen.",
+      "feedback_description": "Helfen Sie uns, Launch LMS zu verbessern, indem Sie Ihre Gedanken teilen, Fehler melden oder neue Funktionen vorschlagen.",
       "feedback_placeholder": "Teilen Sie uns mit, was Sie denken...",
       "feedback_success": "Vielen Dank für Ihr Feedback!",
       "send_feedback": "Feedback senden",
@@ -466,14 +466,14 @@
     "import": {
       "scorm_package": "SCORM-Paket",
       "scorm_description": "SCORM 1.2 oder SCORM 2004 Pakete importieren",
-      "learnhouse_courses": "LearnHouse-Kurse",
-      "learnhouse_description": "Aus LearnHouse exportierte Kurse importieren",
+      "launch-lms_courses": "Launch LMS-Kurse",
+      "launch-lms_description": "Aus Launch LMS exportierte Kurse importieren",
       "upload_package": "Paket hochladen",
       "configure": "Konfigurieren",
       "complete": "Abgeschlossen",
       "click_to_upload": "Klicken zum Hochladen oder per Drag & Drop",
-      "learnhouse_format": "LearnHouse-Kursexport (.zip)",
-      "learnhouse_info": "Laden Sie ein LearnHouse-Kursexport-Paket (.zip) hoch. Sie können auswählen, welche Kurse importiert werden sollen, und Import-Optionen konfigurieren.",
+      "launch-lms_format": "Launch LMS-Kursexport (.zip)",
+      "launch-lms_info": "Laden Sie ein Launch LMS-Kursexport-Paket (.zip) hoch. Sie können auswählen, welche Kurse importiert werden sollen, und Import-Optionen konfigurieren.",
       "analyze_package": "Paket analysieren",
       "ready_to_analyze": "Bereit zur Analyse",
       "invalid_file_format": "Bitte laden Sie eine .zip-Datei hoch",
@@ -1270,7 +1270,7 @@
           "description": "Konfigurieren Sie Ihre persönlichen Einstellungen, Passwörter, E-Mail"
         }
       },
-      "learnhouse_university": "LearnHouse Universität"
+      "launch-lms_university": "Launch LMS Universität"
     },
     "courses": {
       "title": "Kurse",
@@ -1280,8 +1280,8 @@
       "import_course": "Kurs importieren",
       "import_scorm": "SCORM-Paket importieren",
       "import_scorm_description": "Ein SCORM-Paket importieren, um einen neuen Kurs zu erstellen",
-      "import_learnhouse": "LearnHouse-Kurse importieren",
-      "import_learnhouse_description": "Kurse aus einem LearnHouse-Exportpaket importieren",
+      "import_launch-lms": "Launch LMS-Kurse importieren",
+      "import_launch-lms_description": "Kurse aus einem Launch LMS-Exportpaket importieren",
       "import_select_type": "Wählen Sie den Pakettyp aus, den Sie importieren möchten",
       "no_courses": "Noch keine Kurse",
       "create_course_placeholder": "Erstellen Sie einen Kurs, um Inhalte hinzuzufügen",
@@ -3369,7 +3369,7 @@
   "embed": {
     "not_supported_description": "Diese Art von Aktivität erfordert eine Authentifizierung und kann nicht eingebettet werden.",
     "not_supported_title": "Diese Aktivität wird nicht unterstützt",
-    "powered_by": "Betrieben von LearnHouse",
+    "powered_by": "Betrieben von Launch LMS",
     "visit_activity": "Aktivitätsseite besuchen"
   },
   "analytics": {

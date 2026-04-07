@@ -148,7 +148,7 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
             ) : (
               <Image
                 src="/lrn-text.svg"
-                alt="LearnHouse"
+                alt="Launch LMS"
                 width={110}
                 height={33}
                 style={{ height: '30px', width: 'auto', filter: colors.logoFilter }}

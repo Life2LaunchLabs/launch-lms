@@ -43,11 +43,11 @@
     "help": "Aide",
     "help_menu": {
       "documentation": "Documentation",
-      "website": "Site LearnHouse",
+      "website": "Site Launch LMS",
       "discord": "Discord",
       "report_feedback": "Signaler un problème",
       "feedback_title": "Envoyer un commentaire",
-      "feedback_description": "Aidez-nous à améliorer LearnHouse en partageant vos impressions, signalant des bugs ou suggérant de nouvelles fonctionnalités.",
+      "feedback_description": "Aidez-nous à améliorer Launch LMS en partageant vos impressions, signalant des bugs ou suggérant de nouvelles fonctionnalités.",
       "feedback_placeholder": "Dites-nous ce que vous en pensez...",
       "feedback_success": "Merci pour votre retour !",
       "send_feedback": "Envoyer",
@@ -430,14 +430,14 @@
     "import": {
       "scorm_package": "Package SCORM",
       "scorm_description": "Importer des packages SCORM 1.2 ou SCORM 2004",
-      "learnhouse_courses": "Cours LearnHouse",
-      "learnhouse_description": "Importer des cours exportés depuis LearnHouse",
+      "launch-lms_courses": "Cours Launch LMS",
+      "launch-lms_description": "Importer des cours exportés depuis Launch LMS",
       "upload_package": "Téléverser le package",
       "configure": "Configurer",
       "complete": "Terminé",
       "click_to_upload": "Cliquez pour téléverser ou glissez-déposez",
-      "learnhouse_format": "Export de cours LearnHouse (.zip)",
-      "learnhouse_info": "Téléversez un package d'export LearnHouse (.zip). Vous pourrez sélectionner les cours à importer et configurer les options d'import.",
+      "launch-lms_format": "Export de cours Launch LMS (.zip)",
+      "launch-lms_info": "Téléversez un package d'export Launch LMS (.zip). Vous pourrez sélectionner les cours à importer et configurer les options d'import.",
       "analyze_package": "Analyser le package",
       "ready_to_analyze": "Prêt à analyser",
       "invalid_file_format": "Veuillez téléverser un fichier .zip",
@@ -1133,7 +1133,7 @@
           "description": "Configurez vos paramètres personnels, mots de passe, email"
         }
       },
-      "learnhouse_university": "Université LearnHouse"
+      "launch-lms_university": "Université Launch LMS"
     },
     "courses": {
       "title": "Cours",
@@ -1143,8 +1143,8 @@
       "import_course": "Importer un cours",
       "import_scorm": "Importer un package SCORM",
       "import_scorm_description": "Importer un package SCORM pour créer un nouveau cours",
-      "import_learnhouse": "Importer des cours LearnHouse",
-      "import_learnhouse_description": "Importer des cours depuis un export LearnHouse",
+      "import_launch-lms": "Importer des cours Launch LMS",
+      "import_launch-lms_description": "Importer des cours depuis un export Launch LMS",
       "import_select_type": "Sélectionnez le type de package à importer",
       "no_courses": "Aucun cours pour le moment",
       "create_course_placeholder": "Créez un cours pour ajouter du contenu",
