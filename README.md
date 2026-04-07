@@ -1,18 +1,18 @@
 <p align="center">
-  <a href="https://learnhouse.app">
-    <img src=".github/images/learnhouse-github.png" alt="LearnHouse" width="600" />
+  <a href="https://launch-lms.app">
+    <img src=".github/images/launch-lms-github.png" alt="Launch LMS" width="600" />
   </a>
 </p>
 
 <h3 align="center">The next-gen open-source platform for world-class educational content.</h3>
 
 <p align="center">
-  <a href="https://github.com/learnhouse/learnhouse/blob/main/LICENSE"><img src="https://img.shields.io/github/license/learnhouse/learnhouse?style=flat&color=blue" alt="License" /></a>
-  <a href="https://github.com/learnhouse/learnhouse/stargazers"><img src="https://img.shields.io/github/stars/learnhouse/learnhouse?style=flat" alt="Stars" /></a>
-  <a href="https://www.npmjs.com/package/learnhouse"><img src="https://img.shields.io/npm/v/learnhouse?style=flat&label=cli" alt="CLI Version" /></a>
-  <a href="https://github.com/learnhouse/learnhouse/commits"><img src="https://img.shields.io/github/last-commit/learnhouse/learnhouse?style=flat&label=last%20commit" alt="Last Commit" /></a>
-  <a href="https://github.com/learnhouse/learnhouse/issues"><img src="https://img.shields.io/github/issues/learnhouse/learnhouse?style=flat" alt="Issues" /></a>
-  <a href="https://github.com/learnhouse/learnhouse/pulls"><img src="https://img.shields.io/github/issues-pr/learnhouse/learnhouse?style=flat&label=PRs" alt="Pull Requests" /></a>
+  <a href="https://github.com/launch-lms/launch-lms/blob/main/LICENSE"><img src="https://img.shields.io/github/license/launch-lms/launch-lms?style=flat&color=blue" alt="License" /></a>
+  <a href="https://github.com/launch-lms/launch-lms/stargazers"><img src="https://img.shields.io/github/stars/launch-lms/launch-lms?style=flat" alt="Stars" /></a>
+  <a href="https://www.npmjs.com/package/launch-lms"><img src="https://img.shields.io/npm/v/launch-lms?style=flat&label=cli" alt="CLI Version" /></a>
+  <a href="https://github.com/launch-lms/launch-lms/commits"><img src="https://img.shields.io/github/last-commit/launch-lms/launch-lms?style=flat&label=last%20commit" alt="Last Commit" /></a>
+  <a href="https://github.com/launch-lms/launch-lms/issues"><img src="https://img.shields.io/github/issues/launch-lms/launch-lms?style=flat" alt="Issues" /></a>
+  <a href="https://github.com/launch-lms/launch-lms/pulls"><img src="https://img.shields.io/github/issues-pr/launch-lms/launch-lms?style=flat&label=PRs" alt="Pull Requests" /></a>
 </p>
 
 <p align="center">
@@ -38,7 +38,7 @@
 
 ## 🚀 Get Started
 
-LearnHouse includes a repo-local CLI that handles everything in this checkout — self-hosting, updates, backups, and local development.
+Launch LMS includes a repo-local CLI that handles everything in this checkout — self-hosting, updates, backups, and local development.
 
 ### Self-host
 
@@ -59,8 +59,8 @@ The setup wizard walks you through domain, database, admin account, and optional
 ### Development
 
 ```bash
-git clone https://github.com/learnhouse/learnhouse.git
-cd learnhouse
+git clone https://github.com/launch-lms/launch-lms.git
+cd launch-lms
 ./launch-lms dev
 ```
 
@@ -103,27 +103,27 @@ This repo-local launcher installs the CLI dependencies in `apps/cli` if needed, 
 ## 💬 Community
 
 - [Discord](https://discord.gg/CMyZjjYZ6x) — chat with the team and other users
-- [Documentation](https://docs.learnhouse.app) — guides and references
+- [Documentation](https://docs.launch-lms.app) — guides and references
 
 ## 🤝 Contributing
 
 ```bash
-git clone https://github.com/learnhouse/learnhouse.git
-cd learnhouse
+git clone https://github.com/launch-lms/launch-lms.git
+cd launch-lms
 ./launch-lms dev
 ```
 
 - [Contributing Guide](CONTRIBUTING.md)
-- [Submit a bug](https://github.com/learnhouse/learnhouse/issues/new?assignees=&labels=bug%2Ctriage&projects=&template=bug.yml&title=%5BBug%5D%3A+)
-- [Good first issues](https://github.com/learnhouse/learnhouse/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
+- [Submit a bug](https://github.com/launch-lms/launch-lms/issues/new?assignees=&labels=bug%2Ctriage&projects=&template=bug.yml&title=%5BBug%5D%3A+)
+- [Good first issues](https://github.com/launch-lms/launch-lms/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
 
 ## 🔒 Security
 
-We take the security of LearnHouse and the data entrusted to us seriously. If you discover a vulnerability, please email **security@learnhouse.app** — do not disclose it publicly until we've had a chance to investigate.
+We take the security of Launch LMS and the data entrusted to us seriously. If you discover a vulnerability, please email **security@launch-lms.app** — do not disclose it publicly until we've had a chance to investigate.
 
 Please include a clear description, steps to reproduce, affected endpoints, and any relevant screenshots or proof-of-concept code. We will acknowledge your report, keep you informed, and credit you once resolved if you wish.
 
-See our full [Security Policy](https://learnhouse.app/security) for details on our practices, scope, and responsible disclosure guidelines.
+See our full [Security Policy](https://launch-lms.app/security) for details on our practices, scope, and responsible disclosure guidelines.
 
 ## ✍️ Author & Maintainer
 
@@ -131,9 +131,9 @@ Sweave (Badr B.) — [@swve](https://github.com/swve)
 
 ## 💜 A Word
 
-LearnHouse is made with 💜, from the UI to the features it is carefully designed to make students and teachers lives easier and make education software more enjoyable.
+Launch LMS is made with 💜, from the UI to the features it is carefully designed to make students and teachers lives easier and make education software more enjoyable.
 
-Thank you and have fun using/developing/testing LearnHouse !
+Thank you and have fun using/developing/testing Launch LMS !
 
 ## 📄 License
 

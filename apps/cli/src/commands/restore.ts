@@ -23,7 +23,7 @@ export async function restoreCommand(archivePath: string) {
   const config = readConfig(installDir)
 
   if (!config) {
-    p.log.error('No LearnHouse installation found. Run setup first.')
+    p.log.error('No Launch LMS installation found. Run setup first.')
     process.exit(1)
   }
 
@@ -39,7 +39,7 @@ export async function restoreCommand(archivePath: string) {
     process.exit(1)
   }
 
-  const dbContainer = `learnhouse-db-${id}`
+  const dbContainer = `launch-lms-db-${id}`
   if (!isContainerRunning(dbContainer)) {
     p.log.error('Database container is not running. Start services first.')
     process.exit(1)
@@ -95,7 +95,7 @@ export async function restoreCommand(archivePath: string) {
     // Drop and recreate the database
     dockerExecFromFile(
       dbContainer,
-      'psql -U learnhouse -d learnhouse',
+      'psql -U launch-lms -d launch-lms',
       dumpPath,
     )
     s2.stop('Database restored')

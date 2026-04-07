@@ -6,7 +6,7 @@ import { ToolbarButtons } from './Toolbar/ToolbarButtons'
 import { motion } from 'motion/react'
 import Image from 'next/image'
 import { DividerVerticalIcon, SlashIcon } from '@radix-ui/react-icons'
-import learnhouseAI_icon from 'public/learnhouse_ai_simple.png'
+import aiIcon from 'public/ai_icon.svg'
 import {
   AIEditorStateTypes,
   useAIEditor,
@@ -366,7 +366,7 @@ function Editor(props: Editor) {
             <div className="activity-editor-doc-section">
               <div className="activity-editor-info-wrapper">
                 <Link href="/">
-                  <EditorLearnHouseLogo />
+                  <EditorLaunchLMSLogo />
                 </Link>
                 <Link target="_blank" href={`/course/${course_uuid}`}>
                   <img
@@ -603,7 +603,7 @@ const logoAnimations = [
   },
 ]
 
-const EditorLearnHouseLogo = () => {
+const EditorLaunchLMSLogo = () => {
   const [animation] = React.useState(
     () => logoAnimations[Math.floor(Math.random() * logoAnimations.length)]
   )

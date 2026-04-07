@@ -149,12 +149,12 @@ export function getDockerDiskUsage(): string {
 export function autoDetectDeploymentId(): string | null {
   try {
     const output = execSync(
-      'docker ps -a --filter "name=learnhouse-app-" --format "{{.Names}}"',
+      'docker ps -a --filter "name=launch-lms-app-" --format "{{.Names}}"',
       { stdio: 'pipe' },
     ).toString().trim()
     if (!output) return null
-    // Extract ID from first learnhouse-app-<id> container
-    const match = output.split('\n')[0].match(/learnhouse-app-([a-f0-9]+)$/)
+    // Extract ID from first launch-lms-app-<id> container
+    const match = output.split('\n')[0].match(/launch-lms-app-([a-f0-9]+)$/)
     return match ? match[1] : null
   } catch {
     return null
@@ -166,7 +166,7 @@ export function listDeploymentContainers(deploymentId?: string): { name: string;
     const id = deploymentId || autoDetectDeploymentId()
     if (!id) return []
     const output = execSync(
-      `docker ps -a --filter "name=learnhouse-" --format "{{.Names}}\\t{{.Status}}\\t{{.Image}}"`,
+      `docker ps -a --filter "name=launch-lms-" --format "{{.Names}}\\t{{.Status}}\\t{{.Image}}"`,
       { stdio: 'pipe' },
     ).toString().trim()
     if (!output) return []

@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "learnhouse",
+      "name": "launch-lms",
       "dependencies": {
         "@codemirror/autocomplete": "^6.18.4",
         "@codemirror/lang-cpp": "^6.0.3",

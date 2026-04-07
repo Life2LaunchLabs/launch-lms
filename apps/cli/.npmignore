@@ -6,5 +6,5 @@ tsconfig.json
 *.ts
 !dist/**
 node_modules/
-learnhouse/
+launch-lms/
 .gitignore

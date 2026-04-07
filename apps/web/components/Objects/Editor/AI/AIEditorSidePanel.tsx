@@ -22,7 +22,7 @@ import {
   Type,
   Box,
 } from 'lucide-react'
-import learnhouseAI_icon from 'public/learnhouse_ai_simple.png'
+import aiIcon from 'public/ai_icon.svg'
 import aiLogoBlack from 'public/ai_icon.svg'
 import {
   AIEditorStateTypes,

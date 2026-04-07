@@ -9,7 +9,7 @@ __pycache__/
 # Visual Studio Code
 .vscode/
 
-# Learnhouse
+# LAUNCHLMS
 content/*
 
 # Flyio

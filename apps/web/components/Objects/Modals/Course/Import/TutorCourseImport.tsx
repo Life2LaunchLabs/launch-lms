@@ -317,7 +317,7 @@ function TutorCourseImport({
           )}
 
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">
-            This importer preserves Tutor lesson and quiz content as LearnHouse dynamic pages. It does not convert Tutor exports into SCORM packages.
+            This importer preserves Tutor lesson and quiz content as Launch LMS dynamic pages. It does not convert Tutor exports into SCORM packages.
           </div>
 
           <Button type="submit" disabled={!importFiles.length || isAnalyzing} className="w-full">
@@ -386,7 +386,7 @@ function TutorCourseImport({
           </div>
 
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
-            Supported Tutor-hosted videos, PDFs, and thumbnails will be downloaded into LearnHouse when possible. Unsupported or external media stays as a link inside the imported lesson page.
+            Supported Tutor-hosted videos, PDFs, and thumbnails will be downloaded into Launch LMS when possible. Unsupported or external media stays as a link inside the imported lesson page.
           </div>
 
           {importError && (
@@ -408,7 +408,7 @@ function TutorCourseImport({
           <div className="space-y-4 text-center">
             <BarLoader width="100%" color="#111827" />
             <p className="text-sm text-gray-500">
-              {importProgress?.message || 'Downloading media and creating LearnHouse courses from Tutor LMS content...'}
+              {importProgress?.message || 'Downloading media and creating Launch LMS courses from Tutor LMS content...'}
             </p>
             <div className="space-y-1 text-sm text-gray-600">
               <div>

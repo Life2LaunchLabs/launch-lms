@@ -54,8 +54,8 @@ apps/web/runtime-config.json
 # Tinybird CLI local state (contains tokens)
 .tinyb
 
-# LearnHouse CLI generated files
-.learnhouse/
+# Launch LMS CLI generated files
+.launch-lms/
 .ee-disabled
 
 # agent files

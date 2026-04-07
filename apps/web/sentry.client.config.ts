@@ -2,16 +2,16 @@ import * as Sentry from "@sentry/nextjs";
 
 const rc = typeof window !== 'undefined' ? (window as any).__RUNTIME_CONFIG__ || {} : {};
 const SENTRY_DSN = rc.NEXT_PUBLIC_LAUNCHLMS_SENTRY_DSN || process.env.NEXT_PUBLIC_LAUNCHLMS_SENTRY_DSN;
-const LEARNHOUSE_ENV = rc.NEXT_PUBLIC_LAUNCHLMS_ENV || process.env.NEXT_PUBLIC_LAUNCHLMS_ENV || "dev";
+const LAUNCHLMS_ENV = rc.NEXT_PUBLIC_LAUNCHLMS_ENV || process.env.NEXT_PUBLIC_LAUNCHLMS_ENV || "dev";
 
 if (SENTRY_DSN) {
   Sentry.init({
     dsn: SENTRY_DSN,
     tunnel: '/monitoring',
-    environment: LEARNHOUSE_ENV,
+    environment: LAUNCHLMS_ENV,
     sendDefaultPii: true,
     enableLogs: true,
-    tracesSampleRate: LEARNHOUSE_ENV === "dev" ? 1.0 : 0.1,
+    tracesSampleRate: LAUNCHLMS_ENV === "dev" ? 1.0 : 0.1,
     replaysSessionSampleRate: 0.0,
     replaysOnErrorSampleRate: 0.1,
     integrations: [

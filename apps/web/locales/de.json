@@ -3381,7 +3381,7 @@
     },
     "not_configured": {
       "title": "Analytik nicht konfiguriert",
-      "description": "Analytik erfordert eine Tinybird-Verbindung. Setzen Sie die Umgebungsvariablen <code>LEARNHOUSE_TINYBIRD_INGEST_TOKEN</code> und <code>LEARNHOUSE_TINYBIRD_READ_TOKEN</code>, um sie zu aktivieren."
+      "description": "Analytik erfordert eine Tinybird-Verbindung. Setzen Sie die Umgebungsvariablen <code>LAUNCHLMS_TINYBIRD_INGEST_TOKEN</code> und <code>LAUNCHLMS_TINYBIRD_READ_TOKEN</code>, um sie zu aktivieren."
     },
     "advanced_gate": {
       "requires": "Erfordert",

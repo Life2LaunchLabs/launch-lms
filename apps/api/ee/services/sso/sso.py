@@ -81,7 +81,7 @@ def get_sso_redirect_uri() -> str:
     # Otherwise, build from base
     base_uri = os.getenv(
         "SSO_REDIRECT_URI_BASE",
-        os.getenv("LEARNHOUSE_DOMAIN", "http://localhost:4000")
+        os.getenv("LAUNCHLMS_DOMAIN", "http://localhost:4000")
     )
     # Ensure it ends with the callback path
     if not base_uri.endswith("/api/v1/auth/sso/callback"):

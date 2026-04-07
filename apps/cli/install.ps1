@@ -1,9 +1,9 @@
 # ─────────────────────────────────────────────────────────────
-# LearnHouse — Install Script (Windows PowerShell)
+# Launch LMS — Install Script (Windows PowerShell)
 # Installs Docker and Node.js if missing, then runs the CLI.
 #
 # Usage:
-#   irm https://raw.githubusercontent.com/learnhouse/learnhouse/main/apps/cli/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/launch-lms/launch-lms/main/apps/cli/install.ps1 | iex
 # ─────────────────────────────────────────────────────────────
 
 $ErrorActionPreference = "Stop"
@@ -14,7 +14,7 @@ function Write-Warn($msg)  { Write-Host "! $msg" -ForegroundColor Yellow }
 function Write-Fail($msg)  { Write-Host "✗ $msg" -ForegroundColor Red; exit 1 }
 
 Write-Host ""
-Write-Host "LearnHouse Installer" -ForegroundColor White -NoNewline
+Write-Host "Launch LMS Installer" -ForegroundColor White -NoNewline
 Write-Host ""
 Write-Host "Platform: Windows ($env:PROCESSOR_ARCHITECTURE)" -ForegroundColor DarkGray
 Write-Host ""
@@ -116,12 +116,12 @@ if ($npxCmd) {
 Write-Host ""
 Write-Host "All dependencies installed!" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Run LearnHouse with:" -ForegroundColor DarkGray
-Write-Host "  npx learnhouse@latest" -ForegroundColor Cyan
+Write-Host "  Run Launch LMS with:" -ForegroundColor DarkGray
+Write-Host "  npx launch-lms@latest" -ForegroundColor Cyan
 Write-Host ""
 
 # ── Launch ───────────────────────────────────────────────────
 
-Write-Host "Launching LearnHouse..." -ForegroundColor Cyan
+Write-Host "Launching Launch LMS..." -ForegroundColor Cyan
 Write-Host ""
-& npx learnhouse@latest
+& npx launch-lms@latest

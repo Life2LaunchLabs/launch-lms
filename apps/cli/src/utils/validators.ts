@@ -16,7 +16,7 @@ export function validateDomain(value: string): string | undefined {
   // Allow localhost or valid domain names
   if (value === 'localhost') return undefined
   const re = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/
-  if (!re.test(value)) return 'Please enter a valid domain (e.g., learnhouse.example.com)'
+  if (!re.test(value)) return 'Please enter a valid domain (e.g., launch-lms.example.com)'
   return undefined
 }
 

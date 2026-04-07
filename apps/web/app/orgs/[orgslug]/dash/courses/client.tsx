@@ -273,7 +273,7 @@ function CoursesHome(params: CourseProps) {
       case 'launch-lms':
         return t('dashboard.courses.import_launch_lms_description')
       case 'tutor':
-        return 'Import Tutor LMS JSON course exports and convert them into LearnHouse courses'
+        return 'Import Tutor LMS JSON course exports and convert them into Launch LMS courses'
       default:
         return t('dashboard.courses.import_select_type')
     }

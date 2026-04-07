@@ -1,8 +1,8 @@
 import pc from 'picocolors'
 import { VERSION, DEV_IMAGE, LOCAL_CLI_COMMAND } from '../constants.js'
 
-const NPM_REGISTRY_URL = 'https://registry.npmjs.org/learnhouse'
-const GHCR_BASE = 'ghcr.io/learnhouse/app'
+const NPM_REGISTRY_URL = 'https://registry.npmjs.org/launch-lms'
+const GHCR_BASE = 'ghcr.io/launch-lms/app'
 
 function compareVersions(a: string, b: string): number {
   const pa = a.split('.').map(Number)
@@ -41,9 +41,9 @@ export async function checkForUpdates(): Promise<void> {
 }
 
 /**
- * Resolve the Docker image tag for the LearnHouse app.
+ * Resolve the Docker image tag for the Launch LMS app.
  *
- * - channel 'dev'    → always returns ghcr.io/learnhouse/app:dev
+ * - channel 'dev'    → always returns ghcr.io/launch-lms/app:dev
  * - channel 'stable' → tries versioned tag (e.g. :1.0.1), falls back to :latest
  */
 export async function resolveAppImage(
@@ -59,7 +59,7 @@ export async function resolveAppImage(
   try {
     // Get anonymous token
     const tokenResp = await fetch(
-      `https://ghcr.io/token?scope=repository:learnhouse/app:pull`,
+      `https://ghcr.io/token?scope=repository:launch-lms/app:pull`,
       { signal: AbortSignal.timeout(5000) },
     )
     if (!tokenResp.ok) throw new Error('token fetch failed')
@@ -67,7 +67,7 @@ export async function resolveAppImage(
 
     // Check manifest for versioned tag
     const manifestResp = await fetch(
-      `https://ghcr.io/v2/learnhouse/app/manifests/${VERSION}`,
+      `https://ghcr.io/v2/launch-lms/app/manifests/${VERSION}`,
       {
         signal: AbortSignal.timeout(5000),
         headers: {

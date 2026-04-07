@@ -7,7 +7,7 @@ export async function shellCommand() {
   const dir = findInstallDir()
   const config = readConfig(dir)
   if (!config) {
-    p.log.error('No LearnHouse installation found. Run setup first.')
+    p.log.error('No Launch LMS installation found. Run setup first.')
     process.exit(1)
   }
 

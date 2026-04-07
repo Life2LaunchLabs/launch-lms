@@ -378,7 +378,7 @@ function ScormActivity({ activity, course }: ScormActivityProps) {
                     height: 0 !important;
                   }
                 `
-                // Remove any existing learnhouse styles first
+                // Remove any existing launch-lms styles first
                 const existing = nestedIframe.contentDocument.getElementById('launch-lms-scorm-styles')
                 if (existing) existing.remove()
                 // Append to end of head for higher cascade priority

@@ -10,7 +10,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const orgslug = await getOrgSlug()
 
   if (!orgslug) {
-    return { title: 'Verify Email — LearnHouse' }
+    return { title: 'Verify Email — Launch LMS' }
   }
 
   const org = await getOrganizationContextInfo(orgslug, {
@@ -19,7 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
   })
 
   return {
-    title: 'Verify Email' + ` — ${org?.name || 'LearnHouse'}`,
+    title: 'Verify Email' + ` — ${org?.name || 'Launch LMS'}`,
     robots: { index: false, follow: false },
   }
 }

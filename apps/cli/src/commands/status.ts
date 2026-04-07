@@ -7,11 +7,11 @@ export async function statusCommand() {
   const dir = findInstallDir()
   const config = readConfig(dir)
   if (!config) {
-    p.log.error('No LearnHouse installation found in the current directory.')
+    p.log.error('No Launch LMS installation found in the current directory.')
     process.exit(1)
   }
 
-  p.intro(pc.cyan('LearnHouse Status'))
+  p.intro(pc.cyan('Launch LMS Status'))
 
   const protocol = config.useHttps ? 'https' : 'http'
   const portSuffix = (config.useHttps && config.httpPort === 443) || (!config.useHttps && config.httpPort === 80) ? '' : `:${config.httpPort}`

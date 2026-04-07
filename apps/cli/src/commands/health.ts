@@ -18,11 +18,11 @@ export async function healthCommand() {
   const dir = findInstallDir()
   const config = readConfig(dir)
   if (!config) {
-    p.log.error('No LearnHouse installation found. Run setup first.')
+    p.log.error('No Launch LMS installation found. Run setup first.')
     process.exit(1)
   }
 
-  p.intro(pc.cyan('LearnHouse Health Check'))
+  p.intro(pc.cyan('Launch LMS Health Check'))
 
   const id = config.deploymentId || autoDetectDeploymentId()
   if (!id) {
@@ -45,10 +45,10 @@ export async function healthCommand() {
 
   // 2. Database connection
   p.log.step('Database')
-  const dbContainer = `learnhouse-db-${id}`
+  const dbContainer = `launch-lms-db-${id}`
   if (isContainerRunning(dbContainer)) {
     try {
-      dockerExec(dbContainer, 'pg_isready -U learnhouse')
+      dockerExec(dbContainer, 'pg_isready -U launch-lms')
       p.log.message(pass('PostgreSQL accepting connections'))
     } catch {
       p.log.message(fail('PostgreSQL not ready'))
@@ -59,7 +59,7 @@ export async function healthCommand() {
 
   // 3. Redis ping
   p.log.step('Redis')
-  const redisContainer = `learnhouse-redis-${id}`
+  const redisContainer = `launch-lms-redis-${id}`
   if (isContainerRunning(redisContainer)) {
     try {
       const pong = dockerExec(redisContainer, 'redis-cli ping')

@@ -7,14 +7,14 @@ export async function stopCommand() {
   const dir = findInstallDir()
   const config = readConfig(dir)
   if (!config) {
-    p.log.error('No LearnHouse installation found in the current directory.')
+    p.log.error('No Launch LMS installation found in the current directory.')
     process.exit(1)
   }
 
-  p.intro(pc.cyan('Stopping LearnHouse'))
+  p.intro(pc.cyan('Stopping Launch LMS'))
   try {
     dockerComposeDown(config.installDir)
-    p.log.success('LearnHouse stopped.')
+    p.log.success('Launch LMS stopped.')
   } catch {
     p.log.error('Failed to stop services. Check Docker output above.')
     process.exit(1)

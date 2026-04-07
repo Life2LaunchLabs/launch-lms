@@ -3690,8 +3690,8 @@ async function printBanner() {
 
 // src/services/version-check.ts
 var import_picocolors2 = __toESM(require_picocolors(), 1);
-var NPM_REGISTRY_URL = "https://registry.npmjs.org/learnhouse";
-var GHCR_BASE = "ghcr.io/learnhouse/app";
+var NPM_REGISTRY_URL = "https://registry.npmjs.org/launch-lms";
+var GHCR_BASE = "ghcr.io/launch-lms/app";
 function compareVersions(a, b) {
   const pa = a.split(".").map(Number);
   const pb = b.split(".").map(Number);
@@ -3727,13 +3727,13 @@ async function resolveAppImage(channel = "stable") {
   const versionedTag = `${GHCR_BASE}:${VERSION}`;
   try {
     const tokenResp = await fetch(
-      `https://ghcr.io/token?scope=repository:learnhouse/app:pull`,
+      `https://ghcr.io/token?scope=repository:launch-lms/app:pull`,
       { signal: AbortSignal.timeout(5e3) }
     );
     if (!tokenResp.ok) throw new Error("token fetch failed");
     const { token } = await tokenResp.json();
     const manifestResp = await fetch(
-      `https://ghcr.io/v2/learnhouse/app/manifests/${VERSION}`,
+      `https://ghcr.io/v2/launch-lms/app/manifests/${VERSION}`,
       {
         signal: AbortSignal.timeout(5e3),
         headers: {
@@ -4989,11 +4989,11 @@ function getDockerDiskUsage() {
 function autoDetectDeploymentId() {
   try {
     const output = execSync(
-      'docker ps -a --filter "name=learnhouse-app-" --format "{{.Names}}"',
+      'docker ps -a --filter "name=launch-lms-app-" --format "{{.Names}}"',
       { stdio: "pipe" }
     ).toString().trim();
     if (!output) return null;
-    const match = output.split("\n")[0].match(/learnhouse-app-([a-f0-9]+)$/);
+    const match = output.split("\n")[0].match(/launch-lms-app-([a-f0-9]+)$/);
     return match ? match[1] : null;
   } catch {
     return null;
@@ -5004,7 +5004,7 @@ function listDeploymentContainers(deploymentId) {
     const id = deploymentId || autoDetectDeploymentId();
     if (!id) return [];
     const output = execSync(
-      `docker ps -a --filter "name=learnhouse-" --format "{{.Names}}\\t{{.Status}}\\t{{.Image}}"`,
+      `docker ps -a --filter "name=launch-lms-" --format "{{.Names}}\\t{{.Status}}\\t{{.Image}}"`,
       { stdio: "pipe" }
     ).toString().trim();
     if (!output) return [];
@@ -5091,7 +5091,7 @@ function validateDomain(value) {
   if (!value) return "Domain is required";
   if (value === "localhost") return void 0;
   const re2 = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
-  if (!re2.test(value)) return "Please enter a valid domain (e.g., learnhouse.example.com)";
+  if (!re2.test(value)) return "Please enter a valid domain (e.g., launch-lms.example.com)";
   return void 0;
 }
 function validatePort(value) {
@@ -5107,7 +5107,7 @@ function validateRequired(value) {
 // src/prompts/domain.ts
 async function promptDomain() {
   const domain = await text({
-    message: "What domain will LearnHouse be hosted on?",
+    message: "What domain will Launch LMS be hosted on?",
     placeholder: "localhost",
     defaultValue: "localhost",
     validate: validateDomain
@@ -5226,7 +5226,7 @@ async function promptAndVerifyPostgres() {
   while (true) {
     const connString = await text({
       message: "PostgreSQL connection string?",
-      placeholder: "postgresql://user:password@host:5432/learnhouse",
+      placeholder: "postgresql://user:password@host:5432/launch-lms",
       validate: (value) => {
         const err = validateRequired(value);
         if (err) return err;
@@ -5341,9 +5341,9 @@ async function promptDatabase() {
     O2.info(import_picocolors5.default.bold("Database credentials generated:"));
     O2.message([
       "",
-      `  ${import_picocolors5.default.dim("User:")}     learnhouse`,
+      `  ${import_picocolors5.default.dim("User:")}     launch-lms`,
       `  ${import_picocolors5.default.dim("Password:")} ${import_picocolors5.default.cyan(dbPassword)}`,
-      `  ${import_picocolors5.default.dim("Database:")} learnhouse`,
+      `  ${import_picocolors5.default.dim("Database:")} launch-lms`,
       `  ${import_picocolors5.default.dim("Host:")}     db:5432 (internal)`,
       "",
       `  ${import_picocolors5.default.yellow("Copy the password now if needed \u2014 it will be saved in .env")}`,
@@ -5619,20 +5619,20 @@ ${deps.join("\n")}` : "";
   const proxyService = config.autoSsl ? `
   caddy:
     image: caddy:2-alpine
-    container_name: learnhouse-caddy-${id}
+    container_name: launch-lms-caddy-${id}
     restart: unless-stopped
     ports:
       - "80:80"
       - "\${HTTP_PORT:-443}:443"
     volumes:
       - ./extra/Caddyfile:/etc/caddy/Caddyfile:ro
-      - learnhouse_caddy_data_${id}:/data
-      - learnhouse_caddy_config_${id}:/config
+      - launch-lms_caddy_data_${id}:/data
+      - launch-lms_caddy_config_${id}:/config
     depends_on:
-      learnhouse-app:
+      launch-lms-app:
         condition: service_healthy
     networks:
-      - learnhouse-network-${id}
+      - launch-lms-network-${id}
     healthcheck:
       test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:80/ || exit 1"]
       interval: 30s
@@ -5641,17 +5641,17 @@ ${deps.join("\n")}` : "";
 ` : `
   nginx:
     image: nginx:alpine
-    container_name: learnhouse-nginx-${id}
+    container_name: launch-lms-nginx-${id}
     restart: unless-stopped
     ports:
       - "\${HTTP_PORT:-80}:80"
     volumes:
       - ./extra/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      learnhouse-app:
+      launch-lms-app:
         condition: service_healthy
     networks:
-      - learnhouse-network-${id}
+      - launch-lms-network-${id}
     healthcheck:
       test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost/ || exit 1"]
       interval: 30s
@@ -5662,20 +5662,20 @@ ${deps.join("\n")}` : "";
   const dbService = useLocalDb ? `
   db:
     image: ${dbImage}
-    container_name: learnhouse-db-${id}
+    container_name: launch-lms-db-${id}
     restart: unless-stopped
     env_file:
       - .env
     environment:
-      - POSTGRES_USER=\${POSTGRES_USER:-learnhouse}
-      - POSTGRES_PASSWORD=\${POSTGRES_PASSWORD:-learnhouse}
-      - POSTGRES_DB=\${POSTGRES_DB:-learnhouse}
+      - POSTGRES_USER=\${POSTGRES_USER:-launch-lms}
+      - POSTGRES_PASSWORD=\${POSTGRES_PASSWORD:-launch-lms}
+      - POSTGRES_DB=\${POSTGRES_DB:-launch-lms}
     volumes:
-      - learnhouse_db_data_${id}:/var/lib/postgresql/data
+      - launch-lms_db_data_${id}:/var/lib/postgresql/data
     networks:
-      - learnhouse-network-${id}
+      - launch-lms-network-${id}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \${POSTGRES_USER:-learnhouse}"]
+      test: ["CMD-SHELL", "pg_isready -U \${POSTGRES_USER:-launch-lms}"]
       interval: 5s
       timeout: 4s
       retries: 5
@@ -5683,13 +5683,13 @@ ${deps.join("\n")}` : "";
   const redisService = useLocalRedis ? `
   redis:
     image: redis:7.2.3-alpine
-    container_name: learnhouse-redis-${id}
+    container_name: launch-lms-redis-${id}
     restart: unless-stopped
     command: redis-server --appendonly yes
     volumes:
-      - learnhouse_redis_data_${id}:/data
+      - launch-lms_redis_data_${id}:/data
     networks:
-      - learnhouse-network-${id}
+      - launch-lms-network-${id}
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -5698,29 +5698,29 @@ ${deps.join("\n")}` : "";
 ` : "";
   const volumeEntries = [];
   if (config.autoSsl) {
-    volumeEntries.push(`  learnhouse_caddy_data_${id}:`);
-    volumeEntries.push(`  learnhouse_caddy_config_${id}:`);
+    volumeEntries.push(`  launch-lms_caddy_data_${id}:`);
+    volumeEntries.push(`  launch-lms_caddy_config_${id}:`);
   }
-  if (useLocalDb) volumeEntries.push(`  learnhouse_db_data_${id}:`);
-  if (useLocalRedis) volumeEntries.push(`  learnhouse_redis_data_${id}:`);
+  if (useLocalDb) volumeEntries.push(`  launch-lms_db_data_${id}:`);
+  if (useLocalRedis) volumeEntries.push(`  launch-lms_redis_data_${id}:`);
   const volumesSection = volumeEntries.length > 0 ? `volumes:
 ${volumeEntries.join("\n")}` : "";
-  return `name: learnhouse-${id}
+  return `name: launch-lms-${id}
 
 services:
-  learnhouse-app:
+  launch-lms-app:
     image: ${image}
-    container_name: learnhouse-app-${id}
+    container_name: launch-lms-app-${id}
     restart: unless-stopped
     env_file:
       - .env
     environment:
       # HOSTNAME needs to be set explicitly for the container
       - HOSTNAME=0.0.0.0
-      - LEARNHOUSE_API_URL=http://localhost:9000
+      - LAUNCHLMS_API_URL=http://localhost:9000
 ${appDependsOn}
     networks:
-      - learnhouse-network-${id}
+      - launch-lms-network-${id}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/api/v1/health"]
       interval: 30s
@@ -5729,7 +5729,7 @@ ${appDependsOn}
       start_period: 60s
 ${proxyService}${dbService}${redisService}
 networks:
-  learnhouse-network-${id}:
+  launch-lms-network-${id}:
     driver: bridge
 
 ${volumesSection}
@@ -5752,27 +5752,27 @@ function generateEnvFile(config) {
   const jwtSecret = generateSecret();
   const collabInternalKey = generateSecret();
   const lines = [
-    "# LearnHouse Environment Variables",
-    "# Generated by LearnHouse CLI",
+    "# Launch LMS Environment Variables",
+    "# Generated by Launch LMS CLI",
     "",
     "# =============================================================================",
     "# Domain & Hosting Configuration",
     "# =============================================================================",
     "",
-    `LEARNHOUSE_DOMAIN=${domainWithPort}`,
+    `LAUNCHLMS_DOMAIN=${domainWithPort}`,
     `HTTP_PORT=${config.httpPort}`,
     "",
     "# =============================================================================",
     "# Frontend Environment Variables (NEXT_PUBLIC_*)",
     "# =============================================================================",
     "",
-    `NEXT_PUBLIC_LEARNHOUSE_API_URL=${baseUrl}/api/v1/`,
-    `NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL=${baseUrl}/`,
-    `NEXT_PUBLIC_LEARNHOUSE_DOMAIN=${domainWithPort}`,
-    `NEXT_PUBLIC_LEARNHOUSE_TOP_DOMAIN=${topDomain}`,
-    "NEXT_PUBLIC_LEARNHOUSE_MULTI_ORG=False",
-    "NEXT_PUBLIC_LEARNHOUSE_DEFAULT_ORG=default",
-    `NEXT_PUBLIC_LEARNHOUSE_HTTPS=${config.useHttps ? "True" : "False"}`
+    `NEXT_PUBLIC_LAUNCHLMS_API_URL=${baseUrl}/api/v1/`,
+    `NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL=${baseUrl}/`,
+    `NEXT_PUBLIC_LAUNCHLMS_DOMAIN=${domainWithPort}`,
+    `NEXT_PUBLIC_LAUNCHLMS_TOP_DOMAIN=${topDomain}`,
+    "NEXT_PUBLIC_LAUNCHLMS_MULTI_ORG=False",
+    "NEXT_PUBLIC_LAUNCHLMS_DEFAULT_ORG=default",
+    `NEXT_PUBLIC_LAUNCHLMS_HTTPS=${config.useHttps ? "True" : "False"}`
   ];
   if (config.unsplashEnabled && config.unsplashAccessKey) {
     lines.push(`NEXT_PUBLIC_UNSPLASH_ACCESS_KEY=${config.unsplashAccessKey}`);
@@ -5788,8 +5788,8 @@ function generateEnvFile(config) {
   );
   if (config.googleOAuthEnabled && config.googleClientId && config.googleClientSecret) {
     lines.push(
-      `LEARNHOUSE_GOOGLE_CLIENT_ID=${config.googleClientId}`,
-      `LEARNHOUSE_GOOGLE_CLIENT_SECRET=${config.googleClientSecret}`
+      `LAUNCHLMS_GOOGLE_CLIENT_ID=${config.googleClientId}`,
+      `LAUNCHLMS_GOOGLE_CLIENT_SECRET=${config.googleClientSecret}`
     );
   }
   lines.push(
@@ -5798,33 +5798,33 @@ function generateEnvFile(config) {
     "# Backend Configuration",
     "# =============================================================================",
     "",
-    `LEARNHOUSE_SQL_CONNECTION_STRING=${config.useExternalDb ? config.externalDbConnectionString : `postgresql://learnhouse:${config.dbPassword}@db:5432/learnhouse`}`,
-    `LEARNHOUSE_REDIS_CONNECTION_STRING=${config.useExternalRedis ? config.externalRedisConnectionString : "redis://redis:6379/learnhouse"}`,
-    `LEARNHOUSE_COOKIE_DOMAIN=${cookieDomain}`,
-    "LEARNHOUSE_PORT=9000",
+    `LAUNCHLMS_SQL_CONNECTION_STRING=${config.useExternalDb ? config.externalDbConnectionString : `postgresql://launch-lms:${config.dbPassword}@db:5432/launch-lms`}`,
+    `LAUNCHLMS_REDIS_CONNECTION_STRING=${config.useExternalRedis ? config.externalRedisConnectionString : "redis://redis:6379/launch-lms"}`,
+    `LAUNCHLMS_COOKIE_DOMAIN=${cookieDomain}`,
+    "LAUNCHLMS_PORT=9000",
     "",
     "# =============================================================================",
     "# Security",
     "# =============================================================================",
     "",
     `LAUNCHLMS_AUTH_JWT_SECRET_KEY=${jwtSecret}`,
-    `LEARNHOUSE_INITIAL_ADMIN_EMAIL=${config.adminEmail}`,
-    `LEARNHOUSE_INITIAL_ADMIN_PASSWORD=${config.adminPassword}`,
+    `LAUNCHLMS_INITIAL_ADMIN_EMAIL=${config.adminEmail}`,
+    `LAUNCHLMS_INITIAL_ADMIN_PASSWORD=${config.adminPassword}`,
     "",
     "# =============================================================================",
     "# Collaboration Server",
     "# =============================================================================",
     "",
     `COLLAB_INTERNAL_KEY=${collabInternalKey}`,
-    `LEARNHOUSE_REDIS_URL=${config.useExternalRedis ? config.externalRedisConnectionString : "redis://redis:6379"}`,
+    `LAUNCHLMS_REDIS_URL=${config.useExternalRedis ? config.externalRedisConnectionString : "redis://redis:6379"}`,
     `NEXT_PUBLIC_COLLAB_URL=${config.useHttps ? "wss" : "ws"}://${config.domain}${portSuffix}/collab`,
     "",
     "# =============================================================================",
     "# General Settings",
     "# =============================================================================",
     "",
-    "LEARNHOUSE_DEVELOPMENT_MODE=False",
-    "LEARNHOUSE_LOGFIRE_ENABLED=False"
+    "LAUNCHLMS_DEVELOPMENT_MODE=False",
+    "LAUNCHLMS_LOGFIRE_ENABLED=False"
   );
   if (config.aiEnabled && config.geminiApiKey) {
     lines.push(
@@ -5833,8 +5833,8 @@ function generateEnvFile(config) {
       "# AI Configuration",
       "# =============================================================================",
       "",
-      `LEARNHOUSE_GEMINI_API_KEY=${config.geminiApiKey}`,
-      "LEARNHOUSE_IS_AI_ENABLED=True"
+      `LAUNCHLMS_GEMINI_API_KEY=${config.geminiApiKey}`,
+      "LAUNCHLMS_IS_AI_ENABLED=True"
     );
   } else {
     lines.push(
@@ -5843,7 +5843,7 @@ function generateEnvFile(config) {
       "# AI Configuration",
       "# =============================================================================",
       "",
-      "LEARNHOUSE_IS_AI_ENABLED=False"
+      "LAUNCHLMS_IS_AI_ENABLED=False"
     );
   }
   if (config.emailEnabled) {
@@ -5854,18 +5854,18 @@ function generateEnvFile(config) {
       "# Email Configuration",
       "# =============================================================================",
       "",
-      `LEARNHOUSE_EMAIL_PROVIDER=${provider}`,
-      `LEARNHOUSE_SYSTEM_EMAIL_ADDRESS=${config.systemEmailAddress || `noreply@${config.domain}`}`
+      `LAUNCHLMS_EMAIL_PROVIDER=${provider}`,
+      `LAUNCHLMS_SYSTEM_EMAIL_ADDRESS=${config.systemEmailAddress || `noreply@${config.domain}`}`
     );
     if (provider === "resend" && config.resendApiKey) {
-      lines.push(`LEARNHOUSE_RESEND_API_KEY=${config.resendApiKey}`);
+      lines.push(`LAUNCHLMS_RESEND_API_KEY=${config.resendApiKey}`);
     }
     if (provider === "smtp") {
-      if (config.smtpHost) lines.push(`LEARNHOUSE_SMTP_HOST=${config.smtpHost}`);
-      lines.push(`LEARNHOUSE_SMTP_PORT=${config.smtpPort || 587}`);
-      if (config.smtpUsername) lines.push(`LEARNHOUSE_SMTP_USERNAME=${config.smtpUsername}`);
-      if (config.smtpPassword) lines.push(`LEARNHOUSE_SMTP_PASSWORD=${config.smtpPassword}`);
-      lines.push(`LEARNHOUSE_SMTP_USE_TLS=${config.smtpUseTls !== false ? "True" : "False"}`);
+      if (config.smtpHost) lines.push(`LAUNCHLMS_SMTP_HOST=${config.smtpHost}`);
+      lines.push(`LAUNCHLMS_SMTP_PORT=${config.smtpPort || 587}`);
+      if (config.smtpUsername) lines.push(`LAUNCHLMS_SMTP_USERNAME=${config.smtpUsername}`);
+      if (config.smtpPassword) lines.push(`LAUNCHLMS_SMTP_PASSWORD=${config.smtpPassword}`);
+      lines.push(`LAUNCHLMS_SMTP_USE_TLS=${config.smtpUseTls !== false ? "True" : "False"}`);
     }
   }
   if (config.s3Enabled && config.s3BucketName) {
@@ -5875,11 +5875,11 @@ function generateEnvFile(config) {
       "# Content Delivery",
       "# =============================================================================",
       "",
-      "LEARNHOUSE_CONTENT_DELIVERY_TYPE=s3api",
-      `LEARNHOUSE_S3_API_BUCKET_NAME=${config.s3BucketName}`
+      "LAUNCHLMS_CONTENT_DELIVERY_TYPE=s3api",
+      `LAUNCHLMS_S3_API_BUCKET_NAME=${config.s3BucketName}`
     );
     if (config.s3EndpointUrl) {
-      lines.push(`LEARNHOUSE_S3_API_ENDPOINT_URL=${config.s3EndpointUrl}`);
+      lines.push(`LAUNCHLMS_S3_API_ENDPOINT_URL=${config.s3EndpointUrl}`);
     }
   } else {
     lines.push(
@@ -5888,7 +5888,7 @@ function generateEnvFile(config) {
       "# Content Delivery",
       "# =============================================================================",
       "",
-      "LEARNHOUSE_CONTENT_DELIVERY_TYPE=filesystem"
+      "LAUNCHLMS_CONTENT_DELIVERY_TYPE=filesystem"
     );
   }
   if (!config.useExternalDb) {
@@ -5898,9 +5898,9 @@ function generateEnvFile(config) {
       "# Database Configuration",
       "# =============================================================================",
       "",
-      "POSTGRES_USER=learnhouse",
+      "POSTGRES_USER=launch-lms",
       `POSTGRES_PASSWORD=${config.dbPassword}`,
-      "POSTGRES_DB=learnhouse",
+      "POSTGRES_DB=launch-lms",
       ""
     );
   } else {
@@ -5926,10 +5926,10 @@ server {
     # Increase the maximum allowed size of the client request header fields
     client_header_buffer_size 32k;
 
-    # Proxy all requests to the learnhouse-app service
+    # Proxy all requests to the launch-lms-app service
     # The app container has internal nginx routing between frontend, backend, and collab
     location / {
-        proxy_pass http://learnhouse-app:80;
+        proxy_pass http://launch-lms-app:80;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -5957,7 +5957,7 @@ function generateCaddyfile(config) {
 }
 
 ${config.domain} {
-  reverse_proxy learnhouse-app:80
+  reverse_proxy launch-lms-app:80
 }
 `;
 }
@@ -6036,7 +6036,7 @@ function pickBest(candidates) {
 function findInstallDir() {
   const cwd = process.cwd();
   if (isCompleteInstall(cwd)) return cwd;
-  const subDir = path.join(cwd, "learnhouse");
+  const subDir = path.join(cwd, "launch-lms");
   if (isCompleteInstall(subDir)) return subDir;
   const candidates = [];
   collectCandidates(cwd, 10, candidates);
@@ -6048,7 +6048,7 @@ function findInstallDir() {
     const parent = path.dirname(current);
     if (parent === current) break;
     if (isCompleteInstall(parent)) return parent;
-    const parentSub = path.join(parent, "learnhouse");
+    const parentSub = path.join(parent, "launch-lms");
     if (isCompleteInstall(parentSub)) return parentSub;
     if (!fallbackDir && fs.existsSync(path.join(parent, CONFIG_FILENAME))) {
       fallbackDir = parent;
@@ -6100,9 +6100,9 @@ async function confirmOrBack(message) {
   return result === "back" ? BACK : true;
 }
 async function stepInstallDir() {
-  const defaultDir = fs2.existsSync(path2.join(process.cwd(), "learnhouse", "learnhouse.config.json")) ? "./learnhouse-new" : "./learnhouse";
+  const defaultDir = fs2.existsSync(path2.join(process.cwd(), "launch-lms", "launch-lms.config.json")) ? "./launch-lms-new" : "./launch-lms";
   const installDir = await text({
-    message: "Where should LearnHouse be installed?",
+    message: "Where should Launch LMS be installed?",
     placeholder: defaultDir,
     defaultValue: defaultDir
   });
@@ -6111,8 +6111,8 @@ async function stepInstallDir() {
     process.exit(0);
   }
   const resolved = path2.resolve(installDir);
-  if (fs2.existsSync(path2.join(resolved, "learnhouse.config.json"))) {
-    O2.warn(`${resolved} already contains a LearnHouse installation.`);
+  if (fs2.existsSync(path2.join(resolved, "launch-lms.config.json"))) {
+    O2.warn(`${resolved} already contains a Launch LMS installation.`);
     const overwrite = await ot2({
       message: "Overwrite existing installation?",
       initialValue: false
@@ -6151,7 +6151,7 @@ async function stepFeatures() {
 }
 async function setupCommand() {
   await printBanner();
-  mt(import_picocolors6.default.cyan("LearnHouse Setup Wizard"));
+  mt(import_picocolors6.default.cyan("Launch LMS Setup Wizard"));
   await checkPrerequisites();
   const channelChoice = await _t({
     message: "Which release channel do you want to use?",
@@ -6352,7 +6352,7 @@ async function setupCommand() {
     }
   }
   const s0 = fe();
-  s0.start("Resolving LearnHouse image version");
+  s0.start("Resolving Launch LMS image version");
   const { image: appImage, isLatest } = await resolveAppImage(config.channel);
   s0.stop(`Using image: ${appImage}`);
   if (isLatest) {
@@ -6379,7 +6379,7 @@ async function setupCommand() {
   }
   s.stop("Configuration files generated");
   const startNow = await ot2({
-    message: "Start LearnHouse now?",
+    message: "Start Launch LMS now?",
     initialValue: true
   });
   if (q(startNow)) {
@@ -6390,7 +6390,7 @@ async function setupCommand() {
   const finalPortSuffix = config.useHttps && config.httpPort === 443 || !config.useHttps && config.httpPort === 80 ? "" : `:${config.httpPort}`;
   const finalUrl = `${finalProtocol}://${config.domain}${finalPortSuffix}`;
   if (startNow) {
-    O2.step("Starting LearnHouse");
+    O2.step("Starting Launch LMS");
     const s2 = fe();
     s2.start("Pulling images and starting services (this may take a few minutes)");
     try {
@@ -6403,16 +6403,16 @@ async function setupCommand() {
       process.exit(1);
     }
     const s3 = fe();
-    s3.start("Waiting for LearnHouse to be ready (up to 3 minutes)");
+    s3.start("Waiting for Launch LMS to be ready (up to 3 minutes)");
     const healthy = await waitForHealth(`http://localhost:${config.httpPort}`);
     if (healthy) {
-      s3.stop("LearnHouse is ready!");
+      s3.stop("Launch LMS is ready!");
     } else {
       s3.stop("Health check timed out");
-      O2.warn("LearnHouse may still be starting. Check status with:");
+      O2.warn("Launch LMS may still be starting. Check status with:");
       O2.message(`  cd ${finalDir} && docker compose ps`);
     }
-    O2.success(import_picocolors6.default.green(import_picocolors6.default.bold("LearnHouse is installed!")));
+    O2.success(import_picocolors6.default.green(import_picocolors6.default.bold("Launch LMS is installed!")));
     O2.message([
       "",
       `  ${import_picocolors6.default.cyan("URL:")}       ${finalUrl}`,
@@ -6443,14 +6443,14 @@ async function startCommand() {
   const dir = findInstallDir();
   const config = readConfig(dir);
   if (!config) {
-    O2.error("No LearnHouse installation found in the current directory.");
+    O2.error("No Launch LMS installation found in the current directory.");
     O2.info(`Run \`${LOCAL_CLI_COMMAND} setup\` to set up a new installation.`);
     process.exit(1);
   }
-  mt(import_picocolors7.default.cyan("Starting LearnHouse"));
+  mt(import_picocolors7.default.cyan("Starting Launch LMS"));
   try {
     dockerComposeUp(config.installDir);
-    O2.success("LearnHouse is running!");
+    O2.success("Launch LMS is running!");
   } catch {
     O2.error("Failed to start services. Check Docker output above.");
     process.exit(1);
@@ -6463,13 +6463,13 @@ async function stopCommand() {
   const dir = findInstallDir();
   const config = readConfig(dir);
   if (!config) {
-    O2.error("No LearnHouse installation found in the current directory.");
+    O2.error("No Launch LMS installation found in the current directory.");
     process.exit(1);
   }
-  mt(import_picocolors8.default.cyan("Stopping LearnHouse"));
+  mt(import_picocolors8.default.cyan("Stopping Launch LMS"));
   try {
     dockerComposeDown(config.installDir);
-    O2.success("LearnHouse stopped.");
+    O2.success("Launch LMS stopped.");
   } catch {
     O2.error("Failed to stop services. Check Docker output above.");
     process.exit(1);
@@ -6494,7 +6494,7 @@ async function logsCommand() {
   }
   const id = config?.deploymentId || autoDetectDeploymentId();
   if (!id) {
-    O2.error("No LearnHouse containers found. Start services first.");
+    O2.error("No Launch LMS containers found. Start services first.");
     process.exit(1);
   }
   const containers = listDeploymentContainers(id).filter((c2) => c2.status.toLowerCase().startsWith("up"));
@@ -6511,10 +6511,10 @@ async function configCommand() {
   const dir = findInstallDir();
   const config = readConfig(dir);
   if (!config) {
-    O2.error("No LearnHouse installation found in the current directory.");
+    O2.error("No Launch LMS installation found in the current directory.");
     process.exit(1);
   }
-  mt(import_picocolors9.default.cyan("LearnHouse Configuration"));
+  mt(import_picocolors9.default.cyan("Launch LMS Configuration"));
   const protocol = config.useHttps ? "https" : "http";
   const portSuffix = config.useHttps && config.httpPort === 443 || !config.useHttps && config.httpPort === 80 ? "" : `:${config.httpPort}`;
   O2.message([
@@ -6524,7 +6524,7 @@ async function configCommand() {
     `  ${import_picocolors9.default.dim("URL:")}          ${protocol}://${config.domain}${portSuffix}`,
     `  ${import_picocolors9.default.dim("Org slug:")}     ${config.orgSlug}`
   ].join("\n"));
-  O2.info(import_picocolors9.default.dim(`Full config: ${dir}/learnhouse.config.json`));
+  O2.info(import_picocolors9.default.dim(`Full config: ${dir}/launch-lms.config.json`));
   O2.info(import_picocolors9.default.dim(`Environment: ${config.installDir}/.env (contains secrets)`));
 }
 
@@ -6536,13 +6536,13 @@ var import_picocolors10 = __toESM(require_picocolors(), 1);
 function resolveDbContainer(config) {
   const id = config.deploymentId || autoDetectDeploymentId();
   if (!id) return null;
-  return `learnhouse-db-${id}`;
+  return `launch-lms-db-${id}`;
 }
 async function createBackup() {
   const installDir = findInstallDir();
   const config = readConfig(installDir);
   if (!config) {
-    O2.error("No LearnHouse installation found. Run setup first.");
+    O2.error("No Launch LMS installation found. Run setup first.");
     process.exit(1);
   }
   if (config.useExternalDb) {
@@ -6557,7 +6557,7 @@ async function createBackup() {
   }
   const timestamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
   const backupDir = path3.join(installDir, "backups");
-  const backupName = `learnhouse-backup-${timestamp}`;
+  const backupName = `launch-lms-backup-${timestamp}`;
   const tmpDir = path3.join(backupDir, backupName);
   const archivePath = path3.join(backupDir, `${backupName}.tar.gz`);
   fs3.mkdirSync(tmpDir, { recursive: true });
@@ -6567,7 +6567,7 @@ async function createBackup() {
     const dumpPath = path3.join(tmpDir, "database.sql");
     dockerExecToFile(
       dbContainer,
-      "pg_dump -U learnhouse learnhouse",
+      "pg_dump -U launch-lms launch-lms",
       dumpPath
     );
     s.stop("Database dump created");
@@ -6614,7 +6614,7 @@ async function restoreBackup(archivePath) {
   const installDir = findInstallDir();
   const config = readConfig(installDir);
   if (!config) {
-    O2.error("No LearnHouse installation found. Run setup first.");
+    O2.error("No Launch LMS installation found. Run setup first.");
     process.exit(1);
   }
   if (config.useExternalDb) {
@@ -6664,7 +6664,7 @@ async function restoreBackup(archivePath) {
   try {
     dockerExecFromFile(
       dbContainer,
-      "psql -U learnhouse -d learnhouse",
+      "psql -U launch-lms -d launch-lms",
       dumpPath
     );
     s2.stop("Database restored");
@@ -6691,11 +6691,11 @@ async function restoreBackup(archivePath) {
 }
 async function backupCommand(archivePath, options) {
   if (options?.restore && archivePath) {
-    mt(import_picocolors10.default.cyan("LearnHouse Restore"));
+    mt(import_picocolors10.default.cyan("Launch LMS Restore"));
     await restoreBackup(archivePath);
     return;
   }
-  mt(import_picocolors10.default.cyan("LearnHouse Backup"));
+  mt(import_picocolors10.default.cyan("Launch LMS Backup"));
   const action = await _t({
     message: "What would you like to do?",
     options: [
@@ -6712,7 +6712,7 @@ async function backupCommand(archivePath, options) {
   } else {
     const filePath = await text({
       message: "Path to backup archive (.tar.gz)",
-      placeholder: "./backups/learnhouse-backup-*.tar.gz"
+      placeholder: "./backups/launch-lms-backup-*.tar.gz"
     });
     if (q(filePath)) {
       pt();
@@ -6727,12 +6727,12 @@ import fs4 from "fs";
 import path4 from "path";
 import { execSync as execSync3 } from "child_process";
 var import_picocolors11 = __toESM(require_picocolors(), 1);
-var SERVICES = ["learnhouse-app", "db", "redis"];
+var SERVICES = ["launch-lms-app", "db", "redis"];
 function showDeployments() {
   let psOutput;
   try {
     psOutput = execSync3(
-      'docker ps -a --filter "name=learnhouse-app-" --format "{{.Names}}\\t{{.Status}}\\t{{.Image}}"',
+      'docker ps -a --filter "name=launch-lms-app-" --format "{{.Names}}\\t{{.Status}}\\t{{.Image}}"',
       { stdio: "pipe" }
     ).toString().trim();
   } catch {
@@ -6740,7 +6740,7 @@ function showDeployments() {
     process.exit(1);
   }
   if (!psOutput) {
-    O2.info("No LearnHouse deployments found.");
+    O2.info("No Launch LMS deployments found.");
     O2.message(import_picocolors11.default.dim(`  Run ${LOCAL_CLI_COMMAND} setup to create one.`));
     return;
   }
@@ -6748,7 +6748,7 @@ function showDeployments() {
   let allOutput;
   try {
     allOutput = execSync3(
-      'docker ps -a --filter "name=learnhouse-" --format "{{.Names}}\\t{{.Status}}\\t{{.Image}}"',
+      'docker ps -a --filter "name=launch-lms-" --format "{{.Names}}\\t{{.Status}}\\t{{.Image}}"',
       { stdio: "pipe" }
     ).toString().trim();
   } catch {
@@ -6757,7 +6757,7 @@ function showDeployments() {
   for (const line of allOutput.split("\n")) {
     if (!line.trim()) continue;
     const [name, status, image] = line.split("	");
-    const match = name.match(/learnhouse-\w+-([a-f0-9]+)$/);
+    const match = name.match(/launch-lms-\w+-([a-f0-9]+)$/);
     if (!match) continue;
     const id = match[1];
     if (!deployments.has(id)) {
@@ -6845,7 +6845,7 @@ async function scaleResources() {
   const dir = findInstallDir();
   const config = readConfig(dir);
   if (!config) {
-    O2.error("No LearnHouse installation found. Run setup first.");
+    O2.error("No Launch LMS installation found. Run setup first.");
     process.exit(1);
   }
   O2.step("Current Resource Usage");
@@ -6921,7 +6921,7 @@ async function scaleResources() {
   }
 }
 async function deploymentsCommand() {
-  mt(import_picocolors11.default.cyan("LearnHouse Deployments"));
+  mt(import_picocolors11.default.cyan("Launch LMS Deployments"));
   const action = await _t({
     message: "What would you like to do?",
     options: [
@@ -6958,9 +6958,9 @@ function fail(msg, fix) {
   if (fix) console.log(`    ${import_picocolors12.default.dim(`Fix: ${fix}`)}`);
 }
 var REQUIRED_ENV_VARS = [
-  "LEARNHOUSE_DOMAIN",
-  "LEARNHOUSE_SQL_CONNECTION_STRING",
-  "LEARNHOUSE_REDIS_CONNECTION_STRING",
+  "LAUNCHLMS_DOMAIN",
+  "LAUNCHLMS_SQL_CONNECTION_STRING",
+  "LAUNCHLMS_REDIS_CONNECTION_STRING",
   "LAUNCHLMS_AUTH_JWT_SECRET_KEY",
   "NEXTAUTH_SECRET",
   "NEXTAUTH_URL"
@@ -6973,7 +6973,7 @@ var SECRET_ENV_VARS = [
 async function doctorCommand() {
   const dir = findInstallDir();
   const config = readConfig(dir);
-  mt(import_picocolors12.default.cyan("LearnHouse Doctor"));
+  mt(import_picocolors12.default.cyan("Launch LMS Doctor"));
   O2.step("Docker Environment");
   if (!isDockerInstalled()) {
     fail("Docker not installed", "Install Docker: https://docs.docker.com/get-docker/");
@@ -6993,7 +6993,7 @@ async function doctorCommand() {
     fail("Docker Compose v2 not found", "Update Docker Desktop or install docker-compose-plugin");
   }
   if (!config) {
-    O2.warn("No LearnHouse installation found. Skipping deployment checks.");
+    O2.warn("No Launch LMS installation found. Skipping deployment checks.");
     gt(import_picocolors12.default.dim("Done"));
     return;
   }
@@ -7038,7 +7038,7 @@ async function doctorCommand() {
   } else {
     const hasRunning = containers.some((c2) => c2.status.toLowerCase().startsWith("up"));
     if (hasRunning) {
-      pass(`Port ${config.httpPort} in use (by LearnHouse services)`);
+      pass(`Port ${config.httpPort} in use (by Launch LMS services)`);
     } else {
       warn(`Port ${config.httpPort} is in use by another process`, `Free the port or change HTTP_PORT in .env`);
     }
@@ -7149,7 +7149,7 @@ async function shellCommand() {
   const dir = findInstallDir();
   const config = readConfig(dir);
   if (!config) {
-    O2.error("No LearnHouse installation found. Run setup first.");
+    O2.error("No Launch LMS installation found. Run setup first.");
     process.exit(1);
   }
   const id = config.deploymentId || autoDetectDeploymentId();
@@ -7196,7 +7196,7 @@ var API_ENV = {
   envFile: "apps/api/.env",
   vars: [
     {
-      name: "LEARNHOUSE_AUTH_JWT_SECRET_KEY",
+      name: "LAUNCHLMS_AUTH_JWT_SECRET_KEY",
       aliases: ["LAUNCHLMS_AUTH_JWT_SECRET_KEY"],
       required: true,
       description: "JWT signing secret (min 32 chars)",
@@ -7215,7 +7215,7 @@ var WEB_ENV = {
   envFile: "apps/web/.env.local",
   vars: [
     {
-      name: "NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL",
+      name: "NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL",
       required: true,
       description: "Backend API URL",
       defaultValue: "http://localhost:1338/"
@@ -7233,13 +7233,13 @@ var COLLAB_ENV = {
       defaultValue: "4000"
     },
     {
-      name: "LEARNHOUSE_API_URL",
+      name: "LAUNCHLMS_API_URL",
       required: true,
-      description: "LearnHouse API base URL",
+      description: "Launch LMS API base URL",
       defaultValue: "http://localhost:1338"
     },
     {
-      name: "LEARNHOUSE_AUTH_JWT_SECRET_KEY",
+      name: "LAUNCHLMS_AUTH_JWT_SECRET_KEY",
       aliases: ["LAUNCHLMS_AUTH_JWT_SECRET_KEY"],
       required: true,
       description: "JWT secret (must match API)",
@@ -7343,7 +7343,7 @@ async function checkDevEnv(root) {
   }
   const apiFile = path6.join(root, API_ENV.envFile);
   const apiExisting = parseEnvFile(apiFile);
-  const jwtSecret = apiExisting.get("LAUNCHLMS_AUTH_JWT_SECRET_KEY") || apiExisting.get("LEARNHOUSE_AUTH_JWT_SECRET_KEY") || generateJwtSecret();
+  const jwtSecret = apiExisting.get("LAUNCHLMS_AUTH_JWT_SECRET_KEY") || apiExisting.get("LAUNCHLMS_AUTH_JWT_SECRET_KEY") || generateJwtSecret();
   const collabKey = apiExisting.get("COLLAB_INTERNAL_KEY") || "dev-collab-internal-key-change-in-prod";
   for (const app of ALL_APPS) {
     const filePath = path6.join(root, app.envFile);
@@ -7352,7 +7352,7 @@ async function checkDevEnv(root) {
     for (const v of app.vars) {
       const val = getExistingValue(existing, v);
       if (!v.required || val && val.length > 0) continue;
-      if (v.name === "LEARNHOUSE_AUTH_JWT_SECRET_KEY") {
+      if (v.name === "LAUNCHLMS_AUTH_JWT_SECRET_KEY") {
         toWrite.set("LAUNCHLMS_AUTH_JWT_SECRET_KEY", jwtSecret);
       } else if (v.name === "COLLAB_INTERNAL_KEY") {
         toWrite.set(v.name, collabKey);
@@ -7424,7 +7424,7 @@ function findProjectRoot() {
   }
 }
 function getDevComposePath(root) {
-  const dotDir = path7.join(root, ".learnhouse");
+  const dotDir = path7.join(root, ".launch-lms");
   if (!fs7.existsSync(dotDir)) fs7.mkdirSync(dotDir, { recursive: true });
   const composePath = path7.join(dotDir, "docker-compose.dev.yml");
   fs7.writeFileSync(composePath, DEV_COMPOSE);
@@ -7522,27 +7522,17 @@ async function devCommand(opts) {
   const root = findProjectRoot();
   if (!root) {
     O2.error("Not inside a Launch LMS project.");
-    O2.info("Run this command from within the learnhouse monorepo (must contain dev/docker-compose.yml, apps/api/, and apps/web/).");
+    O2.info("Run this command from within the launch-lms monorepo (must contain dev/docker-compose.yml, apps/api/, and apps/web/).");
     process.exit(1);
   }
   mt(import_picocolors15.default.cyan("Launch LMS Dev Mode"));
   const envOk = await checkDevEnv(root);
   if (!envOk) process.exit(1);
   const eePath = path7.join(root, "apps", "api", "ee");
-  const eeDisabledPath = path7.join(root, "apps", "api", ".ee-disabled");
-  let eeWasHidden = false;
-  if (fs7.existsSync(eeDisabledPath) && !fs7.existsSync(eePath)) {
-    fs7.renameSync(eeDisabledPath, eePath);
-  }
-  if (!opts.ee && fs7.existsSync(eePath)) {
-    fs7.renameSync(eePath, eeDisabledPath);
-    eeWasHidden = true;
+  if (fs7.existsSync(eePath)) {
+    O2.info(`EE source detected at ${import_picocolors15.default.bold("apps/api/ee")} \u2014 leaving it untouched for local dev`);
   } else if (opts.ee) {
-    if (fs7.existsSync(eePath)) {
-      O2.info(`Running in ${import_picocolors15.default.bold("EE")} mode`);
-    } else {
-      O2.warning("--ee was passed but no ee/ folder found \u2014 running in OSS mode");
-    }
+    O2.warning("--ee was passed but no ee/ folder found");
   }
   if (!isDockerInstalled()) {
     O2.error("Docker is not installed. Please install Docker and try again.");
@@ -7575,8 +7565,8 @@ async function devCommand(opts) {
     }
     serviceEnv = {
       FORCE_COLOR: "1",
-      LEARNHOUSE_INITIAL_ADMIN_EMAIL: email,
-      LEARNHOUSE_INITIAL_ADMIN_PASSWORD: password
+      LAUNCHLMS_INITIAL_ADMIN_EMAIL: email,
+      LAUNCHLMS_INITIAL_ADMIN_PASSWORD: password
     };
     const infraSpinner = fe();
     infraSpinner.start("Starting DB and Redis containers...");
@@ -7641,7 +7631,7 @@ async function devCommand(opts) {
     return spawnService("uv", ["run", "python", "app.py"], path7.join(root, "apps", "api"), "api", import_picocolors15.default.magenta);
   };
   const startWeb = () => {
-    return spawnService("next", ["dev", "--turbopack"], path7.join(root, "apps", "web"), "web", import_picocolors15.default.cyan);
+    return spawnService("next", ["dev"], path7.join(root, "apps", "web"), "web", import_picocolors15.default.cyan);
   };
   const startCollab = () => {
     return spawnService("tsx", ["watch", "src/index.ts"], path7.join(root, "apps", "collab"), "collab", import_picocolors15.default.yellow);
@@ -7664,11 +7654,8 @@ async function devCommand(opts) {
     }
     process.stdin.pause();
     await Promise.all([killProcess(apiProc), killProcess(webProc), killProcess(collabProc)]);
-    if (eeWasHidden && fs7.existsSync(eeDisabledPath) && !fs7.existsSync(eePath)) {
-      fs7.renameSync(eeDisabledPath, eePath);
-    }
     console.log(import_picocolors15.default.dim("DB and Redis containers are still running for next session."));
-    console.log(import_picocolors15.default.dim("To stop them: docker compose -f .learnhouse/docker-compose.dev.yml -p launch-lms-dev down"));
+    console.log(import_picocolors15.default.dim("To stop them: docker compose -f .launch-lms/docker-compose.dev.yml -p launch-lms-dev down"));
     console.log(import_picocolors15.default.dim("Thanks for building with Launch LMS!"));
     process.exit(0);
   };

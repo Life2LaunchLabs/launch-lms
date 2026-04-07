@@ -29,9 +29,9 @@ function fail(msg: string, fix?: string) {
 }
 
 const REQUIRED_ENV_VARS = [
-  'LEARNHOUSE_DOMAIN',
-  'LEARNHOUSE_SQL_CONNECTION_STRING',
-  'LEARNHOUSE_REDIS_CONNECTION_STRING',
+  'LAUNCHLMS_DOMAIN',
+  'LAUNCHLMS_SQL_CONNECTION_STRING',
+  'LAUNCHLMS_REDIS_CONNECTION_STRING',
   'LAUNCHLMS_AUTH_JWT_SECRET_KEY',
   'NEXTAUTH_SECRET',
   'NEXTAUTH_URL',
@@ -47,7 +47,7 @@ export async function doctorCommand() {
   const dir = findInstallDir()
   const config = readConfig(dir)
 
-  p.intro(pc.cyan('LearnHouse Doctor'))
+  p.intro(pc.cyan('Launch LMS Doctor'))
 
   // 1. Docker daemon
   p.log.step('Docker Environment')
@@ -73,7 +73,7 @@ export async function doctorCommand() {
   }
 
   if (!config) {
-    p.log.warn('No LearnHouse installation found. Skipping deployment checks.')
+    p.log.warn('No Launch LMS installation found. Skipping deployment checks.')
     p.outro(pc.dim('Done'))
     return
   }
@@ -127,7 +127,7 @@ export async function doctorCommand() {
     // Port in use is expected if services are running
     const hasRunning = containers.some((c) => c.status.toLowerCase().startsWith('up'))
     if (hasRunning) {
-      pass(`Port ${config.httpPort} in use (by LearnHouse services)`)
+      pass(`Port ${config.httpPort} in use (by Launch LMS services)`)
     } else {
       warn(`Port ${config.httpPort} is in use by another process`, `Free the port or change HTTP_PORT in .env`)
     }

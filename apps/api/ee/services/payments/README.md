@@ -61,7 +61,7 @@ code — only adding it to the UserGroup.
 
 ### Platform-level keys (in `config/config.yaml`)
 
-These are the LearnHouse platform's own Stripe credentials. They are **not** per-organization.
+These are the Launch LMS platform's own Stripe credentials. They are **not** per-organization.
 
 | Key | Where to get it | Required |
 |-----|----------------|----------|
@@ -88,7 +88,7 @@ Each organization that connects Stripe goes through the OAuth flow:
 
 1. Admin clicks **Connect with Stripe** in the dashboard.
 2. Backend generates an OAuth URL via `generate_stripe_connect_link()`.
-3. Org admin authorizes LearnHouse on their Stripe account.
+3. Org admin authorizes Launch LMS on their Stripe account.
 4. Stripe redirects to `/payments/stripe/connect/oauth` with `?code=...&state=org_id=N`.
 5. Frontend calls `GET /payments/stripe/oauth/callback?code=...&org_id=N`.
 6. Backend exchanges the code for the connected account ID (`acct_xxx`) and stores it

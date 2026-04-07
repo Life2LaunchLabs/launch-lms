@@ -261,7 +261,7 @@ export function downloadBlob(blob: Blob, filename: string) {
 }
 
 /**
- * Analyze a LearnHouse course export package for import
+ * Analyze a Launch LMS course export package for import
  */
 export async function analyzeImportPackage(
   file: File,

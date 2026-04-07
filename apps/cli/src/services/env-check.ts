@@ -44,7 +44,7 @@ const API_ENV: AppEnvSpec = {
   envFile: 'apps/api/.env',
   vars: [
     {
-      name: 'LEARNHOUSE_AUTH_JWT_SECRET_KEY',
+      name: 'LAUNCHLMS_AUTH_JWT_SECRET_KEY',
       aliases: ['LAUNCHLMS_AUTH_JWT_SECRET_KEY'],
       required: true,
       description: 'JWT signing secret (min 32 chars)',
@@ -64,7 +64,7 @@ const WEB_ENV: AppEnvSpec = {
   envFile: 'apps/web/.env.local',
   vars: [
     {
-      name: 'NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL',
+      name: 'NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL',
       required: true,
       description: 'Backend API URL',
       defaultValue: 'http://localhost:1338/',
@@ -83,13 +83,13 @@ const COLLAB_ENV: AppEnvSpec = {
       defaultValue: '4000',
     },
     {
-      name: 'LEARNHOUSE_API_URL',
+      name: 'LAUNCHLMS_API_URL',
       required: true,
-      description: 'LearnHouse API base URL',
+      description: 'Launch LMS API base URL',
       defaultValue: 'http://localhost:1338',
     },
     {
-      name: 'LEARNHOUSE_AUTH_JWT_SECRET_KEY',
+      name: 'LAUNCHLMS_AUTH_JWT_SECRET_KEY',
       aliases: ['LAUNCHLMS_AUTH_JWT_SECRET_KEY'],
       required: true,
       description: 'JWT secret (must match API)',
@@ -240,7 +240,7 @@ export async function checkDevEnv(root: string): Promise<boolean> {
 
   const jwtSecret =
     apiExisting.get('LAUNCHLMS_AUTH_JWT_SECRET_KEY') ||
-    apiExisting.get('LEARNHOUSE_AUTH_JWT_SECRET_KEY') ||
+    apiExisting.get('LAUNCHLMS_AUTH_JWT_SECRET_KEY') ||
     generateJwtSecret()
   const collabKey = apiExisting.get('COLLAB_INTERNAL_KEY') || 'dev-collab-internal-key-change-in-prod'
 
@@ -254,7 +254,7 @@ export async function checkDevEnv(root: string): Promise<boolean> {
       const val = getExistingValue(existing, v)
       if (!v.required || (val && val.length > 0)) continue
 
-      if (v.name === 'LEARNHOUSE_AUTH_JWT_SECRET_KEY') {
+      if (v.name === 'LAUNCHLMS_AUTH_JWT_SECRET_KEY') {
         toWrite.set('LAUNCHLMS_AUTH_JWT_SECRET_KEY', jwtSecret)
       } else if (v.name === 'COLLAB_INTERNAL_KEY') {
         toWrite.set(v.name, collabKey)

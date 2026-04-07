@@ -94,7 +94,7 @@ const OrgEditAI: React.FC = () => {
       customIcon={
         <Image
           src="/ai_icon.svg"
-          alt="LearnHouse AI"
+          alt="Launch LMS AI"
           width={32}
           height={32}
         />
@@ -107,7 +107,7 @@ const OrgEditAI: React.FC = () => {
         <div className="flex items-center gap-3">
           <Image
             src="/ai_icon.svg"
-            alt="LearnHouse AI"
+            alt="Launch LMS AI"
             width={28}
             height={28}
           />

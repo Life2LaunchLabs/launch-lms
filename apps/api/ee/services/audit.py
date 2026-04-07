@@ -4,13 +4,13 @@ import redis
 from datetime import datetime
 from typing import Any, Optional, Dict
 from sqlmodel import Session, select
-from config.config import get_learnhouse_config
+from config.config import get_launch-lms_config
 from ee.db.audit_logs import AuditLog
 from src.db.organization_config import OrganizationConfig
 
 logger = logging.getLogger(__name__)
-LH_CONFIG = get_learnhouse_config()
-REDIS_AUDIT_LOG_KEY = "learnhouse:audit_logs"
+LH_CONFIG = get_launch-lms_config()
+REDIS_AUDIT_LOG_KEY = "launch-lms:audit_logs"
 
 def is_enterprise_plan(session: Session, org_id: int) -> bool:
     """

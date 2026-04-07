@@ -19,10 +19,10 @@ server {
     # Increase the maximum allowed size of the client request header fields
     client_header_buffer_size 32k;
 
-    # Proxy all requests to the learnhouse-app service
+    # Proxy all requests to the launch-lms-app service
     # The app container has internal nginx routing between frontend, backend, and collab
     location / {
-        proxy_pass http://learnhouse-app:80;
+        proxy_pass http://launch-lms-app:80;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

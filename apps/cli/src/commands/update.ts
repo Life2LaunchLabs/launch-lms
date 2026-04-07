@@ -7,11 +7,11 @@ export async function updateCommand() {
   const dir = findInstallDir()
   const config = readConfig(dir)
   if (!config) {
-    p.log.error('No LearnHouse installation found in the current directory.')
+    p.log.error('No Launch LMS installation found in the current directory.')
     process.exit(1)
   }
 
-  p.intro(pc.cyan('Updating LearnHouse'))
+  p.intro(pc.cyan('Updating Launch LMS'))
 
   const s = p.spinner()
   try {
@@ -24,7 +24,7 @@ export async function updateCommand() {
     dockerComposeUp(config.installDir)
     s.stop('Services restarted')
 
-    p.log.success('LearnHouse has been updated!')
+    p.log.success('Launch LMS has been updated!')
   } catch {
     s.stop('Update failed')
     p.log.error('Failed to update. Check Docker output above.')

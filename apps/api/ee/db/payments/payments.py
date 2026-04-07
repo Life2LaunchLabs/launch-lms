@@ -19,7 +19,7 @@ class PaymentProviderEnum(str, Enum):
 
 class PaymentsModeEnum(str, Enum):
     standard = "standard"  # org connects their own Stripe account via OAuth
-    express = "express"    # LearnHouse creates a Stripe Express account on the org's behalf
+    express = "express"    # Launch LMS creates a Stripe Express account on the org's behalf
 
 
 class PaymentsConfigBase(SQLModel):

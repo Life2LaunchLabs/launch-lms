@@ -48,13 +48,13 @@ async function confirmOrBack(message: string): Promise<typeof BACK | boolean> {
 }
 
 async function stepInstallDir(): Promise<string | typeof BACK> {
-  // Suggest a non-conflicting default if ./learnhouse already exists
-  const defaultDir = fs.existsSync(path.join(process.cwd(), 'learnhouse', 'learnhouse.config.json'))
-    ? './learnhouse-new'
-    : './learnhouse'
+  // Suggest a non-conflicting default if ./launch-lms already exists
+  const defaultDir = fs.existsSync(path.join(process.cwd(), 'launch-lms', 'launch-lms.config.json'))
+    ? './launch-lms-new'
+    : './launch-lms'
 
   const installDir = await p.text({
-    message: 'Where should LearnHouse be installed?',
+    message: 'Where should Launch LMS be installed?',
     placeholder: defaultDir,
     defaultValue: defaultDir,
   })
@@ -63,8 +63,8 @@ async function stepInstallDir(): Promise<string | typeof BACK> {
   const resolved = path.resolve(installDir as string)
 
   // Warn if target already contains a deployment
-  if (fs.existsSync(path.join(resolved, 'learnhouse.config.json'))) {
-    p.log.warn(`${resolved} already contains a LearnHouse installation.`)
+  if (fs.existsSync(path.join(resolved, 'launch-lms.config.json'))) {
+    p.log.warn(`${resolved} already contains a Launch LMS installation.`)
     const overwrite = await p.confirm({
       message: 'Overwrite existing installation?',
       initialValue: false,
@@ -110,7 +110,7 @@ async function stepFeatures() {
 
 export async function setupCommand() {
   await printBanner()
-  p.intro(pc.cyan('LearnHouse Setup Wizard'))
+  p.intro(pc.cyan('Launch LMS Setup Wizard'))
 
   // Prerequisites (no going back from this)
   await checkPrerequisites()
@@ -312,7 +312,7 @@ export async function setupCommand() {
 
   // Resolve Docker image version
   const s0 = p.spinner()
-  s0.start('Resolving LearnHouse image version')
+  s0.start('Resolving Launch LMS image version')
   const { image: appImage, isLatest } = await resolveAppImage(config.channel)
   s0.stop(`Using image: ${appImage}`)
   if (isLatest) {
@@ -348,7 +348,7 @@ export async function setupCommand() {
 
   // Start services
   const startNow = await p.confirm({
-    message: 'Start LearnHouse now?',
+    message: 'Start Launch LMS now?',
     initialValue: true,
   })
   if (p.isCancel(startNow)) { p.cancel(); process.exit(0) }
@@ -358,7 +358,7 @@ export async function setupCommand() {
   const finalUrl = `${finalProtocol}://${config.domain}${finalPortSuffix}`
 
   if (startNow) {
-    p.log.step('Starting LearnHouse')
+    p.log.step('Starting Launch LMS')
     const s2 = p.spinner()
     s2.start('Pulling images and starting services (this may take a few minutes)')
 
@@ -374,20 +374,20 @@ export async function setupCommand() {
 
     // Health check
     const s3 = p.spinner()
-    s3.start('Waiting for LearnHouse to be ready (up to 3 minutes)')
+    s3.start('Waiting for Launch LMS to be ready (up to 3 minutes)')
 
     const healthy = await waitForHealth(`http://localhost:${config.httpPort}`)
 
     if (healthy) {
-      s3.stop('LearnHouse is ready!')
+      s3.stop('Launch LMS is ready!')
     } else {
       s3.stop('Health check timed out')
-      p.log.warn('LearnHouse may still be starting. Check status with:')
+      p.log.warn('Launch LMS may still be starting. Check status with:')
       p.log.message(`  cd ${finalDir} && docker compose ps`)
     }
 
     // Success
-    p.log.success(pc.green(pc.bold('LearnHouse is installed!')))
+    p.log.success(pc.green(pc.bold('Launch LMS is installed!')))
     p.log.message([
       '',
       `  ${pc.cyan('URL:')}       ${finalUrl}`,

@@ -170,12 +170,12 @@ export const OrgMenu = (props: any) => {
                 {org?.logo_image ? (
                   <img
                     src={`${getOrgLogoMediaDirectory(org.org_uuid, org?.logo_image)}`}
-                    alt="Learnhouse"
+                    alt="Logo"
                     style={{ width: 'auto', height: '100%' }}
                     className="rounded-md"
                   />
                 ) : (
-                  <LearnHouseLogo logoFilter={colors.logoFilter} />
+                  <LaunchLMSLogo logoFilter={colors.logoFilter} />
                 )}
               </div>
             </Link>
@@ -468,11 +468,11 @@ const CopilotMenuButton = ({
   )
 }
 
-const LearnHouseLogo = ({ logoFilter }: { logoFilter: string }) => {
+const LaunchLMSLogo = ({ logoFilter }: { logoFilter: string }) => {
   return (
     <Image
       src="/logo-text.svg"
-      alt="LearnHouse logo"
+      alt="Launch LMS logo"
       width={133}
       height={40}
       style={{ height: 'auto', filter: logoFilter }}

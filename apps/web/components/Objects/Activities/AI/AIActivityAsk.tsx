@@ -8,7 +8,7 @@ import { AlertTriangle, BadgeInfo, NotebookTabs, Maximize2, Minimize2, PanelRigh
 import { motion, AnimatePresence } from 'motion/react'
 import { FlaskConical, MessageCircle, X } from 'lucide-react'
 import Image from 'next/image'
-import learnhouseAI_icon from 'public/learnhouse_ai_simple.png'
+import aiIcon from 'public/ai_icon.svg'
 import aiLogoBlack from 'public/ai_icon.svg'
 import React, { useEffect, useRef } from 'react'
 import {

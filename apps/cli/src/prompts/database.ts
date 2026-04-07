@@ -17,7 +17,7 @@ async function promptAndVerifyPostgres(): Promise<string> {
   while (true) {
     const connString = await p.text({
       message: 'PostgreSQL connection string?',
-      placeholder: 'postgresql://user:password@host:5432/learnhouse',
+      placeholder: 'postgresql://user:password@host:5432/launch-lms',
       validate: (value) => {
         const err = validateRequired(value)
         if (err) return err
@@ -128,9 +128,9 @@ export async function promptDatabase(): Promise<DatabaseConfig> {
     p.log.info(pc.bold('Database credentials generated:'))
     p.log.message([
       '',
-      `  ${pc.dim('User:')}     learnhouse`,
+      `  ${pc.dim('User:')}     launch-lms`,
       `  ${pc.dim('Password:')} ${pc.cyan(dbPassword)}`,
-      `  ${pc.dim('Database:')} learnhouse`,
+      `  ${pc.dim('Database:')} launch-lms`,
       `  ${pc.dim('Host:')}     db:5432 (internal)`,
       '',
       `  ${pc.yellow('Copy the password now if needed — it will be saved in .env')}`,

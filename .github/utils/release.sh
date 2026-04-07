@@ -55,4 +55,4 @@ git checkout dev
 
 echo ""
 echo "Done! Release $TAG has been triggered."
-echo "Watch the workflow: https://github.com/learnhouse/learnhouse/actions/workflows/release.yaml"
+echo "Watch the workflow: https://github.com/launch-lms/launch-lms/actions/workflows/release.yaml"

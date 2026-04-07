@@ -10,7 +10,7 @@ import { autoDetectDeploymentId, isContainerRunning, dockerExecToFile, dockerExe
 function resolveDbContainer(config: { deploymentId?: string }): string | null {
   const id = config.deploymentId || autoDetectDeploymentId()
   if (!id) return null
-  return `learnhouse-db-${id}`
+  return `launch-lms-db-${id}`
 }
 
 async function createBackup() {
@@ -18,7 +18,7 @@ async function createBackup() {
   const config = readConfig(installDir)
 
   if (!config) {
-    p.log.error('No LearnHouse installation found. Run setup first.')
+    p.log.error('No Launch LMS installation found. Run setup first.')
     process.exit(1)
   }
 
@@ -36,7 +36,7 @@ async function createBackup() {
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
   const backupDir = path.join(installDir, 'backups')
-  const backupName = `learnhouse-backup-${timestamp}`
+  const backupName = `launch-lms-backup-${timestamp}`
   const tmpDir = path.join(backupDir, backupName)
   const archivePath = path.join(backupDir, `${backupName}.tar.gz`)
 
@@ -49,7 +49,7 @@ async function createBackup() {
     const dumpPath = path.join(tmpDir, 'database.sql')
     dockerExecToFile(
       dbContainer,
-      'pg_dump -U learnhouse learnhouse',
+      'pg_dump -U launch-lms launch-lms',
       dumpPath,
     )
     s.stop('Database dump created')
@@ -108,7 +108,7 @@ async function restoreBackup(archivePath: string) {
   const config = readConfig(installDir)
 
   if (!config) {
-    p.log.error('No LearnHouse installation found. Run setup first.')
+    p.log.error('No Launch LMS installation found. Run setup first.')
     process.exit(1)
   }
 
@@ -173,7 +173,7 @@ async function restoreBackup(archivePath: string) {
   try {
     dockerExecFromFile(
       dbContainer,
-      'psql -U learnhouse -d learnhouse',
+      'psql -U launch-lms -d launch-lms',
       dumpPath,
     )
     s2.stop('Database restored')
@@ -207,13 +207,13 @@ async function restoreBackup(archivePath: string) {
 export async function backupCommand(archivePath?: string, options?: { restore?: boolean }) {
   // Called with --restore flag
   if (options?.restore && archivePath) {
-    p.intro(pc.cyan('LearnHouse Restore'))
+    p.intro(pc.cyan('Launch LMS Restore'))
     await restoreBackup(archivePath)
     return
   }
 
   // No flag — prompt for action
-  p.intro(pc.cyan('LearnHouse Backup'))
+  p.intro(pc.cyan('Launch LMS Backup'))
 
   const action = await p.select({
     message: 'What would you like to do?',
@@ -229,7 +229,7 @@ export async function backupCommand(archivePath?: string, options?: { restore?: 
   } else {
     const filePath = await p.text({
       message: 'Path to backup archive (.tar.gz)',
-      placeholder: './backups/learnhouse-backup-*.tar.gz',
+      placeholder: './backups/launch-lms-backup-*.tar.gz',
     })
     if (p.isCancel(filePath)) { p.cancel(); process.exit(0) }
     await restoreBackup(filePath as string)

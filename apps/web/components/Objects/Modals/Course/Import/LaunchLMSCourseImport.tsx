@@ -325,7 +325,7 @@ function LaunchLMSCourseImport({
                     </div>
                     <div className="space-y-1">
                       <p className="font-medium text-gray-700">{t('courses.import.click_to_upload')}</p>
-                      <p className="text-sm text-gray-400">{t('courses.import.learnhouse_format')}</p>
+                      <p className="text-sm text-gray-400">{t('courses.import.launch-lms_format')}</p>
                     </div>
                   </>
                 )}
@@ -342,7 +342,7 @@ function LaunchLMSCourseImport({
 
             {/* Info Box */}
             <div className="bg-blue-50 border border-blue-100 p-4 rounded-lg">
-              <p className="text-sm text-blue-700">{t('courses.import.learnhouse_info')}</p>
+              <p className="text-sm text-blue-700">{t('courses.import.launch-lms_info')}</p>
             </div>
 
             {/* Submit Button */}

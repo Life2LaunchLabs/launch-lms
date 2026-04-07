@@ -55,7 +55,7 @@ const logoAnimations: { initial: TargetAndTransition; animate: TargetAndTransiti
   },
 ]
 
-const EditorLearnHouseLogo = () => {
+const EditorLaunchLMSLogo = () => {
   const [animation] = useState(
     () => logoAnimations[Math.floor(Math.random() * logoAnimations.length)]
   )
@@ -251,7 +251,7 @@ export default function PlaygroundEditor({
       >
         {/* Logo */}
         <Link href="/">
-          <EditorLearnHouseLogo />
+          <EditorLaunchLMSLogo />
         </Link>
 
         <SlashIcon style={{ color: '#d1d5db', flexShrink: 0 }} />

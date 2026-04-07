@@ -2,11 +2,11 @@
 set -euo pipefail
 
 # ─────────────────────────────────────────────────────────────
-# LearnHouse — Install Script (macOS & Linux)
+# Launch LMS — Install Script (macOS & Linux)
 # Installs Docker and Node.js if missing, then runs the CLI.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/learnhouse/learnhouse/main/apps/cli/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/launch-lms/launch-lms/main/apps/cli/install.sh | bash
 # ─────────────────────────────────────────────────────────────
 
 BOLD="\033[1m"
@@ -34,7 +34,7 @@ case "$OS" in
 esac
 
 echo ""
-echo -e "${BOLD}LearnHouse Installer${RESET}"
+echo -e "${BOLD}Launch LMS Installer${RESET}"
 echo -e "${DIM}Platform: $PLATFORM ($ARCH)${RESET}"
 echo ""
 
@@ -64,7 +64,7 @@ else
       echo -e "${DIM}  Open Docker from Applications or run: open -a Docker${RESET}"
       echo ""
       echo -e "${DIM}  After Docker is running, re-run:${RESET}"
-      echo -e "${DIM}  npx learnhouse${RESET}"
+      echo -e "${DIM}  npx launch-lms${RESET}"
       exit 0
     fi
 
@@ -185,12 +185,12 @@ fi
 echo ""
 echo -e "${GREEN}${BOLD}All dependencies installed!${RESET}"
 echo ""
-echo -e "${DIM}  Run LearnHouse with:${RESET}"
-echo -e "  ${CYAN}npx learnhouse@latest${RESET}"
+echo -e "${DIM}  Run Launch LMS with:${RESET}"
+echo -e "  ${CYAN}npx launch-lms@latest${RESET}"
 echo ""
 
 # ── Launch ───────────────────────────────────────────────────
 
-echo -e "${CYAN}Launching LearnHouse...${RESET}"
+echo -e "${CYAN}Launching Launch LMS...${RESET}"
 echo ""
-npx learnhouse@latest
+npx launch-lms@latest

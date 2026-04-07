@@ -4,7 +4,7 @@ from fastapi import HTTPException, Request
 from sqlmodel import Session, select
 import stripe
 
-from config.config import get_learnhouse_config
+from config.config import get_launch-lms_config
 from ee.db.payments.payments import PaymentsConfig, PaymentsConfigUpdate, PaymentsModeEnum
 from ee.db.payments.payments_enrollments import EnrollmentStatusEnum
 from ee.db.payments.payments_offers import OfferPriceTypeEnum, OfferTypeEnum, PaymentsOffer
@@ -29,8 +29,8 @@ class StripePaymentProvider(IPaymentProvider):
     # ------------------------------------------------------------------
 
     async def _get_credentials(self) -> dict[str, Any]:
-        learnhouse_config = get_learnhouse_config()
-        stripe_cfg = learnhouse_config.payments_config.stripe
+        launch-lms_config = get_launch-lms_config()
+        stripe_cfg = launch-lms_config.payments_config.stripe
 
         if not stripe_cfg.stripe_secret_key:
             raise HTTPException(status_code=400, detail="Stripe secret key not configured")
@@ -489,8 +489,8 @@ class StripePaymentProvider(IPaymentProvider):
         creds = await self._get_credentials()
         stripe.api_key = creds["stripe_secret_key"]
 
-        learnhouse_config = get_learnhouse_config()
-        client_id = learnhouse_config.payments_config.stripe.stripe_client_id
+        launch-lms_config = get_launch-lms_config()
+        client_id = launch-lms_config.payments_config.stripe.stripe_client_id
         if not client_id:
             raise HTTPException(status_code=400, detail="Stripe client ID not configured")
 

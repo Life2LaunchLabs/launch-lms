@@ -162,7 +162,7 @@ export const isMultiOrgModeEnabled = () => {
   // 1. Client-side: read cookie set by middleware
   const cookieVal = getCookieValue('launchlms_multi_org')
   if (cookieVal !== null) return cookieVal === 'true'
-  // 2. Core LearnHouse always supports multiple organizations.
+  // 2. Core Launch LMS always supports multiple organizations.
   return true
 }
 

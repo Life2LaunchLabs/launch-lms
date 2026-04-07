@@ -3391,7 +3391,7 @@
     },
     "not_configured": {
       "title": "التحليلات غير مهيأة",
-      "description": "تتطلب التحليلات اتصال Tinybird. قم بتعيين متغيرات البيئة <code>LEARNHOUSE_TINYBIRD_INGEST_TOKEN</code> و <code>LEARNHOUSE_TINYBIRD_READ_TOKEN</code> لتفعيلها."
+      "description": "تتطلب التحليلات اتصال Tinybird. قم بتعيين متغيرات البيئة <code>LAUNCHLMS_TINYBIRD_INGEST_TOKEN</code> و <code>LAUNCHLMS_TINYBIRD_READ_TOKEN</code> لتفعيلها."
     },
     "advanced_gate": {
       "requires": "يتطلب",

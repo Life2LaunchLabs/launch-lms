@@ -27,14 +27,14 @@ logger = logging.getLogger(__name__)
 # Reserved domains that cannot be used as custom domains
 RESERVED_DOMAIN_PATTERNS = [
     r'.*.launch-lms.io$',
-    r'.*\.learnhouse\.app$',
-    r'^learnhouse\.io$',
-    r'^learnhouse\.app$',
+    r'.*\.launch-lms\.app$',
+    r'^launch-lms\.io$',
+    r'^launch-lms\.app$',
     r'^localhost$',
     r'^127\.0\.0\.1$',
 ]
 
-# Learnhouse domain for CNAME instructions
+# LAUNCHLMS domain for CNAME instructions
 LAUNCHLMS_DOMAIN = os.getenv('LAUNCHLMS_DOMAIN', 'launch-lms.io')
 
 

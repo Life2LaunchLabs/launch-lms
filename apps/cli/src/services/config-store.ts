@@ -1,10 +1,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { CONFIG_FILENAME, VERSION } from '../constants.js'
-import type { LearnHouseConfigJson, SetupConfig } from '../types.js'
+import type { LaunchLMSConfigJson, SetupConfig } from '../types.js'
 
 export function writeConfig(config: SetupConfig): void {
-  const data: LearnHouseConfigJson = {
+  const data: LaunchLMSConfigJson = {
     version: VERSION,
     deploymentId: config.deploymentId,
     createdAt: new Date().toISOString(),
@@ -22,7 +22,7 @@ export function writeConfig(config: SetupConfig): void {
   )
 }
 
-export function readConfig(dir?: string): LearnHouseConfigJson | null {
+export function readConfig(dir?: string): LaunchLMSConfigJson | null {
   const configPath = path.join(dir || process.cwd(), CONFIG_FILENAME)
   if (!fs.existsSync(configPath)) return null
   try {
@@ -83,8 +83,8 @@ export function findInstallDir(): string {
   // 1. Check CWD directly
   if (isCompleteInstall(cwd)) return cwd
 
-  // 2. Check ./learnhouse (default install dir)
-  const subDir = path.join(cwd, 'learnhouse')
+  // 2. Check ./launch-lms (default install dir)
+  const subDir = path.join(cwd, 'launch-lms')
   if (isCompleteInstall(subDir)) return subDir
 
   // 3. Search downward from CWD, prefer complete installs
@@ -100,7 +100,7 @@ export function findInstallDir(): string {
     const parent = path.dirname(current)
     if (parent === current) break // reached root
     if (isCompleteInstall(parent)) return parent
-    const parentSub = path.join(parent, 'learnhouse')
+    const parentSub = path.join(parent, 'launch-lms')
     if (isCompleteInstall(parentSub)) return parentSub
     // Remember first dir with any config as fallback
     if (!fallbackDir && fs.existsSync(path.join(parent, CONFIG_FILENAME))) {

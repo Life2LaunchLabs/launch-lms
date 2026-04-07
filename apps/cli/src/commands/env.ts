@@ -11,17 +11,17 @@ const CATEGORIES: Record<string, { label: string; keys: string[] }> = {
   domain: {
     label: 'Domain & Hosting',
     keys: [
-      'LEARNHOUSE_DOMAIN', 'HTTP_PORT', 'NEXT_PUBLIC_LEARNHOUSE_API_URL',
-      'NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL', 'NEXT_PUBLIC_LEARNHOUSE_DOMAIN',
-      'NEXT_PUBLIC_LEARNHOUSE_TOP_DOMAIN', 'NEXT_PUBLIC_LEARNHOUSE_MULTI_ORG',
-      'NEXT_PUBLIC_LEARNHOUSE_DEFAULT_ORG', 'NEXT_PUBLIC_LEARNHOUSE_HTTPS',
+      'LAUNCHLMS_DOMAIN', 'HTTP_PORT', 'NEXT_PUBLIC_LAUNCHLMS_API_URL',
+      'NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL', 'NEXT_PUBLIC_LAUNCHLMS_DOMAIN',
+      'NEXT_PUBLIC_LAUNCHLMS_TOP_DOMAIN', 'NEXT_PUBLIC_LAUNCHLMS_MULTI_ORG',
+      'NEXT_PUBLIC_LAUNCHLMS_DEFAULT_ORG', 'NEXT_PUBLIC_LAUNCHLMS_HTTPS',
       'NEXTAUTH_URL',
     ],
   },
   database: {
     label: 'Database & Redis',
     keys: [
-      'LEARNHOUSE_SQL_CONNECTION_STRING', 'LEARNHOUSE_REDIS_CONNECTION_STRING',
+      'LAUNCHLMS_SQL_CONNECTION_STRING', 'LAUNCHLMS_REDIS_CONNECTION_STRING',
       'POSTGRES_USER', 'POSTGRES_PASSWORD', 'POSTGRES_DB',
     ],
   },
@@ -29,29 +29,29 @@ const CATEGORIES: Record<string, { label: string; keys: string[] }> = {
     label: 'Security',
     keys: [
       'NEXTAUTH_SECRET', 'LAUNCHLMS_AUTH_JWT_SECRET_KEY',
-      'LEARNHOUSE_INITIAL_ADMIN_EMAIL', 'LEARNHOUSE_INITIAL_ADMIN_PASSWORD',
-      'LEARNHOUSE_COOKIE_DOMAIN',
+      'LAUNCHLMS_INITIAL_ADMIN_EMAIL', 'LAUNCHLMS_INITIAL_ADMIN_PASSWORD',
+      'LAUNCHLMS_COOKIE_DOMAIN',
     ],
   },
   ai: {
     label: 'AI',
-    keys: ['LEARNHOUSE_GEMINI_API_KEY', 'LEARNHOUSE_IS_AI_ENABLED'],
+    keys: ['LAUNCHLMS_GEMINI_API_KEY', 'LAUNCHLMS_IS_AI_ENABLED'],
   },
   email: {
     label: 'Email',
-    keys: ['LEARNHOUSE_RESEND_API_KEY', 'LEARNHOUSE_SYSTEM_EMAIL_ADDRESS'],
+    keys: ['LAUNCHLMS_RESEND_API_KEY', 'LAUNCHLMS_SYSTEM_EMAIL_ADDRESS'],
   },
   s3: {
     label: 'S3 Storage',
     keys: [
-      'LEARNHOUSE_CONTENT_DELIVERY_TYPE', 'LEARNHOUSE_S3_API_BUCKET_NAME',
-      'LEARNHOUSE_S3_API_ENDPOINT_URL',
+      'LAUNCHLMS_CONTENT_DELIVERY_TYPE', 'LAUNCHLMS_S3_API_BUCKET_NAME',
+      'LAUNCHLMS_S3_API_ENDPOINT_URL',
     ],
   },
   oauth: {
     label: 'OAuth',
     keys: [
-      'LEARNHOUSE_GOOGLE_CLIENT_ID', 'LEARNHOUSE_GOOGLE_CLIENT_SECRET',
+      'LAUNCHLMS_GOOGLE_CLIENT_ID', 'LAUNCHLMS_GOOGLE_CLIENT_SECRET',
       'NEXT_PUBLIC_UNSPLASH_ACCESS_KEY',
     ],
   },
@@ -120,7 +120,7 @@ export async function envCommand() {
   const dir = findInstallDir()
   const config = readConfig(dir)
   if (!config) {
-    p.log.error('No LearnHouse installation found. Run setup first.')
+    p.log.error('No Launch LMS installation found. Run setup first.')
     process.exit(1)
   }
 
@@ -130,7 +130,7 @@ export async function envCommand() {
     process.exit(1)
   }
 
-  p.intro(pc.cyan('LearnHouse Environment Editor'))
+  p.intro(pc.cyan('Launch LMS Environment Editor'))
 
   const originalContent = fs.readFileSync(envPath, 'utf-8')
   const envMap = parseEnv(originalContent)

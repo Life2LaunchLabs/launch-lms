@@ -19,12 +19,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Life2LaunchLabs/learnhouse.git",
+    "url": "https://github.com/Life2LaunchLabs/launch-lms.git",
     "directory": "apps/cli"
   },
-  "homepage": "https://github.com/Life2LaunchLabs/learnhouse/tree/main/apps/cli",
+  "homepage": "https://github.com/Life2LaunchLabs/launch-lms/tree/main/apps/cli",
   "bugs": {
-    "url": "https://github.com/Life2LaunchLabs/learnhouse/issues"
+    "url": "https://github.com/Life2LaunchLabs/launch-lms/issues"
   },
   "keywords": [
     "launch-lms",

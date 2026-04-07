@@ -8,15 +8,15 @@ export async function startCommand() {
   const dir = findInstallDir()
   const config = readConfig(dir)
   if (!config) {
-    p.log.error('No LearnHouse installation found in the current directory.')
+    p.log.error('No Launch LMS installation found in the current directory.')
     p.log.info(`Run \`${LOCAL_CLI_COMMAND} setup\` to set up a new installation.`)
     process.exit(1)
   }
 
-  p.intro(pc.cyan('Starting LearnHouse'))
+  p.intro(pc.cyan('Starting Launch LMS'))
   try {
     dockerComposeUp(config.installDir)
-    p.log.success('LearnHouse is running!')
+    p.log.success('Launch LMS is running!')
   } catch {
     p.log.error('Failed to start services. Check Docker output above.')
     process.exit(1)

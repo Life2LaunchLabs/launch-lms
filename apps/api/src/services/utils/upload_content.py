@@ -69,7 +69,7 @@ async def upload_content(
     file_and_format: str,
     allowed_formats: Optional[list[str]] = None,
 ):
-    # Get Learnhouse Config
+    # Get LAUNCHLMS Config
     launchlms_config = get_launchlms_config()
 
     file_format = file_and_format.split(".")[-1].strip().lower()

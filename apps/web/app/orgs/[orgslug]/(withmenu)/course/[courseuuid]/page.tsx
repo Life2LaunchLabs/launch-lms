@@ -36,8 +36,8 @@ export async function generateMetadata(props: MetadataProps): Promise<Metadata> 
   } catch (error) {
     // If we can't get course metadata (e.g., auth required), return minimal metadata
     return {
-      title: `Course — ${org?.name || 'LearnHouse'}`,
-      description: 'View this course on LearnHouse',
+      title: `Course — ${org?.name || 'Launch LMS'}`,
+      description: 'View this course on Launch LMS',
     }
   }
 

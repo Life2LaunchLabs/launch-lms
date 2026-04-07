@@ -55,7 +55,7 @@ const EMBEDDABLE_TYPES = ['TYPE_DYNAMIC', 'TYPE_VIDEO', 'TYPE_DOCUMENT']
 function EmbedActivityClient({ activity, course, activityId, orgslug }: EmbedActivityClientProps) {
   const { t } = useTranslation()
   const searchParams = useSearchParams()
-  const showLearnHouseLogo = searchParams.get('showlaunchlmslogo') !== 'false'
+  const showLaunchLMSLogo = searchParams.get('showlaunchlmslogo') !== 'false'
   const isEmbeddable = EMBEDDABLE_TYPES.includes(activity.activity_type)
 
   const getActivityUrl = () => {
@@ -91,7 +91,7 @@ function EmbedActivityClient({ activity, course, activityId, orgslug }: EmbedAct
             {t('embed.visit_activity')}
           </a>
         </div>
-        {showLearnHouseLogo && <PoweredByBadge activityUrl={getActivityUrl()} />}
+        {showLaunchLMSLogo && <PoweredByBadge activityUrl={getActivityUrl()} />}
       </div>
     )
   }
@@ -130,7 +130,7 @@ function EmbedActivityClient({ activity, course, activityId, orgslug }: EmbedAct
       <div className={`${bgColor} p-4`}>
         {renderActivityContent()}
       </div>
-      {showLearnHouseLogo && <PoweredByBadge activityUrl={getActivityUrl()} />}
+      {showLaunchLMSLogo && <PoweredByBadge activityUrl={getActivityUrl()} />}
     </div>
   )
 }

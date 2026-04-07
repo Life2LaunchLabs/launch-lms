@@ -8,7 +8,7 @@ export function generateCaddyfile(config: SetupConfig): string {
 }
 
 ${config.domain} {
-  reverse_proxy learnhouse-app:80
+  reverse_proxy launch-lms-app:80
 }
 `
 }

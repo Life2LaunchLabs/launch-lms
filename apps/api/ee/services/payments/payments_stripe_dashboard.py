@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 def _get_stripe_client(org_id: int, db_session: Session):
     """Returns (stripe module, connected_account_id) or raises 404/400."""
     import stripe
-    from config.config import get_learnhouse_config
+    from config.config import get_launch-lms_config
 
     config = db_session.exec(
         select(PaymentsConfig).where(PaymentsConfig.org_id == org_id)
@@ -24,7 +24,7 @@ def _get_stripe_client(org_id: int, db_session: Session):
     if not config or not config.provider_specific_id or not config.active:
         raise HTTPException(status_code=404, detail="No active Stripe account configured for this org")
 
-    lh_cfg = get_learnhouse_config()
+    lh_cfg = get_launch-lms_config()
     stripe.api_key = lh_cfg.payments_config.stripe.stripe_secret_key
     return stripe, config.provider_specific_id
 

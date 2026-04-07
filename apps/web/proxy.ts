@@ -25,7 +25,7 @@ async function getInstanceInfo(): Promise<InstanceInfo> {
   // Use the same getAPIUrl() that resolveCustomDomain() uses — it already works
   // in production via runtime env vars injected by server-wrapper.js.
   try {
-    const apiUrl = process.env.LEARNHOUSE_INTERNAL_API_URL || getAPIUrl()
+    const apiUrl = process.env.LAUNCHLMS_INTERNAL_API_URL || getAPIUrl()
     const res = await fetch(`${apiUrl}instance/info`, { signal: AbortSignal.timeout(3000) })
     if (res.ok) {
       _instanceCache = { data: await res.json(), ts: Date.now() }
@@ -50,7 +50,7 @@ function setInstanceCookies(response: NextResponse, info: InstanceInfo) {
 // Helper function to resolve custom domain to org
 async function resolveCustomDomain(domain: string): Promise<{ slug: string } | null> {
   try {
-    const apiUrl = process.env.LEARNHOUSE_INTERNAL_API_URL || getAPIUrl()
+    const apiUrl = process.env.LAUNCHLMS_INTERNAL_API_URL || getAPIUrl()
     const res = await fetch(`${apiUrl}orgs/resolve/domain/${encodeURIComponent(stripPort(domain))}`, {
       method: 'GET',
       headers: {

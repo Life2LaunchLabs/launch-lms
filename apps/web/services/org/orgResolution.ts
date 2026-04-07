@@ -37,7 +37,7 @@ export interface OrgResolutionResult {
 
 /**
  * Resolves the organization context from multiple sources in priority order:
- * 1. Subdomain (e.g., myorg.learnhouse.io -> "myorg")
+ * 1. Subdomain (e.g., myorg.launch-lms.io -> "myorg")
  * 2. Cookie (launchlms_orgslug)
  * 3. Action token (for password reset, email verification links)
  *
@@ -70,7 +70,7 @@ export async function resolveOrg(searchParams?: { token?: string }): Promise<Org
 
 /**
  * Extract org slug from subdomain
- * e.g., myorg.learnhouse.io -> "myorg"
+ * e.g., myorg.launch-lms.io -> "myorg"
  */
 async function resolveFromSubdomain(): Promise<ResolvedOrg | null> {
   try {

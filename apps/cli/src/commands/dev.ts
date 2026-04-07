@@ -65,7 +65,7 @@ function findProjectRoot(): string | null {
 }
 
 function getDevComposePath(root: string): string {
-  const dotDir = path.join(root, '.learnhouse')
+  const dotDir = path.join(root, '.launch-lms')
   if (!fs.existsSync(dotDir)) fs.mkdirSync(dotDir, { recursive: true })
   const composePath = path.join(dotDir, 'docker-compose.dev.yml')
   fs.writeFileSync(composePath, DEV_COMPOSE)
@@ -180,7 +180,7 @@ export async function devCommand(opts: { ee?: boolean }) {
   const root = findProjectRoot()
   if (!root) {
     p.log.error('Not inside a Launch LMS project.')
-    p.log.info('Run this command from within the learnhouse monorepo (must contain dev/docker-compose.yml, apps/api/, and apps/web/).')
+    p.log.info('Run this command from within the launch-lms monorepo (must contain dev/docker-compose.yml, apps/api/, and apps/web/).')
     process.exit(1)
   }
 
@@ -190,26 +190,11 @@ export async function devCommand(opts: { ee?: boolean }) {
   const envOk = await checkDevEnv(root)
   if (!envOk) process.exit(1)
 
-  // EE folder management — hide ee/ when --ee is not passed so the API
-  // starts in OSS mode (is_ee_available() checks os.path.exists("ee"))
   const eePath = path.join(root, 'apps', 'api', 'ee')
-  const eeDisabledPath = path.join(root, 'apps', 'api', '.ee-disabled')
-  let eeWasHidden = false
-
-  // Recover from a previous crash that left .ee-disabled behind
-  if (fs.existsSync(eeDisabledPath) && !fs.existsSync(eePath)) {
-    fs.renameSync(eeDisabledPath, eePath)
-  }
-
-  if (!opts.ee && fs.existsSync(eePath)) {
-    fs.renameSync(eePath, eeDisabledPath)
-    eeWasHidden = true
+  if (fs.existsSync(eePath)) {
+    p.log.info(`EE source detected at ${pc.bold('apps/api/ee')} — leaving it untouched for local dev`)
   } else if (opts.ee) {
-    if (fs.existsSync(eePath)) {
-      p.log.info(`Running in ${pc.bold('EE')} mode`)
-    } else {
-      p.log.warning('--ee was passed but no ee/ folder found — running in OSS mode')
-    }
+    p.log.warning('--ee was passed but no ee/ folder found')
   }
 
   if (!isDockerInstalled()) {
@@ -253,8 +238,8 @@ export async function devCommand(opts: { ee?: boolean }) {
 
     serviceEnv = {
       FORCE_COLOR: '1',
-      LEARNHOUSE_INITIAL_ADMIN_EMAIL: email,
-      LEARNHOUSE_INITIAL_ADMIN_PASSWORD: password,
+      LAUNCHLMS_INITIAL_ADMIN_EMAIL: email,
+      LAUNCHLMS_INITIAL_ADMIN_PASSWORD: password,
     }
 
     // Start infrastructure
@@ -334,7 +319,7 @@ export async function devCommand(opts: { ee?: boolean }) {
   }
 
   const startWeb = () => {
-    return spawnService('next', ['dev', '--turbopack'], path.join(root, 'apps', 'web'), 'web', pc.cyan)
+    return spawnService('next', ['dev'], path.join(root, 'apps', 'web'), 'web', pc.cyan)
   }
 
   const startCollab = () => {
@@ -366,13 +351,8 @@ export async function devCommand(opts: { ee?: boolean }) {
 
     await Promise.all([killProcess(apiProc), killProcess(webProc), killProcess(collabProc)])
 
-    // Restore ee/ folder if we hid it
-    if (eeWasHidden && fs.existsSync(eeDisabledPath) && !fs.existsSync(eePath)) {
-      fs.renameSync(eeDisabledPath, eePath)
-    }
-
     console.log(pc.dim('DB and Redis containers are still running for next session.'))
-    console.log(pc.dim('To stop them: docker compose -f .learnhouse/docker-compose.dev.yml -p launch-lms-dev down'))
+    console.log(pc.dim('To stop them: docker compose -f .launch-lms/docker-compose.dev.yml -p launch-lms-dev down'))
     console.log(pc.dim('Thanks for building with Launch LMS!'))
     process.exit(0)
   }

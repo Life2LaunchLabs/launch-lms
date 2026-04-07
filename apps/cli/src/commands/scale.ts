@@ -5,7 +5,7 @@ import pc from 'picocolors'
 import { findInstallDir, readConfig } from '../services/config-store.js'
 import { autoDetectDeploymentId, dockerComposeDown, dockerComposeUp, dockerStats, dockerStatsForContainers, listDeploymentContainers } from '../services/docker.js'
 
-const SERVICES = ['learnhouse-app', 'db', 'redis'] as const
+const SERVICES = ['launch-lms-app', 'db', 'redis'] as const
 
 function parseMemLimit(composePath: string): Map<string, string> {
   const content = fs.readFileSync(composePath, 'utf-8')
@@ -82,11 +82,11 @@ export async function scaleCommand() {
   const dir = findInstallDir()
   const config = readConfig(dir)
   if (!config) {
-    p.log.error('No LearnHouse installation found. Run setup first.')
+    p.log.error('No Launch LMS installation found. Run setup first.')
     process.exit(1)
   }
 
-  p.intro(pc.cyan('LearnHouse Resource Limits'))
+  p.intro(pc.cyan('Launch LMS Resource Limits'))
 
   // Show current usage
   p.log.step('Current Resource Usage')

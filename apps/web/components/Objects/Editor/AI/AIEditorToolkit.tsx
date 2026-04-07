@@ -1,5 +1,5 @@
 import React from 'react'
-import learnhouseAI_icon from 'public/learnhouse_ai_simple.png'
+import aiIcon from 'public/ai_icon.svg'
 import { motion, AnimatePresence } from 'motion/react'
 import Image from 'next/image'
 import {

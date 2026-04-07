@@ -24,7 +24,7 @@ export async function logsCommand() {
   // Fallback: stream logs from detected containers directly
   const id = config?.deploymentId || autoDetectDeploymentId()
   if (!id) {
-    p.log.error('No LearnHouse containers found. Start services first.')
+    p.log.error('No Launch LMS containers found. Start services first.')
     process.exit(1)
   }
 

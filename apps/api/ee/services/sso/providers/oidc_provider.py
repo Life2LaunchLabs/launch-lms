@@ -32,7 +32,7 @@ class CustomOIDCProvider(SSOProvider):
 
     @property
     def has_setup_portal(self) -> bool:
-        # Custom OIDC doesn't have an admin portal - config is done in LearnHouse
+        # Custom OIDC doesn't have an admin portal - config is done in Launch LMS
         return False
 
     def is_configured(self) -> bool:
@@ -272,7 +272,7 @@ class CustomOIDCProvider(SSOProvider):
         Custom OIDC doesn't have a setup portal.
 
         Returns:
-            None - configuration is done directly in LearnHouse
+            None - configuration is done directly in Launch LMS
         """
         return None
 

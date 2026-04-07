@@ -1,8 +1,8 @@
-# LearnHouse — Claude Code Reference
+# Launch LMS — Claude Code Reference
 
 ## Project Overview
 
-LearnHouse is an open-source LMS (Learning Management System) for creating and managing educational content. It is a multi-tenant platform supporting self-hosted (OSS), SaaS, and Enterprise deployment modes.
+Launch LMS is an open-source LMS (Learning Management System) for creating and managing educational content. It is a multi-tenant platform supporting self-hosted (OSS), SaaS, and Enterprise deployment modes.
 
 Key capabilities: courses with block-based editor, real-time collaborative whiteboards, AI-assisted content creation, code execution (30+ languages), communities/discussions, podcasts, analytics, and Stripe payments.
 
@@ -11,14 +11,14 @@ Key capabilities: courses with block-based editor, real-time collaborative white
 ## Monorepo Structure
 
 ```
-learnhouse/
+launch-lms/
 ├── apps/
 │   ├── web/        # Next.js 16 frontend (React 19, TailwindCSS v4)
 │   ├── api/        # FastAPI backend (Python)
 │   ├── collab/     # Real-time collaboration server (Node.js/TypeScript, Hocuspocus)
 │   └── cli/        # Setup & management CLI (Node.js/TypeScript)
 ├── docker/         # Nginx config, entrypoint scripts
-├── .learnhouse/    # Dev docker-compose (PostgreSQL + Redis)
+├── .launch-lms/    # Dev docker-compose (PostgreSQL + Redis)
 ├── .github/        # GitHub Actions workflows
 └── Dockerfile      # Multi-stage production build (5 stages)
 ```
@@ -73,7 +73,7 @@ learnhouse/
 1. **JWT Bearer** — login at `/api/v1/auth/login`, tokens in httpOnly cookies
    - Access token: 8-hour expiry
    - Refresh token: 30-day expiry, rotated via `/api/v1/auth/refresh`
-   - Algorithm: HS256; secret: `LEARNHOUSE_AUTH_JWT_SECRET_KEY`
+   - Algorithm: HS256; secret: `LAUNCHLMS_AUTH_JWT_SECRET_KEY`
 2. **API Tokens** — Bearer `lh_<token>`, scoped to org, stored hashed in DB
 3. **Anonymous** — public endpoints require no auth
 
@@ -128,7 +128,7 @@ learnhouse/
 ## Database
 
 ### Connection
-- Env var: `LEARNHOUSE_DATABASE_URL` (PostgreSQL in prod, SQLite in tests)
+- Env var: `LAUNCHLMS_DATABASE_URL` (PostgreSQL in prod, SQLite in tests)
 - Tests auto-use SQLite when `TESTING=true`
 
 ### Core Tables / Models (in `apps/api/src/db/models/`)
@@ -218,15 +218,15 @@ Runs on every request. Handles:
 ### API (`apps/api/.env`)
 | Variable | Purpose |
 |---|---|
-| `LEARNHOUSE_DATABASE_URL` | PostgreSQL DSN |
-| `LEARNHOUSE_REDIS_URL` | Redis DSN |
-| `LEARNHOUSE_AUTH_JWT_SECRET_KEY` | JWT signing secret (≥ 32 chars) |
-| `LEARNHOUSE_DEVELOPMENT_MODE` | Enables dev-only features |
-| `LEARNHOUSE_SAAS_MODE` | Enables multi-tenant SaaS mode |
-| `LEARNHOUSE_DOMAIN` | API host domain |
-| `LEARNHOUSE_FRONTEND_DOMAIN` | Frontend host domain |
-| `LEARNHOUSE_ALLOWED_ORIGINS` | CORS origin regex |
-| `LEARNHOUSE_PORT` | Server port (default 8000) |
+| `LAUNCHLMS_DATABASE_URL` | PostgreSQL DSN |
+| `LAUNCHLMS_REDIS_URL` | Redis DSN |
+| `LAUNCHLMS_AUTH_JWT_SECRET_KEY` | JWT signing secret (≥ 32 chars) |
+| `LAUNCHLMS_DEVELOPMENT_MODE` | Enables dev-only features |
+| `LAUNCHLMS_SAAS_MODE` | Enables multi-tenant SaaS mode |
+| `LAUNCHLMS_DOMAIN` | API host domain |
+| `LAUNCHLMS_FRONTEND_DOMAIN` | Frontend host domain |
+| `LAUNCHLMS_ALLOWED_ORIGINS` | CORS origin regex |
+| `LAUNCHLMS_PORT` | Server port (default 8000) |
 | `GEMINI_API_KEY` | Google Gemini AI key |
 | `STRIPE_SECRET_KEY` | Stripe secret key |
 | `STRIPE_PUBLISHABLE_KEY` | Stripe publishable key |
@@ -234,17 +234,17 @@ Runs on every request. Handles:
 | `JUDGE0_API_URL` | Judge0 code execution endpoint |
 | `TINYBIRD_API_TOKEN` | Tinybird analytics token |
 | `RESEND_API_KEY` | Resend email API key |
-| `LEARNHOUSE_SYSTEM_EMAIL` | System sender email |
+| `LAUNCHLMS_SYSTEM_EMAIL` | System sender email |
 | `AWS_S3_BUCKET` | S3 bucket name (if using S3) |
 | `AWS_ACCESS_KEY_ID` | AWS credentials (if using S3) |
 | `AWS_SECRET_ACCESS_KEY` | AWS credentials (if using S3) |
-| `LEARNHOUSE_INTERNAL_KEY` | Secret for internal API communication |
+| `LAUNCHLMS_INTERNAL_KEY` | Secret for internal API communication |
 
 ### Web (`apps/web/.env`)
 | Variable | Purpose |
 |---|---|
-| `NEXT_PUBLIC_LEARNHOUSE_API_URL` | API base URL |
-| `NEXT_PUBLIC_LEARNHOUSE_WS_URL` | WebSocket URL for collab |
+| `NEXT_PUBLIC_LAUNCHLMS_API_URL` | API base URL |
+| `NEXT_PUBLIC_LAUNCHLMS_WS_URL` | WebSocket URL for collab |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe public key |
 | `NEXT_PUBLIC_SENTRY_DSN` | Sentry DSN for frontend |
 
@@ -255,7 +255,7 @@ Runs on every request. Handles:
 ### Dev Environment (Docker)
 ```bash
 # Start PostgreSQL + Redis
-docker compose -f .learnhouse/docker-compose.dev.yml up -d
+docker compose -f .launch-lms/docker-compose.dev.yml up -d
 
 # API
 cd apps/api
@@ -298,7 +298,7 @@ Multi-stage Dockerfile:
 5. Final image (Python base + all services + Nginx + PM2)
 
 ```bash
-docker build -t learnhouse .
+docker build -t launch-lms .
 ```
 
 ---
@@ -320,13 +320,13 @@ docker build -t learnhouse .
 
 ## Production Infrastructure
 
-**Infra repo**: `github.com/Life2LaunchLabs/learnhouse-infra`
+**Infra repo**: `github.com/Life2LaunchLabs/launch-lms-infra`
 
-Deployed on a **DigitalOcean Ubuntu 24.04 Droplet** at `/opt/learnhouse`.
+Deployed on a **DigitalOcean Ubuntu 24.04 Droplet** at `/opt/launch-lms`.
 
 ### Stack
 - **Caddy** — host systemd service, handles TLS (Let's Encrypt), reverse proxies to `localhost:8080`
-- **LearnHouse container** — all-in-one image (`ghcr.io/life2launchlabs/learnhouse:prod`) bound to `127.0.0.1:8080`
+- **Launch LMS container** — all-in-one image (`ghcr.io/life2launchlabs/launch-lms:prod`) bound to `127.0.0.1:8080`
 - **PostgreSQL** (`pgvector/pgvector:pg16`) — named Docker volume `pgdata`
 - **Redis** (`redis:7-alpine`) — named Docker volume `redisdata`, AOF persistence
 
@@ -339,23 +339,23 @@ Deployed on a **DigitalOcean Ubuntu 24.04 Droplet** at `/opt/learnhouse`.
 3. Secrets: `DROPLET_HOST`, `DROPLET_USER`, `DROPLET_SSH_KEY` stored as GitHub Actions repo secrets
 
 ### Key Config Notes
-- All app config via `env_file: .env` (at `/opt/learnhouse/.env`, `chmod 600`)
-- `LEARNHOUSE_INTERNAL_API_URL=http://localhost/api/v1/` — **must** use localhost (not the public domain) so server-side Next.js calls hit the internal Nginx directly, avoiding a TLS loop through Caddy
-- `LEARNHOUSE_CONTENT_DELIVERY_TYPE` defaults to `filesystem` — uploaded media stored at `/app/api/content` inside the container
+- All app config via `env_file: .env` (at `/opt/launch-lms/.env`, `chmod 600`)
+- `LAUNCHLMS_INTERNAL_API_URL=http://localhost/api/v1/` — **must** use localhost (not the public domain) so server-side Next.js calls hit the internal Nginx directly, avoiding a TLS loop through Caddy
+- `LAUNCHLMS_CONTENT_DELIVERY_TYPE` defaults to `filesystem` — uploaded media stored at `/app/api/content` inside the container
 - **No volume mount for `/app/api/content`** in the current `docker-compose.yml` — media is lost on redeploy (known issue to fix)
 
 ### Known Infrastructure Issue: Media Persistence
-The LearnHouse container's `content/` directory (uploaded course photos, thumbnails, etc.) is not mounted as a Docker volume. Every redeploy wipes uploaded media. Fix requires adding to `docker-compose.yml`:
+The Launch LMS container's `content/` directory (uploaded course photos, thumbnails, etc.) is not mounted as a Docker volume. Every redeploy wipes uploaded media. Fix requires adding to `docker-compose.yml`:
 ```yaml
 services:
-  learnhouse:
+  launch-lms:
     volumes:
       - content_data:/app/api/content
 
 volumes:
   content_data:
 ```
-Alternatively, switch to S3 storage (`LEARNHOUSE_CONTENT_DELIVERY_TYPE=s3api`).
+Alternatively, switch to S3 storage (`LAUNCHLMS_CONTENT_DELIVERY_TYPE=s3api`).
 
 ---
 

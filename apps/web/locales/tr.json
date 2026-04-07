@@ -2932,7 +2932,7 @@
     },
     "not_configured": {
       "title": "Analytics not configured",
-      "description": "Analytics requires a Tinybird connection. Set the <code>LEARNHOUSE_TINYBIRD_INGEST_TOKEN</code> and <code>LEARNHOUSE_TINYBIRD_READ_TOKEN</code> environment variables to enable it."
+      "description": "Analytics requires a Tinybird connection. Set the <code>LAUNCHLMS_TINYBIRD_INGEST_TOKEN</code> and <code>LAUNCHLMS_TINYBIRD_READ_TOKEN</code> environment variables to enable it."
     },
     "advanced_gate": {
       "requires": "Gerektirir",

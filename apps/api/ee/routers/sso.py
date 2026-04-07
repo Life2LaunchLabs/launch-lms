@@ -108,9 +108,9 @@ def get_token_expiry_ms() -> Optional[int]:
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str):
     """Helper to set authentication cookies."""
     from datetime import timedelta
-    from config.config import get_learnhouse_config
+    from config.config import get_launch-lms_config
 
-    cookie_domain = get_learnhouse_config().hosting_config.cookie_config.domain
+    cookie_domain = get_launch-lms_config().hosting_config.cookie_config.domain
 
     response.set_cookie(
         key="access_token_cookie",
@@ -422,8 +422,8 @@ async def sso_callback(
 
     # Build redirect URL
     # In production, this should come from frontend config
-    from config.config import get_learnhouse_config
-    config = get_learnhouse_config()
+    from config.config import get_launch-lms_config
+    config = get_launch-lms_config()
     frontend_domain = config.hosting_config.domain
     protocol = "https" if config.hosting_config.ssl else "http"
 

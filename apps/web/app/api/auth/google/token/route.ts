@@ -12,8 +12,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const clientId = process.env.LEARNHOUSE_GOOGLE_CLIENT_ID
-    const clientSecret = process.env.LEARNHOUSE_GOOGLE_CLIENT_SECRET
+    const clientId = process.env.LAUNCHLMS_GOOGLE_CLIENT_ID
+    const clientSecret = process.env.LAUNCHLMS_GOOGLE_CLIENT_SECRET
 
     if (!clientId || !clientSecret) {
       return NextResponse.json(

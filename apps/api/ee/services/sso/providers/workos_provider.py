@@ -180,7 +180,7 @@ class WorkOSProvider(SSOProvider):
 
     async def create_organization(self, name: str, domains: list[str] = None) -> dict:
         """
-        Create a WorkOS organization for a LearnHouse org.
+        Create a WorkOS organization for a Launch LMS org.
 
         This is needed before setting up SSO connections.
         """
