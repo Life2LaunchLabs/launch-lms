@@ -178,6 +178,11 @@ async def submit_quiz_attempt(
                 rule = text_scores.get(item.get("question_uuid"), {})
                 if rule.get("mode") == "min_length":
                     graded_question_count += 1
+                continue
+            if answer_json.get("type") == "slider":
+                values = answer_json.get("values", {}) or {}
+                if isinstance(values, dict):
+                    graded_question_count += len(values)
         result_json["graded_result"] = {
             "score_percent": score_percent,
             "pass_percent": pass_percent,

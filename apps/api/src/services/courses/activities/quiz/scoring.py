@@ -28,6 +28,7 @@ Activity.details shape expected by these functions:
 Answer format (from QuizAnswerInput):
   {"type": "select", "option_uuid": "o_abc123"}
   {"type": "text", "text": "freeform answer"}
+  {"type": "slider", "values": {"slider_a": 0.5, "slider_b": 1.0}}
   {"type": "info"}   — info slides contribute nothing
 """
 
@@ -100,6 +101,21 @@ def compute_scores(
                     continue
                 totals[k] += 1.0 if len(text_value) >= min_chars else 0.0
                 counts[k] += 1
+            continue
+
+        if answer_type == "slider":
+            values = answer_json.get("values", {}) or {}
+            if not isinstance(values, dict):
+                continue
+            for option_uuid, multiplier in values.items():
+                try:
+                    normalized_multiplier = max(0.0, min(1.0, float(multiplier)))
+                except (TypeError, ValueError):
+                    normalized_multiplier = 0.0
+                scores = option_scores.get(option_uuid, {})
+                for k in vector_keys:
+                    totals[k] += scores.get(k, 0.0) * normalized_multiplier
+                    counts[k] += 1
             continue
 
     normalized: dict[str, float] = {}

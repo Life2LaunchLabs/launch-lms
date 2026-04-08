@@ -1,6 +1,6 @@
 'use client'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, ChevronLeft, X } from 'lucide-react'
+import { CheckCircle2, ChevronLeft, X, Star } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useCourse } from '@components/Contexts/CourseContext'
@@ -27,7 +27,7 @@ interface SelectSlide {
   question_text: string
   display_style?: 'image' | 'text'
   show_responses?: boolean
-  option_count: 2 | 3 | 4
+  option_count: number
   options: QuizOption[]
   background_gradient_seed?: string
   background_image_block_object?: any
@@ -44,6 +44,26 @@ interface TextSlide {
   background_image_block_object?: any
 }
 
+interface SliderRow {
+  slider_uuid: string
+  label: string
+}
+
+interface SliderSlide {
+  type: 'quizSliderBlock'
+  question_uuid: string
+  question_text: string
+  slider_count: number
+  direction_mode?: 'unidirectional' | 'bidirectional' | 'stars'
+  label_mode?: 'none' | 'numbers' | 'labels'
+  number_max?: number
+  left_axis_label?: string
+  right_axis_label?: string
+  sliders: SliderRow[]
+  background_gradient_seed?: string
+  background_image_block_object?: any
+}
+
 interface InfoSlide {
   type: 'quizInfoBlock'
   slide_uuid: string
@@ -53,12 +73,16 @@ interface InfoSlide {
   gradient_seed: string
 }
 
-type Slide = SelectSlide | TextSlide | InfoSlide
+type Slide = SelectSlide | TextSlide | SliderSlide | InfoSlide
 
 interface TextScoringRule {
   mode?: 'optional' | 'min_length'
   min_chars?: number
 }
+
+const SLIDER_BLUE = '#2563eb'
+const SLIDER_RED = '#dc2626'
+const SLIDER_GREY = '#d1d5db'
 
 // ── Keyframe CSS injected once ─────────────────────────────────────────────────
 
@@ -80,15 +104,57 @@ const QUIZ_STYLES = `
 .sq-opt-pop  { animation: sqSelectPop 220ms cubic-bezier(.2,.9,.2,1) both !important; }
 .sq-next-in  { animation: sqNextIn  240ms cubic-bezier(.2,.9,.2,1) both !important; }
 .sq-next-out { animation: sqNextOut 200ms cubic-bezier(.4,0,1,1) both !important; }
+
+.quiz-shell-outer {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  background:
+    radial-gradient(circle at center, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.12) 16%, rgba(255,255,255,0.07) 28%, rgba(255,255,255,0.04) 40%, rgba(0,0,0,0) 98%),
+    linear-gradient(180deg, #16181c 0%, #050506 100%);
+}
+
+.quiz-shell-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+}
+
+@media (min-width: 800px) and (min-height: 520px) {
+  .quiz-shell-outer {
+    padding: 24px;
+    align-items: center;
+  }
+
+  .quiz-shell-inner {
+    width: min(520px, 100%);
+    height: min(520px, 100%);
+    max-width: 520px;
+    max-height: 520px;
+    border-radius: 28px;
+    box-shadow:
+      0 24px 80px rgba(0,0,0,0.45),
+      0 8px 24px rgba(0,0,0,0.28);
+  }
+}
 `
 
 function useQuizStyles() {
   useEffect(() => {
-    if (document.getElementById('sq-styles')) return
-    const el = document.createElement('style')
-    el.id = 'sq-styles'
-    el.textContent = QUIZ_STYLES
-    document.head.appendChild(el)
+    let el = document.getElementById('sq-styles') as HTMLStyleElement | null
+    if (!el) {
+      el = document.createElement('style')
+      el.id = 'sq-styles'
+      document.head.appendChild(el)
+    }
+    if (el.textContent !== QUIZ_STYLES) {
+      el.textContent = QUIZ_STYLES
+    }
   }, [])
 }
 
@@ -104,13 +170,48 @@ function getGradient(seed: string): string {
   return `linear-gradient(135deg, hsl(${h1},65%,55%), hsl(${h2},70%,45%))`
 }
 
+function getSliderTrackBackground(directionMode: 'unidirectional' | 'bidirectional' | 'stars', value: number): string {
+  if (directionMode === 'stars') {
+    return `linear-gradient(90deg, ${SLIDER_BLUE} 0%, ${SLIDER_BLUE} ${Math.max(0, Math.min(100, value * 100))}%, ${SLIDER_GREY} ${Math.max(0, Math.min(100, value * 100))}%, ${SLIDER_GREY} 100%)`
+  }
+  const pct = Math.max(0, Math.min(100, value * 100))
+  if (directionMode === 'bidirectional') {
+    if (pct < 50) {
+      return `linear-gradient(90deg, ${SLIDER_GREY} 0%, ${SLIDER_GREY} ${pct}%, ${SLIDER_RED} ${pct}%, ${SLIDER_RED} 50%, ${SLIDER_GREY} 50%, ${SLIDER_GREY} 100%)`
+    }
+    if (pct > 50) {
+      return `linear-gradient(90deg, ${SLIDER_GREY} 0%, ${SLIDER_GREY} 50%, ${SLIDER_BLUE} 50%, ${SLIDER_BLUE} ${pct}%, ${SLIDER_GREY} ${pct}%, ${SLIDER_GREY} 100%)`
+    }
+    return `linear-gradient(90deg, ${SLIDER_GREY} 0%, ${SLIDER_GREY} 100%)`
+  }
+  return `linear-gradient(90deg, ${SLIDER_BLUE} 0%, ${SLIDER_BLUE} ${pct}%, ${SLIDER_GREY} ${pct}%, ${SLIDER_GREY} 100%)`
+}
+
+function getSliderInputStyle(directionMode: 'unidirectional' | 'bidirectional' | 'stars', value: number): React.CSSProperties {
+  return {
+    width: '100%',
+    height: 6,
+    borderRadius: 999,
+    appearance: 'none',
+    WebkitAppearance: 'none',
+    background: getSliderTrackBackground(directionMode, value),
+    outline: 'none',
+    cursor: 'pointer',
+  }
+}
+
+function getSliderInitialValue(directionMode?: 'unidirectional' | 'bidirectional' | 'stars'): number {
+  if (directionMode === 'stars') return 0
+  return directionMode === 'bidirectional' ? 0.5 : 0
+}
+
 function extractSlides(content: any): Slide[] {
   const slides: Slide[] = []
 
   const visit = (node: any) => {
     if (!node || typeof node !== 'object') return
 
-    if (node.type === 'quizSelectBlock' || node.type === 'quizTextBlock' || node.type === 'quizInfoBlock') {
+    if (node.type === 'quizSelectBlock' || node.type === 'quizTextBlock' || node.type === 'quizSliderBlock' || node.type === 'quizInfoBlock') {
       slides.push({ type: node.type, ...node.attrs })
     }
 
@@ -134,16 +235,18 @@ function SlideFrame({
   popUuid,
   onSelectOption,
   onTextAnswerChange,
+  onSliderAnswerChange,
   buildImageUrl,
 }: {
   slide: Slide
   isActive: boolean
-  answers: Map<string, string>
+  answers: Map<string, any>
   textScoringRules: Record<string, TextScoringRule>
   infoOverlay: QuizOption | null
   popUuid: string | null      // option that just got the pop animation
   onSelectOption: (slide: SelectSlide, optUuid: string) => void
   onTextAnswerChange: (slide: TextSlide, value: string) => void
+  onSliderAnswerChange: (slide: SliderSlide, sliderUuid: string, value: number) => void
   buildImageUrl: (blockObj: any) => string | null
 }) {
   // ── Info slide ──
@@ -152,7 +255,7 @@ function SlideFrame({
     const imgUrl = buildImageUrl(info.image_block_object)
     const bg = getGradient(info.gradient_seed || info.slide_uuid || 'info')
     return (
-      <div style={{ height: '100vh', position: 'relative', overflow: 'hidden', background: imgUrl ? '#000' : bg }}>
+      <div style={{ height: '100%', position: 'relative', overflow: 'hidden', background: imgUrl ? '#000' : bg }}>
         {imgUrl && (
           <img src={imgUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         )}
@@ -193,7 +296,7 @@ function SlideFrame({
     const background = getGradient(textSlide.background_gradient_seed || textSlide.question_uuid || 'text-question')
 
     return (
-      <div style={{ height: '100vh', position: 'relative', overflow: 'hidden', background: backgroundUrl ? '#000' : background }}>
+      <div style={{ height: '100%', position: 'relative', overflow: 'hidden', background: backgroundUrl ? '#000' : background }}>
         {backgroundUrl && (
           <img src={backgroundUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         )}
@@ -251,6 +354,140 @@ function SlideFrame({
     )
   }
 
+  if (slide.type === 'quizSliderBlock') {
+    const sliderSlide = slide as SliderSlide
+    const sliderValues = (answers.get(sliderSlide.question_uuid) || {}) as Record<string, number>
+    const labelMode = sliderSlide.label_mode || 'none'
+    const directionMode = sliderSlide.direction_mode || 'unidirectional'
+    const numberMax = Math.max(1, Number(sliderSlide.number_max || 5))
+    const step = labelMode === 'numbers'
+      ? (directionMode === 'bidirectional' ? 1 / (numberMax * 2) : 1 / numberMax)
+      : 0.01
+    const backgroundUrl = buildImageUrl(sliderSlide.background_image_block_object)
+    const background = getGradient(sliderSlide.background_gradient_seed || sliderSlide.question_uuid || 'slider-question')
+    const tickCount = labelMode === 'numbers'
+      ? (directionMode === 'bidirectional' ? Math.min(20, numberMax * 2) : Math.min(10, numberMax))
+      : 0
+    const tickValues = tickCount > 0 ? Array.from({ length: tickCount + 1 }, (_, idx) => idx / tickCount) : []
+    const hideOptionLabels = sliderSlide.slider_count === 1
+
+    return (
+      <div style={{ height: '100%', position: 'relative', overflow: 'hidden', background: backgroundUrl ? '#000' : background }}>
+        <style>{`
+          .quiz-player-slider-range {
+            appearance: none;
+            -webkit-appearance: none;
+          }
+          .quiz-player-slider-range::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            background: #fff;
+            border: 2px solid rgba(15, 23, 42, 0.12);
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.24);
+          }
+          .quiz-player-slider-range::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            background: #fff;
+            border: 2px solid rgba(15, 23, 42, 0.12);
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.24);
+          }
+        `}</style>
+        {backgroundUrl && (
+          <img src={backgroundUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        )}
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.28)' }} />
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '120px 24px 96px', boxSizing: 'border-box' }}>
+          <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {sliderSlide.question_text && (
+              <p style={{ margin: 0, textAlign: 'center', color: '#fff', fontSize: 24, fontWeight: 800, lineHeight: 1.2, textShadow: '0 2px 10px rgba(0,0,0,0.65)' }}>
+                {sliderSlide.question_text}
+              </p>
+            )}
+            {directionMode !== 'stars' && labelMode === 'numbers' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#fff', fontSize: 11, fontWeight: 700, textShadow: '0 2px 10px rgba(0,0,0,0.35)' }}>
+                  <span>{directionMode === 'bidirectional' ? numberMax : 0}</span>
+                  <span>{numberMax}</span>
+                </div>
+              </div>
+            )}
+            {directionMode !== 'stars' && labelMode === 'labels' && !hideOptionLabels && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#fff', fontSize: 11, fontWeight: 700, textShadow: '0 2px 10px rgba(0,0,0,0.35)' }}>
+                  <span>{sliderSlide.left_axis_label || '\u00A0'}</span>
+                  <span>{sliderSlide.right_axis_label || '\u00A0'}</span>
+                </div>
+              </div>
+            )}
+            {sliderSlide.sliders.map((row, idx) => {
+              const value = typeof sliderValues[row.slider_uuid] === 'number'
+                ? sliderValues[row.slider_uuid]
+                : getSliderInitialValue(directionMode)
+              const selectedStars = Math.round(value * 5)
+              return (
+                <div key={row.slider_uuid} style={{ display: 'grid', gridTemplateColumns: hideOptionLabels ? '1fr' : '112px 1fr', gap: 12, alignItems: 'center' }}>
+                  {!hideOptionLabels && (
+                    <div style={{ color: '#fff', fontSize: 13, fontWeight: 700, textShadow: '0 2px 10px rgba(0,0,0,0.35)', lineHeight: 1.3, textAlign: 'right' }}>
+                      {row.label || `Option ${idx + 1}`}
+                    </div>
+                  )}
+                  <div>
+                    {directionMode === 'stars' ? (
+                      <div style={{ display: 'flex', gap: 8, justifyContent: hideOptionLabels ? 'center' : 'flex-start' }}>
+                        {Array.from({ length: 5 }, (_, starIdx) => {
+                          const nextStars = starIdx + 1
+                          return (
+                            <button
+                              key={`${row.slider_uuid}_${starIdx}`}
+                              type="button"
+                              onClick={() => onSliderAnswerChange(sliderSlide, row.slider_uuid, nextStars / 5)}
+                              style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', display: 'flex' }}
+                            >
+                              <Star
+                                size={30}
+                                strokeWidth={2.2}
+                                style={{ color: '#fff', fill: nextStars <= selectedStars ? '#fff' : 'transparent', filter: 'drop-shadow(0 2px 10px rgba(0,0,0,0.3))' }}
+                              />
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <>
+                        <input
+                          className="quiz-player-slider-range"
+                          type="range"
+                          min={0}
+                          max={1}
+                          step={step}
+                          value={value}
+                          onChange={e => onSliderAnswerChange(sliderSlide, row.slider_uuid, parseFloat(e.target.value))}
+                          style={getSliderInputStyle(directionMode, value)}
+                        />
+                        {tickValues.length > 0 && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                            {tickValues.map(tick => (
+                              <span key={`${row.slider_uuid}_${tick}`} style={{ width: 2, height: 8, borderRadius: 999, background: tick === 0.5 && directionMode === 'bidirectional' ? '#9ca3af' : '#d1d5db', display: 'block' }} />
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // ── Select slide ──
   const sel = slide as SelectSlide
   const selectedUuid = answers.get(sel.question_uuid) || null
@@ -261,7 +498,7 @@ function SlideFrame({
   const questionBg = getGradient(sel.background_gradient_seed || sel.question_uuid || 'question')
 
   return (
-    <div style={{ height: '100vh', position: 'relative', overflow: 'hidden', background: isTextStyle ? (questionBgUrl ? '#000' : questionBg) : '#000' }}>
+    <div style={{ height: '100%', position: 'relative', overflow: 'hidden', background: isTextStyle ? (questionBgUrl ? '#000' : questionBg) : '#000' }}>
       {isTextStyle && questionBgUrl && (
         <img src={questionBgUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
       )}
@@ -422,7 +659,7 @@ function SlideFrame({
             return (
               <>
                 {infoImgUrl && (
-                  <img src={infoImgUrl} alt="" style={{ width: 'auto', maxWidth: '100%', maxHeight: '50vh', objectFit: 'contain', borderRadius: 8, display: 'block' }} />
+                  <img src={infoImgUrl} alt="" style={{ width: 'auto', maxWidth: '100%', maxHeight: '50%', objectFit: 'contain', borderRadius: 8, display: 'block' }} />
                 )}
                 {infoOverlay.info_message && (
                   <p style={{ color: '#fff', fontSize: 17, fontWeight: 600, textAlign: 'center', textShadow: '0 2px 10px rgba(0,0,0,0.65)', lineHeight: 1.4, margin: 0 }}>
@@ -437,11 +674,6 @@ function SlideFrame({
     </div>
   )
 }
-
-// ── Stable shell — must live outside the player to avoid remounting ────────────
-
-const SHELL_OUTER: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 9999, background: '#000', display: 'flex', justifyContent: 'center' }
-const SHELL_INNER: React.CSSProperties = { position: 'relative', width: '100%', maxWidth: 420, height: '100vh', overflow: 'hidden', background: '#000' }
 
 // ── Main player ────────────────────────────────────────────────────────────────
 
@@ -502,7 +734,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
   const [textScoringRules, setTextScoringRules] = useState<Record<string, TextScoringRule>>(activity?.details?.text_scores || {})
 
   const [currentIdx, setCurrentIdx] = useState(0)
-  const [answers, setAnswers] = useState<Map<string, string>>(new Map())
+  const [answers, setAnswers] = useState<Map<string, any>>(new Map())
   const [popUuid, setPopUuid] = useState<string | null>(null)
   const [nextVisible, setNextVisible] = useState(false)
   const [showingResponse, setShowingResponse] = useState(false)   // response slide visible
@@ -557,6 +789,16 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
       if (minChars <= 0) return true
       return (answers.get(slide.question_uuid) || '').trim().length >= minChars
     }
+    if (currentSlide.type === 'quizSliderBlock') {
+      const slide = currentSlide as SliderSlide
+      const directionMode = slide.direction_mode || 'unidirectional'
+      const initialValue = getSliderInitialValue(directionMode)
+      const sliderValues = (answers.get(slide.question_uuid) || {}) as Record<string, number>
+      return slide.sliders.every(row => {
+        const value = typeof sliderValues[row.slider_uuid] === 'number' ? sliderValues[row.slider_uuid] : initialValue
+        return Math.abs(value - initialValue) > 0.0001
+      })
+    }
     return answers.has((currentSlide as SelectSlide).question_uuid)
   }, [showingResponse, currentSlide, answers, textScoringRules])
 
@@ -592,6 +834,20 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
           return {
             question_uuid: s.question_uuid,
             answer_json: { type: 'text', text: answers.get(s.question_uuid) || '' },
+          }
+        }
+        if (slide.type === 'quizSliderBlock') {
+          const s = slide as SliderSlide
+          const values = (answers.get(s.question_uuid) || {}) as Record<string, number>
+          const normalizedValues = Object.fromEntries(
+            s.sliders.map(row => {
+              const raw = typeof values[row.slider_uuid] === 'number' ? values[row.slider_uuid] : getSliderInitialValue(s.direction_mode)
+              return [row.slider_uuid, Math.max(0, Math.min(1, raw))]
+            })
+          )
+          return {
+            question_uuid: s.question_uuid,
+            answer_json: { type: 'slider', values: normalizedValues },
           }
         }
         const s = slide as SelectSlide
@@ -677,6 +933,16 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     setAnswers(prev => new Map(prev).set(slide.question_uuid, value))
   }
 
+  const handleSliderAnswerChange = (slide: SliderSlide, sliderUuid: string, value: number) => {
+    setAnswers(prev => {
+      const next = new Map(prev)
+      const currentValues = { ...((next.get(slide.question_uuid) || {}) as Record<string, number>) }
+      currentValues[sliderUuid] = value
+      next.set(slide.question_uuid, currentValues)
+      return next
+    })
+  }
+
   const handleRetake = () => {
     setAnswers(new Map())
     setCurrentIdx(0)
@@ -689,7 +955,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
 
   if (loadingExistingResult) {
     return (
-      <div style={SHELL_OUTER}><div style={SHELL_INNER}>
+      <div className="quiz-shell-outer"><div className="quiz-shell-inner">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
           <div className="animate-spin" style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid rgba(255,255,255,0.25)', borderTopColor: '#fff' }} />
         </div>
@@ -699,8 +965,8 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
 
   if (showResults) {
     return (
-      <div style={SHELL_OUTER}><div style={SHELL_INNER}>
-        <div style={{ height: '100vh', overflowY: 'auto', background: '#fff' }}>
+      <div className="quiz-shell-outer"><div className="quiz-shell-inner">
+        <div style={{ height: '100%', overflowY: 'auto', background: '#fff' }}>
           <div style={{ padding: '16px 16px 0', display: 'flex', justifyContent: 'flex-end' }}>
             {onClose && (
               <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4 }}>
@@ -716,7 +982,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
 
   if (slides.length === 0) {
     return (
-      <div style={SHELL_OUTER}><div style={SHELL_INNER}>
+      <div className="quiz-shell-outer"><div className="quiz-shell-inner">
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
           <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>This quiz has no questions yet.</p>
           {onClose && (
@@ -731,11 +997,15 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     ? (currentSlide as SelectSlide).question_text
     : currentSlide.type === 'quizTextBlock'
       ? (currentSlide as TextSlide).question_text
-      : (currentSlide as InfoSlide).title
+      : currentSlide.type === 'quizSliderBlock'
+        ? (currentSlide as SliderSlide).question_text
+        : (currentSlide as InfoSlide).title
   const shouldShowHeaderTitle =
     currentSlide.type === 'quizSelectBlock'
       ? (currentSlide as SelectSlide).display_style !== 'text'
-      : false
+      : currentSlide.type === 'quizSliderBlock'
+        ? false
+        : false
 
   // Background for the response slide
   const responseBg = responseOption
@@ -748,7 +1018,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     : (isLastSlide ? 'Done' : 'Next →')
 
   return (
-    <div style={SHELL_OUTER}><div style={SHELL_INNER}>
+    <div className="quiz-shell-outer"><div className="quiz-shell-inner">
       {/* ── Header overlay ── */}
       <div style={{
         position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000,
@@ -784,24 +1054,29 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
 
       {/* ── Slide stack ── */}
       <div style={{
-        position: 'absolute', left: 0, right: 0, top: 0,
-        transform: `translate3d(0, ${-currentIdx * 100}vh, 0)`,
+        position: 'absolute', inset: 0,
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        transform: `translate3d(0, -${currentIdx * 100}%, 0)`,
         transition: 'transform 520ms cubic-bezier(.2, .9, .2, 1)',
         willChange: 'transform',
       }}>
         {slides.map((slide, idx) => (
-          <SlideFrame
-            key={idx}
-            slide={slide}
-            isActive={idx === currentIdx}
-            answers={answers}
-            textScoringRules={textScoringRules}
-            infoOverlay={null}
-            popUuid={idx === currentIdx ? popUuid : null}
-            onSelectOption={handleSelectOption}
-            onTextAnswerChange={handleTextAnswerChange}
-            buildImageUrl={buildImageUrl}
-          />
+          <div key={idx} style={{ flex: '0 0 100%', height: '100%', minHeight: 0 }}>
+            <SlideFrame
+              slide={slide}
+              isActive={idx === currentIdx}
+              answers={answers}
+              textScoringRules={textScoringRules}
+              infoOverlay={null}
+              popUuid={idx === currentIdx ? popUuid : null}
+              onSelectOption={handleSelectOption}
+              onTextAnswerChange={handleTextAnswerChange}
+              onSliderAnswerChange={handleSliderAnswerChange}
+              buildImageUrl={buildImageUrl}
+            />
+          </div>
         ))}
       </div>
 
@@ -837,6 +1112,8 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
         disabled={submitting}
         style={{
           position: 'absolute', left: 12, right: 12, bottom: 12,
+          maxWidth: 320,
+          margin: '0 auto',
           height: 52, borderRadius: 999,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontWeight: 800, fontSize: 16,

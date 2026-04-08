@@ -6,7 +6,7 @@ import Text from '@tiptap/extension-text'
 import { v4 as uuidv4 } from 'uuid'
 import {
   ArrowLeft, Save, Eye, EyeOff, ListChecks, Info as InfoIcon,
-  Plus, Trash2, Upload, X, Loader2, Type, AlignLeft, GripVertical,
+  Plus, Trash2, Upload, X, Loader2, Type, AlignLeft, GripVertical, SlidersHorizontal,
 } from 'lucide-react'
 import Link from 'next/link'
 import { getUriWithOrg } from '@services/config/config'
@@ -16,6 +16,7 @@ import { OrgProvider } from '@components/Contexts/OrgContext'
 import QuizSelectBlock from '@components/Objects/Editor/Extensions/QuizSelect/QuizSelectBlock'
 import QuizInfoBlock from '@components/Objects/Editor/Extensions/QuizInfo/QuizInfoBlock'
 import QuizTextBlock from '@components/Objects/Editor/Extensions/QuizText/QuizTextBlock'
+import QuizSliderBlock from '@components/Objects/Editor/Extensions/QuizSlider/QuizSliderBlock'
 import { CourseProvider } from '@components/Contexts/CourseContext'
 import { updateActivity } from '@services/courses/activities'
 import { updateQuizScoring, updateQuizResults, updateQuizSettings } from '@services/quiz/quiz'
@@ -151,6 +152,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
       Text,
       QuizSelectBlock.configure({ activity }),
       QuizTextBlock.configure({ activity }),
+      QuizSliderBlock.configure({ activity }),
       QuizInfoBlock.configure({ activity }),
     ],
     content: activity.content && Object.keys(activity.content).length > 0
@@ -166,7 +168,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
     const extractBlocks = () => {
       const blocks: EditorBlockInfo[] = []
       editor.state.doc.forEach((node, pos) => {
-        if (['quizSelectBlock', 'quizTextBlock', 'quizInfoBlock'].includes(node.type.name)) {
+        if (['quizSelectBlock', 'quizTextBlock', 'quizSliderBlock', 'quizInfoBlock'].includes(node.type.name)) {
           blocks.push({ type: node.type.name, attrs: node.attrs, pos, nodeSize: node.nodeSize })
         }
       })
@@ -274,7 +276,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
 
   // ── Sidebar helpers ───────────────────────────────────────────────────
   const scrollToBlock = (idx: number) => {
-    const allBlocks = document.querySelectorAll('.quiz-select-block, .quiz-text-block, .quiz-info-block')
+    const allBlocks = document.querySelectorAll('.quiz-select-block, .quiz-text-block, .quiz-slider-block, .quiz-info-block')
     const el = allBlocks[idx] as HTMLElement | undefined
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
@@ -306,6 +308,15 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
           title: block.attrs.question_text || 'Text question',
           preview: block.attrs.description || block.attrs.placeholder || '',
         }
+      case 'quizSliderBlock': {
+        const sliders = (block.attrs.sliders || []) as any[]
+        return {
+          iconType: 'sliders' as const,
+          color: '#d97706',
+          title: block.attrs.question_text || 'Rating question',
+          preview: sliders.map((slider: any) => slider.label || '—').filter(Boolean).join(' / '),
+        }
+      }
       case 'quizInfoBlock':
         return {
           iconType: 'info' as const,
@@ -361,6 +372,27 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
         description: '',
         placeholder: '',
         input_size: 'single_line',
+        background_gradient_seed: uuidv4(),
+        background_image_file_id: null,
+        background_image_block_object: null,
+      },
+    }).run()
+  }
+
+  const insertSliderBlock = () => {
+    if (!editor) return
+    editor.chain().insertContentAt(editor.state.doc.content.size, {
+      type: 'quizSliderBlock',
+      attrs: {
+        question_uuid: uuidv4(),
+        question_text: '',
+        slider_count: 1,
+        direction_mode: 'stars',
+        label_mode: 'none',
+        number_max: 5,
+        left_axis_label: '',
+        right_axis_label: '',
+        sliders: Array.from({ length: 1 }, () => ({ slider_uuid: uuidv4(), label: '' })),
         background_gradient_seed: uuidv4(),
         background_image_file_id: null,
         background_image_block_object: null,
@@ -641,6 +673,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                       <span className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400 mr-1">Add question</span>
                       <button type="button" onClick={() => insertSelectBlock(2)} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-medium outline-none transition-colors"><ListChecks size={13} /> Multiple choice</button>
                       <button type="button" onClick={insertTextBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-medium outline-none transition-colors"><Type size={13} /> Text question</button>
+                      <button type="button" onClick={insertSliderBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-medium outline-none transition-colors"><SlidersHorizontal size={13} /> Rating</button>
                       <button type="button" onClick={insertInfoBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium outline-none transition-colors"><InfoIcon size={13} /> Info slide</button>
                     </div>
                   </div>
@@ -649,84 +682,88 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                 <div className="mx-auto flex w-full max-w-7xl items-start gap-6 px-4 py-6 sm:px-6">
 
                   {/* ── Left sidebar ── */}
-                  <div className="hidden lg:block w-[224px] shrink-0 sticky top-[84px] max-h-[calc(100vh-120px)]">
-                    <div className="rounded-2xl border border-neutral-200/70 bg-white/92 backdrop-blur p-3 nice-shadow overflow-y-auto max-h-[calc(100vh-120px)]">
-                      <div className="px-1 pb-2">
-                        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Blocks</p>
-                      </div>
-                      {editorBlocks.length === 0 ? (
-                        <div style={{ padding: '24px 12px', textAlign: 'center', color: '#d1d5db', fontSize: 12 }}>
-                          No blocks yet
-                        </div>
-                      ) : (
-                        <div style={{ padding: '4px 0' }}>
-                          {editorBlocks.map((block, idx) => {
-                            const info = getSidebarBlockInfo(block)
-                            const isDragOver = sidebarDragOver === idx
-                            return (
-                              <div key={`${block.pos}-${idx}`} style={{ display: 'flex', alignItems: 'stretch' }}>
-                                <div style={{ width: 24, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d1d5db', fontSize: 10, fontWeight: 700, fontVariantNumeric: 'tabular-nums', userSelect: 'none' }}>
-                                  {idx + 1}
-                                </div>
-                                <div
-                                  draggable
-                                  onClick={() => scrollToBlock(idx)}
-                                  onDragStart={e => {
-                                    setSidebarDragSrc(idx)
-                                    e.dataTransfer.effectAllowed = 'move'
-                                  }}
-                                  onDragOver={e => { e.preventDefault(); setSidebarDragOver(idx) }}
-                                  onDragLeave={() => setSidebarDragOver(current => current === idx ? null : current)}
-                                  onDrop={e => {
-                                    e.preventDefault()
-                                    if (sidebarDragSrc !== null) reorderBlocks(sidebarDragSrc, idx)
-                                    setSidebarDragSrc(null)
-                                    setSidebarDragOver(null)
-                                  }}
-                                  onDragEnd={() => {
-                                    setSidebarDragSrc(null)
-                                    setSidebarDragOver(null)
-                                  }}
-                                  style={{
-                                    flex: 1,
-                                    margin: '2px 0 2px 2px',
-                                    padding: '8px 10px',
-                                    borderRadius: 12,
-                                    cursor: 'pointer',
-                                    background: isDragOver ? '#f3f4f6' : sidebarDragSrc === idx ? '#f9fafb' : '#fff',
-                                    border: `1px solid ${isDragOver ? '#e5e7eb' : '#f3f4f6'}`,
-                                    opacity: sidebarDragSrc === idx ? 0.5 : 1,
-                                    transition: 'all 0.1s ease',
-                                    userSelect: 'none',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: 2,
-                                    boxShadow: '0 8px 20px rgba(15,23,42,0.05)',
-                                  }}
-                                >
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                    <GripVertical size={9} style={{ color: '#d1d5db', flexShrink: 0 }} />
-                                    <span style={{ color: info.color, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                                      {info.iconType === 'listchecks' && <ListChecks size={11} />}
-                                      {info.iconType === 'alignleft' && <AlignLeft size={11} />}
-                                      {info.iconType === 'info' && <InfoIcon size={11} />}
-                                    </span>
-                                    <span style={{ fontSize: 11, fontWeight: 600, color: info.title ? '#374151' : '#d1d5db', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
-                                      {info.title || 'Untitled'}
-                                    </span>
-                                  </div>
-                                  {info.preview && (
-                                    <p style={{ margin: 0, fontSize: 10, color: '#9ca3af', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingLeft: 13 }}>
-                                      {info.preview}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
+                  <div
+                    className="hidden lg:block w-[224px] shrink-0 sticky top-[84px] self-start rounded-2xl border border-neutral-200/70 bg-white/92 backdrop-blur p-3 nice-shadow overflow-y-auto"
+                    style={{ maxHeight: 'calc(100dvh - 108px)', boxSizing: 'border-box' }}
+                  >
+                    <div className="px-1 pb-2">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Blocks</p>
                     </div>
+                    {editorBlocks.length === 0 ? (
+                      <div style={{ padding: '24px 12px', textAlign: 'center', color: '#d1d5db', fontSize: 12 }}>
+                        No blocks yet
+                      </div>
+                    ) : (
+                      <div style={{ padding: '4px 0' }}>
+                        {editorBlocks.map((block, idx) => {
+                          const info = getSidebarBlockInfo(block)
+                          const isDragOver = sidebarDragOver === idx
+                          return (
+                            <div key={`${block.pos}-${idx}`} style={{ display: 'flex', alignItems: 'stretch' }}>
+                              <div style={{ width: 24, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d1d5db', fontSize: 10, fontWeight: 700, fontVariantNumeric: 'tabular-nums', userSelect: 'none' }}>
+                                {idx + 1}
+                              </div>
+                              <div
+                                draggable
+                                onClick={() => scrollToBlock(idx)}
+                                onDragStart={e => {
+                                  setSidebarDragSrc(idx)
+                                  e.dataTransfer.effectAllowed = 'move'
+                                }}
+                                onDragOver={e => { e.preventDefault(); setSidebarDragOver(idx) }}
+                                onDragLeave={() => setSidebarDragOver(current => current === idx ? null : current)}
+                                onDrop={e => {
+                                  e.preventDefault()
+                                  if (sidebarDragSrc !== null) reorderBlocks(sidebarDragSrc, idx)
+                                  setSidebarDragSrc(null)
+                                  setSidebarDragOver(null)
+                                }}
+                                onDragEnd={() => {
+                                  setSidebarDragSrc(null)
+                                  setSidebarDragOver(null)
+                                }}
+                                style={{
+                                  flex: 1,
+                                  minWidth: 0,
+                                  maxWidth: '100%',
+                                  margin: '2px 0 2px 2px',
+                                  padding: '8px 10px',
+                                  borderRadius: 12,
+                                  cursor: 'pointer',
+                                  background: isDragOver ? '#f3f4f6' : sidebarDragSrc === idx ? '#f9fafb' : '#fff',
+                                  border: `1px solid ${isDragOver ? '#e5e7eb' : '#f3f4f6'}`,
+                                  opacity: sidebarDragSrc === idx ? 0.5 : 1,
+                                  transition: 'all 0.1s ease',
+                                  userSelect: 'none',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: 2,
+                                  boxShadow: '0 8px 20px rgba(15,23,42,0.05)',
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <GripVertical size={9} style={{ color: '#d1d5db', flexShrink: 0 }} />
+                                  <span style={{ color: info.color, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                                    {info.iconType === 'listchecks' && <ListChecks size={11} />}
+                                    {info.iconType === 'alignleft' && <AlignLeft size={11} />}
+                                    {info.iconType === 'sliders' && <SlidersHorizontal size={11} />}
+                                    {info.iconType === 'info' && <InfoIcon size={11} />}
+                                  </span>
+                                  <span style={{ fontSize: 11, fontWeight: 600, color: info.title ? '#374151' : '#d1d5db', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0, maxWidth: '100%' }}>
+                                    {info.title || 'Untitled'}
+                                  </span>
+                                </div>
+                                {info.preview && (
+                                  <p style={{ margin: 0, fontSize: 10, color: '#9ca3af', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingLeft: 13, minWidth: 0, maxWidth: '100%' }}>
+                                    {info.preview}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   {/* ── Main content area ── */}

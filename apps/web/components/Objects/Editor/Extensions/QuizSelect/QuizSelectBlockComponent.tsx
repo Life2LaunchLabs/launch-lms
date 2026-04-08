@@ -444,6 +444,15 @@ function QuizSelectBlockComponent(props: any) {
   }
 
   const handleDisplayStyleChange = (style: DisplayStyle) => {
+    if (style === 'image' && optionCount > 4) {
+      const nextCount = 4
+      const nextOptions = options.slice(0, nextCount)
+      setDisplayStyle(style)
+      setOptionCount(nextCount)
+      setOptions(nextOptions)
+      persistAttrs({ displayStyle: style, optionCount: nextCount, options: nextOptions })
+      return
+    }
     setDisplayStyle(style)
     persistAttrs({ displayStyle: style })
   }
@@ -582,6 +591,8 @@ function QuizSelectBlockComponent(props: any) {
             <option value="2">2 options</option>
             <option value="3">3 options</option>
             <option value="4">4 options</option>
+            {displayStyle === 'text' && <option value="5">5 options</option>}
+            {displayStyle === 'text' && <option value="6">6 options</option>}
           </select>
           <select value={displayStyle} onChange={e => handleDisplayStyleChange(e.target.value as DisplayStyle)}
             style={{ fontSize: 11, fontWeight: 600, border: '1px solid #ddd6fe', borderRadius: 6, padding: '2px 6px', background: '#fff', color: '#374151', outline: 'none', cursor: 'pointer' }}>
