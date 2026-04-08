@@ -5,7 +5,7 @@ import QuizInfoBlockComponent from './QuizInfoBlockComponent'
 export default Node.create({
   name: 'quizInfoBlock',
   group: 'block',
-  draggable: true,
+  draggable: false,
   atom: true,
 
   addAttributes() {
@@ -24,7 +24,7 @@ export default Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['quiz-info-block', mergeAttributes(HTMLAttributes), 0]
+    return ['quiz-info-block', mergeAttributes(HTMLAttributes)]
   },
 
   addNodeView() {

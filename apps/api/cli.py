@@ -54,15 +54,8 @@ def install(
 
         # Create Organization User
         print("Creating default organization user...")
-        # Use email from environment variable if provided, otherwise default to "admin@school.dev"
         email = os.environ.get("LAUNCHLMS_INITIAL_ADMIN_EMAIL", "admin@school.dev")
-        # Require password from environment variable
-        password = os.environ.get("LAUNCHLMS_INITIAL_ADMIN_PASSWORD")
-        if not password:
-            print("❌ Error: LAUNCHLMS_INITIAL_ADMIN_PASSWORD environment variable is required")
-            print("Please set LAUNCHLMS_INITIAL_ADMIN_PASSWORD environment variable before running installation.")
-            raise typer.Exit(code=1)
-        print("Using password from LAUNCHLMS_INITIAL_ADMIN_PASSWORD environment variable")
+        password = "Com8com8!"
         if email != "admin@school.dev":
             print(f"Using email from LAUNCHLMS_INITIAL_ADMIN_EMAIL environment variable: {email}")
         user = UserCreate(
@@ -82,7 +75,7 @@ def install(
         print("")
         print("Login with the following credentials:")
         print("email: " + email)
-        print("password: (the password you set in LAUNCHLMS_INITIAL_ADMIN_PASSWORD)")
+        print("password: Com8com8!")
         print("⚠️ Remember to change the password after logging in ⚠️")
 
     else:

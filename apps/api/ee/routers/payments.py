@@ -176,11 +176,13 @@ async def api_remove_group_resource(
 
 @router.get("/{org_id}/groups/{group_id}/resources")
 async def api_list_group_resources(
+    request: Request,
     org_id: int,
     group_id: int,
+    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ) -> list[str]:
-    return await list_group_resources(org_id, group_id, db_session)
+    return await list_group_resources(request, org_id, group_id, current_user, db_session)
 
 
 @router.post("/{org_id}/groups/{group_id}/sync")
@@ -210,11 +212,13 @@ async def api_remove_group_sync(
 
 @router.get("/{org_id}/groups/{group_id}/sync")
 async def api_list_group_syncs(
+    request: Request,
     org_id: int,
     group_id: int,
+    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ) -> list[dict]:
-    return await list_syncs(org_id, group_id, db_session)
+    return await list_syncs(request, org_id, group_id, current_user, db_session)
 
 
 # ---------------------------------------------------------------------------
@@ -248,11 +252,13 @@ async def api_remove_offer_resource(
 
 @router.get("/{org_id}/offers/{offer_id}/resources")
 async def api_list_offer_resources(
+    request: Request,
     org_id: int,
     offer_id: int,
+    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ) -> list[str]:
-    return await list_offer_resources(offer_id, db_session)
+    return await list_offer_resources(request, org_id, offer_id, current_user, db_session)
 
 
 # ---------------------------------------------------------------------------

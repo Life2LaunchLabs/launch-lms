@@ -95,7 +95,7 @@ def _validate_content_path(file_path: str) -> str | None:
     return os.path.relpath(full_real, base_real)
 
 
-def _check_content_access(
+async def _check_content_access(
     file_path: str,
     current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
@@ -125,6 +125,20 @@ def _check_content_access(
         if not course:
             raise HTTPException(status_code=403, detail="Access denied")
         if course.public:
+            # Optional paid-access gating for public courses.
+            if not isinstance(current_user, APITokenUser):
+                try:
+                    from ee.services.payments.payments_access import check_course_paid_access
+                except ModuleNotFoundError:
+                    return
+                try:
+                    has_paid_access = await check_course_paid_access(course.id, current_user, db_session)
+                except Exception:
+                    return
+                if not has_paid_access:
+                    if isinstance(current_user, AnonymousUser):
+                        raise HTTPException(status_code=401, detail="Authentication required")
+                    raise HTTPException(status_code=403, detail="Access denied")
             return  # Public course — allow anonymous
         if isinstance(current_user, AnonymousUser):
             raise HTTPException(status_code=401, detail="Authentication required")
@@ -206,7 +220,7 @@ async def serve_content_file(
     if safe_path is None:
         raise HTTPException(status_code=400, detail="Invalid path")
 
-    _check_content_access(safe_path, current_user, db_session)
+    await _check_content_access(safe_path, current_user, db_session)
 
     s3_key = f"content/{safe_path}"
     s3_client = get_storage_client()

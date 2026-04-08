@@ -1,36 +1,30 @@
-from typing import Optional, Any, List
-from sqlmodel import SQLModel, Field, Column, Integer, ForeignKey, JSON
-from datetime import datetime
+# Re-export the core AuditLog model so the table is only defined once.
+# The core model (src.db.audit_logs) owns the "auditlog" table definition.
+from typing import Optional, List
+from sqlmodel import SQLModel
+from src.db.audit_logs import AuditLog
 
-class AuditLogBase(SQLModel):
-    user_id: Optional[int] = Field(
-        default=None, 
-        sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"))
-    )
-    org_id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(Integer, ForeignKey("organization.id", ondelete="SET NULL"))
-    )
+__all__ = ["AuditLog", "AuditLogRead", "AuditLogPaginated"]
+
+
+class AuditLogRead(SQLModel):
+    id: int
+    org_id: Optional[int] = None
+    user_id: Optional[int] = None
+    username: Optional[str] = None
+    name: Optional[str] = None
     action: str
     resource: str
     resource_id: Optional[str] = None
-    method: str
-    path: str
+    method: Optional[str] = None
+    path: Optional[str] = None
     status_code: int
-    payload: Optional[Any] = Field(
-        default=None,
-        sa_column=Column(JSON)
-    )
     ip_address: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-
-class AuditLog(AuditLogBase, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-
-class AuditLogRead(AuditLogBase):
-    id: int
-    username: Optional[str] = None
+    payload: Optional[dict] = None
+    request_metadata: Optional[dict] = None
+    created_at: Optional[str] = None
     avatar_url: Optional[str] = None
+
 
 class AuditLogPaginated(SQLModel):
     items: List[AuditLogRead]

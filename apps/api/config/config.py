@@ -430,3 +430,8 @@ def get_launchlms_config() -> LaunchLMSConfig:
     )
 
     return config
+
+
+def get_launch_lms_config() -> LaunchLMSConfig:
+    """Backward-compatible alias for older imports."""
+    return get_launchlms_config()

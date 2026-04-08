@@ -157,11 +157,20 @@ function SlideFrame({
           <img src={imgUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         )}
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)' }} />
-        {info.body && (
+        {(info.title || info.body) && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', boxSizing: 'border-box' }}>
-            <p style={{ color: '#fff', fontSize: 17, fontWeight: 600, textAlign: 'center', textShadow: '0 2px 10px rgba(0,0,0,0.65)', lineHeight: 1.4, margin: 0 }}>
-              {info.body}
-            </p>
+            <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {info.title && (
+                <p style={{ color: '#fff', fontSize: 24, fontWeight: 800, textAlign: 'center', textShadow: '0 2px 10px rgba(0,0,0,0.65)', lineHeight: 1.2, margin: 0 }}>
+                  {info.title}
+                </p>
+              )}
+              {info.body && (
+                <p style={{ color: '#fff', fontSize: 17, fontWeight: 600, textAlign: 'center', textShadow: '0 2px 10px rgba(0,0,0,0.65)', lineHeight: 1.4, margin: 0 }}>
+                  {info.body}
+                </p>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -191,6 +200,11 @@ function SlideFrame({
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.28)' }} />
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '120px 24px 96px', boxSizing: 'border-box' }}>
           <div style={{ width: '100%', maxWidth: 340, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {textSlide.question_text && (
+              <p style={{ margin: 0, textAlign: 'center', color: '#fff', fontSize: 24, fontWeight: 800, lineHeight: 1.2, textShadow: '0 2px 10px rgba(0,0,0,0.65)' }}>
+                {textSlide.question_text}
+              </p>
+            )}
             {textSlide.description && (
               <p style={{ margin: 0, textAlign: 'center', color: '#fff', fontSize: 14, lineHeight: 1.5, textShadow: '0 2px 10px rgba(0,0,0,0.35)' }}>
                 {textSlide.description}
@@ -267,7 +281,66 @@ function SlideFrame({
         padding: isTextStyle ? '120px 24px 96px' : 0,
         boxSizing: 'border-box',
       }}>
-        {sel.options.map((opt) => {
+        {isTextStyle ? (
+          <div style={{ width: '100%', maxWidth: 320, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {sel.question_text && (
+              <p style={{ margin: 0, textAlign: 'center', color: '#fff', fontSize: 24, fontWeight: 800, lineHeight: 1.2, textShadow: '0 2px 10px rgba(0,0,0,0.65)' }}>
+                {sel.question_text}
+              </p>
+            )}
+            {sel.options.map((opt) => {
+              const isSelected = selectedUuid === opt.option_uuid
+              const isPopping = isActive && popUuid === opt.option_uuid
+
+              return (
+                <div
+                  key={opt.option_uuid}
+                  onClick={() => onSelectOption(sel, opt.option_uuid)}
+                  className={isPopping ? 'sq-opt-pop' : ''}
+                  style={{
+                    position: 'relative',
+                    overflow: 'hidden',
+                    background: 'rgba(255,255,255,0.94)',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    flex: '0 0 auto',
+                    width: '100%',
+                    maxWidth: 320,
+                    minHeight: 56,
+                    borderRadius: 999,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    filter: hasSelection && !isSelected ? 'opacity(0.55)' : 'none',
+                    transform: isPopping ? undefined : (isSelected ? 'scale(1.02)' : 'scale(1)'),
+                    boxShadow: isSelected ? '0 18px 40px rgba(0,0,0,0.3)' : 'none',
+                    zIndex: isSelected ? 2 : 1,
+                    transition: isPopping ? 'none' : 'filter 200ms ease, transform 180ms cubic-bezier(.2,.9,.2,1), box-shadow 200ms ease, opacity 200ms ease',
+                  }}
+                >
+                  {isSelected && (
+                    <div style={{ position: 'absolute', inset: 0, border: '3px solid rgba(17,24,39,0.9)', borderRadius: 999, boxSizing: 'border-box', zIndex: 3, pointerEvents: 'none' }} />
+                  )}
+                  <div style={{
+                    position: 'relative',
+                    width: '100%',
+                    textAlign: 'center',
+                    padding: '0 18px',
+                    color: '#000',
+                    fontWeight: 900,
+                    lineHeight: 1.15,
+                    borderRadius: 999,
+                    fontSize: 15,
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                  }}>
+                    {opt.label || '\u00A0'}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : sel.options.map((opt) => {
           const isSelected = selectedUuid === opt.option_uuid
           const imgUrl = buildImageUrl(opt.image_block_object)
           const bg = getGradient(opt.gradient_seed)
@@ -659,6 +732,10 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     : currentSlide.type === 'quizTextBlock'
       ? (currentSlide as TextSlide).question_text
       : (currentSlide as InfoSlide).title
+  const shouldShowHeaderTitle =
+    currentSlide.type === 'quizSelectBlock'
+      ? (currentSlide as SelectSlide).display_style !== 'text'
+      : false
 
   // Background for the response slide
   const responseBg = responseOption
@@ -698,7 +775,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
           </div>
           {onClose && <IconPill onClick={onClose}><X size={14} /></IconPill>}
         </div>
-        {currentTitle && !showingResponse && (
+        {currentTitle && shouldShowHeaderTitle && !showingResponse && (
           <div style={{ position: 'relative', zIndex: 1, color: '#fff', fontSize: 18, fontWeight: 800, textShadow: '0 2px 10px rgba(0,0,0,0.65)', lineHeight: 1.25 }}>
             {currentTitle}
           </div>

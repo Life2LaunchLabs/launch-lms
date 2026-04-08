@@ -6,7 +6,7 @@ import Text from '@tiptap/extension-text'
 import { v4 as uuidv4 } from 'uuid'
 import {
   ArrowLeft, Save, Eye, EyeOff, ListChecks, Info as InfoIcon,
-  Plus, Trash2, Upload, X, Loader2, Type,
+  Plus, Trash2, Upload, X, Loader2, Type, AlignLeft, GripVertical,
 } from 'lucide-react'
 import Link from 'next/link'
 import { getUriWithOrg } from '@services/config/config'
@@ -93,6 +93,8 @@ function TabBtn({ active, onClick, icon, label }: { active: boolean; onClick: ()
   )
 }
 
+interface EditorBlockInfo { type: string; attrs: any; pos: number; nodeSize: number }
+
 // ── Main editor ────────────────────────────────────────────────────────────
 
 export default function QuizActivityEditor({ activity, course, org }: QuizActivityEditorProps) {
@@ -135,6 +137,11 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
 
   const selectedResult = resultOptions.find(r => r.uuid === selectedResultUuid) ?? null
 
+  // ── Sidebar state ─────────────────────────────────────────────────────
+  const [editorBlocks, setEditorBlocks] = useState<EditorBlockInfo[]>([])
+  const [sidebarDragSrc, setSidebarDragSrc] = useState<number | null>(null)
+  const [sidebarDragOver, setSidebarDragOver] = useState<number | null>(null)
+
   // ── Editor ────────────────────────────────────────────────────────────
   const editor = useEditor({
     immediatelyRender: false,
@@ -152,6 +159,23 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   })
 
   useEffect(() => { editor?.setEditable(!previewMode) }, [previewMode, editor])
+
+  // ── Extract sidebar blocks ────────────────────────────────────────────
+  useEffect(() => {
+    if (!editor) return
+    const extractBlocks = () => {
+      const blocks: EditorBlockInfo[] = []
+      editor.state.doc.forEach((node, pos) => {
+        if (['quizSelectBlock', 'quizTextBlock', 'quizInfoBlock'].includes(node.type.name)) {
+          blocks.push({ type: node.type.name, attrs: node.attrs, pos, nodeSize: node.nodeSize })
+        }
+      })
+      setEditorBlocks(blocks)
+    }
+    extractBlocks()
+    editor.on('update', extractBlocks)
+    return () => { editor.off('update', extractBlocks) }
+  }, [editor])
 
   // ── Content save ──────────────────────────────────────────────────────
   const save = useCallback(async (showToast = true) => {
@@ -247,6 +271,52 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
       setActiveTab('general')
     }
   }, [quizMode, activeTab])
+
+  // ── Sidebar helpers ───────────────────────────────────────────────────
+  const scrollToBlock = (idx: number) => {
+    const allBlocks = document.querySelectorAll('.quiz-select-block, .quiz-text-block, .quiz-info-block')
+    const el = allBlocks[idx] as HTMLElement | undefined
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const reorderBlocks = (fromIdx: number, toIdx: number) => {
+    if (!editor || fromIdx === toIdx) return
+    const allNodes: any[] = []
+    editor.state.doc.forEach(node => allNodes.push(node.toJSON()))
+    const [moved] = allNodes.splice(fromIdx, 1)
+    allNodes.splice(toIdx, 0, moved)
+    editor.commands.setContent({ type: 'doc', content: allNodes })
+  }
+
+  const getSidebarBlockInfo = (block: EditorBlockInfo) => {
+    switch (block.type) {
+      case 'quizSelectBlock': {
+        const opts = (block.attrs.options || []) as any[]
+        return {
+          iconType: 'listchecks' as const,
+          color: '#7c3aed',
+          title: block.attrs.question_text || 'Multiple choice',
+          preview: opts.map((o: any) => o.label || '—').filter(Boolean).join(' / '),
+        }
+      }
+      case 'quizTextBlock':
+        return {
+          iconType: 'alignleft' as const,
+          color: '#059669',
+          title: block.attrs.question_text || 'Text question',
+          preview: block.attrs.description || block.attrs.placeholder || '',
+        }
+      case 'quizInfoBlock':
+        return {
+          iconType: 'info' as const,
+          color: '#3b82f6',
+          title: block.attrs.title || 'Info slide',
+          preview: block.attrs.body || '',
+        }
+      default:
+        return { iconType: null as null, color: '#6b7280', title: 'Block', preview: '' }
+    }
+  }
 
   // ── Block insertion ───────────────────────────────────────────────────
   const insertSelectBlock = (optionCount: 2 | 3 | 4) => {
@@ -438,10 +508,10 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
     <OrgProvider orgslug={org?.slug || ''}>
     <CourseProvider courseuuid={course?.course_uuid}>
       <EditorOptionsProvider options={{ isEditable: !previewMode }}>
-        <div className="flex flex-col h-screen bg-white">
+        <div className="flex flex-col h-screen bg-gray-50">
 
           {/* ── Top bar ── */}
-          <div className="flex items-center gap-2 px-4 py-2 border-b border-neutral-100 bg-white sticky top-0 z-30">
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-neutral-100 bg-white/95 backdrop-blur sticky top-0 z-30 nice-shadow">
             <Link href={backUrl} className="p-1.5 rounded-lg hover:bg-neutral-100 transition-colors text-neutral-500 outline-none" title="Back to course">
               <ArrowLeft size={16} />
             </Link>
@@ -462,7 +532,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
 
           {/* ── Tab strip ── */}
           {!previewMode && (
-            <div className="flex space-x-2 px-6 border-b border-neutral-100 bg-white sticky top-[41px] z-20">
+            <div className="flex space-x-2 px-6 border-b border-neutral-100 bg-white/95 backdrop-blur sticky top-[41px] z-20 shadow-md shadow-gray-300/20">
               <TabBtn active={activeTab === 'general'} onClick={() => handleTabChange('general')} icon={<InfoIcon size={16} />} label="General" />
               <TabBtn active={activeTab === 'content'} onClick={() => handleTabChange('content')} icon={<ListChecks size={16} />} label="Content" />
               {quizMode !== 'graded' && (
@@ -475,7 +545,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
           )}
 
           {/* ── Body ── */}
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-auto bg-[#f4f5f7]">
 
             {/* Preview */}
             {previewMode && (
@@ -564,20 +634,112 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
 
             {/* ── Content ── */}
             {!previewMode && activeTab === 'content' && (
-              <div className="relative">
-                <div className="sticky top-0 z-10 flex items-center gap-1.5 px-6 py-2 bg-white/90 backdrop-blur border-b border-neutral-100">
-                  <span className="text-xs text-neutral-400 mr-1">Add:</span>
-                  <button type="button" onClick={() => insertSelectBlock(2)} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-medium outline-none transition-colors"><ListChecks size={13} /> Multiple choice</button>
-                  <button type="button" onClick={insertTextBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-medium outline-none transition-colors"><Type size={13} /> Text question</button>
-                  <button type="button" onClick={insertInfoBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium outline-none transition-colors"><InfoIcon size={13} /> Info slide</button>
-                </div>
-                <div className="max-w-2xl mx-auto py-8 px-6 space-y-4">
-                  {editor && <EditorContent editor={editor} className="quiz-editor-content outline-none" />}
-                  {editor && editor.isEmpty && (
-                    <div className="text-center py-16 text-neutral-300 select-none">
-                      <p className="text-sm">Use the toolbar above to add questions and info slides.</p>
+              <div className="min-h-full">
+                <div className="sticky top-0 z-20 border-b border-neutral-200/80 bg-white/92 backdrop-blur-xl shadow-md shadow-gray-300/20">
+                  <div className="px-4 sm:px-6 py-3">
+                    <div className="flex w-full flex-wrap items-center gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400 mr-1">Add question</span>
+                      <button type="button" onClick={() => insertSelectBlock(2)} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-medium outline-none transition-colors"><ListChecks size={13} /> Multiple choice</button>
+                      <button type="button" onClick={insertTextBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-medium outline-none transition-colors"><Type size={13} /> Text question</button>
+                      <button type="button" onClick={insertInfoBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium outline-none transition-colors"><InfoIcon size={13} /> Info slide</button>
                     </div>
-                  )}
+                  </div>
+                </div>
+
+                <div className="mx-auto flex w-full max-w-7xl items-start gap-6 px-4 py-6 sm:px-6">
+
+                  {/* ── Left sidebar ── */}
+                  <div className="hidden lg:block w-[224px] shrink-0 sticky top-[84px] max-h-[calc(100vh-120px)]">
+                    <div className="rounded-2xl border border-neutral-200/70 bg-white/92 backdrop-blur p-3 nice-shadow overflow-y-auto max-h-[calc(100vh-120px)]">
+                      <div className="px-1 pb-2">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Blocks</p>
+                      </div>
+                      {editorBlocks.length === 0 ? (
+                        <div style={{ padding: '24px 12px', textAlign: 'center', color: '#d1d5db', fontSize: 12 }}>
+                          No blocks yet
+                        </div>
+                      ) : (
+                        <div style={{ padding: '4px 0' }}>
+                          {editorBlocks.map((block, idx) => {
+                            const info = getSidebarBlockInfo(block)
+                            const isDragOver = sidebarDragOver === idx
+                            return (
+                              <div key={`${block.pos}-${idx}`} style={{ display: 'flex', alignItems: 'stretch' }}>
+                                <div style={{ width: 24, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d1d5db', fontSize: 10, fontWeight: 700, fontVariantNumeric: 'tabular-nums', userSelect: 'none' }}>
+                                  {idx + 1}
+                                </div>
+                                <div
+                                  draggable
+                                  onClick={() => scrollToBlock(idx)}
+                                  onDragStart={e => {
+                                    setSidebarDragSrc(idx)
+                                    e.dataTransfer.effectAllowed = 'move'
+                                  }}
+                                  onDragOver={e => { e.preventDefault(); setSidebarDragOver(idx) }}
+                                  onDragLeave={() => setSidebarDragOver(current => current === idx ? null : current)}
+                                  onDrop={e => {
+                                    e.preventDefault()
+                                    if (sidebarDragSrc !== null) reorderBlocks(sidebarDragSrc, idx)
+                                    setSidebarDragSrc(null)
+                                    setSidebarDragOver(null)
+                                  }}
+                                  onDragEnd={() => {
+                                    setSidebarDragSrc(null)
+                                    setSidebarDragOver(null)
+                                  }}
+                                  style={{
+                                    flex: 1,
+                                    margin: '2px 0 2px 2px',
+                                    padding: '8px 10px',
+                                    borderRadius: 12,
+                                    cursor: 'pointer',
+                                    background: isDragOver ? '#f3f4f6' : sidebarDragSrc === idx ? '#f9fafb' : '#fff',
+                                    border: `1px solid ${isDragOver ? '#e5e7eb' : '#f3f4f6'}`,
+                                    opacity: sidebarDragSrc === idx ? 0.5 : 1,
+                                    transition: 'all 0.1s ease',
+                                    userSelect: 'none',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: 2,
+                                    boxShadow: '0 8px 20px rgba(15,23,42,0.05)',
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <GripVertical size={9} style={{ color: '#d1d5db', flexShrink: 0 }} />
+                                    <span style={{ color: info.color, display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                                      {info.iconType === 'listchecks' && <ListChecks size={11} />}
+                                      {info.iconType === 'alignleft' && <AlignLeft size={11} />}
+                                      {info.iconType === 'info' && <InfoIcon size={11} />}
+                                    </span>
+                                    <span style={{ fontSize: 11, fontWeight: 600, color: info.title ? '#374151' : '#d1d5db', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+                                      {info.title || 'Untitled'}
+                                    </span>
+                                  </div>
+                                  {info.preview && (
+                                    <p style={{ margin: 0, fontSize: 10, color: '#9ca3af', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingLeft: 13 }}>
+                                      {info.preview}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ── Main content area ── */}
+                  <div className="flex-1 min-w-0">
+                    <div className="max-w-3xl mx-auto space-y-4">
+                      {editor && <EditorContent editor={editor} className="quiz-editor-content outline-none" />}
+                      {editor && editor.isEmpty && (
+                        <div className="text-center py-16 text-neutral-300 select-none">
+                          <p className="text-sm">Use the toolbar above to add questions and info slides.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

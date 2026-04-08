@@ -5,7 +5,7 @@ import QuizSelectBlockComponent from './QuizSelectBlockComponent'
 export default Node.create({
   name: 'quizSelectBlock',
   group: 'block',
-  draggable: true,
+  draggable: false,
   atom: true,
 
   addAttributes() {
@@ -27,7 +27,7 @@ export default Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['quiz-select-block', mergeAttributes(HTMLAttributes), 0]
+    return ['quiz-select-block', mergeAttributes(HTMLAttributes)]
   },
 
   addNodeView() {

@@ -4,7 +4,7 @@ import CopilotBubble from '@components/Copilot/CopilotBubble'
 import Image from 'next/image'
 import Link from 'next/link'
 import useSWR from 'swr'
-import { getUriWithOrg } from '@services/config/config'
+import { getCoreCapabilities, getUriWithOrg } from '@services/config/config'
 import { fetchRAGChatSessions, RAGChatSession } from '@services/ai/ai'
 import { HeaderProfileBox } from '@components/Security/HeaderProfileBox'
 import MenuLinks from './OrgMenuLinks'
@@ -83,12 +83,16 @@ export const OrgMenu = (props: any) => {
 
   // Get primary color from org config (v2: customization.general.color, v1: general.color)
   const config = org?.config?.config
+  const capabilities = getCoreCapabilities()
   const primaryColor = config?.customization?.general?.color || config?.general?.color || ''
   const colors = getMenuColorClasses(primaryColor)
 
   // Filter dashboard menu items by resolved_features from API
   const rf = config?.resolved_features
   const visibleDashboardItems = DASHBOARD_MENU_ITEMS.filter((item: DashboardMenuItem) => {
+    if (item.featureKey && capabilities[item.featureKey as keyof ReturnType<typeof getCoreCapabilities>] === false) {
+      return false
+    }
     if (!item.featureKey) return true
     if (rf?.[item.featureKey]) return rf[item.featureKey].enabled
     return isFeatureAvailable(item.featureKey)

@@ -282,3 +282,17 @@ v1_router.include_router(
     tags=["stream"],
     dependencies=[Depends(get_non_api_token_user)]
 )
+
+# Optional payments router is registered when the EE package is present.
+try:
+    from ee.routers import payments as ee_payments_router_module
+except ModuleNotFoundError:
+    ee_payments_router_module = None
+
+if ee_payments_router_module is not None:
+    v1_router.include_router(
+        ee_payments_router_module.router,
+        prefix="/payments",
+        tags=["payments"],
+        dependencies=[Depends(require_plan("standard", "payments"))],
+    )

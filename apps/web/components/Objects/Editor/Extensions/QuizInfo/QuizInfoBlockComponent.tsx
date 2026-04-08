@@ -2,13 +2,33 @@
 import { NodeViewWrapper } from '@tiptap/react'
 import React, { useRef } from 'react'
 import { v4 as uuidv4 } from 'uuid'
-import { Upload, Loader2, X, Info, Trash2 } from 'lucide-react'
+import { Upload, Loader2, X, Info, Trash2, Copy, Dice6 } from 'lucide-react'
 import { useEditorProvider } from '@components/Contexts/Editor/EditorContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { uploadNewImageFile } from '@services/blocks/Image/images'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useCourse } from '@components/Contexts/CourseContext'
+
+const HEADER_BG = '#dbeafe'
+const HEADER_BORDER = '#bfdbfe'
+const ACCENT_COLOR = '#3b82f6'
+const OVERLAY_TITLE_STYLE: React.CSSProperties = {
+  width: '100%',
+  textAlign: 'center',
+  background: 'rgba(255,255,255,0.14)',
+  backdropFilter: 'blur(8px)',
+  WebkitBackdropFilter: 'blur(8px)',
+  border: '1px solid rgba(255,255,255,0.24)',
+  borderRadius: 999,
+  padding: '10px 16px',
+  fontSize: 15,
+  fontWeight: 800,
+  color: '#fff',
+  outline: 'none',
+  lineHeight: 1.2,
+  boxShadow: '0 14px 34px rgba(15,23,42,0.18)',
+}
 
 function getGradient(seed: string): string {
   let hash = 0
@@ -33,13 +53,13 @@ function QuizInfoBlockComponent(props: any) {
   const [title, setTitle] = React.useState<string>(attrs.title || '')
   const [body, setBody] = React.useState<string>(attrs.body || '')
   const [imageBlockObject, setImageBlockObject] = React.useState<any>(attrs.image_block_object || null)
+  const [gradientSeed, setGradientSeed] = React.useState<string>(attrs.gradient_seed || attrs.slide_uuid || uuidv4())
   const [isLoading, setIsLoading] = React.useState(false)
-  const gradientSeed = attrs.gradient_seed || attrs.slide_uuid || uuidv4()
 
-  const save = (newTitle: string, newBody: string, newBlockObj: any) => {
+  const save = (newTitle: string, newBody: string, newBlockObj: any, newSeed?: string) => {
     props.updateAttributes({
       slide_uuid: attrs.slide_uuid || uuidv4(),
-      gradient_seed: gradientSeed,
+      gradient_seed: newSeed ?? gradientSeed,
       title: newTitle,
       body: newBody,
       image_block_object: newBlockObj,
@@ -52,11 +72,7 @@ function QuizInfoBlockComponent(props: any) {
   const handleUpload = async (file: File) => {
     setIsLoading(true)
     try {
-      const blockObj = await uploadNewImageFile(
-        file,
-        props.extension.options.activity?.activity_uuid || '',
-        access_token
-      )
+      const blockObj = await uploadNewImageFile(file, props.extension.options.activity?.activity_uuid || '', access_token)
       setImageBlockObject(blockObj)
       save(title, body, blockObj)
     } finally {
@@ -68,13 +84,24 @@ function QuizInfoBlockComponent(props: any) {
     if (!blockObj) return null
     const fileId = `${blockObj.content.file_id}.${blockObj.content.file_format}`
     return getActivityBlockMediaDirectory(
-      org?.org_uuid,
-      course?.courseStructure?.course_uuid,
+      org?.org_uuid, course?.courseStructure?.course_uuid,
       blockObj.content.activity_uuid || props.extension.options.activity?.activity_uuid || '',
-      blockObj.block_uuid,
-      fileId,
-      'imageBlock'
+      blockObj.block_uuid, fileId, 'imageBlock'
     )
+  }
+
+  const handleRerandomizeGradient = () => {
+    const newSeed = uuidv4()
+    setGradientSeed(newSeed)
+    save(title, body, imageBlockObject, newSeed)
+  }
+
+  const handleDuplicate = () => {
+    const pos = typeof props.getPos === 'function' ? props.getPos() : undefined
+    if (pos === undefined) return
+    const nodeJSON = props.node.toJSON()
+    const newAttrs = { ...nodeJSON.attrs, slide_uuid: uuidv4(), gradient_seed: uuidv4() }
+    props.editor.commands.insertContentAt(pos + props.node.nodeSize, { ...nodeJSON, attrs: newAttrs })
   }
 
   const imageUrl = getImageUrl(imageBlockObject)
@@ -82,83 +109,81 @@ function QuizInfoBlockComponent(props: any) {
   if (!isEditable) return null
 
   return (
-    <NodeViewWrapper className="quiz-info-block w-full">
-      <div className="bg-neutral-50 rounded-xl px-5 py-4 nice-shadow">
-        <div className="flex items-center gap-2 mb-4">
-          <Info size={14} className="text-blue-500" />
-          <span className="uppercase tracking-widest text-xs font-bold text-blue-500">Info Slide</span>
-          <button
-            type="button"
-            onClick={() => props.deleteNode()}
-            className="ml-auto p-1 rounded hover:bg-red-50 outline-none transition-colors"
-            title="Delete slide"
-          >
-            <Trash2 size={13} className="text-red-400" />
+    <NodeViewWrapper className="quiz-info-block my-4 w-full first:mt-0 last:mb-0">
+      <div style={{
+        border: '1px solid rgba(255,255,255,0.78)',
+        borderRadius: 14,
+        overflow: 'hidden',
+        boxShadow: props.selected
+          ? '0 10px 26px rgba(59,130,246,0.16)'
+          : '0 2px 10px rgba(0,0,0,0.07)',
+        transition: 'box-shadow 0.15s ease',
+      }}>
+        {/* ── Header bar ── */}
+        <div style={{ background: HEADER_BG, padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Info size={14} style={{ color: ACCENT_COLOR, flexShrink: 0 }} />
+          <span style={{ fontSize: 11, fontWeight: 700, color: ACCENT_COLOR, letterSpacing: '0.08em', textTransform: 'uppercase', flexShrink: 0 }}>Info Slide</span>
+          <div style={{ flex: 1 }} />
+          <div style={{ width: 1, height: 16, background: '#bfdbfe', margin: '0 2px' }} />
+          <button type="button" onClick={handleDuplicate} title="Duplicate slide"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: '#93c5fd' }}
+            onMouseEnter={e => (e.currentTarget.style.background = '#eff6ff')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+            <Copy size={13} />
+          </button>
+          <button type="button" onClick={() => props.deleteNode()} title="Delete slide"
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: '#f87171' }}
+            onMouseEnter={e => (e.currentTarget.style.background = '#fef2f2')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+            <Trash2 size={13} />
           </button>
         </div>
 
-        {/* Image / gradient preview */}
-        <div
-          className="w-full h-28 rounded-xl mb-4 overflow-hidden relative flex items-end"
-          style={{ background: imageUrl ? undefined : getGradient(gradientSeed) }}
-        >
-          {imageUrl && (
-            <img src={imageUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
-          )}
-          <div className="relative z-10 p-3 w-full">
-            <p className="text-white text-sm font-bold drop-shadow truncate">{title || 'Slide title…'}</p>
-          </div>
-          {imageUrl && (
-            <button
-              type="button"
-              onClick={() => { setImageBlockObject(null); save(title, body, null) }}
-              className="absolute top-2 right-2 bg-black/50 rounded-full p-1 outline-none hover:bg-black/70 transition-colors"
-            >
-              <X size={12} className="text-white" />
-            </button>
-          )}
-        </div>
-
-        {/* Image upload */}
-        {!imageUrl && (
+        {/* ── Content area ── */}
+        <div style={{ padding: '12px', background: '#fff' }}>
           <div
-            onClick={() => !isLoading && inputRef.current?.click()}
-            className="w-full h-10 border-2 border-dashed border-neutral-200 rounded-lg flex items-center justify-center gap-2 cursor-pointer hover:border-neutral-300 hover:bg-neutral-100 transition-colors mb-3"
+            style={{ width: '100%', height: 420, borderRadius: 12, overflow: 'hidden', position: 'relative', background: imageUrl ? undefined : getGradient(gradientSeed) }}
           >
-            {isLoading ? (
-              <Loader2 size={14} className="animate-spin text-neutral-400" />
+            {imageUrl && <img src={imageUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+            <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.28)', pointerEvents: 'none' }} />
+            <div style={{ position: 'relative', zIndex: 10, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px' }}>
+              <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <input
+                  value={title}
+                  placeholder="Slide title…"
+                  onChange={e => { setTitle(e.target.value); save(e.target.value, body, imageBlockObject) }}
+                  style={OVERLAY_TITLE_STYLE}
+                />
+                <textarea
+                  value={body}
+                  placeholder="Body text (optional)…"
+                  rows={3}
+                  onChange={e => { setBody(e.target.value); save(title, e.target.value, imageBlockObject) }}
+                  style={{ width: '100%', textAlign: 'center', background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 18, padding: '12px 16px', fontSize: 13, color: 'rgba(255,255,255,0.92)', outline: 'none', resize: 'none', lineHeight: 1.5, boxShadow: '0 14px 34px rgba(15,23,42,0.12)' }}
+                />
+              </div>
+            </div>
+            {imageUrl ? (
+              <button type="button" onClick={() => { setImageBlockObject(null); save(title, body, null) }}
+                style={{ position: 'absolute', top: 8, right: 8, zIndex: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: '50%', background: 'rgba(0,0,0,0.5)', border: 'none', cursor: 'pointer', color: '#fff' }}>
+                <X size={12} />
+              </button>
             ) : (
-              <>
-                <Upload size={13} className="text-neutral-400" />
-                <span className="text-xs text-neutral-500">Upload background image (optional)</span>
-              </>
+              <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 20, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <button type="button" onClick={() => !isLoading && inputRef.current?.click()} title="Upload background"
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: '50%', background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)', border: 'none', cursor: 'pointer', color: '#fff' }}>
+                  {isLoading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                </button>
+                <button type="button" onClick={handleRerandomizeGradient} title="Randomize gradient"
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: '50%', background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)', border: 'none', cursor: 'pointer', color: '#fff' }}>
+                  <Dice6 size={12} />
+                </button>
+                <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display: 'none' }}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f) }} />
+              </div>
             )}
-            <input
-              ref={inputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              className="hidden"
-              onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f) }}
-            />
           </div>
-        )}
-
-        {/* Title */}
-        <input
-          value={title}
-          placeholder="Slide title…"
-          onChange={e => { setTitle(e.target.value); save(e.target.value, body, imageBlockObject) }}
-          className="w-full text-neutral-800 bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm font-semibold mb-2 outline-none focus:border-blue-400 transition-colors"
-        />
-
-        {/* Body */}
-        <textarea
-          value={body}
-          placeholder="Body text (optional)…"
-          rows={2}
-          onChange={e => { setBody(e.target.value); save(title, e.target.value, imageBlockObject) }}
-          className="w-full text-neutral-700 bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm mb-0 outline-none focus:border-blue-400 transition-colors resize-none"
-        />
+        </div>
       </div>
     </NodeViewWrapper>
   )

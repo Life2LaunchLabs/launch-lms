@@ -19,10 +19,17 @@ logger = logging.getLogger(__name__)
 
 async def check_core_activity_paid_access(**_: object) -> bool:
     """
-    Payments are intentionally disabled in core for now.
-    Until native commerce returns, paid-access gating is treated as allowed.
+    Delegate to the optional EE payments hook when it is available.
     """
-    return True
+    try:
+        from ee.hooks import check_activity_paid_access as ee_check_activity_paid_access
+    except Exception:
+        return True
+
+    try:
+        return await ee_check_activity_paid_access(**_)
+    except Exception:
+        return True
 
 
 QUIZ_DEFAULT_DETAILS = {

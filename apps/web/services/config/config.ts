@@ -287,7 +287,7 @@ export const getCoreCapabilities = () => ({
   multi_org: true,
   superadmin: true,
   audit_logs: true,
-  payments: true,
+  payments: false,
   sso: true,
   scorm: true,
   advanced_analytics: true,
@@ -306,5 +306,4 @@ export const getDefaultOrg = () => {
   // 3. Default
   return 'default'
 }
-
 

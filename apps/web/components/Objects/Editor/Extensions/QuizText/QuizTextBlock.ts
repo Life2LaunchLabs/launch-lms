@@ -5,7 +5,7 @@ import QuizTextBlockComponent from './QuizTextBlockComponent'
 export default Node.create({
   name: 'quizTextBlock',
   group: 'block',
-  draggable: true,
+  draggable: false,
   atom: true,
 
   addAttributes() {
@@ -26,7 +26,7 @@ export default Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['quiz-text-block', mergeAttributes(HTMLAttributes), 0]
+    return ['quiz-text-block', mergeAttributes(HTMLAttributes)]
   },
 
   addNodeView() {

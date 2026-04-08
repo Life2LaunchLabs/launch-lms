@@ -1,4 +1,3 @@
-'use server';
 // Generic payment configuration service.
 // Provider-specific connection logic lives in services/payments/providers/<provider>.ts
 import { getAPIUrl } from '@services/config/config';

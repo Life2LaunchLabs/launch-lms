@@ -196,10 +196,17 @@ async def remove_resource_from_group(
 
 
 async def list_group_resources(
+    request: Request,
     org_id: int,
     group_id: int,
+    current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
 ) -> list[str]:
+    org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    await rbac_check(request, org.org_uuid, current_user, "read", db_session)
+
     rows = db_session.exec(
         select(PaymentsGroupResource).where(PaymentsGroupResource.payments_group_id == group_id)
     ).all()
@@ -266,10 +273,17 @@ async def remove_sync(
 
 
 async def list_syncs(
+    request: Request,
     org_id: int,
     group_id: int,
+    current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
 ) -> list[dict]:
+    org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    await rbac_check(request, org.org_uuid, current_user, "read", db_session)
+
     rows = db_session.exec(
         select(PaymentsGroupSync, UserGroup)
         .join(UserGroup, PaymentsGroupSync.usergroup_id == UserGroup.id)  # type: ignore
@@ -351,10 +365,19 @@ async def remove_offer_resource(
 
 
 async def list_offer_resources(
+    request: Request,
+    org_id: int,
     offer_id: int,
+    current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
 ) -> list[str]:
     from ee.db.payments.payments_groups import PaymentsOfferResource
+
+    org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    await rbac_check(request, org.org_uuid, current_user, "read", db_session)
+
     rows = db_session.exec(
         select(PaymentsOfferResource).where(PaymentsOfferResource.offer_id == offer_id)
     ).all()

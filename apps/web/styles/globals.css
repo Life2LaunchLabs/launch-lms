@@ -1677,6 +1677,25 @@
   box-shadow: none !important;
 }
 
+.quiz-editor-content {
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.quiz-editor-content .ProseMirror {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.quiz-editor-content .ProseMirror:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 .activity-editor-content-wrapper .ProseMirror pre {
   background: #0d0d0d;
   border-radius: 0.5rem;

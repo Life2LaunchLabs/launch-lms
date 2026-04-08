@@ -13,7 +13,7 @@ import {
 } from '@phosphor-icons/react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl, getUriWithOrg } from '@services/config/config'
+import { getAPIUrl, getCoreCapabilities, getUriWithOrg } from '@services/config/config'
 import { getOrgLogoMediaDirectory } from '@services/media/media'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { getMenuColorClasses } from '@services/utils/ts/colorUtils'
@@ -43,6 +43,7 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
   const orgID = org?.id
   const config = org?.config?.config
   const rf = config?.resolved_features
+  const capabilities = getCoreCapabilities()
   const primaryColor = config?.customization?.general?.color || config?.general?.color || ''
   const colors = getMenuColorClasses(primaryColor)
 
@@ -111,7 +112,7 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
       label: 'Store',
       icon: <ShoppingBag size={18} weight="fill" />,
       active: isOnStore,
-      show: isEnabled('payments'),
+      show: capabilities.payments && isEnabled('payments'),
     },
   ]
 

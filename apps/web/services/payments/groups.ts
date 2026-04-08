@@ -1,4 +1,3 @@
-'use server';
 import { getAPIUrl } from '@services/config/config';
 import { RequestBodyWithAuthHeader, getResponseMetadata, secureFetch } from '@services/utils/ts/requests';
 
