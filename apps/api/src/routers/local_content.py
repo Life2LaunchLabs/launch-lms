@@ -92,7 +92,10 @@ async def _check_content_access(
                     from ee.services.payments.payments_access import check_course_paid_access
                 except ModuleNotFoundError:
                     return
-                has_paid_access = await check_course_paid_access(course.id, current_user, db_session)
+                try:
+                    has_paid_access = await check_course_paid_access(course.id, current_user, db_session)
+                except Exception:
+                    return
                 if not has_paid_access:
                     if isinstance(current_user, AnonymousUser):
                         raise HTTPException(status_code=401, detail="Authentication required")

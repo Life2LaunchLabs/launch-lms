@@ -23,10 +23,13 @@ async def check_core_activity_paid_access(**_: object) -> bool:
     """
     try:
         from ee.hooks import check_activity_paid_access as ee_check_activity_paid_access
-    except ModuleNotFoundError:
+    except Exception:
         return True
 
-    return await ee_check_activity_paid_access(**_)
+    try:
+        return await ee_check_activity_paid_access(**_)
+    except Exception:
+        return True
 
 
 QUIZ_DEFAULT_DETAILS = {
