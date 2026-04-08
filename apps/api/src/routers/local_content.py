@@ -56,7 +56,7 @@ def _validate_content_path(file_path: str) -> Path | None:
     return Path(full_real)
 
 
-def _check_content_access(
+async def _check_content_access(
     file_path: str,
     current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
@@ -86,6 +86,17 @@ def _check_content_access(
         if not course:
             raise HTTPException(status_code=403, detail="Access denied")
         if course.public:
+            # Optional paid-access gating for public courses.
+            if not isinstance(current_user, APITokenUser):
+                try:
+                    from ee.services.payments.payments_access import check_course_paid_access
+                except ModuleNotFoundError:
+                    return
+                has_paid_access = await check_course_paid_access(course.id, current_user, db_session)
+                if not has_paid_access:
+                    if isinstance(current_user, AnonymousUser):
+                        raise HTTPException(status_code=401, detail="Authentication required")
+                    raise HTTPException(status_code=403, detail="Access denied")
             return  # Public course — allow anonymous
         if isinstance(current_user, AnonymousUser):
             raise HTTPException(status_code=401, detail="Authentication required")
@@ -195,7 +206,7 @@ async def serve_local_content(
     if resolved is None:
         raise HTTPException(status_code=400, detail="Invalid path")
 
-    _check_content_access(file_path, current_user, db_session)
+    await _check_content_access(file_path, current_user, db_session)
 
     if not resolved.is_file():
         raise HTTPException(status_code=404, detail="File not found")
@@ -225,7 +236,7 @@ async def head_local_content(
     if resolved is None:
         raise HTTPException(status_code=400, detail="Invalid path")
 
-    _check_content_access(file_path, current_user, db_session)
+    await _check_content_access(file_path, current_user, db_session)
 
     if not resolved.is_file():
         raise HTTPException(status_code=404, detail="File not found")

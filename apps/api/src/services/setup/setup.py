@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 import json
+import os
 from pathlib import Path
 from uuid import uuid4
 import boto3
@@ -21,7 +22,25 @@ from src.security.rbac.constants import ADMIN_ROLE_ID
 from src.services.utils.upload_content import ensure_directory_exists
 
 
-DEFAULT_ORG_BRANDING_DIR = Path(__file__).resolve().parents[5] / "branding"
+def _resolve_default_org_branding_dir() -> Path:
+    env_dir = os.environ.get("LAUNCHLMS_DEFAULT_BRANDING_DIR")
+    if env_dir:
+        return Path(env_dir)
+
+    setup_file = Path(__file__).resolve()
+    bundled_dir = setup_file.parents[3] / "assets" / "default_org_branding"
+    if bundled_dir.exists():
+        return bundled_dir
+
+    for parent in setup_file.parents:
+        candidate = parent / "branding"
+        if candidate.exists():
+            return candidate
+
+    return bundled_dir
+
+
+DEFAULT_ORG_BRANDING_DIR = _resolve_default_org_branding_dir()
 DEFAULT_ORG_BRANDING_ASSETS = {
     "logo": ("logos", "logo", "Galaxy Launchpad Logo Half dome.png"),
     "thumbnail": ("thumbnails", "thumbnail", "l2l on blue.png"),

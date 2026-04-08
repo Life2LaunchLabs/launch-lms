@@ -1,5 +1,5 @@
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getUriWithOrg } from '@services/config/config'
+import { getCoreCapabilities, getUriWithOrg } from '@services/config/config'
 import { Books, ChatsCircle, Headphones, Cube, ShoppingBag } from '@phosphor-icons/react'
 import Link from 'next/link'
 import React from 'react'
@@ -12,12 +12,13 @@ function MenuLinks(props: { orgslug: string; primaryColor?: string }) {
   // Feature visibility: resolved_features from API is the source of truth
   const rf = org?.config?.config?.resolved_features
   const isEnabled = (feature: string) => rf?.[feature]?.enabled === true
+  const capabilities = getCoreCapabilities()
 
   const isCoursesEnabled = isEnabled('courses')
   const showCommunities = isEnabled('communities')
   const showPodcasts = isEnabled('podcasts')
   const showPlaygrounds = isEnabled('playgrounds')
-  const showStore = isEnabled('payments')
+  const showStore = capabilities.payments && isEnabled('payments')
 
   return (
     <div className='pl-1'>
