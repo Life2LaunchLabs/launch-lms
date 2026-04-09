@@ -8,7 +8,8 @@ import { getActivityBlockMediaDirectory } from '@services/media/media'
 import { getMyQuizResult, submitQuizAttempt } from '@services/quiz/quiz'
 import { getAPIUrl } from '@services/config/config'
 import { mutate } from 'swr'
-import QuizResultsView from './QuizResultsView'
+import QuizResultsModal from './QuizResultsModal'
+import { computeQuizScoresPreview, matchQuizResultPreview } from '../Results/quizResultsPreview'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -743,6 +744,10 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
   const [result, setResult] = useState<any>(null)
   const [showResults, setShowResults] = useState(!!initialShowResults)
   const [loadingExistingResult, setLoadingExistingResult] = useState(!editorPreviewContent && !initialShowResults)
+  const quizMode = activity?.details?.quiz_mode || 'categories'
+  const activeVectors = quizMode === 'graded'
+    ? (activity?.details?.graded_scoring_vectors || activity?.details?.scoring_vectors || [{ key: 'correct', label: 'Correct', type: 'binary', low_label: 'False', high_label: 'True' }])
+    : (activity?.details?.category_scoring_vectors || activity?.details?.scoring_vectors || [])
 
   useEffect(() => {
     if (editorPreviewContent) return
@@ -791,13 +796,8 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     }
     if (currentSlide.type === 'quizSliderBlock') {
       const slide = currentSlide as SliderSlide
-      const directionMode = slide.direction_mode || 'unidirectional'
-      const initialValue = getSliderInitialValue(directionMode)
       const sliderValues = (answers.get(slide.question_uuid) || {}) as Record<string, number>
-      return slide.sliders.every(row => {
-        const value = typeof sliderValues[row.slider_uuid] === 'number' ? sliderValues[row.slider_uuid] : initialValue
-        return Math.abs(value - initialValue) > 0.0001
-      })
+      return slide.sliders.every(row => Object.prototype.hasOwnProperty.call(sliderValues, row.slider_uuid))
     }
     return answers.has((currentSlide as SelectSlide).question_uuid)
   }, [showingResponse, currentSlide, answers, textScoringRules])
@@ -822,41 +822,102 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
   }, [])
 
   const doSubmit = useCallback(async () => {
-    if (editorPreviewContent) { setShowResults(true); return }
-    setSubmitting(true)
-    try {
-      const answerPayload = slides.map(slide => {
-        if (slide.type === 'quizInfoBlock') {
-          return { question_uuid: (slide as InfoSlide).slide_uuid, answer_json: { type: 'info' } }
-        }
-        if (slide.type === 'quizTextBlock') {
-          const s = slide as TextSlide
-          return {
-            question_uuid: s.question_uuid,
-            answer_json: { type: 'text', text: answers.get(s.question_uuid) || '' },
-          }
-        }
-        if (slide.type === 'quizSliderBlock') {
-          const s = slide as SliderSlide
-          const values = (answers.get(s.question_uuid) || {}) as Record<string, number>
-          const normalizedValues = Object.fromEntries(
-            s.sliders.map(row => {
-              const raw = typeof values[row.slider_uuid] === 'number' ? values[row.slider_uuid] : getSliderInitialValue(s.direction_mode)
-              return [row.slider_uuid, Math.max(0, Math.min(1, raw))]
-            })
-          )
-          return {
-            question_uuid: s.question_uuid,
-            answer_json: { type: 'slider', values: normalizedValues },
-          }
-        }
-        const s = slide as SelectSlide
-        const selectedUuid = answers.get(s.question_uuid) || null
+    const answerPayload = slides.map(slide => {
+      if (slide.type === 'quizInfoBlock') {
+        return { question_uuid: (slide as InfoSlide).slide_uuid, answer_json: { type: 'info' } }
+      }
+      if (slide.type === 'quizTextBlock') {
+        const s = slide as TextSlide
         return {
           question_uuid: s.question_uuid,
-          answer_json: selectedUuid ? { type: 'select', option_uuid: selectedUuid } : { type: 'skipped' },
+          answer_json: { type: 'text', text: answers.get(s.question_uuid) || '' },
         }
+      }
+      if (slide.type === 'quizSliderBlock') {
+        const s = slide as SliderSlide
+        const values = (answers.get(s.question_uuid) || {}) as Record<string, number>
+        const normalizedValues = Object.fromEntries(
+          s.sliders.map(row => {
+            const raw = typeof values[row.slider_uuid] === 'number' ? values[row.slider_uuid] : getSliderInitialValue(s.direction_mode)
+            return [row.slider_uuid, Math.max(0, Math.min(1, raw))]
+          })
+        )
+        return {
+          question_uuid: s.question_uuid,
+          answer_json: { type: 'slider', values: normalizedValues },
+        }
+      }
+      const s = slide as SelectSlide
+      const selectedUuid = answers.get(s.question_uuid) || null
+      return {
+        question_uuid: s.question_uuid,
+        answer_json: selectedUuid ? { type: 'select', option_uuid: selectedUuid } : { type: 'skipped' },
+      }
+    })
+
+    if (editorPreviewContent) {
+      const previewScores = computeQuizScoresPreview(
+        answerPayload,
+        activity?.details?.option_scores || {},
+        activity?.details?.text_scores || {},
+        activeVectors
+      )
+      if (quizMode === 'graded') {
+        const correctScore = Number(previewScores.correct ?? 0)
+        const passPercent = Number(activity?.details?.grading_rules?.pass_percent ?? 70)
+        let gradedQuestionCount = 0
+        answerPayload.forEach(answer => {
+          const answerJson = answer.answer_json || {}
+          if (answerJson.type === 'select') gradedQuestionCount += 1
+          if (answerJson.type === 'text' && (activity?.details?.text_scores?.[answer.question_uuid] || {}).mode === 'min_length') gradedQuestionCount += 1
+          if (answerJson.type === 'slider') gradedQuestionCount += Object.keys(answerJson.values || {}).length
+        })
+        setResult({
+          id: 'preview',
+          attempt_id: 'preview',
+          attempt_uuid: 'preview',
+          computed_at: new Date().toISOString(),
+          result_json: {
+            quiz_mode: quizMode,
+            scores: previewScores,
+            vectors: activeVectors,
+            category_sets: [],
+            matched_result: null,
+            graded_result: {
+              score_percent: Number((correctScore * 100).toFixed(1)),
+              pass_percent: passPercent,
+              passed: correctScore * 100 >= passPercent,
+              attempt_number: 1,
+              attempts_remaining: activity?.details?.grading_rules?.max_attempts ?? null,
+              max_attempts: activity?.details?.grading_rules?.max_attempts ?? null,
+              best_score_percent: Number((correctScore * 100).toFixed(1)),
+              correct_answers: Math.round(correctScore * gradedQuestionCount),
+              question_count: gradedQuestionCount,
+            },
+          },
+        })
+        setShowResults(true)
+        return
+      }
+      setResult({
+        id: 'preview',
+        attempt_id: 'preview',
+        attempt_uuid: 'preview',
+        computed_at: new Date().toISOString(),
+        result_json: {
+          quiz_mode: quizMode,
+          scores: previewScores,
+          vectors: activeVectors,
+          category_sets: [],
+          matched_result: matchQuizResultPreview(previewScores, activity?.details?.result_options || []),
+        },
       })
+      setShowResults(true)
+      return
+    }
+
+    setSubmitting(true)
+    try {
       const r = await submitQuizAttempt(activity.activity_uuid, { answers: answerPayload }, access_token)
       setResult(r)
       if (r?.result_json?.quiz_mode === 'graded' && r?.result_json?.graded_result?.passed && org?.id) {
@@ -868,7 +929,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     } finally {
       setSubmitting(false)
     }
-  }, [slides, answers, activity.activity_uuid, access_token, editorPreviewContent])
+  }, [slides, answers, activity, access_token, editorPreviewContent, activeVectors, quizMode, org?.id])
 
   const handleNext = useCallback(async () => {
     if (showingResponse) {
@@ -965,18 +1026,14 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
 
   if (showResults) {
     return (
-      <div className="quiz-shell-outer"><div className="quiz-shell-inner">
-        <div style={{ height: '100%', overflowY: 'auto', background: '#fff' }}>
-          <div style={{ padding: '16px 16px 0', display: 'flex', justifyContent: 'flex-end' }}>
-            {onClose && (
-              <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: 4 }}>
-                <X size={20} />
-              </button>
-            )}
-          </div>
-          <QuizResultsView result={result} activity={activity} org={org} course={course} onRetake={handleRetake} />
-        </div>
-      </div></div>
+      <QuizResultsModal
+        result={result}
+        activity={activity}
+        org={org}
+        course={course}
+        onRetake={handleRetake}
+        onClose={onClose}
+      />
     )
   }
 

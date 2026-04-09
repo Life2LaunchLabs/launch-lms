@@ -578,6 +578,25 @@
   color: #dc2626;
 }
 
+.editor-drag-handle .lock-btn:hover {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.editor-drag-handle .lock-btn:active {
+  background: #fde68a;
+  color: #b45309;
+}
+
+.editor-drag-handle .lock-btn.locked {
+  color: #d97706;
+}
+
+.editor-drag-handle .lock-btn.locked:hover {
+  background: #fef3c7;
+  color: #b45309;
+}
+
 /* Tooltips for action buttons */
 .editor-drag-handle .tooltip-text {
   position: fixed;

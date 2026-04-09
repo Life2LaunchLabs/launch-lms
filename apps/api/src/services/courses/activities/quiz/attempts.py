@@ -48,6 +48,26 @@ async def _get_activity_and_course(
     return activity, course
 
 
+def _default_correct_vector() -> dict:
+    return {
+        "key": "correct",
+        "label": "Correct",
+        "type": "binary",
+        "low_label": "False",
+        "high_label": "True",
+    }
+
+
+def _get_active_scoring_vectors(details: dict, quiz_mode: str) -> list[dict]:
+    if quiz_mode == "graded":
+        return (
+            details.get("graded_scoring_vectors")
+            or details.get("scoring_vectors")
+            or [_default_correct_vector()]
+        )
+    return details.get("category_scoring_vectors") or details.get("scoring_vectors") or []
+
+
 def _build_result_read(result: QuizResult, attempt: QuizAttempt) -> QuizResultRead:
     return QuizResultRead(
         id=result.id,  # type: ignore
@@ -86,7 +106,7 @@ async def submit_quiz_attempt(
     quiz_mode = details.get("quiz_mode", "categories")
     grading_rules: dict = details.get("grading_rules", {}) or {}
     max_attempts = grading_rules.get("max_attempts")
-    vectors: list[dict] = details.get("scoring_vectors", [])
+    vectors = _get_active_scoring_vectors(details, quiz_mode)
     option_scores: dict = details.get("option_scores", {})
     text_scores: dict = details.get("text_scores", {})
     category_sets: list[dict] = details.get("category_sets", [])
@@ -338,6 +358,8 @@ async def update_quiz_results(
 
     details = dict(activity.details or {})
     details["result_options"] = results_data.get("result_options", [])
+    if "results_template" in results_data:
+        details["results_template"] = results_data["results_template"]
     activity.details = details
     activity.update_date = str(datetime.utcnow())
     db_session.add(activity)

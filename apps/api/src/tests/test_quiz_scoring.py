@@ -1,4 +1,5 @@
 from src.services.courses.activities.quiz.scoring import compute_scores
+from src.services.courses.activities.quiz.attempts import _get_active_scoring_vectors
 
 
 def test_compute_scores_applies_slider_multiplier_per_vector() -> None:
@@ -33,3 +34,23 @@ def test_compute_scores_applies_slider_multiplier_per_vector() -> None:
         "focus": 0.45,
         "calm": 0.15,
     }
+
+
+def test_get_active_scoring_vectors_prefers_graded_vectors_for_graded_quizzes() -> None:
+    details = {
+        "quiz_mode": "graded",
+        "scoring_vectors": [{"key": "legacy"}],
+        "graded_scoring_vectors": [{"key": "correct"}],
+    }
+
+    assert _get_active_scoring_vectors(details, "graded") == [{"key": "correct"}]
+
+
+def test_get_active_scoring_vectors_prefers_category_vectors_for_category_quizzes() -> None:
+    details = {
+        "quiz_mode": "categories",
+        "scoring_vectors": [{"key": "legacy"}],
+        "category_scoring_vectors": [{"key": "personality"}],
+    }
+
+    assert _get_active_scoring_vectors(details, "categories") == [{"key": "personality"}]
