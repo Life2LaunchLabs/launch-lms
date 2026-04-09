@@ -90,12 +90,12 @@ function PublicCourseCard({ course, orgslug, run = null, orgName }: PublicCourse
         </div>
       )}
 
-      <Link href={courseLink} className="block relative aspect-video overflow-hidden bg-gray-50">
+      <Link href={courseLink} className="block relative aspect-video overflow-hidden bg-gray-100">
         {course.thumbnail_image && org?.org_uuid ? (
           <img
             src={getCourseThumbnailMediaDirectory(org.org_uuid, course.course_uuid, course.thumbnail_image)}
             alt={course.name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain bg-gray-100"
           />
         ) : (
           <div className="flex flex-col items-center justify-center h-full w-full text-gray-300 gap-2">
