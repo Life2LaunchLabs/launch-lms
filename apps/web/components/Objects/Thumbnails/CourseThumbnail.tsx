@@ -158,10 +158,11 @@ function CourseThumbnail({ course, orgslug, customLink, isDashboard = false, isS
         isDashboard={isDashboard}
       />
 
-      <Link prefetch href={courseLink} className="block relative aspect-video overflow-hidden bg-gray-50">
-        <div
-          className="w-full h-full bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
-          style={{ backgroundImage: `url(${thumbnailImage})` }}
+      <Link prefetch href={courseLink} className="block relative aspect-video overflow-hidden bg-gray-100">
+        <img
+          src={thumbnailImage}
+          alt={course.name}
+          className="w-full h-full object-contain bg-gray-100 transition-transform duration-500 group-hover:scale-105"
         />
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300" />
         {isDashboard && (

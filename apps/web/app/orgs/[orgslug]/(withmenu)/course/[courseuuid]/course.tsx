@@ -359,15 +359,16 @@ const CourseClient = (props: any) => {
                     );
                   } else if (showImage && course.thumbnail_image) {
                     return (
-                      <div className="relative inset-0 ring-1 ring-inset ring-black/10 rounded-lg shadow-xl w-full h-[200px] md:max-[1199px]:h-[400px] min-[1200px]:h-[180px] min-[1200px]:w-[320px] bg-cover bg-center"
-                        style={{
-                          backgroundImage: `url(${getCourseThumbnailMediaDirectory(
+                      <div className="relative inset-0 ring-1 ring-inset ring-black/10 rounded-lg shadow-xl w-full h-[200px] md:max-[1199px]:h-[400px] min-[1200px]:h-[180px] min-[1200px]:w-[320px] overflow-hidden bg-gray-100">
+                        <img
+                          src={getCourseThumbnailMediaDirectory(
                             org?.org_uuid,
                             course?.course_uuid,
                             course?.thumbnail_image
-                          )})`,
-                        }}
-                      >
+                          )}
+                          alt={course.name}
+                          className="w-full h-full object-contain bg-gray-100"
+                        />
                         {course.thumbnail_type === 'both' && (
                           <div className="absolute top-3 right-3 z-10">
                             <div className="bg-black/20 backdrop-blur-sm rounded-lg p-1 flex space-x-1">
@@ -400,13 +401,13 @@ const CourseClient = (props: any) => {
                     );
                   } else {
                     return (
-                      <div
-                        className="inset-0 ring-1 ring-inset ring-black/10 rounded-lg shadow-xl relative w-full h-[200px] md:max-[1199px]:h-[400px] min-[1200px]:h-[180px] min-[1200px]:w-[320px] bg-cover bg-center"
-                        style={{
-                          backgroundImage: `url('/empty_thumbnail.png')`,
-                          backgroundSize: 'auto',
-                        }}
-                      ></div>
+                      <div className="inset-0 ring-1 ring-inset ring-black/10 rounded-lg shadow-xl relative w-full h-[200px] md:max-[1199px]:h-[400px] min-[1200px]:h-[180px] min-[1200px]:w-[320px] overflow-hidden bg-gray-100">
+                        <img
+                          src="/empty_thumbnail.png"
+                          alt={course.name}
+                          className="w-full h-full object-contain bg-gray-100"
+                        />
+                      </div>
                     );
                   }
                 })()}

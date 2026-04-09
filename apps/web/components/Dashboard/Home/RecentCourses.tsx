@@ -119,7 +119,7 @@ export default function RecentCourses() {
                       alt={course.name}
                       width={40}
                       height={40}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain bg-gray-100"
                     />
                   ) : (
                     <BookOpen

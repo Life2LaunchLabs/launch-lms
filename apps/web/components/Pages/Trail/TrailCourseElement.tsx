@@ -83,16 +83,21 @@ function TrailCourseElement(props: TrailCourseElementProps) {
     >
       <Link href={getUriWithOrg(props.orgslug, '/course/' + courseid)}>
         <div
-          className="course_tumbnail inset-0 ring-1 ring-inset ring-black/10 rounded-lg relative h-[50px] w-[72px] bg-cover bg-center"
+          className="course_tumbnail inset-0 ring-1 ring-inset ring-black/10 rounded-lg relative h-[50px] w-[72px] overflow-hidden bg-gray-100"
           style={{
-            backgroundImage: `url(${getCourseThumbnailMediaDirectory(
+            boxShadow: '0px 4px 7px 0px rgba(0, 0, 0, 0.03)',
+          }}
+        >
+          <img
+            src={getCourseThumbnailMediaDirectory(
               org.org_uuid,
               props.course.course_uuid,
               props.course.thumbnail_image
-            )})`,
-            boxShadow: '0px 4px 7px 0px rgba(0, 0, 0, 0.03)',
-          }}
-        ></div>
+            )}
+            alt={course.name}
+            className="w-full h-full object-contain bg-gray-100"
+          />
+        </div>
       </Link>
       <div className="course_meta pl-5 grow space-y-1">
         <div className="course_top">
