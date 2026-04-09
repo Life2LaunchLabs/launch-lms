@@ -24,6 +24,7 @@ import { uploadNewImageFile } from '@services/blocks/Image/images'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
 import toast from 'react-hot-toast'
 import QuizActivityPlayer from '../Player/QuizActivityPlayer'
+import QuizResultContentEditor from '../Results/QuizResultContentEditor'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -46,7 +47,9 @@ interface QuizResultOption {
   uuid: string
   label: string
   title: string
+  subtitle: string
   body: string
+  var_overrides: Record<string, any> | null
   cover_image_file_id: string | null
   cover_image_block_object: any | null
   scores: Record<string, number>
@@ -132,6 +135,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
 
   // ── Results state ─────────────────────────────────────────────────────
   const [resultOptions, setResultOptions] = useState<QuizResultOption[]>(details.result_options || [])
+  const [resultsTemplate, setResultsTemplate] = useState<any>(details.results_template || null)
   const [selectedResultUuid, setSelectedResultUuid] = useState<string | null>(null)
   const [resultsDirty, setResultsDirty] = useState(false)
   const [isSavingResults, setIsSavingResults] = useState(false)
@@ -255,14 +259,40 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   const saveResults = useCallback(async () => {
     setIsSavingResults(true)
     try {
-      await updateQuizResults(activity.activity_uuid, { result_options: resultOptions }, access_token)
+      await updateQuizResults(activity.activity_uuid, {
+        result_options: resultOptions,
+        results_template: resultsTemplate,
+      }, access_token)
       setResultsDirty(false)
     } catch {
       toast.error('Failed to save results')
     } finally {
       setIsSavingResults(false)
     }
-  }, [resultOptions, activity.activity_uuid, access_token])
+  }, [resultOptions, resultsTemplate, activity.activity_uuid, access_token])
+
+  const saveCurrentTab = useCallback(async () => {
+    if (activeTab === 'scoring' && scoringDirty) {
+      await saveScoring()
+      return
+    }
+    if (activeTab === 'results' && resultsDirty) {
+      await saveResults()
+      return
+    }
+    await save(true)
+  }, [activeTab, scoringDirty, resultsDirty, saveScoring, saveResults, save])
+
+  // ── Content update from editor ────────────────────────────────────────
+  const handleContentUpdate = useCallback((newTemplate: any, newOverrides: Record<string, any>) => {
+    setResultsTemplate(newTemplate)
+    if (selectedResultUuid) {
+      setResultOptions(prev => prev.map(r =>
+        r.uuid === selectedResultUuid ? { ...r, var_overrides: newOverrides } : r
+      ))
+    }
+    setResultsDirty(true)
+  }, [selectedResultUuid])
 
   const saveSettings = useCallback(async (nextMode: QuizMode, nextRules: GradingRules) => {
     setIsSavingSettings(true)
@@ -509,7 +539,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
 
   // ── Results helpers ───────────────────────────────────────────────────
   const addResultOption = () => {
-    const newOpt: QuizResultOption = { uuid: uuidv4(), label: 'New result', title: '', body: '', cover_image_file_id: null, cover_image_block_object: null, scores: {} }
+    const newOpt: QuizResultOption = { uuid: uuidv4(), label: 'New result', title: '', subtitle: '', body: '', var_overrides: null, cover_image_file_id: null, cover_image_block_object: null, scores: {} }
     const updated = [...resultOptions, newOpt]
     setResultOptions(updated)
     setSelectedResultUuid(newOpt.uuid)
@@ -526,6 +556,14 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
     if (selectedResultUuid === uuid) setSelectedResultUuid(null)
     setResultsDirty(true)
   }
+
+  const handleSelectResultOption = useCallback(async (uuid: string) => {
+    if (uuid === selectedResultUuid) return
+    if (resultsDirty) {
+      await saveResults()
+    }
+    setSelectedResultUuid(uuid)
+  }, [selectedResultUuid, resultsDirty, saveResults])
 
   const handleCoverUpload = async (file: File) => {
     if (!selectedResultUuid) return
@@ -579,10 +617,10 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
               {previewMode ? <EyeOff size={13} /> : <Eye size={13} />}
               {previewMode ? 'Exit preview' : 'Preview'}
             </button>
-            <button type="button" onClick={() => save(true)} disabled={isSaving}
+            <button type="button" onClick={() => void saveCurrentTab()} disabled={isSaving || isSavingScoring || isSavingResults}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-700 text-white text-xs font-medium outline-none transition-colors disabled:opacity-60">
               <Save size={13} />
-              {isSaving ? 'Saving…' : 'Save'}
+              {(isSaving || isSavingScoring || isSavingResults) ? 'Saving…' : 'Save'}
             </button>
           </div>
 
@@ -619,6 +657,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                     option_scores: optionScores,
                     text_scores: textScores,
                     result_options: resultOptions,
+                    results_template: resultsTemplate,
                   },
                 }}
                 editorPreviewContent={editor?.getJSON()}
@@ -923,7 +962,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                           <p className="text-xs text-neutral-400 italic px-2 py-3">No results yet. Add one above.</p>
                         )}
                         {resultOptions.map(opt => (
-                          <button key={opt.uuid} type="button" onClick={() => setSelectedResultUuid(opt.uuid)}
+                          <button key={opt.uuid} type="button" onClick={() => void handleSelectResultOption(opt.uuid)}
                             className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors outline-none ${selectedResultUuid === opt.uuid ? 'bg-violet-50 text-violet-700' : 'text-neutral-600 hover:bg-neutral-50'}`}>
                             {opt.label || 'Untitled result'}
                           </button>
@@ -1001,83 +1040,105 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                         <p className="text-xs text-neutral-300">This space is reserved for future pass/fail messaging content.</p>
                       </div>
                     </div>
-                  ) : (!selectedResult ? (
-                      <div className="flex items-center justify-center h-full text-neutral-300 select-none">
-                        <p className="text-sm">Select a result option to edit it.</p>
-                      </div>
-                    ) : (
-                      <div className="max-w-2xl mx-auto py-8 px-8 space-y-6">
+                  ) : (
+                    <div className="max-w-2xl mx-auto py-8 px-8 space-y-6">
 
-                        {/* Label + delete row */}
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1">
-                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Result label</label>
+                      {/* Per-result fields — only when a result is selected */}
+                      {selectedResult ? (
+                        <>
+                          {/* Label + delete row */}
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1">
+                              <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Result label</label>
+                              <input
+                                value={selectedResult.label}
+                                placeholder="Short label shown in selector…"
+                                onChange={e => updateResult(selectedResult.uuid, 'label', e.target.value)}
+                                className="w-full text-neutral-800 bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm font-semibold outline-none focus:border-violet-400 transition-colors"
+                              />
+                            </div>
+                            <button type="button" onClick={() => removeResult(selectedResult.uuid)}
+                              className="mt-5 p-2 hover:bg-red-50 rounded-lg outline-none transition-colors flex-shrink-0">
+                              <Trash2 size={15} className="text-red-400" />
+                            </button>
+                          </div>
+
+                          {/* Cover image */}
+                          <div>
+                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Cover image</label>
+                            {(() => {
+                              const coverUrl = getCoverUrl(selectedResult.cover_image_block_object)
+                              return coverUrl ? (
+                                <div className="relative w-full h-52 rounded-xl overflow-hidden group">
+                                  <img src={coverUrl} alt="" className="w-full h-full object-cover" />
+                                  <button type="button" onClick={handleCoverClear}
+                                    className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/50 backdrop-blur flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity outline-none">
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div onClick={() => !coverUploading && coverInputRef.current?.click()}
+                                  className="w-full h-52 border-2 border-dashed border-neutral-200 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-neutral-300 hover:bg-neutral-50 transition-colors">
+                                  {coverUploading ? <Loader2 size={20} className="animate-spin text-neutral-400" /> : (
+                                    <>
+                                      <Upload size={18} className="text-neutral-300 mb-2" />
+                                      <span className="text-xs text-neutral-400">Upload cover image</span>
+                                    </>
+                                  )}
+                                  <input ref={coverInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden"
+                                    onChange={e => { const f = e.target.files?.[0]; if (f) handleCoverUpload(f) }} />
+                                </div>
+                              )
+                            })()}
+                          </div>
+
+                          {/* Subtitle */}
+                          <div>
+                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Subtitle</label>
                             <input
-                              value={selectedResult.label}
-                              placeholder="Short label shown in selector…"
-                              onChange={e => updateResult(selectedResult.uuid, 'label', e.target.value)}
-                              className="w-full text-neutral-800 bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm font-semibold outline-none focus:border-violet-400 transition-colors"
+                              value={selectedResult.subtitle ?? ''}
+                              placeholder="Short line above the title…"
+                              onChange={e => updateResult(selectedResult.uuid, 'subtitle', e.target.value)}
+                              className="w-full text-neutral-700 bg-white border border-neutral-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-violet-400 transition-colors"
                             />
                           </div>
-                          <button type="button" onClick={() => removeResult(selectedResult.uuid)}
-                            className="mt-5 p-2 hover:bg-red-50 rounded-lg outline-none transition-colors flex-shrink-0">
-                            <Trash2 size={15} className="text-red-400" />
-                          </button>
-                        </div>
 
-                        {/* Cover image */}
-                        <div>
-                          <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Cover image</label>
-                          {(() => {
-                            const coverUrl = getCoverUrl(selectedResult.cover_image_block_object)
-                            return coverUrl ? (
-                              <div className="relative w-full h-52 rounded-xl overflow-hidden group">
-                                <img src={coverUrl} alt="" className="w-full h-full object-cover" />
-                                <button type="button" onClick={handleCoverClear}
-                                  className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/50 backdrop-blur flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity outline-none">
-                                  <X size={14} />
-                                </button>
-                              </div>
-                            ) : (
-                              <div onClick={() => !coverUploading && coverInputRef.current?.click()}
-                                className="w-full h-52 border-2 border-dashed border-neutral-200 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-neutral-300 hover:bg-neutral-50 transition-colors">
-                                {coverUploading ? <Loader2 size={20} className="animate-spin text-neutral-400" /> : (
-                                  <>
-                                    <Upload size={18} className="text-neutral-300 mb-2" />
-                                    <span className="text-xs text-neutral-400">Upload cover image</span>
-                                  </>
-                                )}
-                                <input ref={coverInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden"
-                                  onChange={e => { const f = e.target.files?.[0]; if (f) handleCoverUpload(f) }} />
-                              </div>
-                            )
-                          })()}
-                        </div>
+                          {/* Title */}
+                          <div>
+                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Title</label>
+                            <input
+                              value={selectedResult.title}
+                              placeholder="Result title shown to learner…"
+                              onChange={e => updateResult(selectedResult.uuid, 'title', e.target.value)}
+                              className="w-full text-neutral-800 bg-white border border-neutral-200 rounded-lg px-3 py-2.5 text-base font-bold outline-none focus:border-violet-400 transition-colors"
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-xs text-neutral-400 italic">Select a result option on the left to edit its cover, title, and per-result content.</p>
+                      )}
 
-                        {/* Title */}
-                        <div>
-                          <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Title</label>
-                          <input
-                            value={selectedResult.title}
-                            placeholder="Result title shown to learner…"
-                            onChange={e => updateResult(selectedResult.uuid, 'title', e.target.value)}
-                            className="w-full text-neutral-800 bg-white border border-neutral-200 rounded-lg px-3 py-2.5 text-base font-bold outline-none focus:border-violet-400 transition-colors"
-                          />
-                        </div>
-
-                        {/* Body */}
-                        <div>
-                          <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Body text</label>
-                          <textarea
-                            value={selectedResult.body}
-                            placeholder="Description of this result…"
-                            rows={5}
-                            onChange={e => updateResult(selectedResult.uuid, 'body', e.target.value)}
-                            className="w-full text-neutral-700 bg-white border border-neutral-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-violet-400 transition-colors resize-none"
+                      {/* Content editor — always visible */}
+                      <div>
+                        <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Content</label>
+                        <p className="text-[11px] text-neutral-400 mb-3">
+                          <span className="font-semibold text-neutral-500">Fixed</span> blocks (lock icon) are shared across all results.{' '}
+                          <span className="font-semibold text-neutral-500">Variable</span> blocks change per result.
+                        </p>
+                        <div className="border border-neutral-200 rounded-xl p-4 bg-white">
+                          <QuizResultContentEditor
+                            key={`${selectedResultUuid || 'none'}:${JSON.stringify(selectedResult?.scores || {})}:${vectors.map(v => v.key).join(',')}`}
+                            resultUuid={selectedResultUuid}
+                            template={resultsTemplate}
+                            varOverrides={selectedResult?.var_overrides ?? null}
+                            activity={activity}
+                            vectors={vectors}
+                            scores={selectedResult?.scores ?? {}}
+                            onUpdate={handleContentUpdate}
                           />
                         </div>
                       </div>
-                    )
+                    </div>
                   )}
                 </div>
               </div>

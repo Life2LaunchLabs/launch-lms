@@ -6,7 +6,17 @@ import { Slice, Fragment } from '@tiptap/pm/model'
 
 const DRAG_HANDLE_KEY = new PluginKey('dragHandle')
 
-function createDragHandlePlugin() {
+function generateFixedId(): string {
+  return 'fx_' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6)
+}
+
+interface DragHandlePluginOptions {
+  showFixedToggle?: boolean
+}
+
+function createDragHandlePlugin(pluginOptions: DragHandlePluginOptions = {}) {
+  const { showFixedToggle = false } = pluginOptions
+
   let dragHandle: HTMLElement | null = null
   let dropIndicator: HTMLElement | null = null
   let hoveredBlock: HTMLElement | null = null
@@ -42,6 +52,19 @@ function createDragHandlePlugin() {
         </svg>
         <span class="tooltip-text">Duplicate</span>
       </button>
+      ${showFixedToggle ? `
+      <button class="action-btn lock-btn" data-action="toggle-fixed">
+        <svg class="icon-unlocked" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+        </svg>
+        <svg class="icon-locked" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+          <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+        <span class="tooltip-text">Fix block</span>
+      </button>
+      ` : ''}
       <button class="action-btn delete-btn" data-action="delete">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 6h18"/>
@@ -160,6 +183,22 @@ function createDragHandlePlugin() {
         )
         const tr = view.state.tr.replaceWith(nodePos, nodePos + node.nodeSize, emptyNode)
         view.dispatch(tr)
+      } else if (action === 'toggle-fixed') {
+        const isFixed = node.attrs?.isFixed || false
+        const fixedId = node.attrs?.fixedId || (!isFixed ? generateFixedId() : null)
+        try {
+          const tr = view.state.tr.setNodeMarkup(nodePos, undefined, {
+            ...node.attrs,
+            isFixed: !isFixed,
+            fixedId: fixedId,
+          })
+          view.dispatch(tr)
+        } catch {
+          // Node type may not support these attrs in this editor instance
+        }
+        // Immediately re-position to update lock button visual state
+        if (hoveredBlock) positionHandle(hoveredBlock)
+        return
       }
 
       hideHandle()
@@ -358,7 +397,6 @@ function createDragHandlePlugin() {
         // Calculate distance to top and bottom edges
         const distanceToTop = Math.abs(clientY - rect.top)
         const distanceToBottom = Math.abs(clientY - rect.bottom)
-        const distanceToMid = Math.abs(clientY - midY)
 
         // Check if we're close to this block
         if (clientY >= rect.top - 30 && clientY <= rect.bottom + 30) {
@@ -395,6 +433,23 @@ function createDragHandlePlugin() {
       const rect = block.getBoundingClientRect()
       dragHandle.style.left = `${rect.left - 28}px`
       dragHandle.style.top = `${rect.top + 4}px`
+
+      // Update lock button state when showFixedToggle is active
+      if (showFixedToggle) {
+        const nodePos = getNodePos(block, view)
+        const node = nodePos !== null ? view.state.doc.nodeAt(nodePos) : null
+        const isFixed = node?.attrs?.isFixed || false
+        const lockBtn = dragHandle.querySelector('.lock-btn') as HTMLElement | null
+        if (lockBtn) {
+          lockBtn.classList.toggle('locked', isFixed)
+          const iconUnlocked = lockBtn.querySelector('.icon-unlocked') as HTMLElement | null
+          const iconLocked = lockBtn.querySelector('.icon-locked') as HTMLElement | null
+          if (iconUnlocked) iconUnlocked.style.display = isFixed ? 'none' : ''
+          if (iconLocked) iconLocked.style.display = isFixed ? '' : 'none'
+          const tooltip = lockBtn.querySelector('.tooltip-text') as HTMLElement | null
+          if (tooltip) tooltip.textContent = isFixed ? 'Unfix block' : 'Fix block'
+        }
+      }
     }
 
     function showHandle() {
@@ -467,8 +522,14 @@ function createDragHandlePlugin() {
 export const DragHandle = Extension.create({
   name: 'dragHandle',
 
+  addOptions() {
+    return {
+      showFixedToggle: false,
+    }
+  },
+
   addProseMirrorPlugins() {
-    return [createDragHandlePlugin()]
+    return [createDragHandlePlugin({ showFixedToggle: this.options.showFixedToggle })]
   },
 })
 

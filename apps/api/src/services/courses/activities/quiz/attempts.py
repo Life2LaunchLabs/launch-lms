@@ -358,6 +358,8 @@ async def update_quiz_results(
 
     details = dict(activity.details or {})
     details["result_options"] = results_data.get("result_options", [])
+    if "results_template" in results_data:
+        details["results_template"] = results_data["results_template"]
     activity.details = details
     activity.update_date = str(datetime.utcnow())
     db_session.add(activity)
