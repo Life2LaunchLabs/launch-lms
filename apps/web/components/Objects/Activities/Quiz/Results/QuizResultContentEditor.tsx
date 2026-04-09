@@ -216,7 +216,7 @@ export default function QuizResultContentEditor({
     prevResultUuid.current = resultUuid
     const merged = mergeContent(templateRef.current, varOverridesRef.current)
     isSettingContent.current = true
-    editor.commands.setContent(merged, false)
+    editor.commands.setContent(merged, { emitUpdate: false })
     isSettingContent.current = false
   }, [editor, resultUuid])
 
