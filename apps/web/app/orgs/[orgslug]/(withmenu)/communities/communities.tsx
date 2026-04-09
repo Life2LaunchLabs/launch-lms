@@ -1,15 +1,12 @@
 'use client'
 
-import React, { useState } from 'react'
+import React from 'react'
 import { useTranslation } from 'react-i18next'
-import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
 import TypeOfContentTitle from '@components/Objects/StyledElements/Titles/TypeOfContentTitle'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import CommunityCard from '@components/Objects/Communities/CommunityCard'
-import { CreateCommunityModal } from '@components/Objects/Modals/Communities/CreateCommunityModal'
-import { EditCommunityModal } from '@components/Objects/Modals/Communities/EditCommunityModal'
 import ContentPlaceHolderIfUserIsNotAdmin from '@components/Objects/ContentPlaceHolder'
-import { Users, Plus, MessagesSquare } from 'lucide-react'
+import { Users, MessagesSquare } from 'lucide-react'
 import { Community } from '@services/communities/communities'
 import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/FeatureDisabledView'
 
@@ -21,8 +18,6 @@ interface CommunitiesClientProps {
 
 const CommunitiesClient = ({ communities, orgslug, org_id }: CommunitiesClientProps) => {
   const { t } = useTranslation()
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-  const [editingCommunity, setEditingCommunity] = useState<Community | null>(null)
 
   return (
     <FeatureDisabledView
@@ -35,20 +30,6 @@ const CommunitiesClient = ({ communities, orgslug, org_id }: CommunitiesClientPr
       <div className="flex flex-col space-y-2 mb-6">
         <div className="flex items-center justify-between">
           <TypeOfContentTitle title={t('communities.title')} type="col" />
-          <AuthenticatedClientElement
-            ressourceType="communities"
-            action="create"
-            checkMethod="roles"
-            orgId={org_id}
-          >
-            <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-black/90 text-white rounded-lg transition-colors text-sm font-medium"
-            >
-              <Plus size={16} />
-              {t('communities.new_community')}
-            </button>
-          </AuthenticatedClientElement>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -75,42 +56,10 @@ const CommunitiesClient = ({ communities, orgslug, org_id }: CommunitiesClientPr
                   text={t('communities.no_communities_description')}
                 />
               </p>
-              <div className="flex justify-center">
-                <AuthenticatedClientElement
-                  checkMethod="roles"
-                  ressourceType="communities"
-                  action="create"
-                  orgId={org_id}
-                >
-                  <button
-                    onClick={() => setIsCreateModalOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-black hover:bg-black/90 text-white rounded-lg transition-colors text-sm font-medium"
-                  >
-                    <Plus size={16} />
-                    {t('communities.new_community')}
-                  </button>
-                </AuthenticatedClientElement>
-              </div>
             </div>
           )}
         </div>
       </div>
-
-      <CreateCommunityModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        orgId={org_id}
-        orgSlug={orgslug}
-      />
-
-      {editingCommunity && (
-        <EditCommunityModal
-          isOpen={!!editingCommunity}
-          onClose={() => setEditingCommunity(null)}
-          community={editingCommunity}
-          orgSlug={orgslug}
-        />
-      )}
     </GeneralWrapperStyled>
     </FeatureDisabledView>
   )

@@ -4,9 +4,9 @@ import AuthenticatedClientElement from '@components/Security/AuthenticatedClient
 import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal'
 import { getUriWithOrg } from '@services/config/config'
 import { deleteCollection } from '@services/courses/collections'
-import { getCourseThumbnailMediaDirectory } from '@services/media/media'
+import { getCourseThumbnailMediaDirectory, getCollectionThumbnailMediaDirectory } from '@services/media/media'
 import { revalidateTags } from '@services/utils/ts/requests'
-import { X, MoreVertical, Library, BookCopy, Trash2 } from 'lucide-react'
+import { X, MoreVertical, Library, BookCopy, Trash2, Settings } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -19,11 +19,13 @@ import {
   DropdownMenuTrigger,
 } from "@components/ui/dropdown-menu"
 import { motion } from 'motion/react'
+import { SafeImage } from '@components/Objects/SafeImage'
 
 type PropsType = {
   collection: any
   orgslug: string
   org_id: string | number
+  isDashboard?: boolean
 }
 
 const removeCollectionPrefix = (collectionid: string) => {
@@ -36,22 +38,34 @@ function CollectionThumbnail(props: PropsType) {
   const collectionId = removeCollectionPrefix(props.collection.collection_uuid)
   const courses = props.collection.courses || []
 
+  const userLink = getUriWithOrg(props.orgslug, `/collection/${collectionId}`)
+  const dashLink = getUriWithOrg(props.orgslug, '') + `/dash/courses/collection/${collectionId}/general`
+  const primaryLink = props.isDashboard ? dashLink : userLink
+
+  const hasCoverPhoto = props.collection.thumbnail_image && org?.org_uuid
+  const coverPhotoUrl = hasCoverPhoto
+    ? getCollectionThumbnailMediaDirectory(org.org_uuid, props.collection.collection_uuid, props.collection.thumbnail_image)
+    : null
+
   return (
-    <div 
-      className="group relative flex flex-col bg-white rounded-xl nice-shadow overflow-hidden w-full transition-all duration-300 hover:scale-[1.01]"
-    >
+    <div className="group relative flex flex-col bg-white rounded-xl nice-shadow overflow-hidden w-full transition-all duration-300 hover:scale-[1.01]">
       <CollectionAdminEditsArea
         orgslug={props.orgslug}
         org_id={props.org_id}
         collection_uuid={props.collection.collection_uuid}
         collection={props.collection}
+        isDashboard={props.isDashboard}
+        dashLink={dashLink}
       />
 
-      <Link 
-        href={getUriWithOrg(props.orgslug, `/collection/${collectionId}`)}
-        className="block relative aspect-video overflow-hidden bg-gray-50"
-      >
-        {courses.length > 0 ? (
+      <Link href={primaryLink} className="block relative aspect-video overflow-hidden bg-gray-50">
+        {coverPhotoUrl ? (
+          <SafeImage
+            src={coverPhotoUrl}
+            alt={props.collection.name}
+            className="w-full h-full object-cover"
+          />
+        ) : courses.length > 0 ? (
           <div className="flex items-center justify-center h-full w-full bg-gray-100/50 relative p-4">
             <div className="flex -space-x-10 items-center justify-center w-full">
               {courses.slice(0, 3).map((course: any, index: number) => (
@@ -85,12 +99,12 @@ function CollectionThumbnail(props: PropsType) {
 
       <div className="p-3 flex flex-col space-y-1.5">
         <Link
-          href={getUriWithOrg(props.orgslug, `/collection/${collectionId}`)}
+          href={primaryLink}
           className="text-base font-bold text-gray-900 leading-tight hover:text-black transition-colors line-clamp-1"
         >
           {props.collection.name}
         </Link>
-        
+
         {props.collection.description && (
           <p className="text-[11px] text-gray-500 line-clamp-2 min-h-[1.5rem]">
             {props.collection.description}
@@ -104,12 +118,12 @@ function CollectionThumbnail(props: PropsType) {
               {courses.length === 1 ? t('courses.course_count', { count: 1 }) : t('courses.course_count_plural', { count: courses.length })}
             </span>
           </div>
-          
+
           <Link
-            href={getUriWithOrg(props.orgslug, `/collection/${collectionId}`)}
+            href={primaryLink}
             className="text-[10px] font-bold text-gray-400 hover:text-gray-900 transition-colors uppercase tracking-wider"
           >
-            {t('common.view_details')}
+            {props.isDashboard ? 'Edit' : t('common.view_details')}
           </Link>
         </div>
       </div>
@@ -143,18 +157,25 @@ const CollectionAdminEditsArea = (props: any) => {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
+            {props.isDashboard && (
+              <DropdownMenuItem asChild>
+                <Link href={props.dashLink} className="flex items-center px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50 rounded-md cursor-pointer">
+                  <Settings className="mr-2 h-4 w-4" /> Edit Collection
+                </Link>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem asChild>
-        <ConfirmationModal
-          confirmationMessage={t('collections.delete_collection_confirm')}
-          confirmationButtonText={t('collections.delete_collection')}
-          dialogTitle={t('collections.delete_collection_title', { name: props.collection.name })}
-          dialogTrigger={
+              <ConfirmationModal
+                confirmationMessage={t('collections.delete_collection_confirm')}
+                confirmationButtonText={t('collections.delete_collection')}
+                dialogTitle={t('collections.delete_collection_title', { name: props.collection.name })}
+                dialogTrigger={
                   <button className="w-full text-left flex items-center px-2 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors">
                     <Trash2 className="mr-2 h-4 w-4" /> {t('collections.delete_collection')}
-            </button>
-          }
+                  </button>
+                }
                 functionToExecute={deleteCollectionUI}
-          status="warning"
+                status="warning"
               />
             </DropdownMenuItem>
           </DropdownMenuContent>

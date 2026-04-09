@@ -12,6 +12,8 @@ import useSWR from 'swr'
 import { swrFetcher } from '@services/utils/ts/requests'
 import PublicCourseCard from '@components/Pages/Courses/PublicCourseCard'
 import { Books } from '@phosphor-icons/react'
+import { getCollectionThumbnailMediaDirectory } from '@services/media/media'
+import { SafeImage } from '@components/Objects/SafeImage'
 
 const CollectionClient = ({ orgslug, collectionid }: { orgslug: string; collectionid: string }) => {
   const { t } = useTranslation()
@@ -49,8 +51,20 @@ const CollectionClient = ({ orgslug, collectionid }: { orgslug: string; collecti
           ]}
         />
       </div>
+      {col.thumbnail_image && org?.org_uuid && (
+        <div className="mb-6 w-full max-w-2xl aspect-video rounded-xl overflow-hidden bg-gray-100">
+          <SafeImage
+            src={getCollectionThumbnailMediaDirectory(org.org_uuid, col.collection_uuid, col.thumbnail_image)}
+            alt={col.name}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      )}
       <h2 className="text-sm font-bold text-gray-400">{t('collections.collection')}</h2>
       <h1 className="text-3xl font-bold">{col.name}</h1>
+      {col.description && (
+        <p className="mt-2 text-gray-500 text-base leading-relaxed max-w-2xl">{col.description}</p>
+      )}
       <br />
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {col.courses.map((course: any) => (
