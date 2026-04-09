@@ -1,6 +1,6 @@
 'use client'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, ChevronLeft, X, Star } from 'lucide-react'
+import { CheckCircle2, ChevronLeft, X, Star, Heart, Flame, Leaf, Zap, Sun, Flag, Triangle, Square, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useCourse } from '@components/Contexts/CourseContext'
@@ -74,7 +74,33 @@ interface InfoSlide {
   gradient_seed: string
 }
 
-type Slide = SelectSlide | TextSlide | SliderSlide | InfoSlide
+type SortIconKey = 'star' | 'heart' | 'flame' | 'leaf' | 'zap' | 'sun' | 'flag' | 'triangle' | 'square' | 'thumbs_up' | 'thumbs_down'
+
+interface SortCard {
+  card_uuid: string
+  title: string
+  description?: string
+}
+
+interface SortCategory {
+  category_uuid: string
+  label: string
+  color: string
+  icon: SortIconKey
+  position: 'left' | 'right' | 'top'
+}
+
+interface SortSlide {
+  type: 'quizSortBlock'
+  question_uuid: string
+  question_text: string
+  cards: SortCard[]
+  categories: SortCategory[]
+  background_gradient_seed?: string
+  background_image_block_object?: any
+}
+
+type Slide = SelectSlide | TextSlide | SliderSlide | SortSlide | InfoSlide
 
 interface TextScoringRule {
   mode?: 'optional' | 'min_length'
@@ -133,10 +159,10 @@ const QUIZ_STYLES = `
   }
 
   .quiz-shell-inner {
-    width: min(520px, 100%);
-    height: min(520px, 100%);
-    max-width: 520px;
-    max-height: 520px;
+    width: min(720px, 100%);
+    height: min(720px, 100%);
+    max-width: 720px;
+    max-height: 720px;
     border-radius: 28px;
     box-shadow:
       0 24px 80px rgba(0,0,0,0.45),
@@ -206,13 +232,51 @@ function getSliderInitialValue(directionMode?: 'unidirectional' | 'bidirectional
   return directionMode === 'bidirectional' ? 0.5 : 0
 }
 
+function renderSortIcon(icon: SortIconKey, color: string, size = 18) {
+  const shared = { color, size }
+  switch (icon) {
+    case 'heart': return <Heart {...shared} />
+    case 'flame': return <Flame {...shared} />
+    case 'leaf': return <Leaf {...shared} />
+    case 'zap': return <Zap {...shared} />
+    case 'sun': return <Sun {...shared} />
+    case 'flag': return <Flag {...shared} />
+    case 'triangle': return <Triangle {...shared} />
+    case 'square': return <Square {...shared} />
+    case 'thumbs_down': return <ThumbsDown {...shared} />
+    case 'thumbs_up': return <ThumbsUp {...shared} />
+    default: return <Star {...shared} />
+  }
+}
+
+function normalizeSortAnswer(slide: SortSlide, rawValue: any) {
+  const cards = Array.isArray(slide.cards) ? slide.cards : []
+  const safeAssignments = rawValue?.assignments && typeof rawValue.assignments === 'object' ? rawValue.assignments : {}
+  const originalOrder = cards.map(card => card.card_uuid)
+  const assignedCardIds = new Set(
+    Object.entries(safeAssignments)
+      .filter(([cardUuid, categoryUuid]) => originalOrder.includes(cardUuid) && slide.categories.some(category => category.category_uuid === categoryUuid))
+      .map(([cardUuid]) => cardUuid)
+  )
+  const providedStackOrder = Array.isArray(rawValue?.stackOrder)
+    ? rawValue.stackOrder.filter((cardUuid: string) => originalOrder.includes(cardUuid) && !assignedCardIds.has(cardUuid))
+    : []
+  const normalizedAssignments = Object.fromEntries(
+    Object.entries(safeAssignments).filter(([cardUuid, categoryUuid]) => originalOrder.includes(cardUuid) && slide.categories.some(category => category.category_uuid === categoryUuid))
+  ) as Record<string, string>
+  return {
+    assignments: normalizedAssignments,
+    stackOrder: [...providedStackOrder, ...originalOrder.filter(cardUuid => !assignedCardIds.has(cardUuid) && !providedStackOrder.includes(cardUuid))],
+  }
+}
+
 function extractSlides(content: any): Slide[] {
   const slides: Slide[] = []
 
   const visit = (node: any) => {
     if (!node || typeof node !== 'object') return
 
-    if (node.type === 'quizSelectBlock' || node.type === 'quizTextBlock' || node.type === 'quizSliderBlock' || node.type === 'quizInfoBlock') {
+    if (node.type === 'quizSelectBlock' || node.type === 'quizTextBlock' || node.type === 'quizSliderBlock' || node.type === 'quizSortBlock' || node.type === 'quizInfoBlock') {
       slides.push({ type: node.type, ...node.attrs })
     }
 
@@ -223,6 +287,350 @@ function extractSlides(content: any): Slide[] {
 
   visit(content)
   return slides
+}
+
+function SortSlideView({
+  slide,
+  value,
+  buildImageUrl,
+  onSortCard,
+  onReturnCard,
+}: {
+  slide: SortSlide
+  value: { assignments: Record<string, string>; stackOrder: string[] }
+  buildImageUrl: (blockObj: any) => string | null
+  onSortCard: (slide: SortSlide, categoryUuid: string) => void
+  onReturnCard: (slide: SortSlide, cardUuid: string) => void
+}) {
+  const [openTray, setOpenTray] = useState<'left' | 'right' | 'top' | null>(null)
+  const [isMobileLayout, setIsMobileLayout] = useState(false)
+  const [flyingCard, setFlyingCard] = useState<{
+    card: SortCard
+    from: 'center' | 'left' | 'right' | 'top'
+    to: 'center' | 'left' | 'right' | 'top'
+    phase: 'start' | 'end'
+  } | null>(null)
+  const backgroundUrl = buildImageUrl(slide.background_image_block_object)
+  const background = getGradient(slide.background_gradient_seed || slide.question_uuid || 'sort-question')
+  const currentCard = slide.cards.find(card => card.card_uuid === value.stackOrder[0]) || null
+  const remainingCount = value.stackOrder.length
+  const sortedByCategory = Object.fromEntries(
+    slide.categories.map(category => [
+      category.category_uuid,
+      slide.cards.filter(card => value.assignments[card.card_uuid] === category.category_uuid),
+    ])
+  ) as Record<string, SortCard[]>
+  const openCategory = slide.categories.find(category => category.position === openTray) || null
+  const openCards = openCategory ? (sortedByCategory[openCategory.category_uuid] || []) : []
+
+  useEffect(() => {
+    const syncLayout = () => {
+      setIsMobileLayout(window.innerWidth <= 900)
+    }
+    syncLayout()
+    window.addEventListener('resize', syncLayout)
+    return () => window.removeEventListener('resize', syncLayout)
+  }, [])
+
+  const getZoneStyle = (position: 'center' | 'left' | 'right' | 'top'): React.CSSProperties => {
+    if (isMobileLayout) {
+      switch (position) {
+        case 'left':
+          return { left: '20%', top: 104, transform: 'translate(-50%, 0)', width: 76, minHeight: 120 }
+        case 'right':
+          return { left: '80%', top: 104, transform: 'translate(-50%, 0)', width: 76, minHeight: 120 }
+        case 'top':
+          return { left: '50%', top: 88, transform: 'translate(-50%, 0)', width: 148, minHeight: 82 }
+        default:
+          return { left: '50%', top: 248, transform: 'translateX(-50%)', width: 'calc(100% - 32px)', maxWidth: 360, minHeight: 238 }
+      }
+    }
+    switch (position) {
+      case 'left':
+        return { left: 20, top: '56%', transform: 'translateY(-50%)', width: 92, minHeight: 146 }
+      case 'right':
+        return { right: 20, top: '56%', transform: 'translateY(-50%)', width: 92, minHeight: 146 }
+      case 'top':
+        return { left: '50%', top: 92, transform: 'translateX(-50%)', width: 164, minHeight: 86 }
+      default:
+        return { left: '50%', top: '56%', transform: 'translate(-50%, -50%)', width: 'calc(100% - 244px)', maxWidth: 272, minHeight: 238 }
+    }
+  }
+
+  const getFlyingCardStyle = (animation: NonNullable<typeof flyingCard>): React.CSSProperties => {
+    const fromStyle = getZoneStyle(animation.from)
+    const toStyle = getZoneStyle(animation.to)
+    const isEnd = animation.phase === 'end'
+    return {
+      position: 'absolute',
+      zIndex: 8,
+      borderRadius: 28,
+      background: 'rgba(255,255,255,0.98)',
+      boxShadow: '0 28px 70px rgba(15,23,42,0.24)',
+      padding: 22,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      textAlign: 'center',
+      color: '#0f172a',
+      fontSize: 20,
+      fontWeight: 800,
+      opacity: isEnd ? 0 : 1,
+      transform: `${isEnd ? toStyle.transform : fromStyle.transform} scale(${isEnd ? 0.48 : 1})`,
+      left: isEnd ? (toStyle.left as any) : (fromStyle.left as any),
+      right: isEnd ? (toStyle.right as any) : (fromStyle.right as any),
+      top: isEnd ? (toStyle.top as any) : (fromStyle.top as any),
+      width: isEnd ? (toStyle.width as any) : (fromStyle.width as any),
+      minHeight: isEnd ? (toStyle.minHeight as any) : (fromStyle.minHeight as any),
+      maxWidth: isEnd ? (toStyle.maxWidth as any) : (fromStyle.maxWidth as any),
+      transition: 'all 280ms cubic-bezier(.2,.9,.2,1)',
+      pointerEvents: 'none',
+    }
+  }
+
+  const renderMiniPile = (count: number, category: SortCategory) => {
+    const visibleCount = count >= 3 ? 3 : count
+    if (visibleCount <= 0) return null
+    return (
+      <div style={{ position: 'relative', width: 62, height: 58 }}>
+        {Array.from({ length: visibleCount }).map((_, idx) => (
+          <div
+            key={idx}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: 16,
+              background: 'rgba(255,255,255,0.96)',
+              border: `2px solid ${category.color}`,
+              boxShadow: '0 10px 26px rgba(15,23,42,0.12)',
+              transform: `translate(${idx * 4}px, ${idx * 4}px) rotate(${idx % 2 === 0 ? -5 : 5}deg)`,
+            }}
+          >
+            {idx === visibleCount - 1 && (
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {renderSortIcon(category.icon, category.color, 18)}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  const animateCardToRegion = (category: SortCategory) => {
+    if (!currentCard) return
+    const card = currentCard
+    setFlyingCard({ card, from: 'center', to: category.position, phase: 'start' })
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setFlyingCard(current => current ? { ...current, phase: 'end' } : current)
+      })
+    })
+    window.setTimeout(() => {
+      onSortCard(slide, category.category_uuid)
+      setFlyingCard(null)
+    }, 290)
+  }
+
+  const animateCardBackToCenter = (card: SortCard) => {
+    if (!openCategory) return
+    setFlyingCard({ card, from: openCategory.position, to: 'center', phase: 'start' })
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setFlyingCard(current => current ? { ...current, phase: 'end' } : current)
+      })
+    })
+    window.setTimeout(() => {
+      onReturnCard(slide, card.card_uuid)
+      setFlyingCard(null)
+    }, 290)
+  }
+
+  return (
+    <div style={{ height: '100%', position: 'relative', overflow: 'hidden', background: backgroundUrl ? '#000' : background }}>
+      {backgroundUrl && (
+        <img src={backgroundUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      )}
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(2,6,23,0.28)' }} />
+      <div style={{ position: 'absolute', inset: 0, padding: isMobileLayout ? '120px 12px 94px' : '126px 18px 102px', boxSizing: 'border-box' }}>
+        {slide.categories.map(category => {
+          const trayCards = sortedByCategory[category.category_uuid] || []
+          const zoneStyle = getZoneStyle(category.position)
+          if (trayCards.length <= 0) return null
+          return (
+            <button
+              key={category.category_uuid}
+              type="button"
+              onClick={() => setOpenTray(category.position)}
+              style={{
+                position: 'absolute',
+                ...zoneStyle,
+                zIndex: 2,
+                border: 'none',
+                color: '#fff',
+                padding: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                background: 'transparent',
+              }}
+            >
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {renderMiniPile(trayCards.length, category)}
+                <span style={{ position: 'absolute', left: '50%', bottom: -16, transform: 'translateX(-50%)', minWidth: 24, height: 22, borderRadius: 999, background: 'rgba(15,23,42,0.58)', border: '1px solid rgba(255,255,255,0.28)', color: '#fff', fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 7px', boxShadow: '0 8px 20px rgba(15,23,42,0.18)' }}>
+                  {trayCards.length}
+                </span>
+              </div>
+              {category.label && (
+                <span style={{ marginTop: 22, fontSize: 12, fontWeight: 800, color: '#fff', textShadow: '0 2px 10px rgba(0,0,0,0.35)', textAlign: 'center' }}>
+                  {category.label}
+                </span>
+              )}
+            </button>
+          )
+        })}
+
+        {currentCard ? (
+          <div style={{ position: 'absolute', ...getZoneStyle('center'), zIndex: 3, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ position: 'relative', width: '100%', minHeight: isMobileLayout ? 240 : 316 }}>
+              {Array.from({ length: remainingCount >= 4 ? 3 : Math.max(0, remainingCount - 1) }).map((_, idx) => {
+                const shadowIndex = (remainingCount >= 4 ? 3 : Math.max(0, remainingCount - 1)) - idx
+                return (
+                  <div
+                    key={shadowIndex}
+                    style={{
+                      position: 'absolute',
+                      left: 8 + shadowIndex * 2,
+                      right: 8 + shadowIndex * 2,
+                      top: 12 + shadowIndex * 8,
+                      height: isMobileLayout ? 180 : 244,
+                      borderRadius: 28,
+                      background: 'rgba(255,255,255,0.56)',
+                      transform: `rotate(${shadowIndex % 2 === 0 ? 4 : -4}deg)`,
+                      boxShadow: '0 18px 40px rgba(15,23,42,0.14)',
+                    }}
+                  />
+                )
+              })}
+              <div style={{ position: 'absolute', left: 0, right: 0, top: 0, minHeight: isMobileLayout ? 180 : 244, borderRadius: 30, background: 'rgba(255,255,255,0.96)', boxShadow: '0 28px 70px rgba(15,23,42,0.22)', padding: isMobileLayout ? 18 : 24, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <p style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#0f172a', textAlign: 'center', lineHeight: 1.2 }}>{currentCard.title || 'Untitled card'}</p>
+                {currentCard.description && (
+                  <p style={{ margin: '12px 0 0', fontSize: 15, fontWeight: 500, color: '#475569', textAlign: 'center', lineHeight: 1.5 }}>{currentCard.description}</p>
+                )}
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 10 }}>
+              <p style={{ margin: 0, fontSize: 12, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.88)', textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
+                {remainingCount} remaining
+              </p>
+            </div>
+            {remainingCount > 0 && (
+              <div style={{ display: 'grid', gridTemplateColumns: slide.categories.length === 3 ? 'repeat(3, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))', gap: 10, width: 'min(340px, calc(100% - 12px))', marginTop: 12 }}>
+                {slide.categories.map(category => (
+                  <button
+                    key={`sort_btn_${category.category_uuid}`}
+                    type="button"
+                    onClick={() => animateCardToRegion(category)}
+                    style={{
+                      border: 'none',
+                      borderRadius: 999,
+                      minHeight: 48,
+                      background: category.color,
+                      color: '#fff',
+                      fontWeight: 800,
+                      fontSize: 13,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      boxShadow: '0 16px 34px rgba(15,23,42,0.18)',
+                      cursor: 'pointer',
+                      transform: category.position === 'top' ? 'translateY(-4px)' : 'none',
+                    }}
+                  >
+                    {renderSortIcon(category.icon, '#fff', 16)}
+                    {category.label && <span>{category.label}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 32px', zIndex: 1 }}>
+            <p style={{ margin: 0, color: '#fff', fontSize: 28, fontWeight: 800, textAlign: 'center', textShadow: '0 2px 10px rgba(0,0,0,0.65)' }}>
+              All cards sorted
+            </p>
+          </div>
+        )}
+      </div>
+
+      {openCategory && (
+        <>
+          <button
+            type="button"
+            aria-label="Close tray"
+            onClick={() => setOpenTray(null)}
+            style={{ position: 'absolute', inset: 0, zIndex: 1100, background: 'rgba(2,6,23,0.42)', border: 'none', cursor: 'pointer' }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              zIndex: 1200,
+              background: 'rgba(255,255,255,0.96)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              boxShadow: '0 22px 56px rgba(15,23,42,0.22)',
+              border: `1px solid ${openCategory.color}33`,
+              overflow: 'hidden',
+              ...(openCategory.position === 'left'
+            ? { top: 84, bottom: 76, left: 0, width: '68%', borderRadius: '0 28px 28px 0' }
+                : openCategory.position === 'right'
+                  ? { top: 84, bottom: 76, right: 0, width: '68%', borderRadius: '28px 0 0 28px' }
+                  : { top: 0, left: 18, right: 18, height: '50%', borderRadius: '0 0 28px 28px' }),
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setOpenTray(null)}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '16px 18px', background: openCategory.color, color: '#fff', border: 'none', cursor: 'pointer' }}
+            >
+              {renderSortIcon(openCategory.icon, '#fff', 18)}
+              {openCategory.label && <span style={{ fontSize: 14, fontWeight: 800 }}>{openCategory.label}</span>}
+              <span style={{ marginLeft: 'auto', minWidth: 24, height: 24, borderRadius: 999, background: 'rgba(255,255,255,0.24)', color: '#fff', fontSize: 12, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 7px' }}>
+                {openCards.length}
+              </span>
+            </button>
+            <div style={{ padding: 14, display: 'grid', gridTemplateColumns: openCategory.position === 'top' ? 'repeat(3, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))', gap: 10, overflowY: 'auto', maxHeight: 'calc(100% - 58px)' }}>
+              {openCards.length === 0 ? (
+                <p style={{ margin: 0, fontSize: 12, color: '#94a3b8' }}>No cards in this tray yet.</p>
+              ) : openCards.map(card => (
+                <button
+                  key={card.card_uuid}
+                  type="button"
+                  onClick={e => {
+                    e.stopPropagation()
+                    animateCardBackToCenter(card)
+                  }}
+                  style={{ border: 'none', borderRadius: 18, background: '#fff', padding: '14px 14px', textAlign: 'left', cursor: 'pointer', boxShadow: '0 10px 24px rgba(15,23,42,0.08)' }}
+                >
+                  <span style={{ display: 'block', fontSize: 12, fontWeight: 800, color: '#0f172a', marginBottom: 5 }}>{card.title || 'Untitled'}</span>
+                  {card.description && <span style={{ display: 'block', fontSize: 11, color: '#64748b', lineHeight: 1.4 }}>{card.description}</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {flyingCard && (
+        <div style={getFlyingCardStyle(flyingCard)}>
+          <span>{flyingCard.card.title || 'Untitled card'}</span>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ── Single frame ───────────────────────────────────────────────────────────────
@@ -245,8 +653,8 @@ function SlideFrame({
   textScoringRules: Record<string, TextScoringRule>
   infoOverlay: QuizOption | null
   popUuid: string | null      // option that just got the pop animation
-  onSelectOption: (slide: SelectSlide, optUuid: string) => void
-  onTextAnswerChange: (slide: TextSlide, value: string) => void
+  onSelectOption: (slide: SelectSlide | SortSlide, optUuid: string) => void
+  onTextAnswerChange: (slide: TextSlide | SortSlide, value: string) => void
   onSliderAnswerChange: (slide: SliderSlide, sliderUuid: string, value: number) => void
   buildImageUrl: (blockObj: any) => string | null
 }) {
@@ -486,6 +894,20 @@ function SlideFrame({
           </div>
         </div>
       </div>
+    )
+  }
+
+  if (slide.type === 'quizSortBlock') {
+    const sortSlide = slide as SortSlide
+    const sortValue = normalizeSortAnswer(sortSlide, answers.get(sortSlide.question_uuid))
+    return (
+      <SortSlideView
+        slide={sortSlide}
+        value={sortValue}
+        buildImageUrl={buildImageUrl}
+        onSortCard={onSelectOption}
+        onReturnCard={onTextAnswerChange}
+      />
     )
   }
 
@@ -799,6 +1221,10 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
       const sliderValues = (answers.get(slide.question_uuid) || {}) as Record<string, number>
       return slide.sliders.every(row => Object.prototype.hasOwnProperty.call(sliderValues, row.slider_uuid))
     }
+    if (currentSlide.type === 'quizSortBlock') {
+      const slide = currentSlide as SortSlide
+      return normalizeSortAnswer(slide, answers.get(slide.question_uuid)).stackOrder.length === 0
+    }
     return answers.has((currentSlide as SelectSlide).question_uuid)
   }, [showingResponse, currentSlide, answers, textScoringRules])
 
@@ -847,6 +1273,14 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
           answer_json: { type: 'slider', values: normalizedValues },
         }
       }
+      if (slide.type === 'quizSortBlock') {
+        const s = slide as SortSlide
+        const normalized = normalizeSortAnswer(s, answers.get(s.question_uuid))
+        return {
+          question_uuid: s.question_uuid,
+          answer_json: { type: 'sort', assignments: normalized.assignments },
+        }
+      }
       const s = slide as SelectSlide
       const selectedUuid = answers.get(s.question_uuid) || null
       return {
@@ -871,6 +1305,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
           if (answerJson.type === 'select') gradedQuestionCount += 1
           if (answerJson.type === 'text' && (activity?.details?.text_scores?.[answer.question_uuid] || {}).mode === 'min_length') gradedQuestionCount += 1
           if (answerJson.type === 'slider') gradedQuestionCount += Object.keys(answerJson.values || {}).length
+          if (answerJson.type === 'sort') gradedQuestionCount += Object.keys(answerJson.assignments || {}).length
         })
         setResult({
           id: 'preview',
@@ -977,7 +1412,17 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     }
   }
 
-  const handleSelectOption = (slide: SelectSlide, optUuid: string) => {
+  const handleSelectOption = (slide: SelectSlide | SortSlide, optUuid: string) => {
+    if (slide.type === 'quizSortBlock') {
+      const sortSlide = slide as SortSlide
+      const currentState = normalizeSortAnswer(sortSlide, answers.get(sortSlide.question_uuid))
+      const currentCardUuid = currentState.stackOrder[0]
+      if (!currentCardUuid) return
+      const nextAssignments = { ...currentState.assignments, [currentCardUuid]: optUuid }
+      const nextStackOrder = currentState.stackOrder.slice(1)
+      setAnswers(prev => new Map(prev).set(sortSlide.question_uuid, { assignments: nextAssignments, stackOrder: nextStackOrder }))
+      return
+    }
     const currentSelection = answers.get(slide.question_uuid)
     if (currentSelection === optUuid) {
       const newAnswers = new Map(answers)
@@ -990,7 +1435,16 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     setTimeout(() => setPopUuid(null), 260)
   }
 
-  const handleTextAnswerChange = (slide: TextSlide, value: string) => {
+  const handleTextAnswerChange = (slide: TextSlide | SortSlide, value: string) => {
+    if (slide.type === 'quizSortBlock') {
+      const sortSlide = slide as SortSlide
+      const currentState = normalizeSortAnswer(sortSlide, answers.get(sortSlide.question_uuid))
+      const nextAssignments = { ...currentState.assignments }
+      delete nextAssignments[value]
+      const nextStackOrder = [value, ...currentState.stackOrder.filter(cardUuid => cardUuid !== value)]
+      setAnswers(prev => new Map(prev).set(sortSlide.question_uuid, { assignments: nextAssignments, stackOrder: nextStackOrder }))
+      return
+    }
     setAnswers(prev => new Map(prev).set(slide.question_uuid, value))
   }
 
@@ -1056,12 +1510,16 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
       ? (currentSlide as TextSlide).question_text
       : currentSlide.type === 'quizSliderBlock'
         ? (currentSlide as SliderSlide).question_text
+        : currentSlide.type === 'quizSortBlock'
+          ? (currentSlide as SortSlide).question_text
         : (currentSlide as InfoSlide).title
   const shouldShowHeaderTitle =
     currentSlide.type === 'quizSelectBlock'
       ? (currentSlide as SelectSlide).display_style !== 'text'
       : currentSlide.type === 'quizSliderBlock'
         ? false
+        : currentSlide.type === 'quizSortBlock'
+          ? true
         : false
 
   // Background for the response slide

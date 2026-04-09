@@ -18,6 +18,10 @@ function cosineSimilarity(a: Record<string, number>, b: Record<string, number>) 
   return dot / (Math.sqrt(magA) * Math.sqrt(magB))
 }
 
+function getSortScoreKey(cardUuid: string, categoryUuid: string) {
+  return `${cardUuid}::${categoryUuid}`
+}
+
 export function computeQuizScoresPreview(
   answers: { question_uuid: string; answer_json: any }[],
   optionScores: Record<string, Record<string, number>>,
@@ -65,6 +69,18 @@ export function computeQuizScoresPreview(
         const scoreMap = optionScores?.[optionUuid] || {}
         vectorKeys.forEach(key => {
           totals[key] += Number(scoreMap[key] ?? 0) * normalizedMultiplier
+          counts[key] += 1
+        })
+      })
+      return
+    }
+
+    if (answerType === 'sort') {
+      const assignments = answerJson.assignments || {}
+      Object.entries(assignments).forEach(([cardUuid, categoryUuid]) => {
+        const scoreMap = optionScores?.[getSortScoreKey(cardUuid, String(categoryUuid))] || {}
+        vectorKeys.forEach(key => {
+          totals[key] += Number(scoreMap[key] ?? 0)
           counts[key] += 1
         })
       })

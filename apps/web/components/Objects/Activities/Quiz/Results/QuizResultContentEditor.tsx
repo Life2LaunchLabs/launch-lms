@@ -43,33 +43,53 @@ export function mergeContent(
 }
 
 /**
- * Extract the template: fixed blocks keep their content; variable blocks are
- * stripped to just type+attrs (with a stable varId assigned if missing).
+ * Extract template and per-result variable overrides in a single pass.
+ *
+ * Both outputs must use the SAME varId for each block. Calling extractTemplate
+ * and extractVarOverrides separately was broken because each call to genId()
+ * produces a different random value, so the IDs in the template never matched
+ * the IDs in the overrides for any node with varId: null.
+ *
+ * Also handles duplicate varIds (e.g. Tiptap inherits attrs — including varId —
+ * when splitting a block via Enter), by assigning a fresh ID to any duplicate.
  */
-export function extractTemplate(doc: any): any {
-  if (!doc?.content) return doc
-  return {
-    ...doc,
-    content: doc.content.map((node: any) => {
-      if (node.attrs?.isFixed) return node
-      const varId = node.attrs?.varId || genId()
-      return { type: node.type, attrs: { ...(node.attrs || {}), varId, isFixed: false, fixedId: null } }
-    }),
+export function extractTemplateAndOverrides(doc: any): { template: any; varOverrides: Record<string, any> } {
+  if (!doc?.content) return { template: doc, varOverrides: {} }
+
+  const usedIds = new Set<string>()
+  const templateContent: any[] = []
+  const varOverrides: Record<string, any> = {}
+
+  for (const node of doc.content) {
+    if (node.attrs?.isFixed) {
+      templateContent.push(node)
+      continue
+    }
+    // Assign a stable, unique varId — generate a new one if the node has none
+    // or if a previous block already claimed this varId (duplicate from block split).
+    let varId: string = node.attrs?.varId
+    if (!varId || usedIds.has(varId)) {
+      varId = genId()
+    }
+    usedIds.add(varId)
+
+    // Template entry: structure only, no inline content
+    templateContent.push({ type: node.type, attrs: { ...(node.attrs || {}), varId, isFixed: false, fixedId: null } })
+    // Override entry: full node including inline content
+    varOverrides[varId] = { ...node, attrs: { ...node.attrs, varId } }
   }
+
+  return { template: { ...doc, content: templateContent }, varOverrides }
 }
 
-/**
- * Extract per-result variable overrides: all non-fixed blocks keyed by varId.
- */
+/** @deprecated Use extractTemplateAndOverrides — kept for any external callers. */
+export function extractTemplate(doc: any): any {
+  return extractTemplateAndOverrides(doc).template
+}
+
+/** @deprecated Use extractTemplateAndOverrides — kept for any external callers. */
 export function extractVarOverrides(doc: any): Record<string, any> {
-  const out: Record<string, any> = {}
-  for (const node of doc?.content || []) {
-    if (!node.attrs?.isFixed) {
-      const varId = node.attrs?.varId || genId()
-      out[varId] = { ...node, attrs: { ...node.attrs, varId } }
-    }
-  }
-  return out
+  return extractTemplateAndOverrides(doc).varOverrides
 }
 
 // ── Fixed-block decoration (grey bg, muted text) ───────────────────────────────
@@ -202,8 +222,7 @@ export default function QuizResultContentEditor({
     onUpdate: ({ editor }) => {
       if (isSettingContent.current) return
       const doc = editor.getJSON()
-      const newTemplate = extractTemplate(doc)
-      const newOverrides = extractVarOverrides(doc)
+      const { template: newTemplate, varOverrides: newOverrides } = extractTemplateAndOverrides(doc)
       templateRef.current = newTemplate
       varOverridesRef.current = newOverrides
       onUpdate(newTemplate, newOverrides)

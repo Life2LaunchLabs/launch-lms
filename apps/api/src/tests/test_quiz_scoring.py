@@ -54,3 +54,33 @@ def test_get_active_scoring_vectors_prefers_category_vectors_for_category_quizze
     }
 
     assert _get_active_scoring_vectors(details, "categories") == [{"key": "personality"}]
+
+
+def test_compute_scores_applies_sort_assignments_per_card_category() -> None:
+    answers = [
+        {
+            "question_uuid": "question_sort",
+            "answer_json": {
+                "type": "sort",
+                "assignments": {
+                    "card_1": "left",
+                    "card_2": "right",
+                },
+            },
+        }
+    ]
+    option_scores = {
+        "card_1::left": {"correct": 1, "confidence": 0.4},
+        "card_2::right": {"correct": 0, "confidence": 0.8},
+    }
+    vectors = [
+        {"key": "correct"},
+        {"key": "confidence"},
+    ]
+
+    scores = compute_scores(answers, option_scores, text_scores={}, vectors=vectors)
+
+    assert scores == {
+        "correct": 0.5,
+        "confidence": 0.6,
+    }

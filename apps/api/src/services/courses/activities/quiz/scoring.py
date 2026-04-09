@@ -29,6 +29,7 @@ Answer format (from QuizAnswerInput):
   {"type": "select", "option_uuid": "o_abc123"}
   {"type": "text", "text": "freeform answer"}
   {"type": "slider", "values": {"slider_a": 0.5, "slider_b": 1.0}}
+  {"type": "sort", "assignments": {"card_a": "cat_left", "card_b": "cat_right"}}
   {"type": "info"}   — info slides contribute nothing
 """
 
@@ -49,6 +50,10 @@ def _cosine_similarity(a: dict[str, float], b: dict[str, float]) -> float:
     if mag_a == 0 or mag_b == 0:
         return 0.0
     return dot / (mag_a * mag_b)
+
+
+def _sort_score_key(card_uuid: str, category_uuid: str) -> str:
+    return f"{card_uuid}::{category_uuid}"
 
 
 # ── public API ────────────────────────────────────────────────────────────────
@@ -115,6 +120,19 @@ def compute_scores(
                 scores = option_scores.get(option_uuid, {})
                 for k in vector_keys:
                     totals[k] += scores.get(k, 0.0) * normalized_multiplier
+                    counts[k] += 1
+            continue
+
+        if answer_type == "sort":
+            assignments = answer_json.get("assignments", {}) or {}
+            if not isinstance(assignments, dict):
+                continue
+            for card_uuid, category_uuid in assignments.items():
+                if not card_uuid or not category_uuid:
+                    continue
+                scores = option_scores.get(_sort_score_key(str(card_uuid), str(category_uuid)), {})
+                for k in vector_keys:
+                    totals[k] += scores.get(k, 0.0)
                     counts[k] += 1
             continue
 

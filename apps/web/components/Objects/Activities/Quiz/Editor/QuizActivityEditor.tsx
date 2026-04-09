@@ -6,7 +6,7 @@ import Text from '@tiptap/extension-text'
 import { v4 as uuidv4 } from 'uuid'
 import {
   ArrowLeft, Save, Eye, EyeOff, ListChecks, Info as InfoIcon,
-  Plus, Trash2, Upload, X, Loader2, Type, AlignLeft, GripVertical, SlidersHorizontal,
+  Plus, Trash2, Upload, X, Loader2, Type, AlignLeft, GripVertical, SlidersHorizontal, Layers3,
 } from 'lucide-react'
 import Link from 'next/link'
 import { getUriWithOrg } from '@services/config/config'
@@ -17,6 +17,7 @@ import QuizSelectBlock from '@components/Objects/Editor/Extensions/QuizSelect/Qu
 import QuizInfoBlock from '@components/Objects/Editor/Extensions/QuizInfo/QuizInfoBlock'
 import QuizTextBlock from '@components/Objects/Editor/Extensions/QuizText/QuizTextBlock'
 import QuizSliderBlock from '@components/Objects/Editor/Extensions/QuizSlider/QuizSliderBlock'
+import QuizSortBlock from '@components/Objects/Editor/Extensions/QuizSort/QuizSortBlock'
 import { CourseProvider } from '@components/Contexts/CourseContext'
 import { updateActivity } from '@services/courses/activities'
 import { updateQuizScoring, updateQuizResults, updateQuizSettings } from '@services/quiz/quiz'
@@ -148,6 +149,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   const [editorBlocks, setEditorBlocks] = useState<EditorBlockInfo[]>([])
   const [sidebarDragSrc, setSidebarDragSrc] = useState<number | null>(null)
   const [sidebarDragOver, setSidebarDragOver] = useState<number | null>(null)
+  const suppressBlockExtraction = useRef(false)
 
   // ── Editor ────────────────────────────────────────────────────────────
   const editor = useEditor({
@@ -159,6 +161,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
       QuizSelectBlock.configure({ activity }),
       QuizTextBlock.configure({ activity }),
       QuizSliderBlock.configure({ activity }),
+      QuizSortBlock.configure({ activity }),
       QuizInfoBlock.configure({ activity }),
     ],
     content: activity.content && Object.keys(activity.content).length > 0
@@ -179,21 +182,26 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   }, [])
 
   // ── Extract sidebar blocks ────────────────────────────────────────────
+  const extractAndSetBlocks = useCallback((editorInstance: NonNullable<typeof editor>) => {
+    const blocks: EditorBlockInfo[] = []
+    editorInstance.state.doc.forEach((node, pos) => {
+      if (['quizSelectBlock', 'quizTextBlock', 'quizSliderBlock', 'quizSortBlock', 'quizInfoBlock'].includes(node.type.name)) {
+        blocks.push({ type: node.type.name, attrs: node.attrs, pos, nodeSize: node.nodeSize })
+      }
+    })
+    setEditorBlocks(blocks)
+  }, [])
+
   useEffect(() => {
     if (!editor) return
     const extractBlocks = () => {
-      const blocks: EditorBlockInfo[] = []
-      editor.state.doc.forEach((node, pos) => {
-        if (['quizSelectBlock', 'quizTextBlock', 'quizSliderBlock', 'quizInfoBlock'].includes(node.type.name)) {
-          blocks.push({ type: node.type.name, attrs: node.attrs, pos, nodeSize: node.nodeSize })
-        }
-      })
-      setEditorBlocks(blocks)
+      if (suppressBlockExtraction.current) return
+      extractAndSetBlocks(editor)
     }
-    extractBlocks()
+    extractAndSetBlocks(editor)
     editor.on('update', extractBlocks)
     return () => { editor.off('update', extractBlocks) }
-  }, [editor])
+  }, [editor, extractAndSetBlocks])
 
   // ── Content save ──────────────────────────────────────────────────────
   const save = useCallback(async (showToast = true) => {
@@ -324,19 +332,60 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
 
   // ── Sidebar helpers ───────────────────────────────────────────────────
   const scrollToBlock = (idx: number) => {
-    const allBlocks = document.querySelectorAll('.quiz-select-block, .quiz-text-block, .quiz-slider-block, .quiz-info-block')
+    const allBlocks = document.querySelectorAll('.quiz-select-block, .quiz-text-block, .quiz-slider-block, .quiz-sort-block, .quiz-info-block')
     const el = allBlocks[idx] as HTMLElement | undefined
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  const reorderBlocks = (fromIdx: number, toIdx: number) => {
+  const reorderBlocks = useCallback((fromIdx: number, toIdx: number) => {
     if (!editor || fromIdx === toIdx) return
-    const allNodes: any[] = []
-    editor.state.doc.forEach(node => allNodes.push(node.toJSON()))
-    const [moved] = allNodes.splice(fromIdx, 1)
-    allNodes.splice(toIdx, 0, moved)
-    editor.commands.setContent({ type: 'doc', content: allNodes })
-  }
+
+    // Collect all top-level nodes with their positions
+    const nodes: { node: any; from: number; to: number }[] = []
+    editor.state.doc.forEach((node, offset) => {
+      nodes.push({ node, from: offset, to: offset + node.nodeSize })
+    })
+    if (fromIdx >= nodes.length || toIdx >= nodes.length) return
+
+    const src = nodes[fromIdx]
+    const srcJSON = src.node.toJSON()
+
+    // Suppress the update listener during the two-dispatch sequence so the
+    // sidebar never sees the intermediate state (one node deleted, not yet re-inserted).
+    suppressBlockExtraction.current = true
+
+    // Step 1: delete the source node — destroys its React node view so the
+    // component at the destination mounts fresh with the correct attrs.
+    const tr1 = editor.view.state.tr.delete(src.from, src.to)
+    editor.view.dispatch(tr1)
+
+    // Step 2: insert into the updated state at the correct destination
+    const newState = editor.view.state
+    const newNodes: { node: any; from: number; to: number }[] = []
+    newState.doc.forEach((node, offset) => {
+      newNodes.push({ node, from: offset, to: offset + node.nodeSize })
+    })
+
+    // After deletion the target index may have shifted
+    const adjustedToIdx = fromIdx < toIdx ? toIdx - 1 : toIdx
+    let insertPos: number
+    if (adjustedToIdx >= newNodes.length) {
+      insertPos = newState.doc.content.size
+    } else if (fromIdx > toIdx) {
+      // Moving up: insert before the target
+      insertPos = newNodes[adjustedToIdx].from
+    } else {
+      // Moving down: insert after the target
+      insertPos = newNodes[adjustedToIdx].to
+    }
+
+    const tr2 = newState.tr.insert(insertPos, newState.schema.nodeFromJSON(srcJSON))
+    editor.view.dispatch(tr2)
+
+    // Re-enable listener and sync sidebar from the final settled state
+    suppressBlockExtraction.current = false
+    extractAndSetBlocks(editor)
+  }, [editor, extractAndSetBlocks])
 
   const getSidebarBlockInfo = (block: EditorBlockInfo) => {
     switch (block.type) {
@@ -363,6 +412,16 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
           color: '#d97706',
           title: block.attrs.question_text || 'Rating question',
           preview: sliders.map((slider: any) => slider.label || '—').filter(Boolean).join(' / '),
+        }
+      }
+      case 'quizSortBlock': {
+        const cards = (block.attrs.cards || []) as any[]
+        const categories = (block.attrs.categories || []) as any[]
+        return {
+          iconType: 'layers3' as const,
+          color: '#0284c7',
+          title: block.attrs.question_text || 'Sort question',
+          preview: `${cards.length} cards · ${categories.map((category: any) => category.label || '—').join(' / ')}`,
         }
       }
       case 'quizInfoBlock':
@@ -441,6 +500,25 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
         left_axis_label: '',
         right_axis_label: '',
         sliders: Array.from({ length: 1 }, () => ({ slider_uuid: uuidv4(), label: '' })),
+        background_gradient_seed: uuidv4(),
+        background_image_file_id: null,
+        background_image_block_object: null,
+      },
+    }).run()
+  }
+
+  const insertSortBlock = () => {
+    if (!editor) return
+    editor.chain().insertContentAt(editor.state.doc.content.size, {
+      type: 'quizSortBlock',
+      attrs: {
+        question_uuid: uuidv4(),
+        question_text: '',
+        cards: Array.from({ length: 3 }, (_, idx) => ({ card_uuid: uuidv4(), title: `Card ${idx + 1}`, description: '' })),
+        categories: [
+          { category_uuid: uuidv4(), label: 'Thumbs down', color: '#dc2626', icon: 'thumbs_down', position: 'left' },
+          { category_uuid: uuidv4(), label: 'Thumbs up', color: '#16a34a', icon: 'thumbs_up', position: 'right' },
+        ],
         background_gradient_seed: uuidv4(),
         background_image_file_id: null,
         background_image_block_object: null,
@@ -739,6 +817,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                       <button type="button" onClick={() => insertSelectBlock(2)} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-medium outline-none transition-colors"><ListChecks size={13} /> Multiple choice</button>
                       <button type="button" onClick={insertTextBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-medium outline-none transition-colors"><Type size={13} /> Text question</button>
                       <button type="button" onClick={insertSliderBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-medium outline-none transition-colors"><SlidersHorizontal size={13} /> Rating</button>
+                      <button type="button" onClick={insertSortBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-medium outline-none transition-colors"><Layers3 size={13} /> Sort</button>
                       <button type="button" onClick={insertInfoBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium outline-none transition-colors"><InfoIcon size={13} /> Info slide</button>
                     </div>
                   </div>
@@ -764,7 +843,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                           const info = getSidebarBlockInfo(block)
                           const isDragOver = sidebarDragOver === idx
                           return (
-                            <div key={`${block.pos}-${idx}`} style={{ display: 'flex', alignItems: 'stretch' }}>
+                            <div key={block.attrs.question_uuid || block.attrs.slide_uuid || `${block.pos}-${idx}`} style={{ display: 'flex', alignItems: 'stretch' }}>
                               <div style={{ width: 24, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d1d5db', fontSize: 10, fontWeight: 700, fontVariantNumeric: 'tabular-nums', userSelect: 'none' }}>
                                 {idx + 1}
                               </div>
@@ -812,6 +891,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                                     {info.iconType === 'listchecks' && <ListChecks size={11} />}
                                     {info.iconType === 'alignleft' && <AlignLeft size={11} />}
                                     {info.iconType === 'sliders' && <SlidersHorizontal size={11} />}
+                                    {info.iconType === 'layers3' && <Layers3 size={11} />}
                                     {info.iconType === 'info' && <InfoIcon size={11} />}
                                   </span>
                                   <span style={{ fontSize: 11, fontWeight: 600, color: info.title ? '#374151' : '#d1d5db', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0, maxWidth: '100%' }}>
