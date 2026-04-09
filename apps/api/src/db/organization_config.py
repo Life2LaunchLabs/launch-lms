@@ -182,10 +182,19 @@ class SeoOrgConfig(BaseModel):
     noindex_communities: bool = False
 
 
+class BadgeIssuerConfig(BaseModel):
+    name: str = ""
+    url: str = ""
+    email: str = ""
+    description: str = ""
+    image_url: str = ""
+
+
 class CustomizationConfig(BaseModel):
     general: GeneralCustomization = GeneralCustomization()
     auth_branding: AuthBrandingConfig = AuthBrandingConfig()
     seo: SeoOrgConfig = SeoOrgConfig()
+    badge_issuer: BadgeIssuerConfig = BadgeIssuerConfig()
     landing: dict = Field(default_factory=dict)
 
 

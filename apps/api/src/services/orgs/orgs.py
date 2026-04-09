@@ -7,6 +7,7 @@ from sqlmodel import Session, select
 from src.db.organization_config import (
     OrganizationConfig,
     OrganizationConfigBase,
+    BadgeIssuerConfig,
 )
 from src.security.rbac.rbac import (
     authorization_verify_based_on_org_admin_status,
@@ -1055,6 +1056,46 @@ async def update_org_auth_branding_config(
     db_session.refresh(org_config)
 
     return {"detail": "Auth branding configuration updated"}
+
+
+async def update_org_badge_issuer_config(
+    request: Request,
+    badge_issuer: BadgeIssuerConfig,
+    org_id: int,
+    current_user: PublicUser | AnonymousUser,
+    db_session: Session,
+):
+    statement = select(Organization).where(Organization.id == org_id)
+    org = db_session.exec(statement).first()
+
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    await rbac_check(request, org.org_uuid, current_user, "update", db_session)
+
+    statement = select(OrganizationConfig).where(OrganizationConfig.org_id == org.id)
+    org_config = db_session.exec(statement).first()
+
+    if org_config is None:
+        raise HTTPException(status_code=404, detail="Organization config not found")
+
+    updated_config = _deep_copy_config(org_config)
+    issuer_data = json.loads(badge_issuer.model_dump_json())
+
+    if _is_v2_config(updated_config):
+        updated_config.setdefault("customization", {})
+        updated_config["customization"]["badge_issuer"] = issuer_data
+    else:
+        updated_config["badge_issuer"] = issuer_data
+
+    org_config.config = updated_config
+    org_config.update_date = str(datetime.now())
+
+    db_session.add(org_config)
+    db_session.commit()
+    db_session.refresh(org_config)
+
+    return {"detail": "Badge issuer configuration updated"}
 
 
 async def upload_org_auth_background_service(

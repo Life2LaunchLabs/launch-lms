@@ -34,12 +34,12 @@ const CertificateVerificationPage: React.FC<CertificateVerificationPageProps> = 
           setCertificateData(result.data);
           setVerificationStatus('valid');
         } else {
-          setError('Certificate not found');
+          setError('Badge not found');
           setVerificationStatus('invalid');
         }
       } catch (error) {
         console.error('Error fetching certificate:', error);
-        setError('Failed to verify certificate. Please try again later.');
+        setError('Failed to verify badge. Please try again later.');
         setVerificationStatus('invalid');
       } finally {
         setIsLoading(false);
@@ -65,11 +65,11 @@ const CertificateVerificationPage: React.FC<CertificateVerificationPageProps> = 
   const getVerificationStatusText = () => {
     switch (verificationStatus) {
       case 'valid':
-        return 'Certificate Verified';
+        return 'Badge Verified';
       case 'invalid':
-        return 'Certificate Not Found';
+        return 'Badge Not Found';
       case 'loading':
-        return 'Verifying Certificate...';
+        return 'Verifying Badge...';
       default:
         return 'Verification Status Unknown';
     }
@@ -96,8 +96,8 @@ const CertificateVerificationPage: React.FC<CertificateVerificationPageProps> = 
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           </div>
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Verifying Certificate</h1>
-            <p className="text-gray-600">Please wait while we verify the certificate...</p>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Verifying Badge</h1>
+            <p className="text-gray-600">Please wait while we verify the badge assertion...</p>
           </div>
         </div>
       </div>
@@ -114,11 +114,11 @@ const CertificateVerificationPage: React.FC<CertificateVerificationPageProps> = 
             </div>
             
             <h1 className="text-3xl font-bold text-gray-900 text-center">
-              Certificate Not Found
+              Badge Not Found
             </h1>
             
             <p className="text-gray-600 text-center">
-              The certificate with ID <span className="font-mono bg-gray-100 px-2 py-1 rounded">{certificateUuid}</span> could not be found in our system.
+              The badge with ID <span className="font-mono bg-gray-100 px-2 py-1 rounded">{certificateUuid}</span> could not be found in our system.
             </p>
             
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 w-full">
@@ -126,10 +126,10 @@ const CertificateVerificationPage: React.FC<CertificateVerificationPageProps> = 
                 This could mean:
               </p>
               <ul className="text-red-700 text-sm mt-2 list-disc list-inside space-y-1">
-                <li>The certificate ID is incorrect</li>
-                <li>The certificate has been revoked</li>
-                <li>The certificate has expired</li>
-                <li>The certificate was issued by a different organization</li>
+                <li>The badge ID is incorrect</li>
+                <li>The badge assertion has been revoked</li>
+                <li>The badge assertion has expired</li>
+                <li>The badge was issued by a different organization</li>
               </ul>
             </div>
             
@@ -152,7 +152,7 @@ const CertificateVerificationPage: React.FC<CertificateVerificationPageProps> = 
     return null;
   }
 
-  const qrCodeLink = getUriWithOrg(org?.org_slug || '', `/certificates/${certificateData.certificate_user.user_certification_uuid}/verify`);
+  const qrCodeLink = getUriWithOrg(org?.org_slug || '', `/badges/${certificateData.certificate_user.user_certification_uuid}/verify`);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -165,8 +165,8 @@ const CertificateVerificationPage: React.FC<CertificateVerificationPageProps> = 
                 <Shield className="w-8 h-8 text-green-600" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Certificate Verification</h1>
-                <p className="text-gray-600">Verify the authenticity of this certificate</p>
+                <h1 className="text-2xl font-bold text-gray-900">Badge Verification</h1>
+                <p className="text-gray-600">Verify the authenticity of this Open Badges assertion</p>
               </div>
             </div>
             
@@ -183,14 +183,14 @@ const CertificateVerificationPage: React.FC<CertificateVerificationPageProps> = 
           <div className="lg:col-span-2 space-y-6">
             {/* Certificate Preview */}
             <div className="bg-white rounded-2xl p-6 nice-shadow">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Certificate Preview</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Badge Preview</h2>
               <div className="max-w-2xl mx-auto" id="certificate-preview">
                 <CertificatePreview
-                  certificationName={certificateData.certification.config.certification_name}
-                  certificationDescription={certificateData.certification.config.certification_description}
+                  certificationName={certificateData.badge_class?.name || certificateData.certification.config.badge_name || certificateData.certification.config.certification_name}
+                  certificationDescription={certificateData.badge_class?.description || certificateData.certification.config.badge_description || certificateData.certification.config.certification_description}
                   certificationType={certificateData.certification.config.certification_type}
-                  certificatePattern={certificateData.certification.config.certificate_pattern}
-                  certificateInstructor={certificateData.certification.config.certificate_instructor}
+                  certificatePattern={certificateData.certification.config.badge_theme || certificateData.certification.config.certificate_pattern}
+                  certificateInstructor={certificateData.issuer?.name}
                   certificateId={certificateData.certificate_user.user_certification_uuid}
                   awardedDate={new Date(certificateData.certificate_user.created_at).toLocaleDateString('en-US', {
                     year: 'numeric',
@@ -281,11 +281,11 @@ const CertificateVerificationPage: React.FC<CertificateVerificationPageProps> = 
           {/* Certificate Details */}
           <div className="space-y-6">
             <div className="bg-white rounded-2xl p-6 nice-shadow">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Certificate Information</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Badge Information</h2>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Certificate ID</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Badge assertion ID</label>
                   <div className="bg-gray-50 p-3 rounded-lg">
                     <code className="text-sm text-gray-900 break-all">
                       {certificateData.certificate_user.user_certification_uuid}
@@ -301,10 +301,10 @@ const CertificateVerificationPage: React.FC<CertificateVerificationPageProps> = 
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Certification Type</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Badge Type</label>
                   <div className="bg-gray-50 p-3 rounded-lg">
                     <span className="text-gray-900 capitalize">
-                      {certificateData.certification.config.certification_type.replace('_', ' ')}
+                      {(certificateData.certification.config.certification_type || 'completion').replace('_', ' ')}
                     </span>
                   </div>
                 </div>
@@ -324,11 +324,11 @@ const CertificateVerificationPage: React.FC<CertificateVerificationPageProps> = 
                   </div>
                 </div>
 
-                {certificateData.certification.config.certificate_instructor && (
+                {certificateData.issuer?.name && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Instructor</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Issuer</label>
                     <div className="bg-gray-50 p-3 rounded-lg">
-                      <span className="text-gray-900">{certificateData.certification.config.certificate_instructor}</span>
+                      <span className="text-gray-900">{certificateData.issuer.name}</span>
                     </div>
                   </div>
                 )}
@@ -341,9 +341,9 @@ const CertificateVerificationPage: React.FC<CertificateVerificationPageProps> = 
                 <h3 className="text-lg font-semibold text-blue-800">Security Information</h3>
               </div>
               <ul className="text-blue-700 text-sm space-y-2">
-                <li>• Certificate verified against our secure database</li>
-                <li>• QR code contains verification link</li>
-                <li>• Certificate ID is cryptographically secure</li>
+                <li>• Badge assertion verified against the hosted Open Badges document</li>
+                <li>• QR code contains the public verification link</li>
+                <li>• Recipient identity uses a hashed email assertion</li>
                 <li>• Timestamp verified and authenticated</li>
               </ul>
             </div>

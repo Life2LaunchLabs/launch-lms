@@ -12,6 +12,7 @@ interface CertificatePreviewProps {
   certificateId?: string;
   awardedDate?: string;
   qrCodeLink?: string;
+  recipientName?: string;
 }
 
 const CertificatePreview: React.FC<CertificatePreviewProps> = ({
@@ -22,7 +23,8 @@ const CertificatePreview: React.FC<CertificatePreviewProps> = ({
   certificateInstructor,
   certificateId,
   awardedDate,
-  qrCodeLink
+  qrCodeLink,
+  recipientName,
 }) => {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const org = useOrg() as any;
@@ -432,10 +434,10 @@ const CertificatePreview: React.FC<CertificatePreviewProps> = ({
   return (
     <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 w-full h-full">
       <div className="bg-white rounded-lg shadow-sm p-6 relative overflow-hidden w-full h-full flex flex-col">
-        {/* Dynamic Certificate Pattern */}
+        {/* Dynamic badge pattern */}
         {renderCertificatePattern(certificatePattern)}
 
-        {/* Certificate ID - Top Left */}
+        {/* Badge ID - Top Left */}
         <div className="absolute top-4 left-4 sm:top-6 sm:left-6 z-20">
           <div className="flex items-center space-x-1">
             <Hash className={`w-3 h-3 sm:w-4 sm:h-4 ${theme.icon}`} />
@@ -449,7 +451,7 @@ const CertificatePreview: React.FC<CertificatePreviewProps> = ({
             {qrCodeUrl ? (
               <img
                 src={qrCodeUrl}
-                alt="Certificate QR Code"
+                alt="Badge QR Code"
                 className="w-full h-full object-contain"
               />
             ) : (
@@ -465,7 +467,7 @@ const CertificatePreview: React.FC<CertificatePreviewProps> = ({
           {/* Header with decorative line */}
           <div className="flex items-center justify-center space-x-2 mb-2">
             <div className={`w-6 sm:w-8 h-px bg-gradient-to-r from-transparent ${theme.secondary.replace('text-', 'to-')}`}></div>
-            <div className={`text-xs sm:text-sm ${theme.secondary} font-medium uppercase tracking-wider`}>Certificate</div>
+            <div className={`text-xs sm:text-sm ${theme.secondary} font-medium uppercase tracking-wider`}>Open Badge</div>
             <div className={`w-6 sm:w-8 h-px bg-gradient-to-l from-transparent ${theme.secondary.replace('text-', 'to-')}`}></div>
           </div>
 
@@ -483,7 +485,7 @@ const CertificatePreview: React.FC<CertificatePreviewProps> = ({
             </div>
           </div>
 
-          {/* Certificate Content */}
+          {/* Badge content */}
           <div className="flex flex-col justify-center items-center flex-1 max-w-full">
             <h4 className={`font-bold text-sm sm:text-base ${theme.primary} mb-2 text-center`}>
               {certificationName || 'Certification Name'}
@@ -493,13 +495,21 @@ const CertificatePreview: React.FC<CertificatePreviewProps> = ({
             </p>
           </div>
 
+          {/* Recipient Name */}
+          {recipientName && (
+            <div className="flex flex-col items-center space-y-0.5">
+              <span className={`text-xs ${theme.secondary} uppercase tracking-wider`}>Awarded to</span>
+              <span className={`text-sm sm:text-base font-bold ${theme.primary}`}>{recipientName}</span>
+            </div>
+          )}
+
           {/* Decorative divider */}
           <div className="flex items-center justify-center space-x-1 py-1">
             <div className={`w-2 h-px ${theme.secondary.replace('text-', 'bg-')} opacity-50`}></div>
             <div className={`w-1 h-1 ${theme.primary.replace('text-', 'bg-')} rounded-full opacity-60`}></div>
             <div className={`w-2 h-px ${theme.secondary.replace('text-', 'bg-')} opacity-50`}></div>
           </div>
-          
+
           {/* Certification Type Badge */}
           <div className={`inline-flex items-center space-x-1 text-xs sm:text-sm ${theme.badge} px-3 py-1 rounded-full border`}>
             <CheckCircle size={12} />
@@ -520,14 +530,14 @@ const CertificatePreview: React.FC<CertificatePreviewProps> = ({
         {/* Bottom Section */}
         <div className="relative z-10 mt-auto p-6 pt-8">
           <div className="flex items-end justify-between w-full">
-            {/* Left: Teacher/Organization Signature */}
+            {/* Left: Issuer metadata */}
             <div className="flex flex-col items-start space-y-1 flex-1">
               <div className="flex items-center space-x-1">
                 <User className={`w-2.5 h-2.5 sm:w-3 sm:h-3 ${theme.icon}`} />
-                <span className={`text-xs ${theme.secondary} font-medium`}>Instructor</span>
+                <span className={`text-xs ${theme.secondary} font-medium`}>Issuer</span>
               </div>
               <div className={`text-xs ${theme.primary} font-semibold`}>
-                {certificateInstructor || 'Dr. Jane Smith'}
+                {certificateInstructor || org?.name || 'Launch LMS'}
               </div>
               <div className={`h-px w-10 sm:w-12 ${theme.secondary.replace('text-', 'bg-')} opacity-50`}></div>
             </div>

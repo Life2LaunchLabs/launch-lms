@@ -18,6 +18,9 @@ from src.services.courses.certifications import (
     get_user_certificates_for_course,
     get_certificate_by_user_certification_uuid,
     get_all_user_certificates,
+    get_open_badges_issuer_by_org_uuid,
+    get_open_badges_badge_class_by_course_uuid,
+    get_open_badges_assertion_by_uuid,
 )
 
 router = APIRouter()
@@ -127,6 +130,42 @@ async def api_get_certificate_by_user_certification_uuid(
     return await get_certificate_by_user_certification_uuid(
         request, user_certification_uuid, current_user, db_session
     )
+
+
+@router.get("/issuer/org/{org_uuid}")
+async def api_get_open_badges_issuer_by_org_uuid(
+    request: Request,
+    org_uuid: str,
+    db_session: Session = Depends(get_db_session),
+) -> dict:
+    """
+    Public Open Badges 2.0 issuer document for an organization
+    """
+    return await get_open_badges_issuer_by_org_uuid(request, org_uuid, db_session)
+
+
+@router.get("/badge-class/course/{course_uuid}")
+async def api_get_open_badges_badge_class_by_course_uuid(
+    request: Request,
+    course_uuid: str,
+    db_session: Session = Depends(get_db_session),
+) -> dict:
+    """
+    Public Open Badges 2.0 badge class document for a course
+    """
+    return await get_open_badges_badge_class_by_course_uuid(request, course_uuid, db_session)
+
+
+@router.get("/assertion/{user_certification_uuid}")
+async def api_get_open_badges_assertion_by_uuid(
+    request: Request,
+    user_certification_uuid: str,
+    db_session: Session = Depends(get_db_session),
+) -> dict:
+    """
+    Public Open Badges 2.0 badge assertion document
+    """
+    return await get_open_badges_assertion_by_uuid(request, user_certification_uuid, db_session)
 
 
 @router.get("/user/all")

@@ -26,7 +26,7 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
   useEffect(() => {
     const fetchCertificate = async () => {
       if (!session?.data?.tokens?.access_token) {
-        setError('Authentication required to view certificate');
+        setError('Authentication required to view badge');
         setIsLoading(false);
         return;
       }
@@ -46,11 +46,11 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
         if (result.success && result.data && result.data.length > 0) {
           setUserCertificate(result.data[0]);
         } else {
-          setError('No certificate found for this course');
+          setError('No badge found for this course');
         }
       } catch (error) {
         console.error('Error fetching certificate:', error);
-        setError('Failed to load certificate. Please try again later.');
+        setError('Failed to load badge. Please try again later.');
       } finally {
         setIsLoading(false);
       }
@@ -60,6 +60,11 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
   }, [courseid, session?.data?.tokens?.access_token, org?.id]);
 
 
+
+  const getRecipientName = () => {
+    const { first_name, last_name, username } = userCertificate?.user || {};
+    return [first_name, last_name].filter(Boolean).join(' ') || username || '';
+  };
 
   // Generate PDF using canvas
   const downloadCertificate = async () => {
@@ -117,7 +122,7 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
         }
       };
 
-      const theme = getPatternTheme(userCertificate.certification.config.certificate_pattern);
+      const theme = getPatternTheme(userCertificate.certification.config.badge_theme || userCertificate.certification.config.certificate_pattern);
       const certificateId = userCertificate.certificate_user.user_certification_uuid;
       const qrCodeData = qrCodeLink ;
 
@@ -173,7 +178,7 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
           letter-spacing: 1px;
         ">
           <div style="width: 24px; height: 1px; background: linear-gradient(90deg, transparent, ${theme.secondary}, transparent);"></div>
-          Certificate
+          Open Badge
           <div style="width: 24px; height: 1px; background: linear-gradient(90deg, transparent, ${theme.secondary}, transparent);"></div>
         </div>
         
@@ -202,11 +207,22 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
         <div style="
           font-size: 18px;
           color: #6b7280;
-          margin-bottom: 30px;
+          margin-bottom: 20px;
           line-height: 1.5;
           max-width: 500px;
         ">${userCertificate.certification.config.certification_description || 'This is to certify that the course has been successfully completed.'}</div>
-        
+
+        ${getRecipientName() ? `
+        <div style="
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          margin-bottom: 20px;
+        ">
+          <div style="font-size: 13px; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Awarded to</div>
+          <div style="font-size: 26px; font-weight: bold; color: ${theme.primary};">${getRecipientName()}</div>
+        </div>` : ''}
+
         <div style="
           display: flex;
           align-items: center;
@@ -263,9 +279,9 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
               day: 'numeric'
             })}
           </div>
-          ${userCertificate.certification.config.certificate_instructor ? 
+          ${userCertificate.issuer?.name ? 
             `<div style="margin: 8px 0; font-size: 14px; color: #374151;">
-              <strong style="color: ${theme.primary};">Instructor:</strong> ${userCertificate.certification.config.certificate_instructor}
+              <strong style="color: ${theme.primary};">Issuer:</strong> ${userCertificate.issuer.name}
             </div>` : ''
           }
         </div>
@@ -275,7 +291,7 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
           font-size: 12px;
           color: #6b7280;
         ">
-          This certificate can be verified at ${qrCodeData.replace('https://', '').replace('http://', '')}
+          This badge can be verified at ${qrCodeData.replace('https://', '').replace('http://', '')}
         </div>
       `;
 
@@ -312,7 +328,7 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
       pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
       
       // Save the PDF
-      const fileName = `${userCertificate.certification.config.certification_name.replace(/[^a-zA-Z0-9]/g, '_')}_Certificate.pdf`;
+      const fileName = `${userCertificate.certification.config.certification_name.replace(/[^a-zA-Z0-9]/g, '_')}_Badge.pdf`;
       pdf.save(fileName);
 
     } catch (error) {
@@ -326,7 +342,7 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading certificate...</p>
+          <p className="text-gray-600">Loading badge...</p>
         </div>
       </div>
     );
@@ -337,7 +353,7 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-6">
           <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-red-800 mb-2">Certificate Not Available</h2>
+            <h2 className="text-xl font-semibold text-red-800 mb-2">Badge Not Available</h2>
             <p className="text-red-600 mb-4">{error}</p>
             <Link
               href={getUriWithOrg(orgslug, '') + `/course/${courseid}`}
@@ -357,9 +373,9 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-6">
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-yellow-800 mb-2">No Certificate Found</h2>
+            <h2 className="text-xl font-semibold text-yellow-800 mb-2">No Badge Found</h2>
             <p className="text-yellow-600 mb-4">
-              No certificate is available for this course. Please contact your instructor for more information.
+              No badge is available for this course. Please contact your instructor for more information.
             </p>
             <Link
               href={getUriWithOrg(orgslug, '') + `/course/${courseid}`}
@@ -393,20 +409,20 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
               className="inline-flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-full hover:bg-green-700 transition duration-200"
             >
               <Download className="w-5 h-5" />
-              <span>Download PDF</span>
+              <span>Download Badge PDF</span>
             </button>
           </div>
         </div>
 
-        {/* Certificate Display */}
+        {/* Badge Display */}
         <div className="bg-white rounded-2xl shadow-lg p-8">
           <div className="max-w-2xl mx-auto">
             <CertificatePreview
-              certificationName={userCertificate.certification.config.certification_name}
-              certificationDescription={userCertificate.certification.config.certification_description}
+              certificationName={userCertificate.badge_class?.name || userCertificate.certification.config.badge_name || userCertificate.certification.config.certification_name}
+              certificationDescription={userCertificate.badge_class?.description || userCertificate.certification.config.badge_description || userCertificate.certification.config.certification_description}
               certificationType={userCertificate.certification.config.certification_type}
-              certificatePattern={userCertificate.certification.config.certificate_pattern}
-              certificateInstructor={userCertificate.certification.config.certificate_instructor}
+              certificatePattern={userCertificate.certification.config.badge_theme || userCertificate.certification.config.certificate_pattern}
+              certificateInstructor={userCertificate.issuer?.name}
               certificateId={userCertificate.certificate_user.user_certification_uuid}
               awardedDate={new Date(userCertificate.certificate_user.created_at).toLocaleDateString('en-US', {
                 year: 'numeric',
@@ -414,6 +430,7 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
                 day: 'numeric'
               })}
               qrCodeLink={qrCodeLink}
+              recipientName={[userCertificate.user?.first_name, userCertificate.user?.last_name].filter(Boolean).join(' ') || userCertificate.user?.username}
             />
           </div>
         </div>
@@ -421,10 +438,10 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
         {/* Instructions */}
         <div className="mt-8 text-center text-gray-600">
           <p className="mb-2">
-            Click "Download PDF" to generate and download a high-quality certificate PDF.
+            Click "Download Badge PDF" to generate and download a high-quality badge PDF.
           </p>
           <p className="text-sm">
-            The PDF includes a scannable QR code for certificate verification.
+            The PDF includes a scannable QR code for public badge verification.
           </p>
         </div>
       </div>

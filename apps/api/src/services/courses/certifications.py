@@ -13,11 +13,118 @@ from src.db.courses.certifications import (
 )
 from src.db.courses.courses import Course
 from src.db.courses.chapter_activities import ChapterActivity
+from src.db.organizations import Organization
+from src.db.organization_config import OrganizationConfig
 from src.db.trail_steps import TrailStep
-from src.db.users import PublicUser, AnonymousUser
+from src.db.users import PublicUser, AnonymousUser, User
 from src.security.rbac import check_resource_access, AccessAction
 from src.services.analytics.analytics import track
 from src.services.analytics import events as analytics_events
+from src.services.courses.openbadges import (
+    DEFAULT_BADGE_CRITERIA_TEXT,
+    build_assertion_payload,
+    build_badge_class_payload,
+    build_issuer_payload,
+    get_org_badge_issuer_config,
+)
+
+
+def _normalize_badge_config(config: dict | None, course: Course | None = None) -> dict:
+    normalized = dict(config or {})
+    badge_name = normalized.get("badge_name") or normalized.get("certification_name") or (course.name if course else "")
+    badge_description = normalized.get("badge_description") or normalized.get("certification_description") or (course.description if course else "")
+
+    normalized["badge_name"] = badge_name
+    normalized["badge_description"] = badge_description
+    normalized["certification_name"] = badge_name
+    normalized["certification_description"] = badge_description
+    normalized["badge_criteria_text"] = normalized.get("badge_criteria_text") or DEFAULT_BADGE_CRITERIA_TEXT
+    normalized["badge_theme"] = normalized.get("badge_theme") or normalized.get("certificate_pattern") or "professional"
+    normalized["certificate_pattern"] = normalized["badge_theme"]
+    return normalized
+
+
+def _validate_badge_config(config: dict) -> None:
+    if not config.get("badge_name"):
+        raise HTTPException(status_code=422, detail="Badge name is required")
+    if not config.get("badge_description"):
+        raise HTTPException(status_code=422, detail="Badge description is required")
+    if not (config.get("badge_criteria_text") or config.get("badge_criteria_url")):
+        raise HTTPException(status_code=422, detail="Badge criteria text or URL is required")
+
+
+def _get_org_and_config_for_course(course: Course, db_session: Session) -> tuple[Organization, OrganizationConfig | None]:
+    org = db_session.exec(select(Organization).where(Organization.id == course.org_id)).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    org_config = db_session.exec(
+        select(OrganizationConfig).where(OrganizationConfig.org_id == org.id)
+    ).first()
+    return org, org_config
+
+
+def _validate_badge_issuer_for_org(org: Organization, org_config: OrganizationConfig | None) -> None:
+    issuer_config = get_org_badge_issuer_config(org, org_config)
+    if not (issuer_config.get("name") or org.name):
+        raise HTTPException(status_code=422, detail="Badge issuer name is required")
+    if not (issuer_config.get("email") or org.email):
+        raise HTTPException(status_code=422, detail="Badge issuer email is required")
+
+
+def _build_badge_response(
+    request: Request,
+    db_session: Session,
+    cert_user: CertificateUser,
+    certification: Certifications,
+    course: Course,
+    user: User | None = None,
+) -> dict:
+    org, org_config = _get_org_and_config_for_course(course, db_session)
+    if user is None:
+        user = db_session.exec(select(User).where(User.id == cert_user.user_id)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    badge_class = build_badge_class_payload(request, org, course, certification, org_config)
+    issuer = build_issuer_payload(request, org, org_config)
+    assertion = build_assertion_payload(request, org, course, certification, cert_user, user, org_config)
+
+    return {
+        "certificate_user": CertificateUserRead(**cert_user.model_dump()),
+        "certification": CertificationRead(**certification.model_dump()),
+        "badge_assertion": assertion,
+        "badge_class": badge_class,
+        "issuer": issuer,
+        "open_badges": {
+            "assertion": assertion,
+            "badge_class": badge_class,
+            "issuer": issuer,
+        },
+        "course": {
+            "id": course.id,
+            "course_uuid": course.course_uuid,
+            "name": course.name,
+            "description": course.description,
+            "thumbnail_image": course.thumbnail_image,
+            "org_id": course.org_id,
+        },
+        "user": {
+            "id": user.id,
+            "user_uuid": user.user_uuid,
+            "username": user.username,
+            "email": user.email,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+        },
+        "org": {
+            "id": org.id,
+            "org_uuid": org.org_uuid,
+            "slug": org.slug,
+            "name": org.name,
+            "logo_image": org.logo_image,
+        },
+    }
 
 
 ####################################################
@@ -46,10 +153,15 @@ async def create_certification(
     # RBAC check
     await check_resource_access(request, db_session, current_user, course.course_uuid, AccessAction.CREATE)
 
+    normalized_config = _normalize_badge_config(certification_object.config, course)
+    _validate_badge_config(normalized_config)
+    org, org_config = _get_org_and_config_for_course(course, db_session)
+    _validate_badge_issuer_for_org(org, org_config)
+
     # Create certification
     certification = Certifications(
         course_id=certification_object.course_id,
-        config=certification_object.config or {},
+        config=normalized_config,
         certification_uuid=str(f"certification_{uuid4()}"),
         creation_date=str(datetime.now()),
         update_date=str(datetime.now()),
@@ -158,7 +270,14 @@ async def update_certification(
     # Update only the fields that were passed in
     for var, value in vars(certification_object).items():
         if value is not None:
-            setattr(certification, var, value)
+            if var == "config":
+                normalized_config = _normalize_badge_config(value, course)
+                _validate_badge_config(normalized_config)
+                org, org_config = _get_org_and_config_for_course(course, db_session)
+                _validate_badge_issuer_for_org(org, org_config)
+                setattr(certification, var, normalized_config)
+            else:
+                setattr(certification, var, value)
 
     # Update the update_date
     certification.update_date = str(datetime.now())
@@ -237,18 +356,20 @@ async def create_certificate_user(
             detail="Certification not found",
         )
 
+    # Validate badge class and issuer metadata before issuing.
+    statement = select(Course).where(Course.id == certification.course_id)
+    course = db_session.exec(statement).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    certification.config = _normalize_badge_config(certification.config, course)
+    _validate_badge_config(certification.config)
+    org, org_config = _get_org_and_config_for_course(course, db_session)
+    _validate_badge_issuer_for_org(org, org_config)
+
     # SECURITY: If current_user is provided, perform RBAC check
     if current_user:
         # Get course for RBAC check
-        statement = select(Course).where(Course.id == certification.course_id)
-        course = db_session.exec(statement).first()
-
-        if not course:
-            raise HTTPException(
-                status_code=404,
-                detail="Course not found",
-            )
-
         # Require course ownership or instructor role for creating certificates
         await check_resource_access(request, db_session, current_user, course.course_uuid, AccessAction.CREATE)
 
@@ -271,7 +392,6 @@ async def create_certificate_user(
     current_day = datetime.now().day
     
     # Get user to extract user_uuid
-    from src.db.users import User
     statement = select(User).where(User.id == user_id)
     user = db_session.exec(statement).first()
     
@@ -381,13 +501,15 @@ async def get_user_certificates_for_course(
     # Build a map of certification_id -> Certifications (already fetched above)
     cert_map = {cert.id: cert for cert in certifications if cert.id}
 
+    user = db_session.exec(select(User).where(User.id == current_user.id)).first()
     result = []
     for cert_user in cert_users:
         certification = cert_map.get(cert_user.certification_id)
-        result.append({
-            "certificate_user": CertificateUserRead(**cert_user.model_dump()),
-            "certification": CertificationRead(**certification.model_dump()) if certification else None
-        })
+        if not certification or not user:
+            continue
+        result.append(
+            _build_badge_response(request, db_session, cert_user, certification, course, user=user)
+        )
 
     return result
 
@@ -484,19 +606,72 @@ async def get_certificate_by_user_certification_uuid(
             detail="Course not found",
         )
 
-    # No RBAC check - allow anyone to access certificates by UUID
+    # No RBAC check - allow anyone to access badge assertions by UUID
+    user = db_session.exec(select(User).where(User.id == certificate_user.user_id)).first()
+    return _build_badge_response(request, db_session, certificate_user, certification, course, user=user)
 
-    return {
-        "certificate_user": CertificateUserRead(**certificate_user.model_dump()),
-        "certification": CertificationRead(**certification.model_dump()),
-        "course": {
-            "id": course.id,
-            "course_uuid": course.course_uuid,
-            "name": course.name,
-            "description": course.description,
-            "thumbnail_image": course.thumbnail_image,
-        }
-    }
+
+async def get_open_badges_issuer_by_org_uuid(
+    request: Request,
+    org_uuid: str,
+    db_session: Session,
+) -> dict:
+    org = db_session.exec(select(Organization).where(Organization.org_uuid == org_uuid)).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    org_config = db_session.exec(
+        select(OrganizationConfig).where(OrganizationConfig.org_id == org.id)
+    ).first()
+    return build_issuer_payload(request, org, org_config)
+
+
+async def get_open_badges_badge_class_by_course_uuid(
+    request: Request,
+    course_uuid: str,
+    db_session: Session,
+) -> dict:
+    course = db_session.exec(select(Course).where(Course.course_uuid == course_uuid)).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    certification = db_session.exec(
+        select(Certifications).where(Certifications.course_id == course.id)
+    ).first()
+    if not certification:
+        raise HTTPException(status_code=404, detail="Badge class not found")
+
+    org, org_config = _get_org_and_config_for_course(course, db_session)
+    return build_badge_class_payload(request, org, course, certification, org_config)
+
+
+async def get_open_badges_assertion_by_uuid(
+    request: Request,
+    user_certification_uuid: str,
+    db_session: Session,
+) -> dict:
+    certificate_user = db_session.exec(
+        select(CertificateUser).where(CertificateUser.user_certification_uuid == user_certification_uuid)
+    ).first()
+    if not certificate_user:
+        raise HTTPException(status_code=404, detail="Badge assertion not found")
+
+    certification = db_session.exec(
+        select(Certifications).where(Certifications.id == certificate_user.certification_id)
+    ).first()
+    if not certification:
+        raise HTTPException(status_code=404, detail="Badge class not found")
+
+    course = db_session.exec(select(Course).where(Course.id == certification.course_id)).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    user = db_session.exec(select(User).where(User.id == certificate_user.user_id)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    org, org_config = _get_org_and_config_for_course(course, db_session)
+    return build_assertion_payload(request, org, course, certification, certificate_user, user, org_config)
 
 
 async def get_all_user_certificates(
@@ -547,24 +722,11 @@ async def get_all_user_certificates(
 
         user = user_map.get(cert_user.user_id)
 
-        result.append({
-            "certificate_user": CertificateUserRead(**cert_user.model_dump()),
-            "certification": CertificationRead(**certification.model_dump()),
-            "course": {
-                "id": course.id,
-                "course_uuid": course.course_uuid,
-                "name": course.name,
-                "description": course.description,
-                "thumbnail_image": course.thumbnail_image,
-            },
-            "user": {
-                "id": user.id if user else None,
-                "user_uuid": user.user_uuid if user else None,
-                "username": user.username if user else None,
-                "email": user.email if user else None,
-                "first_name": user.first_name if user else None,
-                "last_name": user.last_name if user else None,
-            } if user else None
-        })
+        if not user:
+            continue
+
+        result.append(
+            _build_badge_response(request, db_session, cert_user, certification, course, user=user)
+        )
 
     return result

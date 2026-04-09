@@ -129,7 +129,7 @@ function TrailCourseElement(props: TrailCourseElementProps) {
           </div>
         </div>
         
-        {/* Certificate Section */}
+        {/* Badge Section */}
         {course_progress === 100 && (
           <div className="mt-2 pt-2 border-t border-gray-100">
             {isLoadingCertificate ? (
@@ -142,23 +142,23 @@ function TrailCourseElement(props: TrailCourseElementProps) {
                 <div className="flex items-center space-x-1">
                   <Award className="w-3 h-3 text-yellow-500" />
                   <span className="text-xs font-medium text-gray-700">
-                    {t('certificate.certificate')}
+                    Badge earned
                   </span>
                 </div>
                 <Link
-                  href={getUriWithOrg(props.orgslug, `/certificates/${courseCertificate.certificate_user.user_certification_uuid}/verify`)}
+                  href={getUriWithOrg(props.orgslug, `/badges/${courseCertificate.certificate_user.user_certification_uuid}/verify`)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center space-x-1 text-blue-600 hover:text-blue-700 text-xs font-medium"
                 >
-                  <span>{t('certificate.verify')}</span>
+                  <span>Verify badge</span>
                   <ExternalLink className="w-3 h-3" />
                 </Link>
               </div>
             ) : (
               <div className="flex items-center space-x-1 text-xs text-gray-500">
                 <Award className="w-3 h-3 text-gray-300" />
-                <span>{t('certificate.no_certificate')}</span>
+                <span>No badge issued yet</span>
               </div>
             )}
           </div>
