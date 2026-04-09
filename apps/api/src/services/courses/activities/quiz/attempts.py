@@ -203,6 +203,11 @@ async def submit_quiz_attempt(
                 values = answer_json.get("values", {}) or {}
                 if isinstance(values, dict):
                     graded_question_count += len(values)
+                continue
+            if answer_json.get("type") == "sort":
+                assignments = answer_json.get("assignments", {}) or {}
+                if isinstance(assignments, dict):
+                    graded_question_count += len(assignments)
         result_json["graded_result"] = {
             "score_percent": score_percent,
             "pass_percent": pass_percent,
