@@ -1,6 +1,6 @@
 'use client'
 import React from 'react'
-import { Trophy, CheckCircle2, XCircle, BarChart3 } from 'lucide-react'
+import { Trophy, CheckCircle2, XCircle, BarChart3, RotateCcw } from 'lucide-react'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
 import QuizResultContentRenderer from '../Results/QuizResultContentRenderer'
 
