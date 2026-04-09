@@ -67,6 +67,21 @@ function getActiveScoringVectors(details: any): ScoringVector[] {
   return details?.category_scoring_vectors || details?.scoring_vectors || []
 }
 
+function getScoringPayload(
+  quizMode: 'categories' | 'graded',
+  vectors: ScoringVector[],
+  optionScores: Record<string, Record<string, number>>,
+  categoryVectors: ScoringVector[],
+  gradedVectors: ScoringVector[]
+) {
+  return {
+    scoring_vectors: vectors,
+    category_scoring_vectors: quizMode === 'categories' ? vectors : categoryVectors,
+    graded_scoring_vectors: quizMode === 'graded' ? vectors : gradedVectors,
+    option_scores: optionScores,
+  }
+}
+
 function makeDefaultOption(): QuizOption {
   const uuid = uuidv4()
   return {
@@ -372,15 +387,22 @@ function QuizSelectBlockComponent(props: any) {
   const [showResponses, setShowResponses] = useState<boolean>(attrs.show_responses || false)
   const [activeTab, setActiveTab] = useState<Tab>('question')
   const [uploadingMap, setUploadingMap] = useState<Record<string, boolean>>({})
+  const [quizMode, setQuizMode] = useState<'categories' | 'graded'>(activity?.details?.quiz_mode === 'graded' ? 'graded' : 'categories')
 
   const [optionScores, setOptionScores] = useState<Record<string, Record<string, number>>>(activity?.details?.option_scores || {})
   const [vectors, setVectors] = useState<ScoringVector[]>(getActiveScoringVectors(activity?.details))
+  const [categoryVectors, setCategoryVectors] = useState<ScoringVector[]>(activity?.details?.category_scoring_vectors || activity?.details?.scoring_vectors || [])
+  const [gradedVectors, setGradedVectors] = useState<ScoringVector[]>(activity?.details?.graded_scoring_vectors || activity?.details?.scoring_vectors || [getDefaultCorrectVector()])
   const scoringSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail
       if (detail?.vectors) setVectors(detail.vectors)
+      if (detail?.quizMode === 'graded' || detail?.quizMode === 'categories') setQuizMode(detail.quizMode)
+      if (detail?.categoryVectors) setCategoryVectors(detail.categoryVectors)
+      if (detail?.gradedVectors) setGradedVectors(detail.gradedVectors)
+      if (detail?.optionScores) setOptionScores(detail.optionScores)
     }
     window.addEventListener('lh:quiz-scoring-updated', handler)
     return () => window.removeEventListener('lh:quiz-scoring-updated', handler)
@@ -426,10 +448,15 @@ function QuizSelectBlockComponent(props: any) {
     if (scoringSaveTimer.current) clearTimeout(scoringSaveTimer.current)
     scoringSaveTimer.current = setTimeout(async () => {
       try {
-        await updateQuizScoring(activity?.activity_uuid, { scoring_vectors: vectors, option_scores: newScores }, access_token)
+        await updateQuizScoring(
+          activity?.activity_uuid,
+          getScoringPayload(quizMode, vectors, newScores, categoryVectors, gradedVectors),
+          access_token
+        )
+        window.dispatchEvent(new CustomEvent('lh:quiz-scoring-updated', { detail: { optionScores: newScores } }))
       } catch {}
     }, 800)
-  }, [activity?.activity_uuid, vectors, access_token])
+  }, [activity?.activity_uuid, quizMode, vectors, categoryVectors, gradedVectors, access_token])
 
   const handleOptionCountChange = (count: number) => {
     let newOptions = [...options]
@@ -550,11 +577,29 @@ function QuizSelectBlockComponent(props: any) {
     const pos = typeof props.getPos === 'function' ? props.getPos() : undefined
     if (pos === undefined) return
     const nodeJSON = props.node.toJSON()
+    const duplicatedOptions = (nodeJSON.attrs.options || []).map((o: any) => {
+      const nextOptionUuid = uuidv4()
+      return {
+        ...o,
+        option_uuid: nextOptionUuid,
+        gradient_seed: uuidv4(),
+        _source_option_uuid: o.option_uuid,
+      }
+    })
+    const nextOptionScores = { ...optionScores }
+    duplicatedOptions.forEach((option: any) => {
+      if (option._source_option_uuid && optionScores[option._source_option_uuid]) {
+        nextOptionScores[option.option_uuid] = { ...optionScores[option._source_option_uuid] }
+      }
+      delete option._source_option_uuid
+    })
+    setOptionScores(nextOptionScores)
+    saveScoring(nextOptionScores)
     const newAttrs = {
       ...nodeJSON.attrs,
       question_uuid: uuidv4(),
       background_gradient_seed: uuidv4(),
-      options: (nodeJSON.attrs.options || []).map((o: any) => ({ ...o, option_uuid: uuidv4(), gradient_seed: uuidv4() })),
+      options: duplicatedOptions,
     }
     props.editor.commands.insertContentAt(pos + props.node.nodeSize, { ...nodeJSON, attrs: newAttrs })
   }

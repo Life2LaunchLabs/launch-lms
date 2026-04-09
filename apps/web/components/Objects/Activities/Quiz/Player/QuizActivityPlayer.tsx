@@ -791,13 +791,8 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     }
     if (currentSlide.type === 'quizSliderBlock') {
       const slide = currentSlide as SliderSlide
-      const directionMode = slide.direction_mode || 'unidirectional'
-      const initialValue = getSliderInitialValue(directionMode)
       const sliderValues = (answers.get(slide.question_uuid) || {}) as Record<string, number>
-      return slide.sliders.every(row => {
-        const value = typeof sliderValues[row.slider_uuid] === 'number' ? sliderValues[row.slider_uuid] : initialValue
-        return Math.abs(value - initialValue) > 0.0001
-      })
+      return slide.sliders.every(row => Object.prototype.hasOwnProperty.call(sliderValues, row.slider_uuid))
     }
     return answers.has((currentSlide as SelectSlide).question_uuid)
   }, [showingResponse, currentSlide, answers, textScoringRules])

@@ -125,6 +125,8 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
       ? ensureGradedVectors(details.graded_scoring_vectors || details.scoring_vectors)
       : (details.category_scoring_vectors || details.scoring_vectors || [])
   )
+  const [optionScores, setOptionScores] = useState<Record<string, Record<string, number>>>(details.option_scores || {})
+  const [textScores, setTextScores] = useState<Record<string, any>>(details.text_scores || {})
   const [scoringDirty, setScoringDirty] = useState(false)
   const [isSavingScoring, setIsSavingScoring] = useState(false)
 
@@ -161,6 +163,16 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   })
 
   useEffect(() => { editor?.setEditable(!previewMode) }, [previewMode, editor])
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail?.optionScores) setOptionScores(detail.optionScores)
+      if (detail?.textScores) setTextScores(detail.textScores)
+    }
+    window.addEventListener('lh:quiz-scoring-updated', handler)
+    return () => window.removeEventListener('lh:quiz-scoring-updated', handler)
+  }, [])
 
   // ── Extract sidebar blocks ────────────────────────────────────────────
   useEffect(() => {
@@ -216,7 +228,6 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
           scoring_vectors: activeVectors,
           category_scoring_vectors: nextCategoryVectors,
           graded_scoring_vectors: nextGradedVectors,
-          option_scores: details.option_scores || {},
         },
         access_token
       )
@@ -224,14 +235,21 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
         setVectors(activeVectors)
       }
       setGradedVectors(nextGradedVectors)
-      window.dispatchEvent(new CustomEvent('lh:quiz-scoring-updated', { detail: { vectors: activeVectors } }))
+      window.dispatchEvent(new CustomEvent('lh:quiz-scoring-updated', {
+        detail: {
+          vectors: activeVectors,
+          quizMode,
+          categoryVectors: nextCategoryVectors,
+          gradedVectors: nextGradedVectors,
+        },
+      }))
       setScoringDirty(false)
     } catch {
       toast.error('Failed to save scoring')
     } finally {
       setIsSavingScoring(false)
     }
-  }, [vectors, quizMode, categoryVectors, gradedVectors, activity.activity_uuid, details.option_scores, access_token])
+  }, [vectors, quizMode, categoryVectors, gradedVectors, activity.activity_uuid, access_token])
 
   // ── Results save ──────────────────────────────────────────────────────
   const saveResults = useCallback(async () => {
@@ -413,7 +431,14 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
       : nextCategoryVectors
     setVectors(activeVectors)
     setScoringDirty(false)
-    window.dispatchEvent(new CustomEvent('lh:quiz-scoring-updated', { detail: { vectors: activeVectors } }))
+    window.dispatchEvent(new CustomEvent('lh:quiz-scoring-updated', {
+      detail: {
+        vectors: activeVectors,
+        quizMode: nextMode,
+        categoryVectors: nextCategoryVectors,
+        gradedVectors: nextGradedVectors,
+      },
+    }))
     try {
       await updateQuizScoring(
         activity.activity_uuid,
@@ -421,7 +446,6 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
           scoring_vectors: activeVectors,
           category_scoring_vectors: nextCategoryVectors,
           graded_scoring_vectors: nextGradedVectors,
-          option_scores: details.option_scores || {},
         },
         access_token
       )
@@ -592,6 +616,8 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                     scoring_vectors: vectors,
                     category_scoring_vectors: categoryVectors,
                     graded_scoring_vectors: gradedVectors,
+                    option_scores: optionScores,
+                    text_scores: textScores,
                     result_options: resultOptions,
                   },
                 }}

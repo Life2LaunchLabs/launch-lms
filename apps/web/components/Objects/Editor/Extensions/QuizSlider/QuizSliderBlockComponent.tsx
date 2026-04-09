@@ -73,6 +73,21 @@ function getActiveScoringVectors(details: any): ScoringVector[] {
   return details?.category_scoring_vectors || details?.scoring_vectors || []
 }
 
+function getScoringPayload(
+  quizMode: 'categories' | 'graded',
+  vectors: ScoringVector[],
+  optionScores: Record<string, Record<string, number>>,
+  categoryVectors: ScoringVector[],
+  gradedVectors: ScoringVector[]
+) {
+  return {
+    scoring_vectors: vectors,
+    category_scoring_vectors: quizMode === 'categories' ? vectors : categoryVectors,
+    graded_scoring_vectors: quizMode === 'graded' ? vectors : gradedVectors,
+    option_scores: optionScores,
+  }
+}
+
 function makeDefaultSliderOption(): QuizSliderOption {
   return { slider_uuid: uuidv4(), label: '' }
 }
@@ -251,7 +266,10 @@ function QuizSliderBlockComponent(props: any) {
   const [backgroundImageFileId, setBackgroundImageFileId] = useState<string | null>(attrs.background_image_file_id || null)
   const [backgroundImageBlockObject, setBackgroundImageBlockObject] = useState<any | null>(attrs.background_image_block_object || null)
   const [activeTab, setActiveTab] = useState<Tab>('question')
+  const [quizMode, setQuizMode] = useState<'categories' | 'graded'>(activity?.details?.quiz_mode === 'graded' ? 'graded' : 'categories')
   const [vectors, setVectors] = useState<ScoringVector[]>(getActiveScoringVectors(activity?.details))
+  const [categoryVectors, setCategoryVectors] = useState<ScoringVector[]>(activity?.details?.category_scoring_vectors || activity?.details?.scoring_vectors || [])
+  const [gradedVectors, setGradedVectors] = useState<ScoringVector[]>(activity?.details?.graded_scoring_vectors || activity?.details?.scoring_vectors || [getDefaultCorrectVector()])
   const [optionScores, setOptionScores] = useState<Record<string, Record<string, number>>>(activity?.details?.option_scores || {})
   const [uploadingBackground, setUploadingBackground] = useState(false)
   const scoringSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -260,6 +278,10 @@ function QuizSliderBlockComponent(props: any) {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail
       if (detail?.vectors) setVectors(detail.vectors)
+      if (detail?.quizMode === 'graded' || detail?.quizMode === 'categories') setQuizMode(detail.quizMode)
+      if (detail?.categoryVectors) setCategoryVectors(detail.categoryVectors)
+      if (detail?.gradedVectors) setGradedVectors(detail.gradedVectors)
+      if (detail?.optionScores) setOptionScores(detail.optionScores)
     }
     window.addEventListener('lh:quiz-scoring-updated', handler)
     return () => window.removeEventListener('lh:quiz-scoring-updated', handler)
@@ -301,10 +323,15 @@ function QuizSliderBlockComponent(props: any) {
     if (scoringSaveTimer.current) clearTimeout(scoringSaveTimer.current)
     scoringSaveTimer.current = setTimeout(async () => {
       try {
-        await updateQuizScoring(activity?.activity_uuid, { scoring_vectors: vectors, option_scores: newScores }, access_token)
+        await updateQuizScoring(
+          activity?.activity_uuid,
+          getScoringPayload(quizMode, vectors, newScores, categoryVectors, gradedVectors),
+          access_token
+        )
+        window.dispatchEvent(new CustomEvent('lh:quiz-scoring-updated', { detail: { optionScores: newScores } }))
       } catch {}
     }, 800)
-  }, [activity?.activity_uuid, vectors, access_token])
+  }, [activity?.activity_uuid, quizMode, vectors, categoryVectors, gradedVectors, access_token])
 
   const handleSliderCountChange = (count: number) => {
     const nextCount = Math.max(1, Math.min(6, count))
@@ -374,11 +401,28 @@ function QuizSliderBlockComponent(props: any) {
     const pos = typeof props.getPos === 'function' ? props.getPos() : undefined
     if (pos === undefined) return
     const nodeJSON = props.node.toJSON()
+    const duplicatedSliders = (nodeJSON.attrs.sliders || []).map((slider: QuizSliderOption) => {
+      const nextSliderUuid = uuidv4()
+      return {
+        ...slider,
+        slider_uuid: nextSliderUuid,
+        _source_slider_uuid: slider.slider_uuid,
+      }
+    })
+    const nextOptionScores = { ...optionScores }
+    duplicatedSliders.forEach((slider: QuizSliderOption & { _source_slider_uuid?: string }) => {
+      if (slider._source_slider_uuid && optionScores[slider._source_slider_uuid]) {
+        nextOptionScores[slider.slider_uuid] = { ...optionScores[slider._source_slider_uuid] }
+      }
+      delete slider._source_slider_uuid
+    })
+    setOptionScores(nextOptionScores)
+    saveScoring(nextOptionScores)
     const newAttrs = {
       ...nodeJSON.attrs,
       question_uuid: uuidv4(),
       background_gradient_seed: uuidv4(),
-      sliders: (nodeJSON.attrs.sliders || []).map((slider: QuizSliderOption) => ({ ...slider, slider_uuid: uuidv4() })),
+      sliders: duplicatedSliders,
     }
     props.editor.commands.insertContentAt(pos + props.node.nodeSize, { ...nodeJSON, attrs: newAttrs })
   }
