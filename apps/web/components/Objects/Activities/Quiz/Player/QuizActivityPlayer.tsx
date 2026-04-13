@@ -10,6 +10,14 @@ import { getAPIUrl } from '@services/config/config'
 import { mutate } from 'swr'
 import QuizResultsModal from './QuizResultsModal'
 import { computeQuizScoresPreview, matchQuizResultPreview } from '../Results/quizResultsPreview'
+import Lottie from 'lottie-react'
+// To add a new animation: import its JSON here, add it to QUIZ_INFO_ANIMATIONS below,
+// add an <option> in QuizInfoBlockComponent.tsx, and add a branch in InfoSlideView.
+import confettiAnimationData from '../../../../../public/animations/quiz-info/Confetti.json'
+
+const QUIZ_INFO_ANIMATIONS: Record<string, any> = {
+  confetti: confettiAnimationData,
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -72,6 +80,7 @@ interface InfoSlide {
   body: string
   image_block_object: any
   gradient_seed: string
+  animation?: 'none' | 'confetti'
 }
 
 type SortIconKey = 'star' | 'heart' | 'flame' | 'leaf' | 'zap' | 'sun' | 'flag' | 'triangle' | 'square' | 'thumbs_up' | 'thumbs_down'
@@ -633,6 +642,57 @@ function SortSlideView({
   )
 }
 
+// ── Info slide view ────────────────────────────────────────────────────────────
+
+function InfoSlideView({ info, isActive, buildImageUrl }: { info: InfoSlide; isActive: boolean; buildImageUrl: (blockObj: any) => string | null }) {
+  const [animTriggered, setAnimTriggered] = useState(false)
+  const [animDone, setAnimDone] = useState(false)
+
+  useEffect(() => {
+    if (isActive && !animTriggered) setAnimTriggered(true)
+  }, [isActive])
+
+  const imgUrl = buildImageUrl(info.image_block_object)
+  const bg = getGradient(info.gradient_seed || info.slide_uuid || 'info')
+  const animData = info.animation && info.animation !== 'none' ? QUIZ_INFO_ANIMATIONS[info.animation] : null
+  const showAnim = animTriggered && !!animData && !animDone
+
+  return (
+    <div style={{ height: '100%', position: 'relative', overflow: 'hidden', background: imgUrl ? '#000' : bg }}>
+      {showAnim && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 50, pointerEvents: 'none' }}>
+          <Lottie
+            animationData={animData}
+            loop={false}
+            onComplete={() => setAnimDone(true)}
+            style={{ width: '100%', height: '100%' }}
+          />
+        </div>
+      )}
+      {imgUrl && (
+        <img src={imgUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      )}
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)' }} />
+      {(info.title || info.body) && (
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', boxSizing: 'border-box' }}>
+          <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {info.title && (
+              <p style={{ color: '#fff', fontSize: 24, fontWeight: 800, textAlign: 'center', textShadow: '0 2px 10px rgba(0,0,0,0.65)', lineHeight: 1.2, margin: 0 }}>
+                {info.title}
+              </p>
+            )}
+            {info.body && (
+              <p style={{ color: '#fff', fontSize: 17, fontWeight: 600, textAlign: 'center', textShadow: '0 2px 10px rgba(0,0,0,0.65)', lineHeight: 1.4, margin: 0 }}>
+                {info.body}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Single frame ───────────────────────────────────────────────────────────────
 
 function SlideFrame({
@@ -660,33 +720,7 @@ function SlideFrame({
 }) {
   // ── Info slide ──
   if (slide.type === 'quizInfoBlock') {
-    const info = slide as InfoSlide
-    const imgUrl = buildImageUrl(info.image_block_object)
-    const bg = getGradient(info.gradient_seed || info.slide_uuid || 'info')
-    return (
-      <div style={{ height: '100%', position: 'relative', overflow: 'hidden', background: imgUrl ? '#000' : bg }}>
-        {imgUrl && (
-          <img src={imgUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-        )}
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)' }} />
-        {(info.title || info.body) && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', boxSizing: 'border-box' }}>
-            <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {info.title && (
-                <p style={{ color: '#fff', fontSize: 24, fontWeight: 800, textAlign: 'center', textShadow: '0 2px 10px rgba(0,0,0,0.65)', lineHeight: 1.2, margin: 0 }}>
-                  {info.title}
-                </p>
-              )}
-              {info.body && (
-                <p style={{ color: '#fff', fontSize: 17, fontWeight: 600, textAlign: 'center', textShadow: '0 2px 10px rgba(0,0,0,0.65)', lineHeight: 1.4, margin: 0 }}>
-                  {info.body}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    )
+    return <InfoSlideView key={(slide as InfoSlide).slide_uuid} info={slide as InfoSlide} isActive={isActive} buildImageUrl={buildImageUrl} />
   }
 
   if (slide.type === 'quizTextBlock') {

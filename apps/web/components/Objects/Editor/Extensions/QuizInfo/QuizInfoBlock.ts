@@ -16,6 +16,7 @@ export default Node.create({
       gradient_seed: { default: '' },
       title: { default: '' },
       body: { default: '' },
+      animation: { default: 'none' },
     }
   },
 
