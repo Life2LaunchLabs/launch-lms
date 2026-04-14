@@ -4,6 +4,7 @@ import React from 'react'
 import CoursesHome from './client'
 import { getServerSession } from '@/lib/auth/server'
 import { getOrgCourses } from '@services/courses/courses'
+import { getOrgCollections } from '@services/courses/collections'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string }>
@@ -59,8 +60,6 @@ async function CoursesPage(params: any) {
       true // include_unpublished for dashboard
     )
   } catch (error: any) {
-    // If feature is disabled (403), pass empty courses array
-    // The client component will show the feature disabled view
     if (error?.status === 403) {
       courses = []
     } else {
@@ -68,7 +67,14 @@ async function CoursesPage(params: any) {
     }
   }
 
-  return <CoursesHome org_id={org.id} orgslug={orgslug} courses={courses} />
+  let collections: any[] = []
+  try {
+    collections = await getOrgCollections(String(org.id), access_token ?? undefined, { revalidate: 0, tags: ['collections'] })
+  } catch {
+    collections = []
+  }
+
+  return <CoursesHome org_id={org.id} orgslug={orgslug} courses={courses} collections={collections} />
 }
 
 export default CoursesPage

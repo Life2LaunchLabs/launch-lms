@@ -63,6 +63,9 @@ const validationSchema = Yup.object().shape({
     .optional()
     .max(400, 'About text must be 400 characters or less'),
   label: Yup.string().required('Organization label is required'),
+  email: Yup.string()
+    .optional()
+    .email('Must be a valid email address'),
 })
 
 interface OrganizationValues {
@@ -70,6 +73,7 @@ interface OrganizationValues {
   description: string
   about: string
   label: string
+  email: string
 }
 
 const OrgEditGeneral: React.FC = () => {
@@ -88,6 +92,7 @@ const OrgEditGeneral: React.FC = () => {
     description: org?.description || '',
     about: org?.about || '',
     label: org?.label || '',
+    email: org?.email || '',
   }
 
   const updateOrg = async (values: OrganizationValues) => {
@@ -192,6 +197,22 @@ const OrgEditGeneral: React.FC = () => {
                       {touched.label && errors.label && (
                         <p className="text-red-500 text-sm mt-1">{errors.label}</p>
                       )}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="email">Contact email</Label>
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        value={values.email}
+                        onChange={handleChange}
+                        placeholder="contact@yourorganization.com"
+                      />
+                      {touched.email && errors.email && (
+                        <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+                      )}
+                      <p className="text-gray-500 text-sm mt-1">Used as the issuer contact for Open Badges credentials.</p>
                     </div>
 
                     <div>

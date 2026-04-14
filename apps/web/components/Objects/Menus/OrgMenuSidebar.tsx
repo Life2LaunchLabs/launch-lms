@@ -29,7 +29,7 @@ interface OrgMenuSidebarProps {
 }
 
 const KNOWN_SUBPATHS = [
-  '/courses', '/course/', '/collection/', '/collections', '/trail', '/certificate', '/podcasts',
+  '/courses', '/course/', '/collection/', '/collections', '/trail', '/certificate', '/badge', '/badges', '/podcasts',
   '/communities', '/playgrounds', '/store', '/boards', '/copilot',
   '/activity/', '/assignment', '/editor', '/account', '/payments',
 ]
@@ -69,7 +69,7 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
   const isOnCommunities = pathname?.includes('/communities')
   const isOnPlaygrounds = pathname?.includes('/playgrounds')
   const isOnStore = pathname?.includes('/store')
-  const isOnTrail = pathname?.includes('/trail') || pathname?.includes('/certificate')
+  const isOnTrail = pathname?.includes('/trail') || pathname?.includes('/certificate') || pathname?.includes('/badge')
 
   const navItems = [
     {
@@ -188,7 +188,7 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
 
             {session?.status === 'authenticated' && (
               <Link
-                href={getUriWithOrg(orgslug, '/certificate')}
+                href={getUriWithOrg(orgslug, '/badge')}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
                   isOnTrail
                     ? 'bg-gray-100 text-gray-900 font-semibold'
@@ -196,7 +196,7 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
                 }`}
               >
                 <Certificate size={18} weight="fill" />
-                <span>Certificates</span>
+                <span>Badges</span>
               </Link>
             )}
           </nav>

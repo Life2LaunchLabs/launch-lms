@@ -31,6 +31,38 @@ export async function createCollection(collection: any, access_token: any) {
   return res
 }
 
+export async function updateCollection(
+  collection_uuid: string,
+  collection: { name?: string; description?: string; public?: boolean; courses?: number[] },
+  access_token: string
+) {
+  const result: any = await fetch(
+    `${getAPIUrl()}collections/${collection_uuid}`,
+    RequestBodyWithAuthHeader('PUT', collection, null, access_token)
+  )
+  const res = await errorHandling(result)
+  return res
+}
+
+export async function updateCollectionThumbnail(
+  collection_uuid: string,
+  formData: FormData,
+  access_token: string
+) {
+  const result: any = await fetch(
+    `${getAPIUrl()}collections/${collection_uuid}/thumbnail`,
+    {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+      },
+      body: formData,
+    }
+  )
+  const res = await errorHandling(result)
+  return res
+}
+
 export async function getCollectionById(
   collection_uuid: any,
   access_token: string,
@@ -47,10 +79,11 @@ export async function getCollectionById(
 export async function getOrgCollections(
   org_id: string,
   access_token?: string,
-  next?: any
+  next?: any,
+  limit: number = 100
 ) {
   const result: any = await fetch(
-    `${getAPIUrl()}collections/org/${org_id}/page/1/limit/10`,
+    `${getAPIUrl()}collections/org/${org_id}/page/1/limit/${limit}`,
     RequestBodyWithAuthHeader('GET', null, next, access_token)
   )
   const res = await errorHandling(result)

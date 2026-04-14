@@ -1,12 +1,7 @@
 'use client'
-import CreateCourseModal from '@components/Objects/Modals/Course/Create/CreateCourse'
-import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import React, { useState, useMemo, useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import TypeOfContentTitle from '@components/Objects/StyledElements/Titles/TypeOfContentTitle'
-import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
-import NewCourseButton from '@components/Objects/StyledElements/Buttons/NewCourseButton'
 import useAdminStatus from '@components/Hooks/useAdminStatus'
 import { useTranslation } from 'react-i18next'
 import { BookCopy, ChevronLeft, ChevronRight, Search, X, Users, Info } from 'lucide-react'
@@ -32,9 +27,6 @@ function Courses(props: CourseProps) {
   const { t } = useTranslation()
   const orgslug = props.orgslug
   const allCourses = props.courses
-  const searchParams = useSearchParams()
-  const isCreatingCourse = searchParams.get('new') ? true : false
-  const [newCourseModal, setNewCourseModal] = React.useState(isCreatingCourse)
   const isUserAdmin = useAdminStatus() as any
   const org = useOrg() as any
   const session = useLHSession() as any
@@ -177,10 +169,6 @@ function Courses(props: CourseProps) {
     return pages
   }
 
-  async function closeNewCourseModal() {
-    setNewCourseModal(false)
-  }
-
   return (
     <FeatureDisabledView
       featureName="courses"
@@ -201,32 +189,6 @@ function Courses(props: CourseProps) {
 
           <div className="flex items-center justify-between">
             <TypeOfContentTitle title={t('courses.courses')} type="cou" />
-            <AuthenticatedClientElement
-              checkMethod="roles"
-              action="create"
-              ressourceType="courses"
-              orgId={props.org_id}
-            >
-              <Modal
-                isDialogOpen={newCourseModal}
-                onOpenChange={setNewCourseModal}
-                minHeight="md"
-                minWidth="lg"
-                dialogContent={
-                  <CreateCourseModal
-                    closeModal={closeNewCourseModal}
-                    orgslug={orgslug}
-                  />
-                }
-                dialogTitle={t('courses.create_course')}
-                dialogDescription={t('courses.create_new_course')}
-                dialogTrigger={
-                  <button>
-                    <NewCourseButton />
-                  </button>
-                }
-              />
-            </AuthenticatedClientElement>
           </div>
 
           {/* Search and Usergroup Filter */}
@@ -331,20 +293,6 @@ function Courses(props: CourseProps) {
                     t('courses.no_courses_available')
                   )}
                 </p>
-                {isUserAdmin && (
-                  <div className="mt-4">
-                    <AuthenticatedClientElement
-                      action="create"
-                      ressourceType="courses"
-                      checkMethod="roles"
-                      orgId={props.org_id}
-                    >
-                      <button onClick={() => setNewCourseModal(true)}>
-                        <NewCourseButton />
-                      </button>
-                    </AuthenticatedClientElement>
-                  </div>
-                )}
               </div>
             )}
           </div>

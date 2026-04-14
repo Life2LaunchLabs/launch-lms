@@ -37,15 +37,19 @@ const validate = (values: any, t: any) => {
   const errors = {} as any;
 
   if (values.enable_certification && !values.certification_name) {
-    errors.certification_name = t('dashboard.courses.certification.form.certification_name_required');
+    errors.certification_name = 'Badge name is required';
   } else if (values.certification_name && values.certification_name.length > 100) {
-    errors.certification_name = t('dashboard.courses.certification.form.certification_name_max_length');
+    errors.certification_name = 'Badge name must be 100 characters or less';
   }
 
   if (values.enable_certification && !values.certification_description) {
-    errors.certification_description = t('dashboard.courses.certification.form.certification_description_required');
+    errors.certification_description = 'Badge description is required';
   } else if (values.certification_description && values.certification_description.length > 500) {
-    errors.certification_description = t('dashboard.courses.certification.form.certification_description_max_length');
+    errors.certification_description = 'Badge description must be 500 characters or less';
+  }
+
+  if (values.enable_certification && !values.badge_criteria_text && !values.badge_criteria_url) {
+    errors.badge_criteria_text = 'Criteria text or criteria URL is required';
   }
 
   return errors;
@@ -119,31 +123,19 @@ function EditCourseCertification(props: EditCourseCertificationProps) {
 
   // Create initial values object
   const getInitialValues = () => {
-    // Helper function to get instructor name from authors
-    const getInstructorName = () => {
-      if (courseStructure?.authors && courseStructure.authors.length > 0) {
-        const author = courseStructure.authors[0];
-        const firstName = author.first_name || '';
-        const lastName = author.last_name || '';
-        
-        // Only return if at least one name exists
-        if (firstName || lastName) {
-          return `${firstName} ${lastName}`.trim();
-        }
-      }
-      return '';
-    };
-
     // Use existing certification data if available, otherwise fall back to course data
     const config = existingCertification?.config || {};
     
     return {
       enable_certification: hasExistingCertification,
-      certification_name: config.certification_name || courseStructure?.name || '',
-      certification_description: config.certification_description || courseStructure?.description || '',
+      certification_name: config.badge_name || config.certification_name || courseStructure?.name || '',
+      certification_description: config.badge_description || config.certification_description || courseStructure?.description || '',
       certification_type: config.certification_type || 'completion',
-      certificate_pattern: config.certificate_pattern || 'professional',
-      certificate_instructor: config.certificate_instructor || getInstructorName(),
+      certificate_pattern: config.badge_theme || config.certificate_pattern || 'professional',
+      badge_criteria_text: config.badge_criteria_text || 'Complete all required activities in this course.',
+      badge_criteria_url: config.badge_criteria_url || '',
+      badge_image_url: config.badge_image_url || '',
+      badge_support_url: config.badge_support_url || '',
     };
   };
 
@@ -158,16 +150,26 @@ function EditCourseCertification(props: EditCourseCertificationProps) {
 
   // Handle enabling/disabling certification
   const handleCertificationToggle = async (enabled: boolean) => {
+    if (enabled && !org?.email) {
+      setError('Your organization needs a contact email before you can enable Open Badges. Add one in Organization Settings → General.');
+      return;
+    }
     if (enabled && !hasExistingCertification) {
       // Create new certification
       setIsCreating(true);
       try {
         const config = {
+          badge_name: formik.values.certification_name || courseStructure?.name || '',
+          badge_description: formik.values.certification_description || courseStructure?.description || '',
           certification_name: formik.values.certification_name || courseStructure?.name || '',
           certification_description: formik.values.certification_description || courseStructure?.description || '',
           certification_type: formik.values.certification_type || 'completion',
+          badge_theme: formik.values.certificate_pattern || 'professional',
           certificate_pattern: formik.values.certificate_pattern || 'professional',
-          certificate_instructor: formik.values.certificate_instructor || '',
+          badge_criteria_text: formik.values.badge_criteria_text || 'Complete all required activities in this course.',
+          badge_criteria_url: formik.values.badge_criteria_url || '',
+          badge_image_url: formik.values.badge_image_url || '',
+          badge_support_url: formik.values.badge_support_url || '',
         };
 
         const result = await createCertification(
@@ -260,11 +262,17 @@ function EditCourseCertification(props: EditCourseCertificationProps) {
         _certificationData: {
           certification_uuid: existingCertification.certification_uuid,
           config: {
+            badge_name: formikValues.certification_name,
+            badge_description: formikValues.certification_description,
             certification_name: formikValues.certification_name,
             certification_description: formikValues.certification_description,
             certification_type: formikValues.certification_type,
+            badge_theme: formikValues.certificate_pattern,
             certificate_pattern: formikValues.certificate_pattern,
-            certificate_instructor: formikValues.certificate_instructor,
+            badge_criteria_text: formikValues.badge_criteria_text,
+            badge_criteria_url: formikValues.badge_criteria_url,
+            badge_image_url: formikValues.badge_image_url,
+            badge_support_url: formikValues.badge_support_url,
           }
         }
       };
@@ -298,9 +306,9 @@ function EditCourseCertification(props: EditCourseCertificationProps) {
             {/* Header Section */}
             <div className="flex items-center justify-between bg-gray-50 px-3 sm:px-5 py-3 rounded-md mb-3">
               <div className="flex flex-col -space-y-1">
-                <h1 className="font-bold text-lg sm:text-xl text-gray-800">{t('dashboard.courses.certification.title')}</h1>
+                <h1 className="font-bold text-lg sm:text-xl text-gray-800">Course Badge</h1>
                 <h2 className="text-gray-500 text-xs sm:text-sm">
-                  {t('dashboard.courses.certification.subtitle')}
+                  Configure the Open Badges 2.0 credential learners earn for completing this course.
                 </h2>
               </div>
               <div className="flex items-center space-x-3">
@@ -329,7 +337,7 @@ function EditCourseCertification(props: EditCourseCertificationProps) {
               </div>
             )}
 
-            {/* Certification Configuration - Only show if enabled and has existing certification */}
+            {/* Badge Configuration - Only show if enabled and has existing config */}
             {formik.values.enable_certification && hasExistingCertification && (
               <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                 {/* Form Section */}
@@ -339,18 +347,18 @@ function EditCourseCertification(props: EditCourseCertificationProps) {
                     <div className="flex flex-col bg-gray-50 -space-y-1 px-3 sm:px-5 py-3 rounded-md mb-3">
                       <h3 className="font-bold text-md text-gray-800 flex items-center gap-2">
                         <FileText size={16} />
-                        {t('dashboard.courses.certification.sections.basic_info.title')}
+                        Badge details
                       </h3>
                       <p className="text-gray-500 text-xs sm:text-sm">
-                        {t('dashboard.courses.certification.sections.basic_info.subtitle')}
+                        Configure the Open Badges 2.0 metadata learners will receive for this course.
                       </p>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {/* Certification Name */}
+                      {/* Badge Name */}
                       <FormField name="certification_name">
                         <FormLabelAndMessage 
-                          label={t('dashboard.courses.certification.form.certification_name_label')} 
+                          label="Badge name"
                           message={formik.errors.certification_name} 
                         />
                         <Form.Control asChild>
@@ -359,15 +367,15 @@ function EditCourseCertification(props: EditCourseCertificationProps) {
                             onChange={formik.handleChange}
                             value={formik.values.certification_name}
                             type="text"
-                            placeholder={t('dashboard.courses.certification.form.certification_name_placeholder')}
+                            placeholder="e.g., Advanced JavaScript Badge"
                             required
                           />
                         </Form.Control>
                       </FormField>
 
-                      {/* Certification Type */}
+                      {/* Badge Type */}
                       <FormField name="certification_type">
-                        <FormLabelAndMessage label={t('dashboard.courses.certification.form.certification_type_label')} />
+                        <FormLabelAndMessage label="Badge type" />
                         <Form.Control asChild>
                           <CustomSelect
                             value={formik.values.certification_type}
@@ -397,10 +405,10 @@ function EditCourseCertification(props: EditCourseCertificationProps) {
                       </FormField>
                     </div>
 
-                    {/* Certification Description */}
+                    {/* Badge Description */}
                     <FormField name="certification_description">
                       <FormLabelAndMessage 
-                        label={t('dashboard.courses.certification.form.certification_description_label')} 
+                        label="Badge description"
                         message={formik.errors.certification_description} 
                       />
                       <Form.Control asChild>
@@ -408,20 +416,78 @@ function EditCourseCertification(props: EditCourseCertificationProps) {
                           style={{ backgroundColor: 'white', height: '120px', minHeight: '120px' }}
                           onChange={formik.handleChange}
                           value={formik.values.certification_description}
-                          placeholder={t('dashboard.courses.certification.form.certification_description_placeholder')}
+                          placeholder="Describe what this badge represents and why it was awarded."
                           required
                         />
                       </Form.Control>
                     </FormField>
 
-                    {/* Certificate Design Section */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <FormField name="badge_criteria_text">
+                        <FormLabelAndMessage
+                          label="Criteria text"
+                          message={formik.errors.badge_criteria_text}
+                        />
+                        <Form.Control asChild>
+                          <Textarea
+                            style={{ backgroundColor: 'white', height: '120px', minHeight: '120px' }}
+                            onChange={formik.handleChange}
+                            value={formik.values.badge_criteria_text}
+                            placeholder="Explain what learners must do to earn this badge."
+                          />
+                        </Form.Control>
+                      </FormField>
+
+                      <div className="space-y-6">
+                        <FormField name="badge_criteria_url">
+                          <FormLabelAndMessage label="Criteria URL" />
+                          <Form.Control asChild>
+                            <Input
+                              style={{ backgroundColor: 'white' }}
+                              onChange={formik.handleChange}
+                              value={formik.values.badge_criteria_url}
+                              type="url"
+                              placeholder="https://example.com/badge-criteria"
+                            />
+                          </Form.Control>
+                        </FormField>
+
+                        <FormField name="badge_image_url">
+                          <FormLabelAndMessage label="Badge image URL" />
+                          <Form.Control asChild>
+                            <Input
+                              style={{ backgroundColor: 'white' }}
+                              onChange={formik.handleChange}
+                              value={formik.values.badge_image_url}
+                              type="url"
+                              placeholder="Optional override for the badge image"
+                            />
+                          </Form.Control>
+                        </FormField>
+
+                        <FormField name="badge_support_url">
+                          <FormLabelAndMessage label="Support URL" />
+                          <Form.Control asChild>
+                            <Input
+                              style={{ backgroundColor: 'white' }}
+                              onChange={formik.handleChange}
+                              value={formik.values.badge_support_url}
+                              type="url"
+                              placeholder="Optional issuer support or help page"
+                            />
+                          </Form.Control>
+                        </FormField>
+                      </div>
+                    </div>
+
+                    {/* Badge Presentation Section */}
                     <div className="flex flex-col bg-gray-50 -space-y-1 px-3 sm:px-5 py-3 rounded-md mb-3">
                       <h3 className="font-bold text-md text-gray-800 flex items-center gap-2">
                         <Award size={16} />
-                        {t('dashboard.courses.certification.sections.certificate_design.title')}
+                        Badge presentation
                       </h3>
                       <p className="text-gray-500 text-xs sm:text-sm">
-                        {t('dashboard.courses.certification.sections.certificate_design.subtitle')}
+                        Choose the visual theme used for the badge page and exported PDF.
                       </p>
                     </div>
 
@@ -450,19 +516,6 @@ function EditCourseCertification(props: EditCourseCertificationProps) {
                       </Form.Control>
                     </FormField>
 
-                    {/* Custom Instructor */}
-                    <FormField name="certificate_instructor">
-                      <FormLabelAndMessage label={t('dashboard.courses.certification.form.certificate_instructor_label')} />
-                      <Form.Control asChild>
-                        <Input
-                          style={{ backgroundColor: 'white' }}
-                          onChange={formik.handleChange}
-                          value={formik.values.certificate_instructor}
-                          type="text"
-                          placeholder={t('dashboard.courses.certification.form.certificate_instructor_placeholder')}
-                        />
-                      </Form.Control>
-                    </FormField>
                   </Form.Root>
                 </div>
 
@@ -485,7 +538,6 @@ function EditCourseCertification(props: EditCourseCertificationProps) {
                         certificationDescription={formik.values.certification_description}
                         certificationType={formik.values.certification_type}
                         certificatePattern={formik.values.certificate_pattern}
-                        certificateInstructor={formik.values.certificate_instructor}
                       />
                     </div>
                   </div>
@@ -497,9 +549,9 @@ function EditCourseCertification(props: EditCourseCertificationProps) {
             {!formik.values.enable_certification && (
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
                 <Award className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="font-medium text-gray-700 mb-2">{t('dashboard.courses.certification.states.disabled.title')}</h3>
+                <h3 className="font-medium text-gray-700 mb-2">Open Badges are disabled for this course</h3>
                 <p className="text-sm text-gray-500 mb-4">
-                  {t('dashboard.courses.certification.states.disabled.message')}
+                  Enable badge issuing to award an Open Badges 2.0 credential when learners complete every activity.
                 </p>
                 <button
                   type="button"
@@ -508,7 +560,7 @@ function EditCourseCertification(props: EditCourseCertificationProps) {
                   className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Award size={16} />
-                  {isCreating ? t('dashboard.courses.certification.states.disabled.creating') : t('dashboard.courses.certification.states.disabled.button')}
+                  {isCreating ? 'Creating badge configuration...' : 'Enable Open Badges'}
                 </button>
               </div>
             )}

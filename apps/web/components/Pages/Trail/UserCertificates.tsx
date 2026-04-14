@@ -27,7 +27,7 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug }) => {
     (url) => swrFetcher(url, access_token)
   )
 
-  // Handle the actual API response structure - certificates are returned as an array directly
+  // Handle the actual API response structure - badges are returned as an array directly
   const certificatesData = Array.isArray(certificates) ? certificates : certificates?.data || []
 
   if (isLoading) {
@@ -37,7 +37,7 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug }) => {
           <div className="p-2 bg-yellow-50 rounded-lg">
             <Award className="w-5 h-5 text-yellow-500" />
           </div>
-          <h2 className="text-lg font-bold text-gray-900">{t('certificate.my_certificates')}</h2>
+          <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
@@ -61,13 +61,13 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug }) => {
           <div className="p-2 bg-yellow-50 rounded-lg">
             <Award className="w-5 h-5 text-yellow-500" />
           </div>
-          <h2 className="text-lg font-bold text-gray-900">{t('certificate.my_certificates')}</h2>
+          <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
         </div>
         <div className="col-span-full flex flex-col justify-center items-center py-12 px-4 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/30">
           <div className="p-4 bg-white rounded-full nice-shadow mb-4">
             <Award className="w-8 h-8 text-gray-300" strokeWidth={1.5} />
           </div>
-          <p className="text-gray-500">{t('certificate.failed_load_certificates')}</p>
+          <p className="text-gray-500">Failed to load badges</p>
         </div>
       </div>
     )
@@ -80,17 +80,17 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug }) => {
           <div className="p-2 bg-yellow-50 rounded-lg">
             <Award className="w-5 h-5 text-yellow-500" />
           </div>
-          <h2 className="text-lg font-bold text-gray-900">{t('certificate.my_certificates')}</h2>
+          <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
         </div>
         <div className="col-span-full flex flex-col justify-center items-center py-12 px-4 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/30">
           <div className="p-4 bg-white rounded-full nice-shadow mb-4">
             <Award className="w-8 h-8 text-gray-300" strokeWidth={1.5} />
           </div>
           <h1 className="text-xl font-bold text-gray-600 mb-2">
-            {t('certificate.no_certificates_earned')}
+            No badges earned yet
           </h1>
           <p className="text-md text-gray-400 mb-6 text-center max-w-xs">
-            {t('certificate.complete_courses_to_earn')}
+            Complete courses to earn Open Badges
           </p>
         </div>
       </div>
@@ -103,7 +103,7 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug }) => {
         <div className="p-2 bg-yellow-50 rounded-lg">
           <Award className="w-5 h-5 text-yellow-500" />
         </div>
-        <h2 className="text-lg font-bold text-gray-900">{t('certificate.my_certificates')}</h2>
+        <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
         <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
           {certificatesData.length}
         </span>
@@ -111,7 +111,7 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug }) => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {certificatesData.map((certificate: any) => {
-          const verificationLink = getUriWithOrg(orgslug, `/certificates/${certificate.certificate_user.user_certification_uuid}/verify`)
+          const verificationLink = getUriWithOrg(orgslug, `/badges/${certificate.certificate_user.user_certification_uuid}/verify`)
           const awardedDate = new Date(certificate.certificate_user.created_at).toLocaleDateString(i18n.language === 'fr' ? 'fr-FR' : 'en-US', {
             year: 'numeric',
             month: 'long',
@@ -156,7 +156,7 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug }) => {
                   rel="noopener noreferrer"
                   className="text-base font-bold text-gray-900 leading-tight hover:text-black transition-colors line-clamp-1"
                 >
-                  {certificate.certification.config.certification_name}
+                  {certificate.badge_class?.name || certificate.certification.config.badge_name || certificate.certification.config.certification_name}
                 </Link>
 
                 <div className="flex items-center gap-1.5 text-xs text-gray-500">
@@ -178,7 +178,7 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug }) => {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-700 uppercase tracking-wider"
                   >
-                    {t('certificate.verify')}
+                    Verify badge
                     <ExternalLink className="w-3 h-3" />
                   </Link>
                 </div>

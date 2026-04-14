@@ -24,7 +24,7 @@ export async function generateMetadata(props: MetadataProps): Promise<Metadata> 
   }
 }
 
-const CertificatePage = async (params: any) => {
+const BadgePage = async (params: any) => {
   const orgslug = (await params.params).orgslug
 
   return (
@@ -34,4 +34,4 @@ const CertificatePage = async (params: any) => {
   )
 }
 
-export default CertificatePage
+export default BadgePage

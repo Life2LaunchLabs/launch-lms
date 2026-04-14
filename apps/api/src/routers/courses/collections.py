@@ -1,7 +1,9 @@
 from typing import List
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, UploadFile, HTTPException
+from sqlmodel import select
 from src.core.events.database import get_db_session
-from src.db.collections import CollectionCreate, CollectionRead, CollectionUpdate
+from src.db.collections import Collection, CollectionCreate, CollectionRead, CollectionUpdate
+from src.db.organizations import Organization
 from src.security.auth import get_current_user
 from src.services.users.users import PublicUser
 from src.services.courses.collections import (
@@ -11,6 +13,7 @@ from src.services.courses.collections import (
     update_collection,
     delete_collection,
 )
+from src.services.courses.collection_thumbnails import upload_collection_thumbnail
 
 
 router = APIRouter()
@@ -85,3 +88,40 @@ async def api_delete_collection(
     """
 
     return await delete_collection(request, collection_uuid, current_user, db_session)
+
+
+@router.put("/{collection_uuid}/thumbnail")
+async def api_update_collection_thumbnail(
+    request: Request,
+    collection_uuid: str,
+    thumbnail: UploadFile | None = None,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session=Depends(get_db_session),
+):
+    """
+    Upload or update a collection thumbnail.
+    """
+    statement = select(Collection).where(Collection.collection_uuid == collection_uuid)
+    collection = db_session.exec(statement).first()
+
+    if not collection:
+        raise HTTPException(status_code=404, detail="Collection not found")
+
+    org_statement = select(Organization).where(Organization.id == collection.org_id)
+    org = db_session.exec(org_statement).first()
+
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    if thumbnail:
+        filename = await upload_collection_thumbnail(
+            thumbnail,
+            org.org_uuid,
+            collection.collection_uuid,
+        )
+        collection.thumbnail_image = filename
+        db_session.add(collection)
+        db_session.commit()
+        db_session.refresh(collection)
+
+    return {"detail": "Thumbnail updated", "thumbnail_image": collection.thumbnail_image}

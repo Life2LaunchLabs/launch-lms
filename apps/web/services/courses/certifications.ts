@@ -95,6 +95,13 @@ export async function getCertificateByUuid(
   return res
 }
 
+export async function getBadgeAssertionByUuid(
+  user_certification_uuid: string,
+  org_id: number
+) {
+  return getCertificateByUuid(user_certification_uuid, org_id)
+}
+
 export async function getAllUserCertificates(
   org_id: number,
   access_token: string
@@ -105,4 +112,19 @@ export async function getAllUserCertificates(
   )
   const res = await getResponseMetadata(result)
   return res
-} 
+}
+
+export async function getAllUserBadges(
+  org_id: number,
+  access_token: string
+) {
+  return getAllUserCertificates(org_id, access_token)
+}
+
+export async function getUserBadges(
+  course_uuid: string,
+  org_id: number,
+  access_token: string
+) {
+  return getUserCertificates(course_uuid, org_id, access_token)
+}

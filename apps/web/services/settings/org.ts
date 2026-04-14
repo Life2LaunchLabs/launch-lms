@@ -135,6 +135,14 @@ export interface SeoOrgConfig {
   noindex_communities: boolean
 }
 
+export interface BadgeIssuerConfig {
+  name: string
+  url: string
+  email: string
+  description: string
+  image_url: string
+}
+
 export async function updateOrgSeoConfig(
   org_id: string,
   seo_config: SeoOrgConfig,
@@ -143,6 +151,19 @@ export async function updateOrgSeoConfig(
   const result: any = await fetch(
     `${getAPIUrl()}orgs/${org_id}/config/seo`,
     RequestBodyWithAuthHeader('PUT', seo_config, null, access_token)
+  )
+  const res = await errorHandling(result)
+  return res
+}
+
+export async function updateOrgBadgeIssuerConfig(
+  org_id: string,
+  badge_issuer: BadgeIssuerConfig,
+  access_token: string
+) {
+  const result: any = await fetch(
+    `${getAPIUrl()}orgs/${org_id}/config/badge_issuer`,
+    RequestBodyWithAuthHeader('PUT', badge_issuer, null, access_token)
   )
   const res = await errorHandling(result)
   return res

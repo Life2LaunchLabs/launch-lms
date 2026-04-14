@@ -17,6 +17,7 @@ class Collection(CollectionBase, table=True):
     collection_uuid: str = ""
     creation_date: str = ""
     update_date: str = ""
+    thumbnail_image: Optional[str] = None
 
 
 class CollectionCreate(CollectionBase):
@@ -39,4 +40,5 @@ class CollectionRead(CollectionBase):
     collection_uuid: str
     creation_date: str
     update_date: str
+    thumbnail_image: Optional[str] = None
     pass

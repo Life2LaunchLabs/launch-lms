@@ -38,7 +38,7 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
   const [userCertificate, setUserCertificate] = useState<any>(null);
   const [isLoadingCertificate, setIsLoadingCertificate] = useState(false);
   const [certificateError, setCertificateError] = useState<string | null>(null);
-  const qrCodeLink = getUriWithOrg(orgslug, `/certificates/${userCertificate?.certificate_user.user_certification_uuid}/verify`);
+  const qrCodeLink = getUriWithOrg(orgslug, `/badges/${userCertificate?.certificate_user.user_certification_uuid}/verify`);
 
 
 
@@ -230,7 +230,7 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
           letter-spacing: 1px;
         ">
           <div style="width: 24px; height: 1px; background: linear-gradient(90deg, transparent, ${theme.secondary}, transparent);"></div>
-          ${t('certificate.certificate')}
+          Open Badge
           <div style="width: 24px; height: 1px; background: linear-gradient(90deg, transparent, ${theme.secondary}, transparent);"></div>
         </div>
         
@@ -311,7 +311,7 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
           max-width: 400px;
         ">
           <div style="margin: 8px 0; font-size: 14px; color: #374151;">
-            <strong style="color: ${theme.primary};">${t('certificate.certificate_id')}:</strong> ${certificateId}
+            <strong style="color: ${theme.primary};">Badge ID:</strong> ${certificateId}
           </div>
           <div style="margin: 8px 0; font-size: 14px; color: #374151;">
             <strong style="color: ${theme.primary};">${t('certificate.awarded')}:</strong> ${new Date(userCertificate.certificate_user.created_at).toLocaleDateString(i18n.language === 'fr' ? 'fr-FR' : 'en-US', {
@@ -320,9 +320,9 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
               day: 'numeric'
             })}
           </div>
-          ${userCertificate.certification.config.certificate_instructor ? 
+          ${userCertificate.issuer?.name ? 
             `<div style="margin: 8px 0; font-size: 14px; color: #374151;">
-              <strong style="color: ${theme.primary};">${t('roles.instructor')}:</strong> ${userCertificate.certification.config.certificate_instructor}
+              <strong style="color: ${theme.primary};">Issuer:</strong> ${userCertificate.issuer.name}
             </div>` : ''
           }
         </div>
@@ -332,7 +332,7 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
           font-size: 12px;
           color: #6b7280;
         ">
-          ${t('certificate.certificate_verify_message')} ${qrCodeLink}
+          Verify this badge at ${qrCodeLink}
         </div>
       `;
 
@@ -531,15 +531,15 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
             </div>
           ) : userCertificate ? (
             <div className="space-y-4">
-              <h2 className="text-2xl font-semibold text-gray-900">{t('certificate.your_certificate')}</h2>
+              <h2 className="text-2xl font-semibold text-gray-900">Your Badge</h2>
               <div className="max-w-2xl mx-auto" id="certificate-preview">
                 <div id="certificate-content">
                   <CertificatePreview
                     certificationName={userCertificate.certification.config.certification_name}
                     certificationDescription={userCertificate.certification.config.certification_description}
                     certificationType={userCertificate.certification.config.certification_type}
-                    certificatePattern={userCertificate.certification.config.certificate_pattern}
-                    certificateInstructor={userCertificate.certification.config.certificate_instructor}
+                    certificatePattern={userCertificate.certification.config.badge_theme || userCertificate.certification.config.certificate_pattern}
+                    certificateInstructor={userCertificate.issuer?.name}
                     certificateId={userCertificate.certificate_user.user_certification_uuid}
                     awardedDate={new Date(userCertificate.certificate_user.created_at).toLocaleDateString(i18n.language === 'fr' ? 'fr-FR' : 'en-US', {
                       year: 'numeric',
@@ -556,16 +556,16 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
                   className="inline-flex items-center space-x-2 bg-green-600 text-white px-6 py-3 rounded-full hover:bg-green-700 transition duration-200"
                 >
                   <Download className="w-5 h-5" />
-                  <span>{t('certificate.download_certificate')}</span>
+                  <span>Download Badge PDF</span>
                 </button>
                 <Link
-                  href={getUriWithOrg(orgslug, `/certificates/${userCertificate.certificate_user.user_certification_uuid}/verify`)}
+                  href={getUriWithOrg(orgslug, `/badges/${userCertificate.certificate_user.user_certification_uuid}/verify`)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-full hover:bg-blue-700 transition duration-200"
                 >
                   <Shield className="w-5 h-5" />
-                  <span>{t('certificate.verify_certificate')}</span>
+                  <span>Verify Badge</span>
                 </Link>
               </div>
             </div>

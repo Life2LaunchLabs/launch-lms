@@ -3,7 +3,10 @@ import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import CreateCourseModal from '@components/Objects/Modals/Course/Create/CreateCourse'
 import CourseCreationTypeSelector from '@components/Objects/Modals/Course/Create/CourseCreationTypeSelector'
 import AICourseCreationModal from '@components/Objects/Modals/Course/Create/AICourse/AICourseCreationModal'
-import { BookCopy, Search, X, Trash2, ChevronLeft, ChevronRight, Upload, Users, Info } from 'lucide-react'
+import { BookCopy, Search, X, Trash2, ChevronLeft, ChevronRight, Upload, Users, Info, Library, Plus, Loader2, Download, Copy } from 'lucide-react'
+import CollectionThumbnail from '@components/Objects/Thumbnails/CollectionThumbnail'
+import { createCollection } from '@services/courses/collections'
+import { revalidateTags, swrFetcher } from '@services/utils/ts/requests'
 import { ImportTypeSelector, LaunchLMSCourseImport, TutorCourseImport } from '@components/Objects/Modals/Course/Import'
 import CourseThumbnail, { removeCoursePrefix } from '@components/Objects/Thumbnails/CourseThumbnail'
 import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
@@ -15,7 +18,6 @@ import React, { useState, useMemo } from 'react'
 import useAdminStatus from '@components/Hooks/useAdminStatus'
 import { getAPIUrl } from '@services/config/config'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { Download, Copy } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { PlanLevel } from '@services/plans/plans'
 import { OrgUsageResponse, orgUsageFetcher } from '@services/orgs/usage'
@@ -23,7 +25,6 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { deleteCourseFromBackend, cloneCourse } from '@services/courses/courses'
 import { exportCoursesBatch, downloadBlob, ExportStatus } from '@services/courses/transfer'
 import { exportToast } from '@components/Objects/StyledElements/Toast/ExportToast'
-import { swrFetcher } from '@services/utils/ts/requests'
 import { getUserGroups, getUserGroupResources } from '@services/usergroups/usergroups'
 import { mutate } from 'swr'
 import useSWR from 'swr'
@@ -35,6 +36,7 @@ type CourseProps = {
   orgslug: string
   courses: any
   org_id: string | number
+  collections?: any[]
 }
 
 function CoursesHome(params: CourseProps) {
@@ -46,6 +48,10 @@ function CoursesHome(params: CourseProps) {
   const [importType, setImportType] = React.useState<'select' | 'launch-lms' | 'tutor'>('select')
   const [creationType, setCreationType] = React.useState<'select' | 'scratch' | 'ai'>('select')
   const [aiCourseModalOpen, setAiCourseModalOpen] = React.useState(false)
+  const [newCollectionModal, setNewCollectionModal] = React.useState(false)
+  const [newCollectionName, setNewCollectionName] = React.useState('')
+  const [newCollectionDescription, setNewCollectionDescription] = React.useState('')
+  const [isCreatingCollection, setIsCreatingCollection] = React.useState(false)
   const orgslug = params.orgslug
   const isUserAdmin = useAdminStatus() as any
   const org = useOrg() as any
@@ -64,6 +70,38 @@ function CoursesHome(params: CourseProps) {
   )
 
   const allCourses = coursesData || params.courses
+
+  // SWR for collections
+  const { data: collectionsData, mutate: mutateCollections } = useSWR(
+    access_token && params.org_id ? `${getAPIUrl()}collections/org/${params.org_id}/page/1/limit/100` : null,
+    (url) => swrFetcher(url, access_token),
+    { fallbackData: params.collections || [], revalidateOnFocus: true }
+  )
+  const allCollections = collectionsData || params.collections || []
+
+  const handleCreateCollection = async () => {
+    if (!newCollectionName.trim()) {
+      toast.error('Collection name is required.')
+      return
+    }
+    setIsCreatingCollection(true)
+    try {
+      await createCollection(
+        { name: newCollectionName.trim(), description: newCollectionDescription.trim(), public: true, courses: [], org_id: org.id },
+        access_token
+      )
+      await revalidateTags(['collections'], orgslug)
+      mutateCollections()
+      setNewCollectionModal(false)
+      setNewCollectionName('')
+      setNewCollectionDescription('')
+      toast.success('Collection created.')
+    } catch {
+      toast.error('Failed to create collection.')
+    } finally {
+      setIsCreatingCollection(false)
+    }
+  }
 
   // Fetch usage limits from backend
   const { data: usageData } = useSWR<OrgUsageResponse>(
@@ -416,7 +454,95 @@ function CoursesHome(params: CourseProps) {
   return (
     <FeatureDisabledView featureName="courses" orgslug={orgslug} context="dashboard">
     <div className="h-full w-full bg-[#f8f8f8] pl-10 pr-10">
-      <div className="mb-6 pt-6">
+
+      {/* ── Collections section ── */}
+      <div className="pt-6 mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+          <div className="flex items-center gap-2">
+            <Library size={20} className="text-gray-500" />
+            <h2 className="text-xl font-bold text-gray-800">Collections</h2>
+            <span className="text-xs font-semibold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{allCollections.length}</span>
+          </div>
+          <AuthenticatedClientElement checkMethod="roles" action="create" ressourceType="collections" orgId={params.org_id}>
+            <button
+              onClick={() => setNewCollectionModal(true)}
+              className="rounded-lg bg-black hover:scale-105 transition-all duration-100 ease-linear antialiased p-2 px-5 my-auto font text-xs font-bold text-white nice-shadow flex space-x-2 items-center"
+            >
+              <Plus className="w-4 h-4" />
+              <span>New Collection</span>
+            </button>
+          </AuthenticatedClientElement>
+        </div>
+
+        {allCollections.length === 0 ? (
+          <div className="flex items-center justify-center py-8 border-2 border-dashed border-gray-200 rounded-xl">
+            <div className="text-center">
+              <Library size={32} className="mx-auto mb-2 text-gray-300" />
+              <p className="text-sm text-gray-500">No collections yet. Create one to group courses together.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {allCollections.map((collection: any) => (
+              <CollectionThumbnail
+                key={collection.collection_uuid}
+                collection={collection}
+                orgslug={orgslug}
+                org_id={params.org_id}
+                isDashboard={true}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── New Collection Modal ── */}
+      <Modal
+        isDialogOpen={newCollectionModal}
+        onOpenChange={(open) => { setNewCollectionModal(open); if (!open) { setNewCollectionName(''); setNewCollectionDescription('') } }}
+        minHeight="no-min"
+        minWidth="md"
+        dialogTitle="New Collection"
+        dialogDescription="Create a new collection to group courses. You can add courses after creation."
+        dialogContent={
+          <div className="flex flex-col gap-4 p-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+              <input
+                type="text"
+                value={newCollectionName}
+                onChange={(e) => setNewCollectionName(e.target.value)}
+                placeholder="Collection name"
+                maxLength={100}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea
+                value={newCollectionDescription}
+                onChange={(e) => setNewCollectionDescription(e.target.value)}
+                placeholder="Optional description…"
+                maxLength={500}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black resize-none"
+              />
+            </div>
+            <div className="flex justify-end">
+              <button
+                onClick={handleCreateCollection}
+                disabled={isCreatingCollection || !newCollectionName.trim()}
+                className="flex items-center gap-2 rounded-lg bg-black p-2 px-5 text-xs font-bold text-white nice-shadow hover:scale-105 transition-all duration-100 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              >
+                {isCreatingCollection && <Loader2 className="w-4 h-4 animate-spin" />}
+                {isCreatingCollection ? 'Creating…' : 'Create Collection'}
+              </button>
+            </div>
+          </div>
+        }
+      />
+
+      <div className="mb-6">
         <Breadcrumbs items={[
           { label: t('courses.courses'), href: '/dash/courses', icon: <BookCopy size={14} /> }
         ]} />

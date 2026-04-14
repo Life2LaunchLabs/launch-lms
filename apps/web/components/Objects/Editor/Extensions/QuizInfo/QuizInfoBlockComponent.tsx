@@ -55,8 +55,9 @@ function QuizInfoBlockComponent(props: any) {
   const [imageBlockObject, setImageBlockObject] = React.useState<any>(attrs.image_block_object || null)
   const [gradientSeed, setGradientSeed] = React.useState<string>(attrs.gradient_seed || attrs.slide_uuid || uuidv4())
   const [isLoading, setIsLoading] = React.useState(false)
+  const [animation, setAnimation] = React.useState<'none' | 'confetti'>(attrs.animation || 'none')
 
-  const save = (newTitle: string, newBody: string, newBlockObj: any, newSeed?: string) => {
+  const save = (newTitle: string, newBody: string, newBlockObj: any, newSeed?: string, newAnimation?: 'none' | 'confetti') => {
     props.updateAttributes({
       slide_uuid: attrs.slide_uuid || uuidv4(),
       gradient_seed: newSeed ?? gradientSeed,
@@ -66,7 +67,13 @@ function QuizInfoBlockComponent(props: any) {
       image_file_id: newBlockObj?.content?.file_id
         ? `${newBlockObj.content.file_id}.${newBlockObj.content.file_format}`
         : null,
+      animation: newAnimation ?? animation,
     })
+  }
+
+  const handleToggleAnimation = (next: 'none' | 'confetti') => {
+    setAnimation(next)
+    save(title, body, imageBlockObject, undefined, next)
   }
 
   const handleUpload = async (file: File) => {
@@ -124,6 +131,17 @@ function QuizInfoBlockComponent(props: any) {
           <Info size={14} style={{ color: ACCENT_COLOR, flexShrink: 0 }} />
           <span style={{ fontSize: 11, fontWeight: 700, color: ACCENT_COLOR, letterSpacing: '0.08em', textTransform: 'uppercase', flexShrink: 0 }}>Info Slide</span>
           <div style={{ flex: 1 }} />
+          <div style={{ width: 1, height: 16, background: '#bfdbfe', margin: '0 2px' }} />
+          {/* To add a new animation: drop a .json into public/animations/quiz-info/,
+              add an <option> here, then add a branch in InfoSlideView (QuizActivityPlayer.tsx) */}
+          <select
+            value={animation}
+            onChange={e => handleToggleAnimation(e.target.value as 'none' | 'confetti')}
+            style={{ fontSize: 11, fontWeight: 600, border: '1px solid #bfdbfe', borderRadius: 6, padding: '2px 6px', background: '#fff', color: '#374151', outline: 'none', cursor: 'pointer' }}
+          >
+            <option value="none">No animation</option>
+            <option value="confetti">Confetti</option>
+          </select>
           <div style={{ width: 1, height: 16, background: '#bfdbfe', margin: '0 2px' }} />
           <button type="button" onClick={handleDuplicate} title="Duplicate slide"
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: '#93c5fd' }}
