@@ -138,9 +138,6 @@ jobs:
           username: ${{ secrets.DROPLET_USER }}
           key: ${{ secrets.DROPLET_SSH_KEY }}
           script: |
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            cd /opt/launch-lms && git pull
-            docker compose pull
-            docker compose up -d --remove-orphans
-            docker logout ghcr.io
-            docker image prune -f
+            export GHCR_USERNAME="${{ github.actor }}"
+            export GHCR_TOKEN="${{ secrets.GITHUB_TOKEN }}"
+            /opt/launch-lms/deploy.sh
