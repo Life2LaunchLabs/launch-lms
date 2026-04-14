@@ -106,11 +106,12 @@ const CoursesPage = async (params: any) => {
       { revalidate: 0, tags: ['collections'] }
     )
   } catch (error: any) {
-    if (error?.status === 403) {
-      collections = []
-    } else {
-      throw error
-    }
+    console.error('Failed to load collections for courses page', {
+      orgslug,
+      org_id: org.id,
+      error,
+    })
+    collections = []
   }
 
   const coursesJsonLd = {

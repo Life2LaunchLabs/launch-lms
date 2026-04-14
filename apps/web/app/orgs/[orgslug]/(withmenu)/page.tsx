@@ -99,11 +99,20 @@ const OrgHomePage = async (params: any) => {
     tags: ['organizations'],
   })
   const org_id = org.id
-  const collections = await getOrgCollections(
-    org.id,
-    access_token ?? undefined,
-    { revalidate: 0, tags: ['courses'] }
-  )
+  let collections: any[] = []
+  try {
+    collections = await getOrgCollections(
+      org.id,
+      access_token ?? undefined,
+      { revalidate: 0, tags: ['courses'] }
+    )
+  } catch (error) {
+    console.error('Failed to load collections for org home page', {
+      orgslug,
+      org_id,
+      error,
+    })
+  }
 
   // Check if custom landing is enabled (v2: customization.landing, v1: landing)
   const landingConfig = org.config?.config?.customization?.landing || org.config?.config?.landing

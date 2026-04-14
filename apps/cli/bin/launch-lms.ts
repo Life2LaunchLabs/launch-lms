@@ -13,6 +13,7 @@ import { deploymentsCommand } from '../src/commands/deployments.js'
 import { doctorCommand } from '../src/commands/doctor.js'
 import { shellCommand } from '../src/commands/shell.js'
 import { devCommand } from '../src/commands/dev.js'
+import { domainCommand } from '../src/commands/domain.js'
 
 const COMMANDS: { name: string; desc: string }[] = [
   { name: 'setup', desc: 'Interactive setup wizard' },
@@ -23,6 +24,7 @@ const COMMANDS: { name: string; desc: string }[] = [
   { name: 'backup', desc: 'Backup & restore database' },
   { name: 'deployments', desc: 'Manage deployments & resources' },
   { name: 'doctor', desc: 'Diagnose issues' },
+  { name: 'domain', desc: 'Update domain, env, and Caddy config' },
   { name: 'shell', desc: 'Container shell access' },
   { name: 'dev', desc: 'Development mode' },
 ]
@@ -88,6 +90,15 @@ program
   .command('doctor')
   .description('Diagnose common issues with Launch LMS')
   .action(doctorCommand)
+
+program
+  .command('domain')
+  .description('Update the domain across env, config, and detected Caddyfiles')
+  .argument('<domain>', 'New public domain, for example lms.example.com')
+  .option('--no-restart', 'Update files only and skip Docker Compose restart')
+  .option('--no-reload-caddy', 'Update files only and skip reloading system Caddy')
+  .option('--caddy-path <path>', 'Explicit Caddyfile path to update')
+  .action(domainCommand)
 
 program
   .command('shell')

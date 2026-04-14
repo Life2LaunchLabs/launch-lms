@@ -52,6 +52,7 @@ The setup wizard walks you through domain, database, admin account, and optional
 ./launch-lms start       # Start services
 ./launch-lms stop        # Stop services
 ./launch-lms logs        # Stream logs
+./launch-lms domain      # Update domain + env + Caddy config
 ./launch-lms backup      # Backup database
 ./launch-lms doctor      # Diagnose issues
 ```
