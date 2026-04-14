@@ -17,10 +17,22 @@ lh_config = get_launchlms_config()
 # access to the values within the .ini file in use.
 config = context.config
 
+
+def get_alembic_database_url() -> str:
+    """Resolve the DB URL Alembic should use for migrations."""
+    return (
+        os.environ.get("LAUNCHLMS_SQL_CONNECTION_STRING")
+        or os.environ.get("DATABASE_URL")
+        or lh_config.database_config.sql_connection_string
+        or config.get_main_option("sqlalchemy.url")
+    )
+
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+config.set_main_option("sqlalchemy.url", get_alembic_database_url())
 
 # add your model's MetaData object here
 # for 'autogenerate' support
