@@ -22,6 +22,7 @@ That starts the local development environment for the app stack.
 
 ```bash
 ./launch-lms setup
+./launch-lms domain lms.example.com
 ./launch-lms start
 ./launch-lms stop
 ./launch-lms logs
@@ -46,3 +47,17 @@ npm run build
 ```
 
 The repo-root launcher normally handles this for you.
+
+## Updating A Domain
+
+Use the CLI instead of editing multiple files by hand:
+
+```bash
+./launch-lms domain lms.example.com
+```
+
+That command updates the deployment `.env`, `launch-lms.config.json`, and any detected Caddyfiles, then restarts Docker Compose and reloads system Caddy when applicable.
+
+Important:
+- Docker-managed auto-SSL installs use `extra/Caddyfile`
+- Hosts that run Caddy as a system service use `/etc/caddy/Caddyfile`

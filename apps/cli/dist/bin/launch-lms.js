@@ -1202,8 +1202,8 @@ var require_command = __commonJS({
     "use strict";
     var EventEmitter = __require("events").EventEmitter;
     var childProcess = __require("child_process");
-    var path8 = __require("path");
-    var fs8 = __require("fs");
+    var path9 = __require("path");
+    var fs9 = __require("fs");
     var process2 = __require("process");
     var { Argument: Argument2, humanReadableArgName } = require_argument();
     var { CommanderError: CommanderError2 } = require_error();
@@ -2197,7 +2197,7 @@ Expecting one of '${allowedValues.join("', '")}'`);
        * @param {string} subcommandName
        */
       _checkForMissingExecutable(executableFile, executableDir, subcommandName) {
-        if (fs8.existsSync(executableFile)) return;
+        if (fs9.existsSync(executableFile)) return;
         const executableDirMessage = executableDir ? `searched for local subcommand relative to directory '${executableDir}'` : "no directory for search for local subcommand, use .executableDir() to supply a custom directory";
         const executableMissing = `'${executableFile}' does not exist
  - if '${subcommandName}' is not meant to be an executable command, remove description parameter from '.command()' and use '.description()' instead
@@ -2215,11 +2215,11 @@ Expecting one of '${allowedValues.join("', '")}'`);
         let launchWithNode = false;
         const sourceExt = [".js", ".ts", ".tsx", ".mjs", ".cjs"];
         function findFile(baseDir, baseName) {
-          const localBin = path8.resolve(baseDir, baseName);
-          if (fs8.existsSync(localBin)) return localBin;
-          if (sourceExt.includes(path8.extname(baseName))) return void 0;
+          const localBin = path9.resolve(baseDir, baseName);
+          if (fs9.existsSync(localBin)) return localBin;
+          if (sourceExt.includes(path9.extname(baseName))) return void 0;
           const foundExt = sourceExt.find(
-            (ext) => fs8.existsSync(`${localBin}${ext}`)
+            (ext) => fs9.existsSync(`${localBin}${ext}`)
           );
           if (foundExt) return `${localBin}${foundExt}`;
           return void 0;
@@ -2231,21 +2231,21 @@ Expecting one of '${allowedValues.join("', '")}'`);
         if (this._scriptPath) {
           let resolvedScriptPath;
           try {
-            resolvedScriptPath = fs8.realpathSync(this._scriptPath);
+            resolvedScriptPath = fs9.realpathSync(this._scriptPath);
           } catch {
             resolvedScriptPath = this._scriptPath;
           }
-          executableDir = path8.resolve(
-            path8.dirname(resolvedScriptPath),
+          executableDir = path9.resolve(
+            path9.dirname(resolvedScriptPath),
             executableDir
           );
         }
         if (executableDir) {
           let localFile = findFile(executableDir, executableFile);
           if (!localFile && !subcommand._executableFile && this._scriptPath) {
-            const legacyName = path8.basename(
+            const legacyName = path9.basename(
               this._scriptPath,
-              path8.extname(this._scriptPath)
+              path9.extname(this._scriptPath)
             );
             if (legacyName !== this._name) {
               localFile = findFile(
@@ -2256,7 +2256,7 @@ Expecting one of '${allowedValues.join("', '")}'`);
           }
           executableFile = localFile || executableFile;
         }
-        launchWithNode = sourceExt.includes(path8.extname(executableFile));
+        launchWithNode = sourceExt.includes(path9.extname(executableFile));
         let proc;
         if (process2.platform !== "win32") {
           if (launchWithNode) {
@@ -3171,7 +3171,7 @@ Expecting one of '${allowedValues.join("', '")}'`);
        * @return {Command}
        */
       nameFromFilename(filename) {
-        this._name = path8.basename(filename, path8.extname(filename));
+        this._name = path9.basename(filename, path9.extname(filename));
         return this;
       }
       /**
@@ -3185,9 +3185,9 @@ Expecting one of '${allowedValues.join("', '")}'`);
        * @param {string} [path]
        * @return {(string|null|Command)}
        */
-      executableDir(path9) {
-        if (path9 === void 0) return this._executableDir;
-        this._executableDir = path9;
+      executableDir(path10) {
+        if (path10 === void 0) return this._executableDir;
+        this._executableDir = path10;
         return this;
       }
       /**
@@ -3613,7 +3613,7 @@ var {
 } = import_index.default;
 
 // bin/launch-lms.ts
-var import_picocolors16 = __toESM(require_picocolors(), 1);
+var import_picocolors17 = __toESM(require_picocolors(), 1);
 
 // src/constants.ts
 var VERSION = "1.2.0";
@@ -6483,8 +6483,8 @@ async function logsCommand() {
   O2.info("Streaming logs (Ctrl+C to stop)...");
   if (config?.installDir) {
     try {
-      const { execSync: execSync6 } = await import("child_process");
-      const ps = execSync6("docker compose ps -q", { cwd: config.installDir, stdio: "pipe" }).toString().trim();
+      const { execSync: execSync7 } = await import("child_process");
+      const ps = execSync7("docker compose ps -q", { cwd: config.installDir, stdio: "pipe" }).toString().trim();
       if (ps) {
         dockerComposeLogs(config.installDir);
         return;
@@ -7714,6 +7714,189 @@ async function devCommand(opts) {
   });
 }
 
+// src/commands/domain.ts
+import fs8 from "fs";
+import path8 from "path";
+import { execSync as execSync6 } from "child_process";
+var import_picocolors16 = __toESM(require_picocolors(), 1);
+function parseEnv(content) {
+  const map = /* @__PURE__ */ new Map();
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx === -1) continue;
+    map.set(trimmed.slice(0, eqIdx), trimmed.slice(eqIdx + 1));
+  }
+  return map;
+}
+function serializeEnv(original, updated) {
+  const lines = original.split("\n");
+  const result = [];
+  const written = /* @__PURE__ */ new Set();
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) {
+      result.push(line);
+      continue;
+    }
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx === -1) {
+      result.push(line);
+      continue;
+    }
+    const key = trimmed.slice(0, eqIdx);
+    if (updated.has(key)) {
+      result.push(`${key}=${updated.get(key)}`);
+      written.add(key);
+    } else {
+      result.push(line);
+    }
+  }
+  for (const [key, value] of updated) {
+    if (!written.has(key)) result.push(`${key}=${value}`);
+  }
+  return result.join("\n");
+}
+function deriveTopDomain(domain) {
+  return domain === "localhost" ? "localhost" : domain.split(".").slice(-2).join(".");
+}
+function deriveCookieDomain(domain) {
+  return domain === "localhost" ? ".localhost" : `.${deriveTopDomain(domain)}`;
+}
+function replaceCaddySite(content, domain) {
+  const lines = content.split("\n");
+  let globalBlockDepth = 0;
+  let inGlobalOptions = false;
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    if (!inGlobalOptions && trimmed === "{") {
+      inGlobalOptions = true;
+      globalBlockDepth = 1;
+      continue;
+    }
+    if (inGlobalOptions) {
+      globalBlockDepth += (trimmed.match(/{/g) || []).length;
+      globalBlockDepth -= (trimmed.match(/}/g) || []).length;
+      if (globalBlockDepth <= 0) {
+        inGlobalOptions = false;
+      }
+      continue;
+    }
+    if (trimmed.endsWith("{")) {
+      const indent = lines[i].match(/^\s*/)?.[0] ?? "";
+      lines[i] = `${indent}${domain} {`;
+      return lines.join("\n");
+    }
+  }
+  throw new Error("Could not find a Caddy site block to update");
+}
+function collectCaddyCandidates(installDir, explicitPath) {
+  const candidates = [
+    explicitPath,
+    path8.join(installDir, "extra", "Caddyfile"),
+    path8.join(installDir, "Caddyfile"),
+    "/etc/caddy/Caddyfile"
+  ].filter((value) => Boolean(value));
+  return [...new Set(candidates)].filter((filePath) => fs8.existsSync(filePath));
+}
+function updateCaddyFiles(domain, installDir, explicitPath) {
+  const updated = [];
+  for (const filePath of collectCaddyCandidates(installDir, explicitPath)) {
+    const original = fs8.readFileSync(filePath, "utf-8");
+    const next = replaceCaddySite(original, domain);
+    if (next !== original) {
+      fs8.writeFileSync(filePath, next);
+      updated.push(filePath);
+    }
+  }
+  return updated;
+}
+async function domainCommand(domain, options) {
+  const installDir = findInstallDir();
+  const config = readConfig(installDir);
+  if (!config) {
+    O2.error("No Launch LMS installation found in the current directory.");
+    process.exit(1);
+  }
+  const envPath = path8.join(config.installDir, ".env");
+  if (!fs8.existsSync(envPath)) {
+    O2.error(`No .env file found at ${envPath}`);
+    process.exit(1);
+  }
+  const protocol = config.useHttps ? "https" : "http";
+  const portSuffix = config.useHttps && config.httpPort === 443 || !config.useHttps && config.httpPort === 80 ? "" : `:${config.httpPort}`;
+  const baseUrl = `${protocol}://${domain}${portSuffix}`;
+  const topDomain = deriveTopDomain(domain);
+  const cookieDomain = deriveCookieDomain(domain);
+  const collabProtocol = config.useHttps ? "wss" : "ws";
+  mt(import_picocolors16.default.cyan("Launch LMS Domain Update"));
+  const originalEnv = fs8.readFileSync(envPath, "utf-8");
+  const envMap = parseEnv(originalEnv);
+  const previousDomain = envMap.get("LAUNCHLMS_DOMAIN") || config.domain;
+  envMap.set("LAUNCHLMS_DOMAIN", `${domain}${portSuffix}`);
+  envMap.set("NEXT_PUBLIC_LAUNCHLMS_API_URL", `${baseUrl}/api/v1/`);
+  envMap.set("NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL", `${baseUrl}/`);
+  envMap.set("NEXT_PUBLIC_LAUNCHLMS_DOMAIN", `${domain}${portSuffix}`);
+  envMap.set("NEXT_PUBLIC_LAUNCHLMS_TOP_DOMAIN", topDomain);
+  envMap.set("NEXTAUTH_URL", baseUrl);
+  envMap.set("LAUNCHLMS_COOKIE_DOMAIN", cookieDomain);
+  envMap.set("NEXT_PUBLIC_COLLAB_URL", `${collabProtocol}://${domain}${portSuffix}/collab`);
+  const systemEmail = envMap.get("LAUNCHLMS_SYSTEM_EMAIL_ADDRESS");
+  if (systemEmail === `noreply@${config.domain}` || systemEmail === `noreply@${previousDomain.replace(/:\d+$/, "")}`) {
+    envMap.set("LAUNCHLMS_SYSTEM_EMAIL_ADDRESS", `noreply@${domain}`);
+  }
+  fs8.writeFileSync(envPath, serializeEnv(originalEnv, envMap));
+  const nextConfig = { ...config, domain };
+  fs8.writeFileSync(
+    path8.join(config.installDir, "launch-lms.config.json"),
+    JSON.stringify(nextConfig, null, 2) + "\n"
+  );
+  let updatedCaddyFiles = [];
+  try {
+    updatedCaddyFiles = updateCaddyFiles(domain, config.installDir, options.caddyPath);
+  } catch (err) {
+    O2.warn(`Caddy update skipped: ${err?.message ?? String(err)}`);
+  }
+  O2.success(`Updated domain references from ${import_picocolors16.default.dim(previousDomain)} to ${import_picocolors16.default.bold(domain)}`);
+  O2.info(import_picocolors16.default.dim(`Environment: ${envPath}`));
+  if (updatedCaddyFiles.length > 0) {
+    for (const filePath of updatedCaddyFiles) {
+      O2.info(import_picocolors16.default.dim(`Caddy config: ${filePath}`));
+    }
+  } else {
+    O2.warn("No Caddyfile was updated automatically");
+  }
+  if (options.restart !== false) {
+    const s = fe();
+    s.start("Restarting Launch LMS services");
+    try {
+      dockerComposeDown(config.installDir);
+      dockerComposeUp(config.installDir);
+      s.stop("Launch LMS services restarted");
+    } catch (err) {
+      s.stop("Failed to restart Launch LMS services");
+      O2.error(err?.message ?? String(err));
+      process.exit(1);
+    }
+  }
+  if (options.reloadCaddy !== false && updatedCaddyFiles.some((filePath) => filePath === "/etc/caddy/Caddyfile")) {
+    try {
+      execSync6("systemctl reload caddy", { stdio: "inherit" });
+      O2.success("Reloaded system Caddy");
+    } catch (err) {
+      O2.warn(`Failed to reload system Caddy automatically: ${err?.message ?? String(err)}`);
+    }
+  }
+  O2.message([
+    `  ${import_picocolors16.default.dim("Next URL:")}      ${baseUrl}`,
+    `  ${import_picocolors16.default.dim("Cookie domain:")} ${cookieDomain}`,
+    `  ${import_picocolors16.default.dim("Top domain:")}    ${topDomain}`
+  ].join("\n"));
+  gt(import_picocolors16.default.dim("Done"));
+}
+
 // bin/launch-lms.ts
 var COMMANDS = [
   { name: "setup", desc: "Interactive setup wizard" },
@@ -7724,18 +7907,19 @@ var COMMANDS = [
   { name: "backup", desc: "Backup & restore database" },
   { name: "deployments", desc: "Manage deployments & resources" },
   { name: "doctor", desc: "Diagnose issues" },
+  { name: "domain", desc: "Update domain, env, and Caddy config" },
   { name: "shell", desc: "Container shell access" },
   { name: "dev", desc: "Development mode" }
 ];
 async function showWelcome() {
   await printBanner();
-  console.log(import_picocolors16.default.bold(import_picocolors16.default.white("  Available commands:\n")));
+  console.log(import_picocolors17.default.bold(import_picocolors17.default.white("  Available commands:\n")));
   for (const cmd of COMMANDS) {
-    console.log(`    ${import_picocolors16.default.cyan(cmd.name.padEnd(14))} ${import_picocolors16.default.dim(cmd.desc)}`);
+    console.log(`    ${import_picocolors17.default.cyan(cmd.name.padEnd(14))} ${import_picocolors17.default.dim(cmd.desc)}`);
   }
   console.log();
-  console.log(import_picocolors16.default.dim("  Run a command with: launch-lms <command>"));
-  console.log(import_picocolors16.default.dim("  Get started with:   launch-lms setup"));
+  console.log(import_picocolors17.default.dim("  Run a command with: launch-lms <command>"));
+  console.log(import_picocolors17.default.dim("  Get started with:   launch-lms setup"));
   console.log();
 }
 var program2 = new Command();
@@ -7748,6 +7932,7 @@ program2.command("config").description("Show current Launch LMS configuration").
 program2.command("backup").description("Backup & restore Launch LMS database").argument("[archive]", "Path to backup archive for restore").option("--restore", "Restore from a backup archive").action(backupCommand);
 program2.command("deployments").description("Manage deployments & resource limits").action(deploymentsCommand);
 program2.command("doctor").description("Diagnose common issues with Launch LMS").action(doctorCommand);
+program2.command("domain").description("Update the domain across env, config, and detected Caddyfiles").argument("<domain>", "New public domain, for example lms.example.com").option("--no-restart", "Update files only and skip Docker Compose restart").option("--no-reload-caddy", "Update files only and skip reloading system Caddy").option("--caddy-path <path>", "Explicit Caddyfile path to update").action(domainCommand);
 program2.command("shell").description("Open a shell in a Launch LMS container").action(shellCommand);
 program2.command("dev").description("Start development environment (DB + Redis in Docker, API + Web locally)").option("--ee", "Enable Enterprise Edition features (keeps ee/ folder)").action(devCommand);
 var updateCheck = checkForUpdates();
