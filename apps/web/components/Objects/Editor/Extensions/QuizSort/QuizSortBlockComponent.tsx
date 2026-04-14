@@ -183,6 +183,18 @@ function normalizeCategories(categories: SortCategory[] | undefined) {
     .filter(Boolean) as SortCategory[]
 }
 
+function hexToLightBg(hex: string, mix = 0.15): string {
+  const cleaned = hex.replace('#', '')
+  const r = parseInt(cleaned.slice(0, 2), 16)
+  const g = parseInt(cleaned.slice(2, 4), 16)
+  const b = parseInt(cleaned.slice(4, 6), 16)
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return '#f1f5f9'
+  const ro = Math.round(255 + (r - 255) * mix)
+  const go = Math.round(255 + (g - 255) * mix)
+  const bo = Math.round(255 + (b - 255) * mix)
+  return `rgb(${ro},${go},${bo})`
+}
+
 function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
@@ -597,17 +609,17 @@ function QuizSortBlockComponent(props: any) {
 
                   <div style={{ display: 'grid', gridTemplateColumns: categories.length === 3 ? 'repeat(3, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
                     {categories.map(category => (
-                      <div key={category.category_uuid} style={{ position: 'relative', borderRadius: 22, background: category.color, border: '1px solid rgba(148,163,184,0.16)', boxShadow: '0 14px 32px rgba(15,23,42,0.08)', padding: 14, color: '#fff' }}>
+                      <div key={category.category_uuid} style={{ position: 'relative', borderRadius: 22, background: hexToLightBg(category.color, 0.12), border: `1.5px solid ${hexToLightBg(category.color, 0.35)}`, boxShadow: '0 14px 32px rgba(15,23,42,0.08)', padding: 14, color: category.color }}>
                         <input type="color" value={category.color} onChange={e => handleCategoryChange(category.category_uuid, 'color', e.target.value)}
                           title="Change tray color"
-                          style={{ position: 'absolute', top: 10, right: 10, width: 30, height: 30, border: '1px solid rgba(255,255,255,0.65)', borderRadius: 999, padding: 3, background: 'rgba(255,255,255,0.22)', cursor: 'pointer' }} />
+                          style={{ position: 'absolute', top: 10, right: 10, width: 30, height: 30, border: `1px solid ${hexToLightBg(category.color, 0.5)}`, borderRadius: 999, padding: 3, background: hexToLightBg(category.color, 0.18), cursor: 'pointer' }} />
                         <button type="button" onClick={() => setIconPickerCategoryUuid(current => current === category.category_uuid ? null : category.category_uuid)}
                           title="Change icon"
-                          style={{ width: 42, height: 42, borderRadius: 999, border: '1px solid rgba(255,255,255,0.5)', background: 'rgba(255,255,255,0.18)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginBottom: 12 }}>
-                          {renderSortIcon(category.icon, { size: 18, color: '#fff' })}
+                          style={{ width: 42, height: 42, borderRadius: 999, border: `1px solid ${hexToLightBg(category.color, 0.5)}`, background: hexToLightBg(category.color, 0.18), color: category.color, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginBottom: 12 }}>
+                          {renderSortIcon(category.icon, { size: 18, color: category.color })}
                         </button>
                         {iconPickerCategoryUuid === category.category_uuid && (
-                          <div style={{ marginBottom: 12, display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8, padding: 10, borderRadius: 16, background: 'rgba(255,255,255,0.16)', border: '1px solid rgba(255,255,255,0.24)' }}>
+                          <div style={{ marginBottom: 12, display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8, padding: 10, borderRadius: 16, background: hexToLightBg(category.color, 0.1), border: `1px solid ${hexToLightBg(category.color, 0.3)}` }}>
                             {ICON_OPTIONS.map(option => {
                               const active = option.value === category.icon
                               return (
@@ -623,24 +635,24 @@ function QuizSortBlockComponent(props: any) {
                                     width: '100%',
                                     aspectRatio: '1 / 1',
                                     borderRadius: 12,
-                                    border: active ? '2px solid rgba(255,255,255,0.95)' : '1px solid rgba(255,255,255,0.24)',
-                                    background: active ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.12)',
-                                    color: '#fff',
+                                    border: active ? `2px solid ${category.color}` : `1px solid ${hexToLightBg(category.color, 0.35)}`,
+                                    background: active ? hexToLightBg(category.color, 0.28) : hexToLightBg(category.color, 0.1),
+                                    color: category.color,
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     cursor: 'pointer',
                                   }}
                                 >
-                                  {renderSortIcon(option.value, { size: 16, color: '#fff' })}
+                                  {renderSortIcon(option.value, { size: 16, color: category.color })}
                                 </button>
                               )
                             })}
                           </div>
                         )}
                         <input value={category.label} placeholder="Category label" onChange={e => handleCategoryChange(category.category_uuid, 'label', e.target.value)}
-                          style={{ width: '100%', border: 'none', borderRadius: 14, padding: '10px 12px', fontSize: 13, fontWeight: 800, outline: 'none', background: 'rgba(255,255,255,0.16)', color: '#fff' }} />
-                        <p style={{ margin: '8px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.84)', lineHeight: 1.4 }}>
+                          style={{ width: '100%', border: 'none', borderRadius: 14, padding: '10px 12px', fontSize: 13, fontWeight: 800, outline: 'none', background: hexToLightBg(category.color, 0.12), color: category.color }} />
+                        <p style={{ margin: '8px 0 0', fontSize: 11, color: category.color, lineHeight: 1.4, opacity: 0.7 }}>
                           {category.position === 'top' ? 'Top tray button sits elevated.' : `Cards sort into the ${category.position} tray.`}
                         </p>
                       </div>
@@ -668,8 +680,8 @@ function QuizSortBlockComponent(props: any) {
                         const scoreKey = getSortScoreKey(card.card_uuid, category.category_uuid)
                         return (
                           <div key={category.category_uuid} style={{ borderRadius: 16, background: '#fff', border: '1px solid rgba(148,163,184,0.14)', overflow: 'hidden' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: category.color, color: '#fff' }}>
-                              {renderSortIcon(category.icon, { size: 14, color: '#fff' })}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', background: hexToLightBg(category.color, 0.12), color: category.color, borderBottom: `1px solid ${hexToLightBg(category.color, 0.25)}` }}>
+                              {renderSortIcon(category.icon, { size: 14, color: category.color })}
                               <span style={{ fontSize: 12, fontWeight: 800 }}>{category.label || 'Untitled category'}</span>
                             </div>
                             <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>

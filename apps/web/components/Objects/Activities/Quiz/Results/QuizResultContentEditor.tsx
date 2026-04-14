@@ -194,7 +194,8 @@ interface Props {
   activity: any
   vectors: any[]
   scores: Record<string, number>
-  onUpdate: (template: any, varOverrides: Record<string, any>) => void
+  // eslint-disable-next-line no-unused-vars
+  onUpdate: (_template: any, _varOverrides: Record<string, any>) => void
 }
 
 export default function QuizResultContentEditor({
@@ -213,9 +214,10 @@ export default function QuizResultContentEditor({
   const varOverridesRef = useRef(varOverrides)
   const prevResultUuid = useRef(resultUuid)
 
-  // Keep refs current without triggering effects
-  templateRef.current = template
-  varOverridesRef.current = varOverrides
+  useEffect(() => {
+    templateRef.current = template
+    varOverridesRef.current = varOverrides
+  }, [template, varOverrides])
 
   const editor = useEditor({
     immediatelyRender: false,

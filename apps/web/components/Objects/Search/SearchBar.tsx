@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, ArrowRight, Sparkles, BookCopy, SquareLibrary, ArrowUpRight, TextSearch, ScanSearch, Users } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Search, ArrowRight, Sparkles, BookCopy, SquareLibrary, ArrowUpRight, TextSearch, ScanSearch, Users, X } from 'lucide-react';
 import { searchOrgContent } from '@services/search/search';
 import { useLHSession } from '@components/Contexts/LHSessionContext';
 import Link from 'next/link';
@@ -12,6 +13,7 @@ import UserAvatar from '../UserAvatar';
 import { useTranslation } from 'react-i18next';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { getMenuColorClasses } from '@services/utils/ts/colorUtils';
+import { Z_INDEX } from '@/lib/z-index';
 
 interface User {
   username: string;
@@ -113,12 +115,22 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [mobileExpanded, setMobileExpanded] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const session = useLHSession() as any;
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Debounce the search query value
   const debouncedSearch = useDebounce(searchQuery, 300);
+
+  // Focus input when mobile search expands
+  useEffect(() => {
+    if (isMobile && mobileExpanded) {
+      const id = setTimeout(() => inputRef.current?.focus(), 50);
+      return () => clearTimeout(id);
+    }
+  }, [isMobile, mobileExpanded]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -149,7 +161,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           null,
           session?.data?.tokens?.access_token
         );
-        
+
         // Type assertion and safe access
         const typedResponse = response.data as any;
 
@@ -235,12 +247,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   }, [searchQuery, searchTerms, orgslug, t]);
 
   const MemoizedQuickResults = useMemo(() => {
-    const hasResults = searchResults.courses.length > 0 || 
-                      searchResults.collections.length > 0 || 
+    const hasResults = searchResults.courses.length > 0 ||
+                      searchResults.collections.length > 0 ||
                       searchResults.users.length > 0;
-    
+
     if (!hasResults) return null;
-    
+
     return (
       <div className="p-2">
         <div className="flex items-center gap-2 px-2 py-2 text-sm text-black/50">
@@ -361,6 +373,113 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     setShowResults(true);
   }, []);
 
+  const closeMobile = useCallback(() => {
+    setMobileExpanded(false);
+    setShowResults(false);
+    setSearchQuery('');
+  }, []);
+
+  // Shared dropdown content (used by both desktop and mobile expanded)
+  const dropdownContent = (!searchQuery.trim() || isInitialLoad) ? (
+    MemoizedEmptyState
+  ) : (
+    <>
+      {showSearchSuggestions && MemoizedSearchSuggestions}
+      {isLoading ? (
+        <CourseResultsSkeleton />
+      ) : (
+        <>
+          {MemoizedQuickResults}
+          {((searchResults.courses.length > 0 ||
+             searchResults.collections.length > 0 ||
+             searchResults.users.length > 0) ||
+             searchQuery.trim()) && (
+            <Link
+              href={getUriWithOrg(orgslug, `/search?q=${encodeURIComponent(searchQuery)}`)}
+              className="flex items-center justify-between px-4 py-2.5 text-xs text-black/50 hover:text-black/70 hover:bg-black/[0.02] transition-colors"
+            >
+              <span>{t('search.view_all_results')}</span>
+              <ArrowRight size={14} />
+            </Link>
+          )}
+        </>
+      )}
+    </>
+  );
+
+  // Mobile: icon-only button in the navbar, plus a portalled overlay when expanded.
+  // We must portal the overlay to document.body to escape the navbar's backdrop-blur
+  // containing block, which would otherwise confine fixed positioning to the navbar bounds.
+  if (isMobile) {
+    return (
+      <>
+        <button
+          onClick={() => setMobileExpanded(true)}
+          className={`h-9 w-9 flex items-center justify-center rounded-xl ${colors.searchBg}`}
+          aria-label={t('search.search_placeholder')}
+        >
+          <Search className={`${colors.searchIcon}`} size={18} />
+        </button>
+
+        {mobileExpanded && typeof document !== 'undefined' && createPortal(
+          <>
+            {/* Scrim — fixed relative to viewport (portalled out of navbar) */}
+            <div
+              className="fixed inset-0 bg-black/40"
+              style={{ zIndex: Z_INDEX.NAV_MENU + 1 }}
+              onClick={closeMobile}
+            />
+
+            {/* Expanded search bar — sits over the navbar */}
+            <div
+              ref={searchRef}
+              className="fixed top-0 left-0 right-0 flex flex-col"
+              style={{ zIndex: Z_INDEX.NAV_MENU + 2 }}
+            >
+              {/* Input row — matches navbar height */}
+              <div
+                className="flex items-center gap-2 px-4 h-[60px] shadow-sm"
+                style={{ backgroundColor: primaryColor || 'white' }}
+              >
+                <div className="relative flex-1">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    onFocus={() => setShowResults(true)}
+                    aria-label={t('search.search_placeholder')}
+                    placeholder={t('search.search_placeholder')}
+                    className={`w-full h-9 pl-11 pr-4 rounded-xl focus:outline-none focus:ring-1 transition-all text-sm ${colors.searchBg}`}
+                  />
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <Search className={`${colors.searchIcon} transition-colors`} size={18} />
+                  </div>
+                </div>
+                <button
+                  onClick={closeMobile}
+                  className={`flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl transition-colors ${colors.iconBtn}`}
+                  aria-label="Close search"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Dropdown — positioned below input row */}
+              {showResults && (
+                <div className="mx-4 mt-1 bg-white rounded-xl nice-shadow overflow-hidden divide-y divide-black/5">
+                  {dropdownContent}
+                </div>
+              )}
+            </div>
+          </>,
+          document.body
+        )}
+      </>
+    );
+  }
+
+  // Desktop: existing behaviour
   return (
     <div ref={searchRef} className={`relative ${className}`}>
       <div className="relative group">
@@ -380,39 +499,14 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         </div>
       </div>
 
-      <div 
-        className={`absolute z-dropdown w-full mt-2 bg-white rounded-xl nice-shadow 
+      <div
+        className={`absolute z-dropdown w-full mt-2 bg-white rounded-xl nice-shadow
                    overflow-hidden divide-y divide-black/5
                    transition-all duration-200 ease-in-out transform
                    ${showResults ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'}
-                   ${isMobile ? 'max-w-full' : 'min-w-[400px]'}`}
+                   min-w-[400px]`}
       >
-        {(!searchQuery.trim() || isInitialLoad) ? (
-          MemoizedEmptyState
-        ) : (
-          <>
-            {showSearchSuggestions && MemoizedSearchSuggestions}
-            {isLoading ? (
-              <CourseResultsSkeleton />
-            ) : (
-              <>
-                {MemoizedQuickResults}
-                {((searchResults.courses.length > 0 || 
-                   searchResults.collections.length > 0 || 
-                   searchResults.users.length > 0) || 
-                   searchQuery.trim()) && (
-                  <Link
-                    href={getUriWithOrg(orgslug, `/search?q=${encodeURIComponent(searchQuery)}`)}
-                    className="flex items-center justify-between px-4 py-2.5 text-xs text-black/50 hover:text-black/70 hover:bg-black/[0.02] transition-colors"
-                  >
-                    <span>{t('search.view_all_results')}</span>
-                    <ArrowRight size={14} />
-                  </Link>
-                )}
-              </>
-            )}
-          </>
-        )}
+        {dropdownContent}
       </div>
     </div>
   );

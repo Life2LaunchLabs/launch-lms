@@ -298,10 +298,10 @@ export default function ActivityHeader({ course, activity, activityid, courseuui
           >
             <div className="hidden sm:flex flex-col items-end leading-tight">
               <span className="text-[10px] font-bold uppercase opacity-70">
-                {nextActivity ? t('common.next') : t('courses.finish_course')}
+                {nextActivity ? t('common.next') : t('common.complete')}
               </span>
               <span className="text-xs font-semibold truncate max-w-[120px] sm:max-w-[160px]">
-                {nextActivity ? nextActivity.name : t('courses.course')}
+                {nextActivity ? nextActivity.name : course.name}
               </span>
             </div>
             <ChevronRight size={17} className="shrink-0" />

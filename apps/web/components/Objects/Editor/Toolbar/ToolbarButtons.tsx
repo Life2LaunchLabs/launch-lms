@@ -159,7 +159,8 @@ export const ToolbarButtons = ({ editor, props }: any) => {
   }
 
   return (
-    <div className="flex flex-row items-center justify-start flex-wrap gap-[7px] max-[1200px]:gap-[5px]">
+    <div className="flex flex-col items-start gap-[7px] max-[1200px]:gap-[5px]">
+      <div className="flex flex-row items-center justify-start flex-wrap gap-[7px] max-[1200px]:gap-[5px]">
       <div className="editor-tool-btn" onClick={() => editor.chain().focus().undo().run()} aria-label="Undo last action">
         <ArrowLeftIcon />
       </div>
@@ -271,6 +272,8 @@ export const ToolbarButtons = ({ editor, props }: any) => {
       <DividerVerticalIcon
         style={{ marginTop: 'auto', marginBottom: 'auto', color: 'grey' }}
       />
+      </div>
+      <div className="flex flex-row items-center justify-start flex-wrap gap-[7px] max-[1200px]:gap-[5px]">
       <ToolTip content={t('editor.blocks.info_callout')}>
         <div
           className="editor-tool-btn editor-tool-btn-info"
@@ -558,6 +561,7 @@ export const ToolbarButtons = ({ editor, props }: any) => {
                     id: '1',
                     text: 'Welcome to this interactive scenario. What would you like to do?',
                     imageUrl: '',
+                    responseMode: 'basic',
                     options: [
                       { id: 'opt1', text: 'Continue exploring', nextScenarioId: '2' },
                       { id: 'opt2', text: 'Learn more about the topic', nextScenarioId: '3' }
@@ -567,6 +571,7 @@ export const ToolbarButtons = ({ editor, props }: any) => {
                     id: '2',
                     text: 'Great choice! You are now exploring further. What\'s your next step?',
                     imageUrl: '',
+                    responseMode: 'basic',
                     options: [
                       { id: 'opt3', text: 'Go back to start', nextScenarioId: '1' },
                       { id: 'opt4', text: 'Finish scenario', nextScenarioId: null }
@@ -576,6 +581,7 @@ export const ToolbarButtons = ({ editor, props }: any) => {
                     id: '3',
                     text: 'Here\'s more information about the topic. This helps you understand better.',
                     imageUrl: '',
+                    responseMode: 'basic',
                     options: [
                       { id: 'opt5', text: 'Go back to start', nextScenarioId: '1' },
                       { id: 'opt6', text: 'Finish scenario', nextScenarioId: null }
@@ -610,6 +616,7 @@ export const ToolbarButtons = ({ editor, props }: any) => {
           </div>
         )}
       </ToolTip>
+      </div>
     </div>
   )
 }

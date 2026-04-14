@@ -3,7 +3,6 @@ import Courses from './courses'
 import { Metadata } from 'next'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getServerSession } from '@/lib/auth/server'
-import { getOrgCourses } from '@services/courses/courses'
 import { getOrgThumbnailMediaDirectory, getOrgOgImageMediaDirectory } from '@services/media/media'
 import { getCanonicalUrl, getOrgSeoConfig, buildPageTitle, buildBreadcrumbJsonLd } from '@/lib/seo/utils'
 import { JsonLd } from '@components/SEO/JsonLd'
@@ -81,23 +80,7 @@ const CoursesPage = async (params: any) => {
   const session = await getServerSession()
   const access_token = session?.tokens?.access_token
 
-  let courses: any[] = []
   let collections: any[] = []
-  try {
-    courses = await getOrgCourses(
-      orgslug,
-      { revalidate: 0, tags: ['courses'] },
-      access_token ?? undefined
-    )
-  } catch (error: any) {
-    // If feature is disabled (403), pass empty courses array
-    // The client component will show the feature disabled view
-    if (error?.status === 403) {
-      courses = []
-    } else {
-      throw error
-    }
-  }
 
   try {
     collections = await getOrgCollections(
@@ -114,22 +97,6 @@ const CoursesPage = async (params: any) => {
     collections = []
   }
 
-  const coursesJsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'ItemList',
-    name: `Courses — ${org.name}`,
-    itemListElement: courses.map((course: any, index: number) => ({
-      '@type': 'ListItem',
-      position: index + 1,
-      item: {
-        '@type': 'Course',
-        name: course.name,
-        description: course.description,
-        url: getCanonicalUrl(orgslug, `/course/${course.course_uuid.replace('course_', '')}`),
-      },
-    })),
-  }
-
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
     { name: 'Home', url: getCanonicalUrl(orgslug, '/') },
     { name: 'Courses', url: getCanonicalUrl(orgslug, '/courses') },
@@ -138,8 +105,7 @@ const CoursesPage = async (params: any) => {
   return (
     <div>
       <JsonLd data={breadcrumbJsonLd} />
-      <JsonLd data={coursesJsonLd} />
-      <Courses org_id={org.id} orgslug={orgslug} courses={courses} collections={collections} />
+      <Courses org_id={org.id} orgslug={orgslug} collections={collections} />
     </div>
   )
 }

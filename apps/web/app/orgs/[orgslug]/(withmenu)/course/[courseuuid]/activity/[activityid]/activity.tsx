@@ -109,7 +109,7 @@ function useActivityPosition(course: any, activityId: string) {
 
 function ActivityActions({ activity, activityid, course, orgslug, assignment, showNavigation = true, guestMode = false }: ActivityActionsProps) {
   return (
-    <div className="flex space-x-2 items-center">
+    <div className="flex min-w-0 items-stretch justify-end gap-2">
       {activity && activity.published == true && activity.content.paid_access != false && (
         guestMode ? (
           <>
@@ -667,8 +667,8 @@ function ActivityClient(props: ActivityClientProps) {
 
                       {/* Activity Actions below the content box */}
                       {activity && activity.published == true && activity.content.paid_access != false && (
-                        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center mt-4 w-full gap-2 sm:gap-0">
-                          <div className="order-1 sm:order-none">
+                        <div className="mt-4 flex w-full flex-row items-stretch justify-between gap-2 sm:items-center">
+                          <div className="min-w-0 flex-1 sm:flex-none">
                             <PreviousActivityButton
                               course={course}
                               currentActivityId={activity.id}
@@ -676,7 +676,7 @@ function ActivityClient(props: ActivityClientProps) {
                               guestMode={guestMode}
                             />
                           </div>
-                          <div className="flex items-center justify-between sm:justify-end space-x-2 order-2 sm:order-none">
+                          <div className="flex min-w-0 flex-1 items-stretch justify-end gap-2 sm:flex-none">
                             <ActivityActions
                               activity={activity}
                               activityid={activityid}
@@ -778,11 +778,11 @@ function NextActivityButton({ course, currentActivityId, activity, orgslug, gues
     return (
       <div
         onClick={!isLoading ? handleNext : undefined}
-        className={`bg-teal-600 rounded-md px-3 sm:px-4 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] flex flex-col p-2 sm:p-2.5 text-white hover:cursor-pointer transition delay-150 duration-300 ease-in-out hover:bg-teal-700 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+        className={`bg-teal-600 rounded-md px-3 sm:px-4 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] flex min-w-0 w-full sm:w-[220px] flex-col p-2 sm:p-2.5 text-white hover:cursor-pointer transition delay-150 duration-300 ease-in-out hover:bg-teal-700 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
       >
-        <span className="text-[10px] font-bold text-white/70 mb-1 uppercase">{t('courses.course')}</span>
+        <span className="text-[10px] font-bold text-white/70 mb-1 uppercase">{t('common.complete')}</span>
         <div className="flex items-center space-x-1">
-          <span className="text-xs sm:text-sm font-semibold">{t('courses.finish_course')}</span>
+          <span className="text-xs sm:text-sm font-semibold truncate">{course.name}</span>
           <ChevronRight size={17} className="shrink-0" />
         </div>
       </div>
@@ -792,7 +792,7 @@ function NextActivityButton({ course, currentActivityId, activity, orgslug, gues
   return (
     <div
       onClick={!isLoading ? handleNext : undefined}
-      className={`bg-gray-200 rounded-md px-3 sm:px-4 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] flex flex-col p-2 sm:p-2.5 text-gray-600 hover:cursor-pointer transition delay-150 duration-300 ease-in-out hover:bg-gray-200 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+      className={`bg-gray-200 rounded-md px-3 sm:px-4 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] flex min-w-0 w-full sm:w-[220px] flex-col p-2 sm:p-2.5 text-gray-600 hover:cursor-pointer transition delay-150 duration-300 ease-in-out hover:bg-gray-200 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
     >
       <span className="text-[10px] font-bold text-gray-500 mb-1 uppercase">{t('common.next')}</span>
       <div className="flex items-center space-x-1">
@@ -845,7 +845,7 @@ function PreviousActivityButton({ course, currentActivityId, orgslug, guestMode 
   return (
     <div
       onClick={navigateToActivity}
-      className="bg-white rounded-md px-3 sm:px-4 nice-shadow flex flex-col p-2 sm:p-2.5 text-gray-600 hover:cursor-pointer transition delay-150 duration-300 ease-in-out"
+      className="bg-white rounded-md px-3 sm:px-4 nice-shadow flex min-w-0 w-full sm:w-[220px] flex-col p-2 sm:p-2.5 text-gray-600 hover:cursor-pointer transition delay-150 duration-300 ease-in-out"
     >
       <span className="text-[10px] font-bold text-gray-500 mb-1 uppercase">{t('common.previous')}</span>
       <div className="flex items-center space-x-1">
