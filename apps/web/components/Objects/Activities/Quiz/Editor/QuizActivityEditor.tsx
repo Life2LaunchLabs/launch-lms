@@ -35,6 +35,7 @@ interface ScoringVector {
   type: 'unidirectional' | 'bidirectional' | 'binary'
   low_label: string
   high_label: string
+  color: string
 }
 
 type QuizMode = 'categories' | 'graded'
@@ -65,6 +66,7 @@ function getDefaultCorrectVector(): ScoringVector {
     type: 'binary',
     low_label: 'False',
     high_label: 'True',
+    color: '#16a34a',
   }
 }
 
@@ -74,6 +76,19 @@ function getDefaultGradedVectors(): ScoringVector[] {
 
 function ensureGradedVectors(vectors?: ScoringVector[] | null): ScoringVector[] {
   return vectors && vectors.length > 0 ? vectors : getDefaultGradedVectors()
+}
+
+const VECTOR_COLOR_PALETTE = ['#2563eb', '#16a34a', '#ea580c', '#dc2626', '#7c3aed', '#0891b2', '#ca8a04', '#db2777']
+
+function getRandomVectorColor(): string {
+  return VECTOR_COLOR_PALETTE[Math.floor(Math.random() * VECTOR_COLOR_PALETTE.length)]
+}
+
+function normalizeVectors(vectors?: ScoringVector[] | null): ScoringVector[] {
+  return (vectors || []).map((vector) => ({
+    ...vector,
+    color: vector.color || getRandomVectorColor(),
+  }))
 }
 
 interface QuizActivityEditorProps {
@@ -120,14 +135,16 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
     max_attempts: details.grading_rules?.max_attempts ?? null,
   })
   const [isSavingSettings, setIsSavingSettings] = useState(false)
-  const [categoryVectors, setCategoryVectors] = useState<ScoringVector[]>(details.category_scoring_vectors || (details.quiz_mode === 'categories' ? (details.scoring_vectors || []) : []))
+  const [categoryVectors, setCategoryVectors] = useState<ScoringVector[]>(
+    normalizeVectors(details.category_scoring_vectors || (details.quiz_mode === 'categories' ? (details.scoring_vectors || []) : []))
+  )
   const [gradedVectors, setGradedVectors] = useState<ScoringVector[]>(
-    ensureGradedVectors(details.graded_scoring_vectors || (details.quiz_mode === 'graded' ? details.scoring_vectors : undefined))
+    normalizeVectors(ensureGradedVectors(details.graded_scoring_vectors || (details.quiz_mode === 'graded' ? details.scoring_vectors : undefined)))
   )
   const [vectors, setVectors] = useState<ScoringVector[]>(
-    details.quiz_mode === 'graded'
+    normalizeVectors(details.quiz_mode === 'graded'
       ? ensureGradedVectors(details.graded_scoring_vectors || details.scoring_vectors)
-      : (details.category_scoring_vectors || details.scoring_vectors || [])
+      : (details.category_scoring_vectors || details.scoring_vectors || []))
   )
   const [optionScores, setOptionScores] = useState<Record<string, Record<string, number>>>(details.option_scores || {})
   const [textScores, setTextScores] = useState<Record<string, any>>(details.text_scores || {})
@@ -231,9 +248,9 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   const saveScoring = useCallback(async () => {
     setIsSavingScoring(true)
     try {
-      const activeVectors = quizMode === 'graded' ? ensureGradedVectors(vectors) : vectors
-      const nextCategoryVectors = quizMode === 'categories' ? vectors : categoryVectors
-      const nextGradedVectors = quizMode === 'graded' ? ensureGradedVectors(vectors) : ensureGradedVectors(gradedVectors)
+      const activeVectors = normalizeVectors(quizMode === 'graded' ? ensureGradedVectors(vectors) : vectors)
+      const nextCategoryVectors = normalizeVectors(quizMode === 'categories' ? vectors : categoryVectors)
+      const nextGradedVectors = normalizeVectors(quizMode === 'graded' ? ensureGradedVectors(vectors) : ensureGradedVectors(gradedVectors))
       await updateQuizScoring(
         activity.activity_uuid,
         {
@@ -527,16 +544,16 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   }
 
   const handleQuizModeChange = async (nextMode: QuizMode) => {
-    const nextCategoryVectors = quizMode === 'categories' ? vectors : categoryVectors
-    const nextGradedVectors = ensureGradedVectors(
+    const nextCategoryVectors = normalizeVectors(quizMode === 'categories' ? vectors : categoryVectors)
+    const nextGradedVectors = normalizeVectors(ensureGradedVectors(
       quizMode === 'graded' ? vectors : gradedVectors
-    )
+    ))
     setCategoryVectors(nextCategoryVectors)
     setGradedVectors(nextGradedVectors)
     setQuizMode(nextMode)
-    const activeVectors = nextMode === 'graded'
+    const activeVectors = normalizeVectors(nextMode === 'graded'
       ? ensureGradedVectors(nextGradedVectors)
-      : nextCategoryVectors
+      : nextCategoryVectors)
     setVectors(activeVectors)
     setScoringDirty(false)
     window.dispatchEvent(new CustomEvent('lh:quiz-scoring-updated', {
@@ -588,6 +605,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
         type: 'unidirectional',
         low_label: 'Low',
         high_label: 'High',
+        color: getRandomVectorColor(),
       }
       const next = [...v, newVector]
       if (quizMode === 'categories') setCategoryVectors(next)
@@ -942,7 +960,14 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                 <div className="space-y-2">
                   {vectors.map((vec, idx) => (
                     <div key={idx} className="bg-neutral-50 rounded-xl p-4 border border-neutral-100 space-y-3">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 rounded-lg px-2 py-2" style={{ backgroundColor: `${vec.color}14` }}>
+                        <input
+                          type="color"
+                          value={vec.color}
+                          onChange={e => updateVector(idx, 'color', e.target.value)}
+                          className="h-10 w-10 rounded-lg border border-neutral-200 bg-white p-1"
+                          title="Vector color"
+                        />
                         <input value={vec.label} placeholder="Dimension label (e.g. Extraversion)" onChange={e => updateVector(idx, 'label', e.target.value)}
                           className="flex-1 text-sm font-semibold border border-neutral-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400" />
                         <button type="button" onClick={() => removeVector(idx)} className="p-1.5 hover:bg-red-50 rounded-lg outline-none">
@@ -1084,7 +1109,8 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                                         ...selectedResult.scores,
                                         [vec.key]: parseFloat(e.target.value),
                                       })}
-                                      className="w-full h-1.5 accent-violet-500"
+                                      className="w-full h-1.5"
+                                      style={{ accentColor: vec.color }}
                                     />
                                     <div className="flex justify-between">
                                       <span className="text-[10px] text-neutral-300">{vec.low_label || 'Low'}</span>
