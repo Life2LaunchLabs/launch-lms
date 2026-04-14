@@ -1,8 +1,8 @@
 'use client'
 import React from 'react'
-import { BarChart3 } from 'lucide-react'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
 import { mergeContent } from './QuizResultContentEditor'
+import QuizScoresDisplay, { QuizScoresSortOrder } from './QuizScoresDisplay'
 
 interface Props {
   template: any | null
@@ -13,13 +13,6 @@ interface Props {
   scores?: Record<string, number>
   vectors?: any[]
   fallbackBody?: string
-}
-
-function getScorePercent(vector: any, rawValue: number): number {
-  if (vector?.type === 'bidirectional') {
-    return Math.round(((rawValue + 1) / 2) * 100)
-  }
-  return Math.round(rawValue * 100)
 }
 
 function hasRenderableNodes(doc: any): boolean {
@@ -139,35 +132,13 @@ function renderBlockNodes(
     if (node.type === 'quizScoresBlock') {
       return (
         <div key={key} className="my-4 rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <BarChart3 size={16} className="text-neutral-500" />
-            <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-500">Your scores</h3>
-          </div>
-          {opts.vectors.length === 0 ? (
-            <p className="m-0 text-xs text-neutral-400">No scores available.</p>
-          ) : (
-            <div className="space-y-3">
-              {opts.vectors.map((vector: any) => {
-                const rawValue = Number(opts.scores?.[vector.key] ?? 0)
-                const pct = getScorePercent(vector, rawValue)
-                return (
-                  <div key={`${key}-${vector.key}`} className="space-y-1">
-                    <div className="flex justify-between text-xs text-neutral-600">
-                      <span className="font-medium">{vector.label || vector.key}</span>
-                    </div>
-                    <div className="h-2.5 overflow-hidden rounded-full bg-neutral-200">
-                      <div className="h-full rounded-full bg-violet-500" style={{ width: `${pct}%` }} />
-                    </div>
-                    <div className="flex justify-between text-xs text-neutral-400">
-                      <span>{vector.low_label || 'Low'}</span>
-                      <span>{vector.type === 'binary' ? (rawValue >= 0.5 ? 'True' : 'False') : `${pct}%`}</span>
-                      <span>{vector.high_label || 'High'}</span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
+          <QuizScoresDisplay
+            vectors={opts.vectors}
+            scores={opts.scores}
+            sortOrder={(node.attrs?.sortOrder || 'none') as QuizScoresSortOrder}
+            normalize={node.attrs?.normalize !== false}
+            emptyMessage="No scores available."
+          />
         </div>
       )
     }

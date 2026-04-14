@@ -1,18 +1,14 @@
 import React from 'react'
 import { mergeAttributes, Node } from '@tiptap/core'
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
-import { BarChart3 } from 'lucide-react'
-
-function getScorePercent(vector: any, rawValue: number): number {
-  if (vector?.type === 'bidirectional') {
-    return Math.round(((rawValue + 1) / 2) * 100)
-  }
-  return Math.round(rawValue * 100)
-}
+import QuizScoresDisplay, { QuizScoresSortOrder } from './QuizScoresDisplay'
 
 function QuizScoresBlockComponent(props: any) {
   const vectors = props.extension.options?.vectors || []
   const scores = props.extension.options?.scores || {}
+  const sortOrder: QuizScoresSortOrder = props.node?.attrs?.sortOrder || 'none'
+  const normalize = props.node?.attrs?.normalize !== false
+  const isEditable = !!props.editor?.isEditable
 
   return (
     <NodeViewWrapper
@@ -20,38 +16,38 @@ function QuizScoresBlockComponent(props: any) {
       className="rounded-2xl border border-neutral-100 bg-neutral-50 p-4 my-3"
       data-drag-handle
     >
-      <div className="mb-3 flex items-center gap-2">
-        <BarChart3 size={16} className="text-neutral-500" />
-        <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-500">Your scores</h3>
-      </div>
-      {vectors.length === 0 ? (
-        <p className="m-0 text-xs text-neutral-400">Add scoring dimensions to show a score summary here.</p>
-      ) : (
-        <div className="space-y-3">
-          {vectors.map((vector: any) => {
-            const rawValue = Number(scores?.[vector.key] ?? 0)
-            const pct = getScorePercent(vector, rawValue)
-            return (
-              <div key={vector.key} className="space-y-1">
-                <div className="flex justify-between text-xs text-neutral-600">
-                  <span className="font-medium">{vector.label || vector.key}</span>
-                </div>
-                <div className="h-2.5 overflow-hidden rounded-full bg-neutral-200">
-                  <div
-                    className="h-full rounded-full bg-violet-500 transition-all duration-1000"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-xs text-neutral-400">
-                  <span>{vector.low_label || 'Low'}</span>
-                  <span>{vector.type === 'binary' ? (rawValue >= 0.5 ? 'True' : 'False') : `${pct}%`}</span>
-                  <span>{vector.high_label || 'High'}</span>
-                </div>
-              </div>
-            )
-          })}
+      {isEditable && (
+        <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-neutral-200 bg-white p-3">
+          <div>
+            <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-neutral-400">Sort</label>
+            <select
+              value={sortOrder}
+              onChange={(e) => props.updateAttributes({ sortOrder: e.target.value as QuizScoresSortOrder })}
+              className="rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-xs outline-none"
+            >
+              <option value="none">None</option>
+              <option value="asc">Low to high</option>
+              <option value="desc">High to low</option>
+            </select>
+          </div>
+          <label className="flex items-center gap-2 rounded-lg border border-neutral-200 px-3 py-2 text-xs font-medium text-neutral-600">
+            <input
+              type="checkbox"
+              checked={normalize}
+              onChange={(e) => props.updateAttributes({ normalize: e.target.checked })}
+              className="h-4 w-4 accent-violet-600"
+            />
+            Normalize bars
+          </label>
         </div>
       )}
+      <QuizScoresDisplay
+        vectors={vectors}
+        scores={scores}
+        sortOrder={sortOrder}
+        normalize={normalize}
+        emptyMessage="Add scoring dimensions to show a score summary here."
+      />
     </NodeViewWrapper>
   )
 }
@@ -78,6 +74,16 @@ const QuizScoresBlock = Node.create({
         default: null,
         parseHTML: element => element.getAttribute('data-var-id') || null,
         renderHTML: attributes => (attributes.varId ? { 'data-var-id': attributes.varId } : {}),
+      },
+      sortOrder: {
+        default: 'none',
+        parseHTML: element => element.getAttribute('data-sort-order') || 'none',
+        renderHTML: attributes => ({ 'data-sort-order': attributes.sortOrder || 'none' }),
+      },
+      normalize: {
+        default: true,
+        parseHTML: element => element.getAttribute('data-normalize') !== 'false',
+        renderHTML: attributes => ({ 'data-normalize': attributes.normalize === false ? 'false' : 'true' }),
       },
     }
   },

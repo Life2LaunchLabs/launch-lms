@@ -121,6 +121,16 @@ const FixedBlockDecoration = Extension.create({
 // ── Injected CSS ───────────────────────────────────────────────────────────────
 
 const EDITOR_CSS = `
+.quiz-result-block-toolbar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;
+}
+.quiz-result-block-toolbar button {
+  display: inline-flex; align-items: center; gap: 6px;
+  border-radius: 8px; border: 1px solid #e5e7eb; background: #fff; color: #6b7280;
+  padding: 6px 10px; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: background 150ms, color 150ms, border-color 150ms; outline: none;
+}
+.quiz-result-block-toolbar button:hover { background: #f9fafb; color: #111827; border-color: #d1d5db; }
 .quiz-result-content-editor .ProseMirror {
   outline: none;
   min-height: 80px;
@@ -251,13 +261,24 @@ export default function QuizResultContentEditor({
     if (!editor) return
     editor.commands.insertContent({
       type: 'quizScoresBlock',
-      attrs: { isFixed: true, fixedId: genId(), varId: null },
+      attrs: { isFixed: true, fixedId: genId(), varId: null, sortOrder: 'none', normalize: true },
     })
   }
 
   return (
     <EditorOptionsProvider options={{ isEditable: true }}>
       <div className="quiz-result-content-editor">
+        <div className="quiz-result-block-toolbar">
+          <button type="button" onClick={addImageBlock}>
+            <ImageIcon size={13} />
+            Add image block
+          </button>
+          <button type="button" onClick={addScoresBlock}>
+            <BarChart3 size={13} />
+            Add scores block
+          </button>
+        </div>
+
         <div className="quiz-result-toolbar">
           <button type="button" onMouseDown={e => { e.preventDefault(); editor?.chain().focus().toggleBold().run() }}
             className={editor?.isActive('bold') ? 'is-active' : ''} title="Bold"><Bold size={13} /></button>
@@ -276,17 +297,6 @@ export default function QuizResultContentEditor({
         </div>
 
         <EditorContent editor={editor} />
-
-        <button type="button" onClick={addImageBlock}
-          className="mt-3 flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-600 transition-colors outline-none">
-          <ImageIcon size={13} />
-          Add image block
-        </button>
-        <button type="button" onClick={addScoresBlock}
-          className="mt-3 ml-4 inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-600 transition-colors outline-none">
-          <BarChart3 size={13} />
-          Add scores block
-        </button>
       </div>
     </EditorOptionsProvider>
   )
