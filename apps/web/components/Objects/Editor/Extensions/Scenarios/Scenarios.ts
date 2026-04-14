@@ -19,6 +19,7 @@ export default Node.create({
             id: '1',
             text: 'Welcome to this interactive scenario. What would you like to do?',
             imageUrl: '',
+            responseMode: 'basic',
             options: [
               { id: 'opt1', text: 'Continue exploring', nextScenarioId: '2' },
               { id: 'opt2', text: 'Learn more about the topic', nextScenarioId: '3' }
@@ -28,6 +29,7 @@ export default Node.create({
             id: '2',
             text: 'Great choice! You are now exploring further. What\'s your next step?',
             imageUrl: '',
+            responseMode: 'basic',
             options: [
               { id: 'opt3', text: 'Go back to start', nextScenarioId: '1' },
               { id: 'opt4', text: 'Finish scenario', nextScenarioId: null }
@@ -37,6 +39,7 @@ export default Node.create({
             id: '3',
             text: 'Here\'s more information about the topic. This helps you understand better.',
             imageUrl: '',
+            responseMode: 'basic',
             options: [
               { id: 'opt5', text: 'Go back to start', nextScenarioId: '1' },
               { id: 'opt6', text: 'Finish scenario', nextScenarioId: null }

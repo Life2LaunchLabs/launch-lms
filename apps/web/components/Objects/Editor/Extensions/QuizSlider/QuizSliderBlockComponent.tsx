@@ -655,18 +655,18 @@ function QuizSliderBlockComponent(props: any) {
                       </div>
                     )}
                     {sliders.map((slider, idx) => (
-                      <div key={slider.slider_uuid} style={{ display: 'grid', gridTemplateColumns: hideOptionLabels ? '1fr' : '120px 1fr', gap: 12, alignItems: 'center' }}>
+                      <div key={slider.slider_uuid} style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
                         {!hideOptionLabels && (
                           <input
                             value={slider.label}
                             placeholder={`Option ${idx + 1}…`}
                             onChange={e => handleSliderLabelChange(slider.slider_uuid, e.target.value)}
-                            style={{ width: '100%', textAlign: 'right', background: 'rgba(255,255,255,0.95)', border: 'none', borderRadius: 999, padding: '12px 14px', fontSize: 13, fontWeight: 700, color: '#111827', outline: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.16)' }}
+                            style={{ width: '100%', textAlign: 'center', background: 'rgba(255,255,255,0.95)', border: 'none', borderRadius: 999, padding: '12px 14px', fontSize: 13, fontWeight: 700, color: '#111827', outline: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.16)' }}
                           />
                         )}
-                        <div>
+                        <div style={{ width: '100%' }}>
                           {directionMode === 'stars' ? (
-                            <div style={{ display: 'flex', gap: 8, justifyContent: hideOptionLabels ? 'center' : 'flex-start' }}>
+                            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
                               {Array.from({ length: 5 }, (_, starIdx) => (
                                 <Star
                                   key={`${slider.slider_uuid}_${starIdx}`}

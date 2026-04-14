@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, Settings, Play, RotateCcw, ArrowRight, CheckCircle, Save, GitBranch, Image } from 'lucide-react'
+import { Plus, Trash2, Settings, Play, ArrowRight, CheckCircle, Save, GitBranch, Image as ImageIcon, Upload, Loader2, X } from 'lucide-react'
+import toast from 'react-hot-toast'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { ButtonBlack } from '@components/Objects/StyledElements/Form/Form'
+import { Switch } from '@components/ui/switch'
+import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { uploadNewImageFile } from '@services/blocks/Image/images'
+import { useOrg } from '@components/Contexts/OrgContext'
+import { useCourse } from '@components/Contexts/CourseContext'
+import { getActivityBlockMediaDirectory } from '@services/media/media'
 
 interface ScenarioOption {
   id: string
@@ -13,6 +20,8 @@ interface Scenario {
   id: string
   text: string
   imageUrl?: string
+  imageBlockObject?: any
+  responseMode?: 'basic' | 'full'
   options: ScenarioOption[]
 }
 
@@ -22,8 +31,15 @@ interface ScenariosModalProps {
   title: string
   scenarios: Scenario[]
   currentScenarioId: string
+  activityUuid: string
+  // eslint-disable-next-line no-unused-vars
   onSave: (title: string, scenarios: Scenario[], currentScenarioId: string) => void
 }
+
+const normalizeScenario = (scenario: Scenario, useBasicDefaults = false): Scenario => ({
+  ...scenario,
+  responseMode: scenario.responseMode ?? (useBasicDefaults ? 'basic' : 'full'),
+})
 
 const ScenariosModal: React.FC<ScenariosModalProps> = ({
   isOpen,
@@ -31,21 +47,31 @@ const ScenariosModal: React.FC<ScenariosModalProps> = ({
   title: initialTitle,
   scenarios: initialScenarios,
   currentScenarioId: initialCurrentScenarioId,
+  activityUuid,
   onSave
 }) => {
+  const session = useLHSession() as any
+  const org = useOrg() as any
+  const course = useCourse() as any
+  const accessToken = session?.data?.tokens?.access_token
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
   const [title, setTitle] = useState(initialTitle)
-  const [scenarios, setScenarios] = useState<Scenario[]>(initialScenarios)
+  const [scenarios, setScenarios] = useState<Scenario[]>(initialScenarios.map((scenario) => normalizeScenario(scenario)))
   const [currentScenarioId, setCurrentScenarioId] = useState(initialCurrentScenarioId)
   const [showPreview, setShowPreview] = useState(false)
-  const [previewCurrentId, setPreviewCurrentId] = useState('1')
+  const [previewCurrentId, setPreviewCurrentId] = useState(initialCurrentScenarioId)
   const [showImageInputs, setShowImageInputs] = useState<Record<string, boolean>>({})
+  const [uploadingScenarioId, setUploadingScenarioId] = useState<string | null>(null)
+  const [pendingUploadScenarioId, setPendingUploadScenarioId] = useState<string | null>(null)
 
   useEffect(() => {
     setTitle(initialTitle)
-    setScenarios(initialScenarios)
+    setScenarios(initialScenarios.map((scenario) => normalizeScenario(scenario)))
     setCurrentScenarioId(initialCurrentScenarioId)
     setPreviewCurrentId(initialCurrentScenarioId)
     setShowImageInputs({})
+    setUploadingScenarioId(null)
+    setPendingUploadScenarioId(null)
   }, [initialTitle, initialScenarios, initialCurrentScenarioId])
 
   const handleSave = () => {
@@ -70,6 +96,18 @@ const ScenariosModal: React.FC<ScenariosModalProps> = ({
     }
   }
 
+  const handleSequentialPreviewNavigation = (direction: 'back' | 'next') => {
+    const currentIndex = scenarios.findIndex((scenario) => scenario.id === previewCurrentId)
+    if (currentIndex === -1) return
+
+    const targetIndex = direction === 'back' ? currentIndex - 1 : currentIndex + 1
+    const targetScenario = scenarios[targetIndex]
+
+    if (targetScenario) {
+      setPreviewCurrentId(targetScenario.id)
+    }
+  }
+
   const addNewScenario = () => {
     if (scenarios.length >= 40) {
       alert('Maximum of 40 scenarios allowed')
@@ -81,6 +119,7 @@ const ScenariosModal: React.FC<ScenariosModalProps> = ({
       id: newId,
       text: 'New scenario text...',
       imageUrl: '',
+      responseMode: 'basic',
       options: [
         { id: `opt${Date.now()}`, text: 'Option 1', nextScenarioId: null },
         { id: `opt${Date.now() + 1}`, text: 'Option 2', nextScenarioId: null }
@@ -164,6 +203,126 @@ const ScenariosModal: React.FC<ScenariosModalProps> = ({
     setPreviewCurrentId(currentScenarioId)
   }
 
+  const getScenarioImageUrl = (scenario: Scenario) => {
+    if (scenario.imageBlockObject?.content?.file_id && scenario.imageBlockObject?.content?.file_format) {
+      const fileId = `${scenario.imageBlockObject.content.file_id}.${scenario.imageBlockObject.content.file_format}`
+
+      return getActivityBlockMediaDirectory(
+        org?.org_uuid,
+        course?.courseStructure?.course_uuid,
+        scenario.imageBlockObject.content.activity_uuid || activityUuid,
+        scenario.imageBlockObject.block_uuid,
+        fileId,
+        'imageBlock'
+      )
+    }
+
+    return scenario.imageUrl || ''
+  }
+
+  const triggerImageUpload = (scenarioId: string) => {
+    setPendingUploadScenarioId(scenarioId)
+    fileInputRef.current?.click()
+  }
+
+  const handleUpload = async (scenarioId: string, file: File) => {
+    if (!accessToken) {
+      toast.error('You need to be signed in to upload media.')
+      return
+    }
+
+    setUploadingScenarioId(scenarioId)
+    try {
+      const imageBlockObject = await uploadNewImageFile(file, activityUuid, accessToken)
+      updateScenario(scenarioId, {
+        imageBlockObject,
+        imageUrl: '',
+      })
+      setShowImageInputs((prev) => ({ ...prev, [scenarioId]: true }))
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to upload image. Please try again.')
+    } finally {
+      setUploadingScenarioId(null)
+      setPendingUploadScenarioId(null)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
+
+  const clearScenarioImage = (scenarioId: string) => {
+    updateScenario(scenarioId, {
+      imageBlockObject: null,
+      imageUrl: '',
+    })
+  }
+
+  const renderBasicPreviewNavigation = (scenario: Scenario) => {
+    const currentIndex = scenarios.findIndex((item) => item.id === scenario.id)
+    const hasPrevious = currentIndex > 0
+    const hasNext = currentIndex < scenarios.length - 1
+
+    if (!hasPrevious && !hasNext) {
+      return null
+    }
+
+    return (
+      <div className="grid grid-cols-2 gap-2">
+        {hasPrevious ? (
+          <button
+            onClick={() => handleSequentialPreviewNavigation('back')}
+            className="w-full bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-lg px-4 py-3 transition-all text-sm font-medium text-slate-700 shadow-sm"
+          >
+            Back
+          </button>
+        ) : (
+          <div aria-hidden="true" />
+        )}
+
+        {hasNext ? (
+          <button
+            onClick={() => handleSequentialPreviewNavigation('next')}
+            className="w-full bg-blue-600 border border-blue-600 hover:bg-blue-700 hover:border-blue-700 rounded-lg px-4 py-3 transition-all text-sm font-medium text-white shadow-sm"
+          >
+            Next
+          </button>
+        ) : (
+          <div aria-hidden="true" />
+        )}
+      </div>
+    )
+  }
+
+  const renderPreviewScenarioActions = (scenario: Scenario) => {
+    if (scenario.responseMode === 'basic') {
+      return renderBasicPreviewNavigation(scenario)
+    }
+
+    return (
+      <div className="space-y-2">
+        {scenario.options.map((option, index) => (
+          <button
+            key={option.id}
+            onClick={() => handleOptionClick(option.nextScenarioId)}
+            className="w-full bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50 rounded-lg p-3 transition-all group text-left shadow-sm hover:shadow-md"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-6 h-6 bg-slate-100 group-hover:bg-blue-100 rounded flex items-center justify-center flex-shrink-0 transition-colors">
+                <span className="text-sm font-bold text-slate-600 group-hover:text-blue-600">
+                  {String.fromCharCode('A'.charCodeAt(0) + index)}
+                </span>
+              </div>
+              <div className="flex-1 text-slate-800 font-medium group-hover:text-blue-900 transition-colors">
+                {option.text}
+              </div>
+              <ArrowRight size={16} className="text-slate-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+            </div>
+          </button>
+        ))}
+      </div>
+    )
+  }
+
   const toggleImageInput = (scenarioId: string) => {
     setShowImageInputs(prev => ({
       ...prev,
@@ -176,66 +335,49 @@ const ScenariosModal: React.FC<ScenariosModalProps> = ({
     
     return (
       <div className="flex flex-col h-[calc(75vh-220px)] p-2">
-        {/* Preview Header */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 p-4 -mx-2 -mt-2 mb-4 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Play size={16} className="text-blue-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-                <p className="text-sm text-slate-600">Interactive Preview</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={resetPreview}
-                className="flex items-center gap-2 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg transition-all text-sm font-medium shadow-sm"
-              >
-                <RotateCcw size={14} />
-                Reset
-              </button>
-              <button
-                onClick={() => setShowPreview(false)}
-                className="flex items-center gap-2 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-all text-sm font-medium shadow-sm"
-              >
-                <Settings size={14} />
-                Back to Edit
-              </button>
-            </div>
-          </div>
+        <div className="flex justify-end mb-4 flex-shrink-0">
+          <button
+            onClick={() => setShowPreview(false)}
+            className="flex items-center gap-2 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-all text-sm font-medium shadow-sm"
+          >
+            <Settings size={14} />
+            Back to Edit
+          </button>
         </div>
 
         {/* Preview Content */}
         <div className="flex-1 flex items-center justify-center overflow-y-auto">
           {previewCurrentId === 'end' ? (
-            <div className="text-center py-8 max-w-md mx-auto">
-              <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle size={24} className="text-emerald-600" />
+            <div className="w-full max-w-xl mx-auto space-y-4 p-4">
+              <div className="text-center py-8 max-w-md mx-auto bg-white border border-slate-200 rounded-xl shadow-sm">
+                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle size={24} className="text-emerald-600" />
+                </div>
+                <h4 className="text-xl font-bold text-slate-900 mb-2">Scenario Complete!</h4>
+                <p className="text-slate-600 mb-6 leading-relaxed">
+                  You've successfully navigated through this interactive scenario.
+                </p>
               </div>
-              <h4 className="text-xl font-bold text-slate-900 mb-2">Scenario Complete!</h4>
-              <p className="text-slate-600 mb-6 leading-relaxed">
-                You've successfully navigated through this interactive scenario.
-              </p>
-              <button
-                onClick={resetPreview}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-all font-medium text-sm shadow-sm hover:shadow-md mx-auto"
-              >
-                <RotateCcw size={16} />
-                Start Over
-              </button>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={resetPreview}
+                  className="text-xs font-medium text-slate-500 hover:text-slate-700 px-2.5 py-1.5 rounded-md hover:bg-slate-100 transition-colors"
+                >
+                  Reset
+                </button>
+              </div>
             </div>
           ) : previewScenario ? (
             <div className="w-full max-w-xl mx-auto space-y-4 p-4">
               {/* Scenario Text */}
-              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-                {previewScenario.imageUrl && (
-                  <div className="mb-4">
+              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm overflow-hidden">
+                {getScenarioImageUrl(previewScenario) && (
+                  <div className="-mx-6 -mt-6 mb-4 aspect-[4/3] w-[calc(100%+3rem)] max-w-none overflow-hidden bg-slate-50">
                     <img 
-                      src={previewScenario.imageUrl} 
+                      src={getScenarioImageUrl(previewScenario)} 
                       alt="Scenario illustration"
-                      className="w-full h-48 object-cover rounded-lg border border-slate-200"
+                      className="h-full w-full object-contain"
                       onError={(e) => {
                         e.currentTarget.style.display = 'none'
                       }}
@@ -245,29 +387,18 @@ const ScenariosModal: React.FC<ScenariosModalProps> = ({
                 <p className="text-base text-slate-800 leading-relaxed font-medium">
                   {previewScenario.text}
                 </p>
+                <div className="mt-4">
+                  {renderPreviewScenarioActions(previewScenario)}
+                </div>
               </div>
-              
-              {/* Response Options */}
-              <div className="space-y-2">
-                {previewScenario.options.map((option, index) => (
-                  <button
-                    key={option.id}
-                    onClick={() => handleOptionClick(option.nextScenarioId)}
-                    className="w-full bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50 rounded-lg p-3 transition-all group text-left shadow-sm hover:shadow-md"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 bg-slate-100 group-hover:bg-blue-100 rounded flex items-center justify-center flex-shrink-0 transition-colors">
-                        <span className="text-sm font-bold text-slate-600 group-hover:text-blue-600">
-                          {String.fromCharCode('A'.charCodeAt(0) + index)}
-                        </span>
-                      </div>
-                      <div className="flex-1 text-slate-800 font-medium group-hover:text-blue-900 transition-colors">
-                        {option.text}
-                      </div>
-                      <ArrowRight size={16} className="text-slate-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
-                    </div>
-                  </button>
-                ))}
+
+              <div className="flex justify-end">
+                <button
+                  onClick={resetPreview}
+                  className="text-xs font-medium text-slate-500 hover:text-slate-700 px-2.5 py-1.5 rounded-md hover:bg-slate-100 transition-colors"
+                >
+                  Reset
+                </button>
               </div>
             </div>
           ) : (
@@ -331,7 +462,10 @@ const ScenariosModal: React.FC<ScenariosModalProps> = ({
       <div className="flex-1 overflow-hidden min-h-0">
         <div className="h-full overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent hover:scrollbar-thumb-gray-400">
           <div className="space-y-4 pb-4">
-            {scenarios.map((scenario, scenarioIndex) => (
+            {scenarios.map((scenario, scenarioIndex) => {
+              const hasImage = Boolean(scenario.imageUrl?.trim() || scenario.imageBlockObject)
+
+              return (
               <div key={scenario.id} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                 {/* Scenario Header */}
                 <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-4 py-3 border-b border-slate-200">
@@ -387,17 +521,17 @@ const ScenariosModal: React.FC<ScenariosModalProps> = ({
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all text-xs font-medium border ${
                           showImageInputs[scenario.id] 
                             ? 'text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100 shadow-sm' 
-                            : scenario.imageUrl && scenario.imageUrl.trim() !== ''
+                            : hasImage
                             ? 'text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100'
                             : 'text-slate-600 bg-white border-slate-200 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200'
                         }`}
-                        title={scenario.imageUrl && scenario.imageUrl.trim() !== '' ? "Edit image" : "Add image"}
+                        title={hasImage ? "Edit image" : "Add image"}
                       >
-                        <Image size={14} />
+                        <ImageIcon size={14} />
                         <span>
-                          {scenario.imageUrl && scenario.imageUrl.trim() !== '' ? 'Image' : 'Add Image'}
+                          {hasImage ? 'Image' : 'Add Image'}
                         </span>
-                        {scenario.imageUrl && scenario.imageUrl.trim() !== '' && (
+                        {hasImage && (
                           <span className="inline-flex items-center justify-center w-4 h-4 text-xs font-bold text-white bg-blue-600 rounded-full">
                             1
                           </span>
@@ -415,23 +549,52 @@ const ScenariosModal: React.FC<ScenariosModalProps> = ({
 
                   {/* Scenario Image */}
                   {showImageInputs[scenario.id] && (
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Image URL
-                      </label>
-                      <input
-                        type="url"
-                        value={scenario.imageUrl || ''}
-                        onChange={(e) => updateScenario(scenario.id, { imageUrl: e.target.value })}
-                        className="w-full p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:border-neutral-400 bg-white text-slate-900 placeholder-slate-400 transition-all"
-                        placeholder="https://example.com/image.jpg"
-                      />
-                      {scenario.imageUrl && (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => triggerImageUpload(scenario.id)}
+                          className="inline-flex items-center gap-2 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 transition-all"
+                        >
+                          {uploadingScenarioId === scenario.id ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <Upload size={14} />
+                          )}
+                          Upload Media
+                        </button>
+                        {(scenario.imageUrl || scenario.imageBlockObject) && (
+                          <button
+                            type="button"
+                            onClick={() => clearScenarioImage(scenario.id)}
+                            className="inline-flex items-center gap-2 px-3 py-2 bg-white hover:bg-red-50 border border-slate-300 hover:border-red-200 rounded-lg text-sm font-medium text-slate-600 hover:text-red-600 transition-all"
+                          >
+                            <X size={14} />
+                            Remove Image
+                          </button>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Image URL
+                        </label>
+                        <input
+                          type="url"
+                          value={scenario.imageUrl || ''}
+                          onChange={(e) => updateScenario(scenario.id, {
+                            imageUrl: e.target.value,
+                            imageBlockObject: null
+                          })}
+                          className="w-full p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:border-neutral-400 bg-white text-slate-900 placeholder-slate-400 transition-all"
+                          placeholder="https://example.com/image.jpg"
+                        />
+                      </div>
+                      {getScenarioImageUrl(scenario) && (
                         <div className="mt-2">
                           <img 
-                            src={scenario.imageUrl} 
+                            src={getScenarioImageUrl(scenario)} 
                             alt="Scenario preview"
-                            className="w-full h-32 object-cover rounded-lg border border-slate-200"
+                            className="aspect-[4/3] w-full max-w-xl mx-auto rounded-lg border border-slate-200 bg-slate-50 object-contain"
                             onError={(e) => {
                               e.currentTarget.style.display = 'none'
                             }}
@@ -444,71 +607,102 @@ const ScenariosModal: React.FC<ScenariosModalProps> = ({
                   {/* Response Options */}
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <label className="text-sm font-medium text-slate-700">
-                        Response Options ({scenario.options.length}/4)
-                      </label>
-                      <button
-                        onClick={() => addOption(scenario.id)}
-                        disabled={scenario.options.length >= 4}
-                        className="flex items-center gap-1 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition-all text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-100"
-                        title="Add response option"
-                      >
-                        <Plus size={12} />
-                        Add
-                      </button>
+                      <div>
+                        <label className="text-sm font-medium text-slate-700">
+                          Response Options
+                        </label>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Full uses custom branching choices. Basic uses automatic back and next buttons.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-medium ${scenario.responseMode === 'full' ? 'text-slate-400' : 'text-slate-700'}`}>
+                          Basic
+                        </span>
+                        <Switch
+                          checked={scenario.responseMode === 'full'}
+                          onCheckedChange={(checked) => updateScenario(scenario.id, {
+                            responseMode: checked ? 'full' : 'basic'
+                          })}
+                        />
+                        <span className={`text-xs font-medium ${scenario.responseMode === 'full' ? 'text-slate-700' : 'text-slate-400'}`}>
+                          Full
+                        </span>
+                      </div>
                     </div>
-                    
-                    <div className="space-y-2">
-                      {scenario.options.map((option, index) => (
-                        <div key={option.id} className="group bg-slate-50 border border-slate-200 rounded-lg p-3 hover:bg-slate-100 transition-all">
-                          <div className="flex items-start gap-2">
-                            <div className="w-6 h-6 bg-white border border-slate-300 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
-                              <span className="text-xs font-bold text-slate-600">
-                                {String.fromCharCode('A'.charCodeAt(0) + index)}
-                              </span>
-                            </div>
-                            <div className="flex-1 space-y-2">
-                              <input
-                                type="text"
-                                value={option.text}
-                                onChange={(e) => updateOption(scenario.id, option.id, { text: e.target.value })}
-                                className="w-full px-2 py-2 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:border-neutral-400 bg-white placeholder-slate-400 transition-all"
-                                placeholder="Enter response option..."
-                              />
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-slate-500 font-medium">→</span>
-                                <select
-                                  value={option.nextScenarioId || ''}
-                                  onChange={(e) => updateOption(scenario.id, option.id, { 
-                                    nextScenarioId: e.target.value || null 
-                                  })}
-                                  className="flex-1 px-2 py-1.5 border border-slate-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:border-neutral-400 bg-white transition-all"
+
+                    {scenario.responseMode === 'full' ? (
+                      <>
+                        <div className="flex justify-end mb-3">
+                          <button
+                            onClick={() => addOption(scenario.id)}
+                            disabled={scenario.options.length >= 4}
+                            className="flex items-center gap-1 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md transition-all text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-100"
+                            title="Add response option"
+                          >
+                            <Plus size={12} />
+                            Add
+                          </button>
+                        </div>
+
+                        <div className="space-y-2">
+                          {scenario.options.map((option, index) => (
+                            <div key={option.id} className="group bg-slate-50 border border-slate-200 rounded-lg p-3 hover:bg-slate-100 transition-all">
+                              <div className="flex items-start gap-2">
+                                <div className="w-6 h-6 bg-white border border-slate-300 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
+                                  <span className="text-xs font-bold text-slate-600">
+                                    {String.fromCharCode('A'.charCodeAt(0) + index)}
+                                  </span>
+                                </div>
+                                <div className="flex-1 space-y-2">
+                                  <input
+                                    type="text"
+                                    value={option.text}
+                                    onChange={(e) => updateOption(scenario.id, option.id, { text: e.target.value })}
+                                    className="w-full px-2 py-2 border border-slate-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:border-neutral-400 bg-white placeholder-slate-400 transition-all"
+                                    placeholder="Enter response option..."
+                                  />
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-slate-500 font-medium">→</span>
+                                    <select
+                                      value={option.nextScenarioId || ''}
+                                      onChange={(e) => updateOption(scenario.id, option.id, { 
+                                        nextScenarioId: e.target.value || null 
+                                      })}
+                                      className="flex-1 px-2 py-1.5 border border-slate-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:border-neutral-400 bg-white transition-all"
+                                    >
+                                      <option value="">End scenario</option>
+                                      {scenarios.map((s) => (
+                                        <option key={s.id} value={s.id}>
+                                          Scenario {s.id}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => deleteOption(scenario.id, option.id)}
+                                  disabled={scenario.options.length <= 1}
+                                  className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-all opacity-0 group-hover:opacity-100 disabled:opacity-0 disabled:cursor-not-allowed flex-shrink-0"
+                                  title="Delete option"
                                 >
-                                  <option value="">End scenario</option>
-                                  {scenarios.map((s) => (
-                                    <option key={s.id} value={s.id}>
-                                      Scenario {s.id}
-                                    </option>
-                                  ))}
-                                </select>
+                                  <Trash2 size={12} />
+                                </button>
                               </div>
                             </div>
-                            <button
-                              onClick={() => deleteOption(scenario.id, option.id)}
-                              disabled={scenario.options.length <= 1}
-                              className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-all opacity-0 group-hover:opacity-100 disabled:opacity-0 disabled:cursor-not-allowed flex-shrink-0"
-                              title="Delete option"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      </>
+                    ) : (
+                      <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-sm text-slate-500">
+                        Basic mode follows the scenario order with Back and Next buttons. Slide 1 only shows Next, the last slide only shows Back.
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
-            ))}
+              )
+            })}
             
             {scenarios.length === 0 && (
               <div className="text-center py-8">
@@ -543,6 +737,18 @@ const ScenariosModal: React.FC<ScenariosModalProps> = ({
       dialogContent={showPreview ? renderPreviewContent() : renderEditContent()}
       dialogClose={
         <>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file && pendingUploadScenarioId) {
+                handleUpload(pendingUploadScenarioId, file)
+              }
+            }}
+          />
           <ButtonBlack
             onClick={handleClose}
             className="bg-gray-200 text-gray-700 hover:bg-gray-300"

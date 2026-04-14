@@ -241,6 +241,18 @@ function getSliderInitialValue(directionMode?: 'unidirectional' | 'bidirectional
   return directionMode === 'bidirectional' ? 0.5 : 0
 }
 
+function hexToLightBg(hex: string, mix = 0.15): string {
+  const cleaned = hex.replace('#', '')
+  const r = parseInt(cleaned.slice(0, 2), 16)
+  const g = parseInt(cleaned.slice(2, 4), 16)
+  const b = parseInt(cleaned.slice(4, 6), 16)
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return '#f1f5f9'
+  const ro = Math.round(255 + (r - 255) * mix)
+  const go = Math.round(255 + (g - 255) * mix)
+  const bo = Math.round(255 + (b - 255) * mix)
+  return `rgb(${ro},${go},${bo})`
+}
+
 function renderSortIcon(icon: SortIconKey, color: string, size = 18) {
   const shared = { color, size }
   switch (icon) {
@@ -543,11 +555,11 @@ function SortSlideView({
                     type="button"
                     onClick={() => animateCardToRegion(category)}
                     style={{
-                      border: 'none',
+                      border: `1.5px solid ${hexToLightBg(category.color, 0.35)}`,
                       borderRadius: 999,
                       minHeight: 48,
-                      background: category.color,
-                      color: '#fff',
+                      background: hexToLightBg(category.color, 0.13),
+                      color: category.color,
                       fontWeight: 800,
                       fontSize: 13,
                       display: 'flex',
@@ -559,7 +571,7 @@ function SortSlideView({
                       transform: category.position === 'top' ? 'translateY(-4px)' : 'none',
                     }}
                   >
-                    {renderSortIcon(category.icon, '#fff', 16)}
+                    {renderSortIcon(category.icon, category.color, 16)}
                     {category.label && <span>{category.label}</span>}
                   </button>
                 ))}
@@ -873,15 +885,15 @@ function SlideFrame({
                 : getSliderInitialValue(directionMode)
               const selectedStars = Math.round(value * 5)
               return (
-                <div key={row.slider_uuid} style={{ display: 'grid', gridTemplateColumns: hideOptionLabels ? '1fr' : '112px 1fr', gap: 12, alignItems: 'center' }}>
+                <div key={row.slider_uuid} style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
                   {!hideOptionLabels && (
-                    <div style={{ color: '#fff', fontSize: 13, fontWeight: 700, textShadow: '0 2px 10px rgba(0,0,0,0.35)', lineHeight: 1.3, textAlign: 'right' }}>
+                    <div style={{ color: '#fff', fontSize: 13, fontWeight: 700, textShadow: '0 2px 10px rgba(0,0,0,0.35)', lineHeight: 1.3, textAlign: 'center' }}>
                       {row.label || `Option ${idx + 1}`}
                     </div>
                   )}
-                  <div>
+                  <div style={{ width: '100%' }}>
                     {directionMode === 'stars' ? (
-                      <div style={{ display: 'flex', gap: 8, justifyContent: hideOptionLabels ? 'center' : 'flex-start' }}>
+                      <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
                         {Array.from({ length: 5 }, (_, starIdx) => {
                           const nextStars = starIdx + 1
                           return (
@@ -1193,7 +1205,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
   const [currentIdx, setCurrentIdx] = useState(0)
   const [answers, setAnswers] = useState<Map<string, any>>(new Map())
   const [popUuid, setPopUuid] = useState<string | null>(null)
-  const [nextVisible, setNextVisible] = useState(false)
+
   const [showingResponse, setShowingResponse] = useState(false)   // response slide visible
   const [responseIn, setResponseIn] = useState(false)             // drives slide-up transition
   const [submitting, setSubmitting] = useState(false)
@@ -1262,9 +1274,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     return answers.has((currentSlide as SelectSlide).question_uuid)
   }, [showingResponse, currentSlide, answers, textScoringRules])
 
-  useEffect(() => {
-    setNextVisible(isCurrentAnswered)
-  }, [isCurrentAnswered])
+  const nextVisible = isCurrentAnswered
 
   const canGoBack = showingResponse || currentIdx > 0
   const progress = slides.length <= 1 ? 100 : Math.round(((currentIdx + 1) / slides.length) * 100)
@@ -1406,7 +1416,6 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
       closeResponse()
       setTimeout(() => {
         if (isLastSlide) { doSubmit(); return }
-        setNextVisible(false)
         setCurrentIdx(i => i + 1)
       }, 380)
       return
@@ -1425,23 +1434,15 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     }
 
     if (!isLastSlide) {
-      const nextIdx = currentIdx + 1
-      const nextSlide = slides[nextIdx]
-      const nextIsImmediatelyAdvanceable =
-        nextSlide?.type === 'quizInfoBlock' ||
-        (nextSlide?.type === 'quizTextBlock' && Math.max(0, Number((textScoringRules[(nextSlide as TextSlide).question_uuid] || {}).min_chars || 0)) <= 0)
-
-      setNextVisible(nextIsImmediatelyAdvanceable)
-      setCurrentIdx(nextIdx)
+      setCurrentIdx(currentIdx + 1)
       return
     }
     await doSubmit()
-  }, [showingResponse, isLastSlide, currentSlide, answers, openResponse, closeResponse, doSubmit, currentIdx, slides, textScoringRules])
+  }, [showingResponse, isLastSlide, currentSlide, answers, openResponse, closeResponse, doSubmit, currentIdx])
 
   const handleBack = () => {
     if (showingResponse) { closeResponse(); return }
     if (currentIdx > 0) {
-      setNextVisible(false)
       setCurrentIdx(i => i - 1)
     }
   }
@@ -1499,7 +1500,6 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     setResult(null)
     setShowingResponse(false)
     setResponseIn(false)
-    setNextVisible(false)
   }
 
   if (loadingExistingResult) {
