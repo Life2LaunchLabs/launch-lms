@@ -12,5 +12,17 @@ if [ -z "${LAUNCHLMS_SQL_CONNECTION_STRING:-}" ] && [ -z "${DATABASE_URL:-}" ]; 
 fi
 
 echo "Running Alembic migrations from ${API_DIR}..."
+if uv run python ./scripts/needs_alembic_bootstrap.py; then
+  :
+else
+  status=$?
+  if [ "$status" -eq 10 ]; then
+    echo "Bootstrapping Alembic state for legacy database schema..."
+    uv run alembic stamp head
+  else
+    exit "$status"
+  fi
+fi
+
 uv run alembic upgrade head
 echo "Alembic migrations completed successfully."
