@@ -1,0 +1,40 @@
+name: API Migrations
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - "apps/api/**"
+      - ".github/workflows/api-migrations.yaml"
+  pull_request:
+    paths:
+      - "apps/api/**"
+      - ".github/workflows/api-migrations.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  alembic-heads:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14.3"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: latest
+
+      - name: Install dependencies
+        run: uv sync --frozen
+        working-directory: apps/api
+
+      - name: Verify Alembic has a single head
+        run: ./scripts/check_single_alembic_head.sh
+        working-directory: apps/api
