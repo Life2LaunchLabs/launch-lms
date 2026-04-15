@@ -24,6 +24,15 @@ _BLOCKED_NETWORKS = [
 ]
 
 _MAX_RESPONSE_SIZE = 5 * 1024 * 1024  # 5MB
+_REQUEST_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Cache-Control": "no-cache",
+}
 
 
 def _validate_url(url: str) -> str:
@@ -67,6 +76,7 @@ async def fetch_link_preview(url: str) -> Dict[str, Optional[str]]:
         follow_redirects=False,
         timeout=10,
         max_redirects=0,
+        headers=_REQUEST_HEADERS,
     ) as client:
         response = await client.get(validated_url)
 
@@ -80,12 +90,17 @@ async def fetch_link_preview(url: str) -> Dict[str, Optional[str]]:
             _validate_url(redirect_url)
             response = await client.get(redirect_url)
 
-        response.raise_for_status()
-
         # Limit response size
         content_length = response.headers.get("content-length")
         if content_length and int(content_length) > _MAX_RESPONSE_SIZE:
             raise HTTPException(status_code=400, detail="Response too large")
+
+        content_type = response.headers.get("content-type", "").lower()
+        if "text/html" not in content_type:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported content type for preview: {content_type or 'unknown'}",
+            )
 
         html = response.text[:_MAX_RESPONSE_SIZE]
 
@@ -139,7 +154,7 @@ async def fetch_link_preview(url: str) -> Dict[str, Optional[str]]:
     # OG URL
     og_url = get_meta('og:url')
 
-    return {
+    data = {
         'title': og_title or title,
         'description': description,
         'og_image': og_image,
@@ -148,3 +163,11 @@ async def fetch_link_preview(url: str) -> Dict[str, Optional[str]]:
         'og_url': og_url or url,
         'url': url,
     }
+
+    if not any([data["title"], data["description"], data["og_image"]]) and response.status_code >= 400:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Website returned HTTP {response.status_code} and did not expose preview metadata",
+        )
+
+    return data

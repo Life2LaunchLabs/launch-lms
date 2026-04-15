@@ -29,7 +29,7 @@ from src.routers.audit_logs import router as audit_logs_router
 from src.routers.superadmin import router as superadmin_router
 from src.security.auth import get_current_user
 from src.security.api_token_utils import require_non_api_token_user
-from src.security.features_utils.plan_check import require_plan, require_plan_for_boards, require_plan_for_certifications, require_plan_for_community, require_plan_for_usergroups, require_plan_for_playgrounds
+from src.security.features_utils.plan_check import require_plan, require_plan_for_boards, require_plan_for_certifications, require_plan_for_community, require_plan_for_resources, require_plan_for_usergroups, require_plan_for_playgrounds
 
 
 v1_router = APIRouter(prefix="/api/v1")
@@ -143,7 +143,7 @@ v1_router.include_router(
     resources_router_module.router,
     prefix="/resources",
     tags=["resources"],
-    dependencies=[Depends(require_plan("standard", "Resources"))]
+    dependencies=[Depends(require_plan_for_resources("standard", "Resources"))]
 )
 v1_router.include_router(
     discussions_router_module.router,

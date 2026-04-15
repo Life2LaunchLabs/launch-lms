@@ -11,6 +11,8 @@ from src.db.resources import (
     ResourceCommentCreate,
     ResourceCommentUpdate,
     ResourceCreate,
+    ResourceTagCreate,
+    ResourceTagUpdate,
     ResourceUpdate,
     UserResourceChannelCreate,
     UserSavedResourceUpdate,
@@ -22,7 +24,9 @@ from src.services.resources import (
     create_channel,
     create_comment,
     create_resource,
+    create_tag,
     create_user_channel,
+    delete_tag,
     delete_channel,
     delete_comment,
     delete_resource,
@@ -32,9 +36,11 @@ from src.services.resources import (
     list_channels,
     list_comments,
     list_resources,
+    list_tags,
     remove_resource_from_channel,
     save_resource_for_user,
     unsave_resource_for_user,
+    update_tag,
     update_channel,
     update_comment,
     update_resource,
@@ -61,6 +67,48 @@ async def api_list_channels(
     db_session: Session = Depends(get_db_session),
 ):
     return await list_channels(request, org_id, current_user, db_session, include_private=include_private)
+
+
+@router.get("/org/{org_id}/tags")
+async def api_list_tags(
+    request: Request,
+    org_id: int,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await list_tags(request, org_id, current_user, db_session)
+
+
+@router.post("/org/{org_id}/tags")
+async def api_create_tag(
+    request: Request,
+    org_id: int,
+    tag_data: ResourceTagCreate,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await create_tag(request, org_id, tag_data, current_user, db_session)
+
+
+@router.put("/tags/{tag_uuid}")
+async def api_update_tag(
+    request: Request,
+    tag_uuid: str,
+    tag_data: ResourceTagUpdate,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await update_tag(request, tag_uuid, tag_data, current_user, db_session)
+
+
+@router.delete("/tags/{tag_uuid}")
+async def api_delete_tag(
+    request: Request,
+    tag_uuid: str,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await delete_tag(request, tag_uuid, current_user, db_session)
 
 
 @router.post("/channels")
@@ -115,6 +163,8 @@ async def api_list_resources(
     channel_uuid: Optional[str] = None,
     user_channel_uuid: Optional[str] = None,
     resource_type: Optional[str] = None,
+    resource_types: Optional[str] = None,
+    tags: Optional[str] = None,
     provider: Optional[str] = None,
     query: Optional[str] = None,
     access: Optional[str] = None,
@@ -132,6 +182,8 @@ async def api_list_resources(
         channel_uuid=channel_uuid,
         user_channel_uuid=user_channel_uuid,
         resource_type=resource_type,
+        resource_types=resource_types,
+        tags=tags,
         provider=provider,
         query=query,
         access=access,
@@ -329,8 +381,9 @@ async def api_delete_comment(
 async def api_import_resources_csv(
     request: Request,
     org_id: int,
+    channel_uuid: Optional[str] = None,
     file: UploadFile = File(...),
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    return await import_resources_csv(request, org_id, file, current_user, db_session)
+    return await import_resources_csv(request, org_id, file, current_user, db_session, channel_uuid=channel_uuid)

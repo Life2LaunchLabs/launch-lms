@@ -27,6 +27,11 @@ from src.db.resources import (
     ResourceCommentUpdate,
     ResourceCreate,
     ResourceRead,
+    ResourceTag,
+    ResourceTagCreate,
+    ResourceTagLink,
+    ResourceTagRead,
+    ResourceTagUpdate,
     ResourceTypeEnum,
     ResourceUpdate,
     UserResourceChannel,
@@ -114,6 +119,10 @@ def _get_resource_or_404(resource_uuid: str, db_session: Session) -> Resource:
     if not resource:
         raise HTTPException(status_code=404, detail="Resource not found")
     return resource
+
+
+def _normalize_tag_name(name: str) -> str:
+    return " ".join((name or "").strip().split())
 
 
 def _get_channel_or_404(channel_uuid: str, db_session: Session) -> ResourceChannel:
@@ -284,6 +293,23 @@ def _resource_counts_map(resource_ids: list[int], db_session: Session) -> tuple[
     )
 
 
+def _resource_tags_map(resource_ids: list[int], db_session: Session) -> dict[int, list[dict]]:
+    if not resource_ids:
+        return {}
+    rows = db_session.exec(
+        select(ResourceTagLink, ResourceTag)
+        .join(ResourceTag, ResourceTag.id == ResourceTagLink.tag_id)
+        .where(ResourceTagLink.resource_id.in_(resource_ids))
+        .order_by(ResourceTag.name.asc())
+    ).all()
+    tags_by_resource: dict[int, list[dict]] = {}
+    for link, tag in rows:
+        tags_by_resource.setdefault(link.resource_id, []).append(
+            ResourceTagRead.model_validate(tag).model_dump()
+        )
+    return tags_by_resource
+
+
 def _resource_user_state_map(resource_ids: list[int], current_user, db_session: Session) -> dict[int, UserSavedResource]:
     if _user_is_anonymous(current_user) or not resource_ids:
         return {}
@@ -298,6 +324,7 @@ def _resource_user_state_map(resource_ids: list[int], current_user, db_session: 
 
 def _serialize_resource(resource: Resource, db_session: Session, current_user) -> dict:
     save_counts, comment_counts = _resource_counts_map([resource.id], db_session)
+    tags_map = _resource_tags_map([resource.id], db_session)
     user_state_map = _resource_user_state_map([resource.id], current_user, db_session)
     user_state = user_state_map.get(resource.id)
     channel_rows = db_session.exec(
@@ -305,15 +332,62 @@ def _serialize_resource(resource: Resource, db_session: Session, current_user) -
         .join(ResourceChannelResource, ResourceChannel.id == ResourceChannelResource.channel_id)
         .where(ResourceChannelResource.resource_id == resource.id)
     ).all()
+    user_channel_uuids: list[str] = []
+    if user_state:
+        user_channel_uuids = list(db_session.exec(
+            select(UserResourceChannel.user_channel_uuid)
+            .join(UserSavedResourceChannel, UserResourceChannel.id == UserSavedResourceChannel.user_channel_id)
+            .where(UserSavedResourceChannel.saved_resource_id == user_state.id)
+        ).all())
     return {
         **ResourceRead.model_validate(resource).model_dump(),
         "channels": [ResourceChannelRead.model_validate(channel).model_dump() for channel in channel_rows],
         "save_count": int(save_counts.get(resource.id, 0)),
         "comment_count": int(comment_counts.get(resource.id, 0)),
+        "tags": tags_map.get(resource.id, []),
         "is_saved": user_state is not None,
         "has_outcome": bool(user_state and (user_state.outcome_text or user_state.outcome_link or user_state.outcome_file)),
         "user_state": UserSavedResourceRead.model_validate(user_state).model_dump() if user_state else None,
+        "user_channel_uuids": user_channel_uuids,
     }
+
+
+def _resolve_resource_tags(org_id: int, tag_uuids: list[str], db_session: Session) -> list[ResourceTag]:
+    if not tag_uuids:
+        return []
+    normalized_uuids = list(dict.fromkeys([tag_uuid.strip() for tag_uuid in tag_uuids if tag_uuid.strip()]))
+    if not normalized_uuids:
+        return []
+    tags = db_session.exec(
+        select(ResourceTag).where(
+            ResourceTag.org_id == org_id,
+            ResourceTag.tag_uuid.in_(normalized_uuids),
+        )
+    ).all()
+    tags_by_uuid = {tag.tag_uuid: tag for tag in tags}
+    missing = [tag_uuid for tag_uuid in normalized_uuids if tag_uuid not in tags_by_uuid]
+    if missing:
+        raise HTTPException(status_code=400, detail="One or more tags are invalid for this organization")
+    return [tags_by_uuid[tag_uuid] for tag_uuid in normalized_uuids]
+
+
+def _set_resource_tags(resource_id: int, tag_ids: list[int], db_session: Session) -> None:
+    existing_links = db_session.exec(
+        select(ResourceTagLink).where(ResourceTagLink.resource_id == resource_id)
+    ).all()
+    existing_tag_ids = {link.tag_id for link in existing_links}
+    target_tag_ids = set(tag_ids)
+    for link in existing_links:
+        if link.tag_id not in target_tag_ids:
+            db_session.delete(link)
+    for tag_id in target_tag_ids - existing_tag_ids:
+        db_session.add(
+            ResourceTagLink(
+                resource_id=resource_id,
+                tag_id=tag_id,
+                creation_date=_now(),
+            )
+        )
 
 
 async def list_channels(request: Request, org_id: int, current_user, db_session: Session, include_private: bool = False) -> dict:
@@ -338,6 +412,81 @@ async def list_channels(request: Request, org_id: int, current_user, db_session:
         ).all()
         user_channels = [_serialize_user_channel(row, db_session, current_user.id) for row in rows]
     return {"channels": visible_channels, "user_channels": user_channels}
+
+
+async def list_tags(request: Request, org_id: int, current_user, db_session: Session) -> list[dict]:
+    _get_org_or_404(org_id, db_session)
+    tags = db_session.exec(
+        select(ResourceTag).where(ResourceTag.org_id == org_id).order_by(ResourceTag.name.asc())
+    ).all()
+    return [ResourceTagRead.model_validate(tag).model_dump() for tag in tags]
+
+
+async def create_tag(request: Request, org_id: int, tag_data: ResourceTagCreate, current_user: PublicUser, db_session: Session) -> dict:
+    _get_org_or_404(org_id, db_session)
+    require_org_role_permission(current_user.id, org_id, db_session, "resources", "action_create")
+    tag_name = _normalize_tag_name(tag_data.name)
+    if not tag_name:
+        raise HTTPException(status_code=400, detail="Tag name is required")
+    existing = db_session.exec(
+        select(ResourceTag).where(ResourceTag.org_id == org_id, func.lower(ResourceTag.name) == tag_name.lower())
+    ).first()
+    if existing:
+        return ResourceTagRead.model_validate(existing).model_dump()
+    tag = ResourceTag(
+        org_id=org_id,
+        tag_uuid=f"resourcetag_{uuid4()}",
+        name=tag_name,
+        creation_date=_now(),
+        update_date=_now(),
+    )
+    db_session.add(tag)
+    db_session.commit()
+    db_session.refresh(tag)
+    return ResourceTagRead.model_validate(tag).model_dump()
+
+
+async def update_tag(
+    request: Request,
+    tag_uuid: str,
+    tag_data: ResourceTagUpdate,
+    current_user: PublicUser,
+    db_session: Session,
+) -> dict:
+    tag = db_session.exec(select(ResourceTag).where(ResourceTag.tag_uuid == tag_uuid)).first()
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag not found")
+    require_org_role_permission(current_user.id, tag.org_id, db_session, "resources", "action_update")
+    updates = tag_data.model_dump(exclude_unset=True)
+    if "name" in updates:
+        tag_name = _normalize_tag_name(updates["name"] or "")
+        if not tag_name:
+            raise HTTPException(status_code=400, detail="Tag name is required")
+        existing = db_session.exec(
+            select(ResourceTag).where(
+                ResourceTag.org_id == tag.org_id,
+                func.lower(ResourceTag.name) == tag_name.lower(),
+                ResourceTag.id != tag.id,
+            )
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="A tag with that name already exists")
+        tag.name = tag_name
+    tag.update_date = _now()
+    db_session.add(tag)
+    db_session.commit()
+    db_session.refresh(tag)
+    return ResourceTagRead.model_validate(tag).model_dump()
+
+
+async def delete_tag(request: Request, tag_uuid: str, current_user: PublicUser, db_session: Session) -> dict:
+    tag = db_session.exec(select(ResourceTag).where(ResourceTag.tag_uuid == tag_uuid)).first()
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag not found")
+    require_org_role_permission(current_user.id, tag.org_id, db_session, "resources", "action_delete")
+    db_session.delete(tag)
+    db_session.commit()
+    return {"detail": "Tag deleted"}
 
 
 async def create_channel(request: Request, org_id: int, channel_data: ResourceChannelCreate, current_user: PublicUser, db_session: Session) -> dict:
@@ -385,6 +534,8 @@ async def list_resources(
     channel_uuid: Optional[str] = None,
     user_channel_uuid: Optional[str] = None,
     resource_type: Optional[str] = None,
+    resource_types: Optional[str] = None,
+    tags: Optional[str] = None,
     provider: Optional[str] = None,
     query: Optional[str] = None,
     access: Optional[str] = None,
@@ -394,8 +545,28 @@ async def list_resources(
 ) -> list[dict]:
     _get_org_or_404(org_id, db_session)
     statement = select(Resource).where(Resource.org_id == org_id)
-    if resource_type:
-        statement = statement.where(Resource.resource_type == resource_type)
+    requested_types = [
+        item.strip().lower()
+        for item in (resource_types or resource_type or "").split(",")
+        if item.strip()
+    ]
+    valid_types = [item for item in requested_types if item in {enum_item.value for enum_item in ResourceTypeEnum}]
+    if valid_types:
+        statement = statement.where(Resource.resource_type.in_(valid_types))
+    requested_tags = [_normalize_tag_name(item) for item in (tags or "").split(",") if _normalize_tag_name(item)]
+    if requested_tags:
+        normalized_requested_tags = list(dict.fromkeys(tag.lower() for tag in requested_tags))
+        matching_resource_ids = select(ResourceTagLink.resource_id).join(
+            ResourceTag, ResourceTag.id == ResourceTagLink.tag_id
+        ).where(
+            ResourceTag.org_id == org_id,
+            func.lower(ResourceTag.name).in_(normalized_requested_tags),
+        ).group_by(
+            ResourceTagLink.resource_id
+        ).having(
+            func.count(func.distinct(ResourceTag.id)) == len(normalized_requested_tags)
+        )
+        statement = statement.where(Resource.id.in_(matching_resource_ids))
     if provider:
         statement = statement.where(Resource.provider_name == provider)
     if query:
@@ -462,6 +633,8 @@ async def create_resource(
     _get_org_or_404(org_id, db_session)
     require_org_role_permission(current_user.id, org_id, db_session, "resources", "action_create")
     payload = resource_data.model_dump()
+    tag_uuids = payload.pop("tag_uuids", [])
+    resolved_tags = _resolve_resource_tags(org_id, tag_uuids, db_session)
     if enrich_metadata:
         enrichment = enrich_resource_metadata(resource_data.external_url)
         payload["provider_name"] = payload.get("provider_name") or enrichment.get("provider_name")
@@ -478,17 +651,25 @@ async def create_resource(
     db_session.add(resource)
     db_session.commit()
     db_session.refresh(resource)
+    _set_resource_tags(resource.id, [tag.id for tag in resolved_tags], db_session)
+    db_session.commit()
     return _serialize_resource(resource, db_session, current_user)
 
 
 async def update_resource(request: Request, resource_uuid: str, resource_data: ResourceUpdate, current_user: PublicUser, db_session: Session) -> dict:
     resource = _get_resource_or_404(resource_uuid, db_session)
     require_org_role_permission(current_user.id, resource.org_id, db_session, "resources", "action_update")
-    for key, value in resource_data.model_dump(exclude_unset=True).items():
+    updates = resource_data.model_dump(exclude_unset=True)
+    tag_uuids = updates.pop("tag_uuids", None)
+    for key, value in updates.items():
         setattr(resource, key, value)
     resource.update_date = _now()
     db_session.add(resource)
     db_session.commit()
+    if tag_uuids is not None:
+        resolved_tags = _resolve_resource_tags(resource.org_id, tag_uuids, db_session)
+        _set_resource_tags(resource.id, [tag.id for tag in resolved_tags], db_session)
+        db_session.commit()
     db_session.refresh(resource)
     return _serialize_resource(resource, db_session, current_user)
 
@@ -762,9 +943,19 @@ async def delete_comment(request: Request, comment_uuid: str, current_user: Publ
     return {"detail": "Comment deleted"}
 
 
-async def import_resources_csv(request: Request, org_id: int, file: UploadFile, current_user: PublicUser, db_session: Session) -> dict:
+async def import_resources_csv(
+    request: Request,
+    org_id: int,
+    file: UploadFile,
+    current_user: PublicUser,
+    db_session: Session,
+    channel_uuid: Optional[str] = None,
+) -> dict:
     _get_org_or_404(org_id, db_session)
     require_org_role_permission(current_user.id, org_id, db_session, "resources", "action_create")
+    target_channel = _get_channel_or_404(channel_uuid, db_session) if channel_uuid else None
+    if target_channel and target_channel.org_id != org_id:
+        raise HTTPException(status_code=400, detail="Channel does not belong to this organization")
     raw = await file.read()
     try:
         decoded = raw.decode("utf-8")
@@ -776,22 +967,23 @@ async def import_resources_csv(request: Request, org_id: int, file: UploadFile, 
     errors: list[dict] = []
     resource_uuids: list[str] = []
     for idx, row in enumerate(reader, start=2):
-        title = (row.get("title") or "").strip()
-        external_url = (row.get("external_url") or "").strip()
-        if not title or not external_url:
-            errors.append({"row": idx, "error": "title and external_url are required"})
+        external_url = (row.get("external_url") or row.get("link") or row.get("url") or "").strip()
+        if not external_url:
+            errors.append({"row": idx, "error": "link is required"})
             continue
+        enrichment = enrich_resource_metadata(external_url)
         resource_type_value = (row.get("resource_type") or "other").strip().lower()
         if resource_type_value not in {item.value for item in ResourceTypeEnum}:
             resource_type_value = "other"
+        title = (row.get("title") or "").strip() or enrichment.get("title") or enrichment.get("provider_name") or external_url
         payload = ResourceCreate(
             title=title,
-            description=(row.get("description") or "").strip() or None,
+            description=(row.get("description") or "").strip() or enrichment.get("description") or None,
             resource_type=resource_type_value,
-            provider_name=(row.get("provider_name") or "").strip() or None,
-            provider_url=(row.get("provider_url") or "").strip() or None,
+            provider_name=(row.get("provider_name") or "").strip() or enrichment.get("provider_name") or None,
+            provider_url=(row.get("provider_url") or "").strip() or enrichment.get("provider_url") or None,
             external_url=external_url,
-            cover_image_url=(row.get("cover_image_url") or "").strip() or None,
+            cover_image_url=(row.get("cover_image_url") or "").strip() or enrichment.get("cover_image_url") or None,
             estimated_time=int(row.get("estimated_time")) if (row.get("estimated_time") or "").strip().isdigit() else None,
             is_featured=(row.get("is_featured") or "").strip().lower() in {"1", "true", "yes"},
             is_live=(row.get("is_live") or "").strip().lower() in {"1", "true", "yes"},
@@ -809,6 +1001,9 @@ async def import_resources_csv(request: Request, org_id: int, file: UploadFile, 
             resource = _get_resource_or_404(created_row["resource_uuid"], db_session)
             created += 1
         resource_uuids.append(resource.resource_uuid)
+        channels_to_link: list[ResourceChannel] = []
+        if target_channel:
+            channels_to_link.append(target_channel)
         channel_names = [item.strip() for item in (row.get("channels") or "").split("|") if item.strip()]
         for channel_name in channel_names:
             channel = db_session.exec(
@@ -829,6 +1024,9 @@ async def import_resources_csv(request: Request, org_id: int, file: UploadFile, 
                 db_session.add(channel)
                 db_session.commit()
                 db_session.refresh(channel)
+            channels_to_link.append(channel)
+        unique_channels = {channel.channel_uuid: channel for channel in channels_to_link}.values()
+        for channel in unique_channels:
             await add_resource_to_channel(request, channel.channel_uuid, resource.resource_uuid, current_user, db_session)
     return {"created": created, "updated": updated, "errors": errors, "resource_uuids": resource_uuids}
 

@@ -81,10 +81,21 @@ export interface Resource {
   update_date: string
   save_count: number
   comment_count: number
+  tags: ResourceTag[]
   is_saved: boolean
   has_outcome: boolean
   channels: ResourceChannel[]
+  user_channel_uuids: string[]
   user_state: SavedResourceState | null
+}
+
+export interface ResourceTag {
+  id: number
+  org_id: number
+  tag_uuid: string
+  name: string
+  creation_date: string
+  update_date: string
 }
 
 export interface ResourceComment {
@@ -106,12 +117,54 @@ export interface ResourceComment {
   } | null
 }
 
+export interface ResourceUrlPreview {
+  title?: string | null
+  description?: string | null
+  og_image?: string | null
+  favicon?: string | null
+  og_type?: string | null
+  og_url?: string | null
+  url?: string | null
+}
+
 export async function getResourceChannels(orgId: number, accessToken?: string, includePrivate = false) {
   const result: any = await fetch(
     `${getAPIUrl()}resources/org/${orgId}/channels?include_private=${includePrivate}`,
     RequestBodyWithAuthHeader('GET', null, null, accessToken)
   )
   return errorHandling(result) as Promise<{ channels: ResourceChannel[]; user_channels: UserResourceChannel[] }>
+}
+
+export async function getResourceTags(orgId: number, accessToken?: string) {
+  const result: any = await fetch(
+    `${getAPIUrl()}resources/org/${orgId}/tags`,
+    RequestBodyWithAuthHeader('GET', null, null, accessToken)
+  )
+  return errorHandling(result) as Promise<ResourceTag[]>
+}
+
+export async function createResourceTag(orgId: number, data: { name: string }, accessToken: string) {
+  const result: any = await fetch(
+    `${getAPIUrl()}resources/org/${orgId}/tags`,
+    RequestBodyWithAuthHeader('POST', data, null, accessToken)
+  )
+  return errorHandling(result) as Promise<ResourceTag>
+}
+
+export async function updateResourceTag(tagUuid: string, data: { name: string }, accessToken: string) {
+  const result: any = await fetch(
+    `${getAPIUrl()}resources/tags/${tagUuid}`,
+    RequestBodyWithAuthHeader('PUT', data, null, accessToken)
+  )
+  return errorHandling(result) as Promise<ResourceTag>
+}
+
+export async function deleteResourceTag(tagUuid: string, accessToken: string) {
+  const result: any = await fetch(
+    `${getAPIUrl()}resources/tags/${tagUuid}`,
+    RequestBodyWithAuthHeader('DELETE', null, null, accessToken)
+  )
+  return getResponseMetadata(result)
 }
 
 export async function getResources(
@@ -202,7 +255,11 @@ export async function uploadResourceChannelThumbnail(channelUuid: string, formDa
   return getResponseMetadata(result)
 }
 
-export async function getChannelResources(channelUuid: string, accessToken?: string, includePrivate = false) {
+export async function getChannelResources(
+  channelUuid: string,
+  accessToken?: string,
+  includePrivate = false
+) {
   const result: any = await fetch(
     `${getAPIUrl()}resources/channels/${channelUuid}/resources?include_private=${includePrivate}`,
     RequestBodyWithAuthHeader('GET', null, null, accessToken)
@@ -210,7 +267,12 @@ export async function getChannelResources(channelUuid: string, accessToken?: str
   return errorHandling(result) as Promise<Resource[]>
 }
 
-export async function addResourceToChannel(channelUuid: string, resourceUuid: string, accessToken: string, sortOrder = 0) {
+export async function addResourceToChannel(
+  channelUuid: string,
+  resourceUuid: string,
+  accessToken: string,
+  sortOrder = 0
+) {
   const result: any = await fetch(
     `${getAPIUrl()}resources/channels/${channelUuid}/resources`,
     RequestBodyWithAuthHeader('POST', { resource_uuid: resourceUuid, sort_order: sortOrder }, null, accessToken)
@@ -290,10 +352,25 @@ export async function deleteResourceComment(commentUuid: string, accessToken: st
   return getResponseMetadata(result)
 }
 
-export async function importResourcesCsv(orgId: number, formData: FormData, accessToken: string) {
+export async function importResourcesCsv(
+  orgId: number,
+  formData: FormData,
+  accessToken: string,
+  channelUuid?: string
+) {
+  const search = new URLSearchParams()
+  if (channelUuid) search.set('channel_uuid', channelUuid)
   const result: any = await fetch(
-    `${getAPIUrl()}resources/org/${orgId}/import`,
+    `${getAPIUrl()}resources/org/${orgId}/import${search.toString() ? `?${search.toString()}` : ''}`,
     RequestBodyFormWithAuthHeader('POST', formData, null, accessToken)
   )
   return getResponseMetadata(result)
+}
+
+export async function getResourceUrlPreview(url: string, accessToken?: string) {
+  const result: any = await fetch(
+    `${getAPIUrl()}utils/link-preview?url=${encodeURIComponent(url)}`,
+    RequestBodyWithAuthHeader('GET', null, null, accessToken)
+  )
+  return errorHandling(result) as Promise<ResourceUrlPreview>
 }

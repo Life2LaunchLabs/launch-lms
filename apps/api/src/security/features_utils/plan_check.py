@@ -10,6 +10,7 @@ from sqlmodel import Session, select
 from src.core.events.database import get_db_session
 from src.db.organization_config import OrganizationConfig
 from src.db.communities.communities import Community
+from src.db.resources import Resource, ResourceChannel, ResourceComment
 from src.security.features_utils.plans import PlanLevel, plan_meets_requirement
 
 def get_org_plan(org_id: int, db_session: Session) -> PlanLevel:
@@ -433,6 +434,79 @@ def require_plan_for_community(required_plan: PlanLevel, feature_name: str):
 
         if org_id is None:
             # Can't determine org, allow the request (other checks will handle auth)
+            return True
+
+        current_plan = get_org_plan(org_id, db_session)
+
+        if not plan_meets_requirement(current_plan, required_plan):
+            raise HTTPException(
+                status_code=403,
+                detail=f"{feature_name} requires a {required_plan.capitalize()} plan or higher. "
+                f"Your organization is currently on the {current_plan.capitalize()} plan.",
+            )
+
+        return True
+
+    return plan_dependency
+
+
+def require_plan_for_resources(required_plan: PlanLevel, feature_name: str):
+    """
+    Factory function that returns a FastAPI dependency to enforce plan requirements
+    for resource routes. Can resolve org_id from path params, query params,
+    channel_uuid, resource_uuid, or comment_uuid.
+    """
+
+    async def plan_dependency(
+        request: Request,
+        db_session: Session = Depends(get_db_session),
+    ):
+        org_id = None
+
+        org_id_param = request.path_params.get("org_id")
+        if org_id_param is not None:
+            try:
+                org_id = int(org_id_param)
+            except (ValueError, TypeError):
+                pass
+
+        if org_id is None:
+            org_id_query = request.query_params.get("org_id")
+            if org_id_query is not None:
+                try:
+                    org_id = int(org_id_query)
+                except (ValueError, TypeError):
+                    pass
+
+        if org_id is None:
+            channel_uuid = request.path_params.get("channel_uuid")
+            if channel_uuid:
+                statement = select(ResourceChannel).where(ResourceChannel.channel_uuid == channel_uuid)
+                channel = db_session.exec(statement).first()
+                if channel:
+                    org_id = channel.org_id
+
+        if org_id is None:
+            resource_uuid = request.path_params.get("resource_uuid")
+            if resource_uuid:
+                statement = select(Resource).where(Resource.resource_uuid == resource_uuid)
+                resource = db_session.exec(statement).first()
+                if resource:
+                    org_id = resource.org_id
+
+        if org_id is None:
+            comment_uuid = request.path_params.get("comment_uuid")
+            if comment_uuid:
+                statement = select(ResourceComment).where(ResourceComment.comment_uuid == comment_uuid)
+                comment = db_session.exec(statement).first()
+                if comment:
+                    resource = db_session.exec(
+                        select(Resource).where(Resource.id == comment.resource_id)
+                    ).first()
+                    if resource:
+                        org_id = resource.org_id
+
+        if org_id is None:
             return True
 
         current_plan = get_org_plan(org_id, db_session)

@@ -1,16 +1,17 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ExternalLink, Upload } from 'lucide-react'
+import { ExternalLink, Eye, MessageCircle, Upload, X } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import useSWR from 'swr'
+import { useRouter } from 'next/navigation'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import ResourceComments from '@components/Resources/ResourceComments'
+import SaveDropdown from '@components/Resources/SaveDropdown'
 import {
   getResource,
   saveResource,
-  unsaveResource,
   uploadOutcomeFile,
 } from '@services/resources/resources'
 import {
@@ -19,6 +20,7 @@ import {
 } from '@services/media/media'
 
 export default function ResourceDetailClient({ resourceUuid }: { resourceUuid: string }) {
+  const router = useRouter()
   const org = useOrg() as any
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
@@ -51,24 +53,6 @@ export default function ResourceDetailClient({ resourceUuid }: { resourceUuid: s
     ? getResourceThumbnailMediaDirectory(org.org_uuid, resource.resource_uuid, resource.thumbnail_image)
     : resource.cover_image_url || '/placeholder/course-dark.png'
 
-  const handleSave = async () => {
-    if (!accessToken) return
-    try {
-      if (resource.is_saved) {
-        await unsaveResource(resource.resource_uuid, accessToken)
-      } else {
-        await saveResource(resource.resource_uuid, {
-          notes: notesDraft ?? resource.user_state?.notes ?? '',
-          outcome_text: outcomeTextDraft ?? resource.user_state?.outcome_text ?? '',
-          outcome_link: outcomeLinkDraft ?? resource.user_state?.outcome_link ?? '',
-        }, accessToken)
-      }
-      mutate()
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to update saved state')
-    }
-  }
-
   const handleUpdatePrivate = async () => {
     if (!accessToken) return
     try {
@@ -78,9 +62,9 @@ export default function ResourceDetailClient({ resourceUuid }: { resourceUuid: s
         outcome_link: outcomeLinkDraft ?? resource.user_state?.outcome_link ?? '',
       }, accessToken)
       mutate()
-      toast.success('Private details saved')
+      toast.success('Outcomes saved')
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to save private details')
+      toast.error(error?.message || 'Failed to save outcomes')
     }
   }
 
@@ -89,7 +73,7 @@ export default function ResourceDetailClient({ resourceUuid }: { resourceUuid: s
       try {
         await saveResource(resource.resource_uuid, { open_count_increment: 1 }, accessToken)
       } catch {
-        // Best effort only.
+        // best effort
       }
       window.sessionStorage.setItem(`resource-return:${resourceUuid}`, 'pending')
     }
@@ -115,83 +99,177 @@ export default function ResourceDetailClient({ resourceUuid }: { resourceUuid: s
 
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <div className="overflow-hidden rounded-3xl bg-white nice-shadow">
-          <div className="grid lg:grid-cols-[1.2fr,0.8fr]">
-            <div className="min-h-[300px] bg-gray-100">
-              <img src={imageSrc} alt={resource.title} className="h-full w-full object-cover" />
-            </div>
-            <div className="p-6">
-              <div className="text-xs uppercase tracking-wide text-gray-400">{resource.resource_type}{resource.provider_name ? ` · ${resource.provider_name}` : ''}</div>
-              <h1 className="mt-2 text-3xl font-bold text-gray-900">{resource.title}</h1>
-              {resource.description && <p className="mt-4 text-gray-600">{resource.description}</p>}
-              <div className="mt-6 flex flex-wrap gap-3">
-                <button className="rounded-xl bg-black px-4 py-3 text-sm font-medium text-white" onClick={handleOpenResource}>
-                  <span className="flex items-center gap-2"><ExternalLink size={16} />Open resource</span>
-                </button>
-                <button className={`rounded-xl px-4 py-3 text-sm font-medium ${resource.is_saved ? 'border border-black text-black' : 'border border-gray-200 text-gray-700'}`} onClick={handleSave}>
-                  {resource.is_saved ? 'Saved' : 'Save'}
-                </button>
-              </div>
-              <div className="mt-6 grid grid-cols-3 gap-3 text-sm">
-                <div className="rounded-2xl bg-gray-50 p-3"><div className="text-gray-400">Saves</div><div className="mt-1 text-lg font-semibold">{resource.save_count}</div></div>
-                <div className="rounded-2xl bg-gray-50 p-3"><div className="text-gray-400">Comments</div><div className="mt-1 text-lg font-semibold">{resource.comment_count}</div></div>
-                <div className="rounded-2xl bg-gray-50 p-3"><div className="text-gray-400">Opens</div><div className="mt-1 text-lg font-semibold">{resource.user_state?.open_count || 0}</div></div>
-              </div>
-            </div>
-          </div>
+      <div className="mx-auto max-w-3xl">
+
+        {/* Close button */}
+        <div className="mb-4 flex justify-end">
+          <button
+            onClick={() => router.back()}
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+          >
+            <X size={15} />
+          </button>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr,340px]">
-          <div className="overflow-hidden rounded-3xl bg-white nice-shadow">
-            <ResourceComments resourceUuid={resource.resource_uuid} />
-          </div>
-          <div className="rounded-3xl bg-white nice-shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900">Your notes and outcomes</h2>
-            {accessToken ? (
-              <div className="mt-4 space-y-4">
-                <textarea value={notesDraft ?? resource.user_state?.notes ?? ''} onChange={(e) => setNotesDraft(e.target.value)} rows={4} className="w-full rounded-xl border border-gray-200 p-3 text-sm" placeholder="Private notes" />
-                <textarea value={outcomeTextDraft ?? resource.user_state?.outcome_text ?? ''} onChange={(e) => setOutcomeTextDraft(e.target.value)} rows={4} className="w-full rounded-xl border border-gray-200 p-3 text-sm" placeholder="Outcome details" />
-                <input value={outcomeLinkDraft ?? resource.user_state?.outcome_link ?? ''} onChange={(e) => setOutcomeLinkDraft(e.target.value)} className="w-full rounded-xl border border-gray-200 p-3 text-sm" placeholder="Outcome link" />
-                <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-600">
-                  <Upload size={16} />
-                  Upload outcome file
-                  <input type="file" className="hidden" onChange={(e) => handleOutcomeUpload(e.target.files?.[0])} />
-                </label>
-                {outcomeFileUrl && (
-                  <a className="block text-sm text-blue-600 underline" href={outcomeFileUrl} target="_blank" rel="noreferrer">
-                    View uploaded outcome file
-                  </a>
+        <div className="space-y-5">
+
+          {/* Hero */}
+          <div>
+            {/* Mobile: full-width image above */}
+            <div className="sm:hidden aspect-[4/3] w-full overflow-hidden rounded-2xl bg-gray-100 mb-4">
+              <img src={imageSrc} alt={resource.title} className="h-full w-full object-cover" />
+            </div>
+
+            {/* Content row */}
+            <div className="flex gap-5">
+              {/* Desktop square image */}
+              <div className="hidden sm:block aspect-square w-44 shrink-0 overflow-hidden rounded-xl bg-gray-100">
+                <img src={imageSrc} alt={resource.title} className="h-full w-full object-cover" />
+              </div>
+              {/* Text */}
+              <div className="flex-1 min-w-0">
+                <div className="text-xs uppercase tracking-wide text-gray-400 font-medium">
+                  {resource.resource_type}{resource.provider_name ? ` · ${resource.provider_name}` : ''}
+                </div>
+                <h1 className="mt-1.5 text-2xl font-bold text-gray-900 leading-tight">{resource.title}</h1>
+                {resource.description && (
+                  <p className="mt-3 text-sm text-gray-600 leading-relaxed">{resource.description}</p>
                 )}
-                <button className="w-full rounded-xl bg-black px-4 py-3 text-sm font-medium text-white" onClick={handleUpdatePrivate}>
-                  Save private details
+              </div>
+            </div>
+          </div>
+
+          {/* Action bar */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleOpenResource}
+              className="flex items-center gap-2 rounded-xl bg-black px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-800 transition-colors"
+            >
+              <ExternalLink size={15} />
+              Open resource
+            </button>
+
+            {/* Save — action + indicator */}
+            <SaveDropdown
+              resourceUuid={resource.resource_uuid}
+              isSaved={resource.is_saved}
+              saveCount={resource.save_count}
+              savedUserChannelUuids={resource.user_channel_uuids ?? []}
+              onSaveChange={() => mutate()}
+              variant="detail"
+            />
+
+            {/* Comments — scrolls to section */}
+            <button
+              onClick={() => document.getElementById('resource-comments')?.scrollIntoView({ behavior: 'smooth' })}
+              className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-600 hover:border-gray-400 transition-colors"
+            >
+              <MessageCircle size={14} />
+              {resource.comment_count}
+            </button>
+
+            {/* Opens — display only */}
+            <div className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-500">
+              <Eye size={14} />
+              {resource.user_state?.open_count || 0}
+            </div>
+          </div>
+
+          {/* Outcomes */}
+          <div className="rounded-2xl border border-gray-100 bg-white nice-shadow p-5">
+            <h2 className="text-base font-semibold text-gray-900">Outcomes</h2>
+            {accessToken ? (
+              <div className="mt-4 space-y-3">
+                <textarea
+                  value={notesDraft ?? resource.user_state?.notes ?? ''}
+                  onChange={(e) => setNotesDraft(e.target.value)}
+                  rows={3}
+                  className="w-full resize-none rounded-xl border border-gray-200 p-3 text-sm outline-none focus:border-gray-400"
+                  placeholder="Private notes"
+                />
+                <textarea
+                  value={outcomeTextDraft ?? resource.user_state?.outcome_text ?? ''}
+                  onChange={(e) => setOutcomeTextDraft(e.target.value)}
+                  rows={3}
+                  className="w-full resize-none rounded-xl border border-gray-200 p-3 text-sm outline-none focus:border-gray-400"
+                  placeholder="Outcome details"
+                />
+                <input
+                  value={outcomeLinkDraft ?? resource.user_state?.outcome_link ?? ''}
+                  onChange={(e) => setOutcomeLinkDraft(e.target.value)}
+                  className="w-full rounded-xl border border-gray-200 p-3 text-sm outline-none focus:border-gray-400"
+                  placeholder="Outcome link"
+                />
+                <div className="flex items-center gap-3">
+                  <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-gray-300 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                    <Upload size={14} />
+                    Upload file
+                    <input type="file" className="hidden" onChange={(e) => handleOutcomeUpload(e.target.files?.[0])} />
+                  </label>
+                  {outcomeFileUrl && (
+                    <a className="text-sm text-blue-600 underline" href={outcomeFileUrl} target="_blank" rel="noreferrer">
+                      View file
+                    </a>
+                  )}
+                </div>
+                <button
+                  className="rounded-xl bg-black px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-800 transition-colors"
+                  onClick={handleUpdatePrivate}
+                >
+                  Save
                 </button>
               </div>
             ) : (
-              <p className="mt-4 text-sm text-gray-500">Sign in to save this resource and store your outcomes.</p>
+              <p className="mt-3 text-sm text-gray-500">Sign in to save this resource and track your outcomes.</p>
             )}
           </div>
+
+          {/* Comments */}
+          <div id="resource-comments" className="overflow-hidden rounded-2xl bg-white nice-shadow">
+            <ResourceComments resourceUuid={resource.resource_uuid} />
+          </div>
+
         </div>
       </div>
 
+      {/* Return prompt */}
       {showReturnPrompt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg rounded-3xl bg-white p-6 nice-shadow">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">Add outcome details?</h2>
-                <p className="mt-2 text-sm text-gray-500">You just returned from this resource. Add any notes, results, or a link while it’s fresh.</p>
+                <p className="mt-2 text-sm text-gray-500">You just returned from this resource. Add any notes, results, or a link while it's fresh.</p>
               </div>
-              <button className="rounded-lg border border-gray-200 px-3 py-2 text-sm" onClick={() => setShowReturnPrompt(false)}>X</button>
+              <button
+                className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+                onClick={() => setShowReturnPrompt(false)}
+              >
+                <X size={16} />
+              </button>
             </div>
             <div className="mt-4 space-y-3">
-              <textarea value={outcomeTextDraft ?? resource.user_state?.outcome_text ?? ''} onChange={(e) => setOutcomeTextDraft(e.target.value)} rows={4} className="w-full rounded-xl border border-gray-200 p-3 text-sm" placeholder="Outcome details" />
-              <input value={outcomeLinkDraft ?? resource.user_state?.outcome_link ?? ''} onChange={(e) => setOutcomeLinkDraft(e.target.value)} className="w-full rounded-xl border border-gray-200 p-3 text-sm" placeholder="Outcome link" />
-              <button className="rounded-xl bg-black px-4 py-3 text-sm font-medium text-white" onClick={async () => {
-                await handleUpdatePrivate()
-                setShowReturnPrompt(false)
-              }}>
-                Add outcome data
+              <textarea
+                value={outcomeTextDraft ?? resource.user_state?.outcome_text ?? ''}
+                onChange={(e) => setOutcomeTextDraft(e.target.value)}
+                rows={4}
+                className="w-full resize-none rounded-xl border border-gray-200 p-3 text-sm"
+                placeholder="Outcome details"
+              />
+              <input
+                value={outcomeLinkDraft ?? resource.user_state?.outcome_link ?? ''}
+                onChange={(e) => setOutcomeLinkDraft(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 p-3 text-sm"
+                placeholder="Outcome link"
+              />
+              <button
+                className="rounded-xl bg-black px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-800 transition-colors"
+                onClick={async () => {
+                  await handleUpdatePrivate()
+                  setShowReturnPrompt(false)
+                }}
+              >
+                Save outcomes
               </button>
             </div>
           </div>

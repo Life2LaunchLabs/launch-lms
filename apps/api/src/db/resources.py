@@ -36,6 +36,55 @@ class ResourceBase(SQLModel):
     access_mode: ResourceAccessModeEnum = ResourceAccessModeEnum.free
 
 
+class ResourceTagBase(SQLModel):
+    name: str
+
+
+class ResourceTag(ResourceTagBase, table=True):
+    __tablename__ = "resourcetag"
+    __table_args__ = (UniqueConstraint("org_id", "name", name="uq_resourcetag_org_name"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    org_id: int = Field(
+        sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True)
+    )
+    tag_uuid: str = Field(index=True, unique=True)
+    creation_date: str = ""
+    update_date: str = ""
+
+
+class ResourceTagCreate(ResourceTagBase):
+    pass
+
+
+class ResourceTagUpdate(SQLModel):
+    name: Optional[str] = None
+
+
+class ResourceTagRead(ResourceTagBase):
+    id: int
+    org_id: int
+    tag_uuid: str
+    creation_date: str
+    update_date: str
+
+
+class ResourceTagLink(SQLModel, table=True):
+    __tablename__ = "resourcetaglink"
+    __table_args__ = (
+        UniqueConstraint("resource_id", "tag_id", name="uq_resource_tag"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    resource_id: int = Field(
+        sa_column=Column(Integer, ForeignKey("resource.id", ondelete="CASCADE"), index=True)
+    )
+    tag_id: int = Field(
+        sa_column=Column(Integer, ForeignKey("resourcetag.id", ondelete="CASCADE"), index=True)
+    )
+    creation_date: str = ""
+
+
 class Resource(ResourceBase, table=True):
     __tablename__ = "resource"
 
@@ -53,7 +102,7 @@ class Resource(ResourceBase, table=True):
 
 
 class ResourceCreate(ResourceBase):
-    pass
+    tag_uuids: list[str] = Field(default_factory=list)
 
 
 class ResourceUpdate(SQLModel):
@@ -68,6 +117,7 @@ class ResourceUpdate(SQLModel):
     is_featured: Optional[bool] = None
     is_live: Optional[bool] = None
     access_mode: Optional[ResourceAccessModeEnum] = None
+    tag_uuids: Optional[list[str]] = None
 
 
 class ResourceRead(ResourceBase):
@@ -77,6 +127,7 @@ class ResourceRead(ResourceBase):
     created_by_user_id: Optional[int] = None
     creation_date: str
     update_date: str
+    tags: list[ResourceTagRead] = Field(default_factory=list)
 
 
 class ResourceChannelBase(SQLModel):
