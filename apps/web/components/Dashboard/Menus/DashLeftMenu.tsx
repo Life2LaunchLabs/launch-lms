@@ -12,13 +12,11 @@ import {
   Question,
   Gear,
   SignOut,
-  Package,
   SidebarSimple,
   Check,
   CaretDown,
   PencilSimple,
   ChatsCircle,
-  Book,
   ChatCircleDots,
   Headphones,
   ChartBar,
@@ -39,15 +37,15 @@ import {
   MagnifyingGlass,
   ChalkboardSimple,
   Cube,
+  FolderOpen,
   ShoppingBag,
 } from '@phosphor-icons/react'
-import { DiscordIcon } from '@components/Objects/Icons/DiscordIcon'
 import Link from 'next/link'
 import React, { useEffect, useState } from 'react'
 import UserAvatar from '../../Objects/UserAvatar'
 import AdminAuthorization from '@components/Security/AdminAuthorization'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getUriWithOrg, getUriWithoutOrg, getAPIUrl, getCoreCapabilities } from '@services/config/config'
+import { getUriWithOrg, getAPIUrl, getCoreCapabilities } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import {
   Tooltip,
@@ -76,7 +74,11 @@ function DashLeftMenu() {
   const org = useOrg() as any
   const session = useLHSession() as any
   const { t, i18n } = useTranslation()
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const plan = usePlan()
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('dash-menu-collapsed') === 'true'
+  })
   const [recentAssignments, setRecentAssignments] = useState<any[]>([])
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false)
   const access_token = session?.data?.tokens?.access_token
@@ -138,15 +140,6 @@ function DashLeftMenu() {
     return () => window.removeEventListener('focus', handleFocus)
   }, [coursesKey])
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('dash-menu-collapsed')
-      if (saved !== null) {
-        setIsCollapsed(saved === 'true')
-      }
-    }
-  }, [])
-
   const toggleCollapse = () => {
     const newState = !isCollapsed
     setIsCollapsed(newState)
@@ -164,7 +157,6 @@ function DashLeftMenu() {
 
   if (!org || !session) return null
 
-  const plan = usePlan()
   const capabilities = getCoreCapabilities()
   const planLabel = 'Core'
 
@@ -173,6 +165,7 @@ function DashLeftMenu() {
   const isEnabled = (feature: string) => rf?.[feature]?.enabled === true
 
   const showCommunities = isEnabled('communities')
+  const showResources = isEnabled('resources')
   const showPodcasts = isEnabled('podcasts')
   const showBoards = isEnabled('boards')
   const showPlaygrounds = isEnabled('playgrounds')
@@ -365,6 +358,14 @@ function DashLeftMenu() {
                 href="/dash/communities"
                 icon={<ChatsCircle size={20} weight="fill" />}
                 label={t('communities.title')}
+                isCollapsed={isCollapsed}
+              />
+            )}
+            {showResources && (
+              <MenuLink
+                href="/dash/resources"
+                icon={<FolderOpen size={20} weight="fill" />}
+                label="Resources"
                 isCollapsed={isCollapsed}
               />
             )}

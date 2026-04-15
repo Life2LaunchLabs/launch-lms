@@ -47,6 +47,21 @@ class Rights(BaseModel):
     roles: Permission
     dashboard: DashboardPermission
     communities: Permission
+    resources: PermissionsWithOwn = PermissionsWithOwn(
+        action_create=False,
+        action_read=True,
+        action_read_own=True,
+        action_update=False,
+        action_update_own=False,
+        action_delete=False,
+        action_delete_own=False,
+    )
+    resource_channels: Permission = Permission(
+        action_create=False,
+        action_read=True,
+        action_update=False,
+        action_delete=False,
+    )
     discussions: PermissionsWithOwn  # Own = author can edit/delete their own
     podcasts: PermissionsWithOwn  # Own = author can edit/delete their own podcasts
     boards: PermissionsWithOwn = PermissionsWithOwn(

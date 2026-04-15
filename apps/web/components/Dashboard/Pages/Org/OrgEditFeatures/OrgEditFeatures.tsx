@@ -16,7 +16,6 @@ import { ChalkboardSimple, Cube } from '@phosphor-icons/react'
 import { usePlan } from '@components/Hooks/usePlan'
 
 interface FeatureToggleProps {
-  id: string
   title: string
   description: string
   enabled: boolean
@@ -25,11 +24,11 @@ interface FeatureToggleProps {
   requiredPlan?: string | null
   currentPlan: PlanLevel
   icon: React.ReactNode
-  onToggle: (enabled: boolean) => void
+  // eslint-disable-next-line no-unused-vars
+  onToggle: (...args: [boolean]) => void
 }
 
 const FeatureToggle: React.FC<FeatureToggleProps> = ({
-  id,
   title,
   description,
   enabled,
@@ -94,6 +93,7 @@ const OrgEditFeatures: React.FC = () => {
   // Feature states
   const [collectionsEnabled, setCollectionsEnabled] = useState<boolean>(true)
   const [communitiesEnabled, setCommunitiesEnabled] = useState<boolean>(true)
+  const [resourcesEnabled, setResourcesEnabled] = useState<boolean>(false)
   const [podcastsEnabled, setPodcastsEnabled] = useState<boolean>(false)
   const [boardsEnabled, setBoardsEnabled] = useState<boolean>(false)
   const [playgroundsEnabled, setPlaygroundsEnabled] = useState<boolean>(false)
@@ -106,6 +106,7 @@ const OrgEditFeatures: React.FC = () => {
     if (!rf) return
     setCollectionsEnabled(rf.collections?.enabled ?? true)
     setCommunitiesEnabled(rf.communities?.enabled ?? false)
+    setResourcesEnabled(rf.resources?.enabled ?? false)
     setPodcastsEnabled(rf.podcasts?.enabled ?? false)
     setBoardsEnabled(rf.boards?.enabled ?? false)
     setPlaygroundsEnabled(rf.playgrounds?.enabled ?? false)
@@ -177,6 +178,11 @@ const OrgEditFeatures: React.FC = () => {
     if (success) setPodcastsEnabled(enabled)
   }
 
+  const handleResourcesToggle = async (enabled: boolean) => {
+    const success = await updateFeatureConfig('resources', enabled)
+    if (success) setResourcesEnabled(enabled)
+  }
+
   const handleBoardsToggle = async (enabled: boolean) => {
     const success = await updateFeatureConfig('boards', enabled)
     if (success) setBoardsEnabled(enabled)
@@ -240,6 +246,19 @@ const OrgEditFeatures: React.FC = () => {
             currentPlan={currentPlan}
             icon={<Users size={20} className="text-gray-600" />}
             onToggle={handleCommunitiesToggle}
+          />
+
+          <FeatureToggle
+            id="resources"
+            title="Resources"
+            description="Create channels and organize link-based resources with saved outcomes and comments."
+            enabled={resourcesEnabled}
+            isUpdating={updatingFeature === 'resources'}
+            canEdit={canEditOrgSettings}
+            requiredPlan={rf?.resources?.required_plan}
+            currentPlan={currentPlan}
+            icon={<FolderOpen size={20} className="text-gray-600" />}
+            onToggle={handleResourcesToggle}
           />
 
           {!capabilities.payments && (

@@ -801,6 +801,14 @@ class ResourceAccessChecker:
             from src.db.communities.communities import Community
             statement = select(Community).where(Community.community_uuid == resource_uuid)
             resource = self.db_session.exec(statement).first()
+        elif config.resource_type == "resources":
+            from src.db.resources import Resource
+            statement = select(Resource).where(Resource.resource_uuid == resource_uuid)
+            resource = self.db_session.exec(statement).first()
+        elif config.resource_type == "resource_channels":
+            from src.db.resources import ResourceChannel
+            statement = select(ResourceChannel).where(ResourceChannel.channel_uuid == resource_uuid)
+            resource = self.db_session.exec(statement).first()
 
         elif config.resource_type == "collections":
             from src.db.collections import Collection

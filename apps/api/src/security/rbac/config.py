@@ -58,6 +58,24 @@ RESOURCE_CONFIGS: dict[str, ResourceConfig] = {
         model_name="Board",
         uuid_field="board_uuid",
     ),
+    "resources": ResourceConfig(
+        resource_type="resources",
+        uuid_prefix="resource_",
+        has_published_field=False,
+        supports_usergroups=False,
+        supports_authorship=True,
+        model_name="Resource",
+        uuid_field="resource_uuid",
+    ),
+    "resource_channels": ResourceConfig(
+        resource_type="resource_channels",
+        uuid_prefix="channel_",
+        has_published_field=False,
+        supports_usergroups=True,
+        supports_authorship=False,
+        model_name="ResourceChannel",
+        uuid_field="channel_uuid",
+    ),
 
     # ============================================
     # CHILD RESOURCES (inherit access from parent)

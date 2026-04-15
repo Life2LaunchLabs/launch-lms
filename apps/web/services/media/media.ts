@@ -90,6 +90,30 @@ export function getCommunityThumbnailMediaDirectory(
   return uri
 }
 
+export function getResourceThumbnailMediaDirectory(
+  orgUUID: string,
+  resourceUUID: string,
+  fileId: string
+) {
+  return `${getMediaUrl()}content/orgs/${orgUUID}/resources/${resourceUUID}/thumbnails/${fileId}`
+}
+
+export function getResourceChannelThumbnailMediaDirectory(
+  orgUUID: string,
+  channelUUID: string,
+  fileId: string
+) {
+  return `${getMediaUrl()}content/orgs/${orgUUID}/resource_channels/${channelUUID}/thumbnails/${fileId}`
+}
+
+export function getResourceOutcomeMediaDirectory(
+  userUUID: string,
+  resourceUUID: string,
+  fileId: string
+) {
+  return `${getMediaUrl()}content/users/${userUUID}/resources/${resourceUUID}/outcomes/${fileId}`
+}
+
 export function getCollectionThumbnailMediaDirectory(
   orgUUID: string,
   collectionUUID: string,

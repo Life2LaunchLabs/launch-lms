@@ -71,6 +71,14 @@ async def _validate_resource_exists_and_belongs_to_org(
         from src.db.boards import Board
         statement = select(Board).where(Board.board_uuid == resource_uuid)
         resource = db_session.exec(statement).first()
+    elif config.resource_type == "resources":
+        from src.db.resources import Resource
+        statement = select(Resource).where(Resource.resource_uuid == resource_uuid)
+        resource = db_session.exec(statement).first()
+    elif config.resource_type == "resource_channels":
+        from src.db.resources import ResourceChannel
+        statement = select(ResourceChannel).where(ResourceChannel.channel_uuid == resource_uuid)
+        resource = db_session.exec(statement).first()
     else:
         raise HTTPException(
             status_code=400,

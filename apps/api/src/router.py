@@ -22,6 +22,7 @@ from src.routers.podcasts import episodes as episodes_router_module
 from src.routers.boards import boards as boards_router_module
 from src.routers.playgrounds import playgrounds as playgrounds_router_module
 from src.routers.playgrounds import playgrounds_generator as playgrounds_generator_router
+from src.routers import resources as resources_router_module
 from src.services.dev.dev import isDevModeEnabledOrRaise
 from src.routers.utils import router as utils_router
 from src.routers.audit_logs import router as audit_logs_router
@@ -137,6 +138,12 @@ v1_router.include_router(
     prefix="/communities",
     tags=["communities"],
     dependencies=[Depends(require_plan_for_community("standard", "Communities"))]
+)
+v1_router.include_router(
+    resources_router_module.router,
+    prefix="/resources",
+    tags=["resources"],
+    dependencies=[Depends(require_plan("standard", "Resources"))]
 )
 v1_router.include_router(
     discussions_router_module.router,
