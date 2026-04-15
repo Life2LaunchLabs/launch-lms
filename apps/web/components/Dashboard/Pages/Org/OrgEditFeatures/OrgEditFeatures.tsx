@@ -16,6 +16,7 @@ import { ChalkboardSimple, Cube } from '@phosphor-icons/react'
 import { usePlan } from '@components/Hooks/usePlan'
 
 interface FeatureToggleProps {
+  id?: string
   title: string
   description: string
   enabled: boolean
