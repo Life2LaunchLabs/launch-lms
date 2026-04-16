@@ -13,15 +13,17 @@ security:
   auth_jwt_secret_key: ""
 
 hosting_config:
-  domain: localhost:3000
-  frontend_domain: localhost:3000
+  domain: 127.0.0.1.sslip.io:1338
+  frontend_domain: 127.0.0.1.sslip.io:3000
   ssl: false
   port: 1338
   allowed_origins:
+    - http://127.0.0.1.sslip.io:3000
+    - http://127.0.0.1.sslip.io:1338
     - http://localhost:3000
     - http://localhost:3001
   cookies_config:
-    domain: ".localhost"
+    domain: ".127.0.0.1.sslip.io"
   allowed_regexp: '\b((?:https?://)[^\s/$.?#].[^\s]*)\b'
   content_delivery:
     type: "filesystem" # "filesystem" or "s3api"
