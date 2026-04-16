@@ -7624,14 +7624,47 @@ async function devCommand(opts) {
       process.exit(1);
     }
   }
+  const certFile = path7.join(root, "certs", "local.pem");
+  const keyFile = path7.join(root, "certs", "local-key.pem");
+  let hasCerts = fs7.existsSync(certFile) && fs7.existsSync(keyFile);
+  if (!hasCerts) {
+    O2.info("No TLS certs found \u2014 running cert setup...");
+    const setupScript = path7.join(root, "scripts", "setup-dev-certs.sh");
+    const result = spawnSync2("bash", [setupScript], { stdio: "inherit", cwd: root });
+    if (result.status === 0) {
+      hasCerts = fs7.existsSync(certFile) && fs7.existsSync(keyFile);
+      if (hasCerts) {
+        O2.success("TLS certs generated \u2014 starting with HTTPS");
+      } else {
+        O2.warning("Cert script ran but certs not found \u2014 starting with HTTP");
+      }
+    } else {
+      O2.warning("Cert setup failed \u2014 starting with HTTP");
+    }
+  } else {
+    O2.success("TLS certs found \u2014 starting with HTTPS");
+  }
+  if (hasCerts) {
+    try {
+      const caRoot = execSync5("mkcert -CAROOT", { encoding: "utf8" }).trim();
+      const caPath = path7.join(caRoot, "rootCA.pem");
+      if (fs7.existsSync(caPath)) {
+        serviceEnv.NODE_EXTRA_CA_CERTS = caPath;
+      }
+    } catch {
+    }
+  }
   let apiProc = null;
   let webProc = null;
   let collabProc = null;
   const startApi = () => {
-    return spawnService("uv", ["run", "python", "app.py"], path7.join(root, "apps", "api"), "api", import_picocolors15.default.magenta);
+    const args = ["run", "uvicorn", "app:app", "--reload", "--port", "1338"];
+    return spawnService("uv", args, path7.join(root, "apps", "api"), "api", import_picocolors15.default.magenta);
   };
   const startWeb = () => {
-    return spawnService("next", ["dev"], path7.join(root, "apps", "web"), "web", import_picocolors15.default.cyan);
+    const args = ["dev"];
+    if (hasCerts) args.push("--experimental-https", "--experimental-https-cert", certFile, "--experimental-https-key", keyFile);
+    return spawnService("next", args, path7.join(root, "apps", "web"), "web", import_picocolors15.default.cyan);
   };
   const startCollab = () => {
     return spawnService("tsx", ["watch", "src/index.ts"], path7.join(root, "apps", "collab"), "collab", import_picocolors15.default.yellow);

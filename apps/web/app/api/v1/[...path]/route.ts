@@ -15,7 +15,8 @@ const SKIP_RESPONSE_HEADERS = new Set(['connection', 'keep-alive', 'transfer-enc
 async function proxyToBackend(request: NextRequest): Promise<Response> {
   const path = request.nextUrl.pathname
   const search = request.nextUrl.search
-  const backendUrl = `${getBackendUrl().replace(/\/+$/, '')}${path}${search}`
+  const backendBase = (process.env.LAUNCHLMS_INTERNAL_BACKEND_URL || getBackendUrl()).replace(/\/+$/, '')
+  const backendUrl = `${backendBase}${path}${search}`
 
   // Forward all request headers except hop-by-hop ones
   const headers = new Headers()

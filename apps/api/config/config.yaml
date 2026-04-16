@@ -18,8 +18,8 @@ hosting_config:
   ssl: false
   port: 1338
   allowed_origins:
-    - http://127.0.0.1.sslip.io:3000
-    - http://127.0.0.1.sslip.io:1338
+    - https://127.0.0.1.sslip.io:3000
+    - https://127.0.0.1.sslip.io:1338
     - http://localhost:3000
     - http://localhost:3001
   cookies_config:

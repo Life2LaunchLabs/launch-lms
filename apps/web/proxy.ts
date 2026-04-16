@@ -80,13 +80,14 @@ export const config = {
      * Match all paths except for:
      * 1. /api routes
      * 2. /_next (Next.js internals)
-     * 3. /fonts (inside /public)
-     * 4. Umami Analytics
-     * 4. /examples (inside /public)
-     * 5. all root files inside /public (e.g. /favicon.ico)
-     * 6. /embed (activity embeds)
+     * 3. /content routes (media proxy)
+     * 4. /fonts (inside /public)
+     * 5. Umami Analytics
+     * 6. /examples (inside /public)
+     * 7. all root files inside /public (e.g. /favicon.ico)
+     * 8. /embed (activity embeds)
      */
-    '/((?!api|_next|fonts|umami|examples|embed|monitoring|[\\w-]+\\.\\w+).*)',
+    '/((?!api|content|_next|fonts|umami|examples|embed|monitoring|[\\w-]+\\.\\w+).*)',
     '/sitemap.xml',
     '/robots.txt',
     '/payments/stripe/connect/oauth',

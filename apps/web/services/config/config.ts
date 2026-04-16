@@ -141,6 +141,13 @@ const deriveAPIUrl = (): string => {
 
 // For direct usage, these call the getters
 export const getAPIUrl = () => {
+  // Server-side: always use absolute internal URL — relative paths are invalid in Node.js fetch
+  if (typeof window === 'undefined') {
+    const internal = process.env.LAUNCHLMS_INTERNAL_API_URL
+    if (internal) return internal.endsWith('/') ? internal : `${internal}/`
+    const internalBackend = process.env.LAUNCHLMS_INTERNAL_BACKEND_URL
+    if (internalBackend) return `${internalBackend.replace(/\/+$/, '')}/api/v1/`
+  }
   // On custom domains (client-side), use relative path to go through Next.js proxy
   // This ensures cookies work correctly (same-origin)
   if (isOnCustomDomain()) {
@@ -152,6 +159,12 @@ export const getAPIUrl = () => {
 // Server-side only - always returns full URL (never relative path)
 // Use this in Server Components, API routes, and server-side data fetching
 export const getServerAPIUrl = () => {
+  if (typeof window === 'undefined') {
+    const internal = process.env.LAUNCHLMS_INTERNAL_API_URL
+    if (internal) return internal.endsWith('/') ? internal : `${internal}/`
+    const internalBackend = process.env.LAUNCHLMS_INTERNAL_BACKEND_URL
+    if (internalBackend) return `${internalBackend.replace(/\/+$/, '')}/api/v1/`
+  }
   return deriveAPIUrl()
 }
 

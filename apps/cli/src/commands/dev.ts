@@ -309,17 +309,58 @@ export async function devCommand(opts: { ee?: boolean }) {
     }
   }
 
+  // Detect TLS certs for HTTPS dev mode — generate them if missing
+  const certFile = path.join(root, 'certs', 'local.pem')
+  const keyFile = path.join(root, 'certs', 'local-key.pem')
+  let hasCerts = fs.existsSync(certFile) && fs.existsSync(keyFile)
+
+  if (!hasCerts) {
+    p.log.info('No TLS certs found — running cert setup...')
+    const setupScript = path.join(root, 'scripts', 'setup-dev-certs.sh')
+    const result = spawnSync('bash', [setupScript], { stdio: 'inherit', cwd: root })
+    if (result.status === 0) {
+      hasCerts = fs.existsSync(certFile) && fs.existsSync(keyFile)
+      if (hasCerts) {
+        p.log.success('TLS certs generated — starting with HTTPS')
+      } else {
+        p.log.warning('Cert script ran but certs not found — starting with HTTP')
+      }
+    } else {
+      p.log.warning('Cert setup failed — starting with HTTP')
+    }
+  } else {
+    p.log.success('TLS certs found — starting with HTTPS')
+  }
+
+  // When using HTTPS, tell Node.js to trust the mkcert root CA for server-side
+  // fetch calls (e.g. Next.js middleware → API). Without this Node ignores the
+  // system trust store and rejects our self-signed cert.
+  if (hasCerts) {
+    try {
+      const caRoot = execSync('mkcert -CAROOT', { encoding: 'utf8' }).trim()
+      const caPath = path.join(caRoot, 'rootCA.pem')
+      if (fs.existsSync(caPath)) {
+        serviceEnv.NODE_EXTRA_CA_CERTS = caPath
+      }
+    } catch {
+      // mkcert not on PATH — certs exist but CA path unknown, proceed anyway
+    }
+  }
+
   // Start local services
   let apiProc: ChildProcess | null = null
   let webProc: ChildProcess | null = null
   let collabProc: ChildProcess | null = null
 
   const startApi = () => {
-    return spawnService('uv', ['run', 'python', 'app.py'], path.join(root, 'apps', 'api'), 'api', pc.magenta)
+    const args = ['run', 'uvicorn', 'app:app', '--reload', '--port', '1338']
+    return spawnService('uv', args, path.join(root, 'apps', 'api'), 'api', pc.magenta)
   }
 
   const startWeb = () => {
-    return spawnService('next', ['dev'], path.join(root, 'apps', 'web'), 'web', pc.cyan)
+    const args = ['dev']
+    if (hasCerts) args.push('--experimental-https', '--experimental-https-cert', certFile, '--experimental-https-key', keyFile)
+    return spawnService('next', args, path.join(root, 'apps', 'web'), 'web', pc.cyan)
   }
 
   const startCollab = () => {
