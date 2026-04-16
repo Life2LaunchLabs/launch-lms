@@ -317,12 +317,12 @@ async def require_boards_feature(
     # Check feature flag
     _check_feature_enabled("boards", org_id, db_session)
 
-    # Check plan (Pro+ or OSS)
+    # Check plan (Enterprise+ or OSS)
     current_plan = get_org_plan(org_id, db_session)
-    if not plan_meets_requirement(current_plan, "pro"):
+    if not plan_meets_requirement(current_plan, "enterprise"):
         raise HTTPException(
             status_code=403,
-            detail="Boards requires a Pro plan or higher. "
+            detail="Boards requires an Enterprise plan or higher. "
             f"Your organization is currently on the {current_plan.capitalize()} plan.",
         )
 
@@ -374,10 +374,10 @@ async def require_playgrounds_feature(
     _check_feature_enabled("playgrounds", org_id, db_session)
 
     current_plan = get_org_plan(org_id, db_session)
-    if not plan_meets_requirement(current_plan, "pro"):
+    if not plan_meets_requirement(current_plan, "enterprise"):
         raise HTTPException(
             status_code=403,
-            detail="Playgrounds requires a Pro plan or higher. "
+            detail="Playgrounds requires an Enterprise plan or higher. "
             f"Your organization is currently on the {current_plan.capitalize()} plan.",
         )
 

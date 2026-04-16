@@ -52,6 +52,7 @@ const TABS = [
   { id: 'users', label: 'Users', icon: Users },
   { id: 'analytics', label: 'Analytics', icon: ChartBar },
   { id: 'plan', label: 'Plan', icon: CreditCard },
+  { id: 'requests', label: 'Requests', icon: ArrowSquareOut },
   { id: 'settings', label: 'Settings', icon: GearSix },
 ] as const
 
@@ -205,6 +206,7 @@ export default function OrgDetailPage() {
       {activeTab === 'users' && <UsersTab orgId={orgId} accessToken={accessToken} />}
       {activeTab === 'analytics' && <AnalyticsTab orgId={orgId} accessToken={accessToken} />}
       {activeTab === 'plan' && <PlanTab orgId={orgId} accessToken={accessToken} currentPlan={org.plan} config={org.config} />}
+      {activeTab === 'requests' && <RequestsTab orgId={orgId} accessToken={accessToken} />}
       {activeTab === 'settings' && <SettingsTab orgId={orgId} accessToken={accessToken} org={org} />}
     </div>
   )
@@ -880,25 +882,25 @@ function PlanTab({
     {
       id: 'free',
       name: 'Free',
-      description: 'Basic features for small teams',
+      description: 'Basic course features, 1 admin',
       color: 'text-white/40 bg-white/[0.06]',
     },
     {
-      id: 'standard',
-      name: 'Standard',
-      description: 'Custom domains, more storage',
+      id: 'full',
+      name: 'Full',
+      description: 'Communities, resources, packages',
       color: 'text-blue-400 bg-blue-400/10',
-    },
-    {
-      id: 'pro',
-      name: 'Pro',
-      description: 'Advanced analytics, API access',
-      color: 'text-purple-400 bg-purple-400/10',
     },
     {
       id: 'enterprise',
       name: 'Enterprise',
-      description: 'Multi-org, unlimited everything',
+      description: 'White-label, custom domains, unlimited',
+      color: 'text-purple-400 bg-purple-400/10',
+    },
+    {
+      id: 'master',
+      name: 'Master',
+      description: 'Platform owner, all features',
       color: 'text-amber-400 bg-amber-400/10',
     },
   ]
@@ -1212,6 +1214,111 @@ function Pagination({
         >
           <CaretRight size={14} weight="bold" />
         </button>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Requests Tab
+// ---------------------------------------------------------------------------
+function RequestsTab({ orgId, accessToken }: { orgId: string; accessToken: string }) {
+  const { data: requests, isLoading, mutate } = useSWR<any[]>(
+    `${getAPIUrl()}superadmin/organizations/${orgId}/plan-requests`,
+    (url: string) => swrFetcher(url, accessToken),
+    { revalidateOnFocus: false }
+  )
+  const [updating, setUpdating] = useState<string | null>(null)
+
+  async function handleUpdateStatus(requestUuid: string, status: 'approved' | 'denied') {
+    setUpdating(requestUuid)
+    try {
+      await fetch(`${getAPIUrl()}superadmin/plan-requests/${requestUuid}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ status }),
+      })
+      mutate()
+    } finally {
+      setUpdating(null)
+    }
+  }
+
+  if (isLoading) return <div className="text-white/40 text-sm py-8 text-center">Loading requests…</div>
+
+  if (!requests || requests.length === 0) {
+    return (
+      <div className="text-center py-12 text-white/30">
+        <ArrowSquareOut size={40} className="mx-auto mb-3 opacity-30" />
+        <p className="text-sm">No plan or package requests for this organization.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-sm font-medium text-white/60">Plan &amp; Package Requests</h3>
+      <div className="rounded-xl border border-white/[0.08] overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-white/[0.08] bg-white/[0.03]">
+              <th className="text-left px-4 py-3 text-white/40 font-medium">Type</th>
+              <th className="text-left px-4 py-3 text-white/40 font-medium">Requested</th>
+              <th className="text-left px-4 py-3 text-white/40 font-medium">Message</th>
+              <th className="text-left px-4 py-3 text-white/40 font-medium">Status</th>
+              <th className="text-left px-4 py-3 text-white/40 font-medium">Date</th>
+              <th className="px-4 py-3" />
+            </tr>
+          </thead>
+          <tbody>
+            {requests.map((req: any) => (
+              <tr key={req.request_uuid} className="border-b border-white/[0.05] last:border-0">
+                <td className="px-4 py-3 text-white/60 capitalize">
+                  {req.request_type === 'plan_upgrade' ? 'Plan Upgrade' : 'Package'}
+                </td>
+                <td className="px-4 py-3 text-white font-medium">{req.requested_value}</td>
+                <td className="px-4 py-3 text-white/40 text-xs max-w-[200px] truncate">
+                  {req.message || '—'}
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                    req.status === 'approved' ? 'bg-emerald-500/15 text-emerald-400' :
+                    req.status === 'denied' ? 'bg-red-500/15 text-red-400' :
+                    'bg-amber-500/15 text-amber-400'
+                  }`}>
+                    {req.status}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-white/30 text-xs">
+                  {new Date(req.creation_date).toLocaleDateString()}
+                </td>
+                <td className="px-4 py-3">
+                  {req.status === 'pending' && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleUpdateStatus(req.request_uuid, 'approved')}
+                        disabled={updating === req.request_uuid}
+                        className="text-xs px-3 py-1 rounded bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors disabled:opacity-50"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => handleUpdateStatus(req.request_uuid, 'denied')}
+                        disabled={updating === req.request_uuid}
+                        className="text-xs px-3 py-1 rounded bg-red-500/15 text-red-400 hover:bg-red-500/25 transition-colors disabled:opacity-50"
+                      >
+                        Deny
+                      </button>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )

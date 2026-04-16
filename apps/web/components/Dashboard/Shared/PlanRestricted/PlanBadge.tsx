@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { PlanLevel, planMeetsRequirement } from '@services/plans/plans'
+import { PlanLevel, planMeetsRequirement, PLAN_LABELS } from '@services/plans/plans'
 
 type BadgeSize = 'sm' | 'md' | 'lg'
 type BadgeVariant = 'light' | 'dark'
@@ -26,11 +26,11 @@ interface PlanBadgeProps {
  */
 const getPlanStyles = (plan: PlanLevel): string => {
   switch (plan) {
-    case 'standard':
+    case 'full':
       return 'bg-gradient-to-br from-blue-100 to-blue-200 text-blue-800 border-blue-200 shadow-sm shadow-blue-200/50'
-    case 'pro':
-      return 'bg-gradient-to-br from-purple-100 to-purple-200 text-purple-800 border-purple-200 shadow-sm shadow-purple-200/50'
     case 'enterprise':
+      return 'bg-gradient-to-br from-purple-100 to-purple-200 text-purple-800 border-purple-200 shadow-sm shadow-purple-200/50'
+    case 'master':
       return 'bg-gradient-to-br from-amber-100 to-amber-200 text-amber-800 border-amber-200 shadow-sm shadow-amber-200/50'
     default:
       return 'bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700 border-gray-200 shadow-sm shadow-gray-200/50'
@@ -42,11 +42,11 @@ const getPlanStyles = (plan: PlanLevel): string => {
  */
 const getDarkPlanStyles = (plan: PlanLevel): string => {
   switch (plan) {
-    case 'standard':
+    case 'full':
       return 'bg-gradient-to-br from-blue-900/40 to-blue-800/30 text-blue-300 border-blue-700/30 shadow-sm shadow-blue-900/30'
-    case 'pro':
-      return 'bg-gradient-to-br from-purple-900/40 to-purple-800/30 text-purple-300 border-purple-700/30 shadow-sm shadow-purple-900/30'
     case 'enterprise':
+      return 'bg-gradient-to-br from-purple-900/40 to-purple-800/30 text-purple-300 border-purple-700/30 shadow-sm shadow-purple-900/30'
+    case 'master':
       return 'bg-gradient-to-br from-amber-900/40 to-amber-800/30 text-amber-300 border-amber-700/30 shadow-sm shadow-amber-900/30'
     default:
       return 'bg-gradient-to-br from-gray-800/40 to-gray-700/30 text-gray-300 border-gray-600/30 shadow-sm shadow-gray-900/30'
@@ -86,14 +86,14 @@ const PlanBadge: React.FC<PlanBadgeProps> = ({
     return null
   }
 
-  const capitalizedPlan = requiredPlan.charAt(0).toUpperCase() + requiredPlan.slice(1)
+  const planLabel = PLAN_LABELS[requiredPlan] ?? requiredPlan
   const planStyles = variant === 'dark' ? getDarkPlanStyles(requiredPlan) : getPlanStyles(requiredPlan)
   const sizeStyles = getSizeStyles(size)
   const marginClass = noMargin ? '' : 'ml-1.5'
 
   return (
     <span className={`${marginClass} ${sizeStyles} font-semibold rounded-md border ${planStyles}`}>
-      {capitalizedPlan}
+      {planLabel}
     </span>
   )
 }

@@ -218,7 +218,7 @@ class OrgGeneralConfig(BaseModel):
 
 
 class OrgCloudConfig(BaseModel):
-    plan: Literal["free", "personal", "personal-family", "standard", "pro", "enterprise"] = "free"
+    plan: Literal["free", "full", "enterprise", "master"] = "free"
     custom_domain: bool = False
 
 
@@ -243,6 +243,7 @@ class OrganizationConfigV2Base(BaseModel):
     config_version: str = "2.0"
     active: bool = True
     plan: str = "free"
+    packages: list[str] = Field(default_factory=list)
     admin_toggles: AdminToggles = AdminToggles()
     overrides: dict = Field(default_factory=dict)
     customization: CustomizationConfig = CustomizationConfig()

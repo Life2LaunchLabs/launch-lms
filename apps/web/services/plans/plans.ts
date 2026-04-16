@@ -12,9 +12,16 @@
 
 import { getCoreCapabilities } from '@services/config/config'
 
-export type PlanLevel = 'free' | 'personal' | 'family' | 'standard' | 'pro' | 'enterprise'
+export type PlanLevel = 'free' | 'full' | 'enterprise' | 'master'
 
-export const PLAN_HIERARCHY: PlanLevel[] = ['free', 'personal', 'family', 'standard', 'pro', 'enterprise']
+export const PLAN_HIERARCHY: PlanLevel[] = ['free', 'full', 'enterprise', 'master']
+
+export const PLAN_LABELS: Record<PlanLevel, string> = {
+  free: 'Free',
+  full: 'Full',
+  enterprise: 'Enterprise',
+  master: 'Master',
+}
 
 /**
  * Check if the current plan meets or exceeds the required plan level.

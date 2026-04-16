@@ -82,9 +82,30 @@ async def create_collection(
     collection = Collection.model_validate(collection_object)
 
     # SECURITY: Check if user has permission to create collections in this organization
-    # Since collections are organization-level resources, we need to check org permissions
-    # For now, we'll use the existing RBAC check but with proper organization context
     await check_resource_access(request, db_session, current_user, "collection_x", AccessAction.CREATE)
+
+    # Plan limit: check collection count against the org's plan
+    from src.db.organization_config import OrganizationConfig
+    from src.security.features_utils.plans import get_plan_limit
+
+    org_config = db_session.exec(
+        select(OrganizationConfig).where(OrganizationConfig.org_id == collection_object.org_id)
+    ).first()
+    if org_config:
+        config = org_config.config or {}
+        version = config.get("config_version", "1.0")
+        plan = config.get("plan", "free") if version.startswith("2") else config.get("cloud", {}).get("plan", "free")
+        collection_limit = get_plan_limit(plan, "collections")
+        if collection_limit > 0:
+            existing_count = db_session.exec(
+                select(Collection).where(Collection.org_id == collection_object.org_id)
+            ).all()
+            if len(existing_count) >= collection_limit:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Your plan allows a maximum of {collection_limit} collection(s). "
+                           "Upgrade your plan to create more collections.",
+                )
 
     # Complete the collection object
     collection.collection_uuid = f"collection_{uuid4()}"

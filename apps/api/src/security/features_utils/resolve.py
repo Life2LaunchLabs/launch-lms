@@ -1,7 +1,7 @@
 """
 Central feature resolution logic (v2 config).
 
-4-layer resolution: plan config → overrides → purchased packs → admin toggles.
+5-layer resolution: plan config → overrides → packages → admin toggles.
 """
 
 from src.security.features_utils.plans import FEATURE_PLAN_REQUIREMENTS, get_plan_feature_config
@@ -17,7 +17,7 @@ ALWAYS_ON_WITH_LIMITS = {"courses"}
 # All known features
 ALL_FEATURES = [
     "ai", "analytics", "api", "assignments", "audit_logs", "boards", "collaboration",
-    "collections", "communities", "courses",
+    "collections", "communities", "courses", "certifications",
     "members", "payments", "playgrounds", "podcasts", "resources", "roles", "scorm",
     "sso", "storage", "usergroups", "versioning",
 ]
@@ -57,25 +57,40 @@ def _get_overrides(config: dict, feature: str) -> dict:
     return config.get("overrides", {}).get(feature, {})
 
 
-def _get_purchased_extra(org_id: int, feature: str) -> int:
-    """Get purchased extra capacity for a feature from Redis."""
-    try:
-        from src.security.features_utils.usage import _get_redis_client
-        r = _get_redis_client()
-        if feature == "ai":
-            val = r.get(f"ai_credits_purchased:{org_id}")
-            return int(val) if val else 0
-        if feature in ("members", "admin_seats"):
-            val = r.get(f"member_seats_purchased:{org_id}")
-            return int(val) if val else 0
-    except Exception:
-        pass
-    return 0
+def _get_packages(config: dict) -> list[str]:
+    """Get the list of active package IDs from the org config."""
+    version = config.get("config_version", "1.0")
+    if version.startswith("2"):
+        return config.get("packages", [])
+    return []
+
+
+def _is_feature_enabled_by_package(feature: str, config: dict, plan: str) -> bool:
+    """
+    Check if a feature is enabled via a package add-on.
+    Packages are only active if the org's plan meets the package's min_plan.
+    """
+    from src.security.features_utils.packs import AVAILABLE_PACKAGES, get_features_enabled_by_packages
+    from src.security.features_utils.plans import plan_meets_requirement
+
+    packages = _get_packages(config)
+    if not packages:
+        return False
+
+    # Only apply packages if org meets minimum plan requirement for each package
+    active_packages = [
+        pkg_id for pkg_id in packages
+        if pkg_id in AVAILABLE_PACKAGES
+        and plan_meets_requirement(plan, AVAILABLE_PACKAGES[pkg_id]["min_plan"])
+    ]
+
+    package_enabled_features = get_features_enabled_by_packages(active_packages)
+    return feature in package_enabled_features
 
 
 def resolve_feature(feature: str, config: dict, org_id: int = 0) -> dict:
     """
-    Resolve a single feature's enabled/limit state through all 4 layers.
+    Resolve a single feature's enabled/limit state through all 5 layers.
 
     Returns:
         {"enabled": bool, "limit": int, "required_plan": str|None}  (limit=0 means unlimited)
@@ -93,11 +108,10 @@ def resolve_feature(feature: str, config: dict, org_id: int = 0) -> dict:
         plan_limit = plan_config.get("limit", 0)
         overrides = _get_overrides(config, feature)
         extra_limit = overrides.get("extra_limit", 0)
-        purchased_extra = _get_purchased_extra(org_id, feature) if org_id else 0
         if plan_limit == 0:
             effective_limit = 0
         else:
-            effective_limit = plan_limit + extra_limit + purchased_extra
+            effective_limit = plan_limit + extra_limit
         return {"enabled": True, "limit": effective_limit, "required_plan": required_plan}
 
     admin_toggle = _get_admin_toggle(config, feature)
@@ -112,14 +126,15 @@ def resolve_feature(feature: str, config: dict, org_id: int = 0) -> dict:
     force_enabled = overrides.get("force_enabled", False)
     extra_limit = overrides.get("extra_limit", 0)
 
-    base_enabled = plan_enabled or force_enabled
+    # Package layer: packages can enable features not included in the base plan
+    package_enabled = _is_feature_enabled_by_package(feature, config, plan)
 
-    purchased_extra = _get_purchased_extra(org_id, feature) if org_id else 0
+    base_enabled = plan_enabled or force_enabled or package_enabled
 
     if plan_limit == 0:
         effective_limit = 0
     else:
-        effective_limit = plan_limit + extra_limit + purchased_extra
+        effective_limit = plan_limit + extra_limit
 
     effective_enabled = base_enabled and not admin_disabled
 
