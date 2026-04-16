@@ -14,7 +14,7 @@ import Link from 'next/link'
 import { signup } from '@services/auth/auth'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { signIn } from '@components/Contexts/AuthContext'
-import { getLAUNCHLMS_TOP_DOMAIN_VAL } from '@services/config/config'
+import { getLAUNCHLMS_TOP_DOMAIN_VAL, getUriWithOrg } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import { PasswordStrengthIndicator, validatePasswordStrength } from '@components/Auth/PasswordStrengthIndicator'
 
@@ -47,7 +47,7 @@ const validate = (values: any, t: any) => {
   return errors
 }
 
-function OpenSignUpComponent() {
+function OpenSignUpComponent({ createOrgMode = false }: { createOrgMode?: boolean }) {
   const { t } = useTranslation()
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const org = useOrg() as any
@@ -55,6 +55,7 @@ function OpenSignUpComponent() {
   const [error, setError] = React.useState('')
   const [message, setMessage] = React.useState('')
   const nextUrl = searchParams.get('next')
+  const createOrgRedirect = getUriWithOrg(org?.slug, '/signup?mode=create-org')
   const formik = useFormik({
     initialValues: {
       org_slug: org?.slug,
@@ -104,7 +105,10 @@ function OpenSignUpComponent() {
       document.cookie = `launchlms_oauth_org_id=${org.id}${baseAttributes}${domainAttr}`;
     }
     // Use absolute URL with current origin for custom domain support
-    signIn('google', { callbackUrl: nextUrl || `${window.location.origin}/redirect_from_auth` });
+    const callbackUrl = createOrgMode
+      ? createOrgRedirect
+      : nextUrl || `${window.location.origin}/redirect_from_auth`
+    signIn('google', { callbackUrl });
   };
 
   return (
@@ -112,7 +116,9 @@ function OpenSignUpComponent() {
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">{t('auth.create_account')}</h1>
-        <p className="text-gray-500 mt-1">{t('auth.fill_in_details')}</p>
+        <p className="text-gray-500 mt-1">
+          {createOrgMode ? 'Create your user account first, then we will walk you through setting up an organization.' : t('auth.fill_in_details')}
+        </p>
       </div>
 
       {/* Error/Success Messages */}
@@ -132,7 +138,10 @@ function OpenSignUpComponent() {
             {t('auth.verification_email_sent_message')}
           </p>
           <hr className="border-green-200" />
-          <Link className="flex items-center gap-2 text-sm font-medium hover:underline" href={nextUrl ? `/login?next=${encodeURIComponent(nextUrl)}` : '/login'}>
+          <Link
+            className="flex items-center gap-2 text-sm font-medium hover:underline"
+            href={createOrgMode ? `/login?next=${encodeURIComponent(createOrgRedirect)}` : nextUrl ? `/login?next=${encodeURIComponent(nextUrl)}` : '/login'}
+          >
             <User size={14} />
             <span>{t('auth.login')}</span>
           </Link>
@@ -270,10 +279,28 @@ function OpenSignUpComponent() {
       {/* Login Link */}
       <p className="text-center text-gray-600 mt-6">
         {t('auth.already_have_account')}{' '}
-        <Link href={nextUrl ? `/login?next=${encodeURIComponent(nextUrl)}` : '/login'} className="font-semibold text-gray-900 hover:underline">
+        <Link
+          href={createOrgMode ? `/login?next=${encodeURIComponent(createOrgRedirect)}` : nextUrl ? `/login?next=${encodeURIComponent(nextUrl)}` : '/login'}
+          className="font-semibold text-gray-900 hover:underline"
+        >
           {t('auth.login')}
         </Link>
       </p>
+
+      {!createOrgMode && (
+        <div className="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-4 text-center">
+          <p className="text-sm font-semibold text-gray-900">Creating an organization?</p>
+          <p className="mt-1 text-sm text-gray-500">
+            Use a dedicated setup flow for admins, then we will take you into your new workspace.
+          </p>
+          <Link
+            href={getUriWithOrg(org?.slug, '/signup?mode=create-org')}
+            className="mt-4 inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-900 border border-gray-200 hover:bg-gray-100"
+          >
+            Create an organization
+          </Link>
+        </div>
+      )}
     </div>
   )
 }

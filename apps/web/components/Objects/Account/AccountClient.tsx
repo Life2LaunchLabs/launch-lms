@@ -14,6 +14,7 @@ import AccountGeneral from '@components/Objects/Account/subpages/AccountGeneral'
 import AccountProfile from '@components/Objects/Account/subpages/AccountProfile'
 import AccountSecurity from '@components/Objects/Account/subpages/AccountSecurity'
 import AccountPurchases from '@components/Objects/Account/subpages/AccountPurchases'
+import AccountOrgAdmin from '@components/Objects/Account/subpages/AccountOrgAdmin'
 
 interface AccountClientProps {
   orgslug: string
@@ -21,12 +22,13 @@ interface AccountClientProps {
   subpage: string
 }
 
-const getSubpageTitle = (subpage: string, t: (key: string) => string): string => {
+const getSubpageTitle = (subpage: string, t: any): string => {
   const titles: Record<string, string> = {
     'general': t('account.general'),
     'profile': t('account.profile'),
     'security': t('account.security'),
     'purchases': t('account.purchases'),
+    'org-admin': 'Org Admin',
   }
   return titles[subpage] || t('account.title')
 }
@@ -47,6 +49,8 @@ const AccountClient = ({ orgslug, org_id, subpage }: AccountClientProps) => {
         return <AccountSecurity />
       case 'purchases':
         return <AccountPurchases orgId={org_id} orgslug={orgslug} />
+      case 'org-admin':
+        return <AccountOrgAdmin />
       default:
         return <AccountGeneral />
     }

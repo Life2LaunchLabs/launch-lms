@@ -222,12 +222,16 @@ export const getUriWithOrg = (orgslug: string, path: string) => {
     const domainConfig = getLAUNCHLMS_DOMAIN()
     // Remove port from domain config for hostname comparison
     const baseDomain = stripPort(domainConfig)
+    const currentOrgCookie = getCookieValue('launchlms_orgslug') || getCookieValue('launchlms_current_orgslug')
 
     // Check if current hostname matches the target
     const expectedHostname = `${orgslug}.${baseDomain}`
 
-    if (currentHostname === expectedHostname || currentHostname === baseDomain) {
-      // Already on the right host (subdomain or base domain)
+    if (
+      currentHostname === expectedHostname ||
+      (currentHostname === baseDomain && (isLocalhostCheck(currentHostname) || currentOrgCookie === orgslug))
+    ) {
+      // Already on the right host, or we are in localhost/cookie-routed mode for this org.
       return `${window.location.origin}${path}`
     }
 
@@ -306,4 +310,3 @@ export const getDefaultOrg = () => {
   // 3. Default
   return 'default'
 }
-

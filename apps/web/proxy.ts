@@ -257,31 +257,14 @@ export default async function proxy(req: NextRequest) {
 
   // Auth Redirects
   if (pathname == '/redirect_from_auth') {
-    const searchParams = req.nextUrl.searchParams
-    const queryString = searchParams.toString()
-    const redirectPathname = '/'
-
-    // Check if we have a custom domain cookie
-    const customDomain = req.cookies.get('launchlms_custom_domain')?.value
-    let redirectUrl: URL
-
-    if (customDomain) {
-      // Redirect to the custom domain
-      const protocol = req.nextUrl.protocol + '//'
-      redirectUrl = new URL(`${protocol}${customDomain}${redirectPathname}`)
-    } else {
-      // Redirect to root on the same origin the request came from
-      redirectUrl = new URL(redirectPathname, req.url)
-    }
-
-    if (queryString) {
-      redirectUrl.search = queryString
-    }
-    return NextResponse.redirect(redirectUrl)
+    const redirectUrl = new URL(`/auth/redirect${search}`, req.url)
+    const response = NextResponse.rewrite(redirectUrl)
+    setInstanceCookies(response, instanceInfo)
+    return response
   }
 
   // Podcast RSS Feed rewrite
-  if (pathname.match(/^\/podcast\/([^\/]+)\/feed$/)) {
+  if (pathname.match(/^\/podcast\/([^/]+)\/feed$/)) {
     let orgslug: string;
     if (isCustomDomain(fullhost, instanceInfo.frontend_domain)) {
       const resolvedOrg = await getResolvedCustomDomain(fullhost as string)

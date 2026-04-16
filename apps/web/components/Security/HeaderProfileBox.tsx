@@ -2,12 +2,12 @@
 import React, { useEffect, useMemo } from 'react'
 
 import Link from 'next/link'
-import { Package, Crown, Shield, User, Users, SignOut, CaretDown, Globe, Check, ShoppingBag } from '@phosphor-icons/react'
+import { Crown, Shield, User, Users, SignOut, CaretDown, Globe, Check, ShoppingBag, Buildings } from '@phosphor-icons/react'
 import UserAvatar from '@components/Objects/UserAvatar'
 import useAdminStatus from '@components/Hooks/useAdminStatus'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getUriWithOrg } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg } from '@services/config/config'
 import Tooltip from '@components/Objects/StyledElements/Tooltip/Tooltip'
 import {
   DropdownMenu,
@@ -26,6 +26,9 @@ import { useTranslation } from 'react-i18next'
 import { AVAILABLE_LANGUAGES } from '@/lib/languages'
 import LanguageSwitcher from '@components/Utils/LanguageSwitcher'
 import { getMenuColorClasses } from '@services/utils/ts/colorUtils'
+import useSWR from 'swr'
+import { swrFetcher } from '@services/utils/ts/requests'
+import { getOwnerOrgUrl } from '@services/org/ownerOrg'
 
 interface RoleInfo {
   name: string;
@@ -42,10 +45,22 @@ interface CustomRoleInfo {
 
 export const HeaderProfileBox = ({ primaryColor = '', compact = false }: { primaryColor?: string; compact?: boolean }) => {
   const session = useLHSession() as any
-  const { isAdmin, loading, userRoles, rights } = useAdminStatus()
+  const { userRoles } = useAdminStatus()
   const org = useOrg() as any
   const { t, i18n } = useTranslation()
   const colors = getMenuColorClasses(primaryColor)
+  const accessToken = session?.data?.tokens?.access_token
+
+  const { data: adminOrgs } = useSWR(
+    accessToken ? `${getAPIUrl()}orgs/user_admin/page/1/limit/100` : null,
+    (url) => swrFetcher(url, accessToken),
+    {
+      revalidateOnFocus: false,
+      revalidateOnMount: true,
+    }
+  )
+
+  const hasAdminOrganizations = Array.isArray(adminOrgs) && adminOrgs.length > 0
 
   const changeLanguage = (lng: string) => {
     i18n.changeLanguage(lng)
@@ -120,7 +135,7 @@ export const HeaderProfileBox = ({ primaryColor = '', compact = false }: { prima
     }
 
     return roleConfigs[roleKey] || roleConfigs['role_global_user'];
-  }, [userRoles, org?.id]);
+  }, [userRoles, org?.id, t]);
 
   const customRoles = useMemo((): CustomRoleInfo[] => {
     if (!userRoles || userRoles.length === 0) return [];
@@ -145,7 +160,7 @@ export const HeaderProfileBox = ({ primaryColor = '', compact = false }: { prima
       name: role.role.name || t('roles.custom_role'),
       description: role.role.description
     }));
-  }, [userRoles, org?.id]);
+  }, [userRoles, org?.id, t]);
 
   return (
     <div className="flex items-stretch items-center">
@@ -225,22 +240,22 @@ export const HeaderProfileBox = ({ primaryColor = '', compact = false }: { prima
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {rights?.dashboard?.action_access && (
+                {hasAdminOrganizations && (
                   <DropdownMenuItem asChild>
-                    <Link href="/dash" className="flex items-center space-x-2">
-                      <Shield size={16} weight="fill" />
-                      <span>{t('common.dashboard')}</span>
+                    <Link href={getOwnerOrgUrl('/account/org-admin')} className="flex items-center space-x-2">
+                      <Buildings size={16} weight="fill" />
+                      <span>Org Admin</span>
                     </Link>
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem asChild>
-                  <Link href="/account/general" className="flex items-center space-x-2">
+                  <Link href={getOwnerOrgUrl('/account/general')} className="flex items-center space-x-2">
                     <User size={16} weight="fill" />
                     <span>{t('user.user_settings')}</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href={getUriWithOrg(org?.slug, '/account/purchases')} className="flex items-center space-x-2">
+                  <Link href={getOwnerOrgUrl('/account/purchases')} className="flex items-center space-x-2">
                     <ShoppingBag size={16} weight="fill" />
                     <span>{t('account.purchases')}</span>
                   </Link>

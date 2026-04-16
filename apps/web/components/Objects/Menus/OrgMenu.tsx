@@ -22,7 +22,6 @@ import {
   Globe,
   ChatCircleDots,
   ChatCircle,
-  SquaresFour,
   ChalkboardSimple,
 } from '@phosphor-icons/react'
 import { DiscordIcon } from '@components/Objects/Icons/DiscordIcon'
@@ -35,8 +34,6 @@ import {
   DropdownMenuTrigger,
 } from "@components/ui/dropdown-menu"
 import { FeedbackModal } from '@components/Objects/Modals/FeedbackModal'
-import { DASHBOARD_MENU_ITEMS, DashboardMenuItem } from '@/lib/dashboard-menu-items'
-import { isFeatureAvailable } from '@services/plans/plans'
 import { getMenuColorClasses } from '@services/utils/ts/colorUtils'
 import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
 import { useJoinBannerVisible, JOIN_BANNER_HEIGHT } from '@components/Objects/Banners/OrgJoinBanner'
@@ -89,14 +86,6 @@ export const OrgMenu = (props: any) => {
 
   // Filter dashboard menu items by resolved_features from API
   const rf = config?.resolved_features
-  const visibleDashboardItems = DASHBOARD_MENU_ITEMS.filter((item: DashboardMenuItem) => {
-    if (item.featureKey && capabilities[item.featureKey as keyof ReturnType<typeof getCoreCapabilities>] === false) {
-      return false
-    }
-    if (!item.featureKey) return true
-    if (rf?.[item.featureKey]) return rf[item.featureKey].enabled
-    return isFeatureAvailable(item.featureKey)
-  })
 
   useEffect(() => {
     // Only check focus mode if we're in an activity page
@@ -223,44 +212,6 @@ export const OrgMenu = (props: any) => {
                 )}
               </div>
             </AuthenticatedClientElement>
-
-            {/* Dashboard Dropdown — desktop, admins only */}
-            {session?.status === 'authenticated' && rights?.dashboard?.action_access && (
-              <div className="hidden md:flex">
-                <DropdownMenu>
-                  <TooltipProvider delayDuration={0}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <DropdownMenuTrigger asChild>
-                          <button className={`p-2 rounded-lg transition-colors ${colors.iconBtn}`} aria-label={t('common.dashboard')}>
-                            <SquaresFour size={20} weight="fill" />
-                          </button>
-                        </DropdownMenuTrigger>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="text-xs">{t('common.dashboard')}</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel className="flex items-center gap-2">
-                      <SquaresFour size={16} weight="fill" />
-                      <span>{t('common.dashboard')}</span>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {visibleDashboardItems.map((item) => {
-                      const IconComponent = item.icon
-                      return (
-                        <DropdownMenuItem key={item.id} asChild>
-                          <Link href={item.href} className="flex items-center gap-2">
-                            <IconComponent size={16} weight="fill" />
-                            <span>{t(item.labelKey)}</span>
-                          </Link>
-                        </DropdownMenuItem>
-                      )
-                    })}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            )}
 
             {/* Help Dropdown — desktop, admins only */}
             {session?.status === 'authenticated' && rights?.dashboard?.action_access && (
