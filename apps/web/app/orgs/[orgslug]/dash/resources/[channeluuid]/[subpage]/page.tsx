@@ -92,7 +92,7 @@ const SUBPAGE_TITLES: Record<string, { h1: string; h2: string }> = {
   },
   access: {
     h1: 'Access Control',
-    h2: 'Choose whether the channel is public or restricted to linked user groups.',
+    h2: 'Control guest visibility, org-only access, and whether the channel is shared across org sites.',
   },
   resources: {
     h1: 'Resources',
@@ -378,6 +378,29 @@ function ResourceChannelAccessTab({
     }
   }
 
+  const handleSetShared = async (value: boolean) => {
+    if (!accessToken || isSaving) return
+
+    setIsSaving(true)
+    try {
+      const result = await updateResourceChannel(
+        channel.channel_uuid,
+        { shared: value },
+        accessToken
+      )
+      if (result.success) {
+        toast.success('Sharing updated')
+        onUpdated()
+        return
+      }
+      toast.error('Failed to update sharing')
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to update sharing')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const toggleUsergroup = async (usergroupId: number, linked: boolean) => {
     if (!accessToken || !orgId) return
 
@@ -507,6 +530,27 @@ function ResourceChannelAccessTab({
             </div>
           </>
         )}
+
+        <div className={`mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 ${isSaving ? 'opacity-50 pointer-events-none' : ''}`}>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-base font-semibold text-slate-800">Shared across organizations</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Let signed-in users from other org sites discover resources from this channel, save them, and comment while ownership stays with this org.
+              </p>
+            </div>
+            <label className="inline-flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={channel.shared}
+                onChange={(e) => handleSetShared(e.target.checked)}
+              />
+              <span className="text-sm font-medium text-slate-700">
+                {channel.shared ? 'Enabled' : 'Disabled'}
+              </span>
+            </label>
+          </div>
+        </div>
       </div>
     </div>
   )

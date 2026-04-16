@@ -51,6 +51,9 @@ interface Course {
   course_uuid: string;
   creation_date: string;
   update_date: string;
+  owner_org_uuid?: string | null;
+  owner_org_name?: string | null;
+  is_shared_from_other_org?: boolean;
 }
 
 interface Collection {
@@ -276,7 +279,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                 <div className="relative">
                   {course.thumbnail_image ? (
                     <img
-                      src={getCourseThumbnailMediaDirectory(org?.org_uuid, course.course_uuid, course.thumbnail_image)}
+                      src={getCourseThumbnailMediaDirectory(course.owner_org_uuid || org?.org_uuid, course.course_uuid, course.thumbnail_image)}
                       alt={course.name}
                       className="w-10 h-10 object-cover rounded-lg"
                     />

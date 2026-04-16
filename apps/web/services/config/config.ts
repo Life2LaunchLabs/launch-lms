@@ -221,13 +221,16 @@ export const getCustomDomainFromContext = (): string | null => {
 }
 
 export const getUriWithOrg = (orgslug: string, path: string) => {
+  const ownerOrgSlug = getDefaultOrg()
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+
   // Client-side: prefer using current origin when appropriate
   if (typeof window !== 'undefined') {
     const multi_org = isMultiOrgModeEnabled()
 
     // In single-org mode or on custom domain, always use current origin
     if (!multi_org || getCustomDomainFromContext()) {
-      return `${window.location.origin}${path}`
+      return `${window.location.origin}${normalizedPath}`
     }
 
     // Multi-org mode: check if we need to change subdomains
@@ -236,23 +239,25 @@ export const getUriWithOrg = (orgslug: string, path: string) => {
     // Remove port from domain config for hostname comparison
     const baseDomain = stripPort(domainConfig)
     const currentOrgCookie = getCookieValue('launchlms_orgslug') || getCookieValue('launchlms_current_orgslug')
+    const isOwnerOrg = orgslug === ownerOrgSlug
 
     // Check if current hostname matches the target
-    const expectedHostname = `${orgslug}.${baseDomain}`
+    const expectedHostname = isOwnerOrg ? baseDomain : `${orgslug}.${baseDomain}`
 
     if (
       currentHostname === expectedHostname ||
-      (currentHostname === baseDomain && (isLocalhostCheck(currentHostname) || currentOrgCookie === orgslug))
+      (currentHostname === baseDomain && (isLocalhostCheck(currentHostname) || currentOrgCookie === orgslug || isOwnerOrg))
     ) {
       // Already on the right host, or we are in localhost/cookie-routed mode for this org.
-      return `${window.location.origin}${path}`
+      return `${window.location.origin}${normalizedPath}`
     }
 
     // Different subdomain needed - construct URL with current port
     const protocol = window.location.protocol + '//'
     const port = window.location.port
     const portSuffix = port && port !== '80' && port !== '443' ? `:${port}` : ''
-    return `${protocol}${orgslug}.${baseDomain}${portSuffix}${path}`
+    const targetHost = isOwnerOrg ? `${baseDomain}${portSuffix}` : `${orgslug}.${baseDomain}${portSuffix}`
+    return `${protocol}${targetHost}${normalizedPath}`
   }
 
   // Server-side fallback to config-based URL construction
@@ -261,16 +266,19 @@ export const getUriWithOrg = (orgslug: string, path: string) => {
   if (multi_org) {
     const protocol = getLAUNCHLMS_HTTP_PROTOCOL()
     const domain = getLAUNCHLMS_DOMAIN()
-    return `${protocol}${orgslug}.${domain}${path}`
+    if (orgslug === ownerOrgSlug) {
+      return `${protocol}${domain}${normalizedPath}`
+    }
+    return `${protocol}${orgslug}.${domain}${normalizedPath}`
   }
   if (explicitDomain) {
     // Explicit domain configured: construct absolute URL (needed for RSS, SEO, server-side fetches)
     const protocol = getLAUNCHLMS_HTTP_PROTOCOL()
-    return `${protocol}${explicitDomain}${path}`
+    return `${protocol}${explicitDomain}${normalizedPath}`
   }
   // No explicit domain configured: return relative path to avoid hardcoded 'localhost'
   // URLs in SSR output that break on non-localhost deployments
-  return path
+  return normalizedPath
 }
 
 export const getUriWithoutOrg = (path: string) => {

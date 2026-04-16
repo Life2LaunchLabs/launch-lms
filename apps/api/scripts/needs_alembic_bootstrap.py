@@ -6,6 +6,7 @@ from sqlalchemy import create_engine, inspect, text
 
 
 BOOTSTRAP_EXIT_CODE = 10
+FRESH_DB_EXIT_CODE = 11
 LEGACY_TABLES = {
     "activity",
     "course",
@@ -36,6 +37,10 @@ def main() -> int:
 
         has_alembic_version_table = "alembic_version" in table_names
         has_legacy_schema = bool(LEGACY_TABLES & table_names)
+
+        if not table_names:
+            print("Fresh empty database detected.")
+            return FRESH_DB_EXIT_CODE
 
         if not has_legacy_schema:
             print("No legacy application schema detected; Alembic bootstrap not required.")

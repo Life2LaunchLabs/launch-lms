@@ -26,6 +26,9 @@ type Course = {
   name: string
   description: string
   thumbnail_image: string
+  owner_org_uuid?: string | null
+  owner_org_name?: string | null
+  is_shared_from_other_org?: boolean
   org_id: string | number
   update_date: string
   authors?: Array<{
@@ -122,15 +125,16 @@ const CourseThumbnailLanding: React.FC<PropsType> = ({ course, orgslug, customLi
       await revalidateTags(['courses'], orgslug)
       toast.success(t('courses.course_deleted_success'))
       router.refresh()
-    } catch (error) {
+    } catch {
       toast.error(t('courses.course_deleted_error'))
     } finally {
       toast.dismiss(toastId)
     }
   }
 
-  const thumbnailImage = course.thumbnail_image
-    ? getCourseThumbnailMediaDirectory(org?.org_uuid, course.course_uuid, course.thumbnail_image)
+  const ownerOrgUuid = course.owner_org_uuid || org?.org_uuid
+  const thumbnailImage = course.thumbnail_image && ownerOrgUuid
+    ? getCourseThumbnailMediaDirectory(ownerOrgUuid, course.course_uuid, course.thumbnail_image)
     : '/empty_thumbnail.png'
 
   return (

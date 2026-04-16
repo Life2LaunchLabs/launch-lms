@@ -51,10 +51,10 @@ const CollectionClient = ({ orgslug, collectionid }: { orgslug: string; collecti
           ]}
         />
       </div>
-      {col.thumbnail_image && org?.org_uuid && (
+      {col.thumbnail_image && (col.owner_org_uuid || org?.org_uuid) && (
         <div className="mb-6 w-full max-w-2xl aspect-video rounded-xl overflow-hidden bg-gray-100">
           <SafeImage
-            src={getCollectionThumbnailMediaDirectory(org.org_uuid, col.collection_uuid, col.thumbnail_image)}
+            src={getCollectionThumbnailMediaDirectory(col.owner_org_uuid || org.org_uuid, col.collection_uuid, col.thumbnail_image)}
             alt={col.name}
             className="w-full h-full object-cover"
           />
@@ -73,7 +73,7 @@ const CollectionClient = ({ orgslug, collectionid }: { orgslug: string; collecti
               course={course}
               orgslug={orgslug}
               run={trailRunsByCourseUuid.get(course.course_uuid)}
-              orgName={org?.name}
+              orgName={course.owner_org_name || org?.name}
             />
           </div>
         ))}

@@ -7433,6 +7433,38 @@ function getDevComposePath(root) {
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+function getDevDatabaseUrl() {
+  return "postgresql://launchlms:launchlms@localhost:5432/launchlms";
+}
+function runDevMigrations(root, apiDir) {
+  const migrationsScript = path7.join(apiDir, "scripts", "run_alembic_migrations.sh");
+  const uvCacheDir = path7.join(root, ".launch-lms", "uv-cache");
+  if (!fs7.existsSync(uvCacheDir)) {
+    fs7.mkdirSync(uvCacheDir, { recursive: true });
+  }
+  const env = {
+    ...process.env,
+    ...serviceEnv,
+    UV_CACHE_DIR: process.env.UV_CACHE_DIR || uvCacheDir,
+    LAUNCHLMS_SQL_CONNECTION_STRING: process.env.LAUNCHLMS_SQL_CONNECTION_STRING || process.env.DATABASE_URL || getDevDatabaseUrl()
+  };
+  const migrationSpinner = fe();
+  migrationSpinner.start("Running database migrations...");
+  try {
+    execSync5(`bash ${migrationsScript}`, {
+      cwd: apiDir,
+      stdio: "pipe",
+      env
+    });
+    migrationSpinner.stop("Database migrations are up to date");
+  } catch (e) {
+    migrationSpinner.stop("Database migrations failed");
+    const stderr = e?.stderr?.toString()?.trim();
+    const stdout = e?.stdout?.toString()?.trim();
+    O2.error(stderr || stdout || "Failed to run Alembic migrations");
+    process.exit(1);
+  }
+}
 async function waitForHealth2(label, command, args, maxAttempts = 30) {
   for (let i = 0; i < maxAttempts; i++) {
     try {
@@ -7624,6 +7656,7 @@ async function devCommand(opts) {
       process.exit(1);
     }
   }
+  runDevMigrations(root, apiDir);
   const certFile = path7.join(root, "certs", "local.pem");
   const keyFile = path7.join(root, "certs", "local-key.pem");
   let hasCerts = fs7.existsSync(certFile) && fs7.existsSync(keyFile);

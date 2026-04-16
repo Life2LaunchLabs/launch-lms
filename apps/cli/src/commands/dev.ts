@@ -76,6 +76,47 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+function getDevDatabaseUrl(): string {
+  return 'postgresql://launchlms:launchlms@localhost:5432/launchlms'
+}
+
+function runDevMigrations(root: string, apiDir: string): void {
+  const migrationsScript = path.join(apiDir, 'scripts', 'run_alembic_migrations.sh')
+  const uvCacheDir = path.join(root, '.launch-lms', 'uv-cache')
+
+  if (!fs.existsSync(uvCacheDir)) {
+    fs.mkdirSync(uvCacheDir, { recursive: true })
+  }
+
+  const env = {
+    ...process.env,
+    ...serviceEnv,
+    UV_CACHE_DIR: process.env.UV_CACHE_DIR || uvCacheDir,
+    LAUNCHLMS_SQL_CONNECTION_STRING:
+      process.env.LAUNCHLMS_SQL_CONNECTION_STRING ||
+      process.env.DATABASE_URL ||
+      getDevDatabaseUrl(),
+  }
+
+  const migrationSpinner = p.spinner()
+  migrationSpinner.start('Running database migrations...')
+
+  try {
+    execSync(`bash ${migrationsScript}`, {
+      cwd: apiDir,
+      stdio: 'pipe',
+      env,
+    })
+    migrationSpinner.stop('Database migrations are up to date')
+  } catch (e: any) {
+    migrationSpinner.stop('Database migrations failed')
+    const stderr = e?.stderr?.toString()?.trim()
+    const stdout = e?.stdout?.toString()?.trim()
+    p.log.error(stderr || stdout || 'Failed to run Alembic migrations')
+    process.exit(1)
+  }
+}
+
 async function waitForHealth(label: string, command: string, args: string[], maxAttempts = 30): Promise<boolean> {
   for (let i = 0; i < maxAttempts; i++) {
     try {
@@ -308,6 +349,8 @@ export async function devCommand(opts: { ee?: boolean }) {
       process.exit(1)
     }
   }
+
+  runDevMigrations(root, apiDir)
 
   // Detect TLS certs for HTTPS dev mode — generate them if missing
   const certFile = path.join(root, 'certs', 'local.pem')

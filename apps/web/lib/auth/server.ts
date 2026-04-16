@@ -93,15 +93,8 @@ export async function getServerSession(): Promise<Session | null> {
     })
 
     if (!sessionResponse.ok) {
-      // Return minimal session with just the token
-      return {
-        user: undefined,
-        roles: [],
-        tokens: {
-          access_token: refreshData.access_token,
-          expiry: refreshData.expiry,
-        },
-      }
+      console.log('[SERVER_SESSION] Refreshed token could not load session:', sessionResponse.status)
+      return null
     }
 
     const sessionData = await sessionResponse.json()

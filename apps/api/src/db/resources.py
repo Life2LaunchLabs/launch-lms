@@ -125,6 +125,11 @@ class ResourceRead(ResourceBase):
     org_id: int
     resource_uuid: str
     created_by_user_id: Optional[int] = None
+    owner_org_id: Optional[int] = None
+    owner_org_uuid: Optional[str] = None
+    owner_org_slug: Optional[str] = None
+    owner_org_name: Optional[str] = None
+    is_shared_from_other_org: bool = False
     creation_date: str
     update_date: str
     tags: list[ResourceTagRead] = Field(default_factory=list)
@@ -135,6 +140,7 @@ class ResourceChannelBase(SQLModel):
     description: Optional[str] = Field(default=None, sa_column=Column(Text))
     thumbnail_image: Optional[str] = None
     public: bool = True
+    shared: bool = False
     is_starred: bool = False
     color: Optional[str] = None
 
@@ -160,6 +166,7 @@ class ResourceChannelUpdate(SQLModel):
     description: Optional[str] = None
     thumbnail_image: Optional[str] = None
     public: Optional[bool] = None
+    shared: Optional[bool] = None
     is_starred: Optional[bool] = None
     color: Optional[str] = None
 
@@ -168,6 +175,11 @@ class ResourceChannelRead(ResourceChannelBase):
     id: int
     org_id: int
     channel_uuid: str
+    owner_org_id: Optional[int] = None
+    owner_org_uuid: Optional[str] = None
+    owner_org_slug: Optional[str] = None
+    owner_org_name: Optional[str] = None
+    is_shared_from_other_org: bool = False
     creation_date: str
     update_date: str
 

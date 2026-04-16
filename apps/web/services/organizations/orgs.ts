@@ -13,7 +13,7 @@ import {
 
 export async function createNewOrganization(body: any, access_token: string) {
   const result = await fetch(
-    `${getAPIUrl()}orgs/`,
+    `${getAPIUrl()}orgs`,
     RequestBodyWithAuthHeader('POST', body, null, access_token)
   )
   const res = await errorHandling(result)

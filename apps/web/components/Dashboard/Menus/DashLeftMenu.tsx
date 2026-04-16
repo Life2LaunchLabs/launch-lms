@@ -179,6 +179,7 @@ function DashLeftMenu() {
   const showAPI = isEnabled('api')
   const showDomains = isEnabled('custom_domains') || plan === 'enterprise' || plan === 'master'
   const showSEO = plan === 'enterprise' || plan === 'master'
+  const isEnterpriseOrMaster = plan === 'enterprise' || plan === 'master'
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -487,24 +488,30 @@ function DashLeftMenu() {
                       <span>{t('dashboard.organization.settings.tabs.general')}</span>
                     </Link>
                   </HoverMenuItem>
-                  <HoverMenuItem asChild>
-                    <Link href="/dash/org/settings/branding" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                      <Palette size={16} weight="fill" />
-                      <span>{t('dashboard.organization.settings.tabs.branding')}</span>
-                    </Link>
-                  </HoverMenuItem>
-                  <HoverMenuItem asChild>
-                    <Link href="/dash/org/settings/features" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                      <ToggleRight size={16} weight="fill" />
-                      <span>{t('dashboard.organization.settings.tabs.features')}</span>
-                    </Link>
-                  </HoverMenuItem>
-                  <HoverMenuItem asChild>
-                    <Link href="/dash/org/settings/landing" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                      <Rocket size={16} weight="fill" />
-                      <span>{t('dashboard.organization.settings.tabs.landing')}</span>
-                    </Link>
-                  </HoverMenuItem>
+                  {isEnterpriseOrMaster && (
+                    <HoverMenuItem asChild>
+                      <Link href="/dash/org/settings/branding" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                        <Palette size={16} weight="fill" />
+                        <span>{t('dashboard.organization.settings.tabs.branding')}</span>
+                      </Link>
+                    </HoverMenuItem>
+                  )}
+                  {isEnterpriseOrMaster && (
+                    <HoverMenuItem asChild>
+                      <Link href="/dash/org/settings/features" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                        <ToggleRight size={16} weight="fill" />
+                        <span>{t('dashboard.organization.settings.tabs.features')}</span>
+                      </Link>
+                    </HoverMenuItem>
+                  )}
+                  {isEnterpriseOrMaster && (
+                    <HoverMenuItem asChild>
+                      <Link href="/dash/org/settings/landing" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                        <Rocket size={16} weight="fill" />
+                        <span>{t('dashboard.organization.settings.tabs.landing')}</span>
+                      </Link>
+                    </HoverMenuItem>
+                  )}
                   {showSEO && (
                     <HoverMenuItem asChild>
                       <Link href="/dash/org/settings/seo" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
@@ -551,12 +558,14 @@ function DashLeftMenu() {
                       <span>{t('dashboard.organization.settings.tabs.usage') || 'Usage'}</span>
                     </Link>
                   </HoverMenuItem>
-                  <HoverMenuItem asChild>
-                    <Link href="/dash/org/settings/other" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                      <Wrench size={16} weight="fill" />
-                      <span>{t('dashboard.organization.settings.tabs.other')}</span>
-                    </Link>
-                  </HoverMenuItem>
+                  {isEnterpriseOrMaster && (
+                    <HoverMenuItem asChild>
+                      <Link href="/dash/org/settings/other" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                        <Wrench size={16} weight="fill" />
+                        <span>{t('dashboard.organization.settings.tabs.other')}</span>
+                      </Link>
+                    </HoverMenuItem>
+                  )}
                 </HoverMenuContent>
               }
             >

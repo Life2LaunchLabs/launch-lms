@@ -33,7 +33,7 @@ export async function createCollection(collection: any, access_token: any) {
 
 export async function updateCollection(
   collection_uuid: string,
-  collection: { name?: string; description?: string; public?: boolean; courses?: number[] },
+  collection: { name?: string; description?: string; public?: boolean; shared?: boolean; courses?: number[] },
   access_token: string
 ) {
   const result: any = await fetch(

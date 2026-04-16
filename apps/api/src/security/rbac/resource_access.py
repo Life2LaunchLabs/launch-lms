@@ -31,6 +31,7 @@ from src.security.rbac.rbac import (
     authorization_verify_based_on_roles,
     authorization_verify_based_on_org_admin_status,
 )
+from src.services.shared_content import can_access_shared_resource
 
 logger = logging.getLogger(__name__)
 
@@ -252,8 +253,14 @@ class ResourceAccessChecker:
         """Check public view read access with full rule chain."""
         user_id = self._get_user_id()
         is_public, is_published = await self._is_public_and_published(resource_uuid, config)
+        resource = await self._get_resource(resource_uuid, config)
+        is_shared = can_access_shared_resource(
+            resource,
+            is_authenticated=user_id != 0,
+            require_published=config.has_published_field,
+        ) if resource else False
 
-        logger.info(f"[ACCESS_CHECK] resource_uuid={resource_uuid}, user_id={user_id}, is_public={is_public}, is_published={is_published}")
+        logger.info(f"[ACCESS_CHECK] resource_uuid={resource_uuid}, user_id={user_id}, is_public={is_public}, is_published={is_published}, is_shared={is_shared}")
 
         # Rule 1: Public + published = OK for everyone
         if config.has_published_field:
@@ -277,6 +284,17 @@ class ResourceAccessChecker:
                     user_id=user_id,
                     action="read",
                 )
+
+        # Rule 1b: Shared resources are accessible to authenticated users across orgs.
+        if is_shared:
+            return AccessDecision(
+                allowed=True,
+                reason="Resource is shared across organizations",
+                via_shared=True,
+                resource_uuid=resource_uuid,
+                user_id=user_id,
+                action="read",
+            )
 
         # Rule 2: Check authorship (if supported)
         if config.supports_authorship:

@@ -48,6 +48,8 @@ function PublicCourseCard({ course, orgslug, run = null, orgName }: PublicCourse
   const hasMoreAuthors = activeAuthors.length > 3
   const remainingAuthorsCount = activeAuthors.length - 3
   const resolvedOrgName = orgName || org?.name
+  const ownerOrgUuid = course.owner_org_uuid || org?.org_uuid
+  const resolvedOrgNameWithOwner = course.owner_org_name || resolvedOrgName
 
   const quitCourse = async () => {
     if (!access_token) return
@@ -91,9 +93,9 @@ function PublicCourseCard({ course, orgslug, run = null, orgName }: PublicCourse
       )}
 
       <Link href={courseLink} className="block relative aspect-video overflow-hidden bg-gray-100">
-        {course.thumbnail_image && org?.org_uuid ? (
+        {course.thumbnail_image && ownerOrgUuid ? (
           <img
-            src={getCourseThumbnailMediaDirectory(org.org_uuid, course.course_uuid, course.thumbnail_image)}
+            src={getCourseThumbnailMediaDirectory(ownerOrgUuid, course.course_uuid, course.thumbnail_image)}
             alt={course.name}
             className="w-full h-full object-contain bg-gray-100"
           />
@@ -170,9 +172,9 @@ function PublicCourseCard({ course, orgslug, run = null, orgName }: PublicCourse
               <Building2 size={14} className="text-gray-400 shrink-0" />
             )}
 
-            {resolvedOrgName && (
+            {resolvedOrgNameWithOwner && (
               <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest truncate">
-                {resolvedOrgName}
+                {resolvedOrgNameWithOwner}
               </span>
             )}
           </div>

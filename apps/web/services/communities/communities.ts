@@ -14,8 +14,14 @@ export interface Community {
   name: string
   description: string | null
   public: boolean
+  shared: boolean
   moderation_words: string[]
   thumbnail_image: string | null
+  owner_org_id?: number | null
+  owner_org_uuid?: string | null
+  owner_org_slug?: string | null
+  owner_org_name?: string | null
+  is_shared_from_other_org?: boolean
   creation_date: string
   update_date: string
 }
@@ -24,6 +30,7 @@ export interface CommunityCreate {
   name: string
   description?: string | null
   public?: boolean
+  shared?: boolean
   course_id?: number | null
 }
 
@@ -31,6 +38,7 @@ export interface CommunityUpdate {
   name?: string
   description?: string | null
   public?: boolean
+  shared?: boolean
   moderation_words?: string[]
 }
 

@@ -11,6 +11,7 @@ export interface Collection {
   name: string
   description: string | null
   public: boolean
+  shared: boolean
   thumbnail_image: string | null
   courses: any[]
   creation_date: string

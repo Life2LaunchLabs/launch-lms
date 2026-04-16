@@ -7,6 +7,7 @@ class CommunityBase(SQLModel):
     name: str
     description: Optional[str] = Field(default=None, sa_column=Column(Text))
     public: bool = True
+    shared: bool = False
     thumbnail_image: Optional[str] = Field(default="")
 
 
@@ -34,6 +35,7 @@ class CommunityUpdate(SQLModel):
     name: Optional[str] = None
     description: Optional[str] = None
     public: Optional[bool] = None
+    shared: Optional[bool] = None
     moderation_words: Optional[List[str]] = None
 
 
@@ -42,6 +44,11 @@ class CommunityRead(CommunityBase):
     org_id: int = Field(default=None, foreign_key="organization.id")
     course_id: Optional[int] = Field(default=None, foreign_key="course.id")
     community_uuid: str
+    owner_org_id: Optional[int] = None
+    owner_org_uuid: Optional[str] = None
+    owner_org_slug: Optional[str] = None
+    owner_org_name: Optional[str] = None
+    is_shared_from_other_org: bool = False
     moderation_words: List[str] = []
     creation_date: str
     update_date: str

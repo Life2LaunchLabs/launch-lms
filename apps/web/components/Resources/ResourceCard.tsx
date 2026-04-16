@@ -19,8 +19,9 @@ export default function ResourceCard({
 }) {
   const [isSaved, setIsSaved] = useState(resource.is_saved)
 
-  const imageSrc = resource.thumbnail_image && orgUUID
-    ? getResourceThumbnailMediaDirectory(orgUUID, resource.resource_uuid, resource.thumbnail_image)
+  const ownerOrgUuid = resource.owner_org_uuid || orgUUID
+  const imageSrc = resource.thumbnail_image && ownerOrgUuid
+    ? getResourceThumbnailMediaDirectory(ownerOrgUuid, resource.resource_uuid, resource.thumbnail_image)
     : resource.cover_image_url || '/placeholder/course-dark.png'
 
   return (
@@ -68,6 +69,11 @@ export default function ResourceCard({
                 {resource.comment_count}
               </span>
             </div>
+            {resource.owner_org_name && (
+              <div className="mt-1 text-[10px] uppercase tracking-wide text-gray-400 font-medium truncate">
+                {resource.owner_org_name}
+              </div>
+            )}
 
           </div>
         </div>

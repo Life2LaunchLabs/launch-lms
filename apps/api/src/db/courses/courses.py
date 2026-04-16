@@ -55,6 +55,7 @@ class CourseBase(SQLModel):
     thumbnail_image: Optional[str] = Field(default="")
     thumbnail_video: Optional[str] = Field(default="")
     public: bool
+    shared: bool = Field(default=False)
     guest_access: bool = Field(default=False)
     published: bool = Field(default=False)
     open_to_contributors: bool
@@ -89,6 +90,7 @@ class CourseUpdate(SQLModel):
     thumbnail_image: Optional[str] = None
     thumbnail_video: Optional[str] = None
     public: Optional[bool] = None
+    shared: Optional[bool] = None
     guest_access: Optional[bool] = None
     published: Optional[bool] = None
     open_to_contributors: Optional[bool] = None
@@ -100,6 +102,11 @@ class CourseRead(CourseBase):
     org_id: int = Field(default=None, foreign_key="organization.id")
     authors: List[AuthorWithRole]
     course_uuid: str
+    owner_org_id: Optional[int] = None
+    owner_org_uuid: Optional[str] = None
+    owner_org_slug: Optional[str] = None
+    owner_org_name: Optional[str] = None
+    is_shared_from_other_org: bool = False
     creation_date: str
     update_date: str
     thumbnail_type: Optional[ThumbnailType] = Field(default=ThumbnailType.IMAGE)
@@ -114,6 +121,11 @@ class FullCourseRead(CourseBase):
     org_id: int
     org_uuid: Optional[str] = None
     course_uuid: Optional[str] = None
+    owner_org_id: Optional[int] = None
+    owner_org_uuid: Optional[str] = None
+    owner_org_slug: Optional[str] = None
+    owner_org_name: Optional[str] = None
+    is_shared_from_other_org: bool = False
     creation_date: Optional[str] = None
     update_date: Optional[str] = None
     thumbnail_type: Optional[ThumbnailType] = Field(default=ThumbnailType.IMAGE)
@@ -129,6 +141,11 @@ class FullCourseRead(CourseBase):
 class FullCourseReadWithTrail(CourseBase):
     id: int
     course_uuid: Optional[str] = None
+    owner_org_id: Optional[int] = None
+    owner_org_uuid: Optional[str] = None
+    owner_org_slug: Optional[str] = None
+    owner_org_name: Optional[str] = None
+    is_shared_from_other_org: bool = False
     creation_date: Optional[str] = None
     update_date: Optional[str] = None
     org_id: int = Field(default=None, foreign_key="organization.id")

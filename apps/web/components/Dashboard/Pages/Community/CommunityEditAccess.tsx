@@ -34,18 +34,22 @@ const CommunityEditAccess: React.FC = () => {
 
   // Track local public state
   const [isClientPublic, setIsClientPublic] = useState<boolean | undefined>(undefined)
+  const [isSharedAcrossOrgs, setIsSharedAcrossOrgs] = useState(false)
   const hasInitializedRef = useRef(false)
   const previousPublicRef = useRef<boolean | undefined>(undefined)
+  const previousSharedRef = useRef(false)
   const [isSaving, setIsSaving] = useState(false)
 
   // Initialize local state from community
   useEffect(() => {
     if (community?.public !== undefined && !hasInitializedRef.current) {
       setIsClientPublic(community.public)
+      setIsSharedAcrossOrgs(community.shared === true)
       previousPublicRef.current = community.public
+      previousSharedRef.current = community.shared === true
       hasInitializedRef.current = true
     }
-  }, [community?.public])
+  }, [community?.public, community?.shared])
 
   // Handle public state change
   const handleSetPublic = useCallback(
@@ -71,8 +75,7 @@ const CommunityEditAccess: React.FC = () => {
           previousPublicRef.current = value
           toast.success(t('dashboard.courses.communities.access.toasts.update_success'))
         }
-      } catch (error) {
-        console.error('Failed to update community access:', error)
+      } catch {
         setIsClientPublic(previousPublicRef.current)
         toast.error(t('dashboard.courses.communities.access.toasts.update_error'))
       } finally {
@@ -80,6 +83,39 @@ const CommunityEditAccess: React.FC = () => {
       }
     },
     [community, accessToken, org?.slug, dispatch, isSaving, t]
+  )
+
+  const handleSetShared = useCallback(
+    async (value: boolean) => {
+      if (!community || isSaving) return
+
+      setIsSharedAcrossOrgs(value)
+      setIsSaving(true)
+
+      try {
+        const result = await updateCommunity(
+          community.community_uuid,
+          { shared: value },
+          accessToken
+        )
+
+        if (result) {
+          await revalidateTags(['communities'], org.slug)
+          mutate(`${getAPIUrl()}communities/${community.community_uuid}`)
+          if (dispatch) {
+            dispatch({ type: 'setCommunity', payload: { ...community, shared: value } })
+          }
+          previousSharedRef.current = value
+          toast.success('Sharing updated')
+        }
+      } catch {
+        setIsSharedAcrossOrgs(previousSharedRef.current)
+        toast.error('Failed to update sharing')
+      } finally {
+        setIsSaving(false)
+      }
+    },
+    [community, accessToken, org?.slug, dispatch, isSaving]
   )
 
   if (!community) return null
@@ -93,7 +129,7 @@ const CommunityEditAccess: React.FC = () => {
             {t('dashboard.courses.communities.access.title')}
           </h1>
           <h2 className="text-gray-500 text-xs sm:text-sm">
-            {t('dashboard.courses.communities.access.subtitle')}
+            Control guest visibility and whether this community is shared across org sites.
           </h2>
         </div>
         <div
@@ -150,6 +186,26 @@ const CommunityEditAccess: React.FC = () => {
             status="info"
           />
         </div>
+        <div className={`mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 ${isSaving ? 'opacity-50 pointer-events-none' : ''}`}>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-base font-semibold text-slate-800">Shared across organizations</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Let signed-in users from other org sites discover this community, join discussions, and participate without changing who owns it.
+              </p>
+            </div>
+            <label className="inline-flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={isSharedAcrossOrgs}
+                onChange={(e) => handleSetShared(e.target.checked)}
+              />
+              <span className="text-sm font-medium text-slate-700">
+                {isSharedAcrossOrgs ? 'Enabled' : 'Disabled'}
+              </span>
+            </label>
+          </div>
+        </div>
         {!isClientPublic && <UserGroupsSection usergroups={usergroups} />}
       </div>
     </div>
@@ -185,7 +241,7 @@ function UserGroupsSection({ usergroups }: { usergroups: any[] }) {
           })
         )
       }
-    } catch (error) {
+    } catch {
       toast.error(t('dashboard.courses.communities.access.usergroups.toasts.unlink_error'))
     }
   }

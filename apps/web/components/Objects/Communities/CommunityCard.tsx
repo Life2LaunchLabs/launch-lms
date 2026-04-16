@@ -36,6 +36,7 @@ function CommunityCard(props: PropsType) {
   const org = useOrg() as any
   const communityId = removeCommunityPrefix(props.community.community_uuid)
   const variant = props.variant || 'dashboard'
+  const ownerOrgUuid = props.community.owner_org_uuid || org?.org_uuid
 
   // Different links based on variant
   const communityLink = variant === 'dashboard'
@@ -60,10 +61,10 @@ function CommunityCard(props: PropsType) {
         href={communityLink}
         className="block relative aspect-video overflow-hidden bg-gray-50"
       >
-        {props.community.thumbnail_image && org?.org_uuid ? (
+        {props.community.thumbnail_image && ownerOrgUuid ? (
           <img
             src={getCommunityThumbnailMediaDirectory(
-              org.org_uuid,
+              ownerOrgUuid,
               props.community.community_uuid,
               props.community.thumbnail_image
             )}
@@ -115,6 +116,11 @@ function CommunityCard(props: PropsType) {
             </Link>
           )}
         </div>
+        {variant === 'public' && props.community.owner_org_name && (
+          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+            {props.community.owner_org_name}
+          </div>
+        )}
       </div>
     </div>
   )

@@ -49,8 +49,8 @@ export default function ResourceDetailClient({ resourceUuid }: { resourceUuid: s
 
   if (!resource) return <div className="p-6">Loading resource…</div>
 
-  const imageSrc = resource.thumbnail_image && org?.org_uuid
-    ? getResourceThumbnailMediaDirectory(org.org_uuid, resource.resource_uuid, resource.thumbnail_image)
+  const imageSrc = resource.thumbnail_image && (resource.owner_org_uuid || org?.org_uuid)
+    ? getResourceThumbnailMediaDirectory(resource.owner_org_uuid || org.org_uuid, resource.resource_uuid, resource.thumbnail_image)
     : resource.cover_image_url || '/placeholder/course-dark.png'
 
   const handleUpdatePrivate = async () => {

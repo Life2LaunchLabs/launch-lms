@@ -51,7 +51,7 @@ export async function generateMetadata(props: MetadataProps): Promise<Metadata> 
     : null
   const defaultImage = course_meta?.thumbnail_image
     ? getCourseThumbnailMediaDirectory(
-        org?.org_uuid,
+        course_meta?.owner_org_uuid || org?.org_uuid,
         course_meta?.course_uuid,
         course_meta?.thumbnail_image
       )
@@ -151,7 +151,7 @@ const CoursePage = async (params: any) => {
       name: org?.name || '',
     },
     ...(course_meta.thumbnail_image && org && {
-      image: getCourseThumbnailMediaDirectory(org.org_uuid, course_meta.course_uuid, course_meta.thumbnail_image),
+      image: getCourseThumbnailMediaDirectory(course_meta.owner_org_uuid || org.org_uuid, course_meta.course_uuid, course_meta.thumbnail_image),
     }),
     ...(course_meta.learnings && {
       keywords: Array.isArray(course_meta.learnings) ? course_meta.learnings.join(', ') : course_meta.learnings,

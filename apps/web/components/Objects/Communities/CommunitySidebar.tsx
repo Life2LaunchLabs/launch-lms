@@ -50,18 +50,20 @@ export function CommunitySidebar({
   )
 
   const createdDate = dayjs(community.creation_date).format('MMM D, YYYY')
+  const ownerOrgUuid = community.owner_org_uuid || org?.org_uuid
+  const linkedCourseOwnerOrgUuid = linkedCourse?.owner_org_uuid || org?.org_uuid
 
-  const thumbnailUrl = community.thumbnail_image && org?.org_uuid
+  const thumbnailUrl = community.thumbnail_image && ownerOrgUuid
     ? getCommunityThumbnailMediaDirectory(
-        org.org_uuid,
+        ownerOrgUuid,
         community.community_uuid,
         community.thumbnail_image
       )
     : null
 
-  const courseThumbnailUrl = linkedCourse?.thumbnail_image && org?.org_uuid
+  const courseThumbnailUrl = linkedCourse?.thumbnail_image && linkedCourseOwnerOrgUuid
     ? getCourseThumbnailMediaDirectory(
-        org.org_uuid,
+        linkedCourseOwnerOrgUuid,
         linkedCourse.course_uuid,
         linkedCourse.thumbnail_image
       )

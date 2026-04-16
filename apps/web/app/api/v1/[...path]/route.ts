@@ -86,6 +86,55 @@ async function proxyMultipartViaNode(
   })
 }
 
+async function proxyWithInternalRedirects(
+  backendUrl: string,
+  method: string,
+  headers: Headers,
+  body?: BodyInit,
+  redirectCount: number = 0
+): Promise<Response> {
+  const response = await fetch(backendUrl, {
+    method,
+    headers,
+    body,
+    redirect: 'manual',
+  })
+
+  const location = response.headers.get('location')
+  if (location && [301, 302, 307, 308].includes(response.status) && redirectCount < 3) {
+    const currentUrl = new URL(backendUrl)
+    const redirectedUrl = new URL(location, currentUrl)
+
+    if (
+      redirectedUrl.hostname === currentUrl.hostname &&
+      redirectedUrl.port === currentUrl.port
+    ) {
+      redirectedUrl.protocol = currentUrl.protocol
+    }
+
+    return proxyWithInternalRedirects(
+      redirectedUrl.toString(),
+      method,
+      headers,
+      body,
+      redirectCount + 1
+    )
+  }
+
+  const responseHeaders = new Headers()
+  response.headers.forEach((value, key) => {
+    if (!SKIP_RESPONSE_HEADERS.has(key.toLowerCase())) {
+      responseHeaders.append(key, value)
+    }
+  })
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: responseHeaders,
+  })
+}
+
 async function proxyToBackend(request: NextRequest): Promise<Response> {
   const path = request.nextUrl.pathname
   const search = request.nextUrl.search
@@ -105,7 +154,6 @@ async function proxyToBackend(request: NextRequest): Promise<Response> {
   // correctly when we preserve the raw browser bytes and boundary, but not when
   // we rebuild them as a new FormData object in Node.
   let body: BodyInit | undefined
-  let useDuplex = false
   let multipartBytes: Uint8Array | null = null
 
   if (request.method !== 'GET' && request.method !== 'HEAD') {
@@ -133,8 +181,11 @@ async function proxyToBackend(request: NextRequest): Promise<Response> {
       headers.set('content-length', String(bytes.byteLength))
       body = bytes
     } else {
-      body = request.body ?? undefined
-      useDuplex = body !== undefined
+      const bytes = new Uint8Array(await request.arrayBuffer())
+      if (bytes.byteLength > 0) {
+        headers.set('content-length', String(bytes.byteLength))
+        body = bytes
+      }
     }
   }
 
@@ -143,33 +194,7 @@ async function proxyToBackend(request: NextRequest): Promise<Response> {
       return await proxyMultipartViaNode(backendUrl, request.method, headers, multipartBytes)
     }
 
-    const backendResponse = await fetch(backendUrl, {
-      method: request.method,
-      headers,
-      body,
-      ...(useDuplex
-        ? {
-            // @ts-ignore — needed for streaming request bodies in Node.js
-            duplex: 'half',
-          }
-        : {}),
-    })
-
-    // Build response headers, forwarding everything from backend
-    const responseHeaders = new Headers()
-    backendResponse.headers.forEach((value, key) => {
-      if (!SKIP_RESPONSE_HEADERS.has(key.toLowerCase())) {
-        responseHeaders.append(key, value)
-      }
-    })
-
-    // Stream the response body directly — no buffering
-    // This preserves SSE streams, file downloads, and binary responses
-    return new Response(backendResponse.body, {
-      status: backendResponse.status,
-      statusText: backendResponse.statusText,
-      headers: responseHeaders,
-    })
+    return await proxyWithInternalRedirects(backendUrl, request.method, headers, body)
   } catch (error: any) {
     console.error(`Failed to proxy ${backendUrl}:`, error.message || error)
     return NextResponse.json(
