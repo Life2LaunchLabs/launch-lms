@@ -124,7 +124,7 @@ export async function createNewCourse(
   }
 
   const result = await fetch(
-    `${getAPIUrl()}courses/?org_id=${org_id}`,
+    `${getAPIUrl()}courses?org_id=${org_id}`,
     RequestBodyFormWithAuthHeader('POST', formData, null, access_token)
   )
   const res = await getResponseMetadata(result)

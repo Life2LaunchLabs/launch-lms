@@ -256,6 +256,33 @@ export default async function proxy(req: NextRequest) {
     return NextResponse.rewrite(new URL(`/api/health`, req.url))
   }
 
+  // Internal org-scoped routes should pass straight through once they've been
+  // resolved. This avoids re-processing rewritten owner-domain routes like
+  // /welcome -> /orgs/{owner}/welcome and /account/* -> /orgs/{owner}/account/*.
+  if (pathname.startsWith('/orgs/')) {
+    const [, , orgslug] = pathname.split('/')
+    const response = NextResponse.next()
+
+    if (orgslug) {
+      const cookieDomain = instanceInfo.top_domain == 'localhost' ? '' : `.${instanceInfo.top_domain}`
+      response.cookies.set({
+        name: 'launchlms_current_orgslug',
+        value: orgslug,
+        domain: cookieDomain,
+        path: '/',
+      })
+      response.cookies.set({
+        name: 'launchlms_orgslug',
+        value: orgslug,
+        domain: cookieDomain,
+        path: '/',
+      })
+    }
+
+    setInstanceCookies(response, instanceInfo)
+    return response
+  }
+
   // Auth Redirects
   if (pathname == '/redirect_from_auth') {
     const redirectUrl = new URL(`/auth/redirect${search}`, req.url)
