@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Generates a trusted local TLS certificate for sslip.io dev domains.
+# Generates a trusted local TLS certificate for localhost + sslip.io dev domains.
 # Run once per machine before starting dev servers with HTTPS.
 # On WSL2 the Windows trust store is updated automatically — no manual steps.
 #
@@ -8,6 +8,16 @@ set -e
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CERT_DIR="$REPO_ROOT/certs"
+DEFAULT_PUBLIC_HOST="127.0.0.1.sslip.io"
+
+PUBLIC_HOST="${LAUNCHLMS_DEV_PUBLIC_HOST:-}"
+if [ -z "$PUBLIC_HOST" ] && grep -qi microsoft /proc/version 2>/dev/null; then
+  WSL_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  if [ -n "$WSL_IP" ] && [ "$WSL_IP" != "127.0.0.1" ]; then
+    PUBLIC_HOST="$WSL_IP.sslip.io"
+  fi
+fi
+PUBLIC_HOST="${PUBLIC_HOST:-$DEFAULT_PUBLIC_HOST}"
 
 mkdir -p "$CERT_DIR"
 
@@ -37,12 +47,24 @@ if command -v powershell.exe &>/dev/null; then
   echo "Windows trust store updated."
 fi
 
-# Generate wildcard cert covering the base domain and all subdomains
+# Generate one cert that works for both the default Next.js localhost URL and
+# the sslip.io domain we use for subdomain/cookie testing.
+CERT_NAMES=(
+  "localhost"
+  "127.0.0.1"
+  "::1"
+  "$DEFAULT_PUBLIC_HOST"
+  "*.$DEFAULT_PUBLIC_HOST"
+)
+
+if [ "$PUBLIC_HOST" != "$DEFAULT_PUBLIC_HOST" ]; then
+  CERT_NAMES+=("$PUBLIC_HOST" "*.$PUBLIC_HOST")
+fi
+
 mkcert \
   -cert-file "$CERT_DIR/local.pem" \
   -key-file  "$CERT_DIR/local-key.pem" \
-  "127.0.0.1.sslip.io" \
-  "*.127.0.0.1.sslip.io"
+  "${CERT_NAMES[@]}"
 
 echo ""
 echo "Certificates written to $CERT_DIR/"

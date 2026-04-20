@@ -67,7 +67,7 @@ const WEB_ENV: AppEnvSpec = {
       name: 'NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL',
       required: true,
       description: 'Backend API URL',
-      defaultValue: 'http://localhost:1338/',
+      defaultValue: 'https://127.0.0.1.sslip.io:1338/',
     },
   ],
 }
@@ -86,7 +86,7 @@ const COLLAB_ENV: AppEnvSpec = {
       name: 'LAUNCHLMS_API_URL',
       required: true,
       description: 'Launch LMS API base URL',
-      defaultValue: 'http://localhost:1338',
+      defaultValue: 'https://localhost:1338',
     },
     {
       name: 'LAUNCHLMS_AUTH_JWT_SECRET_KEY',

@@ -11,6 +11,7 @@ const PORT = parseInt(process.env.COLLAB_PORT || '4000', 10)
 const API_URL = process.env.LAUNCHLMS_API_URL || 'http://localhost:8000'
 const TLS_CERT = process.env.COLLAB_TLS_CERT
 const TLS_KEY = process.env.COLLAB_TLS_KEY
+const PUBLIC_URL = process.env.COLLAB_PUBLIC_URL
 const SECRET_KEY = process.env.LAUNCHLMS_AUTH_JWT_SECRET_KEY || ''
 const INTERNAL_KEY = process.env.COLLAB_INTERNAL_KEY || ''
 const REDIS_URL = process.env.LAUNCHLMS_REDIS_URL || 'redis://localhost:6379'
@@ -416,5 +417,5 @@ if (TLS_CERT && TLS_KEY) {
 
 server.listen().then(() => {
   const proto = TLS_CERT ? 'wss' : 'ws'
-  console.log(`Hocuspocus collab server running on ${proto}://localhost:${PORT}`)
+  console.log(`Hocuspocus collab server running on ${PUBLIC_URL || `${proto}://localhost:${PORT}`}`)
 })

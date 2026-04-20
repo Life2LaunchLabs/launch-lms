@@ -1,4 +1,6 @@
 import { spawn, spawnSync, execSync, type ChildProcess } from 'node:child_process'
+import { X509Certificate } from 'node:crypto'
+import net from 'node:net'
 import * as p from '../utils/prompt.js'
 import pc from 'picocolors'
 import * as path from 'node:path'
@@ -7,6 +9,11 @@ import { isDockerInstalled, isDockerRunning } from '../services/docker.js'
 import { checkDevEnv } from '../services/env-check.js'
 
 const PROJECT_NAME = 'launch-lms-dev'
+const DEV_LOCAL_HOST = 'localhost'
+const DEFAULT_DEV_PUBLIC_HOST = '127.0.0.1.sslip.io'
+const DEV_WEB_PORT = '3000'
+const DEV_API_PORT = '1338'
+const DEV_COLLAB_PORT = '4000'
 
 const DEV_COMPOSE = `name: launch-lms-dev
 
@@ -74,6 +81,71 @@ function getDevComposePath(root: string): string {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function checkPortAvailable(port: number, host = '0.0.0.0'): Promise<boolean> {
+  return new Promise((resolve) => {
+    const server = net.createServer()
+
+    server.once('error', () => resolve(false))
+    server.once('listening', () => {
+      server.close(() => resolve(true))
+    })
+
+    server.listen(port, host)
+  })
+}
+
+async function ensurePortsAvailable(ports: Array<{ port: number; label: string }>): Promise<void> {
+  const unavailable: Array<{ port: number; label: string }> = []
+
+  for (const spec of ports) {
+    const ok = await checkPortAvailable(spec.port)
+    if (!ok) unavailable.push(spec)
+  }
+
+  if (unavailable.length === 0) return
+
+  p.log.error('Required dev ports are already in use.')
+  for (const spec of unavailable) {
+    p.log.error(`${spec.label} port ${spec.port} is busy`)
+  }
+  p.log.info('Stop the existing local dev processes and rerun `./launch-lms dev`.')
+  process.exit(1)
+}
+
+function isWsl(): boolean {
+  try {
+    return fs.readFileSync('/proc/version', 'utf8').toLowerCase().includes('microsoft')
+  } catch {
+    return false
+  }
+}
+
+function detectWslIpv4(): string | null {
+  const result = spawnSync('hostname', ['-I'], { encoding: 'utf8' })
+  if (result.status !== 0) return null
+
+  const candidates = result.stdout
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((ip) => /^\d+\.\d+\.\d+\.\d+$/.test(ip))
+    .filter((ip) => ip !== '127.0.0.1')
+
+  return candidates[0] || null
+}
+
+function getDevPublicHost(): string {
+  const explicit = process.env.LAUNCHLMS_DEV_PUBLIC_HOST?.trim()
+  if (explicit) return explicit
+
+  if (isWsl()) {
+    const wslIp = detectWslIpv4()
+    if (wslIp) return `${wslIp}.sslip.io`
+  }
+
+  return DEFAULT_DEV_PUBLIC_HOST
 }
 
 function getDevDatabaseUrl(): string {
@@ -217,6 +289,22 @@ function killProcess(child: ChildProcess | null): Promise<void> {
   })
 }
 
+function certHasRequiredDevHosts(certPath: string, publicHost: string): boolean {
+  try {
+    const certPem = fs.readFileSync(certPath, 'utf8')
+    const cert = new X509Certificate(certPem)
+    const sans = cert.subjectAltName || ''
+    return [
+      'DNS:localhost',
+      'IP Address:127.0.0.1',
+      `DNS:${publicHost}`,
+      `DNS:*.${publicHost}`,
+    ].every((entry) => sans.includes(entry))
+  } catch {
+    return false
+  }
+}
+
 export async function devCommand(opts: { ee?: boolean }) {
   const root = findProjectRoot()
   if (!root) {
@@ -226,6 +314,7 @@ export async function devCommand(opts: { ee?: boolean }) {
   }
 
   p.intro(pc.cyan('Launch LMS Dev Mode'))
+  const devPublicHost = getDevPublicHost()
 
   // Check env files before anything else
   const envOk = await checkDevEnv(root)
@@ -324,6 +413,12 @@ export async function devCommand(opts: { ee?: boolean }) {
   const collabDir = path.join(root, 'apps', 'collab')
   const apiDir = path.join(root, 'apps', 'api')
 
+  await ensurePortsAvailable([
+    { port: parseInt(DEV_API_PORT, 10), label: 'API' },
+    { port: parseInt(DEV_WEB_PORT, 10), label: 'Web' },
+    { port: parseInt(DEV_COLLAB_PORT, 10), label: 'Collab' },
+  ])
+
   // Auto-install missing dependencies
   const bunProjects = [
     { label: 'web', dir: webDir },
@@ -356,15 +451,23 @@ export async function devCommand(opts: { ee?: boolean }) {
   const certFile = path.join(root, 'certs', 'local.pem')
   const keyFile = path.join(root, 'certs', 'local-key.pem')
   let hasCerts = fs.existsSync(certFile) && fs.existsSync(keyFile)
+  const hasCompatibleCerts = hasCerts && certHasRequiredDevHosts(certFile, devPublicHost)
 
-  if (!hasCerts) {
-    p.log.info('No TLS certs found — running cert setup...')
+  if (!hasCompatibleCerts) {
+    p.log.info(hasCerts ? 'Existing TLS certs are outdated — regenerating...' : 'No TLS certs found — running cert setup...')
     const setupScript = path.join(root, 'scripts', 'setup-dev-certs.sh')
-    const result = spawnSync('bash', [setupScript], { stdio: 'inherit', cwd: root })
+    const result = spawnSync('bash', [setupScript], {
+      stdio: 'inherit',
+      cwd: root,
+      env: {
+        ...process.env,
+        LAUNCHLMS_DEV_PUBLIC_HOST: devPublicHost,
+      },
+    })
     if (result.status === 0) {
       hasCerts = fs.existsSync(certFile) && fs.existsSync(keyFile)
       if (hasCerts) {
-        p.log.success('TLS certs generated — starting with HTTPS')
+        p.log.success('TLS certs ready — starting with HTTPS')
       } else {
         p.log.warning('Cert script ran but certs not found — starting with HTTP')
       }
@@ -390,13 +493,58 @@ export async function devCommand(opts: { ee?: boolean }) {
     }
   }
 
+  const apiProtocol = hasCerts ? 'https' : 'http'
+  const collabProtocol = hasCerts ? 'wss' : 'ws'
+  const publicApiBaseUrl = `${apiProtocol}://${devPublicHost}:${DEV_API_PORT}`
+  const internalApiBaseUrl = `${apiProtocol}://${DEV_LOCAL_HOST}:${DEV_API_PORT}`
+  const publicWebOrigin = `${hasCerts ? 'https' : 'http'}://${devPublicHost}:${DEV_WEB_PORT}`
+  const localWebOrigin = `${hasCerts ? 'https' : 'http'}://${DEV_LOCAL_HOST}:${DEV_WEB_PORT}`
+  const publicCollabUrl = `${collabProtocol}://${devPublicHost}:${DEV_COLLAB_PORT}`
+
+  serviceEnv = {
+    ...serviceEnv,
+    NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL: `${publicApiBaseUrl}/`,
+    NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL: `${publicApiBaseUrl}/`,
+    NEXT_PUBLIC_LAUNCHLMS_API_URL: `${publicApiBaseUrl}/api/v1/`,
+    NEXT_PUBLIC_LEARNHOUSE_API_URL: `${publicApiBaseUrl}/api/v1/`,
+    NEXT_PUBLIC_LAUNCHLMS_HTTPS: hasCerts ? 'true' : 'false',
+    NEXT_PUBLIC_COLLAB_URL: publicCollabUrl,
+    LAUNCHLMS_DEV_PUBLIC_HOST: devPublicHost,
+    LAUNCHLMS_INTERNAL_BACKEND_URL: internalApiBaseUrl,
+    LAUNCHLMS_INTERNAL_API_URL: `${internalApiBaseUrl}/api/v1/`,
+    LAUNCHLMS_API_URL: internalApiBaseUrl,
+    LAUNCHLMS_DOMAIN: `${devPublicHost}:${DEV_API_PORT}`,
+    LAUNCHLMS_FRONTEND_DOMAIN: `${devPublicHost}:${DEV_WEB_PORT}`,
+    LAUNCHLMS_COOKIE_DOMAIN: hasCerts ? `.${devPublicHost}` : '',
+    LAUNCHLMS_SSL: hasCerts ? 'true' : 'false',
+    LAUNCHLMS_ALLOWED_ORIGINS: [
+      `${publicWebOrigin}`,
+      `${localWebOrigin}`,
+      `${publicApiBaseUrl}`,
+      `${internalApiBaseUrl}`,
+    ].join(','),
+    COLLAB_PORT: DEV_COLLAB_PORT,
+    COLLAB_PUBLIC_URL: publicCollabUrl,
+  }
+
+  if (hasCerts) {
+    serviceEnv.COLLAB_TLS_CERT = certFile
+    serviceEnv.COLLAB_TLS_KEY = keyFile
+    // Dev-only fallback for runtimes that do not honor the local mkcert root
+    // consistently during server-side fetches.
+    serviceEnv.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+  }
+
   // Start local services
   let apiProc: ChildProcess | null = null
   let webProc: ChildProcess | null = null
   let collabProc: ChildProcess | null = null
 
   const startApi = () => {
-    const args = ['run', 'uvicorn', 'app:app', '--reload', '--port', '1338']
+    const args = ['run', 'uvicorn', 'app:app', '--reload', '--host', '0.0.0.0', '--port', '1338']
+    if (hasCerts) {
+      args.push('--ssl-keyfile', keyFile, '--ssl-certfile', certFile)
+    }
     return spawnService('uv', args, path.join(root, 'apps', 'api'), 'api', pc.magenta)
   }
 
@@ -416,6 +564,10 @@ export async function devCommand(opts: { ee?: boolean }) {
 
   p.log.success('API, Web, and Collab servers started')
   console.log()
+  console.log(pc.bold('Open:'))
+  console.log(`  Web:    ${pc.cyan(publicWebOrigin)}`)
+  console.log(`  API:    ${pc.magenta(publicApiBaseUrl)}`)
+  console.log(`  Collab: ${pc.yellow(publicCollabUrl)}`)
   console.log(pc.dim('  Thank you for contributing to Launch LMS!'))
   console.log()
 
