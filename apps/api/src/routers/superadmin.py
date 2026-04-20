@@ -141,11 +141,15 @@ async def list_organizations(
             continue
         user_count = db_session.exec(select(func.count()).where(UserOrganization.org_id == org.id)).one()
         course_count = db_session.exec(select(func.count()).where(Course.org_id == org.id)).one()
+        pending_request_count = db_session.exec(
+            select(func.count()).where(PlanRequest.org_id == org.id, PlanRequest.status == "pending")
+        ).one()
         domains = db_session.exec(select(CustomDomain).where(CustomDomain.org_id == org.id)).all()
         items.append({
             **org.model_dump(),
             "user_count": user_count,
             "course_count": course_count,
+            "pending_request_count": pending_request_count,
             "plan": org_plan,
             "custom_domains": [domain.domain for domain in domains],
             "admin_users": _admin_users_for_org(org.id, db_session),
@@ -309,6 +313,9 @@ async def get_organization(org_id: int, db_session: Session = Depends(get_db_ses
     org_config = db_session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)).first()
     user_count = db_session.exec(select(func.count()).where(UserOrganization.org_id == org.id)).one()
     course_count = db_session.exec(select(func.count()).where(Course.org_id == org.id)).one()
+    pending_request_count = db_session.exec(
+        select(func.count()).where(PlanRequest.org_id == org.id, PlanRequest.status == "pending")
+    ).one()
     domains = db_session.exec(select(CustomDomain).where(CustomDomain.org_id == org.id)).all()
     return {
         **org.model_dump(),
@@ -316,6 +323,7 @@ async def get_organization(org_id: int, db_session: Session = Depends(get_db_ses
         "plan": _org_plan(org_config),
         "user_count": user_count,
         "course_count": course_count,
+        "pending_request_count": pending_request_count,
         "custom_domains": [domain.domain for domain in domains],
         "admin_users": _admin_users_for_org(org.id, db_session),
     }

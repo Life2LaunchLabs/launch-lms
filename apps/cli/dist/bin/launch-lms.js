@@ -7730,6 +7730,8 @@ async function devCommand(opts) {
     NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL: `${publicApiBaseUrl}/`,
     NEXT_PUBLIC_LAUNCHLMS_API_URL: `${publicApiBaseUrl}/api/v1/`,
     NEXT_PUBLIC_LEARNHOUSE_API_URL: `${publicApiBaseUrl}/api/v1/`,
+    NEXT_PUBLIC_LAUNCHLMS_DOMAIN: `${devPublicHost}:${DEV_WEB_PORT}`,
+    NEXT_PUBLIC_LAUNCHLMS_TOP_DOMAIN: devPublicHost,
     NEXT_PUBLIC_LAUNCHLMS_HTTPS: hasCerts ? "true" : "false",
     NEXT_PUBLIC_COLLAB_URL: publicCollabUrl,
     LAUNCHLMS_DEV_PUBLIC_HOST: devPublicHost,

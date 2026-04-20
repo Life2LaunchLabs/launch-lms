@@ -17,6 +17,8 @@ async function getServerDomain(): Promise<string> {
   } catch {
     // cookies() may throw outside of a request context
   }
+  const devHost = process.env.LAUNCHLMS_DEV_PUBLIC_HOST
+  if (devHost) return `${devHost}:3000`
   return 'localhost'
 }
 

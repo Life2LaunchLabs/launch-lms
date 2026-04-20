@@ -13,8 +13,30 @@ interface InstanceInfo {
   frontend_domain: string
   top_domain: string
 }
+interface OrgSubdomainAccess {
+  user_site_enabled: boolean
+}
 let _instanceCache: { data: InstanceInfo; ts: number } | null = null
+const _orgAccessCache = new Map<string, { data: OrgSubdomainAccess; ts: number }>()
 const INSTANCE_CACHE_TTL = 30 * 1000 // 30 seconds
+const ORG_ACCESS_CACHE_TTL = 30 * 1000 // 30 seconds
+
+function getDevInstanceFallback(): InstanceInfo {
+  const frontendDomain =
+    process.env.NEXT_PUBLIC_LAUNCHLMS_DOMAIN ||
+    (process.env.LAUNCHLMS_DEV_PUBLIC_HOST ? `${process.env.LAUNCHLMS_DEV_PUBLIC_HOST}:3000` : 'localhost:3000')
+  const topDomain =
+    process.env.NEXT_PUBLIC_LAUNCHLMS_TOP_DOMAIN ||
+    process.env.LAUNCHLMS_DEV_PUBLIC_HOST ||
+    'localhost'
+
+  return {
+    multi_org_enabled: true,
+    default_org_slug: 'default',
+    frontend_domain: frontendDomain,
+    top_domain: topDomain,
+  }
+}
 
 async function getInstanceInfo(): Promise<InstanceInfo> {
   if (_instanceCache && Date.now() - _instanceCache.ts < INSTANCE_CACHE_TTL) {
@@ -33,7 +55,7 @@ async function getInstanceInfo(): Promise<InstanceInfo> {
   } catch {
     // Backend unavailable — use defaults
   }
-  return { multi_org_enabled: true, default_org_slug: 'default', frontend_domain: 'localhost:3000', top_domain: 'localhost' }
+  return getDevInstanceFallback()
 }
 
 // Set instance info cookies on a response so client-side can read them synchronously
@@ -66,6 +88,84 @@ async function resolveCustomDomain(domain: string): Promise<{ slug: string } | n
     console.error('Error resolving custom domain:', error)
     return null
   }
+}
+
+async function getOrgSubdomainAccess(orgslug: string): Promise<OrgSubdomainAccess> {
+  const cached = _orgAccessCache.get(orgslug)
+  if (cached && Date.now() - cached.ts < ORG_ACCESS_CACHE_TTL) {
+    return cached.data
+  }
+
+  try {
+    const apiUrl = process.env.LAUNCHLMS_INTERNAL_API_URL || getAPIUrl()
+    const res = await fetch(`${apiUrl}orgs/slug/${encodeURIComponent(orgslug)}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(5000),
+    })
+
+    if (res.ok) {
+      const data = await res.json()
+      const config = data?.config?.config ?? {}
+      const resolved = config?.resolved_features?.custom_domains
+      const user_site_enabled =
+        typeof resolved?.enabled === 'boolean'
+          ? resolved.enabled
+          : config?.cloud?.custom_domain === true
+
+      const access = { user_site_enabled }
+      _orgAccessCache.set(orgslug, { data: access, ts: Date.now() })
+      return access
+    }
+  } catch (error) {
+    console.error('Error resolving org subdomain access:', error)
+  }
+
+  return { user_site_enabled: false }
+}
+
+function getOrgSubdomainSlug(host: string | null, domain: string): string | null {
+  if (!host || isSameHost(host, domain)) return null
+  const extracted = extractSubdomain(host, domain)
+  if (!extracted || extracted === 'auth' || extracted === 'www' || extracted === 'api' || extracted === 'admin') {
+    return null
+  }
+  return extracted
+}
+
+function buildMainDomainUrl(req: NextRequest, pathname: string, search: string, frontendDomain: string): URL {
+  const url = new URL(req.url)
+  url.host = frontendDomain
+  url.pathname = pathname
+  url.search = search
+  return url
+}
+
+function buildOrgSubdomainUrl(req: NextRequest, orgslug: string, pathname: string, search: string, frontendDomain: string): URL {
+  const url = new URL(req.url)
+  const bareFrontendDomain = stripPort(frontendDomain)
+  const bareHost = `${orgslug}.${bareFrontendDomain}`
+  url.host = frontendDomain.includes(':')
+    ? `${bareHost}:${frontendDomain.split(':').slice(1).join(':')}`
+    : bareHost
+  url.pathname = pathname
+  url.search = search
+  return url
+}
+
+function getAdminMigrationPath(pathname: string): string {
+  if (pathname === '/login') return '/login'
+  if (pathname === '/' || pathname === '') return '/dash/org-management'
+  if (pathname === '/organizations') return '/dash/org-management'
+  if (pathname.startsWith('/organizations/')) {
+    const orgId = pathname.split('/')[2]
+    return `/dash/org-management/${orgId}`
+  }
+  if (pathname === '/users') return '/dash/org-management/users'
+  if (pathname === '/analytics') return '/dash/org-management/analytics'
+  return '/dash/org-management'
 }
 
 // Check if the host is a custom domain (not a subdomain of LAUNCHLMS_DOMAIN)
@@ -105,6 +205,7 @@ export default async function proxy(req: NextRequest) {
 
   // Check both old and new cookie names for backward compatibility
   const cookie_orgslug = req.cookies.get('launchlms_orgslug')?.value || req.cookies.get('launchlms_current_orgslug')?.value
+  const subdomainOrgslug = getOrgSubdomainSlug(fullhost, instanceInfo.frontend_domain)
 
   // Cache custom domain resolution within this middleware invocation
   let _resolvedCustomDomainOrg: { slug: string } | null | undefined = undefined
@@ -119,7 +220,8 @@ export default async function proxy(req: NextRequest) {
   const standard_paths = ['/home']
   const auth_paths = ['/login', '/signup', '/reset', '/forgot', '/verify-email']
 
-  // Admin subdomain detection — rewrite to /admin route group
+  // Admin subdomain detection — redirect legacy admin hostnames into the
+  // owner-org dashboard experience on the main domain.
   // Use prefix check as primary (works even when backend fetch fails in Edge Runtime
   // where NEXT_PUBLIC_ env vars are inlined at build time and may be localhost defaults).
   // Fall back to extractSubdomain for correctness when instanceInfo is available.
@@ -127,9 +229,27 @@ export default async function proxy(req: NextRequest) {
   const isAdminSubdomain = hostbare?.startsWith('admin.') ||
     (fullhost ? extractSubdomain(fullhost, instanceInfo.frontend_domain) === 'admin' : false)
   if (isAdminSubdomain) {
-    const response = NextResponse.rewrite(new URL(`/admin${pathname}${search}`, req.url))
-    setInstanceCookies(response, instanceInfo)
-    return response
+    return NextResponse.redirect(
+      buildMainDomainUrl(
+        req,
+        getAdminMigrationPath(pathname),
+        search,
+        instanceInfo.frontend_domain
+      )
+    )
+  }
+
+  if (
+    pathname.startsWith('/dash') &&
+    hosting_mode === 'multi' &&
+    cookie_orgslug &&
+    cookie_orgslug !== default_org &&
+    !subdomainOrgslug &&
+    !isLocalhostCheck(fullhost)
+  ) {
+    return NextResponse.redirect(
+      buildOrgSubdomainUrl(req, cookie_orgslug, pathname, search, instanceInfo.frontend_domain)
+    )
   }
   if (standard_paths.includes(pathname)) {
     // Redirect to the same pathname with the original search params
@@ -254,6 +374,20 @@ export default async function proxy(req: NextRequest) {
   // Health Check
   if (pathname.startsWith('/health')) {
     return NextResponse.rewrite(new URL(`/api/health`, req.url))
+  }
+
+  if (
+    hosting_mode === 'multi' &&
+    subdomainOrgslug &&
+    subdomainOrgslug !== default_org &&
+    !pathname.startsWith('/dash')
+  ) {
+    const access = await getOrgSubdomainAccess(subdomainOrgslug)
+    if (!access.user_site_enabled) {
+      return NextResponse.redirect(
+        buildMainDomainUrl(req, pathname, search, instanceInfo.frontend_domain)
+      )
+    }
   }
 
   // Internal org-scoped routes should pass straight through once they've been

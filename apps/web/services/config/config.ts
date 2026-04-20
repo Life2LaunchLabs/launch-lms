@@ -90,7 +90,9 @@ const getLAUNCHLMS_DOMAIN = () => {
   // 2. Cookie set by middleware from backend instance info
   const cookieVal = getCookieValue('launchlms_frontend_domain')
   if (cookieVal) return cookieVal
-  // 3. Default
+  // 3. Fall back to the current browser host in dev before hardcoding localhost
+  if (typeof window !== 'undefined' && window.location.host) return window.location.host
+  // 4. Default
   return 'localhost'
 }
 const getLAUNCHLMS_TOP_DOMAIN = () => {

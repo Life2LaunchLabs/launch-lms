@@ -42,10 +42,11 @@ import {
 } from '@phosphor-icons/react'
 import Link from 'next/link'
 import React, { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import UserAvatar from '../../Objects/UserAvatar'
 import AdminAuthorization from '@components/Security/AdminAuthorization'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getUriWithOrg, getAPIUrl, getCoreCapabilities } from '@services/config/config'
+import { getUriWithOrg, getAPIUrl, getCoreCapabilities, getDefaultOrg } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import {
   Tooltip,
@@ -75,6 +76,7 @@ function DashLeftMenu() {
   const org = useOrg() as any
   const session = useLHSession() as any
   const { t, i18n } = useTranslation()
+  const pathname = usePathname()
   const plan = usePlan()
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false
@@ -160,6 +162,7 @@ function DashLeftMenu() {
 
   const capabilities = getCoreCapabilities()
   const planLabel = 'Core'
+  const isOwnerOrg = org?.slug === getDefaultOrg()
 
   // Feature visibility from API resolved_features
   const rf = org?.config?.config?.resolved_features
@@ -640,26 +643,54 @@ function DashLeftMenu() {
         </AdminAuthorization>
       </div>
 
-      {/* Master org superadmin section */}
-      {plan === 'master' && (
+      {/* Owner org platform section */}
+      {isOwnerOrg && (
         <div className="border-t border-amber-400/20 mt-1 pt-2 px-3 pb-1">
           {!isCollapsed && (
             <p className="text-[9px] font-semibold uppercase tracking-widest text-amber-400/60 px-1 mb-1">
               Platform
             </p>
           )}
-          <Link
-            href={getUriWithOrg(org.slug, '/dash/org-management')}
-            className={cn(
-              "flex items-center w-full rounded-lg text-amber-400/70 hover:text-amber-300 hover:bg-amber-400/10 transition-all",
-              isCollapsed ? "justify-center h-10" : "px-3 py-2 gap-3"
-            )}
-          >
-            <Buildings size={20} weight="fill" />
-            {!isCollapsed && (
-              <span className="text-sm font-medium">Org Management</span>
-            )}
-          </Link>
+          {[
+            {
+              href: '/dash/org-management',
+              icon: <Buildings size={20} weight="fill" />,
+              label: 'Organizations',
+            },
+            {
+              href: '/dash/org-management/users',
+              icon: <UsersThree size={20} weight="fill" />,
+              label: 'Users',
+            },
+            {
+              href: '/dash/org-management/analytics',
+              icon: <ChartBar size={20} weight="fill" />,
+              label: 'Analytics',
+            },
+          ].map((item) => {
+            const isActive =
+              pathname?.startsWith(`/orgs/${org.slug}${item.href}`) ||
+              pathname?.startsWith(item.href)
+
+            return (
+              <Link
+                key={item.href}
+                href={getUriWithOrg(org.slug, item.href)}
+                className={cn(
+                  "flex items-center w-full rounded-lg transition-all",
+                  isCollapsed ? "justify-center h-10" : "px-3 py-2 gap-3",
+                  isActive
+                    ? "bg-amber-400/10 text-amber-300"
+                    : "text-amber-400/70 hover:text-amber-300 hover:bg-amber-400/10"
+                )}
+              >
+                {item.icon}
+                {!isCollapsed && (
+                  <span className="text-sm font-medium">{item.label}</span>
+                )}
+              </Link>
+            )
+          })}
         </div>
       )}
 
