@@ -80,7 +80,7 @@ else:
     def receive_checkin(dbapi_connection, connection_record):
         logging.debug("Connection returned to pool")
 
-# Only create tables if not in test mode (tests will handle this themselves)
+# Runtime should not create schema objects outside Alembic-managed flows.
 if not is_testing:
     # Enable pgvector extension for vector similarity search (optional — RAG feature)
     from sqlalchemy import text
@@ -94,14 +94,10 @@ if not is_testing:
             "Install pgvector on your PostgreSQL server to enable course chatbot. "
             "Error: %s", e
         )
-    SQLModel.metadata.create_all(engine)
 
 async def connect_to_db(app: FastAPI):
     app.db_engine = engine  # type: ignore
     logging.info("Launch LMS database has been started.")
-    # Only create tables if not in test mode
-    if not is_testing:
-        SQLModel.metadata.create_all(engine)
 
 def get_db_session():
     with Session(engine) as session:
