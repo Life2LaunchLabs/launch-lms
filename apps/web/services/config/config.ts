@@ -141,6 +141,38 @@ const deriveAPIUrl = (): string => {
   return `${backendUrl}/api/v1/`
 }
 
+const getClientAPIUrl = (): string => {
+  // Route browser requests through the same-origin Next.js proxy whenever the
+  // configured API origin would be cross-origin or would downgrade HTTPS.
+  const derivedUrl = deriveAPIUrl()
+
+  if (typeof window === 'undefined') {
+    return derivedUrl
+  }
+
+  if (isOnCustomDomain()) {
+    return '/api/v1/'
+  }
+
+  try {
+    const apiOrigin = new URL(derivedUrl, window.location.origin).origin
+    if (
+      window.location.protocol === 'https:' &&
+      derivedUrl.startsWith('http://')
+    ) {
+      return '/api/v1/'
+    }
+
+    if (apiOrigin !== window.location.origin) {
+      return '/api/v1/'
+    }
+  } catch {
+    return '/api/v1/'
+  }
+
+  return derivedUrl
+}
+
 // For direct usage, these call the getters
 export const getAPIUrl = () => {
   // Server-side: always use absolute internal URL — relative paths are invalid in Node.js fetch
@@ -150,12 +182,7 @@ export const getAPIUrl = () => {
     const internalBackend = process.env.LAUNCHLMS_INTERNAL_BACKEND_URL
     if (internalBackend) return `${internalBackend.replace(/\/+$/, '')}/api/v1/`
   }
-  // On custom domains (client-side), use relative path to go through Next.js proxy
-  // This ensures cookies work correctly (same-origin)
-  if (isOnCustomDomain()) {
-    return '/api/v1/'
-  }
-  return deriveAPIUrl()
+  return getClientAPIUrl()
 }
 
 // Server-side only - always returns full URL (never relative path)
