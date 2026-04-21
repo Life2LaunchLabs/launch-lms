@@ -1,5 +1,5 @@
 import logging
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect
 from sqlmodel import SQLModel, Session, select
 
 from cli import install
@@ -16,7 +16,12 @@ def auto_install():
     engine = create_engine(
         launchlms_config.database_config.sql_connection_string, echo=False, pool_pre_ping=True  # type: ignore
     )
-    SQLModel.metadata.create_all(engine)
+
+    with engine.connect() as connection:
+        inspector = inspect(connection)
+        if "organization" not in inspector.get_table_names():
+            logger.info("Auto-install skipped: database schema is not initialized yet.")
+            return
 
     db_session = Session(engine)
 
