@@ -93,7 +93,7 @@ function slugifyOrganizationName(name: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
-const PLANS = ['all', 'free', 'paid', 'standard', 'pro', 'enterprise'] as const
+const PLANS = ['all', 'free', 'paid', 'full', 'enterprise'] as const
 const PAGE_SIZE = 20
 
 function Sparkline({ data, max }: { data: number[]; max: number }) {
@@ -660,8 +660,7 @@ export default function OrganizationList({
                 <td className="px-4 py-3">
                   <span className={`text-xs font-medium uppercase tracking-wider px-2 py-0.5 rounded ${
                     org.plan === 'enterprise' ? 'bg-amber-400/10 text-amber-400'
-                      : org.plan === 'pro' ? 'bg-purple-400/10 text-purple-400'
-                      : org.plan === 'standard' ? 'bg-blue-400/10 text-blue-400'
+                      : org.plan === 'full' ? 'bg-blue-400/10 text-blue-400'
                       : 'bg-white/[0.06] text-white/40'
                   }`}>
                     {org.plan}

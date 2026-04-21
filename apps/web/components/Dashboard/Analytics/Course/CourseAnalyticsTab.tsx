@@ -105,7 +105,7 @@ export default function CourseAnalyticsTab({ courseUUID }: { courseUUID: string 
       <div className="p-6">
         <PlanRestrictedFeature
           currentPlan={currentPlan}
-          requiredPlan="pro"
+          requiredPlan="enterprise"
           icon={ChartBar}
           titleKey="common.plans.feature_restricted.course_analytics.title"
           descriptionKey="common.plans.feature_restricted.course_analytics.description"

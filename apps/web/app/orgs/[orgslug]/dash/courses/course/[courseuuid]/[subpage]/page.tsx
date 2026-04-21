@@ -83,7 +83,7 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
       icon: Search,
       href: `/dash/courses/course/${params.courseuuid}/seo`,
       requiredPermission: 'update' as const,
-      requiresPlan: 'standard' as PlanLevel
+      requiresPlan: 'full' as PlanLevel
     },
     {
       key: 'certification',
@@ -91,7 +91,7 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
       icon: Award,
       href: `/dash/courses/course/${params.courseuuid}/certification`,
       requiredPermission: 'create_certifications' as const,
-      requiresPlan: 'pro' as PlanLevel
+      requiresPlan: 'enterprise' as PlanLevel
     },
     {
       key: 'analytics',
@@ -99,7 +99,7 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
       icon: ChartBar,
       href: `/dash/courses/course/${params.courseuuid}/analytics`,
       requiredPermission: 'update' as const,
-      requiresPlan: 'pro' as PlanLevel
+      requiresPlan: 'enterprise' as PlanLevel
     }
   ]
 
@@ -223,7 +223,7 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
                 <div className="h-6" />
                 <PlanRestrictedFeature
                   currentPlan={currentPlan}
-                  requiredPlan="standard"
+                  requiredPlan="full"
                   icon={Search}
                   titleKey="common.plans.feature_restricted.seo.title"
                   descriptionKey="common.plans.feature_restricted.seo.description"
@@ -238,7 +238,7 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
             {params.subpage == 'certification' && hasPermission('create_certifications') ? (
               <PlanRestrictedFeature
                 currentPlan={currentPlan}
-                requiredPlan="pro"
+                requiredPlan="enterprise"
                 icon={Award}
                 titleKey="common.plans.feature_restricted.certifications.title"
                 descriptionKey="common.plans.feature_restricted.certifications.description"
@@ -249,7 +249,7 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
             {params.subpage == 'analytics' && hasPermission('update') ? (
               <PlanRestrictedFeature
                 currentPlan={currentPlan}
-                requiredPlan="pro"
+                requiredPlan="enterprise"
                 icon={ChartBar}
                 titleKey="common.plans.feature_restricted.course_analytics.title"
                 descriptionKey="common.plans.feature_restricted.course_analytics.description"

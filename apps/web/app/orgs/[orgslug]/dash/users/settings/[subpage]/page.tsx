@@ -131,7 +131,7 @@ function UsersSettingsPage(props: { params: Promise<SettingsParams> }) {
                 <SquareUserRound size={16} />
                 <div className="flex items-center">
                   {t('dashboard.users.settings.tabs.usergroups')}
-                  <PlanBadge currentPlan={currentPlan} requiredPlan="standard" />
+                  <PlanBadge currentPlan={currentPlan} requiredPlan="full" />
                 </div>
               </div>
             </div>
@@ -151,7 +151,7 @@ function UsersSettingsPage(props: { params: Promise<SettingsParams> }) {
                 <Shield size={16} />
                 <div className="flex items-center">
                   {t('dashboard.users.settings.tabs.roles')}
-                  <PlanBadge currentPlan={currentPlan} requiredPlan="pro" />
+                  <PlanBadge currentPlan={currentPlan} requiredPlan="enterprise" />
                 </div>
               </div>
             </div>

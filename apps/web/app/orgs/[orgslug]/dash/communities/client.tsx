@@ -38,7 +38,7 @@ const CommunitiesDashClient = ({
   return (
     <PlanRestrictedFeature
       currentPlan={currentPlan}
-      requiredPlan="standard"
+      requiredPlan="full"
       icon={MessagesSquare}
       titleKey="common.plans.feature_restricted.communities.title"
       descriptionKey="common.plans.feature_restricted.communities.description"

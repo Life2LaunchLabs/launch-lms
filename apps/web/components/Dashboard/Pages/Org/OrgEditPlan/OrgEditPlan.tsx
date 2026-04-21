@@ -73,7 +73,6 @@ const PLAN_FEATURES: Record<PlanLevel, string[]> = {
     'SSO',
     'Audit logs',
   ],
-  master: ['Everything, unlimited', 'Platform management', 'No restrictions'],
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -121,11 +120,10 @@ export default function OrgEditPlan({ orgslug }: OrgEditPlanProps) {
   )
 
   const activePackages: string[] = org?.config?.config?.packages ?? []
-  const isMaster = currentPlan === 'master'
 
   // Plans the org can request upgrade to
   const upgradablePlans = PLAN_HIERARCHY.filter(
-    (p) => !planMeetsRequirement(currentPlan, p as PlanLevel) && p !== 'master'
+    (p) => !planMeetsRequirement(currentPlan, p as PlanLevel)
   ) as PlanLevel[]
 
   async function handleSubmitRequest() {
@@ -169,11 +167,6 @@ export default function OrgEditPlan({ orgslug }: OrgEditPlanProps) {
                 <span className="text-2xl font-black tracking-tight">
                   {PLAN_LABELS[currentPlan] ?? currentPlan}
                 </span>
-                {isMaster && (
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                    Platform Owner
-                  </span>
-                )}
               </div>
               <ul className="mt-3 space-y-1">
                 {PLAN_FEATURES[currentPlan]?.map((f) => (
@@ -189,7 +182,7 @@ export default function OrgEditPlan({ orgslug }: OrgEditPlanProps) {
       </section>
 
       {/* Active packages */}
-      {planMeetsRequirement(currentPlan, 'full') && !isMaster && (
+      {planMeetsRequirement(currentPlan, 'full') && (
         <section>
           <h2 className="text-lg font-bold tracking-tight mb-3">Add-on Packages</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -247,7 +240,7 @@ export default function OrgEditPlan({ orgslug }: OrgEditPlanProps) {
       )}
 
       {/* Upgrade options */}
-      {!isMaster && upgradablePlans.length > 0 && (
+      {upgradablePlans.length > 0 && (
         <section>
           <h2 className="text-lg font-bold tracking-tight mb-3">Upgrade Plan</h2>
           <div className="space-y-3">

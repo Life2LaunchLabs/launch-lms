@@ -166,7 +166,7 @@ export default function BoardListClient({ org_id, orgslug }: BoardListClientProp
   return (
     <PlanRestrictedFeature
       currentPlan={plan}
-      requiredPlan="pro"
+      requiredPlan="enterprise"
       titleKey="Boards"
       descriptionKey="Create collaborative boards for real-time brainstorming and planning."
     >

@@ -180,9 +180,9 @@ function DashLeftMenu() {
   const showRoles = isEnabled('roles')
   const showAI = isEnabled('ai')
   const showAPI = isEnabled('api')
-  const showDomains = isEnabled('custom_domains') || plan === 'enterprise' || plan === 'master'
-  const showSEO = plan === 'enterprise' || plan === 'master'
-  const isEnterpriseOrMaster = plan === 'enterprise' || plan === 'master'
+  const showDomains = isEnabled('custom_domains') || plan === 'enterprise'
+  const showSEO = plan === 'enterprise'
+  const isEnterpriseOrMaster = plan === 'enterprise'
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -222,7 +222,6 @@ function DashLeftMenu() {
               </span>
               <span className={cn(
                 "text-[9px] font-medium uppercase tracking-wider",
-                plan === 'master' ? "text-amber-400" :
                 plan === 'enterprise' ? "text-purple-400" :
                 plan === 'full' ? "text-blue-400" :
                 "text-green-400"

@@ -202,7 +202,7 @@ const OrgEditAPIAccess: React.FC = () => {
   return (
     <PlanRestrictedFeature
       currentPlan={currentPlan}
-      requiredPlan="pro"
+      requiredPlan="enterprise"
       icon={Key}
       titleKey="common.plans.feature_restricted.api_access.title"
       descriptionKey="common.plans.feature_restricted.api_access.description"

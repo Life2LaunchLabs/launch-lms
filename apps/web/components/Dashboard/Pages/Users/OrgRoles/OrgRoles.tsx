@@ -413,7 +413,7 @@ function OrgRoles() {
                                 <Lock className="w-4 h-4" />
                                 <span>{t('dashboard.users.roles.actions.create')}</span>
                             </button>
-                            <PlanBadge currentPlan={currentPlan} requiredPlan={(rf?.roles?.required_plan || 'pro') as PlanLevel} />
+                            <PlanBadge currentPlan={currentPlan} requiredPlan={(rf?.roles?.required_plan || 'enterprise') as PlanLevel} />
                         </div>
                     )}
                 </div>

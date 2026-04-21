@@ -70,7 +70,7 @@ function OrgUserGroups() {
     return (
         <PlanRestrictedFeature
             currentPlan={currentPlan}
-            requiredPlan="standard"
+            requiredPlan="full"
             icon={SquareUserRound}
             titleKey="common.plans.feature_restricted.usergroups.title"
             descriptionKey="common.plans.feature_restricted.usergroups.description"

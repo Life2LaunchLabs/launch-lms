@@ -168,11 +168,9 @@ export default function OrganizationDetail({
                 className={`text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded ${
                   org.plan === 'enterprise'
                     ? 'bg-amber-400/10 text-amber-400'
-                    : org.plan === 'pro'
-                      ? 'bg-purple-400/10 text-purple-400'
-                      : org.plan === 'standard'
-                        ? 'bg-blue-400/10 text-blue-400'
-                        : 'bg-white/[0.06] text-white/40'
+                    : org.plan === 'full'
+                      ? 'bg-blue-400/10 text-blue-400'
+                      : 'bg-white/[0.06] text-white/40'
                 }`}
               >
                 {org.plan}
@@ -708,7 +706,6 @@ function PlanTab({
     { id: 'free', name: 'Free', description: 'Basic course features, 1 admin', color: 'text-white/40 bg-white/[0.06]' },
     { id: 'full', name: 'Full', description: 'Communities, resources, packages', color: 'text-blue-400 bg-blue-400/10' },
     { id: 'enterprise', name: 'Enterprise', description: 'White-label, custom domains, unlimited', color: 'text-purple-400 bg-purple-400/10' },
-    { id: 'master', name: 'Master', description: 'Platform owner, all features', color: 'text-amber-400 bg-amber-400/10' },
   ]
 
   const handleSavePlan = async () => {

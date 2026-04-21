@@ -12,15 +12,14 @@
 
 import { getCoreCapabilities } from '@services/config/config'
 
-export type PlanLevel = 'free' | 'full' | 'enterprise' | 'master'
+export type PlanLevel = 'free' | 'full' | 'enterprise'
 
-export const PLAN_HIERARCHY: PlanLevel[] = ['free', 'full', 'enterprise', 'master']
+export const PLAN_HIERARCHY: PlanLevel[] = ['free', 'full', 'enterprise']
 
 export const PLAN_LABELS: Record<PlanLevel, string> = {
   free: 'Free',
   full: 'Full',
   enterprise: 'Enterprise',
-  master: 'Master',
 }
 
 /**
