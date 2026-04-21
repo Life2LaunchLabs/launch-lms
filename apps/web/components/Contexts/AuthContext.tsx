@@ -172,6 +172,38 @@ export function SessionProvider({
   const refreshPromiseRef = useRef<Promise<{ access_token: string; expiry?: number } | null> | null>(null)
   const isRefreshingRef = useRef(false)
 
+  const clearAuthState = useCallback(async (broadcast: boolean = true) => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      })
+    } catch (error) {
+      console.error('Silent logout cleanup failed:', error)
+    }
+
+    setSession(null)
+    setAccessToken(null)
+    setTokenExpiry(null)
+    setStatus('unauthenticated')
+    sessionCacheRef.current = null
+    refreshPromiseRef.current = null
+    isRefreshingRef.current = false
+
+    const { secureAttr, domainAttr } = getCookieAttributes()
+    const expireAttr = '; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    document.cookie = `launchlms_oauth_orgslug=; path=/${expireAttr}${secureAttr}${domainAttr}`
+    document.cookie = `launchlms_oauth_org_id=; path=/${expireAttr}${secureAttr}${domainAttr}`
+    document.cookie = `launchlms_has_session=; path=/${expireAttr}${secureAttr}${domainAttr}`
+    document.cookie = `launchlms_has_session=; path=/${expireAttr}${secureAttr}`
+
+    clearOAuthStateCookie()
+
+    if (broadcast) {
+      broadcastChannelRef.current?.postMessage({ type: 'LOGOUT' })
+    }
+  }, [])
+
   // Set up BroadcastChannel for cross-tab communication
   useEffect(() => {
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
@@ -210,6 +242,9 @@ export function SessionProvider({
 
       if (!response.ok) {
         console.error(`Session fetch failed with status: ${response.status}`)
+        if (response.status === 401) {
+          await clearAuthState()
+        }
         return null
       }
 
@@ -227,7 +262,7 @@ export function SessionProvider({
       console.error('Error fetching user session:', error)
       return null
     }
-  }, [])
+  }, [clearAuthState])
 
   // Check if a session might exist (marker cookie is set alongside httpOnly auth cookies)
   const hasSessionMarker = useCallback((): boolean => {
@@ -253,6 +288,7 @@ export function SessionProvider({
         if (!response.ok) {
           if (response.status === 401) {
             // Refresh token expired or invalid
+            await clearAuthState()
             return null
           }
           throw new Error(`Refresh failed with status: ${response.status}`)
@@ -280,7 +316,7 @@ export function SessionProvider({
     })()
 
     return refreshPromiseRef.current
-  }, [])
+  }, [clearAuthState])
 
   // Check if token needs refresh
   const isTokenExpiringSoon = useCallback((expiry?: number | null): boolean => {
@@ -644,50 +680,12 @@ export function SessionProvider({
   const handleSignOut = useCallback(async (options: SignOutOptions = {}) => {
     const { callbackUrl = '/', redirect = true } = options
 
-    let logoutSuccess = false
-    try {
-      // Use Next.js API route to ensure cookies are cleared correctly
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      })
-      logoutSuccess = response.ok
-    } catch (error) {
-      console.error('Logout error:', error)
-    }
-
-    // Clear local state regardless of backend response
-    setSession(null)
-    setAccessToken(null)
-    setTokenExpiry(null)
-    setStatus('unauthenticated')
-    sessionCacheRef.current = null
-
-    // Clear refresh promise
-    refreshPromiseRef.current = null
-    isRefreshingRef.current = false
-
-    // Clear any auth cookies on client side
-    const { secureAttr, domainAttr, sameSiteAttr } = getCookieAttributes()
-    const expireAttr = '; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-    document.cookie = `launchlms_oauth_orgslug=; path=/${expireAttr}${secureAttr}${domainAttr}`
-    document.cookie = `launchlms_oauth_org_id=; path=/${expireAttr}${secureAttr}${domainAttr}`
-
-    // Clear OAuth state
-    clearOAuthStateCookie()
-
-    // Notify other tabs about logout
-    broadcastChannelRef.current?.postMessage({ type: 'LOGOUT' })
+    await clearAuthState()
 
     if (redirect) {
       window.location.href = callbackUrl
     }
-
-    // If backend logout failed, log a warning (user is still logged out locally)
-    if (!logoutSuccess) {
-      console.warn('Backend logout may have failed. User logged out locally.')
-    }
-  }, [])
+  }, [clearAuthState])
 
   const contextValue: AuthContextValue = {
     session,

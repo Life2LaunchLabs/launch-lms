@@ -13,12 +13,8 @@ import toast from 'react-hot-toast'
 import useSWR, { mutate } from 'swr'
 import { useTranslation } from 'react-i18next'
 
-type EditCourseAccessProps = {
-    orgslug: string
-    course_uuid?: string
-}
-
-function EditCourseAccess(props: EditCourseAccessProps) {
+function EditCourseAccess(_props: { orgslug: string; course_uuid?: string }) {
+    void _props
     const { t } = useTranslation()
     const session = useLHSession() as any;
     const access_token = session?.data?.tokens?.access_token;
@@ -41,18 +37,24 @@ function EditCourseAccess(props: EditCourseAccessProps) {
     // Track local public state
     const [isClientPublic, setIsClientPublic] = useState<boolean | undefined>(undefined);
     const [isGuestAccessEnabled, setIsGuestAccessEnabled] = useState<boolean>(false);
+    const [isSharedAcrossOrgs, setIsSharedAcrossOrgs] = useState<boolean>(false);
     const hasInitializedRef = useRef(false);
     const previousPublicRef = useRef<boolean | undefined>(undefined);
+    const previousSharedRef = useRef<boolean>(false);
 
     // Initialize local state from courseStructure
+    /* eslint-disable react-hooks/set-state-in-effect */
     useEffect(() => {
         if (!isLoading && courseStructure?.public !== undefined && !hasInitializedRef.current) {
             setIsClientPublic(courseStructure.public);
             setIsGuestAccessEnabled(courseStructure.guest_access === true);
+            setIsSharedAcrossOrgs(courseStructure.shared === true);
             previousPublicRef.current = courseStructure.public;
+            previousSharedRef.current = courseStructure.shared === true;
             hasInitializedRef.current = true;
         }
-    }, [isLoading, courseStructure?.public, courseStructure?.guest_access]);
+    }, [isLoading, courseStructure?.public, courseStructure?.guest_access, courseStructure?.shared]);
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     // Sync public state changes to context
     useEffect(() => {
@@ -65,6 +67,14 @@ function EditCourseAccess(props: EditCourseAccessProps) {
         syncChanges({ public: isClientPublic }, true);
         previousPublicRef.current = isClientPublic;
     }, [isClientPublic, isLoading, isSaving, syncChanges]);
+
+    useEffect(() => {
+        if (!hasInitializedRef.current || isLoading || isSaving) return;
+        if (isSharedAcrossOrgs === previousSharedRef.current) return;
+
+        syncChanges({ shared: isSharedAcrossOrgs }, true);
+        previousSharedRef.current = isSharedAcrossOrgs;
+    }, [isSharedAcrossOrgs, isLoading, isSaving, syncChanges]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -144,7 +154,7 @@ function EditCourseAccess(props: EditCourseAccessProps) {
                         <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
                             <div className="flex items-start justify-between gap-4">
                                 <div>
-                                    <h3 className="text-base font-semibold text-slate-800">Guest onboarding access</h3>
+                                    <h3 className="text-base font-semibold text-slate-800">Guest and signed-out access</h3>
                                     <p className="mt-1 text-sm text-slate-500">
                                         Let signed-out visitors open this published course directly and keep onboarding progress until they create an account.
                                     </p>
@@ -161,6 +171,26 @@ function EditCourseAccess(props: EditCourseAccessProps) {
                                     />
                                     <span className="text-sm font-medium text-slate-700">
                                         {isGuestAccessEnabled ? 'Enabled' : 'Disabled'}
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <h3 className="text-base font-semibold text-slate-800">Shared across organizations</h3>
+                                    <p className="mt-1 text-sm text-slate-500">
+                                        Make this course discoverable and usable by signed-in learners visiting through other org sites. Progress, submissions, and comments will still stay attached to this course&apos;s owning org.
+                                    </p>
+                                </div>
+                                <label className="inline-flex items-center gap-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={isSharedAcrossOrgs}
+                                        onChange={(e) => setIsSharedAcrossOrgs(e.target.checked)}
+                                    />
+                                    <span className="text-sm font-medium text-slate-700">
+                                        {isSharedAcrossOrgs ? 'Enabled' : 'Disabled'}
                                     </span>
                                 </label>
                             </div>
@@ -190,7 +220,7 @@ function UserGroupsSection({ usergroups }: { usergroups: any[] }) {
             } else {
                 toast.error(t('dashboard.courses.access.usergroups.toasts.link_error', { status: res.status, detail: res.data.detail }));
             }
-        } catch (error) {
+        } catch {
             toast.error(t('dashboard.courses.access.usergroups.toasts.unlink_error'));
         }
     };

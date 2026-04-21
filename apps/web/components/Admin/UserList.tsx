@@ -112,7 +112,7 @@ function OrgListTooltip({ orgs }: { orgs: OrgMembership[] }) {
   )
 }
 
-export default function UserList() {
+export default function UserList({ lightTheme = false }: { lightTheme?: boolean }) {
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
   const sessionUserId = session?.data?.user?.id
@@ -256,7 +256,7 @@ export default function UserList() {
   )
 
   return (
-    <div>
+    <div className={lightTheme ? 'platform-users-light' : ''}>
       {/* Toolbar */}
       <div className="flex flex-col gap-3 mb-4">
         <div className="flex items-center justify-between">
@@ -550,6 +550,32 @@ export default function UserList() {
           </>
         )}
       </div>
+      {lightTheme && (
+        <style jsx global>{`
+          .platform-users-light [class~="text-white"] { color: rgb(17 24 39) !important; }
+          .platform-users-light [class~="text-white/60"] { color: rgb(75 85 99) !important; }
+          .platform-users-light [class~="text-white/50"] { color: rgb(107 114 128) !important; }
+          .platform-users-light [class~="text-white/40"] { color: rgb(107 114 128) !important; }
+          .platform-users-light [class~="text-white/30"] { color: rgb(156 163 175) !important; }
+          .platform-users-light [class~="text-white/25"] { color: rgb(156 163 175) !important; }
+          .platform-users-light [class~="text-white/20"] { color: rgb(209 213 219) !important; }
+          .platform-users-light [class~="bg-[#1a1a1b]"] { background-color: rgb(255 255 255) !important; }
+          .platform-users-light [class~="bg-[#0f0f10]/50"] { background-color: rgb(255 255 255 / 0.7) !important; }
+          .platform-users-light [class~="bg-white/[0.03]"] { background-color: rgb(255 255 255) !important; }
+          .platform-users-light [class~="bg-white/[0.05]"] { background-color: rgb(249 250 251) !important; }
+          .platform-users-light [class~="bg-white/[0.08]"] { background-color: rgb(243 244 246) !important; }
+          .platform-users-light [class~="bg-white/10"] { background-color: rgb(243 244 246) !important; }
+          .platform-users-light [class~="border-white/[0.05]"] { border-color: rgb(243 244 246) !important; }
+          .platform-users-light [class~="border-white/[0.08]"] { border-color: rgb(229 231 235) !important; }
+          .platform-users-light [class~="border-white/[0.12]"] { border-color: rgb(229 231 235) !important; }
+          .platform-users-light [class~="hover:bg-white/[0.03]"]:hover { background-color: rgb(249 250 251) !important; }
+          .platform-users-light [class~="hover:bg-white/[0.05]"]:hover { background-color: rgb(243 244 246) !important; }
+          .platform-users-light [class~="hover:bg-white/[0.08]"]:hover { background-color: rgb(243 244 246) !important; }
+          .platform-users-light [class~="hover:text-white"]:hover { color: rgb(17 24 39) !important; }
+          .platform-users-light [class~="hover:text-white/60"]:hover { color: rgb(75 85 99) !important; }
+          .platform-users-light [class~="hover:text-white/80"]:hover { color: rgb(55 65 81) !important; }
+        `}</style>
+      )}
     </div>
   )
 }

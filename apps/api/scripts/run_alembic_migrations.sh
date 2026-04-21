@@ -21,6 +21,10 @@ else
   if [ "$status" -eq 10 ]; then
     echo "Bootstrapping Alembic state for legacy database schema..."
     uv run alembic stamp head
+  elif [ "$status" -eq 11 ]; then
+    echo "Bootstrapping fresh database schema from current models..."
+    uv run python ./scripts/bootstrap_fresh_database.py
+    uv run alembic stamp head
   else
     exit "$status"
   fi

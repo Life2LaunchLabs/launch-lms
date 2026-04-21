@@ -49,6 +49,7 @@ interface OrgWithCount {
   plan: string
   custom_domains: string[]
   admin_users: AdminUserInfo[]
+  pending_request_count: number
 }
 
 interface VisitRow {
@@ -92,7 +93,7 @@ function slugifyOrganizationName(name: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
-const PLANS = ['all', 'free', 'paid', 'standard', 'pro', 'enterprise'] as const
+const PLANS = ['all', 'free', 'paid', 'full', 'enterprise'] as const
 const PAGE_SIZE = 20
 
 function Sparkline({ data, max }: { data: number[]; max: number }) {
@@ -207,7 +208,13 @@ function ImgWithFallback({
   )
 }
 
-export default function OrganizationList() {
+export default function OrganizationList({
+  basePath = '/organizations',
+  lightTheme = false,
+}: {
+  basePath?: string
+  lightTheme?: boolean
+}) {
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
   const searchParams = useSearchParams()
@@ -415,7 +422,7 @@ export default function OrganizationList() {
   )
 
   return (
-    <div>
+    <div className={lightTheme ? 'platform-list-light' : ''}>
       {/* Toolbar */}
       <div className="flex flex-col gap-3 mb-4">
         <div className="flex items-center justify-between">
@@ -586,6 +593,7 @@ export default function OrganizationList() {
             <th className="px-4 py-3 text-xs font-medium text-white/40 uppercase tracking-wider">Courses</th>
             <th className="px-4 py-3 text-xs font-medium text-white/40 uppercase tracking-wider">Admins</th>
             <th className="px-4 py-3 text-xs font-medium text-white/40 uppercase tracking-wider">Plan</th>
+            <th className="px-4 py-3 text-xs font-medium text-white/40 uppercase tracking-wider">Requests</th>
             <th className="px-4 py-3 text-xs font-medium text-white/40 uppercase tracking-wider">Created</th>
             <th className="px-4 py-3 text-xs font-medium text-white/40 uppercase tracking-wider">Updated</th>
             <th className="px-4 py-3 text-xs font-medium text-white/40 uppercase tracking-wider"></th>
@@ -599,7 +607,7 @@ export default function OrganizationList() {
             return (
               <tr key={org.id} className="border-b border-white/[0.05] hover:bg-white/[0.03] transition-colors">
                 <td className="px-4 py-3">
-                  <Link href={`/organizations/${org.id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                  <Link href={`${basePath}/${org.id}`} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                     {org.logo_image ? (
                       <ImgWithFallback
                         src={getLogoUrl(org.org_uuid, org.logo_image)}
@@ -652,12 +660,20 @@ export default function OrganizationList() {
                 <td className="px-4 py-3">
                   <span className={`text-xs font-medium uppercase tracking-wider px-2 py-0.5 rounded ${
                     org.plan === 'enterprise' ? 'bg-amber-400/10 text-amber-400'
-                      : org.plan === 'pro' ? 'bg-purple-400/10 text-purple-400'
-                      : org.plan === 'standard' ? 'bg-blue-400/10 text-blue-400'
+                      : org.plan === 'full' ? 'bg-blue-400/10 text-blue-400'
                       : 'bg-white/[0.06] text-white/40'
                   }`}>
                     {org.plan}
                   </span>
+                </td>
+                <td className="px-4 py-3">
+                  {org.pending_request_count > 0 ? (
+                    <span className="inline-flex items-center rounded-full bg-amber-400/10 px-2 py-0.5 text-xs text-amber-400">
+                      {org.pending_request_count} pending
+                    </span>
+                  ) : (
+                    <span className="text-xs text-white/25">None</span>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <span className="text-sm text-white/40">{new Date(org.creation_date).toLocaleDateString()}</span>
@@ -728,6 +744,30 @@ export default function OrganizationList() {
           </>
         )}
       </div>
+      {lightTheme && (
+        <style jsx global>{`
+          .platform-list-light [class~="text-white"] { color: rgb(17 24 39) !important; }
+          .platform-list-light [class~="text-white/60"] { color: rgb(75 85 99) !important; }
+          .platform-list-light [class~="text-white/50"] { color: rgb(107 114 128) !important; }
+          .platform-list-light [class~="text-white/40"] { color: rgb(107 114 128) !important; }
+          .platform-list-light [class~="text-white/35"] { color: rgb(107 114 128) !important; }
+          .platform-list-light [class~="text-white/30"] { color: rgb(156 163 175) !important; }
+          .platform-list-light [class~="text-white/25"] { color: rgb(156 163 175) !important; }
+          .platform-list-light [class~="text-white/20"] { color: rgb(209 213 219) !important; }
+          .platform-list-light [class~="bg-white/[0.03]"] { background-color: rgb(255 255 255) !important; }
+          .platform-list-light [class~="bg-white/[0.05]"] { background-color: rgb(249 250 251) !important; }
+          .platform-list-light [class~="bg-white/[0.08]"] { background-color: rgb(243 244 246) !important; }
+          .platform-list-light [class~="bg-white/10"] { background-color: rgb(243 244 246) !important; }
+          .platform-list-light [class~="border-white/[0.05]"] { border-color: rgb(243 244 246) !important; }
+          .platform-list-light [class~="border-white/[0.08]"] { border-color: rgb(229 231 235) !important; }
+          .platform-list-light [class~="hover:bg-white/[0.03]"]:hover { background-color: rgb(249 250 251) !important; }
+          .platform-list-light [class~="hover:bg-white/[0.05]"]:hover { background-color: rgb(243 244 246) !important; }
+          .platform-list-light [class~="hover:bg-white/[0.08]"]:hover { background-color: rgb(243 244 246) !important; }
+          .platform-list-light [class~="hover:text-white"]:hover { color: rgb(17 24 39) !important; }
+          .platform-list-light [class~="hover:text-white/60"]:hover { color: rgb(75 85 99) !important; }
+          .platform-list-light [class~="hover:text-white/70"]:hover { color: rgb(55 65 81) !important; }
+        `}</style>
+      )}
     </div>
   )
 }

@@ -4,13 +4,14 @@ import { getServerSession } from '@/lib/auth/server'
 import { getOrgThumbnailMediaDirectory } from '@services/media/media'
 import AccountClient from '@components/Objects/Account/AccountClient'
 import { redirect } from 'next/navigation'
+import { getOwnerOrgSlugServer } from '@services/org/ownerOrgServer'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string; subpage: string }>
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-const VALID_SUBPAGES = ['general', 'profile', 'security', 'purchases']
+const VALID_SUBPAGES = ['general', 'profile', 'security', 'purchases', 'org-admin']
 
 const getSubpageTitle = (subpage: string): string => {
   const titles: Record<string, string> = {
@@ -18,6 +19,7 @@ const getSubpageTitle = (subpage: string): string => {
     'profile': 'Profile Builder',
     'security': 'Security',
     'purchases': 'Purchases',
+    'org-admin': 'Org Admin',
   }
   return titles[subpage] || 'Account'
 }
@@ -58,10 +60,15 @@ export async function generateMetadata(props: MetadataProps): Promise<Metadata> 
 const AccountSubPage = async (props: { params: Promise<{ orgslug: string; subpage: string }> }) => {
   const params = await props.params
   const session = await getServerSession()
+  const ownerOrgslug = await getOwnerOrgSlugServer()
 
   // Redirect to login if not authenticated
   if (!session) {
     redirect(`/${params.orgslug}`)
+  }
+
+  if (params.subpage === 'org-admin' && params.orgslug !== ownerOrgslug) {
+    redirect(`/${ownerOrgslug}/account/org-admin`)
   }
 
   // Redirect to general if invalid subpage

@@ -30,12 +30,10 @@ interface PlanRestrictedFeatureProps {
  */
 const getPlanGradient = (plan: PlanLevel): string => {
   switch (plan) {
-    case 'standard':
+    case 'full':
       return 'bg-gradient-to-b from-blue-50/80 via-white to-white'
-    case 'pro':
-      return 'bg-gradient-to-b from-purple-50/80 via-white to-white'
     case 'enterprise':
-      return 'bg-gradient-to-b from-amber-50/80 via-white to-white'
+      return 'bg-gradient-to-b from-purple-50/80 via-white to-white'
     default:
       return 'bg-gradient-to-b from-gray-50/80 via-white to-white'
   }

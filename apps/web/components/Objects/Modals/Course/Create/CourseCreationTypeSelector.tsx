@@ -69,7 +69,7 @@ function CourseCreationTypeSelector({ onSelectType, currentPlan }: CourseCreatio
             <h3 className={`font-semibold ${canUseAI ? 'text-gray-900' : 'text-gray-500'}`}>
               {t('courses.create.with_ai')}
             </h3>
-            <PlanBadge currentPlan={currentPlan} requiredPlan={(rf?.ai?.required_plan || 'standard') as PlanLevel} size="sm" />
+            <PlanBadge currentPlan={currentPlan} requiredPlan={(rf?.ai?.required_plan || 'full') as PlanLevel} size="sm" />
           </div>
           <p className={`text-sm text-center ${canUseAI ? 'text-gray-500' : 'text-gray-400'}`}>
             {t('courses.create.with_ai_description')}

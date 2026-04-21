@@ -3,6 +3,7 @@ from datetime import datetime
 import json
 import os
 from pathlib import Path
+import re
 from uuid import uuid4
 import boto3
 from botocore.exceptions import ClientError
@@ -48,6 +49,25 @@ DEFAULT_ORG_BRANDING_ASSETS = {
     "auth_background": ("auth_backgrounds", "auth_bg", "stacked-waves-haikei (1).png"),
     "og_image": ("og_images", "og", "l2l on blue.png"),
 }
+
+
+def slugify_organization_name(name: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", name.strip().lower()).strip("-")
+    return slug or "organization"
+
+
+def generate_unique_org_slug(name: str, db_session: Session, *, exclude_org_id: int | None = None) -> str:
+    base_slug = slugify_organization_name(name)
+    slug = base_slug
+    suffix = 2
+
+    while True:
+        statement = select(Organization).where(Organization.slug == slug)
+        existing = db_session.exec(statement).first()
+        if not existing or (exclude_org_id is not None and existing.id == exclude_org_id):
+            return slug
+        slug = f"{base_slug}-{suffix}"
+        suffix += 1
 
 
 def _store_org_asset_from_branding(org_uuid: str, directory: str, filename_prefix: str, source_name: str) -> str:
@@ -585,6 +605,7 @@ def install_default_elements(db_session: Session):
 
 # Organization creation
 def install_create_organization(org_object: OrganizationCreate, db_session: Session):
+    is_first_org = db_session.exec(select(Organization).limit(1)).first() is None
     org = Organization.model_validate(org_object)
 
     # Complete the org object
@@ -597,7 +618,7 @@ def install_create_organization(org_object: OrganizationCreate, db_session: Sess
     db_session.refresh(org)
 
     # Org Config (v2 format)
-    org_plan = "enterprise" if org.slug == "default" else "free"
+    org_plan = "master" if is_first_org else "free"
     org_config = OrganizationConfigV2Base(
         config_version="2.0",
         plan=org_plan,
@@ -617,7 +638,7 @@ def install_create_organization(org_object: OrganizationCreate, db_session: Sess
     db_session.commit()
     db_session.refresh(org_settings)
 
-    if org.slug == "default":
+    if is_first_org:
         _apply_default_org_branding(org, org_settings, db_session)
 
     return org

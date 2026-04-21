@@ -1,21 +1,7 @@
-import React from 'react'
-import type { Metadata } from 'next'
-import OrganizationList from '@components/Admin/OrganizationList'
+import { redirect } from 'next/navigation'
+import { getUriWithOrg } from '@services/config/config'
+import { getOwnerOrgSlugServer } from '@services/org/ownerOrgServer'
 
-export const metadata: Metadata = {
-  title: 'Organizations',
-}
-
-export default function AdminOrganizationsPage() {
-  return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">Organizations</h1>
-        <p className="text-white/40 mt-1">
-          Manage all organizations across the platform
-        </p>
-      </div>
-      <OrganizationList />
-    </div>
-  )
+export default async function AdminOrganizationsPage() {
+  redirect(getUriWithOrg(await getOwnerOrgSlugServer(), '/dash/org-management'))
 }

@@ -34,7 +34,7 @@ const PodcastsDashClient = ({
   return (
     <PlanRestrictedFeature
       currentPlan={currentPlan}
-      requiredPlan="standard"
+      requiredPlan="full"
       icon={Headphones}
       titleKey="common.plans.feature_restricted.podcasts.title"
       descriptionKey="common.plans.feature_restricted.podcasts.description"

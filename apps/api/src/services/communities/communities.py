@@ -23,6 +23,18 @@ from src.security.rbac import (
     authorization_verify_based_on_org_admin_status,
     authorization_verify_based_on_roles,
 )
+from src.services.shared_content import owner_org_payload
+
+
+def _serialize_community(
+    community: Community,
+    owner_org: Organization | None = None,
+    current_org_id: int | None = None,
+) -> CommunityRead:
+    payload = CommunityRead.model_validate(community.model_dump()).model_dump()
+    if owner_org:
+        payload.update(owner_org_payload(owner_org, current_org_id))
+    return CommunityRead.model_validate(payload)
 
 
 async def create_community(
@@ -74,7 +86,7 @@ async def create_community(
     db_session.commit()
     db_session.refresh(community)
 
-    return CommunityRead.model_validate(community.model_dump())
+    return _serialize_community(community, org)
 
 
 async def get_community(
@@ -96,7 +108,8 @@ async def get_community(
     # RBAC check
     await check_resource_access(request, db_session, current_user, community_uuid, AccessAction.READ)
 
-    return CommunityRead.model_validate(community.model_dump())
+    owner_org = db_session.exec(select(Organization).where(Organization.id == community.org_id)).first()
+    return _serialize_community(community, owner_org)
 
 
 async def get_communities_by_org(
@@ -125,14 +138,16 @@ async def get_communities_by_org(
         )
         query = query.order_by(Community.creation_date.desc()).offset(offset).limit(limit)  # type: ignore
         communities = db_session.exec(query).all()
-        return [CommunityRead.model_validate(c.model_dump()) for c in communities]
+        owner_orgs = {org.id: org for org in db_session.exec(select(Organization).where(Organization.id.in_([c.org_id for c in communities]))).all()}  # type: ignore
+        return [_serialize_community(c, owner_orgs.get(c.org_id), org_id) for c in communities]
 
     # Superadmins bypass admin check — they can see all communities
     if is_user_superadmin(current_user.id, db_session):
-        query = select(Community).where(Community.org_id == org_id)
+        query = select(Community).where(or_(Community.org_id == org_id, Community.shared == True))
         query = query.order_by(Community.creation_date.desc()).offset(offset).limit(limit)  # type: ignore
         communities = db_session.exec(query).all()
-        return [CommunityRead.model_validate(c.model_dump()) for c in communities]
+        owner_orgs = {org.id: org for org in db_session.exec(select(Organization).where(Organization.id.in_([c.org_id for c in communities]))).all()}  # type: ignore
+        return [_serialize_community(c, owner_orgs.get(c.org_id), org_id) for c in communities]
 
     # Check if user has admin-level permissions (can read all communities)
     # First check role-based permissions, then fall back to org admin status
@@ -145,25 +160,27 @@ async def get_communities_by_org(
 
     if is_admin_or_maintainer:
         # Admins see all communities
-        query = select(Community).where(Community.org_id == org_id)
+        query = select(Community).where(or_(Community.org_id == org_id, Community.shared == True))
         query = query.order_by(Community.creation_date.desc()).offset(offset).limit(limit)  # type: ignore
         communities = db_session.exec(query).all()
-        return [CommunityRead.model_validate(c.model_dump()) for c in communities]
+        owner_orgs = {org.id: org for org in db_session.exec(select(Organization).where(Organization.id.in_([c.org_id for c in communities]))).all()}  # type: ignore
+        return [_serialize_community(c, owner_orgs.get(c.org_id), org_id) for c in communities]
 
     # For regular users, use a subquery approach to avoid DISTINCT with JSON columns
     # Get IDs of communities the user has access to
     accessible_community_ids_query = (
         select(Community.id)
-        .where(Community.org_id == org_id)
+        .where(or_(Community.org_id == org_id, Community.shared == True))
         .outerjoin(UserGroupResource, UserGroupResource.resource_uuid == Community.community_uuid)
         .outerjoin(UserGroupUser, and_(
             UserGroupUser.usergroup_id == UserGroupResource.usergroup_id,
             UserGroupUser.user_id == current_user.id
         ))
         .where(or_(
-            Community.public == True,
-            UserGroupResource.resource_uuid.is_(None),  # Not in any UserGroup
-            UserGroupUser.user_id == current_user.id,  # User in linked UserGroup
+            and_(Community.org_id == org_id, Community.public == True),
+            and_(Community.org_id == org_id, UserGroupResource.resource_uuid.is_(None)),
+            and_(Community.org_id == org_id, UserGroupUser.user_id == current_user.id),
+            Community.shared == True,
         ))
         .distinct()
     )
@@ -178,7 +195,8 @@ async def get_communities_by_org(
     )
 
     communities = db_session.exec(query).all()
-    return [CommunityRead.model_validate(c.model_dump()) for c in communities]
+    owner_orgs = {org.id: org for org in db_session.exec(select(Organization).where(Organization.id.in_([c.org_id for c in communities]))).all()}  # type: ignore
+    return [_serialize_community(c, owner_orgs.get(c.org_id), org_id) for c in communities]
 
 
 async def get_community_by_course(
@@ -209,7 +227,8 @@ async def get_community_by_course(
         request, db_session, current_user, community.community_uuid, AccessAction.READ
     )
 
-    return CommunityRead.model_validate(community.model_dump())
+    owner_org = db_session.exec(select(Organization).where(Organization.id == community.org_id)).first()
+    return _serialize_community(community, owner_org)
 
 
 async def update_community(
@@ -250,7 +269,8 @@ async def update_community(
     db_session.commit()
     db_session.refresh(community)
 
-    return CommunityRead.model_validate(community.model_dump())
+    owner_org = db_session.exec(select(Organization).where(Organization.id == community.org_id)).first()
+    return _serialize_community(community, owner_org)
 
 
 async def delete_community(

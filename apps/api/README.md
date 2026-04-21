@@ -11,6 +11,20 @@ cd apps/api
 
 The script requires either `LAUNCHLMS_SQL_CONNECTION_STRING` or `DATABASE_URL` to be set.
 
+## CLI commands
+
+Run API CLI commands through the API virtualenv-aware wrapper from the repo root:
+
+```bash
+./scripts/api-cli normalize-owner-org-slug
+```
+
+If you prefer running it directly, use the API environment instead of system Python:
+
+```bash
+apps/api/.venv/bin/python apps/api/cli.py normalize-owner-org-slug
+```
+
 ## Release order
 
 Use this order for schema-changing releases:

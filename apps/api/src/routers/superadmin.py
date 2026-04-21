@@ -10,6 +10,7 @@ from src.core.events.database import get_db_session
 from src.db.custom_domains import CustomDomain
 from src.db.organization_config import OrganizationConfig, OrganizationConfigV2Base
 from src.db.organizations import Organization, OrganizationCreate
+from src.db.plan_requests import PlanRequest, PlanRequestRead, PlanRequestUpdate
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
@@ -140,11 +141,15 @@ async def list_organizations(
             continue
         user_count = db_session.exec(select(func.count()).where(UserOrganization.org_id == org.id)).one()
         course_count = db_session.exec(select(func.count()).where(Course.org_id == org.id)).one()
+        pending_request_count = db_session.exec(
+            select(func.count()).where(PlanRequest.org_id == org.id, PlanRequest.status == "pending")
+        ).one()
         domains = db_session.exec(select(CustomDomain).where(CustomDomain.org_id == org.id)).all()
         items.append({
             **org.model_dump(),
             "user_count": user_count,
             "course_count": course_count,
+            "pending_request_count": pending_request_count,
             "plan": org_plan,
             "custom_domains": [domain.domain for domain in domains],
             "admin_users": _admin_users_for_org(org.id, db_session),
@@ -308,6 +313,9 @@ async def get_organization(org_id: int, db_session: Session = Depends(get_db_ses
     org_config = db_session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)).first()
     user_count = db_session.exec(select(func.count()).where(UserOrganization.org_id == org.id)).one()
     course_count = db_session.exec(select(func.count()).where(Course.org_id == org.id)).one()
+    pending_request_count = db_session.exec(
+        select(func.count()).where(PlanRequest.org_id == org.id, PlanRequest.status == "pending")
+    ).one()
     domains = db_session.exec(select(CustomDomain).where(CustomDomain.org_id == org.id)).all()
     return {
         **org.model_dump(),
@@ -315,6 +323,7 @@ async def get_organization(org_id: int, db_session: Session = Depends(get_db_ses
         "plan": _org_plan(org_config),
         "user_count": user_count,
         "course_count": course_count,
+        "pending_request_count": pending_request_count,
         "custom_domains": [domain.domain for domain in domains],
         "admin_users": _admin_users_for_org(org.id, db_session),
     }
@@ -401,5 +410,80 @@ async def update_org_settings(org_id: int, payload: dict, db_session: Session = 
             setattr(org, field, payload[field])
     org.update_date = datetime.now(timezone.utc).isoformat()
     db_session.add(org)
+    db_session.commit()
+    return {"success": True}
+
+
+# ============================================================================
+# Plan request management (superadmin)
+# ============================================================================
+
+@router.get("/plan-requests", response_model=list[PlanRequestRead])
+async def list_all_plan_requests(
+    status: str | None = None,
+    db_session: Session = Depends(get_db_session),
+):
+    """List all plan/package requests across all orgs, optionally filtered by status."""
+    query = select(PlanRequest)
+    if status:
+        query = query.where(PlanRequest.status == status)
+    query = query.order_by(PlanRequest.creation_date.desc())
+    return db_session.exec(query).all()
+
+
+@router.get("/organizations/{org_id}/plan-requests", response_model=list[PlanRequestRead])
+async def list_org_plan_requests(org_id: int, db_session: Session = Depends(get_db_session)):
+    """List all plan/package requests for a specific organization."""
+    return db_session.exec(
+        select(PlanRequest)
+        .where(PlanRequest.org_id == org_id)
+        .order_by(PlanRequest.creation_date.desc())
+    ).all()
+
+
+@router.put("/plan-requests/{request_uuid}", response_model=PlanRequestRead)
+async def update_plan_request(
+    request_uuid: str,
+    body: PlanRequestUpdate,
+    db_session: Session = Depends(get_db_session),
+):
+    """Approve or deny a plan/package request."""
+    req = db_session.exec(
+        select(PlanRequest).where(PlanRequest.request_uuid == request_uuid)
+    ).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Plan request not found")
+
+    req.status = body.status
+    if body.message is not None:
+        req.message = body.message
+    req.update_date = datetime.now(timezone.utc).isoformat()
+    db_session.add(req)
+    db_session.commit()
+    db_session.refresh(req)
+    return req
+
+
+@router.put("/organizations/{org_id}/packages")
+async def update_org_packages(
+    org_id: int,
+    payload: dict,
+    db_session: Session = Depends(get_db_session),
+):
+    """Set the active packages for an organization (superadmin only)."""
+    org_config = db_session.exec(
+        select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)
+    ).first()
+    if not org_config:
+        raise HTTPException(status_code=404, detail="Organization config not found")
+
+    config = org_config.config or {}
+    packages = payload.get("packages", [])
+    if str(config.get("config_version", "1.0")).startswith("2"):
+        config["packages"] = packages
+    else:
+        config["packages"] = packages
+    org_config.config = config
+    db_session.add(org_config)
     db_session.commit()
     return {"success": True}

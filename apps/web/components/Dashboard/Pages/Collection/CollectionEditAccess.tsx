@@ -31,17 +31,21 @@ const CollectionEditAccess: React.FC = () => {
   )
 
   const [isClientPublic, setIsClientPublic] = useState<boolean | undefined>(undefined)
+  const [isSharedAcrossOrgs, setIsSharedAcrossOrgs] = useState(false)
   const hasInitializedRef = useRef(false)
   const previousPublicRef = useRef<boolean | undefined>(undefined)
+  const previousSharedRef = useRef(false)
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     if (collection?.public !== undefined && !hasInitializedRef.current) {
       setIsClientPublic(collection.public)
+      setIsSharedAcrossOrgs(collection.shared === true)
       previousPublicRef.current = collection.public
+      previousSharedRef.current = collection.shared === true
       hasInitializedRef.current = true
     }
-  }, [collection?.public])
+  }, [collection?.public, collection?.shared])
 
   const handleSetPublic = useCallback(
     async (value: boolean) => {
@@ -66,6 +70,29 @@ const CollectionEditAccess: React.FC = () => {
     [collection, accessToken, dispatch, isSaving]
   )
 
+  const handleSetShared = useCallback(
+    async (value: boolean) => {
+      if (!collection || isSaving) return
+      setIsSharedAcrossOrgs(value)
+      setIsSaving(true)
+      try {
+        const result = await updateCollection(collection.collection_uuid, { shared: value }, accessToken)
+        if (result) {
+          mutate(`${getAPIUrl()}collections/${collection.collection_uuid}`)
+          if (dispatch) dispatch({ type: 'setCollection', payload: { ...collection, shared: value } })
+          previousSharedRef.current = value
+          toast.success('Sharing updated.')
+        }
+      } catch {
+        setIsSharedAcrossOrgs(previousSharedRef.current)
+        toast.error('Failed to update sharing.')
+      } finally {
+        setIsSaving(false)
+      }
+    },
+    [collection, accessToken, dispatch, isSaving]
+  )
+
   if (!collection) return null
 
   return (
@@ -74,7 +101,7 @@ const CollectionEditAccess: React.FC = () => {
       <div className="mx-4 sm:mx-10 bg-white rounded-xl shadow-xs px-4 py-4">
         <div className="flex flex-col bg-gray-50 -space-y-1 px-3 sm:px-5 py-3 rounded-md mb-3">
           <h1 className="font-bold text-lg sm:text-xl text-gray-800">Access Control</h1>
-          <h2 className="text-gray-500 text-xs sm:text-sm">Control who can view this collection.</h2>
+          <h2 className="text-gray-500 text-xs sm:text-sm">Control guest visibility and whether this collection is shared across org sites.</h2>
         </div>
         <div className={`flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0 mx-auto mb-3 ${isSaving ? 'opacity-50 pointer-events-none' : ''}`}>
           <ConfirmationModal
@@ -115,6 +142,26 @@ const CollectionEditAccess: React.FC = () => {
             functionToExecute={() => handleSetPublic(false)}
             status="info"
           />
+        </div>
+        <div className={`mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 ${isSaving ? 'opacity-50 pointer-events-none' : ''}`}>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-base font-semibold text-slate-800">Shared across organizations</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                Let signed-in users discover this collection from other org sites. Courses inside the collection still keep their own access rules.
+              </p>
+            </div>
+            <label className="inline-flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={isSharedAcrossOrgs}
+                onChange={(e) => handleSetShared(e.target.checked)}
+              />
+              <span className="text-sm font-medium text-slate-700">
+                {isSharedAcrossOrgs ? 'Enabled' : 'Disabled'}
+              </span>
+            </label>
+          </div>
         </div>
         {!isClientPublic && <UserGroupsSection usergroups={usergroups} />}
       </div>

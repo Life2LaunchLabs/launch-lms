@@ -50,6 +50,8 @@ const CourseClient = (props: any) => {
 
   // Use server-provided course data, or client-fetched data as fallback
   const course = initialCourse || clientCourseData;
+  const courseOwnerOrgId = course?.owner_org_id || org?.id
+  const courseOwnerOrgUuid = course?.owner_org_uuid || org?.org_uuid
 
   const { track } = useAnalytics()
 
@@ -66,7 +68,7 @@ const CourseClient = (props: any) => {
 
   // Add SWR for trail data
   const { data: trailData } = useSWR(
-    `${getAPIUrl()}trail/org/${org?.id}/trail`,
+    courseOwnerOrgId ? `${getAPIUrl()}trail/org/${courseOwnerOrgId}/trail` : null,
     (url) => swrFetcher(url, access_token)
   );
 
@@ -266,7 +268,7 @@ const CourseClient = (props: any) => {
       },
       ...(course.thumbnail_image && {
         image: getCourseThumbnailMediaDirectory(
-          org?.org_uuid,
+          courseOwnerOrgUuid,
           course?.course_uuid,
           course?.thumbnail_image
         ),
@@ -343,7 +345,7 @@ const CourseClient = (props: any) => {
                         <div className="w-full h-full">
                           <video
                             src={getCourseThumbnailMediaDirectory(
-                              org?.org_uuid,
+                              courseOwnerOrgUuid,
                               course?.course_uuid,
                               course?.thumbnail_video
                             )}
@@ -362,7 +364,7 @@ const CourseClient = (props: any) => {
                       <div className="relative inset-0 ring-1 ring-inset ring-black/10 rounded-lg shadow-xl w-full h-[200px] md:max-[1199px]:h-[400px] min-[1200px]:h-[180px] min-[1200px]:w-[320px] overflow-hidden bg-gray-100">
                         <img
                           src={getCourseThumbnailMediaDirectory(
-                            org?.org_uuid,
+                            courseOwnerOrgUuid,
                             course?.course_uuid,
                             course?.thumbnail_image
                           )}

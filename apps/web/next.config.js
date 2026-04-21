@@ -1,9 +1,12 @@
 const { withSentryConfig } = require("@sentry/nextjs");
 
+const devPublicHost = process.env.LAUNCHLMS_DEV_PUBLIC_HOST
+const devPublicHostWildcard = devPublicHost ? `*.${devPublicHost}` : null
+
 /** @type {import('common.next').NextConfig} */
 const nextConfig = {
   async rewrites() {
-    return [
+    const rewrites = [
       {
         source: '/umami/script.js',
         destination: `https://eu.umami.is/script.js`,
@@ -13,6 +16,8 @@ const nextConfig = {
         destination: `https://eu.umami.is/api/send`,
       },
     ]
+
+    return rewrites
   },
   async headers() {
     return [
@@ -45,6 +50,13 @@ const nextConfig = {
       },
     ],
   },
+  allowedDevOrigins: [
+    'localhost',
+    '127.0.0.1.sslip.io',
+    '*.sslip.io',
+    ...(devPublicHost ? [devPublicHost] : []),
+    ...(devPublicHostWildcard ? [devPublicHostWildcard] : []),
+  ],
   experimental: {
     optimizePackageImports: ['@phosphor-icons/react', 'framer-motion', 'lucide-react', '@emoji-mart/react', '@emoji-mart/data', 'dayjs', 'highlight.js', 'recharts', '@radix-ui/react-icons', '@hello-pangea/dnd', 'react-i18next'],
   },

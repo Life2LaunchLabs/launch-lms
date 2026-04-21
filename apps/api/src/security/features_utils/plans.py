@@ -2,38 +2,45 @@
 Plan-based feature restriction utilities.
 
 Single source of truth for plan hierarchy, feature configs, and limits.
-Org config only stores the plan name (cloud.plan) and org feature settings
+Org config only stores the plan name and org feature settings
 are derived from these definitions at runtime.
+
+Plans: free → full → enterprise → master
 """
 
 from typing import Literal
 
 
-# Plan type definition - matches OrgCloudConfig
-PlanLevel = Literal["free", "personal", "personal-family", "standard", "pro", "enterprise"]
+# Plan type definition
+PlanLevel = Literal["free", "full", "enterprise", "master"]
 
 # Plan hierarchy (lower index = lower tier)
-PLAN_HIERARCHY: list[str] = ["free", "personal", "personal-family", "standard", "pro", "enterprise"]
+PLAN_HIERARCHY: list[str] = ["free", "full", "enterprise", "master"]
 
-# Feature to required plan mapping
+# Feature to minimum required plan mapping.
+# Features only gated by packages (analytics, certifications, ai,
+# usergroups/roles/api_tokens) are available to "full" via package add-on.
 FEATURE_PLAN_REQUIREMENTS: dict[str, PlanLevel] = {
-    "ai": "standard",
-    "analytics": "standard",
-    "collaboration": "standard",
-    "communities": "standard",
-    "resources": "standard",
-    "payments": "standard",
-    "podcasts": "standard",
-    "seo": "standard",
-    "usergroups": "standard",
-    "api_tokens": "pro",
-    "boards": "pro",
-    "certifications": "pro",
-    "custom_domains": "pro",
-    "playgrounds": "pro",
-    "roles": "pro",
-    "versioning": "pro",
-    "analytics_advanced": "pro",
+    # Enabled via packages on full+; listed here so badges render correctly
+    "ai": "full",
+    "analytics": "full",
+    "certifications": "full",
+    "usergroups": "full",
+    "roles": "full",
+    "api_tokens": "full",
+    # Included base features for full+
+    "communities": "full",
+    "resources": "full",
+    "payments": "full",
+    "podcasts": "full",
+    "collaboration": "full",
+    # Enterprise-only
+    "boards": "enterprise",
+    "playgrounds": "enterprise",
+    "custom_domains": "enterprise",
+    "seo": "enterprise",
+    "versioning": "enterprise",
+    "analytics_advanced": "enterprise",
     "audit_logs": "enterprise",
     "scorm": "enterprise",
     "sso": "enterprise",
@@ -42,30 +49,31 @@ FEATURE_PLAN_REQUIREMENTS: dict[str, PlanLevel] = {
 # ============================================================================
 # Comprehensive plan feature configs (single source of truth)
 # ============================================================================
-# Each plan defines: features (enabled + limits), general settings, cloud flags.
+# Each plan defines: features (enabled + limits), cloud flags.
 # limit=0 means unlimited for that feature.
+# collections_limit: max number of collections an org can create (0 = unlimited)
 
 PLAN_FEATURE_CONFIGS: dict[str, dict] = {
     "free": {
         "features": {
-            "ai": {"enabled": False, "limit": 0, "model": "gpt-4o-mini"},
+            "ai": {"enabled": False, "limit": 0, "model": "gemini-2.0-flash"},
             "analytics": {"enabled": False, "limit": 0},
             "api": {"enabled": False, "limit": 0},
-            "assignments": {"enabled": True, "limit": 5},
+            "assignments": {"enabled": True, "limit": 0},
             "collaboration": {"enabled": False, "limit": 0},
-            "courses": {"enabled": True, "limit": 3},
-
+            "courses": {"enabled": True, "limit": 5},
             "members": {"admin_limit": 1, "enabled": True, "limit": 30},
             "payments": {"enabled": False},
             "storage": {"enabled": True, "limit": 5},
             "usergroups": {"enabled": False, "limit": 0},
             "podcasts": {"enabled": False, "limit": 0},
             "boards": {"enabled": False, "limit": 0},
-            "collections": {"enabled": True},
+            "collections": {"enabled": True, "collections_limit": 1},
             "communities": {"enabled": False},
             "resources": {"enabled": False, "limit": 0},
             "playgrounds": {"enabled": False, "limit": 0},
             "roles": {"enabled": False},
+            "certifications": {"enabled": False},
             "scorm": {"enabled": False},
             "sso": {"enabled": False},
             "versioning": {"enabled": False},
@@ -73,140 +81,87 @@ PLAN_FEATURE_CONFIGS: dict[str, dict] = {
         },
         "cloud": {"plan": "free", "custom_domain": False},
     },
-    "personal": {
+    "full": {
         "features": {
-            "ai": {"enabled": True, "limit": 1000, "model": "gpt-4o-mini"},
+            # Packages required for these; disabled by default, enabled per-org by package
+            "ai": {"enabled": False, "limit": 2000, "model": "gemini-2.0-flash"},
             "analytics": {"enabled": False, "limit": 0},
-            "api": {"enabled": False, "limit": 0},
-            "assignments": {"enabled": True, "limit": 0},
-            "collaboration": {"enabled": False, "limit": 0},
-            "courses": {"enabled": True, "limit": 0},
-
-            "members": {"admin_limit": 1, "enabled": True, "limit": 1},
-            "payments": {"enabled": False},
-            "storage": {"enabled": True, "limit": 10},
-            "usergroups": {"enabled": False, "limit": 0},
-            "podcasts": {"enabled": False, "limit": 0},
-            "boards": {"enabled": True, "limit": 0},
-            "collections": {"enabled": True},
-            "communities": {"enabled": False},
-            "resources": {"enabled": False, "limit": 0},
-            "playgrounds": {"enabled": True, "limit": 0},
-            "roles": {"enabled": False},
-            "scorm": {"enabled": False},
-            "sso": {"enabled": False},
-            "versioning": {"enabled": False},
-            "audit_logs": {"enabled": False},
-        },
-        "cloud": {"plan": "personal", "custom_domain": False},
-    },
-    "personal-family": {
-        "features": {
-            "ai": {"enabled": True, "limit": 3000, "model": "gpt-4o"},
-            "analytics": {"enabled": False, "limit": 0},
-            "api": {"enabled": False, "limit": 0},
-            "assignments": {"enabled": True, "limit": 0},
-            "collaboration": {"enabled": False, "limit": 0},
-            "courses": {"enabled": True, "limit": 0},
-
-            "members": {"admin_limit": 4, "enabled": True, "limit": 4},
-            "payments": {"enabled": False},
-            "storage": {"enabled": True, "limit": 20},
-            "usergroups": {"enabled": False, "limit": 0},
-            "podcasts": {"enabled": False, "limit": 0},
-            "boards": {"enabled": True, "limit": 0},
-            "collections": {"enabled": True},
-            "communities": {"enabled": False},
-            "resources": {"enabled": False, "limit": 0},
-            "playgrounds": {"enabled": True, "limit": 0},
-            "roles": {"enabled": False},
-            "scorm": {"enabled": False},
-            "sso": {"enabled": False},
-            "versioning": {"enabled": False},
-            "audit_logs": {"enabled": False},
-        },
-        "cloud": {"plan": "personal-family", "custom_domain": False},
-    },
-    "standard": {
-        "features": {
-            "ai": {"enabled": True, "limit": 1000, "model": "gpt-4o-mini"},
-            "analytics": {"enabled": True, "limit": 0},
             "api": {"enabled": False, "limit": 0},
             "assignments": {"enabled": True, "limit": 0},
             "collaboration": {"enabled": True, "limit": 0},
-            "courses": {"enabled": True, "limit": 0},
-
-            "members": {"admin_limit": 2, "enabled": True, "limit": 500},
+            "courses": {"enabled": True, "limit": 20},
+            "members": {"admin_limit": 3, "enabled": True, "limit": 200},
             "payments": {"enabled": True},
             "storage": {"enabled": True, "limit": 20},
-            "usergroups": {"enabled": True, "limit": 0},
+            "usergroups": {"enabled": False, "limit": 0},
             "podcasts": {"enabled": True, "limit": 0},
             "boards": {"enabled": False, "limit": 0},
-            "collections": {"enabled": True},
-            "communities": {"enabled": True},
-            "resources": {"enabled": True, "limit": 0},
+            "collections": {"enabled": True, "collections_limit": 5},
+            "communities": {"enabled": True, "limit": 1},
+            "resources": {"enabled": True, "limit": 1},
             "playgrounds": {"enabled": False, "limit": 0},
             "roles": {"enabled": False},
+            "certifications": {"enabled": False},
             "scorm": {"enabled": False},
             "sso": {"enabled": False},
             "versioning": {"enabled": False},
             "audit_logs": {"enabled": False},
         },
-        "cloud": {"plan": "standard", "custom_domain": False},
-    },
-    "pro": {
-        "features": {
-            "ai": {"enabled": True, "limit": 3000, "model": "gpt-4o"},
-            "analytics": {"enabled": True, "limit": 0},
-            "api": {"enabled": True, "limit": 0},
-            "assignments": {"enabled": True, "limit": 0},
-            "collaboration": {"enabled": True, "limit": 0},
-            "courses": {"enabled": True, "limit": 0},
-
-            "members": {"admin_limit": 10, "enabled": True, "limit": 1000},
-            "payments": {"enabled": True},
-            "storage": {"enabled": True, "limit": 50},
-            "usergroups": {"enabled": True, "limit": 0},
-            "podcasts": {"enabled": True, "limit": 0},
-            "boards": {"enabled": True, "limit": 0},
-            "collections": {"enabled": True},
-            "communities": {"enabled": True},
-            "resources": {"enabled": True, "limit": 0},
-            "playgrounds": {"enabled": True, "limit": 0},
-            "roles": {"enabled": True},
-            "scorm": {"enabled": False},
-            "sso": {"enabled": False},
-            "versioning": {"enabled": True},
-            "audit_logs": {"enabled": False},
-        },
-        "cloud": {"plan": "pro", "custom_domain": True},
+        "cloud": {"plan": "full", "custom_domain": False},
     },
     "enterprise": {
         "features": {
-            "ai": {"enabled": True, "limit": 10000, "model": "gpt-4o"},
+            "ai": {"enabled": True, "limit": 10000, "model": "gemini-2.0-flash"},
             "analytics": {"enabled": True, "limit": 0},
             "api": {"enabled": True, "limit": 0},
             "assignments": {"enabled": True, "limit": 0},
             "collaboration": {"enabled": True, "limit": 0},
             "courses": {"enabled": True, "limit": 0},
-
-            "members": {"admin_limit": 100, "enabled": True, "limit": 0},
+            "members": {"admin_limit": 20, "enabled": True, "limit": 0},
             "payments": {"enabled": True},
-            "storage": {"enabled": True, "limit": 200},
+            "storage": {"enabled": True, "limit": 100},
             "usergroups": {"enabled": True, "limit": 0},
             "podcasts": {"enabled": True, "limit": 0},
             "boards": {"enabled": True, "limit": 0},
-            "collections": {"enabled": True},
-            "communities": {"enabled": True},
+            "collections": {"enabled": True, "collections_limit": 0},
+            "communities": {"enabled": True, "limit": 0},
             "resources": {"enabled": True, "limit": 0},
             "playgrounds": {"enabled": True, "limit": 0},
             "roles": {"enabled": True},
+            "certifications": {"enabled": True},
             "scorm": {"enabled": True},
             "sso": {"enabled": True},
             "versioning": {"enabled": True},
             "audit_logs": {"enabled": True},
         },
         "cloud": {"plan": "enterprise", "custom_domain": True},
+    },
+    "master": {
+        "features": {
+            "ai": {"enabled": True, "limit": 0, "model": "gemini-2.0-flash"},
+            "analytics": {"enabled": True, "limit": 0},
+            "api": {"enabled": True, "limit": 0},
+            "assignments": {"enabled": True, "limit": 0},
+            "collaboration": {"enabled": True, "limit": 0},
+            "courses": {"enabled": True, "limit": 0},
+            "members": {"admin_limit": 0, "enabled": True, "limit": 0},
+            "payments": {"enabled": True},
+            "storage": {"enabled": True, "limit": 0},
+            "usergroups": {"enabled": True, "limit": 0},
+            "podcasts": {"enabled": True, "limit": 0},
+            "boards": {"enabled": True, "limit": 0},
+            "collections": {"enabled": True, "collections_limit": 0},
+            "communities": {"enabled": True, "limit": 0},
+            "resources": {"enabled": True, "limit": 0},
+            "playgrounds": {"enabled": True, "limit": 0},
+            "roles": {"enabled": True},
+            "certifications": {"enabled": True},
+            "scorm": {"enabled": True},
+            "sso": {"enabled": True},
+            "versioning": {"enabled": True},
+            "audit_logs": {"enabled": True},
+        },
+        "cloud": {"plan": "master", "custom_domain": True},
     },
 }
 
@@ -217,6 +172,7 @@ PLAN_LIMITS: dict[str, dict[str, int]] = {
         "courses": cfg["features"]["courses"]["limit"],
         "members": cfg["features"]["members"]["limit"],
         "admin_seats": cfg["features"]["members"]["admin_limit"],
+        "collections": cfg["features"]["collections"]["collections_limit"],
     }
     for plan, cfg in PLAN_FEATURE_CONFIGS.items()
 }
@@ -225,11 +181,9 @@ PLAN_LIMITS: dict[str, dict[str, int]] = {
 # 0 = no access, -1 = unlimited
 AI_CREDIT_LIMITS: dict[str, int] = {
     "free": 0,
-    "personal": 500,
-    "personal-family": 3000,
-    "standard": 1000,
-    "pro": 3000,
-    "enterprise": -1,
+    "full": 2000,
+    "enterprise": 10000,
+    "master": -1,
 }
 
 
@@ -280,7 +234,7 @@ def get_ai_credit_limit(plan: str) -> int:
 
 def get_plan_limit(plan: str, feature: str) -> int:
     """
-    Get the limit for a plan-based feature (courses, members, admin_seats).
+    Get the limit for a plan-based feature (courses, members, admin_seats, collections).
 
     Returns:
         The limit for the feature (0 means unlimited)

@@ -48,6 +48,7 @@ from src.db.usergroup_user import UserGroupUser
 from src.db.users import AnonymousUser, APITokenUser, PublicUser, User
 from src.security.org_auth import require_org_membership, require_org_role_permission
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
+from src.services.shared_content import owner_org_payload
 from src.services.utils.upload_content import upload_file
 
 
@@ -141,15 +142,22 @@ def _get_user_channel_or_404(user_channel_uuid: str, db_session: Session) -> Use
     return channel
 
 
-def _serialize_channel(channel: ResourceChannel, db_session: Session, current_user) -> dict:
+def _serialize_channel(
+    channel: ResourceChannel,
+    db_session: Session,
+    current_user,
+    current_org_id: int | None = None,
+) -> dict:
     resource_count = db_session.exec(
         select(func.count(ResourceChannelResource.id)).where(ResourceChannelResource.channel_id == channel.id)
     ).one()
     linked_usergroups = db_session.exec(
         select(UserGroupResource.usergroup_id).where(UserGroupResource.resource_uuid == channel.channel_uuid)
     ).all()
+    owner_org = _get_org_or_404(channel.org_id, db_session)
     return {
         **ResourceChannelRead.model_validate(channel).model_dump(),
+        **owner_org_payload(owner_org, current_org_id),
         "resource_count": int(resource_count or 0),
         "is_accessible": _channel_is_accessible(channel, db_session, current_user),
         "usergroup_ids": linked_usergroups,
@@ -176,6 +184,8 @@ def _channel_is_accessible(channel: ResourceChannel, db_session: Session, curren
         return True
     if _user_is_anonymous(current_user):
         return False
+    if channel.shared:
+        return True
     membership = db_session.exec(
         select(UserOrganization).where(
             UserOrganization.user_id == current_user.id,
@@ -322,7 +332,12 @@ def _resource_user_state_map(resource_ids: list[int], current_user, db_session: 
     return {row.resource_id: row for row in rows}
 
 
-def _serialize_resource(resource: Resource, db_session: Session, current_user) -> dict:
+def _serialize_resource(
+    resource: Resource,
+    db_session: Session,
+    current_user,
+    current_org_id: int | None = None,
+) -> dict:
     save_counts, comment_counts = _resource_counts_map([resource.id], db_session)
     tags_map = _resource_tags_map([resource.id], db_session)
     user_state_map = _resource_user_state_map([resource.id], current_user, db_session)
@@ -339,8 +354,10 @@ def _serialize_resource(resource: Resource, db_session: Session, current_user) -
             .join(UserSavedResourceChannel, UserResourceChannel.id == UserSavedResourceChannel.user_channel_id)
             .where(UserSavedResourceChannel.saved_resource_id == user_state.id)
         ).all())
+    owner_org = _get_org_or_404(resource.org_id, db_session)
     return {
         **ResourceRead.model_validate(resource).model_dump(),
+        **owner_org_payload(owner_org, current_org_id),
         "channels": [ResourceChannelRead.model_validate(channel).model_dump() for channel in channel_rows],
         "save_count": int(save_counts.get(resource.id, 0)),
         "comment_count": int(comment_counts.get(resource.id, 0)),
@@ -393,12 +410,17 @@ def _set_resource_tags(resource_id: int, tag_ids: list[int], db_session: Session
 async def list_channels(request: Request, org_id: int, current_user, db_session: Session, include_private: bool = False) -> dict:
     _get_org_or_404(org_id, db_session)
     channels = db_session.exec(
-        select(ResourceChannel).where(ResourceChannel.org_id == org_id).order_by(
+        select(ResourceChannel).where(
+            or_(
+                ResourceChannel.org_id == org_id,
+                ResourceChannel.shared == True,
+            )
+        ).order_by(
             ResourceChannel.is_starred.desc(), ResourceChannel.name.asc()
         )
     ).all()
     visible_channels = [
-        _serialize_channel(channel, db_session, current_user)
+        _serialize_channel(channel, db_session, current_user, org_id)
         for channel in channels
         if include_private or _channel_is_accessible(channel, db_session, current_user)
     ]
@@ -502,7 +524,7 @@ async def create_channel(request: Request, org_id: int, channel_data: ResourceCh
     db_session.add(channel)
     db_session.commit()
     db_session.refresh(channel)
-    return _serialize_channel(channel, db_session, current_user)
+    return _serialize_channel(channel, db_session, current_user, org_id)
 
 
 async def update_channel(request: Request, channel_uuid: str, channel_data: ResourceChannelUpdate, current_user: PublicUser, db_session: Session) -> dict:
@@ -515,7 +537,7 @@ async def update_channel(request: Request, channel_uuid: str, channel_data: Reso
     db_session.add(channel)
     db_session.commit()
     db_session.refresh(channel)
-    return _serialize_channel(channel, db_session, current_user)
+    return _serialize_channel(channel, db_session, current_user, channel.org_id)
 
 
 async def delete_channel(request: Request, channel_uuid: str, current_user: PublicUser, db_session: Session) -> dict:
@@ -544,7 +566,7 @@ async def list_resources(
     include_private: bool = False,
 ) -> list[dict]:
     _get_org_or_404(org_id, db_session)
-    statement = select(Resource).where(Resource.org_id == org_id)
+    statement = select(Resource)
     requested_types = [
         item.strip().lower()
         for item in (resource_types or resource_type or "").split(",")
@@ -605,7 +627,29 @@ async def list_resources(
         ).all()
         resources = [resource for resource in resources if resource.id in set(resource_ids)]
     elif not include_private:
-        resources = [resource for resource in resources if _resource_in_accessible_channel(resource, db_session, current_user)]
+        visible_channels = db_session.exec(
+            select(ResourceChannel).where(
+                or_(
+                    ResourceChannel.org_id == org_id,
+                    ResourceChannel.shared == True,
+                )
+            )
+        ).all()
+        visible_channel_ids = [
+            channel.id
+            for channel in visible_channels
+            if channel.id is not None and _channel_is_accessible(channel, db_session, current_user)
+        ]
+        visible_resource_ids = set()
+        if visible_channel_ids:
+            visible_resource_ids = set(
+                db_session.exec(
+                    select(ResourceChannelResource.resource_id).where(
+                        ResourceChannelResource.channel_id.in_(visible_channel_ids)  # type: ignore
+                    )
+                ).all()
+            )
+        resources = [resource for resource in resources if resource.id in visible_resource_ids]
     if saved_only or completed_only:
         if _user_is_anonymous(current_user):
             return []
@@ -619,7 +663,7 @@ async def list_resources(
                 continue
             filtered.append(resource)
         resources = filtered
-    return [_serialize_resource(resource, db_session, current_user) for resource in resources]
+    return [_serialize_resource(resource, db_session, current_user, org_id) for resource in resources]
 
 
 async def create_resource(
@@ -653,7 +697,7 @@ async def create_resource(
     db_session.refresh(resource)
     _set_resource_tags(resource.id, [tag.id for tag in resolved_tags], db_session)
     db_session.commit()
-    return _serialize_resource(resource, db_session, current_user)
+    return _serialize_resource(resource, db_session, current_user, org_id)
 
 
 async def update_resource(request: Request, resource_uuid: str, resource_data: ResourceUpdate, current_user: PublicUser, db_session: Session) -> dict:
@@ -671,7 +715,7 @@ async def update_resource(request: Request, resource_uuid: str, resource_data: R
         _set_resource_tags(resource.id, [tag.id for tag in resolved_tags], db_session)
         db_session.commit()
     db_session.refresh(resource)
-    return _serialize_resource(resource, db_session, current_user)
+    return _serialize_resource(resource, db_session, current_user, resource.org_id)
 
 
 async def delete_resource(request: Request, resource_uuid: str, current_user: PublicUser, db_session: Session) -> dict:
@@ -686,7 +730,7 @@ async def get_resource(request: Request, resource_uuid: str, current_user, db_se
     resource = _get_resource_or_404(resource_uuid, db_session)
     if not include_private and not _resource_in_accessible_channel(resource, db_session, current_user):
         raise HTTPException(status_code=403, detail="You do not have access to this resource")
-    return _serialize_resource(resource, db_session, current_user)
+    return _serialize_resource(resource, db_session, current_user, resource.org_id)
 
 
 async def list_channel_resources(request: Request, channel_uuid: str, current_user, db_session: Session, include_private: bool = False) -> list[dict]:
@@ -703,7 +747,7 @@ async def list_channel_resources(request: Request, channel_uuid: str, current_us
     resources = db_session.exec(select(Resource).where(Resource.id.in_(resource_ids))).all()
     order = {resource_id: idx for idx, resource_id in enumerate(resource_ids)}
     resources.sort(key=lambda resource: order.get(resource.id, 999999))
-    return [_serialize_resource(resource, db_session, current_user) for resource in resources]
+    return [_serialize_resource(resource, db_session, current_user, channel.org_id) for resource in resources]
 
 
 async def add_resource_to_channel(request: Request, channel_uuid: str, resource_uuid: str, current_user: PublicUser, db_session: Session, sort_order: int = 0) -> dict:
@@ -800,7 +844,7 @@ async def save_resource_for_user(request: Request, resource_uuid: str, save_data
     db_session.refresh(saved_resource)
     _set_saved_resource_channels(saved_resource, channel_ids, db_session)
     db_session.commit()
-    return _serialize_resource(resource, db_session, current_user)
+    return _serialize_resource(resource, db_session, current_user, resource.org_id)
 
 
 async def upload_saved_resource_outcome_file(request: Request, resource_uuid: str, file: UploadFile, current_user: PublicUser, db_session: Session) -> dict:
@@ -1049,7 +1093,7 @@ async def upload_resource_thumbnail(request: Request, resource_uuid: str, thumbn
     db_session.add(resource)
     db_session.commit()
     db_session.refresh(resource)
-    return _serialize_resource(resource, db_session, current_user)
+    return _serialize_resource(resource, db_session, current_user, resource.org_id)
 
 
 async def upload_channel_thumbnail(request: Request, channel_uuid: str, thumbnail: UploadFile, current_user: PublicUser, db_session: Session) -> dict:
@@ -1070,4 +1114,4 @@ async def upload_channel_thumbnail(request: Request, channel_uuid: str, thumbnai
     db_session.add(channel)
     db_session.commit()
     db_session.refresh(channel)
-    return _serialize_channel(channel, db_session, current_user)
+    return _serialize_channel(channel, db_session, current_user, channel.org_id)

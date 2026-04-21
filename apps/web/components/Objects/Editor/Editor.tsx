@@ -431,7 +431,7 @@ function Editor(props: Editor) {
                         />
                       </i>
                       <i className="not-italic text-xs font-bold">{t('editor.ai_editor')}</i>
-                      <PlanBadge currentPlan={currentPlan} requiredPlan={(rf?.ai?.required_plan || 'standard') as PlanLevel} size="sm" />
+                      <PlanBadge currentPlan={currentPlan} requiredPlan={(rf?.ai?.required_plan || 'full') as PlanLevel} size="sm" />
                     </div>
                   )}
                 </div>
@@ -459,7 +459,7 @@ function Editor(props: Editor) {
                   <ToolTip content={t('editor.versioning.version_history')}>
                     <div className="flex bg-gray-100 h-9 px-3 py-2 font-black justify-center items-center text-sm shadow-sm text-gray-400 rounded-lg cursor-not-allowed opacity-70 gap-1.5">
                       <History size={15} className="opacity-50" />
-                      <PlanBadge currentPlan={currentPlan} requiredPlan={(rf?.versioning?.required_plan || 'pro') as PlanLevel} size="sm" />
+                      <PlanBadge currentPlan={currentPlan} requiredPlan={(rf?.versioning?.required_plan || 'enterprise') as PlanLevel} size="sm" />
                     </div>
                   </ToolTip>
                 )}

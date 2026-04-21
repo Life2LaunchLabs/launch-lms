@@ -34,6 +34,7 @@ from src.security.rbac import (
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.security.superadmin import is_user_superadmin
 from src.services.courses.thumbnails import upload_thumbnail
+from src.services.shared_content import owner_org_payload
 from fastapi import HTTPException, Request, UploadFile, status
 from datetime import datetime
 
@@ -105,6 +106,39 @@ async def _user_can_view_unpublished_course(
     return False
 
 
+def _serialize_course_read(
+    course: Course,
+    authors: list[AuthorWithRole],
+    owner_org: Organization | None = None,
+    current_org_id: int | None = None,
+) -> CourseRead:
+    payload = {
+        "id": course.id or 0,
+        "org_id": course.org_id,
+        "name": course.name,
+        "description": course.description or "",
+        "about": course.about or "",
+        "learnings": course.learnings or "",
+        "tags": course.tags or "",
+        "thumbnail_image": course.thumbnail_image or "",
+        "thumbnail_video": course.thumbnail_video or "",
+        "thumbnail_type": course.thumbnail_type,
+        "public": course.public,
+        "shared": course.shared,
+        "guest_access": course.guest_access,
+        "published": course.published,
+        "open_to_contributors": course.open_to_contributors,
+        "course_uuid": course.course_uuid,
+        "creation_date": course.creation_date,
+        "update_date": course.update_date,
+        "seo": course.seo,
+        "authors": authors,
+    }
+    if owner_org:
+        payload.update(owner_org_payload(owner_org, current_org_id))
+    return CourseRead.model_validate(payload)
+
+
 async def get_course(
     request: Request,
     course_uuid: str,
@@ -158,7 +192,8 @@ async def get_course(
         for resource_author, user in author_results
     ]
 
-    course = CourseRead(**course.model_dump(), authors=authors)
+    owner_org = db_session.exec(select(Organization).where(Organization.id == course.org_id)).first()
+    course = _serialize_course_read(course, authors, owner_org)
 
     return course
 
@@ -204,7 +239,8 @@ async def get_course_by_id(
         for resource_author, user in author_results
     ]
 
-    course = CourseRead(**course.model_dump(), authors=authors)
+    owner_org = db_session.exec(select(Organization).where(Organization.id == course.org_id)).first()
+    course = _serialize_course_read(course, authors, owner_org)
 
     return course
 
@@ -277,6 +313,7 @@ async def get_course_meta(
     course_read = FullCourseRead(
         **course.model_dump(),
         org_uuid=org.org_uuid,
+        **owner_org_payload(org),
         authors=authors,
         chapters=chapters
     )
@@ -356,17 +393,19 @@ async def get_courses_orgslug(
     query = (
         select(Course)
         .join(Organization)
-        .where(Organization.slug == org_slug)
     )
 
     if isinstance(current_user, AnonymousUser):
         # For anonymous users, only show public AND published courses
-        query = query.where(Course.public == True, Course.published == True)
+        query = query.where(
+            Organization.slug == org_slug,
+            Course.public == True,
+            Course.published == True,
+        )
     else:
         # For authenticated users with admin access viewing dashboard, show all courses
         if can_view_unpublished:
-            # Admins see all courses in the organization (no additional filter)
-            pass
+            query = query.where(Organization.slug == org_slug)
         else:
             # For regular users, show:
             # 1. Published AND public courses
@@ -389,10 +428,19 @@ async def get_courses_orgslug(
                     ResourceAuthor.authorship_status == ResourceAuthorshipStatusEnum.ACTIVE
                 ))  # type: ignore
                 .where(or_(
-                    and_(Course.published == True, Course.public == True),  # Published public courses
-                    and_(Course.published == True, UserGroupResource.resource_uuid.is_(None)),  # Published courses not in any UserGroup
-                    UserGroupUser.user_id == current_user.id,  # Courses in UserGroups where user is a member (including unpublished)
-                    ResourceAuthor.user_id.isnot(None)  # Courses where user is an ACTIVE resource author
+                    and_(
+                        Organization.slug == org_slug,
+                        or_(
+                            and_(Course.published == True, Course.public == True),
+                            and_(Course.published == True, UserGroupResource.resource_uuid.is_(None)),
+                            UserGroupUser.user_id == current_user.id,
+                            ResourceAuthor.user_id.isnot(None),
+                        ),
+                    ),
+                    and_(
+                        Course.shared == True,
+                        Course.published == True,
+                    ),
                 ))
             )
 
@@ -406,6 +454,12 @@ async def get_courses_orgslug(
 
     # Get all course UUIDs
     course_uuids = [course.course_uuid for course in courses]
+    owner_orgs = {
+        org.id: org
+        for org in db_session.exec(
+            select(Organization).where(Organization.id.in_([course.org_id for course in courses]))  # type: ignore
+        ).all()
+    }
     
     # Fetch all authors for all courses in a single query
     authors_query = (
@@ -437,24 +491,14 @@ async def get_courses_orgslug(
     # Create CourseRead objects with authors
     course_reads = []
     for course in courses:
-        course_read = CourseRead.model_validate({
-            "id": course.id or 0,  # Ensure id is never None
-            "org_id": course.org_id,
-            "name": course.name,
-            "description": course.description or "",
-            "about": course.about or "",
-            "learnings": course.learnings or "",
-            "tags": course.tags or "",
-            "thumbnail_image": course.thumbnail_image or "",
-            "public": course.public,
-            "published": course.published,
-            "open_to_contributors": course.open_to_contributors,
-            "course_uuid": course.course_uuid,
-            "creation_date": course.creation_date,
-            "update_date": course.update_date,
-            "authors": course_authors.get(course.course_uuid, [])
-        })
-        course_reads.append(course_read)
+        course_reads.append(
+            _serialize_course_read(
+                course,
+                course_authors.get(course.course_uuid, []),
+                owner_orgs.get(course.org_id),
+                org.id,
+            )
+        )
 
     return course_reads
 
@@ -472,15 +516,22 @@ async def get_courses_count_orgslug(
     query = (
         select(func.count(Course.id.distinct()))
         .join(Organization)
-        .where(Organization.slug == org_slug)
     )
 
     if isinstance(current_user, AnonymousUser):
         # For anonymous users, only count public AND published courses
-        query = query.where(Course.public == True, Course.published == True)
+        query = query.where(
+            Organization.slug == org_slug,
+            Course.public == True,
+            Course.published == True,
+        )
     elif not isinstance(current_user, AnonymousUser) and is_user_superadmin(current_user.id, db_session):
-        # Superadmins see all courses (no additional filter)
-        pass
+        query = query.where(
+            or_(
+                Organization.slug == org_slug,
+                Course.shared == True,
+            )
+        )
     else:
         # For authenticated users, count:
         # 1. Published AND public courses
@@ -500,10 +551,16 @@ async def get_courses_count_orgslug(
                 ResourceAuthor.authorship_status == ResourceAuthorshipStatusEnum.ACTIVE
             ))  # type: ignore
             .where(or_(
-                and_(Course.published == True, Course.public == True),  # Published public courses
-                and_(Course.published == True, UserGroupResource.resource_uuid.is_(None)),  # Published courses not in any UserGroup
-                UserGroupUser.user_id == current_user.id,  # Courses in UserGroups where user is a member (including unpublished)
-                ResourceAuthor.user_id.isnot(None)  # Courses where user is an ACTIVE resource author
+                and_(
+                    Organization.slug == org_slug,
+                    or_(
+                        and_(Course.published == True, Course.public == True),
+                        and_(Course.published == True, UserGroupResource.resource_uuid.is_(None)),
+                        UserGroupUser.user_id == current_user.id,
+                        ResourceAuthor.user_id.isnot(None),
+                    ),
+                ),
+                and_(Course.shared == True, Course.published == True),
             ))
         )
 
@@ -538,7 +595,12 @@ async def search_courses(
     query = (
         select(Course)
         .join(Organization)
-        .where(Organization.slug == org_slug)
+        .where(
+            or_(
+                Organization.slug == org_slug,
+                Course.shared == True,
+            )
+        )
         .where(
             or_(
                 text('LOWER(course.name) LIKE LOWER(:pattern)'),
@@ -553,7 +615,11 @@ async def search_courses(
 
     if isinstance(current_user, AnonymousUser):
         # For anonymous users, only show public AND published courses
-        query = query.where(Course.public == True, Course.published == True)
+        query = query.where(
+            Organization.slug == org_slug,
+            Course.public == True,
+            Course.published == True,
+        )
     elif is_user_superadmin(current_user.id, db_session):
         # Superadmins see all courses (no additional filter)
         pass
@@ -576,10 +642,16 @@ async def search_courses(
                 ResourceAuthor.authorship_status == ResourceAuthorshipStatusEnum.ACTIVE
             ))  # type: ignore
             .where(or_(
-                and_(Course.published == True, Course.public == True),  # Published public courses
-                and_(Course.published == True, UserGroupResource.resource_uuid.is_(None)),  # Published courses not in any UserGroup
-                UserGroupUser.user_id == current_user.id,  # Courses in UserGroups where user is a member (including unpublished)
-                ResourceAuthor.user_id.isnot(None)  # Courses where user is an ACTIVE resource author
+                and_(
+                    Organization.slug == org_slug,
+                    or_(
+                        and_(Course.published == True, Course.public == True),
+                        and_(Course.published == True, UserGroupResource.resource_uuid.is_(None)),
+                        UserGroupUser.user_id == current_user.id,
+                        ResourceAuthor.user_id.isnot(None),
+                    ),
+                ),
+                and_(Course.shared == True, Course.published == True),
             ))
         )
 
@@ -614,26 +686,23 @@ async def search_courses(
             )
         )
 
+    owner_orgs = {
+        org.id: org
+        for org in db_session.exec(
+            select(Organization).where(Organization.id.in_([course.org_id for course in courses]))  # type: ignore
+        ).all()
+    }
+
     course_reads = []
     for course in courses:
-        course_read = CourseRead.model_validate({
-            "id": course.id or 0,
-            "org_id": course.org_id,
-            "name": course.name,
-            "description": course.description or "",
-            "about": course.about or "",
-            "learnings": course.learnings or "",
-            "tags": course.tags or "",
-            "thumbnail_image": course.thumbnail_image or "",
-            "public": course.public,
-            "published": course.published,
-            "open_to_contributors": course.open_to_contributors,
-            "course_uuid": course.course_uuid,
-            "creation_date": course.creation_date,
-            "update_date": course.update_date,
-            "authors": course_authors.get(course.course_uuid, [])
-        })
-        course_reads.append(course_read)
+        course_reads.append(
+            _serialize_course_read(
+                course,
+                course_authors.get(course.course_uuid, []),
+                owner_orgs.get(course.org_id),
+                org.id,
+            )
+        )
 
     return course_reads
 

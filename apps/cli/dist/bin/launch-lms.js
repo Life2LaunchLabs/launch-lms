@@ -7,11 +7,11 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
+var __require = /* @__PURE__ */ ((x3) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x3, {
   get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
-}) : x)(function(x) {
+}) : x3)(function(x3) {
   if (typeof require !== "undefined") return require.apply(this, arguments);
-  throw Error('Dynamic require of "' + x + '" is not supported');
+  throw Error('Dynamic require of "' + x3 + '" is not supported');
 });
 var __commonJS = (cb, mod) => function __require2() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
@@ -1123,12 +1123,12 @@ var require_suggestSimilar = __commonJS({
     function editDistance(a, b) {
       if (Math.abs(a.length - b.length) > maxDistance)
         return Math.max(a.length, b.length);
-      const d3 = [];
+      const d2 = [];
       for (let i = 0; i <= a.length; i++) {
-        d3[i] = [i];
+        d2[i] = [i];
       }
       for (let j2 = 0; j2 <= b.length; j2++) {
-        d3[0][j2] = j2;
+        d2[0][j2] = j2;
       }
       for (let j2 = 1; j2 <= b.length; j2++) {
         for (let i = 1; i <= a.length; i++) {
@@ -1138,20 +1138,20 @@ var require_suggestSimilar = __commonJS({
           } else {
             cost = 1;
           }
-          d3[i][j2] = Math.min(
-            d3[i - 1][j2] + 1,
+          d2[i][j2] = Math.min(
+            d2[i - 1][j2] + 1,
             // deletion
-            d3[i][j2 - 1] + 1,
+            d2[i][j2 - 1] + 1,
             // insertion
-            d3[i - 1][j2 - 1] + cost
+            d2[i - 1][j2 - 1] + cost
             // substitution
           );
           if (i > 1 && j2 > 1 && a[i - 1] === b[j2 - 2] && a[i - 2] === b[j2 - 1]) {
-            d3[i][j2] = Math.min(d3[i][j2], d3[i - 2][j2 - 2] + 1);
+            d2[i][j2] = Math.min(d2[i][j2], d2[i - 2][j2 - 2] + 1);
           }
         }
       }
-      return d3[a.length][b.length];
+      return d2[a.length][b.length];
     }
     function suggestSimilar(word, candidates) {
       if (!candidates || candidates.length === 0) return "";
@@ -3470,10 +3470,10 @@ var require_commander = __commonJS({
 var require_picocolors = __commonJS({
   "node_modules/picocolors/picocolors.js"(exports, module) {
     "use strict";
-    var p2 = process || {};
-    var argv = p2.argv || [];
-    var env = p2.env || {};
-    var isColorSupported = !(!!env.NO_COLOR || argv.includes("--no-color")) && (!!env.FORCE_COLOR || argv.includes("--color") || p2.platform === "win32" || (p2.stdout || {}).isTTY && env.TERM !== "dumb" || !!env.CI);
+    var p = process || {};
+    var argv = p.argv || [];
+    var env = p.env || {};
+    var isColorSupported = !(!!env.NO_COLOR || argv.includes("--no-color")) && (!!env.FORCE_COLOR || argv.includes("--color") || p.platform === "win32" || (p.stdout || {}).isTTY && env.TERM !== "dumb" || !!env.CI);
     var formatter = (open, close, replace = open) => (input) => {
       let string = "" + input, index = string.indexOf(close, open.length);
       return ~index ? open + replaceClose(string, close, replace, index) + close : open + string + close;
@@ -3543,45 +3543,45 @@ var require_picocolors = __commonJS({
 var require_src = __commonJS({
   "node_modules/sisteransi/src/index.js"(exports, module) {
     "use strict";
-    var ESC2 = "\x1B";
-    var CSI2 = `${ESC2}[`;
+    var ESC = "\x1B";
+    var CSI = `${ESC}[`;
     var beep = "\x07";
     var cursor = {
-      to(x, y2) {
-        if (!y2) return `${CSI2}${x + 1}G`;
-        return `${CSI2}${y2 + 1};${x + 1}H`;
+      to(x3, y2) {
+        if (!y2) return `${CSI}${x3 + 1}G`;
+        return `${CSI}${y2 + 1};${x3 + 1}H`;
       },
-      move(x, y2) {
+      move(x3, y2) {
         let ret = "";
-        if (x < 0) ret += `${CSI2}${-x}D`;
-        else if (x > 0) ret += `${CSI2}${x}C`;
-        if (y2 < 0) ret += `${CSI2}${-y2}A`;
-        else if (y2 > 0) ret += `${CSI2}${y2}B`;
+        if (x3 < 0) ret += `${CSI}${-x3}D`;
+        else if (x3 > 0) ret += `${CSI}${x3}C`;
+        if (y2 < 0) ret += `${CSI}${-y2}A`;
+        else if (y2 > 0) ret += `${CSI}${y2}B`;
         return ret;
       },
-      up: (count = 1) => `${CSI2}${count}A`,
-      down: (count = 1) => `${CSI2}${count}B`,
-      forward: (count = 1) => `${CSI2}${count}C`,
-      backward: (count = 1) => `${CSI2}${count}D`,
-      nextLine: (count = 1) => `${CSI2}E`.repeat(count),
-      prevLine: (count = 1) => `${CSI2}F`.repeat(count),
-      left: `${CSI2}G`,
-      hide: `${CSI2}?25l`,
-      show: `${CSI2}?25h`,
-      save: `${ESC2}7`,
-      restore: `${ESC2}8`
+      up: (count = 1) => `${CSI}${count}A`,
+      down: (count = 1) => `${CSI}${count}B`,
+      forward: (count = 1) => `${CSI}${count}C`,
+      backward: (count = 1) => `${CSI}${count}D`,
+      nextLine: (count = 1) => `${CSI}E`.repeat(count),
+      prevLine: (count = 1) => `${CSI}F`.repeat(count),
+      left: `${CSI}G`,
+      hide: `${CSI}?25l`,
+      show: `${CSI}?25h`,
+      save: `${ESC}7`,
+      restore: `${ESC}8`
     };
     var scroll = {
-      up: (count = 1) => `${CSI2}S`.repeat(count),
-      down: (count = 1) => `${CSI2}T`.repeat(count)
+      up: (count = 1) => `${CSI}S`.repeat(count),
+      down: (count = 1) => `${CSI}T`.repeat(count)
     };
     var erase = {
-      screen: `${CSI2}2J`,
-      up: (count = 1) => `${CSI2}1J`.repeat(count),
-      down: (count = 1) => `${CSI2}J`.repeat(count),
-      line: `${CSI2}2K`,
-      lineEnd: `${CSI2}K`,
-      lineStart: `${CSI2}1K`,
+      screen: `${CSI}2J`,
+      up: (count = 1) => `${CSI}1J`.repeat(count),
+      down: (count = 1) => `${CSI}J`.repeat(count),
+      line: `${CSI}2K`,
+      lineEnd: `${CSI}K`,
+      lineStart: `${CSI}1K`,
       lines(count) {
         let clear = "";
         for (let i = 0; i < count; i++)
@@ -3613,7 +3613,7 @@ var {
 } = import_index.default;
 
 // bin/launch-lms.ts
-var import_picocolors17 = __toESM(require_picocolors(), 1);
+var import_picocolors19 = __toESM(require_picocolors(), 1);
 
 // src/constants.ts
 var VERSION = "1.2.0";
@@ -3756,453 +3756,237 @@ import fs2 from "fs";
 import path2 from "path";
 
 // node_modules/@clack/core/dist/index.mjs
-import { styleText as y } from "util";
-import { stdout as S, stdin as $ } from "process";
-import * as _ from "readline";
-import P from "readline";
-
-// node_modules/fast-string-truncated-width/dist/utils.js
-var isAmbiguous = (x) => {
-  return x === 161 || x === 164 || x === 167 || x === 168 || x === 170 || x === 173 || x === 174 || x >= 176 && x <= 180 || x >= 182 && x <= 186 || x >= 188 && x <= 191 || x === 198 || x === 208 || x === 215 || x === 216 || x >= 222 && x <= 225 || x === 230 || x >= 232 && x <= 234 || x === 236 || x === 237 || x === 240 || x === 242 || x === 243 || x >= 247 && x <= 250 || x === 252 || x === 254 || x === 257 || x === 273 || x === 275 || x === 283 || x === 294 || x === 295 || x === 299 || x >= 305 && x <= 307 || x === 312 || x >= 319 && x <= 322 || x === 324 || x >= 328 && x <= 331 || x === 333 || x === 338 || x === 339 || x === 358 || x === 359 || x === 363 || x === 462 || x === 464 || x === 466 || x === 468 || x === 470 || x === 472 || x === 474 || x === 476 || x === 593 || x === 609 || x === 708 || x === 711 || x >= 713 && x <= 715 || x === 717 || x === 720 || x >= 728 && x <= 731 || x === 733 || x === 735 || x >= 768 && x <= 879 || x >= 913 && x <= 929 || x >= 931 && x <= 937 || x >= 945 && x <= 961 || x >= 963 && x <= 969 || x === 1025 || x >= 1040 && x <= 1103 || x === 1105 || x === 8208 || x >= 8211 && x <= 8214 || x === 8216 || x === 8217 || x === 8220 || x === 8221 || x >= 8224 && x <= 8226 || x >= 8228 && x <= 8231 || x === 8240 || x === 8242 || x === 8243 || x === 8245 || x === 8251 || x === 8254 || x === 8308 || x === 8319 || x >= 8321 && x <= 8324 || x === 8364 || x === 8451 || x === 8453 || x === 8457 || x === 8467 || x === 8470 || x === 8481 || x === 8482 || x === 8486 || x === 8491 || x === 8531 || x === 8532 || x >= 8539 && x <= 8542 || x >= 8544 && x <= 8555 || x >= 8560 && x <= 8569 || x === 8585 || x >= 8592 && x <= 8601 || x === 8632 || x === 8633 || x === 8658 || x === 8660 || x === 8679 || x === 8704 || x === 8706 || x === 8707 || x === 8711 || x === 8712 || x === 8715 || x === 8719 || x === 8721 || x === 8725 || x === 8730 || x >= 8733 && x <= 8736 || x === 8739 || x === 8741 || x >= 8743 && x <= 8748 || x === 8750 || x >= 8756 && x <= 8759 || x === 8764 || x === 8765 || x === 8776 || x === 8780 || x === 8786 || x === 8800 || x === 8801 || x >= 8804 && x <= 8807 || x === 8810 || x === 8811 || x === 8814 || x === 8815 || x === 8834 || x === 8835 || x === 8838 || x === 8839 || x === 8853 || x === 8857 || x === 8869 || x === 8895 || x === 8978 || x >= 9312 && x <= 9449 || x >= 9451 && x <= 9547 || x >= 9552 && x <= 9587 || x >= 9600 && x <= 9615 || x >= 9618 && x <= 9621 || x === 9632 || x === 9633 || x >= 9635 && x <= 9641 || x === 9650 || x === 9651 || x === 9654 || x === 9655 || x === 9660 || x === 9661 || x === 9664 || x === 9665 || x >= 9670 && x <= 9672 || x === 9675 || x >= 9678 && x <= 9681 || x >= 9698 && x <= 9701 || x === 9711 || x === 9733 || x === 9734 || x === 9737 || x === 9742 || x === 9743 || x === 9756 || x === 9758 || x === 9792 || x === 9794 || x === 9824 || x === 9825 || x >= 9827 && x <= 9829 || x >= 9831 && x <= 9834 || x === 9836 || x === 9837 || x === 9839 || x === 9886 || x === 9887 || x === 9919 || x >= 9926 && x <= 9933 || x >= 9935 && x <= 9939 || x >= 9941 && x <= 9953 || x === 9955 || x === 9960 || x === 9961 || x >= 9963 && x <= 9969 || x === 9972 || x >= 9974 && x <= 9977 || x === 9979 || x === 9980 || x === 9982 || x === 9983 || x === 10045 || x >= 10102 && x <= 10111 || x >= 11094 && x <= 11097 || x >= 12872 && x <= 12879 || x >= 57344 && x <= 63743 || x >= 65024 && x <= 65039 || x === 65533 || x >= 127232 && x <= 127242 || x >= 127248 && x <= 127277 || x >= 127280 && x <= 127337 || x >= 127344 && x <= 127373 || x === 127375 || x === 127376 || x >= 127387 && x <= 127404 || x >= 917760 && x <= 917999 || x >= 983040 && x <= 1048573 || x >= 1048576 && x <= 1114109;
-};
-var isFullWidth = (x) => {
-  return x === 12288 || x >= 65281 && x <= 65376 || x >= 65504 && x <= 65510;
-};
-var isWide = (x) => {
-  return x >= 4352 && x <= 4447 || x === 8986 || x === 8987 || x === 9001 || x === 9002 || x >= 9193 && x <= 9196 || x === 9200 || x === 9203 || x === 9725 || x === 9726 || x === 9748 || x === 9749 || x >= 9800 && x <= 9811 || x === 9855 || x === 9875 || x === 9889 || x === 9898 || x === 9899 || x === 9917 || x === 9918 || x === 9924 || x === 9925 || x === 9934 || x === 9940 || x === 9962 || x === 9970 || x === 9971 || x === 9973 || x === 9978 || x === 9981 || x === 9989 || x === 9994 || x === 9995 || x === 10024 || x === 10060 || x === 10062 || x >= 10067 && x <= 10069 || x === 10071 || x >= 10133 && x <= 10135 || x === 10160 || x === 10175 || x === 11035 || x === 11036 || x === 11088 || x === 11093 || x >= 11904 && x <= 11929 || x >= 11931 && x <= 12019 || x >= 12032 && x <= 12245 || x >= 12272 && x <= 12287 || x >= 12289 && x <= 12350 || x >= 12353 && x <= 12438 || x >= 12441 && x <= 12543 || x >= 12549 && x <= 12591 || x >= 12593 && x <= 12686 || x >= 12688 && x <= 12771 || x >= 12783 && x <= 12830 || x >= 12832 && x <= 12871 || x >= 12880 && x <= 19903 || x >= 19968 && x <= 42124 || x >= 42128 && x <= 42182 || x >= 43360 && x <= 43388 || x >= 44032 && x <= 55203 || x >= 63744 && x <= 64255 || x >= 65040 && x <= 65049 || x >= 65072 && x <= 65106 || x >= 65108 && x <= 65126 || x >= 65128 && x <= 65131 || x >= 94176 && x <= 94180 || x === 94192 || x === 94193 || x >= 94208 && x <= 100343 || x >= 100352 && x <= 101589 || x >= 101632 && x <= 101640 || x >= 110576 && x <= 110579 || x >= 110581 && x <= 110587 || x === 110589 || x === 110590 || x >= 110592 && x <= 110882 || x === 110898 || x >= 110928 && x <= 110930 || x === 110933 || x >= 110948 && x <= 110951 || x >= 110960 && x <= 111355 || x === 126980 || x === 127183 || x === 127374 || x >= 127377 && x <= 127386 || x >= 127488 && x <= 127490 || x >= 127504 && x <= 127547 || x >= 127552 && x <= 127560 || x === 127568 || x === 127569 || x >= 127584 && x <= 127589 || x >= 127744 && x <= 127776 || x >= 127789 && x <= 127797 || x >= 127799 && x <= 127868 || x >= 127870 && x <= 127891 || x >= 127904 && x <= 127946 || x >= 127951 && x <= 127955 || x >= 127968 && x <= 127984 || x === 127988 || x >= 127992 && x <= 128062 || x === 128064 || x >= 128066 && x <= 128252 || x >= 128255 && x <= 128317 || x >= 128331 && x <= 128334 || x >= 128336 && x <= 128359 || x === 128378 || x === 128405 || x === 128406 || x === 128420 || x >= 128507 && x <= 128591 || x >= 128640 && x <= 128709 || x === 128716 || x >= 128720 && x <= 128722 || x >= 128725 && x <= 128727 || x >= 128732 && x <= 128735 || x === 128747 || x === 128748 || x >= 128756 && x <= 128764 || x >= 128992 && x <= 129003 || x === 129008 || x >= 129292 && x <= 129338 || x >= 129340 && x <= 129349 || x >= 129351 && x <= 129535 || x >= 129648 && x <= 129660 || x >= 129664 && x <= 129672 || x >= 129680 && x <= 129725 || x >= 129727 && x <= 129733 || x >= 129742 && x <= 129755 || x >= 129760 && x <= 129768 || x >= 129776 && x <= 129784 || x >= 131072 && x <= 196605 || x >= 196608 && x <= 262141;
-};
-
-// node_modules/fast-string-truncated-width/dist/index.js
-var ANSI_RE = /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/y;
-var CONTROL_RE = /[\x00-\x08\x0A-\x1F\x7F-\x9F]{1,1000}/y;
-var TAB_RE = /\t{1,1000}/y;
-var EMOJI_RE = new RegExp("[\\u{1F1E6}-\\u{1F1FF}]{2}|\\u{1F3F4}[\\u{E0061}-\\u{E007A}]{2}[\\u{E0030}-\\u{E0039}\\u{E0061}-\\u{E007A}]{1,3}\\u{E007F}|(?:\\p{Emoji}\\uFE0F\\u20E3?|\\p{Emoji_Modifier_Base}\\p{Emoji_Modifier}?|\\p{Emoji_Presentation})(?:\\u200D(?:\\p{Emoji_Modifier_Base}\\p{Emoji_Modifier}?|\\p{Emoji_Presentation}|\\p{Emoji}\\uFE0F\\u20E3?))*", "yu");
-var LATIN_RE = /(?:[\x20-\x7E\xA0-\xFF](?!\uFE0F)){1,1000}/y;
-var MODIFIER_RE = new RegExp("\\p{M}+", "gu");
-var NO_TRUNCATION = { limit: Infinity, ellipsis: "" };
-var getStringTruncatedWidth = (input, truncationOptions = {}, widthOptions = {}) => {
-  const LIMIT = truncationOptions.limit ?? Infinity;
-  const ELLIPSIS = truncationOptions.ellipsis ?? "";
-  const ELLIPSIS_WIDTH = truncationOptions?.ellipsisWidth ?? (ELLIPSIS ? getStringTruncatedWidth(ELLIPSIS, NO_TRUNCATION, widthOptions).width : 0);
-  const ANSI_WIDTH = widthOptions.ansiWidth ?? 0;
-  const CONTROL_WIDTH = widthOptions.controlWidth ?? 0;
-  const TAB_WIDTH = widthOptions.tabWidth ?? 8;
-  const AMBIGUOUS_WIDTH = widthOptions.ambiguousWidth ?? 1;
-  const EMOJI_WIDTH = widthOptions.emojiWidth ?? 2;
-  const FULL_WIDTH_WIDTH = widthOptions.fullWidthWidth ?? 2;
-  const REGULAR_WIDTH = widthOptions.regularWidth ?? 1;
-  const WIDE_WIDTH = widthOptions.wideWidth ?? 2;
-  let indexPrev = 0;
-  let index = 0;
-  let length = input.length;
-  let lengthExtra = 0;
-  let truncationEnabled = false;
-  let truncationIndex = length;
-  let truncationLimit = Math.max(0, LIMIT - ELLIPSIS_WIDTH);
-  let unmatchedStart = 0;
-  let unmatchedEnd = 0;
-  let width = 0;
-  let widthExtra = 0;
-  outer: while (true) {
-    if (unmatchedEnd > unmatchedStart || index >= length && index > indexPrev) {
-      const unmatched = input.slice(unmatchedStart, unmatchedEnd) || input.slice(indexPrev, index);
-      lengthExtra = 0;
-      for (const char of unmatched.replaceAll(MODIFIER_RE, "")) {
-        const codePoint = char.codePointAt(0) || 0;
-        if (isFullWidth(codePoint)) {
-          widthExtra = FULL_WIDTH_WIDTH;
-        } else if (isWide(codePoint)) {
-          widthExtra = WIDE_WIDTH;
-        } else if (AMBIGUOUS_WIDTH !== REGULAR_WIDTH && isAmbiguous(codePoint)) {
-          widthExtra = AMBIGUOUS_WIDTH;
-        } else {
-          widthExtra = REGULAR_WIDTH;
+var import_picocolors3 = __toESM(require_picocolors(), 1);
+var import_sisteransi = __toESM(require_src(), 1);
+import { stdout as R, stdin as q } from "process";
+import * as k from "readline";
+import ot from "readline";
+import { ReadStream as J } from "tty";
+function B(t, e2, s) {
+  if (!s.some((u) => !u.disabled)) return t;
+  const i = t + e2, r = Math.max(s.length - 1, 0), n = i < 0 ? r : i > r ? 0 : i;
+  return s[n].disabled ? B(n, e2 < 0 ? -1 : 1, s) : n;
+}
+var at = (t) => t === 161 || t === 164 || t === 167 || t === 168 || t === 170 || t === 173 || t === 174 || t >= 176 && t <= 180 || t >= 182 && t <= 186 || t >= 188 && t <= 191 || t === 198 || t === 208 || t === 215 || t === 216 || t >= 222 && t <= 225 || t === 230 || t >= 232 && t <= 234 || t === 236 || t === 237 || t === 240 || t === 242 || t === 243 || t >= 247 && t <= 250 || t === 252 || t === 254 || t === 257 || t === 273 || t === 275 || t === 283 || t === 294 || t === 295 || t === 299 || t >= 305 && t <= 307 || t === 312 || t >= 319 && t <= 322 || t === 324 || t >= 328 && t <= 331 || t === 333 || t === 338 || t === 339 || t === 358 || t === 359 || t === 363 || t === 462 || t === 464 || t === 466 || t === 468 || t === 470 || t === 472 || t === 474 || t === 476 || t === 593 || t === 609 || t === 708 || t === 711 || t >= 713 && t <= 715 || t === 717 || t === 720 || t >= 728 && t <= 731 || t === 733 || t === 735 || t >= 768 && t <= 879 || t >= 913 && t <= 929 || t >= 931 && t <= 937 || t >= 945 && t <= 961 || t >= 963 && t <= 969 || t === 1025 || t >= 1040 && t <= 1103 || t === 1105 || t === 8208 || t >= 8211 && t <= 8214 || t === 8216 || t === 8217 || t === 8220 || t === 8221 || t >= 8224 && t <= 8226 || t >= 8228 && t <= 8231 || t === 8240 || t === 8242 || t === 8243 || t === 8245 || t === 8251 || t === 8254 || t === 8308 || t === 8319 || t >= 8321 && t <= 8324 || t === 8364 || t === 8451 || t === 8453 || t === 8457 || t === 8467 || t === 8470 || t === 8481 || t === 8482 || t === 8486 || t === 8491 || t === 8531 || t === 8532 || t >= 8539 && t <= 8542 || t >= 8544 && t <= 8555 || t >= 8560 && t <= 8569 || t === 8585 || t >= 8592 && t <= 8601 || t === 8632 || t === 8633 || t === 8658 || t === 8660 || t === 8679 || t === 8704 || t === 8706 || t === 8707 || t === 8711 || t === 8712 || t === 8715 || t === 8719 || t === 8721 || t === 8725 || t === 8730 || t >= 8733 && t <= 8736 || t === 8739 || t === 8741 || t >= 8743 && t <= 8748 || t === 8750 || t >= 8756 && t <= 8759 || t === 8764 || t === 8765 || t === 8776 || t === 8780 || t === 8786 || t === 8800 || t === 8801 || t >= 8804 && t <= 8807 || t === 8810 || t === 8811 || t === 8814 || t === 8815 || t === 8834 || t === 8835 || t === 8838 || t === 8839 || t === 8853 || t === 8857 || t === 8869 || t === 8895 || t === 8978 || t >= 9312 && t <= 9449 || t >= 9451 && t <= 9547 || t >= 9552 && t <= 9587 || t >= 9600 && t <= 9615 || t >= 9618 && t <= 9621 || t === 9632 || t === 9633 || t >= 9635 && t <= 9641 || t === 9650 || t === 9651 || t === 9654 || t === 9655 || t === 9660 || t === 9661 || t === 9664 || t === 9665 || t >= 9670 && t <= 9672 || t === 9675 || t >= 9678 && t <= 9681 || t >= 9698 && t <= 9701 || t === 9711 || t === 9733 || t === 9734 || t === 9737 || t === 9742 || t === 9743 || t === 9756 || t === 9758 || t === 9792 || t === 9794 || t === 9824 || t === 9825 || t >= 9827 && t <= 9829 || t >= 9831 && t <= 9834 || t === 9836 || t === 9837 || t === 9839 || t === 9886 || t === 9887 || t === 9919 || t >= 9926 && t <= 9933 || t >= 9935 && t <= 9939 || t >= 9941 && t <= 9953 || t === 9955 || t === 9960 || t === 9961 || t >= 9963 && t <= 9969 || t === 9972 || t >= 9974 && t <= 9977 || t === 9979 || t === 9980 || t === 9982 || t === 9983 || t === 10045 || t >= 10102 && t <= 10111 || t >= 11094 && t <= 11097 || t >= 12872 && t <= 12879 || t >= 57344 && t <= 63743 || t >= 65024 && t <= 65039 || t === 65533 || t >= 127232 && t <= 127242 || t >= 127248 && t <= 127277 || t >= 127280 && t <= 127337 || t >= 127344 && t <= 127373 || t === 127375 || t === 127376 || t >= 127387 && t <= 127404 || t >= 917760 && t <= 917999 || t >= 983040 && t <= 1048573 || t >= 1048576 && t <= 1114109;
+var lt = (t) => t === 12288 || t >= 65281 && t <= 65376 || t >= 65504 && t <= 65510;
+var ht = (t) => t >= 4352 && t <= 4447 || t === 8986 || t === 8987 || t === 9001 || t === 9002 || t >= 9193 && t <= 9196 || t === 9200 || t === 9203 || t === 9725 || t === 9726 || t === 9748 || t === 9749 || t >= 9800 && t <= 9811 || t === 9855 || t === 9875 || t === 9889 || t === 9898 || t === 9899 || t === 9917 || t === 9918 || t === 9924 || t === 9925 || t === 9934 || t === 9940 || t === 9962 || t === 9970 || t === 9971 || t === 9973 || t === 9978 || t === 9981 || t === 9989 || t === 9994 || t === 9995 || t === 10024 || t === 10060 || t === 10062 || t >= 10067 && t <= 10069 || t === 10071 || t >= 10133 && t <= 10135 || t === 10160 || t === 10175 || t === 11035 || t === 11036 || t === 11088 || t === 11093 || t >= 11904 && t <= 11929 || t >= 11931 && t <= 12019 || t >= 12032 && t <= 12245 || t >= 12272 && t <= 12287 || t >= 12289 && t <= 12350 || t >= 12353 && t <= 12438 || t >= 12441 && t <= 12543 || t >= 12549 && t <= 12591 || t >= 12593 && t <= 12686 || t >= 12688 && t <= 12771 || t >= 12783 && t <= 12830 || t >= 12832 && t <= 12871 || t >= 12880 && t <= 19903 || t >= 19968 && t <= 42124 || t >= 42128 && t <= 42182 || t >= 43360 && t <= 43388 || t >= 44032 && t <= 55203 || t >= 63744 && t <= 64255 || t >= 65040 && t <= 65049 || t >= 65072 && t <= 65106 || t >= 65108 && t <= 65126 || t >= 65128 && t <= 65131 || t >= 94176 && t <= 94180 || t === 94192 || t === 94193 || t >= 94208 && t <= 100343 || t >= 100352 && t <= 101589 || t >= 101632 && t <= 101640 || t >= 110576 && t <= 110579 || t >= 110581 && t <= 110587 || t === 110589 || t === 110590 || t >= 110592 && t <= 110882 || t === 110898 || t >= 110928 && t <= 110930 || t === 110933 || t >= 110948 && t <= 110951 || t >= 110960 && t <= 111355 || t === 126980 || t === 127183 || t === 127374 || t >= 127377 && t <= 127386 || t >= 127488 && t <= 127490 || t >= 127504 && t <= 127547 || t >= 127552 && t <= 127560 || t === 127568 || t === 127569 || t >= 127584 && t <= 127589 || t >= 127744 && t <= 127776 || t >= 127789 && t <= 127797 || t >= 127799 && t <= 127868 || t >= 127870 && t <= 127891 || t >= 127904 && t <= 127946 || t >= 127951 && t <= 127955 || t >= 127968 && t <= 127984 || t === 127988 || t >= 127992 && t <= 128062 || t === 128064 || t >= 128066 && t <= 128252 || t >= 128255 && t <= 128317 || t >= 128331 && t <= 128334 || t >= 128336 && t <= 128359 || t === 128378 || t === 128405 || t === 128406 || t === 128420 || t >= 128507 && t <= 128591 || t >= 128640 && t <= 128709 || t === 128716 || t >= 128720 && t <= 128722 || t >= 128725 && t <= 128727 || t >= 128732 && t <= 128735 || t === 128747 || t === 128748 || t >= 128756 && t <= 128764 || t >= 128992 && t <= 129003 || t === 129008 || t >= 129292 && t <= 129338 || t >= 129340 && t <= 129349 || t >= 129351 && t <= 129535 || t >= 129648 && t <= 129660 || t >= 129664 && t <= 129672 || t >= 129680 && t <= 129725 || t >= 129727 && t <= 129733 || t >= 129742 && t <= 129755 || t >= 129760 && t <= 129768 || t >= 129776 && t <= 129784 || t >= 131072 && t <= 196605 || t >= 196608 && t <= 262141;
+var O = /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/y;
+var y = /[\x00-\x08\x0A-\x1F\x7F-\x9F]{1,1000}/y;
+var L = /\t{1,1000}/y;
+var P = new RegExp("[\\u{1F1E6}-\\u{1F1FF}]{2}|\\u{1F3F4}[\\u{E0061}-\\u{E007A}]{2}[\\u{E0030}-\\u{E0039}\\u{E0061}-\\u{E007A}]{1,3}\\u{E007F}|(?:\\p{Emoji}\\uFE0F\\u20E3?|\\p{Emoji_Modifier_Base}\\p{Emoji_Modifier}?|\\p{Emoji_Presentation})(?:\\u200D(?:\\p{Emoji_Modifier_Base}\\p{Emoji_Modifier}?|\\p{Emoji_Presentation}|\\p{Emoji}\\uFE0F\\u20E3?))*", "yu");
+var M = /(?:[\x20-\x7E\xA0-\xFF](?!\uFE0F)){1,1000}/y;
+var ct = new RegExp("\\p{M}+", "gu");
+var ft = { limit: 1 / 0, ellipsis: "" };
+var X = (t, e2 = {}, s = {}) => {
+  const i = e2.limit ?? 1 / 0, r = e2.ellipsis ?? "", n = e2?.ellipsisWidth ?? (r ? X(r, ft, s).width : 0), u = s.ansiWidth ?? 0, a = s.controlWidth ?? 0, l = s.tabWidth ?? 8, E = s.ambiguousWidth ?? 1, g = s.emojiWidth ?? 2, m = s.fullWidthWidth ?? 2, A = s.regularWidth ?? 1, V2 = s.wideWidth ?? 2;
+  let h = 0, o = 0, p = t.length, v = 0, F = false, d2 = p, b = Math.max(0, i - n), C2 = 0, w = 0, c = 0, f = 0;
+  t: for (; ; ) {
+    if (w > C2 || o >= p && o > h) {
+      const ut2 = t.slice(C2, w) || t.slice(h, o);
+      v = 0;
+      for (const Y of ut2.replaceAll(ct, "")) {
+        const $ = Y.codePointAt(0) || 0;
+        if (lt($) ? f = m : ht($) ? f = V2 : E !== A && at($) ? f = E : f = A, c + f > b && (d2 = Math.min(d2, Math.max(C2, h) + v)), c + f > i) {
+          F = true;
+          break t;
         }
-        if (width + widthExtra > truncationLimit) {
-          truncationIndex = Math.min(truncationIndex, Math.max(unmatchedStart, indexPrev) + lengthExtra);
-        }
-        if (width + widthExtra > LIMIT) {
-          truncationEnabled = true;
-          break outer;
-        }
-        lengthExtra += char.length;
-        width += widthExtra;
+        v += Y.length, c += f;
       }
-      unmatchedStart = unmatchedEnd = 0;
+      C2 = w = 0;
     }
-    if (index >= length)
-      break;
-    LATIN_RE.lastIndex = index;
-    if (LATIN_RE.test(input)) {
-      lengthExtra = LATIN_RE.lastIndex - index;
-      widthExtra = lengthExtra * REGULAR_WIDTH;
-      if (width + widthExtra > truncationLimit) {
-        truncationIndex = Math.min(truncationIndex, index + Math.floor((truncationLimit - width) / REGULAR_WIDTH));
-      }
-      if (width + widthExtra > LIMIT) {
-        truncationEnabled = true;
+    if (o >= p) break;
+    if (M.lastIndex = o, M.test(t)) {
+      if (v = M.lastIndex - o, f = v * A, c + f > b && (d2 = Math.min(d2, o + Math.floor((b - c) / A))), c + f > i) {
+        F = true;
         break;
       }
-      width += widthExtra;
-      unmatchedStart = indexPrev;
-      unmatchedEnd = index;
-      index = indexPrev = LATIN_RE.lastIndex;
+      c += f, C2 = h, w = o, o = h = M.lastIndex;
       continue;
     }
-    ANSI_RE.lastIndex = index;
-    if (ANSI_RE.test(input)) {
-      if (width + ANSI_WIDTH > truncationLimit) {
-        truncationIndex = Math.min(truncationIndex, index);
-      }
-      if (width + ANSI_WIDTH > LIMIT) {
-        truncationEnabled = true;
+    if (O.lastIndex = o, O.test(t)) {
+      if (c + u > b && (d2 = Math.min(d2, o)), c + u > i) {
+        F = true;
         break;
       }
-      width += ANSI_WIDTH;
-      unmatchedStart = indexPrev;
-      unmatchedEnd = index;
-      index = indexPrev = ANSI_RE.lastIndex;
+      c += u, C2 = h, w = o, o = h = O.lastIndex;
       continue;
     }
-    CONTROL_RE.lastIndex = index;
-    if (CONTROL_RE.test(input)) {
-      lengthExtra = CONTROL_RE.lastIndex - index;
-      widthExtra = lengthExtra * CONTROL_WIDTH;
-      if (width + widthExtra > truncationLimit) {
-        truncationIndex = Math.min(truncationIndex, index + Math.floor((truncationLimit - width) / CONTROL_WIDTH));
-      }
-      if (width + widthExtra > LIMIT) {
-        truncationEnabled = true;
+    if (y.lastIndex = o, y.test(t)) {
+      if (v = y.lastIndex - o, f = v * a, c + f > b && (d2 = Math.min(d2, o + Math.floor((b - c) / a))), c + f > i) {
+        F = true;
         break;
       }
-      width += widthExtra;
-      unmatchedStart = indexPrev;
-      unmatchedEnd = index;
-      index = indexPrev = CONTROL_RE.lastIndex;
+      c += f, C2 = h, w = o, o = h = y.lastIndex;
       continue;
     }
-    TAB_RE.lastIndex = index;
-    if (TAB_RE.test(input)) {
-      lengthExtra = TAB_RE.lastIndex - index;
-      widthExtra = lengthExtra * TAB_WIDTH;
-      if (width + widthExtra > truncationLimit) {
-        truncationIndex = Math.min(truncationIndex, index + Math.floor((truncationLimit - width) / TAB_WIDTH));
-      }
-      if (width + widthExtra > LIMIT) {
-        truncationEnabled = true;
+    if (L.lastIndex = o, L.test(t)) {
+      if (v = L.lastIndex - o, f = v * l, c + f > b && (d2 = Math.min(d2, o + Math.floor((b - c) / l))), c + f > i) {
+        F = true;
         break;
       }
-      width += widthExtra;
-      unmatchedStart = indexPrev;
-      unmatchedEnd = index;
-      index = indexPrev = TAB_RE.lastIndex;
+      c += f, C2 = h, w = o, o = h = L.lastIndex;
       continue;
     }
-    EMOJI_RE.lastIndex = index;
-    if (EMOJI_RE.test(input)) {
-      if (width + EMOJI_WIDTH > truncationLimit) {
-        truncationIndex = Math.min(truncationIndex, index);
-      }
-      if (width + EMOJI_WIDTH > LIMIT) {
-        truncationEnabled = true;
+    if (P.lastIndex = o, P.test(t)) {
+      if (c + g > b && (d2 = Math.min(d2, o)), c + g > i) {
+        F = true;
         break;
       }
-      width += EMOJI_WIDTH;
-      unmatchedStart = indexPrev;
-      unmatchedEnd = index;
-      index = indexPrev = EMOJI_RE.lastIndex;
+      c += g, C2 = h, w = o, o = h = P.lastIndex;
       continue;
     }
-    index += 1;
+    o += 1;
   }
-  return {
-    width: truncationEnabled ? truncationLimit : width,
-    index: truncationEnabled ? truncationIndex : length,
-    truncated: truncationEnabled,
-    ellipsed: truncationEnabled && LIMIT >= ELLIPSIS_WIDTH
-  };
+  return { width: F ? b : c, index: F ? d2 : p, truncated: F, ellipsed: F && i >= n };
 };
-var dist_default = getStringTruncatedWidth;
-
-// node_modules/fast-string-width/dist/index.js
-var NO_TRUNCATION2 = {
-  limit: Infinity,
-  ellipsis: "",
-  ellipsisWidth: 0
+var pt = { limit: 1 / 0, ellipsis: "", ellipsisWidth: 0 };
+var S = (t, e2 = {}) => X(t, pt, e2).width;
+var W = "\x1B";
+var Z = "\x9B";
+var Ft = 39;
+var j = "\x07";
+var Q = "[";
+var dt = "]";
+var tt = "m";
+var U = `${dt}8;;`;
+var et = new RegExp(`(?:\\${Q}(?<code>\\d+)m|\\${U}(?<uri>.*)${j})`, "y");
+var mt = (t) => {
+  if (t >= 30 && t <= 37 || t >= 90 && t <= 97) return 39;
+  if (t >= 40 && t <= 47 || t >= 100 && t <= 107) return 49;
+  if (t === 1 || t === 2) return 22;
+  if (t === 3) return 23;
+  if (t === 4) return 24;
+  if (t === 7) return 27;
+  if (t === 8) return 28;
+  if (t === 9) return 29;
+  if (t === 0) return 0;
 };
-var fastStringWidth = (input, options = {}) => {
-  return dist_default(input, NO_TRUNCATION2, options).width;
-};
-var dist_default2 = fastStringWidth;
-
-// node_modules/fast-wrap-ansi/lib/main.js
-var ESC = "\x1B";
-var CSI = "\x9B";
-var END_CODE = 39;
-var ANSI_ESCAPE_BELL = "\x07";
-var ANSI_CSI = "[";
-var ANSI_OSC = "]";
-var ANSI_SGR_TERMINATOR = "m";
-var ANSI_ESCAPE_LINK = `${ANSI_OSC}8;;`;
-var GROUP_REGEX = new RegExp(`(?:\\${ANSI_CSI}(?<code>\\d+)m|\\${ANSI_ESCAPE_LINK}(?<uri>.*)${ANSI_ESCAPE_BELL})`, "y");
-var getClosingCode = (openingCode) => {
-  if (openingCode >= 30 && openingCode <= 37)
-    return 39;
-  if (openingCode >= 90 && openingCode <= 97)
-    return 39;
-  if (openingCode >= 40 && openingCode <= 47)
-    return 49;
-  if (openingCode >= 100 && openingCode <= 107)
-    return 49;
-  if (openingCode === 1 || openingCode === 2)
-    return 22;
-  if (openingCode === 3)
-    return 23;
-  if (openingCode === 4)
-    return 24;
-  if (openingCode === 7)
-    return 27;
-  if (openingCode === 8)
-    return 28;
-  if (openingCode === 9)
-    return 29;
-  if (openingCode === 0)
-    return 0;
-  return void 0;
-};
-var wrapAnsiCode = (code) => `${ESC}${ANSI_CSI}${code}${ANSI_SGR_TERMINATOR}`;
-var wrapAnsiHyperlink = (url) => `${ESC}${ANSI_ESCAPE_LINK}${url}${ANSI_ESCAPE_BELL}`;
-var wrapWord = (rows, word, columns) => {
-  const characters = word[Symbol.iterator]();
-  let isInsideEscape = false;
-  let isInsideLinkEscape = false;
-  let lastRow = rows.at(-1);
-  let visible = lastRow === void 0 ? 0 : dist_default2(lastRow);
-  let currentCharacter = characters.next();
-  let nextCharacter = characters.next();
-  let rawCharacterIndex = 0;
-  while (!currentCharacter.done) {
-    const character = currentCharacter.value;
-    const characterLength = dist_default2(character);
-    if (visible + characterLength <= columns) {
-      rows[rows.length - 1] += character;
-    } else {
-      rows.push(character);
-      visible = 0;
-    }
-    if (character === ESC || character === CSI) {
-      isInsideEscape = true;
-      isInsideLinkEscape = word.startsWith(ANSI_ESCAPE_LINK, rawCharacterIndex + 1);
-    }
-    if (isInsideEscape) {
-      if (isInsideLinkEscape) {
-        if (character === ANSI_ESCAPE_BELL) {
-          isInsideEscape = false;
-          isInsideLinkEscape = false;
-        }
-      } else if (character === ANSI_SGR_TERMINATOR) {
-        isInsideEscape = false;
-      }
-    } else {
-      visible += characterLength;
-      if (visible === columns && !nextCharacter.done) {
-        rows.push("");
-        visible = 0;
-      }
-    }
-    currentCharacter = nextCharacter;
-    nextCharacter = characters.next();
-    rawCharacterIndex += character.length;
+var st = (t) => `${W}${Q}${t}${tt}`;
+var it = (t) => `${W}${U}${t}${j}`;
+var gt = (t) => t.map((e2) => S(e2));
+var G = (t, e2, s) => {
+  const i = e2[Symbol.iterator]();
+  let r = false, n = false, u = t.at(-1), a = u === void 0 ? 0 : S(u), l = i.next(), E = i.next(), g = 0;
+  for (; !l.done; ) {
+    const m = l.value, A = S(m);
+    a + A <= s ? t[t.length - 1] += m : (t.push(m), a = 0), (m === W || m === Z) && (r = true, n = e2.startsWith(U, g + 1)), r ? n ? m === j && (r = false, n = false) : m === tt && (r = false) : (a += A, a === s && !E.done && (t.push(""), a = 0)), l = E, E = i.next(), g += m.length;
   }
-  lastRow = rows.at(-1);
-  if (!visible && lastRow !== void 0 && lastRow.length && rows.length > 1) {
-    rows[rows.length - 2] += rows.pop();
-  }
+  u = t.at(-1), !a && u !== void 0 && u.length > 0 && t.length > 1 && (t[t.length - 2] += t.pop());
 };
-var stringVisibleTrimSpacesRight = (string) => {
-  const words = string.split(" ");
-  let last = words.length;
-  while (last) {
-    if (dist_default2(words[last - 1])) {
-      break;
-    }
-    last--;
-  }
-  if (last === words.length) {
-    return string;
-  }
-  return words.slice(0, last).join(" ") + words.slice(last).join("");
+var vt = (t) => {
+  const e2 = t.split(" ");
+  let s = e2.length;
+  for (; s > 0 && !(S(e2[s - 1]) > 0); ) s--;
+  return s === e2.length ? t : e2.slice(0, s).join(" ") + e2.slice(s).join("");
 };
-var exec = (string, columns, options = {}) => {
-  if (options.trim !== false && string.trim() === "") {
-    return "";
-  }
-  let returnValue = "";
-  let escapeCode;
-  let escapeUrl;
-  const words = string.split(" ");
-  let rows = [""];
-  let rowLength = 0;
-  for (let index = 0; index < words.length; index++) {
-    const word = words[index];
-    if (options.trim !== false) {
-      const row = rows.at(-1) ?? "";
-      const trimmed = row.trimStart();
-      if (row.length !== trimmed.length) {
-        rows[rows.length - 1] = trimmed;
-        rowLength = dist_default2(trimmed);
-      }
-    }
-    if (index !== 0) {
-      if (rowLength >= columns && (options.wordWrap === false || options.trim === false)) {
-        rows.push("");
-        rowLength = 0;
-      }
-      if (rowLength || options.trim === false) {
-        rows[rows.length - 1] += " ";
-        rowLength++;
-      }
-    }
-    const wordLength = dist_default2(word);
-    if (options.hard && wordLength > columns) {
-      const remainingColumns = columns - rowLength;
-      const breaksStartingThisLine = 1 + Math.floor((wordLength - remainingColumns - 1) / columns);
-      const breaksStartingNextLine = Math.floor((wordLength - 1) / columns);
-      if (breaksStartingNextLine < breaksStartingThisLine) {
-        rows.push("");
-      }
-      wrapWord(rows, word, columns);
-      rowLength = dist_default2(rows.at(-1) ?? "");
+var Et = (t, e2, s = {}) => {
+  if (s.trim !== false && t.trim() === "") return "";
+  let i = "", r, n;
+  const u = t.split(" "), a = gt(u);
+  let l = [""];
+  for (const [h, o] of u.entries()) {
+    s.trim !== false && (l[l.length - 1] = (l.at(-1) ?? "").trimStart());
+    let p = S(l.at(-1) ?? "");
+    if (h !== 0 && (p >= e2 && (s.wordWrap === false || s.trim === false) && (l.push(""), p = 0), (p > 0 || s.trim === false) && (l[l.length - 1] += " ", p++)), s.hard && a[h] > e2) {
+      const v = e2 - p, F = 1 + Math.floor((a[h] - v - 1) / e2);
+      Math.floor((a[h] - 1) / e2) < F && l.push(""), G(l, o, e2);
       continue;
     }
-    if (rowLength + wordLength > columns && rowLength && wordLength) {
-      if (options.wordWrap === false && rowLength < columns) {
-        wrapWord(rows, word, columns);
-        rowLength = dist_default2(rows.at(-1) ?? "");
+    if (p + a[h] > e2 && p > 0 && a[h] > 0) {
+      if (s.wordWrap === false && p < e2) {
+        G(l, o, e2);
         continue;
       }
-      rows.push("");
-      rowLength = 0;
+      l.push("");
     }
-    if (rowLength + wordLength > columns && options.wordWrap === false) {
-      wrapWord(rows, word, columns);
-      rowLength = dist_default2(rows.at(-1) ?? "");
+    if (p + a[h] > e2 && s.wordWrap === false) {
+      G(l, o, e2);
       continue;
     }
-    rows[rows.length - 1] += word;
-    rowLength += wordLength;
+    l[l.length - 1] += o;
   }
-  if (options.trim !== false) {
-    rows = rows.map((row) => stringVisibleTrimSpacesRight(row));
+  s.trim !== false && (l = l.map((h) => vt(h)));
+  const E = l.join(`
+`), g = E[Symbol.iterator]();
+  let m = g.next(), A = g.next(), V2 = 0;
+  for (; !m.done; ) {
+    const h = m.value, o = A.value;
+    if (i += h, h === W || h === Z) {
+      et.lastIndex = V2 + 1;
+      const F = et.exec(E)?.groups;
+      if (F?.code !== void 0) {
+        const d2 = Number.parseFloat(F.code);
+        r = d2 === Ft ? void 0 : d2;
+      } else F?.uri !== void 0 && (n = F.uri.length === 0 ? void 0 : F.uri);
+    }
+    const p = r ? mt(r) : void 0;
+    o === `
+` ? (n && (i += it("")), r && p && (i += st(p))) : h === `
+` && (r && p && (i += st(r)), n && (i += it(n))), V2 += h.length, m = A, A = g.next();
   }
-  const preString = rows.join("\n");
-  let inSurrogate = false;
-  for (let i = 0; i < preString.length; i++) {
-    const character = preString[i];
-    returnValue += character;
-    if (!inSurrogate) {
-      inSurrogate = character >= "\uD800" && character <= "\uDBFF";
-    } else {
-      continue;
-    }
-    if (character === ESC || character === CSI) {
-      GROUP_REGEX.lastIndex = i + 1;
-      const groupsResult = GROUP_REGEX.exec(preString);
-      const groups = groupsResult?.groups;
-      if (groups?.code !== void 0) {
-        const code = Number.parseFloat(groups.code);
-        escapeCode = code === END_CODE ? void 0 : code;
-      } else if (groups?.uri !== void 0) {
-        escapeUrl = groups.uri.length === 0 ? void 0 : groups.uri;
-      }
-    }
-    if (preString[i + 1] === "\n") {
-      if (escapeUrl) {
-        returnValue += wrapAnsiHyperlink("");
-      }
-      const closingCode = escapeCode ? getClosingCode(escapeCode) : void 0;
-      if (escapeCode && closingCode) {
-        returnValue += wrapAnsiCode(closingCode);
-      }
-    } else if (character === "\n") {
-      if (escapeCode && getClosingCode(escapeCode)) {
-        returnValue += wrapAnsiCode(escapeCode);
-      }
-      if (escapeUrl) {
-        returnValue += wrapAnsiHyperlink(escapeUrl);
-      }
-    }
-  }
-  return returnValue;
+  return i;
 };
-var CRLF_OR_LF = /\r?\n/;
-function wrapAnsi(string, columns, options) {
-  return String(string).normalize().split(CRLF_OR_LF).map((line) => exec(line, columns, options)).join("\n");
+function K(t, e2, s) {
+  return String(t).normalize().replaceAll(`\r
+`, `
+`).split(`
+`).map((i) => Et(i, e2, s)).join(`
+`);
 }
-
-// node_modules/@clack/core/dist/index.mjs
-var import_sisteransi = __toESM(require_src(), 1);
-import { ReadStream as D } from "tty";
-function d(r, t2, e) {
-  if (!e.some((o) => !o.disabled)) return r;
-  const s = r + t2, i = Math.max(e.length - 1, 0), n = s < 0 ? i : s > i ? 0 : s;
-  return e[n].disabled ? d(n, t2 < 0 ? -1 : 1, e) : n;
-}
-var E = ["up", "down", "left", "right", "space", "enter", "cancel"];
-var G = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-var u = { actions: new Set(E), aliases: /* @__PURE__ */ new Map([["k", "up"], ["j", "down"], ["h", "left"], ["l", "right"], ["", "cancel"], ["escape", "cancel"]]), messages: { cancel: "Canceled", error: "Something went wrong" }, withGuide: true, date: { monthNames: [...G], messages: { required: "Please enter a valid date", invalidMonth: "There are only 12 months in a year", invalidDay: (r, t2) => `There are only ${r} days in ${t2}`, afterMin: (r) => `Date must be on or after ${r.toISOString().slice(0, 10)}`, beforeMax: (r) => `Date must be on or before ${r.toISOString().slice(0, 10)}` } } };
-function V(r, t2) {
-  if (typeof r == "string") return u.aliases.get(r) === t2;
-  for (const e of r) if (e !== void 0 && V(e, t2)) return true;
+var At = ["up", "down", "left", "right", "space", "enter", "cancel"];
+var _ = { actions: new Set(At), aliases: /* @__PURE__ */ new Map([["k", "up"], ["j", "down"], ["h", "left"], ["l", "right"], ["", "cancel"], ["escape", "cancel"]]), messages: { cancel: "Canceled", error: "Something went wrong" }, withGuide: true };
+function H(t, e2) {
+  if (typeof t == "string") return _.aliases.get(t) === e2;
+  for (const s of t) if (s !== void 0 && H(s, e2)) return true;
   return false;
 }
-function j(r, t2) {
-  if (r === t2) return;
-  const e = r.split(`
-`), s = t2.split(`
-`), i = Math.max(e.length, s.length), n = [];
-  for (let o = 0; o < i; o++) e[o] !== s[o] && n.push(o);
-  return { lines: n, numLinesBefore: e.length, numLinesAfter: s.length, numLines: i };
+function _t(t, e2) {
+  if (t === e2) return;
+  const s = t.split(`
+`), i = e2.split(`
+`), r = Math.max(s.length, i.length), n = [];
+  for (let u = 0; u < r; u++) s[u] !== i[u] && n.push(u);
+  return { lines: n, numLinesBefore: s.length, numLinesAfter: i.length, numLines: r };
 }
-var Y = globalThis.process.platform.startsWith("win");
-var C = /* @__PURE__ */ Symbol("clack:cancel");
-function q(r) {
-  return r === C;
+var bt = globalThis.process.platform.startsWith("win");
+var z = /* @__PURE__ */ Symbol("clack:cancel");
+function Ct(t) {
+  return t === z;
 }
-function w(r, t2) {
-  const e = r;
-  e.isTTY && e.setRawMode(t2);
+function T(t, e2) {
+  const s = t;
+  s.isTTY && s.setRawMode(e2);
 }
-function z({ input: r = $, output: t2 = S, overwrite: e = true, hideCursor: s = true } = {}) {
-  const i = _.createInterface({ input: r, output: t2, prompt: "", tabSize: 1 });
-  _.emitKeypressEvents(r, i), r instanceof D && r.isTTY && r.setRawMode(true);
-  const n = (o, { name: a, sequence: h }) => {
-    const l = String(o);
-    if (V([l, a, h], "cancel")) {
-      s && t2.write(import_sisteransi.cursor.show), process.exit(0);
+function Bt({ input: t = q, output: e2 = R, overwrite: s = true, hideCursor: i = true } = {}) {
+  const r = k.createInterface({ input: t, output: e2, prompt: "", tabSize: 1 });
+  k.emitKeypressEvents(t, r), t instanceof J && t.isTTY && t.setRawMode(true);
+  const n = (u, { name: a, sequence: l }) => {
+    const E = String(u);
+    if (H([E, a, l], "cancel")) {
+      i && e2.write(import_sisteransi.cursor.show), process.exit(0);
       return;
     }
-    if (!e) return;
-    const f = a === "return" ? 0 : -1, v = a === "return" ? -1 : 0;
-    _.moveCursor(t2, f, v, () => {
-      _.clearLine(t2, 1, () => {
-        r.once("keypress", n);
+    if (!s) return;
+    const g = a === "return" ? 0 : -1, m = a === "return" ? -1 : 0;
+    k.moveCursor(e2, g, m, () => {
+      k.clearLine(e2, 1, () => {
+        t.once("keypress", n);
       });
     });
   };
-  return s && t2.write(import_sisteransi.cursor.hide), r.once("keypress", n), () => {
-    r.off("keypress", n), s && t2.write(import_sisteransi.cursor.show), r instanceof D && r.isTTY && !Y && r.setRawMode(false), i.terminal = false, i.close();
+  return i && e2.write(import_sisteransi.cursor.hide), t.once("keypress", n), () => {
+    t.off("keypress", n), i && e2.write(import_sisteransi.cursor.show), t instanceof J && t.isTTY && !bt && t.setRawMode(false), r.terminal = false, r.close();
   };
 }
-var O = (r) => "columns" in r && typeof r.columns == "number" ? r.columns : 80;
-var A = (r) => "rows" in r && typeof r.rows == "number" ? r.rows : 20;
-function R(r, t2, e, s = e) {
-  const i = O(r ?? S);
-  return wrapAnsi(t2, i - e.length, { hard: true, trim: false }).split(`
-`).map((n, o) => `${o === 0 ? s : e}${n}`).join(`
+var rt = (t) => "columns" in t && typeof t.columns == "number" ? t.columns : 80;
+var nt = (t) => "rows" in t && typeof t.rows == "number" ? t.rows : 20;
+function xt(t, e2, s, i = s) {
+  const r = rt(t ?? R);
+  return K(e2, r - s.length, { hard: true, trim: false }).split(`
+`).map((n, u) => `${u === 0 ? i : s}${n}`).join(`
 `);
 }
-var p = class {
+var x = class {
   input;
   output;
   _abortSignal;
@@ -4217,168 +4001,168 @@ var p = class {
   error = "";
   value;
   userInput = "";
-  constructor(t2, e = true) {
-    const { input: s = $, output: i = S, render: n, signal: o, ...a } = t2;
-    this.opts = a, this.onKeypress = this.onKeypress.bind(this), this.close = this.close.bind(this), this.render = this.render.bind(this), this._render = n.bind(this), this._track = e, this._abortSignal = o, this.input = s, this.output = i;
+  constructor(e2, s = true) {
+    const { input: i = q, output: r = R, render: n, signal: u, ...a } = e2;
+    this.opts = a, this.onKeypress = this.onKeypress.bind(this), this.close = this.close.bind(this), this.render = this.render.bind(this), this._render = n.bind(this), this._track = s, this._abortSignal = u, this.input = i, this.output = r;
   }
   unsubscribe() {
     this._subscribers.clear();
   }
-  setSubscriber(t2, e) {
-    const s = this._subscribers.get(t2) ?? [];
-    s.push(e), this._subscribers.set(t2, s);
+  setSubscriber(e2, s) {
+    const i = this._subscribers.get(e2) ?? [];
+    i.push(s), this._subscribers.set(e2, i);
   }
-  on(t2, e) {
-    this.setSubscriber(t2, { cb: e });
+  on(e2, s) {
+    this.setSubscriber(e2, { cb: s });
   }
-  once(t2, e) {
-    this.setSubscriber(t2, { cb: e, once: true });
+  once(e2, s) {
+    this.setSubscriber(e2, { cb: s, once: true });
   }
-  emit(t2, ...e) {
-    const s = this._subscribers.get(t2) ?? [], i = [];
-    for (const n of s) n.cb(...e), n.once && i.push(() => s.splice(s.indexOf(n), 1));
-    for (const n of i) n();
+  emit(e2, ...s) {
+    const i = this._subscribers.get(e2) ?? [], r = [];
+    for (const n of i) n.cb(...s), n.once && r.push(() => i.splice(i.indexOf(n), 1));
+    for (const n of r) n();
   }
   prompt() {
-    return new Promise((t2) => {
+    return new Promise((e2) => {
       if (this._abortSignal) {
-        if (this._abortSignal.aborted) return this.state = "cancel", this.close(), t2(C);
+        if (this._abortSignal.aborted) return this.state = "cancel", this.close(), e2(z);
         this._abortSignal.addEventListener("abort", () => {
           this.state = "cancel", this.close();
         }, { once: true });
       }
-      this.rl = P.createInterface({ input: this.input, tabSize: 2, prompt: "", escapeCodeTimeout: 50, terminal: true }), this.rl.prompt(), this.opts.initialUserInput !== void 0 && this._setUserInput(this.opts.initialUserInput, true), this.input.on("keypress", this.onKeypress), w(this.input, true), this.output.on("resize", this.render), this.render(), this.once("submit", () => {
-        this.output.write(import_sisteransi.cursor.show), this.output.off("resize", this.render), w(this.input, false), t2(this.value);
+      this.rl = ot.createInterface({ input: this.input, tabSize: 2, prompt: "", escapeCodeTimeout: 50, terminal: true }), this.rl.prompt(), this.opts.initialUserInput !== void 0 && this._setUserInput(this.opts.initialUserInput, true), this.input.on("keypress", this.onKeypress), T(this.input, true), this.output.on("resize", this.render), this.render(), this.once("submit", () => {
+        this.output.write(import_sisteransi.cursor.show), this.output.off("resize", this.render), T(this.input, false), e2(this.value);
       }), this.once("cancel", () => {
-        this.output.write(import_sisteransi.cursor.show), this.output.off("resize", this.render), w(this.input, false), t2(C);
+        this.output.write(import_sisteransi.cursor.show), this.output.off("resize", this.render), T(this.input, false), e2(z);
       });
     });
   }
-  _isActionKey(t2, e) {
-    return t2 === "	";
+  _isActionKey(e2, s) {
+    return e2 === "	";
   }
-  _setValue(t2) {
-    this.value = t2, this.emit("value", this.value);
+  _setValue(e2) {
+    this.value = e2, this.emit("value", this.value);
   }
-  _setUserInput(t2, e) {
-    this.userInput = t2 ?? "", this.emit("userInput", this.userInput), e && this._track && this.rl && (this.rl.write(this.userInput), this._cursor = this.rl.cursor);
+  _setUserInput(e2, s) {
+    this.userInput = e2 ?? "", this.emit("userInput", this.userInput), s && this._track && this.rl && (this.rl.write(this.userInput), this._cursor = this.rl.cursor);
   }
   _clearUserInput() {
     this.rl?.write(null, { ctrl: true, name: "u" }), this._setUserInput("");
   }
-  onKeypress(t2, e) {
-    if (this._track && e.name !== "return" && (e.name && this._isActionKey(t2, e) && this.rl?.write(null, { ctrl: true, name: "h" }), this._cursor = this.rl?.cursor ?? 0, this._setUserInput(this.rl?.line)), this.state === "error" && (this.state = "active"), e?.name && (!this._track && u.aliases.has(e.name) && this.emit("cursor", u.aliases.get(e.name)), u.actions.has(e.name) && this.emit("cursor", e.name)), t2 && (t2.toLowerCase() === "y" || t2.toLowerCase() === "n") && this.emit("confirm", t2.toLowerCase() === "y"), this.emit("key", t2?.toLowerCase(), e), e?.name === "return") {
+  onKeypress(e2, s) {
+    if (this._track && s.name !== "return" && (s.name && this._isActionKey(e2, s) && this.rl?.write(null, { ctrl: true, name: "h" }), this._cursor = this.rl?.cursor ?? 0, this._setUserInput(this.rl?.line)), this.state === "error" && (this.state = "active"), s?.name && (!this._track && _.aliases.has(s.name) && this.emit("cursor", _.aliases.get(s.name)), _.actions.has(s.name) && this.emit("cursor", s.name)), e2 && (e2.toLowerCase() === "y" || e2.toLowerCase() === "n") && this.emit("confirm", e2.toLowerCase() === "y"), this.emit("key", e2?.toLowerCase(), s), s?.name === "return") {
       if (this.opts.validate) {
-        const s = this.opts.validate(this.value);
-        s && (this.error = s instanceof Error ? s.message : s, this.state = "error", this.rl?.write(this.userInput));
+        const i = this.opts.validate(this.value);
+        i && (this.error = i instanceof Error ? i.message : i, this.state = "error", this.rl?.write(this.userInput));
       }
       this.state !== "error" && (this.state = "submit");
     }
-    V([t2, e?.name, e?.sequence], "cancel") && (this.state = "cancel"), (this.state === "submit" || this.state === "cancel") && this.emit("finalize"), this.render(), (this.state === "submit" || this.state === "cancel") && this.close();
+    H([e2, s?.name, s?.sequence], "cancel") && (this.state = "cancel"), (this.state === "submit" || this.state === "cancel") && this.emit("finalize"), this.render(), (this.state === "submit" || this.state === "cancel") && this.close();
   }
   close() {
     this.input.unpipe(), this.input.removeListener("keypress", this.onKeypress), this.output.write(`
-`), w(this.input, false), this.rl?.close(), this.rl = void 0, this.emit(`${this.state}`, this.value), this.unsubscribe();
+`), T(this.input, false), this.rl?.close(), this.rl = void 0, this.emit(`${this.state}`, this.value), this.unsubscribe();
   }
   restoreCursor() {
-    const t2 = wrapAnsi(this._prevFrame, process.stdout.columns, { hard: true, trim: false }).split(`
+    const e2 = K(this._prevFrame, process.stdout.columns, { hard: true, trim: false }).split(`
 `).length - 1;
-    this.output.write(import_sisteransi.cursor.move(-999, t2 * -1));
+    this.output.write(import_sisteransi.cursor.move(-999, e2 * -1));
   }
   render() {
-    const t2 = wrapAnsi(this._render(this) ?? "", process.stdout.columns, { hard: true, trim: false });
-    if (t2 !== this._prevFrame) {
+    const e2 = K(this._render(this) ?? "", process.stdout.columns, { hard: true, trim: false });
+    if (e2 !== this._prevFrame) {
       if (this.state === "initial") this.output.write(import_sisteransi.cursor.hide);
       else {
-        const e = j(this._prevFrame, t2), s = A(this.output);
-        if (this.restoreCursor(), e) {
-          const i = Math.max(0, e.numLinesAfter - s), n = Math.max(0, e.numLinesBefore - s);
-          let o = e.lines.find((a) => a >= i);
-          if (o === void 0) {
-            this._prevFrame = t2;
+        const s = _t(this._prevFrame, e2), i = nt(this.output);
+        if (this.restoreCursor(), s) {
+          const r = Math.max(0, s.numLinesAfter - i), n = Math.max(0, s.numLinesBefore - i);
+          let u = s.lines.find((a) => a >= r);
+          if (u === void 0) {
+            this._prevFrame = e2;
             return;
           }
-          if (e.lines.length === 1) {
-            this.output.write(import_sisteransi.cursor.move(0, o - n)), this.output.write(import_sisteransi.erase.lines(1));
-            const a = t2.split(`
+          if (s.lines.length === 1) {
+            this.output.write(import_sisteransi.cursor.move(0, u - n)), this.output.write(import_sisteransi.erase.lines(1));
+            const a = e2.split(`
 `);
-            this.output.write(a[o]), this._prevFrame = t2, this.output.write(import_sisteransi.cursor.move(0, a.length - o - 1));
+            this.output.write(a[u]), this._prevFrame = e2, this.output.write(import_sisteransi.cursor.move(0, a.length - u - 1));
             return;
-          } else if (e.lines.length > 1) {
-            if (i < n) o = i;
+          } else if (s.lines.length > 1) {
+            if (r < n) u = r;
             else {
-              const h = o - n;
-              h > 0 && this.output.write(import_sisteransi.cursor.move(0, h));
+              const l = u - n;
+              l > 0 && this.output.write(import_sisteransi.cursor.move(0, l));
             }
             this.output.write(import_sisteransi.erase.down());
-            const a = t2.split(`
-`).slice(o);
+            const a = e2.split(`
+`).slice(u);
             this.output.write(a.join(`
-`)), this._prevFrame = t2;
+`)), this._prevFrame = e2;
             return;
           }
         }
         this.output.write(import_sisteransi.erase.down());
       }
-      this.output.write(t2), this.state === "initial" && (this.state = "active"), this._prevFrame = t2;
+      this.output.write(e2), this.state === "initial" && (this.state = "active"), this._prevFrame = e2;
     }
   }
 };
-var Q = class extends p {
+var kt = class extends x {
   get cursor() {
     return this.value ? 0 : 1;
   }
   get _value() {
     return this.cursor === 0;
   }
-  constructor(t2) {
-    super(t2, false), this.value = !!t2.initialValue, this.on("userInput", () => {
+  constructor(e2) {
+    super(e2, false), this.value = !!e2.initialValue, this.on("userInput", () => {
       this.value = this._value;
-    }), this.on("confirm", (e) => {
-      this.output.write(import_sisteransi.cursor.move(0, -1)), this.value = e, this.state = "submit", this.close();
+    }), this.on("confirm", (s) => {
+      this.output.write(import_sisteransi.cursor.move(0, -1)), this.value = s, this.state = "submit", this.close();
     }), this.on("cursor", () => {
       this.value = !this.value;
     });
   }
 };
-var it = class extends p {
+var Lt = class extends x {
   options;
   cursor = 0;
   get _value() {
     return this.options[this.cursor].value;
   }
   get _enabledOptions() {
-    return this.options.filter((t2) => t2.disabled !== true);
+    return this.options.filter((e2) => e2.disabled !== true);
   }
   toggleAll() {
-    const t2 = this._enabledOptions, e = this.value !== void 0 && this.value.length === t2.length;
-    this.value = e ? [] : t2.map((s) => s.value);
+    const e2 = this._enabledOptions, s = this.value !== void 0 && this.value.length === e2.length;
+    this.value = s ? [] : e2.map((i) => i.value);
   }
   toggleInvert() {
-    const t2 = this.value;
-    if (!t2) return;
-    const e = this._enabledOptions.filter((s) => !t2.includes(s.value));
-    this.value = e.map((s) => s.value);
+    const e2 = this.value;
+    if (!e2) return;
+    const s = this._enabledOptions.filter((i) => !e2.includes(i.value));
+    this.value = s.map((i) => i.value);
   }
   toggleValue() {
     this.value === void 0 && (this.value = []);
-    const t2 = this.value.includes(this._value);
-    this.value = t2 ? this.value.filter((e) => e !== this._value) : [...this.value, this._value];
+    const e2 = this.value.includes(this._value);
+    this.value = e2 ? this.value.filter((s) => s !== this._value) : [...this.value, this._value];
   }
-  constructor(t2) {
-    super(t2, false), this.options = t2.options, this.value = [...t2.initialValues ?? []];
-    const e = Math.max(this.options.findIndex(({ value: s }) => s === t2.cursorAt), 0);
-    this.cursor = this.options[e].disabled ? d(e, 1, this.options) : e, this.on("key", (s) => {
-      s === "a" && this.toggleAll(), s === "i" && this.toggleInvert();
-    }), this.on("cursor", (s) => {
-      switch (s) {
+  constructor(e2) {
+    super(e2, false), this.options = e2.options, this.value = [...e2.initialValues ?? []];
+    const s = Math.max(this.options.findIndex(({ value: i }) => i === e2.cursorAt), 0);
+    this.cursor = this.options[s].disabled ? B(s, 1, this.options) : s, this.on("key", (i) => {
+      i === "a" && this.toggleAll(), i === "i" && this.toggleInvert();
+    }), this.on("cursor", (i) => {
+      switch (i) {
         case "left":
         case "up":
-          this.cursor = d(this.cursor, -1, this.options);
+          this.cursor = B(this.cursor, -1, this.options);
           break;
         case "down":
         case "right":
-          this.cursor = d(this.cursor, 1, this.options);
+          this.cursor = B(this.cursor, 1, this.options);
           break;
         case "space":
           this.toggleValue();
@@ -4387,7 +4171,7 @@ var it = class extends p {
     });
   }
 };
-var rt = class extends p {
+var Mt = class extends x {
   _mask = "\u2022";
   get cursor() {
     return this._cursor;
@@ -4397,21 +4181,21 @@ var rt = class extends p {
   }
   get userInputWithCursor() {
     if (this.state === "submit" || this.state === "cancel") return this.masked;
-    const t2 = this.userInput;
-    if (this.cursor >= t2.length) return `${this.masked}${y(["inverse", "hidden"], "_")}`;
-    const e = this.masked, s = e.slice(0, this.cursor), i = e.slice(this.cursor);
-    return `${s}${y("inverse", i[0])}${i.slice(1)}`;
+    const e2 = this.userInput;
+    if (this.cursor >= e2.length) return `${this.masked}${import_picocolors3.default.inverse(import_picocolors3.default.hidden("_"))}`;
+    const s = this.masked, i = s.slice(0, this.cursor), r = s.slice(this.cursor);
+    return `${i}${import_picocolors3.default.inverse(r[0])}${r.slice(1)}`;
   }
   clear() {
     this._clearUserInput();
   }
-  constructor({ mask: t2, ...e }) {
-    super(e), this._mask = t2 ?? "\u2022", this.on("userInput", (s) => {
-      this._setValue(s);
+  constructor({ mask: e2, ...s }) {
+    super(s), this._mask = e2 ?? "\u2022", this.on("userInput", (i) => {
+      this._setValue(i);
     });
   }
 };
-var nt = class extends p {
+var Wt = class extends x {
   options;
   cursor = 0;
   get _selectedValue() {
@@ -4420,398 +4204,562 @@ var nt = class extends p {
   changeValue() {
     this.value = this._selectedValue.value;
   }
-  constructor(t2) {
-    super(t2, false), this.options = t2.options;
-    const e = this.options.findIndex(({ value: i }) => i === t2.initialValue), s = e === -1 ? 0 : e;
-    this.cursor = this.options[s].disabled ? d(s, 1, this.options) : s, this.changeValue(), this.on("cursor", (i) => {
-      switch (i) {
+  constructor(e2) {
+    super(e2, false), this.options = e2.options;
+    const s = this.options.findIndex(({ value: r }) => r === e2.initialValue), i = s === -1 ? 0 : s;
+    this.cursor = this.options[i].disabled ? B(i, 1, this.options) : i, this.changeValue(), this.on("cursor", (r) => {
+      switch (r) {
         case "left":
         case "up":
-          this.cursor = d(this.cursor, -1, this.options);
+          this.cursor = B(this.cursor, -1, this.options);
           break;
         case "down":
         case "right":
-          this.cursor = d(this.cursor, 1, this.options);
+          this.cursor = B(this.cursor, 1, this.options);
           break;
       }
       this.changeValue();
     });
   }
 };
-var at = class extends p {
+var $t = class extends x {
   get userInputWithCursor() {
     if (this.state === "submit") return this.userInput;
-    const t2 = this.userInput;
-    if (this.cursor >= t2.length) return `${this.userInput}\u2588`;
-    const e = t2.slice(0, this.cursor), [s, ...i] = t2.slice(this.cursor);
-    return `${e}${y("inverse", s)}${i.join("")}`;
+    const e2 = this.userInput;
+    if (this.cursor >= e2.length) return `${this.userInput}\u2588`;
+    const s = e2.slice(0, this.cursor), [i, ...r] = e2.slice(this.cursor);
+    return `${s}${import_picocolors3.default.inverse(i)}${r.join("")}`;
   }
   get cursor() {
     return this._cursor;
   }
-  constructor(t2) {
-    super({ ...t2, initialUserInput: t2.initialUserInput ?? t2.initialValue }), this.on("userInput", (e) => {
-      this._setValue(e);
+  constructor(e2) {
+    super({ ...e2, initialUserInput: e2.initialUserInput ?? e2.initialValue }), this.on("userInput", (s) => {
+      this._setValue(s);
     }), this.on("finalize", () => {
-      this.value || (this.value = t2.defaultValue), this.value === void 0 && (this.value = "");
+      this.value || (this.value = e2.defaultValue), this.value === void 0 && (this.value = "");
     });
   }
 };
 
 // node_modules/@clack/prompts/dist/index.mjs
-import { styleText as t, stripVTControlCharacters as ne } from "util";
-import P2 from "process";
+var import_picocolors4 = __toESM(require_picocolors(), 1);
 var import_sisteransi2 = __toESM(require_src(), 1);
-import { existsSync as Xe, lstatSync as we, readdirSync as ze } from "fs";
-import { dirname as be, join as Qe } from "path";
-function Ze() {
-  return P2.platform !== "win32" ? P2.env.TERM !== "linux" : !!P2.env.CI || !!P2.env.WT_SESSION || !!P2.env.TERMINUS_SUBLIME || P2.env.ConEmuTask === "{cmd::Cmder}" || P2.env.TERM_PROGRAM === "Terminus-Sublime" || P2.env.TERM_PROGRAM === "vscode" || P2.env.TERM === "xterm-256color" || P2.env.TERM === "alacritty" || P2.env.TERMINAL_EMULATOR === "JetBrains-JediTerm";
+import N2 from "process";
+import { readdirSync as de, existsSync as $e, lstatSync as xt2 } from "fs";
+import { dirname as _t2, join as he } from "path";
+import { stripVTControlCharacters as ut } from "util";
+function me() {
+  return N2.platform !== "win32" ? N2.env.TERM !== "linux" : !!N2.env.CI || !!N2.env.WT_SESSION || !!N2.env.TERMINUS_SUBLIME || N2.env.ConEmuTask === "{cmd::Cmder}" || N2.env.TERM_PROGRAM === "Terminus-Sublime" || N2.env.TERM_PROGRAM === "vscode" || N2.env.TERM === "xterm-256color" || N2.env.TERM === "alacritty" || N2.env.TERMINAL_EMULATOR === "JetBrains-JediTerm";
 }
-var ee = Ze();
-var ae = () => process.env.CI === "true";
-var w2 = (e, i) => ee ? e : i;
-var _e = w2("\u25C6", "*");
-var oe = w2("\u25A0", "x");
-var ue = w2("\u25B2", "x");
-var F = w2("\u25C7", "o");
-var le = w2("\u250C", "T");
-var d2 = w2("\u2502", "|");
-var E2 = w2("\u2514", "\u2014");
-var Ie = w2("\u2510", "T");
-var Ee = w2("\u2518", "\u2014");
-var z2 = w2("\u25CF", ">");
-var H2 = w2("\u25CB", " ");
-var te = w2("\u25FB", "[\u2022]");
-var U = w2("\u25FC", "[+]");
-var J = w2("\u25FB", "[ ]");
-var xe = w2("\u25AA", "\u2022");
-var se = w2("\u2500", "-");
-var ce = w2("\u256E", "+");
-var Ge = w2("\u251C", "+");
-var $e = w2("\u256F", "+");
-var de = w2("\u2570", "+");
-var Oe = w2("\u256D", "+");
-var he = w2("\u25CF", "\u2022");
-var pe = w2("\u25C6", "*");
-var me = w2("\u25B2", "!");
-var ge = w2("\u25A0", "x");
-var V2 = (e) => {
-  switch (e) {
+var et2 = me();
+var ct2 = () => process.env.CI === "true";
+var C = (t, r) => et2 ? t : r;
+var Rt = C("\u25C6", "*");
+var dt2 = C("\u25A0", "x");
+var $t2 = C("\u25B2", "x");
+var V = C("\u25C7", "o");
+var ht2 = C("\u250C", "T");
+var d = C("\u2502", "|");
+var x2 = C("\u2514", "\u2014");
+var Ot = C("\u2510", "T");
+var Pt = C("\u2518", "\u2014");
+var Q2 = C("\u25CF", ">");
+var H2 = C("\u25CB", " ");
+var st2 = C("\u25FB", "[\u2022]");
+var U2 = C("\u25FC", "[+]");
+var q2 = C("\u25FB", "[ ]");
+var Nt = C("\u25AA", "\u2022");
+var rt2 = C("\u2500", "-");
+var mt2 = C("\u256E", "+");
+var Wt2 = C("\u251C", "+");
+var pt2 = C("\u256F", "+");
+var gt2 = C("\u2570", "+");
+var Lt2 = C("\u256D", "+");
+var ft2 = C("\u25CF", "\u2022");
+var Ft2 = C("\u25C6", "*");
+var yt2 = C("\u25B2", "!");
+var Et2 = C("\u25A0", "x");
+var W2 = (t) => {
+  switch (t) {
     case "initial":
     case "active":
-      return t("cyan", _e);
+      return import_picocolors4.default.cyan(Rt);
     case "cancel":
-      return t("red", oe);
+      return import_picocolors4.default.red(dt2);
     case "error":
-      return t("yellow", ue);
+      return import_picocolors4.default.yellow($t2);
     case "submit":
-      return t("green", F);
+      return import_picocolors4.default.green(V);
   }
 };
-var ye = (e) => {
-  switch (e) {
+var vt2 = (t) => {
+  switch (t) {
     case "initial":
     case "active":
-      return t("cyan", d2);
+      return import_picocolors4.default.cyan(d);
     case "cancel":
-      return t("red", d2);
+      return import_picocolors4.default.red(d);
     case "error":
-      return t("yellow", d2);
+      return import_picocolors4.default.yellow(d);
     case "submit":
-      return t("green", d2);
+      return import_picocolors4.default.green(d);
   }
 };
-var et2 = (e, i, s, r, u2) => {
-  let n = i, o = 0;
-  for (let c2 = s; c2 < r; c2++) {
-    const a = e[c2];
-    if (n = n - a.length, o++, n <= u2) break;
+var pe = (t) => t === 161 || t === 164 || t === 167 || t === 168 || t === 170 || t === 173 || t === 174 || t >= 176 && t <= 180 || t >= 182 && t <= 186 || t >= 188 && t <= 191 || t === 198 || t === 208 || t === 215 || t === 216 || t >= 222 && t <= 225 || t === 230 || t >= 232 && t <= 234 || t === 236 || t === 237 || t === 240 || t === 242 || t === 243 || t >= 247 && t <= 250 || t === 252 || t === 254 || t === 257 || t === 273 || t === 275 || t === 283 || t === 294 || t === 295 || t === 299 || t >= 305 && t <= 307 || t === 312 || t >= 319 && t <= 322 || t === 324 || t >= 328 && t <= 331 || t === 333 || t === 338 || t === 339 || t === 358 || t === 359 || t === 363 || t === 462 || t === 464 || t === 466 || t === 468 || t === 470 || t === 472 || t === 474 || t === 476 || t === 593 || t === 609 || t === 708 || t === 711 || t >= 713 && t <= 715 || t === 717 || t === 720 || t >= 728 && t <= 731 || t === 733 || t === 735 || t >= 768 && t <= 879 || t >= 913 && t <= 929 || t >= 931 && t <= 937 || t >= 945 && t <= 961 || t >= 963 && t <= 969 || t === 1025 || t >= 1040 && t <= 1103 || t === 1105 || t === 8208 || t >= 8211 && t <= 8214 || t === 8216 || t === 8217 || t === 8220 || t === 8221 || t >= 8224 && t <= 8226 || t >= 8228 && t <= 8231 || t === 8240 || t === 8242 || t === 8243 || t === 8245 || t === 8251 || t === 8254 || t === 8308 || t === 8319 || t >= 8321 && t <= 8324 || t === 8364 || t === 8451 || t === 8453 || t === 8457 || t === 8467 || t === 8470 || t === 8481 || t === 8482 || t === 8486 || t === 8491 || t === 8531 || t === 8532 || t >= 8539 && t <= 8542 || t >= 8544 && t <= 8555 || t >= 8560 && t <= 8569 || t === 8585 || t >= 8592 && t <= 8601 || t === 8632 || t === 8633 || t === 8658 || t === 8660 || t === 8679 || t === 8704 || t === 8706 || t === 8707 || t === 8711 || t === 8712 || t === 8715 || t === 8719 || t === 8721 || t === 8725 || t === 8730 || t >= 8733 && t <= 8736 || t === 8739 || t === 8741 || t >= 8743 && t <= 8748 || t === 8750 || t >= 8756 && t <= 8759 || t === 8764 || t === 8765 || t === 8776 || t === 8780 || t === 8786 || t === 8800 || t === 8801 || t >= 8804 && t <= 8807 || t === 8810 || t === 8811 || t === 8814 || t === 8815 || t === 8834 || t === 8835 || t === 8838 || t === 8839 || t === 8853 || t === 8857 || t === 8869 || t === 8895 || t === 8978 || t >= 9312 && t <= 9449 || t >= 9451 && t <= 9547 || t >= 9552 && t <= 9587 || t >= 9600 && t <= 9615 || t >= 9618 && t <= 9621 || t === 9632 || t === 9633 || t >= 9635 && t <= 9641 || t === 9650 || t === 9651 || t === 9654 || t === 9655 || t === 9660 || t === 9661 || t === 9664 || t === 9665 || t >= 9670 && t <= 9672 || t === 9675 || t >= 9678 && t <= 9681 || t >= 9698 && t <= 9701 || t === 9711 || t === 9733 || t === 9734 || t === 9737 || t === 9742 || t === 9743 || t === 9756 || t === 9758 || t === 9792 || t === 9794 || t === 9824 || t === 9825 || t >= 9827 && t <= 9829 || t >= 9831 && t <= 9834 || t === 9836 || t === 9837 || t === 9839 || t === 9886 || t === 9887 || t === 9919 || t >= 9926 && t <= 9933 || t >= 9935 && t <= 9939 || t >= 9941 && t <= 9953 || t === 9955 || t === 9960 || t === 9961 || t >= 9963 && t <= 9969 || t === 9972 || t >= 9974 && t <= 9977 || t === 9979 || t === 9980 || t === 9982 || t === 9983 || t === 10045 || t >= 10102 && t <= 10111 || t >= 11094 && t <= 11097 || t >= 12872 && t <= 12879 || t >= 57344 && t <= 63743 || t >= 65024 && t <= 65039 || t === 65533 || t >= 127232 && t <= 127242 || t >= 127248 && t <= 127277 || t >= 127280 && t <= 127337 || t >= 127344 && t <= 127373 || t === 127375 || t === 127376 || t >= 127387 && t <= 127404 || t >= 917760 && t <= 917999 || t >= 983040 && t <= 1048573 || t >= 1048576 && t <= 1114109;
+var ge = (t) => t === 12288 || t >= 65281 && t <= 65376 || t >= 65504 && t <= 65510;
+var fe = (t) => t >= 4352 && t <= 4447 || t === 8986 || t === 8987 || t === 9001 || t === 9002 || t >= 9193 && t <= 9196 || t === 9200 || t === 9203 || t === 9725 || t === 9726 || t === 9748 || t === 9749 || t >= 9800 && t <= 9811 || t === 9855 || t === 9875 || t === 9889 || t === 9898 || t === 9899 || t === 9917 || t === 9918 || t === 9924 || t === 9925 || t === 9934 || t === 9940 || t === 9962 || t === 9970 || t === 9971 || t === 9973 || t === 9978 || t === 9981 || t === 9989 || t === 9994 || t === 9995 || t === 10024 || t === 10060 || t === 10062 || t >= 10067 && t <= 10069 || t === 10071 || t >= 10133 && t <= 10135 || t === 10160 || t === 10175 || t === 11035 || t === 11036 || t === 11088 || t === 11093 || t >= 11904 && t <= 11929 || t >= 11931 && t <= 12019 || t >= 12032 && t <= 12245 || t >= 12272 && t <= 12287 || t >= 12289 && t <= 12350 || t >= 12353 && t <= 12438 || t >= 12441 && t <= 12543 || t >= 12549 && t <= 12591 || t >= 12593 && t <= 12686 || t >= 12688 && t <= 12771 || t >= 12783 && t <= 12830 || t >= 12832 && t <= 12871 || t >= 12880 && t <= 19903 || t >= 19968 && t <= 42124 || t >= 42128 && t <= 42182 || t >= 43360 && t <= 43388 || t >= 44032 && t <= 55203 || t >= 63744 && t <= 64255 || t >= 65040 && t <= 65049 || t >= 65072 && t <= 65106 || t >= 65108 && t <= 65126 || t >= 65128 && t <= 65131 || t >= 94176 && t <= 94180 || t === 94192 || t === 94193 || t >= 94208 && t <= 100343 || t >= 100352 && t <= 101589 || t >= 101632 && t <= 101640 || t >= 110576 && t <= 110579 || t >= 110581 && t <= 110587 || t === 110589 || t === 110590 || t >= 110592 && t <= 110882 || t === 110898 || t >= 110928 && t <= 110930 || t === 110933 || t >= 110948 && t <= 110951 || t >= 110960 && t <= 111355 || t === 126980 || t === 127183 || t === 127374 || t >= 127377 && t <= 127386 || t >= 127488 && t <= 127490 || t >= 127504 && t <= 127547 || t >= 127552 && t <= 127560 || t === 127568 || t === 127569 || t >= 127584 && t <= 127589 || t >= 127744 && t <= 127776 || t >= 127789 && t <= 127797 || t >= 127799 && t <= 127868 || t >= 127870 && t <= 127891 || t >= 127904 && t <= 127946 || t >= 127951 && t <= 127955 || t >= 127968 && t <= 127984 || t === 127988 || t >= 127992 && t <= 128062 || t === 128064 || t >= 128066 && t <= 128252 || t >= 128255 && t <= 128317 || t >= 128331 && t <= 128334 || t >= 128336 && t <= 128359 || t === 128378 || t === 128405 || t === 128406 || t === 128420 || t >= 128507 && t <= 128591 || t >= 128640 && t <= 128709 || t === 128716 || t >= 128720 && t <= 128722 || t >= 128725 && t <= 128727 || t >= 128732 && t <= 128735 || t === 128747 || t === 128748 || t >= 128756 && t <= 128764 || t >= 128992 && t <= 129003 || t === 129008 || t >= 129292 && t <= 129338 || t >= 129340 && t <= 129349 || t >= 129351 && t <= 129535 || t >= 129648 && t <= 129660 || t >= 129664 && t <= 129672 || t >= 129680 && t <= 129725 || t >= 129727 && t <= 129733 || t >= 129742 && t <= 129755 || t >= 129760 && t <= 129768 || t >= 129776 && t <= 129784 || t >= 131072 && t <= 196605 || t >= 196608 && t <= 262141;
+var At2 = /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/y;
+var it2 = /[\x00-\x08\x0A-\x1F\x7F-\x9F]{1,1000}/y;
+var nt2 = /\t{1,1000}/y;
+var wt = new RegExp("[\\u{1F1E6}-\\u{1F1FF}]{2}|\\u{1F3F4}[\\u{E0061}-\\u{E007A}]{2}[\\u{E0030}-\\u{E0039}\\u{E0061}-\\u{E007A}]{1,3}\\u{E007F}|(?:\\p{Emoji}\\uFE0F\\u20E3?|\\p{Emoji_Modifier_Base}\\p{Emoji_Modifier}?|\\p{Emoji_Presentation})(?:\\u200D(?:\\p{Emoji_Modifier_Base}\\p{Emoji_Modifier}?|\\p{Emoji_Presentation}|\\p{Emoji}\\uFE0F\\u20E3?))*", "yu");
+var at2 = /(?:[\x20-\x7E\xA0-\xFF](?!\uFE0F)){1,1000}/y;
+var Fe = new RegExp("\\p{M}+", "gu");
+var ye = { limit: 1 / 0, ellipsis: "" };
+var jt = (t, r = {}, s = {}) => {
+  const i = r.limit ?? 1 / 0, a = r.ellipsis ?? "", o = r?.ellipsisWidth ?? (a ? jt(a, ye, s).width : 0), u = s.ansiWidth ?? 0, l = s.controlWidth ?? 0, n = s.tabWidth ?? 8, c = s.ambiguousWidth ?? 1, g = s.emojiWidth ?? 2, F = s.fullWidthWidth ?? 2, p = s.regularWidth ?? 1, E = s.wideWidth ?? 2;
+  let $ = 0, m = 0, h = t.length, y2 = 0, f = false, v = h, S2 = Math.max(0, i - o), I2 = 0, B2 = 0, A = 0, w = 0;
+  t: for (; ; ) {
+    if (B2 > I2 || m >= h && m > $) {
+      const _2 = t.slice(I2, B2) || t.slice($, m);
+      y2 = 0;
+      for (const D2 of _2.replaceAll(Fe, "")) {
+        const T2 = D2.codePointAt(0) || 0;
+        if (ge(T2) ? w = F : fe(T2) ? w = E : c !== p && pe(T2) ? w = c : w = p, A + w > S2 && (v = Math.min(v, Math.max(I2, $) + y2)), A + w > i) {
+          f = true;
+          break t;
+        }
+        y2 += D2.length, A += w;
+      }
+      I2 = B2 = 0;
+    }
+    if (m >= h) break;
+    if (at2.lastIndex = m, at2.test(t)) {
+      if (y2 = at2.lastIndex - m, w = y2 * p, A + w > S2 && (v = Math.min(v, m + Math.floor((S2 - A) / p))), A + w > i) {
+        f = true;
+        break;
+      }
+      A += w, I2 = $, B2 = m, m = $ = at2.lastIndex;
+      continue;
+    }
+    if (At2.lastIndex = m, At2.test(t)) {
+      if (A + u > S2 && (v = Math.min(v, m)), A + u > i) {
+        f = true;
+        break;
+      }
+      A += u, I2 = $, B2 = m, m = $ = At2.lastIndex;
+      continue;
+    }
+    if (it2.lastIndex = m, it2.test(t)) {
+      if (y2 = it2.lastIndex - m, w = y2 * l, A + w > S2 && (v = Math.min(v, m + Math.floor((S2 - A) / l))), A + w > i) {
+        f = true;
+        break;
+      }
+      A += w, I2 = $, B2 = m, m = $ = it2.lastIndex;
+      continue;
+    }
+    if (nt2.lastIndex = m, nt2.test(t)) {
+      if (y2 = nt2.lastIndex - m, w = y2 * n, A + w > S2 && (v = Math.min(v, m + Math.floor((S2 - A) / n))), A + w > i) {
+        f = true;
+        break;
+      }
+      A += w, I2 = $, B2 = m, m = $ = nt2.lastIndex;
+      continue;
+    }
+    if (wt.lastIndex = m, wt.test(t)) {
+      if (A + g > S2 && (v = Math.min(v, m)), A + g > i) {
+        f = true;
+        break;
+      }
+      A += g, I2 = $, B2 = m, m = $ = wt.lastIndex;
+      continue;
+    }
+    m += 1;
   }
-  return { lineCount: n, removals: o };
+  return { width: f ? S2 : A, index: f ? v : h, truncated: f, ellipsed: f && i >= o };
 };
-var Y2 = ({ cursor: e, options: i, style: s, output: r = process.stdout, maxItems: u2 = Number.POSITIVE_INFINITY, columnPadding: n = 0, rowPadding: o = 4 }) => {
-  const c2 = O(r) - n, a = A(r), l = t("dim", "..."), $2 = Math.max(a - o, 0), y2 = Math.max(Math.min(u2, $2), 5);
-  let p2 = 0;
-  e >= y2 - 3 && (p2 = Math.max(Math.min(e - y2 + 3, i.length - y2), 0));
-  let m = y2 < i.length && p2 > 0, g = y2 < i.length && p2 + y2 < i.length;
-  const S2 = Math.min(p2 + y2, i.length), h = [];
-  let f = 0;
-  m && f++, g && f++;
-  const v = p2 + (m ? 1 : 0), T = S2 - (g ? 1 : 0);
-  for (let b = v; b < T; b++) {
-    const x = wrapAnsi(s(i[b], b === e), c2, { hard: true, trim: false }).split(`
+var Ee = { limit: 1 / 0, ellipsis: "", ellipsisWidth: 0 };
+var M2 = (t, r = {}) => jt(t, Ee, r).width;
+var ot2 = "\x1B";
+var Gt = "\x9B";
+var ve = 39;
+var Ct2 = "\x07";
+var kt2 = "[";
+var Ae = "]";
+var Vt2 = "m";
+var St = `${Ae}8;;`;
+var Ht = new RegExp(`(?:\\${kt2}(?<code>\\d+)m|\\${St}(?<uri>.*)${Ct2})`, "y");
+var we = (t) => {
+  if (t >= 30 && t <= 37 || t >= 90 && t <= 97) return 39;
+  if (t >= 40 && t <= 47 || t >= 100 && t <= 107) return 49;
+  if (t === 1 || t === 2) return 22;
+  if (t === 3) return 23;
+  if (t === 4) return 24;
+  if (t === 7) return 27;
+  if (t === 8) return 28;
+  if (t === 9) return 29;
+  if (t === 0) return 0;
+};
+var Ut = (t) => `${ot2}${kt2}${t}${Vt2}`;
+var Kt = (t) => `${ot2}${St}${t}${Ct2}`;
+var Ce = (t) => t.map((r) => M2(r));
+var It2 = (t, r, s) => {
+  const i = r[Symbol.iterator]();
+  let a = false, o = false, u = t.at(-1), l = u === void 0 ? 0 : M2(u), n = i.next(), c = i.next(), g = 0;
+  for (; !n.done; ) {
+    const F = n.value, p = M2(F);
+    l + p <= s ? t[t.length - 1] += F : (t.push(F), l = 0), (F === ot2 || F === Gt) && (a = true, o = r.startsWith(St, g + 1)), a ? o ? F === Ct2 && (a = false, o = false) : F === Vt2 && (a = false) : (l += p, l === s && !c.done && (t.push(""), l = 0)), n = c, c = i.next(), g += F.length;
+  }
+  u = t.at(-1), !l && u !== void 0 && u.length > 0 && t.length > 1 && (t[t.length - 2] += t.pop());
+};
+var Se = (t) => {
+  const r = t.split(" ");
+  let s = r.length;
+  for (; s > 0 && !(M2(r[s - 1]) > 0); ) s--;
+  return s === r.length ? t : r.slice(0, s).join(" ") + r.slice(s).join("");
+};
+var Ie = (t, r, s = {}) => {
+  if (s.trim !== false && t.trim() === "") return "";
+  let i = "", a, o;
+  const u = t.split(" "), l = Ce(u);
+  let n = [""];
+  for (const [$, m] of u.entries()) {
+    s.trim !== false && (n[n.length - 1] = (n.at(-1) ?? "").trimStart());
+    let h = M2(n.at(-1) ?? "");
+    if ($ !== 0 && (h >= r && (s.wordWrap === false || s.trim === false) && (n.push(""), h = 0), (h > 0 || s.trim === false) && (n[n.length - 1] += " ", h++)), s.hard && l[$] > r) {
+      const y2 = r - h, f = 1 + Math.floor((l[$] - y2 - 1) / r);
+      Math.floor((l[$] - 1) / r) < f && n.push(""), It2(n, m, r);
+      continue;
+    }
+    if (h + l[$] > r && h > 0 && l[$] > 0) {
+      if (s.wordWrap === false && h < r) {
+        It2(n, m, r);
+        continue;
+      }
+      n.push("");
+    }
+    if (h + l[$] > r && s.wordWrap === false) {
+      It2(n, m, r);
+      continue;
+    }
+    n[n.length - 1] += m;
+  }
+  s.trim !== false && (n = n.map(($) => Se($)));
+  const c = n.join(`
+`), g = c[Symbol.iterator]();
+  let F = g.next(), p = g.next(), E = 0;
+  for (; !F.done; ) {
+    const $ = F.value, m = p.value;
+    if (i += $, $ === ot2 || $ === Gt) {
+      Ht.lastIndex = E + 1;
+      const f = Ht.exec(c)?.groups;
+      if (f?.code !== void 0) {
+        const v = Number.parseFloat(f.code);
+        a = v === ve ? void 0 : v;
+      } else f?.uri !== void 0 && (o = f.uri.length === 0 ? void 0 : f.uri);
+    }
+    const h = a ? we(a) : void 0;
+    m === `
+` ? (o && (i += Kt("")), a && h && (i += Ut(h))) : $ === `
+` && (a && h && (i += Ut(a)), o && (i += Kt(o))), E += $.length, F = p, p = g.next();
+  }
+  return i;
+};
+function J2(t, r, s) {
+  return String(t).normalize().replaceAll(`\r
+`, `
+`).split(`
+`).map((i) => Ie(i, r, s)).join(`
 `);
-    h.push(x), f += x.length;
+}
+var be = (t, r, s, i, a) => {
+  let o = r, u = 0;
+  for (let l = s; l < i; l++) {
+    const n = t[l];
+    if (o = o - n.length, u++, o <= a) break;
   }
-  if (f > $2) {
-    let b = 0, x = 0, G2 = f;
-    const M2 = e - v, R2 = (j2, D2) => et2(h, G2, j2, D2, $2);
-    m ? ({ lineCount: G2, removals: b } = R2(0, M2), G2 > $2 && ({ lineCount: G2, removals: x } = R2(M2 + 1, h.length))) : ({ lineCount: G2, removals: x } = R2(M2 + 1, h.length), G2 > $2 && ({ lineCount: G2, removals: b } = R2(0, M2))), b > 0 && (m = true, h.splice(0, b)), x > 0 && (g = true, h.splice(h.length - x, x));
-  }
-  const C2 = [];
-  m && C2.push(l);
-  for (const b of h) for (const x of b) C2.push(x);
-  return g && C2.push(l), C2;
+  return { lineCount: o, removals: u };
 };
-var ot2 = (e) => {
-  const i = e.active ?? "Yes", s = e.inactive ?? "No";
-  return new Q({ active: i, inactive: s, signal: e.signal, input: e.input, output: e.output, initialValue: e.initialValue ?? true, render() {
-    const r = e.withGuide ?? u.withGuide, u2 = `${V2(this.state)}  `, n = r ? `${t("gray", d2)}  ` : "", o = R(e.output, e.message, n, u2), c2 = `${r ? `${t("gray", d2)}
-` : ""}${o}
-`, a = this.value ? i : s;
+var X2 = (t) => {
+  const { cursor: r, options: s, style: i } = t, a = t.output ?? process.stdout, o = rt(a), u = t.columnPadding ?? 0, l = t.rowPadding ?? 4, n = o - u, c = nt(a), g = import_picocolors4.default.dim("..."), F = t.maxItems ?? Number.POSITIVE_INFINITY, p = Math.max(c - l, 0), E = Math.max(Math.min(F, p), 5);
+  let $ = 0;
+  r >= E - 3 && ($ = Math.max(Math.min(r - E + 3, s.length - E), 0));
+  let m = E < s.length && $ > 0, h = E < s.length && $ + E < s.length;
+  const y2 = Math.min($ + E, s.length), f = [];
+  let v = 0;
+  m && v++, h && v++;
+  const S2 = $ + (m ? 1 : 0), I2 = y2 - (h ? 1 : 0);
+  for (let A = S2; A < I2; A++) {
+    const w = J2(i(s[A], A === r), n, { hard: true, trim: false }).split(`
+`);
+    f.push(w), v += w.length;
+  }
+  if (v > p) {
+    let A = 0, w = 0, _2 = v;
+    const D2 = r - S2, T2 = (Y, L2) => be(f, _2, Y, L2, p);
+    m ? ({ lineCount: _2, removals: A } = T2(0, D2), _2 > p && ({ lineCount: _2, removals: w } = T2(D2 + 1, f.length))) : ({ lineCount: _2, removals: w } = T2(D2 + 1, f.length), _2 > p && ({ lineCount: _2, removals: A } = T2(0, D2))), A > 0 && (m = true, f.splice(0, A)), w > 0 && (h = true, f.splice(f.length - w, w));
+  }
+  const B2 = [];
+  m && B2.push(g);
+  for (const A of f) for (const w of A) B2.push(w);
+  return h && B2.push(g), B2;
+};
+var Re = (t) => {
+  const r = t.active ?? "Yes", s = t.inactive ?? "No";
+  return new kt({ active: r, inactive: s, signal: t.signal, input: t.input, output: t.output, initialValue: t.initialValue ?? true, render() {
+    const i = t.withGuide ?? _.withGuide, a = `${i ? `${import_picocolors4.default.gray(d)}
+` : ""}${W2(this.state)}  ${t.message}
+`, o = this.value ? r : s;
     switch (this.state) {
       case "submit": {
-        const l = r ? `${t("gray", d2)}  ` : "";
-        return `${c2}${l}${t("dim", a)}`;
+        const u = i ? `${import_picocolors4.default.gray(d)}  ` : "";
+        return `${a}${u}${import_picocolors4.default.dim(o)}`;
       }
       case "cancel": {
-        const l = r ? `${t("gray", d2)}  ` : "";
-        return `${c2}${l}${t(["strikethrough", "dim"], a)}${r ? `
-${t("gray", d2)}` : ""}`;
+        const u = i ? `${import_picocolors4.default.gray(d)}  ` : "";
+        return `${a}${u}${import_picocolors4.default.strikethrough(import_picocolors4.default.dim(o))}${i ? `
+${import_picocolors4.default.gray(d)}` : ""}`;
       }
       default: {
-        const l = r ? `${t("cyan", d2)}  ` : "", $2 = r ? t("cyan", E2) : "";
-        return `${c2}${l}${this.value ? `${t("green", z2)} ${i}` : `${t("dim", H2)} ${t("dim", i)}`}${e.vertical ? r ? `
-${t("cyan", d2)}  ` : `
-` : ` ${t("dim", "/")} `}${this.value ? `${t("dim", H2)} ${t("dim", s)}` : `${t("green", z2)} ${s}`}
-${$2}
-`;
-      }
-    }
-  } }).prompt();
-};
-var O2 = { message: (e = [], { symbol: i = t("gray", d2), secondarySymbol: s = t("gray", d2), output: r = process.stdout, spacing: u2 = 1, withGuide: n } = {}) => {
-  const o = [], c2 = n ?? u.withGuide, a = c2 ? s : "", l = c2 ? `${i}  ` : "", $2 = c2 ? `${s}  ` : "";
-  for (let p2 = 0; p2 < u2; p2++) o.push(a);
-  const y2 = Array.isArray(e) ? e : e.split(`
-`);
-  if (y2.length > 0) {
-    const [p2, ...m] = y2;
-    p2.length > 0 ? o.push(`${l}${p2}`) : o.push(c2 ? i : "");
-    for (const g of m) g.length > 0 ? o.push(`${$2}${g}`) : o.push(c2 ? s : "");
-  }
-  r.write(`${o.join(`
-`)}
-`);
-}, info: (e, i) => {
-  O2.message(e, { ...i, symbol: t("blue", he) });
-}, success: (e, i) => {
-  O2.message(e, { ...i, symbol: t("green", pe) });
-}, step: (e, i) => {
-  O2.message(e, { ...i, symbol: t("green", F) });
-}, warn: (e, i) => {
-  O2.message(e, { ...i, symbol: t("yellow", me) });
-}, warning: (e, i) => {
-  O2.warn(e, i);
-}, error: (e, i) => {
-  O2.message(e, { ...i, symbol: t("red", ge) });
-} };
-var pt = (e = "", i) => {
-  const s = i?.output ?? process.stdout, r = i?.withGuide ?? u.withGuide ? `${t("gray", E2)}  ` : "";
-  s.write(`${r}${t("red", e)}
-
-`);
-};
-var mt = (e = "", i) => {
-  const s = i?.output ?? process.stdout, r = i?.withGuide ?? u.withGuide ? `${t("gray", le)}  ` : "";
-  s.write(`${r}${e}
-`);
-};
-var gt = (e = "", i) => {
-  const s = i?.output ?? process.stdout, r = i?.withGuide ?? u.withGuide ? `${t("gray", d2)}
-${t("gray", E2)}  ` : "";
-  s.write(`${r}${e}
-
-`);
-};
-var Q2 = (e, i) => e.split(`
-`).map((s) => i(s)).join(`
-`);
-var yt = (e) => {
-  const i = (r, u2) => {
-    const n = r.label ?? String(r.value);
-    return u2 === "disabled" ? `${t("gray", J)} ${Q2(n, (o) => t(["strikethrough", "gray"], o))}${r.hint ? ` ${t("dim", `(${r.hint ?? "disabled"})`)}` : ""}` : u2 === "active" ? `${t("cyan", te)} ${n}${r.hint ? ` ${t("dim", `(${r.hint})`)}` : ""}` : u2 === "selected" ? `${t("green", U)} ${Q2(n, (o) => t("dim", o))}${r.hint ? ` ${t("dim", `(${r.hint})`)}` : ""}` : u2 === "cancelled" ? `${Q2(n, (o) => t(["strikethrough", "dim"], o))}` : u2 === "active-selected" ? `${t("green", U)} ${n}${r.hint ? ` ${t("dim", `(${r.hint})`)}` : ""}` : u2 === "submitted" ? `${Q2(n, (o) => t("dim", o))}` : `${t("dim", J)} ${Q2(n, (o) => t("dim", o))}`;
-  }, s = e.required ?? true;
-  return new it({ options: e.options, signal: e.signal, input: e.input, output: e.output, initialValues: e.initialValues, required: s, cursorAt: e.cursorAt, validate(r) {
-    if (s && (r === void 0 || r.length === 0)) return `Please select at least one option.
-${t("reset", t("dim", `Press ${t(["gray", "bgWhite", "inverse"], " space ")} to select, ${t("gray", t("bgWhite", t("inverse", " enter ")))} to submit`))}`;
-  }, render() {
-    const r = e.withGuide ?? u.withGuide, u2 = R(e.output, e.message, r ? `${ye(this.state)}  ` : "", `${V2(this.state)}  `), n = `${r ? `${t("gray", d2)}
-` : ""}${u2}
-`, o = this.value ?? [], c2 = (a, l) => {
-      if (a.disabled) return i(a, "disabled");
-      const $2 = o.includes(a.value);
-      return l && $2 ? i(a, "active-selected") : $2 ? i(a, "selected") : i(a, l ? "active" : "inactive");
-    };
-    switch (this.state) {
-      case "submit": {
-        const a = this.options.filter(({ value: $2 }) => o.includes($2)).map(($2) => i($2, "submitted")).join(t("dim", ", ")) || t("dim", "none"), l = R(e.output, a, r ? `${t("gray", d2)}  ` : "");
-        return `${n}${l}`;
-      }
-      case "cancel": {
-        const a = this.options.filter(({ value: $2 }) => o.includes($2)).map(($2) => i($2, "cancelled")).join(t("dim", ", "));
-        if (a.trim() === "") return `${n}${t("gray", d2)}`;
-        const l = R(e.output, a, r ? `${t("gray", d2)}  ` : "");
-        return `${n}${l}${r ? `
-${t("gray", d2)}` : ""}`;
-      }
-      case "error": {
-        const a = r ? `${t("yellow", d2)}  ` : "", l = this.error.split(`
-`).map((p2, m) => m === 0 ? `${r ? `${t("yellow", E2)}  ` : ""}${t("yellow", p2)}` : `   ${p2}`).join(`
-`), $2 = n.split(`
-`).length, y2 = l.split(`
-`).length + 1;
-        return `${n}${a}${Y2({ output: e.output, options: this.options, cursor: this.cursor, maxItems: e.maxItems, columnPadding: a.length, rowPadding: $2 + y2, style: c2 }).join(`
-${a}`)}
+        const u = i ? `${import_picocolors4.default.cyan(d)}  ` : "", l = i ? import_picocolors4.default.cyan(x2) : "";
+        return `${a}${u}${this.value ? `${import_picocolors4.default.green(Q2)} ${r}` : `${import_picocolors4.default.dim(H2)} ${import_picocolors4.default.dim(r)}`}${t.vertical ? i ? `
+${import_picocolors4.default.cyan(d)}  ` : `
+` : ` ${import_picocolors4.default.dim("/")} `}${this.value ? `${import_picocolors4.default.dim(H2)} ${import_picocolors4.default.dim(s)}` : `${import_picocolors4.default.green(Q2)} ${s}`}
 ${l}
 `;
       }
+    }
+  } }).prompt();
+};
+var R2 = { message: (t = [], { symbol: r = import_picocolors4.default.gray(d), secondarySymbol: s = import_picocolors4.default.gray(d), output: i = process.stdout, spacing: a = 1, withGuide: o } = {}) => {
+  const u = [], l = o ?? _.withGuide, n = l ? s : "", c = l ? `${r}  ` : "", g = l ? `${s}  ` : "";
+  for (let p = 0; p < a; p++) u.push(n);
+  const F = Array.isArray(t) ? t : t.split(`
+`);
+  if (F.length > 0) {
+    const [p, ...E] = F;
+    p.length > 0 ? u.push(`${c}${p}`) : u.push(l ? r : "");
+    for (const $ of E) $.length > 0 ? u.push(`${g}${$}`) : u.push(l ? s : "");
+  }
+  i.write(`${u.join(`
+`)}
+`);
+}, info: (t, r) => {
+  R2.message(t, { ...r, symbol: import_picocolors4.default.blue(ft2) });
+}, success: (t, r) => {
+  R2.message(t, { ...r, symbol: import_picocolors4.default.green(Ft2) });
+}, step: (t, r) => {
+  R2.message(t, { ...r, symbol: import_picocolors4.default.green(V) });
+}, warn: (t, r) => {
+  R2.message(t, { ...r, symbol: import_picocolors4.default.yellow(yt2) });
+}, warning: (t, r) => {
+  R2.warn(t, r);
+}, error: (t, r) => {
+  R2.message(t, { ...r, symbol: import_picocolors4.default.red(Et2) });
+} };
+var Ne = (t = "", r) => {
+  (r?.output ?? process.stdout).write(`${import_picocolors4.default.gray(x2)}  ${import_picocolors4.default.red(t)}
+
+`);
+};
+var We = (t = "", r) => {
+  (r?.output ?? process.stdout).write(`${import_picocolors4.default.gray(ht2)}  ${t}
+`);
+};
+var Le = (t = "", r) => {
+  (r?.output ?? process.stdout).write(`${import_picocolors4.default.gray(d)}
+${import_picocolors4.default.gray(x2)}  ${t}
+
+`);
+};
+var Z2 = (t, r) => t.split(`
+`).map((s) => r(s)).join(`
+`);
+var je = (t) => {
+  const r = (i, a) => {
+    const o = i.label ?? String(i.value);
+    return a === "disabled" ? `${import_picocolors4.default.gray(q2)} ${Z2(o, (u) => import_picocolors4.default.strikethrough(import_picocolors4.default.gray(u)))}${i.hint ? ` ${import_picocolors4.default.dim(`(${i.hint ?? "disabled"})`)}` : ""}` : a === "active" ? `${import_picocolors4.default.cyan(st2)} ${o}${i.hint ? ` ${import_picocolors4.default.dim(`(${i.hint})`)}` : ""}` : a === "selected" ? `${import_picocolors4.default.green(U2)} ${Z2(o, import_picocolors4.default.dim)}${i.hint ? ` ${import_picocolors4.default.dim(`(${i.hint})`)}` : ""}` : a === "cancelled" ? `${Z2(o, (u) => import_picocolors4.default.strikethrough(import_picocolors4.default.dim(u)))}` : a === "active-selected" ? `${import_picocolors4.default.green(U2)} ${o}${i.hint ? ` ${import_picocolors4.default.dim(`(${i.hint})`)}` : ""}` : a === "submitted" ? `${Z2(o, import_picocolors4.default.dim)}` : `${import_picocolors4.default.dim(q2)} ${Z2(o, import_picocolors4.default.dim)}`;
+  }, s = t.required ?? true;
+  return new Lt({ options: t.options, signal: t.signal, input: t.input, output: t.output, initialValues: t.initialValues, required: s, cursorAt: t.cursorAt, validate(i) {
+    if (s && (i === void 0 || i.length === 0)) return `Please select at least one option.
+${import_picocolors4.default.reset(import_picocolors4.default.dim(`Press ${import_picocolors4.default.gray(import_picocolors4.default.bgWhite(import_picocolors4.default.inverse(" space ")))} to select, ${import_picocolors4.default.gray(import_picocolors4.default.bgWhite(import_picocolors4.default.inverse(" enter ")))} to submit`))}`;
+  }, render() {
+    const i = xt(t.output, t.message, `${vt2(this.state)}  `, `${W2(this.state)}  `), a = `${import_picocolors4.default.gray(d)}
+${i}
+`, o = this.value ?? [], u = (l, n) => {
+      if (l.disabled) return r(l, "disabled");
+      const c = o.includes(l.value);
+      return n && c ? r(l, "active-selected") : c ? r(l, "selected") : r(l, n ? "active" : "inactive");
+    };
+    switch (this.state) {
+      case "submit": {
+        const l = this.options.filter(({ value: c }) => o.includes(c)).map((c) => r(c, "submitted")).join(import_picocolors4.default.dim(", ")) || import_picocolors4.default.dim("none"), n = xt(t.output, l, `${import_picocolors4.default.gray(d)}  `);
+        return `${a}${n}`;
+      }
+      case "cancel": {
+        const l = this.options.filter(({ value: c }) => o.includes(c)).map((c) => r(c, "cancelled")).join(import_picocolors4.default.dim(", "));
+        if (l.trim() === "") return `${a}${import_picocolors4.default.gray(d)}`;
+        const n = xt(t.output, l, `${import_picocolors4.default.gray(d)}  `);
+        return `${a}${n}
+${import_picocolors4.default.gray(d)}`;
+      }
+      case "error": {
+        const l = `${import_picocolors4.default.yellow(d)}  `, n = this.error.split(`
+`).map((F, p) => p === 0 ? `${import_picocolors4.default.yellow(x2)}  ${import_picocolors4.default.yellow(F)}` : `   ${F}`).join(`
+`), c = a.split(`
+`).length, g = n.split(`
+`).length + 1;
+        return `${a}${l}${X2({ output: t.output, options: this.options, cursor: this.cursor, maxItems: t.maxItems, columnPadding: l.length, rowPadding: c + g, style: u }).join(`
+${l}`)}
+${n}
+`;
+      }
       default: {
-        const a = r ? `${t("cyan", d2)}  ` : "", l = n.split(`
-`).length, $2 = r ? 2 : 1;
-        return `${n}${a}${Y2({ output: e.output, options: this.options, cursor: this.cursor, maxItems: e.maxItems, columnPadding: a.length, rowPadding: l + $2, style: c2 }).join(`
-${a}`)}
-${r ? t("cyan", E2) : ""}
+        const l = `${import_picocolors4.default.cyan(d)}  `, n = a.split(`
+`).length;
+        return `${a}${l}${X2({ output: t.output, options: this.options, cursor: this.cursor, maxItems: t.maxItems, columnPadding: l.length, rowPadding: n + 2, style: u }).join(`
+${l}`)}
+${import_picocolors4.default.cyan(x2)}
 `;
       }
     }
   } }).prompt();
 };
-var bt = (e) => new rt({ validate: e.validate, mask: e.mask ?? xe, signal: e.signal, input: e.input, output: e.output, render() {
-  const i = e.withGuide ?? u.withGuide, s = `${i ? `${t("gray", d2)}
-` : ""}${V2(this.state)}  ${e.message}
-`, r = this.userInputWithCursor, u2 = this.masked;
+var He = (t) => new Mt({ validate: t.validate, mask: t.mask ?? Nt, signal: t.signal, input: t.input, output: t.output, render() {
+  const r = t.withGuide ?? _.withGuide, s = `${r ? `${import_picocolors4.default.gray(d)}
+` : ""}${W2(this.state)}  ${t.message}
+`, i = this.userInputWithCursor, a = this.masked;
   switch (this.state) {
     case "error": {
-      const n = i ? `${t("yellow", d2)}  ` : "", o = i ? `${t("yellow", E2)}  ` : "", c2 = u2 ?? "";
-      return e.clearOnError && this.clear(), `${s.trim()}
-${n}${c2}
-${o}${t("yellow", this.error)}
+      const o = r ? `${import_picocolors4.default.yellow(d)}  ` : "", u = r ? `${import_picocolors4.default.yellow(x2)}  ` : "", l = a ?? "";
+      return t.clearOnError && this.clear(), `${s.trim()}
+${o}${l}
+${u}${import_picocolors4.default.yellow(this.error)}
 `;
     }
     case "submit": {
-      const n = i ? `${t("gray", d2)}  ` : "", o = u2 ? t("dim", u2) : "";
-      return `${s}${n}${o}`;
+      const o = r ? `${import_picocolors4.default.gray(d)}  ` : "", u = a ? import_picocolors4.default.dim(a) : "";
+      return `${s}${o}${u}`;
     }
     case "cancel": {
-      const n = i ? `${t("gray", d2)}  ` : "", o = u2 ? t(["strikethrough", "dim"], u2) : "";
-      return `${s}${n}${o}${u2 && i ? `
-${t("gray", d2)}` : ""}`;
+      const o = r ? `${import_picocolors4.default.gray(d)}  ` : "", u = a ? import_picocolors4.default.strikethrough(import_picocolors4.default.dim(a)) : "";
+      return `${s}${o}${u}${a && r ? `
+${import_picocolors4.default.gray(d)}` : ""}`;
     }
     default: {
-      const n = i ? `${t("cyan", d2)}  ` : "", o = i ? t("cyan", E2) : "";
-      return `${s}${n}${r}
-${o}
+      const o = r ? `${import_picocolors4.default.cyan(d)}  ` : "", u = r ? import_picocolors4.default.cyan(x2) : "";
+      return `${s}${o}${i}
+${u}
 `;
     }
   }
 } }).prompt();
-var Ct = (e) => t("magenta", e);
-var fe = ({ indicator: e = "dots", onCancel: i, output: s = process.stdout, cancelMessage: r, errorMessage: u2, frames: n = ee ? ["\u25D2", "\u25D0", "\u25D3", "\u25D1"] : ["\u2022", "o", "O", "0"], delay: o = ee ? 80 : 120, signal: c2, ...a } = {}) => {
-  const l = ae();
-  let $2, y2, p2 = false, m = false, g = "", S2, h = performance.now();
-  const f = O(s), v = a?.styleFrame ?? Ct, T = (_2) => {
-    const A2 = _2 > 1 ? u2 ?? u.messages.error : r ?? u.messages.cancel;
-    m = _2 === 1, p2 && (W(A2, _2), m && typeof i == "function" && i());
-  }, C2 = () => T(2), b = () => T(1), x = () => {
-    process.on("uncaughtExceptionMonitor", C2), process.on("unhandledRejection", C2), process.on("SIGINT", b), process.on("SIGTERM", b), process.on("exit", T), c2 && c2.addEventListener("abort", b);
-  }, G2 = () => {
-    process.removeListener("uncaughtExceptionMonitor", C2), process.removeListener("unhandledRejection", C2), process.removeListener("SIGINT", b), process.removeListener("SIGTERM", b), process.removeListener("exit", T), c2 && c2.removeEventListener("abort", b);
-  }, M2 = () => {
-    if (S2 === void 0) return;
-    l && s.write(`
+var Ke = import_picocolors4.default.magenta;
+var bt2 = ({ indicator: t = "dots", onCancel: r, output: s = process.stdout, cancelMessage: i, errorMessage: a, frames: o = et2 ? ["\u25D2", "\u25D0", "\u25D3", "\u25D1"] : ["\u2022", "o", "O", "0"], delay: u = et2 ? 80 : 120, signal: l, ...n } = {}) => {
+  const c = ct2();
+  let g, F, p = false, E = false, $ = "", m, h = performance.now();
+  const y2 = rt(s), f = n?.styleFrame ?? Ke, v = (b) => {
+    const O2 = b > 1 ? a ?? _.messages.error : i ?? _.messages.cancel;
+    E = b === 1, p && (L2(O2, b), E && typeof r == "function" && r());
+  }, S2 = () => v(2), I2 = () => v(1), B2 = () => {
+    process.on("uncaughtExceptionMonitor", S2), process.on("unhandledRejection", S2), process.on("SIGINT", I2), process.on("SIGTERM", I2), process.on("exit", v), l && l.addEventListener("abort", I2);
+  }, A = () => {
+    process.removeListener("uncaughtExceptionMonitor", S2), process.removeListener("unhandledRejection", S2), process.removeListener("SIGINT", I2), process.removeListener("SIGTERM", I2), process.removeListener("exit", v), l && l.removeEventListener("abort", I2);
+  }, w = () => {
+    if (m === void 0) return;
+    c && s.write(`
 `);
-    const _2 = wrapAnsi(S2, f, { hard: true, trim: false }).split(`
+    const b = J2(m, y2, { hard: true, trim: false }).split(`
 `);
-    _2.length > 1 && s.write(import_sisteransi2.cursor.up(_2.length - 1)), s.write(import_sisteransi2.cursor.to(0)), s.write(import_sisteransi2.erase.down());
-  }, R2 = (_2) => _2.replace(/\.+$/, ""), j2 = (_2) => {
-    const A2 = (performance.now() - _2) / 1e3, k = Math.floor(A2 / 60), L = Math.floor(A2 % 60);
-    return k > 0 ? `[${k}m ${L}s]` : `[${L}s]`;
-  }, D2 = a.withGuide ?? u.withGuide, ie = (_2 = "") => {
-    p2 = true, $2 = z({ output: s }), g = R2(_2), h = performance.now(), D2 && s.write(`${t("gray", d2)}
+    b.length > 1 && s.write(import_sisteransi2.cursor.up(b.length - 1)), s.write(import_sisteransi2.cursor.to(0)), s.write(import_sisteransi2.erase.down());
+  }, _2 = (b) => b.replace(/\.+$/, ""), D2 = (b) => {
+    const O2 = (performance.now() - b) / 1e3, j2 = Math.floor(O2 / 60), G2 = Math.floor(O2 % 60);
+    return j2 > 0 ? `[${j2}m ${G2}s]` : `[${G2}s]`;
+  }, T2 = n.withGuide ?? _.withGuide, Y = (b = "") => {
+    p = true, g = Bt({ output: s }), $ = _2(b), h = performance.now(), T2 && s.write(`${import_picocolors4.default.gray(d)}
 `);
-    let A2 = 0, k = 0;
-    x(), y2 = setInterval(() => {
-      if (l && g === S2) return;
-      M2(), S2 = g;
-      const L = v(n[A2]);
-      let Z;
-      if (l) Z = `${L}  ${g}...`;
-      else if (e === "timer") Z = `${L}  ${g} ${j2(h)}`;
+    let O2 = 0, j2 = 0;
+    B2(), F = setInterval(() => {
+      if (c && $ === m) return;
+      w(), m = $;
+      const G2 = f(o[O2]);
+      let tt2;
+      if (c) tt2 = `${G2}  ${$}...`;
+      else if (t === "timer") tt2 = `${G2}  ${$} ${D2(h)}`;
       else {
-        const Be = ".".repeat(Math.floor(k)).slice(0, 3);
-        Z = `${L}  ${g}${Be}`;
+        const te = ".".repeat(Math.floor(j2)).slice(0, 3);
+        tt2 = `${G2}  ${$}${te}`;
       }
-      const Ne = wrapAnsi(Z, f, { hard: true, trim: false });
-      s.write(Ne), A2 = A2 + 1 < n.length ? A2 + 1 : 0, k = k < 4 ? k + 0.125 : 0;
-    }, o);
-  }, W = (_2 = "", A2 = 0, k = false) => {
-    if (!p2) return;
-    p2 = false, clearInterval(y2), M2();
-    const L = A2 === 0 ? t("green", F) : A2 === 1 ? t("red", oe) : t("red", ue);
-    g = _2 ?? g, k || (e === "timer" ? s.write(`${L}  ${g} ${j2(h)}
-`) : s.write(`${L}  ${g}
-`)), G2(), $2();
+      const Zt = J2(tt2, y2, { hard: true, trim: false });
+      s.write(Zt), O2 = O2 + 1 < o.length ? O2 + 1 : 0, j2 = j2 < 4 ? j2 + 0.125 : 0;
+    }, u);
+  }, L2 = (b = "", O2 = 0, j2 = false) => {
+    if (!p) return;
+    p = false, clearInterval(F), w();
+    const G2 = O2 === 0 ? import_picocolors4.default.green(V) : O2 === 1 ? import_picocolors4.default.red(dt2) : import_picocolors4.default.red($t2);
+    $ = b ?? $, j2 || (t === "timer" ? s.write(`${G2}  ${$} ${D2(h)}
+`) : s.write(`${G2}  ${$}
+`)), A(), g();
   };
-  return { start: ie, stop: (_2 = "") => W(_2, 0), message: (_2 = "") => {
-    g = R2(_2 ?? g);
-  }, cancel: (_2 = "") => W(_2, 1), error: (_2 = "") => W(_2, 2), clear: () => W("", 0, true), get isCancelled() {
-    return m;
+  return { start: Y, stop: (b = "") => L2(b, 0), message: (b = "") => {
+    $ = _2(b ?? $);
+  }, cancel: (b = "") => L2(b, 1), error: (b = "") => L2(b, 2), clear: () => L2("", 0, true), get isCancelled() {
+    return E;
   } };
 };
-var Ve = { light: w2("\u2500", "-"), heavy: w2("\u2501", "="), block: w2("\u2588", "#") };
-var re = (e, i) => e.includes(`
-`) ? e.split(`
-`).map((s) => i(s)).join(`
-`) : i(e);
-var _t = (e) => {
-  const i = (s, r) => {
-    const u2 = s.label ?? String(s.value);
-    switch (r) {
+var zt = { light: C("\u2500", "-"), heavy: C("\u2501", "="), block: C("\u2588", "#") };
+var lt2 = (t, r) => t.includes(`
+`) ? t.split(`
+`).map((s) => r(s)).join(`
+`) : r(t);
+var Je = (t) => {
+  const r = (s, i) => {
+    const a = s.label ?? String(s.value);
+    switch (i) {
       case "disabled":
-        return `${t("gray", H2)} ${re(u2, (n) => t("gray", n))}${s.hint ? ` ${t("dim", `(${s.hint ?? "disabled"})`)}` : ""}`;
+        return `${import_picocolors4.default.gray(H2)} ${lt2(a, import_picocolors4.default.gray)}${s.hint ? ` ${import_picocolors4.default.dim(`(${s.hint ?? "disabled"})`)}` : ""}`;
       case "selected":
-        return `${re(u2, (n) => t("dim", n))}`;
+        return `${lt2(a, import_picocolors4.default.dim)}`;
       case "active":
-        return `${t("green", z2)} ${u2}${s.hint ? ` ${t("dim", `(${s.hint})`)}` : ""}`;
+        return `${import_picocolors4.default.green(Q2)} ${a}${s.hint ? ` ${import_picocolors4.default.dim(`(${s.hint})`)}` : ""}`;
       case "cancelled":
-        return `${re(u2, (n) => t(["strikethrough", "dim"], n))}`;
+        return `${lt2(a, (o) => import_picocolors4.default.strikethrough(import_picocolors4.default.dim(o)))}`;
       default:
-        return `${t("dim", H2)} ${re(u2, (n) => t("dim", n))}`;
+        return `${import_picocolors4.default.dim(H2)} ${lt2(a, import_picocolors4.default.dim)}`;
     }
   };
-  return new nt({ options: e.options, signal: e.signal, input: e.input, output: e.output, initialValue: e.initialValue, render() {
-    const s = e.withGuide ?? u.withGuide, r = `${V2(this.state)}  `, u2 = `${ye(this.state)}  `, n = R(e.output, e.message, u2, r), o = `${s ? `${t("gray", d2)}
-` : ""}${n}
+  return new Wt({ options: t.options, signal: t.signal, input: t.input, output: t.output, initialValue: t.initialValue, render() {
+    const s = t.withGuide ?? _.withGuide, i = `${W2(this.state)}  `, a = `${vt2(this.state)}  `, o = xt(t.output, t.message, a, i), u = `${s ? `${import_picocolors4.default.gray(d)}
+` : ""}${o}
 `;
     switch (this.state) {
       case "submit": {
-        const c2 = s ? `${t("gray", d2)}  ` : "", a = R(e.output, i(this.options[this.cursor], "selected"), c2);
-        return `${o}${a}`;
+        const l = s ? `${import_picocolors4.default.gray(d)}  ` : "", n = xt(t.output, r(this.options[this.cursor], "selected"), l);
+        return `${u}${n}`;
       }
       case "cancel": {
-        const c2 = s ? `${t("gray", d2)}  ` : "", a = R(e.output, i(this.options[this.cursor], "cancelled"), c2);
-        return `${o}${a}${s ? `
-${t("gray", d2)}` : ""}`;
+        const l = s ? `${import_picocolors4.default.gray(d)}  ` : "", n = xt(t.output, r(this.options[this.cursor], "cancelled"), l);
+        return `${u}${n}${s ? `
+${import_picocolors4.default.gray(d)}` : ""}`;
       }
       default: {
-        const c2 = s ? `${t("cyan", d2)}  ` : "", a = s ? t("cyan", E2) : "", l = o.split(`
-`).length, $2 = s ? 2 : 1;
-        return `${o}${c2}${Y2({ output: e.output, cursor: this.cursor, options: this.options, maxItems: e.maxItems, columnPadding: c2.length, rowPadding: l + $2, style: (y2, p2) => i(y2, y2.disabled ? "disabled" : p2 ? "active" : "inactive") }).join(`
-${c2}`)}
-${a}
+        const l = s ? `${import_picocolors4.default.cyan(d)}  ` : "", n = s ? import_picocolors4.default.cyan(x2) : "", c = u.split(`
+`).length, g = s ? 2 : 1;
+        return `${u}${l}${X2({ output: t.output, cursor: this.cursor, options: this.options, maxItems: t.maxItems, columnPadding: l.length, rowPadding: c + g, style: (F, p) => r(F, F.disabled ? "disabled" : p ? "active" : "inactive") }).join(`
+${l}`)}
+${n}
 `;
       }
     }
   } }).prompt();
 };
-var je = `${t("gray", d2)}  `;
+var Qt = `${import_picocolors4.default.gray(d)}  `;
 
 // src/utils/prompt.ts
-var import_picocolors3 = __toESM(require_picocolors(), 1);
+var import_picocolors5 = __toESM(require_picocolors(), 1);
 function text(opts) {
   const fillValue = opts.defaultValue ?? opts.placeholder;
-  const prompt = new at({
+  const prompt = new $t({
     placeholder: opts.placeholder,
     defaultValue: opts.defaultValue,
     initialValue: opts.initialValue,
@@ -4820,37 +4768,37 @@ function text(opts) {
       return opts.validate(effective);
     } : void 0,
     render() {
-      const withGuide = u.withGuide;
-      const head = `${withGuide ? `${import_picocolors3.default.gray(d2)}
-` : ""}${V2(this.state)}  ${opts.message}
+      const withGuide = _.withGuide;
+      const head = `${withGuide ? `${import_picocolors5.default.gray(d)}
+` : ""}${W2(this.state)}  ${opts.message}
 `;
-      const placeholderDisplay = opts.placeholder ? import_picocolors3.default.inverse(opts.placeholder[0]) + import_picocolors3.default.dim(opts.placeholder.slice(1)) : import_picocolors3.default.inverse(import_picocolors3.default.hidden("_"));
+      const placeholderDisplay = opts.placeholder ? import_picocolors5.default.inverse(opts.placeholder[0]) + import_picocolors5.default.dim(opts.placeholder.slice(1)) : import_picocolors5.default.inverse(import_picocolors5.default.hidden("_"));
       const input = this.userInput ? this.userInputWithCursor : placeholderDisplay;
       const value = this.value ?? "";
       switch (this.state) {
         case "error": {
-          const errorMsg = this.error ? `  ${import_picocolors3.default.yellow(this.error)}` : "";
-          const bar = withGuide ? `${import_picocolors3.default.yellow(d2)}  ` : "";
-          const barEnd = withGuide ? import_picocolors3.default.yellow(E2) : "";
+          const errorMsg = this.error ? `  ${import_picocolors5.default.yellow(this.error)}` : "";
+          const bar = withGuide ? `${import_picocolors5.default.yellow(d)}  ` : "";
+          const barEnd = withGuide ? import_picocolors5.default.yellow(x2) : "";
           return `${head.trim()}
 ${bar}${input}
 ${barEnd}${errorMsg}
 `;
         }
         case "submit": {
-          const val = value ? `  ${import_picocolors3.default.dim(value)}` : "";
-          const bar = withGuide ? import_picocolors3.default.gray(d2) : "";
+          const val = value ? `  ${import_picocolors5.default.dim(value)}` : "";
+          const bar = withGuide ? import_picocolors5.default.gray(d) : "";
           return `${head}${bar}${val}`;
         }
         case "cancel": {
-          const val = value ? `  ${import_picocolors3.default.strikethrough(import_picocolors3.default.dim(value))}` : "";
-          const bar = withGuide ? import_picocolors3.default.gray(d2) : "";
+          const val = value ? `  ${import_picocolors5.default.strikethrough(import_picocolors5.default.dim(value))}` : "";
+          const bar = withGuide ? import_picocolors5.default.gray(d) : "";
           return `${head}${bar}${val}${value.trim() ? `
 ${bar}` : ""}`;
         }
         default: {
-          const bar = withGuide ? `${import_picocolors3.default.cyan(d2)}  ` : "";
-          const barEnd = withGuide ? import_picocolors3.default.cyan(E2) : "";
+          const bar = withGuide ? `${import_picocolors5.default.cyan(d)}  ` : "";
+          const barEnd = withGuide ? import_picocolors5.default.cyan(x2) : "";
           return `${head}${bar}${input}
 ${barEnd}
 `;
@@ -4870,10 +4818,10 @@ ${barEnd}
 }
 
 // src/commands/setup.ts
-var import_picocolors6 = __toESM(require_picocolors(), 1);
+var import_picocolors8 = __toESM(require_picocolors(), 1);
 
 // src/prompts/prerequisites.ts
-var import_picocolors4 = __toESM(require_picocolors(), 1);
+var import_picocolors6 = __toESM(require_picocolors(), 1);
 
 // src/services/docker.ts
 import { execSync, spawn, spawnSync } from "child_process";
@@ -5038,18 +4986,18 @@ function dockerExecInteractive(containerName, cmd) {
 
 // src/prompts/prerequisites.ts
 async function checkPrerequisites() {
-  const s = fe();
+  const s = bt2();
   s.start("Checking prerequisites");
   const checks = [
     {
       name: "Docker Engine",
       check: isDockerInstalled,
-      failMsg: `Docker is not installed. Install it from ${import_picocolors4.default.underline("https://docs.docker.com/get-docker/")}`
+      failMsg: `Docker is not installed. Install it from ${import_picocolors6.default.underline("https://docs.docker.com/get-docker/")}`
     },
     {
       name: "Docker Compose v2",
       check: isDockerComposeV2,
-      failMsg: `Docker Compose v2 is required. Install it from ${import_picocolors4.default.underline("https://docs.docker.com/compose/install/")}`
+      failMsg: `Docker Compose v2 is required. Install it from ${import_picocolors6.default.underline("https://docs.docker.com/compose/install/")}`
     },
     {
       name: "Docker daemon",
@@ -5060,16 +5008,16 @@ async function checkPrerequisites() {
   const failed = [];
   for (const { name, check, failMsg } of checks) {
     if (!check()) {
-      failed.push(`${import_picocolors4.default.red("x")} ${name}: ${failMsg}`);
+      failed.push(`${import_picocolors6.default.red("x")} ${name}: ${failMsg}`);
     }
   }
   if (failed.length > 0) {
     s.stop("Prerequisites check failed");
-    O2.error("Missing prerequisites:");
+    R2.error("Missing prerequisites:");
     for (const msg of failed) {
-      O2.message(msg);
+      R2.message(msg);
     }
-    pt("Please install the missing prerequisites and try again.");
+    Ne("Please install the missing prerequisites and try again.");
     process.exit(1);
   }
   s.stop("All prerequisites met");
@@ -5078,8 +5026,8 @@ async function checkPrerequisites() {
 // src/utils/validators.ts
 function validateEmail(value) {
   if (!value) return "Email is required";
-  const re2 = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!re2.test(value)) return "Please enter a valid email address";
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!re.test(value)) return "Please enter a valid email address";
   return void 0;
 }
 function validatePassword(value) {
@@ -5090,8 +5038,8 @@ function validatePassword(value) {
 function validateDomain(value) {
   if (!value) return "Domain is required";
   if (value === "localhost") return void 0;
-  const re2 = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
-  if (!re2.test(value)) return "Please enter a valid domain (e.g., launch-lms.example.com)";
+  const re = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
+  if (!re.test(value)) return "Please enter a valid domain (e.g., launch-lms.example.com)";
   return void 0;
 }
 function validatePort(value) {
@@ -5112,15 +5060,15 @@ async function promptDomain() {
     defaultValue: "localhost",
     validate: validateDomain
   });
-  if (q(domain)) {
-    pt();
+  if (Ct(domain)) {
+    Ne();
     process.exit(0);
   }
   let useHttps = false;
   let autoSsl = false;
   let sslEmail;
   if (domain !== "localhost") {
-    const httpsChoice = await _t({
+    const httpsChoice = await Je({
       message: "HTTPS configuration?",
       options: [
         { value: "auto", label: "Automatic SSL (Let's Encrypt via Caddy)", hint: "recommended" },
@@ -5128,8 +5076,8 @@ async function promptDomain() {
         { value: "none", label: "No HTTPS (HTTP only)", hint: "not recommended for production" }
       ]
     });
-    if (q(httpsChoice)) {
-      pt();
+    if (Ct(httpsChoice)) {
+      Ne();
       process.exit(0);
     }
     if (httpsChoice === "auto") {
@@ -5140,8 +5088,8 @@ async function promptDomain() {
         placeholder: "admin@example.com",
         validate: validateEmail
       });
-      if (q(email)) {
-        pt();
+      if (Ct(email)) {
+        Ne();
         process.exit(0);
       }
       sslEmail = email;
@@ -5157,8 +5105,8 @@ async function promptDomain() {
     defaultValue: String(defaultPort),
     validate: validatePort
   });
-  if (q(port)) {
-    pt();
+  if (Ct(port)) {
+    Ne();
     process.exit(0);
   }
   return {
@@ -5172,7 +5120,7 @@ async function promptDomain() {
 
 // src/prompts/database.ts
 import crypto from "crypto";
-var import_picocolors5 = __toESM(require_picocolors(), 1);
+var import_picocolors7 = __toESM(require_picocolors(), 1);
 
 // src/utils/network.ts
 import net from "net";
@@ -5236,29 +5184,29 @@ async function promptAndVerifyPostgres() {
         return void 0;
       }
     });
-    if (q(connString)) {
-      pt();
+    if (Ct(connString)) {
+      Ne();
       process.exit(0);
     }
     const parsed = parsePostgresUrl(connString);
     if (!parsed) {
-      O2.error("Could not parse the connection string. Please check the format.");
+      R2.error("Could not parse the connection string. Please check the format.");
       continue;
     }
-    const s = fe();
+    const s = bt2();
     s.start(`Checking connection to ${parsed.host}:${parsed.port}`);
     const reachable = await checkTcpConnection(parsed.host, parsed.port);
     if (reachable) {
-      s.stop(`${import_picocolors5.default.green("Connected")} to ${parsed.host}:${parsed.port}`);
+      s.stop(`${import_picocolors7.default.green("Connected")} to ${parsed.host}:${parsed.port}`);
       return connString;
     }
-    s.stop(`${import_picocolors5.default.red("Connection failed")} to ${parsed.host}:${parsed.port}`);
-    const retry = await ot2({
+    s.stop(`${import_picocolors7.default.red("Connection failed")} to ${parsed.host}:${parsed.port}`);
+    const retry = await Re({
       message: "Could not reach the database. Try a different connection string?",
       initialValue: true
     });
-    if (q(retry) || !retry) {
-      pt();
+    if (Ct(retry) || !retry) {
+      Ne();
       process.exit(0);
     }
   }
@@ -5277,43 +5225,43 @@ async function promptAndVerifyRedis() {
         return void 0;
       }
     });
-    if (q(connString)) {
-      pt();
+    if (Ct(connString)) {
+      Ne();
       process.exit(0);
     }
     const parsed = parseRedisUrl(connString);
     if (!parsed) {
-      O2.error("Could not parse the connection string. Please check the format.");
+      R2.error("Could not parse the connection string. Please check the format.");
       continue;
     }
-    const s = fe();
+    const s = bt2();
     s.start(`Checking connection to ${parsed.host}:${parsed.port}`);
     const reachable = await checkTcpConnection(parsed.host, parsed.port);
     if (reachable) {
-      s.stop(`${import_picocolors5.default.green("Connected")} to ${parsed.host}:${parsed.port}`);
+      s.stop(`${import_picocolors7.default.green("Connected")} to ${parsed.host}:${parsed.port}`);
       return connString;
     }
-    s.stop(`${import_picocolors5.default.red("Connection failed")} to ${parsed.host}:${parsed.port}`);
-    const retry = await ot2({
+    s.stop(`${import_picocolors7.default.red("Connection failed")} to ${parsed.host}:${parsed.port}`);
+    const retry = await Re({
       message: "Could not reach Redis. Try a different connection string?",
       initialValue: true
     });
-    if (q(retry) || !retry) {
-      pt();
+    if (Ct(retry) || !retry) {
+      Ne();
       process.exit(0);
     }
   }
 }
 async function promptDatabase() {
-  const dbChoice = await _t({
+  const dbChoice = await Je({
     message: "PostgreSQL database setup?",
     options: [
       { value: "local", label: "Create a new database (Docker)", hint: "recommended" },
       { value: "external", label: "Use an external database", hint: "bring your own PostgreSQL" }
     ]
   });
-  if (q(dbChoice)) {
-    pt();
+  if (Ct(dbChoice)) {
+    Ne();
     process.exit(0);
   }
   let useExternalDb = false;
@@ -5324,46 +5272,46 @@ async function promptDatabase() {
     externalDbConnectionString = await promptAndVerifyPostgres();
     useExternalDb = true;
   } else {
-    const dbImageChoice = await _t({
+    const dbImageChoice = await Je({
       message: "Which PostgreSQL image?",
       options: [
         { value: "ai", label: "PostgreSQL with AI capabilities", hint: "recommended \u2014 enables AI course chatbot (RAG)" },
         { value: "standard", label: "Standard PostgreSQL", hint: "lighter image, no AI search features" }
       ]
     });
-    if (q(dbImageChoice)) {
-      pt();
+    if (Ct(dbImageChoice)) {
+      Ne();
       process.exit(0);
     }
     useAiDatabase = dbImageChoice === "ai";
     dbPassword = crypto.randomBytes(24).toString("base64url");
-    O2.message("");
-    O2.info(import_picocolors5.default.bold("Database credentials generated:"));
-    O2.message([
+    R2.message("");
+    R2.info(import_picocolors7.default.bold("Database credentials generated:"));
+    R2.message([
       "",
-      `  ${import_picocolors5.default.dim("User:")}     launch-lms`,
-      `  ${import_picocolors5.default.dim("Password:")} ${import_picocolors5.default.cyan(dbPassword)}`,
-      `  ${import_picocolors5.default.dim("Database:")} launch-lms`,
-      `  ${import_picocolors5.default.dim("Host:")}     db:5432 (internal)`,
+      `  ${import_picocolors7.default.dim("User:")}     launch-lms`,
+      `  ${import_picocolors7.default.dim("Password:")} ${import_picocolors7.default.cyan(dbPassword)}`,
+      `  ${import_picocolors7.default.dim("Database:")} launch-lms`,
+      `  ${import_picocolors7.default.dim("Host:")}     db:5432 (internal)`,
       "",
-      `  ${import_picocolors5.default.yellow("Copy the password now if needed \u2014 it will be saved in .env")}`,
+      `  ${import_picocolors7.default.yellow("Copy the password now if needed \u2014 it will be saved in .env")}`,
       ""
     ].join("\n"));
-    const ack = await ot2({ message: "Continue?", initialValue: true });
-    if (q(ack) || !ack) {
-      pt();
+    const ack = await Re({ message: "Continue?", initialValue: true });
+    if (Ct(ack) || !ack) {
+      Ne();
       process.exit(0);
     }
   }
-  const redisChoice = await _t({
+  const redisChoice = await Je({
     message: "Redis setup?",
     options: [
       { value: "local", label: "Create a new Redis instance (Docker)", hint: "recommended" },
       { value: "external", label: "Use an external Redis", hint: "bring your own Redis" }
     ]
   });
-  if (q(redisChoice)) {
-    pt();
+  if (Ct(redisChoice)) {
+    Ne();
     process.exit(0);
   }
   let useExternalRedis = false;
@@ -5390,8 +5338,8 @@ async function promptOrganization() {
     defaultValue: "My School",
     validate: validateRequired
   });
-  if (q(orgName)) {
-    pt();
+  if (Ct(orgName)) {
+    Ne();
     process.exit(0);
   }
   return {
@@ -5406,16 +5354,16 @@ async function promptAdmin() {
     placeholder: "admin@example.com",
     validate: validateEmail
   });
-  if (q(email)) {
-    pt();
+  if (Ct(email)) {
+    Ne();
     process.exit(0);
   }
-  const password = await bt({
+  const password = await He({
     message: "Admin password? (min 8 characters)",
     validate: validatePassword
   });
-  if (q(password)) {
-    pt();
+  if (Ct(password)) {
+    Ne();
     process.exit(0);
   }
   return {
@@ -5426,7 +5374,7 @@ async function promptAdmin() {
 
 // src/prompts/features.ts
 async function promptFeatures() {
-  const selected = await yt({
+  const selected = await je({
     message: "Enable optional features? (Space to toggle, Enter to confirm)",
     options: [
       { value: "ai", label: "AI Features (Gemini)" },
@@ -5437,8 +5385,8 @@ async function promptFeatures() {
     ],
     required: false
   });
-  if (q(selected)) {
-    pt();
+  if (Ct(selected)) {
+    Ne();
     process.exit(0);
   }
   const features = selected;
@@ -5450,52 +5398,52 @@ async function promptFeatures() {
     unsplashEnabled: features.includes("unsplash")
   };
   if (config.aiEnabled) {
-    O2.info("Configure AI (Gemini)");
+    R2.info("Configure AI (Gemini)");
     const key = await text({
       message: "Gemini API key?",
       placeholder: "AIza...",
       validate: validateRequired
     });
-    if (q(key)) {
-      pt();
+    if (Ct(key)) {
+      Ne();
       process.exit(0);
     }
     config.geminiApiKey = key;
   }
   if (config.emailEnabled) {
-    const provider = await _t({
+    const provider = await Je({
       message: "Email provider?",
       options: [
         { value: "smtp", label: "SMTP (any provider)" },
         { value: "resend", label: "Resend" }
       ]
     });
-    if (q(provider)) {
-      pt();
+    if (Ct(provider)) {
+      Ne();
       process.exit(0);
     }
     config.emailProvider = provider;
     if (config.emailProvider === "resend") {
-      O2.info("Configure Email (Resend)");
+      R2.info("Configure Email (Resend)");
       const key = await text({
         message: "Resend API key?",
         placeholder: "re_...",
         validate: validateRequired
       });
-      if (q(key)) {
-        pt();
+      if (Ct(key)) {
+        Ne();
         process.exit(0);
       }
       config.resendApiKey = key;
     } else {
-      O2.info("Configure Email (SMTP)");
+      R2.info("Configure Email (SMTP)");
       const host = await text({
         message: "SMTP host?",
         placeholder: "smtp.gmail.com",
         validate: validateRequired
       });
-      if (q(host)) {
-        pt();
+      if (Ct(host)) {
+        Ne();
         process.exit(0);
       }
       config.smtpHost = host;
@@ -5504,8 +5452,8 @@ async function promptFeatures() {
         initialValue: "587",
         validate: validateRequired
       });
-      if (q(port)) {
-        pt();
+      if (Ct(port)) {
+        Ne();
         process.exit(0);
       }
       config.smtpPort = parseInt(port, 10);
@@ -5513,26 +5461,26 @@ async function promptFeatures() {
         message: "SMTP username?",
         validate: validateRequired
       });
-      if (q(username)) {
-        pt();
+      if (Ct(username)) {
+        Ne();
         process.exit(0);
       }
       config.smtpUsername = username;
-      const password = await bt({
+      const password = await He({
         message: "SMTP password?",
         validate: validateRequired
       });
-      if (q(password)) {
-        pt();
+      if (Ct(password)) {
+        Ne();
         process.exit(0);
       }
       config.smtpPassword = password;
-      const useTls = await ot2({
+      const useTls = await Re({
         message: "Use TLS?",
         initialValue: true
       });
-      if (q(useTls)) {
-        pt();
+      if (Ct(useTls)) {
+        Ne();
         process.exit(0);
       }
       config.smtpUseTls = useTls;
@@ -5542,20 +5490,20 @@ async function promptFeatures() {
       placeholder: "noreply@yourdomain.com",
       validate: validateRequired
     });
-    if (q(email)) {
-      pt();
+    if (Ct(email)) {
+      Ne();
       process.exit(0);
     }
     config.systemEmailAddress = email;
   }
   if (config.s3Enabled) {
-    O2.info("Configure S3 Storage");
+    R2.info("Configure S3 Storage");
     const bucket = await text({
       message: "S3 bucket name?",
       validate: validateRequired
     });
-    if (q(bucket)) {
-      pt();
+    if (Ct(bucket)) {
+      Ne();
       process.exit(0);
     }
     config.s3BucketName = bucket;
@@ -5563,20 +5511,20 @@ async function promptFeatures() {
       message: "S3 endpoint URL? (leave empty for AWS S3)",
       placeholder: "https://s3.amazonaws.com"
     });
-    if (q(endpoint)) {
-      pt();
+    if (Ct(endpoint)) {
+      Ne();
       process.exit(0);
     }
     if (endpoint) config.s3EndpointUrl = endpoint;
   }
   if (config.googleOAuthEnabled) {
-    O2.info("Configure Google OAuth");
+    R2.info("Configure Google OAuth");
     const clientId = await text({
       message: "Google Client ID?",
       validate: validateRequired
     });
-    if (q(clientId)) {
-      pt();
+    if (Ct(clientId)) {
+      Ne();
       process.exit(0);
     }
     config.googleClientId = clientId;
@@ -5584,20 +5532,20 @@ async function promptFeatures() {
       message: "Google Client Secret?",
       validate: validateRequired
     });
-    if (q(clientSecret)) {
-      pt();
+    if (Ct(clientSecret)) {
+      Ne();
       process.exit(0);
     }
     config.googleClientSecret = clientSecret;
   }
   if (config.unsplashEnabled) {
-    O2.info("Configure Unsplash");
+    R2.info("Configure Unsplash");
     const key = await text({
       message: "Unsplash Access Key?",
       validate: validateRequired
     });
-    if (q(key)) {
-      pt();
+    if (Ct(key)) {
+      Ne();
       process.exit(0);
     }
     config.unsplashAccessKey = key;
@@ -6086,15 +6034,15 @@ var STEP_NAMES = [
 var BACK = /* @__PURE__ */ Symbol("back");
 async function confirmOrBack(message) {
   if (STEP_NAMES.length === 0) return true;
-  const result = await _t({
+  const result = await Je({
     message,
     options: [
       { value: "continue", label: "Continue" },
-      { value: "back", label: import_picocolors6.default.dim("Go back to previous step") }
+      { value: "back", label: import_picocolors8.default.dim("Go back to previous step") }
     ]
   });
-  if (q(result)) {
-    pt();
+  if (Ct(result)) {
+    Ne();
     process.exit(0);
   }
   return result === "back" ? BACK : true;
@@ -6106,54 +6054,54 @@ async function stepInstallDir() {
     placeholder: defaultDir,
     defaultValue: defaultDir
   });
-  if (q(installDir)) {
-    pt();
+  if (Ct(installDir)) {
+    Ne();
     process.exit(0);
   }
   const resolved = path2.resolve(installDir);
   if (fs2.existsSync(path2.join(resolved, "launch-lms.config.json"))) {
-    O2.warn(`${resolved} already contains a Launch LMS installation.`);
-    const overwrite = await ot2({
+    R2.warn(`${resolved} already contains a Launch LMS installation.`);
+    const overwrite = await Re({
       message: "Overwrite existing installation?",
       initialValue: false
     });
-    if (q(overwrite) || !overwrite) {
-      pt("Setup cancelled.");
+    if (Ct(overwrite) || !overwrite) {
+      Ne("Setup cancelled.");
       process.exit(0);
     }
   }
   return resolved;
 }
 async function stepDomain() {
-  O2.step(import_picocolors6.default.cyan(`Step 2/6`) + " Domain Configuration");
+  R2.step(import_picocolors8.default.cyan(`Step 2/6`) + " Domain Configuration");
   const config = await promptDomain();
   const portAvailable = await checkPort(config.httpPort);
   if (!portAvailable) {
-    O2.warn(`Port ${config.httpPort} is already in use. You may need to free it before starting.`);
+    R2.warn(`Port ${config.httpPort} is already in use. You may need to free it before starting.`);
   }
   return config;
 }
 async function stepDatabase() {
-  O2.step(import_picocolors6.default.cyan(`Step 3/6`) + " Database & Redis");
+  R2.step(import_picocolors8.default.cyan(`Step 3/6`) + " Database & Redis");
   return await promptDatabase();
 }
 async function stepOrganization() {
-  O2.step(import_picocolors6.default.cyan(`Step 4/6`) + " Organization Setup");
+  R2.step(import_picocolors8.default.cyan(`Step 4/6`) + " Organization Setup");
   return await promptOrganization();
 }
 async function stepAdmin() {
-  O2.step(import_picocolors6.default.cyan(`Step 5/6`) + " Admin Account");
+  R2.step(import_picocolors8.default.cyan(`Step 5/6`) + " Admin Account");
   return await promptAdmin();
 }
 async function stepFeatures() {
-  O2.step(import_picocolors6.default.cyan(`Step 6/6`) + " Optional Features");
+  R2.step(import_picocolors8.default.cyan(`Step 6/6`) + " Optional Features");
   return await promptFeatures();
 }
 async function setupCommand() {
   await printBanner();
-  mt(import_picocolors6.default.cyan("Launch LMS Setup Wizard"));
+  We(import_picocolors8.default.cyan("Launch LMS Setup Wizard"));
   await checkPrerequisites();
-  const channelChoice = await _t({
+  const channelChoice = await Je({
     message: "Which release channel do you want to use?",
     options: [
       {
@@ -6168,8 +6116,8 @@ async function setupCommand() {
       }
     ]
   });
-  if (q(channelChoice)) {
-    pt();
+  if (Ct(channelChoice)) {
+    Ne();
     process.exit(0);
   }
   const channel = channelChoice;
@@ -6184,7 +6132,7 @@ async function setupCommand() {
   while (step < totalSteps) {
     switch (step) {
       case 0: {
-        O2.step(import_picocolors6.default.cyan(`Step 1/${totalSteps}`) + " Install Directory");
+        R2.step(import_picocolors8.default.cyan(`Step 1/${totalSteps}`) + " Install Directory");
         const result = await stepInstallDir();
         if (result === BACK) {
           step = Math.max(0, step - 1);
@@ -6255,46 +6203,46 @@ async function setupCommand() {
   const protocol = config.useHttps ? "https" : "http";
   const portSuffix = config.useHttps && config.httpPort === 443 || !config.useHttps && config.httpPort === 80 ? "" : `:${config.httpPort}`;
   const url = `${protocol}://${config.domain}${portSuffix}`;
-  O2.step("Configuration Summary");
-  O2.message([
-    `  ${import_picocolors6.default.dim("Directory:")}     ${resolvedDir}`,
-    `  ${import_picocolors6.default.dim("Channel:")}       ${config.channel === "dev" ? import_picocolors6.default.yellow("Dev (:dev)") : import_picocolors6.default.green("Stable")}`,
-    `  ${import_picocolors6.default.dim("URL:")}           ${url}`,
-    `  ${import_picocolors6.default.dim("HTTPS:")}         ${config.autoSsl ? "Auto SSL (Caddy)" : config.useHttps ? "Manual" : "Disabled"}`,
-    `  ${import_picocolors6.default.dim("Database:")}      ${config.useExternalDb ? "External" : config.useAiDatabase ? "Local (Docker, AI-enabled)" : "Local (Docker)"}`,
-    `  ${import_picocolors6.default.dim("Redis:")}         ${config.useExternalRedis ? "External" : "Local (Docker)"}`,
-    `  ${import_picocolors6.default.dim("Organization:")} ${config.orgName}`,
-    `  ${import_picocolors6.default.dim("Admin:")}        ${config.adminEmail}`,
-    `  ${import_picocolors6.default.dim("AI:")}           ${config.aiEnabled ? "Enabled" : "Disabled"}`,
-    `  ${import_picocolors6.default.dim("Email:")}        ${config.emailEnabled ? "Enabled" : "Disabled"}`,
-    `  ${import_picocolors6.default.dim("S3 Storage:")}   ${config.s3Enabled ? "Enabled" : "Disabled"}`,
-    `  ${import_picocolors6.default.dim("Google OAuth:")} ${config.googleOAuthEnabled ? "Enabled" : "Disabled"}`,
-    `  ${import_picocolors6.default.dim("Unsplash:")}     ${config.unsplashEnabled ? "Enabled" : "Disabled"}`
+  R2.step("Configuration Summary");
+  R2.message([
+    `  ${import_picocolors8.default.dim("Directory:")}     ${resolvedDir}`,
+    `  ${import_picocolors8.default.dim("Channel:")}       ${config.channel === "dev" ? import_picocolors8.default.yellow("Dev (:dev)") : import_picocolors8.default.green("Stable")}`,
+    `  ${import_picocolors8.default.dim("URL:")}           ${url}`,
+    `  ${import_picocolors8.default.dim("HTTPS:")}         ${config.autoSsl ? "Auto SSL (Caddy)" : config.useHttps ? "Manual" : "Disabled"}`,
+    `  ${import_picocolors8.default.dim("Database:")}      ${config.useExternalDb ? "External" : config.useAiDatabase ? "Local (Docker, AI-enabled)" : "Local (Docker)"}`,
+    `  ${import_picocolors8.default.dim("Redis:")}         ${config.useExternalRedis ? "External" : "Local (Docker)"}`,
+    `  ${import_picocolors8.default.dim("Organization:")} ${config.orgName}`,
+    `  ${import_picocolors8.default.dim("Admin:")}        ${config.adminEmail}`,
+    `  ${import_picocolors8.default.dim("AI:")}           ${config.aiEnabled ? "Enabled" : "Disabled"}`,
+    `  ${import_picocolors8.default.dim("Email:")}        ${config.emailEnabled ? "Enabled" : "Disabled"}`,
+    `  ${import_picocolors8.default.dim("S3 Storage:")}   ${config.s3Enabled ? "Enabled" : "Disabled"}`,
+    `  ${import_picocolors8.default.dim("Google OAuth:")} ${config.googleOAuthEnabled ? "Enabled" : "Disabled"}`,
+    `  ${import_picocolors8.default.dim("Unsplash:")}     ${config.unsplashEnabled ? "Enabled" : "Disabled"}`
   ].join("\n"));
   let confirmed = false;
   while (!confirmed) {
-    const action = await _t({
+    const action = await Je({
       message: "What would you like to do?",
       options: [
         { value: "confirm", label: "Proceed with this configuration" },
-        { value: "edit", label: import_picocolors6.default.dim("Go back and edit a step") },
-        { value: "cancel", label: import_picocolors6.default.dim("Cancel setup") }
+        { value: "edit", label: import_picocolors8.default.dim("Go back and edit a step") },
+        { value: "cancel", label: import_picocolors8.default.dim("Cancel setup") }
       ]
     });
-    if (q(action) || action === "cancel") {
-      pt("Setup cancelled.");
+    if (Ct(action) || action === "cancel") {
+      Ne("Setup cancelled.");
       process.exit(0);
     }
     if (action === "edit") {
-      const stepChoice = await _t({
+      const stepChoice = await Je({
         message: "Which step do you want to edit?",
         options: STEP_NAMES.map((name, i) => ({ value: i, label: `${i + 1}. ${name}` }))
       });
-      if (q(stepChoice)) continue;
+      if (Ct(stepChoice)) continue;
       const idx = stepChoice;
       switch (idx) {
         case 0: {
-          O2.step(import_picocolors6.default.cyan(`Step 1/${totalSteps}`) + " Install Directory");
+          R2.step(import_picocolors8.default.cyan(`Step 1/${totalSteps}`) + " Install Directory");
           const result = await stepInstallDir();
           if (result !== BACK) {
             resolvedDir = result;
@@ -6331,34 +6279,34 @@ async function setupCommand() {
       const p2 = config.useHttps ? "https" : "http";
       const ps2 = config.useHttps && config.httpPort === 443 || !config.useHttps && config.httpPort === 80 ? "" : `:${config.httpPort}`;
       const url2 = `${p2}://${config.domain}${ps2}`;
-      O2.step("Updated Configuration Summary");
-      O2.message([
-        `  ${import_picocolors6.default.dim("Directory:")}     ${config.installDir}`,
-        `  ${import_picocolors6.default.dim("Channel:")}       ${config.channel === "dev" ? import_picocolors6.default.yellow("Dev (:dev)") : import_picocolors6.default.green("Stable")}`,
-        `  ${import_picocolors6.default.dim("URL:")}           ${url2}`,
-        `  ${import_picocolors6.default.dim("HTTPS:")}         ${config.autoSsl ? "Auto SSL (Caddy)" : config.useHttps ? "Manual" : "Disabled"}`,
-        `  ${import_picocolors6.default.dim("Database:")}      ${config.useExternalDb ? "External" : config.useAiDatabase ? "Local (Docker, AI-enabled)" : "Local (Docker)"}`,
-        `  ${import_picocolors6.default.dim("Redis:")}         ${config.useExternalRedis ? "External" : "Local (Docker)"}`,
-        `  ${import_picocolors6.default.dim("Organization:")} ${config.orgName}`,
-        `  ${import_picocolors6.default.dim("Admin:")}        ${config.adminEmail}`,
-        `  ${import_picocolors6.default.dim("AI:")}           ${config.aiEnabled ? "Enabled" : "Disabled"}`,
-        `  ${import_picocolors6.default.dim("Email:")}        ${config.emailEnabled ? "Enabled" : "Disabled"}`,
-        `  ${import_picocolors6.default.dim("S3 Storage:")}   ${config.s3Enabled ? "Enabled" : "Disabled"}`,
-        `  ${import_picocolors6.default.dim("Google OAuth:")} ${config.googleOAuthEnabled ? "Enabled" : "Disabled"}`,
-        `  ${import_picocolors6.default.dim("Unsplash:")}     ${config.unsplashEnabled ? "Enabled" : "Disabled"}`
+      R2.step("Updated Configuration Summary");
+      R2.message([
+        `  ${import_picocolors8.default.dim("Directory:")}     ${config.installDir}`,
+        `  ${import_picocolors8.default.dim("Channel:")}       ${config.channel === "dev" ? import_picocolors8.default.yellow("Dev (:dev)") : import_picocolors8.default.green("Stable")}`,
+        `  ${import_picocolors8.default.dim("URL:")}           ${url2}`,
+        `  ${import_picocolors8.default.dim("HTTPS:")}         ${config.autoSsl ? "Auto SSL (Caddy)" : config.useHttps ? "Manual" : "Disabled"}`,
+        `  ${import_picocolors8.default.dim("Database:")}      ${config.useExternalDb ? "External" : config.useAiDatabase ? "Local (Docker, AI-enabled)" : "Local (Docker)"}`,
+        `  ${import_picocolors8.default.dim("Redis:")}         ${config.useExternalRedis ? "External" : "Local (Docker)"}`,
+        `  ${import_picocolors8.default.dim("Organization:")} ${config.orgName}`,
+        `  ${import_picocolors8.default.dim("Admin:")}        ${config.adminEmail}`,
+        `  ${import_picocolors8.default.dim("AI:")}           ${config.aiEnabled ? "Enabled" : "Disabled"}`,
+        `  ${import_picocolors8.default.dim("Email:")}        ${config.emailEnabled ? "Enabled" : "Disabled"}`,
+        `  ${import_picocolors8.default.dim("S3 Storage:")}   ${config.s3Enabled ? "Enabled" : "Disabled"}`,
+        `  ${import_picocolors8.default.dim("Google OAuth:")} ${config.googleOAuthEnabled ? "Enabled" : "Disabled"}`,
+        `  ${import_picocolors8.default.dim("Unsplash:")}     ${config.unsplashEnabled ? "Enabled" : "Disabled"}`
       ].join("\n"));
     } else {
       confirmed = true;
     }
   }
-  const s0 = fe();
+  const s0 = bt2();
   s0.start("Resolving Launch LMS image version");
   const { image: appImage, isLatest } = await resolveAppImage(config.channel);
   s0.stop(`Using image: ${appImage}`);
   if (isLatest) {
-    O2.warn("No versioned image found \u2014 using :latest tag. Pin to a version for stability.");
+    R2.warn("No versioned image found \u2014 using :latest tag. Pin to a version for stability.");
   }
-  const s = fe();
+  const s = bt2();
   s.start("Generating configuration files");
   const finalDir = config.installDir;
   try {
@@ -6374,104 +6322,104 @@ async function setupCommand() {
     writeConfig(config);
   } catch (err) {
     s.stop("Failed to generate configuration files");
-    O2.error(err?.message ?? String(err));
+    R2.error(err?.message ?? String(err));
     process.exit(1);
   }
   s.stop("Configuration files generated");
-  const startNow = await ot2({
+  const startNow = await Re({
     message: "Start Launch LMS now?",
     initialValue: true
   });
-  if (q(startNow)) {
-    pt();
+  if (Ct(startNow)) {
+    Ne();
     process.exit(0);
   }
   const finalProtocol = config.useHttps ? "https" : "http";
   const finalPortSuffix = config.useHttps && config.httpPort === 443 || !config.useHttps && config.httpPort === 80 ? "" : `:${config.httpPort}`;
   const finalUrl = `${finalProtocol}://${config.domain}${finalPortSuffix}`;
   if (startNow) {
-    O2.step("Starting Launch LMS");
-    const s2 = fe();
+    R2.step("Starting Launch LMS");
+    const s2 = bt2();
     s2.start("Pulling images and starting services (this may take a few minutes)");
     try {
       dockerComposeUp(finalDir);
       s2.stop("Services started");
     } catch (err) {
       s2.stop("Failed to start services");
-      O2.error("Docker Compose failed. Check the output above for details.");
-      O2.info(`You can manually start with: cd ${finalDir} && docker compose up -d`);
+      R2.error("Docker Compose failed. Check the output above for details.");
+      R2.info(`You can manually start with: cd ${finalDir} && docker compose up -d`);
       process.exit(1);
     }
-    const s3 = fe();
+    const s3 = bt2();
     s3.start("Waiting for Launch LMS to be ready (up to 3 minutes)");
     const healthy = await waitForHealth(`http://localhost:${config.httpPort}`);
     if (healthy) {
       s3.stop("Launch LMS is ready!");
     } else {
       s3.stop("Health check timed out");
-      O2.warn("Launch LMS may still be starting. Check status with:");
-      O2.message(`  cd ${finalDir} && docker compose ps`);
+      R2.warn("Launch LMS may still be starting. Check status with:");
+      R2.message(`  cd ${finalDir} && docker compose ps`);
     }
-    O2.success(import_picocolors6.default.green(import_picocolors6.default.bold("Launch LMS is installed!")));
-    O2.message([
+    R2.success(import_picocolors8.default.green(import_picocolors8.default.bold("Launch LMS is installed!")));
+    R2.message([
       "",
-      `  ${import_picocolors6.default.cyan("URL:")}       ${finalUrl}`,
-      `  ${import_picocolors6.default.cyan("Admin:")}     ${config.adminEmail}`,
-      `  ${import_picocolors6.default.cyan("Password:")}  ${config.adminPassword}`,
+      `  ${import_picocolors8.default.cyan("URL:")}       ${finalUrl}`,
+      `  ${import_picocolors8.default.cyan("Admin:")}     ${config.adminEmail}`,
+      `  ${import_picocolors8.default.cyan("Password:")}  ${config.adminPassword}`,
       "",
-      `  ${import_picocolors6.default.dim("Management commands:")}`,
-      `  ${import_picocolors6.default.dim("$")} ${LOCAL_CLI_COMMAND} start    ${import_picocolors6.default.dim("Start services")}`,
-      `  ${import_picocolors6.default.dim("$")} ${LOCAL_CLI_COMMAND} stop     ${import_picocolors6.default.dim("Stop services")}`,
-      `  ${import_picocolors6.default.dim("$")} ${LOCAL_CLI_COMMAND} logs     ${import_picocolors6.default.dim("View logs")}`,
-      `  ${import_picocolors6.default.dim("$")} ${LOCAL_CLI_COMMAND} config   ${import_picocolors6.default.dim("Show configuration")}`,
-      `  ${import_picocolors6.default.dim("$")} ${LOCAL_CLI_COMMAND} backup   ${import_picocolors6.default.dim("Backup & restore")}`,
-      `  ${import_picocolors6.default.dim("$")} ${LOCAL_CLI_COMMAND} deployments ${import_picocolors6.default.dim("Manage deployments")}`,
-      `  ${import_picocolors6.default.dim("$")} ${LOCAL_CLI_COMMAND} doctor   ${import_picocolors6.default.dim("Diagnose issues")}`,
-      `  ${import_picocolors6.default.dim("$")} ${LOCAL_CLI_COMMAND} shell    ${import_picocolors6.default.dim("Container shell")}`,
+      `  ${import_picocolors8.default.dim("Management commands:")}`,
+      `  ${import_picocolors8.default.dim("$")} ${LOCAL_CLI_COMMAND} start    ${import_picocolors8.default.dim("Start services")}`,
+      `  ${import_picocolors8.default.dim("$")} ${LOCAL_CLI_COMMAND} stop     ${import_picocolors8.default.dim("Stop services")}`,
+      `  ${import_picocolors8.default.dim("$")} ${LOCAL_CLI_COMMAND} logs     ${import_picocolors8.default.dim("View logs")}`,
+      `  ${import_picocolors8.default.dim("$")} ${LOCAL_CLI_COMMAND} config   ${import_picocolors8.default.dim("Show configuration")}`,
+      `  ${import_picocolors8.default.dim("$")} ${LOCAL_CLI_COMMAND} backup   ${import_picocolors8.default.dim("Backup & restore")}`,
+      `  ${import_picocolors8.default.dim("$")} ${LOCAL_CLI_COMMAND} deployments ${import_picocolors8.default.dim("Manage deployments")}`,
+      `  ${import_picocolors8.default.dim("$")} ${LOCAL_CLI_COMMAND} doctor   ${import_picocolors8.default.dim("Diagnose issues")}`,
+      `  ${import_picocolors8.default.dim("$")} ${LOCAL_CLI_COMMAND} shell    ${import_picocolors8.default.dim("Container shell")}`,
       ""
     ].join("\n"));
   } else {
-    O2.info(`Files have been generated in ${finalDir}`);
-    O2.message(`  Start later with: cd ${finalDir} && docker compose up -d`);
+    R2.info(`Files have been generated in ${finalDir}`);
+    R2.message(`  Start later with: cd ${finalDir} && docker compose up -d`);
   }
-  gt(import_picocolors6.default.dim("Happy teaching!"));
+  Le(import_picocolors8.default.dim("Happy teaching!"));
 }
 
 // src/commands/start.ts
-var import_picocolors7 = __toESM(require_picocolors(), 1);
+var import_picocolors9 = __toESM(require_picocolors(), 1);
 async function startCommand() {
   const dir = findInstallDir();
   const config = readConfig(dir);
   if (!config) {
-    O2.error("No Launch LMS installation found in the current directory.");
-    O2.info(`Run \`${LOCAL_CLI_COMMAND} setup\` to set up a new installation.`);
+    R2.error("No Launch LMS installation found in the current directory.");
+    R2.info(`Run \`${LOCAL_CLI_COMMAND} setup\` to set up a new installation.`);
     process.exit(1);
   }
-  mt(import_picocolors7.default.cyan("Starting Launch LMS"));
+  We(import_picocolors9.default.cyan("Starting Launch LMS"));
   try {
     dockerComposeUp(config.installDir);
-    O2.success("Launch LMS is running!");
+    R2.success("Launch LMS is running!");
   } catch {
-    O2.error("Failed to start services. Check Docker output above.");
+    R2.error("Failed to start services. Check Docker output above.");
     process.exit(1);
   }
 }
 
 // src/commands/stop.ts
-var import_picocolors8 = __toESM(require_picocolors(), 1);
+var import_picocolors10 = __toESM(require_picocolors(), 1);
 async function stopCommand() {
   const dir = findInstallDir();
   const config = readConfig(dir);
   if (!config) {
-    O2.error("No Launch LMS installation found in the current directory.");
+    R2.error("No Launch LMS installation found in the current directory.");
     process.exit(1);
   }
-  mt(import_picocolors8.default.cyan("Stopping Launch LMS"));
+  We(import_picocolors10.default.cyan("Stopping Launch LMS"));
   try {
     dockerComposeDown(config.installDir);
-    O2.success("Launch LMS stopped.");
+    R2.success("Launch LMS stopped.");
   } catch {
-    O2.error("Failed to stop services. Check Docker output above.");
+    R2.error("Failed to stop services. Check Docker output above.");
     process.exit(1);
   }
 }
@@ -6480,7 +6428,7 @@ async function stopCommand() {
 async function logsCommand() {
   const dir = findInstallDir();
   const config = readConfig(dir);
-  O2.info("Streaming logs (Ctrl+C to stop)...");
+  R2.info("Streaming logs (Ctrl+C to stop)...");
   if (config?.installDir) {
     try {
       const { execSync: execSync7 } = await import("child_process");
@@ -6494,45 +6442,45 @@ async function logsCommand() {
   }
   const id = config?.deploymentId || autoDetectDeploymentId();
   if (!id) {
-    O2.error("No Launch LMS containers found. Start services first.");
+    R2.error("No Launch LMS containers found. Start services first.");
     process.exit(1);
   }
-  const containers = listDeploymentContainers(id).filter((c2) => c2.status.toLowerCase().startsWith("up"));
+  const containers = listDeploymentContainers(id).filter((c) => c.status.toLowerCase().startsWith("up"));
   if (containers.length === 0) {
-    O2.error("No running containers found. Start services first.");
+    R2.error("No running containers found. Start services first.");
     process.exit(1);
   }
-  dockerLogsMulti(containers.map((c2) => c2.name));
+  dockerLogsMulti(containers.map((c) => c.name));
 }
 
 // src/commands/config.ts
-var import_picocolors9 = __toESM(require_picocolors(), 1);
+var import_picocolors11 = __toESM(require_picocolors(), 1);
 async function configCommand() {
   const dir = findInstallDir();
   const config = readConfig(dir);
   if (!config) {
-    O2.error("No Launch LMS installation found in the current directory.");
+    R2.error("No Launch LMS installation found in the current directory.");
     process.exit(1);
   }
-  mt(import_picocolors9.default.cyan("Launch LMS Configuration"));
+  We(import_picocolors11.default.cyan("Launch LMS Configuration"));
   const protocol = config.useHttps ? "https" : "http";
   const portSuffix = config.useHttps && config.httpPort === 443 || !config.useHttps && config.httpPort === 80 ? "" : `:${config.httpPort}`;
-  O2.message([
-    `  ${import_picocolors9.default.dim("Version:")}      ${config.version}`,
-    `  ${import_picocolors9.default.dim("Created:")}      ${config.createdAt}`,
-    `  ${import_picocolors9.default.dim("Directory:")}    ${config.installDir}`,
-    `  ${import_picocolors9.default.dim("URL:")}          ${protocol}://${config.domain}${portSuffix}`,
-    `  ${import_picocolors9.default.dim("Org slug:")}     ${config.orgSlug}`
+  R2.message([
+    `  ${import_picocolors11.default.dim("Version:")}      ${config.version}`,
+    `  ${import_picocolors11.default.dim("Created:")}      ${config.createdAt}`,
+    `  ${import_picocolors11.default.dim("Directory:")}    ${config.installDir}`,
+    `  ${import_picocolors11.default.dim("URL:")}          ${protocol}://${config.domain}${portSuffix}`,
+    `  ${import_picocolors11.default.dim("Org slug:")}     ${config.orgSlug}`
   ].join("\n"));
-  O2.info(import_picocolors9.default.dim(`Full config: ${dir}/launch-lms.config.json`));
-  O2.info(import_picocolors9.default.dim(`Environment: ${config.installDir}/.env (contains secrets)`));
+  R2.info(import_picocolors11.default.dim(`Full config: ${dir}/launch-lms.config.json`));
+  R2.info(import_picocolors11.default.dim(`Environment: ${config.installDir}/.env (contains secrets)`));
 }
 
 // src/commands/backup.ts
 import fs3 from "fs";
 import path3 from "path";
 import { execSync as execSync2 } from "child_process";
-var import_picocolors10 = __toESM(require_picocolors(), 1);
+var import_picocolors12 = __toESM(require_picocolors(), 1);
 function resolveDbContainer(config) {
   const id = config.deploymentId || autoDetectDeploymentId();
   if (!id) return null;
@@ -6542,17 +6490,17 @@ async function createBackup() {
   const installDir = findInstallDir();
   const config = readConfig(installDir);
   if (!config) {
-    O2.error("No Launch LMS installation found. Run setup first.");
+    R2.error("No Launch LMS installation found. Run setup first.");
     process.exit(1);
   }
   if (config.useExternalDb) {
-    O2.error("Backup is only supported for local (Docker) databases.");
-    O2.info("For external databases, use your database provider's backup tools.");
+    R2.error("Backup is only supported for local (Docker) databases.");
+    R2.info("For external databases, use your database provider's backup tools.");
     process.exit(1);
   }
   const dbContainer = resolveDbContainer(config);
   if (!dbContainer || !isContainerRunning(dbContainer)) {
-    O2.error("Database container is not running. Start services first.");
+    R2.error("Database container is not running. Start services first.");
     process.exit(1);
   }
   const timestamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
@@ -6561,7 +6509,7 @@ async function createBackup() {
   const tmpDir = path3.join(backupDir, backupName);
   const archivePath = path3.join(backupDir, `${backupName}.tar.gz`);
   fs3.mkdirSync(tmpDir, { recursive: true });
-  const s = fe();
+  const s = bt2();
   s.start("Creating database dump");
   try {
     const dumpPath = path3.join(tmpDir, "database.sql");
@@ -6573,7 +6521,7 @@ async function createBackup() {
     s.stop("Database dump created");
   } catch (err) {
     s.stop("Database dump failed");
-    O2.error("Failed to create database dump. Check that the database is running.");
+    R2.error("Failed to create database dump. Check that the database is running.");
     fs3.rmSync(tmpDir, { recursive: true, force: true });
     process.exit(1);
   }
@@ -6581,7 +6529,7 @@ async function createBackup() {
   if (fs3.existsSync(envPath)) {
     fs3.copyFileSync(envPath, path3.join(tmpDir, ".env"));
   }
-  const s2 = fe();
+  const s2 = bt2();
   s2.start("Creating archive");
   try {
     execSync2(`tar -czf "${archivePath}" -C "${backupDir}" "${backupName}"`, {
@@ -6590,55 +6538,55 @@ async function createBackup() {
     s2.stop("Archive created");
   } catch {
     s2.stop("Archive creation failed");
-    O2.error("Failed to create archive.");
+    R2.error("Failed to create archive.");
     process.exit(1);
   }
   fs3.rmSync(tmpDir, { recursive: true, force: true });
   const stats = fs3.statSync(archivePath);
   const sizeMb = (stats.size / (1024 * 1024)).toFixed(1);
-  O2.success(import_picocolors10.default.green(import_picocolors10.default.bold("Backup complete!")));
-  O2.message([
+  R2.success(import_picocolors12.default.green(import_picocolors12.default.bold("Backup complete!")));
+  R2.message([
     "",
-    `  ${import_picocolors10.default.dim("File:")} ${archivePath}`,
-    `  ${import_picocolors10.default.dim("Size:")} ${sizeMb} MB`,
+    `  ${import_picocolors12.default.dim("File:")} ${archivePath}`,
+    `  ${import_picocolors12.default.dim("Size:")} ${sizeMb} MB`,
     "",
-    `  ${import_picocolors10.default.dim("Restore with:")} ${LOCAL_CLI_COMMAND} backup --restore ${archivePath}`,
+    `  ${import_picocolors12.default.dim("Restore with:")} ${LOCAL_CLI_COMMAND} backup --restore ${archivePath}`,
     ""
   ].join("\n"));
 }
 async function restoreBackup(archivePath) {
   if (!fs3.existsSync(archivePath)) {
-    O2.error(`Backup file not found: ${archivePath}`);
+    R2.error(`Backup file not found: ${archivePath}`);
     process.exit(1);
   }
   const installDir = findInstallDir();
   const config = readConfig(installDir);
   if (!config) {
-    O2.error("No Launch LMS installation found. Run setup first.");
+    R2.error("No Launch LMS installation found. Run setup first.");
     process.exit(1);
   }
   if (config.useExternalDb) {
-    O2.error("Restore is only supported for local (Docker) databases.");
-    O2.info("For external databases, use your database provider's restore tools.");
+    R2.error("Restore is only supported for local (Docker) databases.");
+    R2.info("For external databases, use your database provider's restore tools.");
     process.exit(1);
   }
   const dbContainer = resolveDbContainer(config);
   if (!dbContainer || !isContainerRunning(dbContainer)) {
-    O2.error("Database container is not running. Start services first.");
+    R2.error("Database container is not running. Start services first.");
     process.exit(1);
   }
-  O2.warn(import_picocolors10.default.yellow("This will overwrite the current database with the backup data."));
-  const confirm = await ot2({
+  R2.warn(import_picocolors12.default.yellow("This will overwrite the current database with the backup data."));
+  const confirm = await Re({
     message: "Are you sure you want to restore from this backup?",
     initialValue: false
   });
-  if (q(confirm) || !confirm) {
-    pt("Restore cancelled.");
+  if (Ct(confirm) || !confirm) {
+    Ne("Restore cancelled.");
     process.exit(0);
   }
   const tmpDir = path3.join(installDir, ".restore-tmp");
   fs3.mkdirSync(tmpDir, { recursive: true });
-  const s = fe();
+  const s = bt2();
   s.start("Extracting backup archive");
   try {
     execSync2(`tar -xzf "${archivePath}" -C "${tmpDir}"`, { stdio: "pipe" });
@@ -6646,20 +6594,20 @@ async function restoreBackup(archivePath) {
   } catch {
     s.stop("Extraction failed");
     fs3.rmSync(tmpDir, { recursive: true, force: true });
-    O2.error("Failed to extract backup archive.");
+    R2.error("Failed to extract backup archive.");
     process.exit(1);
   }
   const entries = fs3.readdirSync(tmpDir);
   const backupFolder = entries.find(
-    (e) => fs3.existsSync(path3.join(tmpDir, e, "database.sql"))
+    (e2) => fs3.existsSync(path3.join(tmpDir, e2, "database.sql"))
   );
   if (!backupFolder) {
-    O2.error("No database.sql found in the backup archive.");
+    R2.error("No database.sql found in the backup archive.");
     fs3.rmSync(tmpDir, { recursive: true, force: true });
     process.exit(1);
   }
   const dumpPath = path3.join(tmpDir, backupFolder, "database.sql");
-  const s2 = fe();
+  const s2 = bt2();
   s2.start("Restoring database");
   try {
     dockerExecFromFile(
@@ -6671,40 +6619,40 @@ async function restoreBackup(archivePath) {
   } catch {
     s2.stop("Database restore failed");
     fs3.rmSync(tmpDir, { recursive: true, force: true });
-    O2.error("Failed to restore database. The backup file may be corrupted.");
+    R2.error("Failed to restore database. The backup file may be corrupted.");
     process.exit(1);
   }
   const envBackup = path3.join(tmpDir, backupFolder, ".env");
   if (fs3.existsSync(envBackup)) {
-    const restoreEnv = await ot2({
+    const restoreEnv = await Re({
       message: "Backup contains a .env file. Restore it? (overwrites current .env)",
       initialValue: false
     });
-    if (!q(restoreEnv) && restoreEnv) {
+    if (!Ct(restoreEnv) && restoreEnv) {
       fs3.copyFileSync(envBackup, path3.join(installDir, ".env"));
-      O2.info(".env file restored");
+      R2.info(".env file restored");
     }
   }
   fs3.rmSync(tmpDir, { recursive: true, force: true });
-  O2.success(import_picocolors10.default.green(import_picocolors10.default.bold("Restore complete!")));
-  O2.info(`You may want to restart services: ${LOCAL_CLI_COMMAND} stop && ${LOCAL_CLI_COMMAND} start`);
+  R2.success(import_picocolors12.default.green(import_picocolors12.default.bold("Restore complete!")));
+  R2.info(`You may want to restart services: ${LOCAL_CLI_COMMAND} stop && ${LOCAL_CLI_COMMAND} start`);
 }
 async function backupCommand(archivePath, options) {
   if (options?.restore && archivePath) {
-    mt(import_picocolors10.default.cyan("Launch LMS Restore"));
+    We(import_picocolors12.default.cyan("Launch LMS Restore"));
     await restoreBackup(archivePath);
     return;
   }
-  mt(import_picocolors10.default.cyan("Launch LMS Backup"));
-  const action = await _t({
+  We(import_picocolors12.default.cyan("Launch LMS Backup"));
+  const action = await Je({
     message: "What would you like to do?",
     options: [
       { value: "create", label: "Create a backup" },
       { value: "restore", label: "Restore from a backup" }
     ]
   });
-  if (q(action)) {
-    pt();
+  if (Ct(action)) {
+    Ne();
     process.exit(0);
   }
   if (action === "create") {
@@ -6714,8 +6662,8 @@ async function backupCommand(archivePath, options) {
       message: "Path to backup archive (.tar.gz)",
       placeholder: "./backups/launch-lms-backup-*.tar.gz"
     });
-    if (q(filePath)) {
-      pt();
+    if (Ct(filePath)) {
+      Ne();
       process.exit(0);
     }
     await restoreBackup(filePath);
@@ -6726,7 +6674,7 @@ async function backupCommand(archivePath, options) {
 import fs4 from "fs";
 import path4 from "path";
 import { execSync as execSync3 } from "child_process";
-var import_picocolors11 = __toESM(require_picocolors(), 1);
+var import_picocolors13 = __toESM(require_picocolors(), 1);
 var SERVICES = ["launch-lms-app", "db", "redis"];
 function showDeployments() {
   let psOutput;
@@ -6736,12 +6684,12 @@ function showDeployments() {
       { stdio: "pipe" }
     ).toString().trim();
   } catch {
-    O2.error("Failed to query Docker. Is Docker running?");
+    R2.error("Failed to query Docker. Is Docker running?");
     process.exit(1);
   }
   if (!psOutput) {
-    O2.info("No Launch LMS deployments found.");
-    O2.message(import_picocolors11.default.dim(`  Run ${LOCAL_CLI_COMMAND} setup to create one.`));
+    R2.info("No Launch LMS deployments found.");
+    R2.message(import_picocolors13.default.dim(`  Run ${LOCAL_CLI_COMMAND} setup to create one.`));
     return;
   }
   const deployments = /* @__PURE__ */ new Map();
@@ -6765,20 +6713,20 @@ function showDeployments() {
     }
     deployments.get(id).containers.push({ name, status, image });
   }
-  O2.info(`Found ${import_picocolors11.default.bold(String(deployments.size))} deployment${deployments.size === 1 ? "" : "s"}`);
+  R2.info(`Found ${import_picocolors13.default.bold(String(deployments.size))} deployment${deployments.size === 1 ? "" : "s"}`);
   console.log();
   for (const [id, dep] of deployments) {
-    const running = dep.containers.filter((c2) => c2.status.toLowerCase().startsWith("up")).length;
+    const running = dep.containers.filter((c) => c.status.toLowerCase().startsWith("up")).length;
     const total = dep.containers.length;
-    const statusColor = running === total ? import_picocolors11.default.green : running > 0 ? import_picocolors11.default.yellow : import_picocolors11.default.red;
+    const statusColor = running === total ? import_picocolors13.default.green : running > 0 ? import_picocolors13.default.yellow : import_picocolors13.default.red;
     const statusText = statusColor(`${running}/${total} running`);
-    console.log(`  ${import_picocolors11.default.bold(import_picocolors11.default.white(`Deployment ${id}`))}  ${statusText}`);
+    console.log(`  ${import_picocolors13.default.bold(import_picocolors13.default.white(`Deployment ${id}`))}  ${statusText}`);
     console.log();
-    for (const c2 of dep.containers) {
-      const isUp = c2.status.toLowerCase().startsWith("up");
-      const icon = isUp ? import_picocolors11.default.green("\u25CF") : import_picocolors11.default.red("\u25CF");
-      const svcName = c2.name.replace(`-${id}`, "");
-      console.log(`    ${icon}  ${import_picocolors11.default.white(svcName.padEnd(24))} ${import_picocolors11.default.dim(c2.status)}`);
+    for (const c of dep.containers) {
+      const isUp = c.status.toLowerCase().startsWith("up");
+      const icon = isUp ? import_picocolors13.default.green("\u25CF") : import_picocolors13.default.red("\u25CF");
+      const svcName = c.name.replace(`-${id}`, "");
+      console.log(`    ${icon}  ${import_picocolors13.default.white(svcName.padEnd(24))} ${import_picocolors13.default.dim(c.status)}`);
     }
     console.log();
   }
@@ -6845,70 +6793,70 @@ async function scaleResources() {
   const dir = findInstallDir();
   const config = readConfig(dir);
   if (!config) {
-    O2.error("No Launch LMS installation found. Run setup first.");
+    R2.error("No Launch LMS installation found. Run setup first.");
     process.exit(1);
   }
-  O2.step("Current Resource Usage");
+  R2.step("Current Resource Usage");
   try {
     const stats = dockerStats(config.installDir);
-    O2.message(import_picocolors11.default.dim(stats.trim()));
+    R2.message(import_picocolors13.default.dim(stats.trim()));
   } catch {
     try {
       const id = config.deploymentId || autoDetectDeploymentId();
-      const running = listDeploymentContainers(id || void 0).filter((c2) => c2.status.toLowerCase().startsWith("up")).map((c2) => c2.name);
+      const running = listDeploymentContainers(id || void 0).filter((c) => c.status.toLowerCase().startsWith("up")).map((c) => c.name);
       if (running.length > 0) {
         const stats = dockerStatsForContainers(running);
-        O2.message(import_picocolors11.default.dim(stats.trim()));
+        R2.message(import_picocolors13.default.dim(stats.trim()));
       } else {
-        O2.warn("No running containers found.");
+        R2.warn("No running containers found.");
       }
     } catch {
-      O2.warn("Could not retrieve current stats. Services may not be running.");
+      R2.warn("Could not retrieve current stats. Services may not be running.");
     }
   }
   const composePath = path4.join(config.installDir || dir, "docker-compose.yml");
   if (!fs4.existsSync(composePath)) {
-    O2.error("docker-compose.yml not found.");
+    R2.error("docker-compose.yml not found.");
     process.exit(1);
   }
   let composeContent = fs4.readFileSync(composePath, "utf-8");
   const currentLimits = parseMemLimit(composePath);
-  O2.step("Set Memory Limits");
-  O2.info(import_picocolors11.default.dim("Examples: 256m, 512m, 1g, 2g (leave empty to skip)"));
+  R2.step("Set Memory Limits");
+  R2.info(import_picocolors13.default.dim("Examples: 256m, 512m, 1g, 2g (leave empty to skip)"));
   let changed = false;
   for (const service of SERVICES) {
     const current = currentLimits.get(service);
-    const label = current ? `Memory limit for ${import_picocolors11.default.bold(service)} (current: ${current})` : `Memory limit for ${import_picocolors11.default.bold(service)} (not set)`;
+    const label = current ? `Memory limit for ${import_picocolors13.default.bold(service)} (current: ${current})` : `Memory limit for ${import_picocolors13.default.bold(service)} (not set)`;
     const value = await text({
       message: label,
       placeholder: current ? void 0 : "e.g. 512m",
       defaultValue: current || ""
     });
-    if (q(value)) {
-      pt();
+    if (Ct(value)) {
+      Ne();
       process.exit(0);
     }
     const trimmed = value.trim();
     if (trimmed && trimmed.match(/^\d+[mgMG]$/)) {
       composeContent = setMemLimit(composeContent, service, trimmed);
       changed = true;
-      O2.success(`${service}: ${trimmed}`);
+      R2.success(`${service}: ${trimmed}`);
     } else if (trimmed) {
-      O2.warn(`Invalid format "${trimmed}" \u2014 skipping. Use format like 512m or 1g.`);
+      R2.warn(`Invalid format "${trimmed}" \u2014 skipping. Use format like 512m or 1g.`);
     }
   }
   if (!changed) {
-    O2.info("No changes made.");
+    R2.info("No changes made.");
     return;
   }
   fs4.writeFileSync(composePath, composeContent);
-  O2.success("docker-compose.yml updated");
-  const restart = await ot2({
+  R2.success("docker-compose.yml updated");
+  const restart = await Re({
     message: "Restart services to apply limits?",
     initialValue: false
   });
-  if (!q(restart) && restart) {
-    const s = fe();
+  if (!Ct(restart) && restart) {
+    const s = bt2();
     s.start("Restarting services");
     try {
       dockerComposeDown(config.installDir);
@@ -6916,21 +6864,21 @@ async function scaleResources() {
       s.stop("Services restarted");
     } catch {
       s.stop("Restart failed");
-      O2.error("Failed to restart services. Check Docker output above.");
+      R2.error("Failed to restart services. Check Docker output above.");
     }
   }
 }
 async function deploymentsCommand() {
-  mt(import_picocolors11.default.cyan("Launch LMS Deployments"));
-  const action = await _t({
+  We(import_picocolors13.default.cyan("Launch LMS Deployments"));
+  const action = await Je({
     message: "What would you like to do?",
     options: [
       { value: "view", label: "View deployments" },
       { value: "scale", label: "Set resource limits" }
     ]
   });
-  if (q(action)) {
-    pt();
+  if (Ct(action)) {
+    Ne();
     process.exit(0);
   }
   if (action === "view") {
@@ -6938,24 +6886,24 @@ async function deploymentsCommand() {
   } else {
     await scaleResources();
   }
-  gt(import_picocolors11.default.dim("Done"));
+  Le(import_picocolors13.default.dim("Done"));
 }
 
 // src/commands/doctor.ts
 import fs5 from "fs";
 import path5 from "path";
 import { execSync as execSync4 } from "child_process";
-var import_picocolors12 = __toESM(require_picocolors(), 1);
+var import_picocolors14 = __toESM(require_picocolors(), 1);
 function pass(msg) {
-  console.log(`  ${import_picocolors12.default.green("\u2713")} ${msg}`);
+  console.log(`  ${import_picocolors14.default.green("\u2713")} ${msg}`);
 }
 function warn(msg, fix) {
-  console.log(`  ${import_picocolors12.default.yellow("!")} ${msg}`);
-  if (fix) console.log(`    ${import_picocolors12.default.dim(`Fix: ${fix}`)}`);
+  console.log(`  ${import_picocolors14.default.yellow("!")} ${msg}`);
+  if (fix) console.log(`    ${import_picocolors14.default.dim(`Fix: ${fix}`)}`);
 }
 function fail(msg, fix) {
-  console.log(`  ${import_picocolors12.default.red("\u2717")} ${msg}`);
-  if (fix) console.log(`    ${import_picocolors12.default.dim(`Fix: ${fix}`)}`);
+  console.log(`  ${import_picocolors14.default.red("\u2717")} ${msg}`);
+  if (fix) console.log(`    ${import_picocolors14.default.dim(`Fix: ${fix}`)}`);
 }
 var REQUIRED_ENV_VARS = [
   "LAUNCHLMS_DOMAIN",
@@ -6973,17 +6921,17 @@ var SECRET_ENV_VARS = [
 async function doctorCommand() {
   const dir = findInstallDir();
   const config = readConfig(dir);
-  mt(import_picocolors12.default.cyan("Launch LMS Doctor"));
-  O2.step("Docker Environment");
+  We(import_picocolors14.default.cyan("Launch LMS Doctor"));
+  R2.step("Docker Environment");
   if (!isDockerInstalled()) {
     fail("Docker not installed", "Install Docker: https://docs.docker.com/get-docker/");
-    gt(import_picocolors12.default.red("Cannot continue without Docker"));
+    Le(import_picocolors14.default.red("Cannot continue without Docker"));
     process.exit(1);
   }
   pass("Docker installed");
   if (!isDockerRunning()) {
     fail("Docker daemon not running", "Start Docker Desktop or run: sudo systemctl start docker");
-    gt(import_picocolors12.default.red("Cannot continue without Docker running"));
+    Le(import_picocolors14.default.red("Cannot continue without Docker running"));
     process.exit(1);
   }
   pass("Docker daemon running");
@@ -6993,50 +6941,50 @@ async function doctorCommand() {
     fail("Docker Compose v2 not found", "Update Docker Desktop or install docker-compose-plugin");
   }
   if (!config) {
-    O2.warn("No Launch LMS installation found. Skipping deployment checks.");
-    gt(import_picocolors12.default.dim("Done"));
+    R2.warn("No Launch LMS installation found. Skipping deployment checks.");
+    Le(import_picocolors14.default.dim("Done"));
     return;
   }
   const id = config.deploymentId || autoDetectDeploymentId();
   const installDir = dir;
   if (!id) {
-    O2.warn("No deployment ID found. Skipping container checks.");
-    gt(import_picocolors12.default.dim("Done"));
+    R2.warn("No deployment ID found. Skipping container checks.");
+    Le(import_picocolors14.default.dim("Done"));
     return;
   }
-  O2.step("Containers");
+  R2.step("Containers");
   const containers = listDeploymentContainers(id);
   if (containers.length === 0) {
     warn("No containers found", `Run: ${LOCAL_CLI_COMMAND} start`);
   } else {
-    for (const c2 of containers) {
-      const isUp = c2.status.toLowerCase().startsWith("up");
-      const svcName = c2.name.replace(`-${id}`, "");
+    for (const c of containers) {
+      const isUp = c.status.toLowerCase().startsWith("up");
+      const svcName = c.name.replace(`-${id}`, "");
       if (isUp) {
         pass(`${svcName} running`);
-      } else if (c2.status.toLowerCase().includes("restarting")) {
+      } else if (c.status.toLowerCase().includes("restarting")) {
         fail(`${svcName} is restarting`, `Check logs: ${LOCAL_CLI_COMMAND} logs`);
       } else {
-        fail(`${svcName} \u2014 ${c2.status}`, `Run: ${LOCAL_CLI_COMMAND} start`);
+        fail(`${svcName} \u2014 ${c.status}`, `Run: ${LOCAL_CLI_COMMAND} start`);
       }
     }
   }
-  O2.step("Restart Counts");
-  for (const c2 of containers) {
-    const count = getContainerRestartCount(c2.name);
-    const svcName = c2.name.replace(`-${id}`, "");
+  R2.step("Restart Counts");
+  for (const c of containers) {
+    const count = getContainerRestartCount(c.name);
+    const svcName = c.name.replace(`-${id}`, "");
     if (count > 3) {
       warn(`${svcName} has restarted ${count} times`, "Check container logs for crash reasons");
     } else {
       pass(`${svcName} \u2014 ${count} restarts`);
     }
   }
-  O2.step("Network");
+  R2.step("Network");
   const portFree = await checkPort(config.httpPort);
   if (portFree) {
     pass(`Port ${config.httpPort} is available`);
   } else {
-    const hasRunning = containers.some((c2) => c2.status.toLowerCase().startsWith("up"));
+    const hasRunning = containers.some((c) => c.status.toLowerCase().startsWith("up"));
     if (hasRunning) {
       pass(`Port ${config.httpPort} in use (by Launch LMS services)`);
     } else {
@@ -7052,7 +7000,7 @@ async function doctorCommand() {
       warn(`DNS resolution failed for ${config.domain}`, "Check your DNS settings or /etc/hosts");
     }
   }
-  O2.step("Disk");
+  R2.step("Disk");
   try {
     const dfOutput = execSync4("df -h . | tail -1 | awk '{print $4}'", {
       stdio: "pipe",
@@ -7072,30 +7020,30 @@ async function doctorCommand() {
   }
   try {
     const diskUsage = getDockerDiskUsage();
-    O2.message(import_picocolors12.default.dim(diskUsage.trim()));
+    R2.message(import_picocolors14.default.dim(diskUsage.trim()));
   } catch {
   }
-  O2.step("Log Analysis");
+  R2.step("Log Analysis");
   const errorPatterns = /ERROR|FATAL|Traceback/i;
-  for (const c2 of containers) {
-    if (!isContainerRunning(c2.name)) continue;
+  for (const c of containers) {
+    if (!isContainerRunning(c.name)) continue;
     try {
-      const logs = getContainerLogs(c2.name, 50);
+      const logs = getContainerLogs(c.name, 50);
       const errorLines = logs.split("\n").filter((l) => errorPatterns.test(l));
-      const svcName = c2.name.replace(`-${id}`, "");
+      const svcName = c.name.replace(`-${id}`, "");
       if (errorLines.length > 0) {
         warn(`${svcName} \u2014 ${errorLines.length} error(s) in last 50 log lines`);
         for (const line of errorLines.slice(0, 3)) {
-          console.log(`    ${import_picocolors12.default.dim(line.trim().slice(0, 120))}`);
+          console.log(`    ${import_picocolors14.default.dim(line.trim().slice(0, 120))}`);
         }
       } else {
         pass(`${svcName} \u2014 no errors in recent logs`);
       }
     } catch {
-      warn(`Could not read logs for ${c2.name}`);
+      warn(`Could not read logs for ${c.name}`);
     }
   }
-  O2.step("Environment File");
+  R2.step("Environment File");
   const envPath = path5.join(installDir, ".env");
   if (!fs5.existsSync(envPath)) {
     fail(".env file missing", `Run setup again: ${LOCAL_CLI_COMMAND} setup`);
@@ -7127,59 +7075,61 @@ async function doctorCommand() {
       pass("All required environment variables present");
     }
   }
-  O2.step("Image Freshness");
-  for (const c2 of containers) {
+  R2.step("Image Freshness");
+  for (const c of containers) {
     try {
       const localDigest = execSync4(
-        `docker inspect --format '{{.Image}}' ${c2.name}`,
+        `docker inspect --format '{{.Image}}' ${c.name}`,
         { stdio: "pipe" }
       ).toString().trim();
-      const svcName = c2.name.replace(`-${id}`, "");
+      const svcName = c.name.replace(`-${id}`, "");
       pass(`${svcName} \u2014 image: ${localDigest.slice(7, 19)}`);
     } catch {
     }
   }
   console.log();
-  gt(import_picocolors12.default.dim("Diagnosis complete"));
+  Le(import_picocolors14.default.dim("Diagnosis complete"));
 }
 
 // src/commands/shell.ts
-var import_picocolors13 = __toESM(require_picocolors(), 1);
+var import_picocolors15 = __toESM(require_picocolors(), 1);
 async function shellCommand() {
   const dir = findInstallDir();
   const config = readConfig(dir);
   if (!config) {
-    O2.error("No Launch LMS installation found. Run setup first.");
+    R2.error("No Launch LMS installation found. Run setup first.");
     process.exit(1);
   }
   const id = config.deploymentId || autoDetectDeploymentId();
   if (!id) {
-    O2.error("No deployment found. Start services first.");
+    R2.error("No deployment found. Start services first.");
     process.exit(1);
   }
-  const containers = listDeploymentContainers(id).filter((c2) => c2.status.toLowerCase().startsWith("up"));
+  const containers = listDeploymentContainers(id).filter((c) => c.status.toLowerCase().startsWith("up"));
   if (containers.length === 0) {
-    O2.error("No running containers found. Start services first.");
+    R2.error("No running containers found. Start services first.");
     process.exit(1);
   }
-  const selected = await _t({
+  const selected = await Je({
     message: "Select a container",
-    options: containers.map((c2) => ({
-      value: c2.name,
-      label: `${c2.name.replace(`-${id}`, "")} ${import_picocolors13.default.dim(`(${c2.name})`)}`
+    options: containers.map((c) => ({
+      value: c.name,
+      label: `${c.name.replace(`-${id}`, "")} ${import_picocolors15.default.dim(`(${c.name})`)}`
     }))
   });
-  if (q(selected)) {
-    pt();
+  if (Ct(selected)) {
+    Ne();
     process.exit(0);
   }
-  O2.info(`Connecting to ${selected}... (type "exit" to leave)`);
+  R2.info(`Connecting to ${selected}... (type "exit" to leave)`);
   dockerExecInteractive(selected, "/bin/sh");
 }
 
 // src/commands/dev.ts
 import { spawn as spawn2, spawnSync as spawnSync2, execSync as execSync5 } from "child_process";
-var import_picocolors15 = __toESM(require_picocolors(), 1);
+import { X509Certificate } from "crypto";
+import net2 from "net";
+var import_picocolors17 = __toESM(require_picocolors(), 1);
 import * as path7 from "path";
 import * as fs7 from "fs";
 
@@ -7187,7 +7137,7 @@ import * as fs7 from "fs";
 import * as fs6 from "fs";
 import * as path6 from "path";
 import * as crypto4 from "crypto";
-var import_picocolors14 = __toESM(require_picocolors(), 1);
+var import_picocolors16 = __toESM(require_picocolors(), 1);
 function generateJwtSecret() {
   return crypto4.randomBytes(32).toString("base64url");
 }
@@ -7218,7 +7168,7 @@ var WEB_ENV = {
       name: "NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL",
       required: true,
       description: "Backend API URL",
-      defaultValue: "http://localhost:1338/"
+      defaultValue: "https://127.0.0.1.sslip.io:1338/"
     }
   ]
 };
@@ -7236,7 +7186,7 @@ var COLLAB_ENV = {
       name: "LAUNCHLMS_API_URL",
       required: true,
       description: "Launch LMS API base URL",
-      defaultValue: "http://localhost:1338"
+      defaultValue: "https://localhost:1338"
     },
     {
       name: "LAUNCHLMS_AUTH_JWT_SECRET_KEY",
@@ -7312,10 +7262,10 @@ async function checkDevEnv(root) {
     }
   }
   if (missing.length === 0) {
-    O2.success("Environment files look good");
+    R2.success("Environment files look good");
     return true;
   }
-  O2.warning(`Found ${missing.length} missing env variable${missing.length > 1 ? "s" : ""}:`);
+  R2.warning(`Found ${missing.length} missing env variable${missing.length > 1 ? "s" : ""}:`);
   console.log();
   const byApp = /* @__PURE__ */ new Map();
   for (const m of missing) {
@@ -7324,21 +7274,21 @@ async function checkDevEnv(root) {
     byApp.set(m.app.label, list);
   }
   for (const [label, vars] of byApp) {
-    console.log(`  ${import_picocolors14.default.bold(label)} ${import_picocolors14.default.dim(`(${vars[0].app.envFile})`)}`);
+    console.log(`  ${import_picocolors16.default.bold(label)} ${import_picocolors16.default.dim(`(${vars[0].app.envFile})`)}`);
     for (const m of vars) {
-      console.log(`    ${import_picocolors14.default.red("\u2717")} ${import_picocolors14.default.cyan(m.envVar.name)} \u2014 ${import_picocolors14.default.dim(m.envVar.description)}`);
+      console.log(`    ${import_picocolors16.default.red("\u2717")} ${import_picocolors16.default.cyan(m.envVar.name)} \u2014 ${import_picocolors16.default.dim(m.envVar.description)}`);
     }
     console.log();
   }
-  const action = await _t({
+  const action = await Je({
     message: "How would you like to proceed?",
     options: [
       { value: "defaults", label: "Apply dev defaults and continue", hint: "writes only the missing vars" },
       { value: "abort", label: "Abort \u2014 I'll set them up manually" }
     ]
   });
-  if (q(action) || action === "abort") {
-    O2.info("Set the missing variables and run the command again.");
+  if (Ct(action) || action === "abort") {
+    R2.info("Set the missing variables and run the command again.");
     return false;
   }
   const apiFile = path6.join(root, API_ENV.envFile);
@@ -7362,8 +7312,8 @@ async function checkDevEnv(root) {
     }
     if (toWrite.size > 0) {
       appendToEnvFile(filePath, toWrite);
-      const names = [...toWrite.keys()].map((k) => import_picocolors14.default.cyan(k)).join(", ");
-      O2.success(`${import_picocolors14.default.bold(app.label)}: wrote ${names} \u2192 ${import_picocolors14.default.dim(app.envFile)}`);
+      const names = [...toWrite.keys()].map((k2) => import_picocolors16.default.cyan(k2)).join(", ");
+      R2.success(`${import_picocolors16.default.bold(app.label)}: wrote ${names} \u2192 ${import_picocolors16.default.dim(app.envFile)}`);
     }
   }
   console.log();
@@ -7372,6 +7322,11 @@ async function checkDevEnv(root) {
 
 // src/commands/dev.ts
 var PROJECT_NAME = "launch-lms-dev";
+var DEV_LOCAL_HOST = "localhost";
+var DEFAULT_DEV_PUBLIC_HOST = "127.0.0.1.sslip.io";
+var DEV_WEB_PORT = "3000";
+var DEV_API_PORT = "1338";
+var DEV_COLLAB_PORT = "4000";
 var DEV_COMPOSE = `name: launch-lms-dev
 
 services:
@@ -7433,6 +7388,84 @@ function getDevComposePath(root) {
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+function checkPortAvailable(port, host = "0.0.0.0") {
+  return new Promise((resolve) => {
+    const server = net2.createServer();
+    server.once("error", () => resolve(false));
+    server.once("listening", () => {
+      server.close(() => resolve(true));
+    });
+    server.listen(port, host);
+  });
+}
+async function ensurePortsAvailable(ports) {
+  const unavailable = [];
+  for (const spec of ports) {
+    const ok = await checkPortAvailable(spec.port);
+    if (!ok) unavailable.push(spec);
+  }
+  if (unavailable.length === 0) return;
+  R2.error("Required dev ports are already in use.");
+  for (const spec of unavailable) {
+    R2.error(`${spec.label} port ${spec.port} is busy`);
+  }
+  R2.info("Stop the existing local dev processes and rerun `./launch-lms dev`.");
+  process.exit(1);
+}
+function isWsl() {
+  try {
+    return fs7.readFileSync("/proc/version", "utf8").toLowerCase().includes("microsoft");
+  } catch {
+    return false;
+  }
+}
+function detectWslIpv4() {
+  const result = spawnSync2("hostname", ["-I"], { encoding: "utf8" });
+  if (result.status !== 0) return null;
+  const candidates = result.stdout.trim().split(/\s+/).filter(Boolean).filter((ip) => /^\d+\.\d+\.\d+\.\d+$/.test(ip)).filter((ip) => ip !== "127.0.0.1");
+  return candidates[0] || null;
+}
+function getDevPublicHost() {
+  const explicit = process.env.LAUNCHLMS_DEV_PUBLIC_HOST?.trim();
+  if (explicit) return explicit;
+  if (isWsl()) {
+    const wslIp = detectWslIpv4();
+    if (wslIp) return `${wslIp}.sslip.io`;
+  }
+  return DEFAULT_DEV_PUBLIC_HOST;
+}
+function getDevDatabaseUrl() {
+  return "postgresql://launchlms:launchlms@localhost:5432/launchlms";
+}
+function runDevMigrations(root, apiDir) {
+  const migrationsScript = path7.join(apiDir, "scripts", "run_alembic_migrations.sh");
+  const uvCacheDir = path7.join(root, ".launch-lms", "uv-cache");
+  if (!fs7.existsSync(uvCacheDir)) {
+    fs7.mkdirSync(uvCacheDir, { recursive: true });
+  }
+  const env = {
+    ...process.env,
+    ...serviceEnv,
+    UV_CACHE_DIR: process.env.UV_CACHE_DIR || uvCacheDir,
+    LAUNCHLMS_SQL_CONNECTION_STRING: process.env.LAUNCHLMS_SQL_CONNECTION_STRING || process.env.DATABASE_URL || getDevDatabaseUrl()
+  };
+  const migrationSpinner = bt2();
+  migrationSpinner.start("Running database migrations...");
+  try {
+    execSync5(`bash ${migrationsScript}`, {
+      cwd: apiDir,
+      stdio: "pipe",
+      env
+    });
+    migrationSpinner.stop("Database migrations are up to date");
+  } catch (e2) {
+    migrationSpinner.stop("Database migrations failed");
+    const stderr = e2?.stderr?.toString()?.trim();
+    const stdout = e2?.stdout?.toString()?.trim();
+    R2.error(stderr || stdout || "Failed to run Alembic migrations");
+    process.exit(1);
+  }
+}
 async function waitForHealth2(label, command, args, maxAttempts = 30) {
   for (let i = 0; i < maxAttempts; i++) {
     try {
@@ -7444,7 +7477,7 @@ async function waitForHealth2(label, command, args, maxAttempts = 30) {
   }
   return false;
 }
-var CONTROLS_BAR = import_picocolors15.default.dim("\u2500".repeat(60)) + "\n" + import_picocolors15.default.dim("  ") + import_picocolors15.default.bold("ra") + import_picocolors15.default.dim(" restart api  ") + import_picocolors15.default.bold("rw") + import_picocolors15.default.dim(" restart web  ") + import_picocolors15.default.bold("rc") + import_picocolors15.default.dim(" restart collab  ") + import_picocolors15.default.bold("rb") + import_picocolors15.default.dim(" restart all  ") + import_picocolors15.default.bold("q") + import_picocolors15.default.dim(" quit") + "\n" + import_picocolors15.default.dim("\u2500".repeat(60));
+var CONTROLS_BAR = import_picocolors17.default.dim("\u2500".repeat(60)) + "\n" + import_picocolors17.default.dim("  ") + import_picocolors17.default.bold("ra") + import_picocolors17.default.dim(" restart api  ") + import_picocolors17.default.bold("rw") + import_picocolors17.default.dim(" restart web  ") + import_picocolors17.default.bold("rc") + import_picocolors17.default.dim(" restart collab  ") + import_picocolors17.default.bold("rb") + import_picocolors17.default.dim(" restart all  ") + import_picocolors17.default.bold("q") + import_picocolors17.default.dim(" quit") + "\n" + import_picocolors17.default.dim("\u2500".repeat(60));
 var lineCount = 0;
 var CONTROLS_INTERVAL = 50;
 function printControls() {
@@ -7518,35 +7551,51 @@ function killProcess(child) {
     }, 5e3);
   });
 }
+function certHasRequiredDevHosts(certPath, publicHost) {
+  try {
+    const certPem = fs7.readFileSync(certPath, "utf8");
+    const cert = new X509Certificate(certPem);
+    const sans = cert.subjectAltName || "";
+    return [
+      "DNS:localhost",
+      "IP Address:127.0.0.1",
+      `DNS:${publicHost}`,
+      `DNS:*.${publicHost}`
+    ].every((entry) => sans.includes(entry));
+  } catch {
+    return false;
+  }
+}
 async function devCommand(opts) {
   const root = findProjectRoot();
   if (!root) {
-    O2.error("Not inside a Launch LMS project.");
-    O2.info("Run this command from within the launch-lms monorepo (must contain dev/docker-compose.yml, apps/api/, and apps/web/).");
+    R2.error("Not inside a Launch LMS project.");
+    R2.info("Run this command from within the launch-lms monorepo (must contain dev/docker-compose.yml, apps/api/, and apps/web/).");
     process.exit(1);
   }
-  mt(import_picocolors15.default.cyan("Launch LMS Dev Mode"));
+  We(import_picocolors17.default.cyan("Launch LMS Dev Mode"));
+  const devPublicHost = getDevPublicHost();
   const envOk = await checkDevEnv(root);
   if (!envOk) process.exit(1);
   const eePath = path7.join(root, "apps", "api", "ee");
   if (fs7.existsSync(eePath)) {
-    O2.info(`EE source detected at ${import_picocolors15.default.bold("apps/api/ee")} \u2014 leaving it untouched for local dev`);
+    R2.info(`EE source detected at ${import_picocolors17.default.bold("apps/api/ee")} \u2014 leaving it untouched for local dev`);
   } else if (opts.ee) {
-    O2.warning("--ee was passed but no ee/ folder found");
+    R2.warning("--ee was passed but no ee/ folder found");
   }
   if (!isDockerInstalled()) {
-    O2.error("Docker is not installed. Please install Docker and try again.");
+    R2.error("Docker is not installed. Please install Docker and try again.");
     process.exit(1);
   }
   if (!isDockerRunning()) {
-    O2.error("Docker is not running. Please start Docker and try again.");
+    R2.error("Docker is not running. Please start Docker and try again.");
     process.exit(1);
   }
   console.log();
   const composePath = getDevComposePath(root);
   const alreadyRunning = isInfraRunning();
   if (alreadyRunning) {
-    O2.success("Existing DB and Redis containers detected \u2014 reusing them");
+    R2.success("Existing DB and Redis containers detected \u2014 reusing them");
   }
   if (!alreadyRunning) {
     const email = await text({
@@ -7554,13 +7603,13 @@ async function devCommand(opts) {
       placeholder: "admin@school.dev",
       defaultValue: "admin@school.dev"
     });
-    if (q(email)) process.exit(0);
-    const password = await bt({
+    if (Ct(email)) process.exit(0);
+    const password = await He({
       message: "Admin password"
     });
-    if (q(password)) process.exit(0);
+    if (Ct(password)) process.exit(0);
     if (!password) {
-      O2.error("Password is required.");
+      R2.error("Password is required.");
       process.exit(1);
     }
     serviceEnv = {
@@ -7568,7 +7617,7 @@ async function devCommand(opts) {
       LAUNCHLMS_INITIAL_ADMIN_EMAIL: email,
       LAUNCHLMS_INITIAL_ADMIN_PASSWORD: password
     };
-    const infraSpinner = fe();
+    const infraSpinner = bt2();
     infraSpinner.start("Starting DB and Redis containers...");
     try {
       execSync5(`docker compose -f ${composePath} -p ${PROJECT_NAME} up -d`, {
@@ -7576,9 +7625,9 @@ async function devCommand(opts) {
         stdio: "pipe"
       });
       infraSpinner.stop("Containers started");
-    } catch (e) {
+    } catch (e2) {
       infraSpinner.stop("Failed to start containers");
-      O2.error(e.stderr?.toString() || "docker compose up failed");
+      R2.error(e2.stderr?.toString() || "docker compose up failed");
       process.exit(1);
     }
   } else {
@@ -7586,7 +7635,7 @@ async function devCommand(opts) {
       FORCE_COLOR: "1"
     };
   }
-  const healthSpinner = fe();
+  const healthSpinner = bt2();
   healthSpinner.start("Waiting for DB and Redis to be healthy...");
   const [dbReady, redisReady] = await Promise.all([
     waitForHealth2("DB", "docker", ["exec", "launch-lms-db-dev", "pg_isready", "-U", "launchlms"]),
@@ -7594,69 +7643,162 @@ async function devCommand(opts) {
   ]);
   if (!dbReady || !redisReady) {
     healthSpinner.stop("Health checks failed");
-    if (!dbReady) O2.error("Database did not become ready in time.");
-    if (!redisReady) O2.error("Redis did not become ready in time.");
+    if (!dbReady) R2.error("Database did not become ready in time.");
+    if (!redisReady) R2.error("Redis did not become ready in time.");
     process.exit(1);
   }
   healthSpinner.stop("DB and Redis are healthy");
   const webDir = path7.join(root, "apps", "web");
   const collabDir = path7.join(root, "apps", "collab");
   const apiDir = path7.join(root, "apps", "api");
+  await ensurePortsAvailable([
+    { port: parseInt(DEV_API_PORT, 10), label: "API" },
+    { port: parseInt(DEV_WEB_PORT, 10), label: "Web" },
+    { port: parseInt(DEV_COLLAB_PORT, 10), label: "Collab" }
+  ]);
   const bunProjects = [
     { label: "web", dir: webDir },
     { label: "collab", dir: collabDir }
   ];
   for (const { label, dir } of bunProjects) {
     if (!fs7.existsSync(path7.join(dir, "node_modules"))) {
-      O2.info(`Installing ${label} dependencies...`);
+      R2.info(`Installing ${label} dependencies...`);
       const result = spawnSync2("bun", ["install"], { cwd: dir, stdio: "inherit", shell: true });
       if (result.status !== 0) {
-        O2.error(`Failed to install ${label} dependencies`);
+        R2.error(`Failed to install ${label} dependencies`);
         process.exit(1);
       }
     }
   }
   if (!fs7.existsSync(path7.join(apiDir, ".venv"))) {
-    O2.info("Installing API dependencies...");
+    R2.info("Installing API dependencies...");
     const result = spawnSync2("uv", ["sync"], { cwd: apiDir, stdio: "inherit", shell: true });
     if (result.status !== 0) {
-      O2.error("Failed to install API dependencies");
+      R2.error("Failed to install API dependencies");
       process.exit(1);
     }
+  }
+  runDevMigrations(root, apiDir);
+  const certFile = path7.join(root, "certs", "local.pem");
+  const keyFile = path7.join(root, "certs", "local-key.pem");
+  let hasCerts = fs7.existsSync(certFile) && fs7.existsSync(keyFile);
+  const hasCompatibleCerts = hasCerts && certHasRequiredDevHosts(certFile, devPublicHost);
+  if (!hasCompatibleCerts) {
+    R2.info(hasCerts ? "Existing TLS certs are outdated \u2014 regenerating..." : "No TLS certs found \u2014 running cert setup...");
+    const setupScript = path7.join(root, "scripts", "setup-dev-certs.sh");
+    const result = spawnSync2("bash", [setupScript], {
+      stdio: "inherit",
+      cwd: root,
+      env: {
+        ...process.env,
+        LAUNCHLMS_DEV_PUBLIC_HOST: devPublicHost
+      }
+    });
+    if (result.status === 0) {
+      hasCerts = fs7.existsSync(certFile) && fs7.existsSync(keyFile);
+      if (hasCerts) {
+        R2.success("TLS certs ready \u2014 starting with HTTPS");
+      } else {
+        R2.warning("Cert script ran but certs not found \u2014 starting with HTTP");
+      }
+    } else {
+      R2.warning("Cert setup failed \u2014 starting with HTTP");
+    }
+  } else {
+    R2.success("TLS certs found \u2014 starting with HTTPS");
+  }
+  if (hasCerts) {
+    try {
+      const caRoot = execSync5("mkcert -CAROOT", { encoding: "utf8" }).trim();
+      const caPath = path7.join(caRoot, "rootCA.pem");
+      if (fs7.existsSync(caPath)) {
+        serviceEnv.NODE_EXTRA_CA_CERTS = caPath;
+      }
+    } catch {
+    }
+  }
+  const apiProtocol = hasCerts ? "https" : "http";
+  const collabProtocol = hasCerts ? "wss" : "ws";
+  const publicApiBaseUrl = `${apiProtocol}://${devPublicHost}:${DEV_API_PORT}`;
+  const internalApiBaseUrl = `${apiProtocol}://${DEV_LOCAL_HOST}:${DEV_API_PORT}`;
+  const publicWebOrigin = `${hasCerts ? "https" : "http"}://${devPublicHost}:${DEV_WEB_PORT}`;
+  const localWebOrigin = `${hasCerts ? "https" : "http"}://${DEV_LOCAL_HOST}:${DEV_WEB_PORT}`;
+  const publicCollabUrl = `${collabProtocol}://${devPublicHost}:${DEV_COLLAB_PORT}`;
+  serviceEnv = {
+    ...serviceEnv,
+    NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL: `${publicApiBaseUrl}/`,
+    NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL: `${publicApiBaseUrl}/`,
+    NEXT_PUBLIC_LAUNCHLMS_API_URL: `${publicApiBaseUrl}/api/v1/`,
+    NEXT_PUBLIC_LEARNHOUSE_API_URL: `${publicApiBaseUrl}/api/v1/`,
+    NEXT_PUBLIC_LAUNCHLMS_DOMAIN: `${devPublicHost}:${DEV_WEB_PORT}`,
+    NEXT_PUBLIC_LAUNCHLMS_TOP_DOMAIN: devPublicHost,
+    NEXT_PUBLIC_LAUNCHLMS_HTTPS: hasCerts ? "true" : "false",
+    NEXT_PUBLIC_COLLAB_URL: publicCollabUrl,
+    LAUNCHLMS_DEV_PUBLIC_HOST: devPublicHost,
+    LAUNCHLMS_INTERNAL_BACKEND_URL: internalApiBaseUrl,
+    LAUNCHLMS_INTERNAL_API_URL: `${internalApiBaseUrl}/api/v1/`,
+    LAUNCHLMS_API_URL: internalApiBaseUrl,
+    LAUNCHLMS_DOMAIN: `${devPublicHost}:${DEV_API_PORT}`,
+    LAUNCHLMS_FRONTEND_DOMAIN: `${devPublicHost}:${DEV_WEB_PORT}`,
+    LAUNCHLMS_COOKIE_DOMAIN: hasCerts ? `.${devPublicHost}` : "",
+    LAUNCHLMS_SSL: hasCerts ? "true" : "false",
+    LAUNCHLMS_ALLOWED_ORIGINS: [
+      `${publicWebOrigin}`,
+      `${localWebOrigin}`,
+      `${publicApiBaseUrl}`,
+      `${internalApiBaseUrl}`
+    ].join(","),
+    COLLAB_PORT: DEV_COLLAB_PORT,
+    COLLAB_PUBLIC_URL: publicCollabUrl
+  };
+  if (hasCerts) {
+    serviceEnv.COLLAB_TLS_CERT = certFile;
+    serviceEnv.COLLAB_TLS_KEY = keyFile;
+    serviceEnv.NODE_TLS_REJECT_UNAUTHORIZED = "0";
   }
   let apiProc = null;
   let webProc = null;
   let collabProc = null;
   const startApi = () => {
-    return spawnService("uv", ["run", "python", "app.py"], path7.join(root, "apps", "api"), "api", import_picocolors15.default.magenta);
+    const args = ["run", "uvicorn", "app:app", "--reload", "--host", "0.0.0.0", "--port", "1338"];
+    if (hasCerts) {
+      args.push("--ssl-keyfile", keyFile, "--ssl-certfile", certFile);
+    }
+    return spawnService("uv", args, path7.join(root, "apps", "api"), "api", import_picocolors17.default.magenta);
   };
   const startWeb = () => {
-    return spawnService("next", ["dev"], path7.join(root, "apps", "web"), "web", import_picocolors15.default.cyan);
+    const args = ["dev"];
+    if (hasCerts) args.push("--experimental-https", "--experimental-https-cert", certFile, "--experimental-https-key", keyFile);
+    return spawnService("next", args, path7.join(root, "apps", "web"), "web", import_picocolors17.default.cyan);
   };
   const startCollab = () => {
-    return spawnService("tsx", ["watch", "src/index.ts"], path7.join(root, "apps", "collab"), "collab", import_picocolors15.default.yellow);
+    return spawnService("tsx", ["watch", "src/index.ts"], path7.join(root, "apps", "collab"), "collab", import_picocolors17.default.yellow);
   };
   apiProc = startApi();
   webProc = startWeb();
   collabProc = startCollab();
-  O2.success("API, Web, and Collab servers started");
+  R2.success("API, Web, and Collab servers started");
   console.log();
-  console.log(import_picocolors15.default.dim("  Thank you for contributing to Launch LMS!"));
+  console.log(import_picocolors17.default.bold("Open:"));
+  console.log(`  Web:    ${import_picocolors17.default.cyan(publicWebOrigin)}`);
+  console.log(`  API:    ${import_picocolors17.default.magenta(publicApiBaseUrl)}`);
+  console.log(`  Collab: ${import_picocolors17.default.yellow(publicCollabUrl)}`);
+  console.log(import_picocolors17.default.dim("  Thank you for contributing to Launch LMS!"));
   console.log();
   printControls();
   let shuttingDown = false;
   const shutdown = async () => {
     if (shuttingDown) return;
     shuttingDown = true;
-    console.log("\n" + import_picocolors15.default.dim("Shutting down dev servers..."));
+    console.log("\n" + import_picocolors17.default.dim("Shutting down dev servers..."));
     if (process.stdin.isTTY && process.stdin.isRaw) {
       process.stdin.setRawMode(false);
     }
     process.stdin.pause();
     await Promise.all([killProcess(apiProc), killProcess(webProc), killProcess(collabProc)]);
-    console.log(import_picocolors15.default.dim("DB and Redis containers are still running for next session."));
-    console.log(import_picocolors15.default.dim("To stop them: docker compose -f .launch-lms/docker-compose.dev.yml -p launch-lms-dev down"));
-    console.log(import_picocolors15.default.dim("Thanks for building with Launch LMS!"));
+    console.log(import_picocolors17.default.dim("DB and Redis containers are still running for next session."));
+    console.log(import_picocolors17.default.dim("To stop them: docker compose -f .launch-lms/docker-compose.dev.yml -p launch-lms-dev down"));
+    console.log(import_picocolors17.default.dim("Thanks for building with Launch LMS!"));
     process.exit(0);
   };
   process.on("SIGINT", shutdown);
@@ -7685,22 +7827,22 @@ async function devCommand(opts) {
       if (pendingR) {
         pendingR = false;
         if (key === "a") {
-          console.log(import_picocolors15.default.magenta("\n  Restarting API...\n"));
+          console.log(import_picocolors17.default.magenta("\n  Restarting API...\n"));
           await killProcess(apiProc);
           apiProc = startApi();
           printControls();
         } else if (key === "w") {
-          console.log(import_picocolors15.default.cyan("\n  Restarting Web...\n"));
+          console.log(import_picocolors17.default.cyan("\n  Restarting Web...\n"));
           await killProcess(webProc);
           webProc = startWeb();
           printControls();
         } else if (key === "c") {
-          console.log(import_picocolors15.default.yellow("\n  Restarting Collab...\n"));
+          console.log(import_picocolors17.default.yellow("\n  Restarting Collab...\n"));
           await killProcess(collabProc);
           collabProc = startCollab();
           printControls();
         } else if (key === "b") {
-          console.log(import_picocolors15.default.yellow("\n  Restarting all...\n"));
+          console.log(import_picocolors17.default.yellow("\n  Restarting all...\n"));
           await Promise.all([killProcess(apiProc), killProcess(webProc), killProcess(collabProc)]);
           apiProc = startApi();
           webProc = startWeb();
@@ -7718,7 +7860,7 @@ async function devCommand(opts) {
 import fs8 from "fs";
 import path8 from "path";
 import { execSync as execSync6 } from "child_process";
-var import_picocolors16 = __toESM(require_picocolors(), 1);
+var import_picocolors18 = __toESM(require_picocolors(), 1);
 function parseEnv(content) {
   const map = /* @__PURE__ */ new Map();
   for (const line of content.split("\n")) {
@@ -7817,12 +7959,12 @@ async function domainCommand(domain, options) {
   const installDir = findInstallDir();
   const config = readConfig(installDir);
   if (!config) {
-    O2.error("No Launch LMS installation found in the current directory.");
+    R2.error("No Launch LMS installation found in the current directory.");
     process.exit(1);
   }
   const envPath = path8.join(config.installDir, ".env");
   if (!fs8.existsSync(envPath)) {
-    O2.error(`No .env file found at ${envPath}`);
+    R2.error(`No .env file found at ${envPath}`);
     process.exit(1);
   }
   const protocol = config.useHttps ? "https" : "http";
@@ -7831,7 +7973,7 @@ async function domainCommand(domain, options) {
   const topDomain = deriveTopDomain(domain);
   const cookieDomain = deriveCookieDomain(domain);
   const collabProtocol = config.useHttps ? "wss" : "ws";
-  mt(import_picocolors16.default.cyan("Launch LMS Domain Update"));
+  We(import_picocolors18.default.cyan("Launch LMS Domain Update"));
   const originalEnv = fs8.readFileSync(envPath, "utf-8");
   const envMap = parseEnv(originalEnv);
   const previousDomain = envMap.get("LAUNCHLMS_DOMAIN") || config.domain;
@@ -7857,19 +7999,19 @@ async function domainCommand(domain, options) {
   try {
     updatedCaddyFiles = updateCaddyFiles(domain, config.installDir, options.caddyPath);
   } catch (err) {
-    O2.warn(`Caddy update skipped: ${err?.message ?? String(err)}`);
+    R2.warn(`Caddy update skipped: ${err?.message ?? String(err)}`);
   }
-  O2.success(`Updated domain references from ${import_picocolors16.default.dim(previousDomain)} to ${import_picocolors16.default.bold(domain)}`);
-  O2.info(import_picocolors16.default.dim(`Environment: ${envPath}`));
+  R2.success(`Updated domain references from ${import_picocolors18.default.dim(previousDomain)} to ${import_picocolors18.default.bold(domain)}`);
+  R2.info(import_picocolors18.default.dim(`Environment: ${envPath}`));
   if (updatedCaddyFiles.length > 0) {
     for (const filePath of updatedCaddyFiles) {
-      O2.info(import_picocolors16.default.dim(`Caddy config: ${filePath}`));
+      R2.info(import_picocolors18.default.dim(`Caddy config: ${filePath}`));
     }
   } else {
-    O2.warn("No Caddyfile was updated automatically");
+    R2.warn("No Caddyfile was updated automatically");
   }
   if (options.restart !== false) {
-    const s = fe();
+    const s = bt2();
     s.start("Restarting Launch LMS services");
     try {
       dockerComposeDown(config.installDir);
@@ -7877,24 +8019,24 @@ async function domainCommand(domain, options) {
       s.stop("Launch LMS services restarted");
     } catch (err) {
       s.stop("Failed to restart Launch LMS services");
-      O2.error(err?.message ?? String(err));
+      R2.error(err?.message ?? String(err));
       process.exit(1);
     }
   }
   if (options.reloadCaddy !== false && updatedCaddyFiles.some((filePath) => filePath === "/etc/caddy/Caddyfile")) {
     try {
       execSync6("systemctl reload caddy", { stdio: "inherit" });
-      O2.success("Reloaded system Caddy");
+      R2.success("Reloaded system Caddy");
     } catch (err) {
-      O2.warn(`Failed to reload system Caddy automatically: ${err?.message ?? String(err)}`);
+      R2.warn(`Failed to reload system Caddy automatically: ${err?.message ?? String(err)}`);
     }
   }
-  O2.message([
-    `  ${import_picocolors16.default.dim("Next URL:")}      ${baseUrl}`,
-    `  ${import_picocolors16.default.dim("Cookie domain:")} ${cookieDomain}`,
-    `  ${import_picocolors16.default.dim("Top domain:")}    ${topDomain}`
+  R2.message([
+    `  ${import_picocolors18.default.dim("Next URL:")}      ${baseUrl}`,
+    `  ${import_picocolors18.default.dim("Cookie domain:")} ${cookieDomain}`,
+    `  ${import_picocolors18.default.dim("Top domain:")}    ${topDomain}`
   ].join("\n"));
-  gt(import_picocolors16.default.dim("Done"));
+  Le(import_picocolors18.default.dim("Done"));
 }
 
 // bin/launch-lms.ts
@@ -7913,13 +8055,13 @@ var COMMANDS = [
 ];
 async function showWelcome() {
   await printBanner();
-  console.log(import_picocolors17.default.bold(import_picocolors17.default.white("  Available commands:\n")));
+  console.log(import_picocolors19.default.bold(import_picocolors19.default.white("  Available commands:\n")));
   for (const cmd of COMMANDS) {
-    console.log(`    ${import_picocolors17.default.cyan(cmd.name.padEnd(14))} ${import_picocolors17.default.dim(cmd.desc)}`);
+    console.log(`    ${import_picocolors19.default.cyan(cmd.name.padEnd(14))} ${import_picocolors19.default.dim(cmd.desc)}`);
   }
   console.log();
-  console.log(import_picocolors17.default.dim("  Run a command with: launch-lms <command>"));
-  console.log(import_picocolors17.default.dim("  Get started with:   launch-lms setup"));
+  console.log(import_picocolors19.default.dim("  Run a command with: launch-lms <command>"));
+  console.log(import_picocolors19.default.dim("  Get started with:   launch-lms setup"));
   console.log();
 }
 var program2 = new Command();

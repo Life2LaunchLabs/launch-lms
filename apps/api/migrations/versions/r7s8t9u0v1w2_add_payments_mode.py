@@ -16,14 +16,22 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
     paymentsmodenum = postgresql.ENUM('standard', 'express', name='paymentsmodenum', create_type=True)
-    paymentsmodenum.create(op.get_bind(), checkfirst=True)
+    paymentsmodenum.create(bind, checkfirst=True)
 
-    op.add_column('paymentsconfig',
-        sa.Column('mode', sa.Enum('standard', 'express', name='paymentsmodenum'), nullable=False, server_default='standard')
-    )
+    existing_columns = {column['name'] for column in inspector.get_columns('paymentsconfig')}
+    if 'mode' not in existing_columns:
+        op.add_column('paymentsconfig',
+            sa.Column('mode', sa.Enum('standard', 'express', name='paymentsmodenum'), nullable=False, server_default='standard')
+        )
 
 
 def downgrade() -> None:
-    op.drop_column('paymentsconfig', 'mode')
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing_columns = {column['name'] for column in inspector.get_columns('paymentsconfig')}
+    if 'mode' in existing_columns:
+        op.drop_column('paymentsconfig', 'mode')
     op.execute("DROP TYPE IF EXISTS paymentsmodenum")

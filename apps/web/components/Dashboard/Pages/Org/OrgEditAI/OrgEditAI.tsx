@@ -90,7 +90,7 @@ const OrgEditAI: React.FC = () => {
   return (
     <PlanRestrictedFeature
       currentPlan={currentPlan}
-      requiredPlan="standard"
+      requiredPlan="full"
       customIcon={
         <Image
           src="/ai_icon.svg"

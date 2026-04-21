@@ -9,7 +9,7 @@ import FormLayout, {
 import * as Form from '@radix-ui/react-form'
 import { createNewCourse } from '@services/courses/courses'
 import { getOrganizationContextInfoWithoutCredentials } from '@services/organizations/orgs'
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { BarLoader } from 'react-spinners'
 import { revalidateTags } from '@services/utils/ts/requests'
 import { useRouter } from 'next/navigation'
@@ -43,6 +43,7 @@ function CreateCourseModal({ closeModal, orgslug }: any) {
   const [orgId, setOrgId] = React.useState(null) as any
   const [showUnsplashPicker, setShowUnsplashPicker] = React.useState(false)
   const [isUploading, setIsUploading] = React.useState(false)
+  const submitLockRef = useRef(false)
 
   const validationSchema = Yup.object().shape({
     name: Yup.string()
@@ -68,6 +69,11 @@ function CreateCourseModal({ closeModal, orgslug }: any) {
     },
     validationSchema,
     onSubmit: async (values, { setSubmitting }) => {
+      if (submitLockRef.current || !orgId) {
+        return
+      }
+
+      submitLockRef.current = true
       const toast_loading = toast.loading(t('courses.creating_course'))
 
       try {
@@ -85,15 +91,13 @@ function CreateCourseModal({ closeModal, orgslug }: any) {
         )
 
         if (res.success) {
-          await revalidateTags(['courses'], orgslug)
-          // Refresh sidebar courses cache
-          mutate((key) => typeof key === 'string' && key.includes('/courses/org_slug/'))
-          toast.dismiss(toast_loading)
-          toast.success(t('courses.course_created_success'))
-
-          closeModal()
           // Redirect to the course dashboard - remove 'course_' prefix if present
           const courseId = res.data.course_uuid?.replace('course_', '') || res.data.course_uuid
+          toast.dismiss(toast_loading)
+          toast.success(t('courses.course_created_success'))
+          closeModal()
+          void revalidateTags(['courses'], orgslug)
+          void mutate((key) => typeof key === 'string' && key.includes('/courses/org_slug/'))
           router.push(`/dash/courses/course/${courseId}/general`)
         } else {
           const errorMessage = typeof res.data?.detail === 'string'
@@ -106,6 +110,7 @@ function CreateCourseModal({ closeModal, orgslug }: any) {
       } catch (error) {
         toast.error(t('courses.failed_to_create_course'))
       } finally {
+        submitLockRef.current = false
         setSubmitting(false)
       }
     }
@@ -273,7 +278,7 @@ function CreateCourseModal({ closeModal, orgslug }: any) {
       <div className="flex justify-end mt-6">
         <button
           type="submit"
-          disabled={formik.isSubmitting}
+          disabled={formik.isSubmitting || !orgId}
           className="px-4 py-2 bg-black text-white text-sm font-bold rounded-md"
         >
           {formik.isSubmitting ? (

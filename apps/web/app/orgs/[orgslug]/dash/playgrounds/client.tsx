@@ -191,7 +191,7 @@ export default function PlaygroundsListClient({ org_id, orgslug }: PlaygroundsLi
   return (
     <PlanRestrictedFeature
       currentPlan={plan}
-      requiredPlan="pro"
+      requiredPlan="enterprise"
       titleKey="Playgrounds"
       descriptionKey="Create interactive AI-generated experiences for your learners."
     >

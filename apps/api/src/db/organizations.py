@@ -67,6 +67,12 @@ class OrganizationRead(OrganizationBase):
     update_date: str
 
 
+class OrganizationDiscoverRead(OrganizationRead):
+    signup_mode: str = "open"
+    is_member: bool = False
+    member_count: int = 0
+
+
 class OrganizationUser(BaseModel):
     user: "UserRead"
     role: RoleRead

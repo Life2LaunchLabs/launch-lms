@@ -318,7 +318,7 @@ function MagicBlockComponent(props: ExtendedNodeViewProps) {
                   <div className="space-y-1">
                     <p className="font-semibold text-white/80 flex items-center gap-2 justify-center">
                       {t('editor.blocks.magic_block_content.title')}
-                      <PlanBadge currentPlan={currentPlan} requiredPlan={(rf?.ai?.required_plan || 'standard') as PlanLevel} size="sm" alwaysShow />
+                      <PlanBadge currentPlan={currentPlan} requiredPlan={(rf?.ai?.required_plan || 'full') as PlanLevel} size="sm" alwaysShow />
                     </p>
                     <p className="text-sm text-white/50">
                       {t('editor.blocks.magic_block_content.upgrade_required')}

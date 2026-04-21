@@ -23,8 +23,14 @@ export interface ResourceChannel {
   description: string | null
   thumbnail_image: string | null
   public: boolean
+  shared: boolean
   is_starred: boolean
   color: string | null
+  owner_org_id?: number | null
+  owner_org_uuid?: string | null
+  owner_org_slug?: string | null
+  owner_org_name?: string | null
+  is_shared_from_other_org?: boolean
   creation_date: string
   update_date: string
   resource_count: number
@@ -73,6 +79,11 @@ export interface Resource {
   external_url: string
   cover_image_url: string | null
   thumbnail_image: string | null
+  owner_org_id?: number | null
+  owner_org_uuid?: string | null
+  owner_org_slug?: string | null
+  owner_org_name?: string | null
+  is_shared_from_other_org?: boolean
   estimated_time: number | null
   is_featured: boolean
   is_live: boolean

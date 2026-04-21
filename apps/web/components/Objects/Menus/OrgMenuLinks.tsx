@@ -1,6 +1,6 @@
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getCoreCapabilities, getUriWithOrg } from '@services/config/config'
-import { Books, ChatsCircle, Headphones, Cube, ShoppingBag, FolderOpen } from '@phosphor-icons/react'
+import { Books, ChatsCircle, Headphones, Cube, ShoppingBag, FolderOpen, Buildings } from '@phosphor-icons/react'
 import Link from 'next/link'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -44,6 +44,14 @@ function MenuLinks(props: { orgslug: string; primaryColor?: string }) {
           <LinkItem
             link="/communities"
             type="communities"
+            orgslug={props.orgslug}
+            primaryColor={props.primaryColor}
+          ></LinkItem>
+        )}
+        {capabilities.multi_org && (
+          <LinkItem
+            link="/organizations"
+            type="organizations"
             orgslug={props.orgslug}
             primaryColor={props.primaryColor}
           ></LinkItem>
@@ -109,6 +117,13 @@ const LinkItem = (props: any) => {
           <>
             <FolderOpen size={20} weight="fill" />{' '}
             <span>Resources</span>
+          </>
+        )}
+
+        {props.type == 'organizations' && (
+          <>
+            <Buildings size={20} weight="fill" />{' '}
+            <span>Organizations</span>
           </>
         )}
 

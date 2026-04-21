@@ -71,7 +71,7 @@ export default function AnalyticsDashboard() {
     return (
       <PlanRestrictedFeature
         currentPlan={plan}
-        requiredPlan="standard"
+        requiredPlan="full"
         icon={ChartBar}
         titleKey="common.plans.feature_restricted.analytics.title"
         descriptionKey="common.plans.feature_restricted.analytics.description"

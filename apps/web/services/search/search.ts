@@ -7,7 +7,7 @@ export async function searchOrgContent(
     query: string,
     page: number = 1,
     limit: number = 10,
-    next: any,
+    next?: any,
     access_token?: any
   ) {
     const result: any = await fetch(

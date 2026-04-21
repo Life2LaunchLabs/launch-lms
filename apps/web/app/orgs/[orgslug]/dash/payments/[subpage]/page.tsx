@@ -71,7 +71,7 @@ function PaymentsPage(props: { params: Promise<PaymentsParams> }) {
   return (
     <PlanRestrictedFeature
       currentPlan={currentPlan}
-      requiredPlan="standard"
+      requiredPlan="full"
       icon={BadgeDollarSign}
       titleKey="common.plans.feature_restricted.payments.title"
       descriptionKey="common.plans.feature_restricted.payments.description"

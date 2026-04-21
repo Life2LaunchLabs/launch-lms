@@ -11,6 +11,7 @@ import {
   ShoppingBag,
   Certificate,
   FolderOpen,
+  Buildings,
 } from '@phosphor-icons/react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -31,7 +32,7 @@ interface OrgMenuSidebarProps {
 
 const KNOWN_SUBPATHS = [
   '/courses', '/course/', '/collection/', '/collections', '/trail', '/certificate', '/badge', '/badges', '/podcasts',
-  '/communities', '/resources', '/resource/', '/playgrounds', '/store', '/boards', '/copilot',
+  '/communities', '/organizations', '/organization/', '/resources', '/resource/', '/playgrounds', '/store', '/boards', '/copilot',
   '/activity/', '/assignment', '/editor', '/account', '/payments',
 ]
 
@@ -68,6 +69,7 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
   const isOnCourses = pathname?.includes('/courses') || pathname?.includes('/course/') || pathname?.includes('/collection/')
   const isOnPodcasts = pathname?.includes('/podcasts')
   const isOnCommunities = pathname?.includes('/communities')
+  const isOnOrganizations = pathname?.includes('/organizations') || pathname?.includes('/organization/')
   const isOnResources = pathname?.includes('/resources') || pathname?.includes('/resource/')
   const isOnPlaygrounds = pathname?.includes('/playgrounds')
   const isOnStore = pathname?.includes('/store')
@@ -101,6 +103,13 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
       icon: <ChatsCircle size={18} weight="fill" />,
       active: isOnCommunities,
       show: isEnabled('communities'),
+    },
+    {
+      href: '/organizations',
+      label: 'Organizations',
+      icon: <Buildings size={18} weight="fill" />,
+      active: isOnOrganizations,
+      show: capabilities.multi_org,
     },
     {
       href: '/resources',

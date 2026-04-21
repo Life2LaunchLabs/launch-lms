@@ -27,6 +27,7 @@ from src.services.dev.dev import isDevModeEnabledOrRaise
 from src.routers.utils import router as utils_router
 from src.routers.audit_logs import router as audit_logs_router
 from src.routers.superadmin import router as superadmin_router
+from src.routers.plan_requests import router as plan_requests_router
 from src.security.auth import get_current_user
 from src.security.api_token_utils import require_non_api_token_user
 from src.security.features_utils.plan_check import require_plan, require_plan_for_boards, require_plan_for_certifications, require_plan_for_community, require_plan_for_resources, require_plan_for_usergroups, require_plan_for_playgrounds
@@ -50,7 +51,7 @@ v1_router.include_router(
     usergroups.router,
     prefix="/usergroups",
     tags=["usergroups"],
-    dependencies=[Depends(require_plan_for_usergroups("standard", "User Groups"))]
+    dependencies=[Depends(require_plan_for_usergroups("full", "User Groups"))]
 )
 v1_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 v1_router.include_router(
@@ -75,13 +76,13 @@ v1_router.include_router(
     api_tokens.router,
     prefix="/orgs",
     tags=["api-tokens"],
-    dependencies=[Depends(get_non_api_token_user), Depends(require_plan("pro", "API Access"))]
+    dependencies=[Depends(get_non_api_token_user), Depends(require_plan("full", "API Access"))]
 )
 v1_router.include_router(
     custom_domains.router,
     prefix="/orgs",
     tags=["custom-domains"],
-    dependencies=[Depends(get_non_api_token_user), Depends(require_plan("standard", "Custom Domains"))]
+    dependencies=[Depends(get_non_api_token_user), Depends(require_plan("enterprise", "Custom Domains"))]
 )
 # Public domain resolution endpoint (no auth required)
 v1_router.include_router(
@@ -137,18 +138,18 @@ v1_router.include_router(
     communities_router_module.router,
     prefix="/communities",
     tags=["communities"],
-    dependencies=[Depends(require_plan_for_community("standard", "Communities"))]
+    dependencies=[Depends(require_plan_for_community("full", "Communities"))]
 )
 v1_router.include_router(
     resources_router_module.router,
     prefix="/resources",
     tags=["resources"],
-    dependencies=[Depends(require_plan_for_resources("standard", "Resources"))]
+    dependencies=[Depends(require_plan_for_resources("full", "Resources"))]
 )
 v1_router.include_router(
     discussions_router_module.router,
     tags=["discussions"],
-    dependencies=[Depends(require_plan_for_community("standard", "Communities"))]
+    dependencies=[Depends(require_plan_for_community("full", "Communities"))]
 )
 v1_router.include_router(
     podcasts_router_module.router,
@@ -164,13 +165,13 @@ v1_router.include_router(
     certifications.router,
     prefix="/certifications",
     tags=["certifications"],
-    dependencies=[Depends(require_plan_for_certifications("pro", "Certifications"))]
+    dependencies=[Depends(require_plan_for_certifications("full", "Certifications"))]
 )
 v1_router.include_router(
     boards_router_module.router,
     prefix="/boards",
     tags=["boards"],
-    dependencies=[Depends(get_non_api_token_user), Depends(require_plan_for_boards("pro", "Boards"))]
+    dependencies=[Depends(get_non_api_token_user), Depends(require_plan_for_boards("enterprise", "Boards"))]
 )
 v1_router.include_router(
     boards_router_module.internal_router,
@@ -211,19 +212,19 @@ v1_router.include_router(
     boards_playground.router,
     prefix="/boards",
     tags=["boards", "boards-playground"],
-    dependencies=[Depends(get_non_api_token_user), Depends(require_plan_for_boards("pro", "Boards"))]
+    dependencies=[Depends(get_non_api_token_user), Depends(require_plan_for_boards("enterprise", "Boards"))]
 )
 v1_router.include_router(
     playgrounds_router_module.router,
     prefix="/playgrounds",
     tags=["playgrounds"],
-    dependencies=[Depends(get_non_api_token_user), Depends(require_plan_for_playgrounds("pro", "Playgrounds"))]
+    dependencies=[Depends(get_non_api_token_user), Depends(require_plan_for_playgrounds("enterprise", "Playgrounds"))]
 )
 v1_router.include_router(
     playgrounds_generator_router.router,
     prefix="/playgrounds",
     tags=["playgrounds", "playgrounds-generator"],
-    dependencies=[Depends(get_non_api_token_user), Depends(require_plan_for_playgrounds("pro", "Playgrounds"))]
+    dependencies=[Depends(get_non_api_token_user), Depends(require_plan_for_playgrounds("enterprise", "Playgrounds"))]
 )
 
 v1_router.include_router(
@@ -257,6 +258,12 @@ v1_router.include_router(
     superadmin_router,
     prefix="/superadmin",
     tags=["superadmin"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+
+v1_router.include_router(
+    plan_requests_router,
+    tags=["plan-requests"],
     dependencies=[Depends(get_non_api_token_user)],
 )
 
@@ -301,5 +308,5 @@ if ee_payments_router_module is not None:
         ee_payments_router_module.router,
         prefix="/payments",
         tags=["payments"],
-        dependencies=[Depends(require_plan("standard", "payments"))],
+        dependencies=[Depends(require_plan("full", "payments"))],
     )

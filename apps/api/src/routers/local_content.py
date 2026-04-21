@@ -26,6 +26,7 @@ from src.db.podcasts.podcasts import Podcast
 from src.db.users import AnonymousUser, PublicUser, APITokenUser
 from src.db.user_organizations import UserOrganization
 from src.security.auth import get_current_user
+from src.security.rbac import AccessAction, check_resource_access
 
 router = APIRouter()
 
@@ -57,6 +58,7 @@ def _validate_content_path(file_path: str) -> Path | None:
 
 
 async def _check_content_access(
+    request: Request,
     file_path: str,
     current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
@@ -85,38 +87,33 @@ async def _check_content_access(
         ).first()
         if not course:
             raise HTTPException(status_code=403, detail="Access denied")
-        if course.public:
-            # Optional paid-access gating for public courses.
-            if not isinstance(current_user, APITokenUser):
-                try:
-                    from ee.services.payments.payments_access import check_course_paid_access
-                except ModuleNotFoundError:
-                    return
-                try:
-                    has_paid_access = await check_course_paid_access(course.id, current_user, db_session)
-                except Exception:
-                    return
-                if not has_paid_access:
-                    if isinstance(current_user, AnonymousUser):
-                        raise HTTPException(status_code=401, detail="Authentication required")
-                    raise HTTPException(status_code=403, detail="Access denied")
-            return  # Public course — allow anonymous
-        if isinstance(current_user, AnonymousUser):
-            raise HTTPException(status_code=401, detail="Authentication required")
-        # Verify API token is scoped to the correct org
-        if isinstance(current_user, APITokenUser):
-            if current_user.org_id != course.org_id:
-                raise HTTPException(status_code=403, detail="Access denied")
-            return
-        # Verify user belongs to the org that owns this course
-        membership = db_session.exec(
-            select(UserOrganization).where(
-                UserOrganization.user_id == current_user.id,
-                UserOrganization.org_id == course.org_id,
+        try:
+            await check_resource_access(
+                request,
+                db_session,
+                current_user,
+                course.course_uuid,
+                AccessAction.READ,
             )
-        ).first()
-        if not membership:
-            raise HTTPException(status_code=403, detail="Access denied")
+        except HTTPException as exc:
+            if isinstance(current_user, AnonymousUser) and exc.status_code == 403:
+                raise HTTPException(status_code=401, detail="Authentication required")
+            raise
+
+        # Optional paid-access gating for public courses.
+        if course.public and not isinstance(current_user, APITokenUser):
+            try:
+                from ee.services.payments.payments_access import check_course_paid_access
+            except ModuleNotFoundError:
+                return
+            try:
+                has_paid_access = await check_course_paid_access(course.id, current_user, db_session)
+            except Exception:
+                return
+            if not has_paid_access:
+                if isinstance(current_user, AnonymousUser):
+                    raise HTTPException(status_code=401, detail="Authentication required")
+                raise HTTPException(status_code=403, detail="Access denied")
         return
 
     # Podcast episode content: requires podcast to be public or user to be org member
@@ -209,7 +206,7 @@ async def serve_local_content(
     if resolved is None:
         raise HTTPException(status_code=400, detail="Invalid path")
 
-    await _check_content_access(file_path, current_user, db_session)
+    await _check_content_access(request, file_path, current_user, db_session)
 
     if not resolved.is_file():
         raise HTTPException(status_code=404, detail="File not found")
@@ -239,7 +236,7 @@ async def head_local_content(
     if resolved is None:
         raise HTTPException(status_code=400, detail="Invalid path")
 
-    await _check_content_access(file_path, current_user, db_session)
+    await _check_content_access(request, file_path, current_user, db_session)
 
     if not resolved.is_file():
         raise HTTPException(status_code=404, detail="File not found")

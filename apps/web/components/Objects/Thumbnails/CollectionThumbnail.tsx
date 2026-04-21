@@ -37,14 +37,15 @@ function CollectionThumbnail(props: PropsType) {
   const org = useOrg() as any
   const collectionId = removeCollectionPrefix(props.collection.collection_uuid)
   const courses = props.collection.courses || []
+  const ownerOrgUuid = props.collection.owner_org_uuid || org?.org_uuid
 
   const userLink = getUriWithOrg(props.orgslug, `/collection/${collectionId}`)
   const dashLink = getUriWithOrg(props.orgslug, '') + `/dash/courses/collection/${collectionId}/general`
   const primaryLink = props.isDashboard ? dashLink : userLink
 
-  const hasCoverPhoto = props.collection.thumbnail_image && org?.org_uuid
+  const hasCoverPhoto = props.collection.thumbnail_image && ownerOrgUuid
   const coverPhotoUrl = hasCoverPhoto
-    ? getCollectionThumbnailMediaDirectory(org.org_uuid, props.collection.collection_uuid, props.collection.thumbnail_image)
+    ? getCollectionThumbnailMediaDirectory(ownerOrgUuid, props.collection.collection_uuid, props.collection.thumbnail_image)
     : null
 
   return (
@@ -75,7 +76,7 @@ function CollectionThumbnail(props: PropsType) {
                   style={{
                     backgroundImage: `url(${course.thumbnail_image
                       ? getCourseThumbnailMediaDirectory(
-                          org?.org_uuid,
+                          course.owner_org_uuid || org?.org_uuid,
                           course.course_uuid,
                           course.thumbnail_image
                         )
@@ -126,6 +127,11 @@ function CollectionThumbnail(props: PropsType) {
             {props.isDashboard ? 'Edit' : t('common.view_details')}
           </Link>
         </div>
+        {props.collection.owner_org_name && (
+          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+            {props.collection.owner_org_name}
+          </div>
+        )}
       </div>
     </div>
   )

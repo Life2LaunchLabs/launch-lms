@@ -6,6 +6,7 @@ from sqlmodel import Field, SQLModel
 class CollectionBase(SQLModel):
     name: str
     public: bool
+    shared: bool = False
     description: Optional[str] = ""
     
 
@@ -31,6 +32,7 @@ class CollectionUpdate(SQLModel):
     courses: Optional[list] = None
     name: Optional[str] = None
     public: Optional[bool] = None
+    shared: Optional[bool] = None
     description: Optional[str] = None
 
 
@@ -38,6 +40,11 @@ class CollectionRead(CollectionBase):
     id: int
     courses: list
     collection_uuid: str
+    owner_org_id: Optional[int] = None
+    owner_org_uuid: Optional[str] = None
+    owner_org_slug: Optional[str] = None
+    owner_org_name: Optional[str] = None
+    is_shared_from_other_org: bool = False
     creation_date: str
     update_date: str
     thumbnail_image: Optional[str] = None

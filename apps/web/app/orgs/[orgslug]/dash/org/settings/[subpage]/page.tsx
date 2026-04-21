@@ -1,7 +1,7 @@
 'use client'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { getCoreCapabilities, getUriWithOrg } from '@services/config/config'
-import { TextIcon, LucideIcon, LayoutDashboardIcon, CodeIcon, KeyIcon, Palette, School, ToggleRight, Shield, Globe, Search, BarChart3 } from 'lucide-react'
+import { TextIcon, LucideIcon, LayoutDashboardIcon, CodeIcon, KeyIcon, Palette, School, ToggleRight, Shield, Globe, Search, BarChart3, Layers } from 'lucide-react'
 import Link from 'next/link'
 import React, { useEffect, use } from 'react';
 import { motion } from 'motion/react'
@@ -17,10 +17,10 @@ import OrgEditSSO from '@components/Dashboard/Pages/Org/OrgEditSSO/OrgEditSSO'
 import OrgEditDomains from '@components/Dashboard/Pages/Org/OrgEditDomains/OrgEditDomains'
 import OrgEditSEO from '@components/Dashboard/Pages/Org/OrgEditSEO/OrgEditSEO'
 import OrgEditUsage from '@components/Dashboard/Pages/Org/OrgEditUsage/OrgEditUsage'
+import OrgEditPlan from '@components/Dashboard/Pages/Org/OrgEditPlan/OrgEditPlan'
 import { useTranslation } from 'react-i18next'
 import { useOrg } from '@components/Contexts/OrgContext'
-import PlanBadge from '@components/Dashboard/Shared/PlanRestricted/PlanBadge'
-import { PlanLevel } from '@services/plans/plans'
+import { PlanLevel, planMeetsRequirement } from '@services/plans/plans'
 import { usePlan } from '@components/Hooks/usePlan'
 import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/FeatureDisabledView'
 
@@ -39,22 +39,22 @@ interface TabItem {
 
 const getSettingTabs = (t: any): TabItem[] => [
   { id: 'general', label: t('dashboard.organization.settings.tabs.general'), icon: TextIcon },
-  { id: 'branding', label: t('dashboard.organization.settings.tabs.branding'), icon: Palette },
-  { id: 'features', label: t('dashboard.organization.settings.tabs.features') || 'Features', icon: ToggleRight },
-  { id: 'landing', label: t('dashboard.organization.settings.tabs.landing'), icon: LayoutDashboardIcon },
-  { id: 'seo', label: 'SEO', icon: Search },
-  { id: 'ai', label: t('dashboard.organization.settings.tabs.ai') || 'AI', customIcon: '/ai_icon.svg', requiredPlan: 'standard' },
-  { id: 'domains', label: t('dashboard.organization.settings.tabs.domains') || 'Domains', icon: Globe, requiredPlan: 'standard' },
-  { id: 'api', label: t('dashboard.organization.settings.tabs.api') || 'API Access', icon: KeyIcon, requiredPlan: 'pro' },
+  { id: 'branding', label: t('dashboard.organization.settings.tabs.branding'), icon: Palette, requiredPlan: 'enterprise' },
+  { id: 'features', label: t('dashboard.organization.settings.tabs.features') || 'Features', icon: ToggleRight, requiredPlan: 'enterprise' },
+  { id: 'landing', label: t('dashboard.organization.settings.tabs.landing'), icon: LayoutDashboardIcon, requiredPlan: 'enterprise' },
+  { id: 'seo', label: 'SEO', icon: Search, requiredPlan: 'enterprise' },
+  { id: 'ai', label: t('dashboard.organization.settings.tabs.ai') || 'AI', customIcon: '/ai_icon.svg', requiredPlan: 'full' },
+  { id: 'domains', label: t('dashboard.organization.settings.tabs.domains') || 'Domains', icon: Globe, requiredPlan: 'enterprise' },
+  { id: 'api', label: t('dashboard.organization.settings.tabs.api') || 'API Access', icon: KeyIcon, requiredPlan: 'full' },
   { id: 'usage', label: t('dashboard.organization.settings.tabs.usage') || 'Usage', icon: BarChart3 },
-  { id: 'other', label: t('dashboard.organization.settings.tabs.other'), icon: CodeIcon },
+  { id: 'plan', label: 'Plan', icon: Layers },
+  { id: 'other', label: t('dashboard.organization.settings.tabs.other'), icon: CodeIcon, requiredPlan: 'enterprise' },
 ]
 
-function TabLink({ tab, isActive, orgslug, currentPlan }: {
+function TabLink({ tab, isActive, orgslug }: {
   tab: TabItem,
   isActive: boolean,
   orgslug: string,
-  currentPlan: PlanLevel
 }) {
   return (
     <Link href={getUriWithOrg(orgslug, '') + `/dash/org/settings/${tab.id}`}>
@@ -69,12 +69,7 @@ function TabLink({ tab, isActive, orgslug, currentPlan }: {
           ) : tab.icon ? (
             <tab.icon size={16} />
           ) : null}
-          <div className="flex items-center">
-            {tab.label}
-            {tab.requiredPlan && (
-              <PlanBadge currentPlan={currentPlan} requiredPlan={tab.requiredPlan} />
-            )}
-          </div>
+          <span>{tab.label}</span>
         </div>
       </div>
     </Link>
@@ -92,15 +87,19 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
   const SETTING_TABS = React.useMemo(() => {
     const tabs = getSettingTabs(t)
     if (capabilities.sso) {
-      tabs.splice(8, 0, {
+      const usageIndex = tabs.findIndex(tab => tab.id === 'usage')
+      tabs.splice(usageIndex, 0, {
         id: 'sso',
         label: t('dashboard.organization.settings.tabs.sso') || 'SSO',
         icon: Shield,
-        requiredPlan: 'enterprise',
+        requiredPlan: 'enterprise' as PlanLevel,
       })
     }
-    return tabs
-  }, [capabilities.sso, t])
+    // Hide tabs the current plan can't access
+    return tabs.filter(tab =>
+      !tab.requiredPlan || planMeetsRequirement(currentPlan, tab.requiredPlan)
+    )
+  }, [capabilities.sso, t, currentPlan])
 
   function handleLabels() {
     if (params.subpage == 'general') {
@@ -137,6 +136,9 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
     } else if (params.subpage == 'usage') {
       setH1Label(t('dashboard.organization.settings.pages.usage.title') || 'Usage')
       setH2Label(t('dashboard.organization.settings.pages.usage.subtitle') || 'Monitor your organization\'s resource usage and plan limits')
+    } else if (params.subpage == 'plan') {
+      setH1Label('Plan & Packages')
+      setH2Label('View your current plan, add-on packages, and request upgrades')
     } else if (params.subpage == 'other') {
       setH1Label(t('dashboard.organization.settings.pages.other.title'))
       setH2Label(t('dashboard.organization.settings.pages.other.subtitle'))
@@ -172,7 +174,6 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
               tab={tab}
               isActive={params.subpage === tab.id}
               orgslug={params.orgslug}
-              currentPlan={currentPlan}
             />
           ))}
         </div>
@@ -203,6 +204,7 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
           )
         ) : ''}
         {params.subpage == 'usage' ? <OrgEditUsage /> : ''}
+        {params.subpage == 'plan' ? <OrgEditPlan orgslug={params.orgslug} /> : ''}
         {params.subpage == 'other' ? <OrgEditOther /> : ''}
       </motion.div>
     </div>

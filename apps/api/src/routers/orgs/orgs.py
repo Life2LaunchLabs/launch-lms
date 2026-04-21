@@ -12,6 +12,7 @@ from src.services.orgs.users import (
     get_list_of_invited_users,
     get_organization_users,
     invite_batch_users,
+    leave_current_user_from_org,
     remove_batch_users_from_org,
     remove_invited_user,
     remove_user_from_org,
@@ -21,6 +22,7 @@ from src.db.organization_config import OrganizationConfigBase
 from src.db.users import AnonymousUser, PublicUser
 from src.db.organizations import (
     OrganizationCreate,
+    OrganizationDiscoverRead,
     OrganizationRead,
     OrganizationUpdate,
 )
@@ -35,6 +37,8 @@ from src.services.orgs.orgs import (
     get_organization_by_slug,
     get_orgs_by_user,
     get_orgs_by_user_admin,
+    get_discoverable_org_by_slug,
+    list_discoverable_orgs,
     update_org,
     update_org_logo,
     update_org_preview,
@@ -113,6 +117,42 @@ async def api_get_org_by_uuid(
     Get single Org by UUID
     """
     return await get_organization_by_uuid(request, org_uuid, db_session, current_user)
+
+
+@router.get("/discover")
+async def api_discover_orgs(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=24, ge=1, le=100),
+    query: str = Query(default="", max_length=200),
+    current_user: PublicUser | AnonymousUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+) -> List[OrganizationDiscoverRead]:
+    """
+    List discoverable organizations for the public organizations experience.
+    """
+    return await list_discoverable_orgs(
+        db_session=db_session,
+        current_user=current_user,
+        page=page,
+        limit=limit,
+        query=query,
+    )
+
+
+@router.get("/discover/{org_slug}")
+async def api_discover_org_by_slug(
+    org_slug: str,
+    current_user: PublicUser | AnonymousUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+) -> OrganizationDiscoverRead:
+    """
+    Get discoverable organization detail by slug.
+    """
+    return await get_discoverable_org_by_slug(
+        db_session=db_session,
+        current_user=current_user,
+        org_slug=org_slug,
+    )
 
 
 @router.get("/{org_id}/users")
@@ -203,6 +243,24 @@ async def api_remove_user_from_org(
     """
     return await remove_user_from_org(
         request, org_id, user_id, db_session, current_user
+    )
+
+
+@router.delete("/{org_id}/leave")
+async def api_leave_current_org(
+    request: Request,
+    org_id: int,
+    current_user: PublicUser = Depends(get_authenticated_user),
+    db_session: Session = Depends(get_db_session),
+):
+    """
+    Allow the current user to leave an organization they belong to.
+    """
+    return await leave_current_user_from_org(
+        request=request,
+        org_id=org_id,
+        db_session=db_session,
+        current_user=current_user,
     )
 
 

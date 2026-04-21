@@ -3,7 +3,7 @@ import logging
 from datetime import datetime
 from typing import Literal, Optional
 from uuid import uuid4
-from sqlmodel import Session, select
+from sqlmodel import Session, select, func
 from src.db.organization_config import (
     OrganizationConfig,
     OrganizationConfigBase,
@@ -19,6 +19,7 @@ from src.db.user_organizations import UserOrganization
 from src.db.organizations import (
     Organization,
     OrganizationCreate,
+    OrganizationDiscoverRead,
     OrganizationRead,
     OrganizationUpdate,
 )
@@ -671,6 +672,143 @@ async def get_orgs_by_user(
         orgsWithConfig.append(org_read)
 
     return orgsWithConfig
+
+
+def _extract_signup_mode_from_config(org_config: OrganizationConfig | None) -> str:
+    if not org_config:
+        return "open"
+
+    config = org_config.config or {}
+    version = config.get("config_version", "1.0")
+
+    if version.startswith("2"):
+        return config.get("admin_toggles", {}).get("members", {}).get("signup_mode", "open")
+
+    return config.get("features", {}).get("members", {}).get("signup_mode", "open")
+
+
+def _build_discover_org_read(
+    org: Organization,
+    org_config: OrganizationConfig | None,
+    is_member: bool,
+    member_count: int,
+) -> OrganizationDiscoverRead:
+    org_read = _build_org_read_with_resolved(org, org_config)
+    payload = org_read.model_dump()
+    payload["signup_mode"] = _extract_signup_mode_from_config(org_config)
+    payload["is_member"] = is_member
+    payload["member_count"] = member_count
+    return OrganizationDiscoverRead.model_validate(payload)
+
+
+async def list_discoverable_orgs(
+    db_session: Session,
+    current_user: PublicUser | AnonymousUser,
+    page: int = 1,
+    limit: int = 24,
+    query: str = "",
+) -> list[OrganizationDiscoverRead]:
+    limit = min(limit, 100)
+    page = max(page, 1)
+
+    statement = (
+        select(Organization, OrganizationConfig)
+        .outerjoin(OrganizationConfig, OrganizationConfig.org_id == Organization.id)
+        .order_by(Organization.name.asc(), Organization.id.asc())
+    )
+
+    if isinstance(current_user, AnonymousUser):
+        statement = statement.where(Organization.explore == True)  # noqa: E712
+
+    if query.strip():
+        pattern = f"%{query.strip()}%"
+        statement = statement.where(
+            (Organization.name.ilike(pattern))
+            | (Organization.description.ilike(pattern))
+            | (Organization.about.ilike(pattern))
+            | (Organization.slug.ilike(pattern))
+        )
+
+    org_rows = db_session.exec(
+        statement.offset((page - 1) * limit).limit(limit)
+    ).all()
+
+    if not org_rows:
+        return []
+
+    org_ids = [org.id for org, _ in org_rows if org.id is not None]
+
+    member_counts_map: dict[int, int] = {}
+    if org_ids:
+        member_counts_rows = db_session.exec(
+            select(UserOrganization.org_id, func.count(UserOrganization.id))
+            .where(UserOrganization.org_id.in_(org_ids))  # type: ignore[arg-type]
+            .group_by(UserOrganization.org_id)
+        ).all()
+        member_counts_map = {org_id: count for org_id, count in member_counts_rows}
+
+    visible_member_org_ids: set[int] = set()
+    if not isinstance(current_user, AnonymousUser) and org_ids:
+        member_rows = db_session.exec(
+            select(UserOrganization.org_id).where(
+                UserOrganization.user_id == current_user.id,
+                UserOrganization.org_id.in_(org_ids),  # type: ignore[arg-type]
+            )
+        ).all()
+        visible_member_org_ids = set(member_rows)
+
+    return [
+        _build_discover_org_read(
+            org,
+            org_config,
+            org.id in visible_member_org_ids if org.id is not None else False,
+            member_counts_map.get(org.id or 0, 0),
+        )
+        for org, org_config in org_rows
+    ]
+
+
+async def get_discoverable_org_by_slug(
+    db_session: Session,
+    current_user: PublicUser | AnonymousUser,
+    org_slug: str,
+) -> OrganizationDiscoverRead:
+    statement = (
+        select(Organization, OrganizationConfig)
+        .outerjoin(OrganizationConfig, OrganizationConfig.org_id == Organization.id)
+        .where(Organization.slug == org_slug)
+        .order_by(Organization.id.asc())
+    )
+    row = db_session.exec(statement).first()
+
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organization not found",
+        )
+
+    org, org_config = row
+    is_member = False
+    if not isinstance(current_user, AnonymousUser):
+        membership = db_session.exec(
+            select(UserOrganization.id).where(
+                UserOrganization.user_id == current_user.id,
+                UserOrganization.org_id == org.id,
+            )
+        ).first()
+        is_member = membership is not None
+
+    if isinstance(current_user, AnonymousUser) and not org.explore:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organization not found",
+        )
+
+    member_count = db_session.exec(
+        select(func.count()).where(UserOrganization.org_id == org.id)
+    ).one()
+
+    return _build_discover_org_read(org, org_config, is_member, member_count)
 
 
 # Config related

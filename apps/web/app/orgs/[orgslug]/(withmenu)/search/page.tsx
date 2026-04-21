@@ -5,13 +5,24 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { searchOrgContent } from '@services/search/search';
 import { useLHSession } from '@components/Contexts/LHSessionContext';
 import { useOrg } from '@components/Contexts/OrgContext';
-import { BookCopy, SquareLibrary, Users, Search } from 'lucide-react';
+import { BookCopy, SquareLibrary, Users, Search, MessageCircle, LibraryBig, Building2 } from 'lucide-react';
 import Link from 'next/link';
-import { getCourseThumbnailMediaDirectory, getUserAvatarMediaDirectory } from '@services/media/media';
+import {
+  getCollectionThumbnailMediaDirectory,
+  getCommunityThumbnailMediaDirectory,
+  getCourseThumbnailMediaDirectory,
+  getOrgLogoMediaDirectory,
+  getOrgThumbnailMediaDirectory,
+  getResourceThumbnailMediaDirectory,
+  getUserAvatarMediaDirectory,
+} from '@services/media/media';
 import { getUriWithOrg } from '@services/config/config';
 import { removeCoursePrefix } from '@components/Objects/Thumbnails/CourseThumbnail';
 import UserAvatar from '@components/Objects/UserAvatar';
 import { useTranslation } from 'react-i18next';
+import { Community } from '@services/communities/communities';
+import { Resource } from '@services/resources/resources';
+import { DiscoverOrganization } from '@services/organizations/orgs';
 
 // Types from SearchBar component
 interface User {
@@ -50,29 +61,43 @@ interface Course {
   course_uuid: string;
   creation_date: string;
   update_date: string;
+  owner_org_uuid?: string | null;
+  owner_org_name?: string | null;
+  is_shared_from_other_org?: boolean;
 }
 
 interface Collection {
   name: string;
   public: boolean;
+  shared?: boolean;
   description: string;
   id: number;
-  courses: string[];
+  courses: Course[];
   collection_uuid: string;
+  thumbnail_image?: string | null;
   creation_date: string;
   update_date: string;
+  owner_org_uuid?: string | null;
+  owner_org_name?: string | null;
+  is_shared_from_other_org?: boolean;
 }
 
 interface SearchResults {
   courses: Course[];
   collections: Collection[];
+  communities: Community[];
+  organizations: DiscoverOrganization[];
+  resources: Resource[];
   users: User[];
   total_courses: number;
   total_collections: number;
+  total_communities: number;
+  total_organizations: number;
+  total_resources: number;
   total_users: number;
 }
 
-type ContentType = 'all' | 'courses' | 'collections' | 'users';
+type ContentType = 'all' | 'courses' | 'collections' | 'communities' | 'organizations' | 'resources' | 'users';
 
 function SearchPage() {
   const { t } = useTranslation();
@@ -85,17 +110,23 @@ function SearchPage() {
   const [searchResults, setSearchResults] = useState<SearchResults>({
     courses: [],
     collections: [],
-    users: [],
-    total_courses: 0,
-    total_collections: 0,
-    total_users: 0
+      communities: [],
+      organizations: [],
+      resources: [],
+      users: [],
+      total_courses: 0,
+      total_collections: 0,
+      total_communities: 0,
+      total_organizations: 0,
+      total_resources: 0,
+      total_users: 0
   });
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
   
   // URL parameters
   const query = searchParams.get('q') || '';
-  const page = parseInt(searchParams.get('activities.page') || '1');
+  const page = parseInt(searchParams.get('page') || '1');
   const type = (searchParams.get('type') as ContentType) || 'all';
   const perPage = 9;
 
@@ -131,9 +162,15 @@ function SearchPage() {
         setSearchResults({
           courses: [],
           collections: [],
+          communities: [],
+          organizations: [],
+          resources: [],
           users: [],
           total_courses: 0,
           total_collections: 0,
+          total_communities: 0,
+          total_organizations: 0,
+          total_resources: 0,
           total_users: 0
         });
         return;
@@ -146,12 +183,9 @@ function SearchPage() {
           query,
           page,
           perPage,
-          selectedType === 'all' ? null : selectedType,
+          null,
           session?.data?.tokens?.access_token
         );
-
-        // Log the response to see what we're getting
-        console.log('Search API Response:', response);
 
         // The response data is directly what we need
         const results = response.data;
@@ -159,19 +193,30 @@ function SearchPage() {
         setSearchResults({
           courses: results.courses || [],
           collections: results.collections || [],
+          communities: results.communities || [],
+          organizations: results.organizations || [],
+          resources: results.resources || [],
           users: results.users || [],
           total_courses: results.courses?.length || 0,
           total_collections: results.collections?.length || 0,
+          total_communities: results.communities?.length || 0,
+          total_organizations: results.organizations?.length || 0,
+          total_resources: results.resources?.length || 0,
           total_users: results.users?.length || 0
         });
-      } catch (error) {
-        console.error('Error searching content:', error);
+      } catch {
         setSearchResults({
           courses: [],
           collections: [],
+          communities: [],
+          organizations: [],
+          resources: [],
           users: [],
           total_courses: 0,
           total_collections: 0,
+          total_communities: 0,
+          total_organizations: 0,
+          total_resources: 0,
           total_users: 0
         });
       }
@@ -179,10 +224,34 @@ function SearchPage() {
     };
 
     fetchResults();
-  }, [query, page, selectedType, org?.slug, session?.data?.tokens?.access_token]);
+  }, [query, page, org?.slug, session?.data?.tokens?.access_token]);
 
-  const totalResults = searchResults.total_courses + searchResults.total_collections + searchResults.total_users;
-  const totalPages = Math.ceil(totalResults / perPage);
+  const totalResults =
+    searchResults.total_courses +
+    searchResults.total_collections +
+    searchResults.total_communities +
+    searchResults.total_organizations +
+    searchResults.total_resources +
+    searchResults.total_users;
+  const visibleResultsByType: Record<ContentType, number> = {
+    all: totalResults,
+    courses: searchResults.total_courses,
+    collections: searchResults.total_collections,
+    communities: searchResults.total_communities,
+    organizations: searchResults.total_organizations,
+    resources: searchResults.total_resources,
+    users: searchResults.total_users,
+  };
+  const totalPages = Math.ceil((visibleResultsByType[selectedType] || 0) / perPage);
+  const filterLabels: Record<ContentType, string> = {
+    all: t('common.search'),
+    courses: t('courses.courses'),
+    collections: t('collections.collections'),
+    communities: 'Communities',
+    organizations: 'Organizations',
+    resources: 'Resources',
+    users: t('common.users'),
+  };
 
   const FilterButton = ({ type, count, icon: Icon }: { type: ContentType; count: number; icon: any }) => (
     <button
@@ -197,7 +266,7 @@ function SearchPage() {
       }`}
     >
       <Icon size={16} />
-      <span>{t(type)}</span>
+      <span>{filterLabels[type]}</span>
       <span className="text-black/40">({count})</span>
     </button>
   );
@@ -286,6 +355,9 @@ function SearchPage() {
               <FilterButton type="all" count={totalResults} icon={Search} />
               <FilterButton type="courses" count={searchResults.total_courses} icon={BookCopy} />
               <FilterButton type="collections" count={searchResults.total_collections} icon={SquareLibrary} />
+              <FilterButton type="communities" count={searchResults.total_communities} icon={MessageCircle} />
+              <FilterButton type="organizations" count={searchResults.total_organizations} icon={Building2} />
+              <FilterButton type="resources" count={searchResults.total_resources} icon={LibraryBig} />
               <FilterButton type="users" count={searchResults.total_users} icon={Users} />
             </div>
           </div>
@@ -324,7 +396,7 @@ function SearchPage() {
                         <div className="relative h-48">
                           {course.thumbnail_image ? (
                             <img
-                              src={getCourseThumbnailMediaDirectory(org?.org_uuid, course.course_uuid, course.thumbnail_image)}
+                              src={getCourseThumbnailMediaDirectory(course.owner_org_uuid || org?.org_uuid, course.course_uuid, course.thumbnail_image)}
                               alt={course.name}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             />
@@ -337,6 +409,11 @@ function SearchPage() {
                         <div className="p-4">
                           <h3 className="text-sm font-medium text-black/80 mb-1">{course.name}</h3>
                           <p className="text-xs text-black/50 line-clamp-2">{course.description}</p>
+                          {course.owner_org_name && (
+                            <p className="mt-2 text-xs text-black/40">
+                              {course.is_shared_from_other_org ? `Shared from ${course.owner_org_name}` : course.owner_org_name}
+                            </p>
+                          )}
                           {course.authors && course.authors.length > 0 && (
                             <div className="flex items-center gap-2 mt-3">
                               <UserAvatar
@@ -374,12 +451,167 @@ function SearchPage() {
                         href={getUriWithOrg(org?.slug, `/collection/${collection.collection_uuid.replace('collection_', '')}`)}
                         className="flex items-start gap-4 p-4 bg-white rounded-xl nice-shadow hover:shadow-md transition-all"
                       >
-                        <div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <SquareLibrary size={24} className="text-black/40" />
+                        <div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          {collection.thumbnail_image && (collection.owner_org_uuid || org?.org_uuid) ? (
+                            <img
+                              src={getCollectionThumbnailMediaDirectory(collection.owner_org_uuid || org?.org_uuid, collection.collection_uuid, collection.thumbnail_image)}
+                              alt={collection.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <SquareLibrary size={24} className="text-black/40" />
+                          )}
                         </div>
                         <div>
                           <h3 className="text-sm font-medium text-black/80 mb-1">{collection.name}</h3>
                           <p className="text-xs text-black/50 line-clamp-2">{collection.description}</p>
+                          {collection.owner_org_name && (
+                            <p className="mt-2 text-xs text-black/40">
+                              {collection.is_shared_from_other_org ? `Shared from ${collection.owner_org_name}` : collection.owner_org_name}
+                            </p>
+                          )}
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {(selectedType === 'all' || selectedType === 'communities') && searchResults.communities.length > 0 && (
+                <div>
+                  <h2 className="text-lg font-medium text-black/80 mb-4 flex items-center gap-2">
+                    <MessageCircle size={20} className="text-black/60" />
+                    Communities ({searchResults.communities.length})
+                  </h2>
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {searchResults.communities.map((community) => (
+                      <Link
+                        key={community.community_uuid}
+                        href={getUriWithOrg(org?.slug, `/community/${community.community_uuid.replace('community_', '')}`)}
+                        className="bg-white rounded-xl nice-shadow hover:shadow-md transition-all overflow-hidden group"
+                      >
+                        <div className="relative h-48">
+                          {community.thumbnail_image && (community.owner_org_uuid || org?.org_uuid) ? (
+                            <img
+                              src={getCommunityThumbnailMediaDirectory(community.owner_org_uuid || org?.org_uuid, community.community_uuid, community.thumbnail_image)}
+                              alt={community.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-black/5 flex items-center justify-center">
+                              <MessageCircle size={32} className="text-black/40" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-4">
+                          <h3 className="text-sm font-medium text-black/80 mb-1">{community.name}</h3>
+                          <p className="text-xs text-black/50 line-clamp-2">{community.description}</p>
+                          {community.owner_org_name && (
+                            <p className="mt-2 text-xs text-black/40">
+                              {community.is_shared_from_other_org ? `Shared from ${community.owner_org_name}` : community.owner_org_name}
+                            </p>
+                          )}
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {(selectedType === 'all' || selectedType === 'organizations') && searchResults.organizations.length > 0 && (
+                <div>
+                  <h2 className="text-lg font-medium text-black/80 mb-4 flex items-center gap-2">
+                    <Building2 size={20} className="text-black/60" />
+                    Organizations ({searchResults.organizations.length})
+                  </h2>
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {searchResults.organizations.map((organization) => {
+                      const imageSrc = organization.thumbnail_image
+                        ? getOrgThumbnailMediaDirectory(organization.org_uuid, organization.thumbnail_image)
+                        : organization.logo_image
+                          ? getOrgLogoMediaDirectory(organization.org_uuid, organization.logo_image)
+                          : null
+
+                      return (
+                        <Link
+                          key={organization.org_uuid}
+                          href={getUriWithOrg(org?.slug, `/organization/${organization.slug}`)}
+                          className="bg-white rounded-xl nice-shadow hover:shadow-md transition-all overflow-hidden group"
+                        >
+                          <div className="relative h-48">
+                            {imageSrc ? (
+                              <img
+                                src={imageSrc}
+                                alt={organization.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-black/5 flex items-center justify-center">
+                                <Building2 size={32} className="text-black/40" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="text-sm font-medium text-black/80">{organization.name}</h3>
+                              <span className="rounded-full bg-black/5 px-2 py-1 text-[10px] uppercase tracking-wide text-black/50">
+                                {organization.is_member ? 'Member' : organization.signup_mode === 'open' ? 'Open' : 'Invite only'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-black/50 line-clamp-2">
+                              {organization.description || organization.about || `@${organization.slug}`}
+                            </p>
+                            <p className="mt-3 text-xs text-black/40">
+                              {organization.member_count} members
+                            </p>
+                          </div>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {(selectedType === 'all' || selectedType === 'resources') && searchResults.resources.length > 0 && (
+                <div>
+                  <h2 className="text-lg font-medium text-black/80 mb-4 flex items-center gap-2">
+                    <LibraryBig size={20} className="text-black/60" />
+                    Resources ({searchResults.resources.length})
+                  </h2>
+                  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {searchResults.resources.map((resource) => (
+                      <Link
+                        key={resource.resource_uuid}
+                        href={getUriWithOrg(org?.slug, `/resource/${resource.resource_uuid.replace('resource_', '')}`)}
+                        className="bg-white rounded-xl nice-shadow hover:shadow-md transition-all overflow-hidden group"
+                      >
+                        <div className="relative h-48">
+                          {resource.thumbnail_image && (resource.owner_org_uuid || org?.org_uuid) ? (
+                            <img
+                              src={getResourceThumbnailMediaDirectory(resource.owner_org_uuid || org?.org_uuid, resource.resource_uuid, resource.thumbnail_image)}
+                              alt={resource.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                          ) : resource.cover_image_url ? (
+                            <img
+                              src={resource.cover_image_url}
+                              alt={resource.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-black/5 flex items-center justify-center">
+                              <LibraryBig size={32} className="text-black/40" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-4">
+                          <h3 className="text-sm font-medium text-black/80 mb-1">{resource.title}</h3>
+                          <p className="text-xs text-black/50 line-clamp-2">{resource.description}</p>
+                          {resource.owner_org_name && (
+                            <p className="mt-2 text-xs text-black/40">
+                              {resource.is_shared_from_other_org ? `Shared from ${resource.owner_org_name}` : resource.owner_org_name}
+                            </p>
+                          )}
                         </div>
                       </Link>
                     ))}
