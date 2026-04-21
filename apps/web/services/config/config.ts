@@ -129,78 +129,29 @@ export const LAUNCHLMS_BACKEND_URL = getLAUNCHLMS_BACKEND_URL()
 export const LAUNCHLMS_DOMAIN = getLAUNCHLMS_DOMAIN()
 export const LAUNCHLMS_TOP_DOMAIN = getLAUNCHLMS_TOP_DOMAIN()
 
-// Helper to check if we're on a custom domain (for API URL selection)
-const isOnCustomDomain = (): boolean => {
-  if (typeof window === 'undefined') return false
-  const hostname = window.location.hostname
-  const domain = getLAUNCHLMS_DOMAIN()
-  return !isSubdomainOf(hostname, domain) && !isSameHost(hostname, domain) && !isLocalhostCheck(hostname)
+export const getAPIUrl = () => {
+  if (typeof window === 'undefined') {
+    // Server-side: absolute URL required — relative paths are invalid in Node.js fetch
+    const internal = process.env.LAUNCHLMS_INTERNAL_API_URL
+    if (internal) return internal.endsWith('/') ? internal : `${internal}/`
+    const internalBackend = process.env.LAUNCHLMS_INTERNAL_BACKEND_URL
+    if (internalBackend) return `${internalBackend.replace(/\/+$/, '')}/api/v1/`
+    return 'http://localhost/api/v1/'
+  }
+  // Client-side: relative path always works — frontend and API share the same origin via Nginx.
+  // Explicit URL only used for split deployments (separate frontend/backend servers).
+  const explicit = getConfig('NEXT_PUBLIC_LAUNCHLMS_API_URL')
+  return explicit || '/api/v1/'
 }
 
-// Derive API URL from backend URL (with backward compat for NEXT_PUBLIC_LAUNCHLMS_API_URL)
-const deriveAPIUrl = (): string => {
-  // Backward compat: if explicit API URL is set, use it
-  const explicitApiUrl = getConfig('NEXT_PUBLIC_LAUNCHLMS_API_URL')
-  if (explicitApiUrl) return explicitApiUrl
-  // Derive from backend URL
+// Server-side only — always returns an absolute URL for use in Server Components and API routes
+export const getServerAPIUrl = () => {
+  const internal = process.env.LAUNCHLMS_INTERNAL_API_URL
+  if (internal) return internal.endsWith('/') ? internal : `${internal}/`
+  const internalBackend = process.env.LAUNCHLMS_INTERNAL_BACKEND_URL
+  if (internalBackend) return `${internalBackend.replace(/\/+$/, '')}/api/v1/`
   const backendUrl = getLAUNCHLMS_BACKEND_URL().replace(/\/+$/, '')
   return `${backendUrl}/api/v1/`
-}
-
-const getClientAPIUrl = (): string => {
-  // Route browser requests through the same-origin Next.js proxy whenever the
-  // configured API origin would be cross-origin or would downgrade HTTPS.
-  const derivedUrl = deriveAPIUrl()
-
-  if (typeof window === 'undefined') {
-    return derivedUrl
-  }
-
-  if (isOnCustomDomain()) {
-    return '/api/v1/'
-  }
-
-  try {
-    const apiOrigin = new URL(derivedUrl, window.location.origin).origin
-    if (
-      window.location.protocol === 'https:' &&
-      derivedUrl.startsWith('http://')
-    ) {
-      return '/api/v1/'
-    }
-
-    if (apiOrigin !== window.location.origin) {
-      return '/api/v1/'
-    }
-  } catch {
-    return '/api/v1/'
-  }
-
-  return derivedUrl
-}
-
-// For direct usage, these call the getters
-export const getAPIUrl = () => {
-  // Server-side: always use absolute internal URL — relative paths are invalid in Node.js fetch
-  if (typeof window === 'undefined') {
-    const internal = process.env.LAUNCHLMS_INTERNAL_API_URL
-    if (internal) return internal.endsWith('/') ? internal : `${internal}/`
-    const internalBackend = process.env.LAUNCHLMS_INTERNAL_BACKEND_URL
-    if (internalBackend) return `${internalBackend.replace(/\/+$/, '')}/api/v1/`
-  }
-  return getClientAPIUrl()
-}
-
-// Server-side only - always returns full URL (never relative path)
-// Use this in Server Components, API routes, and server-side data fetching
-export const getServerAPIUrl = () => {
-  if (typeof window === 'undefined') {
-    const internal = process.env.LAUNCHLMS_INTERNAL_API_URL
-    if (internal) return internal.endsWith('/') ? internal : `${internal}/`
-    const internalBackend = process.env.LAUNCHLMS_INTERNAL_BACKEND_URL
-    if (internalBackend) return `${internalBackend.replace(/\/+$/, '')}/api/v1/`
-  }
-  return deriveAPIUrl()
 }
 
 export const getBackendUrl = () => getLAUNCHLMS_BACKEND_URL()
