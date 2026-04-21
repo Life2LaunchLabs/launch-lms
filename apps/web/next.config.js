@@ -60,9 +60,14 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['@phosphor-icons/react', 'framer-motion', 'lucide-react', '@emoji-mart/react', '@emoji-mart/data', 'dayjs', 'highlight.js', 'recharts', '@radix-ui/react-icons', '@hello-pangea/dnd', 'react-i18next'],
   },
-  // Ensure consistent build IDs across multiple pods in Kubernetes
   generateBuildId: async () => {
-    return process.env.BUILD_ID || 'launch-lms-production'
+    if (process.env.BUILD_ID) return process.env.BUILD_ID
+    try {
+      const { execSync } = require('child_process')
+      return execSync('git rev-parse --short HEAD').toString().trim()
+    } catch {
+      return 'launch-lms-production'
+    }
   },
 }
 
