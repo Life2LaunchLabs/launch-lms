@@ -19,7 +19,6 @@ import useAdminStatus from '@components/Hooks/useAdminStatus'
 import { getAPIUrl } from '@services/config/config'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useTranslation } from 'react-i18next'
-import { PlanLevel } from '@services/plans/plans'
 import { OrgUsageResponse, orgUsageFetcher } from '@services/orgs/usage'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { deleteCourseFromBackend, cloneCourse } from '@services/courses/courses'
@@ -114,8 +113,8 @@ function CoursesHome(params: CourseProps) {
   const courseLimitReached = usageData?.features?.courses?.limit_reached ?? false
   const courseLimit = usageData?.features?.courses?.limit ?? 0
 
-  // Usergroup filter — only shown on personal/family plans
-  const usergroupsAvailable = currentPlan === 'personal' || currentPlan === 'family'
+  // Usergroup filter follows the org's resolved feature availability.
+  const usergroupsAvailable = org?.config?.config?.resolved_features?.usergroups?.enabled === true
   const [usergroups, setUsergroups] = useState<any[]>([])
   const [selectedUsergroupId, setSelectedUsergroupId] = useState<string>(() => {
     if (typeof window !== 'undefined') {
