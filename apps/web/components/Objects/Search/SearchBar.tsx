@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, ArrowRight, Sparkles, BookCopy, SquareLibrary, ArrowUpRight, TextSearch, ScanSearch, Users, X } from 'lucide-react';
+import { Search, ArrowRight, Sparkles, BookCopy, SquareLibrary, ArrowUpRight, TextSearch, ScanSearch, Users, X, Building2 } from 'lucide-react';
 import { searchOrgContent } from '@services/search/search';
 import { useLHSession } from '@components/Contexts/LHSessionContext';
 import Link from 'next/link';
-import { getCourseThumbnailMediaDirectory, getUserAvatarMediaDirectory } from '@services/media/media';
+import {
+  getCourseThumbnailMediaDirectory,
+  getOrgLogoMediaDirectory,
+  getOrgThumbnailMediaDirectory,
+  getUserAvatarMediaDirectory,
+} from '@services/media/media';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useOrg } from '@components/Contexts/OrgContext';
 import { getUriWithOrg } from '@services/config/config';
@@ -14,6 +19,7 @@ import { useTranslation } from 'react-i18next';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { getMenuColorClasses } from '@services/utils/ts/colorUtils';
 import { Z_INDEX } from '@/lib/z-index';
+import { DiscoverOrganization } from '@services/organizations/orgs';
 
 interface User {
   username: string;
@@ -70,6 +76,7 @@ interface Collection {
 interface SearchResults {
   courses: Course[];
   collections: Collection[];
+  organizations: DiscoverOrganization[];
   users: User[];
 }
 
@@ -114,6 +121,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const [searchResults, setSearchResults] = useState<SearchResults>({
     courses: [],
     collections: [],
+    organizations: [],
     users: []
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -149,7 +157,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   useEffect(() => {
     const fetchResults = async () => {
       if (debouncedSearch.trim().length === 0) {
-        setSearchResults({ courses: [], collections: [], users: [] });
+        setSearchResults({ courses: [], collections: [], organizations: [], users: [] });
         setIsLoading(false);
         return;
       }
@@ -172,19 +180,20 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         const processedResults: SearchResults = {
           courses: Array.isArray(typedResponse?.courses) ? typedResponse.courses : [],
           collections: Array.isArray(typedResponse?.collections) ? typedResponse.collections : [],
+          organizations: Array.isArray(typedResponse?.organizations) ? typedResponse.organizations : [],
           users: Array.isArray(typedResponse?.users) ? typedResponse.users : []
         };
 
         setSearchResults(processedResults);
 
-        const totalResults = processedResults.courses.length + processedResults.collections.length + processedResults.users.length;
+        const totalResults = processedResults.courses.length + processedResults.collections.length + processedResults.organizations.length + processedResults.users.length;
         track('search_query', {
           query: debouncedSearch,
           results_count: totalResults,
         });
       } catch (error) {
         console.error('Error searching content:', error);
-        setSearchResults({ courses: [], collections: [], users: [] });
+        setSearchResults({ courses: [], collections: [], organizations: [], users: [] });
       }
       setIsLoading(false);
       setIsInitialLoad(false);
@@ -218,6 +227,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     { term: searchQuery, type: 'exact', icon: <Search size={14} className="text-black/40" /> },
     { term: `${searchQuery} courses`, type: 'courses', icon: <BookCopy size={14} className="text-black/40" /> },
     { term: `${searchQuery} collections`, type: 'collections', icon: <SquareLibrary size={14} className="text-black/40" /> },
+    { term: `${searchQuery} organizations`, type: 'organizations', icon: <Building2 size={14} className="text-black/40" /> },
   ], [searchQuery]);
 
   const MemoizedSearchSuggestions = useMemo(() => {
@@ -252,6 +262,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const MemoizedQuickResults = useMemo(() => {
     const hasResults = searchResults.courses.length > 0 ||
                       searchResults.collections.length > 0 ||
+                      searchResults.organizations.length > 0 ||
                       searchResults.users.length > 0;
 
     if (!hasResults) return null;
@@ -332,6 +343,51 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           </div>
         )}
 
+        {searchResults.organizations.length > 0 && (
+          <div className="mb-2">
+            <div className="flex items-center gap-2 px-2 py-1 text-xs text-black/40">
+              <Building2 size={12} />
+              <span>Organizations</span>
+            </div>
+            {searchResults.organizations.map((organization) => {
+              const imageSrc = organization.thumbnail_image
+                ? getOrgThumbnailMediaDirectory(organization.org_uuid, organization.thumbnail_image)
+                : organization.logo_image
+                  ? getOrgLogoMediaDirectory(organization.org_uuid, organization.logo_image)
+                  : null
+
+              return (
+                <Link
+                  key={organization.org_uuid}
+                  href={getUriWithOrg(orgslug, `/organization/${organization.slug}`)}
+                  className="flex items-center gap-3 p-2 hover:bg-black/[0.02] rounded-lg transition-colors"
+                >
+                  {imageSrc ? (
+                    <img
+                      src={imageSrc}
+                      alt={organization.name}
+                      className="h-10 w-10 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-black/5">
+                      <Building2 size={20} className="text-black/40" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="truncate text-sm font-medium text-black/80">{organization.name}</h3>
+                      <span className="whitespace-nowrap text-[10px] font-medium uppercase tracking-wide text-black/40">organization</span>
+                    </div>
+                    <p className="truncate text-xs text-black/50">
+                      {organization.description || organization.about || `@${organization.slug}`}
+                    </p>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        )}
+
         {/* Users Section */}
         {searchResults.users.length > 0 && (
           <div className="mb-2">
@@ -395,6 +451,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           {MemoizedQuickResults}
           {((searchResults.courses.length > 0 ||
              searchResults.collections.length > 0 ||
+             searchResults.organizations.length > 0 ||
              searchResults.users.length > 0) ||
              searchQuery.trim()) && (
             <Link

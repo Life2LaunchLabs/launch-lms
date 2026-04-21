@@ -175,3 +175,69 @@ export async function joinOrg(
   const res = await getResponseMetadata(result)
   return res
 }
+
+export interface DiscoverOrganization {
+  id: number
+  org_uuid: string
+  name: string
+  description?: string | null
+  about?: string | null
+  socials?: Record<string, any> | null
+  links?: Record<string, any> | null
+  scripts?: Record<string, any> | null
+  logo_image?: string | null
+  thumbnail_image?: string | null
+  previews?: Record<string, any> | null
+  explore?: boolean | null
+  label?: string | null
+  slug: string
+  email: string
+  config?: any
+  creation_date: string
+  update_date: string
+  signup_mode: 'open' | 'inviteOnly' | string
+  is_member: boolean
+  member_count: number
+}
+
+export async function getDiscoverOrganizations(
+  args: { page?: number; limit?: number; query?: string },
+  next?: any,
+  access_token?: string
+) {
+  const params = new URLSearchParams()
+  params.set('page', String(args.page ?? 1))
+  params.set('limit', String(args.limit ?? 24))
+  if (args.query?.trim()) {
+    params.set('query', args.query.trim())
+  }
+
+  const result = await fetch(
+    `${getAPIUrl()}orgs/discover?${params.toString()}`,
+    RequestBodyWithAuthHeader('GET', null, next, access_token)
+  )
+  const res = await errorHandling(result)
+  return res as DiscoverOrganization[]
+}
+
+export async function getDiscoverOrganizationBySlug(
+  org_slug: string,
+  next?: any,
+  access_token?: string
+) {
+  const result = await fetch(
+    `${getAPIUrl()}orgs/discover/${org_slug}`,
+    RequestBodyWithAuthHeader('GET', null, next, access_token)
+  )
+  const res = await errorHandling(result)
+  return res as DiscoverOrganization
+}
+
+export async function leaveOrg(org_id: number, access_token: string) {
+  const result = await fetch(
+    `${getAPIUrl()}orgs/${org_id}/leave`,
+    RequestBodyWithAuthHeader('DELETE', null, null, access_token)
+  )
+  const res = await getResponseMetadata(result)
+  return res
+}

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
-import { getDefaultOrg, getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config'
+import { getOwnerOrgSlugServer } from '@services/org/ownerOrgServer'
 
-export default function AdminAnalyticsPage() {
-  redirect(getUriWithOrg(getDefaultOrg(), '/dash/org-management/analytics'))
+export default async function AdminAnalyticsPage() {
+  redirect(getUriWithOrg(await getOwnerOrgSlugServer(), '/dash/org-management/analytics'))
 }

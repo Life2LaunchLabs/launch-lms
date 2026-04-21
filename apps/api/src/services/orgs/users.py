@@ -25,6 +25,19 @@ from src.db.organizations import (
 )
 
 
+def _get_owner_org(db_session: Session) -> Organization | None:
+    return db_session.exec(select(Organization).order_by(Organization.id).limit(1)).first()
+
+
+def _ensure_not_owner_org(org_id: int, db_session: Session) -> None:
+    owner_org = _get_owner_org(db_session)
+    if owner_org and owner_org.id == org_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Users cannot be removed from the owner organization",
+        )
+
+
 async def get_organization_users(
     request: Request,
     org_id: str,
@@ -244,6 +257,60 @@ async def get_organization_users(
     return result
 
 
+async def leave_current_user_from_org(
+    request: Request,
+    org_id: int,
+    db_session: Session,
+    current_user: PublicUser,
+):
+    statement = select(Organization).where(Organization.id == org_id)
+    org = db_session.exec(statement).first()
+
+    if not org:
+        raise HTTPException(
+            status_code=404,
+            detail="Organization not found",
+        )
+
+    _ensure_not_owner_org(org_id, db_session)
+
+    user_org = db_session.exec(
+        select(UserOrganization).where(
+            UserOrganization.user_id == current_user.id,
+            UserOrganization.org_id == org.id,
+        )
+    ).first()
+
+    if not user_org:
+        raise HTTPException(
+            status_code=404,
+            detail="You are not a member of this organization",
+        )
+
+    admins = db_session.exec(
+        select(UserOrganization).where(
+            UserOrganization.org_id == org.id,
+            UserOrganization.role_id == ADMIN_ROLE_ID,
+        )
+    ).all()
+
+    if len(admins) == 1 and admins[0].user_id == current_user.id:
+        raise HTTPException(
+            status_code=400,
+            detail="You can't leave the last admin role in the organization",
+        )
+
+    db_session.delete(user_org)
+    db_session.commit()
+
+    from src.routers.users import _invalidate_session_cache
+    _invalidate_session_cache(current_user.id)
+
+    decrease_feature_usage("members", org_id, db_session)
+
+    return {"detail": "Left organization"}
+
+
 async def remove_user_from_org(
     request: Request,
     org_id: int,
@@ -261,6 +328,8 @@ async def remove_user_from_org(
             status_code=404,
             detail="Organization not found",
         )
+
+    _ensure_not_owner_org(org_id, db_session)
 
     # RBAC check
     await rbac_check(request, org.org_uuid, current_user, "delete", db_session)
@@ -319,6 +388,8 @@ async def remove_batch_users_from_org(
             status_code=404,
             detail="Organization not found",
         )
+
+    _ensure_not_owner_org(org_id, db_session)
 
     # RBAC check
     await rbac_check(request, org.org_uuid, current_user, "delete", db_session)

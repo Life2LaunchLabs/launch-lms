@@ -3,6 +3,7 @@ from datetime import datetime
 import json
 import os
 from pathlib import Path
+import re
 from uuid import uuid4
 import boto3
 from botocore.exceptions import ClientError
@@ -48,6 +49,25 @@ DEFAULT_ORG_BRANDING_ASSETS = {
     "auth_background": ("auth_backgrounds", "auth_bg", "stacked-waves-haikei (1).png"),
     "og_image": ("og_images", "og", "l2l on blue.png"),
 }
+
+
+def slugify_organization_name(name: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", name.strip().lower()).strip("-")
+    return slug or "organization"
+
+
+def generate_unique_org_slug(name: str, db_session: Session, *, exclude_org_id: int | None = None) -> str:
+    base_slug = slugify_organization_name(name)
+    slug = base_slug
+    suffix = 2
+
+    while True:
+        statement = select(Organization).where(Organization.slug == slug)
+        existing = db_session.exec(statement).first()
+        if not existing or (exclude_org_id is not None and existing.id == exclude_org_id):
+            return slug
+        slug = f"{base_slug}-{suffix}"
+        suffix += 1
 
 
 def _store_org_asset_from_branding(org_uuid: str, directory: str, filename_prefix: str, source_name: str) -> str:

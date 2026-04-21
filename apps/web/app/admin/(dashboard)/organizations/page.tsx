@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
-import { getDefaultOrg, getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config'
+import { getOwnerOrgSlugServer } from '@services/org/ownerOrgServer'
 
-export default function AdminOrganizationsPage() {
-  redirect(getUriWithOrg(getDefaultOrg(), '/dash/org-management'))
+export default async function AdminOrganizationsPage() {
+  redirect(getUriWithOrg(await getOwnerOrgSlugServer(), '/dash/org-management'))
 }

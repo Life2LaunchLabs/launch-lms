@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
-import { getDefaultOrg, getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config'
+import { getOwnerOrgSlugServer } from '@services/org/ownerOrgServer'
 
-export default function AdminLoginPage() {
-  redirect(getUriWithOrg(getDefaultOrg(), '/login'))
+export default async function AdminLoginPage() {
+  redirect(getUriWithOrg(await getOwnerOrgSlugServer(), '/login'))
 }

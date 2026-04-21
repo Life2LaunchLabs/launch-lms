@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from typing import Annotated
 from sqlalchemy import create_engine
 from sqlmodel import SQLModel, Session
@@ -7,6 +8,7 @@ from config.config import get_launchlms_config
 from src.db.organizations import OrganizationCreate
 from src.db.users import UserCreate
 from src.services.setup.setup import (
+    generate_unique_org_slug,
     install_create_organization,
     install_create_organization_user,
     install_default_elements,
@@ -38,7 +40,7 @@ def install(
         org = OrganizationCreate(
             name="Life2Launch",
             description="Life2Launch",
-            slug="default",
+            slug=generate_unique_org_slug("Life2Launch", db_session),
             email="",
             logo_image="",
             thumbnail_image="",
@@ -63,7 +65,7 @@ def install(
         )
         install_create_organization_user(
             user,
-            "default",
+            org.slug,
             db_session,
             is_superadmin=True,
         )
@@ -118,6 +120,45 @@ def install(
         print("Login with the following credentials:")
         print("email: " + email)
         print("password: The password you entered")
+
+
+@cli.command()
+def normalize_owner_org_slug():
+    # Get the database session
+    launchlms_config = get_launchlms_config()
+    engine = create_engine(
+        launchlms_config.database_config.sql_connection_string, echo=False, pool_pre_ping=True  # type: ignore
+    )
+    SQLModel.metadata.create_all(engine)
+
+    db_session = Session(engine)
+
+    from src.db.organizations import Organization
+    from sqlmodel import select
+
+    owner_org = db_session.exec(select(Organization).order_by(Organization.id).limit(1)).first()
+    if not owner_org:
+        print("No owner organization found.")
+        raise typer.Exit(code=1)
+
+    next_slug = generate_unique_org_slug(
+        owner_org.name,
+        db_session,
+        exclude_org_id=owner_org.id,
+    )
+
+    if owner_org.slug == next_slug:
+        print(f"Owner organization slug already normalized: {owner_org.slug}")
+        return
+
+    previous_slug = owner_org.slug
+    owner_org.slug = next_slug
+    owner_org.update_date = str(datetime.now())
+    db_session.add(owner_org)
+    db_session.commit()
+
+    print(f"Updated owner organization slug: {previous_slug} -> {next_slug}")
+    print("If your deploy environment sets NEXT_PUBLIC_LAUNCHLMS_DEFAULT_ORG, update it to match this slug.")
 
 
 

@@ -70,10 +70,6 @@ def auto_install():
             ensure_owner_org_is_master()
             return
 
-        default_org = db_session.exec(select(Organization).where(Organization.slug == 'default')).first()
-        if not default_org:
-            logger.info("No 'default' slug organization found. Skipping default-slug bootstrap and reconciling owner org")
-
         ensure_owner_org_is_master()
 
             
