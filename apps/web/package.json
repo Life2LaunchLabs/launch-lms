@@ -3,12 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "dev-https": "next dev --experimental-https -p 443",
+    "dev": "node ./scripts/dev-server.js",
+    "dev:http": "next dev --hostname 0.0.0.0",
+    "dev:https": "next dev --hostname 0.0.0.0 --experimental-https --experimental-https-cert ../../certs/local.pem --experimental-https-key ../../certs/local-key.pem",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . || true",
-    "lint:fix": "eslint --fix . || true"
+    "lint:fix": "eslint --fix . || true",
+    "test:routing": "node --test --experimental-strip-types services/routing/__tests__/*.test.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.4",

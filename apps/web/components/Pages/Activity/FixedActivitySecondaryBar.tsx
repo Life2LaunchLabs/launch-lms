@@ -1,6 +1,6 @@
 'use client'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useState, useRef, useMemo, memo } from 'react'
 import { getCourseThumbnailMediaDirectory } from '@services/media/media'
@@ -137,7 +137,7 @@ export default function FixedActivitySecondaryBar(props: FixedActivitySecondaryB
     if (!activity) return;
     
     const cleanCourseUuid = props.course.course_uuid?.replace('course_', '');
-    router.push(getUriWithOrg(props.orgslug, '') + `/course/${cleanCourseUuid}/activity/${activity.cleanUuid}`);
+    router.push(getUriWithOrg(props.orgslug, routePaths.org.courseActivity(cleanCourseUuid, activity.cleanUuid)));
   };
 
   useEffect(() => {

@@ -7,9 +7,7 @@ import { ArrowLeft, Building2, CheckCircle2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { createNewOrganization } from '@services/organizations/orgs'
-import { getAPIUrl, getUriWithOrg } from '@services/config/config'
-import { getOrgAdminEntryUrl } from '@services/org/adminEntry'
-import { getOwnerOrgUrl } from '@services/org/ownerOrg'
+import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
 import FormLayout, {
   FormField,
@@ -34,6 +32,7 @@ export default function CreateOrgWizard({ ownerOrg }: CreateOrgWizardProps) {
   const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
+  const ownerOrgSlug = getDefaultOrg()
   const [step, setStep] = React.useState(1)
   const [error, setError] = React.useState('')
   const [isSubmitting, setIsSubmitting] = React.useState(false)
@@ -92,8 +91,8 @@ export default function CreateOrgWizard({ ownerOrg }: CreateOrgWizardProps) {
 
         const existingAdminOrgCount = Array.isArray(adminOrgs) ? adminOrgs.length : 0
         const nextHref = existingAdminOrgCount > 0
-          ? getOwnerOrgUrl('/account/org-admin')
-          : getOrgAdminEntryUrl(organization.slug, '/dash')
+          ? getUriWithOrg(ownerOrgSlug, routePaths.owner.account.orgAdmin())
+          : getUriWithOrg(organization.slug, routePaths.org.dash.root())
 
         window.location.href = nextHref
       } catch (err: any) {
@@ -109,7 +108,7 @@ export default function CreateOrgWizard({ ownerOrg }: CreateOrgWizardProps) {
       <div className="mb-6">
         <button
           type="button"
-          onClick={() => (step === 1 ? router.push(getUriWithOrg(ownerOrg.slug, '/signup')) : setStep(1))}
+          onClick={() => (step === 1 ? router.push(getUriWithOrg(ownerOrg.slug, routePaths.auth.signup())) : setStep(1))}
           className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-900"
         >
           <ArrowLeft className="w-4 h-4" />

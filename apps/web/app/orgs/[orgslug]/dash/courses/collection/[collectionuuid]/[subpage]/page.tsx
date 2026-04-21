@@ -1,6 +1,6 @@
 'use client'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { TextIcon, LucideIcon, Image as ImageIcon, Users, BookCopy, BookOpen } from 'lucide-react'
 import Link from 'next/link'
 import React, { use } from 'react'
@@ -42,7 +42,7 @@ function TabLink({
   collectionuuid: string
 }) {
   return (
-    <Link href={getUriWithOrg(orgslug, '') + `/dash/courses/collection/${collectionuuid}/${tab.id}`}>
+    <Link href={getUriWithOrg(orgslug, routePaths.org.dash.collectionSettings(collectionuuid, tab.id))}>
       <div
         className={`py-2 w-fit text-center border-black transition-all ease-linear ${
           isActive ? 'border-b-4' : 'opacity-50'
@@ -77,8 +77,8 @@ function CollectionSettingsContent({ params }: { params: CollectionParams }) {
       <div className="pl-10 pr-10 tracking-tight bg-[#fcfbfc] z-10 nice-shadow flex-shrink-0 relative">
         <div className="pt-6 pb-4">
           <Breadcrumbs items={[
-            { label: 'Courses', href: '/dash/courses', icon: <BookOpen size={14} /> },
-            { label: 'Collections', href: '/dash/courses', icon: <BookCopy size={14} /> },
+            { label: 'Courses', href: routePaths.org.dash.courses(), icon: <BookOpen size={14} /> },
+            { label: 'Collections', href: routePaths.org.dash.courses(), icon: <BookCopy size={14} /> },
             { label: collection.name },
           ]} />
         </div>

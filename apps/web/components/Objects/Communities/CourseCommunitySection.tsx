@@ -7,7 +7,7 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 
 dayjs.extend(relativeTime)
 import { Users, MessageCircle, ArrowRight, ChevronUp } from 'lucide-react'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getCommunityByCourse, Community } from '@services/communities/communities'
 import { getDiscussions, DiscussionWithAuthor } from '@services/communities/discussions'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -78,7 +78,7 @@ export function CourseCommunitySection({ courseUuid, orgslug }: CourseCommunityS
             )}
           </div>
           <Link
-            href={getUriWithOrg(orgslug, `/community/${communityId}`)}
+            href={getUriWithOrg(orgslug, routePaths.org.community(communityId))}
             className="flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
           >
             {t('communities.course_section.view_all')}
@@ -93,7 +93,7 @@ export function CourseCommunitySection({ courseUuid, orgslug }: CourseCommunityS
               <MessageCircle size={32} className="mx-auto text-gray-300 mb-2" />
               <p className="text-sm text-gray-500">{t('communities.course_section.no_discussions')}</p>
               <Link
-                href={getUriWithOrg(orgslug, `/community/${communityId}`)}
+                href={getUriWithOrg(orgslug, routePaths.org.community(communityId))}
                 className="inline-block mt-3 text-sm font-medium text-blue-600 hover:text-blue-700"
               >
                 {t('communities.course_section.start_first')}
@@ -110,7 +110,7 @@ export function CourseCommunitySection({ courseUuid, orgslug }: CourseCommunityS
               return (
                 <Link
                   key={discussion.discussion_uuid}
-                  href={getUriWithOrg(orgslug, `/community/${communityId}/discussion/${discussionId}`)}
+                  href={getUriWithOrg(orgslug, routePaths.org.communityDiscussion(communityId, discussionId))}
                   className="block p-4 hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-start gap-3">

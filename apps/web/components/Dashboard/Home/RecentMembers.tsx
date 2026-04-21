@@ -4,7 +4,7 @@ import Link from 'next/link'
 import useSWR from 'swr'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl, routePaths } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { Users, ShieldCheck, Clock, EnvelopeSimple } from '@phosphor-icons/react'
 
@@ -39,7 +39,7 @@ export default function RecentMembers() {
           )}
         </div>
         <Link
-          href="/dash/users/settings/users"
+          href={routePaths.org.dash.users.users()}
           className="text-[11px] font-medium text-gray-400 hover:text-gray-600 transition-colors"
         >
           View All &rarr;

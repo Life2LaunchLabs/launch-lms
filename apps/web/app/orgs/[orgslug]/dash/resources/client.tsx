@@ -10,7 +10,7 @@ import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/Fe
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import ResourceChannelCard from '@components/Resources/ResourceChannelCard'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import {
   createResourceChannel,
   getResourceChannels,
@@ -163,13 +163,13 @@ export default function ResourcesDashClient({ orgslug }: { orgslug: string }) {
           </div>
           <div className="mt-4 flex gap-1 border-b border-gray-200">
             <Link
-              href={getUriWithOrg(orgslug, '/dash/resources')}
+              href={getUriWithOrg(orgslug, routePaths.org.dash.resources())}
               className="border-b-2 border-black px-1 py-2 text-sm font-semibold text-gray-900"
             >
               Channels
             </Link>
             <Link
-              href={getUriWithOrg(orgslug, '/dash/resources/tags')}
+              href={getUriWithOrg(orgslug, routePaths.org.dash.resourceTags())}
               className="border-b-2 border-transparent px-1 py-2 text-sm font-semibold text-gray-400 transition-colors hover:text-gray-700"
             >
               Tags

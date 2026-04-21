@@ -1,6 +1,6 @@
 'use client'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
-import { getCoreCapabilities, getUriWithOrg } from '@services/config/config'
+import { getCoreCapabilities, getUriWithOrg, routePaths } from '@services/config/config'
 import { TextIcon, LucideIcon, LayoutDashboardIcon, CodeIcon, KeyIcon, Palette, School, ToggleRight, Shield, Globe, Search, BarChart3, Layers } from 'lucide-react'
 import Link from 'next/link'
 import React, { useEffect, use } from 'react';
@@ -57,7 +57,7 @@ function TabLink({ tab, isActive, orgslug }: {
   orgslug: string,
 }) {
   return (
-    <Link href={getUriWithOrg(orgslug, '') + `/dash/org/settings/${tab.id}`}>
+    <Link href={getUriWithOrg(orgslug, routePaths.org.dash.orgSettings[tab.id as keyof typeof routePaths.org.dash.orgSettings]())}>
       <div
         className={`py-2 w-fit text-center border-black transition-all ease-linear ${
           isActive ? 'border-b-4' : 'opacity-50'
@@ -154,7 +154,7 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
       <div className="pl-10 pr-10 tracking-tight bg-[#fcfbfc] z-10 nice-shadow flex-shrink-0 relative">
         <div className="pt-6 pb-4">
           <Breadcrumbs items={[
-            { label: t('common.organization'), href: '/dash/org/settings/general', icon: <School size={14} /> }
+            { label: t('common.organization'), href: routePaths.org.dash.orgSettings.general(), icon: <School size={14} /> }
           ]} />
         </div>
         <div className="my-2  py-2">

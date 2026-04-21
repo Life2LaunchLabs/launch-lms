@@ -5,9 +5,7 @@ import Link from 'next/link'
 import { useEffect } from 'react'
 import { ArrowLeft, Building2, Loader2, Shield } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl } from '@services/config/config'
-import { getOrgAdminEntryUrl } from '@services/org/adminEntry'
-import { getOwnerOrgUrl } from '@services/org/ownerOrg'
+import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
 
 export default function AccountOrgAdmin() {
@@ -25,7 +23,7 @@ export default function AccountOrgAdmin() {
 
   useEffect(() => {
     if (!Array.isArray(adminOrgs) || adminOrgs.length !== 1) return
-    window.location.href = getOrgAdminEntryUrl(adminOrgs[0].slug, '/dash')
+    window.location.href = getUriWithOrg(adminOrgs[0].slug, routePaths.org.dash.root())
   }, [adminOrgs])
 
   if (isLoading || session?.status === 'loading') {
@@ -66,7 +64,7 @@ export default function AccountOrgAdmin() {
               {organizations.map((organization: any) => (
                 <Link
                   key={organization.id}
-                  href={getOrgAdminEntryUrl(organization.slug, '/dash')}
+                  href={getUriWithOrg(organization.slug, routePaths.org.dash.root())}
                   className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-4 transition-colors hover:border-gray-900 hover:bg-gray-50"
                 >
                   <div className="flex items-center gap-3">
@@ -97,7 +95,7 @@ export default function AccountOrgAdmin() {
 
         <div className="mt-6 pt-6 border-t border-gray-100">
           <Link
-            href={getOwnerOrgUrl('/')}
+            href={getUriWithOrg(getDefaultOrg(), routePaths.org.root())}
             className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
           >
             <ArrowLeft className="w-4 h-4" />

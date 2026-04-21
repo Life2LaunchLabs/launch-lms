@@ -1,16 +1,24 @@
-import { getBackendUrl, getConfig } from '@services/config/config'
+import { getBackendUrl, getConfig, getUriWithoutOrg } from '@services/config/config'
 
 function getMediaUrl() {
-  const mediaUrl = getConfig('NEXT_PUBLIC_LAUNCHLMS_MEDIA_URL');
+  const mediaUrl = getConfig('NEXT_PUBLIC_LAUNCHLMS_MEDIA_URL')
   if (mediaUrl) {
-    return mediaUrl;
-  } else {
-    return getBackendUrl();
+    return mediaUrl
   }
+
+  // Default browser media requests to same-origin so uploads, logos, and other
+  // assets keep working on HTTPS, custom domains, and internal backend setups.
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}/`
+  }
+
+  // Server-rendered metadata can still build absolute URLs from the frontend
+  // domain when no explicit media host is configured.
+  return getUriWithoutOrg('/')
 }
 
 function getApiUrl() {
-  return getBackendUrl();
+  return getBackendUrl()
 }
 
 /**

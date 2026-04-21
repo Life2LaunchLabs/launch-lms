@@ -1,4 +1,10 @@
-import { stripPort, isSubdomainOf, isSameHost, isLocalhost as isLocalhostCheck } from '@services/utils/ts/hostUtils'
+import { getCanonicalOrgSlug, ROUTING_COOKIES } from '@services/routing/cookies'
+import { routePaths } from '@services/routing/paths'
+import {
+  replaceHostPreservingPort,
+  resolveOrgHostContext,
+} from '@services/routing/context'
+import { isSubdomainOf, isSameHost, isLocalhost as isLocalhostCheck } from '@services/utils/ts/hostUtils'
 
 // Runtime configuration cache
 let runtimeConfig: Record<string, string> | null = null;
@@ -88,7 +94,7 @@ const getLAUNCHLMS_DOMAIN = () => {
   const envVal = getConfig('NEXT_PUBLIC_LAUNCHLMS_DOMAIN')
   if (envVal) return envVal
   // 2. Cookie set by middleware from backend instance info
-  const cookieVal = getCookieValue('launchlms_frontend_domain')
+  const cookieVal = getCookieValue(ROUTING_COOKIES.frontendDomain)
   if (cookieVal) return cookieVal
   // 3. Fall back to the current browser host in dev before hardcoding localhost
   if (typeof window !== 'undefined' && window.location.host) return window.location.host
@@ -100,7 +106,7 @@ const getLAUNCHLMS_TOP_DOMAIN = () => {
   const envVal = getConfig('NEXT_PUBLIC_LAUNCHLMS_TOP_DOMAIN')
   if (envVal) return envVal
   // 2. Cookie set by middleware from backend instance info
-  const cookieVal = getCookieValue('launchlms_top_domain')
+  const cookieVal = getCookieValue(ROUTING_COOKIES.topDomain)
   if (cookieVal) return cookieVal
   // 3. Derive from DOMAIN by stripping port
   const domain = getLAUNCHLMS_DOMAIN()
@@ -202,7 +208,7 @@ export const getBackendUrl = () => getLAUNCHLMS_BACKEND_URL()
 // Multi Organization Mode
 export const isMultiOrgModeEnabled = () => {
   // 1. Client-side: read cookie set by middleware
-  const cookieVal = getCookieValue('launchlms_multi_org')
+  const cookieVal = getCookieValue(ROUTING_COOKIES.multiOrg)
   if (cookieVal !== null) return cookieVal === 'true'
   // 2. Core Launch LMS always supports multiple organizations.
   return true
@@ -232,7 +238,7 @@ export const getCustomDomainFromContext = (): string | null => {
       const cookies = document.cookie.split(';')
       for (const cookie of cookies) {
         const [name, value] = cookie.trim().split('=')
-        if (name === 'launchlms_custom_domain' && value) {
+        if (name === ROUTING_COOKIES.customDomain && value) {
           // Cookie only stores hostname, so add current port if present
           const cookieDomain = decodeURIComponent(value)
           const port = window.location.port
@@ -256,37 +262,42 @@ export const getUriWithOrg = (orgslug: string, path: string) => {
   // Client-side: prefer using current origin when appropriate
   if (typeof window !== 'undefined') {
     const multi_org = isMultiOrgModeEnabled()
+    const context = resolveOrgHostContext({
+      host: window.location.host,
+      frontendDomain: getLAUNCHLMS_DOMAIN(),
+      defaultOrgSlug: ownerOrgSlug,
+      cookieOrgSlug: getCanonicalOrgSlug(
+        getCookieValue(ROUTING_COOKIES.orgSlug),
+        getCookieValue(ROUTING_COOKIES.legacyOrgSlug)
+      ),
+      resolvedCustomDomainOrgSlug: getCanonicalOrgSlug(
+        getCookieValue(ROUTING_COOKIES.orgSlug),
+        getCookieValue(ROUTING_COOKIES.legacyOrgSlug)
+      ),
+    })
 
-    // In single-org mode or on custom domain, always use current origin
-    if (!multi_org || getCustomDomainFromContext()) {
+    if (!multi_org || context.hostMode === 'custom') {
       return `${window.location.origin}${normalizedPath}`
     }
 
-    // Multi-org mode: check if we need to change subdomains
-    const currentHostname = window.location.hostname
-    const domainConfig = getLAUNCHLMS_DOMAIN()
-    // Remove port from domain config for hostname comparison
-    const baseDomain = stripPort(domainConfig)
-    const currentOrgCookie = getCookieValue('launchlms_orgslug') || getCookieValue('launchlms_current_orgslug')
     const isOwnerOrg = orgslug === ownerOrgSlug
-
-    // Check if current hostname matches the target
-    const expectedHostname = isOwnerOrg ? baseDomain : `${orgslug}.${baseDomain}`
+    const expectedHostname = isOwnerOrg
+      ? context.bareFrontendDomain
+      : `${orgslug}.${context.bareFrontendDomain}`
 
     if (
-      currentHostname === expectedHostname ||
-      (currentHostname === baseDomain && (isLocalhostCheck(currentHostname) || currentOrgCookie === orgslug || isOwnerOrg))
+      window.location.hostname === expectedHostname ||
+      (window.location.hostname === context.bareFrontendDomain &&
+        (context.isLocalhost || context.cookieOrgSlug === orgslug || isOwnerOrg))
     ) {
-      // Already on the right host, or we are in localhost/cookie-routed mode for this org.
       return `${window.location.origin}${normalizedPath}`
     }
 
-    // Different subdomain needed - construct URL with current port
-    const protocol = window.location.protocol + '//'
-    const port = window.location.port
-    const portSuffix = port && port !== '80' && port !== '443' ? `:${port}` : ''
-    const targetHost = isOwnerOrg ? `${baseDomain}${portSuffix}` : `${orgslug}.${baseDomain}${portSuffix}`
-    return `${protocol}${targetHost}${normalizedPath}`
+    const targetHost = replaceHostPreservingPort(
+      expectedHostname,
+      getLAUNCHLMS_DOMAIN()
+    )
+    return `${window.location.protocol}//${targetHost}${normalizedPath}`
   }
 
   // Server-side fallback to config-based URL construction
@@ -355,8 +366,10 @@ export const getDefaultOrg = () => {
   const envVal = getConfig('NEXT_PUBLIC_LAUNCHLMS_DEFAULT_ORG')
   if (envVal) return envVal
   // 2. Client-side: read cookie set by middleware
-  const cookieVal = getCookieValue('launchlms_default_org')
+  const cookieVal = getCookieValue(ROUTING_COOKIES.defaultOrg)
   if (cookieVal) return cookieVal
   // 3. Default
   return 'default'
 }
+
+export { routePaths }

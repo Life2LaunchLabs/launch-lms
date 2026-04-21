@@ -9,7 +9,7 @@ import {
   Plus, Trash2, Upload, X, Loader2, Type, AlignLeft, GripVertical, SlidersHorizontal, Layers3,
 } from 'lucide-react'
 import Link from 'next/link'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import EditorOptionsProvider from '@components/Contexts/Editor/EditorContext'
 import { OrgProvider } from '@components/Contexts/OrgContext'
@@ -692,7 +692,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   }
 
   const cleanCourseId = course?.course_uuid?.replace('course_', '')
-  const backUrl = getUriWithOrg(org?.slug || '', '') + `/course/${cleanCourseId}`
+  const backUrl = getUriWithOrg(org?.slug || '', routePaths.org.course(cleanCourseId))
 
   return (
     <OrgProvider orgslug={org?.slug || ''}>

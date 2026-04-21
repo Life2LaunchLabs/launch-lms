@@ -4,6 +4,7 @@ import { getServerSession } from '@/lib/auth/server'
 import { getOrgThumbnailMediaDirectory } from '@services/media/media'
 import AccountClient from '@components/Objects/Account/AccountClient'
 import { redirect } from 'next/navigation'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getOwnerOrgSlugServer } from '@services/org/ownerOrgServer'
 
 type MetadataProps = {
@@ -64,16 +65,16 @@ const AccountSubPage = async (props: { params: Promise<{ orgslug: string; subpag
 
   // Redirect to login if not authenticated
   if (!session) {
-    redirect(`/${params.orgslug}`)
+    redirect(getUriWithOrg(params.orgslug, routePaths.org.root()))
   }
 
   if (params.subpage === 'org-admin' && params.orgslug !== ownerOrgslug) {
-    redirect(`/${ownerOrgslug}/account/org-admin`)
+    redirect(getUriWithOrg(ownerOrgslug, routePaths.owner.account.orgAdmin()))
   }
 
   // Redirect to general if invalid subpage
   if (!VALID_SUBPAGES.includes(params.subpage)) {
-    redirect(`/${params.orgslug}/account/general`)
+    redirect(getUriWithOrg(params.orgslug, routePaths.owner.account.general()))
   }
 
   const org = await getOrganizationContextInfo(params.orgslug, {

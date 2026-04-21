@@ -27,6 +27,7 @@ import * as Popover from '@radix-ui/react-popover'
 import { cn } from '@/lib/utils'
 import type { Editor } from '@tiptap/core'
 import ToolTip from '@components/Objects/StyledElements/Tooltip/Tooltip'
+import { routePaths } from '@services/config/config'
 
 type ToolMode = 'select' | 'pan' | 'draw' | 'card' | 'youtube' | 'playground' | 'activity' | 'embed' | 'webpage' | 'sticker' | 'frame' | 'note' | 'todo' | 'podcast'
 
@@ -90,7 +91,7 @@ export default function BoardToolbar({
       }}
     >
       {/* Logo */}
-      <Link href="/dash/boards">
+      <Link href={routePaths.org.dash.boards()}>
         <div className="bg-black rounded-md w-[25px] h-[25px] flex items-center justify-center hover:opacity-80 transition-opacity">
           <Image
             src="/logo-icon.svg"

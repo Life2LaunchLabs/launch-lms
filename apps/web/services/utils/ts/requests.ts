@@ -1,4 +1,4 @@
-import { getUriWithOrg, getAPIUrl } from '@services/config/config'
+import { getUriWithOrg, getAPIUrl, routePaths } from '@services/config/config'
 
 /**
  * Validates that a URL is a safe API URL by checking it starts with the configured API base URL.
@@ -166,7 +166,7 @@ export const getResponseMetadata = async (
 }
 
 export const revalidateTags = async (tags: string[], orgslug: string) => {
-  const url = getUriWithOrg(orgslug, '')
+  const url = getUriWithOrg(orgslug, routePaths.org.root())
   await Promise.allSettled(
     tags.map((tag) =>
       fetch(`${url}/api/revalidate?tag=${tag}`).catch((err) =>

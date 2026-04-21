@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { Plus, Settings, MessageCircle } from 'lucide-react'
 import { Community } from '@services/communities/communities'
 import { useCommunityRights } from '@components/Hooks/useCommunityRights'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 
 interface CommunityActionsMobileProps {
   community: Community
@@ -40,7 +40,7 @@ export function CommunityActionsMobile({
           <div className="flex items-center gap-2">
             {canManageCommunity && (
               <Link
-                href={getUriWithOrg(orgslug, '/dash/communities')}
+                href={getUriWithOrg(orgslug, routePaths.org.dash.communities())}
                 className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                 aria-label="Manage community"
               >

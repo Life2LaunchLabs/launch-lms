@@ -2,7 +2,7 @@
 import { useOrg } from '@components/Contexts/OrgContext'
 import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
 import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { deleteCollection } from '@services/courses/collections'
 import { getCourseThumbnailMediaDirectory, getCollectionThumbnailMediaDirectory } from '@services/media/media'
 import { revalidateTags } from '@services/utils/ts/requests'
@@ -39,8 +39,8 @@ function CollectionThumbnail(props: PropsType) {
   const courses = props.collection.courses || []
   const ownerOrgUuid = props.collection.owner_org_uuid || org?.org_uuid
 
-  const userLink = getUriWithOrg(props.orgslug, `/collection/${collectionId}`)
-  const dashLink = getUriWithOrg(props.orgslug, '') + `/dash/courses/collection/${collectionId}/general`
+  const userLink = getUriWithOrg(props.orgslug, routePaths.org.collection(collectionId))
+  const dashLink = getUriWithOrg(props.orgslug, routePaths.org.dash.collectionSettings(collectionId, 'general'))
   const primaryLink = props.isDashboard ? dashLink : userLink
 
   const hasCoverPhoto = props.collection.thumbnail_image && ownerOrgUuid

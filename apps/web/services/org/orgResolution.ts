@@ -1,7 +1,8 @@
 import { cookies, headers } from 'next/headers'
 import { getOrganizationContextInfoWithoutCredentials, getOrganizationContextInfoWithUUID } from '@services/organizations/orgs'
 import { getConfig } from '@services/config/config'
-import { extractSubdomain, isLocalhost as isLocalhostCheck } from '@services/utils/ts/hostUtils'
+import { ROUTING_COOKIES, getCanonicalOrgSlug } from '@services/routing/cookies'
+import { resolveOrgHostContext, type OrgHostContext } from '@services/routing/context'
 
 /**
  * Read the frontend domain on the server side.
@@ -12,7 +13,7 @@ async function getServerDomain(): Promise<string> {
   if (envVal) return envVal
   try {
     const cookieStore = await cookies()
-    const cookieVal = cookieStore.get('launchlms_frontend_domain')?.value
+    const cookieVal = cookieStore.get(ROUTING_COOKIES.frontendDomain)?.value
     if (cookieVal) return cookieVal
   } catch {
     // cookies() may throw outside of a request context
@@ -20,6 +21,36 @@ async function getServerDomain(): Promise<string> {
   const devHost = process.env.LAUNCHLMS_DEV_PUBLIC_HOST
   if (devHost) return `${devHost}:3000`
   return 'localhost'
+}
+
+function getServerDefaultOrgSlug(): string {
+  return getConfig('NEXT_PUBLIC_LAUNCHLMS_DEFAULT_ORG', 'default')
+}
+
+async function readServerOrgHostContext(): Promise<OrgHostContext | null> {
+  try {
+    const [headersList, cookieStore, frontendDomain] = await Promise.all([
+      headers(),
+      cookies(),
+      getServerDomain(),
+    ])
+
+    const host = headersList.get('host')
+    if (!host) return null
+
+    return resolveOrgHostContext({
+      host,
+      frontendDomain,
+      defaultOrgSlug: getServerDefaultOrgSlug(),
+      cookieOrgSlug: getCanonicalOrgSlug(
+        cookieStore.get(ROUTING_COOKIES.orgSlug)?.value,
+        cookieStore.get(ROUTING_COOKIES.legacyOrgSlug)?.value
+      ),
+      resolvedCustomDomainOrgSlug: null,
+    })
+  } catch {
+    return null
+  }
 }
 
 export interface ResolvedOrg {
@@ -76,30 +107,12 @@ export async function resolveOrg(searchParams?: { token?: string }): Promise<Org
  */
 async function resolveFromSubdomain(): Promise<ResolvedOrg | null> {
   try {
-    const headersList = await headers()
-    const host = headersList.get('host')
-
-    if (!host) return null
-
-    const domain = await getServerDomain()
-
-    // Check if it's a subdomain of the main domain
-    const orgslug = extractSubdomain(host, domain)
-    if (orgslug) {
-      // Skip special subdomains
-      if (orgslug === 'auth' || orgslug === 'www' || orgslug === 'api' || orgslug === 'admin') {
-        return null
-      }
-
-      return await fetchOrgBySlug(orgslug)
-    }
-
-    // For localhost development, org comes from cookie
-    if (isLocalhostCheck(host)) {
+    const context = await readServerOrgHostContext()
+    if (!context || context.hostMode !== 'subdomain' || !context.subdomainOrgSlug) {
       return null
     }
 
-    return null
+    return await fetchOrgBySlug(context.subdomainOrgSlug)
   } catch (error) {
     console.error('Error resolving org from subdomain:', error)
     return null
@@ -112,18 +125,12 @@ async function resolveFromSubdomain(): Promise<ResolvedOrg | null> {
 async function resolveFromCookie(): Promise<ResolvedOrg | null> {
   try {
     const cookieStore = await cookies()
-    const orgslugCookie = cookieStore.get('launchlms_orgslug')
-
-    if (!orgslugCookie?.value) {
-      // Try the old cookie name for backward compatibility
-      const legacyCookie = cookieStore.get('launchlms_current_orgslug')
-      if (!legacyCookie?.value) {
-        return null
-      }
-      return await fetchOrgBySlug(legacyCookie.value)
-    }
-
-    return await fetchOrgBySlug(orgslugCookie.value)
+    const orgslug = getCanonicalOrgSlug(
+      cookieStore.get(ROUTING_COOKIES.orgSlug)?.value,
+      cookieStore.get(ROUTING_COOKIES.legacyOrgSlug)?.value
+    )
+    if (!orgslug) return null
+    return await fetchOrgBySlug(orgslug)
   } catch (error) {
     console.error('Error resolving org from cookie:', error)
     return null
@@ -218,28 +225,7 @@ async function fetchOrgByUUID(orgUUID: string): Promise<ResolvedOrg | null> {
  * Priority: subdomain > cookie
  */
 export async function getOrgSlug(): Promise<string | null> {
-  // Try subdomain first
-  const headersList = await headers()
-  const host = headersList.get('host')
-  const domain = await getServerDomain()
-
-  const sub = extractSubdomain(host, domain)
-  if (sub && sub !== 'auth' && sub !== 'www' && sub !== 'api' && sub !== 'admin') {
-    return sub
-  }
-
-  // Fall back to cookie
-  const cookieStore = await cookies()
-  const orgslugCookie = cookieStore.get('launchlms_orgslug')
-  if (orgslugCookie?.value) {
-    return orgslugCookie.value
-  }
-
-  // Try legacy cookie
-  const legacyCookie = cookieStore.get('launchlms_current_orgslug')
-  if (legacyCookie?.value) {
-    return legacyCookie.value
-  }
-
-  return null
+  const context = await readServerOrgHostContext()
+  if (!context) return null
+  return context.subdomainOrgSlug || context.cookieOrgSlug || null
 }

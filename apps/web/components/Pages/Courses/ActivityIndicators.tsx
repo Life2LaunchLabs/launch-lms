@@ -2,7 +2,7 @@
 import { BookOpenCheck, Check, FileText, Layers, Video, ChevronLeft, ChevronRight, ChevronDown, Trophy } from 'lucide-react'
 import React, { useMemo, memo, useState, useRef, useEffect, useCallback } from 'react'
 import ToolTip from '@components/Objects/StyledElements/Tooltip/Tooltip'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslation } from 'react-i18next'
@@ -166,7 +166,7 @@ const CertificationBadge = memo(({
     }
   >
     <Link
-      href={`${getUriWithOrg(orgslug, '')}/course/${courseid}/activity/end`}
+      href={getUriWithOrg(orgslug, routePaths.org.courseActivityEnd(courseid))}
       prefetch={false}
       className={`shrink-0 flex items-center cursor-pointer focus:outline-none transition-all ${
         isCompleted ? 'opacity-100' : 'opacity-40 cursor-not-allowed'
@@ -251,7 +251,7 @@ const MobileChapterSelector = memo(({
                   return (
                     <Link
                       key={activity.activity_uuid}
-                      href={getUriWithOrg(orgslug, '') + `/course/${courseid}/activity/${activityId}`}
+                      href={getUriWithOrg(orgslug, routePaths.org.courseActivity(courseid, activityId))}
                       prefetch={false}
                       onClick={handleClose}
                       className={`flex items-center gap-2 px-3 py-2 text-xs transition-colors ${
@@ -354,7 +354,7 @@ function ActivityIndicators(props: Props) {
     if (currentActivityIndex > 0) {
       const prevActivity = allActivities[currentActivityIndex - 1]
       const activityId = prevActivity.activity_uuid.replace('activity_', '')
-      router.push(getUriWithOrg(orgslug, '') + `/course/${courseid}/activity/${activityId}`)
+      router.push(getUriWithOrg(orgslug, routePaths.org.courseActivity(courseid, activityId)))
     }
   }
 
@@ -362,7 +362,7 @@ function ActivityIndicators(props: Props) {
     if (currentActivityIndex < allActivities.length - 1) {
       const nextActivity = allActivities[currentActivityIndex + 1]
       const activityId = nextActivity.activity_uuid.replace('activity_', '')
-      router.push(getUriWithOrg(orgslug, '') + `/course/${courseid}/activity/${activityId}`)
+      router.push(getUriWithOrg(orgslug, routePaths.org.courseActivity(courseid, activityId)))
     }
   }
 
@@ -476,7 +476,7 @@ function ActivityIndicators(props: Props) {
             const firstActivityId = firstActivity?.activity_uuid?.replace('activity_', '');
             const chapterLinkHref =
               firstActivityId
-                ? getUriWithOrg(orgslug, '') + `/course/${courseid}/activity/${firstActivityId}`
+                ? getUriWithOrg(orgslug, routePaths.org.courseActivity(courseid, firstActivityId))
                 : undefined;
 
             return (
@@ -538,13 +538,13 @@ function ActivityIndicators(props: Props) {
                       >
                         <Link
                           prefetch={false}
-                          href={
-                            getUriWithOrg(orgslug, '') +
-                            `/course/${courseid}/activity/${activity.activity_uuid.replace(
-                              'activity_',
-                              ''
-                            )}`
-                          }
+                          href={getUriWithOrg(
+                            orgslug,
+                            routePaths.org.courseActivity(
+                              courseid,
+                              activity.activity_uuid.replace('activity_', '')
+                            )
+                          )}
                           className={`${isCurrent ? 'flex-2' : 'flex-1'} min-w-[12px] ${!isLast ? 'border-r-[1.5px] border-white' : ''}`}
                         >
                           <div

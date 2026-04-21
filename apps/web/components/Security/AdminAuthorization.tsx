@@ -4,7 +4,7 @@ import { useLHSession } from '@components/Contexts/LHSessionContext';
 import useAdminStatus from '@components/Hooks/useAdminStatus';
 import { usePathname, useRouter } from 'next/navigation';
 import PageLoading from '@components/Objects/Loaders/PageLoading';
-import { getUriWithOrg } from '@services/config/config';
+import { getUriWithOrg, routePaths } from '@services/config/config';
 import { useOrg } from '@components/Contexts/OrgContext';
 
 type AuthorizationProps = {
@@ -64,7 +64,7 @@ const AdminAuthorization: React.FC<AuthorizationProps> = ({ children, authorizat
           setIsAuthorized(true);
         } else {
           setIsAuthorized(false);
-          router.push('/dash');
+          router.push(routePaths.org.dash.root());
         }
       } else {
         setIsAuthorized(true);

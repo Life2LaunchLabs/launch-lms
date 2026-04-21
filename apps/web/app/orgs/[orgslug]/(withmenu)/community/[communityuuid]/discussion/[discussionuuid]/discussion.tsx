@@ -10,7 +10,7 @@ import { EditDiscussionModal } from '@components/Objects/Modals/Communities/Edit
 import { Community } from '@services/communities/communities'
 import { DiscussionWithAuthor } from '@services/communities/discussions'
 import { MessageCircle } from 'lucide-react'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 
 interface DiscussionPageClientProps {
   discussion: DiscussionWithAuthor
@@ -38,7 +38,7 @@ const DiscussionPageClient = ({
       <div className="pb-4">
         <Breadcrumbs items={[
           { label: 'Communities', href: getUriWithOrg(orgslug, '/communities'), icon: <MessageCircle size={14} /> },
-          { label: community.name, href: getUriWithOrg(orgslug, `/community/${community.community_uuid.replace('community_', '')}`) },
+          { label: community.name, href: getUriWithOrg(orgslug, routePaths.org.community(community.community_uuid.replace('community_', ''))) },
           { label: discussion.title }
         ]} />
       </div>

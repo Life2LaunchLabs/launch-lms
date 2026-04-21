@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Check, Square, ArrowRight, Folder, FileText, Video, Layers, BookOpenCheck } from 'lucide-react'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import Link from 'next/link'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 
@@ -82,7 +82,7 @@ const CourseProgress: React.FC<CourseProgressProps> = ({ course, orgslug, isOpen
               return (
                 <Link
                   key={activity.activity_uuid}
-                  href={getUriWithOrg(orgslug, '') + `/course/${courseId}/activity/${activityId}`}
+                  href={getUriWithOrg(orgslug, routePaths.org.courseActivity(courseId, activityId))}
                 >
                   <div className="px-4 py-3 hover:bg-gray-100 transition-colors flex items-center group">
                     <div className="flex items-center space-x-3 flex-1">

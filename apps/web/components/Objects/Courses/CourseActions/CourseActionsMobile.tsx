@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg, useOrgMembership } from '@components/Contexts/OrgContext'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getOffersByResource } from '@services/payments/offers'
 import { LogIn, LogOut, ShoppingCart, Lock, UserPlus } from 'lucide-react'
 import { removeCourse, startCourse } from '@services/courses/activity'
@@ -179,8 +179,13 @@ const CourseActionsMobile = ({ courseuuid, orgslug, course, trailData }: CourseA
           // Redirect to the first activity
           await revalidateTags(['activities'], orgslug)
           router.push(
-            getUriWithOrg(orgslug, '') +
-            `/course/${courseuuid}/activity/${firstActivity.activity_uuid.replace('activity_', '')}`
+            getUriWithOrg(
+              orgslug,
+              routePaths.org.courseActivity(
+                courseuuid,
+                firstActivity.activity_uuid.replace('activity_', '')
+              )
+            )
           )
         } else {
           router.refresh()
@@ -247,7 +252,7 @@ const CourseActionsMobile = ({ courseuuid, orgslug, course, trailData }: CourseA
           const formattedPrice = offer?.amount != null
             ? new Intl.NumberFormat('en-US', { style: 'currency', currency: offer.currency ?? 'USD' }).format(offer.amount)
             : null;
-          const storeHref = org?.slug ? getUriWithOrg(org.slug, `/store/offers/${offer.offer_id}`) : '#';
+          const storeHref = org?.slug ? getUriWithOrg(org.slug, routePaths.org.store.offer(String(offer.offer_id))) : '#';
 
           return (
             <div className="space-y-3">

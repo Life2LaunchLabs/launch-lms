@@ -3,7 +3,7 @@
 import React, { Suspense, lazy } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'next/navigation'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import Image from 'next/image'
 import { CourseContext, CourseDispatchContext } from '@components/Contexts/CourseContext'
 
@@ -60,7 +60,7 @@ function EmbedActivityClient({ activity, course, activityId, orgslug }: EmbedAct
 
   const getActivityUrl = () => {
     const cleanCourseUuid = course.course_uuid.replace('course_', '')
-    return getUriWithOrg(orgslug, `/course/${cleanCourseUuid}/activity/${activityId}`)
+    return getUriWithOrg(orgslug, routePaths.org.courseActivity(cleanCourseUuid, activityId))
   }
 
   if (!isEmbeddable) {

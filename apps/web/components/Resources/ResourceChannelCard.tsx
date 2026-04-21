@@ -5,7 +5,7 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal'
 import { deleteResourceChannel, ResourceChannel } from '@services/resources/resources'
 import { getResourceChannelThumbnailMediaDirectory } from '@services/media/media'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { ExternalLink, FolderOpen, MoreVertical, Star, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -33,7 +33,7 @@ export default function ResourceChannelCard({
   const router = useRouter()
   const accessToken = session?.data?.tokens?.access_token
 
-  const settingsHref = getUriWithOrg(orgslug, `/dash/resources/${channel.channel_uuid}/general`)
+  const settingsHref = getUriWithOrg(orgslug, routePaths.org.dash.resourceChannelSettings(channel.channel_uuid, 'general'))
   const thumbnailSrc =
     channel.thumbnail_image && org?.org_uuid
       ? getResourceChannelThumbnailMediaDirectory(

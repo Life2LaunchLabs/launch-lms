@@ -3,7 +3,7 @@ import React, { useEffect, use } from 'react';
 import { motion } from 'motion/react'
 import Link from 'next/link'
 import { useMediaQuery } from 'usehooks-ts'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { Monitor, ScanEye, SquareUserRound, UserPlus, Users, Shield } from 'lucide-react'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -85,7 +85,7 @@ function UsersSettingsPage(props: { params: Promise<SettingsParams> }) {
       <div className="pl-10 pr-10 tracking-tight bg-[#fcfbfc] z-10 nice-shadow flex-shrink-0 relative">
         <div className="pt-6 pb-4">
           <Breadcrumbs items={[
-            { label: t('common.users'), href: '/dash/users/settings/users', icon: <Users size={14} /> }
+            { label: t('common.users'), href: routePaths.org.dash.users.users(), icon: <Users size={14} /> }
           ]} />
         </div>
         <div className="my-2  py-3">
@@ -101,7 +101,7 @@ function UsersSettingsPage(props: { params: Promise<SettingsParams> }) {
         <div className="flex space-x-5 font-black text-sm">
           <Link
             href={
-              getUriWithOrg(params.orgslug, '') + `/dash/users/settings/users`
+              getUriWithOrg(params.orgslug, routePaths.org.dash.users.users())
             }
           >
             <div
@@ -118,7 +118,7 @@ function UsersSettingsPage(props: { params: Promise<SettingsParams> }) {
           </Link>
           <Link
             href={
-              getUriWithOrg(params.orgslug, '') + `/dash/users/settings/usergroups`
+              getUriWithOrg(params.orgslug, routePaths.org.dash.users.usergroups())
             }
           >
             <div
@@ -138,7 +138,7 @@ function UsersSettingsPage(props: { params: Promise<SettingsParams> }) {
           </Link>
           <Link
             href={
-              getUriWithOrg(params.orgslug, '') + `/dash/users/settings/roles`
+              getUriWithOrg(params.orgslug, routePaths.org.dash.users.roles())
             }
           >
             <div
@@ -158,7 +158,7 @@ function UsersSettingsPage(props: { params: Promise<SettingsParams> }) {
           </Link>
           <Link
             href={
-              getUriWithOrg(params.orgslug, '') + `/dash/users/settings/signups`
+              getUriWithOrg(params.orgslug, routePaths.org.dash.users.signups())
             }
           >
             <div
@@ -175,7 +175,7 @@ function UsersSettingsPage(props: { params: Promise<SettingsParams> }) {
           </Link>
           <Link
             href={
-              getUriWithOrg(params.orgslug, '') + `/dash/users/settings/add`
+              getUriWithOrg(params.orgslug, routePaths.org.dash.users.add())
             }
           >
             <div
@@ -193,7 +193,7 @@ function UsersSettingsPage(props: { params: Promise<SettingsParams> }) {
           
           <Link
             href={
-              getUriWithOrg(params.orgslug, '') + `/dash/users/settings/audit-logs`
+              getUriWithOrg(params.orgslug, routePaths.org.dash.users.auditLogs())
             }
           >
             <div

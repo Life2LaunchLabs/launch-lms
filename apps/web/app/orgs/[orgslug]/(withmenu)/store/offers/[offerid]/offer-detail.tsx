@@ -3,7 +3,7 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { getOfferCheckoutSession } from '@services/payments/offers'
 import {
@@ -45,9 +45,9 @@ function stripTypePrefix(uuid: string): string {
 function getResourceUrl(orgslug: string, resource: Resource): string | null {
   const id = stripTypePrefix(resource.resource_uuid)
   switch (resource.resource_type) {
-    case 'course': return getUriWithOrg(orgslug, `/course/${id}`)
-    case 'podcast': return getUriWithOrg(orgslug, `/podcast/${id}`)
-    case 'playground': return getUriWithOrg(orgslug, `/playground/${id}`)
+    case 'course': return getUriWithOrg(orgslug, routePaths.org.course(id))
+    case 'podcast': return getUriWithOrg(orgslug, routePaths.org.podcast(id))
+    case 'playground': return getUriWithOrg(orgslug, routePaths.org.playground(id))
     default: return null
   }
 }
@@ -106,7 +106,7 @@ export default function OfferDetailClient({ orgslug, orgId, offerUuid, offer, ac
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <AlertCircle size={32} className="text-gray-300 mb-3" />
           <h2 className="font-bold text-gray-600 text-lg">Offer not found</h2>
-          <Link href={getUriWithOrg(orgslug, '/store')} className="mt-4 text-sm text-indigo-600 hover:underline">
+          <Link href={getUriWithOrg(orgslug, routePaths.org.store.root())} className="mt-4 text-sm text-indigo-600 hover:underline">
             ← Back to store
           </Link>
         </div>
@@ -122,7 +122,12 @@ export default function OfferDetailClient({ orgslug, orgId, offerUuid, offer, ac
 
   const handleCheckout = async () => {
     if (!token) {
-      router.push(getUriWithOrg(orgslug, `/login?redirect=/store/offers/${offerUuid}`))
+      router.push(
+        getUriWithOrg(
+          orgslug,
+          routePaths.auth.login({ redirect: routePaths.org.store.offer(offerUuid) })
+        )
+      )
       return
     }
     setLoading(true)
@@ -146,7 +151,7 @@ export default function OfferDetailClient({ orgslug, orgId, offerUuid, offer, ac
     <div className="w-full">
       <GeneralWrapperStyled>
         <Link
-          href={getUriWithOrg(orgslug, '/store')}
+          href={getUriWithOrg(orgslug, routePaths.org.store.root())}
           className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors mb-7"
         >
           <ArrowLeft size={14} /> Back to store
