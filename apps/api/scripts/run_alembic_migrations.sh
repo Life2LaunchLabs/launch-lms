@@ -11,6 +11,8 @@ if [ -z "${LAUNCHLMS_SQL_CONNECTION_STRING:-}" ] && [ -z "${DATABASE_URL:-}" ]; 
   exit 1
 fi
 
+./scripts/check_single_alembic_head.sh
+
 echo "Running Alembic migrations from ${API_DIR}..."
 if uv run python ./scripts/needs_alembic_bootstrap.py; then
   :
