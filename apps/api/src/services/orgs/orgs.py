@@ -937,6 +937,19 @@ async def update_org_playgrounds_config(
     )
 
 
+async def update_org_resources_config(
+    request: Request,
+    resources_enabled: bool,
+    org_id: int,
+    current_user: PublicUser | AnonymousUser,
+    db_session: Session,
+):
+    return await _update_feature_toggle(
+        request, "resources", resources_enabled, org_id, current_user, db_session,
+        v1_default={"enabled": False, "limit": 0},
+    )
+
+
 async def update_org_color_config(
     request: Request,
     color: str,

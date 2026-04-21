@@ -27,6 +27,10 @@ async def check_element_type(element_uuid):
         return "roles"
     elif element_uuid.startswith("community_"):
         return "communities"
+    elif element_uuid.startswith("resource_"):
+        return "resources"
+    elif element_uuid.startswith("channel_"):
+        return "resource_channels"
     elif element_uuid.startswith("discussion_"):
         return "discussions"
     elif element_uuid.startswith("vote_"):
@@ -188,6 +192,16 @@ async def get_element_organization_id(
         statement = select(Community).where(Community.community_uuid == element_uuid)
         community = db_session.exec(statement).first()
         return community.org_id if community else None
+    elif element_type == "resources":
+        from src.db.resources import Resource
+        statement = select(Resource).where(Resource.resource_uuid == element_uuid)
+        resource = db_session.exec(statement).first()
+        return resource.org_id if resource else None
+    elif element_type == "resource_channels":
+        from src.db.resources import ResourceChannel
+        statement = select(ResourceChannel).where(ResourceChannel.channel_uuid == element_uuid)
+        channel = db_session.exec(statement).first()
+        return channel.org_id if channel else None
 
     elif element_type == "discussions":
         from src.db.communities.discussions import Discussion

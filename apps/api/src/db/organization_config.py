@@ -88,6 +88,11 @@ class PlaygroundsOrgConfig(BaseModel):
     limit: int = 10
 
 
+class ResourcesOrgConfig(BaseModel):
+    enabled: bool = False
+    limit: int = 0
+
+
 class OrgFeatureConfig(BaseModel):
     courses: CourseOrgConfig = CourseOrgConfig()
     members: MemberOrgConfig = MemberOrgConfig()
@@ -105,6 +110,7 @@ class OrgFeatureConfig(BaseModel):
     podcasts: PodcastsOrgConfig = PodcastsOrgConfig()
     boards: BoardsOrgConfig = BoardsOrgConfig()
     playgrounds: PlaygroundsOrgConfig = PlaygroundsOrgConfig()
+    resources: ResourcesOrgConfig = ResourcesOrgConfig()
 
 
 # ============================================================================
@@ -137,6 +143,7 @@ class AdminToggles(BaseModel):
     payments: FeatureAdminToggle = FeatureAdminToggle()
     playgrounds: FeatureAdminToggle = FeatureAdminToggle()
     podcasts: FeatureAdminToggle = FeatureAdminToggle()
+    resources: FeatureAdminToggle = FeatureAdminToggle()
 
 
 # ============================================================================

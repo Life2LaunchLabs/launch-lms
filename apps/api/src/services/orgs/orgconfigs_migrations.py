@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 ALL_FEATURES = [
     "ai", "analytics", "api", "boards", "collaboration",
     "collections", "communities", "members", "payments", "playgrounds", "podcasts",
+    "resources",
 ]
 
 
@@ -146,6 +147,9 @@ def _v2_migrate_all_configs(db_session: Session, batch_size: int = 50) -> int:
             # Ensure collections toggle exists (was briefly removed, now restored)
             if "collections" not in toggles:
                 toggles["collections"] = {"disabled": False}
+                patched = True
+            if "resources" not in toggles:
+                toggles["resources"] = {"disabled": False}
                 patched = True
             if patched:
                 org_config.config = config

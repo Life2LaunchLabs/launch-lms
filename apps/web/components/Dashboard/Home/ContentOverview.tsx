@@ -48,9 +48,18 @@ export default function ContentOverview() {
 
   // Communities
   const communitiesEnabled = isEnabled('communities')
+  const resourcesEnabled = isEnabled('resources', true)
   const { data: communitiesData } = useSWR(
     communitiesEnabled && token && orgId
       ? `${getAPIUrl()}communities/org/${orgId}/page/1/limit/500`
+      : null,
+    (url) => swrFetcher(url, token),
+    { revalidateOnFocus: false }
+  )
+
+  const { data: resourcesData } = useSWR(
+    resourcesEnabled && token && orgId
+      ? `${getAPIUrl()}resources/org/${orgId}?include_private=true`
       : null,
     (url) => swrFetcher(url, token),
     { revalidateOnFocus: false }
@@ -79,6 +88,7 @@ export default function ContentOverview() {
   const courses: any[] = coursesData ?? []
   const totalMembers = membersData?.total ?? 0
   const communities: any[] = communitiesData ?? []
+  const resources: any[] = resourcesData ?? []
   const podcasts: any[] = podcastsData ?? []
   const boards: any[] = boardsData ?? []
 
@@ -115,6 +125,16 @@ export default function ContentOverview() {
       iconBg: 'bg-violet-50',
       href: '/dash/communities',
       show: communitiesEnabled,
+    },
+    {
+      label: 'Resources',
+      value: resources.length,
+      sub: `${resources.filter((r: any) => r.is_saved).length} saved by you`,
+      icon: Chalkboard,
+      iconColor: 'text-emerald-500',
+      iconBg: 'bg-emerald-50',
+      href: '/dash/resources',
+      show: resourcesEnabled,
     },
     {
       label: 'Podcasts',

@@ -1,6 +1,6 @@
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getCoreCapabilities, getUriWithOrg } from '@services/config/config'
-import { Books, ChatsCircle, Headphones, Cube, ShoppingBag } from '@phosphor-icons/react'
+import { Books, ChatsCircle, Headphones, Cube, ShoppingBag, FolderOpen } from '@phosphor-icons/react'
 import Link from 'next/link'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -16,6 +16,7 @@ function MenuLinks(props: { orgslug: string; primaryColor?: string }) {
 
   const isCoursesEnabled = isEnabled('courses')
   const showCommunities = isEnabled('communities')
+  const showResources = isEnabled('resources')
   const showPodcasts = isEnabled('podcasts')
   const showPlaygrounds = isEnabled('playgrounds')
   const showStore = capabilities.payments && isEnabled('payments')
@@ -43,6 +44,14 @@ function MenuLinks(props: { orgslug: string; primaryColor?: string }) {
           <LinkItem
             link="/communities"
             type="communities"
+            orgslug={props.orgslug}
+            primaryColor={props.primaryColor}
+          ></LinkItem>
+        )}
+        {showResources && (
+          <LinkItem
+            link="/resources"
+            type="resources"
             orgslug={props.orgslug}
             primaryColor={props.primaryColor}
           ></LinkItem>
@@ -93,6 +102,13 @@ const LinkItem = (props: any) => {
           <>
             <ChatsCircle size={20} weight="fill" />{' '}
             <span>{t('communities.title')}</span>
+          </>
+        )}
+
+        {props.type == 'resources' && (
+          <>
+            <FolderOpen size={20} weight="fill" />{' '}
+            <span>Resources</span>
           </>
         )}
 

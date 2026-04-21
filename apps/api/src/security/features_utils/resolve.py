@@ -18,7 +18,7 @@ ALWAYS_ON_WITH_LIMITS = {"courses"}
 ALL_FEATURES = [
     "ai", "analytics", "api", "assignments", "audit_logs", "boards", "collaboration",
     "collections", "communities", "courses",
-    "members", "payments", "playgrounds", "podcasts", "roles", "scorm",
+    "members", "payments", "playgrounds", "podcasts", "resources", "roles", "scorm",
     "sso", "storage", "usergroups", "versioning",
 ]
 

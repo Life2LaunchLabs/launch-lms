@@ -14,6 +14,8 @@ interface AuthenticatedClientElementProps {
   | 'users'
   | 'organizations'
   | 'communities'
+  | 'resources'
+  | 'resource_channels'
   | 'discussions'
   | 'podcasts'
   | 'boards'
