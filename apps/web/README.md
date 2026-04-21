@@ -263,6 +263,16 @@ README.
 
 ## API URL Baseline
 
+Browser API requests should prefer same-origin proxying through `/api/v1/...`
+when a direct backend origin would be cross-origin or would downgrade HTTPS.
+
+The same principle now applies to uploaded media and asset delivery:
+
+- browser media requests should default to same-origin `/content/...`
+- `NEXT_PUBLIC_LAUNCHLMS_MEDIA_URL` is only for explicit external media hosting
+- falling back to a raw backend origin in the browser is not the default path
+  because it can break on HTTPS, custom domains, or internal-only backend hosts
+
 API origin selection is handled in
 [`services/config/config.ts`](./services/config/config.ts).
 

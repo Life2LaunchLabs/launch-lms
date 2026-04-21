@@ -1,43 +1,42 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { getBackendUrl } from '@services/config/config'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
+export const maxDuration = 300
 
-const SKIP_RESPONSE_HEADERS = new Set([
-  'connection', 'keep-alive', 'transfer-encoding', 'content-encoding', 'content-length',
-])
+const SKIP_REQUEST_HEADERS = new Set(['host', 'connection', 'keep-alive', 'transfer-encoding'])
+const SKIP_RESPONSE_HEADERS = new Set(['connection', 'keep-alive', 'transfer-encoding', 'content-encoding', 'content-length'])
 
 async function proxyContent(request: NextRequest): Promise<Response> {
-  const internalBase = (
-    process.env.LAUNCHLMS_INTERNAL_BACKEND_URL || getBackendUrl()
-  ).replace(/\/+$/, '')
+  const backendBase = (process.env.LAUNCHLMS_INTERNAL_BACKEND_URL || getBackendUrl()).replace(/\/+$/, '')
+  const backendUrl = `${backendBase}${request.nextUrl.pathname}${request.nextUrl.search}`
 
-  const url = `${internalBase}${request.nextUrl.pathname}${request.nextUrl.search}`
-
-  // Forward cookies so private content auth works
   const headers = new Headers()
-  const cookie = request.headers.get('cookie')
-  if (cookie) headers.set('cookie', cookie)
+  request.headers.forEach((value, key) => {
+    if (!SKIP_REQUEST_HEADERS.has(key.toLowerCase())) {
+      headers.set(key, value)
+    }
+  })
 
-  try {
-    const res = await fetch(url, { headers })
+  const response = await fetch(backendUrl, {
+    method: request.method,
+    headers,
+    redirect: 'manual',
+  })
 
-    const responseHeaders = new Headers()
-    res.headers.forEach((value, key) => {
-      if (!SKIP_RESPONSE_HEADERS.has(key.toLowerCase())) {
-        responseHeaders.set(key, value)
-      }
-    })
+  const responseHeaders = new Headers()
+  response.headers.forEach((value, key) => {
+    if (!SKIP_RESPONSE_HEADERS.has(key.toLowerCase())) {
+      responseHeaders.append(key, value)
+    }
+  })
 
-    return new Response(res.body, {
-      status: res.status,
-      statusText: res.statusText,
-      headers: responseHeaders,
-    })
-  } catch (error: any) {
-    console.error(`Failed to proxy ${url}:`, error.message || error)
-    return NextResponse.json({ error: 'Content unavailable' }, { status: 502 })
-  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: responseHeaders,
+  })
 }
 
 export async function GET(request: NextRequest) {
