@@ -121,7 +121,7 @@ function AccountPurchases({ orgId, orgslug }: AccountPurchasesProps) {
     if (!access_token) return
     setBillingLoading(true)
     try {
-      const return_url = `${window.location.origin}${getUriWithOrg(orgslug, '/account/purchases')}`
+      const return_url = getUriWithOrg(orgslug, routePaths.org.account.page('purchases'))
       const result = await getBillingPortalSession(orgId, return_url, access_token)
       const url = result?.data?.portal_url
       if (url) {

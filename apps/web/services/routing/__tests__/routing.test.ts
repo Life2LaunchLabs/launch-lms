@@ -29,6 +29,37 @@ test('route manifest builds key dashboard and owner routes', () => {
   assert.equal(routePaths.auth.login({ next: '/welcome' }), '/login?next=%2Fwelcome')
 })
 
+test('route manifest builds auth, account, and public org paths used by navigation surfaces', () => {
+  assert.equal(routePaths.auth.signup({ mode: 'create-org' }), '/signup?mode=create-org')
+  assert.equal(routePaths.owner.account.orgAdmin(), '/account/org-admin')
+  assert.equal(routePaths.owner.account.purchases(), '/account/purchases')
+  assert.equal(routePaths.org.organization('acme'), '/organization/acme')
+  assert.equal(routePaths.org.user('jane'), '/user/jane')
+  assert.equal(routePaths.org.search('ai prompts'), '/search?q=ai+prompts')
+})
+
+test('navigation manifest smoke test keeps representative routes absolute and unique', () => {
+  const navigationRoutes = [
+    routePaths.owner.account.general(),
+    routePaths.owner.account.orgAdmin(),
+    routePaths.org.root(),
+    routePaths.org.courses(),
+    routePaths.org.collections(),
+    routePaths.org.search(),
+    routePaths.org.dash.root(),
+    routePaths.org.dash.courses(),
+    routePaths.org.dash.users.users(),
+    routePaths.org.dash.orgSettings.general(),
+    routePaths.owner.platform.organizations(),
+  ]
+
+  navigationRoutes.forEach((route) => {
+    assert.ok(route.startsWith('/'))
+  })
+
+  assert.equal(new Set(navigationRoutes).size, navigationRoutes.length)
+})
+
 test('request policy rewrites main-domain traffic into internal org routes', () => {
   const decision = resolveRequestRouting({
     requestUrl: 'https://launchlms.test/courses',
@@ -97,6 +128,23 @@ test('request policy routes auth pages through auth namespace while preserving o
   assert.equal(decision.action, 'rewrite')
   assert.equal(decision.destination, '/auth/login?next=%2Fdash')
   assert.ok(decision.cookies?.some((cookie) => cookie.name === 'launchlms_orgslug' && cookie.value === 'acme'))
+})
+
+test('request policy keeps auth query params when rewriting create-org signup flow', () => {
+  const decision = resolveRequestRouting({
+    requestUrl: 'https://launchlms.test/signup?mode=create-org',
+    pathname: '/signup',
+    search: '?mode=create-org',
+    host: 'launchlms.test',
+    cookieOrgSlug: null,
+    hasSession: false,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+
+  assert.equal(decision.action, 'rewrite')
+  assert.equal(decision.destination, '/auth/signup?mode=create-org')
 })
 
 test('request policy redirects unauthenticated protected paths to welcome', () => {

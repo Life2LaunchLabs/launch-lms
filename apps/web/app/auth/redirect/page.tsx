@@ -4,14 +4,13 @@ import { useEffect } from 'react'
 import useSWR from 'swr'
 import { Loader2 } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl } from '@services/config/config'
-import { getOrgAdminEntryUrl } from '@services/org/adminEntry'
-import { getOwnerOrgUrl } from '@services/org/ownerOrg'
+import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
 
 export default function AuthRedirectPage() {
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
+  const ownerOrgSlug = getDefaultOrg()
 
   const { data: adminOrgs } = useSWR(
     accessToken ? `${getAPIUrl()}orgs/user_admin/page/1/limit/100` : null,
@@ -26,23 +25,23 @@ export default function AuthRedirectPage() {
     if (session?.status === 'loading') return
 
     if (session?.status === 'unauthenticated') {
-      window.location.href = getOwnerOrgUrl('/login')
+      window.location.href = getUriWithOrg(ownerOrgSlug, routePaths.owner.login())
       return
     }
 
     if (!Array.isArray(adminOrgs)) return
 
     if (adminOrgs.length === 1) {
-      window.location.href = getOrgAdminEntryUrl(adminOrgs[0].slug, '/dash')
+      window.location.href = getUriWithOrg(adminOrgs[0].slug, routePaths.org.dash.root())
       return
     }
 
     if (adminOrgs.length > 1) {
-      window.location.href = getOwnerOrgUrl('/account/org-admin')
+      window.location.href = getUriWithOrg(ownerOrgSlug, routePaths.owner.account.orgAdmin())
       return
     }
 
-    window.location.href = getOwnerOrgUrl('/')
+    window.location.href = getUriWithOrg(ownerOrgSlug, routePaths.owner.root())
   }, [adminOrgs, session?.status])
 
   return (

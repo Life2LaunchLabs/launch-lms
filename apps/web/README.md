@@ -197,6 +197,10 @@ Common examples:
 - redirects after user actions
 - links in cards, menus, sidebars, and cross-surface CTAs
 
+The previous helper modules under `services/org/` that wrapped owner-org or
+admin-entry URLs have been removed. New code should call
+`getUriWithOrg(..., routePaths...)` directly.
+
 ### What To Avoid
 
 Do not do this:

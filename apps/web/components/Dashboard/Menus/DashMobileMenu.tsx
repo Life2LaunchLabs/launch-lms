@@ -6,12 +6,12 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import AdminAuthorization from '@components/Security/AdminAuthorization'
 import ToolTip from '@components/Objects/StyledElements/Tooltip/Tooltip'
-import { getCoreCapabilities, routePaths } from '@services/config/config'
-import { getOwnerOrgUrl } from '@services/org/ownerOrg'
+import { getCoreCapabilities, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
 
 function DashMobileMenu() {
   const { t } = useTranslation()
   const org = useOrg() as any
+  const ownerOrgSlug = getDefaultOrg()
 
   // Feature visibility from API resolved_features
   const rf = org?.config?.config?.resolved_features
@@ -90,7 +90,7 @@ function DashMobileMenu() {
           </ToolTip>
         </AdminAuthorization>
         <ToolTip content={t('common.settings')} slateBlack sideOffset={8} side="top">
-          <Link href={getOwnerOrgUrl('/account/general')} className="flex flex-col items-center p-2" aria-label="User account settings">
+          <Link href={getUriWithOrg(ownerOrgSlug, routePaths.owner.account.general())} className="flex flex-col items-center p-2" aria-label="User account settings">
             <Settings size={20} />
             <span className="text-xs mt-1">{t('common.settings')}</span>
           </Link>

@@ -70,7 +70,6 @@ import { swrFetcher } from '@services/utils/ts/requests'
 import { getAssignmentsFromACourse } from '@services/courses/assignments'
 
 import { usePlan } from '@components/Hooks/usePlan'
-import { getOwnerOrgUrl } from '@services/org/ownerOrg'
 
 function DashLeftMenu() {
   const org = useOrg() as any
@@ -716,7 +715,7 @@ function DashLeftMenu() {
 
           {/* Language Switcher with hover menu */}
           <MenuLink
-            href={getOwnerOrgUrl('/')}
+            href={getUriWithOrg(getDefaultOrg(), routePaths.owner.root())}
             icon={<House size={20} weight="fill" />}
             label="Return to User Experience"
             isCollapsed={isCollapsed}
@@ -804,13 +803,13 @@ function DashLeftMenu() {
                 </div>
                 <HoverMenuSeparator />
                 <HoverMenuItem asChild>
-                  <Link href={getOwnerOrgUrl('/account/general')} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                  <Link href={getUriWithOrg(getDefaultOrg(), routePaths.owner.account.general())} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                     <Gear size={16} weight="fill" />
                     <span>{t('common.settings')}</span>
                   </Link>
                 </HoverMenuItem>
                 <HoverMenuItem asChild>
-                  <Link href={getOwnerOrgUrl('/account/purchases')} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                  <Link href={getUriWithOrg(getDefaultOrg(), routePaths.owner.account.purchases())} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                     <ShoppingBag size={16} weight="fill" />
                     <span>{t('account.purchases')}</span>
                   </Link>

@@ -535,7 +535,7 @@ function SearchPage() {
                       return (
                         <Link
                           key={organization.org_uuid}
-                          href={getUriWithOrg(org?.slug, `/organization/${organization.slug}`)}
+                        href={getUriWithOrg(org?.slug, routePaths.org.organization(organization.slug))}
                           className="bg-white rounded-xl nice-shadow hover:shadow-md transition-all overflow-hidden group"
                         >
                           <div className="relative h-48">
@@ -630,7 +630,7 @@ function SearchPage() {
                     {searchResults.users.map((user) => (
                       <Link
                         key={user.user_uuid}
-                        href={getUriWithOrg(org?.slug, `/user/${user.username}`)}
+                        href={getUriWithOrg(org?.slug, routePaths.org.user(user.username))}
                         className="flex items-center gap-4 p-4 bg-white rounded-xl nice-shadow hover:shadow-md transition-all"
                       >
                         <UserAvatar
