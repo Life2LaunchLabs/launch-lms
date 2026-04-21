@@ -3,7 +3,7 @@ import React from 'react'
 import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
 import { useCoursePipe } from '../useAnalyticsDashboard'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { Hourglass } from '@phosphor-icons/react'
 import type { ActivityMap } from './CourseAnalyticsTab'
 import CourseWidgetCard, { WidgetIcon, usePagination, PaginationBar } from './CourseWidgetCard'
@@ -96,7 +96,7 @@ function TimeModalContent({
             key={pg.page * 10 + i}
             row={row}
             maxSeconds={maxSeconds}
-            href={getUriWithOrg(orgslug, '') + `/course/${courseUuid}/activity/${row.activityUuid}`}
+            href={getUriWithOrg(orgslug, routePaths.org.courseActivity(courseUuid, row.activityUuid))}
           />
         ))}
       </div>
@@ -174,7 +174,7 @@ export default function CourseTimePerActivity({
                 key={i}
                 row={row}
                 maxSeconds={maxSeconds}
-                href={getUriWithOrg(orgslug, '') + `/course/${courseUuid}/activity/${row.activityUuid}`}
+                href={getUriWithOrg(orgslug, routePaths.org.courseActivity(courseUuid, row.activityUuid))}
                 compact
               />
             ))}

@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . || true",
-    "lint:fix": "eslint --fix . || true"
+    "lint:fix": "eslint --fix . || true",
+    "test:routing": "node --test --experimental-strip-types services/routing/__tests__/*.test.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.4",

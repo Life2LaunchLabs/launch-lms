@@ -1,6 +1,6 @@
 'use client'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { TextIcon, LucideIcon, Image as ImageIcon, Link2, Shield, MessagesSquare, Users } from 'lucide-react'
 import Link from 'next/link'
 import React, { useEffect, use } from 'react'
@@ -48,7 +48,7 @@ function TabLink({
   t: (key: string) => string
 }) {
   return (
-    <Link href={getUriWithOrg(orgslug, '') + `/dash/communities/${communityuuid}/${tab.id}`}>
+    <Link href={getUriWithOrg(orgslug, routePaths.org.dash.communitySettings(communityuuid, tab.id))}>
       <div
         className={`py-2 w-fit text-center border-black transition-all ease-linear ${
           isActive ? 'border-b-4' : 'opacity-50'
@@ -102,7 +102,7 @@ function CommunitySettingsContent({ params }: { params: CommunityParams }) {
       <div className="pl-10 pr-10 tracking-tight bg-[#fcfbfc] z-10 nice-shadow flex-shrink-0 relative">
         <div className="pt-6 pb-4">
           <Breadcrumbs items={[
-            { label: t('dashboard.courses.communities.title'), href: '/dash/communities', icon: <MessagesSquare size={14} /> },
+            { label: t('dashboard.courses.communities.title'), href: routePaths.org.dash.communities(), icon: <MessagesSquare size={14} /> },
             { label: community.name }
           ]} />
         </div>

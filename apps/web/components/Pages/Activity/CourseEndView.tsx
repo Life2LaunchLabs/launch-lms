@@ -3,7 +3,7 @@ import dynamic from 'next/dynamic';
 const ReactConfetti = dynamic(() => import('react-confetti'), { ssr: false });
 import { Trophy, ArrowLeft, BookOpen, Target, Download, Shield, UserPlus } from 'lucide-react';
 import Link from 'next/link';
-import { getUriWithOrg } from '@services/config/config';
+import { getUriWithOrg, routePaths } from '@services/config/config';
 import { getCourseThumbnailMediaDirectory } from '@services/media/media';
 import { useWindowSize } from 'usehooks-ts';
 import { useOrg } from '@components/Contexts/OrgContext';
@@ -420,7 +420,9 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
   if (guestMode) {
     const signupHref = getUriWithOrg(
       orgslug,
-      `/signup?next=${encodeURIComponent(getUriWithOrg(orgslug, `/onboarding/course/${courseUuid.replace('course_', '')}/activity/end`))}`
+      routePaths.auth.signup({
+        next: getUriWithOrg(orgslug, routePaths.org.onboardingCourseEnd(courseUuid.replace('course_', '')))
+      })
     )
 
     if (isCourseCompleted) {
@@ -460,7 +462,12 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
                 <span>Create Account</span>
               </Link>
               <Link
-                href={getUriWithOrg(orgslug, `/login?next=${encodeURIComponent(getUriWithOrg(orgslug, `/onboarding/course/${courseUuid.replace('course_', '')}/activity/end`))}`)}
+                href={getUriWithOrg(
+                  orgslug,
+                  routePaths.auth.login({
+                    next: getUriWithOrg(orgslug, routePaths.org.onboardingCourseEnd(courseUuid.replace('course_', '')))
+                  })
+                )}
                 className="inline-flex items-center justify-center space-x-2 bg-gray-100 text-gray-800 px-6 py-3 rounded-full hover:bg-gray-200 transition duration-200"
               >
                 <span>Log In</span>
@@ -579,7 +586,7 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
 
           <div className="pt-6">
             <Link
-              href={getUriWithOrg(orgslug, `/course/${courseUuid.replace('course_', '')}`)}
+              href={getUriWithOrg(orgslug, routePaths.org.course(courseUuid.replace('course_', '')))}
               className="inline-flex items-center space-x-2 bg-gray-800 text-white px-6 py-3 rounded-full hover:bg-gray-700 transition duration-200"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -654,7 +661,7 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
 
           <div className="pt-6">
             <Link
-              href={getUriWithOrg(orgslug, `/course/${courseUuid.replace('course_', '')}`)}
+              href={getUriWithOrg(orgslug, routePaths.org.course(courseUuid.replace('course_', '')))}
               className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-full hover:bg-blue-700 transition duration-200"
             >
               <ArrowLeft className="w-5 h-5" />

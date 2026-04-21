@@ -2,7 +2,7 @@
 import React from 'react'
 import Link from 'next/link'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { ShoppingBag, RefreshCcw, SquareCheck, ArrowRight, Sparkles, BookOpen, Mic, Puzzle } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
@@ -42,9 +42,9 @@ function stripTypePrefix(uuid: string): string {
 function getResourceUrl(orgslug: string, resource: Resource): string | null {
   const id = stripTypePrefix(resource.resource_uuid)
   switch (resource.resource_type) {
-    case 'course': return getUriWithOrg(orgslug, `/course/${id}`)
-    case 'podcast': return getUriWithOrg(orgslug, `/podcast/${id}`)
-    case 'playground': return getUriWithOrg(orgslug, `/playground/${id}`)
+    case 'course': return getUriWithOrg(orgslug, routePaths.org.course(id))
+    case 'podcast': return getUriWithOrg(orgslug, routePaths.org.podcast(id))
+    case 'playground': return getUriWithOrg(orgslug, routePaths.org.playground(id))
     default: return null
   }
 }
@@ -95,7 +95,7 @@ function OfferCard({ offer, orgslug, orgUuid }: { offer: Offer; orgslug: string;
   const resources = offer.included_resources ?? []
 
   return (
-    <Link href={getUriWithOrg(orgslug, `/store/offers/${offer.offer_uuid}`)}>
+    <Link href={getUriWithOrg(orgslug, routePaths.org.store.offer(offer.offer_uuid))}>
       <div className="group bg-white rounded-xl nice-shadow overflow-hidden flex flex-col h-full cursor-pointer transition-all duration-200 hover:scale-[1.01]">
 
         {/* Thumbnail area */}

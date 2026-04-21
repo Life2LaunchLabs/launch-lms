@@ -18,7 +18,7 @@ import {
   updateRAGChatSession,
   RAGChatSession,
 } from '@services/ai/ai'
-import { getAPIUrl, getUriWithOrg } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
 import useSWR from 'swr'
 import {
@@ -834,7 +834,7 @@ function CitationBadge({ num, sources, orgslug }: { num: number; sources: Stream
   const courseId = source.course_uuid?.replace(/^course_/, '') || ''
   const activityId = source.activity_uuid?.replace(/^activity_/, '') || ''
   const href = activityId && courseId
-    ? getUriWithOrg(orgslug, `/course/${courseId}/activity/${activityId}`)
+    ? getUriWithOrg(orgslug, routePaths.org.courseActivity(courseId, activityId))
     : null
 
   const badge = (
@@ -978,7 +978,7 @@ export function SourcesCompact({ sources, orgslug }: { sources: StreamSourceData
         const courseId = source.course_uuid?.replace(/^course_/, '') || ''
         const activityId = source.activity_uuid?.replace(/^activity_/, '') || ''
         const href = activityId && courseId
-          ? getUriWithOrg(orgslug, `/course/${courseId}/activity/${activityId}`)
+          ? getUriWithOrg(orgslug, routePaths.org.courseActivity(courseId, activityId))
           : null
 
         const inner = (

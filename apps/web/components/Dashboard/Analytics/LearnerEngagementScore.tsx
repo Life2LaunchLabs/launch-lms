@@ -2,6 +2,7 @@
 import React from 'react'
 import { useAnalyticsDetail } from './useAnalyticsDashboard'
 import { getUserAvatarMediaDirectory } from '@services/media/media'
+import { routePaths } from '@services/config/config'
 
 function getAvatarUrl(user: any): string | null {
   if (!user?.avatar_image) return null
@@ -79,7 +80,7 @@ export default function LearnerEngagementScore({ days = '30' }: { days?: string 
                   <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
                     <td className="py-2">
                       <a
-                        href="/dash/users/settings/users"
+                        href={routePaths.org.dash.users.users()}
                         className="flex items-center gap-2 hover:underline"
                       >
                         <UserAvatarSmall user={user} />

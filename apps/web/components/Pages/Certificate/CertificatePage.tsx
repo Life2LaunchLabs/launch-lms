@@ -7,7 +7,7 @@ import { getUserCertificates } from '@services/courses/certifications';
 import CertificatePreview from '@components/Dashboard/Pages/Course/EditCourseCertification/CertificatePreview';
 import { ArrowLeft, Download } from 'lucide-react';
 import Link from 'next/link';
-import { getUriWithOrg } from '@services/config/config';
+import { getUriWithOrg, routePaths } from '@services/config/config';
 
 interface CertificatePageProps {
   orgslug: string;
@@ -356,7 +356,7 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
             <h2 className="text-xl font-semibold text-red-800 mb-2">Badge Not Available</h2>
             <p className="text-red-600 mb-4">{error}</p>
             <Link
-              href={getUriWithOrg(orgslug, '') + `/course/${courseid}`}
+              href={getUriWithOrg(orgslug, routePaths.org.course(courseid))}
               className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-full hover:bg-blue-700 transition duration-200"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -378,7 +378,7 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
               No badge is available for this course. Please contact your instructor for more information.
             </p>
             <Link
-              href={getUriWithOrg(orgslug, '') + `/course/${courseid}`}
+              href={getUriWithOrg(orgslug, routePaths.org.course(courseid))}
               className="inline-flex items-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-full hover:bg-blue-700 transition duration-200"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -396,7 +396,7 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <Link
-            href={getUriWithOrg(orgslug, '') + `/course/${courseid}`}
+            href={getUriWithOrg(orgslug, routePaths.org.course(courseid))}
             className="inline-flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition duration-200"
           >
             <ArrowLeft className="w-5 h-5" />

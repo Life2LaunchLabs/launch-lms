@@ -16,7 +16,7 @@ import {
   getResourceThumbnailMediaDirectory,
   getUserAvatarMediaDirectory,
 } from '@services/media/media';
-import { getUriWithOrg } from '@services/config/config';
+import { getUriWithOrg, routePaths } from '@services/config/config';
 import { removeCoursePrefix } from '@components/Objects/Thumbnails/CourseThumbnail';
 import UserAvatar from '@components/Objects/UserAvatar';
 import { useTranslation } from 'react-i18next';
@@ -390,7 +390,7 @@ function SearchPage() {
                     {searchResults.courses.map((course) => (
                       <Link
                         key={course.course_uuid}
-                        href={getUriWithOrg(org?.slug, `/course/${removeCoursePrefix(course.course_uuid)}`)}
+                        href={getUriWithOrg(org?.slug, routePaths.org.course(removeCoursePrefix(course.course_uuid)))}
                         className="bg-white rounded-xl nice-shadow hover:shadow-md transition-all overflow-hidden group"
                       >
                         <div className="relative h-48">
@@ -448,7 +448,7 @@ function SearchPage() {
                     {searchResults.collections.map((collection) => (
                       <Link
                         key={collection.collection_uuid}
-                        href={getUriWithOrg(org?.slug, `/collection/${collection.collection_uuid.replace('collection_', '')}`)}
+                        href={getUriWithOrg(org?.slug, routePaths.org.collection(collection.collection_uuid.replace('collection_', '')))}
                         className="flex items-start gap-4 p-4 bg-white rounded-xl nice-shadow hover:shadow-md transition-all"
                       >
                         <div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
@@ -487,7 +487,7 @@ function SearchPage() {
                     {searchResults.communities.map((community) => (
                       <Link
                         key={community.community_uuid}
-                        href={getUriWithOrg(org?.slug, `/community/${community.community_uuid.replace('community_', '')}`)}
+                        href={getUriWithOrg(org?.slug, routePaths.org.community(community.community_uuid.replace('community_', '')))}
                         className="bg-white rounded-xl nice-shadow hover:shadow-md transition-all overflow-hidden group"
                       >
                         <div className="relative h-48">
@@ -582,7 +582,7 @@ function SearchPage() {
                     {searchResults.resources.map((resource) => (
                       <Link
                         key={resource.resource_uuid}
-                        href={getUriWithOrg(org?.slug, `/resource/${resource.resource_uuid.replace('resource_', '')}`)}
+                        href={getUriWithOrg(org?.slug, routePaths.org.resource(resource.resource_uuid.replace('resource_', '')))}
                         className="bg-white rounded-xl nice-shadow hover:shadow-md transition-all overflow-hidden group"
                       >
                         <div className="relative h-48">

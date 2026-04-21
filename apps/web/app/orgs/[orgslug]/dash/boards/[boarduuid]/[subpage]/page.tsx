@@ -6,7 +6,7 @@ import { Info, Globe, Users, Image as ImageIcon, Eye } from 'lucide-react'
 import { ChalkboardSimple } from '@phosphor-icons/react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl, getUriWithOrg } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { getBoardThumbnailMediaDirectory } from '@services/media/media'
 import useSWR from 'swr'
 import { swrFetcher } from '@services/utils/ts/requests'
@@ -44,25 +44,25 @@ function BoardSettingsPage(props: { params: Promise<BoardSettingsParams> }) {
       key: 'general',
       label: 'General',
       icon: Info,
-      href: `/dash/boards/${params.boarduuid}/general`,
+      href: routePaths.org.dash.boardSettings(params.boarduuid, 'general'),
     },
     {
       key: 'thumbnail',
       label: 'Thumbnail',
       icon: ImageIcon,
-      href: `/dash/boards/${params.boarduuid}/thumbnail`,
+      href: routePaths.org.dash.boardSettings(params.boarduuid, 'thumbnail'),
     },
     {
       key: 'access',
       label: 'Access',
       icon: Globe,
-      href: `/dash/boards/${params.boarduuid}/access`,
+      href: routePaths.org.dash.boardSettings(params.boarduuid, 'access'),
     },
     {
       key: 'members',
       label: 'Members',
       icon: Users,
-      href: `/dash/boards/${params.boarduuid}/members`,
+      href: routePaths.org.dash.boardSettings(params.boarduuid, 'members'),
     },
   ]
 
@@ -85,7 +85,7 @@ function BoardSettingsPage(props: { params: Promise<BoardSettingsParams> }) {
         {/* Breadcrumbs */}
         <div className="pt-6 pb-4">
           <Breadcrumbs items={[
-            { label: 'Boards', href: '/dash/boards', icon: <ChalkboardSimple size={14} /> },
+            { label: 'Boards', href: routePaths.org.dash.boards(), icon: <ChalkboardSimple size={14} /> },
             { label: board.name },
           ]} />
         </div>
@@ -93,7 +93,7 @@ function BoardSettingsPage(props: { params: Promise<BoardSettingsParams> }) {
         {/* Board info row */}
         <div className="flex">
           <div className="flex py-3 grow items-center">
-            <Link href={`/board/${boardUuid.replace('board_', '')}`}>
+            <Link href={routePaths.editor.board(boardUuid.replace('board_', ''))}>
               <img
                 className="w-[100px] h-[57px] rounded-md drop-shadow-md object-cover"
                 src={thumbnailUrl}
@@ -118,7 +118,7 @@ function BoardSettingsPage(props: { params: Promise<BoardSettingsParams> }) {
             </div>
             <div className="w-px self-stretch bg-neutral-200/80" />
             <Link
-              href={`/board/${boardUuid.replace('board_', '')}`}
+              href={routePaths.editor.board(boardUuid.replace('board_', ''))}
               className="px-3.5 py-2 text-sm font-semibold text-neutral-600 bg-neutral-50/70 hover:bg-neutral-100/70 transition-colors flex items-center space-x-2"
             >
               <Eye className="w-4 h-4" />
@@ -136,7 +136,7 @@ function BoardSettingsPage(props: { params: Promise<BoardSettingsParams> }) {
             return (
               <Link
                 key={tab.key}
-                href={getUriWithOrg(params.orgslug, '') + tab.href}
+                href={getUriWithOrg(params.orgslug, tab.href)}
               >
                 <div
                   className={`flex space-x-4 py-2 w-fit text-center border-black transition-all ease-linear ${

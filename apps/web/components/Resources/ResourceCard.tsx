@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Bookmark, MessageCircle, Sparkles } from 'lucide-react'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { Resource } from '@services/resources/resources'
 import { getResourceThumbnailMediaDirectory } from '@services/media/media'
 import SaveDropdown from '@components/Resources/SaveDropdown'
@@ -29,7 +29,7 @@ export default function ResourceCard({
 
       {/* Navigable area — image + title panel */}
       <Link
-        href={getUriWithOrg(orgslug, `/resource/${resource.resource_uuid.replace('resource_', '')}`)}
+        href={getUriWithOrg(orgslug, routePaths.org.resource(resource.resource_uuid.replace('resource_', '')))}
         className="absolute inset-0 block"
       >
         <img src={imageSrc} alt={resource.title} className="absolute inset-0 h-full w-full object-cover" />

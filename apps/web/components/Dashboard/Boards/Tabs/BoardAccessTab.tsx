@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { Globe, Users, X, SquareUserRound } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl, getUriWithOrg } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import useSWR, { mutate } from 'swr'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { updateBoard } from '@services/boards/boards'
@@ -268,7 +268,7 @@ function LinkUserGroupToBoard({ boardUuid, orgId, accessToken, setModalOpen }: {
             <Link
               className="px-3 text-blue-700 font-bold rounded-full py-1 bg-blue-100 mx-1"
               target="_blank"
-              href={getUriWithOrg(org?.slug, '/dash/users/settings/usergroups')}
+              href={getUriWithOrg(org?.slug, routePaths.org.dash.users.usergroups())}
             >
               {t('boards.access.create_user_group')}
             </Link>

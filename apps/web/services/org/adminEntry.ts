@@ -1,4 +1,6 @@
 import { getConfig, getDefaultOrg } from '@services/config/config'
+import { ROUTING_COOKIES } from '@services/routing/cookies'
+import { replaceHostPreservingPort } from '@services/routing/context'
 import { stripPort } from '@services/utils/ts/hostUtils'
 
 const getCookieValue = (name: string): string | null => {
@@ -20,16 +22,14 @@ export function getOrgAdminEntryUrl(orgslug: string, path: string = '/dash') {
   const ownerOrgSlug = getDefaultOrg()
   const configuredDomain =
     getConfig('NEXT_PUBLIC_LAUNCHLMS_DOMAIN') ||
-    getCookieValue('launchlms_frontend_domain') ||
+    getCookieValue(ROUTING_COOKIES.frontendDomain) ||
     window.location.host
 
   const baseHost = decodeURIComponent(configuredDomain)
   const baseHostname = stripPort(baseHost)
   const isOwnerOrg = orgslug === ownerOrgSlug
   const targetHostname = isOwnerOrg ? baseHostname : `${orgslug}.${baseHostname}`
-  const targetHost = baseHost.includes(':')
-    ? `${targetHostname}:${baseHost.split(':').slice(1).join(':')}`
-    : targetHostname
+  const targetHost = replaceHostPreservingPort(targetHostname, baseHost)
 
   if (window.location.host === targetHost || window.location.hostname === targetHostname) {
     return `${window.location.origin}${normalizedPath}`

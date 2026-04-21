@@ -1,7 +1,8 @@
 import { cookies } from 'next/headers'
 import { getDefaultOrg, getServerAPIUrl } from '@services/config/config'
+import { ROUTING_COOKIES } from '@services/routing/cookies'
 
-const OWNER_ORG_COOKIE = 'launchlms_default_org'
+const OWNER_ORG_COOKIE = ROUTING_COOKIES.defaultOrg
 
 export async function getOwnerOrgSlugServer() {
   try {

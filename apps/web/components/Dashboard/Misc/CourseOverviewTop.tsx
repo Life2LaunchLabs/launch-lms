@@ -3,7 +3,7 @@ import { useCourse, useCourseDispatch, getCourseMetaCacheKey } from '@components
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import SaveState from './SaveState'
 import { CourseOverviewParams } from 'app/orgs/[orgslug]/dash/courses/course/[courseuuid]/[subpage]/page'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getCourseThumbnailMediaDirectory } from '@services/media/media'
 import Link from 'next/link'
@@ -154,9 +154,7 @@ export function CourseOverviewTop({
       </div>
       <div className="flex">
         <div className="flex py-3 grow items-center">
-          <Link
-            href={getUriWithOrg(org?.slug, '') + `/course/${params.courseuuid}`}
-          >
+          <Link href={getUriWithOrg(org?.slug, routePaths.org.course(params.courseuuid))}>
             {courseStructure?.thumbnail_image ? (
               <img
                 className="w-[100px] h-[57px] rounded-md drop-shadow-md"
@@ -258,7 +256,7 @@ export function CourseOverviewTop({
           )}
           <div className="w-px self-stretch bg-neutral-200/80" />
           <Link
-            href={getUriWithOrg(org?.slug, '') + `/course/${params.courseuuid}`}
+            href={getUriWithOrg(org?.slug, routePaths.org.course(params.courseuuid))}
             target="_blank"
             className="px-3.5 py-2 text-sm font-semibold text-neutral-600 bg-neutral-50/70 hover:bg-neutral-100/70 transition-colors flex items-center space-x-2"
           >

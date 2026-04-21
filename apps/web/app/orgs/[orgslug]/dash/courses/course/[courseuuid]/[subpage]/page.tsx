@@ -15,7 +15,7 @@ import EditCourseSEO from '@components/Dashboard/Pages/Course/EditCourseSEO/Edit
 import { useCourseRights } from '@hooks/useCourseRights'
 import { useRouter } from 'next/navigation'
 import ToolTip from '@components/Objects/StyledElements/Tooltip/Tooltip'
-import { getUriWithOrg } from '@services/config/config';
+import { getUriWithOrg, routePaths } from '@services/config/config';
 import { useTranslation } from 'react-i18next';
 import { useOrg } from '@components/Contexts/OrgContext';
 import { PlanLevel, isFeatureAvailable } from '@services/plans/plans';
@@ -53,35 +53,35 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
       key: 'general',
       label: t('dashboard.courses.settings.tabs.general'),
       icon: Info,
-      href: `/dash/courses/course/${params.courseuuid}/general`,
+      href: routePaths.org.dash.courseSettings(params.courseuuid, 'general'),
       requiredPermission: 'update' as const
     },
     {
       key: 'content',
       label: t('dashboard.courses.settings.tabs.content'),
       icon: GalleryVerticalEnd,
-      href: `/dash/courses/course/${params.courseuuid}/content`,
+      href: routePaths.org.dash.courseSettings(params.courseuuid, 'content'),
       requiredPermission: 'update_content' as const
     },
     {
       key: 'access',
       label: t('dashboard.courses.settings.tabs.access'),
       icon: Globe,
-      href: `/dash/courses/course/${params.courseuuid}/access`,
+      href: routePaths.org.dash.courseSettings(params.courseuuid, 'access'),
       requiredPermission: 'manage_access' as const
     },
     {
       key: 'contributors',
       label: t('dashboard.courses.settings.tabs.contributors'),
       icon: UserPen,
-      href: `/dash/courses/course/${params.courseuuid}/contributors`,
+      href: routePaths.org.dash.courseSettings(params.courseuuid, 'contributors'),
       requiredPermission: 'manage_contributors' as const
     },
     {
       key: 'seo',
       label: t('dashboard.courses.settings.tabs.seo'),
       icon: Search,
-      href: `/dash/courses/course/${params.courseuuid}/seo`,
+      href: routePaths.org.dash.courseSettings(params.courseuuid, 'seo'),
       requiredPermission: 'update' as const,
       requiresPlan: 'full' as PlanLevel
     },
@@ -89,7 +89,7 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
       key: 'certification',
       label: t('dashboard.courses.settings.tabs.certification'),
       icon: Award,
-      href: `/dash/courses/course/${params.courseuuid}/certification`,
+      href: routePaths.org.dash.courseSettings(params.courseuuid, 'certification'),
       requiredPermission: 'create_certifications' as const,
       requiresPlan: 'enterprise' as PlanLevel
     },
@@ -97,7 +97,7 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
       key: 'analytics',
       label: t('dashboard.courses.settings.tabs.analytics'),
       icon: ChartBar,
-      href: `/dash/courses/course/${params.courseuuid}/analytics`,
+      href: routePaths.org.dash.courseSettings(params.courseuuid, 'analytics'),
       requiredPermission: 'update' as const,
       requiresPlan: 'enterprise' as PlanLevel
     }
@@ -114,7 +114,7 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
   useEffect(() => {
     if (!rightsLoading && !hasAccessToCurrentPage && visibleTabs.length > 0) {
       const firstAvailableTab = visibleTabs[0]
-      router.replace(getUriWithOrg(params.orgslug, '') + firstAvailableTab.href)
+      router.replace(getUriWithOrg(params.orgslug, firstAvailableTab.href))
     }
   }, [rightsLoading, hasAccessToCurrentPage, visibleTabs, router, params.orgslug])
 
@@ -178,7 +178,7 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
               return (
                 <Link
                   key={tab.key}
-                  href={getUriWithOrg(params.orgslug, '') + tab.href}
+                  href={getUriWithOrg(params.orgslug, tab.href)}
                 >
                   <div
                     className={`flex space-x-4 py-2 w-fit text-center border-black transition-all ease-linear ${

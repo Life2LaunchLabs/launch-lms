@@ -2,7 +2,7 @@
 import { useOrg } from '@components/Contexts/OrgContext'
 import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
 import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { deleteCourseFromBackend, cloneCourse } from '@services/courses/courses'
 import { exportCourse, downloadBlob, ExportStatus } from '@services/courses/transfer'
 import { exportToast } from '@components/Objects/StyledElements/Toast/ExportToast'
@@ -132,7 +132,7 @@ function CourseThumbnail({ course, orgslug, customLink, isDashboard = false, isS
     ? getCourseThumbnailMediaDirectory(ownerOrgUuid, course.course_uuid, course.thumbnail_image)
     : '/empty_thumbnail.png'
 
-  const courseLink = customLink ? customLink : getUriWithOrg(orgslug, `/course/${removeCoursePrefix(course.course_uuid)}`)
+  const courseLink = customLink ? customLink : getUriWithOrg(orgslug, routePaths.org.course(removeCoursePrefix(course.course_uuid)))
 
   return (
     <div className={`group relative flex flex-col bg-white rounded-xl nice-shadow overflow-hidden w-full transition-all duration-300 hover:scale-[1.01] ${isSelected ? 'ring-2 ring-black ring-offset-2' : ''}`}>
@@ -280,12 +280,12 @@ const AdminEditOptions = ({ course, orgSlug, deleteCourse, cloneCourse, exportCo
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuItem asChild>
-              <Link prefetch href={getUriWithOrg(orgSlug, `/dash/courses/course/${removeCoursePrefix(course.course_uuid)}/content`)} className="flex items-center cursor-pointer">
+              <Link prefetch href={getUriWithOrg(orgSlug, routePaths.org.dash.courseSettings(removeCoursePrefix(course.course_uuid), 'content'))} className="flex items-center cursor-pointer">
                 <FilePenLine className="mr-2 h-4 w-4" /> {t('courses.edit_content')}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link prefetch href={getUriWithOrg(orgSlug, `/dash/courses/course/${removeCoursePrefix(course.course_uuid)}/general`)} className="flex items-center cursor-pointer">
+              <Link prefetch href={getUriWithOrg(orgSlug, routePaths.org.dash.courseSettings(removeCoursePrefix(course.course_uuid), 'general'))} className="flex items-center cursor-pointer">
                 <Settings2 className="mr-2 h-4 w-4" /> {t('common.settings')}
               </Link>
             </DropdownMenuItem>

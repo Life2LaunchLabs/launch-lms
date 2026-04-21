@@ -1,7 +1,7 @@
 'use client'
 import { useMediaQuery } from 'usehooks-ts'
 import { Check, FileText, ListTree, Video, X, StickyNote, Backpack, ArrowRight } from 'lucide-react'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import Link from 'next/link'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -125,7 +125,7 @@ export default function ActivityChapterDropdown(props: ActivityChapterDropdownPr
                     return (
                       <Link
                         key={activity.id}
-                        href={getUriWithOrg(props.orgslug, '') + `/course/${cleanCourseUuid}/activity/${cleanActivityUuid}`}
+                        href={getUriWithOrg(props.orgslug, routePaths.org.courseActivity(cleanCourseUuid, cleanActivityUuid))}
                         prefetch={false}
                         onClick={() => setIsOpen(false)}
                       >

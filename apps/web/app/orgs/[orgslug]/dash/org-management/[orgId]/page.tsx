@@ -3,7 +3,7 @@ import React from 'react'
 import { Buildings } from '@phosphor-icons/react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import OrganizationDetail from '@components/Admin/OrganizationDetail'
-import { getDefaultOrg, getUriWithOrg } from '@services/config/config'
+import { getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
 
 export default function OrgManagementDetailPage() {
   const org = useOrg() as any
@@ -20,5 +20,5 @@ export default function OrgManagementDetailPage() {
     )
   }
 
-  return <OrganizationDetail backHref={getUriWithOrg(org.slug, '/dash/org-management')} lightTheme />
+  return <OrganizationDetail backHref={getUriWithOrg(org.slug, routePaths.org.dash.platform.organizations())} lightTheme />
 }

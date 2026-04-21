@@ -15,7 +15,7 @@ import {
 } from '@phosphor-icons/react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl, getCoreCapabilities, getUriWithOrg } from '@services/config/config'
+import { getAPIUrl, getCoreCapabilities, getUriWithOrg, routePaths } from '@services/config/config'
 import { getOrgLogoMediaDirectory } from '@services/media/media'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { getMenuColorClasses } from '@services/utils/ts/colorUtils'
@@ -241,7 +241,7 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
                         <span className="absolute left-0 top-2 bottom-2 w-[3px] bg-gray-400 rounded-r-full" />
                       )}
                       <Link
-                        href={getUriWithOrg(orgslug, `/course/${courseId}`)}
+                        href={getUriWithOrg(orgslug, routePaths.org.course(courseId))}
                         className={`flex flex-col px-3 py-2 rounded-lg text-sm transition-colors ${
                           isActiveCourse
                             ? 'bg-gray-100 text-gray-900'

@@ -46,7 +46,7 @@ import { usePathname } from 'next/navigation'
 import UserAvatar from '../../Objects/UserAvatar'
 import AdminAuthorization from '@components/Security/AdminAuthorization'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getUriWithOrg, getAPIUrl, getCoreCapabilities, getDefaultOrg } from '@services/config/config'
+import { getUriWithOrg, getAPIUrl, getCoreCapabilities, getDefaultOrg, routePaths } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import {
   Tooltip,
@@ -200,7 +200,7 @@ function DashLeftMenu() {
       )}>
         <Link
           className={cn("flex items-center transition-opacity hover:opacity-70", isCollapsed ? "" : "space-x-3")}
-          href={'/dash'}
+          href={routePaths.org.dash.root()}
         >
           {org?.logo_image ? (
             <img
@@ -248,7 +248,7 @@ function DashLeftMenu() {
         <AdminAuthorization authorizationMode="component">
           <div className="space-y-1">
             <MenuLink
-              href="/dash"
+              href={routePaths.org.dash.root()}
               icon={<House size={20} weight="fill" />}
               label={t('common.home')}
               isCollapsed={isCollapsed}
@@ -261,7 +261,7 @@ function DashLeftMenu() {
                   <HoverMenuLabel className="text-white/70 font-medium">{t('courses.courses')}</HoverMenuLabel>
                   <HoverMenuSeparator />
                   <HoverMenuItem asChild>
-                    <Link href="/dash/courses" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                    <Link href={routePaths.org.dash.courses()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                       <BookOpen size={16} weight="fill" />
                       <span>{t('common.all_courses')}</span>
                     </Link>
@@ -273,7 +273,7 @@ function DashLeftMenu() {
                       {recentCourses.map((course: any) => (
                         <HoverMenuItem key={course.course_uuid} asChild>
                           <Link
-                            href={`/dash/courses/course/${course.course_uuid.replace('course_', '')}/settings`}
+                            href={routePaths.org.dash.courseSettings(course.course_uuid.replace('course_', ''), 'settings')}
                             className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors"
                           >
                             <PencilSimple size={14} className="text-white/40" />
@@ -315,7 +315,7 @@ function DashLeftMenu() {
                   <HoverMenuLabel className="text-white/70 font-medium">{t('common.assignments')}</HoverMenuLabel>
                   <HoverMenuSeparator />
                   <HoverMenuItem asChild>
-                    <Link href="/dash/assignments" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                    <Link href={routePaths.org.dash.assignments()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                       <Files size={16} weight="fill" />
                       <span>{t('common.all_assignments')}</span>
                     </Link>
@@ -327,7 +327,7 @@ function DashLeftMenu() {
                       {recentAssignments.map((assignment: any) => (
                         <HoverMenuItem key={assignment.assignment_uuid} asChild>
                           <Link
-                            href={`/dash/assignments/${assignment.assignment_uuid.replace('assignment_', '')}?subpage=editor`}
+                            href={routePaths.org.dash.assignmentEditor(assignment.assignment_uuid.replace('assignment_', ''))}
                             className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors"
                           >
                             <PencilSimple size={14} className="text-white/40" />
@@ -366,7 +366,7 @@ function DashLeftMenu() {
             </HoverMenu>
             {showCommunities && (
               <MenuLink
-                href="/dash/communities"
+                href={routePaths.org.dash.communities()}
                 icon={<ChatsCircle size={20} weight="fill" />}
                 label={t('communities.title')}
                 isCollapsed={isCollapsed}
@@ -374,7 +374,7 @@ function DashLeftMenu() {
             )}
             {showResources && (
               <MenuLink
-                href="/dash/resources"
+                href={routePaths.org.dash.resources()}
                 icon={<FolderOpen size={20} weight="fill" />}
                 label="Resources"
                 isCollapsed={isCollapsed}
@@ -382,7 +382,7 @@ function DashLeftMenu() {
             )}
             {showPodcasts && (
               <MenuLink
-                href="/dash/podcasts"
+                href={routePaths.org.dash.podcasts()}
                 icon={<Headphones size={20} weight="fill" />}
                 label={t('podcasts.podcasts')}
                 isCollapsed={isCollapsed}
@@ -390,7 +390,7 @@ function DashLeftMenu() {
             )}
             {showBoards && (
               <MenuLink
-                href="/dash/boards"
+                href={routePaths.org.dash.boards()}
                 icon={<ChalkboardSimple size={20} weight="fill" />}
                 label="Boards"
                 isCollapsed={isCollapsed}
@@ -398,7 +398,7 @@ function DashLeftMenu() {
             )}
             {showPlaygrounds && (
               <MenuLink
-                href="/dash/playgrounds"
+                href={routePaths.org.dash.playgrounds()}
                 icon={<Cube size={20} weight="fill" />}
                 label="Playgrounds"
                 isCollapsed={isCollapsed}
@@ -411,14 +411,14 @@ function DashLeftMenu() {
                   <HoverMenuLabel className="text-white/70 font-medium">{t('common.users')}</HoverMenuLabel>
                   <HoverMenuSeparator />
                   <HoverMenuItem asChild>
-                    <Link href="/dash/users/settings/users" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                    <Link href={routePaths.org.dash.users.users()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                       <Users size={16} weight="fill" />
                       <span>{t('dashboard.users.settings.tabs.users')}</span>
                     </Link>
                   </HoverMenuItem>
                   {showUsergroups && (
                     <HoverMenuItem asChild>
-                      <Link href="/dash/users/settings/usergroups" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                      <Link href={routePaths.org.dash.users.usergroups()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                         <UsersThree size={16} weight="fill" />
                         <span>{t('dashboard.users.settings.tabs.usergroups')}</span>
                       </Link>
@@ -426,20 +426,20 @@ function DashLeftMenu() {
                   )}
                   {showRoles && (
                     <HoverMenuItem asChild>
-                      <Link href="/dash/users/settings/roles" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                      <Link href={routePaths.org.dash.users.roles()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                         <Shield size={16} weight="fill" />
                         <span>{t('dashboard.users.settings.tabs.roles')}</span>
                       </Link>
                     </HoverMenuItem>
                   )}
                   <HoverMenuItem asChild>
-                    <Link href="/dash/users/settings/signups" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                    <Link href={routePaths.org.dash.users.signups()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                       <ClipboardText size={16} weight="fill" />
                       <span>{t('dashboard.users.settings.tabs.signups')}</span>
                     </Link>
                   </HoverMenuItem>
                   <HoverMenuItem asChild>
-                    <Link href="/dash/users/settings/add" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                    <Link href={routePaths.org.dash.users.add()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                       <UserPlus size={16} weight="fill" />
                       <span>{t('dashboard.users.settings.tabs.add')}</span>
                     </Link>
@@ -471,7 +471,7 @@ function DashLeftMenu() {
 
             {showPayments && (
               <MenuLink
-                href="/dash/payments/overview"
+                href={routePaths.org.dash.paymentsOverview()}
                 icon={<CurrencyCircleDollar size={20} weight="fill" />}
                 label={t('common.payments')}
                 isCollapsed={isCollapsed}
@@ -485,14 +485,14 @@ function DashLeftMenu() {
                   <HoverMenuLabel className="text-white/70 font-medium">{t('common.organization')}</HoverMenuLabel>
                   <HoverMenuSeparator />
                   <HoverMenuItem asChild>
-                    <Link href="/dash/org/settings/general" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                    <Link href={routePaths.org.dash.orgSettings.general()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                       <Gear size={16} weight="fill" />
                       <span>{t('dashboard.organization.settings.tabs.general')}</span>
                     </Link>
                   </HoverMenuItem>
                   {isEnterpriseOrMaster && (
                     <HoverMenuItem asChild>
-                      <Link href="/dash/org/settings/branding" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                      <Link href={routePaths.org.dash.orgSettings.branding()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                         <Palette size={16} weight="fill" />
                         <span>{t('dashboard.organization.settings.tabs.branding')}</span>
                       </Link>
@@ -500,7 +500,7 @@ function DashLeftMenu() {
                   )}
                   {isEnterpriseOrMaster && (
                     <HoverMenuItem asChild>
-                      <Link href="/dash/org/settings/features" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                      <Link href={routePaths.org.dash.orgSettings.features()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                         <ToggleRight size={16} weight="fill" />
                         <span>{t('dashboard.organization.settings.tabs.features')}</span>
                       </Link>
@@ -508,7 +508,7 @@ function DashLeftMenu() {
                   )}
                   {isEnterpriseOrMaster && (
                     <HoverMenuItem asChild>
-                      <Link href="/dash/org/settings/landing" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                      <Link href={routePaths.org.dash.orgSettings.landing()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                         <Rocket size={16} weight="fill" />
                         <span>{t('dashboard.organization.settings.tabs.landing')}</span>
                       </Link>
@@ -516,7 +516,7 @@ function DashLeftMenu() {
                   )}
                   {showSEO && (
                     <HoverMenuItem asChild>
-                      <Link href="/dash/org/settings/seo" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                      <Link href={routePaths.org.dash.orgSettings.seo()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                         <MagnifyingGlass size={16} weight="fill" />
                         <span>SEO</span>
                       </Link>
@@ -524,7 +524,7 @@ function DashLeftMenu() {
                   )}
                   {showAI && (
                     <HoverMenuItem asChild>
-                      <Link href="/dash/org/settings/ai" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                      <Link href={routePaths.org.dash.orgSettings.ai()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                         <Robot size={16} weight="fill" />
                         <span>{t('dashboard.organization.settings.tabs.ai')}</span>
                       </Link>
@@ -532,7 +532,7 @@ function DashLeftMenu() {
                   )}
                   {showDomains && (
                     <HoverMenuItem asChild>
-                      <Link href="/dash/org/settings/domains" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                      <Link href={routePaths.org.dash.orgSettings.domains()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                         <LinkSimple size={16} weight="fill" />
                         <span>{t('dashboard.organization.settings.tabs.domains')}</span>
                       </Link>
@@ -540,7 +540,7 @@ function DashLeftMenu() {
                   )}
                   {showAPI && (
                     <HoverMenuItem asChild>
-                      <Link href="/dash/org/settings/api" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                      <Link href={routePaths.org.dash.orgSettings.api()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                         <Key size={16} weight="fill" />
                         <span>{t('dashboard.organization.settings.tabs.api')}</span>
                       </Link>
@@ -548,21 +548,21 @@ function DashLeftMenu() {
                   )}
                   {showSSO && (
                     <HoverMenuItem asChild>
-                      <Link href="/dash/org/settings/sso" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                      <Link href={routePaths.org.dash.orgSettings.sso()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                         <Lock size={16} weight="fill" />
                         <span>{t('dashboard.organization.settings.tabs.sso')}</span>
                       </Link>
                     </HoverMenuItem>
                   )}
                   <HoverMenuItem asChild>
-                    <Link href="/dash/org/settings/usage" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                    <Link href={routePaths.org.dash.orgSettings.usage()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                       <ChartBar size={16} weight="fill" />
                       <span>{t('dashboard.organization.settings.tabs.usage') || 'Usage'}</span>
                     </Link>
                   </HoverMenuItem>
                   {isEnterpriseOrMaster && (
                     <HoverMenuItem asChild>
-                      <Link href="/dash/org/settings/other" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                      <Link href={routePaths.org.dash.orgSettings.other()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                         <Wrench size={16} weight="fill" />
                         <span>{t('dashboard.organization.settings.tabs.other')}</span>
                       </Link>
@@ -601,13 +601,13 @@ function DashLeftMenu() {
                     <HoverMenuLabel className="text-white/70 font-medium">Analytics</HoverMenuLabel>
                     <HoverMenuSeparator />
                     <HoverMenuItem asChild>
-                      <Link href="/dash/analytics" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                      <Link href={routePaths.org.dash.analytics()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                         <ChartBar size={16} weight="fill" />
                         <span>{t('analytics.tabs.overview')}</span>
                       </Link>
                     </HoverMenuItem>
                     <HoverMenuItem asChild>
-                      <Link href="/dash/analytics" className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                      <Link href={routePaths.org.dash.analytics()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                         <ChartLine size={16} weight="fill" />
                         <span>{t('analytics.tabs.advanced')}</span>
                       </Link>
@@ -652,17 +652,17 @@ function DashLeftMenu() {
           )}
           {[
             {
-              href: '/dash/org-management',
+              href: routePaths.owner.platform.organizations(),
               icon: <Buildings size={20} weight="fill" />,
               label: 'Organizations',
             },
             {
-              href: '/dash/org-management/users',
+              href: routePaths.owner.platform.users(),
               icon: <UsersThree size={20} weight="fill" />,
               label: 'Users',
             },
             {
-              href: '/dash/org-management/analytics',
+              href: routePaths.owner.platform.analytics(),
               icon: <ChartBar size={20} weight="fill" />,
               label: 'Analytics',
             },

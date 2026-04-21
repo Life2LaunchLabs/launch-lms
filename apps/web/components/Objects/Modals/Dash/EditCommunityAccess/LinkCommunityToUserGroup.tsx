@@ -2,7 +2,7 @@
 import { useCommunity } from '@components/Contexts/CommunityContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getAPIUrl, getUriWithOrg } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { linkResourcesToUserGroup } from '@services/usergroups/usergroups'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { Info } from 'lucide-react'
@@ -94,7 +94,7 @@ function LinkCommunityToUserGroup(props: LinkCommunityToUserGroupProps) {
             <Link
               className="px-3 text-blue-700 font-bold rounded-full py-1 bg-blue-100 mx-1"
               target="_blank"
-              href={getUriWithOrg(org.slug, '/dash/users/settings/usergroups')}
+              href={getUriWithOrg(org.slug, routePaths.org.dash.users.usergroups())}
             >
               {t('dashboard.courses.communities.access.usergroups.modals.create_usergroup')}
             </Link>

@@ -8,7 +8,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/FeatureDisabledView'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import {
   createResourceTag,
   deleteResourceTag,
@@ -97,13 +97,13 @@ export default function ResourcesTagsClient({ orgslug }: { orgslug: string }) {
           </div>
           <div className="mt-4 flex gap-1 border-b border-gray-200">
             <Link
-              href={getUriWithOrg(orgslug, '/dash/resources')}
+              href={getUriWithOrg(orgslug, routePaths.org.dash.resources())}
               className="border-b-2 border-transparent px-1 py-2 text-sm font-semibold text-gray-400 transition-colors hover:text-gray-700"
             >
               Channels
             </Link>
             <Link
-              href={getUriWithOrg(orgslug, '/dash/resources/tags')}
+              href={getUriWithOrg(orgslug, routePaths.org.dash.resourceTags())}
               className="border-b-2 border-black px-1 py-2 text-sm font-semibold text-gray-900"
             >
               Tags

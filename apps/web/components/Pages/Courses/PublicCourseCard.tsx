@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@components/ui/dropdown-menu'
-import { getAPIUrl, getUriWithOrg } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { removeCourse } from '@services/courses/activity'
 import { getCourseThumbnailMediaDirectory, getUserAvatarMediaDirectory } from '@services/media/media'
 import { revalidateTags } from '@services/utils/ts/requests'
@@ -36,7 +36,7 @@ function PublicCourseCard({ course, orgslug, run = null, orgName }: PublicCourse
   const session = useLHSession() as any
   const router = useRouter()
   const access_token = session?.data?.tokens?.access_token
-  const courseLink = getUriWithOrg(orgslug, `/course/${removeCoursePrefix(course.course_uuid)}`)
+  const courseLink = getUriWithOrg(orgslug, routePaths.org.course(removeCoursePrefix(course.course_uuid)))
   const isEnrolled = Boolean(run)
   const courseTotalSteps = run?.course_total_steps ?? 0
   const courseCompletedSteps = run?.steps?.length ?? 0

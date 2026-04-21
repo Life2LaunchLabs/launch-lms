@@ -1,5 +1,5 @@
 import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal'
-import { getAPIUrl, getUriWithOrg } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { deleteActivity, updateActivity } from '@services/courses/activities'
 import { revalidateTags } from '@services/utils/ts/requests'
 import {
@@ -217,16 +217,13 @@ function ActivityElement(props: ActivitiyElementProps) {
             </button>
             <ToolTip content={t('dashboard.courses.structure.actions.preview_activity')} sideOffset={8}>
               <Link
-                href={
-                  getUriWithOrg(props.orgslug, '') +
-                  `/course/${props.course_uuid.replace(
-                    'course_',
-                    ''
-                  )}/activity/${props.activity.activity_uuid.replace(
-                    'activity_',
-                    ''
-                  )}`
-                }
+                href={getUriWithOrg(
+                  props.orgslug,
+                  routePaths.org.courseActivity(
+                    props.course_uuid.replace('course_', ''),
+                    props.activity.activity_uuid.replace('activity_', '')
+                  )
+                )}
                 className="h-7 px-2 bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-md flex items-center transition-colors border border-gray-200 shadow-sm shadow-gray-300/20"
                 rel="noopener noreferrer"
               >
@@ -330,16 +327,13 @@ const ActivityElementOptions = ({ activity, isMobile }: { activity: any; isMobil
     <>
       {(activity.activity_type === 'TYPE_DYNAMIC' || activity.activity_type === 'TYPE_QUIZ') && (
         <Link
-          href={
-            getUriWithOrg(org.slug, '') +
-            `/course/${course?.courseStructure.course_uuid.replace(
-              'course_',
-              ''
-            )}/activity/${activity.activity_uuid.replace(
-              'activity_',
-              ''
+          href={getUriWithOrg(
+            org.slug,
+            `${routePaths.org.courseActivity(
+              course?.courseStructure.course_uuid.replace('course_', ''),
+              activity.activity_uuid.replace('activity_', '')
             )}/edit`
-          }
+          )}
           className="h-7 px-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md flex items-center gap-1 text-xs font-bold transition-colors border border-blue-200 shadow-sm shadow-blue-300/20"
           target='_blank'
         >
@@ -349,10 +343,7 @@ const ActivityElementOptions = ({ activity, isMobile }: { activity: any; isMobil
       )}
       {activity.activity_type === 'TYPE_ASSIGNMENT' && (
         <Link
-          href={
-            getUriWithOrg(org.slug, '') +
-            `/dash/assignments/${assignmentUUID}`
-          }
+          href={getUriWithOrg(org.slug, routePaths.org.dash.assignment(assignmentUUID))}
           className="h-7 px-2 bg-teal-50 text-teal-600 hover:bg-teal-100 rounded-md flex items-center gap-1 text-xs font-bold transition-colors border border-teal-200 shadow-sm shadow-teal-300/20"
         >
           <FilePenLine size={12} />

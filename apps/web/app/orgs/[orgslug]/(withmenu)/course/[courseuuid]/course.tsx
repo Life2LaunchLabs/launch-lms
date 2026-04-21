@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import React, { useEffect, useRef, useState } from 'react'
-import { getUriWithOrg, getAPIUrl } from '@services/config/config'
+import { getUriWithOrg, getAPIUrl, routePaths } from '@services/config/config'
 import PageLoading from '@components/Objects/Loaders/PageLoading'
 import { swrFetcher } from '@services/utils/ts/requests'
 import ActivityIndicators from '@components/Pages/Courses/ActivityIndicators'
@@ -245,7 +245,13 @@ const CourseClient = (props: any) => {
 
   const nextActivity = getNextActivity()
   const nextActivityRoute = nextActivity
-    ? getUriWithOrg(orgslug, '') + `/course/${courseuuid}/activity/${nextActivity.activity_uuid.replace('activity_', '')}`
+    ? getUriWithOrg(
+        orgslug,
+        routePaths.org.courseActivity(
+          courseuuid,
+          nextActivity.activity_uuid.replace('activity_', '')
+        )
+      )
     : null
 
   // Generate JSON-LD structured data for SEO
@@ -445,7 +451,7 @@ const CourseClient = (props: any) => {
                   )}
                   <CourseShare
                     courseName={course.name}
-                    courseUrl={getUriWithOrg(orgslug, `/course/${courseuuid}`)}
+                    courseUrl={getUriWithOrg(orgslug, routePaths.org.course(courseuuid))}
                     iconOnly
                   />
                 </div>
@@ -564,10 +570,13 @@ const CourseClient = (props: any) => {
                           return (
                             <Link
                               key={activity.activity_uuid}
-                              href={
-                                getUriWithOrg(orgslug, '') +
-                                `/course/${courseuuid}/activity/${activity.activity_uuid.replace('activity_', '')}`
-                              }
+                              href={getUriWithOrg(
+                                orgslug,
+                                routePaths.org.courseActivity(
+                                  courseuuid,
+                                  activity.activity_uuid.replace('activity_', '')
+                                )
+                              )}
                               rel="noopener noreferrer"
                               prefetch={false}
                               className={`block group transition-colors duration-150 px-4 py-3 ${

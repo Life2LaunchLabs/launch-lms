@@ -13,6 +13,7 @@ import {
   useAnalyticsStatus,
 } from '@components/Dashboard/Analytics/useAnalyticsDashboard'
 import { AnimatedNumber } from '@components/Dashboard/Analytics/Course/CourseWidgetCard'
+import { routePaths } from '@services/config/config'
 
 export default function QuickStats() {
   const { data: statusData, isLoading: statusLoading } = useAnalyticsStatus()
@@ -42,7 +43,7 @@ export default function QuickStats() {
             Enable analytics to see live users, signups, and more.
           </p>
           <Link
-            href="/dash/analytics"
+            href={routePaths.org.dash.analytics()}
             className="text-[11px] font-medium text-blue-600 hover:text-blue-700"
           >
             Enable &rarr;
@@ -116,7 +117,7 @@ function QuickStatsContent() {
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-gray-700">Quick Stats</h3>
         <Link
-          href="/dash/analytics"
+          href={routePaths.org.dash.analytics()}
           className="text-[11px] font-medium text-gray-400 hover:text-gray-600 transition-colors"
         >
           Full Analytics &rarr;

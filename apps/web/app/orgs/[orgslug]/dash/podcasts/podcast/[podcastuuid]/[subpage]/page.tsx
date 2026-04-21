@@ -7,7 +7,7 @@ import { Info, ListMusic, Headphones, ArrowLeft, Rss } from 'lucide-react'
 import EditPodcastGeneral from '@components/Dashboard/Pages/Podcast/EditPodcastGeneral/EditPodcastGeneral'
 import EditPodcastEpisodes from '@components/Dashboard/Pages/Podcast/EditPodcastEpisodes/EditPodcastEpisodes'
 import PodcastDistribution from '@components/Dashboard/Pages/Podcast/PodcastDistribution/PodcastDistribution'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 
@@ -32,19 +32,19 @@ function PodcastOverviewPage(props: { params: Promise<PodcastOverviewParams> }) 
       key: 'general',
       label: t('podcasts.dashboard.tabs.general'),
       icon: Info,
-      href: `/dash/podcasts/podcast/${params.podcastuuid}/general`,
+      href: routePaths.org.dash.podcastSettings(params.podcastuuid, 'general'),
     },
     {
       key: 'content',
       label: t('podcasts.dashboard.tabs.episodes'),
       icon: ListMusic,
-      href: `/dash/podcasts/podcast/${params.podcastuuid}/content`,
+      href: routePaths.org.dash.podcastSettings(params.podcastuuid, 'content'),
     },
     {
       key: 'distribution',
       label: 'Distribution',
       icon: Rss,
-      href: `/dash/podcasts/podcast/${params.podcastuuid}/distribution`,
+      href: routePaths.org.dash.podcastSettings(params.podcastuuid, 'distribution'),
     },
   ]
 
@@ -93,19 +93,19 @@ function PodcastOverviewHeader({
           items={[
             {
               label: t('podcasts.podcasts'),
-              href: '/dash/podcasts',
+              href: routePaths.org.dash.podcasts(),
               icon: <Headphones size={14} />,
             },
             {
               label: isLoading ? '...' : podcast?.name || 'Podcast',
-              href: `/dash/podcasts/podcast/${params.podcastuuid}/general`,
+              href: routePaths.org.dash.podcastSettings(params.podcastuuid, 'general'),
             },
           ]}
         />
         <div className="flex items-center justify-between mt-4">
           <div className="flex items-center space-x-4">
             <Link
-              href={getUriWithOrg(params.orgslug, '/dash/podcasts')}
+              href={getUriWithOrg(params.orgslug, routePaths.org.dash.podcasts())}
               className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <ArrowLeft size={20} />
@@ -127,7 +127,7 @@ function PodcastOverviewHeader({
           </div>
           {podcast && (
             <Link
-              href={getUriWithOrg(params.orgslug, `/podcast/${params.podcastuuid}`)}
+              href={getUriWithOrg(params.orgslug, routePaths.org.podcast(params.podcastuuid))}
               target="_blank"
               className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
             >
@@ -142,7 +142,7 @@ function PodcastOverviewHeader({
           const isActive = params.subpage === tab.key
 
           return (
-            <Link key={tab.key} href={getUriWithOrg(params.orgslug, '') + tab.href}>
+            <Link key={tab.key} href={getUriWithOrg(params.orgslug, tab.href)}>
               <div
                 className={`flex space-x-4 py-2 w-fit text-center border-black transition-all ease-linear ${
                   isActive ? 'border-b-4' : 'opacity-50 hover:opacity-75'

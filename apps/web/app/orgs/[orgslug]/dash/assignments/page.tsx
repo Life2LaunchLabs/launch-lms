@@ -2,7 +2,7 @@
 import { useLHSession } from '@components/Contexts/LHSessionContext';
 import { useOrg } from '@components/Contexts/OrgContext';
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
-import { getAPIUrl, getUriWithOrg } from '@services/config/config';
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config';
 import { getAssignmentsFromACourse } from '@services/courses/assignments';
 import { getCourseThumbnailMediaDirectory } from '@services/media/media';
 import { swrFetcher } from '@services/utils/ts/requests';
@@ -69,7 +69,7 @@ function AssignmentsHome() {
                   </div>
                   <Link
                     href={{
-                      pathname: getUriWithOrg(org.slug, `/dash/courses/course/${removeCoursePrefix(courses[index].course_uuid)}/content`),
+                      pathname: getUriWithOrg(org.slug, routePaths.org.dash.courseSettings(removeCoursePrefix(courses[index].course_uuid), 'content')),
                       query: { subpage: 'editor' }
                     }}
                     prefetch
@@ -92,7 +92,7 @@ function AssignmentsHome() {
                       <EllipsisVertical className='text-gray-500' size={17} />
                       <Link
                         href={{
-                          pathname: getUriWithOrg(org.slug, `/dash/assignments/${removeAssignmentPrefix(assignment.assignment_uuid)}`),
+                          pathname: getUriWithOrg(org.slug, routePaths.org.dash.assignment(removeAssignmentPrefix(assignment.assignment_uuid))),
                           query: { subpage: 'editor' }
                         }}
                         prefetch
@@ -102,7 +102,7 @@ function AssignmentsHome() {
                       </Link>
                       <Link
                         href={{
-                          pathname: getUriWithOrg(org.slug, `/dash/assignments/${removeAssignmentPrefix(assignment.assignment_uuid)}`),
+                          pathname: getUriWithOrg(org.slug, routePaths.org.dash.assignment(removeAssignmentPrefix(assignment.assignment_uuid))),
                           query: { subpage: 'submissions' }
                         }}
                         prefetch

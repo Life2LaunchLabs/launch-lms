@@ -4,7 +4,7 @@ import { Lock, ShoppingCart } from 'lucide-react';
 import { Button } from '@components/ui/button';
 import Link from 'next/link';
 import { useOrg } from '@components/Contexts/OrgContext';
-import { getUriWithOrg } from '@services/config/config';
+import { getUriWithOrg, routePaths } from '@services/config/config';
 
 interface OfferMeta {
   offer_id: number;
@@ -40,7 +40,7 @@ function PaymentWall({ offer, resourceName, resourceThumbnail, orgslug }: Paymen
   }).format(offer.amount);
 
   const storeHref = slug
-    ? getUriWithOrg(slug, `/store/offers/${offer.offer_id}`)
+    ? getUriWithOrg(slug, routePaths.org.store.offer(String(offer.offer_id)))
     : '#';
 
   return (
