@@ -7,6 +7,7 @@ Create Date: 2026-04-14 12:00:00.000000
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
 revision = 'u3v4w5x6y7z'
@@ -16,11 +17,14 @@ depends_on = None
 
 
 def upgrade() -> None:
-    resource_type_enum = sa.Enum(
+    resource_type_enum = postgresql.ENUM(
         'assessment', 'video', 'article', 'tool', 'guide', 'course', 'other',
         name='resourcetypeenum',
+        create_type=False,
     )
-    access_mode_enum = sa.Enum('free', 'paid', 'restricted', name='resourceaccessmodeenum')
+    access_mode_enum = postgresql.ENUM(
+        'free', 'paid', 'restricted', name='resourceaccessmodeenum', create_type=False
+    )
     resource_type_enum.create(op.get_bind(), checkfirst=True)
     access_mode_enum.create(op.get_bind(), checkfirst=True)
 
@@ -164,5 +168,5 @@ def downgrade() -> None:
     op.drop_index('ix_resource_resource_uuid', table_name='resource')
     op.drop_index('ix_resource_org_id', table_name='resource')
     op.drop_table('resource')
-    sa.Enum(name='resourceaccessmodeenum').drop(op.get_bind(), checkfirst=True)
-    sa.Enum(name='resourcetypeenum').drop(op.get_bind(), checkfirst=True)
+    postgresql.ENUM(name='resourceaccessmodeenum').drop(op.get_bind(), checkfirst=True)
+    postgresql.ENUM(name='resourcetypeenum').drop(op.get_bind(), checkfirst=True)
