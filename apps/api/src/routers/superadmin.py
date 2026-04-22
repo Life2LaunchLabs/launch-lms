@@ -461,13 +461,14 @@ async def update_org_plan(org_id: int, payload: dict, db_session: Session = Depe
     org_config = db_session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)).first()
     if not org_config:
         raise HTTPException(status_code=404, detail="Organization config not found")
-    config = org_config.config or {}
+    config = dict(org_config.config or {})
     if str(config.get("config_version", "1.0")).startswith("2"):
         config["plan"] = payload.get("plan", config.get("plan", "free"))
     else:
         config.setdefault("cloud", {})
         config["cloud"]["plan"] = payload.get("plan", config["cloud"].get("plan", "free"))
     org_config.config = config
+    flag_modified(org_config, "config")
     db_session.add(org_config)
     db_session.commit()
     return {"success": True}
@@ -545,12 +546,33 @@ async def update_plan_request(
     body: PlanRequestUpdate,
     db_session: Session = Depends(get_db_session),
 ):
-    """Approve or deny a plan/package request."""
+    """Approve or deny a plan/package request. Approval applies the change immediately."""
     req = db_session.exec(
         select(PlanRequest).where(PlanRequest.request_uuid == request_uuid)
     ).first()
     if not req:
         raise HTTPException(status_code=404, detail="Plan request not found")
+
+    if body.status == "approved":
+        org_config = db_session.exec(
+            select(OrganizationConfig).where(OrganizationConfig.org_id == req.org_id)
+        ).first()
+        if org_config:
+            config = dict(org_config.config or {})
+            if req.request_type == "plan_upgrade":
+                if str(config.get("config_version", "1.0")).startswith("2"):
+                    config["plan"] = req.requested_value
+                else:
+                    config.setdefault("cloud", {})
+                    config["cloud"]["plan"] = req.requested_value
+            elif req.request_type == "package_add":
+                packages = list(config.get("packages") or [])
+                if req.requested_value not in packages:
+                    packages.append(req.requested_value)
+                config["packages"] = packages
+            org_config.config = config
+            flag_modified(org_config, "config")
+            db_session.add(org_config)
 
     req.status = body.status
     if body.message is not None:
