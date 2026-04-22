@@ -1628,6 +1628,12 @@
             "video": "Supported formats: MP4, WebM (max 100MB)"
           }
         },
+        "export": {
+          "title": "Export Course",
+          "description": "Download this course as a ZIP file to back it up or import it into another Launch LMS instance.",
+          "button": "Export Course",
+          "exporting": "Exporting..."
+        },
         "errors": {
           "save_failed": "Failed to save course structure."
         }
