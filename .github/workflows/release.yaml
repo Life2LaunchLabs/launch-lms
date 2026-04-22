@@ -74,6 +74,8 @@ jobs:
     name: Create release and push manifest
     runs-on: ubuntu-latest
     needs: build
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -159,3 +161,53 @@ jobs:
           name: v${{ steps.version.outputs.version }}
           body_path: /tmp/changelog.md
           make_latest: true
+
+  open-infra-pr:
+    name: Open infra release PR
+    runs-on: ubuntu-latest
+    needs: release
+    env:
+      INFRA_REPO: Life2LaunchLabs/launch-lms-infra
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: Life2LaunchLabs/launch-lms-infra
+          path: infra
+          token: ${{ secrets.INFRA_TOKEN }}
+
+      - name: Update release.lock.json and open PR
+        env:
+          GH_TOKEN: ${{ secrets.INFRA_TOKEN }}
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          cd infra
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          BRANCH="release/v${VERSION}"
+          git checkout -b "$BRANCH"
+
+          python3 - <<PY
+          import json, datetime
+          from pathlib import Path
+
+          lock = json.loads(Path("release.lock.json").read_text())
+          lock["image_tag"] = "v${VERSION}"
+          lock["image_ref"] = "ghcr.io/life2launchlabs/launch-lms:v${VERSION}"
+          lock["version"] = "v${VERSION}"
+          lock["commit_sha"] = "${GITHUB_SHA}"
+          lock["released_at"] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+          lock["source_branch"] = "prod"
+          Path("release.lock.json").write_text(json.dumps(lock, indent=2) + "\n")
+          PY
+
+          git add release.lock.json
+          git commit -m "chore: release v${VERSION}"
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --repo "$INFRA_REPO" \
+            --base main \
+            --head "$BRANCH" \
+            --title "chore: release v${VERSION}" \
+            --body "Updates \`release.lock.json\` to deploy \`ghcr.io/life2launchlabs/launch-lms:v${VERSION}\`."
