@@ -6,7 +6,7 @@ import FormLayout, {
   Textarea,
 } from '@components/Objects/StyledElements/Form/Form';
 import { useFormik } from 'formik';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Download } from 'lucide-react';
 import * as Form from '@radix-ui/react-form';
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import ThumbnailUpdate from './ThumbnailUpdate';
@@ -21,6 +21,9 @@ import {
   CustomSelectValue,
 } from "./CustomSelect";
 import { useTranslation } from 'react-i18next';
+import { useLHSession } from '@components/Contexts/LHSessionContext';
+import { exportCourse, downloadBlob, ExportStatus } from '@services/courses/transfer';
+import { exportToast } from '@components/Objects/StyledElements/Toast/ExportToast';
 
 type EditCourseStructureProps = {
   orgslug: string
@@ -69,6 +72,9 @@ const validate = (values: any, t: any) => {
 function EditCourseGeneral(props: EditCourseStructureProps) {
   const { t } = useTranslation()
   const [error, setError] = useState('');
+  const session = useLHSession() as any
+  const access_token = session.data?.tokens?.access_token
+  const [isExporting, setIsExporting] = useState(false)
 
   // Use the new field sync hook
   const {
@@ -78,6 +84,25 @@ function EditCourseGeneral(props: EditCourseStructureProps) {
     isLoading,
     isSaving,
   } = useCourseFieldSync('editCourseGeneral');
+
+  const handleExport = async () => {
+    if (!props.course_uuid || isExporting) return
+    setIsExporting(true)
+    const courseName = courseStructure?.name
+    const toastId = exportToast.start('single', courseName)
+    try {
+      const blob = await exportCourse(props.course_uuid, access_token, (progress, status) => {
+        exportToast.update(toastId, status as ExportStatus, progress, courseName)
+      })
+      const timestamp = new Date().toISOString().split('T')[0]
+      downloadBlob(blob, `${courseName || props.course_uuid}-${timestamp}.zip`)
+      exportToast.complete(toastId, courseName)
+    } catch (err: any) {
+      exportToast.error(toastId, err.message || 'Export failed', courseName)
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   const previousValuesRef = useRef<any>(null);
 
@@ -191,7 +216,7 @@ function EditCourseGeneral(props: EditCourseStructureProps) {
     <div className="h-full">
       <div className="h-6" />
       <div className="px-10 pb-10">
-        <div className="bg-white rounded-xl shadow-xs">
+        <div className="bg-white rounded-xl shadow-xs mb-6">
           <FormLayout onSubmit={formik.handleSubmit} className="p-6">
             {error && (
               <div className="flex justify-center bg-red-200 rounded-md text-red-950 space-x-2 items-center p-4 mb-6 transition-all shadow-xs">
@@ -302,6 +327,19 @@ function EditCourseGeneral(props: EditCourseStructureProps) {
               </FormField>
             </div>
           </FormLayout>
+        </div>
+        <div className="bg-white rounded-xl shadow-xs p-6">
+          <h3 className="text-sm font-semibold text-gray-700 mb-1">{t('dashboard.courses.general.export.title')}</h3>
+          <p className="text-xs text-gray-500 mb-4">{t('dashboard.courses.general.export.description')}</p>
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={isExporting}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-black rounded-lg hover:scale-105 transition-all duration-100 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 nice-shadow"
+          >
+            <Download className="w-4 h-4" />
+            <span>{isExporting ? t('dashboard.courses.general.export.exporting') : t('dashboard.courses.general.export.button')}</span>
+          </button>
         </div>
       </div>
     </div>

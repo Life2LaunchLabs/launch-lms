@@ -1,9 +1,11 @@
+import logging
 from datetime import datetime, timezone
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlmodel import Session, select, func
+from sqlalchemy.orm.attributes import flag_modified
 
 from src.core.capabilities import CORE_CAPABILITIES
 from src.core.events.database import get_db_session
@@ -19,11 +21,17 @@ from src.security.auth import get_current_user
 from src.security.superadmin import require_superadmin
 from src.services.orgs.usage import get_org_usage_and_limits
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(dependencies=[Depends(require_superadmin)])
 
 
 class SuperadminUserUpdate(BaseModel):
     is_superadmin: bool
+
+
+class OrgConfigUpdateRequest(BaseModel):
+    config: dict
 
 
 def _parse_datetime(value: str | None) -> datetime:
@@ -114,7 +122,7 @@ def _sort_user_items(items: list[dict], sort: str) -> list[dict]:
 
 @router.get("/status")
 async def superadmin_status(current_user: PublicUser = Depends(get_current_user)):
-    return {"is_superadmin": getattr(current_user, "is_superadmin", False), "capabilities": CORE_CAPABILITIES}
+    return {"is_superadmin": True, "capabilities": CORE_CAPABILITIES}
 
 
 @router.get("/organizations")
@@ -208,8 +216,31 @@ async def create_organization(
 
 @router.get("/organizations/visits")
 async def organizations_visits():
-    # Tinybird-backed global visit reporting is intentionally disabled in core for now.
-    return {"data": []}
+    from src.routers.analytics import _execute_tinybird_query
+
+    sql = """
+    SELECT
+        org_id,
+        toDate(timestamp) AS date,
+        count() AS views
+    FROM events
+    WHERE
+        event_name = 'page_view'
+        AND timestamp >= now() - INTERVAL 7 DAY
+    GROUP BY org_id, date
+    ORDER BY org_id, date ASC
+    """
+
+    try:
+        return await _execute_tinybird_query(
+            query_name="superadmin_org_weekly_visits",
+            sql=sql,
+            org_id=0,
+            days=7,
+        )
+    except Exception as exc:
+        logger.warning("Failed to fetch org weekly visits: %s", exc)
+        return {"data": [], "rows": 0, "meta": []}
 
 
 @router.get("/users")
@@ -372,15 +403,57 @@ async def get_org_users(org_id: int, page: int = 1, limit: int = 20, search: str
 
 
 @router.get("/organizations/{org_id}/analytics")
-async def get_org_analytics(org_id: int, days: int = 30):
-    # Advanced analytics is intentionally disabled in core until a native replacement exists.
-    return {}
+async def get_org_analytics(
+    org_id: int,
+    days: int = 30,
+    db_session: Session = Depends(get_db_session),
+):
+    from src.routers.analytics import _execute_tinybird_query
+    from src.services.analytics.queries import CORE_QUERIES
+
+    org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    results = {}
+    for query_name, (sql_template, default_days) in CORE_QUERIES.items():
+        try:
+            effective_days = days if days else default_days
+            sql = sql_template.format(org_id=org_id, days=effective_days)
+            results[query_name] = await _execute_tinybird_query(
+                query_name=f"superadmin_{query_name}",
+                sql=sql,
+                org_id=org_id,
+                days=effective_days,
+            )
+        except Exception as exc:
+            logger.warning("Failed to fetch %s for org %s: %s", query_name, org_id, exc)
+            results[query_name] = {"data": [], "rows": 0, "meta": []}
+
+    return results
 
 
 @router.get("/analytics/global")
 async def get_global_analytics(days: int = 30):
-    # Advanced analytics is intentionally disabled in core until a native replacement exists.
-    return {}
+    from src.routers.analytics import _execute_tinybird_query
+    from src.services.analytics.queries import CORE_QUERIES
+
+    results = {}
+    for query_name, (sql_template, default_days) in CORE_QUERIES.items():
+        try:
+            effective_days = days if days else default_days
+            sql = sql_template.format(org_id=0, days=effective_days)
+            results[query_name] = await _execute_tinybird_query(
+                query_name=f"global_{query_name}",
+                sql=sql,
+                org_id=0,
+                days=effective_days,
+            )
+        except Exception as exc:
+            logger.warning("Failed to fetch global %s: %s", query_name, exc)
+            results[query_name] = {"data": [], "rows": 0, "meta": []}
+
+    return results
 
 
 @router.put("/organizations/{org_id}/plan")
@@ -411,6 +484,31 @@ async def update_org_settings(org_id: int, payload: dict, db_session: Session = 
     org.update_date = datetime.now(timezone.utc).isoformat()
     db_session.add(org)
     db_session.commit()
+    return {"success": True}
+
+
+@router.put("/organizations/{org_id}/config")
+async def update_org_config(
+    org_id: int,
+    body: OrgConfigUpdateRequest,
+    db_session: Session = Depends(get_db_session),
+):
+    org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    org_config = db_session.exec(
+        select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)
+    ).first()
+    if not org_config:
+        raise HTTPException(status_code=404, detail="Organization config not found")
+
+    org_config.config = body.config
+    org_config.update_date = datetime.now().isoformat()
+    flag_modified(org_config, "config")
+    db_session.add(org_config)
+    db_session.commit()
+
     return {"success": True}
 
 
