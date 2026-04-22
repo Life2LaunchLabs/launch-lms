@@ -51,13 +51,22 @@ async def api_get_collections_by(
     page: int,
     limit: int,
     org_id: str,
+    include_shared: bool = True,
     current_user: PublicUser = Depends(get_current_user),
     db_session=Depends(get_db_session),
 ) -> List[CollectionRead]:
     """
     Get collections by page and limit
     """
-    return await get_collections(request, org_id, current_user, db_session, page, limit)
+    return await get_collections(
+        request,
+        org_id,
+        current_user,
+        db_session,
+        page,
+        limit,
+        include_shared,
+    )
 
 
 @router.put("/{collection_uuid}")

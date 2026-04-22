@@ -69,7 +69,13 @@ async function CoursesPage(params: any) {
 
   let collections: any[] = []
   try {
-    collections = await getOrgCollections(String(org.id), access_token ?? undefined, { revalidate: 0, tags: ['collections'] })
+    collections = await getOrgCollections(
+      String(org.id),
+      access_token ?? undefined,
+      { revalidate: 0, tags: ['collections'] },
+      100,
+      false
+    )
   } catch {
     collections = []
   }

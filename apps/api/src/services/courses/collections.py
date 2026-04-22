@@ -363,10 +363,23 @@ async def get_collections(
     db_session: Session,
     page: int = 1,
     limit: int = 10,
+    include_shared: bool = True,
 ) -> List[CollectionRead]:
-
-    statement_public = select(Collection).where(
-        Collection.org_id == org_id, Collection.public == True
+    statement_public = (
+        select(Collection)
+        .where(
+            or_(
+                Collection.org_id == org_id,
+                Collection.shared == True,
+            ),
+            Collection.public == True,
+        )
+        .distinct(Collection.id)  # type: ignore
+        if include_shared
+        else select(Collection).where(
+            Collection.org_id == org_id,
+            Collection.public == True,
+        )
     )
     statement_all = (
         select(Collection)
@@ -376,7 +389,9 @@ async def get_collections(
                 Collection.shared == True,
             )
         )
-        .distinct(Collection.id) # type: ignore
+        .distinct(Collection.id)  # type: ignore
+        if include_shared
+        else select(Collection).where(Collection.org_id == org_id)
     )
 
     statement = statement_public if current_user.id == 0 else statement_all
