@@ -10,7 +10,7 @@ const REFRESH_TOKEN_COOKIE = 'refresh_token_cookie'
 // Types matching the client-side session structure
 export interface Session {
   user: any | undefined
-  roles?: string[] | undefined
+  roles?: any[] | undefined
   tokens?: {
     access_token?: string | undefined
     refresh_token?: string | undefined

@@ -80,10 +80,11 @@ export async function getOrgCollections(
   org_id: string,
   access_token?: string,
   next?: any,
-  limit: number = 100
+  limit: number = 100,
+  includeShared: boolean = true
 ) {
   const result: any = await fetch(
-    `${getAPIUrl()}collections/org/${org_id}/page/1/limit/${limit}`,
+    `${getAPIUrl()}collections/org/${org_id}/page/1/limit/${limit}?include_shared=${includeShared}`,
     RequestBodyWithAuthHeader('GET', null, next, access_token)
   )
   const res = await errorHandling(result)

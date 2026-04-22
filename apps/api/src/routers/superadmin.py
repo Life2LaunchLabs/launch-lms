@@ -34,6 +34,10 @@ class OrgConfigUpdateRequest(BaseModel):
     config: dict
 
 
+class OrgPlanUpdateRequest(BaseModel):
+    plan: str
+
+
 def _parse_datetime(value: str | None) -> datetime:
     if not value:
         return datetime.min.replace(tzinfo=timezone.utc)
@@ -50,6 +54,59 @@ def _org_plan(org_config: OrganizationConfig | None) -> str:
     if str(config.get("config_version", "1.0")).startswith("2"):
         return config.get("plan", "free")
     return config.get("cloud", {}).get("plan", "free")
+
+
+def _get_org_config_rows(org_id: int, db_session: Session) -> list[OrganizationConfig]:
+    return db_session.exec(
+        select(OrganizationConfig)
+        .where(OrganizationConfig.org_id == org_id)
+        .order_by(OrganizationConfig.id)
+    ).all()
+
+
+def _get_single_org_config(org_id: int, db_session: Session) -> OrganizationConfig:
+    rows = _get_org_config_rows(org_id, db_session)
+    if not rows:
+        raise HTTPException(status_code=404, detail="Organization config not found")
+    if len(rows) > 1:
+        row_ids = [row.id for row in rows]
+        logger.error(
+            "Duplicate organization_config rows found for org_id=%s: ids=%s",
+            org_id,
+            row_ids,
+        )
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Duplicate organization configs found for this organization. "
+                f"org_id={org_id}, config_ids={row_ids}"
+            ),
+        )
+    return rows[0]
+
+
+def _verify_persisted_org_plan(
+    org_config: OrganizationConfig,
+    expected_plan: str,
+    db_session: Session,
+) -> None:
+    db_session.refresh(org_config)
+    persisted_plan = _org_plan(org_config)
+    if persisted_plan != expected_plan:
+        logger.error(
+            "Organization plan write verification failed for org_id=%s: expected=%s actual=%s config_id=%s",
+            org_config.org_id,
+            expected_plan,
+            persisted_plan,
+            org_config.id,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Organization plan update could not be verified after commit. "
+                f"expected={expected_plan}, actual={persisted_plan}"
+            ),
+        )
 
 
 def _admin_users_for_org(org_id: int, db_session: Session) -> list[dict]:
@@ -341,7 +398,8 @@ async def get_organization(org_id: int, db_session: Session = Depends(get_db_ses
     org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
-    org_config = db_session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)).first()
+    org_config_rows = _get_org_config_rows(org_id, db_session)
+    org_config = org_config_rows[0] if len(org_config_rows) == 1 else None
     user_count = db_session.exec(select(func.count()).where(UserOrganization.org_id == org.id)).one()
     course_count = db_session.exec(select(func.count()).where(Course.org_id == org.id)).one()
     pending_request_count = db_session.exec(
@@ -357,6 +415,8 @@ async def get_organization(org_id: int, db_session: Session = Depends(get_db_ses
         "pending_request_count": pending_request_count,
         "custom_domains": [domain.domain for domain in domains],
         "admin_users": _admin_users_for_org(org.id, db_session),
+        "config_row_count": len(org_config_rows),
+        "config_row_ids": [cfg.id for cfg in org_config_rows],
     }
 
 
@@ -457,20 +517,20 @@ async def get_global_analytics(days: int = 30):
 
 
 @router.put("/organizations/{org_id}/plan")
-async def update_org_plan(org_id: int, payload: dict, db_session: Session = Depends(get_db_session)):
-    org_config = db_session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)).first()
-    if not org_config:
-        raise HTTPException(status_code=404, detail="Organization config not found")
+async def update_org_plan(org_id: int, body: OrgPlanUpdateRequest, db_session: Session = Depends(get_db_session)):
+    org_config = _get_single_org_config(org_id, db_session)
     config = dict(org_config.config or {})
     if str(config.get("config_version", "1.0")).startswith("2"):
-        config["plan"] = payload.get("plan", config.get("plan", "free"))
+        config["plan"] = body.plan
     else:
         config.setdefault("cloud", {})
-        config["cloud"]["plan"] = payload.get("plan", config["cloud"].get("plan", "free"))
+        config["cloud"]["plan"] = body.plan
     org_config.config = config
+    org_config.update_date = datetime.now(timezone.utc).isoformat()
     flag_modified(org_config, "config")
     db_session.add(org_config)
     db_session.commit()
+    _verify_persisted_org_plan(org_config, body.plan, db_session)
     return {"success": True}
 
 
@@ -498,11 +558,7 @@ async def update_org_config(
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
 
-    org_config = db_session.exec(
-        select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)
-    ).first()
-    if not org_config:
-        raise HTTPException(status_code=404, detail="Organization config not found")
+    org_config = _get_single_org_config(org_id, db_session)
 
     org_config.config = body.config
     org_config.update_date = datetime.now().isoformat()
@@ -554,25 +610,23 @@ async def update_plan_request(
         raise HTTPException(status_code=404, detail="Plan request not found")
 
     if body.status == "approved":
-        org_config = db_session.exec(
-            select(OrganizationConfig).where(OrganizationConfig.org_id == req.org_id)
-        ).first()
-        if org_config:
-            config = dict(org_config.config or {})
-            if req.request_type == "plan_upgrade":
-                if str(config.get("config_version", "1.0")).startswith("2"):
-                    config["plan"] = req.requested_value
-                else:
-                    config.setdefault("cloud", {})
-                    config["cloud"]["plan"] = req.requested_value
-            elif req.request_type == "package_add":
-                packages = list(config.get("packages") or [])
-                if req.requested_value not in packages:
-                    packages.append(req.requested_value)
-                config["packages"] = packages
-            org_config.config = config
-            flag_modified(org_config, "config")
-            db_session.add(org_config)
+        org_config = _get_single_org_config(req.org_id, db_session)
+        config = dict(org_config.config or {})
+        if req.request_type == "plan_upgrade":
+            if str(config.get("config_version", "1.0")).startswith("2"):
+                config["plan"] = req.requested_value
+            else:
+                config.setdefault("cloud", {})
+                config["cloud"]["plan"] = req.requested_value
+        elif req.request_type == "package_add":
+            packages = list(config.get("packages") or [])
+            if req.requested_value not in packages:
+                packages.append(req.requested_value)
+            config["packages"] = packages
+        org_config.config = config
+        org_config.update_date = datetime.now(timezone.utc).isoformat()
+        flag_modified(org_config, "config")
+        db_session.add(org_config)
 
     req.status = body.status
     if body.message is not None:
@@ -580,6 +634,8 @@ async def update_plan_request(
     req.update_date = datetime.now(timezone.utc).isoformat()
     db_session.add(req)
     db_session.commit()
+    if body.status == "approved" and req.request_type == "plan_upgrade":
+        _verify_persisted_org_plan(org_config, req.requested_value, db_session)
     db_session.refresh(req)
     return req
 
@@ -591,19 +647,13 @@ async def update_org_packages(
     db_session: Session = Depends(get_db_session),
 ):
     """Set the active packages for an organization (superadmin only)."""
-    org_config = db_session.exec(
-        select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)
-    ).first()
-    if not org_config:
-        raise HTTPException(status_code=404, detail="Organization config not found")
+    org_config = _get_single_org_config(org_id, db_session)
 
-    config = org_config.config or {}
-    packages = payload.get("packages", [])
-    if str(config.get("config_version", "1.0")).startswith("2"):
-        config["packages"] = packages
-    else:
-        config["packages"] = packages
+    config = dict(org_config.config or {})
+    config["packages"] = payload.get("packages", [])
     org_config.config = config
+    org_config.update_date = datetime.now(timezone.utc).isoformat()
+    flag_modified(org_config, "config")
     db_session.add(org_config)
     db_session.commit()
     return {"success": True}

@@ -72,7 +72,9 @@ function CoursesHome(params: CourseProps) {
 
   // SWR for collections
   const { data: collectionsData, mutate: mutateCollections } = useSWR(
-    access_token && params.org_id ? `${getAPIUrl()}collections/org/${params.org_id}/page/1/limit/100` : null,
+    access_token && params.org_id
+      ? `${getAPIUrl()}collections/org/${params.org_id}/page/1/limit/100?include_shared=false`
+      : null,
     (url) => swrFetcher(url, access_token),
     { fallbackData: params.collections || [], revalidateOnFocus: true }
   )
