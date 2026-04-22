@@ -1,8 +1,8 @@
 import pc from 'picocolors'
-import { VERSION, DEV_IMAGE, LOCAL_CLI_COMMAND } from '../constants.js'
+import { VERSION, DEV_IMAGE, IMAGE_REPOSITORY, LOCAL_CLI_COMMAND } from '../constants.js'
 
 const NPM_REGISTRY_URL = 'https://registry.npmjs.org/launch-lms'
-const GHCR_BASE = 'ghcr.io/launch-lms/app'
+const GHCR_BASE = IMAGE_REPOSITORY
 
 function compareVersions(a: string, b: string): number {
   const pa = a.split('.').map(Number)
@@ -48,9 +48,9 @@ export async function checkForUpdates(): Promise<void> {
  */
 export async function resolveAppImage(
   channel: 'stable' | 'dev' = 'stable',
-): Promise<{ image: string; isLatest: boolean }> {
+): Promise<{ image: string; digest: string | null; isLatest: boolean }> {
   if (channel === 'dev') {
-    return { image: DEV_IMAGE, isLatest: false }
+    return { image: DEV_IMAGE, digest: null, isLatest: false }
   }
 
   const versionedTag = `${GHCR_BASE}:${VERSION}`
@@ -59,7 +59,7 @@ export async function resolveAppImage(
   try {
     // Get anonymous token
     const tokenResp = await fetch(
-      `https://ghcr.io/token?scope=repository:launch-lms/app:pull`,
+      `https://ghcr.io/token?scope=repository:life2launchlabs/launch-lms:pull`,
       { signal: AbortSignal.timeout(5000) },
     )
     if (!tokenResp.ok) throw new Error('token fetch failed')
@@ -67,7 +67,7 @@ export async function resolveAppImage(
 
     // Check manifest for versioned tag
     const manifestResp = await fetch(
-      `https://ghcr.io/v2/launch-lms/app/manifests/${VERSION}`,
+      `https://ghcr.io/v2/life2launchlabs/launch-lms/manifests/${VERSION}`,
       {
         signal: AbortSignal.timeout(5000),
         headers: {
@@ -78,11 +78,12 @@ export async function resolveAppImage(
     )
 
     if (manifestResp.ok) {
-      return { image: versionedTag, isLatest: false }
+      const digest = manifestResp.headers.get('docker-content-digest')
+      return { image: versionedTag, digest, isLatest: false }
     }
   } catch {
     // Network error — fall through to latest
   }
 
-  return { image: `${GHCR_BASE}:latest`, isLatest: true }
+  return { image: `${GHCR_BASE}:latest`, digest: null, isLatest: true }
 }

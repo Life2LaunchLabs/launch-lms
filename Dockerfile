@@ -69,6 +69,11 @@ RUN bun run build
 # ───────────────────────────────────────────────
 FROM python:3.14.3-slim-bookworm AS runner
 
+ARG LAUNCHLMS_VERSION=dev
+ARG LAUNCHLMS_COMMIT_SHA=unknown
+ARG LAUNCHLMS_IMAGE_REF=ghcr.io/life2launchlabs/launch-lms:dev
+ARG LAUNCHLMS_RELEASED_AT=unknown
+
 # Single apt layer: nginx, curl, netcat, node, pm2
 RUN apt-get update \
     && apt-get install -y --no-install-recommends nginx curl netcat-openbsd ca-certificates gnupg unzip \
@@ -93,6 +98,25 @@ COPY ./apps/api/uv.lock ./apps/api/pyproject.toml ./
 RUN pip install --no-cache-dir --upgrade pip uv \
     && uv sync --no-dev
 COPY ./apps/api ./
+RUN python ./scripts/get_alembic_head.py > /tmp/launchlms_alembic_head \
+    && LAUNCHLMS_VERSION="$LAUNCHLMS_VERSION" \
+       LAUNCHLMS_COMMIT_SHA="$LAUNCHLMS_COMMIT_SHA" \
+       LAUNCHLMS_IMAGE_REF="$LAUNCHLMS_IMAGE_REF" \
+       LAUNCHLMS_RELEASED_AT="$LAUNCHLMS_RELEASED_AT" \
+       python - <<'PY'
+from pathlib import Path
+import json
+import os
+
+build_info = {
+    "version": os.environ.get("LAUNCHLMS_VERSION", "dev"),
+    "commit_sha": os.environ.get("LAUNCHLMS_COMMIT_SHA", "unknown"),
+    "image_ref": os.environ.get("LAUNCHLMS_IMAGE_REF", "ghcr.io/life2launchlabs/launch-lms:dev"),
+    "released_at": os.environ.get("LAUNCHLMS_RELEASED_AT", "unknown"),
+    "alembic_head": Path("/tmp/launchlms_alembic_head").read_text().strip(),
+}
+Path("/app/build-info.json").write_text(json.dumps(build_info, indent=2) + "\n")
+PY
 
 
 # Collab server: copy built JS + production deps
@@ -109,6 +133,12 @@ COPY ./docker/start.sh /app/start.sh
 RUN chmod +x /app/api/docker-entrypoint.sh /app/start.sh
 
 ENV PORT=8000 LAUNCHLMS_PORT=9000 COLLAB_PORT=4000 HOSTNAME=0.0.0.0 LAUNCHLMS_OSS=true NEXT_PUBLIC_LAUNCHLMS_OSS=true
+
+LABEL org.opencontainers.image.version="${LAUNCHLMS_VERSION}" \
+      org.opencontainers.image.revision="${LAUNCHLMS_COMMIT_SHA}" \
+      org.opencontainers.image.created="${LAUNCHLMS_RELEASED_AT}" \
+      org.opencontainers.image.source="https://github.com/Life2LaunchLabs/launch-lms" \
+      io.launchlms.image-ref="${LAUNCHLMS_IMAGE_REF}"
 
 EXPOSE 80 9000 4000
 

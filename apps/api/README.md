@@ -27,13 +27,13 @@ apps/api/.venv/bin/python apps/api/cli.py normalize-owner-org-slug
 
 ## Release order
 
-Use this order for schema-changing releases:
+Schema-changing production releases are orchestrated by `launch-lms-infra`.
 
-1. Deploy the new image or code to the server.
-2. Run `./scripts/run_alembic_migrations.sh`.
-3. Restart the API process after the migration succeeds.
+1. Publish a new image from this repo.
+2. Update the infra release lock to the new immutable image digest.
+3. Let the infra deploy step run `./scripts/run_alembic_migrations.sh` before restarting the app.
 
-Do not rely on app startup to apply migrations automatically. This repository keeps migrations as an explicit release step.
+Do not rely on app startup to apply migrations automatically. Migrations stay an explicit deploy step.
 
 ## Guardrail
 

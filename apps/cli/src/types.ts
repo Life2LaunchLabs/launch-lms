@@ -3,6 +3,9 @@ export interface SetupConfig {
   deploymentId: string
   installDir: string
   channel: 'stable' | 'dev'
+  deploymentMode?: 'cli' | 'infra'
+  imageRef?: string | null
+  imageDigest?: string | null
 
   // Domain & SSL
   domain: string
@@ -55,6 +58,9 @@ export interface LaunchLMSConfigJson {
   deploymentId: string
   createdAt: string
   installDir: string
+  deploymentMode: 'cli' | 'infra'
+  imageRef: string | null
+  imageDigest: string | null
   domain: string
   httpPort: number
   useHttps: boolean
