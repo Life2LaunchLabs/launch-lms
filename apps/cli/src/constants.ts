@@ -1,7 +1,8 @@
 export const VERSION = '1.2.0'
 export const LOCAL_CLI_COMMAND = './launch-lms'
-export const APP_IMAGE = 'ghcr.io/life2launchlabs/launch-lms:latest'
-export const DEV_IMAGE = 'ghcr.io/life2launchlabs/launch-lms:dev'
+export const IMAGE_REPOSITORY = 'ghcr.io/life2launchlabs/launch-lms'
+export const APP_IMAGE = `${IMAGE_REPOSITORY}:latest`
+export const DEV_IMAGE = `${IMAGE_REPOSITORY}:dev`
 export const NGINX_IMAGE = 'nginx:alpine'
 export const POSTGRES_IMAGE = 'postgres:16-alpine'
 export const POSTGRES_AI_IMAGE = 'pgvector/pgvector:pg16'

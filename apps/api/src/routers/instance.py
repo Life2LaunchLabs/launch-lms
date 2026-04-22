@@ -4,8 +4,11 @@ from src.db.organizations import Organization
 from src.core.events.database import get_db_session
 from src.core.capabilities import CORE_CAPABILITIES
 from config.config import get_launchlms_config
+from pathlib import Path
+import json
 
 router = APIRouter()
+BUILD_INFO_PATH = Path("/app/build-info.json")
 
 
 def _strip_port(domain: str) -> str:
@@ -37,3 +40,18 @@ async def get_instance_info(db_session: Session = Depends(get_db_session)):
         "frontend_domain": frontend_domain,
         "top_domain": top_domain,
     }
+
+
+@router.get("/build")
+async def get_build_info():
+    """Public endpoint returning build metadata for deploy verification."""
+    if not BUILD_INFO_PATH.exists():
+        return {
+            "version": "unknown",
+            "commit_sha": "unknown",
+            "image_ref": "unknown",
+            "released_at": "unknown",
+            "alembic_head": "unknown",
+        }
+
+    return json.loads(BUILD_INFO_PATH.read_text())

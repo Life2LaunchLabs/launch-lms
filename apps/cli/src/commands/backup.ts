@@ -6,6 +6,7 @@ import pc from 'picocolors'
 import { LOCAL_CLI_COMMAND } from '../constants.js'
 import { readConfig, findInstallDir } from '../services/config-store.js'
 import { autoDetectDeploymentId, isContainerRunning, dockerExecToFile, dockerExecFromFile } from '../services/docker.js'
+import { getDatabaseCredentials } from '../services/env-file.js'
 
 function resolveDbContainer(config: { deploymentId?: string }): string | null {
   const id = config.deploymentId || autoDetectDeploymentId()
@@ -33,6 +34,7 @@ async function createBackup() {
     p.log.error('Database container is not running. Start services first.')
     process.exit(1)
   }
+  const dbCredentials = getDatabaseCredentials(installDir)
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
   const backupDir = path.join(installDir, 'backups')
@@ -49,7 +51,7 @@ async function createBackup() {
     const dumpPath = path.join(tmpDir, 'database.sql')
     dockerExecToFile(
       dbContainer,
-      'pg_dump -U launch-lms launch-lms',
+      `pg_dump -U ${dbCredentials.user} ${dbCredentials.database}`,
       dumpPath,
     )
     s.stop('Database dump created')
@@ -123,6 +125,7 @@ async function restoreBackup(archivePath: string) {
     p.log.error('Database container is not running. Start services first.')
     process.exit(1)
   }
+  const dbCredentials = getDatabaseCredentials(installDir)
 
   // Confirm before restoring
   p.log.warn(pc.yellow('This will overwrite the current database with the backup data.'))
@@ -173,7 +176,7 @@ async function restoreBackup(archivePath: string) {
   try {
     dockerExecFromFile(
       dbContainer,
-      'psql -U launch-lms -d launch-lms',
+      `psql -U ${dbCredentials.user} -d ${dbCredentials.database}`,
       dumpPath,
     )
     s2.stop('Database restored')
