@@ -1,4 +1,4 @@
-import { getCanonicalOrgSlug, ROUTING_COOKIES } from '@services/routing/cookies'
+import { ROUTING_COOKIES } from '@services/routing/cookies'
 import { routePaths } from '@services/routing/paths'
 import {
   replaceHostPreservingPort,
@@ -217,14 +217,7 @@ export const getUriWithOrg = (orgslug: string, path: string) => {
       host: window.location.host,
       frontendDomain: getLAUNCHLMS_DOMAIN(),
       defaultOrgSlug: ownerOrgSlug,
-      cookieOrgSlug: getCanonicalOrgSlug(
-        getCookieValue(ROUTING_COOKIES.orgSlug),
-        getCookieValue(ROUTING_COOKIES.legacyOrgSlug)
-      ),
-      resolvedCustomDomainOrgSlug: getCanonicalOrgSlug(
-        getCookieValue(ROUTING_COOKIES.orgSlug),
-        getCookieValue(ROUTING_COOKIES.legacyOrgSlug)
-      ),
+      resolvedCustomDomainOrgSlug: null,
     })
 
     if (!multi_org || context.hostMode === 'custom') {
@@ -239,7 +232,7 @@ export const getUriWithOrg = (orgslug: string, path: string) => {
     if (
       window.location.hostname === expectedHostname ||
       (window.location.hostname === context.bareFrontendDomain &&
-        (context.isLocalhost || context.cookieOrgSlug === orgslug || isOwnerOrg))
+        (context.isLocalhost || isOwnerOrg))
     ) {
       return `${window.location.origin}${normalizedPath}`
     }

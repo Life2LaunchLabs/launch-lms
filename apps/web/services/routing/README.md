@@ -39,6 +39,21 @@ The decision object is intentionally framework-agnostic. It should encode:
 
 `proxy.ts` is responsible for adapting that decision into `NextResponse`.
 
+## Tenant-First Contract
+
+This routing layer assumes tenant-first hosting.
+
+The non-negotiable rules are:
+
+- Host determines tenant context.
+- Session/auth cookies determine user identity.
+- Backend authorization determines whether that user may act in that tenant.
+
+Routing must not treat a cookie-stored org slug as the active tenant on the
+main host. If the request is on the main frontend domain, the resolved org is
+the default org. If the request is on a subdomain or mapped custom domain, the
+resolved org comes from that host.
+
 ## Context Contract
 
 `resolveOrgHostContext(...)` is the shared answer to:
@@ -48,6 +63,17 @@ The decision object is intentionally framework-agnostic. It should encode:
 - what org slug is currently resolved?
 
 Everything else should compose on top of that instead of recomputing host logic.
+
+The current context contract is:
+
+- `main` host mode always resolves to `defaultOrgSlug`
+- `subdomain` host mode resolves to `subdomainOrgSlug`
+- `custom` host mode resolves to `resolvedCustomDomainOrgSlug`
+- `subdomainAllowed` is additional host-policy metadata, not a source of org
+  identity
+
+The context object may still expose legacy fields for compatibility, but new
+logic must not rely on org cookies for tenant selection.
 
 ## Builder Contract
 
@@ -79,7 +105,31 @@ that is usually a sign a builder should exist.
 - editor rewrites
 - sitemap, robots, and feed rewrites
 - custom-domain rewriting to internal org routes
-- org-subdomain redirect behavior
+- org-subdomain eligibility enforcement
+
+The current policy-specific tenant-first rules are:
+
+- Main-host requests rewrite into `/orgs/{default_org}/...`
+- Main-host requests do not redirect onto another org because of org cookies
+- Subdomain requests use the subdomain slug as tenant context
+- Custom-domain requests use the resolved domain mapping as tenant context
+- Non-entitled org subdomains are redirected back to the main host for learner
+  routes
+- Auth routes rewrite to `/auth/*`, but branding is resolved separately from
+  host or explicit token context
+
+## Cookie Contract
+
+`cookies.ts` still centralizes cookie names, but cookie responsibilities are
+now narrower:
+
+- session cookies: identity only
+- env/runtime cookies: frontend domain, top domain, default org, multi-org mode
+- custom-domain cookie: host-context helper when already browsing a mapped
+  custom domain
+
+The org slug cookies are no longer routing inputs. Do not reintroduce them as
+fallback sources in request policy, host resolution, or auth-page branding.
 
 Avoid moving this logic back into `proxy.ts`.
 

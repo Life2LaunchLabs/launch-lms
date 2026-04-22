@@ -14,8 +14,8 @@ export interface OrgHostContextInput {
   host: string | null | undefined
   frontendDomain: string
   defaultOrgSlug: string
-  cookieOrgSlug?: string | null
   resolvedCustomDomainOrgSlug?: string | null
+  subdomainAllowed?: boolean
 }
 
 export interface OrgHostContext {
@@ -29,6 +29,7 @@ export interface OrgHostContext {
   hostMode: HostMode
   subdomainOrgSlug: string | null
   resolvedCustomDomainOrgSlug: string | null
+  subdomainAllowed: boolean
   isCustomDomain: boolean
   isOwnerOrg: boolean
   isLocalhost: boolean
@@ -67,21 +68,19 @@ export function resolveOrgHostContext(input: OrgHostContextInput): OrgHostContex
   const subdomainOrgSlug = getOrgSlugFromSubdomain(input.host, input.frontendDomain)
   const isCustomDomain = isCustomDomainHost(input.host, input.frontendDomain)
   const resolvedCustomDomainOrgSlug = input.resolvedCustomDomainOrgSlug || null
+  const subdomainAllowed = input.subdomainAllowed ?? true
 
   let hostMode: HostMode = 'main'
   let resolvedOrgSlug = input.defaultOrgSlug
 
   if (isCustomDomain) {
     hostMode = 'custom'
-    resolvedOrgSlug =
-      resolvedCustomDomainOrgSlug ||
-      input.cookieOrgSlug ||
-      input.defaultOrgSlug
+    resolvedOrgSlug = resolvedCustomDomainOrgSlug || input.defaultOrgSlug
   } else if (subdomainOrgSlug) {
     hostMode = 'subdomain'
     resolvedOrgSlug = subdomainOrgSlug
   } else {
-    resolvedOrgSlug = input.cookieOrgSlug || input.defaultOrgSlug
+    resolvedOrgSlug = input.defaultOrgSlug
   }
 
   return {
@@ -90,11 +89,12 @@ export function resolveOrgHostContext(input: OrgHostContextInput): OrgHostContex
     frontendDomain: input.frontendDomain,
     bareFrontendDomain,
     defaultOrgSlug: input.defaultOrgSlug,
-    cookieOrgSlug: input.cookieOrgSlug || null,
+    cookieOrgSlug: null,
     resolvedOrgSlug,
     hostMode,
     subdomainOrgSlug,
     resolvedCustomDomainOrgSlug,
+    subdomainAllowed,
     isCustomDomain,
     isOwnerOrg: resolvedOrgSlug === input.defaultOrgSlug,
     isLocalhost: isLocalhost(input.host),

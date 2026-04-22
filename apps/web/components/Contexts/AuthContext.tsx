@@ -8,6 +8,7 @@ import React, {
   useCallback,
   useRef,
 } from 'react'
+import { mutate } from 'swr'
 import {
   getAPIUrl,
   getLAUNCHLMS_TOP_DOMAIN_VAL,
@@ -72,6 +73,7 @@ const SESSION_CACHE_TTL = 10 * 60 * 1000 // 10 minutes
 const TOKEN_REFRESH_THRESHOLD = 60 * 1000 // 1 minute before expiry
 const AUTH_BROADCAST_CHANNEL = 'launchlms_auth_sync'
 const OAUTH_STATE_COOKIE = 'launchlms_oauth_state'
+const ROUTING_ORG_COOKIES = ['launchlms_orgslug', 'launchlms_current_orgslug', 'launchlms_custom_domain']
 
 // Context
 interface AuthContextValue {
@@ -196,8 +198,13 @@ export function SessionProvider({
     document.cookie = `launchlms_oauth_org_id=; path=/${expireAttr}${secureAttr}${domainAttr}`
     document.cookie = `launchlms_has_session=; path=/${expireAttr}${secureAttr}${domainAttr}`
     document.cookie = `launchlms_has_session=; path=/${expireAttr}${secureAttr}`
+    for (const cookieName of ROUTING_ORG_COOKIES) {
+      document.cookie = `${cookieName}=; path=/${expireAttr}${secureAttr}${domainAttr}`
+      document.cookie = `${cookieName}=; path=/${expireAttr}${secureAttr}`
+    }
 
     clearOAuthStateCookie()
+    await mutate(() => true, undefined, { revalidate: false })
 
     if (broadcast) {
       broadcastChannelRef.current?.postMessage({ type: 'LOGOUT' })
@@ -590,6 +597,7 @@ export function SessionProvider({
 
           // Notify other tabs
           broadcastChannelRef.current?.postMessage({ type: 'LOGIN' })
+          await mutate(() => true, undefined, { revalidate: false })
 
           if (redirect) {
             window.location.href = callbackUrl
@@ -845,13 +853,20 @@ export async function signOut(options?: SignOutOptions): Promise<void> {
   }
 
   // Clear cookies
-  const { secureAttr, domainAttr, sameSiteAttr } = getCookieAttributes()
+  const { secureAttr, domainAttr } = getCookieAttributes()
   const expireAttr = '; expires=Thu, 01 Jan 1970 00:00:00 GMT'
   document.cookie = `launchlms_oauth_orgslug=; path=/${expireAttr}${secureAttr}${domainAttr}`
   document.cookie = `launchlms_oauth_org_id=; path=/${expireAttr}${secureAttr}${domainAttr}`
+  document.cookie = `launchlms_has_session=; path=/${expireAttr}${secureAttr}${domainAttr}`
+  document.cookie = `launchlms_has_session=; path=/${expireAttr}${secureAttr}`
+  for (const cookieName of ROUTING_ORG_COOKIES) {
+    document.cookie = `${cookieName}=; path=/${expireAttr}${secureAttr}${domainAttr}`
+    document.cookie = `${cookieName}=; path=/${expireAttr}${secureAttr}`
+  }
 
   // Clear OAuth state
   clearOAuthStateCookie()
+  await mutate(() => true, undefined, { revalidate: false })
 
   // Try to notify other tabs (if BroadcastChannel is available)
   try {

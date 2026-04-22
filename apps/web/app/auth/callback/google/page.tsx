@@ -14,6 +14,12 @@ export default function GoogleCallbackPage() {
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'csrf_error'>('loading')
 
+  const clearOAuthOrgCookies = () => {
+    const expire = 'expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    document.cookie = `launchlms_oauth_orgslug=; path=/; ${expire}`
+    document.cookie = `launchlms_oauth_org_id=; path=/; ${expire}`
+  }
+
   useEffect(() => {
     const handleCallback = async () => {
       const code = searchParams.get('code')
@@ -85,6 +91,7 @@ export default function GoogleCallbackPage() {
       } catch {
         // Ignore cookie parsing errors
       }
+      clearOAuthOrgCookies()
 
       try {
         // redirect_uri must always match what was sent during authorization (main domain)
@@ -146,6 +153,7 @@ export default function GoogleCallbackPage() {
             throw new Error(result.error || 'Failed to complete sign in')
           }
 
+          clearOAuthOrgCookies()
           setStatus('success')
           router.push(callbackUrl)
           return
@@ -224,6 +232,7 @@ export default function GoogleCallbackPage() {
           throw new Error(result.error || 'Failed to complete sign in')
         }
 
+        clearOAuthOrgCookies()
         setStatus('success')
         router.push(callbackUrl)
       } catch (err: any) {

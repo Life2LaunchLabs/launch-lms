@@ -1,11 +1,11 @@
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
-import { getOrgSlug } from '@services/org/orgResolution'
+import { getAuthBrandingOrgSlug } from '@services/org/orgResolution'
 import ForgotPasswordClient from './forgot'
 import { Metadata } from 'next'
 import OrgNotFound from '@components/Objects/StyledElements/Error/OrgNotFound'
 
 export async function generateMetadata(): Promise<Metadata> {
-  const orgslug = await getOrgSlug()
+  const orgslug = await getAuthBrandingOrgSlug()
 
   if (!orgslug) {
     return { title: 'Forgot Password — Launch LMS' }
@@ -23,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 const ForgotPasswordPage = async () => {
-  const orgslug = await getOrgSlug()
+  const orgslug = await getAuthBrandingOrgSlug()
 
   if (!orgslug) {
     return <OrgNotFound />
