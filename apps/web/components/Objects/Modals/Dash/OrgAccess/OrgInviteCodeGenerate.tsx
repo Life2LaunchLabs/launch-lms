@@ -1,5 +1,5 @@
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getAPIUrl, getUriWithOrg } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { createInviteCode } from '@services/organizations/invites'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { Ticket, UserSquare, Users } from 'lucide-react'
@@ -116,7 +116,7 @@ function OrgInviteCodeGenerate(props: OrgInviteCodeGenerateProps) {
                     <Link
                         className='px-3 text-blue-700 font-bold rounded-full py-1 bg-blue-100'
                         target='_blank'
-                        href={getUriWithOrg(org.slug, '/dash/users/settings/usergroups')}
+                        href={getUriWithOrg(org.slug, routePaths.org.dash.users.usergroups())}
                     >
                         {t('dashboard.users.signups.generate_modal.create_usergroup_link')}
                     </Link>

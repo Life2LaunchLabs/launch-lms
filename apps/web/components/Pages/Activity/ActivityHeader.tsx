@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ListTree, ChevronRight, MoreVertical, X, Check, FileText, Video, StickyNote, Backpack, Link2, Code2 } from 'lucide-react'
 import { SiX, SiWhatsapp, SiReddit } from '@icons-pack/react-simple-icons'
 import { Linkedin } from 'lucide-react'
-import { getUriWithOrg, getAPIUrl } from '@services/config/config'
+import { getUriWithOrg, getAPIUrl, routePaths } from '@services/config/config'
 import { useOrg, useOrgMembership } from '@components/Contexts/OrgContext'
 import { markActivityAsComplete } from '@services/courses/activity'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -113,18 +113,20 @@ export default function ActivityHeader({ course, activity, activityid, courseuui
     if (isLoading) return
     if (!guestMode && !isUserPartOfTheOrg) return
     setIsLoading(true)
-    const basePath = guestMode ? '/onboarding/course' : '/course'
+    const nextActivityPath = nextActivity
+      ? guestMode
+        ? routePaths.org.onboardingCourseActivity(cleanCourseUuid, nextActivity.cleanUuid)
+        : routePaths.org.courseActivity(cleanCourseUuid, nextActivity.cleanUuid)
+      : guestMode
+        ? routePaths.org.onboardingCourseEnd(cleanCourseUuid)
+        : routePaths.org.courseActivityEnd(cleanCourseUuid)
     try {
       if (!(activity.activity_type === 'TYPE_QUIZ' && activity.details?.quiz_mode === 'graded')) {
         await markActivityAsComplete(orgslug, course.course_uuid, activity.activity_uuid, session.data?.tokens?.access_token)
         await mutate(`${getAPIUrl()}trail/org/${org?.id}/trail`)
       }
     } catch (_) {}
-    if (nextActivity) {
-      router.push(getUriWithOrg(orgslug, '') + `${basePath}/${cleanCourseUuid}/activity/${nextActivity.cleanUuid}`)
-    } else {
-      router.push(getUriWithOrg(orgslug, '') + `${basePath}/${cleanCourseUuid}/activity/end`)
-    }
+    router.push(getUriWithOrg(orgslug, nextActivityPath))
     setIsLoading(false)
   }
 
@@ -217,7 +219,7 @@ export default function ActivityHeader({ course, activity, activityid, courseuui
           >
             <div className="px-3 py-2.5 border-b border-gray-100 flex items-center justify-between gap-2">
               <Link
-                href={getUriWithOrg(orgslug, '') + `/course/${cleanCourseUuid}`}
+                href={getUriWithOrg(orgslug, routePaths.org.course(cleanCourseUuid))}
                 className="font-semibold text-sm text-gray-900 hover:text-teal-600 transition-colors truncate"
                 onClick={() => setChaptersOpen(false)}
               >
@@ -246,7 +248,7 @@ export default function ActivityHeader({ course, activity, activityid, courseuui
                       return (
                         <Link
                           key={act.activity_uuid}
-                          href={getUriWithOrg(orgslug, '') + `/course/${cleanCourseUuid}/activity/${cleanActUuid}`}
+                          href={getUriWithOrg(orgslug, routePaths.org.courseActivity(cleanCourseUuid, cleanActUuid))}
                           prefetch={false}
                           onClick={() => setChaptersOpen(false)}
                           className={`flex items-center gap-2 px-3 py-2 text-xs transition-colors ${

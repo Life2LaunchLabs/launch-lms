@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getOwnerOrgSlugServer } from '@services/org/ownerOrgServer'
 
 export default async function AdminLoginPage() {
-  redirect(getUriWithOrg(await getOwnerOrgSlugServer(), '/login'))
+  redirect(getUriWithOrg(await getOwnerOrgSlugServer(), routePaths.owner.login()))
 }

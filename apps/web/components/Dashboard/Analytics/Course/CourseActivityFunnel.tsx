@@ -3,7 +3,7 @@ import React from 'react'
 import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
 import { useCoursePipe } from '../useAnalyticsDashboard'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { Funnel, Eye, CheckCircle, WarningCircle } from '@phosphor-icons/react'
 import type { ActivityMap } from './CourseAnalyticsTab'
 import CourseWidgetCard, { WidgetIcon, AnimatedNumber, usePagination, PaginationBar } from './CourseWidgetCard'
@@ -184,7 +184,7 @@ function FunnelModalContent({
             index={pg.page * 8 + i}
             total={rows.length}
             maxViews={maxViews}
-            href={getUriWithOrg(orgslug, '') + `/course/${courseUuid}/activity/${row.activityUuid}`}
+            href={getUriWithOrg(orgslug, routePaths.org.courseActivity(courseUuid, row.activityUuid))}
           />
         ))}
       </div>

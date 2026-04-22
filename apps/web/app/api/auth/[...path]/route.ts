@@ -9,6 +9,7 @@ import {
   getCookieDomain,
   getCookieOptions,
 } from '@services/auth/cookies'
+import { ROUTING_COOKIES } from '@services/routing/cookies'
 
 const BACKEND_URL = (process.env.LAUNCHLMS_INTERNAL_BACKEND_URL || getConfig('NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL') || 'http://localhost:1338').replace(/\/+$/, '')
 
@@ -83,11 +84,17 @@ async function proxyRequest(
       response.headers.append('Set-Cookie', `${ACCESS_TOKEN_COOKIE}=; Path=/; Domain=${domain}; Max-Age=0; HttpOnly; SameSite=Lax${securePart}`)
       response.headers.append('Set-Cookie', `${REFRESH_TOKEN_COOKIE}=; Path=/; Domain=${domain}; Max-Age=0; HttpOnly; SameSite=Lax${securePart}`)
       response.headers.append('Set-Cookie', `launchlms_has_session=; Path=/; Domain=${domain}; Max-Age=0; SameSite=Lax${securePart}`)
+      response.headers.append('Set-Cookie', `${ROUTING_COOKIES.orgSlug}=; Path=/; Domain=${domain}; Max-Age=0; SameSite=Lax${securePart}`)
+      response.headers.append('Set-Cookie', `${ROUTING_COOKIES.legacyOrgSlug}=; Path=/; Domain=${domain}; Max-Age=0; SameSite=Lax${securePart}`)
+      response.headers.append('Set-Cookie', `${ROUTING_COOKIES.customDomain}=; Path=/; Domain=${domain}; Max-Age=0; SameSite=Lax${securePart}`)
     }
     // Clear host-only cookies (pre-existing or custom domain cookies)
     response.headers.append('Set-Cookie', `${ACCESS_TOKEN_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${securePart}`)
     response.headers.append('Set-Cookie', `${REFRESH_TOKEN_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${securePart}`)
     response.headers.append('Set-Cookie', `launchlms_has_session=; Path=/; Max-Age=0; SameSite=Lax${securePart}`)
+    response.headers.append('Set-Cookie', `${ROUTING_COOKIES.orgSlug}=; Path=/; Max-Age=0; SameSite=Lax${securePart}`)
+    response.headers.append('Set-Cookie', `${ROUTING_COOKIES.legacyOrgSlug}=; Path=/; Max-Age=0; SameSite=Lax${securePart}`)
+    response.headers.append('Set-Cookie', `${ROUTING_COOKIES.customDomain}=; Path=/; Max-Age=0; SameSite=Lax${securePart}`)
 
     return response
   }

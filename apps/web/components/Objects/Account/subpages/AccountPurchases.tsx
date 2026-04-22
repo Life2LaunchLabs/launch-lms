@@ -4,7 +4,7 @@ import Link from 'next/link'
 import useSWR from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getUserEnrollments, getBillingPortalSession } from '@services/payments/offers'
 import {
   ShoppingBag, RefreshCcw, SquareCheck, ArrowRight,
@@ -82,7 +82,7 @@ function EnrollmentCard({ enrollment, orgslug, onManageBilling, billingLoading }
         {/* Actions */}
         <div className="flex items-center gap-2 pt-1">
           <Link
-            href={getUriWithOrg(orgslug, `/store/offers/${enrollment.offer_id}`)}
+            href={getUriWithOrg(orgslug, routePaths.org.store.offer(String(enrollment.offer_id)))}
             className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors px-3 py-2 rounded-lg"
           >
             View offer <ArrowRight size={11} />
@@ -121,7 +121,7 @@ function AccountPurchases({ orgId, orgslug }: AccountPurchasesProps) {
     if (!access_token) return
     setBillingLoading(true)
     try {
-      const return_url = `${window.location.origin}${getUriWithOrg(orgslug, '/account/purchases')}`
+      const return_url = getUriWithOrg(orgslug, routePaths.org.account.page('purchases'))
       const result = await getBillingPortalSession(orgId, return_url, access_token)
       const url = result?.data?.portal_url
       if (url) {

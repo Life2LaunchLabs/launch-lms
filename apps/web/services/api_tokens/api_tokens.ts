@@ -1,4 +1,4 @@
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl, getBackendUrl } from '@services/config/config'
 import {
   RequestBodyWithAuthHeader,
   getResponseMetadata,
@@ -341,9 +341,12 @@ export async function regenerateAPIToken(
  * Fetch OpenAPI specification from the backend
  */
 export async function fetchOpenAPISpec(accessToken?: string) {
-  const url = `${getAPIUrl().replace('/api/v1/', '')}/openapi.json`
+  const url =
+    typeof window === 'undefined'
+      ? `${getBackendUrl().replace(/\/+$/, '')}/openapi.json`
+      : '/openapi.json'
 
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   }
   if (accessToken) {

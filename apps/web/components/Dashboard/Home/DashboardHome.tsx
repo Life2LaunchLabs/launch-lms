@@ -11,7 +11,7 @@ import {
 import useSWR from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl, routePaths } from '@services/config/config'
 import { OrgUsageResponse, orgUsageFetcher } from '@services/orgs/usage'
 import AdminAuthorization from '@components/Security/AdminAuthorization'
 import { usePlan } from '@components/Hooks/usePlan'
@@ -69,28 +69,28 @@ export default function DashboardHome() {
             </div>
             <div className="flex items-center gap-2">
               <Link
-                href="/dash/courses?new=true"
+                href={routePaths.org.dash.courses() + '?new=true'}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
               >
                 <PlusCircle size={14} weight="bold" />
                 Create Course
               </Link>
               <Link
-                href="/dash/analytics"
+                href={routePaths.org.dash.analytics()}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-gray-600 bg-white rounded-lg nice-shadow hover:bg-gray-50 transition-colors"
               >
                 <ChartBar size={14} weight="bold" />
                 Analytics
               </Link>
               <Link
-                href="/dash/users/settings/users"
+                href={routePaths.org.dash.users.users()}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-gray-600 bg-white rounded-lg nice-shadow hover:bg-gray-50 transition-colors"
               >
                 <Users size={14} weight="bold" />
                 Members
               </Link>
               <Link
-                href="/dash/org/settings/general"
+                href={routePaths.org.dash.orgSettings.general()}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-gray-600 bg-white rounded-lg nice-shadow hover:bg-gray-50 transition-colors"
               >
                 <GearSix size={14} weight="bold" />

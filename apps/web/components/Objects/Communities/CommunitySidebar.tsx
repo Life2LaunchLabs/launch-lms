@@ -16,7 +16,7 @@ import { Community } from '@services/communities/communities'
 import { getCommunityThumbnailMediaDirectory, getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { useCommunityRights } from '@components/Hooks/useCommunityRights'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getAPIUrl, getUriWithOrg } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import useSWR from 'swr'
@@ -134,7 +134,7 @@ export function CommunitySidebar({
               {t('communities.linked_course')}
             </div>
             <Link
-              href={getUriWithOrg(orgslug, `/course/${linkedCourse.course_uuid.replace('course_', '')}`)}
+              href={getUriWithOrg(orgslug, routePaths.org.course(linkedCourse.course_uuid.replace('course_', '')))}
               className="group block"
             >
               <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-gray-50 transition-colors">
@@ -179,7 +179,7 @@ export function CommunitySidebar({
 
           {canManageCommunity && (
             <Link
-              href={getUriWithOrg(orgslug, '/dash/communities')}
+              href={getUriWithOrg(orgslug, routePaths.org.dash.communities())}
               className="w-full bg-white text-neutral-600 border border-neutral-200 py-2.5 rounded-lg font-medium hover:bg-neutral-50 transition-colors flex items-center justify-center gap-2 text-sm"
             >
               <Settings className="w-4 h-4" />

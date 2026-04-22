@@ -18,10 +18,11 @@ export function OrgProvider({ children, orgslug }: { children: React.ReactNode, 
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
   const isAuthenticated = session?.status === 'authenticated'
+  const userId = session?.data?.user?.id ?? 'anonymous'
 
   const { data: org, error: orgError } = useSWR(
-    `${getAPIUrl()}orgs/slug/${orgslug}`,
-    (url) => swrFetcher(url, accessToken),
+    [`${getAPIUrl()}orgs/slug/${orgslug}`, accessToken || '', userId],
+    ([url, token]) => swrFetcher(url, token || undefined),
     {
       revalidateOnFocus: true,
       revalidateOnMount: true,
@@ -29,8 +30,8 @@ export function OrgProvider({ children, orgslug }: { children: React.ReactNode, 
     }
   )
   const { data: orgs, error: orgsError } = useSWR(
-    isAuthenticated ? `${getAPIUrl()}orgs/user/page/1/limit/10` : null,
-    (url) => swrFetcher(url, accessToken),
+    isAuthenticated ? [`${getAPIUrl()}orgs/user/page/1/limit/10`, accessToken || '', userId] : null,
+    ([url, token]) => swrFetcher(url, token || undefined),
     {
       revalidateOnFocus: true,
       revalidateOnMount: true,

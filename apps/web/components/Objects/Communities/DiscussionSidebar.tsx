@@ -12,7 +12,7 @@ import {
 import { Community } from '@services/communities/communities'
 import { DiscussionWithAuthor, DiscussionAuthor, getLabelInfo } from '@services/communities/discussions'
 import { getUserAvatarMediaDirectory } from '@services/media/media'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { UpvoteButton } from './UpvoteButton'
 import { ReactionButton } from './ReactionButton'
 import UserAvatar from '@components/Objects/UserAvatar'
@@ -140,7 +140,7 @@ export function DiscussionSidebar({
           {t('communities.sidebar.community')}
         </div>
         <Link
-          href={getUriWithOrg(orgslug, `/community/${communityId}`)}
+          href={getUriWithOrg(orgslug, routePaths.org.community(communityId))}
           className="group flex items-center gap-2 text-sm font-medium text-gray-900 hover:text-indigo-600 transition-colors"
         >
           <MessageCircle size={14} className="text-gray-400 group-hover:text-indigo-500" />

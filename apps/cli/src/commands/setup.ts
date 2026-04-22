@@ -313,11 +313,14 @@ export async function setupCommand() {
   // Resolve Docker image version
   const s0 = p.spinner()
   s0.start('Resolving Launch LMS image version')
-  const { image: appImage, isLatest } = await resolveAppImage(config.channel)
+  const { image: appImage, digest: appImageDigest, isLatest } = await resolveAppImage(config.channel)
   s0.stop(`Using image: ${appImage}`)
   if (isLatest) {
     p.log.warn('No versioned image found — using :latest tag. Pin to a version for stability.')
   }
+  config.deploymentMode = 'cli'
+  config.imageRef = appImage
+  config.imageDigest = appImageDigest
 
   // Generate files
   const s = p.spinner()

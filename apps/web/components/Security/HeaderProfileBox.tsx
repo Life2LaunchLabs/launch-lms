@@ -7,7 +7,7 @@ import UserAvatar from '@components/Objects/UserAvatar'
 import useAdminStatus from '@components/Hooks/useAdminStatus'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getAPIUrl, getUriWithOrg } from '@services/config/config'
+import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
 import Tooltip from '@components/Objects/StyledElements/Tooltip/Tooltip'
 import {
   DropdownMenu,
@@ -28,7 +28,6 @@ import LanguageSwitcher from '@components/Utils/LanguageSwitcher'
 import { getMenuColorClasses } from '@services/utils/ts/colorUtils'
 import useSWR from 'swr'
 import { swrFetcher } from '@services/utils/ts/requests'
-import { getOwnerOrgUrl } from '@services/org/ownerOrg'
 
 interface RoleInfo {
   name: string;
@@ -50,6 +49,7 @@ export const HeaderProfileBox = ({ primaryColor = '', compact = false }: { prima
   const { t, i18n } = useTranslation()
   const colors = getMenuColorClasses(primaryColor)
   const accessToken = session?.data?.tokens?.access_token
+  const ownerOrgSlug = getDefaultOrg()
 
   const { data: adminOrgs } = useSWR(
     accessToken ? `${getAPIUrl()}orgs/user_admin/page/1/limit/100` : null,
@@ -242,20 +242,20 @@ export const HeaderProfileBox = ({ primaryColor = '', compact = false }: { prima
                 <DropdownMenuSeparator />
                 {hasAdminOrganizations && (
                   <DropdownMenuItem asChild>
-                    <Link href={getOwnerOrgUrl('/account/org-admin')} className="flex items-center space-x-2">
+                    <Link href={getUriWithOrg(ownerOrgSlug, routePaths.owner.account.orgAdmin())} className="flex items-center space-x-2">
                       <Buildings size={16} weight="fill" />
                       <span>Org Admin</span>
                     </Link>
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem asChild>
-                  <Link href={getOwnerOrgUrl('/account/general')} className="flex items-center space-x-2">
+                  <Link href={getUriWithOrg(ownerOrgSlug, routePaths.owner.account.general())} className="flex items-center space-x-2">
                     <User size={16} weight="fill" />
                     <span>{t('user.user_settings')}</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href={getOwnerOrgUrl('/account/purchases')} className="flex items-center space-x-2">
+                  <Link href={getUriWithOrg(ownerOrgSlug, routePaths.owner.account.purchases())} className="flex items-center space-x-2">
                     <ShoppingBag size={16} weight="fill" />
                     <span>{t('account.purchases')}</span>
                   </Link>

@@ -1,7 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { Draggable } from '@hello-pangea/dnd'
-import { getAPIUrl, getUriWithOrg } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import {
   Video,
   Sparkles,
@@ -149,14 +149,13 @@ function Activity(props: any) {
             {props.activity.type === 'TYPE_DYNAMIC' && (
               <>
                 <Link
-                  href={
-                    getUriWithOrg(props.orgslug, '') +
-                    `/course/${props.courseid
-                    }/activity/${props.activity.uuid.replace(
-                      'activity_',
-                      ''
+                  href={getUriWithOrg(
+                    props.orgslug,
+                    `${routePaths.org.courseActivity(
+                      props.courseid,
+                      props.activity.uuid.replace('activity_', '')
                     )}/edit`
-                  }
+                  )}
                   className=" hover:cursor-pointer p-1 px-3 bg-sky-700 rounded-md items-center"
                   rel="noopener noreferrer"
                 >
@@ -165,11 +164,13 @@ function Activity(props: any) {
               </>
             )}
             <Link
-              href={
-                getUriWithOrg(props.orgslug, '') +
-                `/course/${props.courseid
-                }/activity/${props.activity.uuid.replace('activity_', '')}`
-              }
+              href={getUriWithOrg(
+                props.orgslug,
+                routePaths.org.courseActivity(
+                  props.courseid,
+                  props.activity.uuid.replace('activity_', '')
+                )
+              )}
               className=" hover:cursor-pointer p-1 px-3 bg-gray-200 rounded-md"
               rel="noopener noreferrer"
             >

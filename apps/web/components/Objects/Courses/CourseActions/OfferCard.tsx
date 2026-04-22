@@ -2,7 +2,7 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight, RefreshCcw, SquareCheck, Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 
 interface OfferCardProps {
   offer: {
@@ -89,7 +89,7 @@ export function OfferCard({ offer, orgslug }: OfferCardProps) {
         )}
 
         {/* CTA */}
-        <Link href={getUriWithOrg(orgslug, `/store/offers/${offer.offer_uuid}`)}>
+        <Link href={getUriWithOrg(orgslug, routePaths.org.store.offer(offer.offer_uuid))}>
           <div className={`mt-4 w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-bold text-sm transition-colors cursor-pointer ${
             isSubscription
               ? 'bg-indigo-600 hover:bg-indigo-700 text-white'

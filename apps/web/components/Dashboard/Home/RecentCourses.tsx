@@ -4,7 +4,7 @@ import Link from 'next/link'
 import useSWR from 'swr'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl, routePaths } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { SafeImage } from '@components/Objects/SafeImage'
@@ -49,7 +49,7 @@ export default function RecentCourses() {
           )}
         </div>
         <Link
-          href="/dash/courses"
+          href={routePaths.org.dash.courses()}
           className="text-[11px] font-medium text-gray-400 hover:text-gray-600 transition-colors"
         >
           View All &rarr;
@@ -80,7 +80,7 @@ export default function RecentCourses() {
             </div>
             <p className="text-xs text-gray-400 mb-3">No courses yet</p>
             <Link
-              href="/dash/courses?new=true"
+              href={routePaths.org.dash.courses() + '?new=true'}
               className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700"
             >
               <PlusCircle size={14} weight="bold" />
@@ -109,7 +109,7 @@ export default function RecentCourses() {
             return (
               <Link
                 key={course.course_uuid}
-                href={`/dash/courses/course/${courseId}/general`}
+                href={routePaths.org.dash.courseSettings(courseId, 'general')}
                 className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors group"
               >
                 <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">

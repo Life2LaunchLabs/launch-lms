@@ -2,7 +2,7 @@
 import { useOrg } from '@components/Contexts/OrgContext'
 import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
 import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { deletePodcast, removePodcastPrefix } from '@services/podcasts/podcasts'
 import { getPodcastThumbnailMediaDirectory, getUserAvatarMediaDirectory } from '@services/media/media'
 import { mutate } from 'swr'
@@ -81,8 +81,8 @@ function PodcastThumbnail({ podcast, orgslug, customLink, isDashboard = false }:
   const podcastLink = customLink
     ? customLink
     : isDashboard
-      ? getUriWithOrg(orgslug, `/dash/podcasts/podcast/${removePodcastPrefix(podcast.podcast_uuid)}/general`)
-      : getUriWithOrg(orgslug, `/podcast/${removePodcastPrefix(podcast.podcast_uuid)}`)
+      ? getUriWithOrg(orgslug, routePaths.org.dash.podcastSettings(removePodcastPrefix(podcast.podcast_uuid), 'general'))
+      : getUriWithOrg(orgslug, routePaths.org.podcast(removePodcastPrefix(podcast.podcast_uuid)))
 
   return (
     <div className="group relative flex flex-col bg-white rounded-xl nice-shadow overflow-hidden w-full transition-all duration-300 hover:scale-[1.01]">
@@ -218,12 +218,12 @@ const AdminEditOptions = ({ podcast, orgSlug, deletePodcast, isDashboard = false
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuItem asChild>
-              <Link prefetch href={getUriWithOrg(orgSlug, `/dash/podcasts/podcast/${removePodcastPrefix(podcast.podcast_uuid)}/content`)} className="flex items-center cursor-pointer">
+              <Link prefetch href={getUriWithOrg(orgSlug, routePaths.org.dash.podcastSettings(removePodcastPrefix(podcast.podcast_uuid), 'content'))} className="flex items-center cursor-pointer">
                 <FilePenLine className="mr-2 h-4 w-4" /> {t('podcasts.edit_content')}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link prefetch href={getUriWithOrg(orgSlug, `/dash/podcasts/podcast/${removePodcastPrefix(podcast.podcast_uuid)}/general`)} className="flex items-center cursor-pointer">
+              <Link prefetch href={getUriWithOrg(orgSlug, routePaths.org.dash.podcastSettings(removePodcastPrefix(podcast.podcast_uuid), 'general'))} className="flex items-center cursor-pointer">
                 <Settings2 className="mr-2 h-4 w-4" /> {t('common.settings')}
               </Link>
             </DropdownMenuItem>

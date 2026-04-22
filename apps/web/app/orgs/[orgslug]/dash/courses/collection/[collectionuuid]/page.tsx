@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 
 export default async function CollectionPage({
   params,
@@ -6,5 +7,5 @@ export default async function CollectionPage({
   params: Promise<{ orgslug: string; collectionuuid: string }>
 }) {
   const { orgslug, collectionuuid } = await params
-  redirect(`/${orgslug}/dash/courses/collection/${collectionuuid}/general`)
+  redirect(getUriWithOrg(orgslug, routePaths.org.dash.collectionSettings(collectionuuid, 'general')))
 }

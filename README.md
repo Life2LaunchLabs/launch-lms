@@ -69,6 +69,28 @@ This repo-local launcher installs the CLI dependencies in `apps/cli` if needed, 
 
 > See the full [CLI documentation](apps/cli/README.md) for all commands and options.
 
+### HTTPS `sslip.io` local dev
+
+The recommended multi-org local dev URL is `https://127.0.0.1.sslip.io:3000`.
+
+To enable that flow:
+
+```bash
+bash scripts/setup-dev-certs.sh
+./launch-lms dev
+```
+
+If you are running the web app manually instead of through the CLI:
+
+```bash
+cd apps/web
+npm run dev
+```
+
+The default web dev script now auto-enables HTTPS on port `3000` when
+`certs/local.pem` and `certs/local-key.pem` exist, and falls back to plain HTTP
+only when those certs are missing.
+
 ## 🛠️ Tech Stack
 
 <p align="center">

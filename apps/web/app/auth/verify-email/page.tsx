@@ -1,13 +1,18 @@
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
-import { getOrgSlug } from '@services/org/orgResolution'
+import { getAuthBrandingOrgSlug } from '@services/org/orgResolution'
 import VerifyEmailClient from './verify-email'
 import { Metadata } from 'next'
 import OrgNotFound from '@components/Objects/StyledElements/Error/OrgNotFound'
 import { Suspense } from 'react'
 import PageLoading from '@components/Objects/Loaders/PageLoading'
 
-export async function generateMetadata(): Promise<Metadata> {
-  const orgslug = await getOrgSlug()
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ token?: string }>
+}): Promise<Metadata> {
+  const { token } = await searchParams
+  const orgslug = await getAuthBrandingOrgSlug(token)
 
   if (!orgslug) {
     return { title: 'Verify Email — Launch LMS' }
@@ -24,8 +29,13 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
-const VerifyEmailPage = async () => {
-  const orgslug = await getOrgSlug()
+const VerifyEmailPage = async ({
+  searchParams,
+}: {
+  searchParams: Promise<{ token?: string }>
+}) => {
+  const { token } = await searchParams
+  const orgslug = await getAuthBrandingOrgSlug(token)
 
   if (!orgslug) {
     return <OrgNotFound />

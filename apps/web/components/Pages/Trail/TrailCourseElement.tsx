@@ -1,6 +1,6 @@
 'use client'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getAPIUrl, getUriWithOrg } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { removeCourse } from '@services/courses/activity'
 import { getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { revalidateTags } from '@services/utils/ts/requests'
@@ -81,7 +81,7 @@ function TrailCourseElement(props: TrailCourseElementProps) {
       className="trailcoursebox flex p-3 bg-white rounded-xl"
       style={{ boxShadow: '0px 4px 7px 0px rgba(0, 0, 0, 0.03)' }}
     >
-      <Link href={getUriWithOrg(props.orgslug, '/course/' + courseid)}>
+      <Link href={getUriWithOrg(props.orgslug, routePaths.org.course(courseid))}>
         <div
           className="course_tumbnail inset-0 ring-1 ring-inset ring-black/10 rounded-lg relative h-[50px] w-[72px] overflow-hidden bg-gray-100"
           style={{

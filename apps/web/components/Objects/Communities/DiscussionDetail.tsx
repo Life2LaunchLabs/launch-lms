@@ -8,7 +8,7 @@ dayjs.extend(relativeTime)
 import { Edit, Trash2, MoreVertical } from 'lucide-react'
 import UserAvatar from '@components/Objects/UserAvatar'
 import { useRouter } from 'next/navigation'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { DiscussionWithAuthor, DiscussionAuthor, deleteDiscussion, getLabelInfo } from '@services/communities/discussions'
 import { getUserAvatarMediaDirectory } from '@services/media/media'
 import { CommentSection } from './CommentSection'
@@ -89,7 +89,7 @@ export function DiscussionDetail({
   const handleDelete = async () => {
     try {
       await deleteDiscussion(discussion.discussion_uuid, accessToken)
-      router.push(getUriWithOrg(orgslug, `/community/${communityId}`))
+      router.push(getUriWithOrg(orgslug, routePaths.org.community(communityId)))
       router.refresh()
     } catch (error) {
       console.error('Failed to delete discussion:', error)

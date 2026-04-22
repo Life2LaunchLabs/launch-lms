@@ -12,6 +12,7 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: life2launchlabs/launch-lms
+  INFRA_REPO: Life2LaunchLabs/launch-lms-infra
 
 jobs:
   build:
@@ -52,6 +53,10 @@ jobs:
           platforms: ${{ matrix.platform }}
           build-args: |
             LAUNCHLMS_PUBLIC=true
+            LAUNCHLMS_VERSION=${{ github.ref_name }}
+            LAUNCHLMS_COMMIT_SHA=${{ github.sha }}
+            LAUNCHLMS_IMAGE_REF=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+            LAUNCHLMS_RELEASED_AT=${{ github.event.head_commit.timestamp || github.run_id }}
           cache-from: type=gha,scope=release-${{ steps.prep.outputs.platform_pair }}
           cache-to: type=gha,mode=max,scope=release-${{ steps.prep.outputs.platform_pair }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
@@ -76,6 +81,7 @@ jobs:
     needs: build
     outputs:
       version: ${{ steps.version.outputs.version }}
+      digest: ${{ steps.digest.outputs.digest }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -114,6 +120,12 @@ jobs:
           TAGS=$(echo "${{ steps.meta.outputs.tags }}" | tr ',' '\n' | xargs -I{} echo "-t {}" | tr '\n' ' ')
           docker buildx imagetools create $TAGS \
             $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
+
+      - name: Capture release digest
+        id: digest
+        run: |
+          DIGEST=$(docker buildx imagetools inspect "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}" --format '{{json .Manifest.Digest}}' | tr -d '"')
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
 
       - name: Generate changelog
         id: changelog
@@ -162,52 +174,52 @@ jobs:
           body_path: /tmp/changelog.md
           make_latest: true
 
-  open-infra-pr:
+  update-infra-lock:
     name: Open infra release PR
     runs-on: ubuntu-latest
     needs: release
-    env:
-      INFRA_REPO: Life2LaunchLabs/launch-lms-infra
     steps:
-      - uses: actions/checkout@v6
+      - name: Check out infra repo
+        uses: actions/checkout@v6
         with:
-          repository: Life2LaunchLabs/launch-lms-infra
-          path: infra
+          repository: ${{ env.INFRA_REPO }}
           token: ${{ secrets.INFRA_TOKEN }}
+          path: infra
 
-      - name: Update release.lock.json and open PR
-        env:
-          GH_TOKEN: ${{ secrets.INFRA_TOKEN }}
-          VERSION: ${{ needs.release.outputs.version }}
+      - name: Update release lock
+        working-directory: infra
         run: |
-          cd infra
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          BRANCH="release/v${VERSION}"
-          git checkout -b "$BRANCH"
-
-          python3 - <<PY
-          import json, datetime
+          python - <<'PY'
+          import json
           from pathlib import Path
+          from datetime import datetime, timezone
 
-          lock = json.loads(Path("release.lock.json").read_text())
-          lock["image_tag"] = "v${VERSION}"
-          lock["image_ref"] = "ghcr.io/life2launchlabs/launch-lms:v${VERSION}"
-          lock["version"] = "v${VERSION}"
-          lock["commit_sha"] = "${GITHUB_SHA}"
-          lock["released_at"] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-          lock["source_branch"] = "prod"
-          Path("release.lock.json").write_text(json.dumps(lock, indent=2) + "\n")
+          path = Path("release.lock.json")
+          data = json.loads(path.read_text())
+          data.update({
+              "image_repository": "ghcr.io/life2launchlabs/launch-lms",
+              "image_tag": "${{ needs.release.outputs.version }}",
+              "image_digest": "${{ needs.release.outputs.digest }}",
+              "image_ref": "ghcr.io/life2launchlabs/launch-lms@${{ needs.release.outputs.digest }}",
+              "version": "${{ needs.release.outputs.version }}",
+              "commit_sha": "${{ github.sha }}",
+              "released_at": datetime.now(timezone.utc).isoformat(),
+              "source_branch": "main",
+          })
+          path.write_text(json.dumps(data, indent=2) + "\n")
           PY
 
-          git add release.lock.json
-          git commit -m "chore: release v${VERSION}"
-          git push origin "$BRANCH"
+      - name: Create infra pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.INFRA_REPO_TOKEN }}
+          path: infra
+          commit-message: "chore: pin release ${{ needs.release.outputs.version }}"
+          branch: "release/pin-${{ needs.release.outputs.version }}"
+          title: "chore: pin Launch LMS release ${{ needs.release.outputs.version }}"
+          body: |
+            Pin production deploys to the immutable Launch LMS release image.
 
-          gh pr create \
-            --repo "$INFRA_REPO" \
-            --base main \
-            --head "$BRANCH" \
-            --title "chore: release v${VERSION}" \
-            --body "Updates \`release.lock.json\` to deploy \`ghcr.io/life2launchlabs/launch-lms:v${VERSION}\`."
+            - Version: `${{ needs.release.outputs.version }}`
+            - Commit: `${{ github.sha }}`
+            - Digest: `${{ needs.release.outputs.digest }}`

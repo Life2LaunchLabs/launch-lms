@@ -25,7 +25,7 @@ import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import ChipMultiSelect from '@components/Resources/ChipMultiSelect'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import {
   addResourceToChannel,
   createResource,
@@ -126,7 +126,7 @@ function TabLink({
   channeluuid: string
 }) {
   return (
-    <Link href={getUriWithOrg(orgslug, '') + `/dash/resources/${channeluuid}/${tab.id}`}>
+    <Link href={getUriWithOrg(orgslug, routePaths.org.dash.resourceChannelSettings(channeluuid, tab.id))}>
       <div
         className={`w-fit cursor-pointer border-black py-2 text-center transition-all ease-linear ${
           isActive ? 'border-b-4' : 'opacity-50'
@@ -892,7 +892,7 @@ function AddResourceModal({
                   disabled={isDiscovering || isSubmitting}
                 />
                 <Link
-                  href={getUriWithOrg(orgslug, '/dash/resources/tags')}
+                  href={getUriWithOrg(orgslug, routePaths.org.dash.resourceTags())}
                   className="text-xs font-medium text-gray-500 underline-offset-4 hover:text-gray-800 hover:underline"
                 >
                   Manage tags in the resources tags tab

@@ -6,6 +6,7 @@ import pc from 'picocolors'
 import { LOCAL_CLI_COMMAND } from '../constants.js'
 import { readConfig, findInstallDir } from '../services/config-store.js'
 import { autoDetectDeploymentId, isContainerRunning, dockerExecFromFile } from '../services/docker.js'
+import { getDatabaseCredentials } from '../services/env-file.js'
 
 export async function restoreCommand(archivePath: string) {
   if (!archivePath) {
@@ -44,6 +45,7 @@ export async function restoreCommand(archivePath: string) {
     p.log.error('Database container is not running. Start services first.')
     process.exit(1)
   }
+  const dbCredentials = getDatabaseCredentials(installDir)
 
   // Confirm before restoring
   p.log.warn(pc.yellow('This will overwrite the current database with the backup data.'))
@@ -95,7 +97,7 @@ export async function restoreCommand(archivePath: string) {
     // Drop and recreate the database
     dockerExecFromFile(
       dbContainer,
-      'psql -U launch-lms -d launch-lms',
+      `psql -U ${dbCredentials.user} -d ${dbCredentials.database}`,
       dumpPath,
     )
     s2.stop('Database restored')

@@ -3,7 +3,7 @@ import React, { use } from 'react';
 import { motion } from 'motion/react'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import Link from 'next/link'
-import { getCoreCapabilities, getUriWithOrg } from '@services/config/config'
+import { getCoreCapabilities, getUriWithOrg, routePaths } from '@services/config/config'
 import { Settings, Users, Gem, CreditCard, Layers, ShoppingBag, ExternalLink } from 'lucide-react'
 import { SiStripe } from '@icons-pack/react-simple-icons'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -97,7 +97,7 @@ function PaymentsPage(props: { params: Promise<PaymentsParams> }) {
           <div className="flex items-center space-x-2 pb-1">
             {paymentsEnabled && (
               <Link
-                href={getUriWithOrg(params.orgslug, '/store')}
+                href={getUriWithOrg(params.orgslug, routePaths.org.store.root())}
                 target="_blank"
                 className="flex items-center space-x-2 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >
@@ -120,25 +120,25 @@ function PaymentsPage(props: { params: Promise<PaymentsParams> }) {
         </div>
         <div className="flex space-x-0.5 font-black text-sm">
           <TabLink
-            href={getUriWithOrg(params.orgslug, '/dash/payments/overview')}
+            href={getUriWithOrg(params.orgslug, routePaths.org.dash.paymentsOverview())}
             icon={<Users size={16} />}
             label="Overview"
             isActive={subpage === 'overview'}
           />
           <TabLink
-            href={getUriWithOrg(params.orgslug, '/dash/payments/offers')}
+            href={getUriWithOrg(params.orgslug, routePaths.org.dash.paymentsOffers())}
             icon={<Gem size={16} />}
             label="Offers"
             isActive={subpage === 'offers'}
           />
           <TabLink
-            href={getUriWithOrg(params.orgslug, '/dash/payments/groups')}
+            href={getUriWithOrg(params.orgslug, routePaths.org.dash.paymentsGroups())}
             icon={<Layers size={16} />}
             label="Payment Groups"
             isActive={subpage === 'groups'}
           />
           <TabLink
-            href={getUriWithOrg(params.orgslug, '/dash/payments/configuration')}
+            href={getUriWithOrg(params.orgslug, routePaths.org.dash.paymentsConfiguration())}
             icon={<Settings size={16} />}
             label="Configuration"
             isActive={subpage === 'configuration'}

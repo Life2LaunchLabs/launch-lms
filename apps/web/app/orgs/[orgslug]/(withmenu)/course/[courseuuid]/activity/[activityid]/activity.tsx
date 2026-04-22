@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import { getAPIUrl, getUriWithOrg } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { AlertTriangle, BookOpenCheck, CheckCircle, ChevronLeft, ChevronRight, UserRoundPen, Edit2, Maximize2, Minimize2 } from 'lucide-react'
 import { markActivityAsComplete, startCourse } from '@services/courses/activity'
 import { usePathname, useRouter } from 'next/navigation'
@@ -306,8 +306,10 @@ function ActivityClient(props: ActivityClientProps) {
     if (!activity) return;
     
     const cleanCourseUuid = course.course_uuid?.replace('course_', '');
-    const basePath = guestMode ? '/onboarding/course' : '/course'
-    router.push(getUriWithOrg(orgslug, '') + `${basePath}/${cleanCourseUuid}/activity/${activity.cleanUuid}`);
+    const activityPath = guestMode
+      ? routePaths.org.onboardingCourseActivity(cleanCourseUuid, activity.cleanUuid)
+      : routePaths.org.courseActivity(cleanCourseUuid, activity.cleanUuid)
+    router.push(getUriWithOrg(orgslug, activityPath));
   };
 
   // Initialize focus mode from localStorage
@@ -439,7 +441,7 @@ function ActivityClient(props: ActivityClientProps) {
                         >
                           <div className="flex">
                             <Link
-                              href={getUriWithOrg(orgslug, '') + `/course/${courseuuid}`}
+                              href={getUriWithOrg(orgslug, routePaths.org.course(courseuuid))}
                             >
                               <img
                                 className="w-[60px] h-[34px] rounded-md drop-shadow-md"
@@ -749,7 +751,13 @@ function NextActivityButton({ course, currentActivityId, activity, orgslug, gues
   const handleNext = async () => {
     setIsLoading(true);
     const cleanCourseUuid = course.course_uuid?.replace('course_', '');
-    const basePath = guestMode ? '/onboarding/course' : '/course';
+    const nextActivityPath = nextActivity
+      ? guestMode
+        ? routePaths.org.onboardingCourseActivity(cleanCourseUuid, nextActivity.cleanUuid)
+        : routePaths.org.courseActivity(cleanCourseUuid, nextActivity.cleanUuid)
+      : guestMode
+        ? routePaths.org.onboardingCourseEnd(cleanCourseUuid)
+        : routePaths.org.courseActivityEnd(cleanCourseUuid);
 
     try {
       if (!(activity.activity_type === 'TYPE_QUIZ' && activity.details?.quiz_mode === 'graded')) {
@@ -765,11 +773,7 @@ function NextActivityButton({ course, currentActivityId, activity, orgslug, gues
       // Continue navigation even if marking fails
     }
 
-    if (nextActivity) {
-      router.push(getUriWithOrg(orgslug, '') + `${basePath}/${cleanCourseUuid}/activity/${nextActivity.cleanUuid}`);
-    } else {
-      router.push(getUriWithOrg(orgslug, '') + `${basePath}/${cleanCourseUuid}/activity/end`);
-    }
+    router.push(getUriWithOrg(orgslug, nextActivityPath));
     setIsLoading(false);
   };
 
@@ -838,8 +842,10 @@ function PreviousActivityButton({ course, currentActivityId, orgslug, guestMode 
 
   const navigateToActivity = () => {
     const cleanCourseUuid = course.course_uuid?.replace('course_', '');
-    const basePath = guestMode ? '/onboarding/course' : '/course'
-    router.push(getUriWithOrg(orgslug, '') + `${basePath}/${cleanCourseUuid}/activity/${previousActivity.cleanUuid}`);
+    const previousActivityPath = guestMode
+      ? routePaths.org.onboardingCourseActivity(cleanCourseUuid, previousActivity.cleanUuid)
+      : routePaths.org.courseActivity(cleanCourseUuid, previousActivity.cleanUuid)
+    router.push(getUriWithOrg(orgslug, previousActivityPath));
   };
 
   return (

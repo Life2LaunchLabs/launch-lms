@@ -12,7 +12,7 @@ import {
 } from '@services/media/media';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useOrg } from '@components/Contexts/OrgContext';
-import { getUriWithOrg } from '@services/config/config';
+import { getUriWithOrg, routePaths } from '@services/config/config';
 import { removeCoursePrefix } from '../Thumbnails/CourseThumbnail';
 import UserAvatar from '../UserAvatar';
 import { useTranslation } from 'react-i18next';
@@ -242,7 +242,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             {searchTerms.map(({ term, type, icon }) => (
               <Link
                 key={`${term}-${type}`}
-                href={getUriWithOrg(orgslug, `/search?q=${encodeURIComponent(term)}`)}
+                href={getUriWithOrg(orgslug, routePaths.org.search(term))}
                 className="flex items-center px-3 py-2 hover:bg-black/[0.02] rounded-lg transition-colors group"
               >
                 <div className="flex items-center gap-2 flex-1">
@@ -284,7 +284,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             {searchResults.courses.map((course) => (
               <Link
                 key={course.course_uuid}
-                href={getUriWithOrg(orgslug, `/course/${removeCoursePrefix(course.course_uuid)}`)}
+                href={getUriWithOrg(orgslug, routePaths.org.course(removeCoursePrefix(course.course_uuid)))}
                 className="flex items-center gap-3 p-2 hover:bg-black/[0.02] rounded-lg transition-colors"
               >
                 <div className="relative">
@@ -325,7 +325,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             {searchResults.collections.map((collection) => (
               <Link
                 key={collection.collection_uuid}
-                href={getUriWithOrg(orgslug, `/collection/${collection.collection_uuid}`)}
+                href={getUriWithOrg(orgslug, routePaths.org.collection(collection.collection_uuid.replace('collection_', '')))}
                 className="flex items-center gap-3 p-2 hover:bg-black/[0.02] rounded-lg transition-colors"
               >
                 <div className="w-10 h-10 bg-black/5 rounded-lg flex items-center justify-center">
@@ -359,7 +359,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
               return (
                 <Link
                   key={organization.org_uuid}
-                  href={getUriWithOrg(orgslug, `/organization/${organization.slug}`)}
+                  href={getUriWithOrg(orgslug, routePaths.org.organization(organization.slug))}
                   className="flex items-center gap-3 p-2 hover:bg-black/[0.02] rounded-lg transition-colors"
                 >
                   {imageSrc ? (
@@ -398,7 +398,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             {searchResults.users.map((user) => (
               <Link
                 key={user.user_uuid}
-                href={getUriWithOrg(orgslug, `/user/${user.username}`)}
+                href={getUriWithOrg(orgslug, routePaths.org.user(user.username))}
                 className="flex items-center gap-3 p-2 hover:bg-black/[0.02] rounded-lg transition-colors"
               >
                 <UserAvatar
@@ -455,7 +455,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
              searchResults.users.length > 0) ||
              searchQuery.trim()) && (
             <Link
-              href={getUriWithOrg(orgslug, `/search?q=${encodeURIComponent(searchQuery)}`)}
+              href={getUriWithOrg(orgslug, routePaths.org.search(searchQuery))}
               className="flex items-center justify-between px-4 py-2.5 text-xs text-black/50 hover:text-black/70 hover:bg-black/[0.02] transition-colors"
             >
               <span>{t('search.view_all_results')}</span>

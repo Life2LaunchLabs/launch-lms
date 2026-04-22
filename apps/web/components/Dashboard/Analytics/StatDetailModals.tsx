@@ -16,6 +16,7 @@ import {
 } from '@phosphor-icons/react'
 import { useTranslation } from 'react-i18next'
 import { getUserAvatarMediaDirectory } from '@services/media/media'
+import { routePaths } from '@services/config/config'
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -165,7 +166,7 @@ export function LiveUsersDetail({ days }: { days: string }) {
             <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
               <td className="py-2.5">
                 <a
-                  href="/dash/users/settings/users"
+                  href={routePaths.org.dash.users.users()}
                   className="flex items-center gap-2 hover:underline"
                 >
                   <UserAvatar user={user} />
@@ -239,7 +240,7 @@ export function SignupsDetail({ days }: { days: string }) {
             <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
               <td className="py-2.5">
                 <a
-                  href="/dash/users/settings/users"
+                  href={routePaths.org.dash.users.users()}
                   className="flex items-center gap-2 hover:underline"
                 >
                   <UserAvatar user={user} />
@@ -303,7 +304,7 @@ export function EnrollmentsDetail({ days }: { days: string }) {
             <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
               <td className="py-2.5">
                 <a
-                  href="/dash/users/settings/users"
+                  href={routePaths.org.dash.users.users()}
                   className="flex items-center gap-2 hover:underline"
                 >
                   <UserAvatar user={user} />
@@ -364,7 +365,7 @@ export function CompletionsDetail({ days }: { days: string }) {
             <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
               <td className="py-2.5">
                 <a
-                  href="/dash/users/settings/users"
+                  href={routePaths.org.dash.users.users()}
                   className="flex items-center gap-2 hover:underline"
                 >
                   <UserAvatar user={user} />

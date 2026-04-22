@@ -2,7 +2,7 @@
 import { useOrg } from '@components/Contexts/OrgContext'
 import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
 import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { deleteCourseFromBackend } from '@services/courses/courses'
 import { getCourseThumbnailMediaDirectory, getUserAvatarMediaDirectory } from '@services/media/media'
 import { revalidateTags } from '@services/utils/ts/requests'
@@ -77,12 +77,12 @@ const AdminEditOptions: React.FC<AdminEditOptionsProps> = ({ course, orgslug, de
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuItem asChild>
-              <Link prefetch href={getUriWithOrg(orgslug, `/dash/courses/course/${removeCoursePrefix(course.course_uuid)}/content`)}>
+              <Link prefetch href={getUriWithOrg(orgslug, routePaths.org.dash.courseSettings(removeCoursePrefix(course.course_uuid), 'content'))}>
                 <FilePenLine className="mr-2 h-4 w-4" /> {t('courses.edit_content')}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link prefetch href={getUriWithOrg(orgslug, `/dash/courses/course/${removeCoursePrefix(course.course_uuid)}/general`)}>
+              <Link prefetch href={getUriWithOrg(orgslug, routePaths.org.dash.courseSettings(removeCoursePrefix(course.course_uuid), 'general'))}>
                 <Settings2 className="mr-2 h-4 w-4" /> {t('common.settings')}
               </Link>
             </DropdownMenuItem>
@@ -144,7 +144,7 @@ const CourseThumbnailLanding: React.FC<PropsType> = ({ course, orgslug, customLi
         orgslug={orgslug}
         deleteCourse={deleteCourse}
       />
-      <Link prefetch href={customLink ? customLink : getUriWithOrg(orgslug, `/course/${removeCoursePrefix(course.course_uuid)}`)}>
+      <Link prefetch href={customLink ? customLink : getUriWithOrg(orgslug, routePaths.org.course(removeCoursePrefix(course.course_uuid)))}>
         <div className="inset-0 ring-1 ring-inset ring-black/10 rounded-t-xl w-full aspect-video overflow-hidden bg-gray-100">
           <img
             src={thumbnailImage}
@@ -203,7 +203,7 @@ const CourseThumbnailLanding: React.FC<PropsType> = ({ course, orgslug, customLi
 
         <Link 
           prefetch 
-          href={customLink ? customLink : getUriWithOrg(orgslug, `/course/${removeCoursePrefix(course.course_uuid)}`)}
+          href={customLink ? customLink : getUriWithOrg(orgslug, routePaths.org.course(removeCoursePrefix(course.course_uuid)))}
           className="inline-flex items-center justify-center w-full px-3 py-1.5 bg-black text-white text-xs font-medium rounded-lg hover:bg-gray-800 transition-colors"
         >
           {t('courses.start_learning')}

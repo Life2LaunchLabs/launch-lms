@@ -18,7 +18,7 @@ import {
   Megaphone,
   Star,
 } from 'lucide-react'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import {
   DiscussionWithAuthor,
   DiscussionAuthor,
@@ -116,7 +116,7 @@ export function DiscussionCard({
     ? `${discussion.author.first_name} ${discussion.author.last_name}`.trim() || discussion.author.username
     : t('common.unknown')
 
-  const discussionLink = getUriWithOrg(orgslug, `/community/${communityId}/discussion/${discussionId}`)
+  const discussionLink = getUriWithOrg(orgslug, routePaths.org.communityDiscussion(communityId, discussionId))
 
   const labelInfo = getLabelInfo(discussion.label || 'general')
   const isOwner = discussion.author_id === currentUserId
