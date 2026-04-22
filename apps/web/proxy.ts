@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getAPIUrl } from './services/config/config'
 import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from './services/auth/cookies'
-import { ROUTING_COOKIES, getCanonicalOrgSlug } from './services/routing/cookies'
+import { ROUTING_COOKIES } from './services/routing/cookies'
 import { isCustomDomainHost, getOrgSlugFromSubdomain } from './services/routing/context'
 import {
   resolveRequestRouting,
@@ -184,10 +184,6 @@ export default async function proxy(req: NextRequest) {
   const pathname = req.nextUrl.pathname
   const search = req.nextUrl.search
   const host = req.headers.get('host')
-  const cookieOrgSlug = getCanonicalOrgSlug(
-    req.cookies.get(ROUTING_COOKIES.orgSlug)?.value,
-    req.cookies.get(ROUTING_COOKIES.legacyOrgSlug)?.value
-  )
   const hasSession =
     !!req.cookies.get(ACCESS_TOKEN_COOKIE)?.value ||
     !!req.cookies.get(REFRESH_TOKEN_COOKIE)?.value
@@ -213,7 +209,6 @@ export default async function proxy(req: NextRequest) {
     pathname,
     search,
     host,
-    cookieOrgSlug,
     hasSession,
     instanceInfo,
     resolvedCustomDomainOrgSlug,

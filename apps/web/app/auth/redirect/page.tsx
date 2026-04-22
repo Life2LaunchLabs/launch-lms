@@ -10,11 +10,12 @@ import { swrFetcher } from '@services/utils/ts/requests'
 export default function AuthRedirectPage() {
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
+  const userId = session?.data?.user?.id
   const ownerOrgSlug = getDefaultOrg()
 
   const { data: adminOrgs } = useSWR(
-    accessToken ? `${getAPIUrl()}orgs/user_admin/page/1/limit/100` : null,
-    (url) => swrFetcher(url, accessToken),
+    accessToken && userId ? [`${getAPIUrl()}orgs/user_admin/page/1/limit/100`, accessToken, userId] : null,
+    ([url, token]) => swrFetcher(url, token),
     {
       revalidateOnFocus: false,
       revalidateOnMount: true,

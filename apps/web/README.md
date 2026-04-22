@@ -34,6 +34,34 @@ The main rule is:
 - Components and pages should generate links with `routePaths` and
   `getUriWithOrg`, not with raw path strings.
 
+## Tenant-First Hosting Baseline
+
+`apps/web` now follows a tenant-first hosting model.
+
+That means:
+
+- The request host is the source of truth for tenant context.
+- Auth cookies identify the user only. They do not select the active org.
+- Switching orgs is navigation to another host, not mutation of a global
+  "current org" cookie.
+
+The expected mappings are:
+
+- Main/default host
+  Always resolves to the default org.
+
+- Org subdomain
+  Resolves to that org if subdomain-hosted learner/auth access is allowed for
+  that org.
+
+- Custom domain
+  Resolves to the org mapped to that domain.
+
+The main host must never impersonate the last visited org because of cookie
+state. If a user visits `acme.example.com` and later returns to
+`example.com/login`, the auth experience must still be branded for the default
+org.
+
 ## Source Of Truth
 
 Each routing concern should have one primary owner:
@@ -78,11 +106,18 @@ The request policy currently owns:
 - Admin-host migration behavior
 - Auth page rewriting to `/auth/*`
 - Public course and guest-access exceptions
-- Dashboard redirects onto org subdomains when needed
 - Editor and board route rewrites
 - Feed, sitemap, and robots rewrites
 - Stripe OAuth callback normalization
 - Custom-domain rewriting into internal `/orgs/[orgslug]/...` page space
+
+The current tenant-first rule is:
+
+- Main-host requests rewrite into the default org's internal page tree.
+- Subdomain requests rewrite into that subdomain org's internal page tree.
+- Custom-domain requests rewrite into the mapped org's internal page tree.
+- Main-host requests do not redirect onto another org because of prior cookie
+  state.
 
 Behavior changes should normally be made in
 [`services/routing/requestPolicy.ts`](./services/routing/requestPolicy.ts),
@@ -107,7 +142,7 @@ The shared host context resolves:
 
 - `main`
   Requests on the main frontend domain, such as `life2launch-core.com`.
-  Org resolution falls back to cookie or default org.
+  Always resolves to the default org.
 
 - `subdomain`
   Requests on an org subdomain, such as `acme.life2launch-core.com`.
@@ -116,6 +151,20 @@ The shared host context resolves:
 - `custom`
   Requests on a mapped custom domain. The backend resolves the custom domain to
   an org slug, and the request is internally rewritten into `/orgs/[orgslug]`.
+
+### Auth Branding Rules
+
+Auth page branding must be explicit and predictable:
+
+- Login, signup, and forgot-password pages use host-derived org context.
+- Reset-password and verify-email pages may use token-derived org context when
+  the token carries org identity.
+- Main-host auth pages must brand as the default org unless a token explicitly
+  points at another org.
+
+This is why auth pages should use the explicit helpers in
+[`services/org/orgResolution.ts`](./services/org/orgResolution.ts) rather than
+reading org cookies directly.
 
 ### Reserved Subdomains
 
@@ -141,15 +190,18 @@ The important rules are:
 - Temporary backward-compatible reads are allowed
 - New writes should go through the canonical helpers
 
-In practice, routing uses cookies for:
+In practice, runtime cookies now fall into two groups:
 
-- current org slug
-- legacy org slug compatibility
-- multi-org mode
-- default org slug
-- frontend domain
-- top domain
-- custom domain context
+- Identity/session cookies
+  Auth/session state only. These identify the user and support refresh.
+
+- Environment cookies
+  Default org slug, frontend domain, top domain, multi-org mode, and custom
+  domain context when needed.
+
+The org-slug cookies are no longer part of request routing or auth-page
+branding. They may still exist for compatibility, but new code must not treat
+them as the active tenant.
 
 Do not invent new ad hoc cookie names in components or page files.
 
@@ -196,6 +248,15 @@ Common examples:
 - links rendered in UI components
 - redirects after user actions
 - links in cards, menus, sidebars, and cross-surface CTAs
+
+`getUriWithOrg` should be thought of as a host-policy-aware URL builder:
+
+- default org -> main host
+- eligible org -> org subdomain
+- custom-domain browsing context -> current origin when already on the mapped
+  host
+
+It should not infer tenant from org cookies.
 
 The previous helper modules under `services/org/` that wrapped owner-org or
 admin-entry URLs have been removed. New code should call
@@ -257,6 +318,14 @@ Current baseline:
 - Guest and onboarding paths are allowed without a session
 - Public course paths are allowed without a session
 - Other unauthenticated requests are redirected to `/welcome`
+
+Auth/session rules:
+
+- Session cookies identify the user, not the tenant.
+- A logged-in user can belong to multiple orgs.
+- Membership/admin checks are always scoped to the org resolved from the host or
+  resource being accessed.
+- Cross-org admin switching should happen by navigating to that org's host.
 
 If authentication behavior changes, update both the request policy and this
 README.

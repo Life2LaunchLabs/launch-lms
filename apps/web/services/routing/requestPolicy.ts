@@ -1,7 +1,6 @@
-import { getScopedCookieDomain, ROUTING_COOKIES } from './cookies.ts'
+import { ROUTING_COOKIES } from './cookies.ts'
 import {
   buildMainDomainUrl,
-  buildOrgSubdomainUrl,
   resolveOrgHostContext,
 } from './context.ts'
 
@@ -31,7 +30,6 @@ export interface ResolveRequestRoutingInput {
   pathname: string
   search: string
   host: string | null
-  cookieOrgSlug?: string | null
   hasSession: boolean
   instanceInfo: RequestInstanceInfo
   resolvedCustomDomainOrgSlug?: string | null
@@ -58,39 +56,6 @@ function getAdminMigrationPath(pathname: string): string {
   return '/dash/org-management'
 }
 
-function buildOrgCookies(orgSlug: string, topDomain: string): RequestRoutingCookie[] {
-  const domain = getScopedCookieDomain(topDomain)
-  return [
-    {
-      name: ROUTING_COOKIES.orgSlug,
-      value: orgSlug,
-      domain,
-      path: '/',
-    },
-    {
-      name: ROUTING_COOKIES.legacyOrgSlug,
-      value: orgSlug,
-      domain,
-      path: '/',
-    },
-  ]
-}
-
-function buildHostScopedOrgCookies(orgSlug: string): RequestRoutingCookie[] {
-  return [
-    {
-      name: ROUTING_COOKIES.orgSlug,
-      value: orgSlug,
-      path: '/',
-    },
-    {
-      name: ROUTING_COOKIES.legacyOrgSlug,
-      value: orgSlug,
-      path: '/',
-    },
-  ]
-}
-
 export function resolveRequestRouting(
   input: ResolveRequestRoutingInput
 ): RoutingDecision {
@@ -99,8 +64,8 @@ export function resolveRequestRouting(
     host: input.host,
     frontendDomain: instanceInfo.frontend_domain,
     defaultOrgSlug: instanceInfo.default_org_slug,
-    cookieOrgSlug: input.cookieOrgSlug,
     resolvedCustomDomainOrgSlug: input.resolvedCustomDomainOrgSlug,
+    subdomainAllowed: input.orgSubdomainAccess?.user_site_enabled ?? true,
   })
   const hostingMode = instanceInfo.multi_org_enabled ? 'multi' : 'single'
 
@@ -123,26 +88,6 @@ export function resolveRequestRouting(
     }
   }
 
-  if (
-    pathname.startsWith('/dash') &&
-    hostingMode === 'multi' &&
-    input.cookieOrgSlug &&
-    input.cookieOrgSlug !== instanceInfo.default_org_slug &&
-    !context.subdomainOrgSlug &&
-    !context.isLocalhost
-  ) {
-    return {
-      action: 'redirect',
-      destination: buildOrgSubdomainUrl(
-        input.requestUrl,
-        input.cookieOrgSlug,
-        pathname,
-        search,
-        instanceInfo.frontend_domain
-      ),
-    }
-  }
-
   if (STANDARD_PATHS.has(pathname)) {
     return {
       action: 'rewrite',
@@ -151,12 +96,7 @@ export function resolveRequestRouting(
   }
 
   if (AUTH_PATHS.has(pathname)) {
-    const orgSlug = context.resolvedOrgSlug || input.cookieOrgSlug
-    const cookies = orgSlug
-      ? context.hostMode === 'custom'
-        ? buildHostScopedOrgCookies(orgSlug)
-        : buildOrgCookies(orgSlug, instanceInfo.top_domain)
-      : []
+    const cookies: RequestRoutingCookie[] = []
     const headers: Record<string, string> = {}
 
     if (context.hostMode === 'custom' && input.host) {
@@ -224,8 +164,7 @@ export function resolveRequestRouting(
     context.subdomainOrgSlug &&
     context.subdomainOrgSlug !== instanceInfo.default_org_slug &&
     !pathname.startsWith('/dash') &&
-    input.orgSubdomainAccess &&
-    !input.orgSubdomainAccess.user_site_enabled
+    !context.subdomainAllowed
   ) {
     return {
       action: 'redirect',
@@ -239,10 +178,8 @@ export function resolveRequestRouting(
   }
 
   if (pathname.startsWith('/orgs/')) {
-    const orgSlug = pathname.split('/')[2]
     return {
       action: 'next',
-      cookies: orgSlug ? buildOrgCookies(orgSlug, instanceInfo.top_domain) : [],
     }
   }
 
@@ -304,7 +241,6 @@ export function resolveRequestRouting(
       action: 'rewrite',
       destination: `/orgs/${input.resolvedCustomDomainOrgSlug}${pathname}`,
       cookies: [
-        ...buildHostScopedOrgCookies(input.resolvedCustomDomainOrgSlug),
         {
           name: ROUTING_COOKIES.customDomain,
           value: input.host || '',
@@ -320,13 +256,10 @@ export function resolveRequestRouting(
       ? instanceInfo.default_org_slug
       : context.hostMode === 'subdomain'
         ? context.resolvedOrgSlug
-        : context.isLocalhost
-          ? instanceInfo.default_org_slug
-          : input.cookieOrgSlug || instanceInfo.default_org_slug
+        : instanceInfo.default_org_slug
 
   return {
     action: 'rewrite',
     destination: `/orgs/${orgSlug}${pathname}`,
-    cookies: buildOrgCookies(orgSlug, instanceInfo.top_domain),
   }
 }
