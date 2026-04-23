@@ -55,10 +55,12 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
     >
       <PageViewTracker />
       <OrgJoinBanner />
-      <div className="flex-1 relative md:flex" style={{ zIndex: 'var(--z-content)' }}>
-        <OrgMenu orgslug={orgslug} />
-        <div className="flex-1 min-w-0 pb-28 md:pb-0">
-          {children}
+      <div className="flex-1 relative" style={{ zIndex: 'var(--z-content)' }}>
+        <div className="w-full md:mx-auto md:flex md:max-w-(--breakpoint-2xl) md:px-[60px]">
+          <OrgMenu orgslug={orgslug} />
+          <div className="flex-1 min-w-0 pb-28 md:pb-0">
+            {children}
+          </div>
         </div>
       </div>
       {!isFullBleedPage && <OrgFooter />}

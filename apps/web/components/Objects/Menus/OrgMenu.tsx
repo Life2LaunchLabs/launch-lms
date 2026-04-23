@@ -101,10 +101,16 @@ export const OrgMenu = (props: { orgslug: string }) => {
 
   return (
     <>
-      <aside className="hidden md:flex md:h-screen md:shrink-0 md:w-20 lg:w-[300px]">
+      <aside
+        className="hidden md:flex md:self-start md:shrink-0 md:w-20 lg:w-[300px]"
+        style={{
+          top: topOffset,
+          height: `calc(100vh - ${topOffset}px)`,
+          position: 'sticky',
+        }}
+      >
         <div
-          className="sticky flex h-screen w-full flex-col px-4 py-6 lg:px-6 lg:py-7"
-          style={{ top: topOffset }}
+          className="flex h-full min-h-0 w-full flex-col px-4 py-6 lg:px-6 lg:py-7"
         >
           <div className="flex justify-center lg:justify-start">
             <Link href={getUriWithOrg(orgslug, '/')} className="flex items-center justify-center">
@@ -141,13 +147,15 @@ export const OrgMenu = (props: { orgslug: string }) => {
             <SearchBar orgslug={orgslug} isMobile />
           </div>
 
-          <nav className="mt-6 flex flex-col items-center gap-1 lg:items-stretch">
-            {primaryNavItems.map((item) => (
-              <SidebarItem key={item.href || item.label} item={item} orgslug={orgslug} />
-            ))}
-          </nav>
+          <div className="mt-6 min-h-0 flex-1 overflow-y-auto">
+            <nav className="flex flex-col items-center gap-1 lg:items-stretch">
+              {primaryNavItems.map((item) => (
+                <SidebarItem key={item.href || item.label} item={item} orgslug={orgslug} />
+              ))}
+            </nav>
+          </div>
 
-          <div className="mt-auto flex flex-col items-center lg:items-stretch">
+          <div className="mt-auto flex flex-col items-center pt-6 lg:items-stretch">
             <nav className="flex flex-col items-center gap-1 lg:items-stretch">
               {adminNavItems.map((item) => (
                 <SidebarItem
@@ -206,10 +214,10 @@ function SidebarItem({
   onAction,
 }: SidebarItemProps) {
   const baseClass = item.active
-    ? 'bg-gray-100 text-gray-900'
+    ? 'bg-black/[0.10] text-gray-950 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]'
     : muted
-      ? 'text-gray-400 hover:bg-gray-100/70 hover:text-gray-700'
-      : 'text-gray-500 hover:bg-gray-100/70 hover:text-gray-900'
+      ? 'text-gray-400 hover:bg-black/[0.08] hover:text-gray-700'
+      : 'text-gray-500 hover:bg-black/[0.08] hover:text-gray-900'
 
   const sharedClass = `flex h-11 w-11 items-center justify-center rounded-2xl transition-colors lg:h-auto lg:w-full lg:justify-start lg:gap-3 lg:px-3 lg:py-2.5 ${baseClass}`
 
@@ -273,7 +281,7 @@ function DesktopAccountLink({
         <TooltipTrigger asChild>
           <Link
             href={href}
-            className="group flex h-11 w-11 items-center justify-center rounded-2xl text-gray-500 transition-colors hover:bg-gray-100/70 hover:text-gray-900 lg:h-auto lg:w-full lg:justify-start lg:gap-3 lg:px-3 lg:py-3"
+            className="group flex h-11 w-11 items-center justify-center rounded-2xl text-gray-500 transition-colors hover:bg-black/[0.08] hover:text-gray-900 lg:h-auto lg:w-full lg:justify-start lg:gap-3 lg:px-3 lg:py-3"
             aria-label="Account settings"
           >
             <UserAvatar border="border-2" rounded="rounded-xl" width={34} />
@@ -307,8 +315,8 @@ function MobileNavItem({
       aria-label={item.label}
       className={`flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
         item.active
-          ? 'bg-gray-900 text-white'
-          : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+          ? 'bg-black/[0.12] text-gray-950 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]'
+          : 'text-gray-500 hover:bg-black/[0.08] hover:text-gray-900'
       }`}
     >
       {item.icon}
@@ -331,7 +339,7 @@ function MobileMoreMenu({
         <button
           type="button"
           aria-label="More"
-          className="flex h-12 w-12 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
+          className="flex h-12 w-12 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-black/[0.08] hover:text-gray-900"
         >
           <DotsThreeVertical size={20} weight="bold" />
         </button>
