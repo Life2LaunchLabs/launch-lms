@@ -214,10 +214,10 @@ function SidebarItem({
   onAction,
 }: SidebarItemProps) {
   const baseClass = item.active
-    ? 'bg-black/[0.10] text-gray-950 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]'
+    ? 'bg-black/[0.07] text-gray-950 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]'
     : muted
-      ? 'text-gray-400 hover:bg-black/[0.08] hover:text-gray-700'
-      : 'text-gray-500 hover:bg-black/[0.08] hover:text-gray-900'
+      ? 'text-gray-400 hover:bg-black/[0.05] hover:text-gray-700'
+      : 'text-gray-500 hover:bg-black/[0.05] hover:text-gray-900'
 
   const sharedClass = `flex h-11 w-11 items-center justify-center rounded-2xl transition-colors lg:h-auto lg:w-full lg:justify-start lg:gap-3 lg:px-3 lg:py-2.5 ${baseClass}`
 

@@ -89,6 +89,8 @@ const OrgHomePage = async (params: any) => {
   }
 
   const access_token = session?.tokens?.access_token
+  const dashboardDisplayName =
+    session?.user?.first_name || session?.user?.username || 'there'
   const courses = await getOrgCourses(
     orgslug,
     { revalidate: 0, tags: ['courses'] },
@@ -135,6 +137,7 @@ const OrgHomePage = async (params: any) => {
         <LandingCustom
           landing={landingConfig}
           orgslug={orgslug}
+          dashboardDisplayName={dashboardDisplayName}
         />
       ) : (
         <LandingClassic 
@@ -142,6 +145,7 @@ const OrgHomePage = async (params: any) => {
           collections={collections}
           orgslug={orgslug}
           org_id={org_id}
+          dashboardDisplayName={dashboardDisplayName}
         />
       )}
     </div>

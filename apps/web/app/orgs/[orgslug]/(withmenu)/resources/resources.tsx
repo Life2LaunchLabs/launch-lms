@@ -79,14 +79,22 @@ function ChannelTile({
   )
 }
 
-export default function ResourcesClient({ orgslug }: { orgslug: string }) {
+export default function ResourcesClient({
+  orgslug,
+  initialChannelUuid,
+}: {
+  orgslug: string
+  initialChannelUuid?: string
+}) {
   const org = useOrg() as any
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
   const orgId = org?.id
   const orgUUID = org?.org_uuid
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [activeChannel, setActiveChannel] = useState<string>('all')
+  const [activeChannel, setActiveChannel] = useState<string>(
+    initialChannelUuid || 'all'
+  )
   const [activeUserChannel, setActiveUserChannel] = useState<string>('')
   const [search, setSearch] = useState('')
   const [searchExpanded, setSearchExpanded] = useState(false)

@@ -4,9 +4,9 @@ import AuthenticatedClientElement from '@components/Security/AuthenticatedClient
 import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { deleteCollection } from '@services/courses/collections'
-import { getCourseThumbnailMediaDirectory, getCollectionThumbnailMediaDirectory } from '@services/media/media'
+import { getCollectionThumbnailMediaDirectory } from '@services/media/media'
 import { revalidateTags } from '@services/utils/ts/requests'
-import { X, MoreVertical, Library, BookCopy, Trash2, Settings } from 'lucide-react'
+import { MoreVertical, Library, BookCopy, Trash2, Settings } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -18,8 +18,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@components/ui/dropdown-menu"
-import { motion } from 'motion/react'
 import { SafeImage } from '@components/Objects/SafeImage'
+import CollectionCoverFanThumbnail from './CollectionCoverFanThumbnail'
 
 type PropsType = {
   collection: any
@@ -67,29 +67,10 @@ function CollectionThumbnail(props: PropsType) {
             className="w-full h-full object-cover"
           />
         ) : courses.length > 0 ? (
-          <div className="flex items-center justify-center h-full w-full bg-gray-100/50 relative p-4">
-            <div className="flex -space-x-10 items-center justify-center w-full">
-              {courses.slice(0, 3).map((course: any, index: number) => (
-                <div
-                  key={course.course_uuid}
-                  className="relative h-20 w-32 overflow-hidden rounded-lg border-2 border-white shadow-lg transition-all duration-300 shrink-0"
-                  style={{
-                    backgroundImage: `url(${course.thumbnail_image
-                      ? getCourseThumbnailMediaDirectory(
-                          course.owner_org_uuid || org?.org_uuid,
-                          course.course_uuid,
-                          course.thumbnail_image
-                        )
-                      : '/empty_thumbnail.png'
-                    })`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    zIndex: 3 - index,
-                  }}
-                />
-              ))}
-            </div>
-          </div>
+          <CollectionCoverFanThumbnail
+            courses={courses}
+            fallbackOrgUuid={org?.org_uuid}
+          />
         ) : (
           <div className="flex flex-col items-center justify-center h-full w-full bg-gray-50 text-gray-300 gap-1.5">
             <Library size={32} strokeWidth={1.5} />

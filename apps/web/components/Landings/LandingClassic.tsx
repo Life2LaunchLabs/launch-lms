@@ -14,15 +14,23 @@ import { getUriWithOrg } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import { BookCopy, SquareLibrary } from 'lucide-react'
 import InProgressSection from '@components/Landings/InProgressSection'
+import DashboardWelcomeHeader from '@components/Landings/DashboardWelcomeHeader'
 
 interface LandingClassicProps {
   courses: any[]
   collections: any[]
   orgslug: string
   org_id: string | number
+  dashboardDisplayName: string
 }
 
-function LandingClassic({ courses, collections, orgslug, org_id }: LandingClassicProps) {
+function LandingClassic({
+  courses,
+  collections,
+  orgslug,
+  org_id,
+  dashboardDisplayName,
+}: LandingClassicProps) {
   const { t } = useTranslation()
 
   // Limit to 12 courses (4x3 grid) for the home page
@@ -32,6 +40,8 @@ function LandingClassic({ courses, collections, orgslug, org_id }: LandingClassi
   return (
     <div className="w-full">
       <GeneralWrapperStyled>
+        <DashboardWelcomeHeader displayName={dashboardDisplayName} />
+
         {/* In Progress */}
         <InProgressSection orgslug={orgslug} />
 
