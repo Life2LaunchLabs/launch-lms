@@ -31,11 +31,15 @@ export interface ResolveRequestRoutingInput {
   search: string
   host: string | null
   hasSession: boolean
+  isDirectRootVisit?: boolean
   instanceInfo: RequestInstanceInfo
   resolvedCustomDomainOrgSlug?: string | null
   orgSubdomainAccess?: { user_site_enabled: boolean } | null
 }
 
+// Temporary brochure QR safety valve. Remove once printed material points at the
+// marketing site directly.
+const TEMP_DIRECT_ROOT_REDIRECT_URL = 'https://www.life2launch.com/'
 const STANDARD_PATHS = new Set(['/home'])
 const AUTH_PATHS = new Set(['/login', '/signup', '/reset', '/forgot', '/verify-email'])
 const AUTH_CALLBACK_PREFIXES = ['/auth/sso/', '/auth/callback/', '/auth/token-exchange']
@@ -85,6 +89,13 @@ export function resolveRequestRouting(
         search,
         instanceInfo.frontend_domain
       ),
+    }
+  }
+
+  if (pathname === '/' && input.isDirectRootVisit) {
+    return {
+      action: 'redirect',
+      destination: TEMP_DIRECT_ROOT_REDIRECT_URL,
     }
   }
 
