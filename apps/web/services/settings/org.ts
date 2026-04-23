@@ -106,6 +106,19 @@ export async function updateOrgFooterTextConfig(
   return res
 }
 
+export async function updateOrgQuickstartCourseConfig(
+  org_id: string,
+  quickstart_course_uuid: string,
+  access_token: string
+) {
+  const result: any = await fetch(
+    `${getAPIUrl()}orgs/${org_id}/config/quickstart_course?quickstart_course_uuid=${encodeURIComponent(quickstart_course_uuid)}`,
+    RequestBodyWithAuthHeader('PUT', null, null, access_token)
+  )
+  const res = await errorHandling(result)
+  return res
+}
+
 export interface AuthBrandingConfig {
   welcome_message: string
   background_type: 'gradient' | 'custom' | 'unsplash'

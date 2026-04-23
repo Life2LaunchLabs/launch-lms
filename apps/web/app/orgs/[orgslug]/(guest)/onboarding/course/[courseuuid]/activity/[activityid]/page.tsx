@@ -43,6 +43,8 @@ export default async function GuestOnboardingActivityPage(params: any) {
   const activityid = (await params.params).activityid
   const courseuuid = (await params.params).courseuuid
   const orgslug = (await params.params).orgslug
+  const searchParams = await params.searchParams
+  const guestCompletedHint = searchParams?.guest_completed === '1'
 
   try {
     const [course, activity] = await Promise.all([
@@ -58,6 +60,8 @@ export default async function GuestOnboardingActivityPage(params: any) {
         activity={activity}
         course={course}
         guestMode={true}
+        unauthenticated={!session}
+        guestCompletedHint={guestCompletedHint}
       />
     )
   } catch {

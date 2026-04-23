@@ -58,6 +58,7 @@ export const routePaths = {
   org: {
     root: () => '/',
     welcome: () => '/welcome',
+    quickstart: () => '/quickstart',
     onboardingCourseActivity: (courseUuid: string, activityId: string) =>
       `/onboarding/course/${courseUuid}/activity/${activityId}`,
     onboardingCourseEnd: (courseUuid: string) =>

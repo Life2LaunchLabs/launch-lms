@@ -48,6 +48,8 @@ export const OrgMenu = (props: { orgslug: string }) => {
   const config = org?.config?.config
   const resolvedFeatures = config?.resolved_features
   const isActivityPage = pathname?.includes('/activity/')
+  const isCoursePage = /^\/course\/[^/]+$/.test(pathname || '')
+  const isPublicCourseExperience = isCoursePage || isActivityPage
   const isFocusMode =
     isActivityPage &&
     typeof window !== 'undefined' &&
@@ -83,6 +85,9 @@ export const OrgMenu = (props: { orgslug: string }) => {
   }
 
   if (session?.status === 'unauthenticated') {
+    if (isPublicCourseExperience) {
+      return null
+    }
     return <GuestHeader orgslug={orgslug} />
   }
 

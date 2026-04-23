@@ -54,6 +54,7 @@ from src.services.orgs.orgs import (
     update_org_playgrounds_config,
     update_org_color_config,
     update_org_footer_text_config,
+    update_org_quickstart_course_config,
     update_org_thumbnail,
     update_org_landing,
     upload_org_landing_content_service,
@@ -460,6 +461,22 @@ async def api_update_org_footer_text_config(
     """
     return await update_org_footer_text_config(
         request, footer_text, org_id, current_user, db_session
+    )
+
+
+@router.put("/{org_id}/config/quickstart_course")
+async def api_update_org_quickstart_course_config(
+    request: Request,
+    org_id: int,
+    quickstart_course_uuid: str = "",
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    """
+    Update organization quickstart course configuration
+    """
+    return await update_org_quickstart_course_config(
+        request, quickstart_course_uuid, org_id, current_user, db_session
     )
 
 

@@ -3,6 +3,10 @@ import Link from 'next/link'
 import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { AlertTriangle, BookOpenCheck, CheckCircle, ChevronLeft, ChevronRight, UserRoundPen, Edit2, Maximize2, Minimize2 } from 'lucide-react'
 import { markActivityAsComplete, startCourse } from '@services/courses/activity'
+import {
+  findCourseRun,
+  getCompletedCourseStepCount,
+} from '@services/courses/progress'
 import { usePathname, useRouter } from 'next/navigation'
 import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
 import { getCourseThumbnailMediaDirectory } from '@services/media/media'
@@ -70,6 +74,8 @@ interface ActivityClientProps {
   activity: any
   course: any
   guestMode?: boolean
+  unauthenticated?: boolean
+  guestCompletedHint?: boolean
 }
 
 interface ActivityActionsProps {
@@ -80,6 +86,7 @@ interface ActivityActionsProps {
   assignment: any
   showNavigation?: boolean
   guestMode?: boolean
+  publicGuestMode?: boolean
 }
 
 // Custom hook for activity position
@@ -107,14 +114,15 @@ function useActivityPosition(course: any, activityId: string) {
   }, [course, activityId]);
 }
 
-function ActivityActions({ activity, activityid, course, orgslug, assignment, showNavigation = true, guestMode = false }: ActivityActionsProps) {
+function ActivityActions({ activity, activityid, course, orgslug, assignment, showNavigation = true, guestMode = false, publicGuestMode = false }: ActivityActionsProps) {
+  const isGuestLearner = guestMode || publicGuestMode
   return (
     <div className="flex min-w-0 items-stretch justify-end gap-2">
       {activity && activity.published == true && activity.content.paid_access != false && (
-        guestMode ? (
+        isGuestLearner ? (
           <>
             {showNavigation && (
-              <NextActivityButton course={course} currentActivityId={activity.id} activity={activity} orgslug={orgslug} guestMode={true} />
+              <NextActivityButton course={course} currentActivityId={activity.id} activity={activity} orgslug={orgslug} guestMode={guestMode} publicGuestMode={publicGuestMode} />
             )}
           </>
         ) : (
@@ -144,6 +152,10 @@ function ActivityClient(props: ActivityClientProps) {
   const { t } = useTranslation()
   const activityid = props.activityid
   const guestMode = props.guestMode === true
+  const unauthenticated = props.unauthenticated === true
+  const guestCompletedHint = props.guestCompletedHint === true
+  const publicGuestMode = unauthenticated && !guestMode
+  const isGuestLearner = guestMode || publicGuestMode
 
   function getRelativeTime(date: Date): string {
     const now = new Date();
@@ -213,32 +225,41 @@ function ActivityClient(props: ActivityClientProps) {
   }, [activityid, activityUuidForTracking, courseUuidForTracking, activityTypeForTracking, track])
 
   const { data: trailData, error: error } = useSWR(
-    guestMode
+    isGuestLearner
       ? (org?.id ? `${getAPIUrl()}trail/org/${org?.id}/trail` : null)
       : (!org?.id || !access_token ? null : `${getAPIUrl()}trail/org/${org?.id}/trail`),
     (url) => swrFetcher(url, access_token)
   )
   const effectiveTrailData = trailData
+  const courseRun = useMemo(
+    () => findCourseRun(effectiveTrailData, course),
+    [effectiveTrailData, course]
+  )
+  const totalCourseActivities =
+    course.chapters?.reduce((acc: number, chapter: any) => acc + chapter.activities.length, 0) || 0
+  const completedCourseActivities = getCompletedCourseStepCount(courseRun)
+  const progressRatio =
+    totalCourseActivities > 0 ? completedCourseActivities / totalCourseActivities : 0
 
   useEffect(() => {
-    if (!guestMode || !org?.id || !course?.course_uuid) return
+    if (!isGuestLearner || !org?.id || !course?.course_uuid) return
     if (hasAttemptedGuestCourseStart.current) return
     hasAttemptedGuestCourseStart.current = true
 
     startCourse(course.course_uuid, orgslug, access_token)
       .then(() => mutate(`${getAPIUrl()}trail/org/${org?.id}/trail`))
       .catch(() => {})
-  }, [guestMode, org?.id, course?.course_uuid, orgslug, access_token])
+  }, [isGuestLearner, org?.id, course?.course_uuid, orgslug, access_token])
 
   useEffect(() => {
-    if (guestMode || !session.data?.user || !isUserPartOfTheOrg || !org?.id || !course?.course_uuid) return
+    if (isGuestLearner || !session.data?.user || !isUserPartOfTheOrg || !org?.id || !course?.course_uuid) return
     if (hasAttemptedCourseStart.current) return
     hasAttemptedCourseStart.current = true
 
     startCourse(course.course_uuid, orgslug, access_token)
       .then(() => mutate(`${getAPIUrl()}trail/org/${org?.id}/trail`))
       .catch(() => {})
-  }, [guestMode, session.data?.user, isUserPartOfTheOrg, org?.id, course?.course_uuid, orgslug, access_token])
+  }, [isGuestLearner, session.data?.user, isUserPartOfTheOrg, org?.id, course?.course_uuid, orgslug, access_token])
 
   // Memoize activity position calculation
   const { allActivities, currentIndex } = useActivityPosition(course, activityid);
@@ -418,17 +439,17 @@ function ActivityClient(props: ActivityClientProps) {
                                 fill="none"
                                 strokeLinecap="round"
                                 strokeDasharray={2 * Math.PI * 14}
-                                strokeDashoffset={2 * Math.PI * 14 * (1 - (effectiveTrailData?.runs?.find((run: any) => run.course_uuid === course.course_uuid)?.steps?.filter((step: any) => step.complete)?.length || 0) / (course.chapters?.reduce((acc: number, chapter: any) => acc + chapter.activities.length, 0) || 1))}
+                                strokeDashoffset={2 * Math.PI * 14 * (1 - progressRatio)}
                               />
                             </svg>
                             <div className="absolute inset-0 flex items-center justify-center">
                               <span className="text-xs font-bold text-gray-800">
-                                {Math.round(((effectiveTrailData?.runs?.find((run: any) => run.course_uuid === course.course_uuid)?.steps?.filter((step: any) => step.complete)?.length || 0) / (course.chapters?.reduce((acc: number, chapter: any) => acc + chapter.activities.length, 0) || 1)) * 100)}%
+                                {Math.round(progressRatio * 100)}%
                               </span>
                             </div>
                           </div>
                           <div className="text-xs text-gray-600">
-                            {effectiveTrailData?.runs?.find((run: any) => run.course_uuid === course.course_uuid)?.steps?.filter((step: any) => step.complete)?.length || 0} {t('common.of')} {course.chapters?.reduce((acc: number, chapter: any) => acc + chapter.activities.length, 0) || 0}
+                            {completedCourseActivities} {t('common.of')} {totalCourseActivities}
                           </div>
                         </motion.div>
                         
@@ -568,6 +589,7 @@ function ActivityClient(props: ActivityClientProps) {
                               assignment={assignment}
                               showNavigation={false}
                               guestMode={guestMode}
+                              publicGuestMode={publicGuestMode}
                             />
                             <button
                               onClick={() => navigateToActivity(nextActivity)}
@@ -606,6 +628,8 @@ function ActivityClient(props: ActivityClientProps) {
                     course={course}
                     trailData={effectiveTrailData}
                     guestMode={guestMode}
+                    unauthenticated={unauthenticated}
+                    guestCompletedHint={guestCompletedHint}
                   />
                 ) : (
                   <div className="space-y-4 relative">
@@ -617,6 +641,7 @@ function ActivityClient(props: ActivityClientProps) {
                       orgslug={orgslug}
                       trailData={effectiveTrailData}
                       guestMode={guestMode}
+                      publicGuestMode={publicGuestMode}
                     />
                     <div className="flex flex-col min-w-0">
                       <p className="font-semibold text-gray-500 text-xs">
@@ -687,6 +712,7 @@ function ActivityClient(props: ActivityClientProps) {
                               assignment={assignment}
                               showNavigation={false}
                               guestMode={guestMode}
+                              publicGuestMode={publicGuestMode}
                             />
                             <NextActivityButton
                               course={course}
@@ -694,6 +720,7 @@ function ActivityClient(props: ActivityClientProps) {
                               activity={activity}
                               orgslug={orgslug}
                               guestMode={guestMode}
+                              publicGuestMode={publicGuestMode}
                             />
                           </div>
                         </div>
@@ -713,13 +740,14 @@ function ActivityClient(props: ActivityClientProps) {
   )
 }
 
-function NextActivityButton({ course, currentActivityId, activity, orgslug, guestMode = false }: { course: any, currentActivityId: string, activity: any, orgslug: string, guestMode?: boolean }) {
+function NextActivityButton({ course, currentActivityId, activity, orgslug, guestMode = false, publicGuestMode = false }: { course: any, currentActivityId: string, activity: any, orgslug: string, guestMode?: boolean, publicGuestMode?: boolean }) {
   const { t } = useTranslation();
   const router = useRouter();
   const session = useLHSession() as any;
   const org = useOrg() as any;
   const { isUserPartOfTheOrg } = useOrgMembership();
   const [isLoading, setIsLoading] = React.useState(false);
+  const isGuestLearner = guestMode || publicGuestMode;
 
   const findNextActivity = () => {
     let allActivities: any[] = [];
@@ -746,18 +774,22 @@ function NextActivityButton({ course, currentActivityId, activity, orgslug, gues
   const nextActivity = findNextActivity();
 
   // Only show for org members or guest mode
-  if (!guestMode && !isUserPartOfTheOrg) return null;
+  if (!isGuestLearner && !isUserPartOfTheOrg) return null;
 
   const handleNext = async () => {
     setIsLoading(true);
     const cleanCourseUuid = course.course_uuid?.replace('course_', '');
-    const nextActivityPath = nextActivity
+    const baseNextActivityPath = nextActivity
       ? guestMode
         ? routePaths.org.onboardingCourseActivity(cleanCourseUuid, nextActivity.cleanUuid)
         : routePaths.org.courseActivity(cleanCourseUuid, nextActivity.cleanUuid)
       : guestMode
         ? routePaths.org.onboardingCourseEnd(cleanCourseUuid)
         : routePaths.org.courseActivityEnd(cleanCourseUuid);
+    const nextActivityPath =
+      !nextActivity && isGuestLearner
+        ? `${baseNextActivityPath}?guest_completed=1`
+        : baseNextActivityPath
 
     try {
       if (!(activity.activity_type === 'TYPE_QUIZ' && activity.details?.quiz_mode === 'graded')) {
