@@ -1,4 +1,4 @@
-interface DashboardRights {
+interface DashboardRights extends Record<string, boolean | undefined> {
   action_access?: boolean
 }
 
