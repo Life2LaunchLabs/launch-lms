@@ -406,6 +406,7 @@ async def get_courses_orgslug(
                         ),
                     ),
                     and_(
+                        Organization.slug == org_slug,
                         Course.shared == True,
                         Course.published == True,
                     ),
