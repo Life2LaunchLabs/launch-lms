@@ -2,7 +2,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
-import { User, Lock, ShoppingBag, Settings } from 'lucide-react'
+import { User, Lock, ShoppingBag, Settings, Building2, Award } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import UserAvatar from '@components/Objects/UserAvatar'
 import { getUriWithOrg } from '@services/config/config'
@@ -17,6 +17,8 @@ const NAV_ITEMS = [
   { id: 'profile', icon: User, labelKey: 'account.profile' },
   { id: 'security', icon: Lock, labelKey: 'account.security' },
   { id: 'purchases', icon: ShoppingBag, labelKey: 'account.purchases' },
+  { id: 'organizations', icon: Building2, label: 'Organizations' },
+  { id: 'badges', icon: Award, label: 'Badges' },
 ]
 
 export function AccountSidebar({ orgslug, currentSubpage }: AccountSidebarProps) {
@@ -71,7 +73,7 @@ export function AccountSidebar({ orgslug, currentSubpage }: AccountSidebarProps)
                   }`}
                 >
                   <Icon size={18} className={isActive ? 'text-white' : 'text-gray-500'} />
-                  <span className="text-sm font-medium">{t(item.labelKey)}</span>
+                  <span className="text-sm font-medium">{item.labelKey ? t(item.labelKey) : item.label}</span>
                 </Link>
               )
             })}

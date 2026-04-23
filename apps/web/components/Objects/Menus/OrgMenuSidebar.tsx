@@ -3,19 +3,10 @@ import { useEffect } from 'react'
 import Link from 'next/link'
 import {
   X,
-  House,
-  Books,
-  ChatsCircle,
-  Headphones,
-  Cube,
-  ShoppingBag,
-  Certificate,
-  FolderOpen,
-  Buildings,
 } from '@phosphor-icons/react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl, getCoreCapabilities, getUriWithOrg, routePaths } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { getOrgLogoMediaDirectory } from '@services/media/media'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { getMenuColorClasses } from '@services/utils/ts/colorUtils'
@@ -23,18 +14,13 @@ import { usePathname } from 'next/navigation'
 import Image from 'next/image'
 import useSWR from 'swr'
 import { useTranslation } from 'react-i18next'
+import { getPrimaryOrgMenuItems } from './OrgMenuLinks'
 
 interface OrgMenuSidebarProps {
   orgslug: string
   isOpen: boolean
   onClose: () => void
 }
-
-const KNOWN_SUBPATHS = [
-  '/courses', '/course/', '/collection/', '/collections', '/trail', '/certificate', '/badge', '/badges', '/podcasts',
-  '/communities', '/organizations', '/organization/', '/resources', '/resource/', '/playgrounds', '/store', '/boards', '/copilot',
-  '/activity/', '/assignment', '/editor', '/account', '/payments',
-]
 
 export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps) {
   const { t } = useTranslation()
@@ -45,7 +31,6 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
   const orgID = org?.id
   const config = org?.config?.config
   const rf = config?.resolved_features
-  const capabilities = getCoreCapabilities()
   const primaryColor = config?.customization?.general?.color || config?.general?.color || ''
   const colors = getMenuColorClasses(primaryColor)
 
@@ -62,77 +47,11 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
     { revalidateOnFocus: false }
   )
 
-  const isEnabled = (feature: string) => rf?.[feature]?.enabled === true
-
-  // Active state helpers
-  const isHome = !KNOWN_SUBPATHS.some(p => pathname?.includes(p))
-  const isOnCourses = pathname?.includes('/courses') || pathname?.includes('/course/') || pathname?.includes('/collection/')
-  const isOnPodcasts = pathname?.includes('/podcasts')
-  const isOnCommunities = pathname?.includes('/communities')
-  const isOnOrganizations = pathname?.includes('/organizations') || pathname?.includes('/organization/')
-  const isOnResources = pathname?.includes('/resources') || pathname?.includes('/resource/')
-  const isOnPlaygrounds = pathname?.includes('/playgrounds')
-  const isOnStore = pathname?.includes('/store')
-  const isOnTrail = pathname?.includes('/trail') || pathname?.includes('/certificate') || pathname?.includes('/badge')
-
-  const navItems = [
-    {
-      href: '/',
-      label: t('common.home') || 'Home',
-      icon: <House size={18} weight="fill" />,
-      active: isHome,
-      show: true,
-    },
-    {
-      href: '/courses',
-      label: t('courses.courses'),
-      icon: <Books size={18} weight="fill" />,
-      active: isOnCourses,
-      show: isEnabled('courses'),
-    },
-    {
-      href: '/podcasts',
-      label: t('podcasts.podcasts'),
-      icon: <Headphones size={18} weight="fill" />,
-      active: isOnPodcasts,
-      show: isEnabled('podcasts'),
-    },
-    {
-      href: '/communities',
-      label: t('communities.title'),
-      icon: <ChatsCircle size={18} weight="fill" />,
-      active: isOnCommunities,
-      show: isEnabled('communities'),
-    },
-    {
-      href: '/organizations',
-      label: 'Organizations',
-      icon: <Buildings size={18} weight="fill" />,
-      active: isOnOrganizations,
-      show: capabilities.multi_org,
-    },
-    {
-      href: '/resources',
-      label: 'Resources',
-      icon: <FolderOpen size={18} weight="fill" />,
-      active: isOnResources,
-      show: isEnabled('resources'),
-    },
-    {
-      href: '/playgrounds',
-      label: 'Playgrounds',
-      icon: <Cube size={18} weight="fill" />,
-      active: isOnPlaygrounds,
-      show: isEnabled('playgrounds'),
-    },
-    {
-      href: '/store',
-      label: 'Store',
-      icon: <ShoppingBag size={18} weight="fill" />,
-      active: isOnStore,
-      show: capabilities.payments && isEnabled('payments'),
-    },
-  ]
+  const navItems = getPrimaryOrgMenuItems({
+    pathname,
+    resolvedFeatures: rf,
+    t,
+  })
 
   return (
     <>
@@ -192,7 +111,7 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
             {navItems.filter(item => item.show).map((item) => (
               <Link
                 key={item.href}
-                href={getUriWithOrg(orgslug, item.href)}
+                href={getUriWithOrg(orgslug, item.href || '/')}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
                   item.active
                     ? 'bg-gray-100 text-gray-900 font-semibold'
@@ -203,20 +122,6 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
                 <span>{item.label}</span>
               </Link>
             ))}
-
-            {session?.status === 'authenticated' && (
-              <Link
-                href={getUriWithOrg(orgslug, '/badge')}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                  isOnTrail
-                    ? 'bg-gray-100 text-gray-900 font-semibold'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium'
-                }`}
-              >
-                <Certificate size={18} weight="fill" />
-                <span>Badges</span>
-              </Link>
-            )}
           </nav>
 
           {/* Divider */}

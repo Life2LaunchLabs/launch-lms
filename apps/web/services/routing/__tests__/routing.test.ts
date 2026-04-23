@@ -33,6 +33,8 @@ test('route manifest builds auth, account, and public org paths used by navigati
   assert.equal(routePaths.auth.signup({ mode: 'create-org' }), '/signup?mode=create-org')
   assert.equal(routePaths.owner.account.orgAdmin(), '/account/org-admin')
   assert.equal(routePaths.owner.account.purchases(), '/account/purchases')
+  assert.equal(routePaths.owner.account.organizations(), '/account/organizations')
+  assert.equal(routePaths.owner.account.badges(), '/account/badges')
   assert.equal(routePaths.org.organization('acme'), '/organization/acme')
   assert.equal(routePaths.org.user('jane'), '/user/jane')
   assert.equal(routePaths.org.search('ai prompts'), '/search?q=ai+prompts')

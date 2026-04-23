@@ -15,6 +15,8 @@ import AccountProfile from '@components/Objects/Account/subpages/AccountProfile'
 import AccountSecurity from '@components/Objects/Account/subpages/AccountSecurity'
 import AccountPurchases from '@components/Objects/Account/subpages/AccountPurchases'
 import AccountOrgAdmin from '@components/Objects/Account/subpages/AccountOrgAdmin'
+import AccountOrganizations from '@components/Objects/Account/subpages/AccountOrganizations'
+import AccountBadges from '@components/Objects/Account/subpages/AccountBadges'
 
 interface AccountClientProps {
   orgslug: string
@@ -28,6 +30,8 @@ const getSubpageTitle = (subpage: string, t: any): string => {
     'profile': t('account.profile'),
     'security': t('account.security'),
     'purchases': t('account.purchases'),
+    'organizations': 'Organizations',
+    'badges': 'Badges',
     'org-admin': 'Org Admin',
   }
   return titles[subpage] || t('account.title')
@@ -49,6 +53,10 @@ const AccountClient = ({ orgslug, org_id, subpage }: AccountClientProps) => {
         return <AccountSecurity />
       case 'purchases':
         return <AccountPurchases orgId={org_id} orgslug={orgslug} />
+      case 'organizations':
+        return <AccountOrganizations orgslug={orgslug} />
+      case 'badges':
+        return <AccountBadges orgslug={orgslug} />
       case 'org-admin':
         return <AccountOrgAdmin />
       default:
@@ -92,19 +100,17 @@ const AccountClient = ({ orgslug, org_id, subpage }: AccountClientProps) => {
               <p className="mt-1 text-sm text-gray-500">@{user?.username}</p>
             </div>
 
+            {isMobile && (
+              <div className="mb-4">
+                <AccountActionsMobile orgslug={orgslug} currentSubpage={subpage} />
+              </div>
+            )}
+
             {/* Subpage Content */}
             {renderSubpage()}
           </div>
         </div>
-
-        {/* Bottom padding for mobile action bar */}
-        {isMobile && <div className="h-24" />}
       </GeneralWrapperStyled>
-
-      {/* Mobile Actions Bar */}
-      {isMobile && (
-        <AccountActionsMobile orgslug={orgslug} currentSubpage={subpage} />
-      )}
     </>
   )
 }

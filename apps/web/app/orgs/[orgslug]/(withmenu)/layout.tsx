@@ -1,5 +1,5 @@
 'use client';
-import { use } from "react";
+import React, { use } from "react";
 import '@styles/globals.css'
 import { SessionProvider } from '@components/Contexts/AuthContext'
 import { OrgMenu } from '@components/Objects/Menus/OrgMenu'
@@ -55,9 +55,11 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
     >
       <PageViewTracker />
       <OrgJoinBanner />
-      <OrgMenu orgslug={orgslug} />
-      <div className="flex-1 relative" style={{ zIndex: 'var(--z-content)' }}>
-        {children}
+      <div className="flex-1 relative md:flex" style={{ zIndex: 'var(--z-content)' }}>
+        <OrgMenu orgslug={orgslug} />
+        <div className="flex-1 min-w-0 pb-28 md:pb-0">
+          {children}
+        </div>
       </div>
       {!isFullBleedPage && <OrgFooter />}
     </div>

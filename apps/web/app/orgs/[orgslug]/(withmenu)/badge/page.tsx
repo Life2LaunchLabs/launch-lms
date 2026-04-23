@@ -1,37 +1,13 @@
-import React from 'react'
-import { Metadata } from 'next'
-import { getOrganizationContextInfo } from '@services/organizations/orgs'
-import Trail from '../trail/trail'
-import { getServerSession } from '@/lib/auth/server'
+import { redirect } from 'next/navigation'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string }>
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-export async function generateMetadata(props: MetadataProps): Promise<Metadata> {
+const BadgePage = async (props: MetadataProps) => {
   const params = await props.params
-  const session = await getServerSession()
-  const access_token = session?.tokens?.access_token
-  const org = await getOrganizationContextInfo(params.orgslug, {
-    revalidate: 1800,
-    tags: ['organizations'],
-  }, access_token)
-
-  return {
-    title: 'Badges — ' + org.name,
-    description: 'Review your in-progress courses and earned Open Badges.',
-  }
-}
-
-const BadgePage = async (params: any) => {
-  const orgslug = (await params.params).orgslug
-
-  return (
-    <div>
-      <Trail orgslug={orgslug} />
-    </div>
-  )
+  redirect(getUriWithOrg(params.orgslug, routePaths.owner.account.badges()))
 }
 
 export default BadgePage

@@ -44,6 +44,8 @@ export const routePaths = {
       root: () => '/account',
       general: () => '/account/general',
       purchases: () => '/account/purchases',
+      organizations: () => '/account/organizations',
+      badges: () => '/account/badges',
       orgAdmin: () => '/account/org-admin',
     },
     platform: {
