@@ -169,6 +169,17 @@ function applyDecision(response: NextResponse, decision: RoutingDecision) {
   return response
 }
 
+function hasSameOriginReferrer(req: NextRequest): boolean {
+  const referer = req.headers.get('referer')
+  if (!referer) return false
+
+  try {
+    return new URL(referer).origin === req.nextUrl.origin
+  } catch {
+    return false
+  }
+}
+
 export const config = {
   matcher: [
     '/((?!api|content|_next|fonts|umami|examples|embed|monitoring|[\\w-]+\\.\\w+).*)',
@@ -210,6 +221,7 @@ export default async function proxy(req: NextRequest) {
     search,
     host,
     hasSession,
+    isDirectRootVisit: pathname === '/' && !hasSameOriginReferrer(req),
     instanceInfo,
     resolvedCustomDomainOrgSlug,
     orgSubdomainAccess,
