@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next'
 import { BookCopy, SquareLibrary } from 'lucide-react'
 import InProgressSection from '@components/Landings/InProgressSection'
 import DashboardWelcomeHeader from '@components/Landings/DashboardWelcomeHeader'
+import DashboardOnboardingBanner from '@components/Onboarding/DashboardOnboardingBanner'
 
 interface LandingClassicProps {
   courses: any[]
@@ -41,6 +42,7 @@ function LandingClassic({
     <div className="w-full">
       <GeneralWrapperStyled>
         <DashboardWelcomeHeader displayName={dashboardDisplayName} />
+        <DashboardOnboardingBanner orgslug={orgslug} />
 
         {/* In Progress */}
         <InProgressSection orgslug={orgslug} />

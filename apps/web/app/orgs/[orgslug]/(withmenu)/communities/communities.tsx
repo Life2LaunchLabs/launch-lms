@@ -9,6 +9,7 @@ import ContentPlaceHolderIfUserIsNotAdmin from '@components/Objects/ContentPlace
 import { Users, MessagesSquare } from 'lucide-react'
 import { Community } from '@services/communities/communities'
 import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/FeatureDisabledView'
+import FeatureInfoBanner from '@components/Onboarding/FeatureInfoBanner'
 
 interface CommunitiesClientProps {
   communities: Community[]
@@ -27,6 +28,7 @@ const CommunitiesClient = ({ communities, orgslug, org_id }: CommunitiesClientPr
       context="public"
     >
     <GeneralWrapperStyled>
+      <FeatureInfoBanner orgslug={orgslug} feature="communities" />
       <div className="flex flex-col space-y-2 mb-6">
         <div className="flex items-center justify-between">
           <TypeOfContentTitle title={t('communities.title')} type="col" />

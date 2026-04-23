@@ -10,6 +10,7 @@ import ChipMultiSelect from '@components/Resources/ChipMultiSelect'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import { Button } from '@components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@components/ui/popover'
+import FeatureInfoBanner from '@components/Onboarding/FeatureInfoBanner'
 import {
   createUserResourceChannel,
   getResourceChannels,
@@ -243,6 +244,8 @@ export default function ResourcesClient({
 
   return (
     <GeneralWrapperStyled>
+      <FeatureInfoBanner orgslug={orgslug} feature="resources" />
+
       {/* Page header */}
       <div className="flex items-center gap-2.5 my-4">
         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white nice-shadow">

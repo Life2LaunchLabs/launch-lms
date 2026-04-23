@@ -32,6 +32,11 @@ import {
   getPrimaryOrgMenuItems,
   OrgMenuNavItem,
 } from './OrgMenuLinks'
+import {
+  getOnboardingUserKey,
+  OnboardingFeatureKey,
+  useOrgOnboarding,
+} from '@components/Onboarding/orgOnboarding'
 
 export const OrgMenu = (props: { orgslug: string }) => {
   const orgslug = props.orgslug
@@ -43,6 +48,11 @@ export const OrgMenu = (props: { orgslug: string }) => {
   const [, setFocusModeTick] = useState(0)
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false)
   const { isVisible: isJoinBannerVisible } = useJoinBannerVisible()
+  const onboardingUserKey = getOnboardingUserKey(session)
+  const { state: onboardingState, markFeatureVisited } = useOrgOnboarding(
+    orgslug,
+    onboardingUserKey
+  )
 
   const topOffset = isJoinBannerVisible ? JOIN_BANNER_HEIGHT : 0
   const config = org?.config?.config
@@ -79,6 +89,41 @@ export const OrgMenu = (props: { orgslug: string }) => {
       window.removeEventListener('focusModeChange', handleFocusModeChange)
     }
   }, [isActivityPage])
+
+  useEffect(() => {
+    if (session?.status !== 'authenticated' || !pathname) {
+      return
+    }
+
+    const featureMatchers: Array<{
+      feature: OnboardingFeatureKey
+      matches: boolean
+    }> = [
+      {
+        feature: 'courses',
+        matches:
+          pathname.includes('/courses') ||
+          pathname.includes('/course/') ||
+          pathname.includes('/collection/'),
+      },
+      {
+        feature: 'communities',
+        matches:
+          pathname.includes('/communities') || pathname.includes('/community/'),
+      },
+      {
+        feature: 'resources',
+        matches:
+          pathname.includes('/resources') || pathname.includes('/resource/'),
+      },
+    ]
+
+    featureMatchers.forEach(({ feature, matches }) => {
+      if (matches && !onboardingState.visitedFeatures[feature]) {
+        markFeatureVisited(feature)
+      }
+    })
+  }, [markFeatureVisited, onboardingState.visitedFeatures, pathname, session?.status])
 
   if (isActivityPage && isFocusMode) {
     return null
@@ -155,7 +200,16 @@ export const OrgMenu = (props: { orgslug: string }) => {
           <div className="mt-6 min-h-0 flex-1 overflow-y-auto">
             <nav className="flex flex-col items-center gap-1 lg:items-stretch">
               {primaryNavItems.map((item) => (
-                <SidebarItem key={item.href || item.label} item={item} orgslug={orgslug} />
+                <SidebarItem
+                  key={item.href || item.label}
+                  item={item}
+                  orgslug={orgslug}
+                  showOnboardingBadge={
+                    item.onboardingFeature
+                      ? !onboardingState.visitedFeatures[item.onboardingFeature]
+                      : false
+                  }
+                />
               ))}
             </nav>
           </div>
@@ -191,7 +245,16 @@ export const OrgMenu = (props: { orgslug: string }) => {
       >
         <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-black/5 bg-white/95 p-2 shadow-[0_20px_45px_rgba(15,23,42,0.16)] backdrop-blur-xl">
           {primaryNavItems.map((item) => (
-            <MobileNavItem key={item.href || item.label} item={item} orgslug={orgslug} />
+            <MobileNavItem
+              key={item.href || item.label}
+              item={item}
+              orgslug={orgslug}
+              showOnboardingBadge={
+                item.onboardingFeature
+                  ? !onboardingState.visitedFeatures[item.onboardingFeature]
+                  : false
+              }
+            />
           ))}
           <MobileMoreMenu
             adminNavItems={adminNavItems}
@@ -217,6 +280,7 @@ function SidebarItem({
   orgslug,
   muted = false,
   onAction,
+  showOnboardingBadge = false,
 }: SidebarItemProps) {
   const baseClass = item.active
     ? 'bg-black/[0.07] text-gray-950 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]'
@@ -224,12 +288,18 @@ function SidebarItem({
       ? 'text-gray-400 hover:bg-black/[0.05] hover:text-gray-700'
       : 'text-gray-500 hover:bg-black/[0.05] hover:text-gray-900'
 
-  const sharedClass = `flex h-11 w-11 items-center justify-center rounded-2xl transition-colors lg:h-auto lg:w-full lg:justify-start lg:gap-3 lg:px-3 lg:py-2.5 ${baseClass}`
+  const sharedClass = `relative flex h-11 w-11 items-center justify-center rounded-2xl transition-colors lg:h-auto lg:w-full lg:justify-start lg:gap-3 lg:px-3 lg:py-2.5 ${baseClass}`
 
   const content = (
     <>
       <span className="shrink-0">{item.icon}</span>
       <span className={`hidden truncate text-sm lg:inline ${item.active ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>
+      {showOnboardingBadge ? (
+        <>
+          <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-[#f97316] lg:hidden" />
+          <span className="absolute right-2.5 top-2.5 hidden h-2.5 w-2.5 rounded-full bg-[#f97316] lg:block" />
+        </>
+      ) : null}
     </>
   )
 
@@ -270,6 +340,7 @@ type SidebarItemProps = {
   orgslug: string
   muted?: boolean
   onAction?: React.Dispatch<string | undefined>
+  showOnboardingBadge?: boolean
 }
 
 function DesktopAccountLink({
@@ -310,21 +381,26 @@ function DesktopAccountLink({
 function MobileNavItem({
   item,
   orgslug,
+  showOnboardingBadge = false,
 }: {
   item: OrgMenuNavItem
   orgslug: string
+  showOnboardingBadge?: boolean
 }) {
   return (
     <Link
       href={getUriWithOrg(orgslug, item.href || '/')}
       aria-label={item.label}
-      className={`flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
+      className={`relative flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
         item.active
           ? 'bg-black/[0.12] text-gray-950 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]'
           : 'text-gray-500 hover:bg-black/[0.08] hover:text-gray-900'
       }`}
     >
       {item.icon}
+      {showOnboardingBadge ? (
+        <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-[#f97316]" />
+      ) : null}
     </Link>
   )
 }

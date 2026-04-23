@@ -38,6 +38,7 @@ export interface OrgMenuNavItem {
   icon: React.ReactNode
   active: boolean
   show: boolean
+  onboardingFeature?: 'courses' | 'communities' | 'resources'
   kind?: 'link' | 'action'
   actionKey?: 'help'
 }
@@ -77,6 +78,7 @@ export function getPrimaryOrgMenuItems({
       icon: <Books size={18} weight="fill" />,
       active: Boolean(isOnCourses),
       show: isFeatureEnabled(resolvedFeatures, 'courses'),
+      onboardingFeature: 'courses',
     },
     {
       href: '/communities',
@@ -84,6 +86,7 @@ export function getPrimaryOrgMenuItems({
       icon: <ChatsCircle size={18} weight="fill" />,
       active: Boolean(isOnCommunities),
       show: isFeatureEnabled(resolvedFeatures, 'communities'),
+      onboardingFeature: 'communities',
     },
     {
       href: '/resources',
@@ -91,6 +94,7 @@ export function getPrimaryOrgMenuItems({
       icon: <FolderOpen size={18} weight="fill" />,
       active: Boolean(isOnResources),
       show: isFeatureEnabled(resolvedFeatures, 'resources'),
+      onboardingFeature: 'resources',
     },
   ]
 }
