@@ -59,10 +59,6 @@ export const routePaths = {
     root: () => '/',
     welcome: () => '/welcome',
     quickstart: () => '/quickstart',
-    onboardingCourseActivity: (courseUuid: string, activityId: string) =>
-      `/onboarding/course/${courseUuid}/activity/${activityId}`,
-    onboardingCourseEnd: (courseUuid: string) =>
-      `/onboarding/course/${courseUuid}/activity/end`,
     badge: () => '/badge',
     badgesVerify: (uuid: string) => `/badges/${uuid}/verify`,
     certificateVerify: (uuid: string) => `/certificates/${uuid}/verify`,

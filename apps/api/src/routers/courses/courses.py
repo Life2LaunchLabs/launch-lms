@@ -24,7 +24,6 @@ from src.services.courses.courses import (
     create_course,
     get_course,
     get_course_by_id,
-    get_guest_onboarding_course_by_orgslug,
     get_course_meta,
     get_courses_orgslug,
     get_courses_count_orgslug,
@@ -386,22 +385,6 @@ async def api_get_course_by_orgslug(
     return await get_courses_orgslug(
         request, current_user, org_slug, db_session, page, limit, include_unpublished
     )
-
-
-@router.get("/org_slug/{org_slug}/guest-onboarding")
-async def api_get_guest_onboarding_course(
-    request: Request,
-    org_slug: str,
-    db_session: Session = Depends(get_db_session),
-    current_user: PublicUser = Depends(get_current_user),
-) -> FullCourseRead:
-    """
-    Get the first published guest-access course for an organization.
-    """
-    return await get_guest_onboarding_course_by_orgslug(
-        request, current_user, org_slug, db_session
-    )
-
 
 @router.get("/org_slug/{org_slug}/count")
 async def api_get_courses_count(

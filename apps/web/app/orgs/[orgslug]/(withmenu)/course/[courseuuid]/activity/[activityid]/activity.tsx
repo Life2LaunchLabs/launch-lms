@@ -327,9 +327,10 @@ function ActivityClient(props: ActivityClientProps) {
     if (!activity) return;
     
     const cleanCourseUuid = course.course_uuid?.replace('course_', '');
-    const activityPath = guestMode
-      ? routePaths.org.onboardingCourseActivity(cleanCourseUuid, activity.cleanUuid)
-      : routePaths.org.courseActivity(cleanCourseUuid, activity.cleanUuid)
+    const activityPath = routePaths.org.courseActivity(
+      cleanCourseUuid,
+      activity.cleanUuid
+    )
     router.push(getUriWithOrg(orgslug, activityPath));
   };
 
@@ -780,12 +781,8 @@ function NextActivityButton({ course, currentActivityId, activity, orgslug, gues
     setIsLoading(true);
     const cleanCourseUuid = course.course_uuid?.replace('course_', '');
     const baseNextActivityPath = nextActivity
-      ? guestMode
-        ? routePaths.org.onboardingCourseActivity(cleanCourseUuid, nextActivity.cleanUuid)
-        : routePaths.org.courseActivity(cleanCourseUuid, nextActivity.cleanUuid)
-      : guestMode
-        ? routePaths.org.onboardingCourseEnd(cleanCourseUuid)
-        : routePaths.org.courseActivityEnd(cleanCourseUuid);
+      ? routePaths.org.courseActivity(cleanCourseUuid, nextActivity.cleanUuid)
+      : routePaths.org.courseActivityEnd(cleanCourseUuid);
     const nextActivityPath =
       !nextActivity && isGuestLearner
         ? `${baseNextActivityPath}?guest_completed=1`
@@ -874,9 +871,10 @@ function PreviousActivityButton({ course, currentActivityId, orgslug, guestMode 
 
   const navigateToActivity = () => {
     const cleanCourseUuid = course.course_uuid?.replace('course_', '');
-    const previousActivityPath = guestMode
-      ? routePaths.org.onboardingCourseActivity(cleanCourseUuid, previousActivity.cleanUuid)
-      : routePaths.org.courseActivity(cleanCourseUuid, previousActivity.cleanUuid)
+    const previousActivityPath = routePaths.org.courseActivity(
+      cleanCourseUuid,
+      previousActivity.cleanUuid
+    )
     router.push(getUriWithOrg(orgslug, previousActivityPath));
   };
 

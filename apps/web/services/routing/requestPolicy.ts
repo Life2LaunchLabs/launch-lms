@@ -225,9 +225,7 @@ export function resolveRequestRouting(
       pathname === '/welcome' ||
       pathname.startsWith('/welcome/') ||
       pathname === '/quickstart' ||
-      pathname.startsWith('/quickstart/') ||
-      pathname === '/onboarding' ||
-      pathname.startsWith('/onboarding/')
+      pathname.startsWith('/quickstart/')
     const isPublicCoursePath = PUBLIC_COURSE_PATH_RE.test(pathname)
 
     if (!isGuestPath && !isPublicCoursePath) {

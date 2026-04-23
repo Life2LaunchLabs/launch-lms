@@ -117,9 +117,7 @@ export default function ActivityHeader({ course, activity, activityid, courseuui
     if (!isGuestLearner && !isUserPartOfTheOrg) return
     setIsLoading(true)
     const nextActivityPath = nextActivity
-      ? guestMode
-        ? routePaths.org.onboardingCourseActivity(cleanCourseUuid, nextActivity.cleanUuid)
-        : routePaths.org.courseActivity(cleanCourseUuid, nextActivity.cleanUuid)
+      ? routePaths.org.courseActivity(cleanCourseUuid, nextActivity.cleanUuid)
       : isGuestLearner
         ? `${routePaths.org.courseActivityEnd(cleanCourseUuid)}?guest_completed=1`
         : routePaths.org.courseActivityEnd(cleanCourseUuid)

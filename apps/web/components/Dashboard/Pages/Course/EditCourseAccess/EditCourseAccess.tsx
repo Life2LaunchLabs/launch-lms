@@ -156,7 +156,7 @@ function EditCourseAccess(_props: { orgslug: string; course_uuid?: string }) {
                                 <div>
                                     <h3 className="text-base font-semibold text-slate-800">Guest and signed-out access</h3>
                                     <p className="mt-1 text-sm text-slate-500">
-                                        Let signed-out visitors open this published course directly and keep onboarding progress until they create an account.
+                                        Let signed-out visitors open this published course directly and keep their progress until they create an account.
                                     </p>
                                 </div>
                                 <label className="inline-flex items-center gap-3">

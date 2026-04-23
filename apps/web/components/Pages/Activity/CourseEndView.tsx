@@ -50,9 +50,7 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
   const [guestBadgeClass, setGuestBadgeClass] = useState<any>(null);
   const qrCodeLink = getUriWithOrg(orgslug, `/badges/${userCertificate?.certificate_user.user_certification_uuid}/verify`);
   const cleanCourseUuid = courseUuid.replace('course_', '');
-  const completionReturnPath = guestMode
-    ? routePaths.org.onboardingCourseEnd(cleanCourseUuid)
-    : routePaths.org.courseActivityEnd(cleanCourseUuid)
+  const completionReturnPath = routePaths.org.courseActivityEnd(cleanCourseUuid)
   const shouldShowGuestCompletion =
     guestCompletedHint || searchParams?.get('guest_completed') === '1'
 
@@ -520,7 +518,7 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
               You finished <span className="font-semibold text-gray-900">{courseName}</span>.
             </p>
             <p className="text-gray-500">
-              Create your account to save this onboarding progress to your new profile.
+              Create your account to save this course progress to your new profile.
             </p>
 
             <div className="flex flex-col sm:flex-row justify-center gap-3 pt-4">

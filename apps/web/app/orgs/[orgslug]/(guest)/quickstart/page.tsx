@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { isRedirectError } from 'next/dist/client/components/redirect-error'
 import { getServerSession } from '@/lib/auth/server'
 import { routePaths, getUriWithOrg } from '@services/config/config'
-import { getCourseMetadata, getGuestOnboardingCourse } from '@services/courses/courses'
+import { getCourseMetadata } from '@services/courses/courses'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import {
   getOrgQuickstartCourseUuid,
@@ -50,35 +50,9 @@ export default async function QuickstartPage({ params }: PageProps) {
       if (isRedirectError(error)) {
         throw error
       }
-      // Fall through to the legacy guest-onboarding route if the configured
-      // quickstart course cannot be loaded or accessed.
+      // Fall through to signup if the configured quickstart course
+      // cannot be loaded or accessed.
     }
-  }
-
-  try {
-    const onboardingCourse = await getGuestOnboardingCourse(
-      orgslug,
-      { revalidate: 0, tags: ['courses'] },
-      accessToken ?? undefined
-    )
-    const firstOnboardingActivity = onboardingCourse?.chapters?.[0]?.activities?.[0]
-
-    if (firstOnboardingActivity) {
-      redirect(
-        getUriWithOrg(
-          orgslug,
-          routePaths.org.onboardingCourseActivity(
-            onboardingCourse.course_uuid.replace('course_', ''),
-            firstOnboardingActivity.activity_uuid.replace('activity_', '')
-          )
-        )
-      )
-    }
-  } catch (error) {
-    if (isRedirectError(error)) {
-      throw error
-    }
-    // Fall back to signup if there is no quickstart destination.
   }
 
   redirect(getUriWithOrg(orgslug, routePaths.auth.signup()))
