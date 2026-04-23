@@ -3,7 +3,7 @@
 import { ReactNode, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowRight, Compass, FolderOpen, MessageCircle, X } from 'lucide-react'
+import { ArrowRight, FolderOpen, MessageCircle, X } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { Button } from '@components/ui/button'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -13,7 +13,6 @@ type ActionCardProps = {
   href: string
   icon: ReactNode
   title: string
-  description: string
   onClick: () => void
 }
 
@@ -21,14 +20,13 @@ function ActionCard({
   href,
   icon,
   title,
-  description,
   onClick,
 }: ActionCardProps) {
   return (
     <Link
       href={href}
       onClick={onClick}
-      className="group rounded-[6px] border border-black/8 bg-white p-3 transition-colors hover:bg-black/[0.02]"
+      className="group relative z-10 rounded-[6px] border border-black/8 bg-white p-3 transition-colors hover:bg-[#f3f3f3]"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex h-9 w-9 items-center justify-center rounded-[6px] bg-black/[0.04] text-gray-700">
@@ -37,7 +35,6 @@ function ActionCard({
         <ArrowRight className="mt-0.5 text-gray-300 transition-colors group-hover:text-gray-500" size={16} />
       </div>
       <h3 className="mt-3 text-[13px] font-semibold text-gray-900">{title}</h3>
-      <p className="mt-1 text-xs leading-5 text-gray-500">{description}</p>
     </Link>
   )
 }
@@ -60,7 +57,6 @@ export default function DashboardOnboardingBanner({
     return null
   }
 
-  const quickstartHref = getUriWithOrg(orgslug, routePaths.org.quickstart())
   const coursesHref = getUriWithOrg(orgslug, routePaths.org.courses())
   const communitiesHref = getUriWithOrg(orgslug, routePaths.org.communities())
   const resourcesHref = getUriWithOrg(orgslug, routePaths.org.resources())
@@ -130,33 +126,23 @@ export default function DashboardOnboardingBanner({
               need it.
             </p>
 
-            <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-              <ActionCard
-                href={quickstartHref}
-                icon={<Compass size={16} />}
-                title="Continue Quickstart"
-                description="Return to the guided starting point and keep your momentum moving."
-                onClick={dismissDashboardBanner}
-              />
+            <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
               <ActionCard
                 href={coursesHref}
                 icon={<ArrowRight size={16} />}
                 title="Explore Courses"
-                description="Open a collection or course and start learning in a more structured way."
                 onClick={dismissDashboardBanner}
               />
               <ActionCard
                 href={communitiesHref}
                 icon={<MessageCircle size={16} />}
                 title="Join Discussions"
-                description="See what people are talking about and jump into the conversation."
                 onClick={dismissDashboardBanner}
               />
               <ActionCard
                 href={resourcesHref}
                 icon={<FolderOpen size={16} />}
                 title="Browse Resources"
-                description="Find useful tools, guides, and support materials you can revisit anytime."
                 onClick={dismissDashboardBanner}
               />
             </div>

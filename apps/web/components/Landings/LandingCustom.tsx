@@ -17,6 +17,7 @@ import {
   ResourceChannel,
 } from '@services/resources/resources'
 import QuickstartSection from '@components/Landings/QuickstartSection'
+import TrendingSection from '@components/Landings/TrendingSection'
 import DashboardWelcomeHeader from '@components/Landings/DashboardWelcomeHeader'
 import DashboardOnboardingBanner from '@components/Onboarding/DashboardOnboardingBanner'
 
@@ -315,13 +316,22 @@ function LandingCustom({
           </div>
         )
       }
+      case 'trending':
+        return (
+          <div
+            key="trending"
+            className="py-8 mx-2 sm:mx-4 lg:mx-16 w-full"
+          >
+            <TrendingSection orgslug={orgslug} title={section.title} />
+          </div>
+        )
       default:
         return null
     }
   }
 
   return (
-    <div className="flex flex-col items-center justify-between w-full max-w-(--breakpoint-2xl) mx-auto px-4 sm:px-6 lg:px-16 h-full">
+    <div className="flex flex-col items-center justify-between w-full max-w-(--breakpoint-2xl) mx-auto px-4 sm:px-6 lg:px-16 py-8 md:py-10 h-full">
       <DashboardWelcomeHeader displayName={dashboardDisplayName} />
       <DashboardOnboardingBanner orgslug={orgslug} />
       {landing.sections.map((section) => renderSection(section))}

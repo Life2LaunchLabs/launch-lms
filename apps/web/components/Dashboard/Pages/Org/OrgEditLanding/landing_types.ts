@@ -107,6 +107,11 @@ export interface LandingQuickstart {
   items: LandingQuickstartItem[];
 }
 
+export interface LandingTrending {
+  type: 'trending';
+  title: string;
+}
+
 export type LandingSection =
   | LandingTextAndImageSection
   | LandingHeroSection
@@ -114,7 +119,8 @@ export type LandingSection =
   | LandingPeople
   | LandingFeaturedCourses
   | LandingInProgress
-  | LandingQuickstart;
+  | LandingQuickstart
+  | LandingTrending;
 
 export interface LandingObject {
   sections: LandingSection[];

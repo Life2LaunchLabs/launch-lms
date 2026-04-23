@@ -1,8 +1,8 @@
 'use client'
 /* eslint-disable no-unused-vars */
 import React from 'react'
-import { LandingObject, LandingSection, LandingHeroSection, LandingTextAndImageSection, LandingLogos, LandingPeople, LandingBackground, LandingButton, LandingImage, LandingFeaturedCourses, LandingInProgress, LandingQuickstart, LandingQuickstartItem } from './landing_types'
-import { Plus, Trash2, GripVertical, LayoutTemplate, ImageIcon, Users, Award, Edit, Link, Upload, Save, BookOpen, TextIcon, Compass } from 'lucide-react'
+import { LandingObject, LandingSection, LandingHeroSection, LandingTextAndImageSection, LandingLogos, LandingPeople, LandingBackground, LandingButton, LandingImage, LandingFeaturedCourses, LandingInProgress, LandingQuickstart, LandingQuickstartItem, LandingTrending } from './landing_types'
+import { Plus, Trash2, GripVertical, LayoutTemplate, ImageIcon, Users, Award, Edit, Link, Upload, Save, BookOpen, TextIcon, Compass, Activity } from 'lucide-react'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 import { Input } from "@components/ui/input"
 import { Textarea } from "@components/ui/textarea"
@@ -59,6 +59,11 @@ const getSectionTypes = (t: any) => ({
     icon: Compass,
     label: 'Quickstart',
     description: 'Feature shortcuts or links to specific learner content.'
+  },
+  trending: {
+    icon: Activity,
+    label: t('dashboard.organization.landing.section_types.trending.label'),
+    description: t('dashboard.organization.landing.section_types.trending.description')
   }
 }) as const
 
@@ -240,6 +245,11 @@ const OrgEditLanding = () => {
           type: 'quickstart',
           title: 'Quickstart',
           items: [{ type: 'feature', feature: 'courses' }]
+        }
+      case 'trending':
+        return {
+          type: 'trending',
+          title: t('dashboard.organization.landing.section_types.trending.label')
         }
       default:
         throw new Error('Invalid section type')
@@ -505,6 +515,8 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, onChange }) => {
       return <InProgressSectionEditor section={section} onChange={onChange} />
     case 'quickstart':
       return <QuickstartSectionEditor section={section} onChange={onChange} />
+    case 'trending':
+      return <TrendingSectionEditor section={section} onChange={onChange} />
     default:
       return <div>Unknown section type</div>
   }
@@ -1665,6 +1677,33 @@ const InProgressSectionEditor: React.FC<{
       </div>
       <p className="text-sm text-gray-500">
         {t('dashboard.organization.landing.section_types.in_progress.editor_description')}
+      </p>
+    </div>
+  )
+}
+
+const TrendingSectionEditor: React.FC<{
+  section: LandingTrending
+  onChange: (section: LandingTrending) => void
+}> = ({ section, onChange }) => {
+  const { t } = useTranslation()
+
+  return (
+    <div className="space-y-6 p-6 bg-white rounded-lg nice-shadow">
+      <div className="flex items-center space-x-2">
+        <Activity className="w-5 h-5 text-gray-500" />
+        <h3 className="font-medium text-lg">{t('dashboard.organization.landing.section_types.trending.label')}</h3>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="trending-title">{t('dashboard.organization.landing.hero_editor.section_title')}</Label>
+        <Input
+          id="trending-title"
+          value={section.title}
+          onChange={(e) => onChange({ ...section, title: e.target.value })}
+        />
+      </div>
+      <p className="text-sm text-gray-500">
+        {t('dashboard.organization.landing.section_types.trending.editor_description')}
       </p>
     </div>
   )
