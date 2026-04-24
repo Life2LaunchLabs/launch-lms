@@ -52,7 +52,7 @@ export default function ActivityHeader({ course, activity, activityid, courseuui
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => setIsSticky(!entry.isIntersecting),
-      { rootMargin: '-60px 0px 0px 0px', threshold: 0 }
+      { rootMargin: '0px 0px 0px 0px', threshold: 0 }
     )
     if (sentinelRef.current) observer.observe(sentinelRef.current)
     return () => observer.disconnect()
@@ -380,7 +380,7 @@ export default function ActivityHeader({ course, activity, activityid, courseuui
       {/* Sticky version: fixed at top with white bg + slide animation */}
       {isSticky && (
         <div
-          className="fixed top-[60px] left-0 right-0 bg-white/95 backdrop-blur-xl border-b border-gray-100 nice-shadow animate-in fade-in slide-in-from-top duration-200"
+          className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-b border-gray-100 nice-shadow animate-in fade-in slide-in-from-top duration-200"
           style={{ zIndex: 'var(--z-drag-overlay)' }}
         >
           <div className="max-w-(--breakpoint-2xl) mx-auto px-4 sm:px-6 lg:px-8">

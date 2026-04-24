@@ -2,7 +2,7 @@
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import React, { useState } from 'react'
 import { AlertTriangle, CheckCircle, Loader2, Mail, Ticket, UserPlus, X } from 'lucide-react'
-import { useOrg } from '@components/Contexts/OrgContext'
+import { useOrg, useOrgMembership } from '@components/Contexts/OrgContext'
 import UserAvatar from '@components/Objects/UserAvatar'
 import OpenSignUpComponent from './OpenSignup'
 import InviteOnlySignUpComponent from './InviteOnlySignUp'
@@ -86,6 +86,7 @@ const LoggedInJoinScreen = ({ inviteCode, org }: JoinScreenProps) => {
   const { t } = useTranslation()
   const session = useLHSession() as any
   const contextOrg = useOrg() as any
+  const { isUserPartOfTheOrg } = useOrgMembership()
   const activeOrg = contextOrg || org
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -106,6 +107,7 @@ const LoggedInJoinScreen = ({ inviteCode, org }: JoinScreenProps) => {
     )
 
     if (res.success) {
+      await session?.update?.(true)
       setSuccess(typeof res.data === 'string' ? res.data : t('auth.join_organization_success'))
       setShowMessage(true)
       setTimeout(() => {
@@ -113,6 +115,17 @@ const LoggedInJoinScreen = ({ inviteCode, org }: JoinScreenProps) => {
       }, 2000)
     } else {
       const detail = res.data?.detail
+      if (typeof detail === 'string' && detail === 'User is already part of that organization') {
+        await session?.update?.(true)
+        setSuccess(t('auth.join_organization_success'))
+        setShowMessage(true)
+        setTimeout(() => {
+          router.push(getUriWithOrg(activeOrg.slug, '/'))
+        }, 1500)
+        setIsSubmitting(false)
+        return
+      }
+
       let errorMsg = t('common.something_went_wrong')
       if (typeof detail === 'string') {
         errorMsg = detail
@@ -123,6 +136,41 @@ const LoggedInJoinScreen = ({ inviteCode, org }: JoinScreenProps) => {
       setShowMessage(true)
     }
     setIsSubmitting(false)
+  }
+
+  if (isUserPartOfTheOrg) {
+    return (
+      <div className="flex-1 flex flex-row">
+        <div className="m-auto w-full max-w-sm px-6 py-8 sm:py-0">
+          <div className="mb-8 text-center">
+            <h1 className="text-2xl font-bold text-gray-900">{t('auth.join_organization')}</h1>
+            <p className="text-gray-500 mt-1">{t('auth.join_organization_desc')}</p>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 nice-shadow">
+            <div className="flex flex-col items-center gap-6 text-center">
+              <div className="w-14 h-14 rounded-full bg-green-100 text-green-700 flex items-center justify-center">
+                <CheckCircle size={28} />
+              </div>
+
+              <div>
+                <p className="font-semibold text-gray-900">{t('auth.join_organization_success')}</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  {t('auth.joining')} {activeOrg?.name}
+                </p>
+              </div>
+
+              <button
+                onClick={() => router.push(getUriWithOrg(activeOrg.slug, '/'))}
+                className="w-full bg-black text-white font-semibold text-center py-2.5 rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                {t('common.home')}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

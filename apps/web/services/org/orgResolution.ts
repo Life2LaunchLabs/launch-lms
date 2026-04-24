@@ -1,6 +1,6 @@
 import { headers } from 'next/headers'
 import { getOrganizationContextInfoWithoutCredentials, getOrganizationContextInfoWithUUID } from '@services/organizations/orgs'
-import { getConfig } from '@services/config/config'
+import { getConfig, getServerAPIUrl } from '@services/config/config'
 import { resolveOrgHostContext, type OrgHostContext } from '@services/routing/context'
 
 async function getServerDomain(): Promise<string> {
@@ -13,7 +13,20 @@ async function getServerDomain(): Promise<string> {
   return 'localhost'
 }
 
-function getServerDefaultOrgSlug(): string {
+async function getServerDefaultOrgSlug(): Promise<string> {
+  try {
+    const res = await fetch(`${getServerAPIUrl()}instance/info`, {
+      method: 'GET',
+      cache: 'no-store',
+    })
+    if (res.ok) {
+      const data = await res.json()
+      if (data?.default_org_slug) return data.default_org_slug
+    }
+  } catch {
+    // Fall back to configured default below.
+  }
+
   return getConfig('NEXT_PUBLIC_LAUNCHLMS_DEFAULT_ORG', 'default')
 }
 
@@ -30,7 +43,7 @@ async function readServerOrgHostContext(): Promise<OrgHostContext | null> {
     return resolveOrgHostContext({
       host,
       frontendDomain,
-      defaultOrgSlug: getServerDefaultOrgSlug(),
+      defaultOrgSlug: await getServerDefaultOrgSlug(),
       resolvedCustomDomainOrgSlug: null,
     })
   } catch {

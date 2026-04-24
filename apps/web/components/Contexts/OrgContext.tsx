@@ -1,7 +1,7 @@
 'use client'
 import { getAPIUrl } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
-import React, { createContext, useContext, useMemo } from 'react'
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import ErrorUI from '@components/Objects/StyledElements/Error/Error'
@@ -19,18 +19,12 @@ export function OrgProvider({ children, orgslug }: { children: React.ReactNode, 
   const accessToken = session?.data?.tokens?.access_token
   const isAuthenticated = session?.status === 'authenticated'
   const userId = session?.data?.user?.id ?? 'anonymous'
+  const sessionRoles = Array.isArray(session?.data?.roles) ? session.data.roles : []
+  const hasForcedSessionRefresh = useRef(false)
+  const [isResolvingMembership, setIsResolvingMembership] = useState(false)
 
   const { data: org, error: orgError } = useSWR(
     [`${getAPIUrl()}orgs/slug/${orgslug}`, accessToken || '', userId],
-    ([url, token]) => swrFetcher(url, token || undefined),
-    {
-      revalidateOnFocus: true,
-      revalidateOnMount: true,
-      dedupingInterval: 5000,
-    }
-  )
-  const { data: orgs, error: orgsError } = useSWR(
-    isAuthenticated ? [`${getAPIUrl()}orgs/user/page/1/limit/10`, accessToken || '', userId] : null,
     ([url, token]) => swrFetcher(url, token || undefined),
     {
       revalidateOnFocus: true,
@@ -43,11 +37,24 @@ export function OrgProvider({ children, orgslug }: { children: React.ReactNode, 
   const isUserPartOfTheOrg = useMemo(() => {
     // If user is not authenticated, treat them as "part of org" for viewing purposes
     if (!isAuthenticated) return true
-    return orgs?.some((userOrg: any) => userOrg.id === org?.id) ?? false
-  }, [isAuthenticated, orgs, org?.id])
+    return sessionRoles.some((entry: any) => String(entry?.org?.id) === String(org?.id))
+  }, [isAuthenticated, sessionRoles, org?.id])
 
-  if (orgError || (isAuthenticated && orgsError)) return <ErrorUI message='An error occurred while fetching data' />
-  if (!org || !session || (isAuthenticated && !orgs)) return <div></div>
+  useEffect(() => {
+    if (!isAuthenticated || hasForcedSessionRefresh.current) return
+    if (sessionRoles.length > 0) return
+
+    hasForcedSessionRefresh.current = true
+    setIsResolvingMembership(true)
+
+    Promise.resolve(session?.update?.(true)).finally(() => {
+      setIsResolvingMembership(false)
+    })
+  }, [isAuthenticated, sessionRoles.length, session])
+
+  if (orgError) return <ErrorUI message='An error occurred while fetching data' />
+  if (!org || !session) return <div></div>
+  if (isAuthenticated && sessionRoles.length === 0 && isResolvingMembership) return <div></div>
   if (!isOrgActive) return <ErrorUI message='This organization is no longer active' />
 
   const contextValue: OrgContextValue = {
