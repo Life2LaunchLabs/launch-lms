@@ -11,6 +11,7 @@ import React, {
 import { mutate } from 'swr'
 import {
   getAPIUrl,
+  getCoreCapabilities,
   getLAUNCHLMS_TOP_DOMAIN_VAL,
   getLAUNCHLMS_DOMAIN_VAL,
 } from '@services/config/config'
@@ -607,6 +608,15 @@ export function SessionProvider({
         }
 
         if (provider === 'google') {
+          if (!getCoreCapabilities().oauth) {
+            return {
+              ok: false,
+              error: 'OAuth login is disabled',
+              url: null,
+              status: 404,
+            }
+          }
+
           // Store org context in cookies before OAuth redirect
           const { secureAttr, domainAttr, sameSiteAttr } = getCookieAttributes()
           const baseAttributes = `; path=/${sameSiteAttr}${secureAttr}`
@@ -777,8 +787,14 @@ export async function signIn(
   // For now, we'll handle it differently for Google OAuth which needs redirect
 
   if (provider === 'google') {
-    const { secureAttr, domainAttr, sameSiteAttr } = getCookieAttributes()
-    const baseAttributes = `; path=/${sameSiteAttr}${secureAttr}`
+    if (!getCoreCapabilities().oauth) {
+      return {
+        ok: false,
+        error: 'OAuth login is disabled',
+        url: null,
+        status: 404,
+      }
+    }
 
     // Store org context from cookies if present (for compatibility)
     // The options should contain orgSlug and orgId if needed

@@ -1,148 +1,131 @@
-import { useOrg } from '@components/Contexts/OrgContext'
-import { getCoreCapabilities, getUriWithOrg } from '@services/config/config'
-import { Books, ChatsCircle, Headphones, Cube, ShoppingBag, FolderOpen, Buildings } from '@phosphor-icons/react'
-import Link from 'next/link'
 import React from 'react'
-import { useTranslation } from 'react-i18next'
-import { getMenuColorClasses } from '@services/utils/ts/colorUtils'
+import {
+  House,
+  Books,
+  ChatsCircle,
+  FolderOpen,
+  Question,
+  GearSix,
+} from '@phosphor-icons/react'
+import { routePaths } from '@services/config/config'
+import type { TFunction } from 'i18next'
 
-function MenuLinks(props: { orgslug: string; primaryColor?: string }) {
-  const org = useOrg() as any
+export const KNOWN_SUBPATHS = [
+  '/courses',
+  '/course/',
+  '/collection/',
+  '/collections',
+  '/trail',
+  '/certificate',
+  '/badge',
+  '/badges',
+  '/podcasts',
+  '/communities',
+  '/organizations',
+  '/organization/',
+  '/resources',
+  '/resource/',
+  '/activity/',
+  '/assignment',
+  '/editor',
+  '/account',
+  '/payments',
+]
 
-  // Feature visibility: resolved_features from API is the source of truth
-  const rf = org?.config?.config?.resolved_features
-  const isEnabled = (feature: string) => rf?.[feature]?.enabled === true
-  const capabilities = getCoreCapabilities()
-
-  const isCoursesEnabled = isEnabled('courses')
-  const showCommunities = isEnabled('communities')
-  const showResources = isEnabled('resources')
-  const showPodcasts = isEnabled('podcasts')
-  const showPlaygrounds = isEnabled('playgrounds')
-  const showStore = capabilities.payments && isEnabled('payments')
-
-  return (
-    <div className='pl-1'>
-      <ul className="flex space-x-5">
-        {isCoursesEnabled && (
-          <LinkItem
-            link="/courses"
-            type="courses"
-            orgslug={props.orgslug}
-            primaryColor={props.primaryColor}
-          ></LinkItem>
-        )}
-        {showPodcasts && (
-          <LinkItem
-            link="/podcasts"
-            type="podcasts"
-            orgslug={props.orgslug}
-            primaryColor={props.primaryColor}
-          ></LinkItem>
-        )}
-        {showCommunities && (
-          <LinkItem
-            link="/communities"
-            type="communities"
-            orgslug={props.orgslug}
-            primaryColor={props.primaryColor}
-          ></LinkItem>
-        )}
-        {capabilities.multi_org && (
-          <LinkItem
-            link="/organizations"
-            type="organizations"
-            orgslug={props.orgslug}
-            primaryColor={props.primaryColor}
-          ></LinkItem>
-        )}
-        {showResources && (
-          <LinkItem
-            link="/resources"
-            type="resources"
-            orgslug={props.orgslug}
-            primaryColor={props.primaryColor}
-          ></LinkItem>
-        )}
-        {showPlaygrounds && (
-          <LinkItem
-            link="/playgrounds"
-            type="playgrounds"
-            orgslug={props.orgslug}
-            primaryColor={props.primaryColor}
-          ></LinkItem>
-        )}
-        {showStore && (
-          <LinkItem
-            link="/store"
-            type="store"
-            orgslug={props.orgslug}
-            primaryColor={props.primaryColor}
-          ></LinkItem>
-        )}
-      </ul>
-    </div>
-  )
+export interface OrgMenuNavItem {
+  href?: string
+  label: string
+  icon: React.ReactNode
+  active: boolean
+  show: boolean
+  onboardingFeature?: 'courses' | 'communities' | 'resources'
+  kind?: 'link' | 'action'
+  actionKey?: 'help'
 }
-const LinkItem = (props: any) => {
-  const { t } = useTranslation()
-  const link = props.link
-  const orgslug = props.orgslug
-  const colors = getMenuColorClasses(props.primaryColor || '')
-  const textColorClass = colors.text
-  return (
-    <Link href={getUriWithOrg(orgslug, link)}>
-      <li className={`flex space-x-2 items-center ${textColorClass} font-semibold`}>
-        {props.type == 'courses' && (
-          <>
-            <Books size={20} weight="fill" />{' '}
-            <span>{t('courses.courses')}</span>
-          </>
-        )}
-        {props.type == 'podcasts' && (
-          <>
-            <Headphones size={20} weight="fill" />{' '}
-            <span>{t('podcasts.podcasts')}</span>
-          </>
-        )}
 
-        {props.type == 'communities' && (
-          <>
-            <ChatsCircle size={20} weight="fill" />{' '}
-            <span>{t('communities.title')}</span>
-          </>
-        )}
-
-        {props.type == 'resources' && (
-          <>
-            <FolderOpen size={20} weight="fill" />{' '}
-            <span>Resources</span>
-          </>
-        )}
-
-        {props.type == 'organizations' && (
-          <>
-            <Buildings size={20} weight="fill" />{' '}
-            <span>Organizations</span>
-          </>
-        )}
-
-        {props.type == 'playgrounds' && (
-          <>
-            <Cube size={20} weight="fill" />{' '}
-            <span>Playgrounds</span>
-          </>
-        )}
-
-        {props.type == 'store' && (
-          <>
-            <ShoppingBag size={20} weight="fill" />{' '}
-            <span>Store</span>
-          </>
-        )}
-
-      </li>
-    </Link>
-  )
+function isFeatureEnabled(resolvedFeatures: any, feature: string) {
+  return resolvedFeatures?.[feature]?.enabled === true
 }
-export default MenuLinks
+
+export function getPrimaryOrgMenuItems({
+  pathname,
+  resolvedFeatures,
+  t,
+}: {
+  pathname?: string | null
+  resolvedFeatures: any
+  t: TFunction
+}): OrgMenuNavItem[] {
+  const isHome = !KNOWN_SUBPATHS.some((subpath) => pathname?.includes(subpath))
+  const isOnCourses =
+    pathname?.includes('/courses') ||
+    pathname?.includes('/course/') ||
+    pathname?.includes('/collection/')
+  const isOnCommunities = pathname?.includes('/communities')
+  const isOnResources = pathname?.includes('/resources') || pathname?.includes('/resource/')
+
+  return [
+    {
+      href: '/',
+      label: t('common.home') || 'Home',
+      icon: <House size={18} weight="fill" />,
+      active: isHome,
+      show: true,
+    },
+    {
+      href: '/courses',
+      label: t('courses.courses'),
+      icon: <Books size={18} weight="fill" />,
+      active: Boolean(isOnCourses),
+      show: isFeatureEnabled(resolvedFeatures, 'courses'),
+      onboardingFeature: 'courses',
+    },
+    {
+      href: '/communities',
+      label: t('communities.title'),
+      icon: <ChatsCircle size={18} weight="fill" />,
+      active: Boolean(isOnCommunities),
+      show: isFeatureEnabled(resolvedFeatures, 'communities'),
+      onboardingFeature: 'communities',
+    },
+    {
+      href: '/resources',
+      label: 'Resources',
+      icon: <FolderOpen size={18} weight="fill" />,
+      active: Boolean(isOnResources),
+      show: isFeatureEnabled(resolvedFeatures, 'resources'),
+      onboardingFeature: 'resources',
+    },
+  ]
+}
+
+export function getAdministrativeOrgMenuItems({
+  pathname,
+  t,
+  canAccessDashboard,
+  isHelpOpen,
+}: {
+  pathname?: string | null
+  t: TFunction
+  canAccessDashboard: boolean
+  isHelpOpen: boolean
+}): OrgMenuNavItem[] {
+  return [
+    {
+      label: t('common.help'),
+      icon: <Question size={18} weight="fill" />,
+      active: isHelpOpen,
+      show: true,
+      kind: 'action',
+      actionKey: 'help',
+    },
+    {
+      href: routePaths.org.dash.orgSettings.general(),
+      label: t('common.settings'),
+      icon: <GearSix size={18} weight="fill" />,
+      active: Boolean(pathname?.includes('/dash/org/settings')),
+      show: canAccessDashboard,
+      kind: 'link',
+    },
+  ]
+}

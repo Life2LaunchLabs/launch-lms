@@ -262,6 +262,12 @@ async def third_party_login(
     current_user: AnonymousUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
+    if not get_launchlms_config().general_config.auth_oauth_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="OAuth login is disabled",
+        )
+
     # Google
     if body.provider == "google":
 

@@ -62,6 +62,18 @@ export interface LandingCourse {
   course_uuid: string;
 }
 
+export type LandingQuickstartFeature =
+  | 'home'
+  | 'courses'
+  | 'communities'
+  | 'resources';
+
+export interface LandingQuickstartItem {
+  type: 'feature' | 'collection' | 'community' | 'resource-channel';
+  feature?: LandingQuickstartFeature;
+  target_uuid?: string;
+}
+
 export interface LandingFeaturedCourses {
   type: 'featured-courses';
   courses: LandingCourse[];
@@ -89,9 +101,28 @@ export interface LandingInProgress {
   title: string;
 }
 
-export type LandingSection = LandingTextAndImageSection | LandingHeroSection | LandingLogos | LandingPeople | LandingFeaturedCourses | LandingInProgress;
+export interface LandingQuickstart {
+  type: 'quickstart';
+  title: string;
+  items: LandingQuickstartItem[];
+}
+
+export interface LandingTrending {
+  type: 'trending';
+  title: string;
+}
+
+export type LandingSection =
+  | LandingTextAndImageSection
+  | LandingHeroSection
+  | LandingLogos
+  | LandingPeople
+  | LandingFeaturedCourses
+  | LandingInProgress
+  | LandingQuickstart
+  | LandingTrending;
 
 export interface LandingObject {
   sections: LandingSection[];
   enabled?: boolean;
-} 
+}

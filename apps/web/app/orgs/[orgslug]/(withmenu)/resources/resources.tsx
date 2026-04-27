@@ -10,6 +10,7 @@ import ChipMultiSelect from '@components/Resources/ChipMultiSelect'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import { Button } from '@components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@components/ui/popover'
+import FeatureInfoBanner from '@components/Onboarding/FeatureInfoBanner'
 import {
   createUserResourceChannel,
   getResourceChannels,
@@ -79,14 +80,22 @@ function ChannelTile({
   )
 }
 
-export default function ResourcesClient({ orgslug }: { orgslug: string }) {
+export default function ResourcesClient({
+  orgslug,
+  initialChannelUuid,
+}: {
+  orgslug: string
+  initialChannelUuid?: string
+}) {
   const org = useOrg() as any
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
   const orgId = org?.id
   const orgUUID = org?.org_uuid
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [activeChannel, setActiveChannel] = useState<string>('all')
+  const [activeChannel, setActiveChannel] = useState<string>(
+    initialChannelUuid || 'all'
+  )
   const [activeUserChannel, setActiveUserChannel] = useState<string>('')
   const [search, setSearch] = useState('')
   const [searchExpanded, setSearchExpanded] = useState(false)
@@ -235,6 +244,8 @@ export default function ResourcesClient({ orgslug }: { orgslug: string }) {
 
   return (
     <GeneralWrapperStyled>
+      <FeatureInfoBanner orgslug={orgslug} feature="resources" />
+
       {/* Page header */}
       <div className="flex items-center gap-2.5 my-4">
         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white nice-shadow">

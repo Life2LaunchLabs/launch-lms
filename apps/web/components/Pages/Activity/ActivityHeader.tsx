@@ -8,6 +8,10 @@ import { Linkedin } from 'lucide-react'
 import { getUriWithOrg, getAPIUrl, routePaths } from '@services/config/config'
 import { useOrg, useOrgMembership } from '@components/Contexts/OrgContext'
 import { markActivityAsComplete } from '@services/courses/activity'
+import {
+  findCourseRun,
+  isCourseActivityCompleted,
+} from '@services/courses/progress'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { mutate } from 'swr'
 import { useTranslation } from 'react-i18next'
@@ -20,9 +24,10 @@ interface ActivityHeaderProps {
   orgslug: string
   trailData?: any
   guestMode?: boolean
+  publicGuestMode?: boolean
 }
 
-export default function ActivityHeader({ course, activity, activityid, courseuuid, orgslug, trailData, guestMode = false }: ActivityHeaderProps) {
+export default function ActivityHeader({ course, activity, activityid, courseuuid, orgslug, trailData, guestMode = false, publicGuestMode = false }: ActivityHeaderProps) {
   const { t } = useTranslation()
   const router = useRouter()
   const org = useOrg() as any
@@ -47,7 +52,7 @@ export default function ActivityHeader({ course, activity, activityid, courseuui
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => setIsSticky(!entry.isIntersecting),
-      { rootMargin: '-60px 0px 0px 0px', threshold: 0 }
+      { rootMargin: '0px 0px 0px 0px', threshold: 0 }
     )
     if (sentinelRef.current) observer.observe(sentinelRef.current)
     return () => observer.disconnect()
@@ -88,22 +93,20 @@ export default function ActivityHeader({ course, activity, activityid, courseuui
     ? allActivities[currentIndex + 1]
     : null
   const cleanCourseUuid = courseuuid.replace('course_', '')
+  const courseRun = useMemo(() => findCourseRun(trailData, course), [trailData, course])
+  const isGuestLearner = guestMode || publicGuestMode
 
   const { completedCount, totalCount } = useMemo(() => {
-    const cleanCourseId = course.course_uuid?.replace('course_', '')
-    const run = trailData?.runs?.find((r: any) => r.course?.course_uuid?.replace('course_', '') === cleanCourseId)
     const completedCount = allActivities.filter((act: any) =>
-      run?.steps?.find((step: any) => step.activity_id === act.id && step.complete === true)
+      isCourseActivityCompleted(courseRun, act.id)
     ).length
     return { completedCount, totalCount: allActivities.length }
-  }, [allActivities, trailData, course.course_uuid])
+  }, [allActivities, courseRun])
 
   const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0
 
   const isActivityDone = (act: any) => {
-    const cleanCourseId = course.course_uuid?.replace('course_', '')
-    const run = trailData?.runs?.find((r: any) => r.course?.course_uuid?.replace('course_', '') === cleanCourseId)
-    return !!run?.steps?.find((step: any) => step.activity_id === act.id && step.complete === true)
+    return isCourseActivityCompleted(courseRun, act.id)
   }
 
   const isActivityCurrent = (act: any) =>
@@ -111,14 +114,12 @@ export default function ActivityHeader({ course, activity, activityid, courseuui
 
   const handleNext = async () => {
     if (isLoading) return
-    if (!guestMode && !isUserPartOfTheOrg) return
+    if (!isGuestLearner && !isUserPartOfTheOrg) return
     setIsLoading(true)
     const nextActivityPath = nextActivity
-      ? guestMode
-        ? routePaths.org.onboardingCourseActivity(cleanCourseUuid, nextActivity.cleanUuid)
-        : routePaths.org.courseActivity(cleanCourseUuid, nextActivity.cleanUuid)
-      : guestMode
-        ? routePaths.org.onboardingCourseEnd(cleanCourseUuid)
+      ? routePaths.org.courseActivity(cleanCourseUuid, nextActivity.cleanUuid)
+      : isGuestLearner
+        ? `${routePaths.org.courseActivityEnd(cleanCourseUuid)}?guest_completed=1`
         : routePaths.org.courseActivityEnd(cleanCourseUuid)
     try {
       if (!(activity.activity_type === 'TYPE_QUIZ' && activity.details?.quiz_mode === 'graded')) {
@@ -379,7 +380,7 @@ export default function ActivityHeader({ course, activity, activityid, courseuui
       {/* Sticky version: fixed at top with white bg + slide animation */}
       {isSticky && (
         <div
-          className="fixed top-[60px] left-0 right-0 bg-white/95 backdrop-blur-xl border-b border-gray-100 nice-shadow animate-in fade-in slide-in-from-top duration-200"
+          className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-b border-gray-100 nice-shadow animate-in fade-in slide-in-from-top duration-200"
           style={{ zIndex: 'var(--z-drag-overlay)' }}
         >
           <div className="max-w-(--breakpoint-2xl) mx-auto px-4 sm:px-6 lg:px-8">

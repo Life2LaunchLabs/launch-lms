@@ -1,14 +1,8 @@
 'use client'
 import React, { useEffect, useState } from 'react'
-import CopilotBubble from '@components/Copilot/CopilotBubble'
 import Image from 'next/image'
 import Link from 'next/link'
-import useSWR from 'swr'
-import { getCoreCapabilities, getUriWithOrg } from '@services/config/config'
-import { fetchRAGChatSessions, RAGChatSession } from '@services/ai/ai'
-import { HeaderProfileBox } from '@components/Security/HeaderProfileBox'
-import MenuLinks from './OrgMenuLinks'
-import { OrgMenuSidebar } from './OrgMenuSidebar'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getOrgLogoMediaDirectory } from '@services/media/media'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
@@ -16,26 +10,8 @@ import { SearchBar } from '@components/Objects/Search/SearchBar'
 import { usePathname } from 'next/navigation'
 import { useTranslation } from 'react-i18next'
 import useAdminStatus from '@components/Hooks/useAdminStatus'
-import {
-  Question,
-  Book,
-  Globe,
-  ChatCircleDots,
-  ChatCircle,
-  ChalkboardSimple,
-} from '@phosphor-icons/react'
-import { DiscordIcon } from '@components/Objects/Icons/DiscordIcon'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@components/ui/dropdown-menu"
+import { CaretDown, DotsThreeVertical, Question, SignOut, User } from '@phosphor-icons/react'
 import { FeedbackModal } from '@components/Objects/Modals/FeedbackModal'
-import { getMenuColorClasses } from '@services/utils/ts/colorUtils'
-import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
 import { useJoinBannerVisible, JOIN_BANNER_HEIGHT } from '@components/Objects/Banners/OrgJoinBanner'
 import { GuestHeader } from '@components/Objects/Menus/GuestHeader'
 import {
@@ -44,234 +20,253 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@components/ui/tooltip'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@components/ui/dropdown-menu'
+import { signOut } from '@components/Contexts/AuthContext'
+import UserAvatar from '@components/Objects/UserAvatar'
+import {
+  getAdministrativeOrgMenuItems,
+  getPrimaryOrgMenuItems,
+  OrgMenuNavItem,
+} from './OrgMenuLinks'
+import {
+  getOnboardingUserKey,
+  OnboardingFeatureKey,
+  useOrgOnboarding,
+} from '@components/Onboarding/orgOnboarding'
 
-export const OrgMenu = (props: any) => {
+export const OrgMenu = (props: { orgslug: string }) => {
   const orgslug = props.orgslug
-  const session = useLHSession() as any;
-  const org = useOrg() as any;
-  const [isMenuOpen, setIsMenuOpen] = React.useState(false)
-  const [isFocusMode, setIsFocusMode] = useState(false)
+  const session = useLHSession() as any
+  const org = useOrg() as any
   const pathname = usePathname()
   const { t } = useTranslation()
   const { rights } = useAdminStatus()
+  const [, setFocusModeTick] = useState(0)
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false)
   const { isVisible: isJoinBannerVisible } = useJoinBannerVisible()
+  const onboardingUserKey = getOnboardingUserKey(session)
+  const { state: onboardingState, markFeatureVisited } = useOrgOnboarding(
+    orgslug,
+    onboardingUserKey
+  )
 
-  // Copilot bubble state
-  const [bubbleOpen, setBubbleOpen] = useState(false)
-  const [bubbleSessionToLoad, setBubbleSessionToLoad] = useState<string | null>(null)
-  const [isBubbleMode, setIsBubbleMode] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false
-    const stored = localStorage.getItem('copilot-bubble-mode')
-    return stored === 'true'
-  })
-
-  const toggleBubbleMode = (value: boolean) => {
-    setIsBubbleMode(value)
-    localStorage.setItem('copilot-bubble-mode', String(value))
-    if (!value) setBubbleOpen(false)
-  }
-
-  const openBubbleWithSession = (sessionUuid?: string) => {
-    if (sessionUuid) setBubbleSessionToLoad(sessionUuid)
-    setBubbleOpen(true)
-  }
   const topOffset = isJoinBannerVisible ? JOIN_BANNER_HEIGHT : 0
-
-  // Get primary color from org config (v2: customization.general.color, v1: general.color)
   const config = org?.config?.config
-  const capabilities = getCoreCapabilities()
-  const primaryColor = config?.customization?.general?.color || config?.general?.color || ''
-  const colors = getMenuColorClasses(primaryColor)
-
-  // Filter dashboard menu items by resolved_features from API
-  const rf = config?.resolved_features
+  const resolvedFeatures = config?.resolved_features
+  const isActivityPage = pathname?.includes('/activity/')
+  const isCoursePage = /^\/course\/[^/]+$/.test(pathname || '')
+  const isPublicCourseExperience = isCoursePage || isActivityPage
+  const isFocusMode =
+    isActivityPage &&
+    typeof window !== 'undefined' &&
+    localStorage.getItem('globalFocusMode') === 'true'
 
   useEffect(() => {
-    // Only check focus mode if we're in an activity page
-    if (typeof window !== 'undefined' && pathname?.includes('/activity/')) {
-      const saved = localStorage.getItem('globalFocusMode');
-      setIsFocusMode(saved === 'true');
-    } else {
-      setIsFocusMode(false);
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'globalFocusMode' && isActivityPage) {
+        setFocusModeTick((current) => current + 1)
+      }
     }
 
-    // Add storage event listener for cross-window changes
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'globalFocusMode' && pathname?.includes('/activity/')) {
-        setIsFocusMode(e.newValue === 'true');
+    const handleFocusModeChange = (event: Event) => {
+      if (isActivityPage) {
+        const customEvent = event as CustomEvent<{ isFocusMode?: boolean }>
+        if (typeof customEvent.detail?.isFocusMode === 'boolean') {
+          setFocusModeTick((current) => current + 1)
+        }
       }
-    };
+    }
 
-    // Add custom event listener for same-window changes
-    const handleFocusModeChange = (e: CustomEvent) => {
-      if (pathname?.includes('/activity/')) {
-        setIsFocusMode(e.detail.isFocusMode);
-      }
-    };
+    window.addEventListener('storage', handleStorageChange)
+    window.addEventListener('focusModeChange', handleFocusModeChange)
 
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('focusModeChange', handleFocusModeChange as EventListener);
-
-    // Cleanup
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('focusModeChange', handleFocusModeChange as EventListener);
-    };
-  }, [pathname]);
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('focusModeChange', handleFocusModeChange)
+    }
+  }, [isActivityPage])
 
-  function toggleMenu() {
-    setIsMenuOpen(!isMenuOpen)
+  useEffect(() => {
+    if (session?.status !== 'authenticated' || !pathname) {
+      return
+    }
+
+    const featureMatchers: Array<{
+      feature: OnboardingFeatureKey
+      matches: boolean
+    }> = [
+      {
+        feature: 'courses',
+        matches:
+          pathname.includes('/courses') ||
+          pathname.includes('/course/') ||
+          pathname.includes('/collection/'),
+      },
+      {
+        feature: 'communities',
+        matches:
+          pathname.includes('/communities') || pathname.includes('/community/'),
+      },
+      {
+        feature: 'resources',
+        matches:
+          pathname.includes('/resources') || pathname.includes('/resource/'),
+      },
+    ]
+
+    featureMatchers.forEach(({ feature, matches }) => {
+      if (matches && !onboardingState.visitedFeatures[feature]) {
+        markFeatureVisited(feature)
+      }
+    })
+  }, [markFeatureVisited, onboardingState.visitedFeatures, pathname, session?.status])
+
+  if (isActivityPage && isFocusMode) {
+    return null
   }
 
-  // Only hide menu if we're in an activity page and focus mode is enabled
-  if (pathname?.includes('/activity/') && isFocusMode) {
-    return null;
-  }
-
-  // Unauthenticated users (e.g. viewing a public course) get a simple guest header
   if (session?.status === 'unauthenticated') {
+    if (isPublicCourseExperience) {
+      return null
+    }
     return <GuestHeader orgslug={orgslug} />
   }
 
+  const primaryNavItems = getPrimaryOrgMenuItems({
+    pathname,
+    resolvedFeatures,
+    t,
+  }).filter((item) => item.show)
+
+  const adminNavItems = getAdministrativeOrgMenuItems({
+    pathname,
+    t,
+    canAccessDashboard: rights?.dashboard?.action_access === true,
+    isHelpOpen: feedbackModalOpen,
+  }).filter((item) => item.show)
+
   return (
     <>
-      <div className="backdrop-blur-lg h-[60px] blur-3xl" style={{ zIndex: 'var(--z-behind)', marginTop: topOffset }}></div>
-      <nav
-        aria-label="Top navigation"
-        className={`backdrop-blur-lg fixed left-0 right-0 h-[60px] ${!primaryColor ? 'bg-white/90 nice-shadow' : ''}`}
+      <aside
+        className="hidden md:flex md:self-start md:shrink-0 md:w-20 lg:w-[300px]"
         style={{
-          zIndex: 'var(--z-nav)',
-          backgroundColor: primaryColor || undefined,
-          top: topOffset
+          top: topOffset,
+          height: `calc(100vh - ${topOffset}px)`,
+          position: 'sticky',
         }}
       >
-        <div className="flex items-center justify-between w-full max-w-(--breakpoint-2xl) mx-auto px-4 sm:px-6 lg:px-8 h-full">
-          {/* Left: hamburger + logo + nav links (desktop only) */}
-          <div className="flex items-center gap-3">
-            <button
-              className={`p-1.5 rounded-lg focus:outline-hidden transition-colors ${colors.iconBtn}`}
-              onClick={toggleMenu}
-              aria-label="Open menu"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <Link href={getUriWithOrg(orgslug, '/')}>
-              <div className="flex w-auto h-9 rounded-md items-center m-auto py-1 justify-center">
+        <div
+          className="flex h-full min-h-0 w-full flex-col px-4 py-6 lg:px-6 lg:py-7"
+        >
+          <div className="flex justify-center lg:justify-start">
+            <Link href={getUriWithOrg(orgslug, '/')} className="flex items-center justify-center">
+              <div className="md:flex lg:hidden">
                 {org?.logo_image ? (
                   <img
-                    src={`${getOrgLogoMediaDirectory(org.org_uuid, org?.logo_image)}`}
+                    src={getOrgLogoMediaDirectory(org.org_uuid, org.logo_image)}
+                    alt="Logo"
+                    className="h-10 w-10 rounded-xl object-cover"
+                  />
+                ) : (
+                  <LaunchLMSIcon />
+                )}
+              </div>
+              <div className="hidden h-10 w-auto items-center justify-start rounded-md py-1 lg:flex">
+                {org?.logo_image ? (
+                  <img
+                    src={getOrgLogoMediaDirectory(org.org_uuid, org.logo_image)}
                     alt="Logo"
                     style={{ width: 'auto', height: '100%' }}
                     className="rounded-md"
                   />
                 ) : (
-                  <LaunchLMSLogo logoFilter={colors.logoFilter} />
+                  <LaunchLMSLogo />
                 )}
               </div>
             </Link>
-            <div className="hidden md:flex">
-              <MenuLinks orgslug={orgslug} primaryColor={primaryColor} />
-            </div>
           </div>
 
-          {/* Right: desktop icons + search + user */}
-          <div className="flex items-center space-x-2">
-            {/* Desktop-only action icons */}
-            <AuthenticatedClientElement checkMethod="authentication">
-              <div className="hidden md:flex items-center space-x-1">
-                {rf?.boards?.enabled && (
-                  <TooltipProvider delayDuration={0}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Link
-                          href={getUriWithOrg(orgslug, '/boards')}
-                          className={`p-2 rounded-lg transition-colors ${colors.iconBtn}`}
-                          aria-label="Boards"
-                        >
-                          <ChalkboardSimple size={20} weight="fill" />
-                        </Link>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="text-xs">
-                        Boards
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-                {rf?.ai?.enabled && config?.admin_toggles?.ai?.copilot_enabled !== false && (
-                  <CopilotMenuButton
-                    orgslug={orgslug}
-                    iconBtnClass={colors.iconBtn}
-                    isBubbleMode={isBubbleMode}
-                    onToggleBubbleMode={toggleBubbleMode}
-                    bubbleOpen={bubbleOpen}
-                    onOpenBubble={openBubbleWithSession}
-                  />
-                )}
-              </div>
-            </AuthenticatedClientElement>
+          <div className="mt-4 hidden lg:block">
+            <SearchBar orgslug={orgslug} className="w-full" />
+          </div>
+          <div className="mt-4 flex justify-center lg:hidden">
+            <SearchBar orgslug={orgslug} isMobile />
+          </div>
 
-            {/* Help Dropdown — desktop, admins only */}
-            {session?.status === 'authenticated' && rights?.dashboard?.action_access && (
-              <div className="hidden md:flex">
-                <DropdownMenu>
-                  <TooltipProvider delayDuration={0}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <DropdownMenuTrigger asChild>
-                          <button className={`p-2 rounded-lg transition-colors ${colors.iconBtn}`} aria-label={t('common.help')}>
-                            <Question size={20} weight="fill" />
-                          </button>
-                        </DropdownMenuTrigger>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="text-xs">{t('common.help')}</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel className="flex items-center gap-2">
-                      <Question size={16} weight="fill" />
-                      <span>{t('common.help')}</span>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setFeedbackModalOpen(true)} className="flex items-center gap-2">
-                      <ChatCircleDots size={16} weight="fill" />
-                      <span>{t('common.help_menu.report_feedback')}</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            )}
+          <div className="mt-6 min-h-0 flex-1 overflow-y-auto">
+            <nav className="flex flex-col items-center gap-1 lg:items-stretch">
+              {primaryNavItems.map((item) => (
+                <SidebarItem
+                  key={item.href || item.label}
+                  item={item}
+                  orgslug={orgslug}
+                  showOnboardingBadge={
+                    item.onboardingFeature
+                      ? !onboardingState.visitedFeatures[item.onboardingFeature]
+                      : false
+                  }
+                />
+              ))}
+            </nav>
+          </div>
 
-            {/* Search — desktop full, mobile compact */}
-            <div className="hidden md:flex">
-              <SearchBar orgslug={orgslug} primaryColor={primaryColor} />
-            </div>
-            <div className="md:hidden flex">
-              <SearchBar orgslug={orgslug} isMobile={true} primaryColor={primaryColor} />
-            </div>
+          <div className="mt-auto flex flex-col items-center pt-6 lg:items-stretch">
+            <nav className="flex flex-col items-center gap-1 lg:items-stretch">
+              {adminNavItems.filter((item) => item.actionKey !== 'help').map((item) => (
+                <SidebarItem
+                  key={item.href || item.label}
+                  item={item}
+                  orgslug={orgslug}
+                  muted
+                  onAction={(actionKey) => {
+                    if (actionKey === 'help') {
+                      setFeedbackModalOpen(true)
+                    }
+                  }}
+                />
+              ))}
+            </nav>
 
-            {/* User — desktop full (name+email), mobile compact (avatar only) */}
-            <div className="hidden md:flex">
-              <HeaderProfileBox primaryColor={primaryColor} />
-            </div>
-            <div className="md:hidden flex">
-              <HeaderProfileBox primaryColor={primaryColor} compact />
+            <div className="mt-6">
+              <DesktopAccountLink orgslug={orgslug} onHelp={() => setFeedbackModalOpen(true)} />
             </div>
           </div>
         </div>
+      </aside>
+
+      <nav
+        aria-label="Mobile navigation"
+        className="fixed inset-x-0 bottom-4 z-[var(--z-nav)] flex justify-center px-4 md:hidden"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0px)' }}
+      >
+        <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-black/5 bg-white/95 p-2 shadow-[0_20px_45px_rgba(15,23,42,0.16)] backdrop-blur-xl">
+          {primaryNavItems.map((item) => (
+            <MobileNavItem
+              key={item.href || item.label}
+              item={item}
+              orgslug={orgslug}
+              showOnboardingBadge={
+                item.onboardingFeature
+                  ? !onboardingState.visitedFeatures[item.onboardingFeature]
+                  : false
+              }
+            />
+          ))}
+          <MobileMoreMenu
+            adminNavItems={adminNavItems}
+            orgslug={orgslug}
+            onHelp={() => setFeedbackModalOpen(true)}
+          />
+        </div>
       </nav>
 
-      {/* Mobile sidebar */}
-      <OrgMenuSidebar
-        orgslug={orgslug}
-        isOpen={isMenuOpen}
-        onClose={() => setIsMenuOpen(false)}
-      />
-
-      {/* Feedback Modal */}
       <FeedbackModal
         open={feedbackModalOpen}
         onOpenChange={setFeedbackModalOpen}
@@ -279,44 +274,87 @@ export const OrgMenu = (props: any) => {
         userName={session?.data?.user?.username}
         userEmail={session?.data?.user?.email}
       />
-
-      {/* Copilot floating bubble */}
-      {isBubbleMode && (
-        <CopilotBubble
-          orgslug={orgslug}
-          open={bubbleOpen}
-          onOpenChange={setBubbleOpen}
-          sessionToLoad={bubbleSessionToLoad}
-        />
-      )}
     </>
   )
 }
 
-const CopilotMenuButton = ({
+function SidebarItem({
+  item,
   orgslug,
-  isBubbleMode,
-  onToggleBubbleMode,
-  bubbleOpen,
-  onOpenBubble,
-}: {
-  orgslug: string
-  iconBtnClass: string
-  isBubbleMode: boolean
-  onToggleBubbleMode: (v: boolean) => void
-  bubbleOpen: boolean
-  onOpenBubble: (sessionUuid?: string) => void
-}) => {
-  const session = useLHSession() as any
-  const accessToken = session?.data?.tokens?.access_token
+  muted = false,
+  onAction,
+  showOnboardingBadge = false,
+}: SidebarItemProps) {
+  const baseClass = item.active
+    ? 'bg-black/[0.07] text-gray-950 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]'
+    : muted
+      ? 'text-gray-400 hover:bg-black/[0.05] hover:text-gray-700'
+      : 'text-gray-500 hover:bg-black/[0.05] hover:text-gray-900'
 
-  const { data: sessions } = useSWR<RAGChatSession[]>(
-    accessToken && orgslug ? ['menu-rag-sessions', orgslug] : null,
-    () => fetchRAGChatSessions(accessToken, orgslug),
-    { revalidateOnFocus: false }
+  const sharedClass = `relative flex h-11 w-11 items-center justify-center rounded-2xl transition-colors lg:h-auto lg:w-full lg:justify-start lg:gap-3 lg:px-3 lg:py-2.5 ${baseClass}`
+
+  const content = (
+    <>
+      <span className="shrink-0">{item.icon}</span>
+      <span className={`hidden truncate text-sm lg:inline ${item.active ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>
+      {showOnboardingBadge ? (
+        <>
+          <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-[#f97316] lg:hidden" />
+          <span className="absolute right-2.5 top-2.5 hidden h-2.5 w-2.5 rounded-full bg-[#f97316] lg:block" />
+        </>
+      ) : null}
+    </>
   )
 
-  const recentSessions = (sessions || []).slice(0, 5)
+  const element =
+    item.kind === 'action' ? (
+      <button
+        type="button"
+        onClick={() => onAction?.(item.actionKey)}
+        aria-label={item.label}
+        className={sharedClass}
+      >
+        {content}
+      </button>
+    ) : (
+      <Link
+        href={getUriWithOrg(orgslug, item.href || '/')}
+        aria-label={item.label}
+        className={sharedClass}
+      >
+        {content}
+      </Link>
+    )
+
+  return (
+    <TooltipProvider delayDuration={0}>
+      <Tooltip>
+        <TooltipTrigger asChild>{element}</TooltipTrigger>
+        <TooltipContent side="right" className="text-xs lg:hidden">
+          {item.label}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
+
+type SidebarItemProps = {
+  item: OrgMenuNavItem
+  orgslug: string
+  muted?: boolean
+  onAction?: React.Dispatch<string | undefined>
+  showOnboardingBadge?: boolean
+}
+
+function DesktopAccountLink({
+  orgslug,
+  onHelp,
+}: {
+  orgslug: string
+  onHelp: () => void
+}) {
+  const session = useLHSession() as any
+  const accountHref = getUriWithOrg(orgslug, routePaths.owner.account.general())
 
   return (
     <DropdownMenu>
@@ -325,112 +363,180 @@ const CopilotMenuButton = ({
           <TooltipTrigger asChild>
             <DropdownMenuTrigger asChild>
               <button
-                className="relative p-2 rounded-lg transition-colors hover:bg-violet-500/10"
-                aria-label="Copilot"
+                type="button"
+                aria-label="Account"
+                className="group flex h-11 w-11 items-center justify-center rounded-2xl text-gray-500 transition-colors hover:bg-black/[0.08] hover:text-gray-900 lg:h-auto lg:w-full lg:justify-start lg:gap-3 lg:px-3 lg:py-3"
               >
-                <ChatCircle size={20} weight="fill" className="text-violet-500" />
-                {/* Active indicator dot */}
-                {isBubbleMode && bubbleOpen && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-violet-500 ring-2 ring-white dark:ring-neutral-900" />
-                )}
+                <UserAvatar border="border-2" rounded="rounded-xl" width={34} />
+                <div className="hidden min-w-0 flex-1 text-left lg:block">
+                  <p className="truncate text-sm font-semibold text-gray-900 capitalize">
+                    {session?.data?.user?.username}
+                  </p>
+                  <p className="truncate text-xs text-gray-500">{session?.data?.user?.email}</p>
+                </div>
+                <CaretDown size={16} weight="bold" className="hidden shrink-0 text-gray-400 transition-colors group-hover:text-gray-700 lg:block" />
               </button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-xs">
-            Copilot
+          <TooltipContent side="right" className="text-xs lg:hidden">
+            {session?.data?.user?.username || 'Account'}
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-
-      <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuLabel className="flex items-center gap-2">
-          <ChatCircle size={16} weight="fill" className="text-violet-500" />
-          <span>Copilot</span>
+      <DropdownMenuContent side="top" align="start" className="mb-2 w-56">
+        <DropdownMenuLabel>
+          <div className="flex items-center gap-2">
+            <UserAvatar border="border-2" rounded="rounded-full" width={24} shadow="" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium capitalize">{session?.data?.user?.username}</p>
+              <p className="truncate text-xs text-gray-500">{session?.data?.user?.email}</p>
+            </div>
+          </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-
-        {recentSessions.length > 0 ? (
-          <>
-            {recentSessions.map((s) => (
-              isBubbleMode ? (
-                <DropdownMenuItem
-                  key={s.aichat_uuid}
-                  onSelect={() => onOpenBubble(s.aichat_uuid)}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <ChatCircleDots size={14} weight="fill" className="shrink-0 text-neutral-400" />
-                  <span className="truncate text-sm">{s.title || 'Untitled'}</span>
-                </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem key={s.aichat_uuid} asChild>
-                  <Link href={getUriWithOrg(orgslug, `/copilot?chat=${s.aichat_uuid}`)} className="flex items-center gap-2">
-                    <ChatCircleDots size={14} weight="fill" className="shrink-0 text-neutral-400" />
-                    <span className="truncate text-sm">{s.title || 'Untitled'}</span>
-                  </Link>
-                </DropdownMenuItem>
-              )
-            ))}
-            <DropdownMenuSeparator />
-          </>
-        ) : (
-          <div className="px-2 py-3 text-center">
-            <p className="text-xs text-neutral-400">No conversations yet</p>
-          </div>
-        )}
-
-        {/* Primary action */}
-        {isBubbleMode ? (
-          <DropdownMenuItem
-            onSelect={() => onOpenBubble()}
-            className="flex items-center gap-2 font-medium cursor-pointer"
-          >
-            <ChatCircle size={14} weight="fill" className="text-violet-500" />
-            <span>{recentSessions.length > 0 ? 'New conversation' : 'Start a conversation'}</span>
-          </DropdownMenuItem>
-        ) : (
-          <DropdownMenuItem asChild>
-            <Link href={getUriWithOrg(orgslug, '/copilot')} className="flex items-center gap-2 font-medium">
-              <ChatCircle size={14} weight="fill" className="text-violet-500" />
-              <span>{recentSessions.length > 0 ? 'View all conversations' : 'Start a conversation'}</span>
-            </Link>
-          </DropdownMenuItem>
-        )}
-
-        <DropdownMenuSeparator />
-
-        {/* Bubble mode toggle */}
-        <button
-          onClick={() => onToggleBubbleMode(!isBubbleMode)}
-          className="w-full flex items-center justify-between px-2 py-2 rounded-md hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors group"
+        <DropdownMenuItem asChild>
+          <Link href={accountHref} className="flex items-center gap-2">
+            <User size={16} weight="fill" />
+            <span>Account settings</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={onHelp}
+          className="flex items-center gap-2"
         >
-          <span className="text-xs text-neutral-500 group-hover:text-neutral-700 dark:group-hover:text-neutral-300 transition-colors">
-            Open in bubble
-          </span>
-          <span
-            className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors flex-shrink-0 ${
-              isBubbleMode ? 'bg-violet-500' : 'bg-neutral-200 dark:bg-neutral-600'
-            }`}
-          >
-            <span
-              className={`inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${
-                isBubbleMode ? 'translate-x-3.5' : 'translate-x-0.5'
-              }`}
-            />
-          </span>
-        </button>
+          <Question size={16} weight="fill" />
+          <span>Help &amp; feedback</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => signOut({ callbackUrl: '/' })}
+          className="flex items-center gap-2 text-red-600 focus:text-red-600"
+        >
+          <SignOut size={16} weight="fill" />
+          <span>Sign out</span>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
 }
 
-const LaunchLMSLogo = ({ logoFilter }: { logoFilter: string }) => {
+function MobileNavItem({
+  item,
+  orgslug,
+  showOnboardingBadge = false,
+}: {
+  item: OrgMenuNavItem
+  orgslug: string
+  showOnboardingBadge?: boolean
+}) {
+  return (
+    <Link
+      href={getUriWithOrg(orgslug, item.href || '/')}
+      aria-label={item.label}
+      className={`relative flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
+        item.active
+          ? 'bg-black/[0.12] text-gray-950 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]'
+          : 'text-gray-500 hover:bg-black/[0.08] hover:text-gray-900'
+      }`}
+    >
+      {item.icon}
+      {showOnboardingBadge ? (
+        <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-[#f97316]" />
+      ) : null}
+    </Link>
+  )
+}
+
+function MobileMoreMenu({
+  adminNavItems,
+  orgslug,
+  onHelp,
+}: {
+  adminNavItems: OrgMenuNavItem[]
+  orgslug: string
+  onHelp: () => void
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label="More"
+          className="flex h-12 w-12 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-black/[0.08] hover:text-gray-900"
+        >
+          <DotsThreeVertical size={20} weight="bold" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" side="top" className="mb-3 w-48 rounded-2xl p-2">
+        {adminNavItems.map((item) => {
+          if (item.kind === 'action') {
+            return (
+              <DropdownMenuItem
+                key={item.label}
+                onClick={onHelp}
+                className="flex items-center gap-3 rounded-xl px-3 py-2"
+              >
+                {item.icon}
+                <span>{item.label}</span>
+              </DropdownMenuItem>
+            )
+          }
+
+          return (
+            <DropdownMenuItem key={item.href} asChild>
+              <Link
+                href={getUriWithOrg(orgslug, item.href || '/')}
+                className="flex items-center gap-3 rounded-xl px-3 py-2"
+              >
+                {item.icon}
+                <span>{item.label}</span>
+              </Link>
+            </DropdownMenuItem>
+          )
+        })}
+
+        <DropdownMenuItem asChild>
+          <Link
+            href={getUriWithOrg(orgslug, routePaths.owner.account.general())}
+            className="flex items-center gap-3 rounded-xl px-3 py-2"
+          >
+            <UserAvatar border="border-2" rounded="rounded-full" width={18} shadow="" />
+            <span>Account</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => signOut({ callbackUrl: '/' })}
+          className="flex items-center gap-3 rounded-xl px-3 py-2 text-red-600 focus:text-red-600"
+        >
+          <SignOut size={18} weight="fill" />
+          <span>Sign out</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+const LaunchLMSLogo = () => {
   return (
     <Image
       src="/logo-text.svg"
       alt="Launch LMS logo"
       width={133}
       height={40}
-      style={{ height: 'auto', filter: logoFilter }}
+      style={{ height: 'auto' }}
+    />
+  )
+}
+
+const LaunchLMSIcon = () => {
+  return (
+    <Image
+      src="/logo-icon.svg"
+      alt="Launch LMS logo"
+      width={40}
+      height={40}
+      className="h-10 w-10"
     />
   )
 }

@@ -3,12 +3,17 @@ import dynamic from 'next/dynamic';
 const ReactConfetti = dynamic(() => import('react-confetti'), { ssr: false });
 import { Trophy, ArrowLeft, BookOpen, Target, Download, Shield, UserPlus } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { getUriWithOrg, routePaths } from '@services/config/config';
 import { getCourseThumbnailMediaDirectory } from '@services/media/media';
 import { useWindowSize } from 'usehooks-ts';
 import { useOrg } from '@components/Contexts/OrgContext';
 import { useLHSession } from '@components/Contexts/LHSessionContext';
-import { getUserCertificates } from '@services/courses/certifications';
+import { getPublicCourseBadgeClass, getUserCertificates } from '@services/courses/certifications';
+import {
+  findCourseRun,
+  getCourseCompletionSummary,
+} from '@services/courses/progress';
 import CertificatePreview from '@components/Dashboard/Pages/Course/EditCourseCertification/CertificatePreview';
 import { useTranslation } from 'react-i18next';
 
@@ -20,6 +25,8 @@ interface CourseEndViewProps {
   course: any;
   trailData: any;
   guestMode?: boolean;
+  unauthenticated?: boolean;
+  guestCompletedHint?: boolean;
 }
 
 const CourseEndView: React.FC<CourseEndViewProps> = ({ 
@@ -30,52 +37,31 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
   course, 
   trailData,
   guestMode = false,
+  guestCompletedHint = false,
 }) => {
   const { t, i18n } = useTranslation();
   const { width, height } = useWindowSize();
+  const searchParams = useSearchParams();
   const org = useOrg() as any;
   const session = useLHSession() as any;
   const [userCertificate, setUserCertificate] = useState<any>(null);
   const [isLoadingCertificate, setIsLoadingCertificate] = useState(false);
   const [certificateError, setCertificateError] = useState<string | null>(null);
+  const [guestBadgeClass, setGuestBadgeClass] = useState<any>(null);
   const qrCodeLink = getUriWithOrg(orgslug, `/badges/${userCertificate?.certificate_user.user_certification_uuid}/verify`);
+  const cleanCourseUuid = courseUuid.replace('course_', '');
+  const completionReturnPath = routePaths.org.courseActivityEnd(cleanCourseUuid)
+  const shouldShowGuestCompletion =
+    guestCompletedHint || searchParams?.get('guest_completed') === '1'
 
-
+  const courseRun = useMemo(() => {
+    return findCourseRun(trailData, course);
+  }, [trailData, course]);
 
   // Check if course is actually completed
   const isCourseCompleted = useMemo(() => {
-    if (!trailData || !course) return false;
-    
-    // Flatten all activities
-    const allActivities = course.chapters.flatMap((chapter: any) => 
-      chapter.activities.map((activity: any) => ({
-        ...activity,
-        chapterId: chapter.id
-      }))
-    );
-    
-    // Check if all activities are completed
-    const isActivityDone = (activity: any) => {
-      const cleanCourseUuid = course.course_uuid?.replace('course_', '');
-      const run = trailData?.runs?.find(
-        (run: any) => {
-          const cleanRunCourseUuid = run.course?.course_uuid?.replace('course_', '');
-          return cleanRunCourseUuid === cleanCourseUuid;
-        }
-      );
-      
-      if (run) {
-        return run.steps.find(
-          (step: any) => step.activity_id === activity.id && step.complete === true
-        );
-      }
-      return false;
-    };
-    
-    const totalActivities = allActivities.length;
-    const completedActivities = allActivities.filter((activity: any) => isActivityDone(activity)).length;
-    return totalActivities > 0 && completedActivities === totalActivities;
-  }, [trailData, course]);
+    return getCourseCompletionSummary(course, courseRun).isCompleted;
+  }, [course, courseRun]);
 
   // Fetch user certificate when course is completed
   useEffect(() => {
@@ -117,6 +103,28 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
 
     fetchUserCertificate();
   }, [guestMode, isCourseCompleted, courseUuid, session?.data?.tokens?.access_token, org?.id]);
+
+  useEffect(() => {
+    const fetchGuestBadgeClass = async () => {
+      if (!shouldShowGuestCompletion) {
+        setGuestBadgeClass(null);
+        return;
+      }
+
+      try {
+        const result = await getPublicCourseBadgeClass(courseUuid);
+        if (result?.status === 200 && result?.data) {
+          setGuestBadgeClass(result.data);
+        } else {
+          setGuestBadgeClass(null);
+        }
+      } catch {
+        setGuestBadgeClass(null);
+      }
+    };
+
+    fetchGuestBadgeClass();
+  }, [shouldShowGuestCompletion, courseUuid]);
 
   // Generate PDF using canvas
   const downloadCertificate = async () => {
@@ -381,47 +389,107 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
   // Calculate progress for incomplete courses
   const progressInfo = useMemo(() => {
     if (!trailData || !course || isCourseCompleted) return null;
-    
-    const allActivities = course.chapters.flatMap((chapter: any) => 
-      chapter.activities.map((activity: any) => ({
-        ...activity,
-        chapterId: chapter.id
-      }))
+
+    const { completedActivities, totalActivities } = getCourseCompletionSummary(
+      course,
+      courseRun
     );
-    
-    const isActivityDone = (activity: any) => {
-      const cleanCourseUuid = course.course_uuid?.replace('course_', '');
-      const run = trailData?.runs?.find(
-        (run: any) => {
-          const cleanRunCourseUuid = run.course?.course_uuid?.replace('course_', '');
-          return cleanRunCourseUuid === cleanCourseUuid;
-        }
-      );
-      
-      if (run) {
-        return run.steps.find(
-          (step: any) => step.activity_id === activity.id && step.complete === true
-        );
-      }
-      return false;
-    };
-    
-    const totalActivities = allActivities.length;
-    const completedActivities = allActivities.filter((activity: any) => isActivityDone(activity)).length;
-    const progressPercentage = Math.round((completedActivities / totalActivities) * 100);
+    const progressPercentage =
+      totalActivities > 0
+        ? Math.round((completedActivities / totalActivities) * 100)
+        : 0;
     
     return {
       completed: completedActivities,
       total: totalActivities,
       percentage: progressPercentage
     };
-  }, [trailData, course, isCourseCompleted]);
+  }, [trailData, course, isCourseCompleted, courseRun]);
+
+  if (shouldShowGuestCompletion) {
+    const signupHref = getUriWithOrg(
+      orgslug,
+      routePaths.auth.signup({
+        next: getUriWithOrg(orgslug, completionReturnPath)
+      })
+    )
+
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center text-center px-4 relative overflow-hidden">
+        <div className="fixed inset-0 pointer-events-none">
+          <ReactConfetti
+            width={width}
+            height={height}
+            numberOfPieces={160}
+            recycle={false}
+            colors={['#2563eb', '#10b981', '#f59e0b']}
+          />
+        </div>
+
+        <div className="bg-white rounded-2xl p-8 nice-shadow max-w-3xl w-full space-y-6 relative z-10">
+          <div className="flex flex-col items-center space-y-6">
+            <div className="bg-emerald-100 p-4 rounded-full">
+              <Trophy className="w-16 h-16 text-emerald-600" />
+            </div>
+          </div>
+
+          <h1 className="text-4xl font-bold text-gray-900">{t('courses.congratulations')}</h1>
+          <p className="text-xl text-gray-600">
+            You finished <span className="font-semibold text-gray-900">{courseName}</span>.
+          </p>
+          <p className="text-gray-500">
+            {guestBadgeClass
+              ? 'Create an account or log in to save your results and unlock your badge.'
+              : 'Create an account or log in to save your results to your profile.'}
+          </p>
+
+          {guestBadgeClass ? (
+            <div className="mx-auto w-full max-w-2xl rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-5">
+              <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
+                Badge Preview
+              </p>
+              <div className="pointer-events-none mx-auto max-w-xl opacity-75">
+                <CertificatePreview
+                  certificationName={guestBadgeClass.name || courseName}
+                  certificationDescription={guestBadgeClass.description || t('courses.successfully_completed')}
+                  certificationType="completion"
+                  certificatePattern="professional"
+                  recipientName="Your Name"
+                />
+              </div>
+            </div>
+          ) : null}
+
+          <div className="flex flex-col sm:flex-row justify-center gap-3 pt-4">
+            <Link
+              href={signupHref}
+              className="inline-flex items-center justify-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-full hover:bg-blue-700 transition duration-200"
+            >
+              <UserPlus className="w-5 h-5" />
+              <span>Create Account</span>
+            </Link>
+            <Link
+              href={getUriWithOrg(
+                orgslug,
+                routePaths.auth.login({
+                  next: getUriWithOrg(orgslug, completionReturnPath)
+                })
+              )}
+              className="inline-flex items-center justify-center space-x-2 bg-gray-100 text-gray-800 px-6 py-3 rounded-full hover:bg-gray-200 transition duration-200"
+            >
+              <span>Log In</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (guestMode) {
     const signupHref = getUriWithOrg(
       orgslug,
       routePaths.auth.signup({
-        next: getUriWithOrg(orgslug, routePaths.org.onboardingCourseEnd(courseUuid.replace('course_', '')))
+        next: getUriWithOrg(orgslug, completionReturnPath)
       })
     )
 
@@ -450,7 +518,7 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
               You finished <span className="font-semibold text-gray-900">{courseName}</span>.
             </p>
             <p className="text-gray-500">
-              Create your account to save this onboarding progress to your new profile.
+              Create your account to save this course progress to your new profile.
             </p>
 
             <div className="flex flex-col sm:flex-row justify-center gap-3 pt-4">
@@ -460,17 +528,6 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
               >
                 <UserPlus className="w-5 h-5" />
                 <span>Create Account</span>
-              </Link>
-              <Link
-                href={getUriWithOrg(
-                  orgslug,
-                  routePaths.auth.login({
-                    next: getUriWithOrg(orgslug, routePaths.org.onboardingCourseEnd(courseUuid.replace('course_', '')))
-                  })
-                )}
-                className="inline-flex items-center justify-center space-x-2 bg-gray-100 text-gray-800 px-6 py-3 rounded-full hover:bg-gray-200 transition duration-200"
-              >
-                <span>Log In</span>
               </Link>
             </div>
           </div>

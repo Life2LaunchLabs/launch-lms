@@ -128,3 +128,17 @@ export async function getUserBadges(
 ) {
   return getUserCertificates(course_uuid, org_id, access_token)
 }
+
+export async function getPublicCourseBadgeClass(course_uuid: string) {
+  const result = await fetch(
+    `${getAPIUrl()}certifications/badge-class/course/${course_uuid}`,
+    {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    }
+  )
+  return getResponseMetadata(result)
+}

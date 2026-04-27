@@ -112,6 +112,8 @@ const ActivityPage = async (params: any) => {
   const activityid = (await params.params).activityid
   const courseuuid = (await params.params).courseuuid
   const orgslug = (await params.params).orgslug
+  const searchParams = await params.searchParams
+  const guestCompletedHint = searchParams?.guest_completed === '1'
 
   let course_meta
   let activity
@@ -154,6 +156,8 @@ const ActivityPage = async (params: any) => {
         orgslug={orgslug}
         activity={activity}
         course={course_meta}
+        unauthenticated={!session}
+        guestCompletedHint={guestCompletedHint}
       />
     </>
   )

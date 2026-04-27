@@ -1,7 +1,8 @@
 'use client'
+/* eslint-disable no-unused-vars */
 import React from 'react'
-import { LandingObject, LandingSection, LandingHeroSection, LandingTextAndImageSection, LandingLogos, LandingPeople, LandingBackground, LandingButton, LandingImage, LandingFeaturedCourses, LandingInProgress } from './landing_types'
-import { Plus, Trash2, GripVertical, LayoutTemplate, ImageIcon, Users, Award, Edit, Link, Upload, Save, BookOpen, TextIcon } from 'lucide-react'
+import { LandingObject, LandingSection, LandingHeroSection, LandingTextAndImageSection, LandingLogos, LandingPeople, LandingBackground, LandingButton, LandingImage, LandingFeaturedCourses, LandingInProgress, LandingQuickstart, LandingQuickstartItem, LandingTrending } from './landing_types'
+import { Plus, Trash2, GripVertical, LayoutTemplate, ImageIcon, Users, Award, Edit, Link, Upload, Save, BookOpen, TextIcon, Compass, Activity } from 'lucide-react'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 import { Input } from "@components/ui/input"
 import { Textarea } from "@components/ui/textarea"
@@ -13,10 +14,14 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { updateOrgLanding, uploadLandingContent } from '@services/organizations/orgs'
 import { getOrgLandingMediaDirectory } from '@services/media/media'
 import { getOrgCourses } from '@services/courses/courses'
+import { getOrgCollections } from '@services/courses/collections'
+import { getCommunities } from '@services/communities/communities'
+import { getResourceChannels, ResourceChannel } from '@services/resources/resources'
 import toast from 'react-hot-toast'
 import useSWR from 'swr'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@components/ui/tabs"
 import { useTranslation } from 'react-i18next'
+import { QUICKSTART_FEATURES } from '@components/Landings/quickstartConfig'
 
 // This will be created inside the component to access translations
 const getSectionTypes = (t: any) => ({
@@ -49,6 +54,16 @@ const getSectionTypes = (t: any) => ({
     icon: BookOpen,
     label: t('dashboard.organization.landing.section_types.in_progress.label'),
     description: t('dashboard.organization.landing.section_types.in_progress.description')
+  },
+  quickstart: {
+    icon: Compass,
+    label: 'Quickstart',
+    description: 'Feature shortcuts or links to specific learner content.'
+  },
+  trending: {
+    icon: Activity,
+    label: t('dashboard.organization.landing.section_types.trending.label'),
+    description: t('dashboard.organization.landing.section_types.trending.description')
   }
 }) as const
 
@@ -224,6 +239,17 @@ const OrgEditLanding = () => {
         return {
           type: 'in-progress',
           title: t('dashboard.organization.landing.section_types.in_progress.label')
+        }
+      case 'quickstart':
+        return {
+          type: 'quickstart',
+          title: 'Quickstart',
+          items: [{ type: 'feature', feature: 'courses' }]
+        }
+      case 'trending':
+        return {
+          type: 'trending',
+          title: t('dashboard.organization.landing.section_types.trending.label')
         }
       default:
         throw new Error('Invalid section type')
@@ -487,6 +513,10 @@ const SectionEditor: React.FC<SectionEditorProps> = ({ section, onChange }) => {
       return <FeaturedCoursesEditor section={section} onChange={onChange} />
     case 'in-progress':
       return <InProgressSectionEditor section={section} onChange={onChange} />
+    case 'quickstart':
+      return <QuickstartSectionEditor section={section} onChange={onChange} />
+    case 'trending':
+      return <TrendingSectionEditor section={section} onChange={onChange} />
     default:
       return <div>Unknown section type</div>
   }
@@ -801,7 +831,7 @@ const HeroSectionEditor: React.FC<{
                     <Label>{t('dashboard.organization.landing.hero_editor.gradient_preset')}</Label>
                     <Select
                       value={Object.entries(PREDEFINED_GRADIENTS).find(
-                        ([_, gradient]) => 
+                        ([, gradient]) =>
                           gradient.colors[0] === section.background.colors?.[0] &&
                           gradient.colors[1] === section.background.colors?.[1]
                       )?.[0] || 'sunrise'}
@@ -1648,6 +1678,273 @@ const InProgressSectionEditor: React.FC<{
       <p className="text-sm text-gray-500">
         {t('dashboard.organization.landing.section_types.in_progress.editor_description')}
       </p>
+    </div>
+  )
+}
+
+const TrendingSectionEditor: React.FC<{
+  section: LandingTrending
+  onChange: (section: LandingTrending) => void
+}> = ({ section, onChange }) => {
+  const { t } = useTranslation()
+
+  return (
+    <div className="space-y-6 p-6 bg-white rounded-lg nice-shadow">
+      <div className="flex items-center space-x-2">
+        <Activity className="w-5 h-5 text-gray-500" />
+        <h3 className="font-medium text-lg">{t('dashboard.organization.landing.section_types.trending.label')}</h3>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="trending-title">{t('dashboard.organization.landing.hero_editor.section_title')}</Label>
+        <Input
+          id="trending-title"
+          value={section.title}
+          onChange={(e) => onChange({ ...section, title: e.target.value })}
+        />
+      </div>
+      <p className="text-sm text-gray-500">
+        {t('dashboard.organization.landing.section_types.trending.editor_description')}
+      </p>
+    </div>
+  )
+}
+
+type QuickstartTargetOption = {
+  value: string
+  label: string
+}
+
+const QUICKSTART_CARD_LIMIT = 3
+
+function getQuickstartTargetOptions(
+  itemType: LandingQuickstartItem['type'],
+  collections: any[],
+  communities: any[],
+  resourceChannels: ResourceChannel[]
+): QuickstartTargetOption[] {
+  if (itemType === 'collection') {
+    return collections.map((collection: any) => ({
+      value: collection.collection_uuid,
+      label: collection.name,
+    }))
+  }
+
+  if (itemType === 'community') {
+    return communities.map((community: any) => ({
+      value: community.community_uuid,
+      label: community.name,
+    }))
+  }
+
+  if (itemType === 'resource-channel') {
+    return resourceChannels.map((channel) => ({
+      value: channel.channel_uuid,
+      label: channel.name,
+    }))
+  }
+
+  return []
+}
+
+const QuickstartSectionEditor: React.FC<{
+  section: LandingQuickstart
+  onChange: (section: LandingQuickstart) => void
+}> = ({ section, onChange }) => {
+  const org = useOrg() as any
+  const session = useLHSession() as any
+  const access_token = session?.data?.tokens?.access_token
+
+  const { data: collections = [] } = useSWR(
+    org?.id ? ['quickstart-collections', org.id, access_token || 'anon'] : null,
+    () => getOrgCollections(org.id, access_token, null)
+  )
+  const { data: communities = [] } = useSWR(
+    org?.id ? ['quickstart-communities', org.id, access_token || 'anon'] : null,
+    () => getCommunities(org.id, 1, 100, null, access_token)
+  )
+  const { data: resourceChannelData } = useSWR(
+    org?.id ? ['quickstart-resource-channels', org.id, access_token || 'anon'] : null,
+    () => getResourceChannels(org.id, access_token)
+  )
+  const resourceChannels = resourceChannelData?.channels || []
+
+  const updateItem = (index: number, item: LandingQuickstartItem) => {
+    const nextItems = [...section.items]
+    nextItems[index] = item
+    onChange({ ...section, items: nextItems })
+  }
+
+  const removeItem = (index: number) => {
+    onChange({
+      ...section,
+      items: section.items.filter((_, itemIndex) => itemIndex !== index),
+    })
+  }
+
+  const addItem = () => {
+    onChange({
+      ...section,
+      items: [...section.items, { type: 'feature', feature: 'courses' }],
+    })
+  }
+
+  return (
+    <div className="space-y-6 p-6 bg-white rounded-lg nice-shadow">
+      <div className="flex items-center space-x-2">
+        <Compass className="w-5 h-5 text-gray-500" />
+        <h3 className="font-medium text-lg">Quickstart</h3>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <Label htmlFor="quickstart-title">Section title</Label>
+          <Input
+            id="quickstart-title"
+            value={section.title}
+            onChange={(e) => onChange({ ...section, title: e.target.value })}
+            placeholder="Quickstart"
+          />
+        </div>
+
+        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+          Add up to three cards. Each one can open a primary learner area or a
+          specific collection, community, or resource channel.
+        </div>
+
+        <div className="space-y-4">
+          {section.items.map((item, index) => {
+            const targetOptions = getQuickstartTargetOptions(
+              item.type,
+              collections,
+              communities,
+              resourceChannels
+            )
+
+            return (
+              <div
+                key={`quickstart-card-${index}`}
+                className="rounded-xl border border-gray-200 p-4"
+              >
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="text-sm font-semibold text-gray-800">
+                    Card {index + 1}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeItem(index)}
+                    className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Card type</Label>
+                    <Select
+                      value={item.type}
+                      onValueChange={(
+                        value: LandingQuickstartItem['type']
+                      ) => {
+                        if (value === 'feature') {
+                          updateItem(index, {
+                            type: 'feature',
+                            feature: 'courses',
+                          })
+                          return
+                        }
+
+                        updateItem(index, {
+                          type: value,
+                          target_uuid: undefined,
+                        })
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select card type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="feature">Primary feature</SelectItem>
+                        <SelectItem value="collection">Collection</SelectItem>
+                        <SelectItem value="community">Community</SelectItem>
+                        <SelectItem value="resource-channel">
+                          Resource channel
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {item.type === 'feature' ? (
+                    <div className="space-y-2">
+                      <Label>Feature</Label>
+                      <Select
+                        value={item.feature}
+                        onValueChange={(value) =>
+                          updateItem(index, {
+                            type: 'feature',
+                            feature: value as LandingQuickstartItem['feature'],
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select feature" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(QUICKSTART_FEATURES).map(
+                            ([featureKey, feature]) => (
+                              <SelectItem
+                                key={featureKey}
+                                value={featureKey}
+                              >
+                                {feature.label}
+                              </SelectItem>
+                            )
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label>Target</Label>
+                      <Select
+                        value={item.target_uuid}
+                        onValueChange={(value) =>
+                          updateItem(index, {
+                            type: item.type,
+                            target_uuid: value,
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select target" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {targetOptions.map((option) => (
+                            <SelectItem
+                              key={option.value}
+                              value={option.value}
+                            >
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {section.items.length < QUICKSTART_CARD_LIMIT && (
+          <Button variant="outline" onClick={addItem} className="w-full">
+            <Plus className="h-4 w-4 mr-2" />
+            Add quickstart card
+          </Button>
+        )}
+      </div>
     </div>
   )
 }

@@ -44,6 +44,8 @@ export const routePaths = {
       root: () => '/account',
       general: () => '/account/general',
       purchases: () => '/account/purchases',
+      organizations: () => '/account/organizations',
+      badges: () => '/account/badges',
       orgAdmin: () => '/account/org-admin',
     },
     platform: {
@@ -56,10 +58,7 @@ export const routePaths = {
   org: {
     root: () => '/',
     welcome: () => '/welcome',
-    onboardingCourseActivity: (courseUuid: string, activityId: string) =>
-      `/onboarding/course/${courseUuid}/activity/${activityId}`,
-    onboardingCourseEnd: (courseUuid: string) =>
-      `/onboarding/course/${courseUuid}/activity/end`,
+    quickstart: () => '/quickstart',
     badge: () => '/badge',
     badgesVerify: (uuid: string) => `/badges/${uuid}/verify`,
     certificateVerify: (uuid: string) => `/certificates/${uuid}/verify`,

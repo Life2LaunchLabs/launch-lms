@@ -2636,6 +2636,11 @@
             "label": "In Progress",
             "description": "Show courses the user is currently enrolled in",
             "editor_description": "This section automatically displays courses the logged-in user is currently enrolled in. No configuration needed."
+          },
+          "trending": {
+            "label": "Trending",
+            "description": "Show a live feed of recent discussions, resources, and courses",
+            "editor_description": "Displays recent activity across discussions, resources, and courses — sorted by latest event. No further configuration needed."
           }
         },
         "add_section": "Add Section",
@@ -4052,6 +4057,12 @@
       "pagination": {
         "range": "{{from}}–{{to}} of {{total}}"
       }
+    }
+  },
+  "landing": {
+    "trending": {
+      "title": "Trending",
+      "empty": "No recent activity yet"
     }
   }
 }

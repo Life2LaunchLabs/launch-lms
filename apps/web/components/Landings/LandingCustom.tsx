@@ -9,6 +9,17 @@ import CourseThumbnailLanding from '@components/Objects/Thumbnails/CourseThumbna
 import UserAvatar from '@components/Objects/UserAvatar'
 import { useTranslation } from 'react-i18next'
 import InProgressSection from '@components/Landings/InProgressSection'
+import { getOrgCollections } from '@services/courses/collections'
+import { getCommunities } from '@services/communities/communities'
+import { useOrg } from '@components/Contexts/OrgContext'
+import {
+  getResourceChannels,
+  ResourceChannel,
+} from '@services/resources/resources'
+import QuickstartSection from '@components/Landings/QuickstartSection'
+import TrendingSection from '@components/Landings/TrendingSection'
+import DashboardWelcomeHeader from '@components/Landings/DashboardWelcomeHeader'
+import DashboardOnboardingBanner from '@components/Onboarding/DashboardOnboardingBanner'
 
 interface LandingCustomProps {
   landing: {
@@ -16,11 +27,17 @@ interface LandingCustomProps {
     enabled: boolean
   }
   orgslug: string
+  dashboardDisplayName: string
 }
 
-function LandingCustom({ landing, orgslug }: LandingCustomProps) {
+function LandingCustom({
+  landing,
+  orgslug,
+  dashboardDisplayName,
+}: LandingCustomProps) {
   const { t } = useTranslation()
   const session = useLHSession() as any
+  const org = useOrg() as any
   const access_token = session?.data?.tokens?.access_token
 
   // Fetch all courses for the organization
@@ -28,6 +45,28 @@ function LandingCustom({ landing, orgslug }: LandingCustomProps) {
     orgslug ? [orgslug, access_token] : null,
     ([slug, token]) => getOrgCourses(slug, null, token)
   )
+  const hasQuickstartSection = landing.sections.some(
+    (section) => section.type === 'quickstart'
+  )
+  const { data: collections = [] } = useSWR(
+    org?.id && hasQuickstartSection
+      ? ['landing-collections', org.id, access_token || 'anon']
+      : null,
+    () => getOrgCollections(org.id, access_token, null)
+  )
+  const { data: communities = [] } = useSWR(
+    org?.id && hasQuickstartSection
+      ? ['landing-communities', org.id, access_token || 'anon']
+      : null,
+    () => getCommunities(org.id, 1, 100, null, access_token)
+  )
+  const { data: resourceChannelData } = useSWR(
+    org?.id && hasQuickstartSection
+      ? ['landing-resource-channels', org.id, access_token || 'anon']
+      : null,
+    () => getResourceChannels(org.id, access_token)
+  )
+  const resourceChannels: ResourceChannel[] = resourceChannelData?.channels || []
 
   const renderSection = (section: LandingSection) => {
     switch (section.type) {
@@ -209,7 +248,7 @@ function LandingCustom({ landing, orgslug }: LandingCustomProps) {
             </div>
           </div>
         )
-      case 'featured-courses':
+      case 'featured-courses': {
         if (!allCourses) {
           return (
             <div 
@@ -249,6 +288,7 @@ function LandingCustom({ landing, orgslug }: LandingCustomProps) {
             </div>
           </div>
         )
+      }
       case 'in-progress':
         return (
           <div
@@ -258,13 +298,42 @@ function LandingCustom({ landing, orgslug }: LandingCustomProps) {
             <InProgressSection orgslug={orgslug} />
           </div>
         )
+      case 'quickstart': {
+        return (
+          <div
+            key={`quickstart-${section.title}`}
+            className="mx-2 sm:mx-4 lg:mx-16 w-full"
+          >
+            <QuickstartSection
+              title={section.title}
+              items={section.items}
+              orgslug={orgslug}
+              orgUUID={org?.org_uuid}
+              collections={collections}
+              communities={communities}
+              resourceChannels={resourceChannels}
+            />
+          </div>
+        )
+      }
+      case 'trending':
+        return (
+          <div
+            key="trending"
+            className="py-8 mx-2 sm:mx-4 lg:mx-16 w-full"
+          >
+            <TrendingSection orgslug={orgslug} title={section.title} />
+          </div>
+        )
       default:
         return null
     }
   }
 
   return (
-    <div className="flex flex-col items-center justify-between w-full max-w-(--breakpoint-2xl) mx-auto px-4 sm:px-6 lg:px-16 h-full">
+    <div className="flex flex-col items-center justify-between w-full max-w-(--breakpoint-2xl) mx-auto px-4 sm:px-6 lg:px-16 py-8 md:py-10 h-full">
+      <DashboardWelcomeHeader displayName={dashboardDisplayName} />
+      <DashboardOnboardingBanner orgslug={orgslug} />
       {landing.sections.map((section) => renderSection(section))}
     </div>
   )

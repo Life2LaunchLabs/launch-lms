@@ -1,6 +1,5 @@
 'use client'
 import { useFormik } from 'formik'
-import { useRouter } from 'next/navigation'
 import React, { useEffect } from 'react'
 import FormLayout, {
   FormField,
@@ -9,12 +8,11 @@ import FormLayout, {
   Textarea,
 } from '@components/Objects/StyledElements/Form/Form'
 import * as Form from '@radix-ui/react-form'
-import { AlertTriangle, Mail, User } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 import { signUpWithInviteCode } from '@services/auth/auth'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { signIn } from '@components/Contexts/AuthContext'
-import { getLAUNCHLMS_TOP_DOMAIN_VAL } from '@services/config/config'
+import { useAuth } from '@components/Contexts/AuthContext'
 import { useTranslation } from 'react-i18next'
 import { PasswordStrengthIndicator, validatePasswordStrength } from '@components/Auth/PasswordStrengthIndicator'
 
@@ -55,9 +53,8 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
   const { t } = useTranslation()
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const org = useOrg() as any
-  const router = useRouter()
+  const { signIn } = useAuth()
   const [error, setError] = React.useState('')
-  const [message, setMessage] = React.useState('')
   const formik = useFormik({
     initialValues: {
       org_slug: org?.slug,
@@ -73,20 +70,39 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
     enableReinitialize: true,
     onSubmit: async (values) => {
       setError('')
-      setMessage('')
       setIsSubmitting(true)
       let res = await signUpWithInviteCode(values, props.inviteCode)
-      let message = await res.json()
+      let result = await res.json()
       if (res.status == 200) {
-        setMessage(t('auth.account_created_success'))
-        setIsSubmitting(false)
+        if (result?.email_verified === false) {
+          setError(t('auth.email_not_verified_message'))
+          setIsSubmitting(false)
+          return
+        }
+
+        const callbackUrl = `${window.location.origin}/`
+        const signInRes = await signIn('credentials', {
+          redirect: false,
+          email: values.email,
+          password: values.password,
+          callbackUrl,
+        })
+
+        if (signInRes && signInRes.error) {
+          setError(signInRes.error || t('auth.wrong_email_password'))
+          setIsSubmitting(false)
+          return
+        }
+
+        window.location.href = callbackUrl
+        return
       } else if (
         res.status == 401 ||
         res.status == 400 ||
         res.status == 404 ||
         res.status == 409
       ) {
-        setError(message.detail)
+        setError(result.detail)
         setIsSubmitting(false)
       } else {
         setError(t('common.something_went_wrong'))
@@ -96,21 +112,6 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
   })
 
   useEffect(() => { }, [org])
-
-  const handleGoogleSignIn = () => {
-    // Store org context in cookies before OAuth redirect
-    if (org?.slug) {
-      const topDomain = getLAUNCHLMS_TOP_DOMAIN_VAL();
-      const isSecure = window.location.protocol === 'https:';
-      const secureAttr = isSecure ? '; secure' : '';
-      const baseAttributes = `; path=/; SameSite=Lax${secureAttr}`;
-      const domainAttr = topDomain === 'localhost' ? '' : `; domain=.${topDomain}`;
-      document.cookie = `launchlms_oauth_orgslug=${org.slug}${baseAttributes}${domainAttr}`;
-      document.cookie = `launchlms_oauth_org_id=${org.id}${baseAttributes}${domainAttr}`;
-    }
-    // Use absolute URL with current origin for custom domain support
-    signIn('google', { callbackUrl: `${window.location.origin}/redirect_from_auth` });
-  };
 
   return (
     <div className="m-auto w-full max-w-sm px-6 py-8 sm:py-0">
@@ -125,22 +126,6 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
         <div className="flex items-center gap-3 bg-red-100 rounded-xl text-red-900 p-4 mb-6 nice-shadow">
           <AlertTriangle size={18} className="shrink-0" />
           <div className="font-bold text-sm">{error}</div>
-        </div>
-      )}
-      {message && (
-        <div className="flex flex-col gap-4 bg-green-100 rounded-xl text-green-900 p-4 mb-6 nice-shadow">
-          <div className="flex items-center gap-2">
-            <Mail size={18} />
-            <div className="font-bold text-sm">{t('auth.check_email_for_verification')}</div>
-          </div>
-          <p className="text-xs text-green-800">
-            {t('auth.verification_email_sent_message')}
-          </p>
-          <hr className="border-green-200" />
-          <Link className="flex items-center gap-2 text-sm font-medium hover:underline" href="/login">
-            <User size={14} />
-            <span>{t('auth.login_to_your_account')}</span>
-          </Link>
         </div>
       )}
 
@@ -251,25 +236,6 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
             </Form.Submit>
           </div>
         </FormLayout>
-
-        {/* Divider */}
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-3 bg-white text-gray-400">{t('common.or')}</span>
-          </div>
-        </div>
-
-        {/* Google Sign In */}
-        <button
-          onClick={handleGoogleSignIn}
-          className="flex items-center justify-center gap-2 w-full py-2.5 bg-white border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg" alt="" className="w-4 h-4" />
-          <span>{t('auth.sign_in_with_google')}</span>
-        </button>
       </div>
 
       {/* Login Link */}

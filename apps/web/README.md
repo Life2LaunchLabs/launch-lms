@@ -219,6 +219,115 @@ This is the baseline rule for navigation:
 
 Examples:
 
+## Container Breakpoints
+
+Some learner and dashboard pages need to react to the width of the content
+column they actually receive, not just the browser viewport. That is especially
+important when sidebars, drawers, or nested layouts can shrink the usable space
+without changing `window.innerWidth`.
+
+For these cases, `apps/web` now provides a reusable container-breakpoint
+framework in
+[`components/Contexts/ContainerBreakpointContext.tsx`](./components/Contexts/ContainerBreakpointContext.tsx).
+
+### When To Use It
+
+- Use viewport breakpoints when the whole page should respond to screen size.
+- Use container breakpoints when a component should respond to the width of its
+  own content area.
+
+Typical use cases:
+
+## Learner Dashboard Quickstart
+
+The signed-in org home page supports org-specific learner quickstart cards
+through the existing landing customization flow in
+[`components/Dashboard/Pages/Org/OrgEditLanding/OrgEditLanding.tsx`](./components/Dashboard/Pages/Org/OrgEditLanding/OrgEditLanding.tsx).
+
+Quickstart is implemented as a landing section type, not as a separate config
+system. The section shape lives in
+[`components/Dashboard/Pages/Org/OrgEditLanding/landing_types.ts`](./components/Dashboard/Pages/Org/OrgEditLanding/landing_types.ts)
+and the learner-side rendering lives in
+[`components/Landings/QuickstartSection.tsx`](./components/Landings/QuickstartSection.tsx).
+
+Important behavior:
+
+- A quickstart section can contain up to three cards.
+- Each card can target either a primary learner feature or a specific
+  collection, community, or resource channel.
+- Learner rendering resolves targets against the org's current accessible
+  content and silently drops cards whose target no longer exists. That keeps
+  stale config from surfacing broken dashboard links.
+- Resource-channel quickstart cards deep-link into the resources experience via
+  `?channel=<uuid>`, so the resources page should preserve support for that
+  query param when its state model changes.
+
+- learner detail pages beside sidebars
+- dashboard panels inside resizable shells
+- grids and charts that live inside nested cards or panes
+
+### API
+
+Wrap the area you want to measure with `ContainerBreakpointProvider`:
+
+```tsx
+<ContainerBreakpointProvider
+  breakpoints={{
+    stacked: 0,
+    split: 980,
+    spacious: 1240,
+  }}
+  className="pt-2"
+>
+  <CourseDetailResponsiveSection />
+</ContainerBreakpointProvider>
+```
+
+Inside any descendant, call `useContainerBreakpoints()`:
+
+```tsx
+const { width, current, is, atLeast, below, between } = useContainerBreakpoints()
+
+const showSplitLayout = atLeast('split')
+const showLargeMedia = atLeast('spacious')
+```
+
+The hook returns:
+
+- `width`: current measured container width in pixels
+- `current`: the active named breakpoint
+- `is(name)`: exact active-breakpoint match
+- `atLeast(name)`: width is at or above that breakpoint
+- `below(name)`: width is below that breakpoint
+- `between(minName, maxName)`: width is between two named breakpoints
+
+### Recommended Pattern
+
+Define breakpoint names around layout intent, not device types.
+
+Prefer:
+
+- `stacked`
+- `split`
+- `spacious`
+- `dense`
+
+Avoid:
+
+- `tablet`
+- `desktop`
+- `ultrawide`
+
+This keeps the logic tied to available space rather than assumptions about the
+viewport.
+
+### Reference Example
+
+The course detail page now uses container breakpoints in
+[`app/orgs/[orgslug]/(withmenu)/course/[courseuuid]/course.tsx`](./app/orgs/%5Borgslug%5D/%28withmenu%29/course/%5Bcourseuuid%5D/course.tsx)
+so the info panel vs chapter-accordion layout switches based on content-column
+width instead of a hard viewport breakpoint.
+
 ```ts
 routePaths.org.course(courseUuid)
 routePaths.org.courseActivity(courseUuid, activityId)

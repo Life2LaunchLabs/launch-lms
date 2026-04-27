@@ -86,7 +86,7 @@ function DashLeftMenu() {
   const access_token = session?.data?.tokens?.access_token
 
   // SWR key for courses
-  const coursesKey = org?.slug ? `${getAPIUrl()}courses/org_slug/${org.slug}/page/1/limit/8` : null
+  const coursesKey = org?.slug ? `${getAPIUrl()}courses/org_slug/${org.slug}/page/1/limit/8?include_unpublished=true` : null
 
   // Fetch recent courses
   const { data: coursesData } = useSWR(

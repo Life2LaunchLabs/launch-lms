@@ -320,38 +320,6 @@ async def get_course_meta(
 
     return course_read
 
-
-async def get_guest_onboarding_course_by_orgslug(
-    request: Request,
-    current_user: PublicUser | AnonymousUser,
-    org_slug: str,
-    db_session: Session,
-) -> FullCourseRead:
-    statement = (
-        select(Course, Organization)
-        .join(Organization, Organization.id == Course.org_id)  # type: ignore
-        .where(
-            Organization.slug == org_slug,
-            Course.guest_access == True,
-            Course.published == True,
-        )
-        .order_by(Course.id.asc())  # type: ignore
-    )
-    result = db_session.exec(statement).first()
-
-    if not result:
-        raise HTTPException(status_code=404, detail="No guest onboarding course found")
-
-    course, _org = result
-    return await get_course_meta(
-        request=request,
-        course_uuid=course.course_uuid,
-        with_unpublished_activities=False,
-        current_user=current_user,
-        db_session=db_session,
-    )
-
-
 async def get_courses_orgslug(
     request: Request,
     current_user: PublicUser | AnonymousUser,
@@ -438,6 +406,7 @@ async def get_courses_orgslug(
                         ),
                     ),
                     and_(
+                        Organization.slug == org_slug,
                         Course.shared == True,
                         Course.published == True,
                     ),

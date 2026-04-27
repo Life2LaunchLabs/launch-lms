@@ -11,8 +11,8 @@ import { PlanLevel, planMeetsRequirement } from '@services/plans/plans'
 import PlanBadge from '@components/Dashboard/Shared/PlanRestricted/PlanBadge'
 import useAdminStatus from '@components/Hooks/useAdminStatus'
 import { Switch } from '@components/ui/switch'
-import { ShieldAlert, Users, CreditCard, FolderOpen, Lock, Headphones } from 'lucide-react'
-import { ChalkboardSimple, Cube } from '@phosphor-icons/react'
+import { ShieldAlert, Users, CreditCard, FolderOpen, Lock } from 'lucide-react'
+import { ChalkboardSimple } from '@phosphor-icons/react'
 import { usePlan } from '@components/Hooks/usePlan'
 
 interface FeatureToggleProps {
@@ -95,9 +95,7 @@ const OrgEditFeatures: React.FC = () => {
   const [collectionsEnabled, setCollectionsEnabled] = useState<boolean>(true)
   const [communitiesEnabled, setCommunitiesEnabled] = useState<boolean>(true)
   const [resourcesEnabled, setResourcesEnabled] = useState<boolean>(false)
-  const [podcastsEnabled, setPodcastsEnabled] = useState<boolean>(false)
   const [boardsEnabled, setBoardsEnabled] = useState<boolean>(false)
-  const [playgroundsEnabled, setPlaygroundsEnabled] = useState<boolean>(false)
 
   // Loading states
   const [updatingFeature, setUpdatingFeature] = useState<string | null>(null)
@@ -108,9 +106,7 @@ const OrgEditFeatures: React.FC = () => {
     setCollectionsEnabled(rf.collections?.enabled ?? true)
     setCommunitiesEnabled(rf.communities?.enabled ?? false)
     setResourcesEnabled(rf.resources?.enabled ?? false)
-    setPodcastsEnabled(rf.podcasts?.enabled ?? false)
     setBoardsEnabled(rf.boards?.enabled ?? false)
-    setPlaygroundsEnabled(rf.playgrounds?.enabled ?? false)
   }, [rf])
 
   const updateFeatureConfig = async (feature: string, enabled: boolean) => {
@@ -174,11 +170,6 @@ const OrgEditFeatures: React.FC = () => {
     if (success) setCommunitiesEnabled(enabled)
   }
 
-  const handlePodcastsToggle = async (enabled: boolean) => {
-    const success = await updateFeatureConfig('podcasts', enabled)
-    if (success) setPodcastsEnabled(enabled)
-  }
-
   const handleResourcesToggle = async (enabled: boolean) => {
     const success = await updateFeatureConfig('resources', enabled)
     if (success) setResourcesEnabled(enabled)
@@ -187,11 +178,6 @@ const OrgEditFeatures: React.FC = () => {
   const handleBoardsToggle = async (enabled: boolean) => {
     const success = await updateFeatureConfig('boards', enabled)
     if (success) setBoardsEnabled(enabled)
-  }
-
-  const handlePlaygroundsToggle = async (enabled: boolean) => {
-    const success = await updateFeatureConfig('playgrounds', enabled)
-    if (success) setPlaygroundsEnabled(enabled)
   }
 
   return (
@@ -280,20 +266,6 @@ const OrgEditFeatures: React.FC = () => {
             </div>
           )}
 
-          {/* Podcasts Toggle */}
-          <FeatureToggle
-            id="podcasts"
-            title={t('dashboard.organization.features.toggles.podcasts.title')}
-            description={t('dashboard.organization.features.toggles.podcasts.description')}
-            enabled={podcastsEnabled}
-            isUpdating={updatingFeature === 'podcasts'}
-            canEdit={canEditOrgSettings}
-            requiredPlan={rf?.podcasts?.required_plan}
-            currentPlan={currentPlan}
-            icon={<Headphones size={20} className="text-gray-600" />}
-            onToggle={handlePodcastsToggle}
-          />
-
           {/* Boards Toggle */}
           <FeatureToggle
             id="boards"
@@ -308,19 +280,6 @@ const OrgEditFeatures: React.FC = () => {
             onToggle={handleBoardsToggle}
           />
 
-          {/* Playgrounds Toggle */}
-          <FeatureToggle
-            id="playgrounds"
-            title="Playgrounds"
-            description="Create interactive AI-generated experiences for your learners"
-            enabled={playgroundsEnabled}
-            isUpdating={updatingFeature === 'playgrounds'}
-            canEdit={canEditOrgSettings}
-            requiredPlan={rf?.playgrounds?.required_plan}
-            currentPlan={currentPlan}
-            icon={<Cube size={20} className="text-gray-600" />}
-            onToggle={handlePlaygroundsToggle}
-          />
         </div>
       </div>
     </div>
