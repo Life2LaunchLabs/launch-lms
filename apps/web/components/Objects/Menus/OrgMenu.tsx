@@ -10,7 +10,7 @@ import { SearchBar } from '@components/Objects/Search/SearchBar'
 import { usePathname } from 'next/navigation'
 import { useTranslation } from 'react-i18next'
 import useAdminStatus from '@components/Hooks/useAdminStatus'
-import { CaretRight, DotsThreeVertical } from '@phosphor-icons/react'
+import { CaretDown, DotsThreeVertical, Question, SignOut, User } from '@phosphor-icons/react'
 import { FeedbackModal } from '@components/Objects/Modals/FeedbackModal'
 import { useJoinBannerVisible, JOIN_BANNER_HEIGHT } from '@components/Objects/Banners/OrgJoinBanner'
 import { GuestHeader } from '@components/Objects/Menus/GuestHeader'
@@ -24,8 +24,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@components/ui/dropdown-menu'
+import { signOut } from '@components/Contexts/AuthContext'
 import UserAvatar from '@components/Objects/UserAvatar'
 import {
   getAdministrativeOrgMenuItems,
@@ -216,7 +219,7 @@ export const OrgMenu = (props: { orgslug: string }) => {
 
           <div className="mt-auto flex flex-col items-center pt-6 lg:items-stretch">
             <nav className="flex flex-col items-center gap-1 lg:items-stretch">
-              {adminNavItems.map((item) => (
+              {adminNavItems.filter((item) => item.actionKey !== 'help').map((item) => (
                 <SidebarItem
                   key={item.href || item.label}
                   item={item}
@@ -232,7 +235,7 @@ export const OrgMenu = (props: { orgslug: string }) => {
             </nav>
 
             <div className="mt-6">
-              <DesktopAccountLink orgslug={orgslug} />
+              <DesktopAccountLink orgslug={orgslug} onHelp={() => setFeedbackModalOpen(true)} />
             </div>
           </div>
         </div>
@@ -345,36 +348,75 @@ type SidebarItemProps = {
 
 function DesktopAccountLink({
   orgslug,
+  onHelp,
 }: {
   orgslug: string
+  onHelp: () => void
 }) {
   const session = useLHSession() as any
-  const href = getUriWithOrg(orgslug, routePaths.owner.account.general())
+  const accountHref = getUriWithOrg(orgslug, routePaths.owner.account.general())
 
   return (
-    <TooltipProvider delayDuration={0}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Link
-            href={href}
-            className="group flex h-11 w-11 items-center justify-center rounded-2xl text-gray-500 transition-colors hover:bg-black/[0.08] hover:text-gray-900 lg:h-auto lg:w-full lg:justify-start lg:gap-3 lg:px-3 lg:py-3"
-            aria-label="Account settings"
-          >
-            <UserAvatar border="border-2" rounded="rounded-xl" width={34} />
-            <div className="hidden min-w-0 flex-1 lg:block">
-              <p className="truncate text-sm font-semibold text-gray-900 capitalize">
-                {session?.data?.user?.username}
-              </p>
+    <DropdownMenu>
+      <TooltipProvider delayDuration={0}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="Account"
+                className="group flex h-11 w-11 items-center justify-center rounded-2xl text-gray-500 transition-colors hover:bg-black/[0.08] hover:text-gray-900 lg:h-auto lg:w-full lg:justify-start lg:gap-3 lg:px-3 lg:py-3"
+              >
+                <UserAvatar border="border-2" rounded="rounded-xl" width={34} />
+                <div className="hidden min-w-0 flex-1 text-left lg:block">
+                  <p className="truncate text-sm font-semibold text-gray-900 capitalize">
+                    {session?.data?.user?.username}
+                  </p>
+                  <p className="truncate text-xs text-gray-500">{session?.data?.user?.email}</p>
+                </div>
+                <CaretDown size={16} weight="bold" className="hidden shrink-0 text-gray-400 transition-colors group-hover:text-gray-700 lg:block" />
+              </button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="text-xs lg:hidden">
+            {session?.data?.user?.username || 'Account'}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <DropdownMenuContent side="top" align="start" className="mb-2 w-56">
+        <DropdownMenuLabel>
+          <div className="flex items-center gap-2">
+            <UserAvatar border="border-2" rounded="rounded-full" width={24} shadow="" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium capitalize">{session?.data?.user?.username}</p>
               <p className="truncate text-xs text-gray-500">{session?.data?.user?.email}</p>
             </div>
-            <CaretRight size={16} weight="bold" className="hidden shrink-0 text-gray-400 transition-colors group-hover:text-gray-700 lg:block" />
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href={accountHref} className="flex items-center gap-2">
+            <User size={16} weight="fill" />
+            <span>Account settings</span>
           </Link>
-        </TooltipTrigger>
-        <TooltipContent side="right" className="text-xs lg:hidden">
-          {session?.data?.user?.username || 'Account'}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={onHelp}
+          className="flex items-center gap-2"
+        >
+          <Question size={16} weight="fill" />
+          <span>Help &amp; feedback</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => signOut({ callbackUrl: '/' })}
+          className="flex items-center gap-2 text-red-600 focus:text-red-600"
+        >
+          <SignOut size={16} weight="fill" />
+          <span>Sign out</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -461,6 +503,14 @@ function MobileMoreMenu({
             <UserAvatar border="border-2" rounded="rounded-full" width={18} shadow="" />
             <span>Account</span>
           </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => signOut({ callbackUrl: '/' })}
+          className="flex items-center gap-3 rounded-xl px-3 py-2 text-red-600 focus:text-red-600"
+        >
+          <SignOut size={18} weight="fill" />
+          <span>Sign out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
