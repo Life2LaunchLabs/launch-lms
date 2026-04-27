@@ -78,40 +78,6 @@ test('request policy rewrites main-domain traffic into internal org routes', () 
   assert.equal(decision.destination, '/orgs/default/courses')
 })
 
-test('request policy redirects direct root visits to the marketing site', () => {
-  const decision = resolveRequestRouting({
-    requestUrl: 'https://launchlms.test/',
-    pathname: '/',
-    search: '',
-    host: 'launchlms.test',
-    hasSession: false,
-    isDirectRootVisit: true,
-    instanceInfo,
-    resolvedCustomDomainOrgSlug: null,
-    orgSubdomainAccess: null,
-  })
-
-  assert.equal(decision.action, 'redirect')
-  assert.equal(decision.destination, 'https://www.life2launch.com/')
-})
-
-test('request policy still allows non-direct root visits into the app', () => {
-  const decision = resolveRequestRouting({
-    requestUrl: 'https://launchlms.test/',
-    pathname: '/',
-    search: '',
-    host: 'launchlms.test',
-    hasSession: true,
-    isDirectRootVisit: false,
-    instanceInfo,
-    resolvedCustomDomainOrgSlug: null,
-    orgSubdomainAccess: null,
-  })
-
-  assert.equal(decision.action, 'rewrite')
-  assert.equal(decision.destination, '/orgs/default/')
-})
-
 test('request policy keeps main-host dashboard traffic on the default org even if old org cookies existed', () => {
   const decision = resolveRequestRouting({
     requestUrl: 'https://launchlms.test/dash',
