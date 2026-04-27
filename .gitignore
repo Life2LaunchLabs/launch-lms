@@ -58,6 +58,7 @@ apps/web/runtime-config.json
 # Launch LMS CLI generated files
 .launch-lms/
 .ee-disabled
+apps/cli/dist/
 
 # agent files
 CLAUDE.md 

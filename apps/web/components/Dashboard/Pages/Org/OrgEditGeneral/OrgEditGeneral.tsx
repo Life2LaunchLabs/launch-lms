@@ -68,7 +68,7 @@ const validationSchema = Yup.object().shape({
   about: Yup.string()
     .optional()
     .max(400, 'About text must be 400 characters or less'),
-  label: Yup.string().required('Organization label is required'),
+  label: Yup.string().optional(),
   email: Yup.string()
     .optional()
     .email('Must be a valid email address'),
@@ -109,7 +109,7 @@ const OrgEditGeneral: React.FC = () => {
     name: org?.name,
     description: org?.description || '',
     about: org?.about || '',
-    label: org?.label || '',
+    label: org?.label || '__none__',
     email: org?.email || '',
   }
 
@@ -132,7 +132,7 @@ const OrgEditGeneral: React.FC = () => {
         return
       }
 
-      await updateOrganization(org.id, values, access_token)
+      await updateOrganization(org.id, { ...values, label: values.label === '__none__' ? '' : values.label }, access_token)
       // Also save footer text
       await updateOrgFooterTextConfig(org.id, footerText, access_token)
       if (quickstartEligible) {
@@ -228,6 +228,7 @@ const OrgEditGeneral: React.FC = () => {
                           <SelectValue placeholder={t('dashboard.organization.settings.label_placeholder')} />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="__none__">No label</SelectItem>
                           {ORG_LABELS.map((type) => (
                             <SelectItem key={type.value} value={type.value}>
                               {type.label}

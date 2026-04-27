@@ -29,6 +29,7 @@ class GeneralConfig(BaseModel):
     development_mode: bool
     sentry_config: SentryConfig
     require_email_verification: bool
+    auth_oauth_enabled: bool
     env: str
 
 
@@ -148,11 +149,14 @@ def get_launchlms_config() -> LaunchLMSConfig:
     launchlms_env = os.environ.get("LAUNCHLMS_ENV", "dev")
 
     # Email verification requirement (disabled by default)
-    env_require_email_verification = os.environ.get("LAUNCHLMS_REQUIRE_EMAIL_VERIFICATION", "None")
-    require_email_verification = (
-        env_require_email_verification.lower() in ("true", "1", "yes")
-        if env_require_email_verification != "None"
-        else yaml_config.get("general", {}).get("require_email_verification", False)
+    require_email_verification = False
+
+    # OAuth sign-in/sign-up is globally disabled by default.
+    env_auth_oauth_enabled = os.environ.get("LAUNCHLMS_AUTH_OAUTH_ENABLED", "None")
+    auth_oauth_enabled = (
+        env_auth_oauth_enabled.lower() in ("true", "1", "yes")
+        if env_auth_oauth_enabled != "None"
+        else yaml_config.get("general", {}).get("auth_oauth_enabled", False)
     )
 
     # Security Config
@@ -399,6 +403,7 @@ def get_launchlms_config() -> LaunchLMSConfig:
             development_mode=bool(development_mode),
             sentry_config=SentryConfig(dsn=sentry_dsn),
             require_email_verification=bool(require_email_verification),
+            auth_oauth_enabled=bool(auth_oauth_enabled),
             env=launchlms_env,
         ),
         hosting_config=hosting_config,

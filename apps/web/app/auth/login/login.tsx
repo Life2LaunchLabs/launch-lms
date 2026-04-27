@@ -9,11 +9,10 @@ import { useFormik } from 'formik'
 import React, { useState, useEffect } from 'react'
 import { AlertTriangle, Lock, Mail, Shield, X, Clock } from 'lucide-react'
 import { checkSSOEnabled, redirectToSSOLogin } from '@services/auth/sso'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@components/Contexts/AuthContext'
-import { getCoreCapabilities, getLAUNCHLMS_TOP_DOMAIN_VAL } from '@services/config/config'
-import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { getCoreCapabilities } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import { resendVerificationEmail } from '@services/auth/auth'
 import AuthLayout from '@components/Auth/AuthLayout'
@@ -28,9 +27,7 @@ const LoginClient = (props: LoginClientProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [ssoEnabled, setSsoEnabled] = useState(false)
   const [ssoLoading, setSsoLoading] = useState(false)
-  const router = useRouter();
   const searchParams = useSearchParams()
-  const session = useLHSession() as any;
   const nextUrl = searchParams.get('next')
 
   // Error state with type information
@@ -41,21 +38,6 @@ const LoginClient = (props: LoginClientProps) => {
   const [verificationResent, setVerificationResent] = useState(false)
   const [showErrorModal, setShowErrorModal] = useState(false)
   const [retryAfter, setRetryAfter] = useState<number | null>(null)
-
-  const handleGoogleSignIn = () => {
-    // Store org context in cookies before OAuth redirect
-    if (props.org?.slug) {
-      const topDomain = getLAUNCHLMS_TOP_DOMAIN_VAL();
-      const isSecure = window.location.protocol === 'https:';
-      const secureAttr = isSecure ? '; secure' : '';
-      const baseAttributes = `; path=/; SameSite=Lax${secureAttr}`;
-      const domainAttr = topDomain === 'localhost' ? '' : `; domain=.${topDomain}`;
-      document.cookie = `launchlms_oauth_orgslug=${props.org.slug}${baseAttributes}${domainAttr}`;
-      document.cookie = `launchlms_oauth_org_id=${props.org.id}${baseAttributes}${domainAttr}`;
-    }
-    // Use absolute URL with current origin for custom domain support
-    signIn('google', { callbackUrl: nextUrl || `${window.location.origin}/redirect_from_auth` });
-  };
 
   // Check if SSO is enabled for this organization (requires enterprise plan)
   useEffect(() => {
@@ -327,37 +309,31 @@ const LoginClient = (props: LoginClientProps) => {
               </div>
             </FormLayout>
 
-            {/* Divider */}
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-3 bg-white text-gray-400">{t('common.or')}</span>
-              </div>
-            </div>
+            {ssoEnabled && (
+              <>
+                {/* Divider */}
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-200"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-3 bg-white text-gray-400">{t('common.or')}</span>
+                  </div>
+                </div>
 
-            {/* Social & SSO Buttons */}
-            <div className="space-y-2.5">
-              <button
-                onClick={handleGoogleSignIn}
-                className="flex items-center justify-center gap-2 w-full py-2.5 bg-white border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg" alt="" className="w-4 h-4" />
-                <span>{t('auth.sign_in_with_google')}</span>
-              </button>
-
-              {ssoEnabled && (
-                <button
-                  onClick={handleSSOLogin}
-                  disabled={ssoLoading}
-                  className="flex items-center justify-center gap-2 w-full py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
-                >
-                  <Shield size={16} />
-                  <span>{ssoLoading ? t('common.loading') : t('auth.sign_in_with_sso')}</span>
-                </button>
-              )}
-            </div>
+                {/* SSO Button */}
+                <div className="space-y-2.5">
+                  <button
+                    onClick={handleSSOLogin}
+                    disabled={ssoLoading}
+                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                  >
+                    <Shield size={16} />
+                    <span>{ssoLoading ? t('common.loading') : t('auth.sign_in_with_sso')}</span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Sign Up Link */}

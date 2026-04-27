@@ -296,6 +296,7 @@ export const getCoreCapabilities = () => ({
   multi_org: true,
   superadmin: true,
   audit_logs: true,
+  oauth: false,
   payments: false,
   sso: true,
   scorm: true,

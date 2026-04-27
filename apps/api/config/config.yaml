@@ -6,6 +6,8 @@ contact_email: ""
 
 general:
   development_mode: true
+  require_email_verification: false
+  auth_oauth_enabled: false
 
 security:
   # SECURITY: Set via LAUNCHLMS_AUTH_JWT_SECRET_KEY env var (required, min 32 chars).

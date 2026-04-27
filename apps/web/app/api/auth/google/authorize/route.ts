@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
+    if (process.env.LAUNCHLMS_AUTH_OAUTH_ENABLED !== 'true') {
+      return NextResponse.json(
+        { error: 'Google OAuth is disabled' },
+        { status: 404 }
+      )
+    }
+
     const body = await request.json()
     const { redirect_uri, state, scope } = body
 
