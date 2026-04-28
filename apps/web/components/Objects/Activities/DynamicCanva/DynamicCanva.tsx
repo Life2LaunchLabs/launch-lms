@@ -53,7 +53,6 @@ import TableRow from '@tiptap/extension-table-row'
 import TableCell from '@tiptap/extension-table-cell'
 import UserBlock from '@components/Objects/Editor/Extensions/Users/UserBlock'
 import { getLinkExtension } from '@components/Objects/Editor/EditorConf'
-import TableOfContents from './TableOfContents'
 import { CustomHeading } from './CustomHeadingExtenstion'
 import WebPreview from '@components/Objects/Editor/Extensions/WebPreview/WebPreview'
 import AICanvaToolkit from './AI/AICanvaToolkit'
@@ -200,7 +199,6 @@ function Canva(props: Editor) {
       <div className="w-full mx-auto">
         <AICanvaToolkit activity={props.activity} editor={editor} />
         <div className="canva-content-wrapper">
-          <TableOfContents editor={editor} />
           <EditorContent editor={editor} />
         </div>
       </div>

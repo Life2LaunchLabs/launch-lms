@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
-import { AlertTriangle, BookOpenCheck, CheckCircle, ChevronLeft, ChevronRight, UserRoundPen, Edit2, Maximize2, Minimize2 } from 'lucide-react'
+import { AlertTriangle, BookOpenCheck, CheckCircle, ChevronLeft, ChevronRight, UserRoundPen, Edit2, Minimize2 } from 'lucide-react'
 import { markActivityAsComplete, startCourse } from '@services/courses/activity'
 import {
   findCourseRun,
@@ -26,12 +26,14 @@ import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationMo
 import PaidCourseActivityDisclaimer from '@components/Objects/Courses/CourseActions/PaidCourseActivityDisclaimer'
 import ActivityShareDropdown from '@components/Pages/Activity/ActivityShareDropdown'
 import ActivityChapterDropdown from '@components/Pages/Activity/ActivityChapterDropdown'
+import ActivityCourseOutline from '@components/Pages/Activity/ActivityCourseOutline'
 import CourseEndView from '@components/Pages/Activity/CourseEndView'
 import ActivityHeader from '@components/Pages/Activity/ActivityHeader'
 import { motion, AnimatePresence } from 'motion/react'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import { useTranslation } from 'react-i18next'
 import { useAnalytics } from '@/hooks/useAnalytics'
+import { Dialog, DialogContent } from '@components/ui/dialog'
 
 // Lazy load heavy components
 const Canva = lazy(() => import('@components/Objects/Activities/DynamicCanva/DynamicCanva'))
@@ -189,6 +191,8 @@ function ActivityClient(props: ActivityClientProps) {
   const [bgColor, setBgColor] = React.useState('bg-white')
   const [assignment, setAssignment] = React.useState(null) as any;
   const [isFocusMode, setIsFocusMode] = React.useState(false);
+  const [isOutlineOpen, setIsOutlineOpen] = React.useState(false);
+  const [isDesktopOutlineOpen, setIsDesktopOutlineOpen] = React.useState(true);
   const isInitialRender = useRef(true);
   const hasAttemptedGuestCourseStart = useRef(false)
   const hasAttemptedCourseStart = useRef(false)
@@ -353,19 +357,6 @@ function ActivityClient(props: ActivityClientProps) {
       isInitialRender.current = false;
     }
   }, [isFocusMode]);
-
-  function getChapterNameByActivityId(course: any, activity_id: any) {
-    for (let i = 0; i < course.chapters.length; i++) {
-      let chapter = course.chapters[i]
-      for (let j = 0; j < chapter.activities.length; j++) {
-        let activity = chapter.activities[j]
-        if (activity.id === activity_id) {
-          return `${t('courses.chapter')} ${i + 1} : ${chapter.name}`
-        }
-      }
-    }
-    return null // return null if no matching activity is found
-  }
 
   async function getAssignmentUI() {
     const assignment = await getAssignmentFromActivityUUID(activity.activity_uuid, access_token)
@@ -641,94 +632,128 @@ function ActivityClient(props: ActivityClientProps) {
                       courseuuid={courseuuid}
                       orgslug={orgslug}
                       trailData={effectiveTrailData}
-                      guestMode={guestMode}
-                      publicGuestMode={publicGuestMode}
+                      onOpenOutline={() => setIsOutlineOpen(true)}
+                      onToggleDesktopSidebar={() => setIsDesktopOutlineOpen((open) => !open)}
                     />
-                    <div className="flex flex-col min-w-0">
-                      <p className="font-semibold text-gray-500 text-xs">
-                        {getChapterNameByActivityId(course, activity.id)}
-                      </p>
-                      <h1 className="font-bold text-gray-950 text-2xl first-letter:uppercase">
-                        {activity.name}
-                      </h1>
-                    </div>
-
-                      {activity && activity.published == false && (
-                        <div className="p-7 drop-shadow-xs rounded-lg bg-gray-800">
-                          <div className="text-white">
-                            <h1 className="font-bold text-2xl">
-                              {t('activities.not_published_yet')}
-                            </h1>
-                          </div>
+                    <Dialog open={isOutlineOpen} onOpenChange={setIsOutlineOpen}>
+                      <DialogContent className="left-0 right-0 bottom-0 top-auto max-w-none translate-x-0 translate-y-0 rounded-t-[28px] rounded-b-none border-x-0 border-b-0 border-t border-gray-200 bg-white px-0 pb-0 pt-3 sm:rounded-t-[28px] lg:hidden">
+                        <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-gray-200" />
+                        <div className="px-4 pb-5 sm:px-5">
+                          <ActivityCourseOutline
+                            course={course}
+                            currentActivityId={activityid}
+                            orgslug={orgslug}
+                            trailData={effectiveTrailData}
+                            variant="sheet"
+                            onNavigate={() => setIsOutlineOpen(false)}
+                          />
                         </div>
-                      )}
+                      </DialogContent>
+                    </Dialog>
 
-                      {activity && activity.published == true && (
-                        <>
-                          {activity.content.paid_access == false ? (
-                            <PaidCourseActivityDisclaimer course={course} />
-                          ) : (
-                            <div className="flex gap-6">
-                              <div className={`flex-1 min-w-0 ${activity.activity_type === 'TYPE_SCORM' ? 'rounded-xl overflow-hidden' : 'p-3 sm:p-7 drop-shadow-xs rounded-lg'} ${bgColor} relative isolate`} style={{ zIndex: 'var(--z-base)' }}>
-                                <button
-                                  onClick={() => setIsFocusMode(true)}
-                                  className={`absolute ${activity.activity_type === 'TYPE_SCORM' ? 'top-2 right-2' : 'top-4 right-4'} hidden sm:flex bg-white/80 hover:bg-white nice-shadow p-2 rounded-full cursor-pointer transition-all duration-200 group overflow-hidden pointer-events-auto`}
-                                  style={{ zIndex: 'var(--z-interactive)' }}
-                                  title={t('activities.focus_mode')}
-                                >
-                                  <div className="flex items-center">
-                                    <Maximize2 size={16} className="text-gray-700" />
-                                    <span className="text-xs font-bold text-gray-700 opacity-0 group-hover:opacity-100 transition-all duration-200 w-0 group-hover:w-auto group-hover:ml-2 whitespace-nowrap">
-                                      {t('activities.focus_mode')}
-                                    </span>
-                                  </div>
-                                </button>
-                                {activityContent}
-                              </div>
-                              <Suspense fallback={null}>
-                                <AISidePanelInline activity={activity} />
-                              </Suspense>
+                    <div className={`grid gap-6 lg:items-start ${isDesktopOutlineOpen ? 'lg:grid-cols-[320px_minmax(0,1fr)]' : 'lg:grid-cols-[minmax(0,1fr)]'}`}>
+                      <aside className={`${isDesktopOutlineOpen ? 'hidden lg:block' : 'hidden'}`}>
+                        <div className="sticky top-28">
+                          <ActivityCourseOutline
+                            course={course}
+                            currentActivityId={activityid}
+                            orgslug={orgslug}
+                            trailData={effectiveTrailData}
+                            variant="sidebar"
+                            onCloseSidebar={() => setIsDesktopOutlineOpen(false)}
+                          />
+                        </div>
+                      </aside>
+
+                      <div className="min-w-0 space-y-4">
+                        {activity && activity.published == false && (
+                          <div className="p-7 drop-shadow-xs rounded-lg bg-gray-800">
+                            <div className="text-white">
+                              <h1 className="font-bold text-2xl">
+                                {t('activities.not_published_yet')}
+                              </h1>
                             </div>
-                          )}
-                        </>
-                      )}
-
-                      {/* Activity Actions below the content box */}
-                      {activity && activity.published == true && activity.content.paid_access != false && (
-                        <div className="mt-4 flex w-full flex-row items-stretch justify-between gap-2 sm:items-center">
-                          <div className="min-w-0 flex-1 sm:flex-none">
-                            <PreviousActivityButton
-                              course={course}
-                              currentActivityId={activity.id}
-                              orgslug={orgslug}
-                              guestMode={guestMode}
-                            />
                           </div>
-                          <div className="flex min-w-0 flex-1 items-stretch justify-end gap-2 sm:flex-none">
-                            <ActivityActions
-                              activity={activity}
-                              activityid={activityid}
-                              course={course}
-                              orgslug={orgslug}
-                              assignment={assignment}
-                              showNavigation={false}
-                              guestMode={guestMode}
-                              publicGuestMode={publicGuestMode}
-                            />
-                            <NextActivityButton
-                              course={course}
-                              currentActivityId={activity.id}
-                              activity={activity}
-                              orgslug={orgslug}
-                              guestMode={guestMode}
-                              publicGuestMode={publicGuestMode}
-                            />
-                          </div>
-                        </div>
-                      )}
+                        )}
 
-                      <div style={{ height: '100px' }}></div>
+                        {activity && activity.published == true && (
+                          <>
+                            {activity.content.paid_access == false ? (
+                              <PaidCourseActivityDisclaimer course={course} />
+                            ) : (
+                              <div className="flex gap-6">
+                                <div className={`flex-1 min-w-0 relative isolate ${
+                                  activity.activity_type === 'TYPE_SCORM'
+                                    ? '-mx-4 overflow-hidden rounded-none sm:mx-0 sm:rounded-xl'
+                                    : '-mx-4 rounded-none px-5 pb-6 pt-5 sm:mx-0 sm:rounded-lg sm:p-7 drop-shadow-xs'
+                                } ${bgColor}`} style={{ zIndex: 'var(--z-base)' }}>
+                                  {/*
+                                  <button
+                                    onClick={() => setIsFocusMode(true)}
+                                    className={`absolute ${activity.activity_type === 'TYPE_SCORM' ? 'top-2 right-2' : 'top-4 right-4'} hidden sm:flex bg-white/80 hover:bg-white nice-shadow p-2 rounded-full cursor-pointer transition-all duration-200 group overflow-hidden pointer-events-auto`}
+                                    style={{ zIndex: 'var(--z-interactive)' }}
+                                    title={t('activities.focus_mode')}
+                                  >
+                                    <div className="flex items-center">
+                                      <Maximize2 size={16} className="text-gray-700" />
+                                      <span className="text-xs font-bold text-gray-700 opacity-0 group-hover:opacity-100 transition-all duration-200 w-0 group-hover:w-auto group-hover:ml-2 whitespace-nowrap">
+                                        {t('activities.focus_mode')}
+                                      </span>
+                                    </div>
+                                  </button>
+                                  */}
+                                  <div className={`${activity.activity_type === 'TYPE_SCORM' ? 'absolute left-4 top-4 z-10 sm:left-0 sm:top-0 sm:static sm:mb-5 sm:px-0 sm:pt-0' : 'p-0 pb-4 sm:pb-5'}`}>
+                                    <h1 className="font-bold text-gray-950 text-2xl first-letter:uppercase sm:text-3xl">
+                                      {activity.name}
+                                    </h1>
+                                  </div>
+                                  {activityContent}
+                                </div>
+                                <Suspense fallback={null}>
+                                  <AISidePanelInline activity={activity} />
+                                </Suspense>
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                        {activity && activity.published == true && activity.content.paid_access != false && (
+                          <div className="mt-4 flex w-full flex-row items-stretch justify-between gap-2 sm:items-center">
+                            <div className="min-w-0 flex-1 sm:flex-none">
+                              <PreviousActivityButton
+                                course={course}
+                                currentActivityId={activity.id}
+                                orgslug={orgslug}
+                                guestMode={guestMode}
+                              />
+                            </div>
+                            <div className="flex min-w-0 flex-1 items-stretch justify-end gap-2 sm:flex-none">
+                              <ActivityActions
+                                activity={activity}
+                                activityid={activityid}
+                                course={course}
+                                orgslug={orgslug}
+                                assignment={assignment}
+                                showNavigation={false}
+                                guestMode={guestMode}
+                                publicGuestMode={publicGuestMode}
+                              />
+                              <NextActivityButton
+                                course={course}
+                                currentActivityId={activity.id}
+                                activity={activity}
+                                orgslug={orgslug}
+                                guestMode={guestMode}
+                                publicGuestMode={publicGuestMode}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        <div style={{ height: '100px' }}></div>
+                      </div>
                     </div>
+                  </div>
                 )}
               </GeneralWrapperStyled>
             )}
