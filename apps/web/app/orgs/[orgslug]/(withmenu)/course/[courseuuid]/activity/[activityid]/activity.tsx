@@ -7,7 +7,7 @@ import {
   findCourseRun,
   getCompletedCourseStepCount,
 } from '@services/courses/progress'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
 import { getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { useOrg, useOrgMembership } from '@components/Contexts/OrgContext'
@@ -78,6 +78,7 @@ interface ActivityClientProps {
   guestMode?: boolean
   unauthenticated?: boolean
   guestCompletedHint?: boolean
+  quickstartMode?: boolean
 }
 
 interface ActivityActionsProps {
@@ -156,8 +157,11 @@ function ActivityClient(props: ActivityClientProps) {
   const guestMode = props.guestMode === true
   const unauthenticated = props.unauthenticated === true
   const guestCompletedHint = props.guestCompletedHint === true
+  const searchParams = useSearchParams()
+  const quickstartMode = props.quickstartMode === true || searchParams?.get('quickstart') === '1'
   const publicGuestMode = unauthenticated && !guestMode
   const isGuestLearner = guestMode || publicGuestMode
+  const queryString = quickstartMode ? '?quickstart=1' : ''
 
   function getRelativeTime(date: Date): string {
     const now = new Date();
@@ -495,12 +499,14 @@ function ActivityClient(props: ActivityClientProps) {
                               activityType={activity.activity_type}
                             />
                           </div>
-                          <ActivityChapterDropdown
-                            course={course}
-                            currentActivityId={activity.activity_uuid ? activity.activity_uuid.replace('activity_', '') : activityid.replace('activity_', '')}
-                            orgslug={orgslug}
-                            trailData={effectiveTrailData}
-                          />
+                          {!quickstartMode ? (
+                            <ActivityChapterDropdown
+                              course={course}
+                              currentActivityId={activity.activity_uuid ? activity.activity_uuid.replace('activity_', '') : activityid.replace('activity_', '')}
+                              orgslug={orgslug}
+                              trailData={effectiveTrailData}
+                            />
+                          ) : null}
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
@@ -634,25 +640,30 @@ function ActivityClient(props: ActivityClientProps) {
                       trailData={effectiveTrailData}
                       onOpenOutline={() => setIsOutlineOpen(true)}
                       onToggleDesktopSidebar={() => setIsDesktopOutlineOpen((open) => !open)}
+                      disableOutlineAccess={quickstartMode}
                     />
-                    <Dialog open={isOutlineOpen} onOpenChange={setIsOutlineOpen}>
-                      <DialogContent className="left-0 right-0 bottom-0 top-auto max-w-none translate-x-0 translate-y-0 rounded-t-[28px] rounded-b-none border-x-0 border-b-0 border-t border-gray-200 bg-white px-0 pb-0 pt-3 sm:rounded-t-[28px] lg:hidden">
-                        <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-gray-200" />
-                        <div className="px-4 pb-5 sm:px-5">
-                          <ActivityCourseOutline
-                            course={course}
-                            currentActivityId={activityid}
-                            orgslug={orgslug}
-                            trailData={effectiveTrailData}
-                            variant="sheet"
-                            onNavigate={() => setIsOutlineOpen(false)}
-                          />
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                    {!quickstartMode ? (
+                      <Dialog open={isOutlineOpen} onOpenChange={setIsOutlineOpen}>
+                        <DialogContent className="left-0 right-0 bottom-0 top-auto mt-16 max-h-[calc(100dvh-4rem)] max-w-none translate-x-0 translate-y-0 rounded-t-[28px] rounded-b-none border-x-0 border-b-0 border-t border-gray-200 bg-white px-0 pb-0 pt-3 sm:rounded-t-[28px] lg:hidden">
+                          <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-gray-200" />
+                          <div className="min-h-0 overflow-hidden px-4 pb-5 sm:px-5">
+                            <ActivityCourseOutline
+                              course={course}
+                              currentActivityId={activityid}
+                              orgslug={orgslug}
+                              trailData={effectiveTrailData}
+                              variant="sheet"
+                              onNavigate={() => setIsOutlineOpen(false)}
+                              queryString={queryString}
+                              initialExpandedActivityId={activityid}
+                            />
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    ) : null}
 
-                    <div className={`grid gap-6 lg:items-start ${isDesktopOutlineOpen ? 'lg:grid-cols-[320px_minmax(0,1fr)]' : 'lg:grid-cols-[minmax(0,1fr)]'}`}>
-                      <aside className={`${isDesktopOutlineOpen ? 'hidden lg:block' : 'hidden'}`}>
+                    <div className={`grid gap-6 lg:items-start ${!quickstartMode && isDesktopOutlineOpen ? 'lg:grid-cols-[320px_minmax(0,1fr)]' : 'lg:grid-cols-[minmax(0,1fr)]'}`}>
+                      <aside className={`${!quickstartMode && isDesktopOutlineOpen ? 'hidden lg:block' : 'hidden'}`}>
                         <div className="sticky top-28">
                           <ActivityCourseOutline
                             course={course}
@@ -661,6 +672,8 @@ function ActivityClient(props: ActivityClientProps) {
                             trailData={effectiveTrailData}
                             variant="sidebar"
                             onCloseSidebar={() => setIsDesktopOutlineOpen(false)}
+                            queryString={queryString}
+                            initialExpandedActivityId={activityid}
                           />
                         </div>
                       </aside>
@@ -812,6 +825,9 @@ function NextActivityButton({ course, currentActivityId, activity, orgslug, gues
       !nextActivity && isGuestLearner
         ? `${baseNextActivityPath}?guest_completed=1`
         : baseNextActivityPath
+    const quickstartSuffix = window.location.search.includes('quickstart=1')
+      ? (nextActivityPath.includes('?') ? '&quickstart=1' : '?quickstart=1')
+      : ''
 
     try {
       if (!(activity.activity_type === 'TYPE_QUIZ' && activity.details?.quiz_mode === 'graded')) {
@@ -827,7 +843,7 @@ function NextActivityButton({ course, currentActivityId, activity, orgslug, gues
       // Continue navigation even if marking fails
     }
 
-    router.push(getUriWithOrg(orgslug, nextActivityPath));
+    router.push(getUriWithOrg(orgslug, `${nextActivityPath}${quickstartSuffix}`));
     setIsLoading(false);
   };
 
@@ -850,9 +866,9 @@ function NextActivityButton({ course, currentActivityId, activity, orgslug, gues
   return (
     <div
       onClick={!isLoading ? handleNext : undefined}
-      className={`bg-gray-200 rounded-md px-3 sm:px-4 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] flex min-w-0 w-full sm:w-[220px] flex-col p-2 sm:p-2.5 text-gray-600 hover:cursor-pointer transition delay-150 duration-300 ease-in-out hover:bg-gray-200 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+      className={`bg-primary rounded-md px-3 sm:px-4 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] flex min-w-0 w-full sm:w-[220px] flex-col p-2 sm:p-2.5 text-primary-foreground hover:cursor-pointer transition delay-150 duration-300 ease-in-out hover:bg-primary/90 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
     >
-      <span className="text-[10px] font-bold text-gray-500 mb-1 uppercase">{t('common.next')}</span>
+      <span className="text-[10px] font-bold text-primary-foreground/70 mb-1 uppercase">{t('common.next')}</span>
       <div className="flex items-center space-x-1">
         <span className="text-xs sm:text-sm font-semibold truncate max-w-[120px] sm:max-w-[200px]">{nextActivity.name}</span>
         <ChevronRight size={17} className="shrink-0" />
@@ -900,7 +916,10 @@ function PreviousActivityButton({ course, currentActivityId, orgslug, guestMode 
       cleanCourseUuid,
       previousActivity.cleanUuid
     )
-    router.push(getUriWithOrg(orgslug, previousActivityPath));
+    const quickstartSuffix = typeof window !== 'undefined' && window.location.search.includes('quickstart=1')
+      ? '?quickstart=1'
+      : ''
+    router.push(getUriWithOrg(orgslug, `${previousActivityPath}${quickstartSuffix}`));
   };
 
   return (

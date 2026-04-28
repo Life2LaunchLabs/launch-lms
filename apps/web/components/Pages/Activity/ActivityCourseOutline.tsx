@@ -1,33 +1,66 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, Check, ChevronRight, Circle, FileText, Play, StickyNote, Video, Backpack, X } from 'lucide-react'
+import {
+  ArrowLeft,
+  ArrowRight,
+  Backpack,
+  Check,
+  ChevronDown,
+  Circle,
+  FileText,
+  Play,
+  StickyNote,
+  Video,
+  X,
+} from 'lucide-react'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface ActivityCourseOutlineProps {
   course: any
-  currentActivityId: string
+  currentActivityId?: string | null
+  highlightedActivityId?: string | null
   orgslug: string
   trailData?: any
   variant?: 'sidebar' | 'sheet'
   onNavigate?: () => void
   onCloseSidebar?: () => void
+  queryString?: string
+  headerMode?: 'back' | 'summary'
+  highlightMode?: 'current' | 'next'
+  initialExpandedActivityId?: string | null
+}
+
+function normalizeActivityId(activityId?: string | null) {
+  if (!activityId) return null
+  return activityId.replace('activity_', '')
 }
 
 export default function ActivityCourseOutline({
   course,
   currentActivityId,
+  highlightedActivityId,
   orgslug,
   trailData,
   variant = 'sidebar',
   onNavigate,
   onCloseSidebar,
+  queryString = '',
+  headerMode = 'back',
+  highlightMode = 'current',
+  initialExpandedActivityId,
 }: ActivityCourseOutlineProps): React.ReactNode {
   const { t } = useTranslation()
   const cleanCourseUuid = course.course_uuid?.replace('course_', '')
   const isSheet = variant === 'sheet'
+  const normalizedCurrentActivityId = normalizeActivityId(currentActivityId)
+  const normalizedHighlightedActivityId =
+    normalizeActivityId(highlightedActivityId) ?? normalizedCurrentActivityId
+  const normalizedInitialExpandedActivityId =
+    normalizeActivityId(initialExpandedActivityId) ?? normalizedHighlightedActivityId
+  const scrollTargetRef = useRef<HTMLAnchorElement | null>(null)
 
   const courseRun = useMemo(() => {
     return trailData?.runs?.find((run: any) => {
@@ -35,6 +68,34 @@ export default function ActivityCourseOutline({
       return cleanRunCourseUuid === cleanCourseUuid
     })
   }, [cleanCourseUuid, trailData])
+
+  const chapters = course?.chapters || []
+
+  const initialExpandedChapterUuid = (() => {
+    if (!chapters.length) return null
+    for (const chapter of chapters) {
+      const hasInitialActivity = chapter.activities?.some((activity: any) => {
+        return normalizeActivityId(activity.activity_uuid) === normalizedInitialExpandedActivityId
+      })
+      if (hasInitialActivity) {
+        return chapter.chapter_uuid || chapter.id?.toString() || chapter.name
+      }
+    }
+    const firstChapter = chapters[0]
+    return firstChapter?.chapter_uuid || firstChapter?.id?.toString() || firstChapter?.name || null
+  })()
+
+  const [expandedChapterIds, setExpandedChapterIds] = useState<Record<string, boolean>>(() =>
+    initialExpandedChapterUuid ? { [initialExpandedChapterUuid]: true } : {}
+  )
+
+  useEffect(() => {
+    if (!scrollTargetRef.current) return
+    scrollTargetRef.current.scrollIntoView({
+      block: 'center',
+      behavior: 'smooth',
+    })
+  }, [variant, normalizedHighlightedActivityId])
 
   const getActivityTypeIcon = (activityType: string) => {
     switch (activityType) {
@@ -51,7 +112,7 @@ export default function ActivityCourseOutline({
     }
   }
 
-  const getStatusIcon = (activity: any, isCurrent: boolean) => {
+  const getStatusIcon = (activity: any, isHighlighted: boolean) => {
     const isComplete = courseRun?.steps?.find(
       (step: any) => step.activity_id === activity.id && step.complete === true
     )
@@ -64,7 +125,7 @@ export default function ActivityCourseOutline({
       )
     }
 
-    if (isCurrent) {
+    if (isHighlighted) {
       return (
         <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white">
           <Play size={10} className="ml-[1px] fill-current stroke-[2.2]" />
@@ -76,11 +137,11 @@ export default function ActivityCourseOutline({
   }
 
   return (
-    <div className={`flex h-full flex-col ${isSheet ? '' : 'rounded-lg bg-white drop-shadow-xs'}`}>
+    <div className={`flex h-full min-h-0 flex-col ${isSheet ? '' : 'rounded-lg bg-white drop-shadow-xs'}`}>
       <div className={`flex items-center justify-between border-b border-gray-100 ${isSheet ? 'px-1 py-3' : 'px-5 py-4'}`}>
-        {variant === 'sidebar' ? (
+        {headerMode === 'back' ? (
           <Link
-            href={getUriWithOrg(orgslug, routePaths.org.course(cleanCourseUuid))}
+            href={getUriWithOrg(orgslug, `${routePaths.org.course(cleanCourseUuid)}${queryString}`)}
             className="flex min-w-0 items-center gap-2 text-gray-900 transition-colors hover:text-gray-700"
           >
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-600">
@@ -109,55 +170,94 @@ export default function ActivityCourseOutline({
 
       <div className={`flex-1 overflow-y-auto ${isSheet ? 'px-0 py-3' : 'px-3 py-3'}`}>
         <div className="space-y-3">
-          {course.chapters.map((chapter: any, chapterIndex: number) => (
-            <div key={chapter.id} className="overflow-hidden rounded-2xl border border-gray-100 bg-white">
-              <div className="border-b border-gray-100 px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-gray-400">
-                  {t('courses.chapter')} {chapterIndex + 1}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-gray-900">{chapter.name}</p>
-              </div>
+          {chapters.map((chapter: any, chapterIndex: number) => {
+            const chapterKey = chapter.chapter_uuid || chapter.id?.toString() || chapter.name
+            const isExpanded = expandedChapterIds[chapterKey] ?? false
 
-              <div className="divide-y divide-gray-100">
-                {chapter.activities.map((activity: any, activityIndex: number) => {
-                  const cleanActivityUuid = activity.activity_uuid?.replace('activity_', '')
-                  const isCurrent = cleanActivityUuid === currentActivityId.replace('activity_', '')
+            return (
+              <div key={chapterKey} className="overflow-hidden rounded-2xl border border-gray-100 bg-white">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExpandedChapterIds((prev) => ({
+                      ...prev,
+                      [chapterKey]: !isExpanded,
+                    }))
+                  }
+                  className="flex w-full items-start gap-3 border-b border-gray-100 px-4 py-3 text-left transition-colors hover:bg-gray-50"
+                >
+                  <span
+                    className={`mt-1 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                  >
+                    <ChevronDown size={16} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-gray-400">
+                      {t('courses.chapter')} {chapterIndex + 1}
+                    </p>
+                    <p className="mt-1 truncate text-sm font-semibold text-gray-900">{chapter.name}</p>
+                  </div>
+                </button>
 
-                  return (
-                    <Link
-                      key={activity.id}
-                      href={getUriWithOrg(orgslug, routePaths.org.courseActivity(cleanCourseUuid, cleanActivityUuid))}
-                      prefetch={false}
-                      onClick={onNavigate}
-                      className={`block px-4 py-3 transition-colors ${
-                        isCurrent ? 'bg-emerald-50/80' : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="mt-0.5 shrink-0">
-                          {getStatusIcon(activity, isCurrent)}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className={`text-xs font-semibold ${isCurrent ? 'text-emerald-700' : 'text-gray-500'}`}>
-                              Lesson {activityIndex + 1}
-                            </span>
-                            <span className={`flex items-center gap-1 text-[11px] ${isCurrent ? 'text-emerald-600' : 'text-gray-400'}`}>
-                              {getActivityTypeIcon(activity.activity_type)}
-                            </span>
+                {isExpanded ? (
+                  <div className="divide-y divide-gray-100">
+                    {chapter.activities.map((activity: any, activityIndex: number) => {
+                      const cleanActivityUuid = normalizeActivityId(activity.activity_uuid)
+                      const isCurrent = cleanActivityUuid === normalizedCurrentActivityId
+                      const isHighlighted = cleanActivityUuid === normalizedHighlightedActivityId
+                      const isNextUp = highlightMode === 'next' && isHighlighted && !isCurrent
+                      const label = isCurrent
+                        ? t('activities.current')
+                        : isNextUp
+                          ? t('courses.get_started')
+                          : null
+
+                      return (
+                        <Link
+                          key={activity.id}
+                          href={getUriWithOrg(
+                            orgslug,
+                            `${routePaths.org.courseActivity(cleanCourseUuid, cleanActivityUuid)}${queryString}`
+                          )}
+                          prefetch={false}
+                          onClick={onNavigate}
+                          ref={isHighlighted ? scrollTargetRef : null}
+                          className={`block px-4 py-3 transition-colors ${
+                            isHighlighted ? 'bg-emerald-50/80' : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="mt-0.5 shrink-0">
+                              {getStatusIcon(activity, isHighlighted)}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs font-semibold ${isHighlighted ? 'text-emerald-700' : 'text-gray-500'}`}>
+                                  Lesson {activityIndex + 1}
+                                </span>
+                                <span className={`flex items-center gap-1 text-[11px] ${isHighlighted ? 'text-emerald-600' : 'text-gray-400'}`}>
+                                  {getActivityTypeIcon(activity.activity_type)}
+                                </span>
+                                {label ? (
+                                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                                    {label}
+                                  </span>
+                                ) : null}
+                              </div>
+                              <p className={`mt-1 truncate text-sm font-medium ${isHighlighted ? 'text-emerald-950' : 'text-gray-900'}`}>
+                                {activity.name}
+                              </p>
+                            </div>
+                            <ArrowRight size={14} className={isHighlighted ? 'mt-1 text-emerald-500' : 'mt-1 text-gray-300'} />
                           </div>
-                          <p className={`mt-1 truncate text-sm font-medium ${isCurrent ? 'text-emerald-950' : 'text-gray-900'}`}>
-                            {activity.name}
-                          </p>
-                        </div>
-                        <ChevronRight size={14} className={isCurrent ? 'mt-1 text-emerald-500' : 'mt-1 text-gray-300'} />
-                      </div>
-                    </Link>
-                  )
-                })}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                ) : null}
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
     </div>

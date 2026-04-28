@@ -1,6 +1,6 @@
 import React from 'react'
 import CourseClient from './course'
-import { getCourseMetadata, getCourseRights } from '@services/courses/courses'
+import { getCourseMetadata } from '@services/courses/courses'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { Metadata } from 'next'
 import { getCourseThumbnailMediaDirectory, getOrgOgImageMediaDirectory } from '@services/media/media'
@@ -33,7 +33,7 @@ export async function generateMetadata(props: MetadataProps): Promise<Metadata> 
       { revalidate: 0, tags: ['courses'] },
       access_token ?? undefined
     )
-  } catch (error) {
+  } catch {
     // If we can't get course metadata (e.g., auth required), return minimal metadata
     return {
       title: `Course — ${org?.name || 'Launch LMS'}`,
@@ -109,6 +109,8 @@ const CoursePage = async (params: any) => {
 
   // Await params before using them
   const { courseuuid, orgslug } = await params.params
+  const searchParams = await params.searchParams
+  const quickstartMode = searchParams?.quickstart === '1'
 
   // Fetch course metadata once
   let course_meta = null
@@ -174,6 +176,7 @@ const CoursePage = async (params: any) => {
         course={course_meta}
         access_token={access_token}
         serverError={fetchError}
+        quickstartMode={quickstartMode}
       />
     </>
   )

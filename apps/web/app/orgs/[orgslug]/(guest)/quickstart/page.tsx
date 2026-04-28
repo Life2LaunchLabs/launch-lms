@@ -39,10 +39,10 @@ export default async function QuickstartPage({ params }: PageProps) {
         redirect(
           getUriWithOrg(
             orgslug,
-            routePaths.org.courseActivity(
+            `${routePaths.org.courseActivity(
               configuredCourseUuid,
               firstActivity.activity_uuid.replace('activity_', '')
-            )
+            )}?quickstart=1`
           )
         )
       }

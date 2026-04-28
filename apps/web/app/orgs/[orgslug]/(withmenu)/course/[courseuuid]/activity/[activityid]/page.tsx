@@ -14,12 +14,6 @@ type MetadataProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-type Session = {
-  tokens?: {
-    access_token?: string
-  }
-}
-
 // Add this function at the top level to avoid duplicate fetches
 async function fetchCourseMetadata(courseuuid: string, access_token: string | null | undefined) {
   return await getCourseMetadata(
@@ -114,6 +108,7 @@ const ActivityPage = async (params: any) => {
   const orgslug = (await params.params).orgslug
   const searchParams = await params.searchParams
   const guestCompletedHint = searchParams?.guest_completed === '1'
+  const quickstartMode = searchParams?.quickstart === '1'
 
   let course_meta
   let activity
@@ -158,6 +153,7 @@ const ActivityPage = async (params: any) => {
         course={course_meta}
         unauthenticated={!session}
         guestCompletedHint={guestCompletedHint}
+        quickstartMode={quickstartMode}
       />
     </>
   )

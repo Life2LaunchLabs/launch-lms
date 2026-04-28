@@ -556,6 +556,10 @@ async def search_courses(
     limit = min(limit, 100)
     offset = (page - 1) * limit
 
+    # Fetch the org being searched (needed for cross-org sharing detection)
+    current_org = db_session.exec(select(Organization).where(Organization.slug == org_slug)).first()
+    current_org_id: int | None = current_org.id if current_org else None
+
     # SECURITY FIX: Use parameterized queries to prevent SQL injection
     # The search pattern is passed as a parameter, not interpolated into SQL
     search_pattern = f"%{search_query}%"
@@ -669,7 +673,7 @@ async def search_courses(
                 course,
                 course_authors.get(course.course_uuid, []),
                 owner_orgs.get(course.org_id),
-                org.id,
+                current_org_id,
             )
         )
 

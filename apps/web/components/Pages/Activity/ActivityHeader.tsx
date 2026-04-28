@@ -20,6 +20,7 @@ interface ActivityHeaderProps {
   trailData?: any
   onOpenOutline?: () => void
   onToggleDesktopSidebar?: () => void
+  disableOutlineAccess?: boolean
 }
 
 export default function ActivityHeader({
@@ -31,6 +32,7 @@ export default function ActivityHeader({
   trailData,
   onOpenOutline,
   onToggleDesktopSidebar,
+  disableOutlineAccess = false,
 }: ActivityHeaderProps) {
   const { t } = useTranslation()
   const router = useRouter()
@@ -39,13 +41,8 @@ export default function ActivityHeader({
   const [dotsOpen, setDotsOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [embedCopied, setEmbedCopied] = useState(false)
-  const [activityUrl, setActivityUrl] = useState('')
   const sentinelRef = useRef<HTMLDivElement>(null)
   const dotsRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    setActivityUrl(window.location.href)
-  }, [])
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -100,6 +97,7 @@ export default function ActivityHeader({
   const cleanActivityId = activity.activity_uuid
     ? activity.activity_uuid.replace('activity_', '')
     : activityid.replace('activity_', '')
+  const activityUrl = typeof window !== 'undefined' ? window.location.href : ''
 
   const shareText = `Check out this activity: ${activity.name}`
   const encodedUrl = encodeURIComponent(activityUrl)
@@ -118,7 +116,9 @@ export default function ActivityHeader({
       await navigator.clipboard.writeText(activityUrl)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch (_) {}
+    } catch {
+      return
+    }
   }
 
   const copyEmbed = async () => {
@@ -126,7 +126,9 @@ export default function ActivityHeader({
       await navigator.clipboard.writeText(getEmbedCode())
       setEmbedCopied(true)
       setTimeout(() => setEmbedCopied(false), 2000)
-    } catch (_) {}
+    } catch {
+      return
+    }
   }
 
   const shareLinks = [
@@ -242,13 +244,19 @@ export default function ActivityHeader({
           <ChevronLeft size={18} />
         </button>
 
-        <button
-          onClick={onOpenOutline}
-          className="flex min-w-0 items-center justify-center gap-2 rounded-full border border-gray-200/80 bg-white px-4 py-3 text-gray-900 nice-shadow transition-colors hover:bg-gray-50"
-        >
-          <span className="truncate text-sm font-semibold">{course.name}</span>
-          <ChevronDown size={16} className="shrink-0 text-gray-500" />
-        </button>
+        {disableOutlineAccess ? (
+          <div className="min-w-0 px-1 text-center">
+            <span className="block truncate text-sm font-semibold text-gray-900">{course.name}</span>
+          </div>
+        ) : (
+          <button
+            onClick={onOpenOutline}
+            className="flex min-w-0 items-center justify-center gap-2 rounded-full border border-gray-200/80 bg-white px-4 py-3 text-gray-900 nice-shadow transition-colors hover:bg-gray-50"
+          >
+            <span className="truncate text-sm font-semibold">{course.name}</span>
+            <ChevronDown size={16} className="shrink-0 text-gray-500" />
+          </button>
+        )}
 
         <div className="flex justify-end">
           {menu}
@@ -259,22 +267,30 @@ export default function ActivityHeader({
     </div>
   ) : (
     <div className="rounded-lg bg-white px-5 py-5 drop-shadow-xs">
-      <div className="grid grid-cols-[auto_minmax(180px,280px)_minmax(0,1fr)_auto] items-center gap-5">
-        <button
-          onClick={onToggleDesktopSidebar}
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-50 text-gray-700 ring-1 ring-gray-200/80 transition-colors hover:bg-gray-100"
-          aria-label={t('courses.chapters')}
-        >
-          <ListTree size={18} />
-        </button>
+      <div className={`grid items-center gap-5 ${disableOutlineAccess ? 'grid-cols-[minmax(180px,280px)_minmax(0,1fr)_auto]' : 'grid-cols-[auto_minmax(180px,280px)_minmax(0,1fr)_auto]'}`}>
+        {!disableOutlineAccess ? (
+          <button
+            onClick={onToggleDesktopSidebar}
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-50 text-gray-700 ring-1 ring-gray-200/80 transition-colors hover:bg-gray-100"
+            aria-label={t('courses.chapters')}
+          >
+            <ListTree size={18} />
+          </button>
+        ) : null}
 
         <div className="min-w-0">
-          <Link
-            href={getUriWithOrg(orgslug, routePaths.org.course(cleanCourseUuid))}
-            className="truncate text-sm font-semibold text-gray-900 transition-colors hover:text-gray-700"
-          >
-            {course.name}
-          </Link>
+          {disableOutlineAccess ? (
+            <span className="block truncate text-sm font-semibold text-gray-900">
+              {course.name}
+            </span>
+          ) : (
+            <Link
+              href={getUriWithOrg(orgslug, routePaths.org.course(cleanCourseUuid))}
+              className="truncate text-sm font-semibold text-gray-900 transition-colors hover:text-gray-700"
+            >
+              {course.name}
+            </Link>
+          )}
         </div>
 
         {progressSection}
@@ -293,7 +309,7 @@ export default function ActivityHeader({
       </div>
 
       {isSticky ? (
-        <div className="fixed left-0 right-0 top-0" style={{ zIndex: 'var(--z-drag-overlay)' }}>
+        <div className="fixed left-0 right-0 top-0 bg-[#f5f5f5]" style={{ zIndex: 'var(--z-drag-overlay)' }}>
           <div className="mx-auto max-w-(--breakpoint-2xl) px-4 sm:px-6 lg:px-8">
             <div className={isCompact ? 'pt-2 sm:pt-3' : 'pt-4'}>
               {headerRow}

@@ -160,6 +160,7 @@ export const OrgMenu = (props: { orgslug: string }) => {
           top: topOffset,
           height: `calc(100vh - ${topOffset}px)`,
           position: 'sticky',
+          zIndex: 'var(--z-sticky)',
         }}
       >
         <div
