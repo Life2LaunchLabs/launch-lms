@@ -104,6 +104,7 @@ export interface LandingInProgress {
 export interface LandingQuickstart {
   type: 'quickstart';
   title: string;
+  description?: string;
   items: LandingQuickstartItem[];
 }
 

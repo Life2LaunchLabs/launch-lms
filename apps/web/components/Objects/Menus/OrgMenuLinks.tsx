@@ -21,6 +21,7 @@ export const KNOWN_SUBPATHS = [
   '/badges',
   '/podcasts',
   '/communities',
+  '/community/',
   '/organizations',
   '/organization/',
   '/resources',
@@ -61,7 +62,7 @@ export function getPrimaryOrgMenuItems({
     pathname?.includes('/courses') ||
     pathname?.includes('/course/') ||
     pathname?.includes('/collection/')
-  const isOnCommunities = pathname?.includes('/communities')
+  const isOnCommunities = pathname?.includes('/communities') || pathname?.includes('/community/')
   const isOnResources = pathname?.includes('/resources') || pathname?.includes('/resource/')
 
   return [

@@ -7,7 +7,7 @@ import {
   findCourseRun,
   getCompletedCourseStepCount,
 } from '@services/courses/progress'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
 import { getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { useOrg, useOrgMembership } from '@components/Contexts/OrgContext'
@@ -90,6 +90,7 @@ interface ActivityActionsProps {
   showNavigation?: boolean
   guestMode?: boolean
   publicGuestMode?: boolean
+  quickstartMode?: boolean
 }
 
 // Custom hook for activity position
@@ -117,7 +118,7 @@ function useActivityPosition(course: any, activityId: string) {
   }, [course, activityId]);
 }
 
-function ActivityActions({ activity, activityid, course, orgslug, assignment, showNavigation = true, guestMode = false, publicGuestMode = false }: ActivityActionsProps) {
+function ActivityActions({ activity, activityid, course, orgslug, assignment, showNavigation = true, guestMode = false, publicGuestMode = false, quickstartMode = false }: ActivityActionsProps) {
   const isGuestLearner = guestMode || publicGuestMode
   return (
     <div className="flex min-w-0 items-stretch justify-end gap-2">
@@ -125,7 +126,7 @@ function ActivityActions({ activity, activityid, course, orgslug, assignment, sh
         isGuestLearner ? (
           <>
             {showNavigation && (
-              <NextActivityButton course={course} currentActivityId={activity.id} activity={activity} orgslug={orgslug} guestMode={guestMode} publicGuestMode={publicGuestMode} />
+              <NextActivityButton course={course} currentActivityId={activity.id} activity={activity} orgslug={orgslug} guestMode={guestMode} publicGuestMode={publicGuestMode} quickstartMode={quickstartMode} />
             )}
           </>
         ) : (
@@ -142,7 +143,7 @@ function ActivityActions({ activity, activityid, course, orgslug, assignment, sh
               </AssignmentSubmissionProvider>
             )}
             {showNavigation && (
-              <NextActivityButton course={course} currentActivityId={activity.id} activity={activity} orgslug={orgslug} />
+              <NextActivityButton course={course} currentActivityId={activity.id} activity={activity} orgslug={orgslug} quickstartMode={quickstartMode} />
             )}
           </AuthenticatedClientElement>
         )
@@ -157,11 +158,9 @@ function ActivityClient(props: ActivityClientProps) {
   const guestMode = props.guestMode === true
   const unauthenticated = props.unauthenticated === true
   const guestCompletedHint = props.guestCompletedHint === true
-  const searchParams = useSearchParams()
-  const quickstartMode = props.quickstartMode === true || searchParams?.get('quickstart') === '1'
+  const quickstartMode = props.quickstartMode === true
   const publicGuestMode = unauthenticated && !guestMode
   const isGuestLearner = guestMode || publicGuestMode
-  const queryString = quickstartMode ? '?quickstart=1' : ''
 
   function getRelativeTime(date: Date): string {
     const now = new Date();
@@ -271,6 +270,13 @@ function ActivityClient(props: ActivityClientProps) {
 
   // Memoize activity position calculation
   const { allActivities, currentIndex } = useActivityPosition(course, activityid);
+  const coursePath = quickstartMode
+    ? routePaths.org.quickstartCourse(courseuuid)
+    : routePaths.org.course(courseuuid)
+  const buildActivityPath = (activityUuid: string) =>
+    quickstartMode
+      ? routePaths.org.quickstartCourseActivity(courseuuid, activityUuid)
+      : routePaths.org.courseActivity(courseuuid, activityUuid)
   
   // Get previous and next activities
   const prevActivity = currentIndex > 0 ? allActivities[currentIndex - 1] : null;
@@ -333,12 +339,7 @@ function ActivityClient(props: ActivityClientProps) {
   // Navigate to an activity
   const navigateToActivity = (activity: any) => {
     if (!activity) return;
-    
-    const cleanCourseUuid = course.course_uuid?.replace('course_', '');
-    const activityPath = routePaths.org.courseActivity(
-      cleanCourseUuid,
-      activity.cleanUuid
-    )
+    const activityPath = buildActivityPath(activity.cleanUuid)
     router.push(getUriWithOrg(orgslug, activityPath));
   };
 
@@ -458,7 +459,7 @@ function ActivityClient(props: ActivityClientProps) {
                         >
                           <div className="flex">
                             <Link
-                              href={getUriWithOrg(orgslug, routePaths.org.course(courseuuid))}
+                              href={getUriWithOrg(orgslug, coursePath)}
                             >
                               <img
                                 className="w-[60px] h-[34px] rounded-md drop-shadow-md"
@@ -587,6 +588,7 @@ function ActivityClient(props: ActivityClientProps) {
                               assignment={assignment}
                               showNavigation={false}
                               guestMode={guestMode}
+                              quickstartMode={quickstartMode}
                               publicGuestMode={publicGuestMode}
                             />
                             <button
@@ -652,9 +654,10 @@ function ActivityClient(props: ActivityClientProps) {
                               currentActivityId={activityid}
                               orgslug={orgslug}
                               trailData={effectiveTrailData}
+                              courseHref={coursePath}
+                              getActivityHref={buildActivityPath}
                               variant="sheet"
                               onNavigate={() => setIsOutlineOpen(false)}
-                              queryString={queryString}
                               initialExpandedActivityId={activityid}
                             />
                           </div>
@@ -670,9 +673,10 @@ function ActivityClient(props: ActivityClientProps) {
                             currentActivityId={activityid}
                             orgslug={orgslug}
                             trailData={effectiveTrailData}
+                            courseHref={coursePath}
+                            getActivityHref={buildActivityPath}
                             variant="sidebar"
                             onCloseSidebar={() => setIsDesktopOutlineOpen(false)}
-                            queryString={queryString}
                             initialExpandedActivityId={activityid}
                           />
                         </div>
@@ -738,6 +742,7 @@ function ActivityClient(props: ActivityClientProps) {
                                 currentActivityId={activity.id}
                                 orgslug={orgslug}
                                 guestMode={guestMode}
+                                quickstartMode={quickstartMode}
                               />
                             </div>
                             <div className="flex min-w-0 flex-1 items-stretch justify-end gap-2 sm:flex-none">
@@ -746,11 +751,12 @@ function ActivityClient(props: ActivityClientProps) {
                                 activityid={activityid}
                                 course={course}
                                 orgslug={orgslug}
-                                assignment={assignment}
-                                showNavigation={false}
-                                guestMode={guestMode}
-                                publicGuestMode={publicGuestMode}
-                              />
+                              assignment={assignment}
+                              showNavigation={false}
+                              guestMode={guestMode}
+                              publicGuestMode={publicGuestMode}
+                              quickstartMode={quickstartMode}
+                            />
                               <NextActivityButton
                                 course={course}
                                 currentActivityId={activity.id}
@@ -758,6 +764,7 @@ function ActivityClient(props: ActivityClientProps) {
                                 orgslug={orgslug}
                                 guestMode={guestMode}
                                 publicGuestMode={publicGuestMode}
+                                quickstartMode={quickstartMode}
                               />
                             </div>
                           </div>
@@ -779,7 +786,7 @@ function ActivityClient(props: ActivityClientProps) {
   )
 }
 
-function NextActivityButton({ course, currentActivityId, activity, orgslug, guestMode = false, publicGuestMode = false }: { course: any, currentActivityId: string, activity: any, orgslug: string, guestMode?: boolean, publicGuestMode?: boolean }) {
+function NextActivityButton({ course, currentActivityId, activity, orgslug, guestMode = false, publicGuestMode = false, quickstartMode = false }: { course: any, currentActivityId: string, activity: any, orgslug: string, guestMode?: boolean, publicGuestMode?: boolean, quickstartMode?: boolean }) {
   const { t } = useTranslation();
   const router = useRouter();
   const session = useLHSession() as any;
@@ -819,15 +826,16 @@ function NextActivityButton({ course, currentActivityId, activity, orgslug, gues
     setIsLoading(true);
     const cleanCourseUuid = course.course_uuid?.replace('course_', '');
     const baseNextActivityPath = nextActivity
-      ? routePaths.org.courseActivity(cleanCourseUuid, nextActivity.cleanUuid)
-      : routePaths.org.courseActivityEnd(cleanCourseUuid);
+      ? (quickstartMode
+        ? routePaths.org.quickstartCourseActivity(cleanCourseUuid, nextActivity.cleanUuid)
+        : routePaths.org.courseActivity(cleanCourseUuid, nextActivity.cleanUuid))
+      : (quickstartMode
+        ? routePaths.org.quickstartCourseActivityEnd(cleanCourseUuid)
+        : routePaths.org.courseActivityEnd(cleanCourseUuid));
     const nextActivityPath =
       !nextActivity && isGuestLearner
         ? `${baseNextActivityPath}?guest_completed=1`
         : baseNextActivityPath
-    const quickstartSuffix = window.location.search.includes('quickstart=1')
-      ? (nextActivityPath.includes('?') ? '&quickstart=1' : '?quickstart=1')
-      : ''
 
     try {
       if (!(activity.activity_type === 'TYPE_QUIZ' && activity.details?.quiz_mode === 'graded')) {
@@ -843,7 +851,7 @@ function NextActivityButton({ course, currentActivityId, activity, orgslug, gues
       // Continue navigation even if marking fails
     }
 
-    router.push(getUriWithOrg(orgslug, `${nextActivityPath}${quickstartSuffix}`));
+    router.push(getUriWithOrg(orgslug, nextActivityPath));
     setIsLoading(false);
   };
 
@@ -877,7 +885,7 @@ function NextActivityButton({ course, currentActivityId, activity, orgslug, gues
   );
 }
 
-function PreviousActivityButton({ course, currentActivityId, orgslug, guestMode = false }: { course: any, currentActivityId: string, orgslug: string, guestMode?: boolean }) {
+function PreviousActivityButton({ course, currentActivityId, orgslug, guestMode = false, quickstartMode = false }: { course: any, currentActivityId: string, orgslug: string, guestMode?: boolean, quickstartMode?: boolean }) {
   const { t } = useTranslation();
   const router = useRouter();
 
@@ -912,14 +920,10 @@ function PreviousActivityButton({ course, currentActivityId, orgslug, guestMode 
 
   const navigateToActivity = () => {
     const cleanCourseUuid = course.course_uuid?.replace('course_', '');
-    const previousActivityPath = routePaths.org.courseActivity(
-      cleanCourseUuid,
-      previousActivity.cleanUuid
-    )
-    const quickstartSuffix = typeof window !== 'undefined' && window.location.search.includes('quickstart=1')
-      ? '?quickstart=1'
-      : ''
-    router.push(getUriWithOrg(orgslug, `${previousActivityPath}${quickstartSuffix}`));
+    const previousActivityPath = quickstartMode
+      ? routePaths.org.quickstartCourseActivity(cleanCourseUuid, previousActivity.cleanUuid)
+      : routePaths.org.courseActivity(cleanCourseUuid, previousActivity.cleanUuid)
+    router.push(getUriWithOrg(orgslug, previousActivityPath));
   };
 
   return (

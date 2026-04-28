@@ -122,17 +122,6 @@ function PublicCourseCard({ course, orgslug, run = null, orgName }: PublicCourse
           {course.name}
         </Link>
 
-        {isEnrolled && (
-          <div className="flex items-center gap-2 text-sm">
-            <span className={`font-semibold ${courseProgress === 100 ? 'text-green-600' : 'text-teal-600'}`}>
-              {courseProgress}%
-            </span>
-            <span className="text-gray-400 text-xs">
-              {t('courses.completed_of', { completed: courseCompletedSteps, total: courseTotalSteps })}
-            </span>
-          </div>
-        )}
-
         {course.description && (
           <p className="text-[11px] text-gray-500 line-clamp-2 min-h-[1.5rem]">
             {course.description}

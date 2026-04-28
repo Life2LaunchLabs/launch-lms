@@ -24,10 +24,12 @@ interface ActivityCourseOutlineProps {
   highlightedActivityId?: string | null
   orgslug: string
   trailData?: any
+  courseHref?: string
+  // eslint-disable-next-line no-unused-vars
+  getActivityHref?: (...args: [string]) => string
   variant?: 'sidebar' | 'sheet'
   onNavigate?: () => void
   onCloseSidebar?: () => void
-  queryString?: string
   headerMode?: 'back' | 'summary'
   highlightMode?: 'current' | 'next'
   initialExpandedActivityId?: string | null
@@ -44,10 +46,11 @@ export default function ActivityCourseOutline({
   highlightedActivityId,
   orgslug,
   trailData,
+  courseHref,
+  getActivityHref,
   variant = 'sidebar',
   onNavigate,
   onCloseSidebar,
-  queryString = '',
   headerMode = 'back',
   highlightMode = 'current',
   initialExpandedActivityId,
@@ -141,7 +144,7 @@ export default function ActivityCourseOutline({
       <div className={`flex items-center justify-between border-b border-gray-100 ${isSheet ? 'px-1 py-3' : 'px-5 py-4'}`}>
         {headerMode === 'back' ? (
           <Link
-            href={getUriWithOrg(orgslug, `${routePaths.org.course(cleanCourseUuid)}${queryString}`)}
+            href={getUriWithOrg(orgslug, courseHref || routePaths.org.course(cleanCourseUuid))}
             className="flex min-w-0 items-center gap-2 text-gray-900 transition-colors hover:text-gray-700"
           >
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-600">
@@ -203,6 +206,7 @@ export default function ActivityCourseOutline({
                   <div className="divide-y divide-gray-100">
                     {chapter.activities.map((activity: any, activityIndex: number) => {
                       const cleanActivityUuid = normalizeActivityId(activity.activity_uuid)
+                      if (!cleanActivityUuid) return null
                       const isCurrent = cleanActivityUuid === normalizedCurrentActivityId
                       const isHighlighted = cleanActivityUuid === normalizedHighlightedActivityId
                       const isNextUp = highlightMode === 'next' && isHighlighted && !isCurrent
@@ -217,7 +221,9 @@ export default function ActivityCourseOutline({
                           key={activity.id}
                           href={getUriWithOrg(
                             orgslug,
-                            `${routePaths.org.courseActivity(cleanCourseUuid, cleanActivityUuid)}${queryString}`
+                            getActivityHref
+                              ? getActivityHref(cleanActivityUuid)
+                              : routePaths.org.courseActivity(cleanCourseUuid, cleanActivityUuid)
                           )}
                           prefetch={false}
                           onClick={onNavigate}

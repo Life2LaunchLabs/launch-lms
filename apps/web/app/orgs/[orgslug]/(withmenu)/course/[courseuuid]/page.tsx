@@ -109,8 +109,6 @@ const CoursePage = async (params: any) => {
 
   // Await params before using them
   const { courseuuid, orgslug } = await params.params
-  const searchParams = await params.searchParams
-  const quickstartMode = searchParams?.quickstart === '1'
 
   // Fetch course metadata once
   let course_meta = null
@@ -176,7 +174,6 @@ const CoursePage = async (params: any) => {
         course={course_meta}
         access_token={access_token}
         serverError={fetchError}
-        quickstartMode={quickstartMode}
       />
     </>
   )

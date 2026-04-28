@@ -177,7 +177,7 @@ function InProgressSection({ orgslug }: InProgressSectionProps) {
   if (!access_token) return null
 
   return (
-    <div className="flex flex-col space-y-2 mb-6">
+    <div className="flex flex-col space-y-2">
       <h2 className="my-2 text-lg font-bold tracking-tight text-gray-900">
         In Progress
       </h2>

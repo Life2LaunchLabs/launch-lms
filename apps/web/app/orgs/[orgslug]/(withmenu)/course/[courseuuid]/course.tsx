@@ -37,7 +37,6 @@ const CourseClient = (props: any) => {
   const initialCourse = props.course
   const serverError = props.serverError
   const quickstartMode = props.quickstartMode === true
-  const queryString = quickstartMode ? '?quickstart=1' : ''
   const org = useOrg() as any
   const session = useLHSession() as any;
   const access_token = session?.data?.tokens?.access_token;
@@ -190,13 +189,17 @@ const CourseClient = (props: any) => {
   }
 
   const nextActivity = getNextActivity()
+  const coursePath = quickstartMode
+    ? routePaths.org.quickstartCourse(courseuuid)
+    : routePaths.org.course(courseuuid)
+  const getActivityPath = (activityUuid: string) =>
+    quickstartMode
+      ? routePaths.org.quickstartCourseActivity(courseuuid, activityUuid)
+      : routePaths.org.courseActivity(courseuuid, activityUuid)
   const nextActivityRoute = nextActivity
     ? getUriWithOrg(
         orgslug,
-        `${routePaths.org.courseActivity(
-          courseuuid,
-          nextActivity.activity_uuid.replace('activity_', '')
-        )}${queryString}`
+        getActivityPath(nextActivity.activity_uuid.replace('activity_', ''))
       )
     : null
 
@@ -312,7 +315,8 @@ const CourseClient = (props: any) => {
                 getActivityTypeLabel={getActivityTypeLabel}
                 t={t}
                 quickstartMode={quickstartMode}
-                queryString={queryString}
+                coursePath={coursePath}
+                getActivityPath={getActivityPath}
               />
 
               {/* Community Section */}
@@ -329,7 +333,6 @@ const CourseClient = (props: any) => {
 function CourseDetailResponsiveSection(props: any) {
   const {
     course,
-    courseuuid,
     orgslug,
     courseOwnerOrgUuid,
     activeThumbnailType,
@@ -350,7 +353,8 @@ function CourseDetailResponsiveSection(props: any) {
     getActivityTypeLabel,
     t,
     quickstartMode,
-    queryString,
+    coursePath,
+    getActivityPath,
   } = props
 
   const { atLeast } = useContainerBreakpoints()
@@ -374,9 +378,10 @@ function CourseDetailResponsiveSection(props: any) {
                 course={course}
                 orgslug={orgslug}
                 trailData={trailData}
+                courseHref={coursePath}
+                getActivityHref={getActivityPath}
                 variant="sheet"
                 onNavigate={() => setIsOutlineOpen(false)}
-                queryString={queryString}
                 headerMode="summary"
                 highlightMode="next"
                 highlightedActivityId={nextActivity?.activity_uuid}
@@ -395,8 +400,9 @@ function CourseDetailResponsiveSection(props: any) {
                 course={course}
                 orgslug={orgslug}
                 trailData={trailData}
+                courseHref={coursePath}
+                getActivityHref={getActivityPath}
                 variant="sidebar"
-                queryString={queryString}
                 headerMode="summary"
                 highlightMode="next"
                 highlightedActivityId={nextActivity?.activity_uuid}
@@ -553,7 +559,7 @@ function CourseDetailResponsiveSection(props: any) {
           )}
           <CourseShare
             courseName={course.name}
-            courseUrl={getUriWithOrg(orgslug, routePaths.org.course(courseuuid))}
+            courseUrl={getUriWithOrg(orgslug, coursePath)}
             iconOnly
           />
         </div>
@@ -673,10 +679,7 @@ function CourseDetailResponsiveSection(props: any) {
                         key={activity.activity_uuid}
                         href={getUriWithOrg(
                           orgslug,
-                          `${routePaths.org.courseActivity(
-                            courseuuid,
-                            activity.activity_uuid.replace('activity_', '')
-                          )}${queryString}`
+                          getActivityPath(activity.activity_uuid.replace('activity_', ''))
                         )}
                         rel="noopener noreferrer"
                         prefetch={false}

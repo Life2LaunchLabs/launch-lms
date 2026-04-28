@@ -108,7 +108,6 @@ const ActivityPage = async (params: any) => {
   const orgslug = (await params.params).orgslug
   const searchParams = await params.searchParams
   const guestCompletedHint = searchParams?.guest_completed === '1'
-  const quickstartMode = searchParams?.quickstart === '1'
 
   let course_meta
   let activity
@@ -153,7 +152,6 @@ const ActivityPage = async (params: any) => {
         course={course_meta}
         unauthenticated={!session}
         guestCompletedHint={guestCompletedHint}
-        quickstartMode={quickstartMode}
       />
     </>
   )
