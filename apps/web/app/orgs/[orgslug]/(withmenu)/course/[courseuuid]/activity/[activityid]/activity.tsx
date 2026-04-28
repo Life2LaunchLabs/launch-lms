@@ -657,6 +657,7 @@ function ActivityClient(props: ActivityClientProps) {
                               courseHref={coursePath}
                               getActivityHref={buildActivityPath}
                               variant="sheet"
+                              autoScrollToHighlighted
                               onNavigate={() => setIsOutlineOpen(false)}
                               initialExpandedActivityId={activityid}
                             />

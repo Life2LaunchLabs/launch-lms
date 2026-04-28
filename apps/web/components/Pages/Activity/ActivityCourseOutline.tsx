@@ -30,6 +30,8 @@ interface ActivityCourseOutlineProps {
   variant?: 'sidebar' | 'sheet'
   onNavigate?: () => void
   onCloseSidebar?: () => void
+  showCloseButton?: boolean
+  autoScrollToHighlighted?: boolean
   headerMode?: 'back' | 'summary'
   highlightMode?: 'current' | 'next'
   initialExpandedActivityId?: string | null
@@ -51,6 +53,8 @@ export default function ActivityCourseOutline({
   variant = 'sidebar',
   onNavigate,
   onCloseSidebar,
+  showCloseButton = true,
+  autoScrollToHighlighted = false,
   headerMode = 'back',
   highlightMode = 'current',
   initialExpandedActivityId,
@@ -93,12 +97,13 @@ export default function ActivityCourseOutline({
   )
 
   useEffect(() => {
+    if (!autoScrollToHighlighted) return
     if (!scrollTargetRef.current) return
     scrollTargetRef.current.scrollIntoView({
       block: 'center',
       behavior: 'smooth',
     })
-  }, [variant, normalizedHighlightedActivityId])
+  }, [autoScrollToHighlighted, variant, normalizedHighlightedActivityId])
 
   const getActivityTypeIcon = (activityType: string) => {
     switch (activityType) {
@@ -161,7 +166,7 @@ export default function ActivityCourseOutline({
           </div>
         )}
 
-        {variant === 'sidebar' ? (
+        {variant === 'sidebar' && showCloseButton ? (
           <button
             onClick={onCloseSidebar}
             className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"

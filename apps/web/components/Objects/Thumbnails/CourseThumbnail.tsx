@@ -34,6 +34,7 @@ type Course = {
   update_date: string
   public?: boolean
   published?: boolean
+  coming_soon?: boolean
   authors?: Array<{
     user: {
       id: string
@@ -171,7 +172,7 @@ function CourseThumbnail({ course, orgslug, customLink, isDashboard = false, isS
         />
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300" />
         {isDashboard && (
-          <div className="absolute bottom-2 left-2">
+          <div className="absolute bottom-2 left-2 flex gap-1">
             {course.published ? (
               <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-green-100 text-green-700 rounded-full">
                 {t('courses.published')}
@@ -181,6 +182,18 @@ function CourseThumbnail({ course, orgslug, customLink, isDashboard = false, isS
                 {t('courses.unpublished')}
               </span>
             )}
+            {course.coming_soon && (
+              <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-orange-100 text-orange-700 rounded-full">
+                {t('courses.coming_soon')}
+              </span>
+            )}
+          </div>
+        )}
+        {!isDashboard && course.coming_soon && (
+          <div className="absolute top-2 left-2">
+            <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-orange-500 text-white rounded-full shadow-sm">
+              {t('courses.coming_soon')}
+            </span>
           </div>
         )}
       </Link>
@@ -239,12 +252,18 @@ function CourseThumbnail({ course, orgslug, customLink, isDashboard = false, isS
             )}
           </div>
           
-          <Link
-            href={courseLink}
-            className="text-[10px] font-bold text-gray-400 hover:text-gray-900 transition-colors uppercase tracking-wider"
-          >
-            {t('courses.start_learning')}
-          </Link>
+          {course.coming_soon ? (
+            <span className="text-[10px] font-bold text-orange-500 uppercase tracking-wider">
+              {t('courses.coming_soon')}
+            </span>
+          ) : (
+            <Link
+              href={courseLink}
+              className="text-[10px] font-bold text-gray-400 hover:text-gray-900 transition-colors uppercase tracking-wider"
+            >
+              {t('courses.start_learning')}
+            </Link>
+          )}
         </div>
       </div>
     </div>

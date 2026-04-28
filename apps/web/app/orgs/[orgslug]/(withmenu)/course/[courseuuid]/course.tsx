@@ -9,7 +9,7 @@ import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/Ge
 import {
   getCourseThumbnailMediaDirectory,
 } from '@services/media/media'
-import { ArrowRight, Backpack, Check, File, StickyNote, Video, Image as ImageIcon, Layers, BookCopy, Play } from 'lucide-react'
+import { ArrowRight, Check, Video, Image as ImageIcon, BookCopy, Play, Clock } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -23,11 +23,9 @@ import {
   useContainerBreakpoints,
 } from '@components/Contexts/ContainerBreakpointContext'
 import ActivityCourseOutline from '@components/Pages/Activity/ActivityCourseOutline'
-import { Dialog, DialogContent } from '@components/ui/dialog'
 
 const CourseClient = (props: any) => {
   const { t } = useTranslation()
-  const [expandedChapters, setExpandedChapters] = useState<{[key: string]: boolean}>({})
   const [preferredThumbnailType, setPreferredThumbnailType] = useState<'image' | 'video' | null>(null)
   const [descriptionExpanded, setDescriptionExpanded] = useState(false)
   const [isDescriptionTall, setIsDescriptionTall] = useState(false)
@@ -131,52 +129,6 @@ const CourseClient = (props: any) => {
       emoji: '📝',
     }))
   }, [course])
-
-  const defaultExpandedChapters = useMemo(() => {
-    if (!course?.chapters || trailData === undefined) return {}
-
-    let nextActivityChapterUuid: string | null = null
-    outer: for (const chapter of course.chapters) {
-      for (const activity of chapter.activities) {
-        if (!isActivityDone(activity)) {
-          nextActivityChapterUuid = chapter.chapter_uuid
-          break outer
-        }
-      }
-    }
-
-    const defaults: {[key: string]: boolean} = {}
-    course.chapters.forEach((chapter: any, idx: number) => {
-      defaults[chapter.chapter_uuid] = nextActivityChapterUuid
-        ? chapter.chapter_uuid === nextActivityChapterUuid
-        : idx === 0
-    })
-
-    return defaults
-  }, [course, isActivityDone, trailData])
-
-  const getActivityTypeLabel = (activityType: string) => {
-    switch (activityType) {
-      case 'TYPE_VIDEO':
-        return t('activities.video')
-      case 'TYPE_DOCUMENT':
-        return t('activities.document')
-      case 'TYPE_DYNAMIC':
-        return t('activities.page')
-      case 'TYPE_ASSIGNMENT':
-        return t('activities.assignment')
-      default:
-        return t('activities.learning_material')
-    }
-  }
-
-  const isActivityCurrent = (activity: any) => {
-    const activity_uuid = activity.activity_uuid.replace('activity_', '')
-    if (props.current_activity && props.current_activity == activity_uuid) {
-      return true
-    }
-    return false
-  }
 
   const getNextActivity = () => {
     if (!course?.chapters) return null
@@ -307,16 +259,11 @@ const CourseClient = (props: any) => {
                 descriptionExpanded={descriptionExpanded}
                 setDescriptionExpanded={setDescriptionExpanded}
                 descriptionRef={descriptionRef}
-                expandedChapters={expandedChapters}
-                defaultExpandedChapters={defaultExpandedChapters}
-                setExpandedChapters={setExpandedChapters}
-                isActivityDone={isActivityDone}
-                isActivityCurrent={isActivityCurrent}
-                getActivityTypeLabel={getActivityTypeLabel}
                 t={t}
                 quickstartMode={quickstartMode}
                 coursePath={coursePath}
                 getActivityPath={getActivityPath}
+                comingSoon={!!course.coming_soon}
               />
 
               {/* Community Section */}
@@ -345,74 +292,56 @@ function CourseDetailResponsiveSection(props: any) {
     descriptionExpanded,
     setDescriptionExpanded,
     descriptionRef,
-    expandedChapters,
-    defaultExpandedChapters,
-    setExpandedChapters,
-    isActivityDone,
-    isActivityCurrent,
-    getActivityTypeLabel,
     t,
     quickstartMode,
     coursePath,
     getActivityPath,
+    comingSoon,
   } = props
 
   const { atLeast } = useContainerBreakpoints()
   const isSplit = atLeast('split')
   const isSpacious = atLeast('spacious')
-  const [isOutlineOpen, setIsOutlineOpen] = useState(false)
   const mediaFrameClass = isSplit
-    ? 'h-[180px] w-[320px]'
+    ? 'h-[300px] w-full'
     : isSpacious
       ? 'h-[360px] w-full'
       : 'h-[220px] w-full sm:h-[300px]'
 
   return (
     <>
-      {!quickstartMode ? (
-        <Dialog open={isOutlineOpen} onOpenChange={setIsOutlineOpen}>
-          <DialogContent className="left-0 right-0 bottom-0 top-auto mt-16 max-h-[calc(100dvh-4rem)] max-w-none translate-x-0 translate-y-0 rounded-t-[28px] rounded-b-none border-x-0 border-b-0 border-t border-gray-200 bg-white px-0 pb-0 pt-3 sm:rounded-t-[28px] lg:hidden">
-            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-gray-200" />
-            <div className="min-h-0 overflow-hidden px-4 pb-5 sm:px-5">
-              <ActivityCourseOutline
-                course={course}
-                orgslug={orgslug}
-                trailData={trailData}
-                courseHref={coursePath}
-                getActivityHref={getActivityPath}
-                variant="sheet"
-                onNavigate={() => setIsOutlineOpen(false)}
-                headerMode="summary"
-                highlightMode="next"
-                highlightedActivityId={nextActivity?.activity_uuid}
-                initialExpandedActivityId={nextActivity?.activity_uuid}
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
-      ) : null}
-
       <div className={`flex flex-col gap-8 items-start ${isSplit ? 'flex-row' : ''}`}>
         {!quickstartMode && isSplit ? (
           <aside className="hidden lg:block lg:w-[320px] lg:shrink-0">
             <div className="sticky top-28">
-              <ActivityCourseOutline
-                course={course}
-                orgslug={orgslug}
-                trailData={trailData}
-                courseHref={coursePath}
-                getActivityHref={getActivityPath}
-                variant="sidebar"
-                headerMode="summary"
-                highlightMode="next"
-                highlightedActivityId={nextActivity?.activity_uuid}
-                initialExpandedActivityId={nextActivity?.activity_uuid}
-              />
+              {comingSoon ? (
+                <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-orange-200 bg-orange-50 px-6 py-8 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-100">
+                    <Clock size={22} className="text-orange-500" />
+                  </div>
+                  <p className="text-sm font-bold text-orange-700">{t('courses.coming_soon')}</p>
+                  <p className="text-xs text-orange-600/80">{t('courses.coming_soon_detail')}</p>
+                </div>
+              ) : (
+                <ActivityCourseOutline
+                  course={course}
+                  orgslug={orgslug}
+                  trailData={trailData}
+                  courseHref={coursePath}
+                  getActivityHref={getActivityPath}
+                  variant="sidebar"
+                  showCloseButton={false}
+                  headerMode="summary"
+                  highlightMode="next"
+                  highlightedActivityId={nextActivity?.activity_uuid}
+                  initialExpandedActivityId={nextActivity?.activity_uuid}
+                />
+              )}
             </div>
           </aside>
         ) : null}
 
-        <div className={`w-full space-y-4 ${isSplit ? 'max-w-[360px] shrink-0' : ''}`}>
+        <div className={`w-full min-w-0 space-y-6 ${isSplit ? 'flex-1' : ''}`}>
           {(() => {
             const showVideo = course.thumbnail_type === 'video' || (course.thumbnail_type === 'both' && activeThumbnailType === 'video')
             const showImage = course.thumbnail_type === 'image' || (course.thumbnail_type === 'both' && activeThumbnailType === 'image') || !course.thumbnail_type
@@ -539,16 +468,12 @@ function CourseDetailResponsiveSection(props: any) {
         )}
 
         <div className="flex items-center gap-2">
-          {!quickstartMode ? (
-            <button
-              type="button"
-              onClick={() => setIsOutlineOpen(true)}
-              className="rounded-full border border-gray-200/80 bg-white px-4 py-2 text-sm font-semibold text-gray-900 nice-shadow transition-colors hover:bg-gray-50 lg:hidden"
-            >
-              {t('courses.chapters')}
-            </button>
-          ) : null}
-          {nextActivityRoute && (
+          {comingSoon ? (
+            <span className="flex items-center gap-2 rounded-lg bg-orange-100 px-4 py-2 text-sm font-semibold text-orange-700">
+              <Clock size={14} />
+              {t('courses.coming_soon')}
+            </span>
+          ) : nextActivityRoute ? (
             <Link
               href={nextActivityRoute}
               className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
@@ -556,7 +481,7 @@ function CourseDetailResponsiveSection(props: any) {
               <Play size={14} fill="currentColor" />
               {t('courses.get_started')}
             </Link>
-          )}
+          ) : null}
           <CourseShare
             courseName={course.name}
             courseUrl={getUriWithOrg(orgslug, coursePath)}
@@ -626,113 +551,34 @@ function CourseDetailResponsiveSection(props: any) {
             </div>
           </div>
         )}
-        </div>
 
-        <div className={`mb-10 w-full space-y-3 ${isSplit ? 'flex-1' : ''}`}>
-          {course.chapters.map((chapter: any, idx: number) => {
-            const isExpanded = expandedChapters[chapter.chapter_uuid] ?? defaultExpandedChapters[chapter.chapter_uuid] ?? false
-            return (
-              <div
-                key={chapter.chapter_uuid || `chapter-${chapter.name}`}
-                className={`bg-white outline outline-1 outline-neutral-200/40 rounded-lg overflow-hidden transition-shadow duration-200 ${
-                  isExpanded
-                    ? 'shadow-xl shadow-gray-300/40'
-                    : 'shadow-md shadow-gray-300/25'
-                }`}
-              >
-                <div
-                  className="flex items-start py-4 px-4 font-bold bg-neutral-50 text-neutral-600 cursor-pointer hover:bg-neutral-100 transition-colors"
-                  onClick={() => setExpandedChapters((prev: {[key: string]: boolean}) => ({
-                    ...prev,
-                    [chapter.chapter_uuid]: !isExpanded
-                  }))}
-                >
-                  <div className="flex flex-col justify-center mr-3 pt-1">
-                    <svg
-                      className={`w-5 h-5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                  <div className="flex flex-col items-start w-full">
-                    <div className="flex items-center flex-wrap mb-1 w-full min-w-0">
-                      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-neutral-200 text-neutral-600 text-xs font-semibold mr-2 border border-neutral-300 flex-shrink-0">
-                        {idx + 1}
-                      </span>
-                      <h3 className="text-lg font-bold leading-tight truncate min-w-0 sm:text-base md:text-lg" style={{ lineHeight: '1.2' }}>{chapter.name}</h3>
-                    </div>
-                    <div className="flex items-center space-x-1 text-sm text-neutral-400 font-normal">
-                      <Layers size={16} className="mr-1" />
-                      <span>{chapter.activities.length} {t('activities.activities')}</span>
-                    </div>
-                  </div>
+        {!quickstartMode && !isSplit ? (
+          <div className="w-full">
+            {comingSoon ? (
+              <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-orange-200 bg-orange-50 px-6 py-8 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-100">
+                  <Clock size={22} className="text-orange-500" />
                 </div>
-                <div className={`transition-all duration-200 ${isExpanded ? 'block' : 'hidden'}`}>
-                  {chapter.activities.map((activity: any) => {
-                    const done = !!isActivityDone(activity)
-                    const isNextUp = activity.activity_uuid === nextActivity?.activity_uuid
-                    return (
-                      <Link
-                        key={activity.activity_uuid}
-                        href={getUriWithOrg(
-                          orgslug,
-                          getActivityPath(activity.activity_uuid.replace('activity_', ''))
-                        )}
-                        rel="noopener noreferrer"
-                        prefetch={false}
-                        className={`block group transition-colors duration-150 px-4 py-3 ${
-                          done
-                            ? 'bg-neutral-100 hover:bg-neutral-150'
-                            : isNextUp
-                              ? 'bg-teal-50 hover:bg-teal-100'
-                              : 'hover:bg-neutral-50'
-                        }`}
-                      >
-                        <div className="flex space-x-3 items-center">
-                          <div className="shrink-0">
-                            {done ? (
-                              <div className="w-7 h-7 rounded-full bg-teal-200 flex items-center justify-center">
-                                <Check size={13} strokeWidth={2.5} className="text-teal-600" />
-                              </div>
-                            ) : isNextUp ? (
-                              <div className="w-7 h-7 rounded-full bg-teal-500 shadow-md shadow-teal-300/60 flex items-center justify-center">
-                                <Play size={10} fill="white" className="text-white ml-0.5" />
-                              </div>
-                            ) : (
-                              <div className="w-7 h-7 rounded-full border-2 border-neutral-300" />
-                            )}
-                          </div>
-                          <div className="flex flex-col grow min-w-0">
-                            <div className="flex items-center space-x-2 w-full">
-                              <p className={`font-semibold truncate transition-colors ${done ? 'text-neutral-400' : 'text-neutral-600 group-hover:text-neutral-800'}`}>{activity.name}</p>
-                              {isActivityCurrent(activity) && (
-                                <div className="flex items-center space-x-1 text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 animate-pulse">
-                                  <span>{t('activities.current')}</span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex items-center space-x-1.5 mt-0.5 text-neutral-400">
-                              {activity.activity_type === 'TYPE_DYNAMIC' && <StickyNote size={10} />}
-                              {activity.activity_type === 'TYPE_VIDEO' && <Video size={10} />}
-                              {activity.activity_type === 'TYPE_DOCUMENT' && <File size={10} />}
-                              {activity.activity_type === 'TYPE_ASSIGNMENT' && <Backpack size={10} />}
-                              <span className="text-xs font-medium">{getActivityTypeLabel(activity.activity_type)}</span>
-                            </div>
-                          </div>
-                          <div className="text-neutral-300 group-hover:text-neutral-400 transition-colors shrink-0">
-                            <ArrowRight size={14} />
-                          </div>
-                        </div>
-                      </Link>
-                    )
-                  })}
-                </div>
+                <p className="text-sm font-bold text-orange-700">{t('courses.coming_soon')}</p>
+                <p className="text-xs text-orange-600/80">{t('courses.coming_soon_detail')}</p>
               </div>
-            )
-          })}
+            ) : (
+              <ActivityCourseOutline
+                course={course}
+                orgslug={orgslug}
+                trailData={trailData}
+                courseHref={coursePath}
+                getActivityHref={getActivityPath}
+                variant="sidebar"
+                showCloseButton={false}
+                headerMode="summary"
+                highlightMode="next"
+                highlightedActivityId={nextActivity?.activity_uuid}
+                initialExpandedActivityId={nextActivity?.activity_uuid}
+              />
+            )}
+          </div>
+        ) : null}
         </div>
       </div>
     </>
