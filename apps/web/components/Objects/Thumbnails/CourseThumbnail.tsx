@@ -14,6 +14,7 @@ import Link from 'next/link'
 import React from 'react'
 import toast from 'react-hot-toast'
 import UserAvatar from '@components/Objects/UserAvatar'
+import { CourseThumbnailImage } from './CourseThumbnailImage'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -164,15 +165,11 @@ function CourseThumbnail({ course, orgslug, customLink, isDashboard = false, isS
         isDashboard={isDashboard}
       />
 
-      <Link prefetch href={courseLink} className="block relative aspect-video overflow-hidden bg-gray-100">
-        <img
-          src={thumbnailImage}
-          alt={course.name}
-          className="w-full h-full object-contain bg-gray-100 transition-transform duration-500 group-hover:scale-105"
-        />
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300" />
+      <Link prefetch href={courseLink} className="block relative aspect-video overflow-hidden bg-black">
+        <CourseThumbnailImage src={thumbnailImage} alt={course.name} hoverScale />
+        <div className="absolute inset-0 z-20 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
         {isDashboard && (
-          <div className="absolute bottom-2 left-2 flex gap-1">
+          <div className="absolute bottom-2 left-2 z-30 flex gap-1">
             {course.published ? (
               <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-green-100 text-green-700 rounded-full">
                 {t('courses.published')}
@@ -190,7 +187,7 @@ function CourseThumbnail({ course, orgslug, customLink, isDashboard = false, isS
           </div>
         )}
         {!isDashboard && course.coming_soon && (
-          <div className="absolute top-2 left-2">
+          <div className="absolute top-2 left-2 z-30">
             <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-orange-500 text-white rounded-full shadow-sm">
               {t('courses.coming_soon')}
             </span>

@@ -7,6 +7,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { Resource } from '@services/resources/resources'
 import { getResourceThumbnailMediaDirectory } from '@services/media/media'
 import SaveDropdown from '@components/Resources/SaveDropdown'
+import ResourceTypeVisual from '@components/Resources/ResourceTypeVisual'
 
 export default function ResourceCard({
   resource,
@@ -22,7 +23,7 @@ export default function ResourceCard({
   const ownerOrgUuid = resource.owner_org_uuid || orgUUID
   const imageSrc = resource.thumbnail_image && ownerOrgUuid
     ? getResourceThumbnailMediaDirectory(ownerOrgUuid, resource.resource_uuid, resource.thumbnail_image)
-    : resource.cover_image_url || '/placeholder/course-dark.png'
+    : resource.cover_image_url
 
   return (
     <div className="group relative aspect-square overflow-hidden rounded bg-gray-100">
@@ -32,7 +33,13 @@ export default function ResourceCard({
         href={getUriWithOrg(orgslug, routePaths.org.resource(resource.resource_uuid.replace('resource_', '')))}
         className="absolute inset-0 block"
       >
-        <img src={imageSrc} alt={resource.title} className="absolute inset-0 h-full w-full object-cover" />
+        <ResourceTypeVisual
+          type={resource.resource_type}
+          title={resource.title}
+          imageSrc={imageSrc}
+          className="absolute inset-0"
+          iconClassName="h-16 w-16"
+        />
 
         {/* Title panel — expands upward on hover */}
         <div className="absolute inset-x-0 bottom-0 bg-white/80 backdrop-blur-sm rounded-t overflow-hidden h-[5.5rem] group-hover:h-[calc(100%-2.5rem)] transition-[height] duration-300 ease-out">

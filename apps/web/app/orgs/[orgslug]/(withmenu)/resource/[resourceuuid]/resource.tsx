@@ -9,6 +9,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import ResourceComments from '@components/Resources/ResourceComments'
 import SaveDropdown from '@components/Resources/SaveDropdown'
+import ResourceTypeVisual from '@components/Resources/ResourceTypeVisual'
 import {
   getResource,
   saveResource,
@@ -51,7 +52,7 @@ export default function ResourceDetailClient({ resourceUuid }: { resourceUuid: s
 
   const imageSrc = resource.thumbnail_image && (resource.owner_org_uuid || org?.org_uuid)
     ? getResourceThumbnailMediaDirectory(resource.owner_org_uuid || org.org_uuid, resource.resource_uuid, resource.thumbnail_image)
-    : resource.cover_image_url || '/placeholder/course-dark.png'
+    : resource.cover_image_url
 
   const handleUpdatePrivate = async () => {
     if (!accessToken) return
@@ -117,14 +118,24 @@ export default function ResourceDetailClient({ resourceUuid }: { resourceUuid: s
           <div>
             {/* Mobile: full-width image above */}
             <div className="sm:hidden aspect-[4/3] w-full overflow-hidden rounded-2xl bg-gray-100 mb-4">
-              <img src={imageSrc} alt={resource.title} className="h-full w-full object-cover" />
+              <ResourceTypeVisual
+                type={resource.resource_type}
+                title={resource.title}
+                imageSrc={imageSrc}
+                iconClassName="h-16 w-16"
+              />
             </div>
 
             {/* Content row */}
             <div className="flex gap-5">
               {/* Desktop square image */}
               <div className="hidden sm:block aspect-square w-44 shrink-0 overflow-hidden rounded-xl bg-gray-100">
-                <img src={imageSrc} alt={resource.title} className="h-full w-full object-cover" />
+                <ResourceTypeVisual
+                  type={resource.resource_type}
+                  title={resource.title}
+                  imageSrc={imageSrc}
+                  iconClassName="h-16 w-16"
+                />
               </div>
               {/* Text */}
               <div className="flex-1 min-w-0">

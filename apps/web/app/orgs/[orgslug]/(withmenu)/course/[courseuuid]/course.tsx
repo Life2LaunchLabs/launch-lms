@@ -9,6 +9,7 @@ import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/Ge
 import {
   getCourseThumbnailMediaDirectory,
 } from '@services/media/media'
+import { CourseThumbnailImage } from '@components/Objects/Thumbnails/CourseThumbnailImage'
 import { ArrowRight, Check, Video, Image as ImageIcon, BookCopy, Play, Clock } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
@@ -396,18 +397,17 @@ function CourseDetailResponsiveSection(props: any) {
               )
             } else if (showImage && course.thumbnail_image) {
               return (
-                <div className={`relative inset-0 ring-1 ring-inset ring-black/10 rounded-lg shadow-xl overflow-hidden bg-gray-100 ${mediaFrameClass}`}>
-                  <img
+                <div className={`relative inset-0 ring-1 ring-inset ring-black/10 rounded-lg shadow-xl overflow-hidden bg-black ${mediaFrameClass}`}>
+                  <CourseThumbnailImage
                     src={getCourseThumbnailMediaDirectory(
                       courseOwnerOrgUuid,
                       course?.course_uuid,
                       course?.thumbnail_image
                     )}
                     alt={course.name}
-                    className="w-full h-full object-contain bg-gray-100"
                   />
                   {course.thumbnail_type === 'both' && (
-                    <div className="absolute top-3 right-3 z-10">
+                    <div className="absolute top-3 right-3 z-20">
                       <div className="bg-black/20 backdrop-blur-sm rounded-lg p-1 flex space-x-1">
                         <button
                           onClick={() => setActiveThumbnailType('image')}
@@ -438,12 +438,8 @@ function CourseDetailResponsiveSection(props: any) {
               )
             } else {
               return (
-                <div className={`relative inset-0 ring-1 ring-inset ring-black/10 rounded-lg shadow-xl overflow-hidden bg-gray-100 ${mediaFrameClass}`}>
-                  <img
-                    src="/empty_thumbnail.png"
-                    alt={course.name}
-                    className="w-full h-full object-contain bg-gray-100"
-                  />
+                <div className={`relative inset-0 ring-1 ring-inset ring-black/10 rounded-lg shadow-xl overflow-hidden bg-black ${mediaFrameClass}`}>
+                  <CourseThumbnailImage src="/empty_thumbnail.png" alt={course.name} />
                 </div>
               )
             }
