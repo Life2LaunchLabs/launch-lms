@@ -63,7 +63,7 @@ export default function DashboardOnboardingBanner({
 
   return (
     <section
-      className="relative mb-6 overflow-visible rounded-[6px] border border-white/20 bg-blue-900 bg-cover bg-center px-4 py-4 text-white shadow-sm sm:px-5 sm:py-5"
+      className="relative mb-6 w-full overflow-visible rounded-[6px] border border-white/20 bg-blue-900 bg-cover bg-center px-4 py-4 text-white shadow-sm sm:px-5 sm:py-5"
       style={{ backgroundImage: 'url(/rough_blue_background.png)' }}
     >
       <div className="pointer-events-none absolute inset-0 rounded-[6px] bg-white/25" />
