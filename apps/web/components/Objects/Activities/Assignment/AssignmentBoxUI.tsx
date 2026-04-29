@@ -23,9 +23,6 @@ function AssignmentBoxUI({ type, view, currentPoints, maxPoints, saveFC, submitF
     const submission = useAssignmentSubmission() as any
     const session = useLHSession() as any
     
-    useEffect(() => {
-        console.log(submission)
-    }, [submission])
 
     // Check if user is authenticated
     const isAuthenticated = session?.status === 'authenticated'

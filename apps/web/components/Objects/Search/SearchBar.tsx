@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, ArrowRight, Sparkles, BookCopy, SquareLibrary, ArrowUpRight, TextSearch, ScanSearch, Users, X, Building2 } from 'lucide-react';
+import { Search, ArrowRight, Sparkles, BookCopy, SquareLibrary, ArrowUpRight, TextSearch, ScanSearch, Users, X, Building2, MessageCircle, Layers } from 'lucide-react';
 import { searchOrgContent } from '@services/search/search';
 import { useLHSession } from '@components/Contexts/LHSessionContext';
 import Link from 'next/link';
@@ -73,10 +73,37 @@ interface Collection {
   update_date: string;
 }
 
+interface Community {
+  name: string;
+  description: string | null;
+  community_uuid: string;
+  public: boolean;
+  shared: boolean;
+  thumbnail_image: string;
+  org_id: number;
+  owner_org_uuid?: string | null;
+  is_shared_from_other_org?: boolean;
+}
+
+interface ResourceChannel {
+  name: string;
+  description: string | null;
+  channel_uuid: string;
+  public: boolean;
+  shared: boolean;
+  thumbnail_image: string | null;
+  org_id: number;
+  color: string | null;
+  owner_org_uuid?: string | null;
+  is_shared_from_other_org?: boolean;
+}
+
 interface SearchResults {
   courses: Course[];
   collections: Collection[];
   organizations: DiscoverOrganization[];
+  communities: Community[];
+  resource_channels: ResourceChannel[];
   users: User[];
 }
 
@@ -122,6 +149,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     courses: [],
     collections: [],
     organizations: [],
+    communities: [],
+    resource_channels: [],
     users: []
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -157,7 +186,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   useEffect(() => {
     const fetchResults = async () => {
       if (debouncedSearch.trim().length === 0) {
-        setSearchResults({ courses: [], collections: [], organizations: [], users: [] });
+        setSearchResults({ courses: [], collections: [], organizations: [], communities: [], resource_channels: [], users: [] });
         setIsLoading(false);
         return;
       }
@@ -181,19 +210,21 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           courses: Array.isArray(typedResponse?.courses) ? typedResponse.courses : [],
           collections: Array.isArray(typedResponse?.collections) ? typedResponse.collections : [],
           organizations: Array.isArray(typedResponse?.organizations) ? typedResponse.organizations : [],
+          communities: Array.isArray(typedResponse?.communities) ? typedResponse.communities : [],
+          resource_channels: Array.isArray(typedResponse?.resource_channels) ? typedResponse.resource_channels : [],
           users: Array.isArray(typedResponse?.users) ? typedResponse.users : []
         };
 
         setSearchResults(processedResults);
 
-        const totalResults = processedResults.courses.length + processedResults.collections.length + processedResults.organizations.length + processedResults.users.length;
+        const totalResults = processedResults.courses.length + processedResults.collections.length + processedResults.organizations.length + processedResults.communities.length + processedResults.resource_channels.length + processedResults.users.length;
         track('search_query', {
           query: debouncedSearch,
           results_count: totalResults,
         });
       } catch (error) {
         console.error('Error searching content:', error);
-        setSearchResults({ courses: [], collections: [], organizations: [], users: [] });
+        setSearchResults({ courses: [], collections: [], organizations: [], communities: [], resource_channels: [], users: [] });
       }
       setIsLoading(false);
       setIsInitialLoad(false);
@@ -263,6 +294,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     const hasResults = searchResults.courses.length > 0 ||
                       searchResults.collections.length > 0 ||
                       searchResults.organizations.length > 0 ||
+                      searchResults.communities.length > 0 ||
+                      searchResults.resource_channels.length > 0 ||
                       searchResults.users.length > 0;
 
     if (!hasResults) return null;
@@ -337,6 +370,63 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                     <span className="text-[10px] font-medium text-black/40 uppercase tracking-wide whitespace-nowrap">{t('collections.collection')}</span>
                   </div>
                   <p className="text-xs text-black/50 truncate">{collection.description}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {searchResults.communities.length > 0 && (
+          <div className="mb-2">
+            <div className="flex items-center gap-2 px-2 py-1 text-xs text-black/40">
+              <MessageCircle size={12} />
+              <span>Communities</span>
+            </div>
+            {searchResults.communities.map((community) => (
+              <Link
+                key={community.community_uuid}
+                href={getUriWithOrg(orgslug, routePaths.org.community(community.community_uuid.replace('community_', '')))}
+                className="flex items-center gap-3 p-2 hover:bg-black/[0.02] rounded-lg transition-colors"
+              >
+                <div className="w-10 h-10 bg-black/5 rounded-lg flex items-center justify-center">
+                  <MessageCircle size={20} className="text-black/40" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-medium text-black/80 truncate">{community.name}</h3>
+                    <span className="text-[10px] font-medium text-black/40 uppercase tracking-wide whitespace-nowrap">community</span>
+                  </div>
+                  <p className="text-xs text-black/50 truncate">{community.description}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {searchResults.resource_channels.length > 0 && (
+          <div className="mb-2">
+            <div className="flex items-center gap-2 px-2 py-1 text-xs text-black/40">
+              <Layers size={12} />
+              <span>Resource Channels</span>
+            </div>
+            {searchResults.resource_channels.map((channel) => (
+              <Link
+                key={channel.channel_uuid}
+                href={getUriWithOrg(orgslug, `/resources?channel=${encodeURIComponent(channel.channel_uuid)}`)}
+                className="flex items-center gap-3 p-2 hover:bg-black/[0.02] rounded-lg transition-colors"
+              >
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: channel.color ? `${channel.color}20` : 'rgb(0,0,0,0.05)' }}
+                >
+                  <Layers size={20} style={{ color: channel.color || 'rgb(0,0,0,0.4)' }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-medium text-black/80 truncate">{channel.name}</h3>
+                    <span className="text-[10px] font-medium text-black/40 uppercase tracking-wide whitespace-nowrap">channel</span>
+                  </div>
+                  <p className="text-xs text-black/50 truncate">{channel.description}</p>
                 </div>
               </Link>
             ))}
@@ -452,6 +542,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           {((searchResults.courses.length > 0 ||
              searchResults.collections.length > 0 ||
              searchResults.organizations.length > 0 ||
+             searchResults.communities.length > 0 ||
+             searchResults.resource_channels.length > 0 ||
              searchResults.users.length > 0) ||
              searchQuery.trim()) && (
             <Link
@@ -541,7 +633,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
   // Desktop: existing behaviour
   return (
-    <div ref={searchRef} className={`relative ${className}`}>
+    <div ref={searchRef} className={`relative z-[var(--z-dropdown)] ${className}`}>
       <div className="relative group">
         <input
           type="text"

@@ -1,4 +1,6 @@
-from src.services.courses.activities.quiz.scoring import compute_scores
+import pytest
+
+from src.services.courses.activities.quiz.scoring import compute_scores, match_result_option
 from src.services.courses.activities.quiz.attempts import _get_active_scoring_vectors
 
 
@@ -82,5 +84,31 @@ def test_compute_scores_applies_sort_assignments_per_card_category() -> None:
 
     assert scores == {
         "correct": 0.5,
-        "confidence": 0.6,
+        "confidence": pytest.approx(0.6),
     }
+
+
+def test_match_result_option_prefers_low_target_for_zero_score() -> None:
+    result = match_result_option(
+        {"energy": 0.0},
+        [
+            {"uuid": "high", "scores": {"energy": 1.0}},
+            {"uuid": "low", "scores": {"energy": 0.0}},
+        ],
+    )
+
+    assert result is not None
+    assert result["uuid"] == "low"
+
+
+def test_match_result_option_prefers_false_binary_target_for_zero_score() -> None:
+    result = match_result_option(
+        {"correct": 0.0},
+        [
+            {"uuid": "true", "scores": {"correct": 1.0}},
+            {"uuid": "false", "scores": {"correct": 0.0}},
+        ],
+    )
+
+    assert result is not None
+    assert result["uuid"] == "false"

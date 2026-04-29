@@ -14,6 +14,7 @@ import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { removeCourse } from '@services/courses/activity'
 import { getCourseThumbnailMediaDirectory, getUserAvatarMediaDirectory } from '@services/media/media'
 import { revalidateTags } from '@services/utils/ts/requests'
+import { CourseThumbnailImage } from '@components/Objects/Thumbnails/CourseThumbnailImage'
 import { BookOpen, Building2, Check, MoreVertical, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -92,20 +93,20 @@ function PublicCourseCard({ course, orgslug, run = null, orgName }: PublicCourse
         </div>
       )}
 
-      <Link href={courseLink} className="block relative aspect-video overflow-hidden bg-gray-100">
+      <Link href={courseLink} className="block relative aspect-video overflow-hidden bg-black">
         {course.thumbnail_image && ownerOrgUuid ? (
-          <img
+          <CourseThumbnailImage
             src={getCourseThumbnailMediaDirectory(ownerOrgUuid, course.course_uuid, course.thumbnail_image)}
             alt={course.name}
-            className="w-full h-full object-contain bg-gray-100"
+            hoverScale
           />
         ) : (
-          <div className="flex flex-col items-center justify-center h-full w-full text-gray-300 gap-2">
+          <div className="flex flex-col items-center justify-center h-full w-full text-gray-400 gap-2">
             <BookOpen size={40} strokeWidth={1.5} />
           </div>
         )}
         {isEnrolled && (
-          <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-200/80">
+          <div className="absolute bottom-0 left-0 right-0 z-20 h-1.5 bg-gray-200/80">
             <div
               className={`h-full ${courseProgress === 100 ? 'bg-green-500' : 'bg-teal-500'}`}
               style={{ width: `${courseProgress}%` }}
@@ -121,17 +122,6 @@ function PublicCourseCard({ course, orgslug, run = null, orgName }: PublicCourse
         >
           {course.name}
         </Link>
-
-        {isEnrolled && (
-          <div className="flex items-center gap-2 text-sm">
-            <span className={`font-semibold ${courseProgress === 100 ? 'text-green-600' : 'text-teal-600'}`}>
-              {courseProgress}%
-            </span>
-            <span className="text-gray-400 text-xs">
-              {t('courses.completed_of', { completed: courseCompletedSteps, total: courseTotalSteps })}
-            </span>
-          </div>
-        )}
 
         {course.description && (
           <p className="text-[11px] text-gray-500 line-clamp-2 min-h-[1.5rem]">

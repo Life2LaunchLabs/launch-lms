@@ -1,21 +1,15 @@
-function cosineSimilarity(a: Record<string, number>, b: Record<string, number>) {
+function distanceSimilarity(a: Record<string, number>, b: Record<string, number>) {
   const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})])
   if (keys.size === 0) return 0
 
-  let dot = 0
-  let magA = 0
-  let magB = 0
-
+  let distanceSquared = 0
   keys.forEach(key => {
     const left = Number(a?.[key] ?? 0)
     const right = Number(b?.[key] ?? 0)
-    dot += left * right
-    magA += left ** 2
-    magB += right ** 2
+    distanceSquared += (left - right) ** 2
   })
 
-  if (magA === 0 || magB === 0) return 0
-  return dot / (Math.sqrt(magA) * Math.sqrt(magB))
+  return 1 / (1 + Math.sqrt(distanceSquared))
 }
 
 function getSortScoreKey(cardUuid: string, categoryUuid: string) {
@@ -102,7 +96,7 @@ export function matchQuizResultPreview(
   let bestSimilarity = -2
 
   resultOptions.forEach(option => {
-    const similarity = cosineSimilarity(scores, option?.scores || {})
+    const similarity = distanceSimilarity(scores, option?.scores || {})
     if (similarity > bestSimilarity) {
       bestSimilarity = similarity
       bestMatch = { ...option, similarity: Number(similarity.toFixed(4)) }

@@ -302,10 +302,11 @@ function LandingCustom({
         return (
           <div
             key={`quickstart-${section.title}`}
-            className="mx-2 sm:mx-4 lg:mx-16 w-full"
+            className="py-8 mx-2 sm:mx-4 lg:mx-16 w-full"
           >
             <QuickstartSection
               title={section.title}
+              description={section.description}
               items={section.items}
               orgslug={orgslug}
               orgUUID={org?.org_uuid}

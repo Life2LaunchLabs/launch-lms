@@ -5,9 +5,7 @@ import {
   ChatsCircle,
   FolderOpen,
   Question,
-  GearSix,
 } from '@phosphor-icons/react'
-import { routePaths } from '@services/config/config'
 import type { TFunction } from 'i18next'
 
 export const KNOWN_SUBPATHS = [
@@ -21,6 +19,7 @@ export const KNOWN_SUBPATHS = [
   '/badges',
   '/podcasts',
   '/communities',
+  '/community/',
   '/organizations',
   '/organization/',
   '/resources',
@@ -61,7 +60,7 @@ export function getPrimaryOrgMenuItems({
     pathname?.includes('/courses') ||
     pathname?.includes('/course/') ||
     pathname?.includes('/collection/')
-  const isOnCommunities = pathname?.includes('/communities')
+  const isOnCommunities = pathname?.includes('/communities') || pathname?.includes('/community/')
   const isOnResources = pathname?.includes('/resources') || pathname?.includes('/resource/')
 
   return [
@@ -100,14 +99,10 @@ export function getPrimaryOrgMenuItems({
 }
 
 export function getAdministrativeOrgMenuItems({
-  pathname,
   t,
-  canAccessDashboard,
   isHelpOpen,
 }: {
-  pathname?: string | null
   t: TFunction
-  canAccessDashboard: boolean
   isHelpOpen: boolean
 }): OrgMenuNavItem[] {
   return [
@@ -118,14 +113,6 @@ export function getAdministrativeOrgMenuItems({
       show: true,
       kind: 'action',
       actionKey: 'help',
-    },
-    {
-      href: routePaths.org.dash.orgSettings.general(),
-      label: t('common.settings'),
-      icon: <GearSix size={18} weight="fill" />,
-      active: Boolean(pathname?.includes('/dash/org/settings')),
-      show: canAccessDashboard,
-      kind: 'link',
     },
   ]
 }

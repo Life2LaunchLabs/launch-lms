@@ -14,6 +14,26 @@ interface OrganizationsPageClientProps {
   query: string
 }
 
+function EmptyState({
+  title,
+  description,
+  icon: Icon,
+}: {
+  title: string
+  description: string
+  icon: any
+}) {
+  return (
+    <div className="col-span-full flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/70 px-4 py-12 text-center">
+      <div className="mb-4 rounded-full bg-white p-4 shadow-sm">
+        <Icon className="h-8 w-8 text-slate-300" strokeWidth={1.5} />
+      </div>
+      <h3 className="mb-2 text-xl font-bold text-slate-700">{title}</h3>
+      <p className="max-w-sm text-sm text-slate-500">{description}</p>
+    </div>
+  )
+}
+
 export default function OrganizationsPageClient({
   organizations,
   orgslug,
@@ -42,24 +62,6 @@ export default function OrganizationsPageClient({
     event.preventDefault()
     updateSearch(searchQuery)
   }
-
-  const EmptyState = ({
-    title,
-    description,
-    icon: Icon,
-  }: {
-    title: string
-    description: string
-    icon: any
-  }) => (
-    <div className="col-span-full flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/70 px-4 py-12 text-center">
-      <div className="mb-4 rounded-full bg-white p-4 shadow-sm">
-        <Icon className="h-8 w-8 text-slate-300" strokeWidth={1.5} />
-      </div>
-      <h3 className="mb-2 text-xl font-bold text-slate-700">{title}</h3>
-      <p className="max-w-sm text-sm text-slate-500">{description}</p>
-    </div>
-  )
 
   return (
     <GeneralWrapperStyled>

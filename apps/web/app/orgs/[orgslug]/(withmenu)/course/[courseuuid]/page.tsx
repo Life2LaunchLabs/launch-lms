@@ -1,6 +1,6 @@
 import React from 'react'
 import CourseClient from './course'
-import { getCourseMetadata, getCourseRights } from '@services/courses/courses'
+import { getCourseMetadata } from '@services/courses/courses'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { Metadata } from 'next'
 import { getCourseThumbnailMediaDirectory, getOrgOgImageMediaDirectory } from '@services/media/media'
@@ -33,7 +33,7 @@ export async function generateMetadata(props: MetadataProps): Promise<Metadata> 
       { revalidate: 0, tags: ['courses'] },
       access_token ?? undefined
     )
-  } catch (error) {
+  } catch {
     // If we can't get course metadata (e.g., auth required), return minimal metadata
     return {
       title: `Course — ${org?.name || 'Launch LMS'}`,

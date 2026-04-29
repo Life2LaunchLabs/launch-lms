@@ -17,7 +17,6 @@ import OrgAuditLogs from '@components/Dashboard/Pages/Org/OrgAuditLogs/OrgAuditL
 import { ShieldAlert } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import PlanBadge from '@components/Dashboard/Shared/PlanRestricted/PlanBadge'
-import { PlanLevel } from '@services/plans/plans'
 import { usePlan } from '@components/Hooks/usePlan'
 
 export type SettingsParams = {

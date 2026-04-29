@@ -23,7 +23,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuPortal,
 } from "@components/ui/dropdown-menu"
-import { Languages, Check, LogOut, Settings, User } from 'lucide-react';
+import { Languages, Check, LogOut, Settings } from 'lucide-react';
 import { AVAILABLE_LANGUAGES } from '@/lib/languages';
 
 function HomeClient() {

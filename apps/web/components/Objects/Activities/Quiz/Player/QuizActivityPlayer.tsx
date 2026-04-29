@@ -1151,6 +1151,7 @@ interface Props {
   editorPreviewContent?: any
   onClose?: () => void
   initialShowResults?: boolean
+  onComplete?: React.Dispatch<any>
 }
 
 // Pill button for icon controls in the header
@@ -1177,7 +1178,7 @@ function IconPill({ onClick, children }: { onClick: () => void; children: React.
   )
 }
 
-export default function QuizActivityPlayer({ activity, editorPreviewContent, onClose, initialShowResults }: Props) {
+export default function QuizActivityPlayer({ activity, editorPreviewContent, onClose, initialShowResults, onComplete }: Props) {
   useQuizStyles()
 
   const session = useLHSession() as any
@@ -1399,16 +1400,22 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     try {
       const r = await submitQuizAttempt(activity.activity_uuid, { answers: answerPayload }, access_token)
       setResult(r)
-      if (r?.result_json?.quiz_mode === 'graded' && r?.result_json?.graded_result?.passed && org?.id) {
+      if (org?.id) {
         void mutate(`${getAPIUrl()}trail/org/${org.id}/trail`)
       }
-      setShowResults(true)
+      onComplete?.(r)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('lh:quiz-result-updated', {
+          detail: { activity_uuid: activity.activity_uuid, result: r },
+        }))
+      }
+      onClose?.()
     } catch {
       setShowResults(true)
     } finally {
       setSubmitting(false)
     }
-  }, [slides, answers, activity, access_token, editorPreviewContent, activeVectors, quizMode, org?.id])
+  }, [slides, answers, activity, access_token, editorPreviewContent, activeVectors, quizMode, org?.id, onComplete, onClose])
 
   const handleNext = useCallback(async () => {
     if (showingResponse) {

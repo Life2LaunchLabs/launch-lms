@@ -21,7 +21,6 @@ export default function GlobalError({
     // Check if it's a Server Action version mismatch error
     if (error.message.includes('Failed to find Server Action') ||
         error.message.includes('older or newer deployment')) {
-      console.log('Version mismatch detected, reloading page...')
       window.location.reload()
     }
   }, [error])

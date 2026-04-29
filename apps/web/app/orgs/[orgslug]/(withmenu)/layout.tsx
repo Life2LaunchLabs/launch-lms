@@ -56,8 +56,8 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
       <PageViewTracker />
       <OrgJoinBanner />
       <div className="flex-1 relative" style={{ zIndex: 'var(--z-content)' }}>
-        <div className="w-full md:mx-auto md:flex md:max-w-(--breakpoint-2xl) md:px-[60px]">
-          <OrgMenu orgslug={orgslug} />
+        <div className="w-full md:flex md:items-start md:px-4 lg:px-5 xl:px-6 2xl:px-8">
+          <OrgMenu orgslug={orgslug} autoContractDesktopNav={false} />
           <div className="flex-1 min-w-0 pb-28 md:pb-0">
             {children}
           </div>

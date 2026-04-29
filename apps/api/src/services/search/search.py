@@ -10,11 +10,10 @@ from src.db.collections import Collection, CollectionRead
 from src.db.collections_courses import CollectionCourse
 from src.db.communities.communities import Community, CommunityRead
 from src.db.organizations import Organization, OrganizationDiscoverRead
-from src.db.resources import Resource, ResourceRead, ResourceChannel, ResourceChannelResource
+from src.db.resources import ResourceChannel, ResourceChannelRead
 from src.db.user_organizations import UserOrganization
 from src.services.courses.courses import search_courses
 from src.services.orgs.orgs import _build_discover_org_read
-from src.services.resources import _serialize_resource
 from src.services.shared_content import owner_org_payload
 from src.security.org_auth import is_org_member
 
@@ -27,7 +26,7 @@ class SearchResult(BaseModel):
     collections: List[CollectionRead]
     communities: List[CommunityRead]
     organizations: List[OrganizationDiscoverRead]
-    resources: List[dict]
+    resource_channels: List[ResourceChannelRead]
     users: List[UserRead]
 
 def _escape_like_wildcards(query: str) -> str:
@@ -121,19 +120,13 @@ async def search_across_org(
         .params(pattern=f"%{search_query}%")
     )
 
-    resource_ids_from_shared_channels = (
-        select(ResourceChannelResource.resource_id)
-        .join(ResourceChannel, ResourceChannel.id == ResourceChannelResource.channel_id)
+    resource_channels_query = (
+        select(ResourceChannel)
         .where(or_(ResourceChannel.org_id == org.id, ResourceChannel.shared == sa_true()))
-    )
-    resources_query = (
-        select(Resource)
-        .where(Resource.id.in_(resource_ids_from_shared_channels))
         .where(
             or_(
-                text('LOWER(resource.title) LIKE LOWER(:pattern)'),
-                text('LOWER(resource.description) LIKE LOWER(:pattern)'),
-                text('LOWER(resource.provider_name) LIKE LOWER(:pattern)')
+                text('LOWER(resourcechannel.name) LIKE LOWER(:pattern)'),
+                text('LOWER(resourcechannel.description) LIKE LOWER(:pattern)')
             )
         )
         .params(pattern=f"%{search_query}%")
@@ -187,7 +180,7 @@ async def search_across_org(
             )
             for discover_org in db_session.exec(organizations_query.offset(offset).limit(limit)).all()
         ]
-        resources = []
+        resource_channels = []
         # SECURITY: Anonymous users CANNOT search/enumerate users
         # This prevents user directory scraping attacks
         users = []
@@ -209,9 +202,38 @@ async def search_across_org(
                 Community.shared == sa_true(),
             )
         )
-        resources = [
-            _serialize_resource(resource, db_session, current_user, org.id)
-            for resource in db_session.exec(resources_query.offset(offset).limit(limit)).all()
+        raw_channels = db_session.exec(resource_channels_query.offset(offset).limit(limit)).all()
+        channel_org_ids = list({c.org_id for c in raw_channels})
+        channel_owner_orgs: dict[int, Organization] = {}
+        if channel_org_ids:
+            channel_owner_orgs = {
+                o.id: o
+                for o in db_session.exec(
+                    select(Organization).where(Organization.id.in_(channel_org_ids))  # type: ignore[arg-type]
+                ).all()
+                if o.id is not None
+            }
+        resource_channels = [
+            ResourceChannelRead(
+                id=ch.id,
+                org_id=ch.org_id,
+                channel_uuid=ch.channel_uuid,
+                name=ch.name,
+                description=ch.description,
+                thumbnail_image=ch.thumbnail_image,
+                public=ch.public,
+                shared=ch.shared,
+                is_starred=ch.is_starred,
+                color=ch.color,
+                creation_date=ch.creation_date,
+                update_date=ch.update_date,
+                owner_org_id=channel_owner_orgs[ch.org_id].id if ch.org_id in channel_owner_orgs else None,
+                owner_org_uuid=channel_owner_orgs[ch.org_id].org_uuid if ch.org_id in channel_owner_orgs else None,
+                owner_org_slug=channel_owner_orgs[ch.org_id].slug if ch.org_id in channel_owner_orgs else None,
+                owner_org_name=channel_owner_orgs[ch.org_id].name if ch.org_id in channel_owner_orgs else None,
+                is_shared_from_other_org=ch.org_id != org.id,
+            )
+            for ch in raw_channels
         ]
         discover_orgs = db_session.exec(organizations_query.offset(offset).limit(limit)).all()
         discover_org_ids = [discover_org.id for discover_org in discover_orgs if discover_org.id is not None]
@@ -310,6 +332,6 @@ async def search_across_org(
         collections=collection_reads,
         communities=community_reads,
         organizations=organizations,
-        resources=resources,
+        resource_channels=resource_channels,
         users=user_reads
     )

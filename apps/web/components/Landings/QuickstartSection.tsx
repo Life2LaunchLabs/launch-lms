@@ -34,6 +34,7 @@ type CollectionLike = {
 
 interface QuickstartSectionProps {
   title?: string
+  description?: string
   items: LandingQuickstartItem[]
   orgslug: string
   orgUUID?: string
@@ -163,6 +164,8 @@ function resolveQuickstartCard(
 }
 
 export default function QuickstartSection({
+  title,
+  description,
   items,
   orgslug,
   orgUUID,
@@ -188,15 +191,23 @@ export default function QuickstartSection({
   }
 
   return (
-    <section className="py-8 w-full">
-      <div className="flex flex-wrap gap-4">
+    <section className="w-full">
+      {title && (
+        <h2 className="my-2 text-lg font-bold tracking-tight text-gray-900">
+          {title}
+        </h2>
+      )}
+      {description && (
+        <p className="mb-3 text-sm text-gray-400 line-clamp-2">{description}</p>
+      )}
+      <div className="mt-3 flex gap-4">
         {cards.map((card) => (
           <Link
             key={card.key}
             href={card.href}
-            className="group flex w-full max-w-[148px] flex-col"
+            className="group flex min-w-0 flex-1 flex-col"
           >
-            <div className="aspect-square w-full overflow-hidden rounded-[8px] bg-[#f2f4f7] ring-1 ring-black/6 transition-all duration-200 group-hover:bg-[#e8ecf1] group-hover:ring-black/10">
+            <div className="h-44 w-full overflow-hidden rounded-[8px] bg-[#f2f4f7] ring-1 ring-black/6 transition-all duration-200 group-hover:bg-[#e8ecf1] group-hover:ring-black/10">
               {card.imageUrl ? (
                 <img
                   src={card.imageUrl}

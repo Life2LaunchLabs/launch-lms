@@ -13,6 +13,7 @@ interface Props {
   scores?: Record<string, number>
   vectors?: any[]
   fallbackBody?: string
+  sectioned?: boolean
 }
 
 function hasRenderableNodes(doc: any): boolean {
@@ -147,6 +148,25 @@ function renderBlockNodes(
   })
 }
 
+function groupNodesIntoSections(nodes: any[] = []): any[][] {
+  const sections: any[][] = []
+  let currentSection: any[] = []
+
+  nodes.forEach((node: any) => {
+    if (node?.type === 'heading' && currentSection.length > 0) {
+      sections.push(currentSection)
+      currentSection = []
+    }
+    currentSection.push(node)
+  })
+
+  if (currentSection.length > 0) {
+    sections.push(currentSection)
+  }
+
+  return sections
+}
+
 export default function QuizResultContentRenderer({
   template,
   varOverrides,
@@ -156,6 +176,7 @@ export default function QuizResultContentRenderer({
   scores = {},
   vectors = [],
   fallbackBody,
+  sectioned = false,
 }: Props) {
   const merged = mergeContent(template, varOverrides)
   const hasContent = hasRenderableNodes(merged)
@@ -165,9 +186,22 @@ export default function QuizResultContentRenderer({
     return <p className="text-sm leading-relaxed text-neutral-700 whitespace-pre-line">{fallbackBody}</p>
   }
 
+  const opts = { activity, org, course, scores, vectors }
+  if (sectioned) {
+    return (
+      <div className="quiz-result-content-renderer">
+        {groupNodesIntoSections(merged?.content || []).map((sectionNodes, index) => (
+          <section key={`section-${index}`} className="quiz-result-print-section">
+            {renderBlockNodes(sectionNodes, opts, `section-${index}`)}
+          </section>
+        ))}
+      </div>
+    )
+  }
+
   return (
     <div className="quiz-result-content-renderer">
-      {renderBlockNodes(merged?.content || [], { activity, org, course, scores, vectors })}
+      {renderBlockNodes(merged?.content || [], opts)}
     </div>
   )
 }

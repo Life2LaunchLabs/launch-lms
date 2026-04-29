@@ -53,7 +53,6 @@ export async function getServerSession(): Promise<Session | null> {
       }
 
       // Access token expired or invalid, try refresh
-      console.log('[SERVER_SESSION] Access token invalid, trying refresh')
     }
 
     // Try to refresh using refresh token
@@ -73,7 +72,6 @@ export async function getServerSession(): Promise<Session | null> {
     })
 
     if (!refreshResponse.ok) {
-      console.log('[SERVER_SESSION] Refresh failed:', refreshResponse.status)
       return null
     }
 
@@ -93,7 +91,6 @@ export async function getServerSession(): Promise<Session | null> {
     })
 
     if (!sessionResponse.ok) {
-      console.log('[SERVER_SESSION] Refreshed token could not load session:', sessionResponse.status)
       return null
     }
 

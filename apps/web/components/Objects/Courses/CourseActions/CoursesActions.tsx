@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { revalidateTags } from '@services/utils/ts/requests'
 import { useRouter } from 'next/navigation'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl, getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config'
 import { getOffersByResource } from '@services/payments/offers'
 import { UserPen, ClockIcon, BookOpen, UserPlus } from 'lucide-react'
 import { OfferCard } from './OfferCard'
@@ -307,7 +307,7 @@ function CoursesActions({ courseuuid, orgslug, course, trailData }: CourseAction
 
   if (linkedOffers.length > 0) {
     // User already enrolled / started — show "you own this" notice + leave button
-    if (!!isStarted) {
+    if (isStarted) {
       return (
         <div className="bg-white nice-shadow rounded-lg overflow-hidden p-4">
           <div className="space-y-4">

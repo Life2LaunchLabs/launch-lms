@@ -14,12 +14,6 @@ type MetadataProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-type Session = {
-  tokens?: {
-    access_token?: string
-  }
-}
-
 // Add this function at the top level to avoid duplicate fetches
 async function fetchCourseMetadata(courseuuid: string, access_token: string | null | undefined) {
   return await getCourseMetadata(

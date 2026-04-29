@@ -1,5 +1,5 @@
 import { useOrg } from '@components/Contexts/OrgContext'
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
 
 type FeatureType = {
   path: string[]
@@ -8,26 +8,20 @@ type FeatureType = {
 
 function useFeatureFlag(feature: FeatureType) {
   const org = useOrg() as any
-  const [isEnabled, setIsEnabled] = useState<boolean>(!!feature.defaultValue)
 
-  useEffect(() => {
+  const isEnabled = useMemo(() => {
     if (org?.config?.config) {
       let currentValue = org.config.config
-      
-      // Traverse the path to get the feature flag value
       for (const key of feature.path) {
         if (currentValue && typeof currentValue === 'object') {
           currentValue = currentValue[key]
         } else {
-          currentValue = feature.defaultValue || false
-          break
+          return !!feature.defaultValue
         }
       }
-
-      setIsEnabled(!!currentValue)
-    } else {
-      setIsEnabled(!!feature.defaultValue)
+      return !!currentValue
     }
+    return !!feature.defaultValue
   }, [org, feature])
 
   return isEnabled

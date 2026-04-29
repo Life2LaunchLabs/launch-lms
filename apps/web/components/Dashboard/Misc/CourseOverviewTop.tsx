@@ -9,7 +9,7 @@ import { getCourseThumbnailMediaDirectory } from '@services/media/media'
 import Link from 'next/link'
 import Image from 'next/image'
 import EmptyThumbnailImage from '../../../public/empty_thumbnail.png'
-import { BookCopy, BrainCircuit, Eye, Globe, GlobeLock, Loader2, Check, Info } from 'lucide-react'
+import { BookCopy, BrainCircuit, Eye, Globe, GlobeLock, Loader2, Check, Clock } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@components/ui/tooltip'
 import { useTranslation } from 'react-i18next'
 import { updateCourse } from '@services/courses/courses'
@@ -36,6 +36,8 @@ export function CourseOverviewTop({
 
   const courseStructure = course?.courseStructure
   const isPublished = courseStructure?.published
+  const isComingSoon = courseStructure?.coming_soon ?? false
+  const [isTogglingComingSoon, setIsTogglingComingSoon] = useState(false)
   const withUnpublishedActivities = course?.withUnpublishedActivities ?? false
 
   // Use unified cache key
@@ -140,6 +142,47 @@ export function CourseOverviewTop({
     t
   ])
 
+  const toggleComingSoon = useCallback(async () => {
+    if (isTogglingComingSoon || !courseStructure?.course_uuid) return
+    setIsTogglingComingSoon(true)
+
+    const newValue = !isComingSoon
+    const toastId = toast.loading(newValue ? t('dashboard.courses.setting_coming_soon') : t('dashboard.courses.removing_coming_soon'))
+
+    const previousState = { ...courseStructure }
+    dispatchCourse({
+      type: 'mergePendingChanges',
+      payload: { coming_soon: newValue }
+    })
+
+    try {
+      await updateCourse(
+        courseStructure.course_uuid,
+        { coming_soon: newValue },
+        session.data?.tokens?.access_token
+      )
+
+      if (cacheKey) {
+        await mutate(cacheKey, { ...courseStructure, coming_soon: newValue }, { revalidate: false })
+      }
+
+      await revalidateTags(['courses'], params.orgslug)
+
+      toast.dismiss(toastId)
+      toast.success(newValue ? t('dashboard.courses.coming_soon_set') : t('dashboard.courses.coming_soon_removed'))
+    } catch {
+      dispatchCourse({
+        type: 'mergePendingChanges',
+        payload: { coming_soon: previousState.coming_soon }
+      })
+
+      toast.dismiss(toastId)
+      toast.error(t('dashboard.courses.coming_soon_error'))
+    } finally {
+      setIsTogglingComingSoon(false)
+    }
+  }, [isTogglingComingSoon, isComingSoon, courseStructure, cacheKey, session.data?.tokens?.access_token, dispatchCourse, params.orgslug, t])
+
   if (!courseStructure) {
     return null
   }
@@ -216,6 +259,39 @@ export function CourseOverviewTop({
                     : 'bg-yellow-200/80 text-yellow-800'
                 }`}>
                   {isPublished ? t('dashboard.courses.click_to_unpublish') : t('dashboard.courses.click_to_publish')}
+                </span>
+              </span>
+            )}
+          </button>
+          <div className="w-px self-stretch bg-neutral-200/80" />
+          <button
+            onClick={toggleComingSoon}
+            disabled={isTogglingComingSoon}
+            className={`group px-3.5 py-2 text-sm font-semibold flex items-center space-x-2 transition-colors ${
+              isComingSoon
+                ? 'bg-orange-50/70 text-orange-700 hover:bg-orange-100/70'
+                : 'bg-neutral-50/70 text-neutral-500 hover:bg-neutral-100/70'
+            } ${isTogglingComingSoon ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+          >
+            {isTogglingComingSoon ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Clock className="w-4 h-4" />
+            )}
+            <span>
+              {isTogglingComingSoon
+                ? t('dashboard.courses.processing')
+                : t('courses.coming_soon')
+              }
+            </span>
+            {!isTogglingComingSoon && (
+              <span className="inline-flex overflow-hidden max-w-0 group-hover:max-w-[150px] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out">
+                <span className={`px-1.5 py-0.5 text-[10px] font-semibold rounded whitespace-nowrap ${
+                  isComingSoon
+                    ? 'bg-orange-200/80 text-orange-800'
+                    : 'bg-neutral-200/80 text-neutral-600'
+                }`}>
+                  {isComingSoon ? t('dashboard.courses.click_to_remove_coming_soon') : t('dashboard.courses.click_to_set_coming_soon')}
                 </span>
               </span>
             )}

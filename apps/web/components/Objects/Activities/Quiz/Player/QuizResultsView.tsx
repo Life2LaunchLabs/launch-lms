@@ -20,9 +20,11 @@ interface Props {
   org: any
   course: any
   onRetake: () => void
+  showRetakeButton?: boolean
+  sectionedContent?: boolean
 }
 
-export default function QuizResultsView({ result, activity, org, course, onRetake }: Props) {
+export default function QuizResultsView({ result, activity, org, course, onRetake, showRetakeButton = false, sectionedContent = false }: Props) {
   const resultJson = result?.result_json
   const scores: Record<string, number> = resultJson?.scores || {}
   const vectors: any[] = resultJson?.vectors || []
@@ -103,22 +105,24 @@ export default function QuizResultsView({ result, activity, org, course, onRetak
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              {canRetake && (
-                <button
-                  onClick={onRetake}
-                  className="flex items-center justify-center gap-2 py-3 px-5 rounded-2xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-sm font-semibold transition-colors outline-none"
-                >
-                  <RotateCcw size={15} />
-                  Retake quiz
-                </button>
-              )}
-              {!canRetake && (
-                <div className="py-3 px-5 rounded-2xl bg-neutral-100 text-neutral-500 text-sm font-semibold">
-                  No retakes remaining
-                </div>
-              )}
-            </div>
+            {showRetakeButton && (
+              <div className="flex flex-wrap gap-3">
+                {canRetake && (
+                  <button
+                    onClick={onRetake}
+                    className="flex items-center justify-center gap-2 py-3 px-5 rounded-2xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-sm font-semibold transition-colors outline-none"
+                  >
+                    <RotateCcw size={15} />
+                    Retake quiz
+                  </button>
+                )}
+                {!canRetake && (
+                  <div className="py-3 px-5 rounded-2xl bg-neutral-100 text-neutral-500 text-sm font-semibold">
+                    No retakes remaining
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -185,6 +189,7 @@ export default function QuizResultsView({ result, activity, org, course, onRetak
             scores={scores}
             vectors={vectors}
             fallbackBody={matched.body}
+            sectioned={sectionedContent}
           />
         )}
 

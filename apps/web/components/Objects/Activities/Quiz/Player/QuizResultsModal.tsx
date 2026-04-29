@@ -43,6 +43,7 @@ export default function QuizResultsModal({ result, activity, org, course, onReta
             org={org}
             course={course}
             onRetake={onRetake}
+            showRetakeButton
           />
         </div>
       </div>

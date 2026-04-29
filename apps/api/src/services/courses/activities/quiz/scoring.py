@@ -52,6 +52,15 @@ def _cosine_similarity(a: dict[str, float], b: dict[str, float]) -> float:
     return dot / (mag_a * mag_b)
 
 
+def _distance_similarity(a: dict[str, float], b: dict[str, float]) -> float:
+    """Closeness score between two score dicts. Handles all-zero targets."""
+    keys = set(a) | set(b)
+    if not keys:
+        return 0.0
+    distance = math.sqrt(sum((a.get(k, 0.0) - b.get(k, 0.0)) ** 2 for k in keys))
+    return 1 / (1 + distance)
+
+
 def _sort_score_key(card_uuid: str, category_uuid: str) -> str:
     return f"{card_uuid}::{category_uuid}"
 
@@ -153,15 +162,15 @@ def match_result_option(
     result_options: list[dict],
 ) -> dict | None:
     """
-    Pick the result_option whose target scores are closest to the user's scores
-    using cosine similarity.  Returns the option dict augmented with 'similarity'.
+    Pick the result_option whose target scores are closest to the user's scores.
+    Returns the option dict augmented with 'similarity'.
     """
     if not result_options:
         return None
     best: dict | None = None
     best_sim = -2.0
     for opt in result_options:
-        sim = _cosine_similarity(scores, opt.get("scores", {}))
+        sim = _distance_similarity(scores, opt.get("scores", {}))
         if sim > best_sim:
             best_sim = sim
             best = {**opt, "similarity": round(sim, 4)}

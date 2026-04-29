@@ -14,7 +14,6 @@ import PaymentsOffersPage from '@components/Dashboard/Pages/Payments/PaymentsOff
 import PaymentsGroupsPage from '@components/Dashboard/Pages/Payments/PaymentsGroupsPage'
 import PlanRestrictedFeature from '@components/Dashboard/Shared/PlanRestricted/PlanRestrictedFeature'
 import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/FeatureDisabledView'
-import { PlanLevel } from '@services/plans/plans'
 import { BadgeDollarSign } from 'lucide-react'
 import { usePlan } from '@components/Hooks/usePlan'
 

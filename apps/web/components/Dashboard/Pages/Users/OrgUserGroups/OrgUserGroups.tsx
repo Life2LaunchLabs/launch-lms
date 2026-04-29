@@ -11,7 +11,6 @@ import PlanRestrictedFeature from '@components/Dashboard/Shared/PlanRestricted/P
 import { getAPIUrl } from '@services/config/config'
 import { deleteUserGroup } from '@services/usergroups/usergroups'
 import { swrFetcher } from '@services/utils/ts/requests'
-import { PlanLevel } from '@services/plans/plans'
 import { Pencil, SquareUserRound, Users, X, Search, Calendar } from 'lucide-react'
 import React, { useState, useMemo } from 'react'
 import toast from 'react-hot-toast'

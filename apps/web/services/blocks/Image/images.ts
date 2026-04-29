@@ -40,5 +40,5 @@ export async function getImageFile(file_id: string, access_token: string) {
     RequestBodyWithAuthHeader('GET', null, null, access_token)
   )
     .then((result) => result.json())
-    .catch((error) => console.log('error', error))
+    .catch((error) => console.error('error', error))
 }

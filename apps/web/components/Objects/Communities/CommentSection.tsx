@@ -1,7 +1,7 @@
 'use client'
 import React, { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { MessageSquare, Send, Loader2, User, AlertCircle, Lock, UserPlus } from 'lucide-react'
+import { Loader2, User, AlertCircle, Lock, UserPlus } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrgMembership } from '@components/Contexts/OrgContext'
 import {
@@ -10,7 +10,6 @@ import {
   DiscussionCommentWithAuthor,
 } from '@services/communities/discussions'
 import { CommentCard } from './CommentCard'
-import UserAvatar from '@components/Objects/UserAvatar'
 
 interface CommentSectionProps {
   discussionUuid: string
