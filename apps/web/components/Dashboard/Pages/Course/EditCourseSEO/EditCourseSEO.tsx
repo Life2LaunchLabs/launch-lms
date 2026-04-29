@@ -24,6 +24,14 @@ type EditCourseSEOProps = {
   course_uuid?: string
 }
 
+function CharacterCounter({ current, max }: { current: number, max: number }) {
+  return (
+    <span className={`text-xs ${current > max ? 'text-red-500' : 'text-gray-400'}`}>
+      {current}/{max}
+    </span>
+  )
+}
+
 interface SEOValues {
   title: string
   description: string
@@ -193,12 +201,6 @@ function EditCourseSEO(props: EditCourseSEOProps) {
   if (isLoading || !courseStructure) {
     return <div>{t('dashboard.courses.settings.loading')}</div>;
   }
-
-  const CharacterCounter = ({ current, max }: { current: number, max: number }) => (
-    <span className={`text-xs ${current > max ? 'text-red-500' : 'text-gray-400'}`}>
-      {current}/{max}
-    </span>
-  );
 
   return (
     <div>

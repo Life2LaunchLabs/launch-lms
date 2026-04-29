@@ -53,12 +53,11 @@ const LoginClient = (props: LoginClientProps) => {
           setSsoEnabled(result.sso_enabled)
         } catch (error) {
           // SSO not available, silently ignore
-          console.debug('SSO check failed:', error)
         }
       }
     }
     checkSSO()
-  }, [props.org?.slug, props.org?.config?.config?.plan, props.org?.config?.config?.cloud?.plan]) // eslint-disable-line
+  }, [props.org?.slug, props.org?.config?.config?.plan, props.org?.config?.config?.cloud?.plan])  
 
   const handleSSOLogin = async () => {
     setSsoLoading(true)

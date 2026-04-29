@@ -6,29 +6,9 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { UsersFour } from '@phosphor-icons/react'
 import CourseWidgetCard, { WidgetIcon, AnimatedNumber } from './CourseWidgetCard'
 
-export default function CourseLearnerRetention({
-  courseId,
-  days = '90',
-}: {
-  courseId: string
-  days?: string
-}) {
+function MiniChart({ chartRows }: { chartRows: any[] }) {
   const { t } = useTranslation()
-  const { data, isLoading } = useCoursePipe('course_learner_retention', courseId, { days })
-  const rows = data?.data ?? []
-
-  const cohortSize = rows[0]?.cohort_size || 0
-  const chartRows = rows.map((row: any) => ({
-    day: row.days_since_start,
-    retention: cohortSize > 0 ? Math.round((row.active_users / cohortSize) * 100) : 0,
-    active: row.active_users,
-  }))
-
-  const latestRetention = chartRows.length > 1 ? chartRows[chartRows.length - 1]?.retention || 0 : 0
-
-  const empty = !isLoading && chartRows.length === 0
-
-  const MiniChart = () => (
+  return (
     <ResponsiveContainer width="100%" height={160}>
       <AreaChart data={chartRows}>
         <defs>
@@ -47,8 +27,11 @@ export default function CourseLearnerRetention({
       </AreaChart>
     </ResponsiveContainer>
   )
+}
 
-  const ModalChart = () => (
+function ModalChart({ chartRows }: { chartRows: any[] }) {
+  const { t } = useTranslation()
+  return (
     <ResponsiveContainer width="100%" height={380}>
       <AreaChart data={chartRows}>
         <defs>
@@ -81,6 +64,29 @@ export default function CourseLearnerRetention({
       </AreaChart>
     </ResponsiveContainer>
   )
+}
+
+export default function CourseLearnerRetention({
+  courseId,
+  days = '90',
+}: {
+  courseId: string
+  days?: string
+}) {
+  const { t } = useTranslation()
+  const { data, isLoading } = useCoursePipe('course_learner_retention', courseId, { days })
+  const rows = data?.data ?? []
+
+  const cohortSize = rows[0]?.cohort_size || 0
+  const chartRows = rows.map((row: any) => ({
+    day: row.days_since_start,
+    retention: cohortSize > 0 ? Math.round((row.active_users / cohortSize) * 100) : 0,
+    active: row.active_users,
+  }))
+
+  const latestRetention = chartRows.length > 1 ? chartRows[chartRows.length - 1]?.retention || 0 : 0
+
+  const empty = !isLoading && chartRows.length === 0
 
   return (
     <CourseWidgetCard
@@ -104,7 +110,7 @@ export default function CourseLearnerRetention({
                 <p className="text-2xl font-bold text-gray-700">{latestRetention}%</p>
               </div>
             </div>
-            <ModalChart />
+            <ModalChart chartRows={chartRows} />
           </div>
         )
       }
@@ -122,7 +128,7 @@ export default function CourseLearnerRetention({
             </div>
             <span className="text-xs text-indigo-400">{cohortSize} {t('analytics.course_analytics.units.in_cohort')}</span>
           </div>
-          <MiniChart />
+          <MiniChart chartRows={chartRows} />
         </div>
       )}
     </CourseWidgetCard>

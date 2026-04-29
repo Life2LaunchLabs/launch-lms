@@ -6,7 +6,6 @@ import {
   ChartBar,
   GearSix,
   Users,
-  BookOpen,
 } from '@phosphor-icons/react'
 import useSWR from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'

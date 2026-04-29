@@ -7,7 +7,6 @@ import {
   ShieldCheck,
   Lightning,
   Package,
-  ArrowSquareOut,
 } from '@phosphor-icons/react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'

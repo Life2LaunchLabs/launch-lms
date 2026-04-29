@@ -40,8 +40,6 @@ import {
   AlertTriangle,
   Check,
   BookOpen,
-  Clock,
-  Shield,
 } from 'lucide-react'
 import {
   APIToken,
@@ -57,7 +55,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@components/ui/tabs'
 import APIDocumentation from './APIDocumentation'
 import PlanRestrictedFeature from '@components/Dashboard/Shared/PlanRestricted/PlanRestrictedFeature'
-import { PlanLevel } from '@services/plans/plans'
 import { usePlan } from '@components/Hooks/usePlan'
 
 const OrgEditAPIAccess: React.FC = () => {

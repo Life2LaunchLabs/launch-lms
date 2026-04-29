@@ -1,5 +1,4 @@
 'use client'
-import { getAPIUrl } from '@services/config/config'
 import { updateCourseOrderStructure } from '@services/courses/chapters'
 import { revalidateTags } from '@services/utils/ts/requests'
 import {
@@ -8,7 +7,7 @@ import {
   useDebounceManager,
   getCourseMetaCacheKey,
 } from '@components/Contexts/CourseContext'
-import { Check, SaveAllIcon, Timer, Loader2, AlertCircle } from 'lucide-react'
+import { Check, SaveAllIcon, Loader2, AlertCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import React, { useCallback, useRef } from 'react'
 import { mutate } from 'swr'

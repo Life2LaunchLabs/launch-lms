@@ -4,8 +4,6 @@ import { Loader2, BookOpen, FileText, Sparkles, Check, ChevronDown, ChevronRight
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
-import Image from 'next/image'
-import lrnaiIcon from 'public/ai_icon.svg'
 import type { CreatedChapter } from '@services/ai/courseplanning'
 import {
   generateActivityContent,
@@ -98,21 +96,13 @@ function ContentGenerationPanel({
 
     const onComplete = async (_sessionUuid: string) => {
       // Parse the content from the stream
-      console.log('[AI Content] Full content received, length:', fullContent.length)
-      console.log('[AI Content] Full content preview:', fullContent.substring(0, 500))
       const parsedContent = parseActivityContentFromStream(fullContent)
-      console.log('[AI Content] Parsed content:', parsedContent ? 'success' : 'failed')
       if (parsedContent) {
-        console.log('[AI Content] Parsed content type:', parsedContent.type)
-        console.log('[AI Content] Parsed content has content array:', Array.isArray(parsedContent.content))
-        console.log('[AI Content] Parsed content length:', parsedContent.content?.length || 0)
       }
 
       if (parsedContent) {
         // Save content using the standard updateActivity function (same as editor)
         try {
-          console.log('[AI Content] Saving to database for activity:', activityUuid)
-          console.log('[AI Content] Content to save:', JSON.stringify(parsedContent).substring(0, 300))
 
           // Use the standard activity update endpoint (same as editor uses)
           const result = await updateActivity(
@@ -120,7 +110,6 @@ function ContentGenerationPanel({
             activityUuid,
             accessToken
           )
-          console.log('[AI Content] Save result:', result)
 
           if (result.success) {
             setActivityStates((prev) => ({

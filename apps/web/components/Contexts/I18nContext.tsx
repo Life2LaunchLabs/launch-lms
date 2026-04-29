@@ -9,18 +9,12 @@ export default function I18nProvider({ children }: { children: React.ReactNode }
   const [isReady, setIsReady] = useState(i18n.isInitialized)
 
   useEffect(() => {
-    // Wait for i18n to be fully initialized
     if (i18n.isInitialized) {
-      setIsReady(true)
-    } else {
-      const handleInitialized = () => {
-        setIsReady(true)
-      }
-      i18n.on('initialized', handleInitialized)
-      return () => {
-        i18n.off('initialized', handleInitialized)
-      }
+      return
     }
+    const handleInitialized = () => setIsReady(true)
+    i18n.on('initialized', handleInitialized)
+    return () => i18n.off('initialized', handleInitialized)
   }, [])
 
   // Also listen for language changes to trigger re-renders

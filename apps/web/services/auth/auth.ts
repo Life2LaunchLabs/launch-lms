@@ -135,7 +135,7 @@ export async function getUserInfo(token: string): Promise<any> {
 
   return fetch(`${getAPIUrl()}users/profile`, requestOptions)
     .then((result) => result.json())
-    .catch((error) => console.log('error', error))
+    .catch((error) => console.error('error', error))
 }
 
 export async function getUserSession(token: string): Promise<any> {
@@ -172,7 +172,7 @@ export async function getNewAccessTokenUsingRefreshToken(): Promise<any> {
 
   return fetch(`${getAPIUrl()}auth/refresh`, requestOptions)
     .then((result) => result.json())
-    .catch((error) => console.log('error', error))
+    .catch((error) => console.error('error', error))
 }
 
 export async function getNewAccessTokenUsingRefreshTokenServer(
@@ -188,7 +188,7 @@ export async function getNewAccessTokenUsingRefreshTokenServer(
   }
   return fetch(`${getAPIUrl()}auth/refresh`, requestOptions)
     .then((result) => result.json())
-    .catch((error) => console.log('error', error))
+    .catch((error) => console.error('error', error))
 }
 
 // cookies

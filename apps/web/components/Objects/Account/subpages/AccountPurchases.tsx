@@ -3,7 +3,6 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getUserEnrollments, getBillingPortalSession } from '@services/payments/offers'
 import {

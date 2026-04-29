@@ -54,7 +54,6 @@ import {
   CustomDomainSSLStatus,
 } from '@services/custom_domains/custom_domains'
 import PlanRestrictedFeature from '@components/Dashboard/Shared/PlanRestricted/PlanRestrictedFeature'
-import { PlanLevel } from '@services/plans/plans'
 import { usePlan } from '@components/Hooks/usePlan'
 
 const OrgEditDomains: React.FC = () => {

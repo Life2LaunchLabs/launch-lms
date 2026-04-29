@@ -4,7 +4,7 @@ import {
   startActivityAIChatSessionStream,
   StreamCallbacks,
 } from '@services/ai/ai'
-import { AlertTriangle, BadgeInfo, NotebookTabs, Maximize2, Minimize2, PanelRightOpen, PanelRightClose, PanelTop } from 'lucide-react'
+import { AlertTriangle, BadgeInfo, NotebookTabs, Maximize2, Minimize2, PanelRightOpen, PanelTop } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 import { FlaskConical, MessageCircle, X } from 'lucide-react'
 import Image from 'next/image'
@@ -605,9 +605,9 @@ const AIMessagePlaceHolder = (props: {
 }) => {
   const session = useLHSession() as any
   const aiChatBotState = useAIChatBot() as AIChatBotStateTypes
+  const { t } = useTranslation()
 
   if (!aiChatBotState.error.isError) {
-    const { t } = useTranslation()
     return (
       <div className={`w-full ${props.isFullscreen ? 'flex-1 flex items-center justify-center' : 'h-[237px]'}`}>
         <div className="flex flex-col text-center justify-center pt-6">

@@ -9,7 +9,6 @@ import { toast } from 'react-hot-toast'
 import { constructAcceptValue } from '@/lib/constants'
 import { updateOrgAuthBrandingConfig, uploadOrgAuthBackground, AuthBrandingConfig } from '@services/settings/org'
 import { cn } from '@/lib/utils'
-import { Input } from "@components/ui/input"
 import { Button } from "@components/ui/button"
 import { Label } from "@components/ui/label"
 import { Textarea } from "@components/ui/textarea"

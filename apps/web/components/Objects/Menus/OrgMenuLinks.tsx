@@ -6,7 +6,6 @@ import {
   FolderOpen,
   Question,
 } from '@phosphor-icons/react'
-import { routePaths } from '@services/config/config'
 import type { TFunction } from 'i18next'
 
 export const KNOWN_SUBPATHS = [

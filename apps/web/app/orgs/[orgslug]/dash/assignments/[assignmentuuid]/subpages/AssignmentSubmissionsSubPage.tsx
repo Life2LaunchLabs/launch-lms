@@ -23,9 +23,6 @@ function AssignmentSubmissionsSubPage({ assignment_uuid }: { assignment_uuid: st
         (url) => swrFetcher(url, access_token)
     );
 
-    useEffect(() => {
-        console.log(assignmentSubmission);
-    }, [session, assignmentSubmission]);
 
     const renderSubmissions = (status: string) => {
         return assignmentSubmission
@@ -85,10 +82,6 @@ function SubmissionBox({ assignment_uuid, user_id, submission }: any) {
         (url) => swrFetcher(url, access_token)
     );
 
-    useEffect(() => {
-        console.log(user);
-    }
-        , [session, user]);
 
     return (
             <div className='flex flex-row bg-white shadow-[0px_4px_16px_rgba(0,0,0,0.06)] nice-shadow rounded-lg p-4 w-[350px] mx-auto'>

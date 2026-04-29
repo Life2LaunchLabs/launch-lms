@@ -54,23 +54,14 @@ async function UserPage({ params }: UserPageProps) {
     redirect(`/orgs/${orgslug}/login?redirect=/orgs/${orgslug}/user/${username}`)
   }
 
+  let userData, profile
   try {
-    // Fetch user data by username with authentication
-    const userData = await getUserByUsername(username, access_token);
-    const profile = userData.profile ? (
-      typeof userData.profile === 'string' ? JSON.parse(userData.profile) : userData.profile
-    ) : { sections: [] };
-
-    return (
-      <div>
-        <UserProfileClient
-          userData={userData}
-          profile={profile}
-        />
-      </div>
-    )
-  } catch (error) {
-    console.error('Error fetching user data:', error)
+    userData = await getUserByUsername(username, access_token)
+    profile = userData.profile
+      ? (typeof userData.profile === 'string' ? JSON.parse(userData.profile) : userData.profile)
+      : { sections: [] }
+  } catch (err) {
+    console.error('Error fetching user data:', err)
     return (
       <div className="container mx-auto py-8">
         <div className="bg-white rounded-xl nice-shadow p-6">
@@ -79,6 +70,12 @@ async function UserPage({ params }: UserPageProps) {
       </div>
     )
   }
+
+  return (
+    <div>
+      <UserProfileClient userData={userData} profile={profile} />
+    </div>
+  )
 }
 
 export default UserPage
