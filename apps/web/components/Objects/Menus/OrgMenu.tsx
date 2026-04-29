@@ -74,6 +74,7 @@ export const OrgMenu = (props: { orgslug: string; autoContractDesktopNav?: boole
   const topOffset = isJoinBannerVisible ? JOIN_BANNER_HEIGHT : 0
   const config = org?.config?.config
   const resolvedFeatures = config?.resolved_features
+  const hideOrgName = config?.customization?.general?.hide_org_name || config?.general?.hide_org_name || false
   const isActivityPage = pathname?.includes('/activity/')
   const isCoursePage = /^\/course\/[^/]+$/.test(pathname || '')
   const isPublicCourseExperience = isCoursePage || isActivityPage
@@ -225,12 +226,15 @@ export const OrgMenu = (props: { orgslug: string; autoContractDesktopNav?: boole
                   isDesktopNavExpanded ? 'w-full gap-3 pl-1' : 'w-10 justify-center'
                 )}
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center">
+                <div className="flex h-10 shrink-0 items-center justify-center">
                   {org?.logo_image ? (
                     <img
                       src={getOrgLogoMediaDirectory(org.org_uuid, org.logo_image)}
                       alt="Logo"
-                      className="h-10 w-10 rounded-xl object-cover"
+                      className={cn(
+                        'h-10 w-auto object-contain',
+                        isDesktopNavExpanded ? 'max-w-[120px]' : 'max-w-[40px]'
+                      )}
                     />
                   ) : (
                     <LaunchLMSIcon />
@@ -238,9 +242,11 @@ export const OrgMenu = (props: { orgslug: string; autoContractDesktopNav?: boole
                 </div>
                 <div className={cn('min-w-0 items-center', isDesktopNavExpanded ? 'flex' : 'hidden')}>
                   {org?.logo_image ? (
-                    <span className="truncate text-sm font-semibold text-gray-900">
-                      {org?.name}
-                    </span>
+                    !hideOrgName && (
+                      <span className="truncate text-sm font-semibold text-gray-900">
+                        {org?.name}
+                      </span>
+                    )
                   ) : (
                     <LaunchLMSLogo />
                   )}

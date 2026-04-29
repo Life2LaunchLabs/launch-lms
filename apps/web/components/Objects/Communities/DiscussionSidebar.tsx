@@ -16,6 +16,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { UpvoteButton } from './UpvoteButton'
 import { ReactionButton } from './ReactionButton'
 import UserAvatar from '@components/Objects/UserAvatar'
+import { parseAPIDate } from '@services/utils/ts/dateUtils'
 
 dayjs.extend(relativeTime)
 
@@ -40,8 +41,9 @@ export function DiscussionSidebar({
 }: DiscussionSidebarProps) {
   const { t } = useTranslation()
   const communityId = community.community_uuid.replace('community_', '')
-  const timeAgo = dayjs(discussion.creation_date).fromNow()
-  const createdDate = dayjs(discussion.creation_date).format('MMM D, YYYY')
+  const createdAt = parseAPIDate(discussion.creation_date)
+  const timeAgo = createdAt.fromNow()
+  const createdDate = createdAt.format('MMM D, YYYY')
   const labelInfo = getLabelInfo(discussion.label || 'general')
 
   const authorName = discussion.author

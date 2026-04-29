@@ -106,6 +106,19 @@ export async function updateOrgFooterTextConfig(
   return res
 }
 
+export async function updateOrgHideOrgNameConfig(
+  org_id: string,
+  hide_org_name: boolean,
+  access_token: string
+) {
+  const result: any = await fetch(
+    `${getAPIUrl()}orgs/${org_id}/config/hide_org_name?hide_org_name=${hide_org_name}`,
+    RequestBodyWithAuthHeader('PUT', null, null, access_token)
+  )
+  const res = await errorHandling(result)
+  return res
+}
+
 export async function updateOrgQuickstartCourseConfig(
   org_id: string,
   quickstart_course_uuid: string,

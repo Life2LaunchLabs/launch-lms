@@ -20,6 +20,7 @@ import {
 } from "@components/ui/dropdown-menu"
 import UserAvatar from '@components/Objects/UserAvatar'
 import { CommentUpvoteButton } from './CommentUpvoteButton'
+import { parseAPIDate } from '@services/utils/ts/dateUtils'
 
 dayjs.extend(relativeTime)
 
@@ -57,7 +58,7 @@ export function CommentCard({ comment, onDeleted, onUpdated }: CommentCardProps)
   const [error, setError] = useState<string | null>(null)
 
   const isAuthor = currentUserId === comment.author_id
-  const timeAgo = dayjs(comment.creation_date).fromNow()
+  const timeAgo = parseAPIDate(comment.creation_date).fromNow()
   const authorName = comment.author
     ? `${comment.author.first_name} ${comment.author.last_name}`.trim() || comment.author.username
     : t('common.unknown')
