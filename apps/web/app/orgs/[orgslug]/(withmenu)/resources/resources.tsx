@@ -1,8 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
-import { Filter, FolderOpen, Layers, Plus, Search, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Filter, FolderOpen, Layers, Plus, Search, X } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import ResourceCard from '@components/Resources/ResourceCard'
@@ -23,6 +23,13 @@ import {
 import { getResourceChannelThumbnailMediaDirectory } from '@services/media/media'
 import { toast } from 'react-hot-toast'
 
+const CHANNEL_CARD_PEEK = 24
+const SCROLL_DURATION_MS = 240
+
+function easeOutQuint(progress: number) {
+  return 1 - Math.pow(1 - progress, 5)
+}
+
 function ActiveFilterChip({
   label,
   onRemove,
@@ -42,6 +49,41 @@ function ActiveFilterChip({
         <X size={11} />
       </button>
     </span>
+  )
+}
+
+function ChannelCarouselCard({
+  title,
+  thumbnail,
+  onClick,
+}: {
+  title: string
+  thumbnail?: string | null
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex max-w-[260px] shrink-0 items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-gray-50"
+    >
+      <div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+        {thumbnail ? (
+          <img
+            src={thumbnail}
+            alt={title}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-gray-400">
+            <FolderOpen size={16} />
+          </div>
+        )}
+      </div>
+      <div className="min-w-0 truncate text-lg font-semibold text-gray-900">
+        {title}
+      </div>
+    </button>
   )
 }
 
@@ -106,6 +148,11 @@ export default function ResourcesClient({
   const [newChannelModalOpen, setNewChannelModalOpen] = useState(false)
   const [newChannelName, setNewChannelName] = useState('')
   const [newChannelDescription, setNewChannelDescription] = useState('')
+  const channelScrollerRef = useRef<HTMLDivElement | null>(null)
+  const channelCardRefs = useRef<Array<HTMLDivElement | null>>([])
+  const channelAnimationFrameRef = useRef<number | null>(null)
+  const [canScrollChannelsLeft, setCanScrollChannelsLeft] = useState(false)
+  const [canScrollChannelsRight, setCanScrollChannelsRight] = useState(false)
 
   const { data: channelData, mutate: mutateChannels } = useSWR(
     orgId ? ['resource-channels', orgId, accessToken || 'anon'] : null,
@@ -137,8 +184,8 @@ export default function ResourcesClient({
     () => getResources(orgId, resourceParams, accessToken)
   )
 
-  const channels = channelData?.channels || []
-  const userChannels = channelData?.user_channels || []
+  const channels = useMemo(() => channelData?.channels || [], [channelData?.channels])
+  const userChannels = useMemo(() => channelData?.user_channels || [], [channelData?.user_channels])
   const activeChannelData = channels.find((channel: ResourceChannel) => channel.channel_uuid === activeChannel)
   const activeUserChannelData = userChannels.find((channel: UserResourceChannel) => channel.user_channel_uuid === activeUserChannel)
 
@@ -165,6 +212,153 @@ export default function ResourcesClient({
     : null
 
   const activeChannelName = activeUserChannelData?.name || activeChannelData?.name || 'All Resources'
+  const channelCarouselItems = useMemo(() => {
+    const items = [
+      {
+        id: 'all',
+        name: 'All Resources',
+        thumbnail: null,
+        onSelect: () => {
+          setActiveChannel('all')
+          setActiveUserChannel('')
+        },
+      },
+      ...channels.map((channel: ResourceChannel) => ({
+        id: channel.channel_uuid,
+        name: channel.name,
+        thumbnail: channel.thumbnail_image && orgUUID
+          ? getResourceChannelThumbnailMediaDirectory(orgUUID, channel.channel_uuid, channel.thumbnail_image)
+          : null,
+        onSelect: () => {
+          setActiveChannel(channel.channel_uuid)
+          setActiveUserChannel('')
+        },
+      })),
+    ]
+
+    return items.filter((item) => {
+      if (activeUserChannel) return true
+      return item.id !== activeChannel
+    })
+  }, [activeChannel, activeUserChannel, channels, orgUUID])
+
+  const updateChannelScrollState = useCallback(() => {
+    const container = channelScrollerRef.current
+    if (!container) return
+
+    const maxScrollLeft = container.scrollWidth - container.clientWidth
+    setCanScrollChannelsLeft(container.scrollLeft > 4)
+    setCanScrollChannelsRight(container.scrollLeft < maxScrollLeft - 4)
+  }, [])
+
+  const animateChannelsTo = useCallback((targetScrollLeft: number) => {
+    const container = channelScrollerRef.current
+    if (!container) return
+
+    if (channelAnimationFrameRef.current) {
+      cancelAnimationFrame(channelAnimationFrameRef.current)
+    }
+
+    const startScrollLeft = container.scrollLeft
+    const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth)
+    const clampedTarget = Math.max(0, Math.min(targetScrollLeft, maxScrollLeft))
+    const startTime = performance.now()
+
+    const step = (now: number) => {
+      const elapsed = now - startTime
+      const progress = Math.min(elapsed / SCROLL_DURATION_MS, 1)
+      const eased = easeOutQuint(progress)
+      container.scrollLeft = startScrollLeft + (clampedTarget - startScrollLeft) * eased
+
+      updateChannelScrollState()
+
+      if (progress < 1) {
+        channelAnimationFrameRef.current = requestAnimationFrame(step)
+      } else {
+        channelAnimationFrameRef.current = null
+      }
+    }
+
+    channelAnimationFrameRef.current = requestAnimationFrame(step)
+  }, [updateChannelScrollState])
+
+  const scrollChannelsRight = useCallback(() => {
+    const container = channelScrollerRef.current
+    if (!container) return
+
+    const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth)
+    const viewportRight = container.scrollLeft + container.clientWidth
+    const firstClippedIndex = channelCardRefs.current.findIndex((card) => {
+      if (!card) return false
+      const cardRight = card.offsetLeft + card.offsetWidth
+      return cardRight > viewportRight + 2
+    })
+
+    if (firstClippedIndex === -1) return
+
+    const targetCard = channelCardRefs.current[firstClippedIndex]
+    if (!targetCard) return
+
+    const targetScrollLeft = targetCard.offsetLeft - CHANNEL_CARD_PEEK
+    animateChannelsTo(
+      maxScrollLeft - targetScrollLeft <= CHANNEL_CARD_PEEK
+        ? maxScrollLeft
+        : targetScrollLeft
+    )
+  }, [animateChannelsTo])
+
+  const scrollChannelsLeft = useCallback(() => {
+    const container = channelScrollerRef.current
+    if (!container) return
+
+    const viewportLeft = container.scrollLeft
+    let lastClippedIndex = -1
+
+    channelCardRefs.current.forEach((card, index) => {
+      if (!card) return
+      if (card.offsetLeft < viewportLeft - 2) {
+        lastClippedIndex = index
+      }
+    })
+
+    if (lastClippedIndex === -1) return
+
+    const targetCard = channelCardRefs.current[lastClippedIndex]
+    if (!targetCard) return
+
+    const targetScrollLeft = targetCard.offsetLeft - CHANNEL_CARD_PEEK
+
+    animateChannelsTo(targetScrollLeft <= CHANNEL_CARD_PEEK ? 0 : targetScrollLeft)
+  }, [animateChannelsTo])
+
+  useEffect(() => {
+    updateChannelScrollState()
+
+    const container = channelScrollerRef.current
+    if (!container) return
+
+    const handleScroll = () => updateChannelScrollState()
+    container.addEventListener('scroll', handleScroll, { passive: true })
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateChannelScrollState()
+    })
+    resizeObserver.observe(container)
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll)
+      resizeObserver.disconnect()
+    }
+  }, [channelCarouselItems.length, updateChannelScrollState])
+
+  useEffect(() => {
+    return () => {
+      if (channelAnimationFrameRef.current) {
+        cancelAnimationFrame(channelAnimationFrameRef.current)
+      }
+    }
+  }, [])
+
   const resourceTypeOptions = useMemo(
     () => [
       { value: 'assessment', label: 'Assessment' },
@@ -255,21 +449,75 @@ export default function ResourcesClient({
       </div>
 
       {/* Channel switcher */}
-      <button
-        onClick={() => setDrawerOpen(true)}
-        className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2 text-left hover:bg-gray-50 transition-colors"
-      >
-        <div className="h-9 w-9 rounded-lg bg-gray-100 overflow-hidden shrink-0">
-          {activeThumb ? (
-            <img src={activeThumb} alt={activeChannelName} className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-gray-400">
-              <FolderOpen size={16} />
+      <div className="flex min-w-0 items-stretch gap-4">
+        <button
+          onClick={() => setDrawerOpen(true)}
+          className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-left transition-colors hover:bg-gray-50"
+        >
+          <div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+            {activeThumb ? (
+              <img src={activeThumb} alt={activeChannelName} className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-gray-400">
+                <FolderOpen size={16} />
+              </div>
+            )}
+          </div>
+          <h2 className="text-lg font-semibold text-gray-900">{activeChannelName}</h2>
+        </button>
+
+        {channelCarouselItems.length > 0 && (
+          <>
+            <div className="my-1 w-px shrink-0 bg-gray-200" />
+            <div className="relative min-w-0 flex-1">
+              {canScrollChannelsLeft ? (
+                <button
+                  type="button"
+                  onClick={scrollChannelsLeft}
+                  aria-label="Scroll channels left"
+                  className="absolute left-0 top-7 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow-lg ring-1 ring-black/8 transition-colors hover:bg-white"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+              ) : null}
+
+              {canScrollChannelsRight ? (
+                <button
+                  type="button"
+                  onClick={scrollChannelsRight}
+                  aria-label="Scroll channels right"
+                  className="absolute right-0 top-7 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow-lg ring-1 ring-black/8 transition-colors hover:bg-white"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              ) : null}
+
+              <div
+                ref={channelScrollerRef}
+                className="overflow-x-hidden overflow-y-visible"
+              >
+                <div className="flex snap-x snap-mandatory gap-3 py-1">
+                  {channelCarouselItems.map((channel, index) => (
+                    <div
+                      key={channel.id}
+                      ref={(node) => {
+                        channelCardRefs.current[index] = node
+                      }}
+                      className="snap-start"
+                    >
+                      <ChannelCarouselCard
+                        title={channel.name}
+                        thumbnail={channel.thumbnail}
+                        onClick={channel.onSelect}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
-          )}
-        </div>
-        <h2 className="text-lg font-semibold text-gray-900">{activeChannelName}</h2>
-      </button>
+          </>
+        )}
+      </div>
 
       <div className="mt-4 flex items-center gap-2 overflow-hidden rounded-2xl border border-gray-200 bg-white px-2 py-2">
         <Popover>
