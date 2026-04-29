@@ -46,7 +46,6 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
   const session = useLHSession() as any;
   const [userCertificate, setUserCertificate] = useState<any>(null);
   const [isLoadingCertificate, setIsLoadingCertificate] = useState(false);
-  const [certificateError, setCertificateError] = useState<string | null>(null);
   const [guestBadgeClass, setGuestBadgeClass] = useState<any>(null);
   const qrCodeLink = getUriWithOrg(orgslug, `/badges/${userCertificate?.certificate_user.user_certification_uuid}/verify`);
   const cleanCourseUuid = courseUuid.replace('course_', '');
@@ -69,17 +68,11 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
       if (guestMode) return;
       if (!isCourseCompleted) return;
 
-      if (!session?.data?.tokens?.access_token) {
-        setCertificateError(t('auth.authenticate_to_contribute')); // Reusing an auth error key
-        return;
-      }
+      if (!session?.data?.tokens?.access_token) return;
 
-      if (!org?.id) {
-        return; // Wait for org to be available
-      }
+      if (!org?.id) return;
 
       setIsLoadingCertificate(true);
-      setCertificateError(null);
       try {
         const cleanCourseUuid = courseUuid.replace('course_', '');
         const result = await getUserCertificates(
@@ -90,12 +83,9 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
 
         if (result.success && result.data && result.data.length > 0) {
           setUserCertificate(result.data[0]);
-        } else {
-          setCertificateError(t('certificate.no_certificate'));
         }
       } catch (error) {
         console.error('Error fetching user certificate:', error);
-        setCertificateError(t('certificate.failed_load_certificates'));
       } finally {
         setIsLoadingCertificate(false);
       }
@@ -587,12 +577,6 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               <span className="ml-3 text-gray-600">{t('certificate.loading_certificate')}</span>
             </div>
-          ) : certificateError ? (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-              <p className="text-yellow-800">
-                {certificateError}
-              </p>
-            </div>
           ) : userCertificate ? (
             <div className="space-y-4">
               <h2 className="text-2xl font-semibold text-gray-900">Your Badge</h2>
@@ -633,13 +617,7 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
                 </Link>
               </div>
             </div>
-          ) : (
-            <div className="bg-gray-50 rounded-lg p-6">
-              <p className="text-gray-600">
-                {t('certificate.no_certificate_available')}
-              </p>
-            </div>
-          )}
+          ) : null}
 
           <div className="pt-6">
             <Link

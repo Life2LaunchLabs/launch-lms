@@ -132,7 +132,7 @@ function renderBlockNodes(
 
     if (node.type === 'quizScoresBlock') {
       return (
-        <div key={key} className="my-4 rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
+        <div key={key} className="my-3 py-1">
           <QuizScoresDisplay
             vectors={opts.vectors}
             scores={opts.scores}

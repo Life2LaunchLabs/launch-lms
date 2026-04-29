@@ -13,7 +13,7 @@ function QuizScoresBlockComponent(props: any) {
   return (
     <NodeViewWrapper
       as="div"
-      className="rounded-2xl border border-neutral-100 bg-neutral-50 p-4 my-3"
+      className="my-3 py-1"
       data-drag-handle
     >
       {isEditable && (
