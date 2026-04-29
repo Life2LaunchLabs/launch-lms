@@ -2,9 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ChevronDown, ChevronLeft, Check, Code2, Link2, ListTree, MoreVertical } from 'lucide-react'
-import { SiReddit, SiWhatsapp, SiX } from '@icons-pack/react-simple-icons'
-import { Linkedin } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ListTree } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { findCourseRun, isCourseActivityCompleted } from '@services/courses/progress'
@@ -13,8 +11,6 @@ import { useMediaQuery } from 'usehooks-ts'
 
 interface ActivityHeaderProps {
   course: any
-  activity: any
-  activityid: string
   courseuuid: string
   orgslug: string
   trailData?: any
@@ -25,8 +21,6 @@ interface ActivityHeaderProps {
 
 export default function ActivityHeader({
   course,
-  activity,
-  activityid,
   courseuuid,
   orgslug,
   trailData,
@@ -38,11 +32,7 @@ export default function ActivityHeader({
   const router = useRouter()
   const isCompact = useMediaQuery('(max-width: 1023px)')
   const [isSticky, setIsSticky] = useState(false)
-  const [dotsOpen, setDotsOpen] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [embedCopied, setEmbedCopied] = useState(false)
   const sentinelRef = useRef<HTMLDivElement>(null)
-  const dotsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -53,17 +43,6 @@ export default function ActivityHeader({
     if (sentinelRef.current) observer.observe(sentinelRef.current)
 
     return () => observer.disconnect()
-  }, [])
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dotsRef.current && !dotsRef.current.contains(e.target as Node)) {
-        setDotsOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   const allActivities = useMemo(() => {
@@ -94,129 +73,6 @@ export default function ActivityHeader({
   const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0
   const lessonWord = totalCount === 1 ? 'lesson' : 'lessons'
 
-  const cleanActivityId = activity.activity_uuid
-    ? activity.activity_uuid.replace('activity_', '')
-    : activityid.replace('activity_', '')
-  const activityUrl = typeof window !== 'undefined' ? window.location.href : ''
-
-  const shareText = `Check out this activity: ${activity.name}`
-  const encodedUrl = encodeURIComponent(activityUrl)
-  const encodedText = encodeURIComponent(shareText)
-  const embeddableTypes = ['TYPE_DYNAMIC', 'TYPE_VIDEO', 'TYPE_DOCUMENT']
-  const isEmbeddable = embeddableTypes.includes(activity.activity_type)
-
-  const getEmbedCode = () => {
-    if (typeof window === 'undefined') return ''
-    const baseUrl = window.location.origin
-    return `<iframe src="${baseUrl}/embed/${orgslug}/course/${cleanCourseUuid}/activity/${cleanActivityId}" width="100%" height="600" frameborder="0" allowfullscreen></iframe>`
-  }
-
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(activityUrl)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      return
-    }
-  }
-
-  const copyEmbed = async () => {
-    try {
-      await navigator.clipboard.writeText(getEmbedCode())
-      setEmbedCopied(true)
-      setTimeout(() => setEmbedCopied(false), 2000)
-    } catch {
-      return
-    }
-  }
-
-  const shareLinks = [
-    {
-      name: 'LinkedIn',
-      icon: Linkedin,
-      color: 'hover:bg-[#0A66C2] hover:text-white',
-      url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
-    },
-    {
-      name: 'X',
-      icon: SiX,
-      color: 'hover:bg-black hover:text-white',
-      url: `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedText}`,
-    },
-    {
-      name: 'WhatsApp',
-      icon: SiWhatsapp,
-      color: 'hover:bg-[#25D366] hover:text-white',
-      url: `https://wa.me/?text=${encodedText}%20${encodedUrl}`,
-    },
-    {
-      name: 'Reddit',
-      icon: SiReddit,
-      color: 'hover:bg-[#FF4500] hover:text-white',
-      url: `https://www.reddit.com/submit?url=${encodedUrl}&title=${encodedText}`,
-    },
-  ]
-
-  const menu = (
-    <div className="relative flex-shrink-0" ref={dotsRef}>
-      <button
-        onClick={() => setDotsOpen(!dotsOpen)}
-        className={`flex h-11 w-11 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-100 ${
-          isCompact ? 'bg-white nice-shadow' : 'bg-gray-50 ring-1 ring-gray-200/80'
-        }`}
-        aria-label="More options"
-      >
-        <MoreVertical size={17} />
-      </button>
-
-      {dotsOpen && (
-        <div
-          className="absolute right-0 top-full z-20 mt-2 min-w-[180px] rounded-lg bg-white py-1 nice-shadow"
-          style={{ zIndex: 'var(--z-dropdown)' }}
-        >
-          {shareLinks.map((link) => {
-            const Icon = link.icon
-            return (
-              <a
-                key={link.name}
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setDotsOpen(false)}
-                className={`flex items-center gap-2.5 px-3 py-2 text-sm text-neutral-600 transition-all duration-200 ${link.color}`}
-              >
-                <Icon size={16} />
-                <span>{link.name}</span>
-              </a>
-            )
-          })}
-          <div className="my-1 border-t border-gray-100" />
-          <button
-            onClick={copyLink}
-            className={`flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-all duration-200 ${
-              copied ? 'bg-green-500 text-white' : 'text-neutral-600 hover:bg-neutral-100'
-            }`}
-          >
-            {copied ? <Check size={16} /> : <Link2 size={16} />}
-            <span>{copied ? t('activities.link_copied') : t('activities.copy_link')}</span>
-          </button>
-          {isEmbeddable && (
-            <button
-              onClick={copyEmbed}
-              className={`flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-all duration-200 ${
-                embedCopied ? 'bg-green-500 text-white' : 'text-neutral-600 hover:bg-neutral-100'
-              }`}
-            >
-              {embedCopied ? <Check size={16} /> : <Code2 size={16} />}
-              <span>{embedCopied ? t('activities.embed_code_copied') : t('activities.embed')}</span>
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  )
-
   const progressSection = (
     <div className="min-w-0">
       <div className="flex items-center gap-3 sm:gap-4">
@@ -235,7 +91,7 @@ export default function ActivityHeader({
 
   const headerRow = isCompact ? (
     <div className="space-y-3 py-2 sm:py-3">
-      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
         <button
           onClick={() => router.back()}
           className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-700 nice-shadow transition-colors hover:bg-gray-50"
@@ -257,17 +113,13 @@ export default function ActivityHeader({
             <ChevronDown size={16} className="shrink-0 text-gray-500" />
           </button>
         )}
-
-        <div className="flex justify-end">
-          {menu}
-        </div>
       </div>
 
       {progressSection}
     </div>
   ) : (
     <div className="rounded-lg bg-white px-5 py-5 drop-shadow-xs">
-      <div className={`grid items-center gap-5 ${disableOutlineAccess ? 'grid-cols-[minmax(180px,280px)_minmax(0,1fr)_auto]' : 'grid-cols-[auto_minmax(180px,280px)_minmax(0,1fr)_auto]'}`}>
+      <div className={`grid items-center gap-5 ${disableOutlineAccess ? 'grid-cols-[minmax(180px,280px)_minmax(0,1fr)]' : 'grid-cols-[auto_minmax(180px,280px)_minmax(0,1fr)]'}`}>
         {!disableOutlineAccess ? (
           <button
             onClick={onToggleDesktopSidebar}
@@ -294,10 +146,6 @@ export default function ActivityHeader({
         </div>
 
         {progressSection}
-
-        <div className="flex justify-end">
-          {menu}
-        </div>
       </div>
     </div>
   )

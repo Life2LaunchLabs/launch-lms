@@ -44,6 +44,7 @@ const AISidePanelContentWrapper = lazy(() => import('@components/Objects/Activit
 const AISidePanelInline = lazy(() => import('@components/Objects/Activities/AI/AIActivityAsk').then(mod => ({ default: mod.AISidePanelInline })))
 const AIChatBotProvider = lazy(() => import('@components/Contexts/AI/AIChatBotContext'))
 const QuizLaunchButton = lazy(() => import('@components/Objects/Activities/Quiz/Player/QuizLaunchButton'))
+const QuizTitleActions = lazy(() => import('@components/Objects/Activities/Quiz/Player/QuizTitleActions'))
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -666,7 +667,7 @@ function ActivityClient(props: ActivityClientProps) {
                       </Dialog>
                     ) : null}
 
-                    <div className={`grid gap-6 lg:items-start ${!quickstartMode && isDesktopOutlineOpen ? 'lg:grid-cols-[320px_minmax(0,1fr)]' : 'lg:grid-cols-[minmax(0,1fr)]'}`}>
+                    <div className={`grid gap-6 lg:items-start ${!quickstartMode && isDesktopOutlineOpen ? 'lg:grid-cols-[260px_minmax(0,1fr)]' : 'lg:grid-cols-[minmax(0,1fr)]'}`}>
                       <aside className={`${!quickstartMode && isDesktopOutlineOpen ? 'hidden lg:block' : 'hidden'}`}>
                         <div className="sticky top-28">
                           <ActivityCourseOutline
@@ -720,10 +721,15 @@ function ActivityClient(props: ActivityClientProps) {
                                     </div>
                                   </button>
                                   */}
-                                  <div className={`${activity.activity_type === 'TYPE_SCORM' ? 'absolute left-4 top-4 z-10 sm:left-0 sm:top-0 sm:static sm:mb-5 sm:px-0 sm:pt-0' : 'p-0 pb-4 sm:pb-5'}`}>
-                                    <h1 className="font-bold text-gray-950 text-2xl first-letter:uppercase sm:text-3xl">
+                                  <div className={`flex items-start justify-between gap-3 ${activity.activity_type === 'TYPE_SCORM' ? 'absolute left-4 top-4 z-10 sm:left-0 sm:top-0 sm:static sm:mb-5 sm:px-0 sm:pt-0' : 'p-0 pb-4 sm:pb-5'}`}>
+                                    <h1 className="min-w-0 font-bold text-gray-950 text-2xl first-letter:uppercase sm:text-3xl">
                                       {activity.name}
                                     </h1>
+                                    {activity.activity_type === 'TYPE_QUIZ' && (
+                                      <Suspense fallback={null}>
+                                        <QuizTitleActions activity={activity} />
+                                      </Suspense>
+                                    )}
                                   </div>
                                   {activityContent}
                                 </div>

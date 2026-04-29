@@ -1,9 +1,13 @@
 'use client'
-import React, { lazy, Suspense, useEffect, useState } from 'react'
+import React, { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Play, RotateCcw, Trophy } from 'lucide-react'
+import { Play } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { useOrg } from '@components/Contexts/OrgContext'
+import { useCourse } from '@components/Contexts/CourseContext'
 import { getMyQuizResult } from '@services/quiz/quiz'
+import QuizResultsView from './QuizResultsView'
+import QuizResultsPrintTemplate from './QuizResultsPrintTemplate'
 
 const QuizActivityPlayer = lazy(() => import('./QuizActivityPlayer'))
 
@@ -14,10 +18,16 @@ interface Props {
 export default function QuizLaunchButton({ activity }: Props) {
   const session = useLHSession() as any
   const access_token = session?.data?.tokens?.access_token
+  const org = useOrg() as any
+  const course = useCourse() as any
 
   const [open, setOpen] = useState(false)
   const [initialShowResults, setInitialShowResults] = useState(false)
   const [existingResult, setExistingResult] = useState<any>(undefined) // undefined = loading
+  const openTake = useCallback(() => {
+    setInitialShowResults(false)
+    setOpen(true)
+  }, [])
 
   useEffect(() => {
     getMyQuizResult(activity.activity_uuid, access_token)
@@ -25,50 +35,59 @@ export default function QuizLaunchButton({ activity }: Props) {
       .catch(() => setExistingResult(null))
   }, [activity.activity_uuid, access_token])
 
-  const openTake = () => { setInitialShowResults(false); setOpen(true) }
-  const openResults = () => { setInitialShowResults(true); setOpen(true) }
+  useEffect(() => {
+    const handleResultUpdated = (event: Event) => {
+      const detail = (event as CustomEvent).detail
+      if (detail?.activity_uuid === activity.activity_uuid) {
+        setExistingResult(detail.result ?? null)
+      }
+    }
+    const handleRetakeRequested = (event: Event) => {
+      const detail = (event as CustomEvent).detail
+      if (detail?.activity_uuid === activity.activity_uuid) {
+        openTake()
+      }
+    }
+    const handlePrintRequested = (event: Event) => {
+      const detail = (event as CustomEvent).detail
+      if (detail?.activity_uuid === activity.activity_uuid) {
+        window.requestAnimationFrame(() => window.print())
+      }
+    }
+
+    window.addEventListener('lh:quiz-result-updated', handleResultUpdated)
+    window.addEventListener('lh:quiz-retake-requested', handleRetakeRequested)
+    window.addEventListener('lh:quiz-print-requested', handlePrintRequested)
+    return () => {
+      window.removeEventListener('lh:quiz-result-updated', handleResultUpdated)
+      window.removeEventListener('lh:quiz-retake-requested', handleRetakeRequested)
+      window.removeEventListener('lh:quiz-print-requested', handlePrintRequested)
+    }
+  }, [activity.activity_uuid, openTake])
+
+  const handleComplete = (result: any) => {
+    setExistingResult(result ?? null)
+    setOpen(false)
+  }
 
   const hasResult = !!existingResult
   const loading = existingResult === undefined
-  const gradedResult = existingResult?.result_json?.graded_result
-  const attemptsRemaining = gradedResult?.attempts_remaining
-  const canRetake = attemptsRemaining === null || attemptsRemaining === undefined || attemptsRemaining > 0
 
   return (
     <>
-      <div className="flex flex-col items-center justify-center py-16 gap-3">
+      <div className={hasResult ? "-mx-5 sm:-mx-7 -mb-6 sm:-mb-7" : "flex flex-col items-center justify-center py-16 gap-3"}>
         {loading ? (
           <div className="w-8 h-8 rounded-full border-2 border-violet-300 border-t-violet-600 animate-spin" />
         ) : hasResult ? (
-          <div className="flex flex-col items-center gap-3">
-            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-50 border border-violet-100">
-              <Trophy size={14} className="text-violet-500" />
-              <span className="text-sm text-violet-700 font-semibold">You've completed this quiz</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={openResults}
-                className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold transition-colors shadow-lg shadow-violet-500/25 outline-none"
-              >
-                <Trophy size={15} />
-                View Results
-              </button>
-              {canRetake ? (
-                <button
-                  onClick={openTake}
-                  className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-sm font-bold transition-colors outline-none"
-                >
-                  <RotateCcw size={15} />
-                  Retake Quiz
-                </button>
-              ) : (
-                <div className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-neutral-100 text-neutral-400 text-sm font-bold">
-                  <RotateCcw size={15} />
-                  No retakes left
-                </div>
-              )}
-            </div>
-          </div>
+          <>
+            <QuizResultsView
+              result={existingResult}
+              activity={activity}
+              org={org}
+              course={course}
+              onRetake={openTake}
+            />
+          </>
         ) : (
           <button
             onClick={openTake}
@@ -85,9 +104,20 @@ export default function QuizLaunchButton({ activity }: Props) {
           <QuizActivityPlayer
             activity={activity}
             initialShowResults={initialShowResults}
+            onComplete={handleComplete}
             onClose={() => setOpen(false)}
           />
         </Suspense>,
+        document.body
+      )}
+
+      {hasResult && typeof document !== 'undefined' && createPortal(
+        <QuizResultsPrintTemplate
+          result={existingResult}
+          activity={activity}
+          org={org}
+          course={course}
+        />,
         document.body
       )}
     </>
