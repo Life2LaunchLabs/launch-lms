@@ -636,8 +636,6 @@ function ActivityClient(props: ActivityClientProps) {
                   <div className="space-y-4 relative">
                     <ActivityHeader
                       course={course}
-                      activity={activity}
-                      activityid={activityid}
                       courseuuid={courseuuid}
                       orgslug={orgslug}
                       trailData={effectiveTrailData}

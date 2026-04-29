@@ -82,7 +82,7 @@ const DEVICE_ICONS: Record<string, React.ReactNode> = {
   unknown: <Devices size={13} weight="duotone" className="text-gray-400" />,
 }
 
-function DauTooltipContent({ active, payload, label, breakdownMap }: { active?: boolean; payload?: any[]; label?: any; breakdownMap: Record<string, any> }) {
+function DauTooltipContent({ active, payload, label, breakdownMap }: { active?: boolean; payload?: readonly any[]; label?: any; breakdownMap: Record<string, any> }) {
   const { t } = useTranslation()
   if (!active || !payload?.length) return null
   const dateStr = new Date(label).toLocaleDateString('en-US', {
