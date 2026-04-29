@@ -91,7 +91,7 @@ export default function ActivityHeader({
 
   const headerRow = isCompact ? (
     <div className="space-y-3 py-2 sm:py-3">
-      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
+      <div className="grid grid-cols-[2.75rem_1fr_2.75rem] items-center gap-3">
         <button
           onClick={() => router.back()}
           className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-700 nice-shadow transition-colors hover:bg-gray-50"
@@ -101,18 +101,22 @@ export default function ActivityHeader({
         </button>
 
         {disableOutlineAccess ? (
-          <div className="min-w-0 px-1 text-center">
-            <span className="block truncate text-sm font-semibold text-gray-900">{course.name}</span>
+          <div className="flex min-w-0 justify-center px-1">
+            <span className="truncate text-sm font-semibold text-gray-900">{course.name}</span>
           </div>
         ) : (
-          <button
-            onClick={onOpenOutline}
-            className="flex min-w-0 items-center justify-center gap-2 rounded-full border border-gray-200/80 bg-white px-4 py-3 text-gray-900 nice-shadow transition-colors hover:bg-gray-50"
-          >
-            <span className="truncate text-sm font-semibold">{course.name}</span>
-            <ChevronDown size={16} className="shrink-0 text-gray-500" />
-          </button>
+          <div className="flex min-w-0 justify-center">
+            <button
+              onClick={onOpenOutline}
+              className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-full border border-gray-200/80 bg-white px-6 py-3 text-gray-900 nice-shadow transition-colors hover:bg-gray-50"
+            >
+              <span className="truncate text-sm font-semibold">{course.name}</span>
+              <ChevronDown size={16} className="shrink-0 text-gray-500" />
+            </button>
+          </div>
         )}
+
+        <div className="h-11 w-11" />
       </div>
 
       {progressSection}
