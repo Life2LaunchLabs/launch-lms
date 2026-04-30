@@ -54,6 +54,7 @@ from src.services.orgs.orgs import (
     update_org_playgrounds_config,
     update_org_color_config,
     update_org_footer_text_config,
+    update_org_hide_org_name_config,
     update_org_quickstart_course_config,
     update_org_thumbnail,
     update_org_landing,
@@ -461,6 +462,22 @@ async def api_update_org_footer_text_config(
     """
     return await update_org_footer_text_config(
         request, footer_text, org_id, current_user, db_session
+    )
+
+
+@router.put("/{org_id}/config/hide_org_name")
+async def api_update_org_hide_org_name_config(
+    request: Request,
+    org_id: int,
+    hide_org_name: bool = False,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    """
+    Update organization hide org name configuration
+    """
+    return await update_org_hide_org_name_config(
+        request, hide_org_name, org_id, current_user, db_session
     )
 
 

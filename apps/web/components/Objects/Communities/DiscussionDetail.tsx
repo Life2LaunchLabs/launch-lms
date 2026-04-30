@@ -15,6 +15,7 @@ import { CommentSection } from './CommentSection'
 import { DiscussionContent } from './DiscussionContent'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal'
+import { parseAPIDate } from '@services/utils/ts/dateUtils'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -78,7 +79,7 @@ export function DiscussionDetail({
   const accessToken = session?.data?.tokens?.access_token
   const currentUserId = session?.data?.user?.id
 
-  const timeAgo = dayjs(discussion.creation_date).fromNow()
+  const timeAgo = parseAPIDate(discussion.creation_date).fromNow()
   const isAuthor = currentUserId === discussion.author_id
   const labelInfo = getLabelInfo(discussion.label || 'general')
 

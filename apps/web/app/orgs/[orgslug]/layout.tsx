@@ -5,7 +5,7 @@ import Toast from '@components/Objects/StyledElements/Toast/Toast'
 import '@styles/globals.css'
 import Footer from '@components/Footer/Footer'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
-import { getOrgFaviconMediaDirectory } from '@services/media/media'
+import { getOrgFaviconMediaDirectory, getOrgLogoMediaDirectory } from '@services/media/media'
 
 export async function generateMetadata({
   params,
@@ -22,6 +22,11 @@ export async function generateMetadata({
     if (faviconImage) {
       return {
         icons: { icon: getOrgFaviconMediaDirectory(org.org_uuid, faviconImage) },
+      }
+    }
+    if (org?.logo_image) {
+      return {
+        icons: { icon: getOrgLogoMediaDirectory(org.org_uuid, org.logo_image) },
       }
     }
   } catch {}

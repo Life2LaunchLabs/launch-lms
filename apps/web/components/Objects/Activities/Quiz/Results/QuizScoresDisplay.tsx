@@ -67,14 +67,17 @@ export default function QuizScoresDisplay({
   const maxRatio = sortedItems.reduce((max, item) => Math.max(max, item.ratio), 0)
 
   return (
-    <div className={`space-y-3 ${className}`.trim()}>
+    <div
+      className={`grid items-center gap-x-3 gap-y-2 ${className}`.trim()}
+      style={{ gridTemplateColumns: 'minmax(0, max-content) minmax(0, 280px)' }}
+    >
       {sortedItems.map((item) => (
-        <div key={item.vector.key} className="grid grid-cols-[minmax(0,max-content)_minmax(0,1fr)] items-center gap-3">
-          <span className="truncate text-right text-sm font-medium leading-6 text-neutral-700">
+        <React.Fragment key={item.vector.key}>
+          <span className="max-w-[180px] truncate text-right text-sm font-medium leading-5 text-neutral-700">
             {item.label}
           </span>
           <div
-            className="relative h-6 overflow-hidden rounded-full"
+            className="relative h-4 w-full overflow-hidden rounded-full"
             style={getTrackStyle(item.color)}
           >
             <div
@@ -82,7 +85,7 @@ export default function QuizScoresDisplay({
               style={{ width: getFillWidth(item.ratio, maxRatio, normalize), backgroundColor: item.color }}
             />
           </div>
-        </div>
+        </React.Fragment>
       ))}
     </div>
   )

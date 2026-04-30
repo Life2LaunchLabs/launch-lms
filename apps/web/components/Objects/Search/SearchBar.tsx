@@ -160,6 +160,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const session = useLHSession() as any;
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
   // Debounce the search query value
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -174,7 +176,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        searchRef.current && !searchRef.current.contains(target) &&
+        dropdownRef.current && !dropdownRef.current.contains(target)
+      ) {
         setShowResults(false);
       }
     };
@@ -631,15 +637,23 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     );
   }
 
-  // Desktop: existing behaviour
+  const handleDesktopFocus = useCallback(() => {
+    setShowResults(true);
+    if (searchRef.current) {
+      const rect = searchRef.current.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom + 8, left: rect.left, width: rect.width });
+    }
+  }, []);
+
+  // Desktop: existing behaviour, but dropdown is portalled to escape overflow-hidden parents
   return (
-    <div ref={searchRef} className={`relative z-[var(--z-dropdown)] ${className}`}>
+    <div ref={searchRef} className={`relative ${className}`}>
       <div className="relative group">
         <input
           type="text"
           value={searchQuery}
           onChange={handleSearchChange}
-          onFocus={() => setShowResults(true)}
+          onFocus={handleDesktopFocus}
           aria-label={t('search.search_placeholder')}
           placeholder={t('search.search_placeholder')}
           className={`w-full h-9 pl-11 pr-4 rounded-xl
@@ -651,15 +665,22 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         </div>
       </div>
 
-      <div
-        className={`absolute z-dropdown w-full mt-2 bg-white rounded-xl nice-shadow
-                   overflow-hidden divide-y divide-black/5
-                   transition-all duration-200 ease-in-out transform
-                   ${showResults ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'}
-                   min-w-[400px]`}
-      >
-        {dropdownContent}
-      </div>
+      {showResults && dropdownPos && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={dropdownRef}
+          style={{
+            position: 'fixed',
+            top: dropdownPos.top,
+            left: dropdownPos.left,
+            width: Math.max(dropdownPos.width, 400),
+            zIndex: Z_INDEX.NAV_MENU + 1,
+          }}
+          className="bg-white rounded-xl nice-shadow overflow-hidden divide-y divide-black/5"
+        >
+          {dropdownContent}
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

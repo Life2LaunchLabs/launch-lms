@@ -16,44 +16,36 @@ import type { ResourceType } from '@services/resources/resources'
 type ResourceTypePresentation = {
   icon: LucideIcon
   color: string
-  background: string
 }
 
 const resourceTypePresentation: Record<ResourceType, ResourceTypePresentation> = {
   assessment: {
     icon: ClipboardCheck,
-    color: '#7c3aed',
-    background: '#ede9fe',
+    color: '#4c1d95',
   },
   video: {
     icon: PlayCircle,
-    color: '#dc2626',
-    background: '#fee2e2',
+    color: '#991b1b',
   },
   article: {
     icon: FileText,
-    color: '#2563eb',
-    background: '#dbeafe',
+    color: '#1e3a8a',
   },
   tool: {
     icon: Wrench,
-    color: '#0891b2',
-    background: '#cffafe',
+    color: '#155e75',
   },
   guide: {
     icon: BookOpen,
-    color: '#16a34a',
-    background: '#dcfce7',
+    color: '#166534',
   },
   course: {
     icon: GraduationCap,
-    color: '#ea580c',
-    background: '#ffedd5',
+    color: '#9a3412',
   },
   other: {
     icon: Layers,
-    color: '#64748b',
-    background: '#f1f5f9',
+    color: '#334155',
   },
 }
 
@@ -82,7 +74,7 @@ export default function ResourceTypeVisual({
   return (
     <div
       className={`relative flex h-full w-full items-center justify-center overflow-hidden ${className}`}
-      style={showImage ? undefined : { backgroundColor: presentation.background }}
+      style={showImage ? undefined : { backgroundColor: presentation.color }}
     >
       {showImage ? (
         <img
@@ -92,12 +84,19 @@ export default function ResourceTypeVisual({
           onError={() => setImageFailed(true)}
         />
       ) : (
-        <Icon
-          aria-hidden="true"
-          className={`h-14 w-14 ${iconClassName}`}
-          style={{ color: presentation.color }}
-          strokeWidth={1.75}
-        />
+        <>
+          <img
+            src="/texture_overlay.png"
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          <Icon
+            aria-hidden="true"
+            className={`relative z-10 h-14 w-14 text-white ${iconClassName}`}
+            strokeWidth={1.75}
+          />
+        </>
       )}
     </div>
   )

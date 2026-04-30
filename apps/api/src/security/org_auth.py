@@ -11,13 +11,18 @@ from sqlmodel import Session, select
 
 from src.db.user_organizations import UserOrganization
 from src.db.roles import Role
-from src.security.superadmin import is_user_superadmin
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
+
+
+def _is_user_superadmin(user_id: int, db_session: Session) -> bool:
+    from src.security.superadmin import is_user_superadmin
+
+    return is_user_superadmin(user_id, db_session)
 
 
 def is_org_member(user_id: int, org_id: int, db_session: Session) -> bool:
     """Check if user is a member of the org (or a superadmin)."""
-    if is_user_superadmin(user_id, db_session):
+    if _is_user_superadmin(user_id, db_session):
         return True
     statement = select(UserOrganization).where(
         UserOrganization.user_id == user_id,
@@ -28,7 +33,7 @@ def is_org_member(user_id: int, org_id: int, db_session: Session) -> bool:
 
 def is_org_admin(user_id: int, org_id: int, db_session: Session) -> bool:
     """Check if user is an admin/maintainer of the org (or a superadmin)."""
-    if is_user_superadmin(user_id, db_session):
+    if _is_user_superadmin(user_id, db_session):
         return True
     statement = select(UserOrganization).where(
         UserOrganization.user_id == user_id,
@@ -91,7 +96,7 @@ def require_org_role_permission(
         action: e.g. 'action_create', 'action_read'
         fallback_role_ids: allowed role IDs when rights dict is absent
     """
-    if is_user_superadmin(user_id, db_session):
+    if _is_user_superadmin(user_id, db_session):
         return
 
     user_org = get_user_org(user_id, org_id, db_session)
@@ -109,15 +114,20 @@ def require_org_role_permission(
         )
 
     if role.rights and isinstance(role.rights, dict):
-        resource_rights = role.rights.get(resource, {})
-        if not resource_rights.get(action, False):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"You don't have permission to perform this action ({resource}.{action})",
-            )
-    else:
-        if role.id not in fallback_role_ids:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin or Maintainer role required for this action",
-            )
+        resource_rights = role.rights.get(resource)
+        if resource_rights is not None:
+            # Rights explicitly defined for this resource — enforce them
+            if not resource_rights.get(action, False):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"You don't have permission to perform this action ({resource}.{action})",
+                )
+            return
+        # Resource type not in rights dict (role predates this resource type) —
+        # fall through to role ID check below
+
+    if role.id not in fallback_role_ids:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin or Maintainer role required for this action",
+        )

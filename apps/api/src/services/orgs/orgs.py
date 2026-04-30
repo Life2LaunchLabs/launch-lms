@@ -1168,6 +1168,46 @@ async def update_org_footer_text_config(
     return {"detail": "Footer text configuration updated"}
 
 
+async def update_org_hide_org_name_config(
+    request: Request,
+    hide_org_name: bool,
+    org_id: int,
+    current_user: PublicUser | AnonymousUser,
+    db_session: Session,
+):
+    statement = select(Organization).where(Organization.id == org_id)
+    org = db_session.exec(statement).first()
+
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    await rbac_check(request, org.org_uuid, current_user, "update", db_session)
+
+    statement = select(OrganizationConfig).where(OrganizationConfig.org_id == org.id)
+    org_config = db_session.exec(statement).first()
+
+    if org_config is None:
+        raise HTTPException(status_code=404, detail="Organization config not found")
+
+    updated_config = _deep_copy_config(org_config)
+
+    if _is_v2_config(updated_config):
+        updated_config.setdefault("customization", {}).setdefault("general", {})
+        updated_config["customization"]["general"]["hide_org_name"] = hide_org_name
+    else:
+        updated_config.setdefault("general", {"enabled": True, "color": ""})
+        updated_config["general"]["hide_org_name"] = hide_org_name
+
+    org_config.config = updated_config
+    org_config.update_date = str(datetime.now())
+
+    db_session.add(org_config)
+    db_session.commit()
+    db_session.refresh(org_config)
+
+    return {"detail": "Hide org name configuration updated"}
+
+
 async def update_org_quickstart_course_config(
     request: Request,
     quickstart_course_uuid: str,

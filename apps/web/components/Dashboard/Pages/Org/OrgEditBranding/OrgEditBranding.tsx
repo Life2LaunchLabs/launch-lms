@@ -8,7 +8,8 @@ import { getOrgLogoMediaDirectory, getOrgPreviewMediaDirectory, getOrgThumbnailM
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/ui/tabs"
 import { toast } from 'react-hot-toast'
 import { constructAcceptValue } from '@/lib/constants'
-import { uploadOrganizationLogo, uploadOrganizationThumbnail, uploadOrganizationPreview, updateOrganization, updateOrgColorConfig, uploadOrganizationFavicon, updateOrgBadgeIssuerConfig } from '@services/settings/org'
+import { uploadOrganizationLogo, uploadOrganizationThumbnail, uploadOrganizationPreview, updateOrganization, updateOrgColorConfig, uploadOrganizationFavicon, updateOrgBadgeIssuerConfig, updateOrgHideOrgNameConfig } from '@services/settings/org'
+import { Switch } from '@components/ui/switch'
 import { cn } from '@/lib/utils'
 import { Input } from "@components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@components/ui/dialog"
@@ -124,6 +125,12 @@ export default function OrgEditBranding() {
   const [videoUrl, setVideoUrl] = useState('')
   const [videoDialogOpen, setVideoDialogOpen] = useState(false)
   const [selectedService, setSelectedService] = useState<VideoService>(null)
+
+  // Logo display state
+  const [hideOrgName, setHideOrgName] = useState<boolean>(
+    org?.config?.config?.customization?.general?.hide_org_name || org?.config?.config?.general?.hide_org_name || false
+  )
+  const [isHideOrgNameSaving, setIsHideOrgNameSaving] = useState(false)
 
   // Theme state
   const [primaryColor, setPrimaryColor] = useState<string>(org?.config?.config?.customization?.general?.color || org?.config?.config?.general?.color || '')
@@ -433,6 +440,23 @@ export default function OrgEditBranding() {
     }
   }
 
+  const handleHideOrgNameToggle = async (checked: boolean) => {
+    setHideOrgName(checked)
+    setIsHideOrgNameSaving(true)
+    const loadingToast = toast.loading(t('dashboard.organization.settings.updating'))
+    try {
+      await updateOrgHideOrgNameConfig(org.id, checked, access_token)
+      await revalidateTags(['organizations'], org.slug)
+      mutate(`${getAPIUrl()}orgs/slug/${org.slug}`)
+      toast.success(t('dashboard.organization.settings.update_success'), { id: loadingToast })
+    } catch (err) {
+      setHideOrgName(!checked)
+      toast.error(t('dashboard.organization.settings.update_error'), { id: loadingToast })
+    } finally {
+      setIsHideOrgNameSaving(false)
+    }
+  }
+
   const handleClearColor = () => {
     setPrimaryColor('')
   }
@@ -567,6 +591,24 @@ export default function OrgEditBranding() {
                       </div>
                     </div>
                   </div>
+                </div>
+
+                {/* Hide org name toggle */}
+                <div className="w-full border-t border-gray-100 pt-6">
+                  <div className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-xl">
+                    <div className="flex flex-col space-y-0.5">
+                      <span className="text-sm font-medium text-gray-800">Hide organization name</span>
+                      <span className="text-xs text-gray-500">Show only the logo in the navigation bar, without the org name text</span>
+                    </div>
+                    <Switch
+                      checked={hideOrgName}
+                      onCheckedChange={handleHideOrgNameToggle}
+                      disabled={isHideOrgNameSaving || !org?.logo_image}
+                    />
+                  </div>
+                  {!org?.logo_image && (
+                    <p className="text-xs text-gray-400 mt-2 text-center">Upload a logo first to enable this option</p>
+                  )}
                 </div>
 
                 {/* Favicon Upload */}

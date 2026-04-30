@@ -178,6 +178,7 @@ class GeneralCustomization(BaseModel):
     color: str = ""
     footer_text: str = ""
     favicon_image: str = ""
+    hide_org_name: bool = False
 
 
 class SeoOrgConfig(BaseModel):

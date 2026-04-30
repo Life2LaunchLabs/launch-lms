@@ -46,7 +46,6 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
   const session = useLHSession() as any;
   const [userCertificate, setUserCertificate] = useState<any>(null);
   const [isLoadingCertificate, setIsLoadingCertificate] = useState(false);
-  const [certificateError, setCertificateError] = useState<string | null>(null);
   const [guestBadgeClass, setGuestBadgeClass] = useState<any>(null);
   const qrCodeLink = getUriWithOrg(orgslug, `/badges/${userCertificate?.certificate_user.user_certification_uuid}/verify`);
   const cleanCourseUuid = courseUuid.replace('course_', '');
@@ -69,17 +68,11 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
       if (guestMode) return;
       if (!isCourseCompleted) return;
 
-      if (!session?.data?.tokens?.access_token) {
-        setCertificateError(t('auth.authenticate_to_contribute')); // Reusing an auth error key
-        return;
-      }
+      if (!session?.data?.tokens?.access_token) return;
 
-      if (!org?.id) {
-        return; // Wait for org to be available
-      }
+      if (!org?.id) return;
 
       setIsLoadingCertificate(true);
-      setCertificateError(null);
       try {
         const cleanCourseUuid = courseUuid.replace('course_', '');
         const result = await getUserCertificates(
@@ -90,12 +83,9 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
 
         if (result.success && result.data && result.data.length > 0) {
           setUserCertificate(result.data[0]);
-        } else {
-          setCertificateError(t('certificate.no_certificate'));
         }
       } catch (error) {
         console.error('Error fetching user certificate:', error);
-        setCertificateError(t('certificate.failed_load_certificates'));
       } finally {
         setIsLoadingCertificate(false);
       }
@@ -415,7 +405,12 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
     )
 
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center text-center px-4 relative overflow-hidden">
+      <div className="relative left-1/2 -my-4 flex min-h-dvh w-screen -translate-x-1/2 flex-col items-center justify-center overflow-hidden bg-gray-950 px-4 text-center md:-my-16">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/quickstart_final_background.png')" }}
+        />
+        <div className="absolute inset-0 bg-black/35" />
         <div className="fixed inset-0 pointer-events-none">
           <ReactConfetti
             width={width}
@@ -426,26 +421,17 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
           />
         </div>
 
-        <div className="bg-white rounded-2xl p-8 nice-shadow max-w-3xl w-full space-y-6 relative z-10">
-          <div className="flex flex-col items-center space-y-6">
-            <div className="bg-emerald-100 p-4 rounded-full">
-              <Trophy className="w-16 h-16 text-emerald-600" />
-            </div>
-          </div>
-
-          <h1 className="text-4xl font-bold text-gray-900">{t('courses.congratulations')}</h1>
-          <p className="text-xl text-gray-600">
-            You finished <span className="font-semibold text-gray-900">{courseName}</span>.
-          </p>
-          <p className="text-gray-500">
-            {guestBadgeClass
-              ? 'Create an account or log in to save your results and unlock your badge.'
-              : 'Create an account or log in to save your results to your profile.'}
+        <div className="relative z-10 flex w-full max-w-4xl flex-col items-center space-y-8 py-20 text-white">
+          <h1 className="max-w-3xl text-4xl font-bold leading-tight sm:text-5xl">
+            Congratulations! You just took your first step in launching your life
+          </h1>
+          <p className="max-w-2xl text-lg leading-8 text-white/90 sm:text-xl">
+            Your Pathway is the foundation of your life launching journey. Sign up to continue your experience, and launch your life, your way!
           </p>
 
           {guestBadgeClass ? (
-            <div className="mx-auto w-full max-w-2xl rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-5">
-              <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
+            <div className="mx-auto w-full max-w-2xl rounded-2xl border border-white/20 bg-white/10 p-5 backdrop-blur-sm">
+              <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-white/70">
                 Badge Preview
               </p>
               <div className="pointer-events-none mx-auto max-w-xl opacity-75">
@@ -463,10 +449,10 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
           <div className="flex flex-col sm:flex-row justify-center gap-3 pt-4">
             <Link
               href={signupHref}
-              className="inline-flex items-center justify-center space-x-2 bg-blue-600 text-white px-6 py-3 rounded-full hover:bg-blue-700 transition duration-200"
+              className="inline-flex items-center justify-center space-x-2 rounded-full bg-white px-6 py-3 font-semibold text-gray-950 transition duration-200 hover:bg-white/90"
             >
               <UserPlus className="w-5 h-5" />
-              <span>Create Account</span>
+              <span>Sign Up</span>
             </Link>
             <Link
               href={getUriWithOrg(
@@ -475,7 +461,7 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
                   next: getUriWithOrg(orgslug, completionReturnPath)
                 })
               )}
-              className="inline-flex items-center justify-center space-x-2 bg-gray-100 text-gray-800 px-6 py-3 rounded-full hover:bg-gray-200 transition duration-200"
+              className="inline-flex items-center justify-center space-x-2 rounded-full border border-white/40 bg-white/10 px-6 py-3 font-semibold text-white backdrop-blur-sm transition duration-200 hover:bg-white/20"
             >
               <span>Log In</span>
             </Link>
@@ -587,12 +573,6 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               <span className="ml-3 text-gray-600">{t('certificate.loading_certificate')}</span>
             </div>
-          ) : certificateError ? (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-              <p className="text-yellow-800">
-                {certificateError}
-              </p>
-            </div>
           ) : userCertificate ? (
             <div className="space-y-4">
               <h2 className="text-2xl font-semibold text-gray-900">Your Badge</h2>
@@ -633,13 +613,7 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
                 </Link>
               </div>
             </div>
-          ) : (
-            <div className="bg-gray-50 rounded-lg p-6">
-              <p className="text-gray-600">
-                {t('certificate.no_certificate_available')}
-              </p>
-            </div>
-          )}
+          ) : null}
 
           <div className="pt-6">
             <Link

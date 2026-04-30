@@ -196,7 +196,6 @@ function ActivityClient(props: ActivityClientProps) {
   const [assignment, setAssignment] = React.useState(null) as any;
   const [isFocusMode, setIsFocusMode] = React.useState(false);
   const [isOutlineOpen, setIsOutlineOpen] = React.useState(false);
-  const [isDesktopOutlineOpen, setIsDesktopOutlineOpen] = React.useState(true);
   const isInitialRender = useRef(true);
   const hasAttemptedGuestCourseStart = useRef(false)
   const hasAttemptedCourseStart = useRef(false)
@@ -634,15 +633,16 @@ function ActivityClient(props: ActivityClientProps) {
                   />
                 ) : (
                   <div className="space-y-4 relative">
-                    <ActivityHeader
-                      course={course}
-                      courseuuid={courseuuid}
-                      orgslug={orgslug}
-                      trailData={effectiveTrailData}
-                      onOpenOutline={() => setIsOutlineOpen(true)}
-                      onToggleDesktopSidebar={() => setIsDesktopOutlineOpen((open) => !open)}
-                      disableOutlineAccess={quickstartMode}
-                    />
+                    <div className="lg:hidden">
+                      <ActivityHeader
+                        course={course}
+                        courseuuid={courseuuid}
+                        orgslug={orgslug}
+                        trailData={effectiveTrailData}
+                        onOpenOutline={() => setIsOutlineOpen(true)}
+                        disableOutlineAccess={quickstartMode}
+                      />
+                    </div>
                     {!quickstartMode ? (
                       <Dialog open={isOutlineOpen} onOpenChange={setIsOutlineOpen}>
                         <DialogContent className="left-0 right-0 bottom-0 top-auto mt-16 max-h-[calc(100dvh-4rem)] max-w-none translate-x-0 translate-y-0 rounded-t-[28px] rounded-b-none border-x-0 border-b-0 border-t border-gray-200 bg-white px-0 pb-0 pt-3 sm:rounded-t-[28px] lg:hidden">
@@ -665,9 +665,9 @@ function ActivityClient(props: ActivityClientProps) {
                       </Dialog>
                     ) : null}
 
-                    <div className={`grid gap-6 lg:items-start ${!quickstartMode && isDesktopOutlineOpen ? 'lg:grid-cols-[260px_minmax(0,1fr)]' : 'lg:grid-cols-[minmax(0,1fr)]'}`}>
-                      <aside className={`${!quickstartMode && isDesktopOutlineOpen ? 'hidden lg:block' : 'hidden'}`}>
-                        <div className="sticky top-28">
+                    <div className={`grid gap-6 lg:items-start ${!quickstartMode ? 'lg:grid-cols-[260px_minmax(0,1fr)]' : ''}`}>
+                      <aside className={`${!quickstartMode ? 'hidden lg:block' : 'hidden'}`}>
+                        <div className="sticky top-6">
                           <ActivityCourseOutline
                             course={course}
                             currentActivityId={activityid}
@@ -676,7 +676,6 @@ function ActivityClient(props: ActivityClientProps) {
                             courseHref={coursePath}
                             getActivityHref={buildActivityPath}
                             variant="sidebar"
-                            onCloseSidebar={() => setIsDesktopOutlineOpen(false)}
                             initialExpandedActivityId={activityid}
                           />
                         </div>

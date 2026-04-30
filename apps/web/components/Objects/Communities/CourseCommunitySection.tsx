@@ -11,6 +11,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getCommunityByCourse, Community } from '@services/communities/communities'
 import { getDiscussions, DiscussionWithAuthor } from '@services/communities/discussions'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { parseAPIDate } from '@services/utils/ts/dateUtils'
 
 interface CourseCommunitySection {
   courseUuid: string
@@ -102,7 +103,7 @@ export function CourseCommunitySection({ courseUuid, orgslug }: CourseCommunityS
           ) : (
             discussions.map((discussion) => {
               const discussionId = discussion.discussion_uuid.replace('discussion_', '')
-              const timeAgo = dayjs(discussion.creation_date).fromNow()
+              const timeAgo = parseAPIDate(discussion.creation_date).fromNow()
               const authorName = discussion.author
                 ? `${discussion.author.first_name} ${discussion.author.last_name}`.trim() || discussion.author.username
                 : t('common.unknown')

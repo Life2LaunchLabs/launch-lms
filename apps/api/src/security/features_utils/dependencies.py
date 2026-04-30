@@ -39,7 +39,7 @@ async def require_org_admin(
     db_session: Session = Depends(get_db_session),
 ) -> bool:
     """
-    Dependency that verifies the current user is an admin (role_id=1)
+    Dependency that verifies the current user is an admin
     for the specified organization.
 
     Use this at the router level for endpoints that modify org configuration.
