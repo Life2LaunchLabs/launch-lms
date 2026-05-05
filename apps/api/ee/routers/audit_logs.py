@@ -121,7 +121,8 @@ async def export_audit_logs(
         ])
     
     output.seek(0)
-    
+
+    session.close()
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv",

@@ -758,6 +758,7 @@ async def export_analytics(
         output.write("\n")
 
     filename = f"analytics_export_{safe_org_id}_{safe_days}d.csv"
+    db_session.close()
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv",

@@ -207,6 +207,7 @@ async def api_rag_chat(
         mode=chat_request.mode or "course_only",
     )
 
+    db_session.close()
     return StreamingResponse(
         rag_chat_event_generator(
             stream,

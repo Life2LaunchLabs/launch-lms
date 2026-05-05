@@ -139,6 +139,7 @@ async def start_playground_session(
         course_context=course_context,
     )
 
+    db_session.close()
     return StreamingResponse(
         event_generator(stream, session.session_uuid),
         media_type="text/event-stream",
@@ -217,6 +218,7 @@ async def iterate_playground_session(
         course_context=course_context,
     )
 
+    db_session.close()
     return StreamingResponse(
         event_generator(stream, session.session_uuid),
         media_type="text/event-stream",

@@ -96,6 +96,7 @@ async def start_boards_playground_session(
         gemini_model_name=ai_model,
     )
 
+    db_session.close()
     return StreamingResponse(
         event_generator(stream, session.session_uuid),
         media_type="text/event-stream",
@@ -157,6 +158,7 @@ async def iterate_boards_playground_session(
         current_html=html_to_iterate,
     )
 
+    db_session.close()
     return StreamingResponse(
         event_generator(stream, session.session_uuid),
         media_type="text/event-stream",

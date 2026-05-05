@@ -127,6 +127,7 @@ async def api_ai_start_activity_chat_session_stream(
         context["ai_model"],
     )
 
+    db_session.close()
     return StreamingResponse(
         activity_chat_event_generator(
             stream,
@@ -169,6 +170,7 @@ async def api_ai_send_activity_chat_message_stream(
         context["ai_model"],
     )
 
+    db_session.close()
     return StreamingResponse(
         activity_chat_event_generator(
             stream,
@@ -350,6 +352,7 @@ async def api_editor_ai_start_chat_session_stream(
         context["ai_model"],
     )
 
+    db_session.close()
     return StreamingResponse(
         editor_chat_event_generator(
             stream,
@@ -392,6 +395,7 @@ async def api_editor_ai_send_message_stream(
         context["ai_model"],
     )
 
+    db_session.close()
     return StreamingResponse(
         editor_chat_event_generator(
             stream,
