@@ -43,6 +43,7 @@ export const routePaths = {
     account: {
       root: () => '/account',
       general: () => '/account/general',
+      security: () => '/account/security',
       purchases: () => '/account/purchases',
       organizations: () => '/account/organizations',
       badges: () => '/account/badges',
@@ -57,6 +58,8 @@ export const routePaths = {
   },
   org: {
     root: () => '/',
+    profile: () => '/profile',
+    profileEdit: () => '/profile/edit',
     welcome: () => '/welcome',
     quickstart: () => '/quickstart',
     quickstartCourse: (courseUuid: string) => `/quickstart/course/${courseUuid}`,

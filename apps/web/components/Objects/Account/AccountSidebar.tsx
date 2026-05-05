@@ -2,7 +2,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
-import { User, Lock, ShoppingBag, Settings, Building2, Award } from 'lucide-react'
+import { Lock, ShoppingBag, Building2 } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import UserAvatar from '@components/Objects/UserAvatar'
 import { getUriWithOrg } from '@services/config/config'
@@ -13,12 +13,9 @@ interface AccountSidebarProps {
 }
 
 const NAV_ITEMS = [
-  { id: 'general', icon: Settings, labelKey: 'account.general' },
-  { id: 'profile', icon: User, labelKey: 'account.profile' },
   { id: 'security', icon: Lock, labelKey: 'account.security' },
   { id: 'purchases', icon: ShoppingBag, labelKey: 'account.purchases' },
   { id: 'organizations', icon: Building2, label: 'Organizations' },
-  { id: 'badges', icon: Award, label: 'Badges' },
 ]
 
 export function AccountSidebar({ orgslug, currentSubpage }: AccountSidebarProps) {

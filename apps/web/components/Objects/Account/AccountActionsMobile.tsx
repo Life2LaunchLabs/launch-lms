@@ -1,7 +1,7 @@
 'use client'
 import React from 'react'
 import Link from 'next/link'
-import { User, Lock, ShoppingBag, Settings, Building2, Award } from 'lucide-react'
+import { Lock, ShoppingBag, Building2 } from 'lucide-react'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 
@@ -11,12 +11,9 @@ interface AccountActionsMobileProps {
 }
 
 const NAV_ITEMS = [
-  { id: 'general', icon: Settings, labelKey: 'account.general' },
-  { id: 'profile', icon: User, labelKey: 'account.profile' },
   { id: 'security', icon: Lock, labelKey: 'account.security' },
   { id: 'purchases', icon: ShoppingBag, labelKey: 'account.purchases' },
   { id: 'organizations', icon: Building2, label: 'Organizations' },
-  { id: 'badges', icon: Award, label: 'Badges' },
 ]
 
 export function AccountActionsMobile({ orgslug, currentSubpage }: AccountActionsMobileProps) {

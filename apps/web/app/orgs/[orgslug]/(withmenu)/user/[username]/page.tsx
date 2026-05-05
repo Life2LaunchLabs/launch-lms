@@ -2,7 +2,7 @@ import React from 'react'
 import { getUserByUsername } from '@services/users/users'
 import { Metadata } from 'next'
 import { getServerSession } from '@/lib/auth/server'
-import UserProfileClient from './UserProfileClient'
+import ProfilePageClient from '@components/Objects/Profile/ProfilePageClient'
 import { redirect } from 'next/navigation'
 
 interface UserPageParams {
@@ -54,12 +54,9 @@ async function UserPage({ params }: UserPageProps) {
     redirect(`/orgs/${orgslug}/login?redirect=/orgs/${orgslug}/user/${username}`)
   }
 
-  let userData, profile
+  let userData
   try {
     userData = await getUserByUsername(username, access_token)
-    profile = userData.profile
-      ? (typeof userData.profile === 'string' ? JSON.parse(userData.profile) : userData.profile)
-      : { sections: [] }
   } catch (err) {
     console.error('Error fetching user data:', err)
     return (
@@ -73,7 +70,11 @@ async function UserPage({ params }: UserPageProps) {
 
   return (
     <div>
-      <UserProfileClient userData={userData} profile={profile} />
+      <ProfilePageClient
+        initialUser={userData}
+        orgslug={orgslug}
+        canEdit={session?.user?.username === userData.username}
+      />
     </div>
   )
 }

@@ -11,7 +11,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { SearchBar } from '@components/Objects/Search/SearchBar'
 import { usePathname } from 'next/navigation'
 import { useTranslation } from 'react-i18next'
-import { Buildings, CaretDown, DotsThreeVertical, Question, SignOut, User } from '@phosphor-icons/react'
+import { Buildings, CaretDown, Question, SignOut, User } from '@phosphor-icons/react'
 import { FeedbackModal } from '@components/Objects/Modals/FeedbackModal'
 import { useJoinBannerVisible, JOIN_BANNER_HEIGHT } from '@components/Objects/Banners/OrgJoinBanner'
 import { GuestHeader } from '@components/Objects/Menus/GuestHeader'
@@ -448,7 +448,8 @@ function DesktopAccountLink({
   isExpanded: boolean
 }) {
   const session = useLHSession() as any
-  const accountHref = getUriWithOrg(orgslug, routePaths.owner.account.general())
+  const profileHref = getUriWithOrg(orgslug, routePaths.org.profile())
+  const accountHref = getUriWithOrg(orgslug, routePaths.owner.account.security())
 
   return (
     <DropdownMenu>
@@ -505,6 +506,12 @@ function DesktopAccountLink({
             </Link>
           </DropdownMenuItem>
         )}
+        <DropdownMenuItem asChild>
+          <Link href={profileHref} className="flex items-center gap-2">
+            <User size={16} weight="fill" />
+            <span>Profile</span>
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link href={accountHref} className="flex items-center gap-2">
             <User size={16} weight="fill" />
@@ -579,7 +586,7 @@ function MobileMoreMenu({
           aria-label="More"
           className="flex h-12 w-12 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-black/[0.08] hover:text-gray-900"
         >
-          <DotsThreeVertical size={20} weight="bold" />
+          <User size={20} weight="bold" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" side="top" className="mb-3 w-48 rounded-2xl p-2">
@@ -623,7 +630,16 @@ function MobileMoreMenu({
         )}
         <DropdownMenuItem asChild>
           <Link
-            href={getUriWithOrg(orgslug, routePaths.owner.account.general())}
+            href={getUriWithOrg(orgslug, routePaths.org.profile())}
+            className="flex items-center gap-3 rounded-xl px-3 py-2"
+          >
+            <User size={18} weight="fill" />
+            <span>Profile</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link
+            href={getUriWithOrg(orgslug, routePaths.owner.account.security())}
             className="flex items-center gap-3 rounded-xl px-3 py-2"
           >
             <UserAvatar border="border-2" rounded="rounded-full" width={18} shadow="" />

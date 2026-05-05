@@ -32,9 +32,12 @@ test('route manifest builds key dashboard and owner routes', () => {
 test('route manifest builds auth, account, and public org paths used by navigation surfaces', () => {
   assert.equal(routePaths.auth.signup({ mode: 'create-org' }), '/signup?mode=create-org')
   assert.equal(routePaths.owner.account.orgAdmin(), '/account/org-admin')
+  assert.equal(routePaths.owner.account.security(), '/account/security')
   assert.equal(routePaths.owner.account.purchases(), '/account/purchases')
   assert.equal(routePaths.owner.account.organizations(), '/account/organizations')
   assert.equal(routePaths.owner.account.badges(), '/account/badges')
+  assert.equal(routePaths.org.profile(), '/profile')
+  assert.equal(routePaths.org.profileEdit(), '/profile/edit')
   assert.equal(routePaths.org.organization('acme'), '/organization/acme')
   assert.equal(routePaths.org.user('jane'), '/user/jane')
   assert.equal(routePaths.org.search('ai prompts'), '/search?q=ai+prompts')
@@ -42,7 +45,8 @@ test('route manifest builds auth, account, and public org paths used by navigati
 
 test('navigation manifest smoke test keeps representative routes absolute and unique', () => {
   const navigationRoutes = [
-    routePaths.owner.account.general(),
+    routePaths.org.profile(),
+    routePaths.owner.account.security(),
     routePaths.owner.account.orgAdmin(),
     routePaths.org.root(),
     routePaths.org.courses(),

@@ -1,7 +1,7 @@
 'use client'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import UserAvatar from '@components/Objects/UserAvatar';
-import { getAPIUrl, getUriWithOrg, getUriWithoutOrg } from '@services/config/config';
+import { getAPIUrl, getDefaultOrg, getUriWithOrg, getUriWithoutOrg, routePaths } from '@services/config/config';
 import { swrFetcher } from '@services/utils/ts/requests';
 import { ArrowRightCircle, Info } from 'lucide-react';
 import { signOut } from '@components/Contexts/AuthContext';
@@ -23,7 +23,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuPortal,
 } from "@components/ui/dropdown-menu"
-import { Languages, Check, LogOut, Settings } from 'lucide-react';
+import { Languages, Check, LogOut, UserRound } from 'lucide-react';
 import { AVAILABLE_LANGUAGES } from '@/lib/languages';
 
 function HomeClient() {
@@ -88,9 +88,9 @@ function HomeClient() {
             </DropdownMenuSub>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href="/account/general" className="flex items-center space-x-2 w-full">
-                <Settings size={16} />
-                <span>{t('common.settings')}</span>
+              <Link href={getUriWithOrg(getDefaultOrg(), routePaths.org.profile())} className="flex items-center space-x-2 w-full">
+                <UserRound size={16} />
+                <span>Profile</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />

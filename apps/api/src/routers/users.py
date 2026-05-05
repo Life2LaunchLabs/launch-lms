@@ -41,6 +41,8 @@ from src.services.users.users import (
     read_user_by_username,
     update_user,
     update_user_avatar,
+    update_user_profile_cover,
+    upload_user_profile_featured_image,
     update_user_password,
 )
 from src.services.courses.courses import get_user_courses
@@ -343,6 +345,54 @@ async def api_update_avatar_user(
     # Invalidate session cache so the next session fetch returns the new avatar
     _invalidate_session_cache(user_id)
     return result
+
+
+@router.put("/update_profile_cover/{user_id}", response_model=UserRead, tags=["users"])
+async def api_update_profile_cover_user(
+    *,
+    request: Request,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+    user_id: int,
+    cover_file: UploadFile | None = None,
+) -> UserRead:
+    """
+    Update User Profile Cover
+
+    SECURITY: Users can only update their own profile cover.
+    The user_id in the URL must match the authenticated user's ID.
+    """
+    if current_user.id != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only update your own profile cover",
+        )
+    result = await update_user_profile_cover(request, db_session, current_user, cover_file)
+    _invalidate_session_cache(user_id)
+    return result
+
+
+@router.post("/upload_profile_featured_image/{user_id}", tags=["users"])
+async def api_upload_profile_featured_image(
+    *,
+    request: Request,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+    user_id: int,
+    image_file: UploadFile | None = None,
+) -> dict:
+    """
+    Upload User Profile Featured Image
+
+    SECURITY: Users can only upload featured images for their own profile.
+    The user_id in the URL must match the authenticated user's ID.
+    """
+    if current_user.id != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only upload images for your own profile",
+        )
+    return await upload_user_profile_featured_image(request, db_session, current_user, image_file)
 
 
 @router.put("/change_password/{user_id}", response_model=UserRead, tags=["users"])

@@ -39,6 +39,7 @@ import {
   Cube,
   FolderOpen,
   ShoppingBag,
+  UserCircle,
 } from '@phosphor-icons/react'
 import Link from 'next/link'
 import React, { useEffect, useState } from 'react'
@@ -803,7 +804,13 @@ function DashLeftMenu() {
                 </div>
                 <HoverMenuSeparator />
                 <HoverMenuItem asChild>
-                  <Link href={getUriWithOrg(getDefaultOrg(), routePaths.owner.account.general())} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                  <Link href={getUriWithOrg(getDefaultOrg(), routePaths.org.profile())} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                    <UserCircle size={16} weight="fill" />
+                    <span>Profile</span>
+                  </Link>
+                </HoverMenuItem>
+                <HoverMenuItem asChild>
+                  <Link href={getUriWithOrg(getDefaultOrg(), routePaths.owner.account.security())} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                     <Gear size={16} weight="fill" />
                     <span>{t('common.settings')}</span>
                   </Link>

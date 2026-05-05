@@ -64,3 +64,33 @@ export async function updateUserAvatar(
   const res = await getResponseMetadata(result)
   return res
 }
+
+export async function updateUserProfileCover(
+  user_id: any,
+  cover_file: any,
+  access_token: any
+) {
+  const formData = new FormData()
+  formData.append('cover_file', cover_file)
+  const result: any = await fetch(
+    `${getAPIUrl()}users/update_profile_cover/${user_id}`,
+    RequestBodyFormWithAuthHeader('PUT', formData, null, access_token)
+  )
+  const res = await getResponseMetadata(result)
+  return res
+}
+
+export async function uploadUserProfileFeaturedImage(
+  user_id: any,
+  image_file: any,
+  access_token: any
+) {
+  const formData = new FormData()
+  formData.append('image_file', image_file)
+  const result: any = await fetch(
+    `${getAPIUrl()}users/upload_profile_featured_image/${user_id}`,
+    RequestBodyFormWithAuthHeader('POST', formData, null, access_token)
+  )
+  const res = await getResponseMetadata(result)
+  return res
+}

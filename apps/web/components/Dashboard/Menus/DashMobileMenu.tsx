@@ -1,6 +1,6 @@
 'use client'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { Backpack, BadgeDollarSign, BookCopy, FolderOpen, Headphones, Home, MessagesSquare, School, Settings, Users } from 'lucide-react'
+import { Backpack, BadgeDollarSign, BookCopy, FolderOpen, Headphones, Home, MessagesSquare, School, UserRound, Users } from 'lucide-react'
 import Link from 'next/link'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -89,10 +89,10 @@ function DashMobileMenu() {
             </Link>
           </ToolTip>
         </AdminAuthorization>
-        <ToolTip content={t('common.settings')} slateBlack sideOffset={8} side="top">
-          <Link href={getUriWithOrg(ownerOrgSlug, routePaths.owner.account.general())} className="flex flex-col items-center p-2" aria-label="User account settings">
-            <Settings size={20} />
-            <span className="text-xs mt-1">{t('common.settings')}</span>
+        <ToolTip content="Profile" slateBlack sideOffset={8} side="top">
+          <Link href={getUriWithOrg(ownerOrgSlug, routePaths.org.profile())} className="flex flex-col items-center p-2" aria-label="View profile">
+            <UserRound size={20} />
+            <span className="text-xs mt-1">Profile</span>
           </Link>
         </ToolTip>
       </div>
