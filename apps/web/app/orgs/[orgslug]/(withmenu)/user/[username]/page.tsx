@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: UserPageProps): Promise<Metad
       title: `${userData.first_name} ${userData.last_name} | Profile`,
       description: userData.bio || `Profile page of ${userData.first_name} ${userData.last_name}`,
     }
-  } catch (error) {
+  } catch {
     return {
       title: 'User Profile',
     }
@@ -73,6 +73,7 @@ async function UserPage({ params }: UserPageProps) {
       <ProfilePageClient
         initialUser={userData}
         orgslug={orgslug}
+        profileUsername={userData.username}
         canEdit={session?.user?.username === userData.username}
       />
     </div>

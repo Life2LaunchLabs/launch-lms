@@ -27,6 +27,7 @@ import { Input } from '@components/ui/input'
 import { Switch } from '@components/ui/switch'
 import { Textarea } from '@components/ui/textarea'
 import UserAvatar from '@components/Objects/UserAvatar'
+import { normalizeAchievements, ProfileAchievementsSection } from '@components/Objects/Profile/ProfileAchievements'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getUserAvatarMediaDirectory, getUserProfileCoverMediaDirectory, getUserProfileFeaturedMediaDirectory } from '@services/media/media'
@@ -63,12 +64,14 @@ type FeaturedSection = {
 type ProfileShape = {
   header?: ProfileHeader
   featured?: FeaturedSection
+  achievements?: any
   sections?: any[]
 }
 
 type ProfilePageClientProps = {
   initialUser: any
   orgslug: string
+  profileUsername?: string
   editMode?: boolean
   canEdit?: boolean
 }
@@ -122,12 +125,12 @@ function normalizeFeatured(featured: any): FeaturedSection {
 }
 
 function normalizeProfile(profile: any): ProfileShape {
-  if (!profile) return { header: { socials: [] }, featured: normalizeFeatured(null), sections: [] }
+  if (!profile) return { header: { socials: [] }, featured: normalizeFeatured(null), achievements: normalizeAchievements(null), sections: [] }
   if (typeof profile === 'string') {
     try {
       return normalizeProfile(JSON.parse(profile))
     } catch {
-      return { header: { socials: [] }, featured: normalizeFeatured(null), sections: [] }
+      return { header: { socials: [] }, featured: normalizeFeatured(null), achievements: normalizeAchievements(null), sections: [] }
     }
   }
   return {
@@ -137,6 +140,7 @@ function normalizeProfile(profile: any): ProfileShape {
       socials: Array.isArray(profile.header?.socials) ? profile.header.socials : [],
     },
     featured: normalizeFeatured(profile.featured),
+    achievements: normalizeAchievements(profile.achievements),
     sections: Array.isArray(profile.sections) ? profile.sections : [],
   }
 }
@@ -207,8 +211,8 @@ function getToneClasses(tone: FeaturedCard['textTone']) {
       line: 'border-white/25',
       panel: 'bg-black/12',
       control: 'bg-black/20 text-white placeholder:text-white/55',
-      topGradient: 'from-black/55',
-      bottomGradient: 'from-black/65',
+      topGradient: 'from-black/80',
+      bottomGradient: 'from-black/80',
     }
   }
 
@@ -220,26 +224,24 @@ function getToneClasses(tone: FeaturedCard['textTone']) {
     line: 'border-gray-950/15',
     panel: 'bg-white/12',
     control: 'bg-white/20 text-gray-950 placeholder:text-gray-500',
-    topGradient: 'from-white/70',
-    bottomGradient: 'from-white/80',
+    topGradient: 'from-white/85',
+    bottomGradient: 'from-white/95',
   }
 }
 
 function FeaturedDisplayCard({
   card,
   active,
-  editMode = false,
 }: {
   card: FeaturedCard
   active: boolean
-  editMode?: boolean
 }) {
   const image = getCardImage(card)
   const tone = getToneClasses(card.textTone)
 
   return (
     <div
-      className={`relative flex h-[420px] w-[min(82vw,360px)] flex-col overflow-hidden rounded-[28px] border bg-white p-1 transition-all duration-300 sm:h-[460px] sm:w-[380px] ${
+      className={`relative flex h-[270px] w-[min(82vw,360px)] flex-col overflow-hidden rounded-[28px] border bg-white p-1 transition-all duration-300 sm:h-[285px] sm:w-[380px] ${
         active ? 'border-[3px] border-gray-950' : 'border border-gray-200'
       }`}
     >
@@ -248,18 +250,18 @@ function FeaturedDisplayCard({
       ) : (
         <div className="absolute inset-1 rounded-[24px] bg-[linear-gradient(135deg,#eef2ff,#f8fafc,#dcfce7)]" />
       )}
-      <div className={`absolute inset-x-1 top-1 h-36 rounded-t-[24px] bg-gradient-to-b ${tone.topGradient} to-transparent`} />
-      <div className={`absolute inset-x-1 bottom-1 h-36 rounded-b-[24px] bg-gradient-to-t ${tone.bottomGradient} to-transparent`} />
-      <div className="relative flex min-h-0 flex-1 flex-col p-7">
-        <div className="space-y-3">
-          <h3 className={`text-4xl font-black leading-none ${tone.title}`}>
+      <div className={`absolute inset-x-1 top-1 h-32 rounded-t-[24px] bg-gradient-to-b ${tone.topGradient} to-transparent`} />
+      <div className={`absolute inset-x-1 bottom-1 h-32 rounded-b-[24px] bg-gradient-to-t ${tone.bottomGradient} to-transparent`} />
+      <div className="relative flex min-h-0 flex-1 flex-col p-5">
+        <div className="space-y-2">
+          <h3 className={`text-2xl font-black leading-none ${tone.title}`}>
             {card.title || 'Featured link'}
           </h3>
           {card.subtext ? (
             <p className={`text-lg leading-7 ${tone.body}`}>{card.subtext}</p>
           ) : null}
         </div>
-        <div className={`mt-auto border-t pt-5 ${tone.line}`}>
+        <div className={`mt-auto border-t pt-3 ${tone.line}`}>
           <a
             href={normalizeUrl(card.url)}
             target="_blank"
@@ -288,7 +290,8 @@ function FeaturedCarousel({
   accessToken?: string
   userId: number
   userUuid: string
-  onChange: (featured: FeaturedSection) => void
+  // eslint-disable-next-line no-unused-vars
+  onChange(next: FeaturedSection): void
 }) {
   const cards = featured.cards || []
   const [activeIndex, setActiveIndex] = useState(0)
@@ -298,7 +301,7 @@ function FeaturedCarousel({
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [pendingPreview, setPendingPreview] = useState<ResourceUrlPreview | null>(null)
   const mobileScrollerRef = useRef<HTMLDivElement | null>(null)
-  const [draggingThumbIndex, setDraggingThumbIndex] = useState<number | null>(null)
+  const [, setDraggingThumbIndex] = useState<number | null>(null)
   const draggingThumbIndexRef = useRef<number | null>(null)
   const thumbDragMovedRef = useRef(false)
 
@@ -446,8 +449,8 @@ function FeaturedCarousel({
   if (!editMode && (!enabled || cards.length === 0)) return null
 
   return (
-    <section className="mt-8">
-      <div className="mb-4 flex items-center justify-between gap-4">
+    <section className="mt-4">
+      <div className="mb-3 flex items-center justify-between gap-4">
         <h2 className="text-2xl font-semibold text-gray-950">Featured</h2>
         {editMode ? (
           <div className="flex items-center gap-3">
@@ -464,7 +467,7 @@ function FeaturedCarousel({
       >
         {editMode ? (
           <div className="space-y-4">
-            <div className="flex min-h-[460px] items-center justify-center">
+            <div className="flex min-h-[290px] items-center justify-center">
               {activeCard ? (
                 <div className="relative">
                   {linkModeCardId !== activeCard.id ? (
@@ -479,7 +482,7 @@ function FeaturedCarousel({
                   ) : null}
 
                   {linkModeCardId === activeCard.id ? (
-                    <div className="relative flex h-[420px] w-[min(82vw,360px)] flex-col justify-center overflow-hidden rounded-[28px] border border-gray-200 bg-white p-7 shadow-lg sm:h-[460px] sm:w-[380px]">
+                    <div className="relative flex h-[270px] w-[min(82vw,360px)] flex-col justify-center overflow-hidden rounded-[28px] border border-gray-200 bg-white p-5 shadow-lg sm:h-[285px] sm:w-[380px]">
                       {activeCard.url && (
                         <button
                           type="button"
@@ -534,7 +537,7 @@ function FeaturedCarousel({
                       </div>
                     </div>
                   ) : (
-                    <div className="relative flex h-[420px] w-[min(82vw,360px)] flex-col overflow-hidden rounded-[28px] border-[3px] border-gray-950 bg-white p-1 sm:h-[460px] sm:w-[380px]">
+                    <div className="relative flex h-[270px] w-[min(82vw,360px)] flex-col overflow-hidden rounded-[28px] border-[3px] border-gray-950 bg-white p-1 sm:h-[285px] sm:w-[380px]">
                       {activeCard.imageUrl ? (
                         <img src={activeCard.imageUrl} alt="" className="absolute inset-1 h-[calc(100%-8px)] w-[calc(100%-8px)] rounded-[24px] object-cover" />
                       ) : (
@@ -544,9 +547,9 @@ function FeaturedCarousel({
                         const tone = getToneClasses(activeCard.textTone)
                         return (
                       <>
-                      <div className={`absolute inset-x-1 top-1 h-36 rounded-t-[24px] bg-gradient-to-b ${tone.topGradient} to-transparent`} />
-                      <div className={`absolute inset-x-1 bottom-1 h-36 rounded-b-[24px] bg-gradient-to-t ${tone.bottomGradient} to-transparent`} />
-                      <div className="relative flex min-h-0 flex-1 flex-col p-7 pt-14">
+                      <div className={`absolute inset-x-1 top-1 h-32 rounded-t-[24px] bg-gradient-to-b ${tone.topGradient} to-transparent`} />
+                      <div className={`absolute inset-x-1 bottom-1 h-32 rounded-b-[24px] bg-gradient-to-t ${tone.bottomGradient} to-transparent`} />
+                      <div className="relative flex min-h-0 flex-1 flex-col p-5 pt-12">
                         <div className="absolute left-7 top-5 z-10 flex items-center gap-2 rounded-full bg-white/75 px-2 py-1 text-xs text-gray-700 backdrop-blur-sm">
                           <span>Text</span>
                           <button
@@ -569,13 +572,13 @@ function FeaturedCarousel({
                             value={activeCard.title}
                             onChange={(event) => updateCard(activeCard.id, { title: event.target.value })}
                             placeholder="Title"
-                            className={`border-0 bg-transparent px-0 text-3xl font-black shadow-none focus-visible:ring-0 ${tone.title}`}
+                            className={`border-0 bg-transparent px-0 text-2xl font-black shadow-none focus-visible:ring-0 ${tone.title}`}
                           />
                           <Textarea
                             value={activeCard.subtext}
                             onChange={(event) => updateCard(activeCard.id, { subtext: event.target.value })}
                             placeholder="Subtext"
-                            className={`min-h-28 resize-none border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0 ${tone.body}`}
+                            className={`min-h-14 resize-none border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0 ${tone.body}`}
                           />
                           <div className={`flex items-center gap-2 rounded-lg px-3 py-2 backdrop-blur-sm ${tone.panel}`}>
                             <ImageIcon className={`h-4 w-4 ${tone.muted}`} />
@@ -610,7 +613,7 @@ function FeaturedCarousel({
                             setLinkDraft(activeCard.url)
                             setLinkModeCardId(activeCard.id)
                           }}
-                          className={`relative mt-auto flex items-center gap-2 border-t pt-5 text-left text-base font-semibold hover:underline ${tone.line} ${tone.link}`}
+                          className={`relative mt-auto flex items-center gap-2 border-t pt-3 text-left text-base font-semibold hover:underline ${tone.line} ${tone.link}`}
                         >
                           <Link2 className="h-4 w-4" />
                           <span className="truncate">{activeCard.url ? getDisplayUrl(activeCard.url) : 'Add link'}</span>
@@ -626,7 +629,7 @@ function FeaturedCarousel({
                 <button
                   type="button"
                   onClick={addCard}
-                  className="flex h-[260px] w-[min(82vw,360px)] flex-col items-center justify-center rounded-[28px] border border-dashed border-gray-300 text-gray-500 hover:border-gray-500 hover:text-gray-900"
+                  className="flex h-[200px] w-[min(82vw,360px)] flex-col items-center justify-center rounded-[28px] border border-dashed border-gray-300 text-gray-500 hover:border-gray-500 hover:text-gray-900"
                 >
                   <Plus className="mb-2 h-6 w-6" />
                   Add featured card
@@ -732,7 +735,7 @@ function FeaturedCarousel({
               ))}
             </div>
 
-            <div className="relative hidden h-[430px] w-full items-center justify-center sm:flex sm:h-[490px]">
+            <div className="relative hidden h-[290px] w-full items-center justify-center sm:flex sm:h-[305px]">
               {cards.map((card, index) => {
                 const offset = index - activeIndex
                 if (Math.abs(offset) > 2) return null
@@ -799,6 +802,7 @@ function FeaturedCarousel({
 export default function ProfilePageClient({
   initialUser,
   orgslug,
+  profileUsername,
   editMode = false,
   canEdit = true,
 }: ProfilePageClientProps) {
@@ -819,7 +823,8 @@ export default function ProfilePageClient({
   const profile = editMode ? draft.profile : normalizeProfile(user.profile)
   const header = profile.header || {}
   const featured = profile.featured || normalizeFeatured(null)
-  const socials = header.socials || []
+  const achievements = profile.achievements || normalizeAchievements(null)
+  const socials = useMemo(() => header.socials ?? [], [header.socials])
   const coverUrl = header.coverImage
     ? getUserProfileCoverMediaDirectory(user.user_uuid, header.coverImage)
     : ''
@@ -834,10 +839,12 @@ export default function ProfilePageClient({
     [socials]
   )
 
-  const updateDraftProfile = (updater: (profile: ProfileShape) => ProfileShape) => {
+  const updateDraftProfile = (updater: React.SetStateAction<ProfileShape>) => {
     setDraft((current) => ({
       ...current,
-      profile: updater(current.profile),
+      profile: typeof updater === 'function'
+        ? updater(current.profile)
+        : updater,
     }))
   }
 
@@ -957,7 +964,7 @@ export default function ProfilePageClient({
     <main className="min-h-screen">
       <div className="mx-auto w-full max-w-5xl px-0 pt-0 pb-6 sm:px-6 sm:py-6 lg:px-8">
         <section className="relative">
-          <div className="relative h-64 overflow-hidden rounded-none bg-gray-100 sm:h-80 sm:rounded-lg">
+          <div className="relative h-48 overflow-hidden rounded-none bg-gray-100 sm:h-64 sm:rounded-lg">
             {coverUrl ? (
               <img src={coverUrl} alt="" className="h-full w-full object-cover" />
             ) : (
@@ -1001,7 +1008,7 @@ export default function ProfilePageClient({
             </div>
           </div>
 
-          <div className="px-4 pb-10 pt-0 sm:px-4">
+          <div className="px-4 pb-4 pt-0 sm:px-4">
             <div className="-mt-14 flex flex-col items-start gap-5 sm:-mt-16">
               <div className="relative">
                 <div className="rounded-full border-4 border-white bg-white shadow-md">
@@ -1036,7 +1043,7 @@ export default function ProfilePageClient({
                 )}
               </div>
 
-              <div className="w-full max-w-2xl space-y-5">
+              <div className="w-full max-w-2xl space-y-3">
                 {editMode ? (
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Input
@@ -1055,7 +1062,7 @@ export default function ProfilePageClient({
                   </div>
                 ) : (
                   <div>
-                    <h1 className="text-4xl font-semibold text-gray-950">
+                    <h1 className="text-3xl font-semibold text-gray-950">
                       {user.first_name} {user.last_name}
                     </h1>
                     <p className="mt-1 text-sm text-gray-500">@{user.username}</p>
@@ -1160,6 +1167,17 @@ export default function ProfilePageClient({
           userId={user.id}
           userUuid={user.user_uuid}
           onChange={updateFeatured}
+        />
+        <ProfileAchievementsSection
+          achievements={achievements}
+          orgslug={orgslug}
+          profileUsername={profileUsername}
+          editMode={editMode && canEdit}
+          canEdit={canEdit}
+          onChange={(nextAchievements) => updateDraftProfile((current) => ({
+            ...current,
+            achievements: nextAchievements,
+          }))}
         />
       </div>
     </main>
