@@ -138,6 +138,7 @@ async def api_export_courses_batch(
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"launch-lms-export-batch-{timestamp}.zip"
 
+    db_session.close()
     return StreamingResponse(
         io.BytesIO(zip_content),
         media_type="application/zip",
@@ -514,6 +515,7 @@ async def api_export_course(
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"launch-lms-export-{course_uuid}-{timestamp}.zip"
 
+    db_session.close()
     return StreamingResponse(
         io.BytesIO(zip_content),
         media_type="application/zip",

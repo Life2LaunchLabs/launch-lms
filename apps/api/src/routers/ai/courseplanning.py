@@ -134,6 +134,7 @@ async def start_course_planning_session(
         attachments=session_request.attachments
     )
 
+    db_session.close()
     return StreamingResponse(
         event_generator(stream, session.session_uuid),
         media_type="text/event-stream",
@@ -200,6 +201,7 @@ async def iterate_course_planning_session(
         attachments=message_request.attachments
     )
 
+    db_session.close()
     return StreamingResponse(
         event_generator(stream, session.session_uuid),
         media_type="text/event-stream",
@@ -451,6 +453,7 @@ async def generate_activity_content(
     )
 
     # Use event_generator_with_save to automatically save content to database when streaming completes
+    db_session.close()
     return StreamingResponse(
         event_generator_with_save(stream, session.session_uuid, activity_uuid),
         media_type="text/event-stream",

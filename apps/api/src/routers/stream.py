@@ -173,6 +173,7 @@ async def stream_activity_video(
         headers["Content-Range"] = f"bytes {start}-{end}/{file_size}"
         headers["Content-Length"] = str(content_length)
 
+        db_session.close()
         return StreamingResponse(
             stream_video_file(file_path, start, end, CHUNK_SIZE),
             status_code=206,
@@ -183,6 +184,7 @@ async def stream_activity_video(
         # Full content response (200)
         headers["Content-Length"] = str(file_size)
 
+        db_session.close()
         return StreamingResponse(
             stream_video_file(file_path, 0, file_size - 1, CHUNK_SIZE),
             status_code=200,
@@ -254,6 +256,7 @@ async def stream_block_audio(
         headers["Content-Range"] = f"bytes {start}-{end}/{file_size}"
         headers["Content-Length"] = str(content_length)
 
+        db_session.close()
         return StreamingResponse(
             stream_video_file(file_path, start, end, CHUNK_SIZE),
             status_code=206,
@@ -263,6 +266,7 @@ async def stream_block_audio(
     else:
         headers["Content-Length"] = str(file_size)
 
+        db_session.close()
         return StreamingResponse(
             stream_video_file(file_path, 0, file_size - 1, CHUNK_SIZE),
             status_code=200,
@@ -393,6 +397,7 @@ async def stream_block_video(
         headers["Content-Range"] = f"bytes {start}-{end}/{file_size}"
         headers["Content-Length"] = str(content_length)
 
+        db_session.close()
         return StreamingResponse(
             stream_video_file(file_path, start, end, CHUNK_SIZE),
             status_code=206,
@@ -403,6 +408,7 @@ async def stream_block_video(
         # Full content response (200)
         headers["Content-Length"] = str(file_size)
 
+        db_session.close()
         return StreamingResponse(
             stream_video_file(file_path, 0, file_size - 1, CHUNK_SIZE),
             status_code=200,
@@ -585,6 +591,7 @@ async def stream_podcast_audio(
         headers["Content-Range"] = f"bytes {start}-{end}/{file_size}"
         headers["Content-Length"] = str(content_length)
 
+        db_session.close()
         return StreamingResponse(
             stream_video_file(file_path, start, end, CHUNK_SIZE),
             status_code=206,
@@ -595,6 +602,7 @@ async def stream_podcast_audio(
         # Full content response (200)
         headers["Content-Length"] = str(file_size)
 
+        db_session.close()
         return StreamingResponse(
             stream_video_file(file_path, 0, file_size - 1, CHUNK_SIZE),
             status_code=200,

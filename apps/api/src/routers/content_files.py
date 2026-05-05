@@ -288,6 +288,7 @@ async def serve_content_file(
                 pos += len(data)
                 yield data
 
+        db_session.close()
         return StreamingResponse(
             stream_range(),
             status_code=206,
@@ -313,6 +314,7 @@ async def serve_content_file(
                 pos += len(data)
                 yield data
 
+        db_session.close()
         return StreamingResponse(
             stream_full(),
             status_code=200,

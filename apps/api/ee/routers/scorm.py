@@ -313,12 +313,14 @@ async def api_get_scorm_content(
         if not file_content:
             raise HTTPException(status_code=404, detail="File not found")
 
+        db_session.close()
         return StreamingResponse(
             iter([file_content]),
             media_type=content_type,
             headers=headers,
         )
     else:
+        db_session.close()
         return FileResponse(
             path=content_path,
             media_type=content_type,

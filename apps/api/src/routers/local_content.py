@@ -214,6 +214,7 @@ async def serve_local_content(
     ext = resolved.suffix.lower()
     media_type = _MIME_TYPES.get(ext, 'application/octet-stream')
 
+    db_session.close()
     return FileResponse(
         path=str(resolved),
         media_type=media_type,
