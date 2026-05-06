@@ -793,30 +793,26 @@ export function ProfileAchievementsSection({
   if (!editMode && achievements.enabled && featuredItems.length === 0) return null
 
   return (
-    <section className="mt-6">
+    <section className="mt-6 px-4 sm:px-0">
       <div className="mb-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <h2 className="text-2xl font-semibold text-gray-950">Achievements</h2>
-          {editMode && canEdit ? (
-            <div className="flex items-center gap-3">
-              <Switch
-                checked={achievements.enabled}
-                onCheckedChange={(checked) => onChange?.({ ...achievements, enabled: checked })}
-                aria-label="Toggle achievements section"
-              />
-              <span className="text-sm text-gray-500">{achievements.enabled ? 'Visible on profile' : 'Hidden from profile'}</span>
-            </div>
+          {editMode && canEdit && achievements.enabled ? (
+            <Button asChild variant="outline" size="sm">
+              <Link href={routes.achievementsHref}>Edit</Link>
+            </Button>
           ) : null}
         </div>
 
         {editMode && canEdit ? (
-          achievements.enabled ? (
-            <Button asChild>
-              <Link href={routes.achievementsHref}>
-                Edit
-              </Link>
-            </Button>
-          ) : null
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500">{achievements.enabled ? 'Visible on profile' : 'Hidden from profile'}</span>
+            <Switch
+              checked={achievements.enabled}
+              onCheckedChange={(checked) => onChange?.({ ...achievements, enabled: checked })}
+              aria-label="Toggle achievements section"
+            />
+          </div>
         ) : (
           <Button variant="ghost" className="px-0 text-sm font-medium text-gray-500 hover:bg-transparent hover:text-gray-950" asChild>
             <Link href={routes.achievementsHref}>

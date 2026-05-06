@@ -28,6 +28,7 @@ import { Switch } from '@components/ui/switch'
 import { Textarea } from '@components/ui/textarea'
 import UserAvatar from '@components/Objects/UserAvatar'
 import { normalizeAchievements, ProfileAchievementsSection } from '@components/Objects/Profile/ProfileAchievements'
+import { normalizeTimeline, ProfileTimelineSummary } from '@components/Objects/Profile/ProfileTimeline'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getUserAvatarMediaDirectory, getUserProfileCoverMediaDirectory, getUserProfileFeaturedMediaDirectory } from '@services/media/media'
@@ -65,6 +66,8 @@ type ProfileShape = {
   header?: ProfileHeader
   featured?: FeaturedSection
   achievements?: any
+  timelineEnabled?: boolean
+  timeline?: any[]
   sections?: any[]
 }
 
@@ -125,12 +128,12 @@ function normalizeFeatured(featured: any): FeaturedSection {
 }
 
 function normalizeProfile(profile: any): ProfileShape {
-  if (!profile) return { header: { socials: [] }, featured: normalizeFeatured(null), achievements: normalizeAchievements(null), sections: [] }
+  if (!profile) return { header: { socials: [] }, featured: normalizeFeatured(null), achievements: normalizeAchievements(null), timelineEnabled: false, timeline: [], sections: [] }
   if (typeof profile === 'string') {
     try {
       return normalizeProfile(JSON.parse(profile))
     } catch {
-      return { header: { socials: [] }, featured: normalizeFeatured(null), achievements: normalizeAchievements(null), sections: [] }
+      return { header: { socials: [] }, featured: normalizeFeatured(null), achievements: normalizeAchievements(null), timelineEnabled: false, timeline: [], sections: [] }
     }
   }
   return {
@@ -141,6 +144,8 @@ function normalizeProfile(profile: any): ProfileShape {
     },
     featured: normalizeFeatured(profile.featured),
     achievements: normalizeAchievements(profile.achievements),
+    timelineEnabled: Boolean(profile.timelineEnabled),
+    timeline: normalizeTimeline(profile.timeline),
     sections: Array.isArray(profile.sections) ? profile.sections : [],
   }
 }
@@ -449,7 +454,7 @@ function FeaturedCarousel({
   if (!editMode && (!enabled || cards.length === 0)) return null
 
   return (
-    <section className="mt-4">
+    <section className="mt-4 px-4 sm:px-0">
       <div className="mb-3 flex items-center justify-between gap-4">
         <h2 className="text-2xl font-semibold text-gray-950">Featured</h2>
         {editMode ? (
@@ -726,7 +731,7 @@ function FeaturedCarousel({
             <div
               ref={mobileScrollerRef}
               onScroll={handleMobileScroll}
-              className="scrollbar-hide flex w-screen snap-x snap-mandatory gap-4 overflow-x-auto px-[9vw] pb-4 sm:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              className="scrollbar-hide -mx-4 flex w-screen snap-x snap-mandatory gap-4 overflow-x-auto px-[9vw] pb-4 sm:mx-0 sm:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
               {cards.map((card, index) => (
                 <div key={`mobile-${card.id}`} className="snap-center">
@@ -824,6 +829,8 @@ export default function ProfilePageClient({
   const header = profile.header || {}
   const featured = profile.featured || normalizeFeatured(null)
   const achievements = profile.achievements || normalizeAchievements(null)
+  const timeline = profile.timeline || []
+  const timelineEnabled = profile.timelineEnabled ?? false
   const socials = useMemo(() => header.socials ?? [], [header.socials])
   const coverUrl = header.coverImage
     ? getUserProfileCoverMediaDirectory(user.user_uuid, header.coverImage)
@@ -1167,6 +1174,15 @@ export default function ProfilePageClient({
           userId={user.id}
           userUuid={user.user_uuid}
           onChange={updateFeatured}
+        />
+        <ProfileTimelineSummary
+          timeline={timeline}
+          orgslug={orgslug}
+          profileUsername={profileUsername}
+          editMode={editMode && canEdit}
+          canEdit={canEdit}
+          enabled={timelineEnabled}
+          onEnabledChange={(value) => updateDraftProfile((current) => ({ ...current, timelineEnabled: value }))}
         />
         <ProfileAchievementsSection
           achievements={achievements}
