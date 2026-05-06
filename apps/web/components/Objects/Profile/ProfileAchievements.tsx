@@ -365,14 +365,17 @@ function AchievementSquare({
 function EmptyState({
   title,
   description,
+  action,
 }: {
   title: string
   description: string
+  action?: React.ReactNode
 }) {
   return (
     <div className="rounded-[20px] border border-dashed border-gray-200 bg-gray-50 px-6 py-10 text-center">
       <p className="text-base font-semibold text-gray-800">{title}</p>
       <p className="mt-2 text-sm text-gray-500">{description}</p>
+      {action ? <div className="mt-4">{action}</div> : null}
     </div>
   )
 }
@@ -835,6 +838,11 @@ export function ProfileAchievementsSection({
             description={editMode
               ? 'Use the edit screen to star custom achievements or credentials.'
               : 'Featured achievements will appear here once they are starred.'}
+            action={editMode && canEdit ? (
+              <Button asChild variant="outline" size="sm">
+                <Link href={routes.achievementsHref}>Edit achievements</Link>
+              </Button>
+            ) : undefined}
           />
         )
       ) : null}
