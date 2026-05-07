@@ -10,13 +10,10 @@ import { getUriWithOrg } from '@services/config/config'
 import { useMediaQuery } from 'usehooks-ts'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useTranslation } from 'react-i18next'
-import AccountGeneral from '@components/Objects/Account/subpages/AccountGeneral'
-import AccountProfile from '@components/Objects/Account/subpages/AccountProfile'
 import AccountSecurity from '@components/Objects/Account/subpages/AccountSecurity'
 import AccountPurchases from '@components/Objects/Account/subpages/AccountPurchases'
 import AccountOrgAdmin from '@components/Objects/Account/subpages/AccountOrgAdmin'
 import AccountOrganizations from '@components/Objects/Account/subpages/AccountOrganizations'
-import AccountBadges from '@components/Objects/Account/subpages/AccountBadges'
 
 interface AccountClientProps {
   orgslug: string
@@ -26,12 +23,9 @@ interface AccountClientProps {
 
 const getSubpageTitle = (subpage: string, t: any): string => {
   const titles: Record<string, string> = {
-    'general': t('account.general'),
-    'profile': t('account.profile'),
     'security': t('account.security'),
     'purchases': t('account.purchases'),
     'organizations': 'Organizations',
-    'badges': 'Badges',
     'org-admin': 'Org Admin',
   }
   return titles[subpage] || t('account.title')
@@ -45,22 +39,16 @@ const AccountClient = ({ orgslug, org_id, subpage }: AccountClientProps) => {
 
   const renderSubpage = () => {
     switch (subpage) {
-      case 'general':
-        return <AccountGeneral />
-      case 'profile':
-        return <AccountProfile />
       case 'security':
         return <AccountSecurity />
       case 'purchases':
         return <AccountPurchases orgId={org_id} orgslug={orgslug} />
       case 'organizations':
         return <AccountOrganizations orgslug={orgslug} />
-      case 'badges':
-        return <AccountBadges orgslug={orgslug} />
       case 'org-admin':
         return <AccountOrgAdmin />
       default:
-        return <AccountGeneral />
+        return <AccountSecurity />
     }
   }
 

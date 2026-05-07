@@ -43,6 +43,7 @@ export const routePaths = {
     account: {
       root: () => '/account',
       general: () => '/account/general',
+      security: () => '/account/security',
       purchases: () => '/account/purchases',
       organizations: () => '/account/organizations',
       badges: () => '/account/badges',
@@ -57,6 +58,11 @@ export const routePaths = {
   },
   org: {
     root: () => '/',
+    profile: () => '/profile',
+    profileEdit: () => '/profile/edit',
+    profileTimeline: () => '/profile/timeline',
+    profileAchievements: () => '/profile/achievements',
+    profileAchievementDetail: (achievementId: string) => `/profile/achievements/${achievementId}`,
     welcome: () => '/welcome',
     quickstart: () => '/quickstart',
     quickstartCourse: (courseUuid: string) => `/quickstart/course/${courseUuid}`,
@@ -90,6 +96,9 @@ export const routePaths = {
     communityDiscussion: (communityUuid: string, discussionUuid: string) =>
       `/community/${communityUuid}/discussion/${discussionUuid}`,
     user: (username: string) => `/user/${username}`,
+    userTimeline: (username: string) => `/user/${username}/timeline`,
+    userAchievements: (username: string) => `/user/${username}/achievements`,
+    userAchievementDetail: (username: string, achievementId: string) => `/user/${username}/achievements/${achievementId}`,
     store: {
       root: () => '/store',
       offer: (offerId: string) => `/store/offers/${offerId}`,

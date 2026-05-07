@@ -141,6 +141,16 @@ export function getUserAvatarMediaDirectory(userUUID: string, fileId: string) {
   return uri
 }
 
+export function getUserProfileCoverMediaDirectory(userUUID: string, fileId: string) {
+  let uri = `${getMediaUrl()}content/users/${userUUID}/profile_covers/${fileId}`
+  return uri
+}
+
+export function getUserProfileFeaturedMediaDirectory(userUUID: string, fileId: string) {
+  let uri = `${getMediaUrl()}content/users/${userUUID}/profile_featured/${fileId}`
+  return uri
+}
+
 export function getActivityBlockMediaDirectory(
   orgUUID: string,
   courseId: string,

@@ -13,7 +13,7 @@ from src.services.users.emails import (
     send_account_creation_email,
 )
 from src.services.orgs.invites import get_invite_code
-from src.services.users.avatars import upload_avatar
+from src.services.users.avatars import upload_avatar, upload_profile_cover, upload_profile_featured_image
 from src.db.roles import Role, RoleRead
 from src.security.rbac.rbac import (
     authorization_verify_based_on_roles_and_authorship,
@@ -419,6 +419,84 @@ async def update_user_avatar(
     user = UserRead.model_validate(user)
 
     return user
+
+
+async def update_user_profile_cover(
+    request: Request,
+    db_session: Session,
+    current_user: PublicUser | AnonymousUser,
+    cover_file: UploadFile | None = None,
+):
+    # Get user
+    statement = select(User).where(User.id == current_user.id)
+    user = db_session.exec(statement).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=400,
+            detail="User does not exist",
+        )
+
+    # RBAC check
+    await rbac_check(request, current_user, "update", user.user_uuid, db_session)
+
+    if cover_file and cover_file.filename:
+        try:
+            name_in_disk = await upload_profile_cover(cover_file, user.user_uuid)
+            profile = dict(user.profile or {})
+            header = dict(profile.get("header") or {})
+            header["coverImage"] = name_in_disk
+            profile["header"] = header
+            user.profile = profile
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Profile cover upload failed: {str(e)}",
+            )
+
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    user = UserRead.model_validate(user)
+
+    return user
+
+
+async def upload_user_profile_featured_image(
+    request: Request,
+    db_session: Session,
+    current_user: PublicUser | AnonymousUser,
+    image_file: UploadFile | None = None,
+) -> dict:
+    # Get user
+    statement = select(User).where(User.id == current_user.id)
+    user = db_session.exec(statement).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=400,
+            detail="User does not exist",
+        )
+
+    # RBAC check
+    await rbac_check(request, current_user, "update", user.user_uuid, db_session)
+
+    if not image_file or not image_file.filename:
+        raise HTTPException(status_code=400, detail="Image file is required")
+
+    try:
+        name_in_disk = await upload_profile_featured_image(image_file, user.user_uuid)
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Featured image upload failed: {str(e)}",
+        )
+
+    return {
+        "filename": name_in_disk,
+        "user_uuid": user.user_uuid,
+    }
 
 
 async def update_user_password(

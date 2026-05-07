@@ -12,16 +12,14 @@ type MetadataProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-const VALID_SUBPAGES = ['general', 'profile', 'security', 'purchases', 'organizations', 'badges', 'org-admin']
+const VALID_SUBPAGES = ['security', 'purchases', 'organizations', 'org-admin']
+const PROFILE_SUBPAGES = ['general', 'profile', 'badges']
 
 const getSubpageTitle = (subpage: string): string => {
   const titles: Record<string, string> = {
-    'general': 'General Settings',
-    'profile': 'Profile Builder',
     'security': 'Security',
     'purchases': 'Purchases',
     'organizations': 'Organizations',
-    'badges': 'Badges',
     'org-admin': 'Org Admin',
   }
   return titles[subpage] || 'Account'
@@ -74,9 +72,13 @@ const AccountSubPage = async (props: { params: Promise<{ orgslug: string; subpag
     redirect(getUriWithOrg(ownerOrgslug, routePaths.owner.account.orgAdmin()))
   }
 
+  if (PROFILE_SUBPAGES.includes(params.subpage)) {
+    redirect(getUriWithOrg(params.orgslug, routePaths.org.profileEdit()))
+  }
+
   // Redirect to general if invalid subpage
   if (!VALID_SUBPAGES.includes(params.subpage)) {
-    redirect(getUriWithOrg(params.orgslug, routePaths.owner.account.general()))
+    redirect(getUriWithOrg(params.orgslug, routePaths.owner.account.security()))
   }
 
   const org = await getOrganizationContextInfo(params.orgslug, {

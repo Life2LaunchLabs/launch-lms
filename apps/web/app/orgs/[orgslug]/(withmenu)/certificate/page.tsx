@@ -7,7 +7,7 @@ type MetadataProps = {
 
 const CertificatePage = async (props: MetadataProps) => {
   const params = await props.params
-  redirect(getUriWithOrg(params.orgslug, routePaths.owner.account.badges()))
+  redirect(getUriWithOrg(params.orgslug, routePaths.org.profile()))
 }
 
 export default CertificatePage
