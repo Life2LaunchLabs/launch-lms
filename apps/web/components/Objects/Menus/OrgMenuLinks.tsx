@@ -4,6 +4,7 @@ import {
   Books,
   ChatsCircle,
   FolderOpen,
+  Compass,
   Question,
 } from '@phosphor-icons/react'
 import type { TFunction } from 'i18next'
@@ -11,6 +12,7 @@ import type { TFunction } from 'i18next'
 export const KNOWN_SUBPATHS = [
   '/courses',
   '/course/',
+  '/journey',
   '/collection/',
   '/collections',
   '/trail',
@@ -60,6 +62,7 @@ export function getPrimaryOrgMenuItems({
     pathname?.includes('/courses') ||
     pathname?.includes('/course/') ||
     pathname?.includes('/collection/')
+  const isOnJourney = pathname?.includes('/journey')
   const isOnCommunities = pathname?.includes('/communities') || pathname?.includes('/community/')
   const isOnResources = pathname?.includes('/resources') || pathname?.includes('/resource/')
 
@@ -69,6 +72,13 @@ export function getPrimaryOrgMenuItems({
       label: t('common.home') || 'Home',
       icon: <House size={18} weight="fill" />,
       active: isHome,
+      show: true,
+    },
+    {
+      href: '/journey',
+      label: 'Journey',
+      icon: <Compass size={18} weight="fill" />,
+      active: Boolean(isOnJourney),
       show: true,
     },
     {
