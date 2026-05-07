@@ -11,6 +11,7 @@ class SuggestedActionEventType(str, Enum):
     CLICKED = "clicked"
     DISMISSED = "dismissed"
     COMPLETED = "completed"
+    ROUTE_VISITED = "route_visited"
 
 
 class SuggestedActionKind(str, Enum):
@@ -20,6 +21,14 @@ class SuggestedActionKind(str, Enum):
     ONBOARDING = "onboarding"
     ANNOUNCEMENT = "announcement"
     SCAFFOLDED_PATH = "scaffolded_path"
+    NEW_CONTENT = "new_content"
+    COMMUNITY_ACTIVITY = "community_activity"
+    MESSAGE = "message"
+
+
+class SuggestedActionBadgeKind(str, Enum):
+    DOT = "dot"
+    COUNT = "count"
 
 
 class SuggestedActionTextTone(str, Enum):
@@ -72,6 +81,12 @@ class SuggestedAction(BaseModel):
     priority: int
     dismissible: bool
     expiresAt: Optional[str] = None
+    targetHref: Optional[str] = None
+    surface: Optional[str] = None
+    slot: Optional[str] = None
+    context: Optional[str] = None
+    badgeCount: Optional[int] = None
+    badgeKind: SuggestedActionBadgeKind = SuggestedActionBadgeKind.DOT
     metadata: dict = PydanticField(default_factory=dict)
 
 
@@ -79,6 +94,7 @@ class SuggestedActionEventCreate(BaseModel):
     action_key: str
     event_type: SuggestedActionEventType
     surface: str = "global"
+    context: Optional[str] = None
     metadata: dict = PydanticField(default_factory=dict)
 
 

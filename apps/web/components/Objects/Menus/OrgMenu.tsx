@@ -1,5 +1,5 @@
 'use client'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
@@ -41,10 +41,33 @@ import {
   OnboardingFeatureKey,
   useOrgOnboarding,
 } from '@components/Onboarding/orgOnboarding'
+import {
+  recordSuggestedActionEvent,
+  SuggestedAction,
+  useSuggestedActions,
+} from '@services/suggested-actions/suggested-actions'
 import { cn } from '@/lib/utils'
 
 const DESKTOP_NAV_COLLAPSED_WIDTH = '80px'
 const DESKTOP_NAV_EXPANDED_WIDTH = '264px'
+
+function routeMatchesTarget(pathname: string | null | undefined, targetHref: string | null | undefined) {
+  if (!pathname || !targetHref) return false
+  const normalizedPath = pathname.replace(/\/$/, '') || '/'
+  const normalizedTarget = targetHref.replace(/\/$/, '') || '/'
+  return normalizedPath.endsWith(normalizedTarget) || normalizedPath.includes(`${normalizedTarget}/`)
+}
+
+function groupNavBadges(actions?: SuggestedAction[]) {
+  const badges = new Map<string, number>()
+  ;(actions || []).forEach((action) => {
+    const targetHref = action.targetHref || action.href
+    if (!targetHref) return
+    const count = Math.max(action.badgeCount || 1, 1)
+    badges.set(targetHref, (badges.get(targetHref) || 0) + count)
+  })
+  return badges
+}
 
 export const OrgMenu = (props: { orgslug: string; autoContractDesktopNav?: boolean }) => {
   const orgslug = props.orgslug
@@ -58,6 +81,8 @@ export const OrgMenu = (props: { orgslug: string; autoContractDesktopNav?: boole
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false)
   const { isVisible: isJoinBannerVisible } = useJoinBannerVisible()
   const accessToken = session?.data?.tokens?.access_token
+  const orgId = org?.id
+  const routeEventKeysRef = useRef<Set<string>>(new Set())
   const { data: adminOrgs } = useSWR(
     accessToken ? `${getAPIUrl()}orgs/user_admin/page/1/limit/100` : null,
     (url) => swrFetcher(url, accessToken),
@@ -70,6 +95,29 @@ export const OrgMenu = (props: { orgslug: string; autoContractDesktopNav?: boole
     orgslug,
     onboardingUserKey
   )
+  const {
+    data: navSuggestedActions,
+    error: navSuggestedActionsError,
+    isLoading: navSuggestedActionsLoading,
+  } = useSuggestedActions({
+    orgId,
+    accessToken,
+    surface: 'nav',
+    slot: 'badge',
+    limit: 20,
+    enabled: session?.status === 'authenticated',
+  })
+  const { data: routeSuggestedActions } = useSuggestedActions({
+    orgId,
+    accessToken,
+    surface: 'route',
+    slot: 'tracker',
+    limit: 20,
+    enabled: session?.status === 'authenticated',
+  })
+  const navBadges = useMemo(() => groupNavBadges(navSuggestedActions), [navSuggestedActions])
+  const useLocalBadgeFallback =
+    navSuggestedActionsLoading || Boolean(navSuggestedActionsError) || !orgId || !accessToken
 
   const topOffset = isJoinBannerVisible ? JOIN_BANNER_HEIGHT : 0
   const config = org?.config?.config
@@ -143,6 +191,42 @@ export const OrgMenu = (props: { orgslug: string; autoContractDesktopNav?: boole
     })
   }, [markFeatureVisited, onboardingState.visitedFeatures, pathname, session?.status])
 
+  useEffect(() => {
+    if (
+      session?.status !== 'authenticated' ||
+      !pathname ||
+      !orgId ||
+      !accessToken ||
+      (!navSuggestedActions?.length && !routeSuggestedActions?.length)
+    ) {
+      return
+    }
+
+    const routeActions = [...(navSuggestedActions || []), ...(routeSuggestedActions || [])]
+    routeActions.forEach((action) => {
+      const targetHref = action.targetHref || action.href
+      if (!routeMatchesTarget(pathname, targetHref)) return
+      const eventKey = `${pathname}:${action.key}`
+      if (routeEventKeysRef.current.has(eventKey)) return
+      routeEventKeysRef.current.add(eventKey)
+
+      recordSuggestedActionEvent({
+        orgId,
+        actionKey: action.key,
+        eventType: 'route_visited',
+        surface: action.surface || 'route',
+        context: action.context,
+        metadata: {
+          source: action.source,
+          kind: action.kind,
+          route_path: pathname,
+          target_href: targetHref,
+        },
+        accessToken,
+      }).catch(() => {})
+    })
+  }, [accessToken, navSuggestedActions, orgId, pathname, routeSuggestedActions, session?.status])
+
   if (isActivityPage && isFocusMode) {
     return null
   }
@@ -188,6 +272,18 @@ export const OrgMenu = (props: { orgslug: string; autoContractDesktopNav?: boole
     ) {
       setIsDesktopExpanded(false)
     }
+  }
+
+  const getBadgeCount = (item: OrgMenuNavItem) => {
+    if (!item.href) return 0
+    if (!useLocalBadgeFallback) {
+      return Array.from(navBadges.entries()).reduce((total, [targetHref, count]) => {
+        return routeMatchesTarget(item.href, targetHref) ? total + count : total
+      }, 0)
+    }
+
+    if (!item.onboardingFeature) return 0
+    return onboardingState.visitedFeatures[item.onboardingFeature] ? 0 : 1
   }
 
   return (
@@ -272,11 +368,7 @@ export const OrgMenu = (props: { orgslug: string; autoContractDesktopNav?: boole
                     item={item}
                     orgslug={orgslug}
                     isExpanded={isDesktopNavExpanded}
-                    showOnboardingBadge={
-                      item.onboardingFeature
-                        ? !onboardingState.visitedFeatures[item.onboardingFeature]
-                        : false
-                    }
+                    badgeCount={getBadgeCount(item)}
                   />
                 ))}
               </nav>
@@ -319,11 +411,7 @@ export const OrgMenu = (props: { orgslug: string; autoContractDesktopNav?: boole
               key={item.href || item.label}
               item={item}
               orgslug={orgslug}
-              showOnboardingBadge={
-                item.onboardingFeature
-                  ? !onboardingState.visitedFeatures[item.onboardingFeature]
-                  : false
-              }
+              badgeCount={getBadgeCount(item)}
             />
           ))}
           <MobileMoreMenu
@@ -353,7 +441,7 @@ function SidebarItem({
   muted = false,
   isExpanded = false,
   onAction,
-  showOnboardingBadge = false,
+  badgeCount = 0,
 }: SidebarItemProps) {
   const baseClass = item.active
     ? 'bg-black/[0.07] text-gray-950 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]'
@@ -381,10 +469,16 @@ function SidebarItem({
       >
         {item.label}
       </span>
-      {showOnboardingBadge ? (
-        <>
-          <span className={cn('absolute h-2.5 w-2.5 rounded-full bg-[#f97316]', isExpanded ? 'right-2.5 top-2.5' : 'right-1.5 top-1.5')} />
-        </>
+      {badgeCount > 0 ? (
+        <span
+          className={cn(
+            'absolute flex min-h-2.5 min-w-2.5 items-center justify-center rounded-full bg-[#f97316] text-[9px] font-bold leading-none text-white',
+            badgeCount > 1 ? 'h-4 px-1' : 'h-2.5 w-2.5',
+            isExpanded ? 'right-2.5 top-2.5' : 'right-1.5 top-1.5'
+          )}
+        >
+          {badgeCount > 1 ? Math.min(badgeCount, 9) : null}
+        </span>
       ) : null}
     </>
   )
@@ -431,7 +525,7 @@ type SidebarItemProps = {
   muted?: boolean
   isExpanded?: boolean
   onAction?: React.Dispatch<string | undefined>
-  showOnboardingBadge?: boolean
+  badgeCount?: number
 }
 
 function DesktopAccountLink({
@@ -541,11 +635,11 @@ function DesktopAccountLink({
 function MobileNavItem({
   item,
   orgslug,
-  showOnboardingBadge = false,
+  badgeCount = 0,
 }: {
   item: OrgMenuNavItem
   orgslug: string
-  showOnboardingBadge?: boolean
+  badgeCount?: number
 }) {
   return (
     <Link
@@ -558,8 +652,15 @@ function MobileNavItem({
       }`}
     >
       {item.icon}
-      {showOnboardingBadge ? (
-        <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-[#f97316]" />
+      {badgeCount > 0 ? (
+        <span
+          className={cn(
+            'absolute right-1.5 top-1.5 flex min-h-2.5 min-w-2.5 items-center justify-center rounded-full bg-[#f97316] text-[9px] font-bold leading-none text-white',
+            badgeCount > 1 ? 'h-4 px-1' : 'h-2.5 w-2.5'
+          )}
+        >
+          {badgeCount > 1 ? Math.min(badgeCount, 9) : null}
+        </span>
       ) : null}
     </Link>
   )

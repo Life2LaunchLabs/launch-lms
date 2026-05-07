@@ -15,7 +15,8 @@ async def api_get_suggested_actions(
     org_id: int,
     surface: str = "journey",
     slot: str = "primary",
-    limit: int = Query(default=3, ge=1, le=12),
+    context: str | None = None,
+    limit: int = Query(default=3, ge=1, le=20),
     current_user: PublicUser = Depends(get_authenticated_user),
     db_session: Session = Depends(get_db_session),
 ):
@@ -24,6 +25,7 @@ async def api_get_suggested_actions(
         org_id=org_id,
         surface=surface,
         slot=slot,
+        context=context,
         limit=limit,
         db_session=db_session,
     )

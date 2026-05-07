@@ -2,6 +2,13 @@
 
 import { X } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { useOrg } from '@components/Contexts/OrgContext'
+import {
+  recordSuggestedActionEvent,
+  SuggestedAction,
+  useSuggestedActions,
+} from '@services/suggested-actions/suggested-actions'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { getOnboardingUserKey, OnboardingFeatureKey, useOrgOnboarding } from './orgOnboarding'
 
 const FEATURE_COPY: Record<
@@ -40,18 +47,86 @@ export default function FeatureInfoBanner({
   feature: OnboardingFeatureKey
 }) {
   const session = useLHSession() as any
+  const org = useOrg() as any
+  const accessToken = session?.data?.tokens?.access_token
+  const orgId = org?.id
   const userKey = getOnboardingUserKey(session)
   const { state, dismissFeatureBanner } = useOrgOnboarding(orgslug, userKey)
+  const [dismissedLocally, setDismissedLocally] = useState(false)
+  const [backendDismissedActionKey, setBackendDismissedActionKey] = useState<string | null>(null)
+  const viewedKeysRef = useRef<Set<string>>(new Set())
+  const { data: backendActions, error, isLoading } = useSuggestedActions({
+    orgId,
+    accessToken,
+    surface: 'feature_page',
+    slot: 'banner',
+    context: feature,
+    limit: 1,
+    enabled: session?.status === 'authenticated',
+  })
+  const backendAction = useMemo(
+    () => backendActions?.find((action) => action.key !== backendDismissedActionKey),
+    [backendActions, backendDismissedActionKey]
+  )
+  const useLocalFallback = isLoading || Boolean(error) || !orgId || !accessToken
+  const localBannerDismissed = dismissedLocally || state.dismissedFeatureBanners[feature]
+  const copy = FEATURE_COPY[feature]
+  const title = backendAction?.title || copy.title
+  const description = backendAction?.subtext || copy.description
+  const actionForEvents: SuggestedAction | undefined = backendAction
+
+  useEffect(() => {
+    if (!orgId || !accessToken || !actionForEvents) return
+    if (viewedKeysRef.current.has(actionForEvents.key)) return
+    viewedKeysRef.current.add(actionForEvents.key)
+    recordSuggestedActionEvent({
+      orgId,
+      actionKey: actionForEvents.key,
+      eventType: 'viewed',
+      surface: 'feature_page',
+      context: feature,
+      metadata: { source: actionForEvents.source, kind: actionForEvents.kind },
+      accessToken,
+    }).catch(() => {})
+  }, [accessToken, actionForEvents, feature, orgId])
 
   if (session?.status !== 'authenticated') {
     return null
   }
 
-  if (state.dismissedFeatureBanners[feature]) {
+  if (localBannerDismissed) {
     return null
   }
 
-  const copy = FEATURE_COPY[feature]
+  if (!useLocalFallback && !backendAction) {
+    return null
+  }
+
+  const handleDismiss = () => {
+    setDismissedLocally(true)
+    dismissFeatureBanner(feature)
+
+    if (!actionForEvents || !orgId || !accessToken) {
+      return
+    }
+
+    setBackendDismissedActionKey(actionForEvents.key)
+    recordSuggestedActionEvent({
+      orgId,
+      actionKey: actionForEvents.key,
+      eventType: 'dismissed',
+      surface: 'feature_page',
+      context: feature,
+      metadata: {
+        source: actionForEvents.source,
+        kind: actionForEvents.kind,
+        target_href: actionForEvents.targetHref || actionForEvents.href,
+      },
+      accessToken,
+    }).catch(() => {
+      setBackendDismissedActionKey(null)
+    })
+  }
 
   return (
     <div
@@ -61,7 +136,7 @@ export default function FeatureInfoBanner({
       <div className="pointer-events-none absolute inset-0 bg-white/25" />
       <button
         type="button"
-        onClick={() => dismissFeatureBanner(feature)}
+        onClick={handleDismiss}
         className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/15 hover:text-white"
         aria-label={`Dismiss ${copy.eyebrow}`}
       >
@@ -70,10 +145,10 @@ export default function FeatureInfoBanner({
 
       <div className="relative z-10 max-w-3xl pr-9">
         <h2 className="text-sm font-semibold tracking-tight text-white sm:text-[15px]">
-          {copy.title}
+          {title}
         </h2>
         <p className="mt-1 text-xs leading-5 text-white/82 sm:text-[13px]">
-          {copy.description}
+          {description}
         </p>
       </div>
     </div>

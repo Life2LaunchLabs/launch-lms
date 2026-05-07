@@ -8,8 +8,11 @@ from src.db.courses.activities import Activity, ActivitySubTypeEnum, ActivityTyp
 from src.db.courses.chapter_activities import ChapterActivity
 from src.db.courses.chapters import Chapter
 from src.db.courses.courses import Course
+from src.db.communities.communities import Community
+from src.db.communities.discussions import Discussion
 from src.db.guest_sessions import GuestSession  # noqa: F401
 from src.db.organizations import Organization
+from src.db.resources import Resource, ResourceChannel, ResourceChannelResource
 from src.db.suggested_actions import (
     SuggestedAction,
     SuggestedActionEventCreate,
@@ -174,6 +177,78 @@ def add_trail_run(session: Session, org: Organization, user: User, course: Cours
     session.add(run)
     session.commit()
     return run
+
+
+def create_resource(session: Session, org: Organization, *, resource_id: int, uuid: str, title: str) -> Resource:
+    resource = Resource(
+        id=resource_id,
+        org_id=org.id or 1,
+        resource_uuid=uuid,
+        title=title,
+        description="Resource description",
+        external_url="https://example.com",
+        is_live=True,
+        creation_date=NOW,
+        update_date=NOW,
+    )
+    channel = ResourceChannel(
+        id=resource_id,
+        org_id=org.id or 1,
+        channel_uuid=f"channel_{uuid}",
+        name="Public resources",
+        public=True,
+        creation_date=NOW,
+        update_date=NOW,
+    )
+    link = ResourceChannelResource(
+        id=resource_id,
+        channel_id=channel.id or resource_id,
+        resource_id=resource.id or resource_id,
+        creation_date=NOW,
+        update_date=NOW,
+    )
+    session.add(resource)
+    session.add(channel)
+    session.add(link)
+    session.commit()
+    return resource
+
+
+def create_community_activity(session: Session, org: Organization, user: User) -> Discussion:
+    community = Community(
+        id=1,
+        org_id=org.id or 1,
+        community_uuid="community_1",
+        name="Gotham Forum",
+        public=True,
+        creation_date=NOW,
+        update_date=NOW,
+    )
+    user_discussion = Discussion(
+        id=1,
+        community_id=community.id or 1,
+        org_id=org.id or 1,
+        author_id=user.id or 1,
+        discussion_uuid="discussion_user",
+        title="My check-in",
+        creation_date=NOW,
+        update_date=NOW,
+    )
+    other_discussion = Discussion(
+        id=2,
+        community_id=community.id or 1,
+        org_id=org.id or 1,
+        author_id=999,
+        discussion_uuid="discussion_other",
+        title="New reply-worthy topic",
+        creation_date=NOW,
+        update_date=NOW,
+    )
+    session.add(community)
+    session.add(user_discussion)
+    session.add(other_discussion)
+    session.commit()
+    return other_discussion
 
 
 @pytest.mark.asyncio
@@ -412,3 +487,236 @@ async def test_onboarding_provider_owns_click_completion_policy(db_session: Sess
         db_session=db_session,
     )
     assert "onboarding:visit_courses" not in [action.key for action in actions]
+
+
+@pytest.mark.asyncio
+async def test_onboarding_visit_completes_on_matching_route_visit(db_session: Session):
+    org = create_org(db_session)
+    user = create_user(db_session, avatar_image="avatar.png", bio="Learner", profile={"sections": [{"title": "Identity"}]})
+
+    await record_suggested_action_event(
+        user=public_user(user),
+        org_id=org.id or 1,
+        event=SuggestedActionEventCreate(
+            action_key="onboarding:visit_courses",
+            event_type=SuggestedActionEventType.ROUTE_VISITED,
+            surface="nav",
+            context="courses",
+            metadata={"route_path": "/orgs/wayne/courses", "target_href": "/courses"},
+        ),
+        db_session=db_session,
+    )
+
+    actions = await get_suggested_actions(
+        user=public_user(user),
+        org_id=org.id or 1,
+        surface="journey",
+        slot="primary",
+        limit=6,
+        db_session=db_session,
+    )
+
+    assert "onboarding:visit_courses" not in [action.key for action in actions]
+
+
+@pytest.mark.asyncio
+async def test_route_tracker_includes_profile_onboarding_action(db_session: Session):
+    org = create_org(db_session)
+    user = create_user(db_session, avatar_image="avatar.png", bio="Learner", profile={"sections": [{"title": "Identity"}]})
+
+    actions = await get_suggested_actions(
+        user=public_user(user),
+        org_id=org.id or 1,
+        surface="route",
+        slot="tracker",
+        limit=20,
+        db_session=db_session,
+    )
+
+    assert "onboarding:visit_profile" in [action.key for action in actions]
+    assert all(action.surface == "route" for action in actions)
+
+    await record_suggested_action_event(
+        user=public_user(user),
+        org_id=org.id or 1,
+        event=SuggestedActionEventCreate(
+            action_key="onboarding:visit_profile",
+            event_type=SuggestedActionEventType.ROUTE_VISITED,
+            surface="route",
+            context="profile",
+            metadata={"route_path": "/orgs/wayne/profile", "target_href": "/profile"},
+        ),
+        db_session=db_session,
+    )
+
+    journey_actions = await get_suggested_actions(
+        user=public_user(user),
+        org_id=org.id or 1,
+        surface="journey",
+        slot="primary",
+        limit=20,
+        db_session=db_session,
+    )
+    assert "onboarding:visit_profile" not in [action.key for action in journey_actions]
+
+
+@pytest.mark.asyncio
+async def test_feature_page_banner_only_completes_on_explicit_dismiss(db_session: Session):
+    org = create_org(db_session)
+    user = create_user(db_session)
+
+    actions = await get_suggested_actions(
+        user=public_user(user),
+        org_id=org.id or 1,
+        surface="feature_page",
+        slot="banner",
+        context="courses",
+        limit=3,
+        db_session=db_session,
+    )
+    assert [action.key for action in actions] == ["onboarding:courses_feature_intro"]
+
+    await record_suggested_action_event(
+        user=public_user(user),
+        org_id=org.id or 1,
+        event=SuggestedActionEventCreate(
+            action_key="onboarding:courses_feature_intro",
+            event_type=SuggestedActionEventType.VIEWED,
+            surface="feature_page",
+            context="courses",
+        ),
+        db_session=db_session,
+    )
+    actions_after_view = await get_suggested_actions(
+        user=public_user(user),
+        org_id=org.id or 1,
+        surface="feature_page",
+        slot="banner",
+        context="courses",
+        limit=3,
+        db_session=db_session,
+    )
+    assert [action.key for action in actions_after_view] == ["onboarding:courses_feature_intro"]
+
+    await record_suggested_action_event(
+        user=public_user(user),
+        org_id=org.id or 1,
+        event=SuggestedActionEventCreate(
+            action_key="onboarding:courses_feature_intro",
+            event_type=SuggestedActionEventType.DISMISSED,
+            surface="feature_page",
+            context="courses",
+        ),
+        db_session=db_session,
+    )
+    actions_after_dismiss = await get_suggested_actions(
+        user=public_user(user),
+        org_id=org.id or 1,
+        surface="feature_page",
+        slot="banner",
+        context="courses",
+        limit=3,
+        db_session=db_session,
+    )
+    assert actions_after_dismiss == []
+
+
+@pytest.mark.asyncio
+async def test_nav_badges_are_surface_filtered_and_grouped_by_target_href(db_session: Session):
+    org = create_org(db_session)
+    user = create_user(db_session, avatar_image="avatar.png", bio="Learner", profile={"sections": [{"title": "Identity"}]})
+    create_course(db_session, org, course_id=1, uuid="course_1", name="New Course")
+    create_resource(db_session, org, resource_id=1, uuid="resource_1", title="New Resource")
+
+    nav_actions = await get_suggested_actions(
+        user=public_user(user),
+        org_id=org.id or 1,
+        surface="nav",
+        slot="badge",
+        limit=12,
+        db_session=db_session,
+    )
+    journey_actions = await get_suggested_actions(
+        user=public_user(user),
+        org_id=org.id or 1,
+        surface="journey",
+        slot="primary",
+        limit=12,
+        db_session=db_session,
+    )
+
+    assert any(action.targetHref == "/courses" and action.badgeCount for action in nav_actions)
+    assert any(action.targetHref == "/resources" and action.badgeCount for action in nav_actions)
+    assert all(action.surface == "nav" for action in nav_actions)
+    assert all(action.surface != "nav" for action in journey_actions)
+
+
+@pytest.mark.asyncio
+async def test_new_content_provider_excludes_clicked_content_across_surfaces(db_session: Session):
+    org = create_org(db_session)
+    user = create_user(db_session, avatar_image="avatar.png", bio="Learner", profile={"sections": [{"title": "Identity"}]})
+    create_course(db_session, org, course_id=1, uuid="course_1", name="New Course")
+
+    await record_suggested_action_event(
+        user=public_user(user),
+        org_id=org.id or 1,
+        event=SuggestedActionEventCreate(
+            action_key="new_content:course:course_1",
+            event_type=SuggestedActionEventType.CLICKED,
+            surface="journey",
+            context="courses",
+            metadata={"target_href": "/courses"},
+        ),
+        db_session=db_session,
+    )
+
+    nav_actions = await get_suggested_actions(
+        user=public_user(user),
+        org_id=org.id or 1,
+        surface="nav",
+        slot="badge",
+        limit=12,
+        db_session=db_session,
+    )
+
+    assert "new_content:course:course_1" not in [action.key for action in nav_actions]
+
+
+@pytest.mark.asyncio
+async def test_community_activity_provider_completes_on_route_visit(db_session: Session):
+    org = create_org(db_session)
+    user = create_user(db_session, avatar_image="avatar.png", bio="Learner", profile={"sections": [{"title": "Identity"}]})
+    create_community_activity(db_session, org, user)
+
+    actions = await get_suggested_actions(
+        user=public_user(user),
+        org_id=org.id or 1,
+        surface="nav",
+        slot="badge",
+        limit=12,
+        db_session=db_session,
+    )
+    assert "community_activity:communities" in [action.key for action in actions]
+
+    await record_suggested_action_event(
+        user=public_user(user),
+        org_id=org.id or 1,
+        event=SuggestedActionEventCreate(
+            action_key="community_activity:communities",
+            event_type=SuggestedActionEventType.ROUTE_VISITED,
+            surface="nav",
+            context="communities",
+            metadata={"route_path": "/orgs/wayne/communities", "target_href": "/communities"},
+        ),
+        db_session=db_session,
+    )
+
+    actions_after_visit = await get_suggested_actions(
+        user=public_user(user),
+        org_id=org.id or 1,
+        surface="nav",
+        slot="badge",
+        limit=12,
+        db_session=db_session,
+    )
+    assert "community_activity:communities" not in [action.key for action in actions_after_visit]
