@@ -23,6 +23,7 @@ from src.routers.boards import boards as boards_router_module
 from src.routers.playgrounds import playgrounds as playgrounds_router_module
 from src.routers.playgrounds import playgrounds_generator as playgrounds_generator_router
 from src.routers import resources as resources_router_module
+from src.routers import suggested_actions as suggested_actions_router_module
 from src.routers import trending as trending_router_module
 from src.services.dev.dev import isDevModeEnabledOrRaise
 from src.routers.utils import router as utils_router
@@ -183,6 +184,12 @@ v1_router.include_router(
     trail.router,
     prefix="/trail",
     tags=["trail"],
+    dependencies=[Depends(get_non_api_token_user)]
+)
+v1_router.include_router(
+    suggested_actions_router_module.router,
+    prefix="/suggested-actions",
+    tags=["suggested-actions"],
     dependencies=[Depends(get_non_api_token_user)]
 )
 v1_router.include_router(

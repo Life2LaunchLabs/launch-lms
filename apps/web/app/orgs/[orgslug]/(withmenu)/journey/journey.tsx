@@ -1,50 +1,33 @@
 'use client'
 
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Link2 } from 'lucide-react'
+import useSWR from 'swr'
+import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg } from '@services/config/config'
+import {
+  getSuggestedActionsUrl,
+  recordSuggestedActionEvent,
+  suggestedActionsFetcher,
+  SuggestedAction,
+} from '@services/suggested-actions/suggested-actions'
 
 type ActionCard = {
   id: string
+  key: string
   url: string
   title: string
-  subtext: string
-  imageUrl: string
+  subtext?: string | null
+  imageUrl?: string | null
   textTone: 'dark' | 'light'
+  metadata?: Record<string, unknown>
 }
 
 type JourneyClientProps = {
   displayName: string
   orgslug: string
 }
-
-const demoActions: ActionCard[] = [
-  {
-    id: 'demo-continue',
-    url: '/courses',
-    title: 'Continue learning',
-    subtext: 'Pick up where your most recent course left off.',
-    imageUrl: '',
-    textTone: 'dark',
-  },
-  {
-    id: 'demo-reflect',
-    url: '/profile/timeline',
-    title: 'Capture a reflection',
-    subtext: 'Add a quick note about what is starting to click.',
-    imageUrl: '',
-    textTone: 'dark',
-  },
-  {
-    id: 'demo-identity',
-    url: '/profile',
-    title: 'Shape your profile',
-    subtext: 'Tune the story others see when they visit your work.',
-    imageUrl: '',
-    textTone: 'dark',
-  },
-]
 
 const hexToRgba = (hex: string, alpha: number): string => {
   if (!hex || hex.length < 7) return 'white'
@@ -76,6 +59,19 @@ function getCardImage(card?: ActionCard) {
   return card?.imageUrl || ''
 }
 
+function suggestedActionToCard(action: SuggestedAction): ActionCard {
+  return {
+    id: action.key,
+    key: action.key,
+    url: action.href,
+    title: action.title,
+    subtext: action.subtext,
+    imageUrl: action.imageUrl,
+    textTone: action.textTone === 'light' ? 'light' : 'dark',
+    metadata: action.metadata,
+  }
+}
+
 function getToneClasses(tone: ActionCard['textTone']) {
   if (tone === 'light') {
     return {
@@ -104,10 +100,13 @@ function ActionDisplayCard({
   card,
   active,
   orgslug,
+  onClick,
 }: {
   card: ActionCard
   active: boolean
   orgslug: string
+  // eslint-disable-next-line no-unused-vars
+  onClick?: (_card: ActionCard) => void
 }) {
   const image = getCardImage(card)
   const tone = getToneClasses(card.textTone)
@@ -138,6 +137,7 @@ function ActionDisplayCard({
         <div className={`mt-auto border-t pt-3 ${tone.line}`}>
           <a
             href={href}
+            onClick={() => onClick?.(card)}
             className={`flex items-center gap-2 text-base font-semibold hover:underline ${tone.link}`}
           >
             <Link2 className="h-4 w-4" />
@@ -149,7 +149,16 @@ function ActionDisplayCard({
   )
 }
 
-function ActionCarousel({ cards, orgslug }: { cards: ActionCard[]; orgslug: string }) {
+function ActionCarousel({
+  cards,
+  orgslug,
+  onCardClick,
+}: {
+  cards: ActionCard[]
+  orgslug: string
+  // eslint-disable-next-line no-unused-vars
+  onCardClick?: (_card: ActionCard) => void
+}) {
   const [activeIndex, setActiveIndex] = useState(0)
   const mobileScrollerRef = useRef<HTMLDivElement | null>(null)
 
@@ -187,7 +196,7 @@ function ActionCarousel({ cards, orgslug }: { cards: ActionCard[]; orgslug: stri
       >
         {cards.map((card, index) => (
           <div key={`mobile-${card.id}`} className="snap-center">
-            <ActionDisplayCard card={card} active={index === activeIndex} orgslug={orgslug} />
+            <ActionDisplayCard card={card} active={index === activeIndex} orgslug={orgslug} onClick={onCardClick} />
           </div>
         ))}
       </div>
@@ -209,7 +218,7 @@ function ActionCarousel({ cards, orgslug }: { cards: ActionCard[]; orgslug: stri
                 zIndex: 10 - Math.abs(offset),
               }}
             >
-              <ActionDisplayCard card={card} active={active} orgslug={orgslug} />
+              <ActionDisplayCard card={card} active={active} orgslug={orgslug} onClick={onCardClick} />
             </div>
           )
         })}
@@ -253,10 +262,66 @@ function ActionCarousel({ cards, orgslug }: { cards: ActionCard[]; orgslug: stri
   )
 }
 
+function ActionCarouselSkeleton() {
+  return (
+    <div className="relative hidden h-[305px] w-full items-center justify-center sm:flex">
+      <div className="h-[285px] w-[380px] animate-pulse rounded-[28px] border border-white/60 bg-white/50" />
+      <div className="absolute h-[250px] w-[330px] -translate-x-[120px] animate-pulse rounded-[28px] border border-white/40 bg-white/25" />
+      <div className="absolute h-[250px] w-[330px] translate-x-[120px] animate-pulse rounded-[28px] border border-white/40 bg-white/25" />
+    </div>
+  )
+}
+
 export default function JourneyClient({ displayName, orgslug }: JourneyClientProps) {
+  const session = useLHSession() as any
   const org = useOrg() as any
+  const accessToken = session?.data?.tokens?.access_token
+  const orgId = org?.id
   const primaryColor = org?.config?.config?.customization?.general?.color || org?.config?.config?.general?.color || ''
   const siteBackground = primaryColor ? hexToRgba(primaryColor, 0.05) : 'white'
+  const surface = 'journey'
+  const viewedKeysRef = useRef<Set<string>>(new Set())
+  const suggestionsUrl = orgId && accessToken
+    ? getSuggestedActionsUrl({ orgId, surface, slot: 'primary', limit: 3 })
+    : null
+  const { data: suggestedActions, isLoading } = useSWR(
+    suggestionsUrl ? [suggestionsUrl, accessToken] : null,
+    ([url, token]) => suggestedActionsFetcher(url, token),
+    {
+      revalidateOnFocus: false,
+      shouldRetryOnError: false,
+    }
+  )
+  const actionCards = (suggestedActions || []).map(suggestedActionToCard)
+
+  useEffect(() => {
+    if (!orgId || !accessToken || !suggestedActions?.length) return
+
+    suggestedActions.forEach((action) => {
+      if (viewedKeysRef.current.has(action.key)) return
+      viewedKeysRef.current.add(action.key)
+      recordSuggestedActionEvent({
+        orgId,
+        actionKey: action.key,
+        eventType: 'viewed',
+        surface,
+        metadata: { source: action.source, kind: action.kind },
+        accessToken,
+      }).catch(() => {})
+    })
+  }, [accessToken, orgId, suggestedActions])
+
+  const handleCardClick = (card: ActionCard) => {
+    if (!orgId || !accessToken) return
+    recordSuggestedActionEvent({
+      orgId,
+      actionKey: card.key,
+      eventType: 'clicked',
+      surface,
+      metadata: card.metadata || {},
+      accessToken,
+    }).catch(() => {})
+  }
 
   return (
     <main className="min-h-screen w-full">
@@ -286,7 +351,11 @@ export default function JourneyClient({ displayName, orgslug }: JourneyClientPro
                   <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-900/55">
                     What&apos;s next?
                   </p>
-                  <ActionCarousel cards={demoActions} orgslug={orgslug} />
+                  {isLoading ? (
+                    <ActionCarouselSkeleton />
+                  ) : actionCards.length > 0 ? (
+                    <ActionCarousel cards={actionCards} orgslug={orgslug} onCardClick={handleCardClick} />
+                  ) : null}
                 </div>
               </div>
             </div>
