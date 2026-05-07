@@ -42,14 +42,6 @@ type TimelineModalState = {
   entryId?: string
 }
 
-type LayoutEvent = TimelineEntry & {
-  top: number
-  height: number
-  lane: number
-  laneCount: number
-  sortTop: number
-}
-
 type MonthMarker = {
   key: string
   year: number
@@ -291,7 +283,7 @@ function buildTimelineRows(entries: TimelineEntry[]) {
     return [{ entry, months, start, end }]
   })
   const years = monthSpans.flatMap(({ months }) => months.map((month) => month.year))
-  const eventYears = new Set(years)
+  const eventYears = new Set<number>()
   const monthHeightsByYear = new Map<number, number[]>()
   const endpointMonthsByYear = new Map<number, Set<number>>()
   const getMonthHeights = (year: number) => {
@@ -307,13 +299,16 @@ function buildTimelineRows(entries: TimelineEntry[]) {
     endpointMonthsByYear.set(year, existing)
   }
 
-  monthSpans.forEach(({ entry, months, start, end }) => {
-    months.forEach((month) => getMonthHeights(month.year))
-    if (start) addEndpointMonth(start.year, start.month)
-    if (end && !entry.isOngoing) addEndpointMonth(end.year, end.month)
+  monthSpans.forEach(({ entry, start, end }) => {
+    eventYears.add(start.year)
+    eventYears.add(end.year)
+    addEndpointMonth(start.year, start.month)
+    if (!entry.isOngoing) addEndpointMonth(end.year, end.month)
+  })
 
+  monthSpans.forEach(({ months }) => {
     const requiredMonthHeight = MIN_TIMELINE_CARD_HEIGHT / Math.max(1, months.length)
-    months.forEach(({ year: monthYear, month }) => {
+    months.filter((month) => eventYears.has(month.year)).forEach(({ year: monthYear, month }) => {
       const monthHeights = getMonthHeights(monthYear)
       monthHeights[month] = Math.max(monthHeights[month], requiredMonthHeight)
     })
