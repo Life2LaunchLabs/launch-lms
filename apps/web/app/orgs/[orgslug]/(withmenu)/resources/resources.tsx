@@ -1,18 +1,29 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { PointerEvent as ReactPointerEvent } from 'react'
 import useSWR from 'swr'
-import { ChevronLeft, ChevronRight, Filter, FolderOpen, Layers, Plus, Search, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Filter, FolderOpen, Layers, List, MoreVertical, Pencil, Plus, Search, Share2, X } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import ResourceCard from '@components/Resources/ResourceCard'
 import ChipMultiSelect from '@components/Resources/ChipMultiSelect'
+import NewUserResourceChannelModal from '@components/Resources/NewUserResourceChannelModal'
+import {
+  allResourcesChannelIcon,
+  ResourceChannelStyleIcon,
+  savedChannelIcon,
+} from '@components/Resources/ResourceChannelStyle'
+import ResourceShareModal from '@components/Resources/ResourceShareModal'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import { Button } from '@components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@components/ui/popover'
 import FeatureInfoBanner from '@components/Onboarding/FeatureInfoBanner'
 import {
-  createUserResourceChannel,
+  getUriWithOrg,
+  routePaths,
+} from '@services/config/config'
+import {
   getResourceChannels,
   getResources,
   getResourceTags,
@@ -21,10 +32,21 @@ import {
   UserResourceChannel,
 } from '@services/resources/resources'
 import { getResourceChannelThumbnailMediaDirectory } from '@services/media/media'
-import { toast } from 'react-hot-toast'
 
 const CHANNEL_CARD_PEEK = 24
 const SCROLL_DURATION_MS = 240
+
+type ChannelCarouselItem = {
+  id: string
+  name: string
+  thumbnail: string | null
+  icon?: string | null
+  color?: string | null
+  iconColor?: string | null
+  SystemIcon?: React.ComponentType<{ size?: number; className?: string }>
+  active?: boolean
+  onSelect: () => void
+}
 
 function easeOutQuint(progress: number) {
   return 1 - Math.pow(1 - progress, 5)
@@ -55,32 +77,52 @@ function ActiveFilterChip({
 function ChannelCarouselCard({
   title,
   thumbnail,
+  icon,
+  color,
+  iconColor,
+  SystemIcon,
+  active,
   onClick,
 }: {
   title: string
   thumbnail?: string | null
+  icon?: string | null
+  color?: string | null
+  iconColor?: string | null
+  SystemIcon?: React.ComponentType<{ size?: number; className?: string }>
+  active?: boolean
   onClick: () => void
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group flex max-w-[260px] shrink-0 items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors hover:bg-gray-50"
+      className={`group flex max-w-[180px] shrink-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors ${
+        active ? 'bg-gray-100 text-gray-950 ring-1 ring-gray-200' : 'hover:bg-gray-50'
+      }`}
     >
-      <div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+      <div className="h-6 w-6 shrink-0 overflow-hidden rounded-md bg-gray-100">
         {thumbnail ? (
           <img
             src={thumbnail}
             alt={title}
             className="h-full w-full object-cover"
           />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-gray-400">
-            <FolderOpen size={16} />
+        ) : SystemIcon ? (
+          <div className="flex h-full w-full items-center justify-center bg-gray-100 text-gray-500">
+            <SystemIcon size={12} />
           </div>
+        ) : (
+          <ResourceChannelStyleIcon
+            icon={icon}
+            color={color}
+            iconColor={iconColor}
+            size={12}
+            className="h-full w-full"
+          />
         )}
       </div>
-      <div className="min-w-0 truncate text-lg font-semibold text-gray-900">
+      <div className={`min-w-0 truncate text-sm font-semibold ${active ? 'text-gray-950' : 'text-gray-800'}`}>
         {title}
       </div>
     </button>
@@ -91,12 +133,18 @@ function ChannelTile({
   title,
   description,
   thumbnail,
+  icon,
+  color,
+  iconColor,
   active,
   onClick,
 }: {
   title: string
   description?: string | null
   thumbnail?: string | null
+  icon?: string | null
+  color?: string | null
+  iconColor?: string | null
   active?: boolean
   onClick: () => void
 }) {
@@ -109,9 +157,13 @@ function ChannelTile({
         {thumbnail ? (
           <img src={thumbnail} alt={title} className="h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-gray-400">
-            <FolderOpen size={16} />
-          </div>
+          <ResourceChannelStyleIcon
+            icon={icon}
+            color={color}
+            iconColor={iconColor}
+            size={16}
+            className="h-full w-full"
+          />
         )}
       </div>
       <div className="min-w-0">
@@ -125,9 +177,11 @@ function ChannelTile({
 export default function ResourcesClient({
   orgslug,
   initialChannelUuid,
+  initialUserChannelUuid,
 }: {
   orgslug: string
   initialChannelUuid?: string
+  initialUserChannelUuid?: string
 }) {
   const org = useOrg() as any
   const session = useLHSession() as any
@@ -136,9 +190,9 @@ export default function ResourcesClient({
   const orgUUID = org?.org_uuid
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [activeChannel, setActiveChannel] = useState<string>(
-    initialChannelUuid || 'all'
+    initialUserChannelUuid ? 'all' : initialChannelUuid || 'all'
   )
-  const [activeUserChannel, setActiveUserChannel] = useState<string>('')
+  const [activeUserChannel, setActiveUserChannel] = useState<string>(initialUserChannelUuid || '')
   const [search, setSearch] = useState('')
   const [searchExpanded, setSearchExpanded] = useState(false)
   const [resourceTypes, setResourceTypes] = useState<string[]>([])
@@ -146,11 +200,19 @@ export default function ResourcesClient({
   const [accessMode, setAccessMode] = useState('')
   const [provider, setProvider] = useState('')
   const [newChannelModalOpen, setNewChannelModalOpen] = useState(false)
-  const [newChannelName, setNewChannelName] = useState('')
-  const [newChannelDescription, setNewChannelDescription] = useState('')
+  const [editingChannel, setEditingChannel] = useState<UserResourceChannel | null>(null)
+  const [channelActionsOpen, setChannelActionsOpen] = useState(false)
+  const [shareChannelOpen, setShareChannelOpen] = useState(false)
   const channelScrollerRef = useRef<HTMLDivElement | null>(null)
   const channelCardRefs = useRef<Array<HTMLDivElement | null>>([])
   const channelAnimationFrameRef = useRef<number | null>(null)
+  const channelDragRef = useRef({
+    pointerId: -1,
+    dragging: false,
+    startX: 0,
+    startScrollLeft: 0,
+  })
+  const suppressChannelClickRef = useRef(false)
   const [canScrollChannelsLeft, setCanScrollChannelsLeft] = useState(false)
   const [canScrollChannelsRight, setCanScrollChannelsRight] = useState(false)
 
@@ -189,35 +251,68 @@ export default function ResourcesClient({
   const activeChannelData = channels.find((channel: ResourceChannel) => channel.channel_uuid === activeChannel)
   const activeUserChannelData = userChannels.find((channel: UserResourceChannel) => channel.user_channel_uuid === activeUserChannel)
 
-  const createSavedChannel = async () => {
-    if (!newChannelName.trim() || !accessToken || !orgId) return
-    try {
-      await createUserResourceChannel(
-        orgId,
-        { name: newChannelName.trim(), description: newChannelDescription.trim() || null },
-        accessToken
-      )
-      setNewChannelName('')
-      setNewChannelDescription('')
-      setNewChannelModalOpen(false)
-      mutateChannels()
-      toast.success('Channel created')
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to create channel')
-    }
-  }
-
   const activeThumb = activeChannelData?.thumbnail_image && orgUUID
     ? getResourceChannelThumbnailMediaDirectory(orgUUID, activeChannelData.channel_uuid, activeChannelData.thumbnail_image)
     : null
+  const activeUserChannelStyle = activeUserChannelData
+    ? {
+        icon: activeUserChannelData.icon,
+        color: activeUserChannelData.color,
+        iconColor: activeUserChannelData.icon_color,
+      }
+    : null
 
   const activeChannelName = activeUserChannelData?.name || activeChannelData?.name || 'All Resources'
-  const channelCarouselItems = useMemo(() => {
-    const items = [
+  const activeChannelDescription = activeUserChannelData
+    ? activeUserChannelData.description || `${activeUserChannelData.resource_count} saved resources`
+    : activeChannelData
+      ? activeChannelData.description || `${activeChannelData.resource_count} resources`
+      : 'Browse across every accessible channel'
+  const resourcesUrl = getUriWithOrg(orgslug, routePaths.org.resources())
+  const activeChannelUrl = activeUserChannelData
+    ? `${resourcesUrl}?user_channel=${encodeURIComponent(activeUserChannelData.user_channel_uuid)}`
+    : activeChannelData
+      ? `${resourcesUrl}?channel=${encodeURIComponent(activeChannelData.channel_uuid)}`
+      : resourcesUrl
+  const { personalChannelCarouselItems, globalChannelCarouselItems } = useMemo(() => {
+    const defaultUserChannel = userChannels.find((channel: UserResourceChannel) => channel.is_default)
+    const personalItems: ChannelCarouselItem[] = [
+      {
+        id: 'saved',
+        name: 'Saved',
+        thumbnail: null,
+        SystemIcon: savedChannelIcon,
+        active: defaultUserChannel?.user_channel_uuid === activeUserChannel,
+        onSelect: () => {
+          if (defaultUserChannel) {
+            setActiveUserChannel(defaultUserChannel.user_channel_uuid)
+            setActiveChannel('all')
+          }
+        },
+      },
+      ...userChannels
+        .filter((channel: UserResourceChannel) => !channel.is_default)
+        .map((channel: UserResourceChannel) => ({
+          id: `user-${channel.user_channel_uuid}`,
+          name: channel.name,
+          thumbnail: null,
+          icon: channel.icon,
+          color: channel.color,
+          iconColor: channel.icon_color,
+          active: channel.user_channel_uuid === activeUserChannel,
+          onSelect: () => {
+            setActiveUserChannel(channel.user_channel_uuid)
+            setActiveChannel('all')
+          },
+        })),
+    ]
+    const globalItems: ChannelCarouselItem[] = [
       {
         id: 'all',
         name: 'All Resources',
         thumbnail: null,
+        SystemIcon: allResourcesChannelIcon,
+        active: activeChannel === 'all' && !activeUserChannel,
         onSelect: () => {
           setActiveChannel('all')
           setActiveUserChannel('')
@@ -229,18 +324,18 @@ export default function ResourcesClient({
         thumbnail: channel.thumbnail_image && orgUUID
           ? getResourceChannelThumbnailMediaDirectory(orgUUID, channel.channel_uuid, channel.thumbnail_image)
           : null,
+        active: !activeUserChannel && activeChannel === channel.channel_uuid,
         onSelect: () => {
           setActiveChannel(channel.channel_uuid)
           setActiveUserChannel('')
         },
       })),
     ]
-
-    return items.filter((item) => {
-      if (activeUserChannel) return true
-      return item.id !== activeChannel
-    })
-  }, [activeChannel, activeUserChannel, channels, orgUUID])
+    return {
+      personalChannelCarouselItems: personalItems,
+      globalChannelCarouselItems: globalItems,
+    }
+  }, [activeChannel, activeUserChannel, channels, orgUUID, userChannels])
 
   const updateChannelScrollState = useCallback(() => {
     const container = channelScrollerRef.current
@@ -331,6 +426,54 @@ export default function ResourcesClient({
     animateChannelsTo(targetScrollLeft <= CHANNEL_CARD_PEEK ? 0 : targetScrollLeft)
   }, [animateChannelsTo])
 
+  const handleChannelPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const container = channelScrollerRef.current
+    if (!container) return
+    if (event.button !== 0 && event.pointerType === 'mouse') return
+    if (channelAnimationFrameRef.current) {
+      cancelAnimationFrame(channelAnimationFrameRef.current)
+      channelAnimationFrameRef.current = null
+    }
+    channelDragRef.current = {
+      pointerId: event.pointerId,
+      dragging: false,
+      startX: event.clientX,
+      startScrollLeft: container.scrollLeft,
+    }
+    container.setPointerCapture(event.pointerId)
+  }, [])
+
+  const handleChannelPointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const container = channelScrollerRef.current
+    const drag = channelDragRef.current
+    if (!container || drag.pointerId !== event.pointerId) return
+    const deltaX = event.clientX - drag.startX
+    if (!drag.dragging && Math.abs(deltaX) > 4) {
+      drag.dragging = true
+      suppressChannelClickRef.current = true
+    }
+    if (!drag.dragging) return
+    event.preventDefault()
+    container.scrollLeft = drag.startScrollLeft - deltaX
+    updateChannelScrollState()
+  }, [updateChannelScrollState])
+
+  const handleChannelPointerEnd = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const container = channelScrollerRef.current
+    if (container?.hasPointerCapture(event.pointerId)) {
+      container.releasePointerCapture(event.pointerId)
+    }
+    channelDragRef.current.pointerId = -1
+    channelDragRef.current.dragging = false
+  }, [])
+
+  const handleChannelClickCapture = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (!suppressChannelClickRef.current) return
+    event.preventDefault()
+    event.stopPropagation()
+    suppressChannelClickRef.current = false
+  }, [])
+
   useEffect(() => {
     updateChannelScrollState()
 
@@ -349,7 +492,7 @@ export default function ResourcesClient({
       container.removeEventListener('scroll', handleScroll)
       resizeObserver.disconnect()
     }
-  }, [channelCarouselItems.length, updateChannelScrollState])
+  }, [globalChannelCarouselItems.length, personalChannelCarouselItems.length, updateChannelScrollState])
 
   useEffect(() => {
     return () => {
@@ -448,36 +591,84 @@ export default function ResourcesClient({
         <h1 className="text-xl font-bold text-gray-900 tracking-tight">Resources</h1>
       </div>
 
-      {/* Channel switcher */}
-      <div className="flex min-w-0 items-stretch gap-4">
-        <button
-          onClick={() => setDrawerOpen(true)}
-          className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-left transition-colors hover:bg-gray-50"
-        >
-          <div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+      {/* Active channel */}
+      <div className="relative mb-2 flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-gray-100">
             {activeThumb ? (
               <img src={activeThumb} alt={activeChannelName} className="h-full w-full object-cover" />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-gray-400">
-                <FolderOpen size={16} />
-              </div>
+              <ResourceChannelStyleIcon
+                icon={activeUserChannelStyle?.icon}
+                color={activeUserChannelStyle?.color}
+                iconColor={activeUserChannelStyle?.iconColor}
+                size={22}
+                className="h-full w-full"
+              />
             )}
           </div>
-          <h2 className="text-lg font-semibold text-gray-900">{activeChannelName}</h2>
+          <div className="min-w-0">
+            <h2 className="truncate text-xl font-semibold leading-tight text-gray-900">{activeChannelName}</h2>
+            <p className="mt-1 line-clamp-1 text-sm text-gray-500">{activeChannelDescription}</p>
+          </div>
+        </div>
+        <button
+          onClick={() => setChannelActionsOpen(!channelActionsOpen)}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
+          aria-label="Channel actions"
+          title="Channel actions"
+        >
+          <MoreVertical size={16} />
         </button>
+        {channelActionsOpen && (
+          <div className="absolute right-0 top-9 z-40 w-40 rounded-xl border border-gray-200 bg-white p-1 shadow-lg">
+            {activeUserChannelData && (
+              <button
+                onClick={() => {
+                  setEditingChannel(activeUserChannelData)
+                  setChannelActionsOpen(false)
+                }}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50"
+              >
+                <Pencil size={14} />
+                Edit
+              </button>
+            )}
+            <button
+              onClick={() => {
+                setShareChannelOpen(true)
+                setChannelActionsOpen(false)
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              <Share2 size={14} />
+              Share
+            </button>
+          </div>
+        )}
+      </div>
 
-        {channelCarouselItems.length > 0 && (
+      {/* Channel browser */}
+      <div className="flex min-w-0 items-center gap-2">
+        <button
+          onClick={() => setDrawerOpen(true)}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50"
+          aria-label="Browse channels"
+          title="Browse channels"
+        >
+          <List size={15} />
+        </button>
+        {(personalChannelCarouselItems.length > 0 || globalChannelCarouselItems.length > 0) && (
           <>
-            <div className="my-1 w-px shrink-0 bg-gray-200" />
             <div className="relative min-w-0 flex-1">
               {canScrollChannelsLeft ? (
                 <button
                   type="button"
                   onClick={scrollChannelsLeft}
                   aria-label="Scroll channels left"
-                  className="absolute left-0 top-7 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow-lg ring-1 ring-black/8 transition-colors hover:bg-white"
+                  className="absolute left-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow ring-1 ring-black/8 transition-colors hover:bg-white"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-3.5 w-3.5" />
                 </button>
               ) : null}
 
@@ -486,18 +677,23 @@ export default function ResourcesClient({
                   type="button"
                   onClick={scrollChannelsRight}
                   aria-label="Scroll channels right"
-                  className="absolute right-0 top-7 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow-lg ring-1 ring-black/8 transition-colors hover:bg-white"
+                  className="absolute right-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow ring-1 ring-black/8 transition-colors hover:bg-white"
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-3.5 w-3.5" />
                 </button>
               ) : null}
 
               <div
                 ref={channelScrollerRef}
-                className="overflow-x-hidden overflow-y-visible"
+                onPointerDown={handleChannelPointerDown}
+                onPointerMove={handleChannelPointerMove}
+                onPointerUp={handleChannelPointerEnd}
+                onPointerCancel={handleChannelPointerEnd}
+                onClickCapture={handleChannelClickCapture}
+                className="cursor-grab touch-pan-y overflow-x-hidden overflow-y-visible active:cursor-grabbing"
               >
-                <div className="flex snap-x snap-mandatory gap-3 py-1">
-                  {channelCarouselItems.map((channel, index) => (
+                <div className="flex snap-x snap-mandatory items-center gap-1.5 py-0.5">
+                  {personalChannelCarouselItems.map((channel, index) => (
                     <div
                       key={channel.id}
                       ref={(node) => {
@@ -508,10 +704,41 @@ export default function ResourcesClient({
                       <ChannelCarouselCard
                         title={channel.name}
                         thumbnail={channel.thumbnail}
+                        icon={channel.icon}
+                        color={channel.color}
+                        iconColor={channel.iconColor}
+                        SystemIcon={channel.SystemIcon}
+                        active={channel.active}
                         onClick={channel.onSelect}
                       />
                     </div>
                   ))}
+                  {personalChannelCarouselItems.length > 0 && globalChannelCarouselItems.length > 0 && (
+                    <div className="mx-1 h-5 w-px shrink-0 bg-gray-200" />
+                  )}
+                  {globalChannelCarouselItems.map((channel, index) => {
+                    const refIndex = personalChannelCarouselItems.length + index
+                    return (
+                      <div
+                        key={channel.id}
+                        ref={(node) => {
+                          channelCardRefs.current[refIndex] = node
+                        }}
+                        className="snap-start"
+                      >
+                        <ChannelCarouselCard
+                          title={channel.name}
+                          thumbnail={channel.thumbnail}
+                          icon={channel.icon}
+                          color={channel.color}
+                          iconColor={channel.iconColor}
+                          SystemIcon={channel.SystemIcon}
+                          active={channel.active}
+                          onClick={channel.onSelect}
+                        />
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             </div>
@@ -651,7 +878,7 @@ export default function ResourcesClient({
       {/* Channel drawer */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50 flex">
-          <div className="relative h-full w-full max-w-md bg-white p-5 shadow-2xl overflow-y-auto">
+          <div className="relative h-full w-[calc(100%-2rem)] max-w-md overflow-y-auto bg-white p-5 shadow-2xl">
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900">Channels</h2>
               <button className="rounded-lg border border-gray-200 px-3 py-2 text-sm" onClick={() => setDrawerOpen(false)}>
@@ -678,6 +905,9 @@ export default function ResourcesClient({
                       key={channel.user_channel_uuid}
                       title={channel.name}
                       description={`${channel.resource_count} saved`}
+                      icon={channel.icon}
+                      color={channel.color}
+                      iconColor={channel.icon_color}
                       active={activeUserChannel === channel.user_channel_uuid}
                       onClick={() => {
                         setActiveUserChannel(channel.user_channel_uuid)
@@ -733,60 +963,44 @@ export default function ResourcesClient({
         </div>
       )}
 
-      {/* New channel modal */}
-      {newChannelModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
-          <div className="w-full max-w-md rounded-3xl bg-white nice-shadow p-6">
-            <div className="mb-5 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">New channel</h3>
-              <button
-                onClick={() => setNewChannelModalOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Title</label>
-                <input
-                  value={newChannelName}
-                  onChange={(e) => setNewChannelName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && createSavedChannel()}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400"
-                  placeholder="Channel name"
-                  autoFocus
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
-                <textarea
-                  value={newChannelDescription}
-                  onChange={(e) => setNewChannelDescription(e.target.value)}
-                  className="w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400"
-                  placeholder="Optional description"
-                  rows={3}
-                />
-              </div>
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                onClick={() => setNewChannelModalOpen(false)}
-                className="rounded-xl border border-gray-200 px-4 py-2 text-sm hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={createSavedChannel}
-                disabled={!newChannelName.trim()}
-                className="rounded-xl bg-black px-4 py-2 text-sm text-white hover:bg-gray-800 disabled:opacity-40 transition-colors"
-              >
-                Create
-              </button>
-            </div>
+      <NewUserResourceChannelModal
+        open={newChannelModalOpen}
+        onClose={() => setNewChannelModalOpen(false)}
+        onCreated={async () => {
+          await mutateChannels()
+        }}
+      />
+      <NewUserResourceChannelModal
+        open={Boolean(editingChannel)}
+        channel={editingChannel}
+        onClose={() => setEditingChannel(null)}
+        onUpdated={async () => {
+          await mutateChannels()
+        }}
+      />
+      <ResourceShareModal
+        open={shareChannelOpen}
+        onClose={() => setShareChannelOpen(false)}
+        title={activeChannelName}
+        description={activeChannelDescription}
+        url={activeChannelUrl}
+        eyebrow="Channel"
+        visual={
+          <div className="h-10 w-10 overflow-hidden rounded-lg bg-gray-100">
+            {activeThumb ? (
+              <img src={activeThumb} alt={activeChannelName} className="h-full w-full object-cover" />
+            ) : (
+              <ResourceChannelStyleIcon
+                icon={activeUserChannelStyle?.icon}
+                color={activeUserChannelStyle?.color}
+                iconColor={activeUserChannelStyle?.iconColor}
+                size={18}
+                className="h-full w-full"
+              />
+            )}
           </div>
-        </div>
-      )}
+        }
+      />
     </GeneralWrapperStyled>
   )
 }

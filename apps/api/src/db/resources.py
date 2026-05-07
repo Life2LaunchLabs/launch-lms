@@ -206,6 +206,9 @@ class UserResourceChannelBase(SQLModel):
     name: str
     description: Optional[str] = Field(default=None, sa_column=Column(Text))
     is_default: bool = False
+    icon: Optional[str] = None
+    color: Optional[str] = None
+    icon_color: Optional[str] = None
 
 
 class UserResourceChannel(UserResourceChannelBase, table=True):

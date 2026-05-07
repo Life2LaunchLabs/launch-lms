@@ -44,6 +44,7 @@ from src.services.resources import (
     update_channel,
     update_comment,
     update_resource,
+    update_user_channel,
     upload_channel_thumbnail,
     upload_resource_thumbnail,
     upload_saved_resource_outcome_file,
@@ -299,6 +300,18 @@ async def api_create_user_channel(
     db_session: Session = Depends(get_db_session),
 ):
     return await create_user_channel(request, org_id, current_user, db_session, channel_data)
+
+
+@router.put("/org/{org_id}/me/channels/{user_channel_uuid}")
+async def api_update_user_channel(
+    request: Request,
+    org_id: int,
+    user_channel_uuid: str,
+    channel_data: UserResourceChannelCreate,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await update_user_channel(request, org_id, user_channel_uuid, current_user, db_session, channel_data)
 
 
 @router.post("/{resource_uuid}/save")

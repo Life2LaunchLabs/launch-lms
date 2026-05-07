@@ -803,9 +803,36 @@ async def create_user_channel(request: Request, org_id: int, current_user: Publi
         name=user_channel_data.name,
         description=user_channel_data.description,
         is_default=False,
+        icon=user_channel_data.icon,
+        color=user_channel_data.color,
+        icon_color=user_channel_data.icon_color,
         creation_date=_now(),
         update_date=_now(),
     )
+    db_session.add(channel)
+    db_session.commit()
+    db_session.refresh(channel)
+    return _serialize_user_channel(channel, db_session, current_user.id)
+
+
+async def update_user_channel(request: Request, org_id: int, user_channel_uuid: str, current_user: PublicUser, db_session: Session, user_channel_data: UserResourceChannelCreate) -> dict:
+    require_org_membership(current_user.id, org_id, db_session)
+    channel = db_session.exec(
+        select(UserResourceChannel).where(
+            UserResourceChannel.user_channel_uuid == user_channel_uuid,
+            UserResourceChannel.user_id == current_user.id,
+            UserResourceChannel.org_id == org_id,
+            UserResourceChannel.is_default == False,
+        )
+    ).first()
+    if not channel:
+        raise HTTPException(status_code=404, detail="Channel not found")
+    channel.name = user_channel_data.name
+    channel.description = user_channel_data.description
+    channel.icon = user_channel_data.icon
+    channel.color = user_channel_data.color
+    channel.icon_color = user_channel_data.icon_color
+    channel.update_date = _now()
     db_session.add(channel)
     db_session.commit()
     db_session.refresh(channel)

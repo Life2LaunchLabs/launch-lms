@@ -46,6 +46,9 @@ export interface UserResourceChannel {
   name: string
   description: string | null
   is_default: boolean
+  icon: string | null
+  color: string | null
+  icon_color: string | null
   creation_date: string
   update_date: string
   resource_count: number
@@ -303,6 +306,19 @@ export async function createUserResourceChannel(orgId: number, data: any, access
   const result: any = await fetch(
     `${getAPIUrl()}resources/org/${orgId}/me/channels`,
     RequestBodyWithAuthHeader('POST', data, null, accessToken)
+  )
+  return getResponseMetadata(result)
+}
+
+export async function updateUserResourceChannel(
+  orgId: number,
+  userChannelUuid: string,
+  data: any,
+  accessToken: string
+) {
+  const result: any = await fetch(
+    `${getAPIUrl()}resources/org/${orgId}/me/channels/${userChannelUuid}`,
+    RequestBodyWithAuthHeader('PUT', data, null, accessToken)
   )
   return getResponseMetadata(result)
 }
