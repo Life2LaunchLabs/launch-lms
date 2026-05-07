@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ExternalLink, Eye, MessageCircle, Upload, X } from 'lucide-react'
+import { ExternalLink, Eye, MessageCircle, Share2, Upload, X } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import useSWR from 'swr'
 import { useRouter } from 'next/navigation'
@@ -9,7 +9,9 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import ResourceComments from '@components/Resources/ResourceComments'
 import SaveDropdown from '@components/Resources/SaveDropdown'
+import ResourceShareModal from '@components/Resources/ResourceShareModal'
 import ResourceTypeVisual from '@components/Resources/ResourceTypeVisual'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import {
   getResource,
   saveResource,
@@ -20,7 +22,7 @@ import {
   getResourceThumbnailMediaDirectory,
 } from '@services/media/media'
 
-export default function ResourceDetailClient({ resourceUuid }: { resourceUuid: string }) {
+export default function ResourceDetailClient({ orgslug, resourceUuid }: { orgslug: string; resourceUuid: string }) {
   const router = useRouter()
   const org = useOrg() as any
   const session = useLHSession() as any
@@ -30,6 +32,7 @@ export default function ResourceDetailClient({ resourceUuid }: { resourceUuid: s
   const [outcomeTextDraft, setOutcomeTextDraft] = useState<string | null>(null)
   const [outcomeLinkDraft, setOutcomeLinkDraft] = useState<string | null>(null)
   const [showReturnPrompt, setShowReturnPrompt] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
 
   const { data: resource, mutate } = useSWR(
     resourceUuid ? ['resource-detail', resourceUuid, accessToken || 'anon'] : null,
@@ -53,6 +56,7 @@ export default function ResourceDetailClient({ resourceUuid }: { resourceUuid: s
   const imageSrc = resource.thumbnail_image && (resource.owner_org_uuid || org?.org_uuid)
     ? getResourceThumbnailMediaDirectory(resource.owner_org_uuid || org.org_uuid, resource.resource_uuid, resource.thumbnail_image)
     : resource.cover_image_url
+  const resourceUrl = getUriWithOrg(orgslug, routePaths.org.resource(resource.resource_uuid.replace('resource_', '')))
 
   const handleUpdatePrivate = async () => {
     if (!accessToken) return
@@ -170,6 +174,16 @@ export default function ResourceDetailClient({ resourceUuid }: { resourceUuid: s
               variant="detail"
             />
 
+            {/* Share */}
+            <button
+              onClick={() => setShareOpen(true)}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 text-gray-600 hover:border-gray-400 transition-colors"
+              aria-label="Share resource"
+              title="Share resource"
+            >
+              <Share2 size={14} />
+            </button>
+
             {/* Comments — scrolls to section */}
             <button
               onClick={() => document.getElementById('resource-comments')?.scrollIntoView({ behavior: 'smooth' })}
@@ -286,6 +300,14 @@ export default function ResourceDetailClient({ resourceUuid }: { resourceUuid: s
           </div>
         </div>
       )}
+      <ResourceShareModal
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        title={resource.title}
+        description={resource.description}
+        url={resourceUrl}
+        eyebrow="Resource"
+      />
     </div>
   )
 }

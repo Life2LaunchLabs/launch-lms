@@ -24,13 +24,14 @@ export default function ResourceCard({
   const imageSrc = resource.thumbnail_image && ownerOrgUuid
     ? getResourceThumbnailMediaDirectory(ownerOrgUuid, resource.resource_uuid, resource.thumbnail_image)
     : resource.cover_image_url
+  const resourceUrl = getUriWithOrg(orgslug, routePaths.org.resource(resource.resource_uuid.replace('resource_', '')))
 
   return (
     <div className="group relative aspect-square overflow-hidden rounded bg-gray-100">
 
       {/* Navigable area — image + title panel */}
       <Link
-        href={getUriWithOrg(orgslug, routePaths.org.resource(resource.resource_uuid.replace('resource_', '')))}
+        href={resourceUrl}
         className="absolute inset-0 block"
       >
         <ResourceTypeVisual
@@ -87,13 +88,18 @@ export default function ResourceCard({
       </Link>
 
       {/* Action bar — outside Link so SaveDropdown doesn't trigger navigation */}
-      <div className="absolute inset-x-0 top-0 flex justify-end p-2 z-10">
+      <div className="absolute inset-x-0 top-0 z-10 flex justify-end gap-1 p-2">
         <SaveDropdown
           resourceUuid={resource.resource_uuid}
           isSaved={isSaved}
           savedUserChannelUuids={resource.user_channel_uuids ?? []}
           onSaveChange={setIsSaved}
           variant="card"
+          share={{
+            title: resource.title,
+            description: resource.description,
+            url: resourceUrl,
+          }}
         />
       </div>
 

@@ -2,7 +2,7 @@ import ResourcesClient from './resources'
 
 export default async function ResourcesPage(props: {
   params: Promise<{ orgslug: string }>
-  searchParams: Promise<{ channel?: string }>
+  searchParams: Promise<{ channel?: string; user_channel?: string }>
 }) {
   const { orgslug } = await props.params
   const searchParams = await props.searchParams
@@ -11,6 +11,7 @@ export default async function ResourcesPage(props: {
     <ResourcesClient
       orgslug={orgslug}
       initialChannelUuid={searchParams.channel}
+      initialUserChannelUuid={searchParams.user_channel}
     />
   )
 }
