@@ -14,6 +14,7 @@ from sqlalchemy import func, or_
 from sqlmodel import Session, select
 
 from src.db.organizations import Organization
+from src.db.identity import ContentFrameworkTag, FrameworkContentType, FrameworkTagIntent, LifeFrameworkNode
 from src.db.resources import (
     Resource,
     ResourceChannel,
@@ -50,6 +51,7 @@ from src.security.org_auth import require_org_membership, require_org_role_permi
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.services.shared_content import owner_org_payload
 from src.services.utils.upload_content import upload_file
+from src.services.identity import upsert_resource_outcome_entry
 
 
 def _now() -> str:
@@ -320,6 +322,27 @@ def _resource_tags_map(resource_ids: list[int], db_session: Session) -> dict[int
     return tags_by_resource
 
 
+def _resource_framework_tags_map(resources: list[Resource], db_session: Session) -> dict[int, list[str]]:
+    if not resources:
+        return {}
+    uuid_to_id = {resource.resource_uuid: resource.id for resource in resources}
+    rows = db_session.exec(
+        select(ContentFrameworkTag, LifeFrameworkNode)
+        .join(LifeFrameworkNode, LifeFrameworkNode.id == ContentFrameworkTag.framework_node_id)
+        .where(
+            ContentFrameworkTag.content_type == FrameworkContentType.resource,
+            ContentFrameworkTag.content_uuid.in_(list(uuid_to_id.keys())),
+        )
+        .order_by(LifeFrameworkNode.sort_order.asc())
+    ).all()
+    tags_by_resource: dict[int, list[str]] = {}
+    for tag, node in rows:
+        resource_id = uuid_to_id.get(tag.content_uuid)
+        if resource_id is not None:
+            tags_by_resource.setdefault(resource_id, []).append(node.key)
+    return tags_by_resource
+
+
 def _resource_user_state_map(resource_ids: list[int], current_user, db_session: Session) -> dict[int, UserSavedResource]:
     if _user_is_anonymous(current_user) or not resource_ids:
         return {}
@@ -340,6 +363,7 @@ def _serialize_resource(
 ) -> dict:
     save_counts, comment_counts = _resource_counts_map([resource.id], db_session)
     tags_map = _resource_tags_map([resource.id], db_session)
+    framework_tags_map = _resource_framework_tags_map([resource], db_session)
     user_state_map = _resource_user_state_map([resource.id], current_user, db_session)
     user_state = user_state_map.get(resource.id)
     channel_rows = db_session.exec(
@@ -362,6 +386,7 @@ def _serialize_resource(
         "save_count": int(save_counts.get(resource.id, 0)),
         "comment_count": int(comment_counts.get(resource.id, 0)),
         "tags": tags_map.get(resource.id, []),
+        "framework_node_keys": framework_tags_map.get(resource.id, []),
         "is_saved": user_state is not None,
         "has_outcome": bool(user_state and (user_state.outcome_text or user_state.outcome_link or user_state.outcome_file)),
         "user_state": UserSavedResourceRead.model_validate(user_state).model_dump() if user_state else None,
@@ -403,6 +428,43 @@ def _set_resource_tags(resource_id: int, tag_ids: list[int], db_session: Session
                 resource_id=resource_id,
                 tag_id=tag_id,
                 creation_date=_now(),
+            )
+        )
+
+
+def _set_resource_framework_tags(org_id: int, resource_uuid: str, node_keys: list[str], db_session: Session) -> None:
+    normalized = list(dict.fromkeys([key.strip() for key in node_keys if key.strip()]))
+    nodes = []
+    if normalized:
+        nodes = db_session.exec(select(LifeFrameworkNode).where(LifeFrameworkNode.key.in_(normalized))).all()
+    nodes_by_key = {node.key: node for node in nodes}
+    missing = [key for key in normalized if key not in nodes_by_key]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Unknown framework node key: {missing[0]}")
+
+    existing = db_session.exec(
+        select(ContentFrameworkTag).where(
+            ContentFrameworkTag.org_id == org_id,
+            ContentFrameworkTag.content_type == FrameworkContentType.resource,
+            ContentFrameworkTag.content_uuid == resource_uuid,
+        )
+    ).all()
+    existing_node_ids = {tag.framework_node_id for tag in existing}
+    target_node_ids = {node.id for node in nodes if node.id is not None}
+    for tag in existing:
+        if tag.framework_node_id not in target_node_ids:
+            db_session.delete(tag)
+    for node_id in target_node_ids - existing_node_ids:
+        db_session.add(
+            ContentFrameworkTag(
+                org_id=org_id,
+                content_type=FrameworkContentType.resource,
+                content_uuid=resource_uuid,
+                framework_node_id=node_id,
+                intent=FrameworkTagIntent.supports,
+                relevance=1.0,
+                creation_date=_now(),
+                update_date=_now(),
             )
         )
 
@@ -678,6 +740,7 @@ async def create_resource(
     require_org_role_permission(current_user.id, org_id, db_session, "resources", "action_create")
     payload = resource_data.model_dump()
     tag_uuids = payload.pop("tag_uuids", [])
+    framework_node_keys = payload.pop("framework_node_keys", [])
     resolved_tags = _resolve_resource_tags(org_id, tag_uuids, db_session)
     if enrich_metadata:
         enrichment = enrich_resource_metadata(resource_data.external_url)
@@ -696,6 +759,7 @@ async def create_resource(
     db_session.commit()
     db_session.refresh(resource)
     _set_resource_tags(resource.id, [tag.id for tag in resolved_tags], db_session)
+    _set_resource_framework_tags(org_id, resource.resource_uuid, framework_node_keys, db_session)
     db_session.commit()
     return _serialize_resource(resource, db_session, current_user, org_id)
 
@@ -705,6 +769,7 @@ async def update_resource(request: Request, resource_uuid: str, resource_data: R
     require_org_role_permission(current_user.id, resource.org_id, db_session, "resources", "action_update")
     updates = resource_data.model_dump(exclude_unset=True)
     tag_uuids = updates.pop("tag_uuids", None)
+    framework_node_keys = updates.pop("framework_node_keys", None)
     for key, value in updates.items():
         setattr(resource, key, value)
     resource.update_date = _now()
@@ -713,6 +778,9 @@ async def update_resource(request: Request, resource_uuid: str, resource_data: R
     if tag_uuids is not None:
         resolved_tags = _resolve_resource_tags(resource.org_id, tag_uuids, db_session)
         _set_resource_tags(resource.id, [tag.id for tag in resolved_tags], db_session)
+        db_session.commit()
+    if framework_node_keys is not None:
+        _set_resource_framework_tags(resource.org_id, resource.resource_uuid, framework_node_keys, db_session)
         db_session.commit()
     db_session.refresh(resource)
     return _serialize_resource(resource, db_session, current_user, resource.org_id)
@@ -871,6 +939,16 @@ async def save_resource_for_user(request: Request, resource_uuid: str, save_data
     db_session.refresh(saved_resource)
     _set_saved_resource_channels(saved_resource, channel_ids, db_session)
     db_session.commit()
+    if any([save_data.notes is not None, save_data.outcome_text is not None, save_data.outcome_link is not None]):
+        upsert_resource_outcome_entry(
+            user=current_user,
+            resource=resource,
+            notes=saved_resource.notes,
+            outcome_text=saved_resource.outcome_text,
+            outcome_link=saved_resource.outcome_link,
+            outcome_file=saved_resource.outcome_file,
+            db_session=db_session,
+        )
     return _serialize_resource(resource, db_session, current_user, resource.org_id)
 
 
@@ -890,6 +968,15 @@ async def upload_saved_resource_outcome_file(request: Request, resource_uuid: st
     saved_resource.update_date = _now()
     db_session.add(saved_resource)
     db_session.commit()
+    upsert_resource_outcome_entry(
+        user=current_user,
+        resource=resource,
+        notes=saved_resource.notes,
+        outcome_text=saved_resource.outcome_text,
+        outcome_link=saved_resource.outcome_link,
+        outcome_file=saved_resource.outcome_file,
+        db_session=db_session,
+    )
     return {"detail": "Outcome file uploaded", "filename": filename}
 
 

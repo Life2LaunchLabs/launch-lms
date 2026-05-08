@@ -103,6 +103,7 @@ class Resource(ResourceBase, table=True):
 
 class ResourceCreate(ResourceBase):
     tag_uuids: list[str] = Field(default_factory=list)
+    framework_node_keys: list[str] = Field(default_factory=list)
 
 
 class ResourceUpdate(SQLModel):
@@ -118,6 +119,7 @@ class ResourceUpdate(SQLModel):
     is_live: Optional[bool] = None
     access_mode: Optional[ResourceAccessModeEnum] = None
     tag_uuids: Optional[list[str]] = None
+    framework_node_keys: Optional[list[str]] = None
 
 
 class ResourceRead(ResourceBase):
@@ -133,6 +135,7 @@ class ResourceRead(ResourceBase):
     creation_date: str
     update_date: str
     tags: list[ResourceTagRead] = Field(default_factory=list)
+    framework_node_keys: list[str] = Field(default_factory=list)
 
 
 class ResourceChannelBase(SQLModel):

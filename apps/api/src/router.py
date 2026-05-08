@@ -7,6 +7,7 @@ from src.routers import plans
 from src.routers import usergroups
 from src.routers import dev, trail, users, auth, orgs, roles, search
 from src.routers import stream
+from src.routers import identity
 from src.routers import api_tokens
 from src.routers.ai import ai, magicblocks, courseplanning, rag
 from src.routers.boards import boards_playground
@@ -190,6 +191,12 @@ v1_router.include_router(
     suggested_actions_router_module.router,
     prefix="/suggested-actions",
     tags=["suggested-actions"],
+    dependencies=[Depends(get_non_api_token_user)]
+)
+v1_router.include_router(
+    identity.router,
+    prefix="/identity",
+    tags=["identity"],
     dependencies=[Depends(get_non_api_token_user)]
 )
 v1_router.include_router(

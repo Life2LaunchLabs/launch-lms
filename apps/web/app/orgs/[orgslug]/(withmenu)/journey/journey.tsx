@@ -1,17 +1,19 @@
 'use client'
 
-import React, { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Link2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
+import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react'
 import useSWR from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import {
   getSuggestedActionsUrl,
   recordSuggestedActionEvent,
   suggestedActionsFetcher,
   SuggestedAction,
 } from '@services/suggested-actions/suggested-actions'
+import { getIdentitySummary, IdentitySummary, FrameworkNode } from '@services/identity/identity'
 
 type ActionCard = {
   id: string
@@ -44,21 +46,6 @@ function normalizeUrl(url?: string) {
   return `https://${url}`
 }
 
-function getDisplayUrl(url?: string) {
-  if (!url) return 'Open'
-  if (url.startsWith('/')) return url.replace(/^\//, '') || 'Home'
-
-  try {
-    return new URL(normalizeUrl(url)).hostname.replace(/^www\./, '')
-  } catch {
-    return url
-  }
-}
-
-function getCardImage(card?: ActionCard) {
-  return card?.imageUrl || ''
-}
-
 function suggestedActionToCard(action: SuggestedAction): ActionCard {
   return {
     id: action.key,
@@ -72,78 +59,49 @@ function suggestedActionToCard(action: SuggestedAction): ActionCard {
   }
 }
 
-function getToneClasses(tone: ActionCard['textTone']) {
-  if (tone === 'light') {
-    return {
-      title: 'text-white placeholder:text-white/70',
-      body: 'text-white/90 placeholder:text-white/70',
-      link: 'text-white hover:text-white',
-      muted: 'text-white/75',
-      line: 'border-white/25',
-      topGradient: 'from-black/60',
-      bottomGradient: 'from-black/80',
-    }
-  }
-
-  return {
-    title: 'text-gray-950 placeholder:text-gray-500',
-    body: 'text-gray-800 placeholder:text-gray-500',
-    link: 'text-gray-950 hover:text-gray-950',
-    muted: 'text-gray-700',
-    line: 'border-gray-950/15',
-    topGradient: 'from-white/85',
-    bottomGradient: 'from-white/95',
-  }
-}
-
 function ActionDisplayCard({
   card,
-  active,
+  elevation,
   orgslug,
   onClick,
 }: {
   card: ActionCard
-  active: boolean
+  elevation: number
   orgslug: string
   // eslint-disable-next-line no-unused-vars
   onClick?: (_card: ActionCard) => void
 }) {
-  const image = getCardImage(card)
-  const tone = getToneClasses(card.textTone)
   const href = card.url.startsWith('/') ? getUriWithOrg(orgslug, card.url) : normalizeUrl(card.url)
+  const bgClass = (['bg-white', 'bg-gray-100', 'bg-gray-200'] as const)[Math.min(elevation, 2)]
+  const shadowClass = (['shadow-xl', 'shadow-lg', 'shadow-md'] as const)[Math.min(elevation, 2)]
 
   return (
-    <div
-      className={`relative flex h-[270px] w-[min(82vw,360px)] flex-col overflow-hidden rounded-[28px] border bg-white p-1 transition-all duration-300 sm:h-[285px] sm:w-[380px] ${
-        active ? 'border-[3px] border-gray-950' : 'border border-gray-200'
-      }`}
-    >
-      {image ? (
-        <img src={image} alt="" className="absolute inset-1 h-[calc(100%-8px)] w-[calc(100%-8px)] rounded-[24px] object-cover" />
-      ) : (
-        <div className="absolute inset-1 rounded-[24px] bg-[linear-gradient(135deg,#eef2ff,#f8fafc,#dcfce7)]" />
-      )}
-      <div className={`absolute inset-x-1 top-1 h-32 rounded-t-[24px] bg-gradient-to-b ${tone.topGradient} to-transparent`} />
-      <div className={`absolute inset-x-1 bottom-1 h-32 rounded-b-[24px] bg-gradient-to-t ${tone.bottomGradient} to-transparent`} />
-      <div className="relative flex min-h-0 flex-1 flex-col p-5">
-        <div className="space-y-2">
-          <h3 className={`text-2xl font-black leading-none ${tone.title}`}>
-            {card.title || 'Featured link'}
-          </h3>
+    <div className={`flex h-[270px] w-[min(82vw,360px)] flex-col overflow-hidden rounded-[28px] p-6 text-left transition-colors duration-300 sm:h-[285px] sm:w-[380px] ${bgClass} ${shadowClass}`}>
+      <h3 className="text-2xl font-black leading-tight text-gray-950">
+        {card.title || 'Featured link'}
+      </h3>
+      <div className="mt-3 flex flex-1 items-stretch gap-4">
+        <div className="flex flex-1 flex-col">
           {card.subtext ? (
-            <p className={`text-lg leading-7 ${tone.body}`}>{card.subtext}</p>
+            <p className="text-base leading-6 text-gray-500">{card.subtext}</p>
           ) : null}
+          <div className="mt-auto">
+            <a
+              href={href}
+              onClick={() => onClick?.(card)}
+              className="inline-flex items-center rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+            >
+              Let&apos;s go!
+            </a>
+          </div>
         </div>
-        <div className={`mt-auto border-t pt-3 ${tone.line}`}>
-          <a
-            href={href}
-            onClick={() => onClick?.(card)}
-            className={`flex items-center gap-2 text-base font-semibold hover:underline ${tone.link}`}
-          >
-            <Link2 className="h-4 w-4" />
-            <span className="truncate">{getDisplayUrl(card.url)}</span>
-          </a>
-        </div>
+        {card.imageUrl ? (
+          <div className="flex items-center">
+            <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl">
+              <img src={card.imageUrl} alt="" className="h-full w-full object-cover" />
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   )
@@ -160,102 +118,155 @@ function ActionCarousel({
   onCardClick?: (_card: ActionCard) => void
 }) {
   const [activeIndex, setActiveIndex] = useState(0)
-  const mobileScrollerRef = useRef<HTMLDivElement | null>(null)
+  const [dragX, setDragX] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const [exitDirection, setExitDirection] = useState<'left' | 'right' | null>(null)
+  const gesture = useRef({ startX: 0, dragX: 0, active: false, activeIndex: 0 })
+  const wasDragging = useRef(false)
+
+  const SWIPE_THRESHOLD = 72
 
   const moveTo = (index: number) => {
     if (!cards.length) return
-    setActiveIndex((index + cards.length) % cards.length)
+    const next = Math.max(0, Math.min(index, cards.length - 1))
+    gesture.current.activeIndex = next
+    setActiveIndex(next)
   }
 
-  const handleMobileScroll = () => {
-    const scroller = mobileScrollerRef.current
-    if (!scroller || cards.length === 0) return
-    const scrollerCenter = scroller.scrollLeft + scroller.clientWidth / 2
-    let closestIndex = 0
-    let closestDistance = Number.POSITIVE_INFINITY
+  const navigateTo = (direction: 'prev' | 'next') => {
+    const target = direction === 'next'
+      ? gesture.current.activeIndex + 1
+      : gesture.current.activeIndex - 1
+    if (target < 0 || target >= cards.length) return
+    setExitDirection(direction === 'next' ? 'left' : 'right')
+    setTimeout(() => {
+      setExitDirection(null)
+      moveTo(target)
+    }, 160)
+  }
 
-    Array.from(scroller.children).forEach((child, index) => {
-      const element = child as HTMLElement
-      const childCenter = element.offsetLeft + element.offsetWidth / 2
-      const distance = Math.abs(childCenter - scrollerCenter)
-      if (distance < closestDistance) {
-        closestDistance = distance
-        closestIndex = index
-      }
-    })
+  const onDragStart = (clientX: number) => {
+    if (exitDirection) return
+    gesture.current.startX = clientX
+    gesture.current.dragX = 0
+    gesture.current.active = true
+    setIsDragging(true)
+  }
 
-    setActiveIndex(closestIndex)
+  const onDragMove = (clientX: number) => {
+    if (!gesture.current.active) return
+    let dx = clientX - gesture.current.startX
+    if (
+      (dx > 0 && gesture.current.activeIndex === 0) ||
+      (dx < 0 && gesture.current.activeIndex === cards.length - 1)
+    ) {
+      dx = dx * 0.25
+    }
+    gesture.current.dragX = dx
+    setDragX(dx)
+  }
+
+  const onDragEnd = () => {
+    if (!gesture.current.active) return
+    gesture.current.active = false
+    setIsDragging(false)
+    const dx = gesture.current.dragX
+    wasDragging.current = Math.abs(dx) > 8
+    if (dx < -SWIPE_THRESHOLD) {
+      moveTo(gesture.current.activeIndex + 1)
+    } else if (dx > SWIPE_THRESHOLD) {
+      moveTo(gesture.current.activeIndex - 1)
+    }
+    gesture.current.dragX = 0
+    setDragX(0)
+  }
+
+  const handleCardClick = (card: ActionCard) => {
+    if (wasDragging.current) {
+      wasDragging.current = false
+      return
+    }
+    onCardClick?.(card)
   }
 
   return (
     <div className="relative flex flex-col items-center overflow-visible py-2">
       <div
-        ref={mobileScrollerRef}
-        onScroll={handleMobileScroll}
-        className="scrollbar-hide -mx-4 flex w-screen snap-x snap-mandatory gap-4 overflow-x-auto px-[9vw] pb-4 sm:mx-0 sm:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="relative flex h-[290px] w-full items-center justify-center sm:h-[305px]"
+        style={{ touchAction: 'pan-y' }}
+        onTouchStart={(e) => onDragStart(e.touches[0].clientX)}
+        onTouchMove={(e) => onDragMove(e.touches[0].clientX)}
+        onTouchEnd={onDragEnd}
       >
-        {cards.map((card, index) => (
-          <div key={`mobile-${card.id}`} className="snap-center">
-            <ActionDisplayCard card={card} active={index === activeIndex} orgslug={orgslug} onClick={onCardClick} />
-          </div>
-        ))}
-      </div>
-
-      <div className="relative hidden h-[290px] w-full items-center justify-center sm:flex sm:h-[305px]">
         {cards.map((card, index) => {
           const offset = index - activeIndex
           if (Math.abs(offset) > 2) return null
           const active = offset === 0
+          const activeDragging = active && isDragging
+          const activeExiting = active && exitDirection !== null
+          const activeTransform = (() => {
+            if (activeExiting)
+              return `translateX(${exitDirection === 'left' ? -280 : 280}px) rotate(${exitDirection === 'left' ? -5 : 5}deg) scale(1)`
+            if (activeDragging)
+              return `translateX(${dragX}px) rotate(${dragX * 0.03}deg) scale(1)`
+            return 'translateX(0px) rotate(0deg) scale(1)'
+          })()
           return (
             <div
-              key={`desktop-${card.id}`}
-              className="absolute hidden transition-all duration-300 sm:block"
+              key={`card-${card.id}`}
+              className="absolute"
               style={{
                 transform: active
-                  ? 'translateX(0) scale(1)'
-                  : `translateX(${offset * 76}px) scale(${1 - Math.abs(offset) * 0.08})`,
-                opacity: active ? 1 : 0.42 - Math.abs(offset) * 0.1,
+                  ? activeTransform
+                  : `translateX(${offset * 25}px) translateY(${Math.abs(offset) * 10}px) scale(${1 - Math.abs(offset) * 0.04})`,
                 zIndex: 10 - Math.abs(offset),
+                transition: activeDragging ? 'none' : active && activeExiting ? 'transform 220ms ease-in' : 'transform 300ms ease',
               }}
             >
-              <ActionDisplayCard card={card} active={active} orgslug={orgslug} onClick={onCardClick} />
+              <ActionDisplayCard card={card} elevation={Math.abs(offset)} orgslug={orgslug} onClick={handleCardClick} />
             </div>
           )
         })}
         {cards.length > 1 ? (
           <>
-            <button
-              type="button"
-              aria-label="Previous featured card"
-              onClick={() => moveTo(activeIndex - 1)}
-              className="absolute left-1/2 z-30 hidden h-11 w-11 -translate-x-[250px] items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-md hover:bg-white sm:flex"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <button
-              type="button"
-              aria-label="Next featured card"
-              onClick={() => moveTo(activeIndex + 1)}
-              className="absolute right-1/2 z-30 hidden h-11 w-11 translate-x-[250px] items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-md hover:bg-white sm:flex"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
+            {activeIndex > 0 && (
+              <button
+                type="button"
+                aria-label="Previous featured card"
+                onClick={() => navigateTo('prev')}
+                className="absolute left-1/2 z-30 hidden h-11 w-11 -translate-x-[250px] items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-md hover:bg-white sm:flex"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+            )}
+            {activeIndex < cards.length - 1 && (
+              <button
+                type="button"
+                aria-label="Next featured card"
+                onClick={() => navigateTo('next')}
+                className="absolute right-1/2 z-30 hidden h-11 w-11 translate-x-[250px] items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-md hover:bg-white sm:flex"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            )}
           </>
         ) : null}
       </div>
       {cards.length > 1 ? (
-        <div className="mt-3 flex items-center justify-center gap-2">
-          {cards.map((card, index) => (
-            <button
-              key={card.id}
-              type="button"
-              aria-label={`Show featured card ${index + 1}`}
-              onClick={() => moveTo(index)}
-              className={`h-2.5 w-2.5 rounded-full transition-colors ${
-                index === activeIndex ? 'bg-gray-950' : 'bg-gray-300'
-              }`}
-            />
-          ))}
+        <div className="mt-3 flex items-center justify-center">
+          <div className="flex items-center gap-1.5 rounded-full bg-black/25 px-3 py-2 backdrop-blur-sm">
+            {cards.map((card, index) => (
+              <button
+                key={card.id}
+                type="button"
+                aria-label={`Show featured card ${index + 1}`}
+                onClick={() => moveTo(index)}
+                className={`h-2 rounded-full bg-white transition-all duration-300 ${
+                  index === activeIndex ? 'w-5' : 'w-2 opacity-50'
+                }`}
+              />
+            ))}
+          </div>
         </div>
       ) : null}
     </div>
@@ -268,6 +279,95 @@ function ActionCarouselSkeleton() {
       <div className="h-[285px] w-[380px] animate-pulse rounded-[28px] border border-white/60 bg-white/50" />
       <div className="absolute h-[250px] w-[330px] -translate-x-[120px] animate-pulse rounded-[28px] border border-white/40 bg-white/25" />
       <div className="absolute h-[250px] w-[330px] translate-x-[120px] animate-pulse rounded-[28px] border border-white/40 bg-white/25" />
+    </div>
+  )
+}
+
+function findNode(summary: IdentitySummary | undefined, key: string): FrameworkNode | undefined {
+  const visit = (node: FrameworkNode): FrameworkNode | undefined => {
+    if (node.key === key) return node
+    for (const child of node.children || []) {
+      const found = visit(child)
+      if (found) return found
+    }
+    return undefined
+  }
+  for (const root of summary?.roots || []) {
+    const found = visit(root)
+    if (found) return found
+  }
+  return undefined
+}
+
+function stateLabel(state?: string) {
+  if (!state) return 'Not started'
+  return state.split('_').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
+}
+
+function IdentitySnapshot({
+  summary,
+  isLoading,
+  orgslug,
+}: {
+  summary?: IdentitySummary
+  isLoading: boolean
+  orgslug: string
+}) {
+  const inner = findNode(summary, 'inner_world')
+  const outer = findNode(summary, 'outer_world')
+  const recentCount = summary?.recent_evidence?.length || 0
+  const topInsights = summary?.top_insights || []
+  const nextNode = summary?.suggested_next_nodes?.[0]
+
+  return (
+    <div className="mt-5 space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        {[
+          { title: 'Inner World', node: inner },
+          { title: 'Outer World', node: outer },
+        ].map((item) => (
+          <div key={item.title} className="rounded-2xl border border-black/10 bg-white/80 p-4 shadow-sm">
+            <div className="text-sm font-semibold text-gray-950">{item.title}</div>
+            <div className="mt-2 text-xs font-medium uppercase tracking-[0.14em] text-gray-500">
+              {isLoading ? 'Loading' : stateLabel(item.node?.development_state)}
+            </div>
+            <div className="mt-3 flex gap-3 text-sm text-gray-600">
+              <span>{item.node?.evidence_count || 0} evidence</span>
+              <span>{item.node?.insight_count || 0} insights</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="rounded-2xl border border-black/10 bg-white/80 p-4 shadow-sm">
+        <div className="text-sm font-semibold text-gray-950">Emerging insights</div>
+        {topInsights.length ? (
+          <div className="mt-3 space-y-2">
+            {topInsights.slice(0, 3).map((insight) => (
+              <div key={insight.insight_uuid} className="text-sm text-gray-700">
+                <span className="font-medium text-gray-950">{insight.label}</span>
+                {insight.summary ? <span className="text-gray-500"> · {insight.summary}</span> : null}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-gray-500">
+            Your identity profile is ready for notes, outcomes, and insights.
+          </p>
+        )}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4">
+          <p className="text-sm text-gray-500">
+            {recentCount ? `${recentCount} recent evidence item${recentCount === 1 ? '' : 's'}` : 'No evidence captured yet'}
+          </p>
+          <Link
+            href={getUriWithOrg(orgslug, routePaths.org.journeyIdentity())}
+            className="inline-flex items-center gap-2 rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+          >
+            {nextNode ? `Explore ${nextNode.title}` : 'Open identity'}
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </div>
     </div>
   )
 }
@@ -287,6 +387,14 @@ export default function JourneyClient({ displayName, orgslug }: JourneyClientPro
   const { data: suggestedActions, isLoading } = useSWR(
     suggestionsUrl ? [suggestionsUrl, accessToken] : null,
     ([url, token]) => suggestedActionsFetcher(url, token),
+    {
+      revalidateOnFocus: false,
+      shouldRetryOnError: false,
+    }
+  )
+  const { data: identitySummary, isLoading: identityLoading } = useSWR(
+    orgId && accessToken ? ['identity-summary', orgId, accessToken] : null,
+    () => getIdentitySummary(orgId, accessToken),
     {
       revalidateOnFocus: false,
       shouldRetryOnError: false,
@@ -338,17 +446,17 @@ export default function JourneyClient({ displayName, orgslug }: JourneyClientPro
             <div className="absolute inset-0 bg-white/10" />
             <div className="relative flex h-full w-full flex-col px-5 pb-0 pt-7 md:px-8 md:pb-8 md:pt-8 lg:px-10">
               <div className="max-w-[520px]">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-black/40">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/60">
                   My Dashboard
                 </p>
-                <h1 className="mt-1 text-xl font-bold tracking-tight text-gray-900 md:text-2xl">
+                <h1 className="mt-1 text-xl font-bold tracking-tight text-white md:text-2xl">
                   Welcome back, {displayName}
                 </h1>
               </div>
 
               <div className="mt-auto flex w-full justify-center">
                 <div className="w-full max-w-[920px] pb-4 text-center md:pb-0">
-                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-900/55">
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">
                     What&apos;s next?
                   </p>
                   {isLoading ? (
@@ -370,6 +478,7 @@ export default function JourneyClient({ displayName, orgslug }: JourneyClientPro
         <div className="mx-auto grid w-full max-w-(--breakpoint-2xl) gap-8 lg:grid-cols-2">
           <section className="min-h-[260px]">
             <h2 className="text-2xl font-semibold tracking-tight text-gray-950">My Identity</h2>
+            <IdentitySnapshot summary={identitySummary} isLoading={identityLoading} orgslug={orgslug} />
           </section>
           <section className="min-h-[260px]">
             <h2 className="text-2xl font-semibold tracking-tight text-gray-950">My Path</h2>

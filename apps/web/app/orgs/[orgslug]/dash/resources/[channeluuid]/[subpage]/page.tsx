@@ -54,6 +54,7 @@ import {
   linkResourcesToUserGroup,
   unLinkResourcesToUserGroup,
 } from '@services/usergroups/usergroups'
+import { FrameworkNode, getIdentityFramework } from '@services/identity/identity'
 import { Button } from '@components/ui/button'
 import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
@@ -113,6 +114,10 @@ const RESOURCE_TYPE_OPTIONS: ResourceType[] = [
   'guide',
   'course',
 ]
+
+function flattenFrameworkNodes(nodes: FrameworkNode[]): FrameworkNode[] {
+  return nodes.flatMap((node) => [node, ...flattenFrameworkNodes(node.children || [])])
+}
 
 function TabLink({
   tab,
@@ -625,12 +630,18 @@ function AddResourceModal({
   const [description, setDescription] = useState('')
   const [coverImageUrl, setCoverImageUrl] = useState('')
   const [selectedTagUuids, setSelectedTagUuids] = useState<string[]>([])
+  const [selectedFrameworkNodeKeys, setSelectedFrameworkNodeKeys] = useState<string[]>([])
   const [isExpanded, setIsExpanded] = useState(false)
   const [isDiscovering, setIsDiscovering] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [helperMessage, setHelperMessage] = useState<string | null>(null)
   const [helperTone, setHelperTone] = useState<'muted' | 'error'>('muted')
   const isEditing = !!existingResource
+  const { data: frameworkNodes = [] } = useSWR(
+    orgId && accessToken && isOpen ? ['identity-framework-resource-editor', orgId, accessToken] : null,
+    () => getIdentityFramework(orgId as number, accessToken as string),
+    { revalidateOnFocus: false, shouldRetryOnError: false }
+  )
 
   useEffect(() => {
     if (!isOpen) return
@@ -641,6 +652,7 @@ function AddResourceModal({
       setDescription(existingResource.description || '')
       setCoverImageUrl(existingResource.cover_image_url || '')
       setSelectedTagUuids(existingResource.tags.map((tag) => tag.tag_uuid))
+      setSelectedFrameworkNodeKeys(existingResource.framework_node_keys || [])
       setIsExpanded(true)
       setHelperMessage(null)
       setHelperTone('muted')
@@ -658,6 +670,7 @@ function AddResourceModal({
     setDescription('')
     setCoverImageUrl('')
     setSelectedTagUuids([])
+    setSelectedFrameworkNodeKeys([])
     setIsExpanded(false)
     setIsDiscovering(false)
     setIsSubmitting(false)
@@ -744,6 +757,7 @@ function AddResourceModal({
         external_url: resourceUrl.trim(),
         cover_image_url: coverImageUrl.trim() || null,
         tag_uuids: selectedTagUuids,
+        framework_node_keys: selectedFrameworkNodeKeys,
       }
 
       if (isEditing && existingResource) {
@@ -799,6 +813,16 @@ function AddResourceModal({
         label: tag.name,
       })),
     [resourceTags]
+  )
+  const frameworkNodeOptions = useMemo(
+    () =>
+      flattenFrameworkNodes(frameworkNodes)
+        .filter((node) => ['driver', 'system', 'skill'].includes(node.node_type))
+        .map((node) => ({
+          value: node.key,
+          label: node.title,
+        })),
+    [frameworkNodes]
   )
 
   return (
@@ -897,6 +921,22 @@ function AddResourceModal({
                 >
                   Manage tags in the resources tags tab
                 </Link>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Identity Framework</Label>
+                <ChipMultiSelect
+                  options={frameworkNodeOptions}
+                  selectedValues={selectedFrameworkNodeKeys}
+                  onChange={setSelectedFrameworkNodeKeys}
+                  placeholder="Select identity areas"
+                  searchPlaceholder="Filter identity areas"
+                  emptyMessage="No identity areas found."
+                  disabled={isDiscovering || isSubmitting}
+                />
+                <p className="text-xs text-gray-500">
+                  Outcomes from this resource will be attached to these identity sections.
+                </p>
               </div>
 
               <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">

@@ -96,6 +96,7 @@ export interface Resource {
   save_count: number
   comment_count: number
   tags: ResourceTag[]
+  framework_node_keys: string[]
   is_saved: boolean
   has_outcome: boolean
   channels: ResourceChannel[]
