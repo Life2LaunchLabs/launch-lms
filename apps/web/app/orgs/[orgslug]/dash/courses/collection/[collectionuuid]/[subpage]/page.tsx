@@ -1,6 +1,6 @@
 'use client'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import { TextIcon, LucideIcon, Image as ImageIcon, Users, BookCopy, BookOpen } from 'lucide-react'
 import Link from 'next/link'
 import React, { use } from 'react'

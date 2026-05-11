@@ -1,7 +1,7 @@
 'use client'
 import React, { useState, useCallback } from 'react'
 import useSWR, { mutate } from 'swr'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import {
   getOrgLogoMediaDirectory,
   getUserAvatarMediaDirectory,

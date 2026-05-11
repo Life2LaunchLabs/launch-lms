@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
+import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config.client'
 import { swrFetcher } from '@services/utils/ts/requests'
 import useSWR from 'swr'
 import { getOrgLogoMediaDirectory } from '@services/media/media'

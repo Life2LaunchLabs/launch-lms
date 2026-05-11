@@ -2,7 +2,7 @@
 import { useCollection } from '@components/Contexts/CollectionContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config.client'
 import { linkResourcesToUserGroup } from '@services/usergroups/usergroups'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { Info } from 'lucide-react'

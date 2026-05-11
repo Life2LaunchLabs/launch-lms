@@ -13,7 +13,7 @@ import { Label } from "@components/ui/label"
 import { Textarea } from "@components/ui/textarea"
 import { Code2, Plus, Trash2, PencilLine, AlertTriangle } from "lucide-react"
 import { mutate } from 'swr'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import {
   Tooltip,
   TooltipContent,

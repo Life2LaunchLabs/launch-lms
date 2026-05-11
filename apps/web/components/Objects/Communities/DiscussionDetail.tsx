@@ -8,7 +8,7 @@ dayjs.extend(relativeTime)
 import { Edit, Trash2, MoreVertical } from 'lucide-react'
 import UserAvatar from '@components/Objects/UserAvatar'
 import { useRouter } from 'next/navigation'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import { DiscussionWithAuthor, DiscussionAuthor, deleteDiscussion, getLabelInfo } from '@services/communities/discussions'
 import { getUserAvatarMediaDirectory } from '@services/media/media'
 import { CommentSection } from './CommentSection'

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useEffect } from 'react'
 import { ArrowLeft, Building2, Loader2, Shield } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
+import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config.client'
 import { swrFetcher } from '@services/utils/ts/requests'
 
 export default function AccountOrgAdmin() {

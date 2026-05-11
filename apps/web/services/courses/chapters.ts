@@ -1,5 +1,5 @@
 import { OrderPayload } from '@components/Dashboard/Pages/Course/EditCourseStructure/EditCourseStructure'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import {
   RequestBodyWithAuthHeader,
   errorHandling,

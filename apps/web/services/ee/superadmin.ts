@@ -1,4 +1,4 @@
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 
 export async function getSuperadminStatus(accessToken: string) {
   const res = await fetch(`${getAPIUrl()}superadmin/status`, {

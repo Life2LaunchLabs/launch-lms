@@ -2,7 +2,7 @@ import { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/auth/server'
 import { getCourseMetadata } from '@services/courses/courses'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getOrgQuickstartCourseUuid, normalizeCourseUuid } from '@services/org/quickstart'
 

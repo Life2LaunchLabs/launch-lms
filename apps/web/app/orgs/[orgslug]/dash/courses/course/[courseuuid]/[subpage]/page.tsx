@@ -15,7 +15,7 @@ import EditCourseSEO from '@components/Dashboard/Pages/Course/EditCourseSEO/Edit
 import { useCourseRights } from '@hooks/useCourseRights'
 import { useRouter } from 'next/navigation'
 import ToolTip from '@components/Objects/StyledElements/Tooltip/Tooltip'
-import { getUriWithOrg, routePaths } from '@services/config/config';
+import { getUriWithOrg, routePaths } from '@services/config/config.client';
 import { useTranslation } from 'react-i18next';
 import { useOrg } from '@components/Contexts/OrgContext';
 import { PlanLevel, isFeatureAvailable } from '@services/plans/plans';

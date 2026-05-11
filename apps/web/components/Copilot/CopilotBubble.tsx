@@ -13,7 +13,7 @@ import {
   deleteRAGChatSession,
   RAGChatSession,
 } from '@services/ai/ai'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import { swrFetcher } from '@services/utils/ts/requests'
 import useSWR from 'swr'
 import {

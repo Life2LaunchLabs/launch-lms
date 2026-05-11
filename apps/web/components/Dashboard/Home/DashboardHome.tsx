@@ -10,7 +10,7 @@ import {
 import useSWR from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getAPIUrl, routePaths } from '@services/config/config'
+import { getAPIUrl, routePaths } from '@services/config/config.client'
 import { OrgUsageResponse, orgUsageFetcher } from '@services/orgs/usage'
 import AdminAuthorization from '@components/Security/AdminAuthorization'
 import { usePlan } from '@components/Hooks/usePlan'

@@ -1,7 +1,7 @@
 'use client'
 import { useOrgMembership } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config.client'
 import { UserPlus } from 'lucide-react'
 import { createContext, useContext } from 'react'
 import { useTranslation } from 'react-i18next'

@@ -1,5 +1,5 @@
 import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal'
-import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config.client'
 import { deleteActivity, updateActivity } from '@services/courses/activities'
 import { revalidateTags } from '@services/utils/ts/requests'
 import {

@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Ban, Settings, AlertTriangle } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import Link from 'next/link'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 
 interface FeatureDisabledViewProps {
   /** The feature name to check (e.g., 'courses', 'collections', 'communities') */

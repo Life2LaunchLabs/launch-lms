@@ -3,7 +3,7 @@ import React from 'react'
 import Link from 'next/link'
 import { Buildings, ChartBar, Users } from '@phosphor-icons/react'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getDefaultOrg, getUriWithOrg } from '@services/config/config'
+import { getDefaultOrg, getUriWithOrg } from '@services/config/config.client'
 
 type PlatformSection = 'organizations' | 'users' | 'analytics'
 

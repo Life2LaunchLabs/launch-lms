@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Bookmark, MessageCircle, Sparkles } from 'lucide-react'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import { Resource } from '@services/resources/resources'
 import { getResourceThumbnailMediaDirectory } from '@services/media/media'
 import SaveDropdown from '@components/Resources/SaveDropdown'

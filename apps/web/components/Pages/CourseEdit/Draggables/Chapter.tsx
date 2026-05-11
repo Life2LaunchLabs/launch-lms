@@ -7,7 +7,7 @@ import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationMo
 import { useRouter } from 'next/navigation'
 import { updateChapter } from '@services/courses/chapters'
 import { mutate } from 'swr'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import { revalidateTags } from '@services/utils/ts/requests'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useCourse } from '@components/Contexts/CourseContext'

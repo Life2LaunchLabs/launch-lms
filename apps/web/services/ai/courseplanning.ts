@@ -1,4 +1,4 @@
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 
 // Feature flag: Enable activity content generation (disabled for now)
 export const ENABLE_ACTIVITY_CONTENT_GENERATION = true

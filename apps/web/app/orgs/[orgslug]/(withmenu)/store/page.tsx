@@ -3,7 +3,7 @@ import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getOrgThumbnailMediaDirectory, getOrgOgImageMediaDirectory } from '@services/media/media'
 import { getCanonicalUrl, getOrgSeoConfig, buildPageTitle, buildBreadcrumbJsonLd } from '@/lib/seo/utils'
 import { JsonLd } from '@components/SEO/JsonLd'
-import { getCoreCapabilities } from '@services/config/config'
+import { getCoreCapabilities } from '@services/config/config.client'
 import { getPublicOffers } from '@services/payments/offers'
 import Store from './store'
 

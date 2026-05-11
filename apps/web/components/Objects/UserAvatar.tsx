@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config.client'
 import { useParams } from 'next/navigation'
 import { getUserAvatarMediaDirectory } from '@services/media/media'
 import { useLHSession } from '@components/Contexts/LHSessionContext'

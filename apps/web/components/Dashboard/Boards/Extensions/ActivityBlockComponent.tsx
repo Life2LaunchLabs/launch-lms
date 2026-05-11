@@ -10,7 +10,7 @@ import { useDragResize } from './useDragResize'
 import { getOrgCourses } from '@services/courses/courses'
 import { getCourseMetadata } from '@services/courses/courses'
 import { getActivity } from '@services/courses/activities'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config.client'
 import { CourseContext, CourseDispatchContext } from '@components/Contexts/CourseContext'
 
 const Canva = lazy(() => import('@components/Objects/Activities/DynamicCanva/DynamicCanva'))

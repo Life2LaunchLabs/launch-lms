@@ -7,7 +7,7 @@ import { getUserCertificates } from '@services/courses/certifications';
 import CertificatePreview from '@components/Dashboard/Pages/Course/EditCourseCertification/CertificatePreview';
 import { ArrowLeft, Download } from 'lucide-react';
 import Link from 'next/link';
-import { getUriWithOrg, routePaths } from '@services/config/config';
+import { getUriWithOrg, routePaths } from '@services/config/config.client';
 
 interface CertificatePageProps {
   orgslug: string;

@@ -3,7 +3,7 @@ import React, { useEffect, use } from 'react';
 import { motion } from 'motion/react'
 import Link from 'next/link'
 import { useMediaQuery } from 'usehooks-ts'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import { Monitor, ScanEye, SquareUserRound, UserPlus, Users, Shield } from 'lucide-react'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { useLHSession } from '@components/Contexts/LHSessionContext'

@@ -1,7 +1,7 @@
 import React from 'react';
 import { updateAssignment } from '@services/courses/assignments';
 import { mutate } from 'swr';
-import { getAPIUrl } from '@services/config/config';
+import { getAPIUrl } from '@services/config/config.client';
 import toast from 'react-hot-toast';
 import FormLayout, {
     FormField,

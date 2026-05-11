@@ -5,7 +5,7 @@ import ClientAdminLayout from './ClientAdminLayout'
 import { getServerSession } from '@/lib/auth/server'
 import { hasDashboardAccessForOrg } from '@/lib/auth/orgAccess'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
-import { routePaths } from '@services/config/config'
+import { routePaths } from '@services/config/config.client'
 
 export const metadata: Metadata = {
   title: 'Launch LMS Dashboard',

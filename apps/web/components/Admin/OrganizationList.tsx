@@ -1,7 +1,7 @@
 'use client'
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import useSWR from 'swr'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import { getOrgLogoMediaDirectory, getUserAvatarMediaDirectory } from '@services/media/media'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { useLHSession } from '@components/Contexts/LHSessionContext'

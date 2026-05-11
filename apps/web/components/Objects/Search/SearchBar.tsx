@@ -12,7 +12,7 @@ import {
 } from '@services/media/media';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useOrg } from '@components/Contexts/OrgContext';
-import { getUriWithOrg, routePaths } from '@services/config/config';
+import { getUriWithOrg, routePaths } from '@services/config/config.client';
 import { removeCoursePrefix } from '../Thumbnails/CourseThumbnail';
 import UserAvatar from '../UserAvatar';
 import { useTranslation } from 'react-i18next';

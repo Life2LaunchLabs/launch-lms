@@ -22,7 +22,7 @@ import toast from 'react-hot-toast';
 import useSWR, { mutate } from 'swr';
 import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal';
 import { Button } from '@components/ui/button';
-import { getMainDomainUri } from '@services/config/config';
+import { getMainDomainUri } from '@services/config/config.client';
 import { SiStripe } from '@icons-pack/react-simple-icons';
 
 // ---------------------------------------------------------------------------

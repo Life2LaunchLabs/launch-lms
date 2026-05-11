@@ -2,7 +2,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { getOrgLogoMediaDirectory, getOrgAuthBackgroundMediaDirectory } from '@services/media/media'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config.client'
 import { cn } from '@/lib/utils'
 
 interface AuthBrandingPanelProps {

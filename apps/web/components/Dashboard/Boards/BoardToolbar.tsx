@@ -27,7 +27,7 @@ import * as Popover from '@radix-ui/react-popover'
 import { cn } from '@/lib/utils'
 import type { Editor } from '@tiptap/core'
 import ToolTip from '@components/Objects/StyledElements/Tooltip/Tooltip'
-import { routePaths } from '@services/config/config'
+import { routePaths } from '@services/config/config.client'
 
 type ToolMode = 'select' | 'pan' | 'draw' | 'card' | 'youtube' | 'playground' | 'activity' | 'embed' | 'webpage' | 'sticker' | 'frame' | 'note' | 'todo' | 'podcast'
 

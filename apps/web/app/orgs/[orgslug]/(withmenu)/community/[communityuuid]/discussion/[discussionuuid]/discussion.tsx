@@ -10,7 +10,7 @@ import { EditDiscussionModal } from '@components/Objects/Modals/Communities/Edit
 import { Community } from '@services/communities/communities'
 import { DiscussionWithAuthor } from '@services/communities/discussions'
 import { MessageCircle } from 'lucide-react'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 
 interface DiscussionPageClientProps {
   discussion: DiscussionWithAuthor

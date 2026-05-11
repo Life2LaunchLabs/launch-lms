@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@components/ui/dropdown-menu'
-import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config.client'
 import { removeCourse } from '@services/courses/activity'
 import { getCourseThumbnailMediaDirectory, getUserAvatarMediaDirectory } from '@services/media/media'
 import { revalidateTags } from '@services/utils/ts/requests'

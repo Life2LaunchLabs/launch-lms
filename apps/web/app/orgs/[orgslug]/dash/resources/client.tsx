@@ -10,7 +10,7 @@ import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/Fe
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import ResourceChannelCard from '@components/Resources/ResourceChannelCard'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import {
   createResourceChannel,
   getResourceChannels,

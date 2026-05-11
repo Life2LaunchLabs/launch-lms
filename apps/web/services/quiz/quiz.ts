@@ -1,4 +1,4 @@
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import { RequestBodyWithAuthHeader } from '@services/utils/ts/requests'
 
 const base = () => `${getAPIUrl()}quizzes`

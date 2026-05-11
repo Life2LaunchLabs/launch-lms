@@ -1,5 +1,5 @@
 'use client'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import { swrFetcher } from '@services/utils/ts/requests'
 import React, { createContext, useContext, useEffect, useReducer, useMemo, useCallback, useRef } from 'react'
 import useSWR, { useSWRConfig } from 'swr'

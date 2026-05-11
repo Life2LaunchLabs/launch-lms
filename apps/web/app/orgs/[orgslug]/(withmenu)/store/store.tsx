@@ -2,7 +2,7 @@
 import React from 'react'
 import Link from 'next/link'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import { getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { ShoppingBag, RefreshCcw, SquareCheck, ArrowRight, Sparkles, BookOpen, Mic, Puzzle } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'

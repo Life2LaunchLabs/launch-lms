@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { getBackendUrl } from '@services/config/config'
+import { getBackendUrl } from '@services/config/config.server'
 
 export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'

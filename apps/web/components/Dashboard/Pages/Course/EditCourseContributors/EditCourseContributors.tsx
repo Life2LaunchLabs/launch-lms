@@ -2,7 +2,7 @@ import { useCourse, useCourseDispatch } from '@components/Contexts/CourseContext
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import { bulkAddContributors, bulkRemoveContributors, editContributor } from '@services/courses/courses'
 import { searchOrgContent } from '@services/search/search'
 import { swrFetcher } from '@services/utils/ts/requests'

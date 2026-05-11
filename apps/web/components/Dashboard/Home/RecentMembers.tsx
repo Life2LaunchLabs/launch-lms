@@ -4,7 +4,7 @@ import Link from 'next/link'
 import useSWR from 'swr'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl, routePaths } from '@services/config/config'
+import { getAPIUrl, routePaths } from '@services/config/config.client'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { Users, ShieldCheck, Clock, EnvelopeSimple } from '@phosphor-icons/react'
 

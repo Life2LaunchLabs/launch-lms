@@ -2,7 +2,7 @@
 
 import Breadcrumbs from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
-import { getAPIUrl, getUriWithOrg } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg } from '@services/config/config.client'
 import React, { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLHSession } from '@components/Contexts/LHSessionContext'

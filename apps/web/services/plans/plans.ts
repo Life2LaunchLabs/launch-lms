@@ -10,7 +10,7 @@
  *   - Instance capability helpers for globally disabled features
  */
 
-import { getCoreCapabilities } from '@services/config/config'
+import { getCoreCapabilities } from '@services/config/config.client'
 
 export type PlanLevel = 'free' | 'full' | 'enterprise'
 

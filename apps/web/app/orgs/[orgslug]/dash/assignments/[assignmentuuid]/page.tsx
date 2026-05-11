@@ -7,7 +7,7 @@ import ToolTip from '@components/Objects/StyledElements/Tooltip/Tooltip';
 import { updateAssignment } from '@services/courses/assignments';
 import { useLHSession } from '@components/Contexts/LHSessionContext';
 import { mutate } from 'swr';
-import { getAPIUrl } from '@services/config/config';
+import { getAPIUrl } from '@services/config/config.client';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';

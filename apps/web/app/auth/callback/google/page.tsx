@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { Loader2, AlertTriangle, ShieldAlert } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth, validateOAuthState } from '@components/Contexts/AuthContext'
-import { getLAUNCHLMS_DOMAIN_VAL } from '@services/config/config'
+import { getLAUNCHLMS_DOMAIN_VAL } from '@services/config/config.client'
 
 export default function GoogleCallbackPage() {
   const searchParams = useSearchParams()

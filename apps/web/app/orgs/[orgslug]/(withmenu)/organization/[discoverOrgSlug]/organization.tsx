@@ -9,7 +9,7 @@ import {
   getOrgLogoMediaDirectory,
   getOrgThumbnailMediaDirectory,
 } from '@services/media/media'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config.client'
 import { DiscoverOrganization } from '@services/organizations/orgs'
 
 interface OrganizationDetailClientProps {

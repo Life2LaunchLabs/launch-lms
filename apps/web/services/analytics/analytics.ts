@@ -1,4 +1,4 @@
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 
 // lgtm[js/hardcoded-credentials] -- not a secret, just a sessionStorage key name
 const SESSION_KEY = 'lh_analytics_session_id'

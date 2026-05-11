@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config.client'
 import { AlertTriangle, BookOpenCheck, CheckCircle, ChevronLeft, ChevronRight, UserRoundPen, Minimize2 } from 'lucide-react'
 import { markActivityAsComplete, startCourse } from '@services/courses/activity'
 import {

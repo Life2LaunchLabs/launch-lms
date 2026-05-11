@@ -3,7 +3,7 @@
 import React, { Suspense, lazy } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'next/navigation'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import Image from 'next/image'
 import { CourseContext, CourseDispatchContext } from '@components/Contexts/CourseContext'
 

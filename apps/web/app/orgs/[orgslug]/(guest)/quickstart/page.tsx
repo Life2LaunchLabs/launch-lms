@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { routePaths, getUriWithOrg } from '@services/config/config'
+import { routePaths, getUriWithOrg } from '@services/config/config.client'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import {
   getOrgQuickstartCourseUuid,

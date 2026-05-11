@@ -5,7 +5,7 @@ import Link from 'next/link'
 import {
   Community,
 } from '@services/communities/communities'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config.client'
 import {
   getCollectionThumbnailMediaDirectory,
   getCommunityThumbnailMediaDirectory,

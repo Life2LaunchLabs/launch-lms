@@ -7,7 +7,7 @@ import UserAvatar from '@components/Objects/UserAvatar'
 import useAdminStatus from '@components/Hooks/useAdminStatus'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
+import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config.client'
 import Tooltip from '@components/Objects/StyledElements/Tooltip/Tooltip'
 import {
   DropdownMenu,

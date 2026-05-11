@@ -4,7 +4,7 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getAssignmentTask } from '@services/courses/assignments'
 import { useAssignments } from './AssignmentContext';
 import { mutate } from 'swr';
-import { getAPIUrl } from '@services/config/config';
+import { getAPIUrl } from '@services/config/config.client';
 
 interface State {
     selectedAssignmentTaskUUID: string | null;

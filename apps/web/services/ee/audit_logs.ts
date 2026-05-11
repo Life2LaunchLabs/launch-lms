@@ -1,4 +1,4 @@
-import { getAPIUrl } from "../config/config";
+import { getAPIUrl } from '@services/config/config.client'
 import { swrFetcher } from "../utils/ts/requests";
 
 export const getAuditLogs = async (orgId: number, accessToken: string, filters: any = {}) => {

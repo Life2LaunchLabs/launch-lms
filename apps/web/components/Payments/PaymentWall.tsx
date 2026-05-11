@@ -4,7 +4,7 @@ import { Lock, ShoppingCart } from 'lucide-react';
 import { Button } from '@components/ui/button';
 import Link from 'next/link';
 import { useOrg } from '@components/Contexts/OrgContext';
-import { getUriWithOrg, routePaths } from '@services/config/config';
+import { getUriWithOrg, routePaths } from '@services/config/config.client';
 
 interface OfferMeta {
   offer_id: number;

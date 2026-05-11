@@ -1,4 +1,4 @@
-import { getAPIUrl, getBackendUrl } from '@services/config/config'
+import { getAPIUrl, getBackendUrl } from '@services/config/config.client'
 import {
   RequestBodyWithAuthHeader,
   getResponseMetadata,

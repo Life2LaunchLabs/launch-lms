@@ -1,7 +1,7 @@
 import { useLHSession } from '@components/Contexts/LHSessionContext';
 import UserAvatar from '@components/Objects/UserAvatar';
 import Modal from '@components/Objects/StyledElements/Modal/Modal';
-import { getAPIUrl } from '@services/config/config';
+import { getAPIUrl } from '@services/config/config.client';
 import { getUserAvatarMediaDirectory } from '@services/media/media';
 import { swrFetcher } from '@services/utils/ts/requests';
 import { SendHorizonal, UserCheck, X } from 'lucide-react';

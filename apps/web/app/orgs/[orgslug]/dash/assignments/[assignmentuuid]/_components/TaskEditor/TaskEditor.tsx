@@ -2,7 +2,7 @@
 import { useAssignments } from '@components/Contexts/Assignments/AssignmentContext';
 import { useAssignmentsTask, useAssignmentsTaskDispatch } from '@components/Contexts/Assignments/AssignmentsTaskContext';
 import { useLHSession } from '@components/Contexts/LHSessionContext';
-import { getAPIUrl } from '@services/config/config';
+import { getAPIUrl } from '@services/config/config.client';
 import { deleteAssignmentTask } from '@services/courses/assignments';
 import { GalleryVerticalEnd, Info, TentTree, Trash } from 'lucide-react'
 import React, { useEffect } from 'react'

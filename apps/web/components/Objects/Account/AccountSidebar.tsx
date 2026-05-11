@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { User, Lock, ShoppingBag, Settings, Building2, Award } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import UserAvatar from '@components/Objects/UserAvatar'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config.client'
 
 interface AccountSidebarProps {
   orgslug: string

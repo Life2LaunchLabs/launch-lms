@@ -6,7 +6,7 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 import AdminAuthorization from '@components/Security/AdminAuthorization'
 import ToolTip from '@components/Objects/StyledElements/Tooltip/Tooltip'
-import { getCoreCapabilities, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
+import { getCoreCapabilities, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config.client'
 
 function DashMobileMenu() {
   const { t } = useTranslation()

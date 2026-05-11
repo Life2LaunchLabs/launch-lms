@@ -1,6 +1,6 @@
 'use client'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useState, useRef, useMemo, memo } from 'react'
 import { getCourseThumbnailMediaDirectory } from '@services/media/media'

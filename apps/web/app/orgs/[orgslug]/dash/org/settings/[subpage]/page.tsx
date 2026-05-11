@@ -1,6 +1,6 @@
 'use client'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
-import { getCoreCapabilities, getUriWithOrg, routePaths } from '@services/config/config'
+import { getCoreCapabilities, getUriWithOrg, routePaths } from '@services/config/config.client'
 import { TextIcon, LucideIcon, LayoutDashboardIcon, CodeIcon, KeyIcon, Palette, School, ToggleRight, Shield, Globe, Search, BarChart3, Layers } from 'lucide-react'
 import Link from 'next/link'
 import React, { useEffect, use } from 'react';

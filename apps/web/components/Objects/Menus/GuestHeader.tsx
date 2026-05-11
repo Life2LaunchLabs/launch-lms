@@ -6,7 +6,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { HeaderProfileBox } from '@components/Security/HeaderProfileBox'
 import { getOrgLogoMediaDirectory } from '@services/media/media'
 import { getMenuColorClasses } from '@services/utils/ts/colorUtils'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config.client'
 
 export function GuestHeader({ orgslug }: { orgslug: string }) {
   const org = useOrg() as any

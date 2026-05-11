@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { getAPIUrl } from './services/config/config'
+import { getAPIUrl } from './services/config/config.client'
 import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from './services/auth/cookies'
 import { ROUTING_COOKIES } from './services/routing/cookies'
 import { isCustomDomainHost, getOrgSlugFromSubdomain } from './services/routing/context'

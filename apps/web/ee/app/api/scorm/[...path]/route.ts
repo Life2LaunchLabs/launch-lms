@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.server'
 
 /**
  * Proxy route for SCORM content

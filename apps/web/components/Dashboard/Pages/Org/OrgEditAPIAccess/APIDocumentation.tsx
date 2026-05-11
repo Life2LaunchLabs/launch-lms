@@ -21,7 +21,7 @@ import {
   Code,
   BookOpen,
 } from 'lucide-react'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import { fetchOpenAPISpec } from '@services/api_tokens/api_tokens'
 
 interface OpenAPIPath {

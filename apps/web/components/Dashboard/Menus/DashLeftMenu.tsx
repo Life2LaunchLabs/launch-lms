@@ -46,7 +46,7 @@ import { usePathname } from 'next/navigation'
 import UserAvatar from '../../Objects/UserAvatar'
 import AdminAuthorization from '@components/Security/AdminAuthorization'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getUriWithOrg, getAPIUrl, getCoreCapabilities, getDefaultOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, getAPIUrl, getCoreCapabilities, getDefaultOrg, routePaths } from '@services/config/config.client'
 import { useTranslation } from 'react-i18next'
 import {
   Tooltip,

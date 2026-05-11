@@ -6,7 +6,7 @@ import Link from 'next/link'
 import CollectionThumbnail from '@components/Objects/Thumbnails/CollectionThumbnail'
 import NewCollectionButton from '@components/Objects/StyledElements/Buttons/NewCollectionButton'
 import ContentPlaceHolderIfUserIsNotAdmin from '@components/Objects/ContentPlaceHolder'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config.client'
 import { SquareLibrary } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 

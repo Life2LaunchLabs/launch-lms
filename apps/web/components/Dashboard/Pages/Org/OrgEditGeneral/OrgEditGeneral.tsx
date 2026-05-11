@@ -18,7 +18,7 @@ import { Button } from "@components/ui/button"
 import { Label } from "@components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@components/ui/select"
 import { mutate } from 'swr'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import { useTranslation } from 'react-i18next'
 import useSWR from 'swr'
 import {

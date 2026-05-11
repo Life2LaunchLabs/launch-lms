@@ -5,7 +5,7 @@ import {
   FolderOpen,
   House,
 } from '@phosphor-icons/react'
-import { routePaths } from '@services/config/config'
+import { routePaths } from '@services/config/config.client'
 import { LandingQuickstartFeature } from '@components/Dashboard/Pages/Org/OrgEditLanding/landing_types'
 
 export const QUICKSTART_FEATURES: Record<

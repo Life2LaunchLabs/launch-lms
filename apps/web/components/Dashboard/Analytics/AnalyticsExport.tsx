@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { DownloadSimple, CaretDown } from '@phosphor-icons/react'
 import { useTranslation } from 'react-i18next'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 

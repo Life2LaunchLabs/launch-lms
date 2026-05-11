@@ -3,7 +3,7 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import { getUserEnrollments, getBillingPortalSession } from '@services/payments/offers'
 import {
   ShoppingBag, RefreshCcw, SquareCheck, ArrowRight,

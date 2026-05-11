@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { isSubdomainOf, isSameHost, isLocalhost, stripPort } from '@services/utils/ts/hostUtils'
-import { getConfig } from '@services/config/config'
+import { getConfig } from '@services/config/config.client'
 
 export const ACCESS_TOKEN_COOKIE = 'access_token_cookie'
 export const REFRESH_TOKEN_COOKIE = 'refresh_token_cookie'

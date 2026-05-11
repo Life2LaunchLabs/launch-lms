@@ -2,7 +2,7 @@
 import { useRouter } from 'next/navigation'
 import { useMediaQuery } from 'usehooks-ts'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 

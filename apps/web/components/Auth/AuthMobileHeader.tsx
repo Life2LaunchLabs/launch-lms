@@ -4,7 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import appIcon from 'public/app_icon.svg'
 import { getOrgLogoMediaDirectory, getOrgAuthBackgroundMediaDirectory } from '@services/media/media'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config.client'
 
 interface AuthMobileHeaderProps {
   org: any

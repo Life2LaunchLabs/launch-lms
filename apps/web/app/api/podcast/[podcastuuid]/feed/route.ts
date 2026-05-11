@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPodcastMeta } from '@services/podcasts/podcasts'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config.server'
 import { getPodcastThumbnailMediaDirectory, getEpisodeAudioMediaDirectory, getEpisodeThumbnailMediaDirectory } from '@services/media/media'
 
 export async function GET(

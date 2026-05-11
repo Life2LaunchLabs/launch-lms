@@ -5,7 +5,7 @@
  * Supports a provider-agnostic architecture with WorkOS as the initial provider.
  */
 
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 
 // ============================================================================
 // Types

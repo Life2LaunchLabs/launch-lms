@@ -1,4 +1,4 @@
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config.client'
 
 export function getCanonicalUrl(orgslug: string, path: string): string {
   return getUriWithOrg(orgslug, path).replace(/\/+$/, '')

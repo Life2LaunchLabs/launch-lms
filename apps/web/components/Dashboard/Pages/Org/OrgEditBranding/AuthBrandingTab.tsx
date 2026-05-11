@@ -15,7 +15,7 @@ import { Textarea } from "@components/ui/textarea"
 import { useTranslation } from 'react-i18next'
 import { revalidateTags } from '@services/utils/ts/requests'
 import { mutate } from 'swr'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import UnsplashImagePicker from '@components/Dashboard/Pages/Course/EditCourseGeneral/UnsplashImagePicker'
 import { usePlan } from '@components/Hooks/usePlan'
 

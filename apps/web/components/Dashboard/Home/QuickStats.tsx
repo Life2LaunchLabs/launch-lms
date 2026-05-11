@@ -13,7 +13,7 @@ import {
   useAnalyticsStatus,
 } from '@components/Dashboard/Analytics/useAnalyticsDashboard'
 import { AnimatedNumber } from '@components/Dashboard/Analytics/Course/CourseWidgetCard'
-import { routePaths } from '@services/config/config'
+import { routePaths } from '@services/config/config.client'
 
 export default function QuickStats() {
   const { data: statusData, isLoading: statusLoading } = useAnalyticsStatus()

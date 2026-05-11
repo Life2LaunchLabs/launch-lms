@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import http from 'node:http'
 import https from 'node:https'
-import { getBackendUrl } from '@services/config/config'
+import { getBackendUrl } from '@services/config/config.server'
 
 // Allow large file uploads (videos, SCORM packages) to pass through
 export const maxDuration = 300 // 5 minutes

@@ -1,4 +1,4 @@
-import { getDefaultOrg } from '@services/config/config'
+import { getDefaultOrg } from '@services/config/config.client'
 
 const HOST_ACCESS_PACKAGE_KEYS = [
   'white_label_subdomain',

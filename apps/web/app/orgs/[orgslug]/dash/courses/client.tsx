@@ -16,7 +16,7 @@ import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationMo
 import { useSearchParams } from 'next/navigation'
 import React, { useState, useMemo } from 'react'
 import useAdminStatus from '@components/Hooks/useAdminStatus'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useTranslation } from 'react-i18next'
 import { OrgUsageResponse, orgUsageFetcher } from '@services/orgs/usage'

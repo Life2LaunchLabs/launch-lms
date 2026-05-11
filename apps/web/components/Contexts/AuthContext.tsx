@@ -14,7 +14,7 @@ import {
   getCoreCapabilities,
   getLAUNCHLMS_TOP_DOMAIN_VAL,
   getLAUNCHLMS_DOMAIN_VAL,
-} from '@services/config/config'
+} from '@services/config/config.client'
 import { isSubdomainOf, isSameHost, isLocalhost as isLocalhostCheck } from '@services/utils/ts/hostUtils'
 
 // Types matching NextAuth's session structure

@@ -10,7 +10,7 @@ import { useCommunity, useCommunityDispatch } from '@components/Contexts/Communi
 import { updateCommunity } from '@services/communities/communities'
 import { revalidateTags } from '@services/utils/ts/requests'
 import { mutate } from 'swr'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import { Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Label } from '@components/ui/label'

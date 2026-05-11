@@ -2,7 +2,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { User, Lock, ShoppingBag, Settings, Building2, Award } from 'lucide-react'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import { useTranslation } from 'react-i18next'
 
 interface AccountActionsMobileProps {

@@ -24,7 +24,7 @@ import {
   CustomSelectValue,
 } from "../EditCourseGeneral/CustomSelect";
 import useSWR from 'swr';
-import { getAPIUrl } from '@services/config/config';
+import { getAPIUrl } from '@services/config/config.client';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 

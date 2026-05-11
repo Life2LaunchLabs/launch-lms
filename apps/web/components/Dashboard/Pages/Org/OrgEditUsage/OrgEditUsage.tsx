@@ -10,7 +10,7 @@ import {
 } from '@phosphor-icons/react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import { OrgUsageResponse, orgUsageFetcher } from '@services/orgs/usage'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { usePlan } from '@components/Hooks/usePlan'

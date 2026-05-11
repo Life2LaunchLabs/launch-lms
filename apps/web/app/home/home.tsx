@@ -1,7 +1,7 @@
 'use client'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import UserAvatar from '@components/Objects/UserAvatar';
-import { getAPIUrl, getUriWithOrg, getUriWithoutOrg } from '@services/config/config';
+import { getAPIUrl, getUriWithOrg, getUriWithoutOrg } from '@services/config/config.client';
 import { swrFetcher } from '@services/utils/ts/requests';
 import { ArrowRightCircle, Info } from 'lucide-react';
 import { signOut } from '@components/Contexts/AuthContext';

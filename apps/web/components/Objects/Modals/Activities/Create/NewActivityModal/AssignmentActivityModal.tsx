@@ -11,7 +11,7 @@ import FormLayout, {
 import * as Form from '@radix-ui/react-form'
 import { BarLoader } from 'react-spinners'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import { mutate } from 'swr'
 import { createAssignment } from '@services/courses/assignments'
 import { useLHSession } from '@components/Contexts/LHSessionContext'

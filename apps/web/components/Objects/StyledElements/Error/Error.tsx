@@ -1,5 +1,5 @@
 'use client'
-import { getUriWithoutOrg } from '@services/config/config'
+import { getUriWithoutOrg } from '@services/config/config.client'
 import { AlertTriangle, HomeIcon, RefreshCcw } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'

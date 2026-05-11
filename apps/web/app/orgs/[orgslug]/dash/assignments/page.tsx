@@ -2,7 +2,7 @@
 import { useLHSession } from '@components/Contexts/LHSessionContext';
 import { useOrg } from '@components/Contexts/OrgContext';
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
-import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config';
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config.client';
 import { getAssignmentsFromACourse } from '@services/courses/assignments';
 import { getCourseThumbnailMediaDirectory } from '@services/media/media';
 import { swrFetcher } from '@services/utils/ts/requests';

@@ -6,6 +6,7 @@
     "dev": "node ./scripts/dev-server.js",
     "dev:http": "next dev --hostname 0.0.0.0",
     "dev:https": "next dev --hostname 0.0.0.0 --experimental-https --experimental-https-cert ../../certs/local.pem --experimental-https-key ../../certs/local-key.pem",
+    "dev:webpack": "next dev --webpack --hostname 0.0.0.0",
     "build": "next build",
     "start": "next start",
     "lint": "eslint . || true",

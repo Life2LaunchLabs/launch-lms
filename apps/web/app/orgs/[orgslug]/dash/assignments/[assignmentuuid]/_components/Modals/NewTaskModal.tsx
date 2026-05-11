@@ -1,6 +1,6 @@
 import { useAssignmentsTaskDispatch } from '@components/Contexts/Assignments/AssignmentsTaskContext';
 import { useLHSession } from '@components/Contexts/LHSessionContext';
-import { getAPIUrl } from '@services/config/config';
+import { getAPIUrl } from '@services/config/config.client';
 import { createAssignmentTask } from '@services/courses/assignments'
 import { AArrowUp, FileUp, ListTodo } from 'lucide-react'
 import React from 'react'

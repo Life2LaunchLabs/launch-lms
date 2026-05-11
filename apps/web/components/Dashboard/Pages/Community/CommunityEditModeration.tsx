@@ -9,7 +9,7 @@ import { useCommunity, useCommunityDispatch } from '@components/Contexts/Communi
 import { updateCommunity } from '@services/communities/communities'
 import { revalidateTags } from '@services/utils/ts/requests'
 import { mutate } from 'swr'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import toast from 'react-hot-toast'
 import { Input } from '@components/ui/input'
 import { Button } from '@components/ui/button'

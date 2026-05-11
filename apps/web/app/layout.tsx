@@ -1,14 +1,5 @@
-'use client'
 import '../styles/globals.css'
-import { SessionProvider } from '@components/Contexts/AuthContext'
-import LHSessionProvider from '@components/Contexts/LHSessionContext'
-import { getLAUNCHLMS_TOP_DOMAIN_VAL, getLAUNCHLMS_TELEMETRY_DISABLED_VAL } from '@services/config/config'
-
-const isDevEnv = getLAUNCHLMS_TOP_DOMAIN_VAL() === 'localhost'
-const isTelemetryDisabled = getLAUNCHLMS_TELEMETRY_DISABLED_VAL() === 'true'
-import Script from 'next/script'
-import '../lib/i18n'
-import I18nProvider from '@components/Contexts/I18nContext'
+import AppProviders from './AppProviders'
 
 export default function RootLayout({
   children,
@@ -27,22 +18,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Wix+Madefor+Text:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet" />
       </head>
       <body>
-        {
-            isDevEnv ? '' : isTelemetryDisabled ? '' :
-                            <Script
-                                data-website-id="a1af6d7a-9286-4a1f-8385-ddad2a29fcbb"
-                                src="/umami/script.js"
-                            />
-        }
-        <SessionProvider refetchInterval={600000}>
-          <LHSessionProvider>
-            <I18nProvider>
-              <main className="animate-fade-in">
-                  {children}
-                </main>
-            </I18nProvider>
-          </LHSessionProvider>
-        </SessionProvider>
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   )

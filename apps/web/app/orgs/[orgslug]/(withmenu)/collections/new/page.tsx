@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config.client'
 
 const NewCollectionPage = async (props: any) => {
   const params = await props.params

@@ -8,7 +8,7 @@ import { useCollection, useCollectionDispatch } from '@components/Contexts/Colle
 import { updateCollectionThumbnail } from '@services/courses/collections'
 import { getCollectionThumbnailMediaDirectory, getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { mutate } from 'swr'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import UnsplashImagePicker from '@components/Dashboard/Pages/Course/EditCourseGeneral/UnsplashImagePicker'
 import toast from 'react-hot-toast'
 import { Button } from '@components/ui/button'

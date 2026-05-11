@@ -1,4 +1,4 @@
-import { getAPIUrl } from '../config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import {
   RequestBodyWithAuthHeader,
   errorHandling,

@@ -1,7 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { Draggable } from '@hello-pangea/dnd'
-import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config.client'
 import {
   Video,
   Sparkles,

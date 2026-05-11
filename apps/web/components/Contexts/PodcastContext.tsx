@@ -3,7 +3,7 @@ import React, { createContext, useContext } from 'react'
 import useSWR, { mutate } from 'swr'
 import { Podcast, PodcastEpisode, PodcastMeta } from '@services/podcasts/podcasts'
 import { useLHSession } from './LHSessionContext'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import { swrFetcher } from '@services/utils/ts/requests'
 
 interface PodcastContextType {

@@ -21,7 +21,7 @@ import { useTranslation } from 'react-i18next'
 import { Form, Formik } from 'formik'
 import { revalidateTags } from '@services/utils/ts/requests'
 import { mutate } from 'swr'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import AuthBrandingTab from './AuthBrandingTab'
 
 const SUPPORTED_FILES = constructAcceptValue(['png', 'jpg'])

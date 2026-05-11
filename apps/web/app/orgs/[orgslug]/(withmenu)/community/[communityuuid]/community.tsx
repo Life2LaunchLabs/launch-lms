@@ -5,7 +5,7 @@ import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/Ge
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { CommunitySidebar } from '@components/Objects/Communities/CommunitySidebar'
 import { MessageCircle } from 'lucide-react'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config.client'
 import { CommunityActionsMobile } from '@components/Objects/Communities/CommunityActionsMobile'
 import { DiscussionList } from '@components/Objects/Communities/DiscussionList'
 import { CreateDiscussionModal } from '@components/Objects/Modals/Communities/CreateDiscussionModal'

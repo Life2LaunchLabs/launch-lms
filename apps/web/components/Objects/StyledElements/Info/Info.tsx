@@ -1,5 +1,5 @@
 'use client'
-import { getUriWithoutOrg } from '@services/config/config'
+import { getUriWithoutOrg } from '@services/config/config.client'
 import { Diamond, Home, PersonStanding } from 'lucide-react'
 import Link from 'next/link'
 import React from 'react'

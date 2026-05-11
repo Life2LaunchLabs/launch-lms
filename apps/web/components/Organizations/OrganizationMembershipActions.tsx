@@ -7,7 +7,7 @@ import { mutate } from 'swr'
 import toast from 'react-hot-toast'
 import { ArrowUpRight, Loader2, LogIn, LogOut, Lock } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl, getDefaultOrg, getUriWithOrg } from '@services/config/config'
+import { getAPIUrl, getDefaultOrg, getUriWithOrg } from '@services/config/config.client'
 import {
   DiscoverOrganization,
   joinOrg,

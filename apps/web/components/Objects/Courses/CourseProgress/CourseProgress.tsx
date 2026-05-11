@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Check, Square, ArrowRight, Folder, FileText, Video, Layers, BookOpenCheck } from 'lucide-react'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import Link from 'next/link'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 

@@ -9,7 +9,7 @@ import {
   Plus, Trash2, Upload, X, Loader2, Type, AlignLeft, GripVertical, SlidersHorizontal, Layers3,
 } from 'lucide-react'
 import Link from 'next/link'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import EditorOptionsProvider from '@components/Contexts/Editor/EditorContext'
 import { OrgProvider } from '@components/Contexts/OrgContext'

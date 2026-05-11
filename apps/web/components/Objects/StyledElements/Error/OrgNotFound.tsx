@@ -1,7 +1,7 @@
 'use client'
 import { Building2, ArrowRight } from 'lucide-react'
 import React, { useState } from 'react'
-import { getLAUNCHLMS_DOMAIN_VAL } from '@services/config/config'
+import { getLAUNCHLMS_DOMAIN_VAL } from '@services/config/config.client'
 import { stripPort } from '@services/utils/ts/hostUtils'
 
 function OrgNotFound() {

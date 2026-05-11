@@ -7,7 +7,7 @@ import { Info, ListMusic, Headphones, ArrowLeft, Rss } from 'lucide-react'
 import EditPodcastGeneral from '@components/Dashboard/Pages/Podcast/EditPodcastGeneral/EditPodcastGeneral'
 import EditPodcastEpisodes from '@components/Dashboard/Pages/Podcast/EditPodcastEpisodes/EditPodcastEpisodes'
 import PodcastDistribution from '@components/Dashboard/Pages/Podcast/PodcastDistribution/PodcastDistribution'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import { useTranslation } from 'react-i18next'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 

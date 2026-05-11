@@ -10,7 +10,7 @@ import NewCourseButton from '@components/Objects/StyledElements/Buttons/NewCours
 import NewCollectionButton from '@components/Objects/StyledElements/Buttons/NewCollectionButton'
 import ContentPlaceHolderIfUserIsNotAdmin from '@components/Objects/ContentPlaceHolder'
 import Link from 'next/link'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config.client'
 import { useTranslation } from 'react-i18next'
 import { BookCopy, SquareLibrary } from 'lucide-react'
 import InProgressSection from '@components/Landings/InProgressSection'

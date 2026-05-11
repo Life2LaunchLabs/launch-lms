@@ -10,7 +10,7 @@ import {
   StickyNote,
   Video,
 } from 'lucide-react'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 
 interface ActivityCourseOutlineProps {

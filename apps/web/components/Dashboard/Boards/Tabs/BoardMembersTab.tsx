@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { UserPlus, Trash2, Search, Check, User, Users } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import useSWR, { mutate } from 'swr'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { addBoardMembersBatch, removeBoardMember } from '@services/boards/boards'

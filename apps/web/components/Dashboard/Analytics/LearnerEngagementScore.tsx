@@ -2,7 +2,7 @@
 import React from 'react'
 import { useAnalyticsDetail } from './useAnalyticsDashboard'
 import { getUserAvatarMediaDirectory } from '@services/media/media'
-import { routePaths } from '@services/config/config'
+import { routePaths } from '@services/config/config.client'
 
 function getAvatarUrl(user: any): string | null {
   if (!user?.avatar_image) return null

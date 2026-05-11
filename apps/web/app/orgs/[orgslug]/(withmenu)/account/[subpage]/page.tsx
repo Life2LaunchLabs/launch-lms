@@ -4,7 +4,7 @@ import { getServerSession } from '@/lib/auth/server'
 import { getOrgThumbnailMediaDirectory } from '@services/media/media'
 import AccountClient from '@components/Objects/Account/AccountClient'
 import { redirect } from 'next/navigation'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import { getOwnerOrgSlugServer } from '@services/org/ownerOrgServer'
 
 type MetadataProps = {

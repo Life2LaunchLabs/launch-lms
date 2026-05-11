@@ -22,9 +22,10 @@ Routing in `apps/web` is split into four layers:
    These resolve host and org context, define request-routing policy, and expose
    the shared route manifest used by the UI.
 
-4. Runtime URL helpers in [`services/config/config.ts`](./services/config/config.ts)
+4. Runtime URL helpers in [`services/config/config.client.ts`](./services/config/config.client.ts)
+   and [`services/config/config.server.ts`](./services/config/config.server.ts)
    These expose `routePaths`, `getUriWithOrg`, and runtime API/domain config to
-   the rest of the app.
+   the rest of the app without mixing browser-safe and server-only loaders.
 
 The main rule is:
 
@@ -76,7 +77,10 @@ Each routing concern should have one primary owner:
   [`services/routing/paths.ts`](./services/routing/paths.ts)
 
 - Runtime config and absolute URL generation:
-  [`services/config/config.ts`](./services/config/config.ts)
+  [`services/config/config.client.ts`](./services/config/config.client.ts) for
+  browser/client-component code, and
+  [`services/config/config.server.ts`](./services/config/config.server.ts) for
+  API routes and server-only utilities
 
 - Next.js adapter between requests and routing decisions:
   [`proxy.ts`](./proxy.ts)
@@ -209,7 +213,8 @@ Do not invent new ad hoc cookie names in components or page files.
 
 The shared route manifest lives in
 [`services/routing/paths.ts`](./services/routing/paths.ts) and is re-exported
-from [`services/config/config.ts`](./services/config/config.ts) as
+from both [`services/config/config.client.ts`](./services/config/config.client.ts)
+and [`services/config/config.server.ts`](./services/config/config.server.ts) as
 `routePaths`.
 
 This is the baseline rule for navigation:
@@ -452,7 +457,10 @@ The same principle now applies to uploaded media and asset delivery:
   because it can break on HTTPS, custom domains, or internal-only backend hosts
 
 API origin selection is handled in
-[`services/config/config.ts`](./services/config/config.ts).
+[`services/config/config.client.ts`](./services/config/config.client.ts) for
+browser/client-component code and
+[`services/config/config.server.ts`](./services/config/config.server.ts) for
+API routes and server-only utilities.
 
 The important behavior is:
 

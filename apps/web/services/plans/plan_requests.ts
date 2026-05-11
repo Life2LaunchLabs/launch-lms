@@ -1,4 +1,4 @@
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 
 export type PlanRequestType = 'plan_upgrade' | 'package_add'
 export type PlanRequestStatus = 'pending' | 'approved' | 'denied'

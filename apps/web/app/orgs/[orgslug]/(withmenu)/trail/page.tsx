@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 
 const TrailPage = async (params: any) => {
   const orgslug = (await params.params).orgslug

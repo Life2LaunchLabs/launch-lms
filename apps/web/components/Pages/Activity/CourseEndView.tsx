@@ -4,7 +4,7 @@ const ReactConfetti = dynamic(() => import('react-confetti'), { ssr: false });
 import { Trophy, ArrowLeft, BookOpen, Target, Download, Shield, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { getUriWithOrg, routePaths } from '@services/config/config';
+import { getUriWithOrg, routePaths } from '@services/config/config.client';
 import { getCourseThumbnailMediaDirectory } from '@services/media/media';
 import { useWindowSize } from 'usehooks-ts';
 import { useOrg } from '@components/Contexts/OrgContext';

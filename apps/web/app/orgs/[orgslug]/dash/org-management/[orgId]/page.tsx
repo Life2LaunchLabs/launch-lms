@@ -3,7 +3,7 @@ import React from 'react'
 import { Buildings } from '@phosphor-icons/react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import OrganizationDetail from '@components/Admin/OrganizationDetail'
-import { getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
+import { getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config.client'
 
 export default function OrgManagementDetailPage() {
   const org = useOrg() as any

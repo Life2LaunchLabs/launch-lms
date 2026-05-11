@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import { getScormContentUrl } from '@services/media/media'
 import { RefreshCw, AlertCircle } from 'lucide-react'
 import { ScormRuntimeAPI } from '../../services/scorm/ScormRuntimeAPI'

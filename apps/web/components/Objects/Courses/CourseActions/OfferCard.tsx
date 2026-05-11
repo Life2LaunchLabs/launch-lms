@@ -2,7 +2,7 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight, RefreshCcw, SquareCheck, Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 
 interface OfferCardProps {
   offer: {

@@ -7,7 +7,7 @@ import { ArrowLeft, Building2, CheckCircle2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { createNewOrganization } from '@services/organizations/orgs'
-import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
+import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config.client'
 import { swrFetcher } from '@services/utils/ts/requests'
 import FormLayout, {
   FormField,

@@ -5,7 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/auth/server'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 
 type PageProps = { params: Promise<{ orgslug: string }> }

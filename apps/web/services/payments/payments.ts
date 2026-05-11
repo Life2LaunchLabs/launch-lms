@@ -1,6 +1,6 @@
 // Generic payment configuration service.
 // Provider-specific connection logic lives in services/payments/providers/<provider>.ts
-import { getAPIUrl } from '@services/config/config';
+import { getAPIUrl } from '@services/config/config.client';
 import { RequestBodyWithAuthHeader, errorHandling, secureFetch } from '@services/utils/ts/requests';
 
 export async function getPaymentConfigs(orgId: number, access_token: string) {

@@ -27,7 +27,7 @@ import {
 } from 'lucide-react'
 import { useEditorProvider } from '@components/Contexts/Editor/EditorContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import { PLAYGROUND_LANGUAGES, getLanguageById } from './languages'
 import dynamic from 'next/dynamic'
 import { v4 as uuidv4 } from 'uuid'

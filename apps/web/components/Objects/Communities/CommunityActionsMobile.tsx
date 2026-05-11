@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { Plus, Settings, MessageCircle } from 'lucide-react'
 import { Community } from '@services/communities/communities'
 import { useCommunityRights } from '@components/Hooks/useCommunityRights'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 
 interface CommunityActionsMobileProps {
   community: Community

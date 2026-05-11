@@ -1,4 +1,4 @@
-import { getBackendUrl, getConfig, getUriWithoutOrg } from '@services/config/config'
+import { getBackendUrl, getConfig, getUriWithoutOrg } from '@services/config/config.client'
 
 function getMediaUrl() {
   const mediaUrl = getConfig('NEXT_PUBLIC_LAUNCHLMS_MEDIA_URL')

@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { getUriWithOrg, getAPIUrl, routePaths } from '@services/config/config'
+import { getUriWithOrg, getAPIUrl, routePaths } from '@services/config/config.client'
 import PageLoading from '@components/Objects/Loaders/PageLoading'
 import { swrFetcher } from '@services/utils/ts/requests'
 import ActivityIndicators from '@components/Pages/Courses/ActivityIndicators'

@@ -16,7 +16,7 @@ import {
   getResourceThumbnailMediaDirectory,
   getUserAvatarMediaDirectory,
 } from '@services/media/media';
-import { getUriWithOrg, routePaths } from '@services/config/config';
+import { getUriWithOrg, routePaths } from '@services/config/config.client';
 import { removeCoursePrefix } from '@components/Objects/Thumbnails/CourseThumbnail';
 import UserAvatar from '@components/Objects/UserAvatar';
 import { useTranslation } from 'react-i18next';

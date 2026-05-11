@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import { getOwnerOrgSlugServer } from '@services/org/ownerOrgServer'
 
 export default async function AdminLoginPage() {

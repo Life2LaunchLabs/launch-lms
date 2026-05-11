@@ -9,7 +9,7 @@ import { Button } from "@components/ui/button"
 import { Label } from "@components/ui/label"
 import { toast } from 'react-hot-toast'
 import { signOut } from '@components/Contexts/AuthContext'
-import { getUriWithoutOrg } from '@services/config/config'
+import { getUriWithoutOrg } from '@services/config/config.client'
 import * as Yup from 'yup'
 import { useTranslation } from 'react-i18next'
 

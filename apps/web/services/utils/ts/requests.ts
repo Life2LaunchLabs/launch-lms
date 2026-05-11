@@ -1,4 +1,4 @@
-import { getUriWithOrg, getAPIUrl, routePaths } from '@services/config/config'
+import { getUriWithOrg, getAPIUrl, routePaths } from '@services/config/config.client'
 
 /**
  * Validates that a URL is a safe API URL by checking it starts with the configured API base URL.

@@ -1,5 +1,5 @@
 import { RequestBodyWithAuthHeader } from "@services/utils/ts/requests"
-import { getAPIUrl } from "@services/config/config"
+import { getAPIUrl } from "@services/config/config.client"
 import { getResponseMetadata } from "@services/utils/ts/requests"
 
 export async function searchOrgContent(

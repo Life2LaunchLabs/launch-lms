@@ -60,6 +60,12 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    ".next",
+    ".turbo",
+    "coverage",
+    "dist",
+    "public/runtime-config.js",
+    "runtime-config.json"
   ]
 }

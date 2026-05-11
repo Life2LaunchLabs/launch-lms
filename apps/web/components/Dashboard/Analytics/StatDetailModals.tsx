@@ -12,7 +12,7 @@ import { useAnalyticsDetail } from './useAnalyticsDashboard'
 
 import { useTranslation } from 'react-i18next'
 import { getUserAvatarMediaDirectory } from '@services/media/media'
-import { routePaths } from '@services/config/config'
+import { routePaths } from '@services/config/config.client'
 
 // ---------------------------------------------------------------------------
 // Shared helpers

@@ -1,7 +1,7 @@
 'use client'
 import React from 'react'
 import { useLHSession } from '../LHSessionContext'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import { swrFetcher } from '@services/utils/ts/requests'
 import useSWR from 'swr'
 

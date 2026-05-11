@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import useSWR from 'swr'
 import { Loader2 } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
+import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config.client'
 import { swrFetcher } from '@services/utils/ts/requests'
 
 export default function AuthRedirectPage() {

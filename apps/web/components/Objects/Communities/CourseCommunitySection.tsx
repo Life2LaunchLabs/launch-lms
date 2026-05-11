@@ -7,7 +7,7 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 
 dayjs.extend(relativeTime)
 import { Users, MessageCircle, ArrowRight, ChevronUp } from 'lucide-react'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import { getCommunityByCourse, Community } from '@services/communities/communities'
 import { getDiscussions, DiscussionWithAuthor } from '@services/communities/discussions'
 import { useLHSession } from '@components/Contexts/LHSessionContext'

@@ -1,7 +1,7 @@
 import { useCourse } from '@components/Contexts/CourseContext'
 import NewActivityModal from '@components/Objects/Modals/Activities/Create/NewActivity'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import {
   createActivity,
   createExternalVideoActivity,

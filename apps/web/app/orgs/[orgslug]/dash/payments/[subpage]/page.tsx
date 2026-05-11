@@ -3,7 +3,7 @@ import React, { use } from 'react';
 import { motion } from 'motion/react'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import Link from 'next/link'
-import { getCoreCapabilities, getUriWithOrg, routePaths } from '@services/config/config'
+import { getCoreCapabilities, getUriWithOrg, routePaths } from '@services/config/config.client'
 import { Settings, Users, Gem, CreditCard, Layers, ShoppingBag, ExternalLink } from 'lucide-react'
 import { SiStripe } from '@icons-pack/react-simple-icons'
 import { useLHSession } from '@components/Contexts/LHSessionContext'

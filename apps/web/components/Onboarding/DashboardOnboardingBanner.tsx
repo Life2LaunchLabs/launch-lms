@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { ArrowRight, FolderOpen, MessageCircle, X } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { Button } from '@components/ui/button'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import { getOnboardingUserKey, useOrgOnboarding } from './orgOnboarding'
 
 type ActionCardProps = {

@@ -87,6 +87,14 @@ cd apps/web
 npm run dev
 ```
 
+If Turbopack is still too heavy for your machine while we continue tuning it,
+you can use the lower-memory webpack fallback:
+
+```bash
+cd apps/web
+npm run dev:webpack
+```
+
 The default web dev script now auto-enables HTTPS on port `3000` when
 `certs/local.pem` and `certs/local-key.pem` exist, and falls back to plain HTTP
 only when those certs are missing.

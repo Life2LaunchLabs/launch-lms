@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers'
-import { getServerAPIUrl } from '@services/config/config'
+import { getServerAPIUrl } from '@services/config/config.server'
 
 const API_URL = getServerAPIUrl().replace(/\/+$/, '')
 

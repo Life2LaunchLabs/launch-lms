@@ -11,7 +11,7 @@ import FormLayout, {
 } from '@components/Objects/StyledElements/Form/Form'
 import { useCourse } from '@components/Contexts/CourseContext'
 import useSWR, { mutate } from 'swr'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import { swrFetcher } from '@services/utils/ts/requests'
 import useAdminStatus from '@components/Hooks/useAdminStatus'
 import { useOrg } from '@components/Contexts/OrgContext'

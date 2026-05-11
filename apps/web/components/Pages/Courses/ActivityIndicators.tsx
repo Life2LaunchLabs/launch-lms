@@ -2,7 +2,7 @@
 import { BookOpenCheck, Check, FileText, Layers, Video, ChevronLeft, ChevronRight, ChevronDown, Trophy } from 'lucide-react'
 import React, { useMemo, memo, useState, useRef, useEffect, useCallback } from 'react'
 import ToolTip from '@components/Objects/StyledElements/Tooltip/Tooltip'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useTranslation } from 'react-i18next'

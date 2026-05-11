@@ -9,7 +9,7 @@ import { linkCommunityToCourse, unlinkCommunityFromCourse } from '@services/comm
 import { getOrgCourses } from '@services/courses/courses'
 import { revalidateTags } from '@services/utils/ts/requests'
 import { mutate } from 'swr'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import { Loader2, Link2, Unlink, Search, BookOpen } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Input } from '@components/ui/input'

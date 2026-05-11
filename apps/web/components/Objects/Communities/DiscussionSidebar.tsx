@@ -12,7 +12,7 @@ import {
 import { Community } from '@services/communities/communities'
 import { DiscussionWithAuthor, DiscussionAuthor, getLabelInfo } from '@services/communities/discussions'
 import { getUserAvatarMediaDirectory } from '@services/media/media'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import { UpvoteButton } from './UpvoteButton'
 import { ReactionButton } from './ReactionButton'
 import UserAvatar from '@components/Objects/UserAvatar'

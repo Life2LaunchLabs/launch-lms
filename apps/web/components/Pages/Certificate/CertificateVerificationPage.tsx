@@ -5,7 +5,7 @@ import { getCertificateByUuid } from '@services/courses/certifications';
 import CertificatePreview from '@components/Dashboard/Pages/Course/EditCourseCertification/CertificatePreview';
 import { Shield, CheckCircle, XCircle, AlertTriangle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import { getUriWithOrg, routePaths } from '@services/config/config';
+import { getUriWithOrg, routePaths } from '@services/config/config.client';
 import { getCourseThumbnailMediaDirectory } from '@services/media/media';
 import { useOrg } from '@components/Contexts/OrgContext';
 

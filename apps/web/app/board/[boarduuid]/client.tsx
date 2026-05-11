@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl } from '@services/config/config.client'
 import useSWR from 'swr'
 import { swrFetcher } from '@services/utils/ts/requests'
 import BoardCanvas from '@components/Dashboard/Boards/BoardCanvas'

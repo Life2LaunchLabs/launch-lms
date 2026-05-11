@@ -1,6 +1,6 @@
 import { headers } from 'next/headers'
 import { getOrganizationContextInfoWithoutCredentials, getOrganizationContextInfoWithUUID } from '@services/organizations/orgs'
-import { getConfig, getServerAPIUrl } from '@services/config/config'
+import { getConfig, getServerAPIUrl } from '@services/config/config.server'
 import { resolveOrgHostContext, type OrgHostContext } from '@services/routing/context'
 
 async function getServerDomain(): Promise<string> {

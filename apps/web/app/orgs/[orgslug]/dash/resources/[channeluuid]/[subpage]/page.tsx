@@ -25,7 +25,7 @@ import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import ChipMultiSelect from '@components/Resources/ChipMultiSelect'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import {
   addResourceToChannel,
   createResource,

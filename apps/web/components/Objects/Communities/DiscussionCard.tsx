@@ -18,7 +18,7 @@ import {
   Megaphone,
   Star,
 } from 'lucide-react'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config.client'
 import {
   DiscussionWithAuthor,
   DiscussionAuthor,

@@ -3,7 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { Building2, Users } from 'lucide-react'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config.client'
 import {
   getOrgLogoMediaDirectory,
   getOrgThumbnailMediaDirectory,

@@ -41,7 +41,7 @@ import {
 } from "@components/ui/select"
 import { toast } from 'react-hot-toast'
 import { signOut } from '@components/Contexts/AuthContext'
-import { getUriWithoutOrg } from '@services/config/config';
+import { getUriWithoutOrg } from '@services/config/config.client';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useTranslation } from 'react-i18next';
 

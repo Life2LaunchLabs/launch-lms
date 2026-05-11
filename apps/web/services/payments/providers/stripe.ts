@@ -1,7 +1,7 @@
 // Stripe-specific payment provider service.
 // Each payment provider gets its own file here.
 // The generic payment config and offer services live in payments.ts / offers.ts.
-import { getAPIUrl } from '@services/config/config';
+import { getAPIUrl } from '@services/config/config.client';
 import { RequestBodyWithAuthHeader, errorHandling, secureFetch } from '@services/utils/ts/requests';
 
 /**
