@@ -43,7 +43,7 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
   const pathParts = pathname?.split('/').filter(Boolean) || []
 
   // Pages that use a full-bleed layout (no footer)
-  const noFooterPaths = ['copilot']
+  const noFooterPaths = ['copilot', 'identity']
   const isFullBleedPage = noFooterPaths.some((p) => pathParts.includes(p))
 
   return (

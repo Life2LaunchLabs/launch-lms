@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowRight, ChevronLeft, ChevronRight, Lock, UserRound } from 'lucide-react'
 import useSWR from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
@@ -13,7 +13,6 @@ import {
   suggestedActionsFetcher,
   SuggestedAction,
 } from '@services/suggested-actions/suggested-actions'
-import { getIdentitySummary, IdentitySummary, FrameworkNode } from '@services/identity/identity'
 
 type ActionCard = {
   id: string
@@ -29,14 +28,6 @@ type ActionCard = {
 type JourneyClientProps = {
   displayName: string
   orgslug: string
-}
-
-const hexToRgba = (hex: string, alpha: number): string => {
-  if (!hex || hex.length < 7) return 'white'
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 function normalizeUrl(url?: string) {
@@ -283,91 +274,64 @@ function ActionCarouselSkeleton() {
   )
 }
 
-function findNode(summary: IdentitySummary | undefined, key: string): FrameworkNode | undefined {
-  const visit = (node: FrameworkNode): FrameworkNode | undefined => {
-    if (node.key === key) return node
-    for (const child of node.children || []) {
-      const found = visit(child)
-      if (found) return found
-    }
-    return undefined
-  }
-  for (const root of summary?.roots || []) {
-    const found = visit(root)
-    if (found) return found
-  }
-  return undefined
-}
-
-function stateLabel(state?: string) {
-  if (!state) return 'Not started'
-  return state.split('_').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
-}
-
-function IdentitySnapshot({
-  summary,
-  isLoading,
-  orgslug,
-}: {
-  summary?: IdentitySummary
-  isLoading: boolean
-  orgslug: string
-}) {
-  const inner = findNode(summary, 'inner_world')
-  const outer = findNode(summary, 'outer_world')
-  const recentCount = summary?.recent_evidence?.length || 0
-  const topInsights = summary?.top_insights || []
-  const nextNode = summary?.suggested_next_nodes?.[0]
-
+function LockedMilestone({ title }: { title: string }) {
   return (
-    <div className="mt-5 space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2">
-        {[
-          { title: 'Inner World', node: inner },
-          { title: 'Outer World', node: outer },
-        ].map((item) => (
-          <div key={item.title} className="rounded-2xl border border-black/10 bg-white/80 p-4 shadow-sm">
-            <div className="text-sm font-semibold text-gray-950">{item.title}</div>
-            <div className="mt-2 text-xs font-medium uppercase tracking-[0.14em] text-gray-500">
-              {isLoading ? 'Loading' : stateLabel(item.node?.development_state)}
-            </div>
-            <div className="mt-3 flex gap-3 text-sm text-gray-600">
-              <span>{item.node?.evidence_count || 0} evidence</span>
-              <span>{item.node?.insight_count || 0} insights</span>
-            </div>
-          </div>
-        ))}
+    <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4 text-gray-400">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100">
+        <Lock className="h-4 w-4" />
       </div>
+      <div>
+        <div className="text-sm font-semibold text-gray-500">{title}</div>
+        <div className="mt-0.5 text-xs font-medium uppercase tracking-[0.12em] text-gray-400">Locked</div>
+      </div>
+    </div>
+  )
+}
 
-      <div className="rounded-2xl border border-black/10 bg-white/80 p-4 shadow-sm">
-        <div className="text-sm font-semibold text-gray-950">Emerging insights</div>
-        {topInsights.length ? (
-          <div className="mt-3 space-y-2">
-            {topInsights.slice(0, 3).map((insight) => (
-              <div key={insight.insight_uuid} className="text-sm text-gray-700">
-                <span className="font-medium text-gray-950">{insight.label}</span>
-                {insight.summary ? <span className="text-gray-500"> · {insight.summary}</span> : null}
-              </div>
-            ))}
+function WindingDottedLine() {
+  return (
+    <div className="flex h-20 justify-center" aria-hidden="true">
+      <svg width="120" height="80" viewBox="0 0 120 80" className="overflow-visible">
+        <path
+          d="M62 2 C18 20 102 38 58 78"
+          fill="none"
+          stroke="rgb(156 163 175)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeDasharray="2 9"
+        />
+      </svg>
+    </div>
+  )
+}
+
+function JourneyRoadmap({ orgslug }: { orgslug: string }) {
+  return (
+    <div className="mx-auto w-full max-w-[520px]">
+      <Link
+        href={getUriWithOrg(orgslug, routePaths.org.journeyIdentity())}
+        className="group block rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md"
+      >
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gray-950 text-white">
+            <UserRound className="h-5 w-5" />
           </div>
-        ) : (
-          <p className="mt-3 text-sm text-gray-500">
-            Your identity profile is ready for notes, outcomes, and insights.
-          </p>
-        )}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4">
-          <p className="text-sm text-gray-500">
-            {recentCount ? `${recentCount} recent evidence item${recentCount === 1 ? '' : 's'}` : 'No evidence captured yet'}
-          </p>
-          <Link
-            href={getUriWithOrg(orgslug, routePaths.org.journeyIdentity())}
-            className="inline-flex items-center gap-2 rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
-          >
-            {nextNode ? `Explore ${nextNode.title}` : 'Open identity'}
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-xl font-semibold tracking-tight text-gray-950">Identity</h2>
+              <ArrowRight className="h-5 w-5 shrink-0 text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-gray-700" />
+            </div>
+            <p className="mt-2 text-sm leading-6 text-gray-500">
+              Map what you know about yourself before shaping the life and path you want next.
+            </p>
+          </div>
       </div>
+      </Link>
+
+      <WindingDottedLine />
+      <LockedMilestone title="Target Lifestyle" />
+      <WindingDottedLine />
+      <LockedMilestone title="Path Options" />
     </div>
   )
 }
@@ -377,8 +341,6 @@ export default function JourneyClient({ displayName, orgslug }: JourneyClientPro
   const org = useOrg() as any
   const accessToken = session?.data?.tokens?.access_token
   const orgId = org?.id
-  const primaryColor = org?.config?.config?.customization?.general?.color || org?.config?.config?.general?.color || ''
-  const siteBackground = primaryColor ? hexToRgba(primaryColor, 0.05) : 'white'
   const surface = 'journey'
   const viewedKeysRef = useRef<Set<string>>(new Set())
   const suggestionsUrl = orgId && accessToken
@@ -387,14 +349,6 @@ export default function JourneyClient({ displayName, orgslug }: JourneyClientPro
   const { data: suggestedActions, isLoading } = useSWR(
     suggestionsUrl ? [suggestionsUrl, accessToken] : null,
     ([url, token]) => suggestedActionsFetcher(url, token),
-    {
-      revalidateOnFocus: false,
-      shouldRetryOnError: false,
-    }
-  )
-  const { data: identitySummary, isLoading: identityLoading } = useSWR(
-    orgId && accessToken ? ['identity-summary', orgId, accessToken] : null,
-    () => getIdentitySummary(orgId, accessToken),
     {
       revalidateOnFocus: false,
       shouldRetryOnError: false,
@@ -471,18 +425,9 @@ export default function JourneyClient({ displayName, orgslug }: JourneyClientPro
         </div>
       </section>
 
-      <section
-        className="relative z-10 -mt-8 rounded-t-[32px] px-5 pb-20 pt-12 md:mt-0 md:rounded-t-none md:px-6 md:pt-12 lg:px-8"
-        style={{ backgroundColor: siteBackground }}
-      >
-        <div className="mx-auto grid w-full max-w-(--breakpoint-2xl) gap-8 lg:grid-cols-2">
-          <section className="min-h-[260px]">
-            <h2 className="text-2xl font-semibold tracking-tight text-gray-950">My Identity</h2>
-            <IdentitySnapshot summary={identitySummary} isLoading={identityLoading} orgslug={orgslug} />
-          </section>
-          <section className="min-h-[260px]">
-            <h2 className="text-2xl font-semibold tracking-tight text-gray-950">My Path</h2>
-          </section>
+      <section className="relative z-10 px-5 pb-20 pt-12 md:px-6 md:pt-12 lg:px-8">
+        <div className="mx-auto w-full max-w-(--breakpoint-2xl)">
+          <JourneyRoadmap orgslug={orgslug} />
         </div>
       </section>
     </main>
