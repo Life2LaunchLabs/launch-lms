@@ -32,6 +32,8 @@ from src.db.identity import (
     UserKnowledgeEntryTag,
     UserKnowledgeEntryUpdate,
 )
+from src.db.courses.courses import Course
+from src.db.organizations import Organization
 from src.db.resources import Resource
 from src.db.users import PublicUser
 from src.security.org_auth import require_org_membership
@@ -361,6 +363,21 @@ async def get_node_detail(user: PublicUser, org_id: int, node_key: str, db_sessi
         )
         .limit(10)
     ).all()
+    course_tags = db_session.exec(
+        select(ContentFrameworkTag, Course)
+        .join(Course, Course.course_uuid == ContentFrameworkTag.content_uuid)
+        .where(
+            ContentFrameworkTag.org_id == org_id,
+            ContentFrameworkTag.framework_node_id == node.id,
+            ContentFrameworkTag.content_type == FrameworkContentType.course,
+        )
+        .limit(10)
+    ).all()
+    org_ids = {resource.org_id for _, resource in resource_tags} | {course.org_id for _, course in course_tags}
+    orgs_by_id = {
+        org.id: org
+        for org in db_session.exec(select(Organization).where(Organization.id.in_(org_ids))).all()
+    } if org_ids else {}
     tagged_content = [
         {
             "content_type": tag.content_type,
@@ -368,8 +385,23 @@ async def get_node_detail(user: PublicUser, org_id: int, node_key: str, db_sessi
             "title": resource.title,
             "intent": tag.intent,
             "relevance": tag.relevance,
+            "thumbnail_image": resource.thumbnail_image,
+            "cover_image_url": resource.cover_image_url,
+            "owner_org_uuid": orgs_by_id.get(resource.org_id).org_uuid if orgs_by_id.get(resource.org_id) else None,
         }
         for tag, resource in resource_tags
+    ] + [
+        {
+            "content_type": tag.content_type,
+            "content_uuid": course.course_uuid,
+            "title": course.name,
+            "intent": tag.intent,
+            "relevance": tag.relevance,
+            "thumbnail_image": course.thumbnail_image,
+            "cover_image_url": None,
+            "owner_org_uuid": orgs_by_id.get(course.org_id).org_uuid if orgs_by_id.get(course.org_id) else None,
+        }
+        for tag, course in course_tags
     ]
     return IdentityNodeDetailRead(
         node=_node_read(node, metrics),

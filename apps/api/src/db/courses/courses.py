@@ -97,6 +97,7 @@ class CourseUpdate(SQLModel):
     coming_soon: Optional[bool] = None
     open_to_contributors: Optional[bool] = None
     seo: Optional[dict] = None
+    framework_node_keys: Optional[list[str]] = None
 
 
 class CourseRead(CourseBase):
@@ -115,6 +116,7 @@ class CourseRead(CourseBase):
     thumbnail_image: Optional[str] = Field(default="")
     thumbnail_video: Optional[str] = Field(default="")
     seo: Optional[dict] = None
+    framework_node_keys: list[str] = Field(default_factory=list)
     pass
 
 
@@ -134,6 +136,7 @@ class FullCourseRead(CourseBase):
     thumbnail_image: Optional[str] = Field(default="")
     thumbnail_video: Optional[str] = Field(default="")
     seo: Optional[dict] = None
+    framework_node_keys: list[str] = Field(default_factory=list)
     # Chapters, Activities
     chapters: List[ChapterRead]
     authors: List[AuthorWithRole]

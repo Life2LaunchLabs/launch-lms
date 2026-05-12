@@ -2,7 +2,7 @@ from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, Field as PydanticField
-from sqlalchemy import Column, Float, ForeignKey, Integer, JSON, Text, UniqueConstraint
+from sqlalchemy import Column, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -88,13 +88,16 @@ class ContentFrameworkTag(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
-    content_type: FrameworkContentType = Field(index=True)
+    content_type: FrameworkContentType = Field(sa_column=Column(String, nullable=False, index=True))
     content_uuid: str = Field(index=True)
     framework_node_id: int = Field(
         sa_column=Column(Integer, ForeignKey("lifeframeworknode.id", ondelete="CASCADE"), index=True)
     )
     relevance: float = Field(default=1.0, sa_column=Column(Float, nullable=False, server_default="1"))
-    intent: FrameworkTagIntent = Field(default=FrameworkTagIntent.supports, index=True)
+    intent: FrameworkTagIntent = Field(
+        default=FrameworkTagIntent.supports,
+        sa_column=Column(String, nullable=False, server_default=FrameworkTagIntent.supports.value, index=True),
+    )
     creation_date: str = ""
     update_date: str = ""
 
@@ -116,7 +119,7 @@ class UserKnowledgeEntry(SQLModel, table=True):
     entry_uuid: str = Field(index=True, unique=True)
     user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
-    source_type: KnowledgeSourceType = Field(index=True)
+    source_type: KnowledgeSourceType = Field(sa_column=Column(String, nullable=False, index=True))
     source_id: Optional[int] = Field(default=None, index=True)
     source_content_type: Optional[str] = Field(default=None, index=True)
     source_content_uuid: Optional[str] = Field(default=None, index=True)
@@ -125,7 +128,10 @@ class UserKnowledgeEntry(SQLModel, table=True):
     source_url: Optional[str] = None
     file_url: Optional[str] = None
     raw_payload: dict = Field(default_factory=dict, sa_column=Column(JSON))
-    status: KnowledgeEntryStatus = Field(default=KnowledgeEntryStatus.active, index=True)
+    status: KnowledgeEntryStatus = Field(
+        default=KnowledgeEntryStatus.active,
+        sa_column=Column(String, nullable=False, server_default=KnowledgeEntryStatus.active.value, index=True),
+    )
     creation_date: str = ""
     update_date: str = ""
 
@@ -161,7 +167,10 @@ class UserInsight(SQLModel, table=True):
     label: str
     summary: Optional[str] = Field(default=None, sa_column=Column(Text))
     structured_value: dict = Field(default_factory=dict, sa_column=Column(JSON))
-    status: InsightStatus = Field(default=InsightStatus.confirmed, index=True)
+    status: InsightStatus = Field(
+        default=InsightStatus.confirmed,
+        sa_column=Column(String, nullable=False, server_default=InsightStatus.confirmed.value, index=True),
+    )
     confidence: Optional[float] = Field(default=None, sa_column=Column(Float, nullable=True))
     creation_date: str = ""
     update_date: str = ""
@@ -194,7 +203,10 @@ class UserFrameworkProfile(SQLModel, table=True):
         sa_column=Column(Integer, ForeignKey("lifeframeworknode.id", ondelete="CASCADE"), index=True)
     )
     summary: Optional[str] = Field(default=None, sa_column=Column(Text))
-    development_state: Optional[DevelopmentState] = Field(default=None, index=True)
+    development_state: Optional[DevelopmentState] = Field(
+        default=None,
+        sa_column=Column(String, nullable=True, index=True),
+    )
     user_confidence: Optional[int] = None
     reviewed_at: Optional[str] = None
     creation_date: str = ""

@@ -1,13 +1,12 @@
 'use client'
 
-import { PointerEvent, WheelEvent, useMemo, useRef, useState } from 'react'
+import { PointerEvent, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
 import {
   Activity,
   ArrowLeft,
   ArrowRight,
-  ArrowUpRight,
   BookOpen,
   Brain,
   Compass,
@@ -31,6 +30,7 @@ import { Button } from '@components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getCourseThumbnailMediaDirectory, getResourceThumbnailMediaDirectory } from '@services/media/media'
 import {
   FrameworkNode,
   IdentityNodeDetail,
@@ -120,6 +120,10 @@ function nodeIcon(node: FrameworkNode) {
   if (node.key.includes('interest_based')) return Sparkles
   if (node.key.includes('academic')) return BookOpen
   return Sparkles
+}
+
+function stripKnownPrefix(value: string, prefix: string) {
+  return value.startsWith(prefix) ? value.slice(prefix.length) : value
 }
 
 function buildCanvasNodes(roots: FrameworkNode[]): CanvasNode[] {
@@ -295,21 +299,27 @@ function IdentityCanvas({
     })
   }
 
-  const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
-    event.preventDefault()
-    const rect = event.currentTarget.getBoundingClientRect()
-    const cursorX = event.clientX - rect.left - rect.width / 2
-    const cursorY = event.clientY - rect.top - rect.height / 2
-    setView((current) => {
-      const nextScale = clamp(current.scale - event.deltaY * 0.001, MIN_SCALE, MAX_SCALE)
-      const ratio = nextScale / current.scale
-      return constrainView({
-        scale: nextScale,
-        x: cursorX - (cursorX - current.x) * ratio,
-        y: cursorY - (cursorY - current.y) * ratio,
-      }, rect)
-    })
-  }
+  useEffect(() => {
+    const el = viewportRef.current
+    if (!el) return
+    const handler = (event: globalThis.WheelEvent) => {
+      event.preventDefault()
+      const rect = el.getBoundingClientRect()
+      const cursorX = event.clientX - rect.left - rect.width / 2
+      const cursorY = event.clientY - rect.top - rect.height / 2
+      setView((current) => {
+        const nextScale = clamp(current.scale - event.deltaY * 0.001, MIN_SCALE, MAX_SCALE)
+        const ratio = nextScale / current.scale
+        return constrainView({
+          scale: nextScale,
+          x: cursorX - (cursorX - current.x) * ratio,
+          y: cursorY - (cursorY - current.y) * ratio,
+        }, rect)
+      })
+    }
+    el.addEventListener('wheel', handler, { passive: false })
+    return () => el.removeEventListener('wheel', handler)
+  }, [])
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     dragRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY }
@@ -342,7 +352,6 @@ function IdentityCanvas({
   return (
     <div
       ref={viewportRef}
-      onWheel={handleWheel}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -399,8 +408,8 @@ function IdentityCanvas({
   )
 }
 
-function SuggestedCarousel({ detail, orgslug }: { detail?: IdentityNodeDetail; orgslug: string }) {
-  const items = detail?.tagged_content || []
+function SuggestedCarousel({ detail, orgslug, orgUUID }: { detail?: IdentityNodeDetail; orgslug: string; orgUUID?: string }) {
+  const items = (detail?.tagged_content || []).slice(0, 5)
 
   if (!items.length) {
     return (
@@ -414,20 +423,40 @@ function SuggestedCarousel({ detail, orgslug }: { detail?: IdentityNodeDetail; o
     <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
       {items.map((item) => {
         const isResource = item.content_type === 'resource'
+        const isCourse = item.content_type === 'course'
+        const ownerOrgUUID = item.owner_org_uuid || orgUUID
+        const imageUrl =
+          isResource && item.thumbnail_image && ownerOrgUUID
+            ? getResourceThumbnailMediaDirectory(ownerOrgUUID, item.content_uuid, item.thumbnail_image)
+            : isResource && item.cover_image_url
+              ? item.cover_image_url
+              : isCourse && item.thumbnail_image && ownerOrgUUID
+                ? getCourseThumbnailMediaDirectory(ownerOrgUUID, item.content_uuid, item.thumbnail_image)
+                : null
+        const href = isResource
+          ? routePaths.org.resource(stripKnownPrefix(item.content_uuid, 'resource_'))
+          : isCourse
+            ? routePaths.org.course(stripKnownPrefix(item.content_uuid, 'course_'))
+            : null
+
         const card = (
-          <div className="h-full min-w-[190px] rounded-lg border border-gray-200 bg-white p-3 shadow-xs transition hover:border-gray-300 hover:shadow-sm">
-            <div className="flex items-start justify-between gap-2">
-              <div className="line-clamp-2 text-sm font-medium leading-5 text-gray-950">{item.title}</div>
-              {isResource ? <ArrowUpRight className="h-4 w-4 shrink-0 text-gray-400" /> : null}
+          <div
+            className="relative h-32 min-w-[190px] overflow-hidden rounded-lg border border-gray-200 bg-gray-950 shadow-xs transition hover:border-gray-300 hover:shadow-sm"
+            style={imageUrl ? { backgroundImage: `url(${imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+          >
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/5" />
+            <div className="relative flex h-full flex-col justify-end p-3">
+              <div className="line-clamp-2 text-sm font-semibold leading-5 text-white">{item.title}</div>
+              <div className="mt-1 text-xs font-medium capitalize text-white/75">{item.content_type}</div>
             </div>
-            <div className="mt-3 text-xs font-medium uppercase tracking-[0.12em] text-gray-400">{item.intent}</div>
           </div>
         )
 
-        return isResource ? (
+        return href ? (
           <Link
             key={`${item.content_type}:${item.content_uuid}`}
-            href={getUriWithOrg(orgslug, routePaths.org.resource(item.content_uuid))}
+            href={getUriWithOrg(orgslug, href)}
+            className="block"
           >
             {card}
           </Link>
@@ -527,6 +556,7 @@ function DetailPanel({
   detail,
   isLoading,
   orgslug,
+  orgUUID,
   onClose,
   onSelectNode,
   className,
@@ -535,6 +565,7 @@ function DetailPanel({
   detail?: IdentityNodeDetail
   isLoading: boolean
   orgslug: string
+  orgUUID?: string
   onClose: () => void
   onSelectNode: (node: FrameworkNode) => void
   className?: string
@@ -588,9 +619,15 @@ function DetailPanel({
             <section>
               <div className="mb-2 flex items-center justify-between gap-3">
                 <h3 className="text-sm font-semibold text-gray-950">Dive deeper</h3>
-                <Sparkles className="h-4 w-4 text-gray-300" />
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <Button asChild variant="outline" size="sm" className="h-7 px-2 text-xs">
+                    <Link href={getUriWithOrg(orgslug, `${routePaths.org.resources()}?q=${encodeURIComponent(node.title)}`)}>
+                      Resources
+                    </Link>
+                  </Button>
+                </div>
               </div>
-              <SuggestedCarousel detail={detail} orgslug={orgslug} />
+              <SuggestedCarousel detail={detail} orgslug={orgslug} orgUUID={orgUUID} />
             </section>
 
             <Tabs defaultValue="insights" className="w-full">
@@ -622,6 +659,12 @@ function DetailPanel({
 }
 
 export default function IdentityClient({ orgslug }: { orgslug: string }) {
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
+
   const session = useLHSession() as any
   const org = useOrg() as any
   const accessToken = session?.data?.tokens?.access_token
@@ -716,6 +759,7 @@ export default function IdentityClient({ orgslug }: { orgslug: string }) {
             detail={selectedDetail}
             isLoading={detailLoading}
             orgslug={orgslug}
+            orgUUID={org?.org_uuid}
             onClose={() => selectNode(null)}
             onSelectNode={(node) => selectNode(node.key)}
             className="absolute bottom-8 right-8 top-8 w-[420px]"
@@ -736,6 +780,7 @@ export default function IdentityClient({ orgslug }: { orgslug: string }) {
             detail={selectedDetail}
             isLoading={detailLoading}
             orgslug={orgslug}
+            orgUUID={org?.org_uuid}
             onClose={() => selectNode(null)}
             onSelectNode={(node) => selectNode(node.key)}
             className="absolute inset-x-3 bottom-3 h-[78vh] max-h-[78vh]"

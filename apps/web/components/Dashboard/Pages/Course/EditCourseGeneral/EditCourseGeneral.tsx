@@ -9,10 +9,14 @@ import { useFormik } from 'formik';
 import { AlertTriangle, Download } from 'lucide-react';
 import * as Form from '@radix-ui/react-form';
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import useSWR from 'swr';
 import ThumbnailUpdate from './ThumbnailUpdate';
 import { useCourseFieldSync } from '@components/Contexts/CourseContext';
+import { useOrg } from '@components/Contexts/OrgContext';
 import FormTagInput from '@components/Objects/StyledElements/Form/TagInput';
 import LearningItemsList from './LearningItemsList';
+import ChipMultiSelect from '@components/Resources/ChipMultiSelect';
+import { FrameworkNode, getIdentityFramework } from '@services/identity/identity';
 import {
   CustomSelect,
   CustomSelectContent,
@@ -29,6 +33,9 @@ type EditCourseStructureProps = {
   orgslug: string
   course_uuid?: string
 }
+
+const flattenFrameworkNodes = (nodes: FrameworkNode[]): FrameworkNode[] =>
+  nodes.flatMap((node) => [node, ...flattenFrameworkNodes(node.children || [])])
 
 const validate = (values: any, t: any) => {
   const errors = {} as any;
@@ -73,8 +80,14 @@ function EditCourseGeneral(props: EditCourseStructureProps) {
   const { t } = useTranslation()
   const [error, setError] = useState('');
   const session = useLHSession() as any
+  const org = useOrg() as any
   const access_token = session.data?.tokens?.access_token
   const [isExporting, setIsExporting] = useState(false)
+  const { data: frameworkNodes = [] } = useSWR(
+    org?.id && access_token ? ['identity-framework-course-editor', org.id, access_token] : null,
+    () => getIdentityFramework(org.id, access_token),
+    { revalidateOnFocus: false, shouldRetryOnError: false }
+  )
 
   // Use the new field sync hook
   const {
@@ -155,12 +168,24 @@ function EditCourseGeneral(props: EditCourseStructureProps) {
       about: courseStructure?.about || '',
       learnings: initializeLearnings(courseStructure?.learnings || ''),
       tags: courseStructure?.tags || '',
+      framework_node_keys: courseStructure?.framework_node_keys || [],
       public: courseStructure?.public || false,
       thumbnail_type: thumbnailType,
     };
   }, [courseStructure?.name, courseStructure?.description, courseStructure?.about,
       courseStructure?.learnings, courseStructure?.tags, courseStructure?.public,
-      courseStructure?.thumbnail_type, initializeLearnings]);
+      courseStructure?.framework_node_keys, courseStructure?.thumbnail_type, initializeLearnings]);
+
+  const frameworkNodeOptions = useMemo(
+    () =>
+      flattenFrameworkNodes(frameworkNodes)
+        .filter((node) => ['driver', 'system', 'skill'].includes(node.node_type))
+        .map((node) => ({
+          value: node.key,
+          label: node.title,
+        })),
+    [frameworkNodes]
+  )
 
   const formik = useFormik({
     initialValues,
@@ -289,6 +314,26 @@ function EditCourseGeneral(props: EditCourseStructureProps) {
                     onChange={(value) => formik.setFieldValue('tags', value)}
                     value={formik.values.tags}
                   />
+                </Form.Control>
+              </FormField>
+
+              <FormField name="framework_node_keys">
+                <FormLabelAndMessage label="Identity Framework" message={formik.errors.framework_node_keys} />
+                <Form.Control asChild>
+                  <div className="space-y-2">
+                    <ChipMultiSelect
+                      options={frameworkNodeOptions}
+                      selectedValues={formik.values.framework_node_keys}
+                      onChange={(value) => formik.setFieldValue('framework_node_keys', value)}
+                      placeholder="Select identity areas"
+                      searchPlaceholder="Filter identity areas"
+                      emptyMessage="No identity areas found."
+                      disabled={isSaving}
+                    />
+                    <p className="text-xs text-gray-500">
+                      Course outcomes and related evidence can be attached to these identity sections.
+                    </p>
+                  </div>
                 </Form.Control>
               </FormField>
 

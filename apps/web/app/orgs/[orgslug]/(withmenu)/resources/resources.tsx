@@ -178,10 +178,12 @@ export default function ResourcesClient({
   orgslug,
   initialChannelUuid,
   initialUserChannelUuid,
+  initialSearch,
 }: {
   orgslug: string
   initialChannelUuid?: string
   initialUserChannelUuid?: string
+  initialSearch?: string
 }) {
   const org = useOrg() as any
   const session = useLHSession() as any
@@ -193,8 +195,8 @@ export default function ResourcesClient({
     initialUserChannelUuid ? 'all' : initialChannelUuid || 'all'
   )
   const [activeUserChannel, setActiveUserChannel] = useState<string>(initialUserChannelUuid || '')
-  const [search, setSearch] = useState('')
-  const [searchExpanded, setSearchExpanded] = useState(false)
+  const [search, setSearch] = useState(initialSearch || '')
+  const [searchExpanded, setSearchExpanded] = useState(Boolean(initialSearch))
   const [resourceTypes, setResourceTypes] = useState<string[]>([])
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [accessMode, setAccessMode] = useState('')

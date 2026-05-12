@@ -23,6 +23,7 @@ from src.db.courses.courses import (
     AuthorWithRole,
     ThumbnailType,
 )
+from src.db.identity import ContentFrameworkTag, FrameworkContentType, FrameworkTagIntent, LifeFrameworkNode
 from src.security.rbac.rbac import (
     authorization_verify_if_user_is_anon,
     authorization_verify_based_on_org_admin_status,
@@ -111,6 +112,7 @@ def _serialize_course_read(
     authors: list[AuthorWithRole],
     owner_org: Organization | None = None,
     current_org_id: int | None = None,
+    framework_node_keys: list[str] | None = None,
 ) -> CourseRead:
     payload = {
         "id": course.id or 0,
@@ -133,10 +135,62 @@ def _serialize_course_read(
         "update_date": course.update_date,
         "seo": course.seo,
         "authors": authors,
+        "framework_node_keys": framework_node_keys or [],
     }
     if owner_org:
         payload.update(owner_org_payload(owner_org, current_org_id))
     return CourseRead.model_validate(payload)
+
+
+def _course_framework_node_keys(course: Course, db_session: Session) -> list[str]:
+    rows = db_session.exec(
+        select(LifeFrameworkNode.key)
+        .join(ContentFrameworkTag, LifeFrameworkNode.id == ContentFrameworkTag.framework_node_id)
+        .where(
+            ContentFrameworkTag.org_id == course.org_id,
+            ContentFrameworkTag.content_type == FrameworkContentType.course,
+            ContentFrameworkTag.content_uuid == course.course_uuid,
+        )
+        .order_by(LifeFrameworkNode.sort_order.asc())
+    ).all()
+    return list(rows)
+
+
+def _set_course_framework_tags(org_id: int, course_uuid: str, node_keys: list[str], db_session: Session) -> None:
+    normalized = list(dict.fromkeys([key.strip() for key in node_keys if key.strip()]))
+    nodes = []
+    if normalized:
+        nodes = db_session.exec(select(LifeFrameworkNode).where(LifeFrameworkNode.key.in_(normalized))).all()
+    nodes_by_key = {node.key: node for node in nodes}
+    missing = [key for key in normalized if key not in nodes_by_key]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Unknown framework node key: {missing[0]}")
+
+    existing = db_session.exec(
+        select(ContentFrameworkTag).where(
+            ContentFrameworkTag.org_id == org_id,
+            ContentFrameworkTag.content_type == FrameworkContentType.course,
+            ContentFrameworkTag.content_uuid == course_uuid,
+        )
+    ).all()
+    existing_node_ids = {tag.framework_node_id for tag in existing}
+    target_node_ids = {node.id for node in nodes if node.id is not None}
+    for tag in existing:
+        if tag.framework_node_id not in target_node_ids:
+            db_session.delete(tag)
+    for node_id in target_node_ids - existing_node_ids:
+        db_session.add(
+            ContentFrameworkTag(
+                org_id=org_id,
+                content_type=FrameworkContentType.course,
+                content_uuid=course_uuid,
+                framework_node_id=node_id,
+                intent=FrameworkTagIntent.teaches,
+                relevance=1.0,
+                creation_date=str(datetime.now()),
+                update_date=str(datetime.now()),
+            )
+        )
 
 
 async def get_course(
@@ -193,7 +247,7 @@ async def get_course(
     ]
 
     owner_org = db_session.exec(select(Organization).where(Organization.id == course.org_id)).first()
-    course = _serialize_course_read(course, authors, owner_org)
+    course = _serialize_course_read(course, authors, owner_org, framework_node_keys=_course_framework_node_keys(course, db_session))
 
     return course
 
@@ -240,7 +294,7 @@ async def get_course_by_id(
     ]
 
     owner_org = db_session.exec(select(Organization).where(Organization.id == course.org_id)).first()
-    course = _serialize_course_read(course, authors, owner_org)
+    course = _serialize_course_read(course, authors, owner_org, framework_node_keys=_course_framework_node_keys(course, db_session))
 
     return course
 
@@ -315,7 +369,8 @@ async def get_course_meta(
         org_uuid=org.org_uuid,
         **owner_org_payload(org),
         authors=authors,
-        chapters=chapters
+        chapters=chapters,
+        framework_node_keys=_course_framework_node_keys(course, db_session),
     )
 
     return course_read
@@ -867,7 +922,11 @@ async def update_course_thumbnail(
         for resource_author, user in author_results
     ]
 
-    course = CourseRead(**course.model_dump(), authors=authors)
+    course = CourseRead(
+        **course.model_dump(),
+        authors=authors,
+        framework_node_keys=_course_framework_node_keys(course, db_session),
+    )
 
     return course
 
@@ -937,10 +996,16 @@ async def update_course(
                 detail=f"You must be the course owner (CREATOR or MAINTAINER) or have admin role to change access settings: {', '.join(sensitive_fields_updated)}",
             )
 
+    update_data = course_object.model_dump(exclude_unset=True)
+    framework_node_keys = update_data.pop("framework_node_keys", None)
+
     # Update only the fields that were passed in
-    for var, value in vars(course_object).items():
+    for var, value in update_data.items():
         if value is not None:
             setattr(course, var, value)
+
+    if framework_node_keys is not None:
+        _set_course_framework_tags(course.org_id, course.course_uuid, framework_node_keys, db_session)
 
     # Complete the course object
     course.update_date = str(datetime.now())
@@ -972,7 +1037,11 @@ async def update_course(
         for resource_author, user in author_results
     ]
 
-    course = CourseRead(**course.model_dump(), authors=authors)
+    course = CourseRead(
+        **course.model_dump(),
+        authors=authors,
+        framework_node_keys=_course_framework_node_keys(course, db_session),
+    )
 
     return course
 

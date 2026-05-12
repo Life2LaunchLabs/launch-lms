@@ -17,6 +17,7 @@ from src.db.resources import Resource, ResourceChannel, ResourceChannelResource,
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
 from src.services.identity import get_framework, get_identity_summary
+from src.services.courses.courses import _course_framework_node_keys, _set_course_framework_tags
 from src.services.resources import save_resource_for_user
 
 
@@ -160,3 +161,40 @@ async def test_resource_outcome_save_upserts_single_knowledge_entry(db_session: 
 
     assert len(entries) == 1
     assert entries[0].body == "Autonomy still matters."
+
+
+def test_course_framework_tags_can_be_set_and_replaced(db_session: Session):
+    course = Course(
+        id=1,
+        org_id=1,
+        course_uuid="course_1",
+        name="Identity Skills",
+        description="",
+        about="",
+        learnings="[]",
+        tags="",
+        public=True,
+        open_to_contributors=False,
+        creation_date=NOW,
+        update_date=NOW,
+    )
+    db_session.add(course)
+    db_session.commit()
+
+    _set_course_framework_tags(
+        1,
+        "course_1",
+        ["outer_world.executive_function", "inner_world.personal_drivers.culture_values"],
+        db_session,
+    )
+    db_session.commit()
+
+    assert _course_framework_node_keys(course, db_session) == [
+        "inner_world.personal_drivers.culture_values",
+        "outer_world.executive_function",
+    ]
+
+    _set_course_framework_tags(1, "course_1", ["outer_world.executive_function"], db_session)
+    db_session.commit()
+
+    assert _course_framework_node_keys(course, db_session) == ["outer_world.executive_function"]

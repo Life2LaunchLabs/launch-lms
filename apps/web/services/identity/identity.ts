@@ -86,6 +86,9 @@ export interface IdentityNodeDetail {
     title: string
     intent: string
     relevance: number
+    thumbnail_image: string | null
+    cover_image_url: string | null
+    owner_org_uuid: string | null
   }[]
 }
 
