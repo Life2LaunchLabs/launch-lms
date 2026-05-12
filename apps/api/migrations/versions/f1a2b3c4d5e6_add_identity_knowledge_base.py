@@ -33,6 +33,12 @@ TAXONOMY_ROWS = [
     (13, "outer_world.relational", 10, "Relational Skills", "Communication, connection, boundaries, and collaboration.", "skill", 130),
     (14, "outer_world.interest_based", 10, "Interest-Based Skills", "Skills developed through interests, projects, and practice.", "skill", 140),
     (15, "outer_world.academic", 10, "Academic Skills", "Study, school navigation, credentials, and learning strategies.", "skill", 150),
+    (16, "target_lifestyle", None, "Target Lifestyle", "The life you are intentionally designing toward.", "domain", 200),
+    (17, "target_lifestyle.environment", 16, "Environment", "The places, spaces, and sensory conditions that help you thrive.", "lifestyle", 210),
+    (18, "target_lifestyle.relationships", 16, "Relationships", "The people, communities, and support patterns you want around you.", "lifestyle", 220),
+    (19, "target_lifestyle.purpose", 16, "Purpose", "The contribution, meaning, and direction you want your life to hold.", "lifestyle", 230),
+    (20, "target_lifestyle.rhythms", 16, "Rhythms", "The routines, pacing, seasons, and rituals that make life workable.", "lifestyle", 240),
+    (21, "target_lifestyle.health", 16, "Health", "The wellbeing foundations that support your energy and capacity.", "lifestyle", 250),
 ]
 
 

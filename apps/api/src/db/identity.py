@@ -207,6 +207,7 @@ class UserFrameworkProfile(SQLModel, table=True):
         default=None,
         sa_column=Column(String, nullable=True, index=True),
     )
+    selected_lifestyle_option_key: Optional[str] = Field(default=None, index=True)
     user_confidence: Optional[int] = None
     reviewed_at: Optional[str] = None
     creation_date: str = ""
@@ -305,6 +306,7 @@ class UserInsightRead(BaseModel):
 class UserFrameworkProfileUpdate(BaseModel):
     summary: Optional[str] = None
     development_state: Optional[DevelopmentState] = None
+    selected_lifestyle_option_key: Optional[str] = None
     user_confidence: Optional[int] = None
     reviewed_at: Optional[str] = None
 
@@ -313,6 +315,7 @@ class UserFrameworkProfileRead(BaseModel):
     framework_node_key: str
     summary: Optional[str] = None
     development_state: DevelopmentState = DevelopmentState.empty
+    selected_lifestyle_option_key: Optional[str] = None
     user_confidence: Optional[int] = None
     reviewed_at: Optional[str] = None
     update_date: Optional[str] = None

@@ -408,7 +408,7 @@ function IdentityCanvas({
   )
 }
 
-function SuggestedCarousel({ detail, orgslug, orgUUID }: { detail?: IdentityNodeDetail; orgslug: string; orgUUID?: string }) {
+export function SuggestedCarousel({ detail, orgslug, orgUUID }: { detail?: IdentityNodeDetail; orgslug: string; orgUUID?: string }) {
   const items = (detail?.tagged_content || []).slice(0, 5)
 
   if (!items.length) {
@@ -468,7 +468,7 @@ function SuggestedCarousel({ detail, orgslug, orgUUID }: { detail?: IdentityNode
   )
 }
 
-function CompactInsightList({ detail }: { detail?: IdentityNodeDetail }) {
+export function CompactInsightList({ detail }: { detail?: IdentityNodeDetail }) {
   const items = detail?.insights || []
 
   if (!items.length) {
@@ -492,7 +492,7 @@ function CompactInsightList({ detail }: { detail?: IdentityNodeDetail }) {
   )
 }
 
-function CompactEvidenceList({ detail }: { detail?: IdentityNodeDetail }) {
+export function CompactEvidenceList({ detail }: { detail?: IdentityNodeDetail }) {
   const items = detail?.evidence || []
 
   if (!items.length) {
@@ -551,7 +551,7 @@ function ChildNodeCards({ node, onSelect }: { node: FrameworkNode; onSelect: (no
   )
 }
 
-function DetailPanel({
+export function DetailPanel({
   node,
   detail,
   isLoading,

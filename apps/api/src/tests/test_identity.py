@@ -72,6 +72,17 @@ def seed_base(session: Session) -> None:
         creation_date=NOW,
         update_date=NOW,
     )
+    lifestyle = LifeFrameworkNode(id=5, key="target_lifestyle", title="Target Lifestyle", node_type="domain", sort_order=50, creation_date=NOW, update_date=NOW)
+    environment = LifeFrameworkNode(
+        id=6,
+        key="target_lifestyle.environment",
+        parent_id=5,
+        title="Environment",
+        node_type="lifestyle",
+        sort_order=60,
+        creation_date=NOW,
+        update_date=NOW,
+    )
     session.add(org)
     session.add(user)
     session.add(membership)
@@ -79,6 +90,8 @@ def seed_base(session: Session) -> None:
     session.add(values)
     session.add(outer)
     session.add(executive)
+    session.add(lifestyle)
+    session.add(environment)
     session.commit()
 
 
@@ -91,8 +104,9 @@ def public_user(session: Session) -> PublicUser:
 async def test_framework_returns_seeded_tree(db_session: Session):
     roots = await get_framework(public_user(db_session), 1, db_session)
 
-    assert [node.key for node in roots] == ["inner_world", "outer_world"]
+    assert [node.key for node in roots] == ["inner_world", "outer_world", "target_lifestyle"]
     assert roots[0].children[0].key == "inner_world.personal_drivers.culture_values"
+    assert roots[2].children[0].key == "target_lifestyle.environment"
     assert roots[0].development_state == DevelopmentState.empty
 
 

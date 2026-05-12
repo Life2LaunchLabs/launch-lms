@@ -82,6 +82,7 @@ export const routePaths = {
     journey: () => '/journey',
     journeyIdentity: () => '/journey/identity',
     journeyIdentityNode: (nodeKey: string) => `/journey/identity/${encodeURIComponent(nodeKey)}`,
+    journeyLifestyle: () => '/journey/lifestyle',
     podcasts: () => '/podcasts',
     courses: () => '/courses',
     collections: () => '/collections',

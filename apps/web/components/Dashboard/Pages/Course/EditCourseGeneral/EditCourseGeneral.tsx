@@ -179,7 +179,7 @@ function EditCourseGeneral(props: EditCourseStructureProps) {
   const frameworkNodeOptions = useMemo(
     () =>
       flattenFrameworkNodes(frameworkNodes)
-        .filter((node) => ['driver', 'system', 'skill'].includes(node.node_type))
+        .filter((node) => ['driver', 'system', 'skill', 'lifestyle'].includes(node.node_type))
         .map((node) => ({
           value: node.key,
           label: node.title,
@@ -318,20 +318,20 @@ function EditCourseGeneral(props: EditCourseStructureProps) {
               </FormField>
 
               <FormField name="framework_node_keys">
-                <FormLabelAndMessage label="Identity Framework" message={formik.errors.framework_node_keys} />
+                <FormLabelAndMessage label="Life Framework" message={formik.errors.framework_node_keys} />
                 <Form.Control asChild>
                   <div className="space-y-2">
                     <ChipMultiSelect
                       options={frameworkNodeOptions}
                       selectedValues={formik.values.framework_node_keys}
                       onChange={(value) => formik.setFieldValue('framework_node_keys', value)}
-                      placeholder="Select identity areas"
-                      searchPlaceholder="Filter identity areas"
-                      emptyMessage="No identity areas found."
+                      placeholder="Select framework areas"
+                      searchPlaceholder="Filter framework areas"
+                      emptyMessage="No framework areas found."
                       disabled={isSaving}
                     />
                     <p className="text-xs text-gray-500">
-                      Course outcomes and related evidence can be attached to these identity sections.
+                      Course outcomes and related evidence can be attached to these framework sections.
                     </p>
                   </div>
                 </Form.Control>

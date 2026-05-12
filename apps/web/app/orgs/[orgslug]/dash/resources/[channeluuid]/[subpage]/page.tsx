@@ -817,7 +817,7 @@ function AddResourceModal({
   const frameworkNodeOptions = useMemo(
     () =>
       flattenFrameworkNodes(frameworkNodes)
-        .filter((node) => ['driver', 'system', 'skill'].includes(node.node_type))
+        .filter((node) => ['driver', 'system', 'skill', 'lifestyle'].includes(node.node_type))
         .map((node) => ({
           value: node.key,
           label: node.title,
@@ -924,18 +924,18 @@ function AddResourceModal({
               </div>
 
               <div className="space-y-2">
-                <Label>Identity Framework</Label>
+                <Label>Life Framework</Label>
                 <ChipMultiSelect
                   options={frameworkNodeOptions}
                   selectedValues={selectedFrameworkNodeKeys}
                   onChange={setSelectedFrameworkNodeKeys}
-                  placeholder="Select identity areas"
-                  searchPlaceholder="Filter identity areas"
-                  emptyMessage="No identity areas found."
+                  placeholder="Select framework areas"
+                  searchPlaceholder="Filter framework areas"
+                  emptyMessage="No framework areas found."
                   disabled={isDiscovering || isSubmitting}
                 />
                 <p className="text-xs text-gray-500">
-                  Outcomes from this resource will be attached to these identity sections.
+                  Outcomes from this resource will be attached to these framework sections.
                 </p>
               </div>
 

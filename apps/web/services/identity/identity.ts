@@ -63,6 +63,7 @@ export interface FrameworkProfile {
   framework_node_key: string
   summary: string | null
   development_state: DevelopmentState
+  selected_lifestyle_option_key: string | null
   user_confidence: number | null
   reviewed_at: string | null
   update_date: string | null
