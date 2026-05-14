@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, ChevronLeft, ChevronRight, Compass, Lock, UserRound } from 'lucide-react'
+import { ArrowRight, ChevronLeft, ChevronRight, Compass, Route, UserRound } from 'lucide-react'
 import useSWR from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
@@ -274,20 +274,6 @@ function ActionCarouselSkeleton() {
   )
 }
 
-function LockedMilestone({ title }: { title: string }) {
-  return (
-    <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-4 text-gray-400">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100">
-        <Lock className="h-4 w-4" />
-      </div>
-      <div>
-        <div className="text-sm font-semibold text-gray-500">{title}</div>
-        <div className="mt-0.5 text-xs font-medium uppercase tracking-[0.12em] text-gray-400">Locked</div>
-      </div>
-    </div>
-  )
-}
-
 function WindingDottedLine() {
   return (
     <div className="flex h-20 justify-center" aria-hidden="true">
@@ -349,7 +335,25 @@ function JourneyRoadmap({ orgslug }: { orgslug: string }) {
         </div>
       </Link>
       <WindingDottedLine />
-      <LockedMilestone title="Path Options" />
+      <Link
+        href={getUriWithOrg(orgslug, routePaths.org.journeyRoadmap())}
+        className="group block rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md"
+      >
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gray-950 text-white">
+            <Route className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-xl font-semibold tracking-tight text-gray-950">Roadmap</h2>
+              <ArrowRight className="h-5 w-5 shrink-0 text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-gray-700" />
+            </div>
+            <p className="mt-2 text-sm leading-6 text-gray-500">
+              Turn possible end states into path options, timeline steps, and financial assumptions.
+            </p>
+          </div>
+        </div>
+      </Link>
     </div>
   )
 }

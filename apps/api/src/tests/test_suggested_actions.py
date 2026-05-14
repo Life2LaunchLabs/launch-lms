@@ -12,6 +12,7 @@ from src.db.communities.communities import Community
 from src.db.communities.discussions import Discussion
 from src.db.guest_sessions import GuestSession  # noqa: F401
 from src.db.organizations import Organization
+from src.db.podcasts.podcasts import Podcast
 from src.db.resources import Resource, ResourceChannel, ResourceChannelResource
 from src.db.suggested_actions import (
     SuggestedAction,
@@ -40,6 +41,7 @@ NOW = "2026-05-07T12:00:00+00:00"
 def db_session():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     Course.__table__.c.seo.type = JSON()
+    Podcast.__table__.c.seo.type = JSON()
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
         yield session

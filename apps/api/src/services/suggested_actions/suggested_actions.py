@@ -373,6 +373,16 @@ class OnboardingProvider:
             "banner_subtext": "Quickly find any information, tools, and support you need for life launching.",
             "priority": 380,
         },
+        "roadmap": {
+            "href": "/journey/roadmap",
+            "visit_key": "onboarding:visit_roadmap",
+            "banner_key": "onboarding:roadmap_feature_intro",
+            "journey_title": "Build your roadmap",
+            "journey_subtext": "Create path options, timeline steps, and financial assumptions for the future you are planning.",
+            "banner_title": "Turn your target lifestyle into a roadmap.",
+            "banner_subtext": "Declare an end state, add required steps, and compare path options from your own estimates.",
+            "priority": 410,
+        },
     }
 
     def supports_surface(self, surface: str, slot: str, context: str | None = None) -> bool:

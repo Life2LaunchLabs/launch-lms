@@ -8,6 +8,7 @@ from src.routers import usergroups
 from src.routers import dev, trail, users, auth, orgs, roles, search
 from src.routers import stream
 from src.routers import identity
+from src.routers import roadmap_blocks as roadmap
 from src.routers import api_tokens
 from src.routers.ai import ai, magicblocks, courseplanning, rag
 from src.routers.boards import boards_playground
@@ -197,6 +198,12 @@ v1_router.include_router(
     identity.router,
     prefix="/identity",
     tags=["identity"],
+    dependencies=[Depends(get_non_api_token_user)]
+)
+v1_router.include_router(
+    roadmap.router,
+    prefix="/roadmap",
+    tags=["roadmap"],
     dependencies=[Depends(get_non_api_token_user)]
 )
 v1_router.include_router(
