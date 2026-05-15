@@ -1,4 +1,4 @@
-import RoadmapBuildWorkspace from '../build-workspace-blocks'
+import RoadmapBuildWorkspace from '../build-workspace'
 
 export default async function RoadmapOptionPage(props: {
   params: Promise<{ orgslug: string; roadmapUuid: string }>

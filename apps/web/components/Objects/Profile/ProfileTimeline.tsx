@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from '@components/ui/dialog'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { TimelineCanvas } from '@components/Objects/Timeline/TimelineCanvas'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { updateProfile } from '@services/settings/profile'
 
@@ -834,11 +835,6 @@ export default function ProfileTimeline({
   const [modal, setModal] = useState<TimelineModalState>({ open: false, mode: 'create', category: 'work' })
   const [draftEntry, setDraftEntry] = useState<TimelineEntry>(createEmptyEntry('work'))
 
-  const layout = useMemo(() => buildLayout(timeline), [timeline])
-  const timelineGridTemplate = useMemo(
-    () => `${TIMELINE_LABEL_COLUMN_WIDTH}px minmax(0, 1fr)`,
-    []
-  )
   const profileHref = profileUsername
     ? getUriWithOrg(orgslug, routePaths.org.user(profileUsername))
     : getUriWithOrg(orgslug, routePaths.org.profile())
@@ -930,100 +926,12 @@ export default function ProfileTimeline({
           </div>
 
           <div className="mt-8">
-            <div className="relative grid gap-2 sm:gap-3" style={{ gridTemplateColumns: timelineGridTemplate }}>
-                <div className="relative" style={{ height: layout.totalHeight }}>
-                  {layout.rows.map((row) => (
-                    row.kind === 'year' ? (
-                      <div key={`year-${row.year}`} className="absolute left-0 right-0" style={{ top: row.top, height: row.height }}>
-                        <div className="absolute right-0 flex h-5 -translate-y-1/2 items-center pr-1 text-right text-xs font-semibold text-gray-500 sm:pr-2 sm:text-sm" style={{ top: 0 }}>
-                          {row.year}
-                        </div>
-                      </div>
-                    ) : (
-                      <div key={`gap-${row.startYear}-${row.endYear}`} className="absolute left-0 right-0" style={{ top: row.top, height: row.height }}>
-                        <div className="absolute right-0 flex h-5 -translate-y-1/2 items-center pr-1 text-right text-xs font-semibold text-gray-500 sm:pr-2 sm:text-sm" style={{ top: 0 }}>
-                          {row.startYear}
-                        </div>
-                        <div className="flex h-full items-center justify-end pr-1 text-xs tracking-[0.25em] text-gray-300 sm:pr-2 sm:text-sm sm:tracking-[0.45em]">
-                          ...
-                        </div>
-                      </div>
-                    )
-                  ))}
-                  {layout.monthMarkers.map((marker) => (
-                    <div
-                      key={`month-${marker.key}`}
-                      className="absolute left-0 right-0 pr-1 text-right text-[10px] font-medium text-gray-400 sm:pr-2 sm:text-xs"
-                      style={{ top: marker.top - 8 }}
-                    >
-                      {formatMonthLabel(marker.month)}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="min-w-0 overflow-x-auto pb-4">
-                  <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-gray-50" style={{ width: layout.columnWidth, height: layout.totalHeight }}>
-                    {layout.rows.map((row) => (
-                      <div
-                        key={`timeline-${row.kind === 'year' ? row.year : `${row.startYear}-${row.endYear}`}`}
-                        className="absolute left-0 right-0 border-b border-gray-100/80"
-                        style={{ top: row.top, height: row.height }}
-                      >
-                        <div className={`absolute inset-y-0 left-0 w-full bg-gray-900 ${row.kind === 'year' ? 'opacity-[0.025]' : 'opacity-[0.015]'}`} />
-                        <div className="absolute left-0 top-0 h-px w-full bg-current text-gray-300" />
-                        {row.kind === 'gap' ? (
-                          <div className="absolute left-0 top-1/2 w-full -translate-y-1/2 text-center text-xs tracking-[0.4em] text-gray-300">...</div>
-                        ) : null}
-                      </div>
-                    ))}
-
-                    {(() => {
-                      const events = [...layout.events].sort((a, b) => a.sortTop - b.sortTop)
-
-                      return (
-                        <>
-                          {events.map((entry) => {
-                            const config = CATEGORY_CONFIG[entry.category]
-                            const left = 12 + (entry.lane * (TIMELINE_CARD_WIDTH + TIMELINE_LANE_GAP))
-                            const detail = entry.category === 'work' ? entry.employer : entry.category === 'education' ? entry.institution : ''
-
-                            return (
-                              <button
-                                key={entry.id}
-                                type="button"
-                                onClick={canEdit ? () => openEditModal(entry) : undefined}
-                                tabIndex={canEdit ? 0 : -1}
-                                aria-label={canEdit ? `Edit ${entry.title}` : undefined}
-                                className={`absolute z-10 overflow-hidden rounded-xl border border-gray-200 bg-white p-3 text-left shadow-[0_18px_45px_-28px_rgba(15,23,42,0.45)] transition ${canEdit ? 'hover:-translate-y-0.5 hover:shadow-[0_20px_50px_-26px_rgba(15,23,42,0.45)]' : 'cursor-default'}`}
-                                style={{
-                                  top: entry.top,
-                                  left,
-                                  width: TIMELINE_CARD_WIDTH,
-                                  height: entry.height,
-                                }}
-                              >
-                                <div className={`absolute inset-x-0 top-0 h-1.5 ${config.accent}`} />
-                                <div className="flex h-full flex-col">
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">{config.label}</p>
-                                      <p className="mt-1 truncate text-sm font-semibold leading-5 text-gray-950 sm:text-base sm:leading-6">{entry.title}</p>
-                                    </div>
-                                    {canEdit ? <Pencil className="mt-1 h-4 w-4 text-gray-400" /> : null}
-                                  </div>
-                                  <p className="mt-2 truncate text-sm font-medium text-gray-600">{formatEntryRange(entry)}</p>
-                                  {detail ? <p className="mt-2 truncate text-sm font-semibold text-gray-800">{detail}</p> : null}
-                                  {entry.description && entry.height >= 176 ? <p className="mt-2 line-clamp-3 text-sm leading-6 text-gray-600">{entry.description}</p> : null}
-                                </div>
-                              </button>
-                            )
-                          })}
-                        </>
-                      )
-                    })()}
-                  </div>
-                </div>
-              </div>
+            <TimelineCanvas
+              entries={timeline}
+              canInteract={canEdit}
+              emptyMessage="No timeline entries yet"
+              onEntryClick={(entry) => openEditModal(entry)}
+            />
           </div>
       </div>
 

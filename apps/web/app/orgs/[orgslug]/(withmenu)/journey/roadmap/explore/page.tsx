@@ -1,4 +1,4 @@
-import RoadmapExploreClient from './roadmap-explore-blocks'
+import RoadmapExploreClient from './roadmap-explore'
 
 export default async function RoadmapExplorePage(props: {
   params: Promise<{ orgslug: string }>

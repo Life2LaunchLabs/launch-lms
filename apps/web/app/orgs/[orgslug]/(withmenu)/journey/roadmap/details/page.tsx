@@ -1,4 +1,4 @@
-import RoadmapDetailsClient from './roadmap-details-blocks'
+import RoadmapDetailsClient from './roadmap-details'
 
 export default async function RoadmapDetailsPage(props: {
   params: Promise<{ orgslug: string }>

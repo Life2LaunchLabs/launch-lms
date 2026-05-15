@@ -5,14 +5,13 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import { toast } from 'react-hot-toast'
-import { ArrowLeft, BarChart3, Briefcase, CheckCircle2, ChevronDown, GraduationCap, Heart, Loader2, Plus, Route, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, BarChart3, Briefcase, CheckCircle2, ChevronDown, GraduationCap, Heart, Loader2, Plus, Route, Search, Sparkles, Trash2 } from 'lucide-react'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { Badge } from '@components/ui/badge'
 import { Button } from '@components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@components/ui/dialog'
 import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select'
@@ -20,52 +19,76 @@ import { Switch } from '@components/ui/switch'
 import { Textarea } from '@components/ui/textarea'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import {
-  createPathwayFromEndState,
-  createRoadmapEvent,
-  deleteRoadmapEvent,
-  getRoadmapEndStateOptions,
-  getRoadmapOptions,
-  RoadmapDetail,
-  RoadmapEndStateOption,
-  RoadmapEvent,
-  RoadmapEventCategory,
-  updateRoadmapEvent,
-} from '@services/roadmap/roadmap'
+  createRoadmapBlock,
+  createRoadmapPathway,
+  createRoadmapPathwayBlock,
+  deleteRoadmapPathwayBlock,
+  ensureDefaultRoadmapPathway,
+  getRoadmapBlocks,
+  getRoadmapPathways,
+  RoadmapBlock,
+  RoadmapBlockCategory,
+  RoadmapBlockType,
+  RoadmapPathwayBlock,
+  RoadmapPathwayDetail,
+  updateRoadmapBlock,
+  updateRoadmapPathwayBlock,
+} from '@services/roadmap/blocks'
+import RoadmapTimeline from './roadmap-timeline'
 
-type Props = {
-  orgslug: string
-  roadmapUuid?: string
-}
+type Props = { orgslug: string; roadmapUuid?: string }
+type PanelMode = 'select' | 'detail'
 
-type EventDraft = {
-  event_uuid?: string
-  category: RoadmapEventCategory
+type BlockDraft = {
+  lane_category: RoadmapBlockCategory
+  block_type: RoadmapBlockType
   title: string
   description: string
+  skill_fit_score: string
+  lifestyle_fit_score: string
+  confidence_score: string
+  target_annual_income: string
+  expected_annual_income_low: string
+  expected_annual_income_mid: string
+  expected_annual_income_high: string
+  default_monthly_income: string
+  default_monthly_expense: string
+  default_one_time_cost: string
+  notes: string
+}
+
+type InstanceDraft = {
   start_date: string
   end_date: string
   is_ongoing: boolean
-  estimated_monthly_income: string
-  estimated_monthly_expense: string
-  estimated_one_time_cost: string
+  title_override: string
+  description_override: string
+  monthly_income_override: string
+  monthly_expense_override: string
+  one_time_cost_override: string
+  notes: string
 }
 
-const categories = [
+const categories: Array<{ value: RoadmapBlockCategory; label: string; icon: React.ComponentType<{ className?: string }>; color: string }> = [
   { value: 'work', label: 'Work', icon: Briefcase, color: 'border-sky-200 bg-sky-50 text-sky-700' },
   { value: 'education', label: 'Education', icon: GraduationCap, color: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
   { value: 'life', label: 'Life', icon: Heart, color: 'border-rose-200 bg-rose-50 text-rose-700' },
-] as const
+]
+
+const blockTypeLabels: Record<RoadmapBlockType, string> = {
+  occupation: 'Occupation',
+  entrepreneurship: 'Entrepreneurship',
+  education: 'Education',
+  credential: 'Credential',
+  job: 'Job',
+  life: 'Life event',
+  finance: 'Finance',
+  custom: 'Custom',
+}
 
 function money(value?: number | null) {
   if (value === null || value === undefined) return '$0'
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)
-}
-
-function monthLabel(value?: string | null) {
-  if (!value) return 'Open'
-  const [year, month] = value.split('-').map(Number)
-  if (!year || !month) return value
-  return new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' }).format(new Date(year, month - 1, 1))
 }
 
 function toNumber(value: string) {
@@ -74,69 +97,76 @@ function toNumber(value: string) {
   return Number.isFinite(parsed) ? parsed : null
 }
 
-function emptyDraft(): EventDraft {
+function field(value?: number | null) {
+  return value === null || value === undefined ? '' : String(value)
+}
+
+function titleFor(item: RoadmapPathwayBlock) {
+  return item.title_override || item.block.title || 'Blank block'
+}
+
+function makeBlockDraft(block?: RoadmapBlock): BlockDraft {
   return {
-    category: 'work',
-    title: '',
-    description: '',
-    start_date: '',
-    end_date: '',
-    is_ongoing: false,
-    estimated_monthly_income: '',
-    estimated_monthly_expense: '',
-    estimated_one_time_cost: '',
+    lane_category: block?.lane_category || 'work',
+    block_type: block?.block_type || 'custom',
+    title: block?.title || '',
+    description: block?.description || '',
+    skill_fit_score: field(block?.skill_fit_score),
+    lifestyle_fit_score: field(block?.lifestyle_fit_score),
+    confidence_score: field(block?.confidence_score),
+    target_annual_income: field(block?.target_annual_income),
+    expected_annual_income_low: field(block?.expected_annual_income_low),
+    expected_annual_income_mid: field(block?.expected_annual_income_mid),
+    expected_annual_income_high: field(block?.expected_annual_income_high),
+    default_monthly_income: field(block?.default_monthly_income),
+    default_monthly_expense: field(block?.default_monthly_expense),
+    default_one_time_cost: field(block?.default_one_time_cost),
+    notes: block?.notes || '',
   }
 }
 
-function eventToDraft(event: RoadmapEvent): EventDraft {
+function makeInstanceDraft(item?: RoadmapPathwayBlock): InstanceDraft {
+  const year = new Date().getFullYear()
   return {
-    event_uuid: event.event_uuid,
-    category: event.category,
-    title: event.title,
-    description: event.description || '',
-    start_date: event.start_date,
-    end_date: event.end_date || '',
-    is_ongoing: event.is_ongoing,
-    estimated_monthly_income: event.estimated_monthly_income?.toString() || '',
-    estimated_monthly_expense: event.estimated_monthly_expense?.toString() || '',
-    estimated_one_time_cost: event.estimated_one_time_cost?.toString() || '',
+    start_date: item?.start_date || `${year}-01`,
+    end_date: item?.end_date || '',
+    is_ongoing: item?.is_ongoing || false,
+    title_override: item?.title_override || '',
+    description_override: item?.description_override || '',
+    monthly_income_override: field(item?.monthly_income_override),
+    monthly_expense_override: field(item?.monthly_expense_override),
+    one_time_cost_override: field(item?.one_time_cost_override),
+    notes: item?.notes || '',
   }
 }
 
-function PathChooser({
-  orgslug,
-  paths,
-  selected,
-  onCreate,
-}: {
-  orgslug: string
-  paths: RoadmapDetail[]
-  selected: RoadmapDetail
-  onCreate: () => void
-}) {
+function previousMonth(value: string) {
+  const [year, month] = value.split('-').map(Number)
+  if (!year || !month) return `${new Date().getFullYear()}-01`
+  const index = year * 12 + month - 2
+  return `${Math.floor(index / 12).toString().padStart(4, '0')}-${((index % 12) + 1).toString().padStart(2, '0')}`
+}
+
+function exploreInsertHref(orgslug: string, pathwayUuid?: string, targetBlockUuid?: string) {
+  const base = getUriWithOrg(orgslug, routePaths.org.journeyRoadmapExplore())
+  if (!pathwayUuid || !targetBlockUuid) return base
+  return `${base}?insertInto=${encodeURIComponent(pathwayUuid)}&targetBlock=${encodeURIComponent(targetBlockUuid)}`
+}
+
+function PathChooser({ orgslug, paths, selected, onCreate }: { orgslug: string; paths: RoadmapPathwayDetail[]; selected: RoadmapPathwayDetail; onCreate: () => void }) {
   const [open, setOpen] = useState(false)
-
   return (
     <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        className="flex max-w-full items-center gap-2 rounded-lg px-2 py-1 text-left hover:bg-gray-100"
-      >
-        <span className="truncate text-xl font-semibold text-gray-950">{selected.option.end_state_title}</span>
+      <button type="button" onClick={() => setOpen((value) => !value)} className="flex max-w-full items-center gap-2 rounded-lg px-2 py-1 text-left hover:bg-gray-100">
+        <span className="truncate text-xl font-semibold text-gray-950">{selected.pathway.title}</span>
         <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
       </button>
       {open ? (
-        <div className="absolute left-0 top-full z-30 mt-2 w-80 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl">
+        <div className="absolute left-0 top-full z-40 mt-2 w-80 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl">
           <div className="max-h-72 overflow-y-auto p-2">
             {paths.map((path) => (
-              <Link
-                key={path.option.roadmap_uuid}
-                href={getUriWithOrg(orgslug, routePaths.org.journeyRoadmapOption(path.option.roadmap_uuid))}
-                className="block rounded-lg px-3 py-2 hover:bg-gray-50"
-                onClick={() => setOpen(false)}
-              >
-                <div className="truncate text-sm font-semibold text-gray-950">{path.option.end_state_title}</div>
+              <Link key={path.pathway.pathway_uuid} href={getUriWithOrg(orgslug, routePaths.org.journeyRoadmapOption(path.pathway.pathway_uuid))} className="block rounded-lg px-3 py-2 hover:bg-gray-50" onClick={() => setOpen(false)}>
+                <div className="truncate text-sm font-semibold text-gray-950">{path.pathway.title}</div>
                 <div className="text-xs text-gray-500">{path.summary.total_months || 0} months · {money(path.summary.support_needed)} support</div>
               </Link>
             ))}
@@ -151,333 +181,397 @@ function PathChooser({
   )
 }
 
-function EventPanel({
-  detail,
-  selectedEvent,
+function BlockLibraryCard({ block, onSelect }: { block: RoadmapBlock; onSelect: () => void }) {
+  const category = categories.find((item) => item.value === block.lane_category) || categories[0]
+  const Icon = category.icon
+  return (
+    <button type="button" onClick={onSelect} className="w-full rounded-lg border border-gray-200 bg-white p-3 text-left hover:border-gray-950 hover:shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-semibold text-gray-950">{block.title || 'Untitled block'}</h3>
+          <p className="mt-1 line-clamp-2 text-xs text-gray-500">{block.description || 'Saved custom block'}</p>
+        </div>
+        {block.editable ? <Badge variant="outline">Custom</Badge> : <Badge variant="outline">Locked</Badge>}
+      </div>
+      <span className={`mt-3 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold ${category.color}`}><Icon className="h-3.5 w-3.5" />{category.label}</span>
+    </button>
+  )
+}
+
+function BlockPanel({
+  orgslug,
+  path,
+  selected,
+  blocks,
+  mode,
+  canBack,
   saving,
-  onSave,
-  onDelete,
+  onModeChange,
+  onSelectBlock,
+  onCreateCustom,
+  onSaveDefinition,
+  onSaveInstance,
+  onAddRequirement,
+  onDeleteInstance,
 }: {
-  detail: RoadmapDetail
-  selectedEvent?: RoadmapEvent
+  orgslug: string
+  path: RoadmapPathwayDetail
+  selected?: RoadmapPathwayBlock
+  blocks: RoadmapBlock[]
+  mode: PanelMode
+  canBack: boolean
   saving: boolean
-  onSave: (draft: EventDraft) => Promise<void>
-  onDelete: (event: RoadmapEvent) => Promise<void>
+  onModeChange: (mode: PanelMode) => void
+  onSelectBlock: (block: RoadmapBlock) => Promise<void>
+  onCreateCustom: () => Promise<void>
+  onSaveDefinition: (draft: BlockDraft) => Promise<void>
+  onSaveInstance: (draft: InstanceDraft) => Promise<void>
+  onAddRequirement: (block: RoadmapBlock) => Promise<void>
+  onDeleteInstance: () => Promise<void>
 }) {
-  const [draft, setDraft] = useState<EventDraft>(() => selectedEvent ? eventToDraft(selectedEvent) : emptyDraft())
+  const [definition, setDefinition] = useState<BlockDraft>(() => makeBlockDraft(selected?.block))
+  const [instance, setInstance] = useState<InstanceDraft>(() => makeInstanceDraft(selected))
 
   React.useEffect(() => {
-    setDraft(selectedEvent ? eventToDraft(selectedEvent) : emptyDraft())
-  }, [selectedEvent?.event_uuid])
+    setDefinition(makeBlockDraft(selected?.block))
+    setInstance(makeInstanceDraft(selected))
+  }, [selected?.pathway_block_uuid, selected?.block.block_uuid])
 
-  const submit = async () => {
-    if (!draft.title.trim() || !draft.start_date) {
-      toast.error('Title and start date are required')
-      return
-    }
-    await onSave(draft)
+  if (mode === 'select') {
+    const saved = blocks.filter((block) => block.starred || block.editable)
+    return (
+      <aside className="h-full overflow-y-auto border-l border-gray-200 bg-white p-5 shadow-[-18px_0_45px_-32px_rgba(15,23,42,0.55)]">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-950">Choose block</h2>
+            <p className="mt-1 text-sm text-gray-500">{selected ? 'Replace the selected timeline block.' : 'Insert a saved block into this pathway.'}</p>
+          </div>
+          {canBack ? <Button type="button" variant="outline" size="sm" onClick={() => onModeChange('detail')}><ArrowLeft className="mr-2 h-4 w-4" />Back</Button> : null}
+        </div>
+        <div className="mt-5 grid gap-2">
+          <Button asChild variant="outline" className="justify-start">
+            <Link href={exploreInsertHref(orgslug, path.pathway.pathway_uuid, selected?.pathway_block_uuid)}><Search className="mr-2 h-4 w-4" />Browse blocks</Link>
+          </Button>
+          <Button type="button" className="justify-start" onClick={onCreateCustom} disabled={saving}><Sparkles className="mr-2 h-4 w-4" />Create custom</Button>
+        </div>
+        <h3 className="mt-6 text-sm font-semibold text-gray-950">Saved blocks</h3>
+        <div className="mt-3 space-y-3">
+          {saved.map((block) => <BlockLibraryCard key={block.block_uuid} block={block} onSelect={() => onSelectBlock(block)} />)}
+          {!saved.length ? <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-sm text-gray-500">No saved blocks yet.</div> : null}
+        </div>
+      </aside>
+    )
   }
 
+  const editableDefinition = Boolean(selected?.block.editable)
   return (
     <aside className="h-full overflow-y-auto border-l border-gray-200 bg-white p-5 shadow-[-18px_0_45px_-32px_rgba(15,23,42,0.55)]">
-      <h2 className="text-lg font-semibold text-gray-950">{selectedEvent ? 'Step details' : 'Add step'}</h2>
-      <p className="mt-1 text-sm text-gray-500">{detail.option.end_state_title}</p>
-      <div className="mt-5 space-y-4">
-        <div className="space-y-2">
-          <Label>Type</Label>
-          <Select value={draft.category} onValueChange={(value) => setDraft({ ...draft, category: value as RoadmapEventCategory })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {categories.map((category) => <SelectItem key={category.value} value={category.value}>{category.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-950">{selected ? titleFor(selected) : 'Block details'}</h2>
+          <p className="mt-1 text-sm text-gray-500">{editableDefinition ? 'Custom block definition' : 'Locked library definition'}</p>
         </div>
-        <div className="space-y-2">
-          <Label>Title</Label>
-          <Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
-            <Label>Start</Label>
-            <Input type="month" value={draft.start_date} onChange={(event) => setDraft({ ...draft, start_date: event.target.value })} />
-          </div>
-          <div className="space-y-2">
-            <Label>End</Label>
-            <Input type="month" value={draft.end_date} disabled={draft.is_ongoing} onChange={(event) => setDraft({ ...draft, end_date: event.target.value })} />
-          </div>
-        </div>
-        <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
-          <Label>Ongoing</Label>
-          <Switch checked={draft.is_ongoing} onCheckedChange={(checked) => setDraft({ ...draft, is_ongoing: checked, end_date: checked ? '' : draft.end_date })} />
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          <div className="space-y-2">
-            <Label>Income/mo</Label>
-            <Input type="number" value={draft.estimated_monthly_income} onChange={(event) => setDraft({ ...draft, estimated_monthly_income: event.target.value })} />
-          </div>
-          <div className="space-y-2">
-            <Label>Expense/mo</Label>
-            <Input type="number" value={draft.estimated_monthly_expense} onChange={(event) => setDraft({ ...draft, estimated_monthly_expense: event.target.value })} />
-          </div>
-          <div className="space-y-2">
-            <Label>One-time</Label>
-            <Input type="number" value={draft.estimated_one_time_cost} onChange={(event) => setDraft({ ...draft, estimated_one_time_cost: event.target.value })} />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Label>Notes</Label>
-          <Textarea value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} className="min-h-28" />
-        </div>
-        <div className="flex gap-2">
-          {selectedEvent ? (
-            <Button type="button" variant="outline" className="text-red-600" onClick={() => onDelete(selectedEvent)} disabled={saving}>
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </Button>
-          ) : null}
-          <Button type="button" className="ml-auto" onClick={submit} disabled={saving}>
-            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Save
-          </Button>
-        </div>
+        <Button type="button" variant="outline" size="sm" onClick={() => onModeChange('select')}>Change</Button>
       </div>
+      {selected ? (
+        <div className="mt-5 space-y-6">
+          <section className="space-y-4">
+            <div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-gray-950">Block definition</h3>{!editableDefinition ? <Badge variant="outline">Locked</Badge> : null}</div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2"><Label>Lane</Label><Select disabled={!editableDefinition} value={definition.lane_category} onValueChange={(value) => setDefinition({ ...definition, lane_category: value as RoadmapBlockCategory })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{categories.map((category) => <SelectItem key={category.value} value={category.value}>{category.label}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-2"><Label>Type</Label><Select disabled={!editableDefinition} value={definition.block_type} onValueChange={(value) => setDefinition({ ...definition, block_type: value as RoadmapBlockType })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(blockTypeLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
+            </div>
+            <div className="space-y-2"><Label>Title</Label><Input disabled={!editableDefinition} value={definition.title} onChange={(event) => setDefinition({ ...definition, title: event.target.value })} /></div>
+            <div className="space-y-2"><Label>Description</Label><Textarea disabled={!editableDefinition} value={definition.description} onChange={(event) => setDefinition({ ...definition, description: event.target.value })} /></div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-2"><Label>Skill</Label><Input disabled={!editableDefinition} type="number" min={1} max={10} value={definition.skill_fit_score} onChange={(event) => setDefinition({ ...definition, skill_fit_score: event.target.value })} /></div>
+              <div className="space-y-2"><Label>Lifestyle</Label><Input disabled={!editableDefinition} type="number" min={1} max={10} value={definition.lifestyle_fit_score} onChange={(event) => setDefinition({ ...definition, lifestyle_fit_score: event.target.value })} /></div>
+              <div className="space-y-2"><Label>Confidence</Label><Input disabled={!editableDefinition} type="number" min={1} max={10} value={definition.confidence_score} onChange={(event) => setDefinition({ ...definition, confidence_score: event.target.value })} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2"><Label>Target income</Label><Input disabled={!editableDefinition} type="number" value={definition.target_annual_income} onChange={(event) => setDefinition({ ...definition, target_annual_income: event.target.value })} /></div>
+              <div className="space-y-2"><Label>Mid income</Label><Input disabled={!editableDefinition} type="number" value={definition.expected_annual_income_mid} onChange={(event) => setDefinition({ ...definition, expected_annual_income_mid: event.target.value })} /></div>
+              <div className="space-y-2"><Label>Income low</Label><Input disabled={!editableDefinition} type="number" value={definition.expected_annual_income_low} onChange={(event) => setDefinition({ ...definition, expected_annual_income_low: event.target.value })} /></div>
+              <div className="space-y-2"><Label>Income high</Label><Input disabled={!editableDefinition} type="number" value={definition.expected_annual_income_high} onChange={(event) => setDefinition({ ...definition, expected_annual_income_high: event.target.value })} /></div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-2"><Label>Income/mo</Label><Input disabled={!editableDefinition} type="number" value={definition.default_monthly_income} onChange={(event) => setDefinition({ ...definition, default_monthly_income: event.target.value })} /></div>
+              <div className="space-y-2"><Label>Expense/mo</Label><Input disabled={!editableDefinition} type="number" value={definition.default_monthly_expense} onChange={(event) => setDefinition({ ...definition, default_monthly_expense: event.target.value })} /></div>
+              <div className="space-y-2"><Label>One-time</Label><Input disabled={!editableDefinition} type="number" value={definition.default_one_time_cost} onChange={(event) => setDefinition({ ...definition, default_one_time_cost: event.target.value })} /></div>
+            </div>
+            <div className="space-y-2"><Label>Library notes</Label><Textarea disabled={!editableDefinition} value={definition.notes} onChange={(event) => setDefinition({ ...definition, notes: event.target.value })} /></div>
+            {editableDefinition ? <Button type="button" onClick={() => onSaveDefinition(definition)} disabled={saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Save definition</Button> : null}
+          </section>
+
+          <section className="space-y-4 border-t border-gray-200 pt-5">
+            <h3 className="text-sm font-semibold text-gray-950">Timeline placement</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2"><Label>Start</Label><Input type="month" value={instance.start_date} onChange={(event) => setInstance({ ...instance, start_date: event.target.value })} /></div>
+              <div className="space-y-2"><Label>End</Label><Input type="month" disabled={instance.is_ongoing} value={instance.end_date} onChange={(event) => setInstance({ ...instance, end_date: event.target.value })} /></div>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2"><Label>Ongoing</Label><Switch checked={instance.is_ongoing} onCheckedChange={(checked) => setInstance({ ...instance, is_ongoing: checked, end_date: checked ? '' : instance.end_date })} /></div>
+            <div className="space-y-2"><Label>Title override</Label><Input value={instance.title_override} onChange={(event) => setInstance({ ...instance, title_override: event.target.value })} /></div>
+            <div className="space-y-2"><Label>Placement notes</Label><Textarea value={instance.notes} onChange={(event) => setInstance({ ...instance, notes: event.target.value })} /></div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-2"><Label>Income/mo</Label><Input type="number" value={instance.monthly_income_override} onChange={(event) => setInstance({ ...instance, monthly_income_override: event.target.value })} /></div>
+              <div className="space-y-2"><Label>Expense/mo</Label><Input type="number" value={instance.monthly_expense_override} onChange={(event) => setInstance({ ...instance, monthly_expense_override: event.target.value })} /></div>
+              <div className="space-y-2"><Label>One-time</Label><Input type="number" value={instance.one_time_cost_override} onChange={(event) => setInstance({ ...instance, one_time_cost_override: event.target.value })} /></div>
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" className="text-red-600" onClick={onDeleteInstance} disabled={saving}><Trash2 className="mr-2 h-4 w-4" />Delete</Button>
+              <Button type="button" className="ml-auto" onClick={() => onSaveInstance(instance)} disabled={saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Save placement</Button>
+            </div>
+          </section>
+
+          <section className="space-y-3 border-t border-gray-200 pt-5">
+            <h3 className="text-sm font-semibold text-gray-950">Requirements</h3>
+            {selected.unmet_requirements.map((requirement) => (
+              <div key={requirement.requirement_uuid} className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-semibold text-amber-900"><AlertTriangle className="h-4 w-4" />{requirement.required_block.title}</div>
+                    <p className="mt-1 text-xs text-amber-800">Required before this block starts.</p>
+                  </div>
+                  <Button type="button" size="sm" onClick={() => onAddRequirement(requirement.required_block)} disabled={saving}><Plus className="mr-2 h-4 w-4" />Add</Button>
+                </div>
+              </div>
+            ))}
+            {!selected.unmet_requirements.length ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800"><CheckCircle2 className="mr-2 inline h-4 w-4" />Direct requirements are satisfied.</div> : null}
+          </section>
+        </div>
+      ) : <div className="mt-8 rounded-lg border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-500">Select a block on the timeline.</div>}
     </aside>
   )
 }
 
-function OptionGridModal({
-  open,
-  orgslug,
-  options,
-  onOpenChange,
-  onCreate,
-}: {
-  open: boolean
-  orgslug: string
-  options: RoadmapEndStateOption[]
-  onOpenChange: (open: boolean) => void
-  onCreate: (option: RoadmapEndStateOption) => Promise<void>
-}) {
-  const available = options.filter((option) => option.starred && !option.built_roadmap_uuid)
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl">
-        <DialogHeader>
-          <DialogTitle>Start a pathway</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-3 md:grid-cols-2">
-          {available.map((option) => (
-            <div key={option.option_uuid} className="rounded-lg border border-gray-200 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="font-semibold text-gray-950">{option.title}</h3>
-                  <p className="mt-1 line-clamp-2 text-sm text-gray-500">{option.description || 'Custom end state'}</p>
-                </div>
-                <Badge variant="outline" className="capitalize">{option.end_state_type}</Badge>
-              </div>
-              <Button type="button" className="mt-4 w-full" onClick={() => onCreate(option)}>Create pathway</Button>
-            </div>
-          ))}
-          {!available.length ? (
-            <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-8 text-center md:col-span-2">
-              <p className="font-semibold text-gray-900">No starred unbuilt options</p>
-              <Button asChild className="mt-4">
-                <Link href={getUriWithOrg(orgslug, routePaths.org.journeyRoadmapExplore())}>Explore more</Link>
-              </Button>
-            </div>
-          ) : null}
-        </div>
-        <Button asChild variant="outline">
-          <Link href={getUriWithOrg(orgslug, routePaths.org.journeyRoadmapExplore())}>Explore more</Link>
-        </Button>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-export default function RoadmapBuildWorkspace({ orgslug, roadmapUuid }: Props) {
+export default function RoadmapBuildWorkspaceBlocks({ orgslug, roadmapUuid }: Props) {
   const router = useRouter()
   const session = useLHSession() as any
   const org = useOrg() as any
   const accessToken = session?.data?.tokens?.access_token
   const orgId = org?.id
-  const [selectedEventUuid, setSelectedEventUuid] = useState<string | null>(null)
+  const [selectedBlockUuid, setSelectedBlockUuid] = useState<string | null>(null)
+  const [panelMode, setPanelMode] = useState<PanelMode>('select')
+  const [canBackToDetail, setCanBackToDetail] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [chooserOpen, setChooserOpen] = useState(false)
 
   const { data: paths = [], mutate: mutatePaths, isLoading } = useSWR(
-    orgId && accessToken ? ['roadmap-paths', orgId, accessToken] : null,
-    ([, currentOrgId, token]) => getRoadmapOptions(currentOrgId, token),
+    orgId && accessToken ? ['roadmap-block-paths', orgId, accessToken] : null,
+    async ([, currentOrgId, token]) => {
+      const list = await getRoadmapPathways(currentOrgId, token)
+      if (list.length) return list
+      const created = await ensureDefaultRoadmapPathway(currentOrgId, token)
+      return [created]
+    },
     { revalidateOnFocus: false }
   )
-  const { data: endStates = [], mutate: mutateEndStates } = useSWR(
-    orgId && accessToken ? ['roadmap-end-states', orgId, accessToken] : null,
-    ([, currentOrgId, token]) => getRoadmapEndStateOptions(currentOrgId, token),
+  const { data: library = [], mutate: mutateLibrary } = useSWR(
+    orgId && accessToken ? ['roadmap-block-library', orgId, accessToken] : null,
+    ([, currentOrgId, token]) => getRoadmapBlocks(currentOrgId, token),
     { revalidateOnFocus: false }
   )
 
-  const selected = useMemo(() => paths.find((path) => path.option.roadmap_uuid === roadmapUuid) || paths[0], [paths, roadmapUuid])
-  const selectedEvent = selected?.events.find((event) => event.event_uuid === selectedEventUuid)
+  const selected = useMemo(() => paths.find((path) => path.pathway.pathway_uuid === roadmapUuid) || paths[0], [paths, roadmapUuid])
+  const selectedBlock = selected?.blocks.find((block) => block.pathway_block_uuid === selectedBlockUuid) || selected?.blocks[0]
 
   React.useEffect(() => {
-    if (!roadmapUuid && selected?.option.roadmap_uuid) {
-      router.replace(getUriWithOrg(orgslug, routePaths.org.journeyRoadmapOption(selected.option.roadmap_uuid)))
-    }
-  }, [orgslug, roadmapUuid, router, selected?.option.roadmap_uuid])
+    if (!selected?.pathway.pathway_uuid) return
+    if (!roadmapUuid) router.replace(getUriWithOrg(orgslug, routePaths.org.journeyRoadmapOption(selected.pathway.pathway_uuid)))
+  }, [orgslug, roadmapUuid, router, selected?.pathway.pathway_uuid])
 
-  const refreshPath = async (promise: Promise<RoadmapDetail>, message: string) => {
-    if (!orgId || !accessToken) return
+  React.useEffect(() => {
+    if (!selected) return
+    const stillSelected = selected.blocks.some((block) => block.pathway_block_uuid === selectedBlockUuid)
+    if (!selectedBlockUuid || !stillSelected) {
+      const first = selected.blocks[0]
+      setSelectedBlockUuid(first?.pathway_block_uuid || null)
+      setPanelMode(first?.block.is_draft ? 'select' : 'detail')
+      setCanBackToDetail(false)
+    }
+  }, [selected, selectedBlockUuid])
+
+  const replacePath = async (next: RoadmapPathwayDetail) => {
+    await mutatePaths(paths.map((path) => path.pathway.pathway_uuid === next.pathway.pathway_uuid ? next : path), { revalidate: false })
+  }
+
+  const withSaving = async <T,>(message: string, action: () => Promise<T>) => {
     setSaving(true)
-    const loading = toast.loading('Saving pathway')
+    const loading = toast.loading('Saving roadmap')
     try {
-      const next = await promise
-      await mutatePaths(paths.map((path) => path.option.roadmap_uuid === next.option.roadmap_uuid ? next : path), { revalidate: false })
+      const result = await action()
       toast.success(message, { id: loading })
-      setSelectedEventUuid(null)
+      return result
     } catch {
-      toast.error('Could not save pathway', { id: loading })
+      toast.error('Could not save roadmap', { id: loading })
+      return undefined
     } finally {
       setSaving(false)
     }
   }
 
-  const createPath = async (option: RoadmapEndStateOption) => {
+  const addBlankBlock = async () => {
+    if (!orgId || !accessToken || !selected) return
+    const next = await withSaving('Blank block added', () => createRoadmapPathwayBlock(orgId, selected.pathway.pathway_uuid, { start_date: `${new Date().getFullYear()}-01`, title: 'Blank block' }, accessToken))
+    if (next) {
+      await replacePath(next)
+      setSelectedBlockUuid(next.blocks[next.blocks.length - 1]?.pathway_block_uuid || null)
+      setPanelMode('select')
+      setCanBackToDetail(false)
+    }
+  }
+
+  const createNewPathway = async () => {
     if (!orgId || !accessToken) return
-    const detail = await createPathwayFromEndState(orgId, option.option_uuid, accessToken)
-    await mutatePaths([detail, ...paths.filter((path) => path.option.roadmap_uuid !== detail.option.roadmap_uuid)], { revalidate: false })
-    await mutateEndStates()
-    setChooserOpen(false)
-    router.push(getUriWithOrg(orgslug, routePaths.org.journeyRoadmapOption(detail.option.roadmap_uuid)))
+    const next = await withSaving('Pathway created', () => createRoadmapPathway(orgId, { title: 'My Pathway' }, accessToken))
+    if (next) {
+      await mutatePaths([next, ...paths], { revalidate: false })
+      router.push(getUriWithOrg(orgslug, routePaths.org.journeyRoadmapOption(next.pathway.pathway_uuid)))
+    }
   }
 
-  if (isLoading) {
+  const selectLibraryBlock = async (block: RoadmapBlock) => {
+    if (!orgId || !accessToken || !selected) return
+    const target = selectedBlock
+    const next = await withSaving('Block added to pathway', () => target
+      ? updateRoadmapPathwayBlock(orgId, target.pathway_block_uuid, { block_uuid: block.block_uuid, title_override: null, description_override: null }, accessToken)
+      : createRoadmapPathwayBlock(orgId, selected.pathway.pathway_uuid, { block_uuid: block.block_uuid, start_date: `${new Date().getFullYear()}-01` }, accessToken))
+    if (next) {
+      await replacePath(next)
+      const updated = target ? next.blocks.find((item) => item.pathway_block_uuid === target.pathway_block_uuid) : next.blocks[next.blocks.length - 1]
+      setSelectedBlockUuid(updated?.pathway_block_uuid || null)
+      setPanelMode('detail')
+      setCanBackToDetail(false)
+    }
+  }
+
+  const createCustomForSelection = async () => {
+    if (!orgId || !accessToken) return
+    const block = await withSaving('Custom block created', () => createRoadmapBlock(orgId, { title: 'Untitled block', lane_category: 'work', block_type: 'custom', starred: true, is_draft: true }, accessToken))
+    if (!block) return
+    await mutateLibrary([block, ...library], { revalidate: false })
+    await selectLibraryBlock(block)
+  }
+
+  const saveDefinition = async (draft: BlockDraft) => {
+    if (!orgId || !accessToken || !selectedBlock) return
+    if (!draft.title.trim()) {
+      toast.error('Block title is required')
+      return
+    }
+    const block = await withSaving('Block definition saved', () => updateRoadmapBlock(orgId, selectedBlock.block.block_uuid, {
+      lane_category: draft.lane_category,
+      block_type: draft.block_type,
+      title: draft.title,
+      description: draft.description || null,
+      is_draft: false,
+      skill_fit_score: toNumber(draft.skill_fit_score),
+      lifestyle_fit_score: toNumber(draft.lifestyle_fit_score),
+      confidence_score: toNumber(draft.confidence_score),
+      target_annual_income: toNumber(draft.target_annual_income),
+      expected_annual_income_low: toNumber(draft.expected_annual_income_low),
+      expected_annual_income_mid: toNumber(draft.expected_annual_income_mid),
+      expected_annual_income_high: toNumber(draft.expected_annual_income_high),
+      default_monthly_income: toNumber(draft.default_monthly_income),
+      default_monthly_expense: toNumber(draft.default_monthly_expense),
+      default_one_time_cost: toNumber(draft.default_one_time_cost),
+      notes: draft.notes || null,
+      starred: true,
+    }, accessToken))
+    if (block) {
+      await mutateLibrary(library.map((item) => item.block_uuid === block.block_uuid ? block : item), { revalidate: false })
+      await mutatePaths()
+    }
+  }
+
+  const saveInstance = async (draft: InstanceDraft) => {
+    if (!orgId || !accessToken || !selectedBlock) return
+    if (!draft.start_date) {
+      toast.error('Start date is required')
+      return
+    }
+    const next = await withSaving('Timeline placement saved', () => updateRoadmapPathwayBlock(orgId, selectedBlock.pathway_block_uuid, {
+      start_date: draft.start_date,
+      end_date: draft.is_ongoing ? null : draft.end_date || null,
+      is_ongoing: draft.is_ongoing,
+      title_override: draft.title_override || null,
+      description_override: draft.description_override || null,
+      monthly_income_override: toNumber(draft.monthly_income_override),
+      monthly_expense_override: toNumber(draft.monthly_expense_override),
+      one_time_cost_override: toNumber(draft.one_time_cost_override),
+      notes: draft.notes || null,
+    }, accessToken))
+    if (next) await replacePath(next)
+  }
+
+  const addRequirement = async (block: RoadmapBlock) => {
+    if (!orgId || !accessToken || !selected || !selectedBlock) return
+    const date = previousMonth(selectedBlock.start_date)
+    const next = await withSaving('Requirement added', () => createRoadmapPathwayBlock(orgId, selected.pathway.pathway_uuid, { block_uuid: block.block_uuid, start_date: date, end_date: date, sort_order: selected.blocks.length + 1 }, accessToken))
+    if (next) {
+      await replacePath(next)
+      setSelectedBlockUuid(next.blocks[next.blocks.length - 1]?.pathway_block_uuid || selectedBlock.pathway_block_uuid)
+      setPanelMode('detail')
+    }
+  }
+
+  const deleteSelected = async () => {
+    if (!orgId || !accessToken || !selectedBlock) return
+    const next = await withSaving('Block removed', () => deleteRoadmapPathwayBlock(orgId, selectedBlock.pathway_block_uuid, accessToken))
+    if (next) {
+      await replacePath(next)
+      setSelectedBlockUuid(next.blocks[0]?.pathway_block_uuid || null)
+    }
+  }
+
+  if (isLoading || !selected) {
     return <GeneralWrapperStyled><div className="flex min-h-[420px] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-gray-400" /></div></GeneralWrapperStyled>
-  }
-
-  if (!selected) {
-    return (
-      <GeneralWrapperStyled>
-        <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-6 py-20 text-center">
-          <Route className="mx-auto h-10 w-10 text-gray-300" />
-          <h1 className="mt-4 text-2xl font-semibold text-gray-950">No pathways yet</h1>
-          <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-gray-500">Start in Explore by choosing or creating an end-state option, then turn it into a pathway.</p>
-          <Button asChild className="mt-5">
-            <Link href={getUriWithOrg(orgslug, routePaths.org.journeyRoadmapExplore())}>Get started</Link>
-          </Button>
-        </div>
-      </GeneralWrapperStyled>
-    )
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <GeneralWrapperStyled>
-        <Breadcrumbs items={[
-          { label: 'Journey', href: getUriWithOrg(orgslug, routePaths.org.journey()), icon: <Route size={14} /> },
-          { label: 'Roadmap' },
-        ]} />
+        <Breadcrumbs items={[{ label: 'Journey', href: getUriWithOrg(orgslug, routePaths.org.journey()), icon: <Route size={14} /> }, { label: 'Roadmap' }]} />
       </GeneralWrapperStyled>
-      <div className="grid min-h-[calc(100vh-180px)] grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)_380px]">
+      <div className="grid min-h-[calc(100vh-180px)] grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)_420px]">
         <aside className="border-r border-gray-200 bg-white p-5">
-          <Link href={getUriWithOrg(orgslug, routePaths.org.journey())} className="mb-5 inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-800">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Journey
-          </Link>
-          <PathChooser orgslug={orgslug} paths={paths} selected={selected} onCreate={() => setChooserOpen(true)} />
+          <Link href={getUriWithOrg(orgslug, routePaths.org.journey())} className="mb-5 inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-800"><ArrowLeft className="mr-2 h-4 w-4" />Journey</Link>
+          <PathChooser orgslug={orgslug} paths={paths} selected={selected} onCreate={createNewPathway} />
           <div className="mt-5 grid gap-3">
             <div className="rounded-lg border border-gray-200 p-3"><div className="text-xs text-gray-500">Timeline</div><div className="font-semibold">{selected.summary.total_months || 0} months</div></div>
             <div className="rounded-lg border border-gray-200 p-3"><div className="text-xs text-gray-500">Support needed</div><div className="font-semibold">{money(selected.summary.support_needed)}</div></div>
-            <div className="rounded-lg border border-gray-200 p-3"><div className="text-xs text-gray-500">Expected income</div><div className="font-semibold">{money(selected.summary.income_mid)}</div></div>
+            <div className="rounded-lg border border-gray-200 p-3"><div className="text-xs text-gray-500">Unmet requirements</div><div className="font-semibold">{selected.summary.unmet_requirement_count}</div></div>
           </div>
-          <Button asChild variant="outline" className="mt-5 w-full">
-            <Link href={getUriWithOrg(orgslug, routePaths.org.journeyRoadmapDetails(selected.option.roadmap_uuid))}>
-              <BarChart3 className="mr-2 h-4 w-4" />
-              Path details
-            </Link>
-          </Button>
+          <Button asChild variant="outline" className="mt-5 w-full"><Link href={getUriWithOrg(orgslug, routePaths.org.journeyRoadmapDetails(selected.pathway.pathway_uuid))}><BarChart3 className="mr-2 h-4 w-4" />Path details</Link></Button>
         </aside>
 
         <main className="min-w-0 p-5">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-semibold text-gray-950">Build</h1>
-              <p className="text-sm text-gray-500">Timeline blocks can overlap. Click a block to edit its details.</p>
+              <p className="text-sm text-gray-500">Place reusable blocks on the timeline, then resolve direct requirements as they appear.</p>
             </div>
-            <Button type="button" onClick={() => setSelectedEventUuid(null)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add block
-            </Button>
+            <Button type="button" onClick={addBlankBlock}><Plus className="mr-2 h-4 w-4" />Add block</Button>
           </div>
-          <div className="relative min-h-[620px] overflow-x-auto rounded-lg border border-gray-200 bg-white p-5">
-            <div className="min-w-[760px] space-y-4">
-              {[...selected.events].sort((a, b) => a.start_date.localeCompare(b.start_date)).map((event) => {
-                const category = categories.find((item) => item.value === event.category) || categories[0]
-                const Icon = category.icon
-                return (
-                  <button
-                    key={event.event_uuid}
-                    type="button"
-                    onClick={() => setSelectedEventUuid(event.event_uuid)}
-                    className={`grid w-full grid-cols-[150px_minmax(0,1fr)_180px] gap-4 rounded-lg border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md ${selectedEventUuid === event.event_uuid ? 'border-gray-950' : 'border-gray-200'}`}
-                  >
-                    <div className="text-sm font-semibold text-gray-700">{monthLabel(event.start_date)}<span className="block text-xs font-normal text-gray-400">{event.is_ongoing ? 'Ongoing' : monthLabel(event.end_date)}</span></div>
-                    <div>
-                      <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold ${category.color}`}><Icon className="h-3.5 w-3.5" />{category.label}</span>
-                      <h3 className="mt-2 font-semibold text-gray-950">{event.title}</h3>
-                      {event.description ? <p className="mt-1 line-clamp-2 text-sm text-gray-500">{event.description}</p> : null}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      <div>Income {money(event.estimated_monthly_income)}/mo</div>
-                      <div>Expense {money(event.estimated_monthly_expense)}/mo</div>
-                      <div>Cost {money(event.estimated_one_time_cost)}</div>
-                    </div>
-                  </button>
-                )
-              })}
-              {!selected.events.length ? (
-                <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-6 py-20 text-center">
-                  <p className="font-semibold text-gray-900">No blocks yet</p>
-                  <p className="mt-2 text-sm text-gray-500">Add a work, education, or life block to start building.</p>
-                </div>
-              ) : null}
-            </div>
-          </div>
+          <RoadmapTimeline path={selected} selectedUuid={selectedBlock?.pathway_block_uuid || null} onSelect={(uuid) => { setSelectedBlockUuid(uuid); setPanelMode('detail'); setCanBackToDetail(false) }} onAdd={addBlankBlock} />
         </main>
 
-        <EventPanel
-          detail={selected}
-          selectedEvent={selectedEvent}
+        <BlockPanel
+          orgslug={orgslug}
+          path={selected}
+          selected={selectedBlock}
+          blocks={library}
+          mode={panelMode}
+          canBack={canBackToDetail}
           saving={saving}
-          onSave={(draft) => refreshPath(
-            draft.event_uuid
-              ? updateRoadmapEvent(orgId, draft.event_uuid, {
-                category: draft.category,
-                title: draft.title,
-                description: draft.description || null,
-                start_date: draft.start_date,
-                end_date: draft.is_ongoing ? null : draft.end_date || null,
-                is_ongoing: draft.is_ongoing,
-                estimated_monthly_income: toNumber(draft.estimated_monthly_income),
-                estimated_monthly_expense: toNumber(draft.estimated_monthly_expense),
-                estimated_one_time_cost: toNumber(draft.estimated_one_time_cost),
-              }, accessToken)
-              : createRoadmapEvent(orgId, selected.option.roadmap_uuid, {
-                category: draft.category,
-                title: draft.title,
-                description: draft.description || null,
-                start_date: draft.start_date,
-                end_date: draft.is_ongoing ? null : draft.end_date || null,
-                is_ongoing: draft.is_ongoing,
-                estimated_monthly_income: toNumber(draft.estimated_monthly_income),
-                estimated_monthly_expense: toNumber(draft.estimated_monthly_expense),
-                estimated_one_time_cost: toNumber(draft.estimated_one_time_cost),
-              }, accessToken),
-            'Pathway saved'
-          )}
-          onDelete={(event) => refreshPath(deleteRoadmapEvent(orgId, event.event_uuid, accessToken), 'Block deleted')}
+          onModeChange={(mode) => { setPanelMode(mode); setCanBackToDetail(mode === 'select') }}
+          onSelectBlock={selectLibraryBlock}
+          onCreateCustom={createCustomForSelection}
+          onSaveDefinition={saveDefinition}
+          onSaveInstance={saveInstance}
+          onAddRequirement={addRequirement}
+          onDeleteInstance={deleteSelected}
         />
       </div>
-      <OptionGridModal open={chooserOpen} orgslug={orgslug} options={endStates} onOpenChange={setChooserOpen} onCreate={createPath} />
     </div>
   )
 }

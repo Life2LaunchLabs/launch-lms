@@ -1,7 +1,7 @@
 """refactor roadmap to blocks and pathways
 
 Revision ID: y6z7a8b9c0d1
-Revises: x5y6z7a8b9c0
+Revises: h3i4j5k6l7m8
 Create Date: 2026-05-14
 """
 
@@ -12,12 +12,16 @@ import sqlalchemy as sa
 
 
 revision: str = "y6z7a8b9c0d1"
-down_revision: Union[str, None] = "x5y6z7a8b9c0"
+down_revision: Union[str, None] = "h3i4j5k6l7m8"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing_tables = set(inspector.get_table_names())
+
     op.create_table(
         "roadmapblockdefinition",
         sa.Column("id", sa.Integer(), nullable=False),
@@ -119,69 +123,70 @@ def upgrade() -> None:
     op.create_index(op.f("ix_roadmappathwayblock_pathway_id"), "roadmappathwayblock", ["pathway_id"])
     op.create_index(op.f("ix_roadmappathwayblock_block_id"), "roadmappathwayblock", ["block_id"])
 
-    op.execute(
-        """
-        INSERT INTO roadmapblockdefinition (
-            block_uuid, org_id, owner_user_id, visibility, lane_category, block_type, title, description, starred, is_draft,
-            skill_fit_score, lifestyle_fit_score, confidence_score, target_annual_income,
-            expected_annual_income_low, expected_annual_income_mid, expected_annual_income_high,
-            notes, creation_date, update_date
+    if "userroadmapendstateoption" in existing_tables:
+        op.execute(
+            """
+            INSERT INTO roadmapblockdefinition (
+                block_uuid, org_id, owner_user_id, visibility, lane_category, block_type, title, description, starred, is_draft,
+                skill_fit_score, lifestyle_fit_score, confidence_score, target_annual_income,
+                expected_annual_income_low, expected_annual_income_mid, expected_annual_income_high,
+                notes, creation_date, update_date
+            )
+            SELECT option_uuid, org_id, user_id, 'user', 'work', end_state_type, title, description, starred, false,
+                skill_fit_score, lifestyle_fit_score, confidence_score, target_annual_income,
+                expected_annual_income_low, expected_annual_income_mid, expected_annual_income_high,
+                notes, creation_date, update_date
+            FROM userroadmapendstateoption
+            """
         )
-        SELECT option_uuid, org_id, user_id, 'user', 'work', end_state_type, title, description, starred, false,
-            skill_fit_score, lifestyle_fit_score, confidence_score, target_annual_income,
-            expected_annual_income_low, expected_annual_income_mid, expected_annual_income_high,
-            notes, creation_date, update_date
-        FROM userroadmapendstateoption
-        """
-    )
-    op.execute(
-        """
-        INSERT INTO roadmappathway (pathway_uuid, user_id, org_id, title, description, status, creation_date, update_date)
-        SELECT roadmap_uuid, user_id, org_id, title, description, status, creation_date, update_date
-        FROM userroadmapoption
-        """
-    )
-    op.execute(
-        """
-        INSERT INTO roadmapblockdefinition (
-            block_uuid, org_id, owner_user_id, visibility, lane_category, block_type, title, description, starred, is_draft,
-            default_monthly_income, default_monthly_expense, default_one_time_cost, creation_date, update_date
+    if "userroadmapoption" in existing_tables:
+        op.execute(
+            """
+            INSERT INTO roadmappathway (pathway_uuid, user_id, org_id, title, description, status, creation_date, update_date)
+            SELECT roadmap_uuid, user_id, org_id, title, description, status, creation_date, update_date
+            FROM userroadmapoption
+            """
         )
-        SELECT event_uuid || '_definition', o.org_id, o.user_id, 'user', e.category,
-            CASE
-                WHEN e.category = 'work' THEN 'job'
-                WHEN e.category = 'education' THEN 'education'
-                WHEN e.category = 'life' THEN 'life'
-                ELSE 'custom'
-            END,
-            e.title, e.description, true, false,
-            e.estimated_monthly_income, e.estimated_monthly_expense, e.estimated_one_time_cost, e.creation_date, e.update_date
-        FROM userroadmapevent e
-        JOIN userroadmapoption o ON o.id = e.roadmap_option_id
-        """
-    )
-    op.execute(
-        """
-        INSERT INTO roadmappathwayblock (
-            pathway_block_uuid, pathway_id, block_id, start_date, end_date, is_ongoing,
-            monthly_income_override, monthly_expense_override, one_time_cost_override,
-            sort_order, creation_date, update_date
+    if "userroadmapevent" in existing_tables and "userroadmapoption" in existing_tables:
+        op.execute(
+            """
+            INSERT INTO roadmapblockdefinition (
+                block_uuid, org_id, owner_user_id, visibility, lane_category, block_type, title, description, starred, is_draft,
+                default_monthly_income, default_monthly_expense, default_one_time_cost, creation_date, update_date
+            )
+            SELECT event_uuid || '_definition', o.org_id, o.user_id, 'user', e.category,
+                CASE
+                    WHEN e.category = 'work' THEN 'job'
+                    WHEN e.category = 'education' THEN 'education'
+                    WHEN e.category = 'life' THEN 'life'
+                    ELSE 'custom'
+                END,
+                e.title, e.description, true, false,
+                e.estimated_monthly_income, e.estimated_monthly_expense, e.estimated_one_time_cost, e.creation_date, e.update_date
+            FROM userroadmapevent e
+            JOIN userroadmapoption o ON o.id = e.roadmap_option_id
+            """
         )
-        SELECT e.event_uuid, p.id, b.id, e.start_date, e.end_date, e.is_ongoing,
-            e.estimated_monthly_income, e.estimated_monthly_expense, e.estimated_one_time_cost,
-            e.sort_order, e.creation_date, e.update_date
-        FROM userroadmapevent e
-        JOIN userroadmapoption o ON o.id = e.roadmap_option_id
-        JOIN roadmappathway p ON p.pathway_uuid = o.roadmap_uuid
-        JOIN roadmapblockdefinition b ON b.block_uuid = e.event_uuid || '_definition'
-        """
-    )
+        op.execute(
+            """
+            INSERT INTO roadmappathwayblock (
+                pathway_block_uuid, pathway_id, block_id, start_date, end_date, is_ongoing,
+                monthly_income_override, monthly_expense_override, one_time_cost_override,
+                sort_order, creation_date, update_date
+            )
+            SELECT e.event_uuid, p.id, b.id, e.start_date, e.end_date, e.is_ongoing,
+                e.estimated_monthly_income, e.estimated_monthly_expense, e.estimated_one_time_cost,
+                e.sort_order, e.creation_date, e.update_date
+            FROM userroadmapevent e
+            JOIN userroadmapoption o ON o.id = e.roadmap_option_id
+            JOIN roadmappathway p ON p.pathway_uuid = o.roadmap_uuid
+            JOIN roadmapblockdefinition b ON b.block_uuid = e.event_uuid || '_definition'
+            """
+        )
 
-    op.drop_table("userroadmapevent")
-    op.drop_table("userroadmaprequirement")
-    op.drop_table("userroadmapoption")
-    op.drop_table("userroadmaptemplateevent")
-    op.drop_table("userroadmapendstateoption")
+    for table_name in ("userroadmapevent", "userroadmaprequirement", "userroadmapoption", "userroadmaptemplateevent", "userroadmapendstateoption"):
+        if table_name in existing_tables:
+            op.drop_table(table_name)
 
 
 def downgrade() -> None:

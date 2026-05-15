@@ -16,84 +16,61 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@components/ui
 import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select'
-import { Switch } from '@components/ui/switch'
 import { Textarea } from '@components/ui/textarea'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import {
-  createPathwayFromEndState,
-  createRoadmapEndStateOption,
-  createRoadmapTemplateEvent,
-  getRoadmapEndStateOptions,
-  RoadmapEndStateOption,
-  RoadmapEndStateType,
-  RoadmapEventCategory,
-  RoadmapTemplateEvent,
-  updateRoadmapEndStateOption,
-} from '@services/roadmap/roadmap'
+import { createRoadmapBlock, createRoadmapPathwayBlock, getRoadmapBlocks, RoadmapBlock, RoadmapBlockCategory, RoadmapBlockType, updateRoadmapBlock, updateRoadmapPathwayBlock } from '@services/roadmap/blocks'
 
-type Props = { orgslug: string }
-
-type OptionDraft = {
+type Props = { orgslug: string; insertInto?: string; targetBlock?: string }
+type Draft = {
   title: string
   description: string
-  end_state_type: RoadmapEndStateType
-  skill_fit_score: number
-  lifestyle_fit_score: number
-  confidence_score: number
+  lane_category: RoadmapBlockCategory
+  block_type: RoadmapBlockType
+  skill_fit_score: string
+  lifestyle_fit_score: string
+  confidence_score: string
   target_annual_income: string
   expected_annual_income_low: string
   expected_annual_income_mid: string
   expected_annual_income_high: string
+  default_monthly_income: string
+  default_monthly_expense: string
+  default_one_time_cost: string
   notes: string
 }
 
-type BlockDraft = {
-  category: RoadmapEventCategory
-  title: string
-  description: string
-  start_offset_months: string
-  duration_months: string
-  fork_group_key: string
-  dependency_key: string
-  optional: boolean
-  estimated_monthly_income: string
-  estimated_monthly_expense: string
-  estimated_one_time_cost: string
-}
-
-const defaultOption: OptionDraft = {
+const defaultDraft: Draft = {
   title: '',
   description: '',
-  end_state_type: 'occupation',
-  skill_fit_score: 5,
-  lifestyle_fit_score: 5,
-  confidence_score: 5,
+  lane_category: 'work',
+  block_type: 'custom',
+  skill_fit_score: '',
+  lifestyle_fit_score: '',
+  confidence_score: '',
   target_annual_income: '',
   expected_annual_income_low: '',
   expected_annual_income_mid: '',
   expected_annual_income_high: '',
+  default_monthly_income: '',
+  default_monthly_expense: '',
+  default_one_time_cost: '',
   notes: '',
 }
 
-const defaultBlock: BlockDraft = {
-  category: 'education',
-  title: '',
-  description: '',
-  start_offset_months: '0',
-  duration_months: '12',
-  fork_group_key: '',
-  dependency_key: '',
-  optional: false,
-  estimated_monthly_income: '',
-  estimated_monthly_expense: '',
-  estimated_one_time_cost: '',
+const categories: Record<RoadmapBlockCategory, { label: string; icon: React.ComponentType<{ className?: string }>; className: string }> = {
+  work: { label: 'Work', icon: Briefcase, className: 'border-sky-200 bg-sky-50 text-sky-700' },
+  education: { label: 'Education', icon: GraduationCap, className: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
+  life: { label: 'Life', icon: Heart, className: 'border-rose-200 bg-rose-50 text-rose-700' },
 }
 
-const typeLabels: Record<RoadmapEndStateType, string> = {
+const typeLabels: Record<RoadmapBlockType, string> = {
   occupation: 'Occupation',
   entrepreneurship: 'Entrepreneurship',
   education: 'Education',
-  life: 'Life',
+  credential: 'Credential',
+  job: 'Job',
+  life: 'Life event',
+  finance: 'Finance',
   custom: 'Custom',
 }
 
@@ -108,156 +85,118 @@ function num(value: string) {
   return Number.isFinite(parsed) ? parsed : null
 }
 
-function score({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between"><Label>{label}</Label><span className="text-xs font-semibold text-gray-500">{value}/10</span></div>
-      <input type="range" min={1} max={10} value={value} onChange={(event) => onChange(Number(event.target.value))} className="w-full accent-gray-950" />
-    </div>
-  )
-}
-
-function OptionCard({
-  option,
-  onOpen,
-  onToggleStar,
-  onBuild,
-}: {
-  option: RoadmapEndStateOption
-  onOpen: () => void
-  onToggleStar: () => void
-  onBuild: () => void
-}) {
+function BlockCard({ block, inserting, onOpen, onToggleStar, onInsert }: { block: RoadmapBlock; inserting: boolean; onOpen: () => void; onToggleStar: () => void; onInsert: () => void }) {
+  const category = categories[block.lane_category]
+  const Icon = category.icon
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
       <button type="button" onClick={onOpen} className="block w-full text-left">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-lg font-semibold text-gray-950">{option.title}</h3>
-            <p className="mt-1 line-clamp-2 text-sm text-gray-500">{option.description || 'Custom end-state option'}</p>
+            <h3 className="text-lg font-semibold text-gray-950">{block.title || 'Untitled block'}</h3>
+            <p className="mt-1 line-clamp-2 text-sm text-gray-500">{block.description || 'Custom roadmap block'}</p>
           </div>
-          <Badge variant="outline">{typeLabels[option.end_state_type]}</Badge>
+          <Badge variant="outline">{typeLabels[block.block_type]}</Badge>
         </div>
+        <span className={`mt-4 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold ${category.className}`}><Icon className="h-3.5 w-3.5" />{category.label}</span>
         <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
-          <div className="rounded-lg bg-gray-50 p-2"><div className="font-semibold">{option.skill_fit_score ?? '-'}</div><div className="text-xs text-gray-500">Skill</div></div>
-          <div className="rounded-lg bg-gray-50 p-2"><div className="font-semibold">{option.lifestyle_fit_score ?? '-'}</div><div className="text-xs text-gray-500">Life</div></div>
-          <div className="rounded-lg bg-gray-50 p-2"><div className="font-semibold">{option.confidence_score ?? '-'}</div><div className="text-xs text-gray-500">Conf.</div></div>
+          <div className="rounded-lg bg-gray-50 p-2"><div className="font-semibold">{block.skill_fit_score ?? '-'}</div><div className="text-xs text-gray-500">Skill</div></div>
+          <div className="rounded-lg bg-gray-50 p-2"><div className="font-semibold">{block.lifestyle_fit_score ?? '-'}</div><div className="text-xs text-gray-500">Life</div></div>
+          <div className="rounded-lg bg-gray-50 p-2"><div className="font-semibold">{block.confidence_score ?? '-'}</div><div className="text-xs text-gray-500">Conf.</div></div>
         </div>
       </button>
       <div className="mt-4 flex gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={onToggleStar}>
-          <Star className={`mr-2 h-4 w-4 ${option.starred ? 'fill-gray-950' : ''}`} />
-          {option.starred ? 'Starred' : 'Star'}
+        <Button type="button" variant="outline" size="sm" onClick={onToggleStar} disabled={!block.editable}>
+          <Star className={`mr-2 h-4 w-4 ${block.starred ? 'fill-gray-950' : ''}`} />
+          {block.starred ? 'Starred' : 'Star'}
         </Button>
-        <Button type="button" size="sm" className="ml-auto" onClick={onBuild} disabled={Boolean(option.built_roadmap_uuid)}>
-          {option.built_roadmap_uuid ? <CheckCircle2 className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
-          {option.built_roadmap_uuid ? 'Built' : 'Create pathway'}
+        <Button type="button" size="sm" className="ml-auto" onClick={onInsert}>
+          {inserting ? <Plus className="mr-2 h-4 w-4" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+          {inserting ? 'Add to pathway' : 'View'}
         </Button>
       </div>
     </div>
   )
 }
 
-function TemplateBlockRow({ block }: { block: RoadmapTemplateEvent }) {
-  const Icon = block.category === 'work' ? Briefcase : block.category === 'education' ? GraduationCap : Heart
-  return (
-    <div className="rounded-lg border border-gray-200 p-3">
-      <div className="flex items-center gap-2">
-        <Icon className="h-4 w-4 text-gray-500" />
-        <span className="font-semibold text-gray-950">{block.title}</span>
-        {block.optional ? <Badge variant="outline">Optional</Badge> : null}
-        {block.fork_group_key ? <Badge variant="outline">Fork {block.fork_group_key}</Badge> : null}
-      </div>
-      <p className="mt-1 text-sm text-gray-500">{block.duration_months} months · starts month {block.start_offset_months + 1}</p>
-    </div>
-  )
-}
-
-export default function RoadmapExploreClient({ orgslug }: Props) {
+export default function RoadmapExploreBlocksClient({ orgslug, insertInto, targetBlock }: Props) {
   const router = useRouter()
   const session = useLHSession() as any
   const org = useOrg() as any
   const accessToken = session?.data?.tokens?.access_token
   const orgId = org?.id
+  const inserting = Boolean(insertInto)
   const [createOpen, setCreateOpen] = useState(false)
-  const [selected, setSelected] = useState<RoadmapEndStateOption | null>(null)
-  const [draft, setDraft] = useState<OptionDraft>(defaultOption)
-  const [block, setBlock] = useState<BlockDraft>(defaultBlock)
+  const [selected, setSelected] = useState<RoadmapBlock | null>(null)
+  const [draft, setDraft] = useState<Draft>(defaultDraft)
   const [saving, setSaving] = useState(false)
-
-  const { data: options = [], isLoading, mutate } = useSWR(
-    orgId && accessToken ? ['roadmap-end-state-options', orgId, accessToken] : null,
-    ([, currentOrgId, token]) => getRoadmapEndStateOptions(currentOrgId, token),
+  const { data: blocks = [], isLoading, mutate } = useSWR(
+    orgId && accessToken ? ['roadmap-block-explore', orgId, accessToken] : null,
+    ([, currentOrgId, token]) => getRoadmapBlocks(currentOrgId, token),
     { revalidateOnFocus: false }
   )
+
+  const insertBlock = async (block: RoadmapBlock) => {
+    if (!orgId || !accessToken || !insertInto) {
+      setSelected(block)
+      return
+    }
+    const loading = toast.loading('Adding block')
+    try {
+      if (targetBlock) {
+        await updateRoadmapPathwayBlock(orgId, targetBlock, { block_uuid: block.block_uuid, title_override: null, description_override: null }, accessToken)
+      } else {
+        await createRoadmapPathwayBlock(orgId, insertInto, { block_uuid: block.block_uuid, start_date: `${new Date().getFullYear()}-01` }, accessToken)
+      }
+      toast.success('Block added', { id: loading })
+      router.push(getUriWithOrg(orgslug, routePaths.org.journeyRoadmapOption(insertInto)))
+    } catch {
+      toast.error('Could not add block', { id: loading })
+    }
+  }
 
   const saveCustom = async () => {
     if (!orgId || !accessToken) return
     if (!draft.title.trim()) {
-      toast.error('End state title is required')
+      toast.error('Block title is required')
       return
     }
     setSaving(true)
-    const loading = toast.loading('Saving option')
+    const loading = toast.loading('Saving block')
     try {
-      const option = await createRoadmapEndStateOption(orgId, {
+      const block = await createRoadmapBlock(orgId, {
         title: draft.title,
         description: draft.description || null,
-        end_state_type: draft.end_state_type,
+        lane_category: draft.lane_category,
+        block_type: draft.block_type,
         starred: true,
-        skill_fit_score: draft.skill_fit_score,
-        lifestyle_fit_score: draft.lifestyle_fit_score,
-        confidence_score: draft.confidence_score,
+        is_draft: false,
+        skill_fit_score: num(draft.skill_fit_score),
+        lifestyle_fit_score: num(draft.lifestyle_fit_score),
+        confidence_score: num(draft.confidence_score),
         target_annual_income: num(draft.target_annual_income),
         expected_annual_income_low: num(draft.expected_annual_income_low),
         expected_annual_income_mid: num(draft.expected_annual_income_mid),
         expected_annual_income_high: num(draft.expected_annual_income_high),
+        default_monthly_income: num(draft.default_monthly_income),
+        default_monthly_expense: num(draft.default_monthly_expense),
+        default_one_time_cost: num(draft.default_one_time_cost),
         notes: draft.notes || null,
       }, accessToken)
-      await mutate([option, ...options], { revalidate: false })
-      setSelected(option)
+      await mutate([block, ...blocks], { revalidate: false })
       setCreateOpen(false)
-      setDraft(defaultOption)
-      toast.success('Option saved', { id: loading })
+      setDraft(defaultDraft)
+      toast.success('Block saved', { id: loading })
+      if (inserting) await insertBlock(block)
+      else setSelected(block)
     } catch {
-      toast.error('Could not save option', { id: loading })
+      toast.error('Could not save block', { id: loading })
     } finally {
       setSaving(false)
     }
   }
 
-  const saveBlock = async () => {
-    if (!orgId || !accessToken || !selected) return
-    if (!block.title.trim()) {
-      toast.error('Block title is required')
-      return
-    }
-    const updated = await createRoadmapTemplateEvent(orgId, selected.option_uuid, {
-      category: block.category,
-      title: block.title,
-      description: block.description || null,
-      start_offset_months: Number(block.start_offset_months || 0),
-      duration_months: Number(block.duration_months || 1),
-      dependency_key: block.dependency_key || null,
-      fork_group_key: block.fork_group_key || null,
-      optional: block.optional,
-      estimated_monthly_income: num(block.estimated_monthly_income),
-      estimated_monthly_expense: num(block.estimated_monthly_expense),
-      estimated_one_time_cost: num(block.estimated_one_time_cost),
-    }, accessToken)
-    setSelected(updated)
-    await mutate(options.map((option) => option.option_uuid === updated.option_uuid ? updated : option), { revalidate: false })
-    setBlock(defaultBlock)
-  }
-
-  const buildPathway = async (option: RoadmapEndStateOption) => {
-    if (!orgId || !accessToken) return
-    const detail = await createPathwayFromEndState(orgId, option.option_uuid, accessToken)
-    await mutate()
-    router.push(getUriWithOrg(orgslug, routePaths.org.journeyRoadmapOption(detail.option.roadmap_uuid)))
-  }
-
-  const starred = options.filter((option) => option.starred)
+  const starred = blocks.filter((block) => block.starred)
 
   return (
     <GeneralWrapperStyled>
@@ -268,94 +207,79 @@ export default function RoadmapExploreClient({ orgslug }: Props) {
       ]} />
       <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <Link href={getUriWithOrg(orgslug, routePaths.org.journeyRoadmap())} className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-800">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Build workspace
-          </Link>
-          <h1 className="mt-2 text-3xl font-semibold text-gray-950">Explore Path Options</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">Star end states you are interested in, define starter blocks, then create pathways when ready.</p>
+          <Link href={insertInto ? getUriWithOrg(orgslug, routePaths.org.journeyRoadmapOption(insertInto)) : getUriWithOrg(orgslug, routePaths.org.journeyRoadmap())} className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-800"><ArrowLeft className="mr-2 h-4 w-4" />Build workspace</Link>
+          <h1 className="mt-2 text-3xl font-semibold text-gray-950">{inserting ? 'Choose a Block' : 'Explore Blocks'}</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">Save reusable careers, degrees, jobs, certificates, finances, and life events for roadmap timelines.</p>
         </div>
-        <Button type="button" onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" />Create your own</Button>
+        <Button type="button" onClick={() => setCreateOpen(true)}><Plus className="mr-2 h-4 w-4" />Create custom</Button>
       </div>
 
       <section className="mt-8">
-        <h2 className="text-lg font-semibold text-gray-950">Starred options</h2>
+        <h2 className="text-lg font-semibold text-gray-950">Starred blocks</h2>
         {isLoading ? <div className="mt-6"><Loader2 className="h-5 w-5 animate-spin text-gray-400" /></div> : (
           <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {starred.map((option) => (
-              <OptionCard
-                key={option.option_uuid}
-                option={option}
-                onOpen={() => setSelected(option)}
+            {starred.map((block) => (
+              <BlockCard
+                key={block.block_uuid}
+                block={block}
+                inserting={inserting}
+                onOpen={() => setSelected(block)}
+                onInsert={() => insertBlock(block)}
                 onToggleStar={async () => {
-                  if (!orgId || !accessToken) return
-                  const updated = await updateRoadmapEndStateOption(orgId, option.option_uuid, { starred: !option.starred }, accessToken)
-                  await mutate(options.map((item) => item.option_uuid === updated.option_uuid ? updated : item), { revalidate: false })
+                  if (!orgId || !accessToken || !block.editable) return
+                  const updated = await updateRoadmapBlock(orgId, block.block_uuid, { starred: !block.starred }, accessToken)
+                  await mutate(blocks.map((item) => item.block_uuid === updated.block_uuid ? updated : item), { revalidate: false })
                 }}
-                onBuild={() => buildPathway(option)}
               />
             ))}
-            {!starred.length ? <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-10 text-center text-sm text-gray-500 md:col-span-2 xl:col-span-3">No starred options yet.</div> : null}
+            {!starred.length ? <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-10 text-center text-sm text-gray-500 md:col-span-2 xl:col-span-3">No starred blocks yet.</div> : null}
           </div>
         )}
       </section>
 
       <section className="mt-10 rounded-lg border border-gray-200 bg-white p-6">
         <h2 className="text-lg font-semibold text-gray-950">Discover</h2>
-        <p className="mt-2 text-sm text-gray-500">Recommended path options are coming soon. For now, create your own custom option.</p>
-        <Button type="button" className="mt-4" onClick={() => setCreateOpen(true)}>Create your own</Button>
+        <p className="mt-2 text-sm text-gray-500">Recommended block discovery is coming soon. For now, create your own custom block.</p>
+        <Button type="button" className="mt-4" onClick={() => setCreateOpen(true)}>Create custom</Button>
       </section>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-3xl">
-          <DialogHeader><DialogTitle>Create custom end state</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Create custom block</DialogTitle></DialogHeader>
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2"><Label>End state</Label><Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} /></div>
-            <div className="space-y-2"><Label>Type</Label><Select value={draft.end_state_type} onValueChange={(value) => setDraft({ ...draft, end_state_type: value as RoadmapEndStateType })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(typeLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
-            {score({ label: 'Skill fit', value: draft.skill_fit_score, onChange: (value) => setDraft({ ...draft, skill_fit_score: value }) })}
-            {score({ label: 'Lifestyle fit', value: draft.lifestyle_fit_score, onChange: (value) => setDraft({ ...draft, lifestyle_fit_score: value }) })}
-            {score({ label: 'Confidence', value: draft.confidence_score, onChange: (value) => setDraft({ ...draft, confidence_score: value }) })}
+            <div className="space-y-2"><Label>Title</Label><Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} /></div>
+            <div className="space-y-2"><Label>Type</Label><Select value={draft.block_type} onValueChange={(value) => setDraft({ ...draft, block_type: value as RoadmapBlockType })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(typeLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
+            <div className="space-y-2"><Label>Lane</Label><Select value={draft.lane_category} onValueChange={(value) => setDraft({ ...draft, lane_category: value as RoadmapBlockCategory })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="work">Work</SelectItem><SelectItem value="education">Education</SelectItem><SelectItem value="life">Life</SelectItem></SelectContent></Select></div>
             <div className="space-y-2"><Label>Target income</Label><Input type="number" value={draft.target_annual_income} onChange={(event) => setDraft({ ...draft, target_annual_income: event.target.value })} /></div>
-            <div className="space-y-2"><Label>Low income</Label><Input type="number" value={draft.expected_annual_income_low} onChange={(event) => setDraft({ ...draft, expected_annual_income_low: event.target.value })} /></div>
+            <div className="space-y-2"><Label>Skill fit</Label><Input type="number" min={1} max={10} value={draft.skill_fit_score} onChange={(event) => setDraft({ ...draft, skill_fit_score: event.target.value })} /></div>
+            <div className="space-y-2"><Label>Lifestyle fit</Label><Input type="number" min={1} max={10} value={draft.lifestyle_fit_score} onChange={(event) => setDraft({ ...draft, lifestyle_fit_score: event.target.value })} /></div>
+            <div className="space-y-2"><Label>Confidence</Label><Input type="number" min={1} max={10} value={draft.confidence_score} onChange={(event) => setDraft({ ...draft, confidence_score: event.target.value })} /></div>
             <div className="space-y-2"><Label>Mid income</Label><Input type="number" value={draft.expected_annual_income_mid} onChange={(event) => setDraft({ ...draft, expected_annual_income_mid: event.target.value })} /></div>
-            <div className="space-y-2"><Label>High income</Label><Input type="number" value={draft.expected_annual_income_high} onChange={(event) => setDraft({ ...draft, expected_annual_income_high: event.target.value })} /></div>
+            <div className="space-y-2"><Label>Income/mo</Label><Input type="number" value={draft.default_monthly_income} onChange={(event) => setDraft({ ...draft, default_monthly_income: event.target.value })} /></div>
+            <div className="space-y-2"><Label>Expense/mo</Label><Input type="number" value={draft.default_monthly_expense} onChange={(event) => setDraft({ ...draft, default_monthly_expense: event.target.value })} /></div>
+            <div className="space-y-2"><Label>One-time cost</Label><Input type="number" value={draft.default_one_time_cost} onChange={(event) => setDraft({ ...draft, default_one_time_cost: event.target.value })} /></div>
+            <div className="space-y-2"><Label>Income low</Label><Input type="number" value={draft.expected_annual_income_low} onChange={(event) => setDraft({ ...draft, expected_annual_income_low: event.target.value })} /></div>
+            <div className="space-y-2"><Label>Income high</Label><Input type="number" value={draft.expected_annual_income_high} onChange={(event) => setDraft({ ...draft, expected_annual_income_high: event.target.value })} /></div>
             <div className="space-y-2 md:col-span-2"><Label>Description</Label><Textarea value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} /></div>
             <div className="space-y-2 md:col-span-2"><Label>Notes</Label><Textarea value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} /></div>
           </div>
-          <Button type="button" onClick={saveCustom} disabled={saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}Save option</Button>
+          <Button type="button" onClick={saveCustom} disabled={saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{inserting ? 'Save and add to pathway' : 'Save block'}</Button>
         </DialogContent>
       </Dialog>
 
       <Dialog open={Boolean(selected)} onOpenChange={(open) => !open && setSelected(null)}>
-        <DialogContent className="max-w-5xl">
+        <DialogContent className="max-w-3xl">
           {selected ? (
             <>
               <DialogHeader><DialogTitle>{selected.title}</DialogTitle></DialogHeader>
-              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-                <div>
-                  <p className="text-sm text-gray-500">{selected.description || 'Custom end-state option'}</p>
-                  <div className="mt-4 grid gap-3 md:grid-cols-3">
-                    <div className="rounded-lg bg-gray-50 p-3">Skill fit <strong>{selected.skill_fit_score ?? '-'}/10</strong></div>
-                    <div className="rounded-lg bg-gray-50 p-3">Lifestyle <strong>{selected.lifestyle_fit_score ?? '-'}/10</strong></div>
-                    <div className="rounded-lg bg-gray-50 p-3">Mid income <strong>{money(selected.expected_annual_income_mid)}</strong></div>
-                  </div>
-                  <h3 className="mt-6 font-semibold text-gray-950">Starter blocks</h3>
-                  <div className="mt-3 space-y-2">{selected.template_events.map((item) => <TemplateBlockRow key={item.template_event_uuid} block={item} />)}</div>
-                </div>
-                <div className="rounded-lg border border-gray-200 p-4">
-                  <h3 className="font-semibold text-gray-950">Add starter block</h3>
-                  <div className="mt-4 space-y-3">
-                    <Select value={block.category} onValueChange={(value) => setBlock({ ...block, category: value as RoadmapEventCategory })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="education">Education</SelectItem><SelectItem value="work">Work</SelectItem><SelectItem value="life">Life</SelectItem></SelectContent></Select>
-                    <Input placeholder="Block title" value={block.title} onChange={(event) => setBlock({ ...block, title: event.target.value })} />
-                    <div className="grid grid-cols-2 gap-2"><Input type="number" placeholder="Start month" value={block.start_offset_months} onChange={(event) => setBlock({ ...block, start_offset_months: event.target.value })} /><Input type="number" placeholder="Duration" value={block.duration_months} onChange={(event) => setBlock({ ...block, duration_months: event.target.value })} /></div>
-                    <Input placeholder="Fork group, optional" value={block.fork_group_key} onChange={(event) => setBlock({ ...block, fork_group_key: event.target.value })} />
-                    <Input placeholder="Dependency key, optional" value={block.dependency_key} onChange={(event) => setBlock({ ...block, dependency_key: event.target.value })} />
-                    <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2"><Label>Optional block</Label><Switch checked={block.optional} onCheckedChange={(checked) => setBlock({ ...block, optional: checked })} /></div>
-                    <Textarea placeholder="Notes" value={block.description} onChange={(event) => setBlock({ ...block, description: event.target.value })} />
-                    <Button type="button" className="w-full" onClick={saveBlock}>Add block</Button>
-                    <Button type="button" variant="outline" className="w-full" onClick={() => buildPathway(selected)} disabled={Boolean(selected.built_roadmap_uuid)}>Create pathway</Button>
-                  </div>
-                </div>
+              <p className="text-sm text-gray-500">{selected.description || 'Custom roadmap block'}</p>
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <div className="rounded-lg bg-gray-50 p-3">Skill fit <strong>{selected.skill_fit_score ?? '-'}/10</strong></div>
+                <div className="rounded-lg bg-gray-50 p-3">Lifestyle <strong>{selected.lifestyle_fit_score ?? '-'}/10</strong></div>
+                <div className="rounded-lg bg-gray-50 p-3">Mid income <strong>{money(selected.expected_annual_income_mid)}</strong></div>
+              </div>
+              <div className="mt-5 flex justify-end">
+                <Button type="button" onClick={() => insertBlock(selected)}>{inserting ? 'Add to pathway' : 'Close'}</Button>
               </div>
             </>
           ) : null}
