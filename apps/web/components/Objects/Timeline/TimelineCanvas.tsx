@@ -417,6 +417,7 @@ export function TimelineCanvas({
               <button
                 key={canvasEntry.id}
                 type="button"
+                onPointerDown={(event) => event.stopPropagation()}
                 onClick={canInteract ? () => onEntryClick?.(canvasEntry) : undefined}
                 tabIndex={canInteract ? 0 : -1}
                 aria-label={canInteract ? `Open ${canvasEntry.title}` : undefined}

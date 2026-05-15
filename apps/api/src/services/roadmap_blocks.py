@@ -15,6 +15,8 @@ from src.db.roadmap_blocks import (
     RoadmapBlockRequirementRead,
     RoadmapBlockUpdate,
     RoadmapBlockVisibility,
+    RoadmapCashflowDirection,
+    RoadmapCashflowPeriod,
     RoadmapPathway,
     RoadmapPathwayBlock,
     RoadmapPathwayBlockCreate,
@@ -75,6 +77,25 @@ def _validate_scores(data) -> None:
         value = getattr(data, field, None)
         if value is not None and (value < 1 or value > 10):
             raise HTTPException(status_code=400, detail=f"{field} must be between 1 and 10")
+
+
+def _cashflow_monthly(block: RoadmapBlockDefinition) -> tuple[float, float, float]:
+    amount = block.cashflow_amount
+    direction = block.cashflow_direction
+    period = block.cashflow_period
+    if amount is None or direction is None or period is None:
+        return float(block.default_monthly_income or 0), float(block.default_monthly_expense or 0), float(block.default_one_time_cost or 0)
+
+    if period == RoadmapCashflowPeriod.monthly:
+        monthly_amount = float(amount)
+    elif period == RoadmapCashflowPeriod.yearly:
+        monthly_amount = float(amount) / 12
+    else:
+        return (0.0, 0.0, float(amount)) if direction == RoadmapCashflowDirection.expense else (float(amount), 0.0, 0.0)
+
+    if direction == RoadmapCashflowDirection.income:
+        return monthly_amount, 0.0, 0.0
+    return 0.0, monthly_amount, 0.0
 
 
 def _can_read_block(block: RoadmapBlockDefinition, user: PublicUser, org_id: int) -> bool:
@@ -145,6 +166,10 @@ def _block_read(block: RoadmapBlockDefinition, user: PublicUser) -> RoadmapBlock
         default_monthly_income=block.default_monthly_income,
         default_monthly_expense=block.default_monthly_expense,
         default_one_time_cost=block.default_one_time_cost,
+        cashflow_amount=block.cashflow_amount,
+        cashflow_direction=block.cashflow_direction,
+        cashflow_period=block.cashflow_period,
+        cashflow_stddev=block.cashflow_stddev,
         notes=block.notes,
         creation_date=block.creation_date,
         update_date=block.update_date,
@@ -229,10 +254,12 @@ def _summary(pathway_blocks: list[RoadmapPathwayBlock], blocks_by_id: dict[int, 
                 if item_start is None or item_end is None or not block:
                     continue
                 if item_start <= month <= item_end:
-                    income += float(item.monthly_income_override if item.monthly_income_override is not None else block.default_monthly_income or 0)
-                    expense += float(item.monthly_expense_override if item.monthly_expense_override is not None else block.default_monthly_expense or 0)
+                    block_income, block_expense, _ = _cashflow_monthly(block)
+                    income += block_income
+                    expense += block_expense
                 if item_start == month:
-                    one_time += float(item.one_time_cost_override if item.one_time_cost_override is not None else block.default_one_time_cost or 0)
+                    _, _, block_one_time = _cashflow_monthly(block)
+                    one_time += block_one_time
             if income > 0 and first_income is None:
                 first_income = month
             if income >= expense and income > 0 and sustaining is None:
@@ -330,6 +357,32 @@ async def update_block(user: PublicUser, org_id: int, block_uuid: str, data: Roa
     return _block_read(block, user)
 
 
+async def delete_block(user: PublicUser, org_id: int, block_uuid: str, db_session: Session) -> dict:
+    block = _block_or_404(user, org_id, block_uuid, db_session)
+    if not _can_edit_block(block, user):
+        raise HTTPException(status_code=403, detail="Only the owner can delete this block")
+    pathway_blocks = db_session.exec(select(RoadmapPathwayBlock).where(RoadmapPathwayBlock.block_id == block.id)).all()
+    pathway_ids = {item.pathway_id for item in pathway_blocks}
+    requirements = db_session.exec(
+        select(RoadmapBlockRequirement).where(
+            (RoadmapBlockRequirement.block_id == block.id) | (RoadmapBlockRequirement.required_block_id == block.id)
+        )
+    ).all()
+    now = _now()
+    for requirement in requirements:
+        db_session.delete(requirement)
+    for pathway_block in pathway_blocks:
+        db_session.delete(pathway_block)
+    if pathway_ids:
+        pathways = db_session.exec(select(RoadmapPathway).where(RoadmapPathway.id.in_(pathway_ids))).all()
+        for pathway in pathways:
+            pathway.update_date = now
+            db_session.add(pathway)
+    db_session.delete(block)
+    db_session.commit()
+    return {"success": True}
+
+
 async def create_block_requirement(user: PublicUser, org_id: int, block_uuid: str, data: RoadmapBlockRequirementCreate, db_session: Session) -> RoadmapBlockRequirementRead:
     block = _block_or_404(user, org_id, block_uuid, db_session)
     if not _can_edit_block(block, user):
@@ -402,7 +455,7 @@ def _create_draft_block_and_instance(user: PublicUser, org_id: int, pathway: Roa
         owner_user_id=user.id,
         visibility=RoadmapBlockVisibility.user,
         lane_category="work",
-        block_type="custom",
+        block_type="personal",
         title="Blank block",
         description="",
         is_draft=True,

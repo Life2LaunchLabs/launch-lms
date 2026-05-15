@@ -18,14 +18,20 @@ class RoadmapBlockCategory(str, Enum):
 
 
 class RoadmapBlockType(str, Enum):
-    occupation = "occupation"
-    entrepreneurship = "entrepreneurship"
-    education = "education"
-    credential = "credential"
-    job = "job"
-    life = "life"
-    finance = "finance"
-    custom = "custom"
+    employment = "employment"
+    learning = "learning"
+    personal = "personal"
+
+
+class RoadmapCashflowDirection(str, Enum):
+    income = "income"
+    expense = "expense"
+
+
+class RoadmapCashflowPeriod(str, Enum):
+    total = "total"
+    yearly = "yearly"
+    monthly = "monthly"
 
 
 class RoadmapPathwayStatus(str, Enum):
@@ -49,7 +55,7 @@ class RoadmapBlockDefinition(SQLModel, table=True):
     owner_user_id: Optional[int] = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=True, index=True))
     visibility: RoadmapBlockVisibility = Field(sa_column=Column(String, nullable=False, server_default=RoadmapBlockVisibility.user.value, index=True))
     lane_category: RoadmapBlockCategory = Field(sa_column=Column(String, nullable=False, server_default=RoadmapBlockCategory.work.value, index=True))
-    block_type: RoadmapBlockType = Field(default=RoadmapBlockType.custom, sa_column=Column(String, nullable=False, server_default=RoadmapBlockType.custom.value, index=True))
+    block_type: RoadmapBlockType = Field(default=RoadmapBlockType.personal, sa_column=Column(String, nullable=False, server_default=RoadmapBlockType.personal.value, index=True))
     title: str
     description: Optional[str] = Field(default=None, sa_column=Column(Text))
     starred: bool = True
@@ -64,6 +70,10 @@ class RoadmapBlockDefinition(SQLModel, table=True):
     default_monthly_income: Optional[float] = Field(default=None, sa_column=Column(Float, nullable=True))
     default_monthly_expense: Optional[float] = Field(default=None, sa_column=Column(Float, nullable=True))
     default_one_time_cost: Optional[float] = Field(default=None, sa_column=Column(Float, nullable=True))
+    cashflow_amount: Optional[float] = Field(default=None, sa_column=Column(Float, nullable=True))
+    cashflow_direction: Optional[RoadmapCashflowDirection] = Field(default=None, sa_column=Column(String, nullable=True))
+    cashflow_period: Optional[RoadmapCashflowPeriod] = Field(default=None, sa_column=Column(String, nullable=True))
+    cashflow_stddev: Optional[float] = Field(default=None, sa_column=Column(Float, nullable=True))
     notes: Optional[str] = Field(default=None, sa_column=Column(Text))
     creation_date: str = ""
     update_date: str = ""
@@ -129,7 +139,7 @@ class RoadmapPathwayBlock(SQLModel, table=True):
 
 class RoadmapBlockBase(BaseModel):
     lane_category: RoadmapBlockCategory = RoadmapBlockCategory.work
-    block_type: RoadmapBlockType = RoadmapBlockType.custom
+    block_type: RoadmapBlockType = RoadmapBlockType.personal
     title: str
     description: Optional[str] = None
     starred: bool = True
@@ -144,6 +154,10 @@ class RoadmapBlockBase(BaseModel):
     default_monthly_income: Optional[float] = None
     default_monthly_expense: Optional[float] = None
     default_one_time_cost: Optional[float] = None
+    cashflow_amount: Optional[float] = None
+    cashflow_direction: Optional[RoadmapCashflowDirection] = None
+    cashflow_period: Optional[RoadmapCashflowPeriod] = None
+    cashflow_stddev: Optional[float] = None
     notes: Optional[str] = None
 
 
@@ -168,6 +182,10 @@ class RoadmapBlockUpdate(BaseModel):
     default_monthly_income: Optional[float] = None
     default_monthly_expense: Optional[float] = None
     default_one_time_cost: Optional[float] = None
+    cashflow_amount: Optional[float] = None
+    cashflow_direction: Optional[RoadmapCashflowDirection] = None
+    cashflow_period: Optional[RoadmapCashflowPeriod] = None
+    cashflow_stddev: Optional[float] = None
     notes: Optional[str] = None
 
 
@@ -224,7 +242,7 @@ class RoadmapPathwayBlockCreate(BaseModel):
     block_uuid: Optional[str] = None
     title: Optional[str] = None
     lane_category: RoadmapBlockCategory = RoadmapBlockCategory.work
-    block_type: RoadmapBlockType = RoadmapBlockType.custom
+    block_type: RoadmapBlockType = RoadmapBlockType.personal
     start_date: str
     end_date: Optional[str] = None
     is_ongoing: bool = False

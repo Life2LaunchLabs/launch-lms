@@ -3,7 +3,9 @@ import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/req
 
 export type RoadmapBlockVisibility = 'user' | 'org'
 export type RoadmapBlockCategory = 'work' | 'education' | 'life'
-export type RoadmapBlockType = 'occupation' | 'entrepreneurship' | 'education' | 'credential' | 'job' | 'life' | 'finance' | 'custom'
+export type RoadmapBlockType = 'employment' | 'learning' | 'personal'
+export type RoadmapCashflowDirection = 'income' | 'expense'
+export type RoadmapCashflowPeriod = 'total' | 'yearly' | 'monthly'
 export type RoadmapPathwayStatus = 'draft' | 'active' | 'archived'
 export type RoadmapRequirementLogic = 'required' | 'one_of'
 
@@ -28,6 +30,10 @@ export interface RoadmapBlock {
   default_monthly_income: number | null
   default_monthly_expense: number | null
   default_one_time_cost: number | null
+  cashflow_amount: number | null
+  cashflow_direction: RoadmapCashflowDirection | null
+  cashflow_period: RoadmapCashflowPeriod | null
+  cashflow_stddev: number | null
   notes: string | null
   creation_date: string
   update_date: string
@@ -104,6 +110,11 @@ export async function createRoadmapBlock(orgId: number, data: RoadmapBlockPayloa
 export async function updateRoadmapBlock(orgId: number, blockUuid: string, data: RoadmapBlockPayload, accessToken: string) {
   const result: any = await fetch(`${getAPIUrl()}roadmap/org/${orgId}/blocks/${blockUuid}`, RequestBodyWithAuthHeader('PUT', data, null, accessToken))
   return errorHandling(result) as Promise<RoadmapBlock>
+}
+
+export async function deleteRoadmapBlock(orgId: number, blockUuid: string, accessToken: string) {
+  const result: any = await fetch(`${getAPIUrl()}roadmap/org/${orgId}/blocks/${blockUuid}`, RequestBodyWithAuthHeader('DELETE', null, null, accessToken))
+  return errorHandling(result) as Promise<{ success: boolean }>
 }
 
 export async function createRoadmapBlockRequirement(orgId: number, blockUuid: string, data: { required_block_uuid: string; group_key?: string | null; logic?: RoadmapRequirementLogic; sort_order?: number }, accessToken: string) {

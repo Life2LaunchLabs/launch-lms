@@ -21,6 +21,7 @@ from src.services.roadmap_blocks import (
     create_block_requirement,
     create_pathway,
     create_pathway_block,
+    delete_block,
     delete_block_requirement,
     delete_pathway_block,
     ensure_default_pathway,
@@ -48,6 +49,11 @@ async def api_create_block(org_id: int, block_data: RoadmapBlockCreate, current_
 @router.put("/org/{org_id}/blocks/{block_uuid}", response_model=RoadmapBlockRead)
 async def api_update_block(org_id: int, block_uuid: str, block_data: RoadmapBlockUpdate, current_user: PublicUser = Depends(get_authenticated_user), db_session: Session = Depends(get_db_session)):
     return await update_block(current_user, org_id, block_uuid, block_data, db_session)
+
+
+@router.delete("/org/{org_id}/blocks/{block_uuid}")
+async def api_delete_block(org_id: int, block_uuid: str, current_user: PublicUser = Depends(get_authenticated_user), db_session: Session = Depends(get_db_session)):
+    return await delete_block(current_user, org_id, block_uuid, db_session)
 
 
 @router.post("/org/{org_id}/blocks/{block_uuid}/requirements", response_model=RoadmapBlockRequirementRead)

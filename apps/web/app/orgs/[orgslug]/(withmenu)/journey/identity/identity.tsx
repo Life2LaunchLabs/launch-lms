@@ -5,7 +5,6 @@ import Link from 'next/link'
 import useSWR from 'swr'
 import {
   Activity,
-  ArrowLeft,
   ArrowRight,
   BookOpen,
   Brain,
@@ -20,7 +19,6 @@ import {
   Star,
   Target,
   Users,
-  X,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react'
@@ -37,6 +35,7 @@ import {
   getIdentityFramework,
   getIdentityNodeDetail,
 } from '@services/identity/identity'
+import { JourneyPanel, JourneyPanelCloseButton, JourneyWorkspaceHeader, JourneyWorkspaceShell } from '../workspace'
 
 type CanvasPoint = { x: number; y: number }
 type CanvasNode = CanvasPoint & { node: FrameworkNode; radius: number; layer: 'domain' | 'category' }
@@ -575,26 +574,14 @@ export function DetailPanel({
   const isDomain = node.node_type === 'domain'
 
   return (
-    <aside
-      className={cn(
-        'pointer-events-auto z-max flex h-full min-h-0 flex-col rounded-t-xl border border-gray-200 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.28)] ring-1 ring-black/5 lg:rounded-lg',
-        className
-      )}
-    >
+    <JourneyPanel className={className}>
       <div className="border-b border-gray-100 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">{stateLabel(node.development_state)}</div>
             <h2 className="mt-1 truncate text-xl font-semibold tracking-tight text-gray-950">{node.title}</h2>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
-            aria-label="Close identity details"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <JourneyPanelCloseButton onClose={onClose} label="Close identity details" />
         </div>
         <p className="mt-3 text-sm leading-6 text-gray-600">
           {profileSummary || node.description || 'Capture reflections and evidence here as this part of your profile becomes clearer.'}
@@ -654,7 +641,7 @@ export function DetailPanel({
           </Link>
         </Button>
       </div>
-    </aside>
+    </JourneyPanel>
   )
 }
 
@@ -670,8 +657,6 @@ export default function IdentityClient({ orgslug }: { orgslug: string }) {
   const accessToken = session?.data?.tokens?.access_token
   const orgId = org?.id
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
-  const [mobilePanelExpanded, setMobilePanelExpanded] = useState(false)
-  const [mobileHeaderExpanded, setMobileHeaderExpanded] = useState(false)
   const { data: roots = [], isLoading } = useSWR(
     orgId && accessToken ? ['identity-framework', orgId, accessToken] : null,
     () => getIdentityFramework(orgId, accessToken),
@@ -681,7 +666,6 @@ export default function IdentityClient({ orgslug }: { orgslug: string }) {
   const selectedNode = nodes.find((node) => node.key === selectedKey)
   const selectNode = (nodeKey: string | null) => {
     setSelectedKey(nodeKey)
-    setMobilePanelExpanded(Boolean(nodeKey))
   }
   const { data: selectedDetail, isLoading: detailLoading } = useSWR(
     orgId && accessToken && selectedKey ? ['identity-node-preview', orgId, selectedKey, accessToken] : null,
@@ -690,58 +674,30 @@ export default function IdentityClient({ orgslug }: { orgslug: string }) {
   )
 
   return (
-    <main className="relative h-screen min-h-[680px] overflow-hidden bg-gray-50 text-gray-950">
-      <header className="pointer-events-none absolute left-4 right-4 top-4 z-30 hidden md:left-8 md:right-auto md:top-8 md:block md:w-[420px]">
-        <div className="pointer-events-auto rounded-lg border border-gray-200 bg-white/92 p-4 shadow-xl ring-1 ring-black/5 backdrop-blur-md">
-          <div className="mb-3">
-            <Link
-              href={getUriWithOrg(orgslug, routePaths.org.journey())}
-              className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-gray-950"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Journey
-            </Link>
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Journey</p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-gray-950">My Identity</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
-              A living map of what you are learning about yourself as you build toward launch.
-            </p>
-          </div>
-        </div>
-      </header>
-
-      <header className="absolute left-3 right-3 top-3 z-30 md:hidden">
-        <div className="rounded-lg border border-gray-200 bg-white/95 shadow-lg ring-1 ring-black/5 backdrop-blur-md">
-          <div className="flex items-center gap-3 p-3">
-            <Link
-              href={getUriWithOrg(orgslug, routePaths.org.journey())}
-              className="rounded-md p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-950"
-              aria-label="Back to journey"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
-            <div className="min-w-0 flex-1">
-              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Journey</div>
-              <h1 className="truncate text-lg font-semibold tracking-tight text-gray-950">My Identity</h1>
-            </div>
-            <button
-              type="button"
-              onClick={() => setMobileHeaderExpanded((expanded) => !expanded)}
-              className="rounded-md border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 shadow-xs"
-            >
-              {mobileHeaderExpanded ? 'Hide' : 'About'}
-            </button>
-          </div>
-          {mobileHeaderExpanded ? (
-            <p className="border-t border-gray-100 px-3 pb-3 pt-2 text-sm leading-6 text-gray-600">
-              A living map of what you are learning about yourself as you build toward launch.
-            </p>
-          ) : null}
-        </div>
-      </header>
-
+    <JourneyWorkspaceShell
+      header={(
+        <JourneyWorkspaceHeader
+          breadcrumbs={[
+            { label: 'Journey', href: getUriWithOrg(orgslug, routePaths.org.journey()), icon: <Route size={14} /> },
+            { label: 'Identity' },
+          ]}
+        />
+      )}
+      panelOpen={Boolean(selectedNode)}
+      onPanelClose={() => selectNode(null)}
+      mobilePanelLabel="Close identity details"
+      panel={selectedNode ? (
+        <DetailPanel
+          node={selectedNode}
+          detail={selectedDetail}
+          isLoading={detailLoading}
+          orgslug={orgslug}
+          orgUUID={org?.org_uuid}
+          onClose={() => selectNode(null)}
+          onSelectNode={(node) => selectNode(node.key)}
+        />
+      ) : null}
+    >
       {isLoading ? (
         <div className="h-full animate-pulse bg-white" />
       ) : (
@@ -751,42 +707,6 @@ export default function IdentityClient({ orgslug }: { orgslug: string }) {
             onSelect={(item) => selectNode(item.node.key)}
           />
       )}
-
-      {selectedNode ? (
-        <div className="pointer-events-none fixed inset-0 z-max hidden lg:block">
-          <DetailPanel
-            node={selectedNode}
-            detail={selectedDetail}
-            isLoading={detailLoading}
-            orgslug={orgslug}
-            orgUUID={org?.org_uuid}
-            onClose={() => selectNode(null)}
-            onSelectNode={(node) => selectNode(node.key)}
-            className="absolute bottom-8 right-8 top-8 w-[420px]"
-          />
-        </div>
-      ) : null}
-
-      {selectedNode && mobilePanelExpanded ? (
-        <div className="fixed inset-0 z-max lg:hidden">
-          <button
-            type="button"
-            className="absolute inset-0 bg-transparent"
-            aria-label="Close identity details"
-            onClick={() => setMobilePanelExpanded(false)}
-          />
-          <DetailPanel
-            node={selectedNode}
-            detail={selectedDetail}
-            isLoading={detailLoading}
-            orgslug={orgslug}
-            orgUUID={org?.org_uuid}
-            onClose={() => selectNode(null)}
-            onSelectNode={(node) => selectNode(node.key)}
-            className="absolute inset-x-3 bottom-3 h-[78vh] max-h-[78vh]"
-          />
-        </div>
-      ) : null}
-    </main>
+    </JourneyWorkspaceShell>
   )
 }

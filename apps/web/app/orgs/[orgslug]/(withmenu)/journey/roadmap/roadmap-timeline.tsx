@@ -13,14 +13,9 @@ type RoadmapTimelineProps = {
 }
 
 const blockTypeLabels = {
-  occupation: 'Occupation',
-  entrepreneurship: 'Entrepreneurship',
-  education: 'Education',
-  credential: 'Credential',
-  job: 'Job',
-  life: 'Life event',
-  finance: 'Finance',
-  custom: 'Custom',
+  employment: 'Employment',
+  learning: 'Learning',
+  personal: 'Personal',
 }
 
 function money(value?: number | null) {
@@ -39,29 +34,27 @@ function descriptionFor(item: RoadmapPathwayBlock) {
 function toCanvasEntry(item: RoadmapPathwayBlock): TimelineCanvasEntry {
   return {
     id: item.pathway_block_uuid,
-    category: item.block.lane_category,
+    category: item.block.block_type === 'employment' ? 'work' : item.block.block_type === 'learning' ? 'education' : 'life',
     title: titleFor(item),
     description: descriptionFor(item),
     startDate: item.start_date,
     endDate: item.end_date || '',
     isOngoing: item.is_ongoing,
-    employer: item.block.lane_category === 'work' ? blockTypeLabels[item.block.block_type] : '',
-    institution: item.block.lane_category === 'education' ? blockTypeLabels[item.block.block_type] : '',
+    employer: item.block.block_type === 'employment' ? blockTypeLabels[item.block.block_type] : '',
+    institution: item.block.block_type === 'learning' ? blockTypeLabels[item.block.block_type] : '',
     eyebrow: blockTypeLabels[item.block.block_type],
-    detail: item.block.lane_category === 'life' ? 'Life' : blockTypeLabels[item.block.block_type],
+    detail: blockTypeLabels[item.block.block_type],
     badgeCount: item.unmet_requirements.length || undefined,
     badgeLabel: item.unmet_requirements.length ? `${item.unmet_requirements.length} unmet` : undefined,
     meta: [
-      `Income ${money(item.monthly_income_override ?? item.block.default_monthly_income)}/mo`,
-      `Expense ${money(item.monthly_expense_override ?? item.block.default_monthly_expense)}/mo`,
-      `One-time ${money(item.one_time_cost_override ?? item.block.default_one_time_cost)}`,
+      item.block.cashflow_direction ? `${item.block.cashflow_direction === 'income' ? 'Income' : 'Expense'} ${money(item.block.cashflow_amount)} ${item.block.cashflow_period || ''}` : 'No cashflow',
     ],
   }
 }
 
 export default function RoadmapTimeline({ path, selectedUuid, onSelect, onAdd }: RoadmapTimelineProps) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-5">
+    <div className="min-w-[720px] p-6">
       <TimelineCanvas
         entries={path.blocks.map(toCanvasEntry)}
         selectedId={selectedUuid}

@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
-import { ArrowLeft, Check, ImageIcon, Plus, X } from 'lucide-react'
+import { Check, ImageIcon, Plus, Route } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -17,6 +17,7 @@ import {
 import { Button } from '@components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@components/ui/tabs'
 import { CompactEvidenceList, CompactInsightList, SuggestedCarousel } from '../identity/identity'
+import { JourneyCanvasViewport, JourneyPanel, JourneyPanelCloseButton, JourneyWorkspaceHeader, JourneyWorkspaceShell } from '../workspace'
 
 const CARD_ROTATIONS = ['-rotate-2', 'rotate-1', '-rotate-1', 'rotate-2', '-rotate-2']
 
@@ -178,15 +179,13 @@ function LifestylePanel({
   }
 
   return (
-    <aside className={`pointer-events-auto z-max flex h-full min-h-0 flex-col rounded-t-xl border border-gray-200 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.28)] ring-1 ring-black/5 lg:rounded-lg ${className || ''}`}>
+    <JourneyPanel className={className}>
       <div className="flex items-start justify-between gap-3 border-b border-gray-100 p-4">
         <div className="min-w-0">
           <div className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Target Lifestyle</div>
           <h2 className="mt-1 truncate text-xl font-semibold tracking-tight text-gray-950">{node.title}</h2>
         </div>
-        <button type="button" onClick={onClose} className="rounded-md p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700" aria-label="Close lifestyle details">
-          <X className="h-4 w-4" />
-        </button>
+        <JourneyPanelCloseButton onClose={onClose} label="Close lifestyle details" />
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
@@ -270,7 +269,7 @@ function LifestylePanel({
           </div>
         )}
       </div>
-    </aside>
+    </JourneyPanel>
   )
 }
 
@@ -297,16 +296,36 @@ export default function LifestyleClient({ orgslug }: { orgslug: string }) {
   )
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-6 text-gray-950 md:px-8 md:py-8">
-      <div className="mx-auto max-w-5xl">
-        <Link
-          href={getUriWithOrg(orgslug, routePaths.org.journey())}
-          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-gray-950"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Journey
-        </Link>
-
+    <JourneyWorkspaceShell
+      header={(
+        <JourneyWorkspaceHeader
+          breadcrumbs={[
+            { label: 'Journey', href: getUriWithOrg(orgslug, routePaths.org.journey()), icon: <Route size={14} /> },
+            { label: 'Target Lifestyle' },
+          ]}
+        />
+      )}
+      panelOpen={Boolean(selectedNode)}
+      onPanelClose={() => setSelectedKey(null)}
+      mobilePanelLabel="Close lifestyle details"
+      panel={selectedNode ? (
+        <LifestylePanel
+          key={selectedNode.key}
+          node={selectedNode}
+          detail={selectedDetail}
+          isLoading={detailLoading}
+          mode={panelMode}
+          orgId={orgId}
+          accessToken={accessToken}
+          onModeChange={setPanelMode}
+          onClose={() => setSelectedKey(null)}
+          onSaved={() => mutateSelectedDetail()}
+          orgslug={orgslug}
+          orgUUID={org?.org_uuid}
+        />
+      ) : null}
+    >
+      <JourneyCanvasViewport contentClassName="mx-auto min-h-full max-w-5xl">
         {isLoading ? (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
@@ -348,53 +367,7 @@ export default function LifestyleClient({ orgslug }: { orgslug: string }) {
             ) : null}
           </div>
         )}
-      </div>
-
-      {selectedNode ? (
-        <div className="pointer-events-none fixed inset-0 z-max hidden lg:block">
-          <LifestylePanel
-            key={selectedNode.key}
-            node={selectedNode}
-            detail={selectedDetail}
-            isLoading={detailLoading}
-            mode={panelMode}
-            orgId={orgId}
-            accessToken={accessToken}
-            onModeChange={setPanelMode}
-            onClose={() => setSelectedKey(null)}
-            onSaved={() => mutateSelectedDetail()}
-            className="absolute bottom-8 right-8 top-8 w-[420px]"
-            orgslug={orgslug}
-            orgUUID={org?.org_uuid}
-          />
-        </div>
-      ) : null}
-
-      {selectedNode ? (
-        <div className="fixed inset-0 z-max lg:hidden">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/10"
-            aria-label="Close lifestyle details"
-            onClick={() => setSelectedKey(null)}
-          />
-          <LifestylePanel
-            key={selectedNode.key}
-            node={selectedNode}
-            detail={selectedDetail}
-            isLoading={detailLoading}
-            mode={panelMode}
-            orgId={orgId}
-            accessToken={accessToken}
-            onModeChange={setPanelMode}
-            onClose={() => setSelectedKey(null)}
-            onSaved={() => mutateSelectedDetail()}
-            className="absolute inset-x-3 bottom-3 h-[78vh] max-h-[78vh]"
-            orgslug={orgslug}
-            orgUUID={org?.org_uuid}
-          />
-        </div>
-      ) : null}
-    </main>
+      </JourneyCanvasViewport>
+    </JourneyWorkspaceShell>
   )
 }
