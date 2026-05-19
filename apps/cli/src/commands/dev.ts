@@ -1,4 +1,4 @@
-import { spawn, spawnSync, execSync, type ChildProcess } from 'node:child_process'
+import { spawn, spawnSync, execSync, execFileSync, type ChildProcess } from 'node:child_process'
 import { X509Certificate } from 'node:crypto'
 import net from 'node:net'
 import * as p from '../utils/prompt.js'
@@ -14,6 +14,13 @@ const DEFAULT_DEV_PUBLIC_HOST = '127.0.0.1.sslip.io'
 const DEV_WEB_PORT = '3000'
 const DEV_API_PORT = '1338'
 const DEV_COLLAB_PORT = '4000'
+const DEV_DB_CONTAINER = 'launch-lms-db-dev'
+const DEV_DB_USER = 'launchlms'
+const DEV_DB_PASSWORD = 'launchlms'
+const DEV_DB_HOST = 'localhost'
+const DEV_DB_PORT = '5432'
+const DEV_DEFAULT_DATABASE = 'launchlms'
+const DEV_DB_STATE_FILE = 'dev-db-state.json'
 
 const DEV_COMPOSE = `name: launch-lms-dev
 
@@ -148,11 +155,207 @@ function getDevPublicHost(): string {
   return DEFAULT_DEV_PUBLIC_HOST
 }
 
-function getDevDatabaseUrl(): string {
-  return 'postgresql://launchlms:launchlms@localhost:5432/launchlms'
+function getDevDatabaseUrl(databaseName: string): string {
+  return `postgresql://${DEV_DB_USER}:${DEV_DB_PASSWORD}@${DEV_DB_HOST}:${DEV_DB_PORT}/${databaseName}`
 }
 
-function runDevMigrations(root: string, apiDir: string): void {
+function getDevDbStatePath(root: string): string {
+  return path.join(root, '.launch-lms', DEV_DB_STATE_FILE)
+}
+
+function getCurrentAlembicHead(apiDir: string): string {
+  return execSync('uv run python ./scripts/get_alembic_head.py', {
+    cwd: apiDir,
+    stdio: 'pipe',
+    encoding: 'utf8',
+  }).trim()
+}
+
+function getHeadDatabaseName(head: string): string {
+  const normalized = head.toLowerCase().replace(/[^a-z0-9_]/g, '_')
+  return `launchlms_${normalized}`
+}
+
+function runDocker(args: string[], opts: { encoding?: BufferEncoding } = {}): string {
+  return execFileSync('docker', args, {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    encoding: opts.encoding || 'utf8',
+  }).toString()
+}
+
+function quoteSqlLiteral(value: string): string {
+  return value.replace(/'/g, "''")
+}
+
+function databaseExists(databaseName: string): boolean {
+  const result = runDocker([
+    'exec',
+    DEV_DB_CONTAINER,
+    'psql',
+    '-U',
+    DEV_DB_USER,
+    '-d',
+    DEV_DEFAULT_DATABASE,
+    '-tAc',
+    `SELECT 1 FROM pg_database WHERE datname='${quoteSqlLiteral(databaseName)}'`,
+  ]).trim()
+  return result === '1'
+}
+
+function createDatabase(databaseName: string): void {
+  runDocker(['exec', DEV_DB_CONTAINER, 'createdb', '-U', DEV_DB_USER, '-O', DEV_DB_USER, databaseName])
+}
+
+function readDevDbState(root: string): { currentDatabase?: string; currentHead?: string } {
+  try {
+    return JSON.parse(fs.readFileSync(getDevDbStatePath(root), 'utf8'))
+  } catch {
+    return {}
+  }
+}
+
+function writeDevDbState(root: string, state: { currentDatabase: string; currentHead: string }): void {
+  fs.writeFileSync(getDevDbStatePath(root), JSON.stringify(state, null, 2) + '\n')
+}
+
+function getDatabaseRevision(databaseName: string): string | null {
+  const hasVersionTable = runDocker([
+    'exec',
+    DEV_DB_CONTAINER,
+    'psql',
+    '-U',
+    DEV_DB_USER,
+    '-d',
+    databaseName,
+    '-tAc',
+    "SELECT to_regclass('public.alembic_version') IS NOT NULL",
+  ]).trim()
+
+  if (hasVersionTable !== 't') return null
+
+  const revision = runDocker([
+    'exec',
+    DEV_DB_CONTAINER,
+    'psql',
+    '-U',
+    DEV_DB_USER,
+    '-d',
+    databaseName,
+    '-tAc',
+    'SELECT version_num FROM alembic_version LIMIT 1',
+  ]).trim()
+
+  return revision || null
+}
+
+function currentMigrationSet(apiDir: string): Set<string> {
+  const revisions = new Set<string>()
+  const versionsDir = path.join(apiDir, 'migrations', 'versions')
+
+  for (const fileName of fs.readdirSync(versionsDir)) {
+    if (!fileName.endsWith('.py')) continue
+
+    const content = fs.readFileSync(path.join(versionsDir, fileName), 'utf8')
+    const match = content.match(/^revision(?:\s*:\s*[^=]+)?\s*=\s*["']([^"']+)["']/m)
+    if (match) revisions.add(match[1])
+  }
+
+  return revisions
+}
+
+function copyDatabase(sourceDatabase: string, targetDatabase: string): void {
+  const dumpPath = `/tmp/${targetDatabase}.dump`
+  runDocker(['exec', DEV_DB_CONTAINER, 'pg_dump', '-U', DEV_DB_USER, '-d', sourceDatabase, '-Fc', '-f', dumpPath])
+  createDatabase(targetDatabase)
+  runDocker(['exec', DEV_DB_CONTAINER, 'pg_restore', '-U', DEV_DB_USER, '-d', targetDatabase, dumpPath])
+  runDocker(['exec', DEV_DB_CONTAINER, 'rm', '-f', dumpPath])
+}
+
+function selectSourceDatabase(root: string, targetDatabase: string): string | null {
+  const state = readDevDbState(root)
+  const candidates = [
+    state.currentDatabase,
+    DEV_DEFAULT_DATABASE,
+  ].filter((candidate): candidate is string => Boolean(candidate && candidate !== targetDatabase))
+
+  for (const candidate of candidates) {
+    if (databaseExists(candidate)) return candidate
+  }
+
+  return null
+}
+
+function ensureHeadDatabase(root: string, apiDir: string): { databaseName: string; head: string; importSourceDatabase?: string } {
+  const head = getCurrentAlembicHead(apiDir)
+  const databaseName = getHeadDatabaseName(head)
+
+  if (databaseExists(databaseName)) {
+    return { databaseName, head }
+  }
+
+  const sourceDatabase = selectSourceDatabase(root, databaseName)
+  if (!sourceDatabase) {
+    createDatabase(databaseName)
+    p.log.info(`Created dev database ${pc.bold(databaseName)} for Alembic head ${pc.bold(head)}`)
+    return { databaseName, head }
+  }
+
+  const sourceRevision = getDatabaseRevision(sourceDatabase)
+  const knownRevisions = currentMigrationSet(apiDir)
+
+  if (sourceRevision && !knownRevisions.has(sourceRevision)) {
+    createDatabase(databaseName)
+    p.log.warning(
+      `Created dev database ${pc.bold(databaseName)} for Alembic head ${pc.bold(head)}; ` +
+      `will import compatible rows from ${pc.bold(sourceDatabase)} after migrations.`
+    )
+    return { databaseName, head, importSourceDatabase: sourceDatabase }
+  }
+
+  copyDatabase(sourceDatabase, databaseName)
+  p.log.info(`Created dev database ${pc.bold(databaseName)} from ${pc.bold(sourceDatabase)}`)
+  return { databaseName, head }
+}
+
+function importCompatibleDevData(root: string, apiDir: string, sourceDatabase: string, targetDatabaseUrl: string): void {
+  const importScript = path.join(apiDir, 'scripts', 'import_compatible_data.py')
+  const sourceDatabaseUrl = getDevDatabaseUrl(sourceDatabase)
+  const uvCacheDir = path.join(root, '.launch-lms', 'uv-cache')
+
+  const importSpinner = p.spinner()
+  importSpinner.start(`Importing compatible data from ${sourceDatabase}...`)
+
+  try {
+    const output = execFileSync(
+      'uv',
+      [
+        'run',
+        'python',
+        importScript,
+        '--source-url',
+        sourceDatabaseUrl,
+        '--target-url',
+        targetDatabaseUrl,
+      ],
+      {
+        cwd: apiDir,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          UV_CACHE_DIR: process.env.UV_CACHE_DIR || uvCacheDir,
+        },
+      }
+    ).trim()
+    importSpinner.stop('Compatible data import complete')
+    if (output) p.log.info(output)
+  } catch (e: any) {
+    importSpinner.stop('Compatible data import failed')
+    p.log.warning(e?.stderr?.toString()?.trim() || e?.stdout?.toString()?.trim() || 'Continuing with the new database schema only.')
+  }
+}
+
+function runDevMigrations(root: string, apiDir: string, databaseUrl: string): void {
   const migrationsScript = path.join(apiDir, 'scripts', 'run_alembic_migrations.sh')
   const uvCacheDir = path.join(root, '.launch-lms', 'uv-cache')
 
@@ -167,7 +370,7 @@ function runDevMigrations(root: string, apiDir: string): void {
     LAUNCHLMS_SQL_CONNECTION_STRING:
       process.env.LAUNCHLMS_SQL_CONNECTION_STRING ||
       process.env.DATABASE_URL ||
-      getDevDatabaseUrl(),
+      databaseUrl,
   }
 
   const migrationSpinner = p.spinner()
@@ -445,7 +648,25 @@ export async function devCommand(opts: { ee?: boolean }) {
     }
   }
 
-  runDevMigrations(root, apiDir)
+  const explicitDatabaseUrl = process.env.LAUNCHLMS_SQL_CONNECTION_STRING || process.env.DATABASE_URL
+  const selectedDatabase = explicitDatabaseUrl
+    ? null
+    : ensureHeadDatabase(root, apiDir)
+  const devDatabaseUrl = explicitDatabaseUrl || getDevDatabaseUrl(selectedDatabase!.databaseName)
+
+  serviceEnv.LAUNCHLMS_SQL_CONNECTION_STRING = devDatabaseUrl
+  runDevMigrations(root, apiDir, devDatabaseUrl)
+
+  if (selectedDatabase?.importSourceDatabase) {
+    importCompatibleDevData(root, apiDir, selectedDatabase.importSourceDatabase, devDatabaseUrl)
+  }
+
+  if (selectedDatabase) {
+    writeDevDbState(root, {
+      currentDatabase: selectedDatabase.databaseName,
+      currentHead: selectedDatabase.head,
+    })
+  }
 
   // Detect TLS certs for HTTPS dev mode — generate them if missing
   const certFile = path.join(root, 'certs', 'local.pem')
@@ -503,6 +724,7 @@ export async function devCommand(opts: { ee?: boolean }) {
 
   serviceEnv = {
     ...serviceEnv,
+    LAUNCHLMS_SQL_CONNECTION_STRING: devDatabaseUrl,
     NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL: `${publicApiBaseUrl}/`,
     NEXT_PUBLIC_LEARNHOUSE_BACKEND_URL: `${publicApiBaseUrl}/`,
     NEXT_PUBLIC_LAUNCHLMS_API_URL: `${publicApiBaseUrl}/api/v1/`,
