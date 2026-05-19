@@ -20,6 +20,16 @@ import { CompactEvidenceList, CompactInsightList, SuggestedCarousel } from '../i
 import { JourneyCanvasViewport, JourneyPanel, JourneyPanelCloseButton, JourneyWorkspaceHeader, JourneyWorkspaceShell } from '../workspace'
 
 const CARD_ROTATIONS = ['-rotate-2', 'rotate-1', '-rotate-1', 'rotate-2', '-rotate-2']
+const LIFESTYLE_CANVAS_WIDTH = 1040
+const LIFESTYLE_CANVAS_HEIGHT = 700
+const LIFESTYLE_CARD_SIZE = 300
+const LIFESTYLE_CARD_POSITIONS = [
+  { left: 40, top: 40 },
+  { left: 370, top: 40 },
+  { left: 700, top: 40 },
+  { left: 370, top: 370 },
+  { left: 700, top: 370 },
+]
 
 type LifestyleOption = {
   key: string
@@ -106,7 +116,7 @@ function LifestyleCard({
     <button
       type="button"
       onClick={() => onSelect(node, isEmpty ? 'about' : 'standard')}
-      className="group aspect-square w-full p-3 text-left outline-hidden"
+      className="group h-full w-full p-3 text-left outline-hidden"
     >
       {isEmpty ? (
         <div className="flex h-full flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 p-6 text-center transition group-hover:border-gray-300 group-hover:bg-white/60">
@@ -122,7 +132,7 @@ function LifestyleCard({
         <div
           className={`flex h-full flex-col rounded-sm border border-gray-200 bg-white p-3 shadow-lg transition duration-200 group-hover:-translate-y-1 group-hover:rotate-0 group-hover:shadow-xl ${CARD_ROTATIONS[index % CARD_ROTATIONS.length]}`}
         >
-          <img src={selectedOption.image} alt="" className="min-h-0 flex-1 rounded-sm object-cover" />
+          <img src={selectedOption.image} alt="" draggable={false} className="min-h-0 flex-1 rounded-sm object-cover" />
           <div className="px-1 pb-1 pt-4">
             <h2 className="text-lg font-semibold tracking-tight text-gray-950">{selectedOption.title}</h2>
             <p className="mt-1 text-sm font-medium text-gray-500">{node.title}</p>
@@ -325,16 +335,25 @@ export default function LifestyleClient({ orgslug }: { orgslug: string }) {
         />
       ) : null}
     >
-      <JourneyCanvasViewport contentClassName="mx-auto min-h-full max-w-5xl">
+      <JourneyCanvasViewport contentClassName="h-[700px] w-[1040px]">
         {isLoading ? (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="relative h-full w-full">
             {Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="aspect-square animate-pulse rounded-lg bg-gray-100" />
+              <div
+                key={index}
+                className="absolute animate-pulse rounded-lg bg-gray-100"
+                style={{
+                  left: index === 0 ? 40 : LIFESTYLE_CARD_POSITIONS[index - 1]?.left,
+                  top: index === 0 ? 40 : LIFESTYLE_CARD_POSITIONS[index - 1]?.top,
+                  width: LIFESTYLE_CARD_SIZE,
+                  height: LIFESTYLE_CARD_SIZE,
+                }}
+              />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            <section className="aspect-square rounded-lg border border-gray-200 bg-gray-950 p-6 text-white shadow-lg">
+          <div className="relative h-full w-full" style={{ width: LIFESTYLE_CANVAS_WIDTH, height: LIFESTYLE_CANVAS_HEIGHT }}>
+            <section className="absolute rounded-lg border border-gray-200 bg-gray-950 p-6 text-white shadow-lg" style={{ left: 40, top: 40, width: LIFESTYLE_CARD_SIZE, height: LIFESTYLE_CARD_SIZE }}>
               <div className="flex h-full flex-col justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/50">Journey</p>
@@ -347,21 +366,31 @@ export default function LifestyleClient({ orgslug }: { orgslug: string }) {
             </section>
 
             {lifestyleNodes.map((node, index) => (
-              <LifestyleCard
+              <div
                 key={node.key}
-                node={node}
-                index={index}
-                orgId={orgId}
-                accessToken={accessToken}
-                onSelect={(item, mode) => {
-                  setSelectedKey(item.key)
-                  setPanelMode(mode)
+                className="absolute"
+                style={{
+                  left: LIFESTYLE_CARD_POSITIONS[index]?.left ?? 40,
+                  top: LIFESTYLE_CARD_POSITIONS[index]?.top ?? 370,
+                  width: LIFESTYLE_CARD_SIZE,
+                  height: LIFESTYLE_CARD_SIZE,
                 }}
-              />
+              >
+                <LifestyleCard
+                  node={node}
+                  index={index}
+                  orgId={orgId}
+                  accessToken={accessToken}
+                  onSelect={(item, mode) => {
+                    setSelectedKey(item.key)
+                    setPanelMode(mode)
+                  }}
+                />
+              </div>
             ))}
 
             {!lifestyleRoot ? (
-              <div className="aspect-square rounded-lg border border-dashed border-gray-200 bg-white p-6 text-sm text-gray-500">
+              <div className="absolute rounded-lg border border-dashed border-gray-200 bg-white p-6 text-sm text-gray-500" style={{ left: 370, top: 40, width: LIFESTYLE_CARD_SIZE, height: LIFESTYLE_CARD_SIZE }}>
                 Target lifestyle is not available in the framework yet.
               </div>
             ) : null}

@@ -189,20 +189,38 @@ class RoadmapBlockUpdate(BaseModel):
     notes: Optional[str] = None
 
 
-class RoadmapBlockRead(RoadmapBlockBase):
-    block_uuid: str
-    visibility: RoadmapBlockVisibility
-    owner_user_id: Optional[int] = None
-    editable: bool = False
-    creation_date: str
-    update_date: str
-
-
 class RoadmapBlockRequirementCreate(BaseModel):
     required_block_uuid: str
     group_key: Optional[str] = None
     logic: RoadmapRequirementLogic = RoadmapRequirementLogic.required
     sort_order: int = 0
+
+
+class RoadmapRequiredBlockSummary(BaseModel):
+    block_uuid: str
+    title: str
+    block_type: RoadmapBlockType
+
+
+class RoadmapBlockRequirementSummaryRead(BaseModel):
+    requirement_uuid: str
+    block_uuid: str
+    required_block: RoadmapRequiredBlockSummary
+    group_key: Optional[str] = None
+    logic: RoadmapRequirementLogic
+    sort_order: int
+    creation_date: str
+    update_date: str
+
+
+class RoadmapBlockRead(RoadmapBlockBase):
+    block_uuid: str
+    visibility: RoadmapBlockVisibility
+    owner_user_id: Optional[int] = None
+    editable: bool = False
+    requirements: list[RoadmapBlockRequirementSummaryRead] = PydanticField(default_factory=list)
+    creation_date: str
+    update_date: str
 
 
 class RoadmapBlockRequirementRead(BaseModel):
@@ -291,6 +309,7 @@ class RoadmapPathwayBlockRead(BaseModel):
     one_time_cost_override: Optional[float] = None
     notes: Optional[str] = None
     sort_order: int
+    requirements: list[RoadmapRequirementStatusRead] = PydanticField(default_factory=list)
     unmet_requirements: list[RoadmapRequirementStatusRead] = PydanticField(default_factory=list)
     creation_date: str
     update_date: str

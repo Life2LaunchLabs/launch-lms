@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import useSWR from 'swr'
 import { toast } from 'react-hot-toast'
-import { AlertTriangle, ArrowLeft, BarChart3, CheckCircle2, ChevronDown, Loader2, Plus, Route, Search, Sparkles } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, BarChart3, CheckCircle2, ChevronDown, Eye, Loader2, Plus, Route, Search, Sparkles } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { Badge } from '@components/ui/badge'
@@ -13,7 +13,6 @@ import { Button } from '@components/ui/button'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import {
   createRoadmapBlock,
-  createRoadmapBlockRequirement,
   createRoadmapPathway,
   createRoadmapPathwayBlock,
   deleteRoadmapPathwayBlock,
@@ -38,6 +37,15 @@ type PanelMode = 'select' | 'detail'
 function money(value?: number | null) {
   if (value === null || value === undefined) return '$0'
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)
+}
+
+function previousMonth(value: string) {
+  const [yearPart, monthPart] = value.split('-')
+  const year = Number(yearPart)
+  const month = Number(monthPart)
+  if (!year || !month) return `${new Date().getFullYear()}-01`
+  const previous = month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 }
+  return `${previous.year}-${String(previous.month).padStart(2, '0')}`
 }
 
 function exploreInsertHref(orgslug: string, pathwayUuid?: string, targetBlockUuid?: string, intent?: 'replace' | 'requirement') {
@@ -102,6 +110,7 @@ function BlockPanel({
   onCreateCustom,
   onSaveAll,
   onAddRequirement,
+  onViewTimelineBlock,
   onDeleteInstance,
 }: {
   orgslug: string
@@ -115,7 +124,8 @@ function BlockPanel({
   onSelectBlock: (block: RoadmapBlock) => Promise<void>
   onCreateCustom: () => Promise<void>
   onSaveAll: (definition: RoadmapBlockPayload, placement?: RoadmapPathwayBlockPayload) => Promise<void>
-  onAddRequirement: (block: RoadmapBlock) => Promise<void>
+  onAddRequirement: (block: { block_uuid: string }) => Promise<void>
+  onViewTimelineBlock: (uuid: string) => void
   onDeleteInstance: () => Promise<void>
 }) {
   if (mode === 'select') {
@@ -147,24 +157,36 @@ function BlockPanel({
   }
 
   const editableDefinition = Boolean(selected?.block.editable)
+  const requirementStatuses = selected?.requirements || []
   const requirements = selected ? (
     <section className="mt-6 space-y-3 border-t border-gray-200 pt-5">
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-sm font-semibold text-gray-950">Requirements</h3>
         {editableDefinition ? <Button asChild variant="outline" size="sm"><Link href={exploreInsertHref(orgslug, path.pathway.pathway_uuid, selected.block.block_uuid, 'requirement')}><Plus className="mr-2 h-4 w-4" />Add</Link></Button> : null}
       </div>
-      {selected.unmet_requirements.map((requirement) => (
-        <div key={requirement.requirement_uuid} className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+      {requirementStatuses.map((requirement) => {
+        const timelineMatch = path.blocks.find((item) => item.block.block_uuid === requirement.required_block.block_uuid)
+        const correctlyPlaced = Boolean(requirement.met)
+        return (
+        <div key={requirement.requirement_uuid} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="flex items-center gap-2 text-sm font-semibold text-amber-900"><AlertTriangle className="h-4 w-4" />{requirement.required_block.title}</div>
-              <p className="mt-1 text-xs text-amber-800">Required before this block starts.</p>
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-950">
+                {correctlyPlaced ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <AlertTriangle className="h-4 w-4 text-amber-600" />}
+                {requirement.required_block.title}
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                {correctlyPlaced ? 'Requirement is already placed before this block.' : timelineMatch ? 'On the timeline, but not before this block.' : 'Not on this timeline yet.'}
+              </p>
             </div>
-            <Button type="button" size="sm" onClick={() => onAddRequirement(requirement.required_block)} disabled={saving}><Plus className="mr-2 h-4 w-4" />Add</Button>
+            <div className="flex shrink-0 items-center gap-1">
+              {timelineMatch ? <Button type="button" size="sm" variant="outline" onClick={() => onViewTimelineBlock(timelineMatch.pathway_block_uuid)} aria-label="View requirement"><Eye className="h-4 w-4" /></Button> : null}
+              {timelineMatch ? <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700" aria-label="Inserted"><CheckCircle2 className="h-4 w-4" /></span> : <Button type="button" size="sm" onClick={() => onAddRequirement(requirement.required_block)} disabled={saving} aria-label="Insert requirement"><Plus className="h-4 w-4" /></Button>}
+            </div>
           </div>
         </div>
-      ))}
-      {!selected.unmet_requirements.length ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800"><CheckCircle2 className="mr-2 inline h-4 w-4" />Direct requirements are satisfied.</div> : null}
+      )})}
+      {!requirementStatuses.length ? <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-3 text-sm text-gray-500">No direct requirements set for this block.</div> : null}
     </section>
   ) : null
 
@@ -339,10 +361,22 @@ export default function RoadmapBuildWorkspaceBlocks({ orgslug, roadmapUuid }: Pr
     else await mutatePaths()
   }
 
-  const addRequirement = async (block: RoadmapBlock) => {
+  const addRequirement = async (block: { block_uuid: string }) => {
     if (!orgId || !accessToken || !selected || !selectedBlock) return
-    const result = await withSaving('Requirement added', () => createRoadmapBlockRequirement(orgId, selectedBlock.block.block_uuid, { required_block_uuid: block.block_uuid }, accessToken))
-    if (result) await mutatePaths()
+    const startDate = previousMonth(selectedBlock.start_date)
+    const next = await withSaving('Requirement inserted', () => createRoadmapPathwayBlock(orgId, selected.pathway.pathway_uuid, {
+      block_uuid: block.block_uuid,
+      start_date: startDate,
+      end_date: startDate,
+      sort_order: selectedBlock.sort_order - 1,
+    }, accessToken))
+    if (next) {
+      await replacePath(next)
+      const inserted = next.blocks.find((item) => item.block.block_uuid === block.block_uuid)
+      setSelectedBlockUuid(inserted?.pathway_block_uuid || selectedBlock.pathway_block_uuid)
+      setPanelMode('detail')
+      setCanBackToDetail(false)
+    }
   }
 
   const deleteSelected = async () => {
@@ -352,6 +386,13 @@ export default function RoadmapBuildWorkspaceBlocks({ orgslug, roadmapUuid }: Pr
       await replacePath(next)
       setSelectedBlockUuid(next.blocks[0]?.pathway_block_uuid || null)
     }
+  }
+
+  const viewTimelineBlock = (uuid: string) => {
+    setSelectedBlockUuid(uuid)
+    setPanelMode('detail')
+    setCanBackToDetail(false)
+    setPanelOpen(true)
   }
 
   if (isLoading || !selected) {
@@ -403,6 +444,7 @@ export default function RoadmapBuildWorkspaceBlocks({ orgslug, roadmapUuid }: Pr
           onCreateCustom={createCustomForSelection}
           onSaveAll={saveAll}
           onAddRequirement={addRequirement}
+          onViewTimelineBlock={viewTimelineBlock}
           onDeleteInstance={deleteSelected}
         />
       )}

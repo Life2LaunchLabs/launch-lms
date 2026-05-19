@@ -2,10 +2,10 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import useSWR from 'swr'
 import { toast } from 'react-hot-toast'
-import { ArrowLeft, CheckCircle2, Loader2, Plus, Route, Star } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Eye, Loader2, Plus, Route, Star } from 'lucide-react'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -20,7 +20,7 @@ import { BlockMetadataEditor, BlockMetadataSummary, blockTypeLabels } from '../b
 
 type Props = { orgslug: string; insertInto?: string; targetBlock?: string; intent?: string }
 
-function BlockCard({ block, inserting, onOpen, onToggleStar, onInsert }: { block: RoadmapBlock; inserting: boolean; onOpen: () => void; onToggleStar: () => void; onInsert: () => void }) {
+function BlockCard({ block, actionLabel, onOpen, onToggleStar, onInsert }: { block: RoadmapBlock; actionLabel?: string | null; onOpen: () => void; onToggleStar: () => void; onInsert: () => void }) {
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
       <button type="button" onClick={onOpen} className="block w-full text-left">
@@ -44,21 +44,70 @@ function BlockCard({ block, inserting, onOpen, onToggleStar, onInsert }: { block
           {block.starred ? 'Starred' : 'Star'}
         </Button>
         <Button type="button" size="sm" className="ml-auto" onClick={onInsert}>
-          {inserting ? <Plus className="mr-2 h-4 w-4" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-          {inserting ? 'Add to pathway' : 'View'}
+          {actionLabel ? <Plus className="mr-2 h-4 w-4" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+          {actionLabel || 'View'}
         </Button>
       </div>
     </div>
   )
 }
 
+function ExploreRequirementsList({
+  block,
+  blocks,
+  actionLabel,
+  onView,
+  onAction,
+}: {
+  block: RoadmapBlock
+  blocks: RoadmapBlock[]
+  actionLabel?: string | null
+  onView: (block: RoadmapBlock) => void
+  onAction: (block: RoadmapBlock) => void
+}) {
+  const requirements = block.requirements || []
+  return (
+    <section className="mt-6 space-y-3 border-t border-gray-200 pt-5">
+      <h3 className="text-sm font-semibold text-gray-950">Requirements</h3>
+      {requirements.map((requirement) => {
+        const requiredBlock = blocks.find((item) => item.block_uuid === requirement.required_block.block_uuid)
+        return (
+          <div key={requirement.requirement_uuid} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-gray-950">{requirement.required_block.title}</div>
+                <div className="mt-1 text-xs text-gray-500">{blockTypeLabels[requirement.required_block.block_type]}</div>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <Button type="button" size="sm" variant="outline" onClick={() => requiredBlock && onView(requiredBlock)} disabled={!requiredBlock} aria-label="View requirement">
+                  <Eye className="h-4 w-4" />
+                </Button>
+                {actionLabel ? (
+                  <Button type="button" size="sm" onClick={() => requiredBlock && onAction(requiredBlock)} disabled={!requiredBlock}>
+                    {actionLabel}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        )
+      })}
+      {!requirements.length ? <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-3 text-sm text-gray-500">No direct requirements set for this block.</div> : null}
+    </section>
+  )
+}
+
 export default function RoadmapExploreBlocksClient({ orgslug, insertInto, targetBlock, intent }: Props) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const contextInsertInto = searchParams.get('insertInto') || insertInto || ''
+  const contextTargetBlock = searchParams.get('targetBlock') || targetBlock || ''
+  const contextIntent = searchParams.get('intent') || intent || ''
   const session = useLHSession() as any
   const org = useOrg() as any
   const accessToken = session?.data?.tokens?.access_token
   const orgId = org?.id
-  const inserting = Boolean(insertInto)
+  const inserting = Boolean(contextInsertInto)
   const [createOpen, setCreateOpen] = useState(false)
   const [selected, setSelected] = useState<RoadmapBlock | null>(null)
   const [saving, setSaving] = useState(false)
@@ -73,23 +122,30 @@ export default function RoadmapExploreBlocksClient({ orgslug, insertInto, target
     { revalidateOnFocus: false }
   )
   const selectedFeatured = selected ? paths.filter((path: RoadmapPathwayDetail) => path.blocks.some((item) => item.block.block_uuid === selected.block_uuid)) : []
+  const contextActionLabel = contextInsertInto
+    ? contextIntent === 'requirement'
+      ? 'Add as requirement'
+      : contextTargetBlock
+        ? 'Replace block'
+        : 'Insert block'
+    : null
 
   const insertBlock = async (block: RoadmapBlock) => {
-    if (!orgId || !accessToken || !insertInto) {
+    if (!orgId || !accessToken || !contextInsertInto) {
       setSelected(block)
       return
     }
     const loading = toast.loading('Adding block')
     try {
-      if (intent === 'requirement' && targetBlock) {
-        await createRoadmapBlockRequirement(orgId, targetBlock, { required_block_uuid: block.block_uuid }, accessToken)
-      } else if (targetBlock) {
-        await updateRoadmapPathwayBlock(orgId, targetBlock, { block_uuid: block.block_uuid, title_override: null, description_override: null }, accessToken)
+      if (contextIntent === 'requirement' && contextTargetBlock) {
+        await createRoadmapBlockRequirement(orgId, contextTargetBlock, { required_block_uuid: block.block_uuid }, accessToken)
+      } else if (contextTargetBlock) {
+        await updateRoadmapPathwayBlock(orgId, contextTargetBlock, { block_uuid: block.block_uuid, title_override: null, description_override: null }, accessToken)
       } else {
-        await createRoadmapPathwayBlock(orgId, insertInto, { block_uuid: block.block_uuid, start_date: `${new Date().getFullYear()}-01` }, accessToken)
+        await createRoadmapPathwayBlock(orgId, contextInsertInto, { block_uuid: block.block_uuid, start_date: `${new Date().getFullYear()}-01` }, accessToken)
       }
       toast.success('Block added', { id: loading })
-      router.push(getUriWithOrg(orgslug, routePaths.org.journeyRoadmapOption(insertInto)))
+      router.push(getUriWithOrg(orgslug, routePaths.org.journeyRoadmapOption(contextInsertInto)))
     } catch {
       toast.error('Could not add block', { id: loading })
     }
@@ -165,7 +221,7 @@ export default function RoadmapExploreBlocksClient({ orgslug, insertInto, target
       ]} />
       <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <Link href={insertInto ? getUriWithOrg(orgslug, routePaths.org.journeyRoadmapOption(insertInto)) : getUriWithOrg(orgslug, routePaths.org.journeyRoadmap())} className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-800"><ArrowLeft className="mr-2 h-4 w-4" />Build workspace</Link>
+          <Link href={contextInsertInto ? getUriWithOrg(orgslug, routePaths.org.journeyRoadmapOption(contextInsertInto)) : getUriWithOrg(orgslug, routePaths.org.journeyRoadmap())} className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-800"><ArrowLeft className="mr-2 h-4 w-4" />Build workspace</Link>
           <h1 className="mt-2 text-3xl font-semibold text-gray-950">{inserting ? 'Choose a Block' : 'Explore Blocks'}</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">Save reusable careers, degrees, jobs, certificates, finances, and life events for roadmap timelines.</p>
         </div>
@@ -180,7 +236,7 @@ export default function RoadmapExploreBlocksClient({ orgslug, insertInto, target
               <BlockCard
                 key={block.block_uuid}
                 block={block}
-                inserting={inserting}
+                actionLabel={contextActionLabel}
                 onOpen={() => setSelected(block)}
                 onInsert={() => insertBlock(block)}
                 onToggleStar={async () => {
@@ -229,6 +285,7 @@ export default function RoadmapExploreBlocksClient({ orgslug, insertInto, target
                   onDelete={deleteSelected}
                   actions={(
                     <>
+                      {contextActionLabel ? <Button type="button" size="sm" onClick={() => insertBlock(selected)}>{contextActionLabel}</Button> : null}
                       <Button type="button" variant="outline" size="sm" onClick={createPathwayWithSelected}>Create pathway</Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild><Button type="button" variant="outline" size="sm">Featured in {selectedFeatured.length} paths</Button></DropdownMenuTrigger>
@@ -240,11 +297,18 @@ export default function RoadmapExploreBlocksClient({ orgslug, insertInto, target
                           }) : <DropdownMenuItem disabled>No paths yet</DropdownMenuItem>}
                         </DropdownMenuContent>
                       </DropdownMenu>
-                      {inserting ? <Button type="button" size="sm" onClick={() => insertBlock(selected)}>{intent === 'requirement' ? 'Add requirement' : 'Insert block'}</Button> : null}
                       <DialogClose asChild><Button type="button" variant="outline" size="sm">Close</Button></DialogClose>
                     </>
                   )}
-                />
+                >
+                  <ExploreRequirementsList
+                    block={selected}
+                    blocks={blocks}
+                    actionLabel={contextActionLabel}
+                    onView={setSelected}
+                    onAction={insertBlock}
+                  />
+                </BlockMetadataEditor>
               ) : (
                 <>
                   <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 p-4 pr-14">
@@ -259,11 +323,18 @@ export default function RoadmapExploreBlocksClient({ orgslug, insertInto, target
                         }) : <DropdownMenuItem disabled>No paths yet</DropdownMenuItem>}
                       </DropdownMenuContent>
                     </DropdownMenu>
-                    {inserting ? <Button type="button" size="sm" className="ml-auto" onClick={() => insertBlock(selected)}>{intent === 'requirement' ? 'Add requirement' : 'Insert block'}</Button> : null}
+                    {contextActionLabel ? <Button type="button" size="sm" onClick={() => insertBlock(selected)}>{contextActionLabel}</Button> : null}
                     <DialogClose asChild><Button type="button" variant="outline" size="sm">Close</Button></DialogClose>
                   </div>
                   <div className="max-h-[calc(88vh-156px)] overflow-y-auto p-5">
                     <BlockMetadataSummary block={selected} />
+                    <ExploreRequirementsList
+                      block={selected}
+                      blocks={blocks}
+                      actionLabel={contextActionLabel}
+                      onView={setSelected}
+                      onAction={insertBlock}
+                    />
                   </div>
                 </>
               )}

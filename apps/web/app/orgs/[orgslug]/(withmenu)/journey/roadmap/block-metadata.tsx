@@ -219,12 +219,12 @@ export function BlockMetadataEditor({
   return (
     <div className={cn('flex h-full min-h-0 flex-col bg-white', className)}>
       <div className="shrink-0 border-b border-gray-100 p-4">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">{block ? blockTypeLabels[block.block_type] : 'Roadmap block'}</div>
           <h2 className="mt-1 truncate text-lg font-semibold text-gray-950">{block?.title || 'Block details'}</h2>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <Button type="button" size="sm" onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
             Save

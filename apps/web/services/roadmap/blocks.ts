@@ -35,6 +35,24 @@ export interface RoadmapBlock {
   cashflow_period: RoadmapCashflowPeriod | null
   cashflow_stddev: number | null
   notes: string | null
+  requirements: RoadmapBlockRequirementSummary[]
+  creation_date: string
+  update_date: string
+}
+
+export interface RoadmapRequiredBlockSummary {
+  block_uuid: string
+  title: string
+  block_type: RoadmapBlockType
+}
+
+export interface RoadmapBlockRequirementSummary {
+  requirement_uuid: string
+  block_uuid: string
+  required_block: RoadmapRequiredBlockSummary
+  group_key: string | null
+  logic: RoadmapRequirementLogic
+  sort_order: number
   creation_date: string
   update_date: string
 }
@@ -70,6 +88,7 @@ export interface RoadmapPathwayBlock {
   one_time_cost_override: number | null
   notes: string | null
   sort_order: number
+  requirements: RoadmapRequirementStatus[]
   unmet_requirements: RoadmapRequirementStatus[]
   creation_date: string
   update_date: string
@@ -94,8 +113,8 @@ export interface RoadmapPathwayDetail {
   summary: RoadmapSummary
 }
 
-export type RoadmapBlockPayload = Partial<Omit<RoadmapBlock, 'block_uuid' | 'owner_user_id' | 'editable' | 'creation_date' | 'update_date'>>
-export type RoadmapPathwayBlockPayload = Partial<Omit<RoadmapPathwayBlock, 'pathway_block_uuid' | 'block' | 'unmet_requirements' | 'creation_date' | 'update_date'>> & { block_uuid?: string | null, title?: string | null, lane_category?: RoadmapBlockCategory, block_type?: RoadmapBlockType }
+export type RoadmapBlockPayload = Partial<Omit<RoadmapBlock, 'block_uuid' | 'owner_user_id' | 'editable' | 'requirements' | 'creation_date' | 'update_date'>>
+export type RoadmapPathwayBlockPayload = Partial<Omit<RoadmapPathwayBlock, 'pathway_block_uuid' | 'block' | 'requirements' | 'unmet_requirements' | 'creation_date' | 'update_date'>> & { block_uuid?: string | null, title?: string | null, lane_category?: RoadmapBlockCategory, block_type?: RoadmapBlockType }
 
 export async function getRoadmapBlocks(orgId: number, accessToken: string) {
   const result: any = await fetch(`${getAPIUrl()}roadmap/org/${orgId}/blocks`, RequestBodyWithAuthHeader('GET', null, null, accessToken))

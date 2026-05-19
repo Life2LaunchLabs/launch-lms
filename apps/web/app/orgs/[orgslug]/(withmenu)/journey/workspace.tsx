@@ -1,6 +1,6 @@
 'use client'
 
-import { PointerEvent, ReactNode, useEffect, useRef, useState } from 'react'
+import { MouseEvent, PointerEvent, ReactNode, useEffect, useRef, useState } from 'react'
 import { Move, X, ZoomIn, ZoomOut } from 'lucide-react'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { cn } from '@/lib/utils'
@@ -144,30 +144,81 @@ export function JourneyCanvasViewport({
   maxZoom?: number
 }) {
   const viewportRef = useRef<HTMLDivElement | null>(null)
-  const dragRef = useRef<{ id: number; x: number; y: number } | null>(null)
-  const [zoom, setZoom] = useState(1)
+  const dragRef = useRef<{ id: number; x: number; y: number; moved: boolean } | null>(null)
+  const suppressClickRef = useRef(false)
+  const [view, setView] = useState({ x: 0, y: 0, scale: 1 })
 
   const zoomBy = (delta: number) => {
-    setZoom((current) => Math.min(maxZoom, Math.max(minZoom, Number((current + delta).toFixed(2)))))
+    const rect = viewportRef.current?.getBoundingClientRect()
+    const originX = rect ? rect.width / 2 : 0
+    const originY = rect ? rect.height / 2 : 0
+    setView((current) => {
+      const nextScale = Math.min(maxZoom, Math.max(minZoom, Number((current.scale + delta).toFixed(2))))
+      const ratio = nextScale / current.scale
+      return {
+        scale: nextScale,
+        x: originX - (originX - current.x) * ratio,
+        y: originY - (originY - current.y) * ratio,
+      }
+    })
   }
+
+  useEffect(() => {
+    const el = viewportRef.current
+    if (!el) return
+    const handleWheel = (event: globalThis.WheelEvent) => {
+      event.preventDefault()
+      const rect = el.getBoundingClientRect()
+      const originX = event.clientX - rect.left
+      const originY = event.clientY - rect.top
+      setView((current) => {
+        const nextScale = Math.min(maxZoom, Math.max(minZoom, Number((current.scale - event.deltaY * 0.001).toFixed(2))))
+        const ratio = nextScale / current.scale
+        return {
+          scale: nextScale,
+          x: originX - (originX - current.x) * ratio,
+          y: originY - (originY - current.y) * ratio,
+        }
+      })
+    }
+    el.addEventListener('wheel', handleWheel, { passive: false })
+    return () => el.removeEventListener('wheel', handleWheel)
+  }, [maxZoom, minZoom])
 
   const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return
-    dragRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY }
-    event.currentTarget.setPointerCapture(event.pointerId)
+    const target = event.target instanceof HTMLElement ? event.target : null
+    if (target?.closest('a, input, textarea, select, [data-canvas-interactive="true"]')) return
+    suppressClickRef.current = false
+    dragRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false }
   }
 
   const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current
-    const viewport = viewportRef.current
-    if (!drag || drag.id !== event.pointerId || !viewport) return
-    viewport.scrollLeft -= event.clientX - drag.x
-    viewport.scrollTop -= event.clientY - drag.y
-    dragRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY }
+    if (!drag || drag.id !== event.pointerId) return
+    const dx = event.clientX - drag.x
+    const dy = event.clientY - drag.y
+    const moved = drag.moved || Math.abs(dx) > 2 || Math.abs(dy) > 2
+    if (moved) {
+      event.preventDefault()
+      suppressClickRef.current = true
+      if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.setPointerCapture(event.pointerId)
+      }
+    }
+    setView((current) => ({ ...current, x: current.x + dx, y: current.y + dy }))
+    dragRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY, moved }
   }
 
   const handlePointerUp = (event: PointerEvent<HTMLDivElement>) => {
     if (dragRef.current?.id === event.pointerId) dragRef.current = null
+  }
+
+  const handleClickCapture = (event: MouseEvent<HTMLDivElement>) => {
+    if (!suppressClickRef.current) return
+    event.preventDefault()
+    event.stopPropagation()
+    suppressClickRef.current = false
   }
 
   return (
@@ -177,12 +228,13 @@ export function JourneyCanvasViewport({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      onClickCapture={handleClickCapture}
       className={cn(
-        'relative h-full cursor-grab touch-none overflow-auto bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.94),rgba(249,250,251,0.86)),linear-gradient(to_right,rgba(17,24,39,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(17,24,39,0.05)_1px,transparent_1px)] bg-[size:auto,36px_36px,36px_36px] active:cursor-grabbing',
+        'relative h-full cursor-grab touch-none select-none overflow-hidden bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.94),rgba(249,250,251,0.86)),linear-gradient(to_right,rgba(17,24,39,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(17,24,39,0.05)_1px,transparent_1px)] bg-[size:auto,36px_36px,36px_36px] active:cursor-grabbing',
         className
       )}
     >
-      <div className="sticky bottom-4 left-4 z-20 flex w-fit items-center gap-2 rounded-lg border border-gray-200 bg-white/90 p-1 shadow-sm">
+      <div data-canvas-interactive="true" className="absolute bottom-4 left-4 z-20 flex w-fit select-none items-center gap-2 rounded-lg border border-gray-200 bg-white/90 p-1 shadow-sm">
         <div className="flex items-center gap-2 px-2 text-xs font-medium text-gray-500">
           <Move className="h-4 w-4" />
           Drag to move
@@ -195,8 +247,8 @@ export function JourneyCanvasViewport({
         </button>
       </div>
       <div
-        className={cn('origin-top-left p-6 transition-transform duration-150', contentClassName)}
-        style={{ transform: `scale(${zoom})`, width: `${100 / zoom}%`, minHeight: `${100 / zoom}%` }}
+        className={cn('absolute left-0 top-0 origin-top-left p-6', contentClassName)}
+        style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}
       >
         {children}
       </div>

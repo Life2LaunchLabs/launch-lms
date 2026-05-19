@@ -13,6 +13,7 @@ from src.db.roadmap_blocks import (
     RoadmapBlockRequirement,
     RoadmapBlockRequirementCreate,
     RoadmapBlockRequirementRead,
+    RoadmapBlockRequirementSummaryRead,
     RoadmapBlockUpdate,
     RoadmapBlockVisibility,
     RoadmapCashflowDirection,
@@ -27,6 +28,7 @@ from src.db.roadmap_blocks import (
     RoadmapPathwayRead,
     RoadmapPathwayUpdate,
     RoadmapRequirementStatusRead,
+    RoadmapRequiredBlockSummary,
     RoadmapSummaryRead,
 )
 from src.db.users import PublicUser
@@ -144,12 +146,40 @@ def _pathway_block_or_404(user: PublicUser, org_id: int, pathway_block_uuid: str
     return row
 
 
-def _block_read(block: RoadmapBlockDefinition, user: PublicUser) -> RoadmapBlockRead:
+def _requirement_summary(requirement: RoadmapBlockRequirement, required_block: RoadmapBlockDefinition) -> RoadmapBlockRequirementSummaryRead:
+    return RoadmapBlockRequirementSummaryRead(
+        requirement_uuid=requirement.requirement_uuid,
+        block_uuid=required_block.block_uuid,
+        required_block=RoadmapRequiredBlockSummary(
+            block_uuid=required_block.block_uuid,
+            title=required_block.title,
+            block_type=required_block.block_type,
+        ),
+        group_key=requirement.group_key,
+        logic=requirement.logic,
+        sort_order=requirement.sort_order,
+        creation_date=requirement.creation_date,
+        update_date=requirement.update_date,
+    )
+
+
+def _requirement_summaries_for_block(block_id: int, db_session: Session) -> list[RoadmapBlockRequirementSummaryRead]:
+    rows = db_session.exec(
+        select(RoadmapBlockRequirement, RoadmapBlockDefinition)
+        .join(RoadmapBlockDefinition, RoadmapBlockDefinition.id == RoadmapBlockRequirement.required_block_id)
+        .where(RoadmapBlockRequirement.block_id == block_id)
+        .order_by(RoadmapBlockRequirement.sort_order.asc(), RoadmapBlockRequirement.creation_date.asc())
+    ).all()
+    return [_requirement_summary(requirement, required_block) for requirement, required_block in rows]
+
+
+def _block_read(block: RoadmapBlockDefinition, user: PublicUser, db_session: Session | None = None) -> RoadmapBlockRead:
     return RoadmapBlockRead(
         block_uuid=block.block_uuid,
         visibility=block.visibility,
         owner_user_id=block.owner_user_id,
         editable=_can_edit_block(block, user),
+        requirements=_requirement_summaries_for_block(block.id or 0, db_session) if db_session and block.id else [],
         lane_category=block.lane_category,
         block_type=block.block_type,
         title=block.title,
@@ -300,7 +330,7 @@ def _detail_read(pathway: RoadmapPathway, user: PublicUser, db_session: Session)
         reads.append(
             RoadmapPathwayBlockRead(
                 pathway_block_uuid=item.pathway_block_uuid,
-                block=_block_read(block, user),
+                block=_block_read(block, user, db_session),
                 start_date=item.start_date,
                 end_date=item.end_date,
                 is_ongoing=item.is_ongoing,
@@ -311,6 +341,7 @@ def _detail_read(pathway: RoadmapPathway, user: PublicUser, db_session: Session)
                 one_time_cost_override=item.one_time_cost_override,
                 notes=item.notes,
                 sort_order=item.sort_order,
+                requirements=requirements,
                 unmet_requirements=[requirement for requirement in requirements if not requirement.met],
                 creation_date=item.creation_date,
                 update_date=item.update_date,
@@ -327,7 +358,7 @@ async def list_blocks(user: PublicUser, org_id: int, db_session: Session) -> lis
         .where((RoadmapBlockDefinition.visibility == RoadmapBlockVisibility.org) | (RoadmapBlockDefinition.owner_user_id == user.id))
         .order_by(RoadmapBlockDefinition.update_date.desc())
     ).all()
-    return [_block_read(block, user) for block in blocks]
+    return [_block_read(block, user, db_session) for block in blocks]
 
 
 async def create_block(user: PublicUser, org_id: int, data: RoadmapBlockCreate, db_session: Session) -> RoadmapBlockRead:
@@ -340,7 +371,7 @@ async def create_block(user: PublicUser, org_id: int, data: RoadmapBlockCreate, 
     db_session.add(block)
     db_session.commit()
     db_session.refresh(block)
-    return _block_read(block, user)
+    return _block_read(block, user, db_session)
 
 
 async def update_block(user: PublicUser, org_id: int, block_uuid: str, data: RoadmapBlockUpdate, db_session: Session) -> RoadmapBlockRead:
@@ -354,7 +385,7 @@ async def update_block(user: PublicUser, org_id: int, block_uuid: str, data: Roa
     db_session.add(block)
     db_session.commit()
     db_session.refresh(block)
-    return _block_read(block, user)
+    return _block_read(block, user, db_session)
 
 
 async def delete_block(user: PublicUser, org_id: int, block_uuid: str, db_session: Session) -> dict:
@@ -405,7 +436,7 @@ async def create_block_requirement(user: PublicUser, org_id: int, block_uuid: st
     return RoadmapBlockRequirementRead(
         requirement_uuid=requirement.requirement_uuid,
         block_uuid=block.block_uuid,
-        required_block=_block_read(required, user),
+        required_block=_block_read(required, user, db_session),
         group_key=requirement.group_key,
         logic=requirement.logic,
         sort_order=requirement.sort_order,
