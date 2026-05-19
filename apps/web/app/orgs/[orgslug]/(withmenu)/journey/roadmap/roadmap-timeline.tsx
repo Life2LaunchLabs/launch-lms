@@ -1,7 +1,5 @@
 'use client'
 
-import { Plus } from 'lucide-react'
-import { Button } from '@components/ui/button'
 import { TimelineCanvas, TimelineCanvasEntry } from '@components/Objects/Timeline/TimelineCanvas'
 import { RoadmapPathwayBlock, RoadmapPathwayDetail } from '@services/roadmap/blocks'
 
@@ -9,7 +7,7 @@ type RoadmapTimelineProps = {
   path: RoadmapPathwayDetail
   selectedUuid: string | null
   onSelect: (uuid: string) => void
-  onAdd: () => void
+  onMove: (uuid: string, placement: { startDate: string; endDate: string; isOngoing: boolean }) => void
 }
 
 const blockTypeLabels = {
@@ -52,18 +50,17 @@ function toCanvasEntry(item: RoadmapPathwayBlock): TimelineCanvasEntry {
   }
 }
 
-export default function RoadmapTimeline({ path, selectedUuid, onSelect, onAdd }: RoadmapTimelineProps) {
+export default function RoadmapTimeline({ path, selectedUuid, onSelect, onMove }: RoadmapTimelineProps) {
   return (
-    <div className="min-w-[720px] p-6">
+    <div className="h-full min-h-0 min-w-0">
       <TimelineCanvas
         entries={path.blocks.map(toCanvasEntry)}
         selectedId={selectedUuid}
         emptyMessage="No roadmap blocks yet"
+        variant="roadmap"
         onEntryClick={(entry) => onSelect(entry.id)}
+        onEntryMove={(entry, placement) => onMove(entry.id, placement)}
       />
-      <div className="mt-4">
-        <Button type="button" variant="outline" onClick={onAdd}><Plus className="mr-2 h-4 w-4" />Add blank block</Button>
-      </div>
     </div>
   )
 }

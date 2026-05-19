@@ -28,7 +28,7 @@ import {
   updateRoadmapPathwayBlock,
 } from '@services/roadmap/blocks'
 import RoadmapTimeline from './roadmap-timeline'
-import { JourneyCanvasViewport, JourneyPanel, JourneyWorkspaceHeader, JourneyWorkspaceShell } from '../workspace'
+import { JourneyPanel, JourneyWorkspaceHeader, JourneyWorkspaceShell } from '../workspace'
 import { BlockMetadataEditor, BlockMetadataSummary, blockTypeLabels } from './block-metadata'
 
 type Props = { orgslug: string; roadmapUuid?: string }
@@ -395,6 +395,17 @@ export default function RoadmapBuildWorkspaceBlocks({ orgslug, roadmapUuid }: Pr
     setPanelOpen(true)
   }
 
+  const moveTimelineBlock = async (uuid: string, placement: { startDate: string; endDate: string; isOngoing: boolean }) => {
+    if (!orgId || !accessToken) return
+    setSelectedBlockUuid(uuid)
+    const next = await withSaving('Block moved', () => updateRoadmapPathwayBlock(orgId, uuid, {
+      start_date: placement.startDate,
+      end_date: placement.endDate,
+      is_ongoing: placement.isOngoing,
+    }, accessToken))
+    if (next) await replacePath(next)
+  }
+
   if (isLoading || !selected) {
     return (
       <JourneyWorkspaceShell
@@ -449,9 +460,14 @@ export default function RoadmapBuildWorkspaceBlocks({ orgslug, roadmapUuid }: Pr
         />
       )}
     >
-      <JourneyCanvasViewport contentClassName="min-h-full min-w-full p-0">
-        <RoadmapTimeline path={selected} selectedUuid={selectedBlock?.pathway_block_uuid || null} onSelect={(uuid) => { setSelectedBlockUuid(uuid); setPanelMode('detail'); setCanBackToDetail(false); setPanelOpen(true) }} onAdd={addBlankBlock} />
-      </JourneyCanvasViewport>
+      <div className="h-full min-h-0 bg-white">
+        <RoadmapTimeline
+          path={selected}
+          selectedUuid={selectedBlock?.pathway_block_uuid || null}
+          onSelect={(uuid) => { setSelectedBlockUuid(uuid); setPanelMode('detail'); setCanBackToDetail(false); setPanelOpen(true) }}
+          onMove={moveTimelineBlock}
+        />
+      </div>
     </JourneyWorkspaceShell>
   )
 }
