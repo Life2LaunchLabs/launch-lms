@@ -1,21 +1,22 @@
 'use client'
 
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  ArrowLeft,
+  BookOpen,
   Camera,
   Check,
   ChevronLeft,
   ChevronRight,
+  Clock3,
   Copy,
   Edit3,
   Eye,
   FileText,
   Globe,
-  ImageIcon,
   Instagram,
+  LayoutGrid,
   Linkedin,
   Link2,
   Loader2,
@@ -35,9 +36,8 @@ import {
 import { Input } from '@components/ui/input'
 import { Switch } from '@components/ui/switch'
 import { Textarea } from '@components/ui/textarea'
-import UserAvatar from '@components/Objects/UserAvatar'
 import { normalizeAchievements, ProfileAchievementsSection } from '@components/Objects/Profile/ProfileAchievements'
-import { normalizeTimeline, ProfileTimelineSummary } from '@components/Objects/Profile/ProfileTimeline'
+import ProfileTimeline, { normalizeTimeline } from '@components/Objects/Profile/ProfileTimeline'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getUserAvatarMediaDirectory, getUserProfileFeaturedMediaDirectory } from '@services/media/media'
@@ -93,6 +93,17 @@ type ProfilePageClientProps = {
 
 type OwnerProfilePageClientProps = Omit<ProfilePageClientProps, 'mode' | 'isSelf'>
 type PublicProfilePageClientProps = Omit<ProfilePageClientProps, 'mode' | 'editMode'>
+type ProfileTab = 'overview' | 'journal' | 'timeline'
+
+const PROFILE_TABS: Array<{
+  id: ProfileTab
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+}> = [
+  { id: 'overview', label: 'Overview', icon: LayoutGrid },
+  { id: 'journal', label: 'Journal', icon: BookOpen },
+  { id: 'timeline', label: 'Timeline', icon: Clock3 },
+]
 
 const SOCIAL_CONFIG: Record<SocialType, {
   label: string
@@ -209,92 +220,325 @@ function createEmptyFeaturedCard(): FeaturedCard {
   }
 }
 
+function getSocialBubbleStyle(type: SocialType): React.CSSProperties {
+  if (type === 'linkedin') return { backgroundColor: '#0A66C2' }
+  if (type === 'instagram') {
+    return {
+      background:
+        'radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 90%)',
+    }
+  }
+  if (type === 'x') return { backgroundColor: '#000000' }
+  return { backgroundColor: '#111827' }
+}
+
+const AVATAR_SOCIAL_SCALE = 198
+
+function getAvatarSocialGeometry(size: number, socialCount: number) {
+  const socialScale = AVATAR_SOCIAL_SCALE
+  const gap = socialScale * 0.055
+  const bubble = Math.min(socialScale * 0.22, (socialScale - ((socialCount + 1) * gap)) / Math.max(1, socialCount))
+  const padding = socialScale * 0.05
+  const channelWidth = bubble + (padding * 2)
+  const channelX = size - channelWidth
+  const barHeight = (socialCount * bubble) + (Math.max(0, socialCount - 1) * gap)
+  const channelTop = Math.max(size * 0.14, size - barHeight - padding)
+  const innerRadius = (bubble / 2) + padding
+
+  return {
+    bubble,
+    channelWidth,
+    channelX,
+    gap,
+    innerRadius,
+    channelTop,
+  }
+}
+
+function estimateTextWidth(value: string, fontSize: number) {
+  return value.length * fontSize * 0.56
+}
+
+function getAvatarNameGeometry(size: number, firstName: string, lastName: string) {
+  const names = [firstName.trim(), lastName.trim()].filter(Boolean)
+  if (names.length === 0) return null
+
+  const fullName = names.join(' ')
+  const maxWidth = size * 0.8
+  const paddingX = size * 0.045
+  const paddingY = size * 0.032
+  const baseFontSize = size * 0.085
+  const minFontSize = size * 0.052
+  const fullNameWidth = estimateTextWidth(fullName, baseFontSize)
+  const longestNameWidth = Math.max(...names.map((name) => estimateTextWidth(name, baseFontSize)))
+  const lines = fullNameWidth + (paddingX * 2) <= maxWidth ? [fullName] : names
+  const widestLine = Math.max(...lines.map((line) => estimateTextWidth(line, baseFontSize)))
+  const fontSize = Math.max(minFontSize, Math.min(baseFontSize, (maxWidth - (paddingX * 2)) / Math.max(1, longestNameWidth / baseFontSize)))
+  const lineHeight = fontSize * 1.08
+  const width = Math.min(maxWidth, Math.max(...lines.map((line) => estimateTextWidth(line, fontSize))) + (paddingX * 2))
+  const height = (lines.length * lineHeight) + (paddingY * 2)
+  const radius = (fontSize / 2) + paddingY
+
+  return {
+    lines,
+    width,
+    height,
+    fontSize,
+    lineHeight,
+    radius,
+    paddingX,
+    paddingY,
+    needsWordBreak: widestLine + (paddingX * 2) > maxWidth,
+  }
+}
+
+function getAvatarClipPath(size: number, socialCount: number, nameGeometry: ReturnType<typeof getAvatarNameGeometry> = null) {
+  const radius = size * 0.14
+  if (socialCount === 0 && !nameGeometry) {
+    return `M ${radius} 0 H ${size - radius} Q ${size} 0 ${size} ${radius} V ${size - radius} Q ${size} ${size} ${size - radius} ${size} H ${radius} Q 0 ${size} 0 ${size - radius} V ${radius} Q 0 0 ${radius} 0 Z`
+  }
+
+  const socialGeometry = socialCount > 0 ? getAvatarSocialGeometry(size, socialCount) : null
+  const channelX = socialGeometry?.channelX ?? size
+  const channelTop = socialGeometry?.channelTop ?? size
+  const innerRadius = socialGeometry?.innerRadius ?? 0
+  const nameWidth = nameGeometry?.width ?? 0
+  const nameHeight = nameGeometry?.height ?? 0
+  const nameRadius = Math.min(nameGeometry?.radius ?? 0, nameWidth / 2, nameHeight / 2)
+  const startsAfterNameCutout = Boolean(nameGeometry)
+
+  return [
+    `M ${startsAfterNameCutout ? nameWidth + nameRadius : radius} 0`,
+    `H ${size - radius}`,
+    `Q ${size} 0 ${size} ${radius}`,
+    ...(socialGeometry ? [
+      `V ${channelTop - innerRadius}`,
+      `Q ${size} ${channelTop} ${size - innerRadius} ${channelTop}`,
+      `H ${channelX + innerRadius}`,
+      `Q ${channelX} ${channelTop} ${channelX} ${channelTop + innerRadius}`,
+      `V ${size - innerRadius}`,
+      `Q ${channelX} ${size} ${channelX - innerRadius} ${size}`,
+    ] : [
+      `V ${size - radius}`,
+      `Q ${size} ${size} ${size - radius} ${size}`,
+    ]),
+    `H ${radius}`,
+    `Q 0 ${size} 0 ${size - radius}`,
+    ...(nameGeometry ? [
+      `V ${nameHeight + nameRadius}`,
+      `Q 0 ${nameHeight} ${nameRadius} ${nameHeight}`,
+      `H ${nameWidth - nameRadius}`,
+      `Q ${nameWidth} ${nameHeight} ${nameWidth} ${nameHeight - nameRadius}`,
+      `V ${nameRadius}`,
+      `Q ${nameWidth} 0 ${nameWidth + nameRadius} 0`,
+    ] : [
+      `V ${radius}`,
+      `Q 0 0 ${radius} 0`,
+    ]),
+    'Z',
+  ].join(' ')
+}
+
+function ProfileHeaderAvatar({
+  avatarUrl,
+  socials,
+  size,
+  userId,
+  firstName,
+  lastName,
+  showNameCutout = false,
+  fullWidth = false,
+  editMode,
+  uploading,
+  onAvatarChange,
+}: {
+  avatarUrl: string
+  socials: SocialLink[]
+  size: number
+  userId: number | string
+  firstName?: string
+  lastName?: string
+  showNameCutout?: boolean
+  fullWidth?: boolean
+  editMode: boolean
+  uploading: boolean
+  // eslint-disable-next-line no-unused-vars
+  onAvatarChange(event: React.ChangeEvent<HTMLInputElement>): void
+}) {
+  const clipId = useId()
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const [measuredSize, setMeasuredSize] = useState(size)
+  const actualSize = fullWidth ? measuredSize : size
+  const safeClipId = `profile-avatar-${clipId.replace(/[^a-zA-Z0-9_-]/g, '')}`
+  const visibleSocials = socials.filter((social) => social.url).slice(0, 5)
+  const nameGeometry = showNameCutout ? getAvatarNameGeometry(actualSize, firstName || '', lastName || '') : null
+  const clipPath = getAvatarClipPath(actualSize, visibleSocials.length, nameGeometry)
+  const { bubble, channelWidth, gap } = getAvatarSocialGeometry(actualSize, visibleSocials.length)
+  const bubbleSize = Math.round(bubble)
+  const avatarImageUrl = avatarUrl || '/empty_avatar.png'
+
+  useEffect(() => {
+    if (!fullWidth || !containerRef.current) return
+    const observer = new ResizeObserver(([entry]) => {
+      const nextSize = Math.max(1, Math.round(entry.contentRect.width))
+      setMeasuredSize(nextSize)
+    })
+    observer.observe(containerRef.current)
+    return () => observer.disconnect()
+  }, [fullWidth])
+
+  return (
+    <div
+      ref={containerRef}
+      className={`relative shrink-0 ${fullWidth ? 'w-full' : ''}`}
+      style={{ width: fullWidth ? undefined : actualSize, height: actualSize }}
+    >
+      <svg
+        viewBox={`0 0 ${actualSize} ${actualSize}`}
+        className="h-full w-full overflow-visible"
+        role="img"
+        aria-label="Profile photo"
+      >
+        <defs>
+          <clipPath id={safeClipId}>
+            <path d={clipPath} />
+          </clipPath>
+        </defs>
+        <rect width={actualSize} height={actualSize} clipPath={`url(#${safeClipId})`} className="fill-gray-100" />
+        <image
+          href={avatarImageUrl}
+          width={actualSize}
+          height={actualSize}
+          preserveAspectRatio="xMidYMid slice"
+          clipPath={`url(#${safeClipId})`}
+        />
+      </svg>
+
+      {nameGeometry ? (
+        <div
+          className="absolute left-0 top-0 flex flex-col justify-center font-black leading-none text-gray-950"
+          style={{
+            width: nameGeometry.width,
+            height: nameGeometry.height,
+            paddingLeft: nameGeometry.paddingX,
+            paddingRight: nameGeometry.paddingX,
+            paddingTop: nameGeometry.paddingY,
+            paddingBottom: nameGeometry.paddingY,
+            fontSize: nameGeometry.fontSize,
+            lineHeight: `${nameGeometry.lineHeight}px`,
+            wordBreak: nameGeometry.needsWordBreak ? 'break-word' : 'normal',
+          }}
+        >
+          {nameGeometry.lines.map((line, index) => (
+            <span key={`${line}-${index}`} className="block">
+              {line}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      {visibleSocials.length > 0 ? (
+        <div
+          className="absolute right-0 bottom-0 flex flex-col items-center"
+          style={{
+            width: channelWidth,
+            gap,
+          }}
+        >
+          {visibleSocials.map((social) => {
+            const config = SOCIAL_CONFIG[social.type]
+            const Icon = config.icon
+            return (
+              <a
+                key={social.type}
+                href={getSocialHref(social)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex shrink-0 items-center justify-center rounded-full text-white shadow-sm ring-2 ring-white transition-transform hover:-translate-y-0.5"
+                style={{
+                  width: bubbleSize,
+                  height: bubbleSize,
+                  ...getSocialBubbleStyle(social.type),
+                }}
+                aria-label={config.label}
+                title={config.label}
+              >
+                <Icon className="h-[45%] w-[45%]" />
+              </a>
+            )
+          })}
+        </div>
+      ) : null}
+
+      {editMode ? (
+        <>
+          <input
+            id={`profile-avatar-upload-${userId}-${size}`}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            className="hidden"
+            onChange={onAvatarChange}
+          />
+          <button
+            type="button"
+            aria-label="Upload profile photo"
+            onClick={() => document.getElementById(`profile-avatar-upload-${userId}-${size}`)?.click()}
+            className="absolute left-3 bottom-3 flex h-9 w-9 items-center justify-center rounded-full bg-black text-white shadow-md"
+            disabled={uploading}
+          >
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera size={18} />}
+          </button>
+        </>
+      ) : null}
+    </div>
+  )
+}
+
 function getCardImage(card?: FeaturedCard) {
   return card?.imageUrl || ''
 }
 
-function getDisplayUrl(value: string) {
-  try {
-    const url = new URL(normalizeUrl(value))
-    return `${url.hostname}${url.pathname === '/' ? '' : url.pathname}`.replace(/\/$/, '')
-  } catch {
-    return value
-  }
-}
-
-function getToneClasses(tone: FeaturedCard['textTone']) {
-  if (tone === 'light') {
-    return {
-      title: 'text-white placeholder:text-white/55',
-      body: 'text-white/90 placeholder:text-white/55',
-      link: 'text-white hover:text-white',
-      muted: 'text-white/75',
-      line: 'border-white/25',
-      panel: 'bg-black/12',
-      control: 'bg-black/20 text-white placeholder:text-white/55',
-      topGradient: 'from-black/80',
-      bottomGradient: 'from-black/80',
-    }
-  }
-
-  return {
-    title: 'text-gray-950 placeholder:text-gray-500',
-    body: 'text-gray-800 placeholder:text-gray-500',
-    link: 'text-gray-950 hover:text-gray-950',
-    muted: 'text-gray-700',
-    line: 'border-gray-950/15',
-    panel: 'bg-white/12',
-    control: 'bg-white/20 text-gray-950 placeholder:text-gray-500',
-    topGradient: 'from-white/85',
-    bottomGradient: 'from-white/95',
-  }
-}
-
 function FeaturedDisplayCard({
   card,
-  active,
 }: {
   card: FeaturedCard
-  active: boolean
 }) {
   const image = getCardImage(card)
-  const tone = getToneClasses(card.textTone)
+  const content = (
+    <>
+      <div className="aspect-[16/10] w-full overflow-hidden rounded-xl bg-[linear-gradient(135deg,#eef2ff,#f8fafc,#dcfce7)]">
+        {image ? (
+          <img src={image} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" />
+        ) : null}
+      </div>
+      <div className="px-1 pt-4">
+        <h3 className="text-lg font-semibold leading-snug text-gray-950">
+          {card.title || 'Portfolio item'}
+        </h3>
+        {card.subtext ? (
+          <p className="mt-2 max-h-20 overflow-hidden text-sm leading-5 text-gray-600">
+            {card.subtext}
+          </p>
+        ) : null}
+      </div>
+    </>
+  )
+
+  const className = 'group block h-full w-[min(82vw,320px)] rounded-2xl p-2 transition-all duration-200 hover:-translate-y-1 hover:bg-gray-50 hover:shadow-md sm:w-[300px]'
+
+  if (!card.url) {
+    return <article className={className}>{content}</article>
+  }
 
   return (
-    <div
-      className={`relative flex h-[270px] w-[min(82vw,360px)] flex-col overflow-hidden rounded-[28px] border bg-white p-1 transition-all duration-300 sm:h-[285px] sm:w-[380px] ${
-        active ? 'border-[3px] border-gray-950' : 'border border-gray-200'
-      }`}
+    <a
+      href={normalizeUrl(card.url)}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={className}
     >
-      {image ? (
-        <img src={image} alt="" className="absolute inset-1 h-[calc(100%-8px)] w-[calc(100%-8px)] rounded-[24px] object-cover" />
-      ) : (
-        <div className="absolute inset-1 rounded-[24px] bg-[linear-gradient(135deg,#eef2ff,#f8fafc,#dcfce7)]" />
-      )}
-      <div className={`absolute inset-x-1 top-1 h-32 rounded-t-[24px] bg-gradient-to-b ${tone.topGradient} to-transparent`} />
-      <div className={`absolute inset-x-1 bottom-1 h-32 rounded-b-[24px] bg-gradient-to-t ${tone.bottomGradient} to-transparent`} />
-      <div className="relative flex min-h-0 flex-1 flex-col p-5">
-        <div className="space-y-2">
-          <h3 className={`text-2xl font-black leading-none ${tone.title}`}>
-            {card.title || 'Featured link'}
-          </h3>
-          {card.subtext ? (
-            <p className={`text-lg leading-7 ${tone.body}`}>{card.subtext}</p>
-          ) : null}
-        </div>
-        <div className={`mt-auto border-t pt-3 ${tone.line}`}>
-          <a
-            href={normalizeUrl(card.url)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`flex items-center gap-2 text-base font-semibold hover:underline ${tone.link}`}
-          >
-            <Link2 className="h-4 w-4" />
-            <span className="truncate">{getDisplayUrl(card.url)}</span>
-          </a>
-        </div>
-      </div>
-    </div>
+      {content}
+    </a>
   )
 }
 
@@ -321,11 +565,12 @@ function FeaturedCarousel({
 }) {
   const cards = featured.cards || []
   const [activeIndex, setActiveIndex] = useState(0)
-  const [linkModeCardId, setLinkModeCardId] = useState<string | null>(null)
   const [linkDraft, setLinkDraft] = useState('')
   const [isScraping, setIsScraping] = useState(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const [pendingPreview, setPendingPreview] = useState<ResourceUrlPreview | null>(null)
+  const [canScrollBack, setCanScrollBack] = useState(false)
+  const [canScrollForward, setCanScrollForward] = useState(false)
   const mobileScrollerRef = useRef<HTMLDivElement | null>(null)
   const [, setDraggingThumbIndex] = useState<number | null>(null)
   const draggingThumbIndexRef = useRef<number | null>(null)
@@ -350,13 +595,12 @@ function FeaturedCarousel({
 
   const addCard = () => {
     if (cards.length >= 10) {
-      toast.error('Featured carousel is capped at 10 cards')
+      toast.error('Portfolio is capped at 10 items')
       return
     }
     const nextCard = createEmptyFeaturedCard()
     updateFeatured({ enabled: true, cards: [...cards, nextCard] })
     setActiveIndex(cards.length)
-    setLinkModeCardId(nextCard.id)
     setLinkDraft('')
     setPendingPreview(null)
   }
@@ -365,15 +609,42 @@ function FeaturedCarousel({
     const nextCards = cards.filter((card) => card.id !== cardId)
     updateFeatured({ cards: nextCards })
     setActiveIndex((current) => Math.max(0, Math.min(current, nextCards.length - 1)))
-    if (linkModeCardId === cardId) setLinkModeCardId(null)
+  }
+
+  const scrollPortfolioCardIntoView = (index: number) => {
+    const scroller = mobileScrollerRef.current
+    const card = scroller?.children.item(index) as HTMLElement | null
+    if (!scroller || !card) return
+
+    const left = card.offsetLeft - (scroller.clientWidth - card.offsetWidth) / 2
+    scroller.scrollTo({ left: Math.max(0, left), behavior: 'smooth' })
+  }
+
+  const updateScrollControls = () => {
+    const scroller = mobileScrollerRef.current
+    if (!scroller) return
+
+    const maxScrollLeft = scroller.scrollWidth - scroller.clientWidth
+    setCanScrollBack(scroller.scrollLeft > 2)
+    setCanScrollForward(scroller.scrollLeft < maxScrollLeft - 2)
   }
 
   const moveTo = (index: number) => {
     if (!cards.length) return
-    const next = (index + cards.length) % cards.length
+    const next = Math.max(0, Math.min(index, cards.length - 1))
     setActiveIndex(next)
-    setLinkModeCardId(null)
     setPendingPreview(null)
+    scrollPortfolioCardIntoView(next)
+  }
+
+  const scrollPortfolioPage = (direction: -1 | 1) => {
+    const scroller = mobileScrollerRef.current
+    if (!scroller) return
+
+    scroller.scrollBy({
+      left: direction * scroller.clientWidth * 0.9,
+      behavior: 'smooth',
+    })
   }
 
   const applyPreview = (cardId: string, preview: ResourceUrlPreview, overwrite: boolean) => {
@@ -385,7 +656,6 @@ function FeaturedCarousel({
       subtext: overwrite || !card?.subtext ? update.subtext : card.subtext,
       imageUrl: overwrite || !card?.imageUrl ? update.imageUrl : card.imageUrl,
     })
-    setLinkModeCardId(null)
     setPendingPreview(null)
   }
 
@@ -443,9 +713,9 @@ function FeaturedCarousel({
         res.data.filename
       )
       updateCard(cardId, { imageUrl })
-      toast.success('Featured image uploaded')
+      toast.success('Portfolio image uploaded')
     } catch {
-      toast.error('Could not upload featured image')
+      toast.error('Could not upload portfolio image')
     } finally {
       setIsUploadingImage(false)
       event.target.value = ''
@@ -455,6 +725,7 @@ function FeaturedCarousel({
   const handleMobileScroll = () => {
     const scroller = mobileScrollerRef.current
     if (!scroller || cards.length === 0) return
+    updateScrollControls()
     const scrollerCenter = scroller.scrollLeft + scroller.clientWidth / 2
     let closestIndex = 0
     let closestDistance = Number.POSITIVE_INFINITY
@@ -472,12 +743,18 @@ function FeaturedCarousel({
     setActiveIndex(closestIndex)
   }
 
+  useEffect(() => {
+    updateScrollControls()
+    window.addEventListener('resize', updateScrollControls)
+    return () => window.removeEventListener('resize', updateScrollControls)
+  }, [cards.length])
+
   if (!editMode && (!enabled || !publicVisible || cards.length === 0)) return null
 
   return (
     <section className="mt-4 px-4 sm:px-0">
       <div className="mb-3 flex items-center justify-between gap-4">
-        <h2 className="text-2xl font-semibold text-gray-950">Featured</h2>
+        <h2 className="text-2xl font-semibold text-gray-950">Portfolio</h2>
         {editMode ? (
           <div className="flex flex-col items-end gap-2">
             <label className="flex items-center gap-3">
@@ -505,161 +782,90 @@ function FeaturedCarousel({
           <div className="space-y-4">
             <div className="flex min-h-[290px] items-center justify-center">
               {activeCard ? (
-                <div className="relative">
-                  {linkModeCardId !== activeCard.id ? (
-                    <button
+                <div className="relative w-[min(82vw,320px)] rounded-2xl bg-white p-2 sm:w-[300px]">
+                  <button
+                    type="button"
+                    aria-label="Delete portfolio item"
+                    onClick={() => deleteCard(activeCard.id)}
+                    className="absolute right-4 top-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-gray-700 shadow-sm ring-1 ring-gray-200 hover:text-red-600"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                  <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl bg-[linear-gradient(135deg,#eef2ff,#f8fafc,#dcfce7)]">
+                    {activeCard.imageUrl ? (
+                      <img src={activeCard.imageUrl} alt="" className="h-full w-full object-cover" />
+                    ) : null}
+                    <input
+                      id={`featured-image-upload-${activeCard.id}`}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif"
+                      className="hidden"
+                      onChange={(event) => handleFeaturedImageUpload(event, activeCard.id)}
+                    />
+                    <Button
                       type="button"
-                      aria-label="Delete featured card"
-                      onClick={() => deleteCard(activeCard.id)}
-                      className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-gray-700 shadow-sm hover:text-red-600"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => document.getElementById(`featured-image-upload-${activeCard.id}`)?.click()}
+                      disabled={isUploadingImage}
+                      className="absolute bottom-3 right-3 h-8 bg-white/90 px-2 text-xs text-gray-900 hover:bg-white"
                     >
-                      <X className="h-4 w-4" />
-                    </button>
-                  ) : null}
-
-                  {linkModeCardId === activeCard.id ? (
-                    <div className="relative flex h-[270px] w-[min(82vw,360px)] flex-col justify-center overflow-hidden rounded-[28px] border border-gray-200 bg-white p-5 shadow-lg sm:h-[285px] sm:w-[380px]">
-                      {activeCard.url && (
-                        <button
-                          type="button"
-                          aria-label="Back to details"
-                          onClick={() => {
-                            setLinkModeCardId(null)
-                            setPendingPreview(null)
-                          }}
-                          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-700"
-                        >
-                          <ArrowLeft className="h-4 w-4" />
-                        </button>
-                      )}
-                      <div className="space-y-4">
-                        <div>
-                          <h3 className="text-2xl font-semibold text-gray-950">Add a featured link</h3>
-                          <p className="mt-2 text-sm text-gray-500">Paste a link and I will try to pull in its title, text, and image.</p>
-                        </div>
-                        <Input
-                          value={linkDraft}
-                          onChange={(event) => setLinkDraft(event.target.value)}
-                          onPaste={(event) => {
-                            const pasted = event.clipboardData.getData('text')
-                            setLinkDraft(pasted)
-                            window.setTimeout(() => scrapeLink(activeCard.id, pasted), 0)
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter') scrapeLink(activeCard.id, linkDraft)
-                          }}
-                          placeholder="https://example.com"
-                          className="h-12"
-                        />
-                        {isScraping ? (
-                          <div className="flex items-center gap-2 text-sm text-gray-500">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Searching for link details...
-                          </div>
-                        ) : null}
-                        {pendingPreview ? (
-                          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
-                            <p className="text-gray-700">Use the details I found, or keep your existing text?</p>
-                            <div className="mt-3 flex gap-2">
-                              <Button type="button" size="sm" onClick={() => applyPreview(activeCard.id, pendingPreview, true)}>
-                                Accept
-                              </Button>
-                              <Button type="button" size="sm" variant="outline" onClick={() => applyPreview(activeCard.id, pendingPreview, false)}>
-                                Keep existing
-                              </Button>
-                            </div>
-                          </div>
-                        ) : null}
-                      </div>
+                      {isUploadingImage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+                    </Button>
+                  </div>
+                  <div className="space-y-3 px-1 pt-4">
+                    <Input
+                      value={activeCard.title}
+                      onChange={(event) => updateCard(activeCard.id, { title: event.target.value })}
+                      placeholder="Title"
+                      className="border-0 px-0 text-lg font-semibold text-gray-950 shadow-none focus-visible:ring-0"
+                    />
+                    <Textarea
+                      value={activeCard.subtext}
+                      onChange={(event) => updateCard(activeCard.id, { subtext: event.target.value })}
+                      placeholder="Description"
+                      className="max-h-24 min-h-20 resize-none px-0 text-sm leading-5 text-gray-600 shadow-none focus-visible:ring-0"
+                    />
+                    <div className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2">
+                      <Link2 className="h-4 w-4 shrink-0 text-gray-500" />
+                      <Input
+                        value={activeCard.url}
+                        onChange={(event) => {
+                          setLinkDraft(event.target.value)
+                          updateCard(activeCard.id, { url: event.target.value })
+                        }}
+                        onPaste={(event) => {
+                          const pasted = event.clipboardData.getData('text')
+                          setLinkDraft(pasted)
+                          window.setTimeout(() => scrapeLink(activeCard.id, pasted), 0)
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') scrapeLink(activeCard.id, activeCard.url || linkDraft)
+                        }}
+                        placeholder="https://example.com"
+                        className="h-8 border-0 px-0 shadow-none focus-visible:ring-0"
+                      />
                     </div>
-                  ) : (
-                    <div className="relative flex h-[270px] w-[min(82vw,360px)] flex-col overflow-hidden rounded-[28px] border-[3px] border-gray-950 bg-white p-1 sm:h-[285px] sm:w-[380px]">
-                      {activeCard.imageUrl ? (
-                        <img src={activeCard.imageUrl} alt="" className="absolute inset-1 h-[calc(100%-8px)] w-[calc(100%-8px)] rounded-[24px] object-cover" />
-                      ) : (
-                        <div className="absolute inset-1 rounded-[24px] bg-[linear-gradient(135deg,#eef2ff,#f8fafc,#dcfce7)]" />
-                      )}
-                      {(() => {
-                        const tone = getToneClasses(activeCard.textTone)
-                        return (
-                      <>
-                      <div className={`absolute inset-x-1 top-1 h-32 rounded-t-[24px] bg-gradient-to-b ${tone.topGradient} to-transparent`} />
-                      <div className={`absolute inset-x-1 bottom-1 h-32 rounded-b-[24px] bg-gradient-to-t ${tone.bottomGradient} to-transparent`} />
-                      <div className="relative flex min-h-0 flex-1 flex-col p-5 pt-12">
-                        <div className="absolute left-7 top-5 z-10 flex items-center gap-2 rounded-full bg-white/75 px-2 py-1 text-xs text-gray-700 backdrop-blur-sm">
-                          <span>Text</span>
-                          <button
-                            type="button"
-                            onClick={() => updateCard(activeCard.id, { textTone: 'dark' })}
-                            className={`rounded-full px-2 py-0.5 ${activeCard.textTone === 'dark' ? 'bg-gray-950 text-white' : 'text-gray-600'}`}
-                          >
-                            Dark
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateCard(activeCard.id, { textTone: 'light' })}
-                            className={`rounded-full px-2 py-0.5 ${activeCard.textTone === 'light' ? 'bg-gray-950 text-white' : 'text-gray-600'}`}
-                          >
-                            Light
-                          </button>
-                        </div>
-                        <div className="space-y-3">
-                          <Input
-                            value={activeCard.title}
-                            onChange={(event) => updateCard(activeCard.id, { title: event.target.value })}
-                            placeholder="Title"
-                            className={`border-0 bg-transparent px-0 text-2xl font-black shadow-none focus-visible:ring-0 ${tone.title}`}
-                          />
-                          <Textarea
-                            value={activeCard.subtext}
-                            onChange={(event) => updateCard(activeCard.id, { subtext: event.target.value })}
-                            placeholder="Subtext"
-                            className={`min-h-14 resize-none border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0 ${tone.body}`}
-                          />
-                          <div className={`flex items-center gap-2 rounded-lg px-3 py-2 backdrop-blur-sm ${tone.panel}`}>
-                            <ImageIcon className={`h-4 w-4 ${tone.muted}`} />
-                            <Input
-                              value={activeCard.imageUrl}
-                              onChange={(event) => updateCard(activeCard.id, { imageUrl: event.target.value })}
-                              placeholder="Background image URL"
-                              className={`h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 ${tone.body}`}
-                            />
-                            <input
-                              id={`featured-image-upload-${activeCard.id}`}
-                              type="file"
-                              accept="image/png,image/jpeg,image/webp,image/gif"
-                              className="hidden"
-                              onChange={(event) => handleFeaturedImageUpload(event, activeCard.id)}
-                            />
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => document.getElementById(`featured-image-upload-${activeCard.id}`)?.click()}
-                              disabled={isUploadingImage}
-                              className="h-8 bg-white/80 px-2 text-xs text-gray-900 hover:bg-white"
-                            >
-                              {isUploadingImage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
-                            </Button>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setLinkDraft(activeCard.url)
-                            setLinkModeCardId(activeCard.id)
-                          }}
-                          className={`relative mt-auto flex items-center gap-2 border-t pt-3 text-left text-base font-semibold hover:underline ${tone.line} ${tone.link}`}
-                        >
-                          <Link2 className="h-4 w-4" />
-                          <span className="truncate">{activeCard.url ? getDisplayUrl(activeCard.url) : 'Add link'}</span>
-                        </button>
+                    {isScraping ? (
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Searching for link details...
                       </div>
-                      </>
-                        )
-                      })()}
-                    </div>
-                  )}
+                    ) : null}
+                    {pendingPreview ? (
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
+                        <p className="text-gray-700">Use the details I found, or keep your existing text?</p>
+                        <div className="mt-3 flex gap-2">
+                          <Button type="button" size="sm" onClick={() => applyPreview(activeCard.id, pendingPreview, true)}>
+                            Accept
+                          </Button>
+                          <Button type="button" size="sm" variant="outline" onClick={() => applyPreview(activeCard.id, pendingPreview, false)}>
+                            Keep existing
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               ) : (
                 <button
@@ -668,7 +874,7 @@ function FeaturedCarousel({
                   className="flex h-[200px] w-[min(82vw,360px)] flex-col items-center justify-center rounded-[28px] border border-dashed border-gray-300 text-gray-500 hover:border-gray-500 hover:text-gray-900"
                 >
                   <Plus className="mb-2 h-6 w-6" />
-                  Add featured card
+                  Add portfolio item
                 </button>
               )}
             </div>
@@ -707,7 +913,7 @@ function FeaturedCarousel({
                   data-featured-thumb-index={index}
                   role="button"
                   tabIndex={0}
-                  aria-label={`Select featured card ${index + 1}`}
+                  aria-label={`Select portfolio item ${index + 1}`}
                   onPointerDown={() => {
                     setDraggingThumbIndex(index)
                     draggingThumbIndexRef.current = index
@@ -719,14 +925,12 @@ function FeaturedCarousel({
                       return
                     }
                     setActiveIndex(index)
-                    setLinkModeCardId(null)
                     setPendingPreview(null)
                   }}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault()
                       setActiveIndex(index)
-                      setLinkModeCardId(null)
                       setPendingPreview(null)
                     }
                   }}
@@ -748,7 +952,7 @@ function FeaturedCarousel({
               ))}
               <button
                 type="button"
-                aria-label="Add featured card"
+                aria-label="Add portfolio item"
                 onClick={addCard}
                 disabled={cards.length >= 10}
                 className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-dashed border-gray-300 text-gray-500 hover:border-gray-500 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
@@ -762,64 +966,45 @@ function FeaturedCarousel({
             <div
               ref={mobileScrollerRef}
               onScroll={handleMobileScroll}
-              className="scrollbar-hide -mx-4 flex w-screen snap-x snap-mandatory gap-4 overflow-x-auto px-[9vw] pb-4 sm:mx-0 sm:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              className="scrollbar-hide -mx-4 flex w-screen snap-x snap-mandatory gap-4 overflow-x-auto px-[9vw] pb-4 sm:mx-0 sm:w-full sm:px-14 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
               {cards.map((card, index) => (
                 <div key={`mobile-${card.id}`} className="snap-center">
-                  <FeaturedDisplayCard card={card} active={index === activeIndex} />
+                  <FeaturedDisplayCard card={card} />
                 </div>
               ))}
             </div>
-
-            <div className="relative hidden h-[290px] w-full items-center justify-center sm:flex sm:h-[305px]">
-              {cards.map((card, index) => {
-                const offset = index - activeIndex
-                if (Math.abs(offset) > 2) return null
-                const active = offset === 0
-                return (
-                  <div
-                    key={`desktop-${card.id}`}
-                    className="absolute hidden transition-all duration-300 sm:block"
-                    style={{
-                      transform: active
-                        ? 'translateX(0) scale(1)'
-                        : `translateX(${offset * 76}px) scale(${1 - Math.abs(offset) * 0.08})`,
-                      opacity: active ? 1 : 0.42 - Math.abs(offset) * 0.1,
-                      zIndex: 10 - Math.abs(offset),
-                    }}
-                  >
-                    <FeaturedDisplayCard card={card} active={active} />
-                  </div>
-                )
-              })}
-              {cards.length > 1 ? (
-                <>
+            {cards.length > 1 ? (
+              <>
+                {canScrollBack ? (
                   <button
                     type="button"
-                    aria-label="Previous featured card"
-                    onClick={() => moveTo(activeIndex - 1)}
-                    className="absolute left-1/2 z-30 hidden h-11 w-11 -translate-x-[250px] items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-md hover:bg-white sm:flex"
+                    aria-label="Previous portfolio item"
+                    onClick={() => scrollPortfolioPage(-1)}
+                    className="absolute left-1 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-white sm:flex"
                   >
                     <ChevronLeft className="h-5 w-5" />
                   </button>
+                ) : null}
+                {canScrollForward ? (
                   <button
                     type="button"
-                    aria-label="Next featured card"
-                    onClick={() => moveTo(activeIndex + 1)}
-                    className="absolute right-1/2 z-30 hidden h-11 w-11 translate-x-[250px] items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-md hover:bg-white sm:flex"
+                    aria-label="Next portfolio item"
+                    onClick={() => scrollPortfolioPage(1)}
+                    className="absolute right-1 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-white sm:flex"
                   >
                     <ChevronRight className="h-5 w-5" />
                   </button>
-                </>
-              ) : null}
-            </div>
+                ) : null}
+              </>
+            ) : null}
             {cards.length > 1 ? (
-              <div className="mt-3 flex items-center justify-center gap-2">
+              <div className="mt-3 flex items-center justify-center gap-2 sm:hidden">
                 {cards.map((card, index) => (
                   <button
                     key={card.id}
                     type="button"
-                    aria-label={`Show featured card ${index + 1}`}
+                    aria-label={`Show portfolio item ${index + 1}`}
                     onClick={() => moveTo(index)}
                     className={`h-2.5 w-2.5 rounded-full transition-colors ${
                       index === activeIndex ? 'bg-gray-950' : 'bg-gray-300'
@@ -857,6 +1042,7 @@ function ProfilePageClient({
   const [isSaving, setIsSaving] = useState(false)
   const [uploading, setUploading] = useState<'avatar' | null>(null)
   const [bioExpanded, setBioExpanded] = useState(false)
+  const [activeTab, setActiveTab] = useState<ProfileTab>('overview')
 
   const isOwnerMode = mode === 'owner'
   const isPublicMode = mode === 'public'
@@ -866,7 +1052,6 @@ function ProfilePageClient({
   const header = profile.header || {}
   const featured = profile.featured || normalizeFeatured(null)
   const achievements = profile.achievements || normalizeAchievements(null)
-  const timeline = profile.timeline || []
   const timelineEnabled = profile.timelineEnabled ?? false
   const timelinePublicVisible = profile.timelinePublicVisible !== false
   const socials = useMemo(() => header.socials ?? [], [header.socials])
@@ -1022,47 +1207,35 @@ function ProfilePageClient({
         ) : null}
         <section className="relative px-4 py-6 sm:px-0">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-            <div className="relative shrink-0">
-              <div className="sm:hidden">
-                <UserAvatar
-                  width={112}
-                  rounded="rounded-full"
-                  avatar_url={avatarUrl}
-                  predefined_avatar={avatarUrl ? undefined : 'empty'}
-                  userId={String(user.id)}
-                  shadow="shadow-none"
+            <div className="w-full shrink-0 sm:w-auto">
+              <div className="w-full sm:hidden">
+                <ProfileHeaderAvatar
+                  size={198}
+                  avatarUrl={avatarUrl || getUriWithOrg(orgslug, '/empty_avatar.png')}
+                  socials={visibleSocials}
+                  userId={user.id}
+                  firstName={effectiveEditMode ? draft.first_name : user.first_name}
+                  lastName={effectiveEditMode ? draft.last_name : user.last_name}
+                  showNameCutout
+                  fullWidth
+                  editMode={effectiveEditMode}
+                  uploading={uploading === 'avatar'}
+                  onAvatarChange={handleAvatarChange}
                 />
               </div>
               <div className="hidden sm:block">
-                <UserAvatar
-                  width={168}
-                  rounded="rounded-full"
-                  avatar_url={avatarUrl}
-                  predefined_avatar={avatarUrl ? undefined : 'empty'}
-                  userId={String(user.id)}
-                  shadow="shadow-none"
+                <ProfileHeaderAvatar
+                  size={270}
+                  avatarUrl={avatarUrl || getUriWithOrg(orgslug, '/empty_avatar.png')}
+                  socials={visibleSocials}
+                  userId={user.id}
+                  firstName={effectiveEditMode ? draft.first_name : user.first_name}
+                  lastName={effectiveEditMode ? draft.last_name : user.last_name}
+                  editMode={effectiveEditMode}
+                  uploading={uploading === 'avatar'}
+                  onAvatarChange={handleAvatarChange}
                 />
               </div>
-              {effectiveEditMode && (
-                <>
-                  <input
-                    id="profile-avatar-upload"
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,image/gif"
-                    className="hidden"
-                    onChange={handleAvatarChange}
-                  />
-                  <button
-                    type="button"
-                    aria-label="Upload profile photo"
-                    onClick={() => document.getElementById('profile-avatar-upload')?.click()}
-                    className="absolute bottom-0 right-0 flex h-9 w-9 items-center justify-center rounded-full bg-black text-white shadow-md sm:h-10 sm:w-10"
-                    disabled={uploading === 'avatar'}
-                  >
-                    <Camera size={18} />
-                  </button>
-                </>
-              )}
             </div>
 
             <div className="min-w-0 flex-1 space-y-3">
@@ -1080,16 +1253,12 @@ function ProfilePageClient({
                         onChange={(event) => setDraft((current) => ({ ...current, last_name: event.target.value }))}
                         placeholder="Last name"
                       />
-                      <div className="sm:col-span-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
-                        @{user.username}
-                      </div>
                     </div>
                   ) : (
                     <div>
-                      <h1 className="text-3xl font-semibold text-gray-950">
+                      <h1 className="hidden text-3xl font-semibold text-gray-950 sm:block">
                         {user.first_name} {user.last_name}
                       </h1>
-                      <p className="mt-1 text-sm text-gray-500">@{user.username}</p>
                     </div>
                   )}
                 </div>
@@ -1176,28 +1345,6 @@ function ProfilePageClient({
                       })}
                     </div>
                   </div>
-                ) : visibleSocials.length > 0 ? (
-                  <div className="-mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-                    <div className="flex w-max max-w-none items-center gap-2">
-                    {visibleSocials.map((social) => {
-                      const config = SOCIAL_CONFIG[social.type]
-                      const Icon = config.icon
-                      return (
-                        <a
-                          key={social.type}
-                          href={getSocialHref(social)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-transparent text-gray-600 transition-colors hover:border-gray-300 hover:text-gray-950"
-                          aria-label={config.label}
-                          title={config.label}
-                        >
-                          <Icon className="h-4 w-4" />
-                        </a>
-                      )
-                    })}
-                    </div>
-                  </div>
                 ) : null}
               {(canManageProfile || isPublicMode) ? (
                 <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -1258,43 +1405,77 @@ function ProfilePageClient({
             </div>
           </div>
         </section>
-        <FeaturedCarousel
-          featured={featured}
-          editMode={effectiveEditMode}
-          accessToken={accessToken}
-          userId={user.id}
-          userUuid={user.user_uuid}
-          publicVisible={isPublicMode ? featured.publicVisible : true}
-          onChange={updateFeatured}
-          onPublicVisibleChange={(visible) => updateFeatured({ ...featured, publicVisible: visible })}
-        />
-        <ProfileTimelineSummary
-          timeline={timeline}
-          orgslug={orgslug}
-          profileUsername={profileUsername}
-          editMode={effectiveEditMode}
-          canEdit={canManageProfile}
-          enabled={timelineEnabled}
-          publicVisible={isPublicMode ? timelinePublicVisible : true}
-          onEnabledChange={(value) => updateDraftProfile((current) => ({ ...current, timelineEnabled: value }))}
-          onPublicVisibleChange={updateTimelinePublicVisible}
-        />
-        <ProfileAchievementsSection
-          achievements={achievements}
-          orgslug={orgslug}
-          profileUsername={profileUsername}
-          editMode={effectiveEditMode}
-          canEdit={canManageProfile}
-          publicVisible={isPublicMode ? achievements.publicVisible : true}
-          onChange={(nextAchievements) => updateDraftProfile((current) => ({
-            ...current,
-            achievements: nextAchievements,
-          }))}
-          onPublicVisibleChange={(visible) => updateDraftProfile((current) => ({
-            ...current,
-            achievements: { ...achievements, publicVisible: visible },
-          }))}
-        />
+        <nav className="px-4 sm:px-0" aria-label="Profile sections">
+          <div className="flex items-center gap-6 overflow-x-auto border-b border-gray-200 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {PROFILE_TABS.map((tab) => {
+              const Icon = tab.icon
+              const selected = activeTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex shrink-0 items-center gap-2 border-b-2 px-0 pb-3 text-sm font-medium transition-colors ${
+                    selected
+                      ? 'border-gray-950 text-gray-950'
+                      : 'border-transparent text-gray-500 hover:text-gray-800'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{tab.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </nav>
+        {activeTab === 'overview' ? (
+          <>
+            <FeaturedCarousel
+              featured={featured}
+              editMode={effectiveEditMode}
+              accessToken={accessToken}
+              userId={user.id}
+              userUuid={user.user_uuid}
+              publicVisible={isPublicMode ? featured.publicVisible : true}
+              onChange={updateFeatured}
+              onPublicVisibleChange={(visible) => updateFeatured({ ...featured, publicVisible: visible })}
+            />
+            <ProfileAchievementsSection
+              achievements={achievements}
+              orgslug={orgslug}
+              profileUsername={profileUsername}
+              editMode={effectiveEditMode}
+              canEdit={canManageProfile}
+              publicVisible={isPublicMode ? achievements.publicVisible : true}
+              onChange={(nextAchievements) => updateDraftProfile((current) => ({
+                ...current,
+                achievements: nextAchievements,
+              }))}
+              onPublicVisibleChange={(visible) => updateDraftProfile((current) => ({
+                ...current,
+                achievements: { ...achievements, publicVisible: visible },
+              }))}
+            />
+          </>
+        ) : null}
+        {activeTab === 'timeline' ? (
+          <ProfileTimeline
+            initialUser={{ ...user, profile }}
+            orgslug={orgslug}
+            profileUsername={profileUsername}
+            editMode={effectiveEditMode}
+            embedded
+            canEdit={effectiveEditMode}
+            enabled={timelineEnabled}
+            publicVisible={isPublicMode ? timelinePublicVisible : true}
+            onEnabledChange={(value) => updateDraftProfile((current) => ({ ...current, timelineEnabled: value }))}
+            onPublicVisibleChange={updateTimelinePublicVisible}
+            onUserChange={(updatedUser) => {
+              setUser(updatedUser)
+              updateDraftProfile(normalizeProfile(updatedUser.profile))
+            }}
+          />
+        ) : null}
       </div>
     </main>
   )
