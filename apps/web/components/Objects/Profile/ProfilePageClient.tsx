@@ -9,8 +9,10 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Copy,
   Edit3,
-  ExternalLink,
+  Eye,
+  FileText,
   Globe,
   ImageIcon,
   Instagram,
@@ -19,10 +21,17 @@ import {
   Loader2,
   Plus,
   Save,
+  Share2,
   X,
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { Button } from '@components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@components/ui/dropdown-menu'
 import { Input } from '@components/ui/input'
 import { Switch } from '@components/ui/switch'
 import { Textarea } from '@components/ui/textarea'
@@ -31,10 +40,10 @@ import { normalizeAchievements, ProfileAchievementsSection } from '@components/O
 import { normalizeTimeline, ProfileTimelineSummary } from '@components/Objects/Profile/ProfileTimeline'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { getUserAvatarMediaDirectory, getUserProfileCoverMediaDirectory, getUserProfileFeaturedMediaDirectory } from '@services/media/media'
+import { getUserAvatarMediaDirectory, getUserProfileFeaturedMediaDirectory } from '@services/media/media'
 import { getResourceUrlPreview, ResourceUrlPreview } from '@services/resources/resources'
 import { updateProfile } from '@services/settings/profile'
-import { updateUserAvatar, updateUserProfileCover, uploadUserProfileFeaturedImage } from '@services/users/users'
+import { updateUserAvatar, uploadUserProfileFeaturedImage } from '@services/users/users'
 
 type SocialType = 'website' | 'linkedin' | 'instagram' | 'x'
 
@@ -59,6 +68,7 @@ type FeaturedCard = {
 
 type FeaturedSection = {
   enabled: boolean
+  publicVisible: boolean
   cards: FeaturedCard[]
 }
 
@@ -67,6 +77,7 @@ type ProfileShape = {
   featured?: FeaturedSection
   achievements?: any
   timelineEnabled?: boolean
+  timelinePublicVisible?: boolean
   timeline?: any[]
   sections?: any[]
 }
@@ -76,8 +87,12 @@ type ProfilePageClientProps = {
   orgslug: string
   profileUsername?: string
   editMode?: boolean
-  canEdit?: boolean
+  mode: 'owner' | 'public'
+  isSelf?: boolean
 }
+
+type OwnerProfilePageClientProps = Omit<ProfilePageClientProps, 'mode' | 'isSelf'>
+type PublicProfilePageClientProps = Omit<ProfilePageClientProps, 'mode' | 'editMode'>
 
 const SOCIAL_CONFIG: Record<SocialType, {
   label: string
@@ -114,6 +129,7 @@ const SOCIAL_CONFIG: Record<SocialType, {
 function normalizeFeatured(featured: any): FeaturedSection {
   return {
     enabled: Boolean(featured?.enabled),
+    publicVisible: featured?.publicVisible !== false,
     cards: Array.isArray(featured?.cards)
       ? featured.cards.slice(0, 10).map((card: any) => ({
         id: card.id || `featured-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -288,15 +304,20 @@ function FeaturedCarousel({
   accessToken,
   userId,
   userUuid,
+  publicVisible = true,
   onChange,
+  onPublicVisibleChange,
 }: {
   featured: FeaturedSection
   editMode: boolean
   accessToken?: string
   userId: number
   userUuid: string
+  publicVisible?: boolean
   // eslint-disable-next-line no-unused-vars
   onChange(next: FeaturedSection): void
+  // eslint-disable-next-line no-unused-vars
+  onPublicVisibleChange?(visible: boolean): void
 }) {
   const cards = featured.cards || []
   const [activeIndex, setActiveIndex] = useState(0)
@@ -451,16 +472,26 @@ function FeaturedCarousel({
     setActiveIndex(closestIndex)
   }
 
-  if (!editMode && (!enabled || cards.length === 0)) return null
+  if (!editMode && (!enabled || !publicVisible || cards.length === 0)) return null
 
   return (
     <section className="mt-4 px-4 sm:px-0">
       <div className="mb-3 flex items-center justify-between gap-4">
         <h2 className="text-2xl font-semibold text-gray-950">Featured</h2>
         {editMode ? (
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-500">{enabled ? 'Active' : 'Hidden'}</span>
-            <Switch checked={enabled} onCheckedChange={setEnabled} />
+          <div className="flex flex-col items-end gap-2">
+            <label className="flex items-center gap-3">
+              <span className="text-sm text-gray-500">{enabled ? 'On your profile' : 'Hidden from profile'}</span>
+              <Switch checked={enabled} onCheckedChange={setEnabled} />
+            </label>
+            <label className="flex items-center gap-3">
+              <span className="text-sm text-gray-500">{publicVisible ? 'Visible to others' : 'Hidden from others'}</span>
+              <Switch
+                checked={publicVisible}
+                onCheckedChange={onPublicVisibleChange}
+                disabled={!enabled}
+              />
+            </label>
           </div>
         ) : null}
       </div>
@@ -804,12 +835,13 @@ function FeaturedCarousel({
   )
 }
 
-export default function ProfilePageClient({
+function ProfilePageClient({
   initialUser,
   orgslug,
   profileUsername,
   editMode = false,
-  canEdit = true,
+  mode,
+  isSelf = false,
 }: ProfilePageClientProps) {
   const router = useRouter()
   const session = useLHSession() as any
@@ -823,21 +855,30 @@ export default function ProfilePageClient({
     profile: normalizeProfile(initialUser.profile),
   }))
   const [isSaving, setIsSaving] = useState(false)
-  const [uploading, setUploading] = useState<'avatar' | 'cover' | null>(null)
+  const [uploading, setUploading] = useState<'avatar' | null>(null)
+  const [bioExpanded, setBioExpanded] = useState(false)
 
-  const profile = editMode ? draft.profile : normalizeProfile(user.profile)
+  const isOwnerMode = mode === 'owner'
+  const isPublicMode = mode === 'public'
+  const canManageProfile = isOwnerMode
+  const effectiveEditMode = editMode && canManageProfile
+  const profile = effectiveEditMode ? draft.profile : normalizeProfile(user.profile)
   const header = profile.header || {}
   const featured = profile.featured || normalizeFeatured(null)
   const achievements = profile.achievements || normalizeAchievements(null)
   const timeline = profile.timeline || []
   const timelineEnabled = profile.timelineEnabled ?? false
+  const timelinePublicVisible = profile.timelinePublicVisible !== false
   const socials = useMemo(() => header.socials ?? [], [header.socials])
-  const coverUrl = header.coverImage
-    ? getUserProfileCoverMediaDirectory(user.user_uuid, header.coverImage)
-    : ''
   const avatarUrl = user.avatar_image
     ? getUserAvatarMediaDirectory(user.user_uuid, user.avatar_image)
     : ''
+  const visibleSocials = useMemo(
+    () => socials.filter((social) => social.url),
+    [socials]
+  )
+  const publicProfileHref = getUriWithOrg(orgslug, routePaths.org.user(user.username))
+  const resumeHref = getUriWithOrg(orgslug, routePaths.org.profileResume())
 
   const missingSocialTypes = useMemo(
     () => (Object.keys(SOCIAL_CONFIG) as SocialType[]).filter(
@@ -894,6 +935,26 @@ export default function ProfilePageClient({
     }))
   }
 
+  const updateTimelinePublicVisible = (visible: boolean) => {
+    updateDraftProfile((current) => ({
+      ...current,
+      timelinePublicVisible: visible,
+    }))
+  }
+
+  const copyProfileLink = async () => {
+    const link = typeof window === 'undefined'
+      ? publicProfileHref
+      : new URL(publicProfileHref, window.location.origin).toString()
+
+    try {
+      await navigator.clipboard.writeText(link)
+      toast.success('Profile link copied')
+    } catch {
+      toast.error('Could not copy profile link')
+    }
+  }
+
   const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file || !accessToken) return
@@ -913,28 +974,7 @@ export default function ProfilePageClient({
     }
   }
 
-  const handleCoverChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file || !accessToken) return
-
-    setUploading('cover')
-    try {
-      const res = await updateUserProfileCover(user.id, file, accessToken)
-      if (!res.success) throw new Error(res.HTTPmessage)
-      const nextProfile = normalizeProfile(res.data.profile)
-      setUser(res.data)
-      setDraft((current) => ({ ...current, profile: nextProfile }))
-      await session?.update?.(true)
-      toast.success('Cover photo updated')
-    } catch {
-      toast.error('Could not update cover photo')
-    } finally {
-      setUploading(null)
-      event.target.value = ''
-    }
-  }
-
-  const handleSave = async () => {
+  const handleSave = async (redirectHref = getUriWithOrg(orgslug, routePaths.org.profile())) => {
     if (!accessToken) return
 
     const invalidSocial = socials.find((social) => social.url && !isValidSocialUrl(social.type, social.url))
@@ -959,7 +999,7 @@ export default function ProfilePageClient({
       setUser(res.data)
       await session?.update?.(true)
       toast.success('Profile saved', { id: loadingToast })
-      router.push(getUriWithOrg(orgslug, routePaths.org.profile()))
+      router.push(redirectHref)
     } catch {
       toast.error('Could not save profile', { id: loadingToast })
     } finally {
@@ -970,113 +1010,92 @@ export default function ProfilePageClient({
   return (
     <main className="min-h-screen">
       <div className="mx-auto w-full max-w-5xl px-0 pt-0 pb-6 sm:px-6 sm:py-6 lg:px-8">
-        <section className="relative">
-          <div className="relative h-48 overflow-hidden rounded-none bg-gray-100 sm:h-64 sm:rounded-lg">
-            {coverUrl ? (
-              <img src={coverUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#f3f4f6,#dbeafe,#f8fafc)] text-sm text-gray-500">
-                {editMode ? 'Upload a cover photo' : ''}
+        {isPublicMode && isSelf ? (
+          <div className="mx-4 mt-4 flex flex-col gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 sm:mx-0 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-medium text-gray-700">
+              You are viewing your public profile.
+            </p>
+            <Button asChild variant="outline" size="sm">
+              <Link href={getUriWithOrg(orgslug, routePaths.org.profile())}>View full profile</Link>
+            </Button>
+          </div>
+        ) : null}
+        <section className="relative px-4 py-6 sm:px-0">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+            <div className="relative shrink-0">
+              <div className="sm:hidden">
+                <UserAvatar
+                  width={112}
+                  rounded="rounded-full"
+                  avatar_url={avatarUrl}
+                  predefined_avatar={avatarUrl ? undefined : 'empty'}
+                  userId={String(user.id)}
+                  shadow="shadow-none"
+                />
               </div>
-            )}
-            <div className="absolute right-4 top-4 flex items-center gap-2">
-              {editMode && canEdit ? (
+              <div className="hidden sm:block">
+                <UserAvatar
+                  width={168}
+                  rounded="rounded-full"
+                  avatar_url={avatarUrl}
+                  predefined_avatar={avatarUrl ? undefined : 'empty'}
+                  userId={String(user.id)}
+                  shadow="shadow-none"
+                />
+              </div>
+              {effectiveEditMode && (
                 <>
                   <input
-                    id="profile-cover-upload"
+                    id="profile-avatar-upload"
                     type="file"
                     accept="image/png,image/jpeg,image/webp,image/gif"
                     className="hidden"
-                    onChange={handleCoverChange}
+                    onChange={handleAvatarChange}
                   />
-                  <Button
+                  <button
                     type="button"
-                    variant="secondary"
-                    className="bg-white/90 text-gray-900 hover:bg-white"
-                    onClick={() => document.getElementById('profile-cover-upload')?.click()}
-                    disabled={uploading === 'cover'}
+                    aria-label="Upload profile photo"
+                    onClick={() => document.getElementById('profile-avatar-upload')?.click()}
+                    className="absolute bottom-0 right-0 flex h-9 w-9 items-center justify-center rounded-full bg-black text-white shadow-md sm:h-10 sm:w-10"
+                    disabled={uploading === 'avatar'}
                   >
-                    <Camera size={16} className="mr-2" />
-                    {uploading === 'cover' ? 'Uploading' : 'Cover'}
-                  </Button>
-                  <Button type="button" onClick={handleSave} disabled={isSaving} className="bg-black text-white hover:bg-black/90">
-                    <Save size={16} className="mr-2" />
-                    {isSaving ? 'Saving' : 'Save'}
-                  </Button>
+                    <Camera size={18} />
+                  </button>
                 </>
-              ) : canEdit ? (
-                <Button asChild className="bg-white/90 text-gray-900 hover:bg-white">
-                  <Link href={getUriWithOrg(orgslug, routePaths.org.profileEdit())}>
-                    <Edit3 size={16} className="mr-2" />
-                    Edit
-                  </Link>
-                </Button>
-              ) : null}
+              )}
             </div>
-          </div>
 
-          <div className="px-4 pb-4 pt-0 sm:px-4">
-            <div className="-mt-14 flex flex-col items-start gap-5 sm:-mt-16">
-              <div className="relative">
-                <div className="rounded-full border-4 border-white bg-white shadow-md">
-                  <UserAvatar
-                    width={128}
-                    rounded="rounded-full"
-                    avatar_url={avatarUrl}
-                    predefined_avatar={avatarUrl ? undefined : 'empty'}
-                    userId={String(user.id)}
-                    shadow="shadow-none"
-                  />
+            <div className="min-w-0 flex-1 space-y-3">
+              <div className="min-w-0">
+                <div className="min-w-0 flex-1">
+                  {effectiveEditMode ? (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Input
+                        value={draft.first_name}
+                        onChange={(event) => setDraft((current) => ({ ...current, first_name: event.target.value }))}
+                        placeholder="First name"
+                      />
+                      <Input
+                        value={draft.last_name}
+                        onChange={(event) => setDraft((current) => ({ ...current, last_name: event.target.value }))}
+                        placeholder="Last name"
+                      />
+                      <div className="sm:col-span-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                        @{user.username}
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <h1 className="text-3xl font-semibold text-gray-950">
+                        {user.first_name} {user.last_name}
+                      </h1>
+                      <p className="mt-1 text-sm text-gray-500">@{user.username}</p>
+                    </div>
+                  )}
                 </div>
-                {editMode && canEdit && (
-                  <>
-                    <input
-                      id="profile-avatar-upload"
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp,image/gif"
-                      className="hidden"
-                      onChange={handleAvatarChange}
-                    />
-                    <button
-                      type="button"
-                      aria-label="Upload profile photo"
-                      onClick={() => document.getElementById('profile-avatar-upload')?.click()}
-                      className="absolute bottom-1 right-1 flex h-10 w-10 items-center justify-center rounded-full bg-black text-white shadow-md"
-                      disabled={uploading === 'avatar'}
-                    >
-                      <Camera size={18} />
-                    </button>
-                  </>
-                )}
               </div>
 
-              <div className="w-full max-w-2xl space-y-3">
-                {editMode ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Input
-                      value={draft.first_name}
-                      onChange={(event) => setDraft((current) => ({ ...current, first_name: event.target.value }))}
-                      placeholder="First name"
-                    />
-                    <Input
-                      value={draft.last_name}
-                      onChange={(event) => setDraft((current) => ({ ...current, last_name: event.target.value }))}
-                      placeholder="Last name"
-                    />
-                    <div className="sm:col-span-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
-                      @{user.username}
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <h1 className="text-3xl font-semibold text-gray-950">
-                      {user.first_name} {user.last_name}
-                    </h1>
-                    <p className="mt-1 text-sm text-gray-500">@{user.username}</p>
-                  </div>
-                )}
-
-                {editMode ? (
+                {effectiveEditMode ? (
                   <Textarea
                     value={draft.bio}
                     onChange={(event) => setDraft((current) => ({ ...current, bio: event.target.value }))}
@@ -1085,10 +1104,25 @@ export default function ProfilePageClient({
                     maxLength={400}
                   />
                 ) : user.bio ? (
-                  <p className="max-w-2xl text-base leading-7 text-gray-700">{user.bio}</p>
+                  <div>
+                    <p className={`max-w-2xl overflow-hidden text-base leading-7 text-gray-700 transition-[max-height] duration-300 ${
+                      bioExpanded ? 'max-h-[640px]' : 'max-h-24'
+                    }`}>
+                      {user.bio}
+                    </p>
+                    {user.bio.length > 180 ? (
+                      <button
+                        type="button"
+                        onClick={() => setBioExpanded((current) => !current)}
+                        className="mt-1 text-sm font-medium text-gray-950 hover:underline"
+                      >
+                        {bioExpanded ? 'Show less' : 'Show more'}
+                      </button>
+                    ) : null}
+                  </div>
                 ) : null}
 
-                {editMode ? (
+                {effectiveEditMode ? (
                   <div className="space-y-3">
                     <div className="flex flex-wrap gap-2">
                       {missingSocialTypes.map((type) => {
@@ -1142,9 +1176,10 @@ export default function ProfilePageClient({
                       })}
                     </div>
                   </div>
-                ) : socials.length > 0 ? (
-                  <div className="flex flex-col items-start gap-3">
-                    {socials.filter((social) => social.url).map((social) => {
+                ) : visibleSocials.length > 0 ? (
+                  <div className="-mx-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+                    <div className="flex w-max max-w-none items-center gap-2">
+                    {visibleSocials.map((social) => {
                       const config = SOCIAL_CONFIG[social.type]
                       const Icon = config.icon
                       return (
@@ -1153,49 +1188,124 @@ export default function ProfilePageClient({
                           href={getSocialHref(social)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-950"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-transparent text-gray-600 transition-colors hover:border-gray-300 hover:text-gray-950"
+                          aria-label={config.label}
+                          title={config.label}
                         >
                           <Icon className="h-4 w-4" />
-                          <span>{social.url}</span>
-                          <ExternalLink className="h-3.5 w-3.5 text-gray-400" />
                         </a>
                       )
                     })}
+                    </div>
                   </div>
                 ) : null}
-              </div>
+              {(canManageProfile || isPublicMode) ? (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  {canManageProfile && (
+                    effectiveEditMode ? (
+                      <Button type="button" onClick={() => handleSave()} disabled={isSaving} className="bg-black text-white hover:bg-black/90">
+                        <Save size={16} className="mr-2" />
+                        {isSaving ? 'Saving' : 'Save'}
+                      </Button>
+                    ) : (
+                      <Button asChild variant="outline">
+                        <Link href={getUriWithOrg(orgslug, routePaths.org.profileEdit())}>
+                          <Edit3 size={16} className="mr-2" />
+                          Edit
+                        </Link>
+                      </Button>
+                    )
+                  )}
+                    {canManageProfile && (
+                      effectiveEditMode ? (
+                      <Button type="button" variant="outline" onClick={() => handleSave(publicProfileHref)} disabled={isSaving}>
+                        <Eye size={16} className="mr-2" />
+                        Public profile
+                      </Button>
+                    ) : (
+                      <Button asChild variant="outline">
+                        <Link href={publicProfileHref}>
+                          <Eye size={16} className="mr-2" />
+                          Public profile
+                        </Link>
+                      </Button>
+                    )
+                  )}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button type="button" variant="outline">
+                        <Share2 size={16} className="mr-2" />
+                        Share
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-44">
+                      <DropdownMenuItem onClick={copyProfileLink}>
+                        <Copy className="h-4 w-4" />
+                        <span>Copy link</span>
+                      </DropdownMenuItem>
+                      {canManageProfile ? (
+                        <DropdownMenuItem asChild>
+                          <Link href={resumeHref}>
+                            <FileText className="h-4 w-4" />
+                            <span>Resume</span>
+                          </Link>
+                        </DropdownMenuItem>
+                      ) : null}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              ) : null}
             </div>
           </div>
         </section>
         <FeaturedCarousel
           featured={featured}
-          editMode={editMode && canEdit}
+          editMode={effectiveEditMode}
           accessToken={accessToken}
           userId={user.id}
           userUuid={user.user_uuid}
+          publicVisible={isPublicMode ? featured.publicVisible : true}
           onChange={updateFeatured}
+          onPublicVisibleChange={(visible) => updateFeatured({ ...featured, publicVisible: visible })}
         />
         <ProfileTimelineSummary
           timeline={timeline}
           orgslug={orgslug}
           profileUsername={profileUsername}
-          editMode={editMode && canEdit}
-          canEdit={canEdit}
+          editMode={effectiveEditMode}
+          canEdit={canManageProfile}
           enabled={timelineEnabled}
+          publicVisible={isPublicMode ? timelinePublicVisible : true}
           onEnabledChange={(value) => updateDraftProfile((current) => ({ ...current, timelineEnabled: value }))}
+          onPublicVisibleChange={updateTimelinePublicVisible}
         />
         <ProfileAchievementsSection
           achievements={achievements}
           orgslug={orgslug}
           profileUsername={profileUsername}
-          editMode={editMode && canEdit}
-          canEdit={canEdit}
+          editMode={effectiveEditMode}
+          canEdit={canManageProfile}
+          publicVisible={isPublicMode ? achievements.publicVisible : true}
           onChange={(nextAchievements) => updateDraftProfile((current) => ({
             ...current,
             achievements: nextAchievements,
+          }))}
+          onPublicVisibleChange={(visible) => updateDraftProfile((current) => ({
+            ...current,
+            achievements: { ...achievements, publicVisible: visible },
           }))}
         />
       </div>
     </main>
   )
 }
+
+export function OwnerProfilePageClient(props: OwnerProfilePageClientProps) {
+  return <ProfilePageClient {...props} mode="owner" />
+}
+
+export function PublicProfilePageClient(props: PublicProfilePageClientProps) {
+  return <ProfilePageClient {...props} mode="public" />
+}
+
+export default OwnerProfilePageClient

@@ -239,7 +239,7 @@ export function resolveRequestRouting(
   if (context.hostMode === 'custom' && input.resolvedCustomDomainOrgSlug) {
     return {
       action: 'rewrite',
-      destination: `/orgs/${input.resolvedCustomDomainOrgSlug}${pathname}`,
+      destination: `/orgs/${input.resolvedCustomDomainOrgSlug}${pathname}${search}`,
       cookies: [
         {
           name: ROUTING_COOKIES.customDomain,
@@ -260,6 +260,6 @@ export function resolveRequestRouting(
 
   return {
     action: 'rewrite',
-    destination: `/orgs/${orgSlug}${pathname}`,
+    destination: `/orgs/${orgSlug}${pathname}${search}`,
   }
 }

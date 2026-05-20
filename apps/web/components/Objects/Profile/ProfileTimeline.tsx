@@ -63,8 +63,11 @@ type ProfileTimelineSummaryProps = {
   editMode?: boolean
   canEdit?: boolean
   enabled?: boolean
+  publicVisible?: boolean
   // eslint-disable-next-line no-unused-vars
   onEnabledChange?: (enabled: boolean) => void
+  // eslint-disable-next-line no-unused-vars
+  onPublicVisibleChange?: (visible: boolean) => void
 }
 
 type TimelineEntryModalProps = {
@@ -482,12 +485,14 @@ export function ProfileTimelineSummary({
   editMode = false,
   canEdit = false,
   enabled = false,
+  publicVisible = true,
   onEnabledChange,
+  onPublicVisibleChange,
 }: ProfileTimelineSummaryProps) {
   const summaryEntries = summarizeTimeline(timeline)
   const href = getTimelineHref(orgslug, profileUsername)
 
-  if (!editMode && !enabled) return null
+  if (!editMode && (!enabled || !publicVisible)) return null
   if (!editMode && enabled && summaryEntries.length === 0) return null
 
   return (
@@ -502,9 +507,19 @@ export function ProfileTimelineSummary({
           ) : null}
         </div>
         {editMode && canEdit ? (
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-500">{enabled ? 'Visible on profile' : 'Hidden from profile'}</span>
-            <Switch checked={enabled} onCheckedChange={onEnabledChange} />
+          <div className="flex flex-col items-end gap-2">
+            <label className="flex items-center gap-3">
+              <span className="text-sm text-gray-500">{enabled ? 'On your profile' : 'Hidden from profile'}</span>
+              <Switch checked={enabled} onCheckedChange={onEnabledChange} />
+            </label>
+            <label className="flex items-center gap-3">
+              <span className="text-sm text-gray-500">{publicVisible ? 'Visible to others' : 'Hidden from others'}</span>
+              <Switch
+                checked={publicVisible}
+                onCheckedChange={onPublicVisibleChange}
+                disabled={!enabled}
+              />
+            </label>
           </div>
         ) : (
           <Button variant="ghost" className="px-0 text-sm font-medium text-gray-500 hover:bg-transparent hover:text-gray-950" asChild>

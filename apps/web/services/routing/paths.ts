@@ -60,6 +60,7 @@ export const routePaths = {
     root: () => '/',
     profile: () => '/profile',
     profileEdit: () => '/profile/edit',
+    profileResume: () => '/profile/resume',
     profileTimeline: () => '/profile/timeline',
     profileAchievements: () => '/profile/achievements',
     profileAchievementDetail: (achievementId: string) => `/profile/achievements/${achievementId}`,

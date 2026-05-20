@@ -1,6 +1,7 @@
 import React from 'react'
 import {
   House,
+  User,
   Books,
   ChatsCircle,
   FolderOpen,
@@ -27,6 +28,7 @@ export const KNOWN_SUBPATHS = [
   '/activity/',
   '/assignment',
   '/editor',
+  '/profile',
   '/account',
   '/payments',
 ]
@@ -69,6 +71,13 @@ export function getPrimaryOrgMenuItems({
       label: t('common.home') || 'Home',
       icon: <House size={18} weight="fill" />,
       active: isHome,
+      show: true,
+    },
+    {
+      href: '/profile',
+      label: 'Profile',
+      icon: <User size={18} weight="fill" />,
+      active: Boolean(pathname?.includes('/profile')),
       show: true,
     },
     {

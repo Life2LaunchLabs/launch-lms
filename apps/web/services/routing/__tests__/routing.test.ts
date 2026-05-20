@@ -38,6 +38,7 @@ test('route manifest builds auth, account, and public org paths used by navigati
   assert.equal(routePaths.owner.account.badges(), '/account/badges')
   assert.equal(routePaths.org.profile(), '/profile')
   assert.equal(routePaths.org.profileEdit(), '/profile/edit')
+  assert.equal(routePaths.org.profileResume(), '/profile/resume')
   assert.equal(routePaths.org.profileTimeline(), '/profile/timeline')
   assert.equal(routePaths.org.organization('acme'), '/organization/acme')
   assert.equal(routePaths.org.user('jane'), '/user/jane')
@@ -82,6 +83,22 @@ test('request policy rewrites main-domain traffic into internal org routes', () 
 
   assert.equal(decision.action, 'rewrite')
   assert.equal(decision.destination, '/orgs/default/courses')
+})
+
+test('request policy preserves query params when rewriting user profile routes', () => {
+  const decision = resolveRequestRouting({
+    requestUrl: 'https://launchlms.test/user/admin?tab=achievements',
+    pathname: '/user/admin',
+    search: '?tab=achievements',
+    host: 'launchlms.test',
+    hasSession: true,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+
+  assert.equal(decision.action, 'rewrite')
+  assert.equal(decision.destination, '/orgs/default/user/admin?tab=achievements')
 })
 
 test('request policy keeps main-host dashboard traffic on the default org even if old org cookies existed', () => {
