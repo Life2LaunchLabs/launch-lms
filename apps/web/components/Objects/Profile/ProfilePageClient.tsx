@@ -4,17 +4,19 @@ import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  BookOpen,
   Camera,
   Check,
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Compass,
   Copy,
   Edit3,
   Eye,
   FileText,
   Globe,
+  HeartPulse,
+  HelpCircle,
   Instagram,
   LayoutGrid,
   Linkedin,
@@ -23,6 +25,8 @@ import {
   Plus,
   Save,
   Share2,
+  Star,
+  UserRound,
   X,
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
@@ -36,6 +40,14 @@ import {
 import { Input } from '@components/ui/input'
 import { Switch } from '@components/ui/switch'
 import { Textarea } from '@components/ui/textarea'
+import {
+  JOURNAL_CANVASES,
+  type JournalCanvasConfig,
+  type JournalCanvasId,
+  type JournalCardConfig,
+  type JournalCardEntry,
+  type JournalShape,
+} from '@components/Objects/Profile/ProfileJournalContent'
 import { normalizeAchievements, ProfileAchievementsSection } from '@components/Objects/Profile/ProfileAchievements'
 import ProfileTimeline, { normalizeTimeline } from '@components/Objects/Profile/ProfileTimeline'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -76,6 +88,7 @@ type ProfileShape = {
   header?: ProfileHeader
   featured?: FeaturedSection
   achievements?: any
+  journal?: JournalShape
   timelineEnabled?: boolean
   timelinePublicVisible?: boolean
   timeline?: any[]
@@ -87,13 +100,14 @@ type ProfilePageClientProps = {
   orgslug: string
   profileUsername?: string
   editMode?: boolean
+  initialTab?: ProfileTab
   mode: 'owner' | 'public'
   isSelf?: boolean
 }
 
 type OwnerProfilePageClientProps = Omit<ProfilePageClientProps, 'mode' | 'isSelf'>
 type PublicProfilePageClientProps = Omit<ProfilePageClientProps, 'mode' | 'editMode'>
-type ProfileTab = 'overview' | 'journal' | 'timeline'
+type ProfileTab = 'overview' | 'timeline' | JournalCanvasId
 
 const PROFILE_TABS: Array<{
   id: ProfileTab
@@ -101,8 +115,10 @@ const PROFILE_TABS: Array<{
   icon: React.ComponentType<{ className?: string }>
 }> = [
   { id: 'overview', label: 'Overview', icon: LayoutGrid },
-  { id: 'journal', label: 'Journal', icon: BookOpen },
   { id: 'timeline', label: 'Timeline', icon: Clock3 },
+  { id: 'identity', label: 'Identity', icon: UserRound },
+  { id: 'lifestyle', label: 'Lifestyle', icon: HeartPulse },
+  { id: 'navigation', label: 'Navigation', icon: Compass },
 ]
 
 const SOCIAL_CONFIG: Record<SocialType, {
@@ -154,13 +170,51 @@ function normalizeFeatured(featured: any): FeaturedSection {
   }
 }
 
+function normalizeJournal(journal: any): JournalShape {
+  const normalized: JournalShape = { canvases: {} }
+  if (!journal || typeof journal !== 'object') return normalized
+
+  JOURNAL_CANVASES.forEach((canvas) => {
+    const rawCards = journal.canvases?.[canvas.id]?.cards
+    if (!rawCards || typeof rawCards !== 'object') return
+
+    normalized.canvases[canvas.id] = {
+      cards: Object.fromEntries(
+        Object.entries(rawCards).map(([cardId, value]: [string, any]) => [
+          cardId,
+          {
+            fields: value?.fields && typeof value.fields === 'object'
+              ? Object.fromEntries(
+                Object.entries(value.fields).map(([fieldId, fieldValue]) => [
+                  fieldId,
+                  typeof fieldValue === 'string' ? fieldValue : '',
+                ])
+              )
+              : {},
+            starredFieldId: typeof value?.starredFieldId === 'string' ? value.starredFieldId : undefined,
+            selectedOption: typeof value?.selectedOption === 'string' ? value.selectedOption : undefined,
+            selectedOptions: Array.isArray(value?.selectedOptions)
+              ? value.selectedOptions.filter((item: unknown) => typeof item === 'string')
+              : [],
+            starredOptions: Array.isArray(value?.starredOptions)
+              ? value.starredOptions.filter((item: unknown) => typeof item === 'string')
+              : [],
+          },
+        ])
+      ),
+    }
+  })
+
+  return normalized
+}
+
 function normalizeProfile(profile: any): ProfileShape {
-  if (!profile) return { header: { socials: [] }, featured: normalizeFeatured(null), achievements: normalizeAchievements(null), timelineEnabled: false, timeline: [], sections: [] }
+  if (!profile) return { header: { socials: [] }, featured: normalizeFeatured(null), achievements: normalizeAchievements(null), journal: normalizeJournal(null), timelineEnabled: false, timeline: [], sections: [] }
   if (typeof profile === 'string') {
     try {
       return normalizeProfile(JSON.parse(profile))
     } catch {
-      return { header: { socials: [] }, featured: normalizeFeatured(null), achievements: normalizeAchievements(null), timelineEnabled: false, timeline: [], sections: [] }
+      return { header: { socials: [] }, featured: normalizeFeatured(null), achievements: normalizeAchievements(null), journal: normalizeJournal(null), timelineEnabled: false, timeline: [], sections: [] }
     }
   }
   return {
@@ -171,6 +225,7 @@ function normalizeProfile(profile: any): ProfileShape {
     },
     featured: normalizeFeatured(profile.featured),
     achievements: normalizeAchievements(profile.achievements),
+    journal: normalizeJournal(profile.journal),
     timelineEnabled: Boolean(profile.timelineEnabled),
     timeline: normalizeTimeline(profile.timeline),
     sections: Array.isArray(profile.sections) ? profile.sections : [],
@@ -1020,11 +1075,874 @@ function FeaturedCarousel({
   )
 }
 
+function getJournalEntry(journal: JournalShape, canvasId: JournalCanvasId, cardId: string): JournalCardEntry {
+  return journal.canvases[canvasId]?.cards?.[cardId] || { fields: {} }
+}
+
+function getStarredFieldId(
+  card: JournalCardConfig,
+  entry: JournalCardEntry
+) {
+  const savedFieldId = entry.starredFieldId
+  if (savedFieldId && card.fields.some((field) => field.id === savedFieldId)) return savedFieldId
+  return card.fields[0]?.id || ''
+}
+
+function getJournalHighlight(
+  card: JournalCardConfig,
+  entry: JournalCardEntry
+) {
+  if (card.type === 'singleChoice') {
+    const selected = card.options?.find((option) => option.id === entry.selectedOption)
+    return {
+      label: selected?.label || card.title,
+      response: selected?.description || card.info,
+    }
+  }
+
+  const starredFieldId = getStarredFieldId(card, entry)
+  const field = card.fields.find((item) => item.id === starredFieldId) || card.fields[0]
+  const response = field ? entry.fields[field.id]?.trim() : ''
+
+  return {
+    label: field?.label || card.title,
+    response: response || card.info,
+  }
+}
+
+function getRatingHighlights(
+  card: JournalCardConfig,
+  entry: JournalCardEntry
+) {
+  const ratings = card.fields
+    .map((field) => ({
+      field,
+      score: Number(entry.fields[field.id] || 0),
+    }))
+    .filter((item) => Number.isFinite(item.score) && item.score > 0)
+
+  const top = [...ratings]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+
+  const average = ratings.length
+    ? ratings.reduce((sum, item) => sum + item.score, 0) / ratings.length
+    : 0
+
+  return { top, average }
+}
+
+function RatingAverageIndicator({
+  average,
+  color,
+}: {
+  average: number
+  color: string
+}) {
+  const normalized = Math.max(0, Math.min(1, average / 5))
+  const circumference = 78
+  const arcLength = circumference * 0.78
+
+  return (
+    <div className="flex h-20 w-20 shrink-0 flex-col items-center justify-center">
+      <div className="relative flex h-14 w-16 items-center justify-center">
+        <svg viewBox="0 0 64 64" className="absolute inset-0 h-full w-full">
+        <path
+          d="M 12 44 A 24 24 0 1 1 52 44"
+          fill="none"
+          stroke="rgba(255,255,255,0.72)"
+          strokeWidth="6"
+          strokeLinecap="round"
+          pathLength={circumference}
+        />
+        <path
+          d="M 12 44 A 24 24 0 1 1 52 44"
+          fill="none"
+          stroke={color}
+          strokeWidth="6"
+          strokeLinecap="round"
+          pathLength={circumference}
+          strokeDasharray={`${arcLength * normalized} ${circumference}`}
+        />
+        </svg>
+        <div className="text-xl font-black leading-none" style={{ color }}>
+          {average.toFixed(1)}
+        </div>
+      </div>
+      <div className="-mt-1 text-[10px] font-bold uppercase tracking-wide text-gray-600">
+        Average
+      </div>
+    </div>
+  )
+}
+
+function isJournalCardComplete(
+  card: JournalCardConfig,
+  entry: JournalCardEntry
+) {
+  if (card.type === 'multiSelect') return (entry.starredOptions || []).length >= 3
+  if (card.type === 'singleChoice') return Boolean(entry.selectedOption)
+  return card.fields.every((field) => entry.fields[field.id]?.trim())
+}
+
+function getJournalCardSections(canvas: JournalCanvasConfig) {
+  const sectionNames = Array.from(new Set(canvas.cards.map((card) => card.section || '')))
+  return sectionNames.map((section) => ({
+    section,
+    cards: canvas.cards.filter((card) => (card.section || '') === section),
+  }))
+}
+
+function getJournalFieldSections(card: JournalCardConfig) {
+  const sectionNames = Array.from(new Set(card.fields.map((field) => field.section || '')))
+  return sectionNames.map((section) => ({
+    section,
+    fields: card.fields.filter((field) => (field.section || '') === section),
+  }))
+}
+
+function JournalEditorTray({
+  canvas,
+  card,
+  entry,
+  open,
+  canEdit,
+  startInMain,
+  onOpenChange,
+  onSave,
+}: {
+  canvas: JournalCanvasConfig
+  card: JournalCardConfig
+  entry: JournalCardEntry
+  open: boolean
+  canEdit: boolean
+  startInMain: boolean
+  // eslint-disable-next-line no-unused-vars
+  onOpenChange(open: boolean): void
+  // eslint-disable-next-line no-unused-vars
+  onSave(entry: JournalCardEntry): void
+}) {
+  const Icon = card.icon || canvas.icon
+  const cardColor = card.color
+  const [view, setView] = useState<'info' | 'main'>('info')
+  const [fields, setFields] = useState<Record<string, string>>(entry.fields || {})
+  const [starredFieldId, setStarredFieldId] = useState('')
+  const [selectedOption, setSelectedOption] = useState(entry.selectedOption || '')
+  const [selectedOptions, setSelectedOptions] = useState<string[]>(entry.selectedOptions || [])
+  const [starredOptions, setStarredOptions] = useState<string[]>(entry.starredOptions || [])
+  const [activeChoice, setActiveChoice] = useState<string | null>(null)
+  const [, setDraggingChoice] = useState<string | null>(null)
+  const complete = card.type === 'multiSelect'
+    ? starredOptions.length >= 3
+    : card.type === 'singleChoice'
+      ? Boolean(selectedOption)
+      : card.fields.every((field) => fields[field.id]?.trim())
+
+  useEffect(() => {
+    if (!open) return
+    setView(startInMain ? 'main' : 'info')
+    setFields(entry.fields || {})
+    setStarredFieldId(getStarredFieldId(card, entry))
+    setSelectedOption(entry.selectedOption || '')
+    setSelectedOptions(entry.selectedOptions || [])
+    setStarredOptions(entry.starredOptions || [])
+    setActiveChoice(null)
+    setDraggingChoice(null)
+  }, [card, entry, open, startInMain])
+
+  if (!open) return null
+
+  const closeWithSave = () => {
+    if (canEdit) {
+      onSave(card.type === 'multiSelect'
+        ? { fields: {}, selectedOptions, starredOptions }
+        : card.type === 'singleChoice'
+          ? { fields: {}, selectedOption }
+          : { fields, starredFieldId: starredFieldId || card.fields[0]?.id })
+    }
+    onOpenChange(false)
+  }
+
+  const selectOption = (option: string) => {
+    if (!canEdit || selectedOptions.includes(option) || selectedOptions.length >= 16) return
+    setSelectedOptions((current) => current.includes(option) ? current : [...current, option])
+  }
+
+  const handleOptionPress = (option: string) => {
+    if (!canEdit) return
+    if (selectedOptions.includes(option)) {
+      setActiveChoice((current) => current === option ? null : option)
+      return
+    }
+    selectOption(option)
+  }
+
+  const dropOption = (option: string) => {
+    setSelectedOptions((current) => current.filter((item) => item !== option))
+    setStarredOptions((current) => current.filter((item) => item !== option))
+    setActiveChoice(null)
+  }
+
+  const starOption = (option: string) => {
+    if (starredOptions.includes(option) || starredOptions.length >= 3) return
+    if (!selectedOptions.includes(option)) {
+      if (selectedOptions.length >= 16) return
+      setSelectedOptions((current) => current.includes(option) ? current : [...current, option])
+    }
+    setStarredOptions((current) => current.includes(option) ? current : [...current, option])
+    setActiveChoice(null)
+  }
+
+  const unstarOption = (option: string) => {
+    setStarredOptions((current) => current.filter((item) => item !== option))
+    setActiveChoice(null)
+  }
+
+  return (
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-end justify-center bg-black/40 backdrop-blur-[2px] sm:items-center">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={`journal-editor-${card.id}`}
+        className="flex max-h-[88vh] w-full max-w-2xl origin-bottom flex-col rounded-t-3xl border-2 bg-white shadow-2xl shadow-black/15 animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-5 sm:max-h-[82vh] sm:origin-center sm:rounded-2xl"
+        style={{ borderColor: cardColor.dark }}
+      >
+        {view === 'info' ? (
+          <>
+            <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-5 sm:px-6">
+              <div className="flex min-w-0 items-center gap-3">
+                <span
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white"
+                  style={{ backgroundColor: cardColor.dark }}
+                >
+                  <Icon className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <h2
+                    id={`journal-editor-${card.id}`}
+                    className="text-xl font-semibold"
+                    style={{ color: cardColor.dark }}
+                  >
+                    {card.title}
+                  </h2>
+                  <p className="text-sm text-gray-500">{canvas.title}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={closeWithSave}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-6">
+              <p className="text-base leading-7 text-gray-700">{card.info}</p>
+            </div>
+            <div className="border-t border-gray-100 px-5 py-4 sm:px-6">
+              <Button type="button" onClick={() => setView('main')} className="w-full bg-black text-white hover:bg-black/90 sm:w-auto">
+                Next
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center justify-between gap-4 border-b border-gray-100 px-5 py-4 sm:px-6">
+              <div className="flex min-w-0 items-center gap-3">
+                <span
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                  style={{ backgroundColor: cardColor.light, color: cardColor.dark }}
+                >
+                  <Icon className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <h2
+                    id={`journal-editor-${card.id}`}
+                    className="text-base font-semibold"
+                    style={{ color: cardColor.dark }}
+                  >
+                    {card.title}
+                  </h2>
+                  <p className="text-xs text-gray-500">
+                    {complete ? 'Ready to save' : card.type === 'multiSelect' ? 'Star 3 choices to finish' : card.type === 'singleChoice' ? 'Choose 1 option to finish' : 'Fill every field to finish'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  aria-label="Show info"
+                  title="Show info"
+                  onClick={() => setView('info')}
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                >
+                  <HelpCircle className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Close"
+                  onClick={closeWithSave}
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            {card.type === 'multiSelect' ? (
+              <div className="border-b border-gray-100 bg-white px-5 py-3 sm:px-6">
+                <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold text-gray-500">
+                  <span>Starred choices</span>
+                  <span>{selectedOptions.length}/16 selected</span>
+                </div>
+                <div
+                  className="grid min-h-11 grid-cols-3 gap-2 rounded-xl border border-dashed border-amber-300 bg-amber-50 p-2"
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    event.preventDefault()
+                    const option = event.dataTransfer.getData('text/plain')
+                    if (option) starOption(option)
+                    setDraggingChoice(null)
+                  }}
+                >
+                  {[0, 1, 2].map((index) => {
+                    const option = starredOptions[index]
+                    return option ? (
+                      <button
+                        key={option}
+                        type="button"
+                        draggable
+                        onDragStart={(event) => {
+                          event.dataTransfer.setData('text/plain', option)
+                          setDraggingChoice(option)
+                        }}
+                        onDragEnd={() => setDraggingChoice(null)}
+                        onClick={() => setActiveChoice((current) => current === option ? null : option)}
+                        className="relative rounded-full bg-amber-200 px-3 py-1.5 text-xs font-bold text-amber-900 shadow-sm"
+                      >
+                        {option}
+                        {activeChoice === option ? (
+                          <span className="absolute left-1/2 top-full z-20 mt-2 flex -translate-x-1/2 gap-1 rounded-full border border-gray-200 bg-white p-1 shadow-lg">
+                            <button type="button" aria-label="Unstar" onClick={(event) => { event.stopPropagation(); unstarOption(option) }} className="rounded-full p-1 text-amber-500 hover:bg-amber-50">
+                              <Star className="h-3.5 w-3.5 fill-current" />
+                            </button>
+                            <button type="button" aria-label="Remove" onClick={(event) => { event.stopPropagation(); dropOption(option) }} className="rounded-full p-1 text-gray-500 hover:bg-gray-100">
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </span>
+                        ) : null}
+                      </button>
+                    ) : (
+                      <span key={index} className="rounded-full border border-dashed border-amber-300 bg-white/70 px-3 py-1.5 text-center text-xs text-amber-700">
+                        Star slot
+                      </span>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : null}
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
+              {card.type === 'multiSelect' ? (
+                <div
+                  className="space-y-5"
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    event.preventDefault()
+                    const option = event.dataTransfer.getData('text/plain')
+                    if (option) unstarOption(option)
+                    setDraggingChoice(null)
+                  }}
+                >
+                  {card.optionSections?.map((section) => {
+                    const availableOptions = section.options.filter((option) => !starredOptions.includes(option))
+                    return (
+                      <div key={section.title} className="space-y-2">
+                        <h3 className="text-sm font-black uppercase tracking-wide" style={{ color: cardColor.dark }}>
+                          {section.title}
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                          {availableOptions.map((option) => (
+                            <span key={option} className="relative inline-flex">
+                              <button
+                                type="button"
+                                draggable={canEdit}
+                                onDragStart={(event) => {
+                                  event.dataTransfer.setData('text/plain', option)
+                                  selectOption(option)
+                                  setDraggingChoice(option)
+                                }}
+                                onDragEnd={() => setDraggingChoice(null)}
+                                onClick={() => handleOptionPress(option)}
+                                disabled={!canEdit || (!selectedOptions.includes(option) && selectedOptions.length >= 16)}
+                                className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-all hover:-translate-y-0.5 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-40 ${
+                                  selectedOptions.includes(option)
+                                    ? 'border-gray-300 bg-gray-100 text-gray-800 shadow-sm'
+                                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                                }`}
+                              >
+                                {option}
+                              </button>
+                              {activeChoice === option && selectedOptions.includes(option) ? (
+                                <span className="absolute left-1/2 top-[-34px] z-20 flex -translate-x-1/2 gap-1 rounded-full border border-gray-200 bg-white p-1 shadow-lg">
+                                  <button
+                                    type="button"
+                                    aria-label="Star"
+                                    onClick={(event) => { event.stopPropagation(); starOption(option) }}
+                                    disabled={starredOptions.length >= 3}
+                                    className="rounded-full p-1 text-amber-500 hover:bg-amber-50 disabled:cursor-not-allowed disabled:text-gray-300 disabled:hover:bg-transparent"
+                                  >
+                                    <Star className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button type="button" aria-label="Remove" onClick={(event) => { event.stopPropagation(); dropOption(option) }} className="rounded-full p-1 text-gray-500 hover:bg-gray-100">
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                </span>
+                              ) : null}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : card.type === 'singleChoice' ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {card.options?.map((option) => {
+                    const selected = selectedOption === option.id
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setSelectedOption(option.id)}
+                        disabled={!canEdit}
+                        className={`min-h-32 rounded-2xl border-2 bg-white p-4 text-left transition-all ${
+                          selected
+                            ? 'shadow-lg'
+                            : 'border-gray-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-sm'
+                        } disabled:cursor-not-allowed disabled:opacity-60`}
+                        style={selected ? { borderColor: cardColor.dark, backgroundColor: cardColor.light } : undefined}
+                        aria-pressed={selected}
+                      >
+                        <span className="flex items-start justify-between gap-3">
+                          <span>
+                            <span className="block text-base font-black" style={{ color: selected ? cardColor.dark : undefined }}>
+                              {option.label}
+                            </span>
+                            <span className="mt-2 block text-sm leading-5 text-gray-700">
+                              {option.description}
+                            </span>
+                          </span>
+                          <span
+                            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                              selected ? 'text-white' : 'border-gray-300'
+                            }`}
+                            style={selected ? { borderColor: cardColor.dark, backgroundColor: cardColor.dark } : undefined}
+                          >
+                            {selected ? <Check className="h-3 w-3" /> : null}
+                          </span>
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : card.type === 'rating' ? (
+                getJournalFieldSections(card).map((fieldGroup) => (
+                  <div key={fieldGroup.section || 'default'} className="space-y-3">
+                    {fieldGroup.section ? (
+                      <h3 className="text-sm font-black uppercase tracking-wide" style={{ color: cardColor.dark }}>
+                        {fieldGroup.section}
+                      </h3>
+                    ) : null}
+                    {fieldGroup.fields.map((field) => {
+                      const score = Number(fields[field.id] || 0)
+                      return (
+                        <div key={field.id} className="rounded-2xl border border-gray-200 bg-white p-4">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <div className="text-sm font-semibold text-gray-900">{field.label}</div>
+                              {field.subtitle ? (
+                                <div className="mt-1 text-xs text-gray-500">{field.subtitle}</div>
+                              ) : null}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {[1, 2, 3, 4, 5].map((value) => (
+                                <button
+                                  key={value}
+                                  type="button"
+                                  aria-label={`${field.label}: ${value} out of 5`}
+                                  onClick={() => setFields((current) => ({ ...current, [field.id]: String(value) }))}
+                                  disabled={!canEdit}
+                                  className={`flex h-9 w-9 items-center justify-center rounded-full transition-all hover:scale-110 ${
+                                    score >= value ? 'text-amber-500' : 'text-gray-300 hover:text-amber-300'
+                                  }`}
+                                >
+                                  <Star className={`h-5 w-5 ${score >= value ? 'fill-current' : ''}`} />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ))
+              ) : getJournalFieldSections(card).map((fieldGroup) => (
+                <div key={fieldGroup.section || 'default'} className="space-y-3">
+                  {fieldGroup.section ? (
+                    <h3 className="text-sm font-black uppercase tracking-wide" style={{ color: cardColor.dark }}>
+                      {fieldGroup.section}
+                    </h3>
+                  ) : null}
+                  {fieldGroup.fields.map((field) => {
+                    const isStarred = starredFieldId === field.id
+                    const showStarSlot = card.fields.length > 1
+                    return (
+                      <label key={field.id} className="group block space-y-2">
+                        <span className="text-sm font-medium text-gray-800">{field.label}</span>
+                        <span className="flex items-stretch gap-2">
+                          <span className="min-w-0 flex-1">
+                            {field.multiline ? (
+                              <Textarea
+                                value={fields[field.id] || ''}
+                                onChange={(event) => setFields((current) => ({ ...current, [field.id]: event.target.value }))}
+                                placeholder={field.placeholder}
+                                disabled={!canEdit}
+                                className="min-h-32 resize-none"
+                              />
+                            ) : (
+                              <Input
+                                value={fields[field.id] || ''}
+                                onChange={(event) => setFields((current) => ({ ...current, [field.id]: event.target.value }))}
+                                placeholder={field.placeholder}
+                                disabled={!canEdit}
+                              />
+                            )}
+                          </span>
+                          <button
+                            type="button"
+                            aria-label={`Feature ${field.label} in summary`}
+                            title="Feature in summary"
+                            onClick={(event) => {
+                              event.preventDefault()
+                              setStarredFieldId(field.id)
+                            }}
+                            disabled={!canEdit}
+                            className={`mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all duration-200 ${
+                              isStarred
+                                ? 'scale-105 bg-amber-100 text-amber-500 shadow-[0_0_18px_rgba(245,158,11,0.35)]'
+                                : showStarSlot
+                                  ? 'text-amber-400 opacity-0 hover:bg-amber-50 group-hover:opacity-60 hover:opacity-100'
+                                  : 'text-amber-400'
+                            }`}
+                          >
+                            <Star className={`h-4 w-4 ${isStarred ? 'fill-current' : ''}`} />
+                          </button>
+                        </span>
+                      </label>
+                    )
+                  })}
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-gray-100 px-5 py-4 sm:px-6">
+              <Button
+                type="button"
+                onClick={closeWithSave}
+                disabled={!complete}
+                className="w-full bg-black text-white hover:bg-black/90 sm:w-auto"
+              >
+                Done
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function JournalSection({
+  journal,
+  canEdit,
+  saving,
+  orgslug,
+  selectedCanvasId,
+  workspace = false,
+  onChange,
+}: {
+  journal: JournalShape
+  canEdit: boolean
+  saving: boolean
+  orgslug: string
+  selectedCanvasId?: JournalCanvasId
+  workspace?: boolean
+  // eslint-disable-next-line no-unused-vars
+  onChange(nextJournal: JournalShape): void
+}) {
+  const [openCard, setOpenCard] = useState<{ canvasId: JournalCanvasId, cardId: string } | null>(null)
+  const [openAddSection, setOpenAddSection] = useState<string | null>(null)
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false)
+  const selectedCanvas = JOURNAL_CANVASES.find((canvas) => canvas.id === selectedCanvasId) || null
+  const editorCanvas = JOURNAL_CANVASES.find((canvas) => canvas.id === openCard?.canvasId) || null
+
+  const updateEntry = (canvasId: JournalCanvasId, cardId: string, entry: JournalCardEntry) => {
+    onChange({
+      canvases: {
+        ...journal.canvases,
+        [canvasId]: {
+          cards: {
+            ...(journal.canvases[canvasId]?.cards || {}),
+            [cardId]: entry,
+          },
+        },
+      },
+    })
+  }
+
+  if (!selectedCanvas) {
+    return (
+      <section className="px-4 py-6 sm:px-0">
+        <div className="mb-5 flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-semibold text-gray-950">Journal</h2>
+            <p className="mt-1 text-sm text-gray-500">Choose a canvas to capture structured profile details.</p>
+          </div>
+          {saving ? (
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Saving
+            </div>
+          ) : null}
+        </div>
+        <div className="grid gap-3">
+          {JOURNAL_CANVASES.map((canvas) => {
+            const Icon = canvas.icon
+            return (
+              <Link
+                key={canvas.id}
+                href={getUriWithOrg(orgslug, routePaths.org.profileJournalCanvas(canvas.id))}
+                className="flex w-full items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md"
+              >
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-950 text-white">
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-base font-semibold text-gray-950">{canvas.title}</span>
+                  <span className="mt-1 block text-sm leading-5 text-gray-500">{canvas.description}</span>
+                </span>
+                <ChevronRight className="h-5 w-5 shrink-0 text-gray-400" />
+              </Link>
+            )
+          })}
+        </div>
+      </section>
+    )
+  }
+
+  const CanvasIcon = selectedCanvas.icon
+  const totalCards = selectedCanvas.cards.length
+  const completedCards = selectedCanvas.cards.filter((card) =>
+    isJournalCardComplete(card, getJournalEntry(journal, selectedCanvas.id, card.id))
+  ).length
+  const progressPercent = totalCards > 0 ? (completedCards / totalCards) * 100 : 0
+  const descriptionCanExpand = selectedCanvas.description.length > 80
+
+  return (
+    <section className={workspace ? 'min-h-screen' : 'px-4 py-6 sm:px-0'}>
+      <div className={`flex items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-3 ${
+        workspace
+          ? 'sticky top-0 z-10 backdrop-blur'
+          : 'mb-4'
+      }`}>
+        <div className="flex min-w-0 flex-1 items-center gap-4">
+          {workspace ? (
+            <Link
+              aria-label="Back to journal"
+              href={getUriWithOrg(orgslug, routePaths.org.profileJournal())}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-950"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Link>
+          ) : null}
+          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gray-950 text-white shadow-sm">
+            <CanvasIcon className="h-8 w-8" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg font-semibold text-gray-950">{selectedCanvas.title}</h2>
+            <div className="mt-2 flex items-center gap-3">
+              <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-gray-100">
+                <div
+                  className="h-full rounded-full bg-gray-950 transition-[width] duration-300"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <span className="shrink-0 text-sm font-semibold tabular-nums text-gray-600">
+                {completedCards}/{totalCards}
+              </span>
+            </div>
+            <p className={`mt-2 text-sm text-gray-500 ${descriptionExpanded ? '' : 'line-clamp-1'}`}>
+              {selectedCanvas.description}
+            </p>
+            {descriptionCanExpand ? (
+              <button
+                type="button"
+                aria-label={descriptionExpanded ? 'Collapse description' : 'Expand description'}
+                onClick={() => setDescriptionExpanded((current) => !current)}
+                className="mt-1 flex h-6 w-6 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+              >
+                <ChevronRight className={`h-4 w-4 transition-transform ${descriptionExpanded ? '-rotate-90' : 'rotate-90'}`} />
+              </button>
+            ) : null}
+          </div>
+        </div>
+        {saving ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-gray-500" /> : null}
+      </div>
+      <div className={`space-y-7 ${workspace ? 'px-4 py-6 sm:px-0 sm:py-8' : ''}`}>
+        {getJournalCardSections(selectedCanvas).map((sectionGroup) => (
+          <div key={sectionGroup.section || 'default'}>
+            {sectionGroup.section ? (
+              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
+                {sectionGroup.section}
+              </h3>
+            ) : null}
+            <div className="grid grid-cols-2 gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))] sm:gap-4 md:[grid-template-columns:repeat(auto-fit,minmax(190px,240px))]">
+              {sectionGroup.cards.map((card) => {
+                const cardEntry = getJournalEntry(journal, selectedCanvas.id, card.id)
+                const hasStarted = isJournalCardComplete(card, cardEntry)
+                const highlight = getJournalHighlight(card, cardEntry)
+                const ratingHighlight = card.type === 'rating' ? getRatingHighlights(card, cardEntry) : null
+                const choiceHighlight = card.type === 'multiSelect' ? cardEntry.starredOptions || [] : []
+                const CardIcon = card.icon || selectedCanvas.icon
+                if (!hasStarted) return null
+
+                return (
+                  <button
+                    key={card.id}
+                    type="button"
+                    onClick={() => setOpenCard({ canvasId: selectedCanvas.id, cardId: card.id })}
+                    className="group flex aspect-[4/3] min-h-36 origin-center flex-col overflow-hidden rounded-2xl border-4 border-white p-0 text-left shadow-[0_14px_30px_rgba(15,23,42,0.14)] transition-all duration-200 hover:-translate-y-1 hover:rotate-[-1deg] hover:scale-[1.02] hover:shadow-[0_20px_40px_rgba(15,23,42,0.18)] active:translate-y-0 active:rotate-3 active:scale-95"
+                    style={{ backgroundColor: card.color.light }}
+                  >
+                    <div className="flex items-center gap-2 px-3 py-3" style={{ color: card.color.dark }}>
+                      <CardIcon className="h-5 w-5 shrink-0" />
+                      <h3 className="min-w-0 truncate text-base font-black">{card.title}</h3>
+                    </div>
+                    <div className="min-w-0 flex-1 px-3 py-3">
+                      {choiceHighlight.length > 0 ? (
+                        <div>
+                          <div className="mb-2 text-[11px] font-black uppercase tracking-wide" style={{ color: card.color.dark }}>
+                            Top choices
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {choiceHighlight.map((option) => (
+                              <span key={option} className="rounded-full bg-white/75 px-2 py-1 text-xs font-bold text-gray-700 shadow-sm">
+                                {option}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ) : ratingHighlight ? (
+                        <div className="flex h-full items-center gap-3">
+                          <div className="min-w-0 flex-1 space-y-1.5">
+                            <div className="text-[11px] font-black uppercase tracking-wide" style={{ color: card.color.dark }}>
+                              Top
+                            </div>
+                            {ratingHighlight.top.map((item) => (
+                              <div key={item.field.id} className="text-xs font-bold text-gray-700">
+                                <span className="min-w-0 truncate">{item.field.label}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="h-16 w-px shrink-0 bg-white/70" />
+                          <RatingAverageIndicator average={ratingHighlight.average} color={card.color.dark} />
+                        </div>
+                      ) : (
+                        <p className="line-clamp-4 text-xs font-medium leading-5 text-gray-700">
+                          <span className="mb-1 block text-[11px] font-black uppercase tracking-wide" style={{ color: card.color.dark }}>
+                            {highlight.label}
+                          </span>
+                          <span className="block italic">"{highlight.response}"</span>
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+              {sectionGroup.cards.some((card) => !isJournalCardComplete(card, getJournalEntry(journal, selectedCanvas.id, card.id))) ? (
+                <button
+                  type="button"
+                  onClick={() => setOpenAddSection((current) => current === sectionGroup.section ? null : sectionGroup.section)}
+                  className="group flex aspect-[4/3] min-h-36 flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-transparent p-4 text-gray-400 transition-colors hover:border-gray-500 hover:text-gray-800"
+                  aria-label={`Add ${sectionGroup.section || selectedCanvas.title} tile`}
+                >
+                  <Plus className="h-6 w-6" />
+                </button>
+              ) : null}
+            </div>
+            {openAddSection === sectionGroup.section ? (
+              <div className="mt-3 overflow-hidden rounded-2xl border border-gray-200 bg-white">
+                <div className="flex gap-3 overflow-x-auto p-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {sectionGroup.cards
+                    .filter((card) => !isJournalCardComplete(card, getJournalEntry(journal, selectedCanvas.id, card.id)))
+                    .map((card) => {
+                      const CardIcon = card.icon || selectedCanvas.icon
+                      return (
+                        <button
+                          key={card.id}
+                          type="button"
+                          onClick={() => {
+                            setOpenCard({ canvasId: selectedCanvas.id, cardId: card.id })
+                            setOpenAddSection(null)
+                          }}
+                          className="flex h-28 w-40 shrink-0 flex-col justify-between rounded-xl border-2 border-white p-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:rotate-[-1deg] hover:shadow-md"
+                          style={{ backgroundColor: card.color.light }}
+                        >
+                          <span
+                            className="flex h-9 w-9 items-center justify-center rounded-lg text-white"
+                            style={{ backgroundColor: card.color.dark }}
+                          >
+                            <CardIcon className="h-4 w-4" />
+                          </span>
+                          <span>
+                            <span className="block text-sm font-semibold" style={{ color: card.color.dark }}>{card.title}</span>
+                            <span className="mt-1 block text-xs text-gray-600">Add tile</span>
+                          </span>
+                        </button>
+                      )
+                    })}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      {editorCanvas && openCard ? (
+        <JournalEditorTray
+          canvas={editorCanvas}
+          card={editorCanvas.cards.find((card) => card.id === openCard.cardId) || editorCanvas.cards[0]}
+          entry={getJournalEntry(journal, openCard.canvasId, openCard.cardId)}
+          open
+          canEdit={canEdit}
+          startInMain={isJournalCardComplete(
+            editorCanvas.cards.find((card) => card.id === openCard.cardId) || editorCanvas.cards[0],
+            getJournalEntry(journal, openCard.canvasId, openCard.cardId)
+          )}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) setOpenCard(null)
+          }}
+          onSave={(entry) => updateEntry(openCard.canvasId, openCard.cardId, entry)}
+        />
+      ) : null}
+    </section>
+  )
+}
+
 function ProfilePageClient({
   initialUser,
   orgslug,
   profileUsername,
   editMode = false,
+  initialTab = 'overview',
   mode,
   isSelf = false,
 }: ProfilePageClientProps) {
@@ -1042,7 +1960,7 @@ function ProfilePageClient({
   const [isSaving, setIsSaving] = useState(false)
   const [uploading, setUploading] = useState<'avatar' | null>(null)
   const [bioExpanded, setBioExpanded] = useState(false)
-  const [activeTab, setActiveTab] = useState<ProfileTab>('overview')
+  const [activeTab, setActiveTab] = useState<ProfileTab>(initialTab)
 
   const isOwnerMode = mode === 'owner'
   const isPublicMode = mode === 'public'
@@ -1052,6 +1970,7 @@ function ProfilePageClient({
   const header = profile.header || {}
   const featured = profile.featured || normalizeFeatured(null)
   const achievements = profile.achievements || normalizeAchievements(null)
+  const journal = profile.journal || normalizeJournal(null)
   const timelineEnabled = profile.timelineEnabled ?? false
   const timelinePublicVisible = profile.timelinePublicVisible !== false
   const socials = useMemo(() => header.socials ?? [], [header.socials])
@@ -1187,6 +2106,37 @@ function ProfilePageClient({
       router.push(redirectHref)
     } catch {
       toast.error('Could not save profile', { id: loadingToast })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const updateJournal = async (nextJournal: JournalShape) => {
+    const nextProfile = {
+      ...normalizeProfile((effectiveEditMode ? draft.profile : user.profile)),
+      journal: nextJournal,
+    }
+
+    updateDraftProfile(nextProfile)
+
+    if (!canManageProfile || !accessToken) return
+
+    setIsSaving(true)
+    try {
+      const payload = {
+        ...user,
+        first_name: effectiveEditMode ? draft.first_name : user.first_name,
+        last_name: effectiveEditMode ? draft.last_name : user.last_name,
+        username: user.username,
+        bio: effectiveEditMode ? draft.bio : user.bio,
+        profile: nextProfile,
+      }
+      const res = await updateProfile(payload, user.id, accessToken)
+      if (!res.success) throw new Error(res.HTTPmessage)
+      setUser(res.data)
+      await session?.update?.(true)
+    } catch {
+      toast.error('Could not save journal')
     } finally {
       setIsSaving(false)
     }
@@ -1348,21 +2298,6 @@ function ProfilePageClient({
                 ) : null}
               {(canManageProfile || isPublicMode) ? (
                 <div className="flex flex-wrap items-center gap-2 pt-1">
-                  {canManageProfile && (
-                    effectiveEditMode ? (
-                      <Button type="button" onClick={() => handleSave()} disabled={isSaving} className="bg-black text-white hover:bg-black/90">
-                        <Save size={16} className="mr-2" />
-                        {isSaving ? 'Saving' : 'Save'}
-                      </Button>
-                    ) : (
-                      <Button asChild variant="outline">
-                        <Link href={getUriWithOrg(orgslug, routePaths.org.profileEdit())}>
-                          <Edit3 size={16} className="mr-2" />
-                          Edit
-                        </Link>
-                      </Button>
-                    )
-                  )}
                     {canManageProfile && (
                       effectiveEditMode ? (
                       <Button type="button" variant="outline" onClick={() => handleSave(publicProfileHref)} disabled={isSaving}>
@@ -1410,19 +2345,25 @@ function ProfilePageClient({
             {PROFILE_TABS.map((tab) => {
               const Icon = tab.icon
               const selected = activeTab === tab.id
+              const className = `flex shrink-0 items-center gap-2 border-b-2 px-0 pb-3 text-sm font-medium transition-colors ${
+                selected
+                  ? 'border-gray-950 text-gray-950'
+                  : 'border-transparent text-gray-500 hover:text-gray-800'
+              }`
+              const content = (
+                <>
+                  <Icon className="h-4 w-4" />
+                  <span>{tab.label}</span>
+                </>
+              )
               return (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex shrink-0 items-center gap-2 border-b-2 px-0 pb-3 text-sm font-medium transition-colors ${
-                    selected
-                      ? 'border-gray-950 text-gray-950'
-                      : 'border-transparent text-gray-500 hover:text-gray-800'
-                  }`}
+                  className={className}
                 >
-                  <Icon className="h-4 w-4" />
-                  <span>{tab.label}</span>
+                  {content}
                 </button>
               )
             })}
@@ -1430,6 +2371,123 @@ function ProfilePageClient({
         </nav>
         {activeTab === 'overview' ? (
           <>
+            <section className="px-4 py-6 sm:px-0">
+              <div className="mb-4 flex items-center justify-between gap-4">
+                <h2 className="text-2xl font-semibold text-gray-950">Overview</h2>
+                {canManageProfile ? (
+                  effectiveEditMode ? (
+                    <Button type="button" onClick={() => handleSave()} disabled={isSaving} className="bg-black text-white hover:bg-black/90">
+                      <Save size={16} className="mr-2" />
+                      {isSaving ? 'Saving' : 'Save'}
+                    </Button>
+                  ) : (
+                    <Button asChild variant="outline">
+                      <Link href={getUriWithOrg(orgslug, routePaths.org.profileEdit())}>
+                        <Edit3 size={16} className="mr-2" />
+                        Edit
+                      </Link>
+                    </Button>
+                  )
+                ) : null}
+              </div>
+              <div className="space-y-4">
+                {effectiveEditMode ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Input
+                      value={draft.first_name}
+                      onChange={(event) => setDraft((current) => ({ ...current, first_name: event.target.value }))}
+                      placeholder="First name"
+                    />
+                    <Input
+                      value={draft.last_name}
+                      onChange={(event) => setDraft((current) => ({ ...current, last_name: event.target.value }))}
+                      placeholder="Last name"
+                    />
+                  </div>
+                ) : null}
+                {effectiveEditMode ? (
+                  <Textarea
+                    value={draft.bio}
+                    onChange={(event) => setDraft((current) => ({ ...current, bio: event.target.value }))}
+                    placeholder="Write a short profile"
+                    className="min-h-32"
+                    maxLength={400}
+                  />
+                ) : user.bio ? (
+                  <div>
+                    <p className={`max-w-2xl overflow-hidden text-base leading-7 text-gray-700 transition-[max-height] duration-300 ${
+                      bioExpanded ? 'max-h-[640px]' : 'max-h-24'
+                    }`}>
+                      {user.bio}
+                    </p>
+                    {user.bio.length > 180 ? (
+                      <button
+                        type="button"
+                        onClick={() => setBioExpanded((current) => !current)}
+                        className="mt-1 text-sm font-medium text-gray-950 hover:underline"
+                      >
+                        {bioExpanded ? 'Show less' : 'Show more'}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+                {effectiveEditMode ? (
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      {missingSocialTypes.map((type) => {
+                        const Icon = SOCIAL_CONFIG[type].icon
+                        return (
+                          <Button
+                            key={type}
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => addSocial(type)}
+                            className="h-9 w-9 rounded-full"
+                            aria-label={`Add ${SOCIAL_CONFIG[type].label}`}
+                            title={`Add ${SOCIAL_CONFIG[type].label}`}
+                          >
+                            <Icon className="h-4 w-4" />
+                          </Button>
+                        )
+                      })}
+                    </div>
+                    <div className="space-y-2">
+                      {socials.map((social) => {
+                        const config = SOCIAL_CONFIG[social.type]
+                        const Icon = config.icon
+                        const valid = social.url ? isValidSocialUrl(social.type, social.url) : true
+                        return (
+                          <div
+                            key={social.type}
+                            className={`flex items-center gap-2 rounded-full border px-3 py-2 ${
+                              valid ? 'border-gray-200' : 'border-red-300 bg-red-50'
+                            }`}
+                          >
+                            <Icon className="h-4 w-4 text-gray-600" />
+                            <Input
+                              value={social.url}
+                              onChange={(event) => updateSocial(social.type, event.target.value)}
+                              placeholder={config.placeholder}
+                              className="h-8 border-0 px-0 shadow-none focus-visible:ring-0"
+                            />
+                            {valid && social.url ? <Check className="h-4 w-4 text-green-600" /> : null}
+                            <button
+                              type="button"
+                              aria-label={`Remove ${config.label}`}
+                              onClick={() => removeSocial(social.type)}
+                              className="rounded-full p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </section>
             <FeaturedCarousel
               featured={featured}
               editMode={effectiveEditMode}
@@ -1457,6 +2515,16 @@ function ProfilePageClient({
               }))}
             />
           </>
+        ) : null}
+        {activeTab !== 'overview' && activeTab !== 'timeline' ? (
+          <JournalSection
+            journal={journal}
+            canEdit={canManageProfile}
+            saving={isSaving}
+            orgslug={orgslug}
+            selectedCanvasId={activeTab}
+            onChange={updateJournal}
+          />
         ) : null}
         {activeTab === 'timeline' ? (
           <ProfileTimeline
