@@ -38,6 +38,8 @@ test('route manifest builds auth, account, and public org paths used by navigati
   assert.equal(routePaths.owner.account.badges(), '/account/badges')
   assert.equal(routePaths.org.profile(), '/profile')
   assert.equal(routePaths.org.profileEdit(), '/profile/edit')
+  assert.equal(routePaths.org.journal(), '/journal')
+  assert.equal(routePaths.org.journal('identity'), '/journal?canvas=identity')
   assert.equal(routePaths.org.profileJournal(), '/profile/journal')
   assert.equal(routePaths.org.profileJournalCanvas('identity'), '/profile/journal/identity')
   assert.equal(routePaths.org.profileResume(), '/profile/resume')

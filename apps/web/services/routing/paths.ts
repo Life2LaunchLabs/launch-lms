@@ -60,6 +60,7 @@ export const routePaths = {
     root: () => '/',
     profile: () => '/profile',
     profileEdit: () => '/profile/edit',
+    journal: (canvasId?: string) => withQuery('/journal', { canvas: canvasId }),
     profileJournal: () => '/profile/journal',
     profileJournalCanvas: (canvasId: string) => `/profile/journal/${canvasId}`,
     profilePortfolioPost: (slug: string) => `/profile/portfolio/${slug}`,

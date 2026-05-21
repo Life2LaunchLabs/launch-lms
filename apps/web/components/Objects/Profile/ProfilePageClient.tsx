@@ -2,13 +2,11 @@
 
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import {
   Camera,
   Check,
-  ChevronLeft,
   ChevronRight,
-  Clock3,
   Compass,
   Copy,
   Edit3,
@@ -18,11 +16,9 @@ import {
   HeartPulse,
   HelpCircle,
   Instagram,
-  LayoutGrid,
   Linkedin,
   Loader2,
   Plus,
-  Save,
   Share2,
   Star,
   UserRound,
@@ -96,14 +92,16 @@ type ProfilePageClientProps = {
 type OwnerProfilePageClientProps = Omit<ProfilePageClientProps, 'mode' | 'isSelf'>
 type PublicProfilePageClientProps = Omit<ProfilePageClientProps, 'mode' | 'editMode'>
 type ProfileTab = 'overview' | 'timeline' | JournalCanvasId
+type OwnerJournalPageClientProps = {
+  initialUser: any
+  orgslug: string
+}
 
-const PROFILE_TABS: Array<{
-  id: ProfileTab
+const JOURNAL_TABS: Array<{
+  id: JournalCanvasId
   label: string
   icon: React.ComponentType<{ className?: string }>
 }> = [
-  { id: 'overview', label: 'Overview', icon: LayoutGrid },
-  { id: 'timeline', label: 'Timeline', icon: Clock3 },
   { id: 'identity', label: 'Identity', icon: UserRound },
   { id: 'lifestyle', label: 'Lifestyle', icon: HeartPulse },
   { id: 'navigation', label: 'Navigation', icon: Compass },
@@ -114,30 +112,40 @@ const SOCIAL_CONFIG: Record<SocialType, {
   placeholder: string
   icon: React.ComponentType<{ className?: string }>
   hostPattern: RegExp
+  inputPrefix: string
+  inputPlaceholder: string
 }> = {
   website: {
     label: 'Website',
     placeholder: 'https://example.com',
     icon: Globe,
     hostPattern: /.+/,
+    inputPrefix: 'https://',
+    inputPlaceholder: 'your-site.com',
   },
   linkedin: {
     label: 'LinkedIn',
     placeholder: 'https://linkedin.com/in/username',
     icon: Linkedin,
     hostPattern: /(^|\.)linkedin\.com$/i,
+    inputPrefix: 'linkedin.com/in/',
+    inputPlaceholder: 'username',
   },
   instagram: {
     label: 'Instagram',
     placeholder: 'https://instagram.com/username',
     icon: Instagram,
     hostPattern: /(^|\.)instagram\.com$/i,
+    inputPrefix: '@',
+    inputPlaceholder: 'username',
   },
   x: {
     label: 'X',
     placeholder: 'https://x.com/username',
     icon: X,
     hostPattern: /(^|\.)x\.com$|(^|\.)twitter\.com$/i,
+    inputPrefix: '@',
+    inputPlaceholder: 'username',
   },
 }
 
@@ -220,6 +228,49 @@ function getSocialHref(social: SocialLink) {
   return `https://${social.url}`
 }
 
+function cleanSocialHandle(value: string) {
+  return value
+    .trim()
+    .replace(/^@+/, '')
+    .replace(/^\/+/, '')
+    .split(/[/?#]/)[0]
+}
+
+function getSocialInputValue(type: SocialType, value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+
+  try {
+    const url = new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`)
+    const hostname = url.hostname.replace(/^www\./i, '').toLowerCase()
+    const parts = url.pathname.split('/').filter(Boolean)
+
+    if (type === 'website') {
+      return `${url.hostname}${url.pathname === '/' ? '' : url.pathname}`.replace(/\/$/, '')
+    }
+    if (type === 'linkedin' && hostname === 'linkedin.com') {
+      return cleanSocialHandle(parts[0] === 'in' ? parts[1] || '' : parts[0] || '')
+    }
+    if (type === 'instagram' && hostname === 'instagram.com') return cleanSocialHandle(parts[0] || '')
+    if (type === 'x' && (hostname === 'x.com' || hostname === 'twitter.com')) return cleanSocialHandle(parts[0] || '')
+  } catch {
+    // Fall back to lightweight handle parsing below.
+  }
+
+  if (type === 'website') return trimmed.replace(/^https?:\/\//i, '').replace(/\/$/, '')
+  if (type === 'linkedin') return cleanSocialHandle(trimmed.replace(/^(www\.)?linkedin\.com\/in\//i, ''))
+  return cleanSocialHandle(trimmed.replace(/^(www\.)?(instagram\.com|x\.com|twitter\.com)\//i, ''))
+}
+
+function normalizeSocialInput(type: SocialType, value: string) {
+  const inputValue = getSocialInputValue(type, value)
+  if (!inputValue) return ''
+  if (type === 'website') return /^https?:\/\//i.test(inputValue) ? inputValue : `https://${inputValue}`
+  if (type === 'linkedin') return `https://linkedin.com/in/${inputValue}`
+  if (type === 'instagram') return `https://instagram.com/${inputValue}`
+  return `https://x.com/${inputValue}`
+}
+
 function getSocialBubbleStyle(type: SocialType): React.CSSProperties {
   if (type === 'linkedin') return { backgroundColor: '#0A66C2' }
   if (type === 'instagram') {
@@ -234,12 +285,13 @@ function getSocialBubbleStyle(type: SocialType): React.CSSProperties {
 
 const AVATAR_SOCIAL_SCALE = 198
 
-function getAvatarSocialGeometry(size: number, socialCount: number) {
+function getAvatarSocialGeometry(size: number, socialCount: number, expanded = false) {
   const socialScale = AVATAR_SOCIAL_SCALE
   const gap = socialScale * 0.055
   const bubble = Math.min(socialScale * 0.22, (socialScale - ((socialCount + 1) * gap)) / Math.max(1, socialCount))
   const padding = socialScale * 0.05
-  const channelWidth = bubble + (padding * 2)
+  const contentWidth = expanded ? Math.min(size * 0.68, socialScale * 1.62) : bubble
+  const channelWidth = Math.min(size, contentWidth + (padding * 2))
   const channelX = size - channelWidth
   const barHeight = (socialCount * bubble) + (Math.max(0, socialCount - 1) * gap)
   const channelTop = Math.max(size * 0.14, size - barHeight - padding)
@@ -247,9 +299,11 @@ function getAvatarSocialGeometry(size: number, socialCount: number) {
 
   return {
     bubble,
+    contentWidth: Math.max(bubble, channelWidth - (padding * 2)),
     channelWidth,
     channelX,
     gap,
+    padding,
     innerRadius,
     channelTop,
   }
@@ -292,19 +346,20 @@ function getAvatarNameGeometry(size: number, firstName: string, lastName: string
   }
 }
 
-function getAvatarClipPath(size: number, socialCount: number, nameGeometry: ReturnType<typeof getAvatarNameGeometry> = null) {
-  const radius = size * 0.14
+function getAvatarClipPath(size: number, socialCount: number, nameGeometry: ReturnType<typeof getAvatarNameGeometry> = null, socialsExpanded = false) {
+  const baseGeometry = getAvatarSocialGeometry(size, Math.max(1, socialCount), socialsExpanded)
+  const radius = baseGeometry.innerRadius
   if (socialCount === 0 && !nameGeometry) {
     return `M ${radius} 0 H ${size - radius} Q ${size} 0 ${size} ${radius} V ${size - radius} Q ${size} ${size} ${size - radius} ${size} H ${radius} Q 0 ${size} 0 ${size - radius} V ${radius} Q 0 0 ${radius} 0 Z`
   }
 
-  const socialGeometry = socialCount > 0 ? getAvatarSocialGeometry(size, socialCount) : null
+  const socialGeometry = socialCount > 0 ? getAvatarSocialGeometry(size, socialCount, socialsExpanded) : null
   const channelX = socialGeometry?.channelX ?? size
   const channelTop = socialGeometry?.channelTop ?? size
   const innerRadius = socialGeometry?.innerRadius ?? 0
   const nameWidth = nameGeometry?.width ?? 0
   const nameHeight = nameGeometry?.height ?? 0
-  const nameRadius = Math.min(nameGeometry?.radius ?? 0, nameWidth / 2, nameHeight / 2)
+  const nameRadius = Math.min(radius, nameWidth / 2, nameHeight / 2)
   const startsAfterNameCutout = Boolean(nameGeometry)
 
   return [
@@ -348,9 +403,17 @@ function ProfileHeaderAvatar({
   lastName,
   showNameCutout = false,
   fullWidth = false,
-  editMode,
+  canEditSocials,
+  socialsExpanded = false,
   uploading,
+  missingSocialTypes = [],
   onAvatarChange,
+  onAddSocial,
+  onUpdateSocial,
+  onRemoveSocial,
+  onSocialsFocus,
+  onSocialsBlur,
+  onSaveSocials,
 }: {
   avatarUrl: string
   socials: SocialLink[]
@@ -360,22 +423,38 @@ function ProfileHeaderAvatar({
   lastName?: string
   showNameCutout?: boolean
   fullWidth?: boolean
-  editMode: boolean
+  canEditSocials: boolean
+  socialsExpanded?: boolean
   uploading: boolean
+  missingSocialTypes?: SocialType[]
   // eslint-disable-next-line no-unused-vars
   onAvatarChange(event: React.ChangeEvent<HTMLInputElement>): void
+  // eslint-disable-next-line no-unused-vars
+  onAddSocial?(type: SocialType): void
+  // eslint-disable-next-line no-unused-vars
+  onUpdateSocial?(type: SocialType, url: string): void
+  // eslint-disable-next-line no-unused-vars
+  onRemoveSocial?(type: SocialType): void
+  onSocialsFocus?(): void
+  onSocialsBlur?(): void
+  onSaveSocials?(): void
 }) {
   const clipId = useId()
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [measuredSize, setMeasuredSize] = useState(size)
   const actualSize = fullWidth ? measuredSize : size
   const safeClipId = `profile-avatar-${clipId.replace(/[^a-zA-Z0-9_-]/g, '')}`
-  const visibleSocials = socials.filter((social) => social.url).slice(0, 5)
+  const visibleSocials = (canEditSocials ? socials : socials.filter((social) => social.url)).slice(0, 5)
+  const socialSlotCount = visibleSocials.length || (canEditSocials ? 1 : 0)
   const nameGeometry = showNameCutout ? getAvatarNameGeometry(actualSize, firstName || '', lastName || '') : null
-  const clipPath = getAvatarClipPath(actualSize, visibleSocials.length, nameGeometry)
-  const { bubble, channelWidth, gap } = getAvatarSocialGeometry(actualSize, visibleSocials.length)
+  const clipPath = getAvatarClipPath(actualSize, socialSlotCount, nameGeometry, socialsExpanded)
+  const { bubble, contentWidth, channelWidth, gap, padding } = getAvatarSocialGeometry(actualSize, socialSlotCount, socialsExpanded)
   const bubbleSize = Math.round(bubble)
+  const socialContentWidth = Math.round(contentWidth)
   const avatarImageUrl = avatarUrl || '/empty_avatar.png'
+  const socialsTop = socialSlotCount > 0
+    ? getAvatarSocialGeometry(actualSize, socialSlotCount, socialsExpanded).channelTop
+    : actualSize
 
   useEffect(() => {
     if (!fullWidth || !containerRef.current) return
@@ -437,28 +516,159 @@ function ProfileHeaderAvatar({
         </div>
       ) : null}
 
-      {visibleSocials.length > 0 ? (
+      {canEditSocials && missingSocialTypes.length > 0 && socialsExpanded ? (
         <div
+          data-profile-socials="true"
+          className="absolute right-0 z-10 flex items-center justify-end gap-2"
+          style={{
+            right: padding,
+            bottom: Math.max(8, actualSize - socialsTop + gap),
+            gap,
+          }}
+          onMouseDown={(event) => event.stopPropagation()}
+          onFocus={onSocialsFocus}
+        >
+          {missingSocialTypes.map((type) => {
+            const Icon = SOCIAL_CONFIG[type].icon
+            return (
+              <button
+                key={type}
+                type="button"
+                aria-label={`Add ${SOCIAL_CONFIG[type].label}`}
+                title={`Add ${SOCIAL_CONFIG[type].label}`}
+                onClick={() => {
+                  onSocialsFocus?.()
+                  onAddSocial?.(type)
+                }}
+                className="flex shrink-0 items-center justify-center rounded-full text-white shadow-sm ring-2 ring-white"
+                style={{
+                  width: bubbleSize,
+                  height: bubbleSize,
+                  ...getSocialBubbleStyle(type),
+                }}
+              >
+                <Icon className="h-[45%] w-[45%]" />
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+
+      {socialSlotCount > 0 ? (
+        <div
+          data-profile-socials="true"
           className="absolute right-0 bottom-0 flex flex-col items-center"
           style={{
             width: channelWidth,
             gap,
           }}
+          onMouseDown={(event) => {
+            event.stopPropagation()
+          }}
+          onFocus={onSocialsFocus}
+          onClick={() => {
+            onSocialsFocus?.()
+          }}
         >
+          {visibleSocials.length === 0 && canEditSocials ? (
+            <button
+              type="button"
+              aria-label="Add social links"
+              onClick={onSocialsFocus}
+              className="flex shrink-0 items-center justify-center rounded-full bg-gray-950 text-white shadow-sm ring-2 ring-white transition-transform hover:-translate-y-0.5"
+              style={{
+                width: bubbleSize,
+                height: bubbleSize,
+              }}
+            >
+              <Plus className="h-[45%] w-[45%]" />
+            </button>
+          ) : null}
           {visibleSocials.map((social) => {
             const config = SOCIAL_CONFIG[social.type]
             const Icon = config.icon
-            return (
+            const socialStyle = getSocialBubbleStyle(social.type)
+            return canEditSocials && socialsExpanded ? (
+              <div
+                key={social.type}
+                className="flex shrink-0 items-center gap-2 rounded-full pl-3 pr-2 text-white shadow-sm ring-2 ring-white"
+                style={{
+                  width: socialContentWidth,
+                  height: bubbleSize,
+                  ...socialStyle,
+                }}
+              >
+                <span
+                  className="flex shrink-0 items-center justify-center rounded-full text-white"
+                  style={{
+                    width: Math.max(28, bubbleSize - 8),
+                    height: Math.max(28, bubbleSize - 8),
+                  }}
+                >
+                  <Icon className="h-[45%] w-[45%]" />
+                </span>
+                <span className="shrink-0 text-xs font-semibold text-white/80">
+                  {config.inputPrefix}
+                </span>
+                <Input
+                  value={getSocialInputValue(social.type, social.url)}
+                  onChange={(event) => onUpdateSocial?.(social.type, normalizeSocialInput(social.type, event.target.value))}
+                  onPaste={(event) => {
+                    event.preventDefault()
+                    const pasted = event.clipboardData.getData('text')
+                    onUpdateSocial?.(social.type, normalizeSocialInput(social.type, pasted))
+                  }}
+                  placeholder={config.inputPlaceholder}
+                  className="h-8 min-w-0 border-0 bg-transparent px-0 text-xs text-white shadow-none placeholder:text-white/70 focus-visible:ring-0"
+                  autoComplete="url"
+                  onFocus={onSocialsFocus}
+                  onBlur={() => {
+                    onSaveSocials?.()
+                    onSocialsBlur?.()
+                  }}
+                />
+                <button
+                  type="button"
+                  aria-label={`Remove ${config.label}`}
+                  onClick={() => onRemoveSocial?.(social.type)}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white/85 hover:bg-white/15 hover:text-white"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : socialsExpanded ? (
               <a
                 key={social.type}
                 href={getSocialHref(social)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex shrink-0 items-center gap-2 rounded-full px-3 text-sm font-semibold text-white shadow-sm ring-2 ring-white transition-transform hover:-translate-y-0.5"
+                style={{
+                  width: socialContentWidth,
+                  height: bubbleSize,
+                  ...socialStyle,
+                }}
+                aria-label={config.label}
+                title={config.label}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="min-w-0 truncate">{config.label}</span>
+              </a>
+            ) : (
+              <a
+                key={social.type}
+                href={getSocialHref(social)}
+                onClick={(event) => {
+                  event.preventDefault()
+                  onSocialsFocus?.()
+                }}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex shrink-0 items-center justify-center rounded-full text-white shadow-sm ring-2 ring-white transition-transform hover:-translate-y-0.5"
                 style={{
                   width: bubbleSize,
                   height: bubbleSize,
-                  ...getSocialBubbleStyle(social.type),
+                  ...socialStyle,
                 }}
                 aria-label={config.label}
                 title={config.label}
@@ -470,7 +680,7 @@ function ProfileHeaderAvatar({
         </div>
       ) : null}
 
-      {editMode ? (
+      {canEditSocials ? (
         <>
           <input
             id={`profile-avatar-upload-${userId}-${size}`}
@@ -483,10 +693,16 @@ function ProfileHeaderAvatar({
             type="button"
             aria-label="Upload profile photo"
             onClick={() => document.getElementById(`profile-avatar-upload-${userId}-${size}`)?.click()}
-            className="absolute left-3 bottom-3 flex h-9 w-9 items-center justify-center rounded-full bg-black text-white shadow-md"
+            className="absolute flex items-center justify-center rounded-full bg-white text-gray-800 shadow-md ring-1 ring-gray-200 hover:text-gray-950"
+            style={{
+              right: padding,
+              top: padding,
+              width: bubbleSize,
+              height: bubbleSize,
+            }}
             disabled={uploading}
           >
-            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera size={18} />}
+            {uploading ? <Loader2 className="h-[45%] w-[45%] animate-spin" /> : <Camera className="h-[45%] w-[45%]" />}
           </button>
         </>
       ) : null}
@@ -618,6 +834,169 @@ function getJournalFieldSections(card: JournalCardConfig) {
     section,
     fields: card.fields.filter((field) => (field.section || '') === section),
   }))
+}
+
+function getJournalCanvasProgress(journal: JournalShape, canvas: JournalCanvasConfig) {
+  const total = canvas.cards.length
+  const completed = canvas.cards.filter((card) =>
+    isJournalCardComplete(card, getJournalEntry(journal, canvas.id, card.id))
+  ).length
+
+  return {
+    completed,
+    total,
+    percent: total > 0 ? Math.round((completed / total) * 100) : 0,
+  }
+}
+
+function ProgressGauge({
+  percent,
+  color = '#111827',
+  className = '',
+}: {
+  percent: number
+  color?: string
+  className?: string
+}) {
+  const normalized = Math.max(0, Math.min(100, percent))
+  const circumference = 44
+
+  return (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
+      <circle
+        cx="24"
+        cy="24"
+        r="20"
+        fill="none"
+        stroke="#e5e7eb"
+        strokeWidth="4"
+      />
+      <circle
+        cx="24"
+        cy="24"
+        r="20"
+        fill="none"
+        stroke={color}
+        strokeWidth="4"
+        strokeLinecap="round"
+        pathLength={circumference}
+        strokeDasharray={`${(circumference * normalized) / 100} ${circumference}`}
+        transform="rotate(-90 24 24)"
+      />
+    </svg>
+  )
+}
+
+function ProfileJournalTabs({
+  orgslug,
+  activeTab,
+  onChange,
+}: {
+  orgslug: string
+  activeTab: JournalCanvasId
+  // eslint-disable-next-line no-unused-vars
+  onChange?(tab: JournalCanvasId): void
+}) {
+  return (
+    <nav className="px-4 sm:px-0" aria-label="Journal sections">
+      <div className="flex items-center gap-6 overflow-x-auto border-b border-gray-200 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {JOURNAL_TABS.map((tab) => {
+          const Icon = tab.icon
+          const selected = activeTab === tab.id
+          const className = `flex shrink-0 items-center gap-2 border-b-2 px-0 pb-3 text-sm font-medium transition-colors ${
+            selected
+              ? 'border-gray-950 text-gray-950'
+              : 'border-transparent text-gray-500 hover:text-gray-800'
+          }`
+          const content = (
+            <>
+              <Icon className="h-4 w-4" />
+              <span>{tab.label}</span>
+            </>
+          )
+          if (onChange) {
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => onChange(tab.id)}
+                className={className}
+                aria-current={selected ? 'page' : undefined}
+              >
+                {content}
+              </button>
+            )
+          }
+
+          return (
+            <Link
+              key={tab.id}
+              href={getUriWithOrg(orgslug, routePaths.org.journal(tab.id))}
+              className={className}
+              aria-current={selected ? 'page' : undefined}
+            >
+              {content}
+            </Link>
+          )
+        })}
+      </div>
+    </nav>
+  )
+}
+
+function ProfileOverviewDestinations({
+  journal,
+  orgslug,
+}: {
+  journal: JournalShape
+  orgslug: string
+}) {
+  const progress = JOURNAL_CANVASES.reduce(
+    (totals, canvas) => {
+      const canvasProgress = getJournalCanvasProgress(journal, canvas)
+      return {
+        completed: totals.completed + canvasProgress.completed,
+        total: totals.total + canvasProgress.total,
+      }
+    },
+    { completed: 0, total: 0 }
+  )
+  const progressPercent = progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0
+
+  return (
+    <section className="px-4 pb-2 sm:px-0">
+      <h2 className="mb-3 text-2xl font-semibold text-gray-950">Launch Journal</h2>
+      <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <p className="text-sm font-medium text-gray-700">
+          You&apos;re {progressPercent}% of the way to completing your launch journal.
+        </p>
+        <p className="mt-1 text-xs text-gray-500">
+          {progress.completed}/{progress.total} cards complete across identity, lifestyle, and navigation.
+        </p>
+        <div className="mt-5 flex justify-between gap-3">
+          {JOURNAL_CANVASES.map((canvas) => {
+            const Icon = canvas.icon
+            const canvasProgress = getJournalCanvasProgress(journal, canvas)
+            return (
+              <Link
+                key={canvas.id}
+                href={getUriWithOrg(orgslug, routePaths.org.journal(canvas.id))}
+                className="flex min-w-0 flex-1 flex-col items-center gap-2 text-center"
+              >
+                <span className="relative flex h-20 w-20 items-center justify-center">
+                  <ProgressGauge percent={canvasProgress.percent} className="absolute inset-0 h-full w-full" />
+                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-950 text-white shadow-sm">
+                    <Icon className="h-6 w-6" />
+                  </span>
+                </span>
+                <span className="text-xs font-semibold leading-4 text-gray-800">{canvas.title}</span>
+              </Link>
+            )
+          })}
+        </div>
+      </div>
+    </section>
+  )
 }
 
 function JournalEditorTray({
@@ -1139,7 +1518,7 @@ function JournalSection({
             return (
               <Link
                 key={canvas.id}
-                href={getUriWithOrg(orgslug, routePaths.org.profileJournalCanvas(canvas.id))}
+                href={getUriWithOrg(orgslug, routePaths.org.journal(canvas.id))}
                 className="flex w-full items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md"
               >
                 <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-950 text-white">
@@ -1168,53 +1547,44 @@ function JournalSection({
 
   return (
     <section className={workspace ? 'min-h-screen' : 'px-4 py-6 sm:px-0'}>
-      <div className={`flex items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-4 py-3 ${
-        workspace
-          ? 'sticky top-0 z-10 backdrop-blur'
-          : 'mb-4'
+      <div className={`mb-4 bg-gradient-to-br from-sky-100 via-white to-emerald-100 p-4 sm:rounded-lg ${
+        workspace ? '-mx-4 sm:mx-0' : '-mx-4 sm:mx-0'
       }`}>
-        <div className="flex min-w-0 flex-1 items-center gap-4">
-          {workspace ? (
-            <Link
-              aria-label="Back to journal"
-              href={getUriWithOrg(orgslug, routePaths.org.profileJournal())}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-950"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Link>
-          ) : null}
-          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gray-950 text-white shadow-sm">
-            <CanvasIcon className="h-8 w-8" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-semibold text-gray-950">{selectedCanvas.title}</h2>
-            <div className="mt-2 flex items-center gap-3">
-              <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-gray-100">
-                <div
-                  className="h-full rounded-full bg-gray-950 transition-[width] duration-300"
-                  style={{ width: `${progressPercent}%` }}
-                />
+        <div className="flex items-center justify-between gap-4 rounded-lg bg-white/95 px-4 py-3 shadow-sm ring-1 ring-black/5">
+          <div className="flex min-w-0 flex-1 items-center gap-4">
+            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gray-950 text-white shadow-sm">
+              <CanvasIcon className="h-8 w-8" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg font-semibold text-gray-950">{selectedCanvas.title}</h2>
+              <div className="mt-2 flex items-center gap-3">
+                <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className="h-full rounded-full bg-gray-950 transition-[width] duration-300"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+                <span className="shrink-0 text-sm font-semibold tabular-nums text-gray-600">
+                  {completedCards}/{totalCards}
+                </span>
               </div>
-              <span className="shrink-0 text-sm font-semibold tabular-nums text-gray-600">
-                {completedCards}/{totalCards}
-              </span>
+              <p className={`mt-2 text-sm text-gray-500 ${descriptionExpanded ? '' : 'line-clamp-1'}`}>
+                {selectedCanvas.description}
+              </p>
+              {descriptionCanExpand ? (
+                <button
+                  type="button"
+                  aria-label={descriptionExpanded ? 'Collapse description' : 'Expand description'}
+                  onClick={() => setDescriptionExpanded((current) => !current)}
+                  className="mt-1 flex h-6 w-6 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                >
+                  <ChevronRight className={`h-4 w-4 transition-transform ${descriptionExpanded ? '-rotate-90' : 'rotate-90'}`} />
+                </button>
+              ) : null}
             </div>
-            <p className={`mt-2 text-sm text-gray-500 ${descriptionExpanded ? '' : 'line-clamp-1'}`}>
-              {selectedCanvas.description}
-            </p>
-            {descriptionCanExpand ? (
-              <button
-                type="button"
-                aria-label={descriptionExpanded ? 'Collapse description' : 'Expand description'}
-                onClick={() => setDescriptionExpanded((current) => !current)}
-                className="mt-1 flex h-6 w-6 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-              >
-                <ChevronRight className={`h-4 w-4 transition-transform ${descriptionExpanded ? '-rotate-90' : 'rotate-90'}`} />
-              </button>
-            ) : null}
           </div>
+          {saving ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-gray-500" /> : null}
         </div>
-        {saving ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-gray-500" /> : null}
       </div>
       <div className={`space-y-7 ${workspace ? 'px-4 py-6 sm:px-0 sm:py-8' : ''}`}>
         {getJournalCardSections(selectedCanvas).map((sectionGroup) => (
@@ -1356,16 +1726,81 @@ function JournalSection({
   )
 }
 
+function getInitialJournalCanvasId(value: string | null): JournalCanvasId {
+  return JOURNAL_CANVASES.some((canvas) => canvas.id === value)
+    ? value as JournalCanvasId
+    : 'identity'
+}
+
+export function OwnerJournalPageClient({
+  initialUser,
+  orgslug,
+}: OwnerJournalPageClientProps) {
+  const searchParams = useSearchParams()
+  const session = useLHSession() as any
+  const accessToken = session?.data?.tokens?.access_token
+  const [user, setUser] = useState(initialUser)
+  const [isSaving, setIsSaving] = useState(false)
+  const [activeCanvasId, setActiveCanvasId] = useState<JournalCanvasId>(() =>
+    getInitialJournalCanvasId(searchParams.get('canvas'))
+  )
+  const profile = normalizeProfile(user.profile)
+  const journal = profile.journal || normalizeJournal(null)
+
+  const updateJournal = async (nextJournal: JournalShape) => {
+    const nextProfile = {
+      ...normalizeProfile(user.profile),
+      journal: nextJournal,
+    }
+
+    if (!accessToken) return
+
+    setIsSaving(true)
+    try {
+      const payload = {
+        ...user,
+        profile: nextProfile,
+      }
+      const res = await updateProfile(payload, user.id, accessToken)
+      if (!res.success) throw new Error(res.HTTPmessage)
+      setUser(res.data)
+      await session?.update?.(true)
+    } catch {
+      toast.error('Could not save journal')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  return (
+    <main className="min-h-screen">
+      <div className="mx-auto w-full max-w-5xl px-0 pt-4 pb-6 sm:px-6 sm:py-6 lg:px-8">
+        <ProfileJournalTabs
+          orgslug={orgslug}
+          activeTab={activeCanvasId}
+          onChange={setActiveCanvasId}
+        />
+        <JournalSection
+          journal={journal}
+          canEdit
+          saving={isSaving}
+          orgslug={orgslug}
+          selectedCanvasId={activeCanvasId}
+          onChange={updateJournal}
+        />
+      </div>
+    </main>
+  )
+}
+
 function ProfilePageClient({
   initialUser,
   orgslug,
   profileUsername,
-  editMode = false,
   initialTab = 'overview',
   mode,
   isSelf = false,
 }: ProfilePageClientProps) {
-  const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
   const [user, setUser] = useState(initialUser)
@@ -1379,27 +1814,27 @@ function ProfilePageClient({
   const [isSaving, setIsSaving] = useState(false)
   const [uploading, setUploading] = useState<'avatar' | null>(null)
   const [bioExpanded, setBioExpanded] = useState(false)
-  const [activeTab, setActiveTab] = useState<ProfileTab>(initialTab)
+  const [bioEditing, setBioEditing] = useState(false)
+  const [socialsExpanded, setSocialsExpanded] = useState(false)
+  const [portfolioEditing, setPortfolioEditing] = useState(false)
+  const activeTab = initialTab
 
   const isOwnerMode = mode === 'owner'
   const isPublicMode = mode === 'public'
   const canManageProfile = isOwnerMode
-  const effectiveEditMode = editMode && canManageProfile
-  const profile = effectiveEditMode ? draft.profile : normalizeProfile(user.profile)
-  const header = profile.header || {}
-  const featured = profile.featured || normalizeFeatured(null)
+  const effectiveEditMode = false
+  const profile = normalizeProfile(user.profile)
+  const headerProfile = canManageProfile ? draft.profile : profile
+  const header = headerProfile.header || {}
+  const featured = (portfolioEditing ? draft.profile.featured : profile.featured) || normalizeFeatured(null)
   const achievements = profile.achievements || normalizeAchievements(null)
-  const journal = profile.journal || normalizeJournal(null)
+  const journal = headerProfile.journal || normalizeJournal(null)
   const timelineEnabled = profile.timelineEnabled ?? false
   const timelinePublicVisible = profile.timelinePublicVisible !== false
   const socials = useMemo(() => header.socials ?? [], [header.socials])
   const avatarUrl = user.avatar_image
     ? getUserAvatarMediaDirectory(user.user_uuid, user.avatar_image)
     : ''
-  const visibleSocials = useMemo(
-    () => socials.filter((social) => social.url),
-    [socials]
-  )
   const publicProfileHref = getUriWithOrg(orgslug, routePaths.org.user(user.username))
   const resumeHref = getUriWithOrg(orgslug, routePaths.org.profileResume())
 
@@ -1409,6 +1844,17 @@ function ProfilePageClient({
     ),
     [socials]
   )
+
+  useEffect(() => {
+    if (!socialsExpanded) return
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target?.closest('[data-profile-socials="true"]')) return
+      setSocialsExpanded(false)
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [socialsExpanded])
 
   const updateDraftProfile = (updater: React.SetStateAction<ProfileShape>) => {
     setDraft((current) => ({
@@ -1432,23 +1878,28 @@ function ProfilePageClient({
   }
 
   const addSocial = (type: SocialType) => {
-    updateDraftProfile((current) => ({
-      ...current,
-      header: {
-        ...(current.header || {}),
-        socials: [...(current.header?.socials || []), { type, url: '' }],
-      },
-    }))
+    updateDraftProfile((current) => {
+      if ((current.header?.socials || []).some((social) => social.type === type)) return current
+      return {
+        ...current,
+        header: {
+          ...(current.header || {}),
+          socials: [...(current.header?.socials || []), { type, url: '' }],
+        },
+      }
+    })
   }
 
   const removeSocial = (type: SocialType) => {
-    updateDraftProfile((current) => ({
-      ...current,
+    const nextProfile = {
+      ...draft.profile,
       header: {
-        ...(current.header || {}),
-        socials: (current.header?.socials || []).filter((social) => social.type !== type),
+        ...(draft.profile.header || {}),
+        socials: (draft.profile.header?.socials || []).filter((social) => social.type !== type),
       },
-    }))
+    }
+    updateDraftProfile(nextProfile)
+    void persistProfile({ profileOverride: nextProfile })
   }
 
   const updateFeatured = (nextFeatured: FeaturedSection) => {
@@ -1497,13 +1948,22 @@ function ProfilePageClient({
     }
   }
 
-  const handleSave = async (redirectHref = getUriWithOrg(orgslug, routePaths.org.profile())) => {
-    if (!accessToken) return
+  const persistProfile = async ({
+    profileOverride,
+    bioOverride,
+  }: {
+    profileOverride?: ProfileShape
+    bioOverride?: string
+  } = {}) => {
+    if (!accessToken) return false
+    const nextProfile = profileOverride || draft.profile
+    const nextBio = bioOverride ?? draft.bio
+    const nextSocials = nextProfile.header?.socials || []
 
-    const invalidSocial = socials.find((social) => social.url && !isValidSocialUrl(social.type, social.url))
+    const invalidSocial = nextSocials.find((social) => social.url && !isValidSocialUrl(social.type, social.url))
     if (invalidSocial) {
       toast.error(`Enter a valid ${SOCIAL_CONFIG[invalidSocial.type].label} link`)
-      return
+      return false
     }
 
     setIsSaving(true)
@@ -1514,20 +1974,48 @@ function ProfilePageClient({
         first_name: draft.first_name,
         last_name: draft.last_name,
         username: user.username,
-        bio: draft.bio,
-        profile: draft.profile,
+        bio: nextBio,
+        profile: nextProfile,
       }
       const res = await updateProfile(payload, user.id, accessToken)
       if (!res.success) throw new Error(res.HTTPmessage)
       setUser(res.data)
       await session?.update?.(true)
       toast.success('Profile saved', { id: loadingToast })
-      router.push(redirectHref)
+      return true
     } catch {
       toast.error('Could not save profile', { id: loadingToast })
+      return false
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const handleSave = async (_redirectHref = getUriWithOrg(orgslug, routePaths.org.profile())) => {
+    return persistProfile()
+  }
+
+  const cancelBioEdit = () => {
+    setDraft((current) => ({ ...current, bio: user.bio || '' }))
+    setBioEditing(false)
+  }
+
+  const saveBioEdit = async () => {
+    const saved = await persistProfile({ bioOverride: draft.bio })
+    if (saved) setBioEditing(false)
+  }
+
+  const cancelPortfolioEdit = () => {
+    setDraft((current) => ({
+      ...current,
+      profile: normalizeProfile(user.profile),
+    }))
+    setPortfolioEditing(false)
+  }
+
+  const savePortfolioEdit = async () => {
+    const saved = await handleSave(getUriWithOrg(orgslug, routePaths.org.profile()))
+    if (saved) setPortfolioEditing(false)
   }
 
   const updateJournal = async (nextJournal: JournalShape) => {
@@ -1577,73 +2065,78 @@ function ProfilePageClient({
         <section className="relative px-4 py-6 sm:px-0">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
             <div className="w-full shrink-0 sm:w-auto">
-              <div className="w-full sm:hidden">
+              <div className="relative w-full sm:hidden">
                 <ProfileHeaderAvatar
                   size={198}
                   avatarUrl={avatarUrl || getUriWithOrg(orgslug, '/empty_avatar.png')}
-                  socials={visibleSocials}
+                  socials={socials}
                   userId={user.id}
-                  firstName={effectiveEditMode ? draft.first_name : user.first_name}
-                  lastName={effectiveEditMode ? draft.last_name : user.last_name}
+                  firstName={user.first_name}
+                  lastName={user.last_name}
                   showNameCutout
                   fullWidth
-                  editMode={effectiveEditMode}
+                  canEditSocials={canManageProfile}
+                  socialsExpanded={socialsExpanded}
                   uploading={uploading === 'avatar'}
+                  missingSocialTypes={missingSocialTypes}
                   onAvatarChange={handleAvatarChange}
+                  onAddSocial={addSocial}
+                  onUpdateSocial={updateSocial}
+                  onRemoveSocial={removeSocial}
+                  onSocialsFocus={() => setSocialsExpanded(true)}
+                  onSocialsBlur={() => undefined}
+                  onSaveSocials={() => void persistProfile()}
                 />
               </div>
               <div className="hidden sm:block">
                 <ProfileHeaderAvatar
                   size={270}
                   avatarUrl={avatarUrl || getUriWithOrg(orgslug, '/empty_avatar.png')}
-                  socials={visibleSocials}
+                  socials={socials}
                   userId={user.id}
-                  firstName={effectiveEditMode ? draft.first_name : user.first_name}
-                  lastName={effectiveEditMode ? draft.last_name : user.last_name}
-                  editMode={effectiveEditMode}
+                  firstName={user.first_name}
+                  lastName={user.last_name}
+                  canEditSocials={canManageProfile}
+                  socialsExpanded={socialsExpanded}
                   uploading={uploading === 'avatar'}
+                  missingSocialTypes={missingSocialTypes}
                   onAvatarChange={handleAvatarChange}
+                  onAddSocial={addSocial}
+                  onUpdateSocial={updateSocial}
+                  onRemoveSocial={removeSocial}
+                  onSocialsFocus={() => setSocialsExpanded(true)}
+                  onSocialsBlur={() => undefined}
+                  onSaveSocials={() => void persistProfile()}
                 />
               </div>
             </div>
 
             <div className="min-w-0 flex-1 space-y-3">
               <div className="min-w-0">
-                <div className="min-w-0 flex-1">
-                  {effectiveEditMode ? (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Input
-                        value={draft.first_name}
-                        onChange={(event) => setDraft((current) => ({ ...current, first_name: event.target.value }))}
-                        placeholder="First name"
-                      />
-                      <Input
-                        value={draft.last_name}
-                        onChange={(event) => setDraft((current) => ({ ...current, last_name: event.target.value }))}
-                        placeholder="Last name"
-                      />
-                    </div>
-                  ) : (
+                <div className="flex min-w-0 items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
                     <div>
                       <h1 className="hidden text-3xl font-semibold text-gray-950 sm:block">
                         {user.first_name} {user.last_name}
                       </h1>
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
 
-                {effectiveEditMode ? (
+              <div className="group relative max-w-2xl">
+                {bioEditing ? (
                   <Textarea
                     value={draft.bio}
                     onChange={(event) => setDraft((current) => ({ ...current, bio: event.target.value }))}
+                    onFocus={() => setSocialsExpanded(false)}
                     placeholder="Write a short profile"
-                    className="min-h-32"
+                    className="min-h-40 pr-20"
                     maxLength={400}
                   />
                 ) : user.bio ? (
-                  <div>
-                    <p className={`max-w-2xl overflow-hidden text-base leading-7 text-gray-700 transition-[max-height] duration-300 ${
+                  <>
+                    <p className={`overflow-hidden pr-12 text-base leading-7 text-gray-700 transition-[max-height] duration-300 ${
                       bioExpanded ? 'max-h-[640px]' : 'max-h-24'
                     }`}>
                       {user.bio}
@@ -1657,259 +2150,78 @@ function ProfilePageClient({
                         {bioExpanded ? 'Show less' : 'Show more'}
                       </button>
                     ) : null}
-                  </div>
-                ) : null}
-
-                {effectiveEditMode ? (
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap gap-2">
-                      {missingSocialTypes.map((type) => {
-                        const Icon = SOCIAL_CONFIG[type].icon
-                        return (
-                          <Button
-                            key={type}
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            onClick={() => addSocial(type)}
-                            className="h-9 w-9 rounded-full"
-                            aria-label={`Add ${SOCIAL_CONFIG[type].label}`}
-                            title={`Add ${SOCIAL_CONFIG[type].label}`}
-                          >
-                            <Icon className="h-4 w-4" />
-                          </Button>
-                        )
-                      })}
-                    </div>
-                    <div className="space-y-2">
-                      {socials.map((social) => {
-                        const config = SOCIAL_CONFIG[social.type]
-                        const Icon = config.icon
-                        const valid = social.url ? isValidSocialUrl(social.type, social.url) : true
-                        return (
-                          <div
-                            key={social.type}
-                            className={`flex items-center gap-2 rounded-full border px-3 py-2 ${
-                              valid ? 'border-gray-200' : 'border-red-300 bg-red-50'
-                            }`}
-                          >
-                            <Icon className="h-4 w-4 text-gray-600" />
-                            <Input
-                              value={social.url}
-                              onChange={(event) => updateSocial(social.type, event.target.value)}
-                              placeholder={config.placeholder}
-                              className="h-8 border-0 px-0 shadow-none focus-visible:ring-0"
-                            />
-                            {valid && social.url ? <Check className="h-4 w-4 text-green-600" /> : null}
-                            <button
-                              type="button"
-                              aria-label={`Remove ${config.label}`}
-                              onClick={() => removeSocial(social.type)}
-                              className="rounded-full p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ) : null}
-              {(canManageProfile || isPublicMode) ? (
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                    {canManageProfile && (
-                      effectiveEditMode ? (
-                      <Button type="button" variant="outline" onClick={() => handleSave(publicProfileHref)} disabled={isSaving}>
-                        <Eye size={16} className="mr-2" />
-                        Public profile
-                      </Button>
+                  </>
+                ) : (
+                  <p className="pr-12 text-base leading-7 text-gray-400">Add a short profile bio.</p>
+                )}
+                {canManageProfile ? (
+                  <div className="absolute right-0 top-0 flex items-center gap-1">
+                    {bioEditing ? (
+                      <>
+                        <Button type="button" variant="outline" size="icon" onClick={cancelBioEdit} aria-label="Cancel bio edit" className="h-8 w-8">
+                          <X className="h-4 w-4" />
+                        </Button>
+                        <Button type="button" size="icon" onClick={saveBioEdit} disabled={isSaving} aria-label="Save bio" className="h-8 w-8 bg-emerald-500 text-white hover:bg-emerald-600">
+                          {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                        </Button>
+                      </>
                     ) : (
-                      <Button asChild variant="outline">
-                        <Link href={publicProfileHref}>
-                          <Eye size={16} className="mr-2" />
-                          Public profile
-                        </Link>
+                      <Button type="button" variant="outline" size="icon" onClick={() => setBioEditing(true)} aria-label="Edit bio" className="h-8 w-8">
+                        <Edit3 className="h-4 w-4" />
                       </Button>
-                    )
-                  )}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button type="button" variant="outline">
-                        <Share2 size={16} className="mr-2" />
-                        Share
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-44">
-                      <DropdownMenuItem onClick={copyProfileLink}>
-                        <Copy className="h-4 w-4" />
-                        <span>Copy link</span>
-                      </DropdownMenuItem>
-                      {canManageProfile ? (
-                        <DropdownMenuItem asChild>
-                          <Link href={resumeHref}>
-                            <FileText className="h-4 w-4" />
-                            <span>Resume</span>
-                          </Link>
-                        </DropdownMenuItem>
-                      ) : null}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              ) : null}
+                    )}
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         </section>
-        <nav className="px-4 sm:px-0" aria-label="Profile sections">
-          <div className="flex items-center gap-6 overflow-x-auto border-b border-gray-200 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {PROFILE_TABS.map((tab) => {
-              const Icon = tab.icon
-              const selected = activeTab === tab.id
-              const className = `flex shrink-0 items-center gap-2 border-b-2 px-0 pb-3 text-sm font-medium transition-colors ${
-                selected
-                  ? 'border-gray-950 text-gray-950'
-                  : 'border-transparent text-gray-500 hover:text-gray-800'
-              }`
-              const content = (
-                <>
-                  <Icon className="h-4 w-4" />
-                  <span>{tab.label}</span>
-                </>
-              )
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={className}
-                >
-                  {content}
-                </button>
-              )
-            })}
+        {(canManageProfile || isPublicMode) ? (
+          <div className="px-4 pb-4 sm:px-0">
+            <div className="flex flex-wrap items-center gap-2">
+              {canManageProfile ? (
+                <Button asChild variant="outline">
+                  <Link href={publicProfileHref}>
+                    <Eye size={16} className="mr-2" />
+                    Public profile
+                  </Link>
+                </Button>
+              ) : null}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="outline">
+                    <Share2 size={16} className="mr-2" />
+                    Share
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuItem onClick={copyProfileLink}>
+                    <Copy className="h-4 w-4" />
+                    <span>Copy link</span>
+                  </DropdownMenuItem>
+                  {canManageProfile ? (
+                    <DropdownMenuItem asChild>
+                      <Link href={resumeHref}>
+                        <FileText className="h-4 w-4" />
+                        <span>Resume</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
-        </nav>
+        ) : null}
+        {activeTab === 'overview' ? (
+          canManageProfile ? <ProfileOverviewDestinations journal={journal} orgslug={orgslug} /> : null
+        ) : activeTab !== 'timeline' ? (
+          <ProfileJournalTabs orgslug={orgslug} activeTab={activeTab} />
+        ) : null}
         {activeTab === 'overview' ? (
           <>
-            <section className="px-4 py-6 sm:px-0">
-              <div className="mb-4 flex items-center justify-between gap-4">
-                <h2 className="text-2xl font-semibold text-gray-950">Overview</h2>
-                {canManageProfile ? (
-                  effectiveEditMode ? (
-                    <Button type="button" onClick={() => handleSave()} disabled={isSaving} className="bg-black text-white hover:bg-black/90">
-                      <Save size={16} className="mr-2" />
-                      {isSaving ? 'Saving' : 'Save'}
-                    </Button>
-                  ) : (
-                    <Button asChild variant="outline">
-                      <Link href={getUriWithOrg(orgslug, routePaths.org.profileEdit())}>
-                        <Edit3 size={16} className="mr-2" />
-                        Edit
-                      </Link>
-                    </Button>
-                  )
-                ) : null}
-              </div>
-              <div className="space-y-4">
-                {effectiveEditMode ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Input
-                      value={draft.first_name}
-                      onChange={(event) => setDraft((current) => ({ ...current, first_name: event.target.value }))}
-                      placeholder="First name"
-                    />
-                    <Input
-                      value={draft.last_name}
-                      onChange={(event) => setDraft((current) => ({ ...current, last_name: event.target.value }))}
-                      placeholder="Last name"
-                    />
-                  </div>
-                ) : null}
-                {effectiveEditMode ? (
-                  <Textarea
-                    value={draft.bio}
-                    onChange={(event) => setDraft((current) => ({ ...current, bio: event.target.value }))}
-                    placeholder="Write a short profile"
-                    className="min-h-32"
-                    maxLength={400}
-                  />
-                ) : user.bio ? (
-                  <div>
-                    <p className={`max-w-2xl overflow-hidden text-base leading-7 text-gray-700 transition-[max-height] duration-300 ${
-                      bioExpanded ? 'max-h-[640px]' : 'max-h-24'
-                    }`}>
-                      {user.bio}
-                    </p>
-                    {user.bio.length > 180 ? (
-                      <button
-                        type="button"
-                        onClick={() => setBioExpanded((current) => !current)}
-                        className="mt-1 text-sm font-medium text-gray-950 hover:underline"
-                      >
-                        {bioExpanded ? 'Show less' : 'Show more'}
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
-                {effectiveEditMode ? (
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap gap-2">
-                      {missingSocialTypes.map((type) => {
-                        const Icon = SOCIAL_CONFIG[type].icon
-                        return (
-                          <Button
-                            key={type}
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            onClick={() => addSocial(type)}
-                            className="h-9 w-9 rounded-full"
-                            aria-label={`Add ${SOCIAL_CONFIG[type].label}`}
-                            title={`Add ${SOCIAL_CONFIG[type].label}`}
-                          >
-                            <Icon className="h-4 w-4" />
-                          </Button>
-                        )
-                      })}
-                    </div>
-                    <div className="space-y-2">
-                      {socials.map((social) => {
-                        const config = SOCIAL_CONFIG[social.type]
-                        const Icon = config.icon
-                        const valid = social.url ? isValidSocialUrl(social.type, social.url) : true
-                        return (
-                          <div
-                            key={social.type}
-                            className={`flex items-center gap-2 rounded-full border px-3 py-2 ${
-                              valid ? 'border-gray-200' : 'border-red-300 bg-red-50'
-                            }`}
-                          >
-                            <Icon className="h-4 w-4 text-gray-600" />
-                            <Input
-                              value={social.url}
-                              onChange={(event) => updateSocial(social.type, event.target.value)}
-                              placeholder={config.placeholder}
-                              className="h-8 border-0 px-0 shadow-none focus-visible:ring-0"
-                            />
-                            {valid && social.url ? <Check className="h-4 w-4 text-green-600" /> : null}
-                            <button
-                              type="button"
-                              aria-label={`Remove ${config.label}`}
-                              onClick={() => removeSocial(social.type)}
-                              className="rounded-full p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            </section>
             <FeaturedCarousel
               featured={featured}
-              editMode={effectiveEditMode}
+              editMode={portfolioEditing}
               accessToken={accessToken}
               userId={user.id}
               userUuid={user.user_uuid}
@@ -1918,7 +2230,32 @@ function ProfilePageClient({
               updatedAtFallback={user.update_date}
               profileUsername={profileUsername || user.username}
               ownerView={canManageProfile}
-              publicVisible={isPublicMode || effectiveEditMode ? featured.publicVisible : true}
+              publicVisible={isPublicMode || portfolioEditing ? featured.publicVisible : true}
+              actions={canManageProfile ? (
+                <div className="flex items-center gap-2">
+                  {portfolioEditing ? (
+                    <>
+                      <Button type="button" variant="outline" size="icon" onClick={cancelPortfolioEdit} aria-label="Cancel portfolio edits">
+                        <X className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        onClick={savePortfolioEdit}
+                        disabled={isSaving}
+                        aria-label="Save portfolio edits"
+                        className="bg-emerald-500 text-white hover:bg-emerald-600"
+                      >
+                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      </Button>
+                    </>
+                  ) : (
+                    <Button type="button" variant="outline" size="icon" onClick={() => setPortfolioEditing(true)} aria-label="Edit portfolio">
+                      <Edit3 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ) : null}
               onChange={updateFeatured}
               onPublicVisibleChange={(visible) => updateFeatured({ ...featured, publicVisible: visible })}
             />

@@ -1,6 +1,7 @@
 import React from 'react'
 import {
   House,
+  NotePencil,
   User,
   Books,
   ChatsCircle,
@@ -29,6 +30,7 @@ export const KNOWN_SUBPATHS = [
   '/assignment',
   '/editor',
   '/profile',
+  '/journal',
   '/account',
   '/payments',
 ]
@@ -62,6 +64,8 @@ export function getPrimaryOrgMenuItems({
     pathname?.includes('/courses') ||
     pathname?.includes('/course/') ||
     pathname?.includes('/collection/')
+  const isOnJournal = pathname?.includes('/journal')
+  const isOnProfile = pathname?.includes('/profile') && !pathname?.includes('/profile/journal')
   const isOnCommunities = pathname?.includes('/communities') || pathname?.includes('/community/')
   const isOnResources = pathname?.includes('/resources') || pathname?.includes('/resource/')
 
@@ -77,7 +81,14 @@ export function getPrimaryOrgMenuItems({
       href: '/profile',
       label: 'Profile',
       icon: <User size={18} weight="fill" />,
-      active: Boolean(pathname?.includes('/profile')),
+      active: Boolean(isOnProfile),
+      show: true,
+    },
+    {
+      href: '/journal',
+      label: 'Journal',
+      icon: <NotePencil size={18} weight="fill" />,
+      active: Boolean(isOnJournal),
       show: true,
     },
     {

@@ -60,6 +60,7 @@ type FeaturedCarouselProps = {
   profileUsername?: string
   ownerView: boolean
   publicVisible?: boolean
+  actions?: React.ReactNode
   onChange(next: FeaturedSection): void
   onPublicVisibleChange?(visible: boolean): void
 }
@@ -421,6 +422,7 @@ export function FeaturedCarousel({
   profileUsername,
   ownerView,
   publicVisible = true,
+  actions,
   onChange,
   onPublicVisibleChange,
 }: FeaturedCarouselProps) {
@@ -602,7 +604,7 @@ export function FeaturedCarousel({
     return () => window.removeEventListener('resize', updateScrollControls)
   }, [cards.length])
 
-  if (!editMode && (!enabled || !publicVisible || cards.length === 0)) return null
+  if (!editMode && !ownerView && (!enabled || !publicVisible || cards.length === 0)) return null
 
   const getPostHref = (card: FeaturedCard) => getUriWithOrg(
     orgslug,
@@ -615,18 +617,21 @@ export function FeaturedCarousel({
     <section className="mt-4 px-4 sm:px-0">
       <div className="mb-3 flex items-center justify-between gap-4">
         <h2 className="text-2xl font-semibold text-gray-950">Portfolio</h2>
-        {editMode ? (
-          <div className="flex flex-col items-end gap-2">
-            <label className="flex items-center gap-3">
-              <span className="text-sm text-gray-500">{enabled ? 'On your profile' : 'Hidden from profile'}</span>
-              <Switch checked={enabled} onCheckedChange={(value) => updateFeatured({ enabled: value })} />
-            </label>
-            <label className="flex items-center gap-3">
-              <span className="text-sm text-gray-500">{publicVisible ? 'Visible to others' : 'Hidden from others'}</span>
-              <Switch checked={publicVisible} onCheckedChange={onPublicVisibleChange} disabled={!enabled} />
-            </label>
-          </div>
-        ) : null}
+        <div className="flex items-start gap-3">
+          {editMode ? (
+            <div className="flex flex-col items-end gap-2">
+              <label className="flex items-center gap-3">
+                <span className="text-sm text-gray-500">{enabled ? 'On your profile' : 'Hidden from profile'}</span>
+                <Switch checked={enabled} onCheckedChange={(value) => updateFeatured({ enabled: value })} />
+              </label>
+              <label className="flex items-center gap-3">
+                <span className="text-sm text-gray-500">{publicVisible ? 'Visible to others' : 'Hidden from others'}</span>
+                <Switch checked={publicVisible} onCheckedChange={onPublicVisibleChange} disabled={!enabled} />
+              </label>
+            </div>
+          ) : null}
+          {actions}
+        </div>
       </div>
 
       <div className={`origin-top transition-all duration-300 ${enabled ? 'scale-100 opacity-100' : 'max-h-0 scale-95 overflow-hidden opacity-0'}`}>
