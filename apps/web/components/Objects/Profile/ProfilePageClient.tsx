@@ -20,7 +20,6 @@ import {
   Instagram,
   LayoutGrid,
   Linkedin,
-  Link2,
   Loader2,
   Plus,
   Save,
@@ -38,7 +37,6 @@ import {
   DropdownMenuTrigger,
 } from '@components/ui/dropdown-menu'
 import { Input } from '@components/ui/input'
-import { Switch } from '@components/ui/switch'
 import { Textarea } from '@components/ui/textarea'
 import {
   JOURNAL_CANVASES,
@@ -49,13 +47,18 @@ import {
   type JournalShape,
 } from '@components/Objects/Profile/ProfileJournalContent'
 import { normalizeAchievements, ProfileAchievementsSection } from '@components/Objects/Profile/ProfileAchievements'
+import {
+  FeaturedCarousel,
+  getPortfolioAuthorName,
+  normalizeFeatured,
+  type FeaturedSection,
+} from '@components/Objects/Profile/ProfilePortfolio'
 import ProfileTimeline, { normalizeTimeline } from '@components/Objects/Profile/ProfileTimeline'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { getUserAvatarMediaDirectory, getUserProfileFeaturedMediaDirectory } from '@services/media/media'
-import { getResourceUrlPreview, ResourceUrlPreview } from '@services/resources/resources'
+import { getUserAvatarMediaDirectory } from '@services/media/media'
 import { updateProfile } from '@services/settings/profile'
-import { updateUserAvatar, uploadUserProfileFeaturedImage } from '@services/users/users'
+import { updateUserAvatar } from '@services/users/users'
 
 type SocialType = 'website' | 'linkedin' | 'instagram' | 'x'
 
@@ -67,21 +70,6 @@ type SocialLink = {
 type ProfileHeader = {
   coverImage?: string
   socials?: SocialLink[]
-}
-
-type FeaturedCard = {
-  id: string
-  url: string
-  title: string
-  subtext: string
-  imageUrl: string
-  textTone: 'dark' | 'light'
-}
-
-type FeaturedSection = {
-  enabled: boolean
-  publicVisible: boolean
-  cards: FeaturedCard[]
 }
 
 type ProfileShape = {
@@ -151,23 +139,6 @@ const SOCIAL_CONFIG: Record<SocialType, {
     icon: X,
     hostPattern: /(^|\.)x\.com$|(^|\.)twitter\.com$/i,
   },
-}
-
-function normalizeFeatured(featured: any): FeaturedSection {
-  return {
-    enabled: Boolean(featured?.enabled),
-    publicVisible: featured?.publicVisible !== false,
-    cards: Array.isArray(featured?.cards)
-      ? featured.cards.slice(0, 10).map((card: any) => ({
-        id: card.id || `featured-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        url: card.url || '',
-        title: card.title || '',
-        subtext: card.subtext || '',
-        imageUrl: card.imageUrl || card.coverImageUrl || '',
-        textTone: card.textTone === 'light' ? 'light' : 'dark',
-      }))
-      : [],
-  }
 }
 
 function normalizeJournal(journal: any): JournalShape {
@@ -247,32 +218,6 @@ function getSocialHref(social: SocialLink) {
   if (!social.url) return '#'
   if (/^https?:\/\//i.test(social.url)) return social.url
   return `https://${social.url}`
-}
-
-function normalizeUrl(value: string) {
-  const trimmed = value.trim()
-  if (!trimmed) return ''
-  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
-}
-
-function previewToCardUpdate(preview: ResourceUrlPreview) {
-  return {
-    url: preview.og_url || preview.url || '',
-    title: preview.title || '',
-    subtext: preview.description || '',
-    imageUrl: preview.og_image || '',
-  }
-}
-
-function createEmptyFeaturedCard(): FeaturedCard {
-  return {
-    id: `featured-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    url: '',
-    title: '',
-    subtext: '',
-    imageUrl: '',
-    textTone: 'dark',
-  }
 }
 
 function getSocialBubbleStyle(type: SocialType): React.CSSProperties {
@@ -546,532 +491,6 @@ function ProfileHeaderAvatar({
         </>
       ) : null}
     </div>
-  )
-}
-
-function getCardImage(card?: FeaturedCard) {
-  return card?.imageUrl || ''
-}
-
-function FeaturedDisplayCard({
-  card,
-}: {
-  card: FeaturedCard
-}) {
-  const image = getCardImage(card)
-  const content = (
-    <>
-      <div className="aspect-[16/10] w-full overflow-hidden rounded-xl bg-[linear-gradient(135deg,#eef2ff,#f8fafc,#dcfce7)]">
-        {image ? (
-          <img src={image} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" />
-        ) : null}
-      </div>
-      <div className="px-1 pt-4">
-        <h3 className="text-lg font-semibold leading-snug text-gray-950">
-          {card.title || 'Portfolio item'}
-        </h3>
-        {card.subtext ? (
-          <p className="mt-2 max-h-20 overflow-hidden text-sm leading-5 text-gray-600">
-            {card.subtext}
-          </p>
-        ) : null}
-      </div>
-    </>
-  )
-
-  const className = 'group block h-full w-[min(82vw,320px)] rounded-2xl p-2 transition-all duration-200 hover:-translate-y-1 hover:bg-gray-50 hover:shadow-md sm:w-[300px]'
-
-  if (!card.url) {
-    return <article className={className}>{content}</article>
-  }
-
-  return (
-    <a
-      href={normalizeUrl(card.url)}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={className}
-    >
-      {content}
-    </a>
-  )
-}
-
-function FeaturedCarousel({
-  featured,
-  editMode,
-  accessToken,
-  userId,
-  userUuid,
-  publicVisible = true,
-  onChange,
-  onPublicVisibleChange,
-}: {
-  featured: FeaturedSection
-  editMode: boolean
-  accessToken?: string
-  userId: number
-  userUuid: string
-  publicVisible?: boolean
-  // eslint-disable-next-line no-unused-vars
-  onChange(next: FeaturedSection): void
-  // eslint-disable-next-line no-unused-vars
-  onPublicVisibleChange?(visible: boolean): void
-}) {
-  const cards = featured.cards || []
-  const [activeIndex, setActiveIndex] = useState(0)
-  const [linkDraft, setLinkDraft] = useState('')
-  const [isScraping, setIsScraping] = useState(false)
-  const [isUploadingImage, setIsUploadingImage] = useState(false)
-  const [pendingPreview, setPendingPreview] = useState<ResourceUrlPreview | null>(null)
-  const [canScrollBack, setCanScrollBack] = useState(false)
-  const [canScrollForward, setCanScrollForward] = useState(false)
-  const mobileScrollerRef = useRef<HTMLDivElement | null>(null)
-  const [, setDraggingThumbIndex] = useState<number | null>(null)
-  const draggingThumbIndexRef = useRef<number | null>(null)
-  const thumbDragMovedRef = useRef(false)
-
-  const activeCard = cards[Math.min(activeIndex, Math.max(cards.length - 1, 0))]
-  const enabled = featured.enabled
-
-  const updateFeatured = (next: Partial<FeaturedSection>) => {
-    onChange({ ...featured, ...next })
-  }
-
-  const updateCard = (cardId: string, patch: Partial<FeaturedCard>) => {
-    updateFeatured({
-      cards: cards.map((card) => card.id === cardId ? { ...card, ...patch } : card),
-    })
-  }
-
-  const setEnabled = (value: boolean) => {
-    updateFeatured({ enabled: value })
-  }
-
-  const addCard = () => {
-    if (cards.length >= 10) {
-      toast.error('Portfolio is capped at 10 items')
-      return
-    }
-    const nextCard = createEmptyFeaturedCard()
-    updateFeatured({ enabled: true, cards: [...cards, nextCard] })
-    setActiveIndex(cards.length)
-    setLinkDraft('')
-    setPendingPreview(null)
-  }
-
-  const deleteCard = (cardId: string) => {
-    const nextCards = cards.filter((card) => card.id !== cardId)
-    updateFeatured({ cards: nextCards })
-    setActiveIndex((current) => Math.max(0, Math.min(current, nextCards.length - 1)))
-  }
-
-  const scrollPortfolioCardIntoView = (index: number) => {
-    const scroller = mobileScrollerRef.current
-    const card = scroller?.children.item(index) as HTMLElement | null
-    if (!scroller || !card) return
-
-    const left = card.offsetLeft - (scroller.clientWidth - card.offsetWidth) / 2
-    scroller.scrollTo({ left: Math.max(0, left), behavior: 'smooth' })
-  }
-
-  const updateScrollControls = () => {
-    const scroller = mobileScrollerRef.current
-    if (!scroller) return
-
-    const maxScrollLeft = scroller.scrollWidth - scroller.clientWidth
-    setCanScrollBack(scroller.scrollLeft > 2)
-    setCanScrollForward(scroller.scrollLeft < maxScrollLeft - 2)
-  }
-
-  const moveTo = (index: number) => {
-    if (!cards.length) return
-    const next = Math.max(0, Math.min(index, cards.length - 1))
-    setActiveIndex(next)
-    setPendingPreview(null)
-    scrollPortfolioCardIntoView(next)
-  }
-
-  const scrollPortfolioPage = (direction: -1 | 1) => {
-    const scroller = mobileScrollerRef.current
-    if (!scroller) return
-
-    scroller.scrollBy({
-      left: direction * scroller.clientWidth * 0.9,
-      behavior: 'smooth',
-    })
-  }
-
-  const applyPreview = (cardId: string, preview: ResourceUrlPreview, overwrite: boolean) => {
-    const update = previewToCardUpdate(preview)
-    const card = cards.find((item) => item.id === cardId)
-    updateCard(cardId, {
-      url: normalizeUrl(update.url || linkDraft),
-      title: overwrite || !card?.title ? update.title : card.title,
-      subtext: overwrite || !card?.subtext ? update.subtext : card.subtext,
-      imageUrl: overwrite || !card?.imageUrl ? update.imageUrl : card.imageUrl,
-    })
-    setPendingPreview(null)
-  }
-
-  const scrapeLink = async (cardId: string, rawValue: string) => {
-    const url = normalizeUrl(rawValue)
-    if (!url || !accessToken) return
-
-    try {
-      setIsScraping(true)
-      setPendingPreview(null)
-      const preview = await getResourceUrlPreview(url, accessToken)
-      const card = cards.find((item) => item.id === cardId)
-      const hasExistingDetails = Boolean(card?.title || card?.subtext || card?.imageUrl)
-      if (hasExistingDetails) {
-        updateCard(cardId, { url })
-        setPendingPreview(preview)
-      } else {
-        applyPreview(cardId, preview, true)
-      }
-    } catch {
-      updateCard(cardId, { url })
-      toast.error('Could not find details for that link')
-    } finally {
-      setIsScraping(false)
-    }
-  }
-
-  const reorderThumb = (fromIndex: number, toIndex: number) => {
-    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return
-    if (fromIndex >= cards.length || toIndex >= cards.length) return
-
-    const nextCards = Array.from(cards)
-    const [moved] = nextCards.splice(fromIndex, 1)
-    nextCards.splice(toIndex, 0, moved)
-    updateFeatured({ cards: nextCards })
-    setActiveIndex(toIndex)
-    setDraggingThumbIndex(toIndex)
-    draggingThumbIndexRef.current = toIndex
-    thumbDragMovedRef.current = true
-  }
-
-  const handleFeaturedImageUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-    cardId: string
-  ) => {
-    const file = event.target.files?.[0]
-    if (!file || !accessToken) return
-
-    setIsUploadingImage(true)
-    try {
-      const res = await uploadUserProfileFeaturedImage(userId, file, accessToken)
-      if (!res.success) throw new Error(res.HTTPmessage)
-      const imageUrl = getUserProfileFeaturedMediaDirectory(
-        res.data.user_uuid || userUuid,
-        res.data.filename
-      )
-      updateCard(cardId, { imageUrl })
-      toast.success('Portfolio image uploaded')
-    } catch {
-      toast.error('Could not upload portfolio image')
-    } finally {
-      setIsUploadingImage(false)
-      event.target.value = ''
-    }
-  }
-
-  const handleMobileScroll = () => {
-    const scroller = mobileScrollerRef.current
-    if (!scroller || cards.length === 0) return
-    updateScrollControls()
-    const scrollerCenter = scroller.scrollLeft + scroller.clientWidth / 2
-    let closestIndex = 0
-    let closestDistance = Number.POSITIVE_INFINITY
-
-    Array.from(scroller.children).forEach((child, index) => {
-      const element = child as HTMLElement
-      const childCenter = element.offsetLeft + element.offsetWidth / 2
-      const distance = Math.abs(childCenter - scrollerCenter)
-      if (distance < closestDistance) {
-        closestDistance = distance
-        closestIndex = index
-      }
-    })
-
-    setActiveIndex(closestIndex)
-  }
-
-  useEffect(() => {
-    updateScrollControls()
-    window.addEventListener('resize', updateScrollControls)
-    return () => window.removeEventListener('resize', updateScrollControls)
-  }, [cards.length])
-
-  if (!editMode && (!enabled || !publicVisible || cards.length === 0)) return null
-
-  return (
-    <section className="mt-4 px-4 sm:px-0">
-      <div className="mb-3 flex items-center justify-between gap-4">
-        <h2 className="text-2xl font-semibold text-gray-950">Portfolio</h2>
-        {editMode ? (
-          <div className="flex flex-col items-end gap-2">
-            <label className="flex items-center gap-3">
-              <span className="text-sm text-gray-500">{enabled ? 'On your profile' : 'Hidden from profile'}</span>
-              <Switch checked={enabled} onCheckedChange={setEnabled} />
-            </label>
-            <label className="flex items-center gap-3">
-              <span className="text-sm text-gray-500">{publicVisible ? 'Visible to others' : 'Hidden from others'}</span>
-              <Switch
-                checked={publicVisible}
-                onCheckedChange={onPublicVisibleChange}
-                disabled={!enabled}
-              />
-            </label>
-          </div>
-        ) : null}
-      </div>
-
-      <div
-        className={`origin-top transition-all duration-300 ${
-          enabled ? 'scale-100 opacity-100' : 'max-h-0 scale-95 overflow-hidden opacity-0'
-        }`}
-      >
-        {editMode ? (
-          <div className="space-y-4">
-            <div className="flex min-h-[290px] items-center justify-center">
-              {activeCard ? (
-                <div className="relative w-[min(82vw,320px)] rounded-2xl bg-white p-2 sm:w-[300px]">
-                  <button
-                    type="button"
-                    aria-label="Delete portfolio item"
-                    onClick={() => deleteCard(activeCard.id)}
-                    className="absolute right-4 top-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-gray-700 shadow-sm ring-1 ring-gray-200 hover:text-red-600"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                  <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl bg-[linear-gradient(135deg,#eef2ff,#f8fafc,#dcfce7)]">
-                    {activeCard.imageUrl ? (
-                      <img src={activeCard.imageUrl} alt="" className="h-full w-full object-cover" />
-                    ) : null}
-                    <input
-                      id={`featured-image-upload-${activeCard.id}`}
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp,image/gif"
-                      className="hidden"
-                      onChange={(event) => handleFeaturedImageUpload(event, activeCard.id)}
-                    />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => document.getElementById(`featured-image-upload-${activeCard.id}`)?.click()}
-                      disabled={isUploadingImage}
-                      className="absolute bottom-3 right-3 h-8 bg-white/90 px-2 text-xs text-gray-900 hover:bg-white"
-                    >
-                      {isUploadingImage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
-                    </Button>
-                  </div>
-                  <div className="space-y-3 px-1 pt-4">
-                    <Input
-                      value={activeCard.title}
-                      onChange={(event) => updateCard(activeCard.id, { title: event.target.value })}
-                      placeholder="Title"
-                      className="border-0 px-0 text-lg font-semibold text-gray-950 shadow-none focus-visible:ring-0"
-                    />
-                    <Textarea
-                      value={activeCard.subtext}
-                      onChange={(event) => updateCard(activeCard.id, { subtext: event.target.value })}
-                      placeholder="Description"
-                      className="max-h-24 min-h-20 resize-none px-0 text-sm leading-5 text-gray-600 shadow-none focus-visible:ring-0"
-                    />
-                    <div className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2">
-                      <Link2 className="h-4 w-4 shrink-0 text-gray-500" />
-                      <Input
-                        value={activeCard.url}
-                        onChange={(event) => {
-                          setLinkDraft(event.target.value)
-                          updateCard(activeCard.id, { url: event.target.value })
-                        }}
-                        onPaste={(event) => {
-                          const pasted = event.clipboardData.getData('text')
-                          setLinkDraft(pasted)
-                          window.setTimeout(() => scrapeLink(activeCard.id, pasted), 0)
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter') scrapeLink(activeCard.id, activeCard.url || linkDraft)
-                        }}
-                        placeholder="https://example.com"
-                        className="h-8 border-0 px-0 shadow-none focus-visible:ring-0"
-                      />
-                    </div>
-                    {isScraping ? (
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Searching for link details...
-                      </div>
-                    ) : null}
-                    {pendingPreview ? (
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
-                        <p className="text-gray-700">Use the details I found, or keep your existing text?</p>
-                        <div className="mt-3 flex gap-2">
-                          <Button type="button" size="sm" onClick={() => applyPreview(activeCard.id, pendingPreview, true)}>
-                            Accept
-                          </Button>
-                          <Button type="button" size="sm" variant="outline" onClick={() => applyPreview(activeCard.id, pendingPreview, false)}>
-                            Keep existing
-                          </Button>
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={addCard}
-                  className="flex h-[200px] w-[min(82vw,360px)] flex-col items-center justify-center rounded-[28px] border border-dashed border-gray-300 text-gray-500 hover:border-gray-500 hover:text-gray-900"
-                >
-                  <Plus className="mb-2 h-6 w-6" />
-                  Add portfolio item
-                </button>
-              )}
-            </div>
-
-            <div
-              className="scrollbar-hide flex items-center justify-center gap-2 overflow-x-auto px-2 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-              onPointerMove={(event) => {
-                const fromIndex = draggingThumbIndexRef.current
-                if (fromIndex === null) return
-
-                const target = document
-                  .elementFromPoint(event.clientX, event.clientY)
-                  ?.closest('[data-featured-thumb-index]')
-                const targetIndex = Number((target as HTMLElement | null)?.dataset.featuredThumbIndex)
-
-                if (Number.isInteger(targetIndex) && targetIndex !== fromIndex) {
-                  reorderThumb(fromIndex, targetIndex)
-                }
-              }}
-              onPointerUp={() => {
-                setDraggingThumbIndex(null)
-                draggingThumbIndexRef.current = null
-              }}
-              onPointerCancel={() => {
-                setDraggingThumbIndex(null)
-                draggingThumbIndexRef.current = null
-              }}
-              onPointerLeave={() => {
-                setDraggingThumbIndex(null)
-                draggingThumbIndexRef.current = null
-              }}
-            >
-              {cards.map((card, index) => (
-                <div
-                  key={card.id}
-                  data-featured-thumb-index={index}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Select portfolio item ${index + 1}`}
-                  onPointerDown={() => {
-                    setDraggingThumbIndex(index)
-                    draggingThumbIndexRef.current = index
-                    thumbDragMovedRef.current = false
-                  }}
-                  onClick={() => {
-                    if (thumbDragMovedRef.current) {
-                      thumbDragMovedRef.current = false
-                      return
-                    }
-                    setActiveIndex(index)
-                    setPendingPreview(null)
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault()
-                      setActiveIndex(index)
-                      setPendingPreview(null)
-                    }
-                  }}
-                  className={`h-14 w-14 shrink-0 cursor-grab touch-none overflow-hidden rounded-md border active:cursor-grabbing ${
-                    index === activeIndex ? 'border-gray-950 ring-2 ring-gray-950/10' : 'border-gray-200'
-                  }`}
-                  style={{
-                    backgroundImage: getCardImage(card) ? `url(${getCardImage(card)})` : undefined,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                  }}
-                >
-                  {!getCardImage(card) ? (
-                    <span className="flex h-full w-full items-center justify-center bg-gray-100 text-xs font-semibold text-gray-500">
-                      {index + 1}
-                    </span>
-                  ) : null}
-                </div>
-              ))}
-              <button
-                type="button"
-                aria-label="Add portfolio item"
-                onClick={addCard}
-                disabled={cards.length >= 10}
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-dashed border-gray-300 text-gray-500 hover:border-gray-500 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <Plus className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="relative flex flex-col items-center overflow-visible py-2">
-            <div
-              ref={mobileScrollerRef}
-              onScroll={handleMobileScroll}
-              className="scrollbar-hide -mx-4 flex w-screen snap-x snap-mandatory gap-4 overflow-x-auto px-[9vw] pb-4 sm:mx-0 sm:w-full sm:px-14 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            >
-              {cards.map((card, index) => (
-                <div key={`mobile-${card.id}`} className="snap-center">
-                  <FeaturedDisplayCard card={card} />
-                </div>
-              ))}
-            </div>
-            {cards.length > 1 ? (
-              <>
-                {canScrollBack ? (
-                  <button
-                    type="button"
-                    aria-label="Previous portfolio item"
-                    onClick={() => scrollPortfolioPage(-1)}
-                    className="absolute left-1 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-white sm:flex"
-                  >
-                    <ChevronLeft className="h-5 w-5" />
-                  </button>
-                ) : null}
-                {canScrollForward ? (
-                  <button
-                    type="button"
-                    aria-label="Next portfolio item"
-                    onClick={() => scrollPortfolioPage(1)}
-                    className="absolute right-1 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-white sm:flex"
-                  >
-                    <ChevronRight className="h-5 w-5" />
-                  </button>
-                ) : null}
-              </>
-            ) : null}
-            {cards.length > 1 ? (
-              <div className="mt-3 flex items-center justify-center gap-2 sm:hidden">
-                {cards.map((card, index) => (
-                  <button
-                    key={card.id}
-                    type="button"
-                    aria-label={`Show portfolio item ${index + 1}`}
-                    onClick={() => moveTo(index)}
-                    className={`h-2.5 w-2.5 rounded-full transition-colors ${
-                      index === activeIndex ? 'bg-gray-950' : 'bg-gray-300'
-                    }`}
-                  />
-                ))}
-              </div>
-            ) : null}
-          </div>
-        )}
-      </div>
-    </section>
   )
 }
 
@@ -2494,7 +1913,12 @@ function ProfilePageClient({
               accessToken={accessToken}
               userId={user.id}
               userUuid={user.user_uuid}
-              publicVisible={isPublicMode ? featured.publicVisible : true}
+              orgslug={orgslug}
+              authorName={getPortfolioAuthorName(user)}
+              updatedAtFallback={user.update_date}
+              profileUsername={profileUsername || user.username}
+              ownerView={canManageProfile}
+              publicVisible={isPublicMode || effectiveEditMode ? featured.publicVisible : true}
               onChange={updateFeatured}
               onPublicVisibleChange={(visible) => updateFeatured({ ...featured, publicVisible: visible })}
             />

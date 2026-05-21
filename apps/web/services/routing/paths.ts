@@ -62,6 +62,7 @@ export const routePaths = {
     profileEdit: () => '/profile/edit',
     profileJournal: () => '/profile/journal',
     profileJournalCanvas: (canvasId: string) => `/profile/journal/${canvasId}`,
+    profilePortfolioPost: (slug: string) => `/profile/portfolio/${slug}`,
     profileResume: () => '/profile/resume',
     profileTimeline: () => '/profile/timeline',
     profileAchievements: () => '/profile/achievements',
@@ -99,6 +100,7 @@ export const routePaths = {
     communityDiscussion: (communityUuid: string, discussionUuid: string) =>
       `/community/${communityUuid}/discussion/${discussionUuid}`,
     user: (username: string) => `/user/${username}`,
+    userPortfolioPost: (username: string, slug: string) => `/user/${username}/portfolio/${slug}`,
     userTimeline: (username: string) => `/user/${username}/timeline`,
     userAchievements: (username: string) => `/user/${username}/achievements`,
     userAchievementDetail: (username: string, achievementId: string) => `/user/${username}/achievements/${achievementId}`,
