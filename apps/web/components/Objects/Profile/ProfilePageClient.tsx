@@ -49,7 +49,7 @@ import {
   normalizeFeatured,
   type FeaturedSection,
 } from '@components/Objects/Profile/ProfilePortfolio'
-import ProfileTimeline, { normalizeTimeline } from '@components/Objects/Profile/ProfileTimeline'
+import ProfileTimeline, { normalizeTimeline, type TimelineEntry } from '@components/Objects/Profile/ProfileTimeline'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getUserAvatarMediaDirectory } from '@services/media/media'
@@ -285,8 +285,7 @@ function getSocialBubbleStyle(type: SocialType): React.CSSProperties {
 
 const AVATAR_SOCIAL_SCALE = 198
 
-function getAvatarSocialGeometry(size: number, socialCount: number, expanded = false) {
-  const socialScale = AVATAR_SOCIAL_SCALE
+function getAvatarSocialGeometry(size: number, socialCount: number, expanded = false, socialScale = AVATAR_SOCIAL_SCALE) {
   const gap = socialScale * 0.055
   const bubble = Math.min(socialScale * 0.22, (socialScale - ((socialCount + 1) * gap)) / Math.max(1, socialCount))
   const padding = socialScale * 0.05
@@ -313,47 +312,110 @@ function estimateTextWidth(value: string, fontSize: number) {
   return value.length * fontSize * 0.56
 }
 
-function getAvatarNameGeometry(size: number, firstName: string, lastName: string) {
-  const names = [firstName.trim(), lastName.trim()].filter(Boolean)
-  if (names.length === 0) return null
+function ProfileNameLine({
+  value,
+  maxRem,
+  minRem,
+  align = 'left',
+  className = '',
+}: {
+  value?: string
+  maxRem: number
+  minRem: number
+  align?: 'left' | 'right'
+  className?: string
+}) {
+  const name = value?.trim()
+  if (!name) return null
 
-  const fullName = names.join(' ')
+  const fitFactor = Math.max(4, name.length * 0.58)
+  const alignClass = align === 'right' ? 'text-right' : 'text-left'
+
+  return (
+    <span
+      className={`block w-full overflow-visible whitespace-nowrap ${alignClass} font-black leading-[0.82] text-gray-950 ${className}`}
+      style={{
+        fontSize: `clamp(${minRem}rem, calc(100cqw / ${fitFactor}), ${maxRem}rem)`,
+        letterSpacing: 0,
+        WebkitTextStroke: '0.018em currentColor',
+        textShadow: '0.012em 0 currentColor, -0.006em 0 currentColor',
+      }}
+    >
+      {name}
+    </span>
+  )
+}
+
+function ProfileNameStack({
+  firstName,
+  lastName,
+  maxRem,
+  minRem,
+  align = 'left',
+  className = '',
+}: {
+  firstName?: string
+  lastName?: string
+  maxRem: number
+  minRem: number
+  align?: 'left' | 'right'
+  className?: string
+}) {
+  const alignClass = align === 'right' ? 'text-right' : 'text-left'
+
+  return (
+    <h1
+      className={`min-w-0 ${alignClass} ${className}`}
+      style={{ containerType: 'inline-size' }}
+      aria-label={[firstName, lastName].filter(Boolean).join(' ')}
+    >
+      <ProfileNameLine value={firstName} maxRem={maxRem} minRem={minRem} align={align} />
+      <ProfileNameLine value={lastName} maxRem={maxRem} minRem={minRem} align={align} />
+    </h1>
+  )
+}
+
+function getAvatarNameGeometry(size: number, firstName: string, lastName: string) {
+  const name = (lastName || firstName).trim()
+  if (!name) return null
+
   const maxWidth = size * 0.8
-  const paddingX = size * 0.045
-  const paddingY = size * 0.032
-  const baseFontSize = size * 0.085
-  const minFontSize = size * 0.052
-  const fullNameWidth = estimateTextWidth(fullName, baseFontSize)
-  const longestNameWidth = Math.max(...names.map((name) => estimateTextWidth(name, baseFontSize)))
-  const lines = fullNameWidth + (paddingX * 2) <= maxWidth ? [fullName] : names
-  const widestLine = Math.max(...lines.map((line) => estimateTextWidth(line, baseFontSize)))
-  const fontSize = Math.max(minFontSize, Math.min(baseFontSize, (maxWidth - (paddingX * 2)) / Math.max(1, longestNameWidth / baseFontSize)))
+  const paddingLeft = 0
+  const paddingRight = size * 0.045
+  const paddingY = 0
+  const baseFontSize = size * 0.18
+  const minFontSize = size * 0.08
+  const nameWidth = estimateTextWidth(name, baseFontSize)
+  const fontSize = Math.max(minFontSize, Math.min(baseFontSize, (maxWidth - paddingRight) / Math.max(1, nameWidth / baseFontSize)))
   const lineHeight = fontSize * 1.08
-  const width = Math.min(maxWidth, Math.max(...lines.map((line) => estimateTextWidth(line, fontSize))) + (paddingX * 2))
-  const height = (lines.length * lineHeight) + (paddingY * 2)
-  const radius = (fontSize / 2) + paddingY
+  const width = Math.min(maxWidth, estimateTextWidth(name, fontSize) + paddingRight)
+  const height = lineHeight * 0.6
+  const radius = height / 2
+  const textOffsetY = -(fontSize * 0.18)
 
   return {
-    lines,
+    lines: [name],
     width,
     height,
     fontSize,
     lineHeight,
     radius,
-    paddingX,
+    paddingLeft,
+    paddingRight,
     paddingY,
-    needsWordBreak: widestLine + (paddingX * 2) > maxWidth,
+    textOffsetY,
+    needsWordBreak: nameWidth + paddingRight > maxWidth,
   }
 }
 
-function getAvatarClipPath(size: number, socialCount: number, nameGeometry: ReturnType<typeof getAvatarNameGeometry> = null, socialsExpanded = false) {
-  const baseGeometry = getAvatarSocialGeometry(size, Math.max(1, socialCount), socialsExpanded)
+function getAvatarClipPath(size: number, socialCount: number, nameGeometry: ReturnType<typeof getAvatarNameGeometry> = null, socialsExpanded = false, socialScale = AVATAR_SOCIAL_SCALE) {
+  const baseGeometry = getAvatarSocialGeometry(size, Math.max(1, socialCount), socialsExpanded, socialScale)
   const radius = baseGeometry.innerRadius
   if (socialCount === 0 && !nameGeometry) {
     return `M ${radius} 0 H ${size - radius} Q ${size} 0 ${size} ${radius} V ${size - radius} Q ${size} ${size} ${size - radius} ${size} H ${radius} Q 0 ${size} 0 ${size - radius} V ${radius} Q 0 0 ${radius} 0 Z`
   }
 
-  const socialGeometry = socialCount > 0 ? getAvatarSocialGeometry(size, socialCount, socialsExpanded) : null
+  const socialGeometry = socialCount > 0 ? getAvatarSocialGeometry(size, socialCount, socialsExpanded, socialScale) : null
   const channelX = socialGeometry?.channelX ?? size
   const channelTop = socialGeometry?.channelTop ?? size
   const innerRadius = socialGeometry?.innerRadius ?? 0
@@ -403,6 +465,7 @@ function ProfileHeaderAvatar({
   lastName,
   showNameCutout = false,
   fullWidth = false,
+  socialScale = AVATAR_SOCIAL_SCALE,
   canEditSocials,
   socialsExpanded = false,
   uploading,
@@ -423,6 +486,7 @@ function ProfileHeaderAvatar({
   lastName?: string
   showNameCutout?: boolean
   fullWidth?: boolean
+  socialScale?: number
   canEditSocials: boolean
   socialsExpanded?: boolean
   uploading: boolean
@@ -447,13 +511,13 @@ function ProfileHeaderAvatar({
   const visibleSocials = (canEditSocials ? socials : socials.filter((social) => social.url)).slice(0, 5)
   const socialSlotCount = visibleSocials.length || (canEditSocials ? 1 : 0)
   const nameGeometry = showNameCutout ? getAvatarNameGeometry(actualSize, firstName || '', lastName || '') : null
-  const clipPath = getAvatarClipPath(actualSize, socialSlotCount, nameGeometry, socialsExpanded)
-  const { bubble, contentWidth, channelWidth, gap, padding } = getAvatarSocialGeometry(actualSize, socialSlotCount, socialsExpanded)
+  const clipPath = getAvatarClipPath(actualSize, socialSlotCount, nameGeometry, socialsExpanded, socialScale)
+  const { bubble, contentWidth, channelWidth, gap, padding } = getAvatarSocialGeometry(actualSize, socialSlotCount, socialsExpanded, socialScale)
   const bubbleSize = Math.round(bubble)
   const socialContentWidth = Math.round(contentWidth)
   const avatarImageUrl = avatarUrl || '/empty_avatar.png'
   const socialsTop = socialSlotCount > 0
-    ? getAvatarSocialGeometry(actualSize, socialSlotCount, socialsExpanded).channelTop
+    ? getAvatarSocialGeometry(actualSize, socialSlotCount, socialsExpanded, socialScale).channelTop
     : actualSize
 
   useEffect(() => {
@@ -495,16 +559,19 @@ function ProfileHeaderAvatar({
 
       {nameGeometry ? (
         <div
-          className="absolute left-0 top-0 flex flex-col justify-center font-black leading-none text-gray-950"
+          className="absolute left-0 top-0 flex flex-col items-start justify-center text-left font-black leading-none text-gray-950"
           style={{
             width: nameGeometry.width,
             height: nameGeometry.height,
-            paddingLeft: nameGeometry.paddingX,
-            paddingRight: nameGeometry.paddingX,
+            paddingLeft: nameGeometry.paddingLeft,
+            paddingRight: nameGeometry.paddingRight,
             paddingTop: nameGeometry.paddingY,
             paddingBottom: nameGeometry.paddingY,
             fontSize: nameGeometry.fontSize,
             lineHeight: `${nameGeometry.lineHeight}px`,
+            transform: `translateY(${nameGeometry.textOffsetY}px)`,
+            WebkitTextStroke: '0.018em currentColor',
+            textShadow: '0.012em 0 currentColor, -0.006em 0 currentColor',
             wordBreak: nameGeometry.needsWordBreak ? 'break-word' : 'normal',
           }}
         >
@@ -999,6 +1066,343 @@ function ProfileOverviewDestinations({
   )
 }
 
+function getJournalCardConfig(canvasId: JournalCanvasId, cardId: string) {
+  const canvas = JOURNAL_CANVASES.find((item) => item.id === canvasId)
+  if (!canvas) return null
+  const card = canvas?.cards.find((item) => item.id === cardId)
+  return card ? { canvas, card } : null
+}
+
+const IDENTITY_SKILL_CARD_IDS = [
+  'executive-function',
+  'daily-living',
+  'relational',
+  'twenty-first-century',
+  'academic',
+]
+
+function getIdentitySkillSummary(journal: JournalShape) {
+  const skillCards = IDENTITY_SKILL_CARD_IDS
+    .map((cardId) => getJournalCardConfig('identity', cardId)?.card)
+    .filter((card): card is JournalCardConfig => Boolean(card))
+  const completedCards = skillCards.filter((card) =>
+    isJournalCardComplete(card, getJournalEntry(journal, 'identity', card.id))
+  )
+  const nextIncompleteCard = skillCards.find((card) =>
+    !isJournalCardComplete(card, getJournalEntry(journal, 'identity', card.id))
+  ) || null
+  const topStrengths = skillCards
+    .flatMap((card) => {
+      if (card.type !== 'rating') return []
+      const entry = getJournalEntry(journal, 'identity', card.id)
+      return card.fields
+        .map((field) => ({
+          id: `${card.id}-${field.id}`,
+          label: field.label,
+          cardTitle: card.title,
+          score: Number(entry.fields[field.id] || 0),
+        }))
+        .filter((item) => Number.isFinite(item.score) && item.score > 0)
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5)
+
+  return {
+    completedCount: completedCards.length,
+    totalCount: skillCards.length,
+    nextIncompleteCard,
+    topStrengths,
+  }
+}
+
+function MyIdentitySection({
+  journal,
+  orgslug,
+}: {
+  journal: JournalShape
+  orgslug: string
+}) {
+  const dreamsConfig = getJournalCardConfig('identity', 'dreams-ambitions')
+  if (!dreamsConfig) return null
+
+  const dreamsEntry = getJournalEntry(journal, 'identity', 'dreams-ambitions')
+  const dreamsComplete = isJournalCardComplete(dreamsConfig.card, dreamsEntry)
+  const dreamsHighlight = getJournalHighlight(dreamsConfig.card, dreamsEntry)
+  const valuesConfig = getJournalCardConfig('identity', 'values')
+  const valuesEntry = getJournalEntry(journal, 'identity', 'values')
+  const valuesComplete = valuesConfig ? isJournalCardComplete(valuesConfig.card, valuesEntry) : false
+  const valuesHighlight = valuesEntry.starredOptions || []
+  const skillSummary = getIdentitySkillSummary(journal)
+  const journalDreamsHref = getUriWithOrg(
+    orgslug,
+    routePaths.org.journal('identity', 'dreams-ambitions')
+  )
+  const journalValuesHref = getUriWithOrg(
+    orgslug,
+    routePaths.org.journal('identity', 'values')
+  )
+  const nextSkillHref = skillSummary.nextIncompleteCard
+    ? getUriWithOrg(orgslug, routePaths.org.journal('identity', skillSummary.nextIncompleteCard.id))
+    : getUriWithOrg(orgslug, routePaths.org.journal('identity'))
+
+  return (
+    <section className="px-4 py-6 sm:px-0">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-2xl font-semibold text-gray-950">My identity</h2>
+        <Link
+          href={getUriWithOrg(orgslug, routePaths.org.journal('identity'))}
+          className="hidden items-center gap-1.5 text-sm font-semibold text-gray-600 transition-colors hover:text-gray-950 sm:flex"
+        >
+          <span>View identity journal</span>
+          <ChevronRight className="h-4 w-4" />
+        </Link>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <article
+          className={`relative overflow-hidden rounded-lg bg-white p-5 shadow-sm md:col-span-2 ${
+            dreamsComplete
+              ? 'border border-gray-200'
+              : 'border-2 border-dotted border-emerald-400'
+          }`}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-950">Reflections</p>
+            </div>
+          </div>
+          {dreamsComplete ? (
+            <div className="mt-5 flex min-h-32 items-start gap-4 rounded-lg bg-gradient-to-br from-emerald-50 via-white to-amber-50 p-5">
+              <div className="shrink-0 pt-0.5 text-4xl font-black leading-none text-emerald-700">
+                &ldquo;
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="line-clamp-4 text-sm font-semibold leading-6 text-gray-800">
+                  {dreamsHighlight.response}
+                </p>
+                <p className="mt-3 text-xs font-semibold text-gray-500">
+                  {dreamsHighlight.label}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-5 flex min-h-32 items-center justify-between gap-4 rounded-lg bg-emerald-50/50 p-5">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-emerald-950">Journal my dreams</p>
+                <p className="mt-1 max-w-lg text-sm leading-6 text-emerald-800">
+                  Complete Dreams &amp; Ambitions to add a reflection highlight here.
+                </p>
+              </div>
+              <Link
+                href={journalDreamsHref}
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm transition-colors hover:bg-emerald-600"
+                aria-label="Journal my dreams"
+              >
+                <ChevronRight className="h-6 w-6" />
+              </Link>
+            </div>
+          )}
+        </article>
+        <article
+          className={`relative min-h-40 rounded-lg bg-white p-5 shadow-sm ${
+            valuesComplete
+              ? 'border border-gray-200'
+              : 'border-2 border-dotted border-emerald-400'
+          }`}
+        >
+          <p className="text-sm font-semibold text-gray-950">What I value most</p>
+          {valuesComplete ? (
+            <ul className="mt-5 space-y-2">
+              {valuesHighlight.map((value) => (
+                <li key={value} className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  <span>{value}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="mt-5 flex items-center justify-between gap-4 rounded-lg bg-emerald-50/50 p-4">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-emerald-950">Journal my values</p>
+                <p className="mt-1 text-sm leading-6 text-emerald-800">
+                  Choose your top values to show them here.
+                </p>
+              </div>
+              <Link
+                href={journalValuesHref}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm transition-colors hover:bg-emerald-600"
+                aria-label="Journal my values"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </Link>
+            </div>
+          )}
+        </article>
+        <article className="relative min-h-40 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-sm font-semibold text-gray-950">Top strengths</p>
+            {skillSummary.completedCount < skillSummary.totalCount ? (
+              <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
+                {skillSummary.completedCount}/{skillSummary.totalCount} complete
+              </span>
+            ) : null}
+          </div>
+          {skillSummary.topStrengths.length > 0 ? (
+            <ol className="mt-5 space-y-2">
+              {skillSummary.topStrengths.map((strength) => (
+                <li key={strength.id} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="min-w-0 truncate font-semibold text-gray-800">{strength.label}</span>
+                  <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700">
+                    {strength.score}/5
+                  </span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="mt-5 text-sm leading-6 text-gray-600">
+              Rate your skill areas to surface your strongest patterns here.
+            </p>
+          )}
+          {skillSummary.nextIncompleteCard ? (
+            <Link
+              href={nextSkillHref}
+              className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-700 transition-colors hover:text-emerald-800"
+            >
+              <span>Next: {skillSummary.nextIncompleteCard.title}</span>
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          ) : null}
+        </article>
+      </div>
+    </section>
+  )
+}
+
+const PROFILE_TIMELINE_MONTH_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  year: 'numeric',
+})
+
+function getProfileTimelineMonthKey(value?: string) {
+  const match = value ? /^(\d{4})-(\d{2})$/.exec(value) : null
+  if (!match) return Number.NEGATIVE_INFINITY
+  return Number(match[1]) * 12 + (Number(match[2]) - 1)
+}
+
+function getProfileTimelineEffectiveEndDate(entry: TimelineEntry) {
+  if (entry.isOngoing || !entry.endDate) {
+    const today = new Date()
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+  }
+  return entry.endDate
+}
+
+function formatProfileTimelineMonth(value?: string) {
+  const match = value ? /^(\d{4})-(\d{2})$/.exec(value) : null
+  if (!match) return ''
+  return PROFILE_TIMELINE_MONTH_FORMATTER.format(
+    new Date(Number(match[1]), Number(match[2]) - 1, 1)
+  )
+}
+
+function formatProfileTimelineRange(entry: TimelineEntry) {
+  const start = formatProfileTimelineMonth(entry.startDate)
+  const end = entry.isOngoing ? 'Present' : formatProfileTimelineMonth(entry.endDate)
+  if (!start) return end
+  if (!end) return start
+  return `${start} - ${end}`
+}
+
+function getRecentTimelineEntries(timeline: TimelineEntry[]) {
+  return [...timeline]
+    .sort((a, b) => {
+      const endDiff = getProfileTimelineMonthKey(getProfileTimelineEffectiveEndDate(b)) -
+        getProfileTimelineMonthKey(getProfileTimelineEffectiveEndDate(a))
+      if (endDiff !== 0) return endDiff
+      return getProfileTimelineMonthKey(b.startDate) - getProfileTimelineMonthKey(a.startDate)
+    })
+    .slice(0, 4)
+}
+
+function getTimelineEntryDetail(entry: TimelineEntry) {
+  if (entry.category === 'work') return entry.employer
+  if (entry.category === 'education') return entry.institution
+  return ''
+}
+
+function TimelineOverviewSection({
+  timeline,
+  href,
+  canManage,
+}: {
+  timeline: TimelineEntry[]
+  href: string
+  canManage: boolean
+}) {
+  const recentEntries = getRecentTimelineEntries(timeline)
+
+  if (!canManage && recentEntries.length === 0) return null
+
+  return (
+    <section className="px-4 py-6 sm:px-0">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-2xl font-semibold text-gray-950">Timeline</h2>
+        <Link
+          href={href}
+          className="flex items-center gap-1.5 text-sm font-semibold text-gray-600 transition-colors hover:text-gray-950"
+        >
+          <span>See whole timeline</span>
+          <ChevronRight className="h-4 w-4" />
+        </Link>
+      </div>
+      {recentEntries.length > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {recentEntries.map((entry) => {
+            const detail = getTimelineEntryDetail(entry)
+            return (
+              <article key={entry.id} className="min-h-40 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold capitalize text-gray-600">
+                    {entry.category}
+                  </span>
+                  {entry.isOngoing ? (
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                      Current
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-4 line-clamp-2 text-base font-semibold leading-6 text-gray-950">{entry.title}</p>
+                <p className="mt-2 text-sm text-gray-500">{formatProfileTimelineRange(entry)}</p>
+                {detail ? <p className="mt-2 truncate text-sm font-medium text-gray-700">{detail}</p> : null}
+                {entry.description ? (
+                  <p className="mt-3 line-clamp-2 text-sm leading-6 text-gray-600">{entry.description}</p>
+                ) : null}
+              </article>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="rounded-lg border-2 border-dotted border-emerald-400 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-4 rounded-lg bg-emerald-50/50 p-5">
+            <div>
+              <p className="text-sm font-semibold text-emerald-950">Add timeline events</p>
+              <p className="mt-1 text-sm leading-6 text-emerald-800">
+                Capture work, education, and life moments to show them here.
+              </p>
+            </div>
+            <Link
+              href={href}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm transition-colors hover:bg-emerald-600"
+              aria-label="Add timeline events"
+            >
+              <ChevronRight className="h-6 w-6" />
+            </Link>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
 function JournalEditorTray({
   canvas,
   card,
@@ -1465,6 +1869,8 @@ function JournalSection({
   saving,
   orgslug,
   selectedCanvasId,
+  initialOpenCard,
+  initialOpenCardStartInMain = false,
   workspace = false,
   onChange,
 }: {
@@ -1473,11 +1879,14 @@ function JournalSection({
   saving: boolean
   orgslug: string
   selectedCanvasId?: JournalCanvasId
+  initialOpenCard?: { canvasId: JournalCanvasId, cardId: string } | null
+  initialOpenCardStartInMain?: boolean
   workspace?: boolean
   // eslint-disable-next-line no-unused-vars
   onChange(nextJournal: JournalShape): void
 }) {
-  const [openCard, setOpenCard] = useState<{ canvasId: JournalCanvasId, cardId: string } | null>(null)
+  const [openCard, setOpenCard] = useState<{ canvasId: JournalCanvasId, cardId: string } | null>(initialOpenCard || null)
+  const [openCardStartedFromUrl, setOpenCardStartedFromUrl] = useState(Boolean(initialOpenCard && initialOpenCardStartInMain))
   const [openAddSection, setOpenAddSection] = useState<string | null>(null)
   const [descriptionExpanded, setDescriptionExpanded] = useState(false)
   const selectedCanvas = JOURNAL_CANVASES.find((canvas) => canvas.id === selectedCanvasId) || null
@@ -1608,7 +2017,10 @@ function JournalSection({
                   <button
                     key={card.id}
                     type="button"
-                    onClick={() => setOpenCard({ canvasId: selectedCanvas.id, cardId: card.id })}
+                    onClick={() => {
+                      setOpenCard({ canvasId: selectedCanvas.id, cardId: card.id })
+                      setOpenCardStartedFromUrl(false)
+                    }}
                     className="group flex aspect-[4/3] min-h-36 origin-center flex-col overflow-hidden rounded-2xl border-4 border-white p-0 text-left shadow-[0_14px_30px_rgba(15,23,42,0.14)] transition-all duration-200 hover:-translate-y-1 hover:rotate-[-1deg] hover:scale-[1.02] hover:shadow-[0_20px_40px_rgba(15,23,42,0.18)] active:translate-y-0 active:rotate-3 active:scale-95"
                     style={{ backgroundColor: card.color.light }}
                   >
@@ -1681,6 +2093,7 @@ function JournalSection({
                           type="button"
                           onClick={() => {
                             setOpenCard({ canvasId: selectedCanvas.id, cardId: card.id })
+                            setOpenCardStartedFromUrl(false)
                             setOpenAddSection(null)
                           }}
                           className="flex h-28 w-40 shrink-0 flex-col justify-between rounded-xl border-2 border-white p-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:rotate-[-1deg] hover:shadow-md"
@@ -1712,12 +2125,15 @@ function JournalSection({
           entry={getJournalEntry(journal, openCard.canvasId, openCard.cardId)}
           open
           canEdit={canEdit}
-          startInMain={isJournalCardComplete(
+          startInMain={openCardStartedFromUrl || isJournalCardComplete(
             editorCanvas.cards.find((card) => card.id === openCard.cardId) || editorCanvas.cards[0],
             getJournalEntry(journal, openCard.canvasId, openCard.cardId)
           )}
           onOpenChange={(isOpen) => {
-            if (!isOpen) setOpenCard(null)
+            if (!isOpen) {
+              setOpenCard(null)
+              setOpenCardStartedFromUrl(false)
+            }
           }}
           onSave={(entry) => updateEntry(openCard.canvasId, openCard.cardId, entry)}
         />
@@ -1744,6 +2160,10 @@ export function OwnerJournalPageClient({
   const [activeCanvasId, setActiveCanvasId] = useState<JournalCanvasId>(() =>
     getInitialJournalCanvasId(searchParams.get('canvas'))
   )
+  const requestedCardId = searchParams.get('card')
+  const initialOpenCard = requestedCardId && getJournalCardConfig(activeCanvasId, requestedCardId)
+    ? { canvasId: activeCanvasId, cardId: requestedCardId }
+    : null
   const profile = normalizeProfile(user.profile)
   const journal = profile.journal || normalizeJournal(null)
 
@@ -1786,6 +2206,8 @@ export function OwnerJournalPageClient({
           saving={isSaving}
           orgslug={orgslug}
           selectedCanvasId={activeCanvasId}
+          initialOpenCard={initialOpenCard}
+          initialOpenCardStartInMain
           onChange={updateJournal}
         />
       </div>
@@ -1837,6 +2259,12 @@ function ProfilePageClient({
     : ''
   const publicProfileHref = getUriWithOrg(orgslug, routePaths.org.user(user.username))
   const resumeHref = getUriWithOrg(orgslug, routePaths.org.profileResume())
+  const timelineHref = getUriWithOrg(
+    orgslug,
+    isPublicMode
+      ? routePaths.org.userTimeline(profileUsername || user.username)
+      : routePaths.org.profileTimeline()
+  )
 
   const missingSocialTypes = useMemo(
     () => (Object.keys(SOCIAL_CONFIG) as SocialType[]).filter(
@@ -2063,15 +2491,20 @@ function ProfilePageClient({
           </div>
         ) : null}
         <section className="relative px-4 py-6 sm:px-0">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-            <div className="w-full shrink-0 sm:w-auto">
+          <div className="flex flex-col gap-5 sm:grid sm:grid-cols-2 sm:items-start sm:gap-8">
+            <div className="w-full shrink-0 sm:order-2">
+              <ProfileNameStack
+                firstName={user.first_name}
+                maxRem={4.25}
+                minRem={2.25}
+                className="mb-5 sm:hidden"
+              />
               <div className="relative w-full sm:hidden">
                 <ProfileHeaderAvatar
                   size={198}
                   avatarUrl={avatarUrl || getUriWithOrg(orgslug, '/empty_avatar.png')}
                   socials={socials}
                   userId={user.id}
-                  firstName={user.first_name}
                   lastName={user.last_name}
                   showNameCutout
                   fullWidth
@@ -2088,7 +2521,7 @@ function ProfilePageClient({
                   onSaveSocials={() => void persistProfile()}
                 />
               </div>
-              <div className="hidden sm:block">
+              <div className="hidden w-full sm:block">
                 <ProfileHeaderAvatar
                   size={270}
                   avatarUrl={avatarUrl || getUriWithOrg(orgslug, '/empty_avatar.png')}
@@ -2096,6 +2529,8 @@ function ProfilePageClient({
                   userId={user.id}
                   firstName={user.first_name}
                   lastName={user.last_name}
+                  fullWidth
+                  socialScale={AVATAR_SOCIAL_SCALE * 1.5}
                   canEditSocials={canManageProfile}
                   socialsExpanded={socialsExpanded}
                   uploading={uploading === 'avatar'}
@@ -2111,20 +2546,23 @@ function ProfilePageClient({
               </div>
             </div>
 
-            <div className="min-w-0 flex-1 space-y-3">
+            <div className="min-w-0 flex-1 space-y-4 sm:order-1 sm:text-right">
               <div className="min-w-0">
                 <div className="flex min-w-0 items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div>
-                      <h1 className="hidden text-3xl font-semibold text-gray-950 sm:block">
-                        {user.first_name} {user.last_name}
-                      </h1>
-                    </div>
+                    <ProfileNameStack
+                      firstName={user.first_name}
+                      lastName={user.last_name}
+                      maxRem={8.5}
+                      minRem={3.5}
+                      align="right"
+                      className="hidden sm:block"
+                    />
                   </div>
                 </div>
               </div>
 
-              <div className="group relative max-w-2xl">
+              <div className="group relative max-w-2xl sm:ml-auto sm:w-3/4 sm:max-w-none">
                 {bioEditing ? (
                   <Textarea
                     value={draft.bio}
@@ -2173,45 +2611,45 @@ function ProfilePageClient({
                   </div>
                 ) : null}
               </div>
+              {(canManageProfile || isPublicMode) ? (
+                <div className="border-t border-gray-200 pt-3 sm:ml-auto sm:w-3/4">
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    {canManageProfile ? (
+                      <Button asChild variant="outline">
+                        <Link href={publicProfileHref}>
+                          <Eye size={16} className="mr-2" />
+                          Public profile
+                        </Link>
+                      </Button>
+                    ) : null}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button type="button" variant="outline">
+                          <Share2 size={16} className="mr-2" />
+                          Share
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuItem onClick={copyProfileLink}>
+                          <Copy className="h-4 w-4" />
+                          <span>Copy link</span>
+                        </DropdownMenuItem>
+                        {canManageProfile ? (
+                          <DropdownMenuItem asChild>
+                            <Link href={resumeHref}>
+                              <FileText className="h-4 w-4" />
+                              <span>Resume</span>
+                            </Link>
+                          </DropdownMenuItem>
+                        ) : null}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
         </section>
-        {(canManageProfile || isPublicMode) ? (
-          <div className="px-4 pb-4 sm:px-0">
-            <div className="flex flex-wrap items-center gap-2">
-              {canManageProfile ? (
-                <Button asChild variant="outline">
-                  <Link href={publicProfileHref}>
-                    <Eye size={16} className="mr-2" />
-                    Public profile
-                  </Link>
-                </Button>
-              ) : null}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button type="button" variant="outline">
-                    <Share2 size={16} className="mr-2" />
-                    Share
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-44">
-                  <DropdownMenuItem onClick={copyProfileLink}>
-                    <Copy className="h-4 w-4" />
-                    <span>Copy link</span>
-                  </DropdownMenuItem>
-                  {canManageProfile ? (
-                    <DropdownMenuItem asChild>
-                      <Link href={resumeHref}>
-                        <FileText className="h-4 w-4" />
-                        <span>Resume</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  ) : null}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        ) : null}
         {activeTab === 'overview' ? (
           canManageProfile ? <ProfileOverviewDestinations journal={journal} orgslug={orgslug} /> : null
         ) : activeTab !== 'timeline' ? (
@@ -2219,6 +2657,14 @@ function ProfilePageClient({
         ) : null}
         {activeTab === 'overview' ? (
           <>
+            {canManageProfile ? <MyIdentitySection journal={journal} orgslug={orgslug} /> : null}
+            {(canManageProfile || (timelineEnabled && timelinePublicVisible)) ? (
+              <TimelineOverviewSection
+                timeline={profile.timeline || []}
+                href={timelineHref}
+                canManage={canManageProfile}
+              />
+            ) : null}
             <FeaturedCarousel
               featured={featured}
               editMode={portfolioEditing}
