@@ -12,7 +12,6 @@ import {
   Link2,
   Loader2,
   Plus,
-  Save,
   X,
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
@@ -881,6 +880,7 @@ export function PortfolioPostPageClient({
   const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
+  const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const [user, setUser] = useState(initialUser)
   const [profile, setProfile] = useState(() => {
     const normalizedProfile = normalizeProfileValue(initialUser.profile)
@@ -891,6 +891,11 @@ export function PortfolioPostPageClient({
   })
   const [isSaving, setIsSaving] = useState(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const latestProfileRef = useRef(profile)
+  const latestPostRef = useRef<FeaturedCard | undefined>(undefined)
+  const hasUnsavedChangesRef = useRef(false)
+  const isSavingRef = useRef(false)
+  const queuedSaveRef = useRef(false)
   const isOwnerMode = mode === 'owner'
   const featured: FeaturedSection = profile.featured || normalizeFeatured(null)
   const [postId, setPostId] = useState(() => featured.cards.find((card: FeaturedCard) => card.slug === postSlug)?.id || '')
@@ -903,52 +908,105 @@ export function PortfolioPostPageClient({
 
   const updatePost = (patch: Partial<FeaturedCard>) => {
     if (!post) return
+    hasUnsavedChangesRef.current = true
     setProfile((current: any) => {
       const currentFeatured = current.featured || normalizeFeatured(null)
-      return {
+      let updatedPost: FeaturedCard | undefined
+      const nextProfile = {
         ...current,
         featured: {
           ...currentFeatured,
-          cards: currentFeatured.cards.map((card: FeaturedCard) => card.id === post.id ? {
-            ...card,
-            ...patch,
-            slug: patch.title !== undefined
-              ? getUniquePortfolioSlug(currentFeatured.cards, card.id, { ...card, ...patch })
-              : (patch.slug || card.slug),
-            updatedAt: new Date().toISOString(),
-          } : card),
+          cards: currentFeatured.cards.map((card: FeaturedCard) => {
+            if (card.id !== post.id) return card
+            updatedPost = {
+              ...card,
+              ...patch,
+              slug: patch.title !== undefined
+                ? getUniquePortfolioSlug(currentFeatured.cards, card.id, { ...card, ...patch })
+                : (patch.slug || card.slug),
+              updatedAt: new Date().toISOString(),
+            }
+            return updatedPost
+          }),
         },
       }
+      latestProfileRef.current = nextProfile
+      latestPostRef.current = updatedPost || post
+      return nextProfile
     })
   }
 
-  const handleSave = async () => {
-    if (!accessToken || !post) return
+  const persistPostSoon = () => {
+    window.setTimeout(() => {
+      void persistPost()
+    }, 0)
+  }
+
+  useEffect(() => {
+    latestProfileRef.current = profile
+    latestPostRef.current = post
+  }, [profile, post])
+
+  useEffect(() => {
+    const textarea = bodyTextareaRef.current
+    if (!textarea || !isOwnerMode) return
+    textarea.style.height = 'auto'
+    textarea.style.height = `${textarea.scrollHeight}px`
+  }, [post?.body, isOwnerMode])
+
+  const persistPost = async () => {
+    if (!accessToken || !latestPostRef.current || !hasUnsavedChangesRef.current) return
+    if (isSavingRef.current) {
+      queuedSaveRef.current = true
+      return
+    }
+    const profileToSave = latestProfileRef.current
+    const postToSave = latestPostRef.current
+    hasUnsavedChangesRef.current = false
+    isSavingRef.current = true
     setIsSaving(true)
-    const loadingToast = toast.loading('Saving portfolio post')
     try {
-      const res = await updateProfile({ ...user, profile }, user.id, accessToken)
+      const res = await updateProfile({ ...user, profile: profileToSave }, user.id, accessToken)
       if (!res.success) throw new Error(res.HTTPmessage)
       const savedProfile = normalizeProfileValue(res.data.profile)
       const nextProfile = {
         ...savedProfile,
         featured: normalizeFeatured(savedProfile.featured),
       }
-      const savedPost = nextProfile.featured?.cards.find((card: FeaturedCard) => card.id === post.id)
+      const savedPost = nextProfile.featured?.cards.find((card: FeaturedCard) => card.id === postToSave.id)
       setUser(res.data)
       setProfile(nextProfile)
       if (savedPost) setPostId(savedPost.id)
       await session?.update?.(true)
-      toast.success('Portfolio post saved', { id: loadingToast })
       if (savedPost && savedPost.slug !== postSlug) {
         router.replace(getUriWithOrg(orgslug, routePaths.org.profilePortfolioPost(savedPost.slug)))
       }
     } catch {
-      toast.error('Could not save portfolio post', { id: loadingToast })
+      hasUnsavedChangesRef.current = true
+      toast.error('Could not save portfolio post')
     } finally {
+      isSavingRef.current = false
       setIsSaving(false)
+      if (queuedSaveRef.current) {
+        queuedSaveRef.current = false
+        void persistPost()
+      }
     }
   }
+
+  useEffect(() => {
+    if (!isOwnerMode) return
+    const handlePageHide = () => {
+      void persistPost()
+    }
+    window.addEventListener('pagehide', handlePageHide)
+    document.addEventListener('visibilitychange', handlePageHide)
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide)
+      document.removeEventListener('visibilitychange', handlePageHide)
+      void persistPost()
+    }
+  }, [isOwnerMode])
 
   const handleCoverUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -959,6 +1017,7 @@ export function PortfolioPostPageClient({
       if (!res.success) throw new Error(res.HTTPmessage)
       const imageUrl = getUserProfileFeaturedMediaDirectory(res.data.user_uuid || user.user_uuid, res.data.filename)
       updatePost({ imageUrl })
+      persistPostSoon()
       toast.success('Cover uploaded')
     } catch {
       toast.error('Could not upload cover')
@@ -994,16 +1053,26 @@ export function PortfolioPostPageClient({
       <article className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="mb-5 flex items-center justify-between gap-4">
           <Button asChild variant="ghost" className="px-0">
-            <Link href={backHref}>
+            <Link
+              href={backHref}
+              onClick={(event) => {
+                if (!isOwnerMode || !hasUnsavedChangesRef.current) return
+                event.preventDefault()
+                void (async () => {
+                  await persistPost()
+                  router.push(backHref)
+                })()
+              }}
+            >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to profile
             </Link>
           </Button>
-          {isOwnerMode ? (
-            <Button type="button" onClick={handleSave} disabled={isSaving} className="bg-black text-white hover:bg-black/90">
-              <Save className="mr-2 h-4 w-4" />
-              {isSaving ? 'Saving' : 'Save'}
-            </Button>
+          {isOwnerMode && isSaving ? (
+            <span className="flex items-center gap-2 text-sm font-medium text-gray-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Saving
+            </span>
           ) : null}
         </div>
 
@@ -1014,9 +1083,10 @@ export function PortfolioPostPageClient({
             <textarea
               value={post.title}
               onChange={(event) => updatePost({ title: event.target.value })}
+              onBlur={() => void persistPost()}
               placeholder="Post title"
               rows={1}
-              className="block h-full w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-3xl font-black leading-none text-gray-950 outline-none"
+              className="block h-full w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-3xl font-black leading-none text-gray-950 outline-none placeholder:text-gray-300"
             />
           ) : (
             <h1 className="break-words text-3xl font-black leading-none text-gray-950">
@@ -1057,10 +1127,13 @@ export function PortfolioPostPageClient({
         <div className="mt-8">
           {isOwnerMode ? (
             <Textarea
+              ref={bodyTextareaRef}
               value={post.body}
               onChange={(event) => updatePost({ body: event.target.value, subtext: event.target.value })}
+              onBlur={() => void persistPost()}
               placeholder="Write the post body"
-              className="min-h-[320px] resize-y text-base leading-7 text-gray-800"
+              rows={1}
+              className="min-h-[1.75rem] resize-none overflow-hidden whitespace-pre-wrap border-0 bg-transparent px-0 py-0 text-base leading-7 text-gray-800 shadow-none outline-none placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0"
             />
           ) : (
             <div className="whitespace-pre-wrap text-base leading-7 text-gray-800">
@@ -1074,7 +1147,10 @@ export function PortfolioPostPageClient({
             <div className="space-y-4">
               <label className="flex items-center justify-center gap-3">
                 <span className="text-sm font-medium text-gray-600">{post.includeButton ? 'Button included' : 'Include button'}</span>
-                <Switch checked={Boolean(post.includeButton)} onCheckedChange={(checked) => updatePost({ includeButton: checked })} />
+                <Switch checked={Boolean(post.includeButton)} onCheckedChange={(checked) => {
+                  updatePost({ includeButton: checked })
+                  persistPostSoon()
+                }} />
               </label>
               {post.includeButton ? (
                 <div className="mx-auto max-w-md space-y-3">
@@ -1082,6 +1158,7 @@ export function PortfolioPostPageClient({
                     <Input
                       value={post.actionButtonText || ''}
                       onChange={(event) => updatePost({ actionButtonText: event.target.value })}
+                      onBlur={() => void persistPost()}
                       placeholder="Button label"
                       className="h-8 border-0 bg-transparent px-0 text-center font-medium shadow-none focus-visible:ring-0"
                     />
@@ -1091,6 +1168,7 @@ export function PortfolioPostPageClient({
                     <Input
                       value={post.actionUrl || post.url}
                       onChange={(event) => updatePost({ actionUrl: event.target.value, url: event.target.value })}
+                      onBlur={() => void persistPost()}
                       placeholder="https://example.com"
                       className="h-8 border-0 px-0 shadow-none focus-visible:ring-0"
                     />

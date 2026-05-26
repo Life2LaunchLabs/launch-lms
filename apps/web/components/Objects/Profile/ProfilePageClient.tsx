@@ -3,6 +3,7 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
+  Award,
   Camera,
   Check,
   ChevronRight,
@@ -11,13 +12,20 @@ import {
   Eye,
   FileText,
   Globe,
+  GripVertical,
+  Heading1,
+  Image as ImageIcon,
   Instagram,
+  Link2,
   Linkedin,
   Loader2,
   Plus,
   Share2,
+  Text,
+  Trash2,
   X,
 } from 'lucide-react'
+import { AnimatePresence, motion, Reorder, useDragControls } from 'motion/react'
 import { toast } from 'react-hot-toast'
 import { Button } from '@components/ui/button'
 import {
@@ -54,6 +62,22 @@ type ProfileHeader = {
   socials?: SocialLink[]
 }
 
+type ProfileWidgetType = 'timeline' | 'portfolio' | 'achievements' | 'title' | 'text' | 'link' | 'media'
+
+type ProfileLayoutItem = {
+  id: string
+  type: ProfileWidgetType
+}
+
+type ProfileCustomSection = {
+  id: string
+  type: ProfileWidgetType
+  title?: string
+  body?: string
+  url?: string
+  mediaUrl?: string
+}
+
 type ProfileShape = {
   header?: ProfileHeader
   featured?: FeaturedSection
@@ -61,7 +85,8 @@ type ProfileShape = {
   timelineEnabled?: boolean
   timelinePublicVisible?: boolean
   timeline?: any[]
-  sections?: any[]
+  layout?: ProfileLayoutItem[]
+  sections?: ProfileCustomSection[]
 }
 
 type ProfilePageClientProps = {
@@ -120,13 +145,77 @@ const SOCIAL_CONFIG: Record<SocialType, {
   },
 }
 
+const UNIQUE_PROFILE_WIDGETS: ProfileWidgetType[] = ['timeline', 'portfolio', 'achievements']
+const DEFAULT_PROFILE_LAYOUT: ProfileLayoutItem[] = [
+  { id: 'timeline', type: 'timeline' },
+  { id: 'portfolio', type: 'portfolio' },
+  { id: 'achievements', type: 'achievements' },
+]
+
+const PROFILE_WIDGET_CONFIG: Record<ProfileWidgetType, {
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  unique: boolean
+}> = {
+  timeline: { label: 'Timeline', icon: ChevronRight, unique: true },
+  portfolio: { label: 'Portfolio', icon: FileText, unique: true },
+  achievements: { label: 'Achievements', icon: Award, unique: true },
+  title: { label: 'Title', icon: Heading1, unique: false },
+  text: { label: 'Text', icon: Text, unique: false },
+  link: { label: 'Link', icon: Link2, unique: false },
+  media: { label: 'Media', icon: ImageIcon, unique: false },
+}
+
+function createProfileLayoutItem(type: ProfileWidgetType): ProfileLayoutItem {
+  if (UNIQUE_PROFILE_WIDGETS.includes(type)) return { id: type, type }
+  return { id: `${type}-${Date.now()}-${Math.random().toString(16).slice(2)}`, type }
+}
+
+function createProfileSection(item: ProfileLayoutItem): ProfileCustomSection | null {
+  if (UNIQUE_PROFILE_WIDGETS.includes(item.type)) return null
+  return {
+    id: item.id,
+    type: item.type,
+    title: item.type === 'title' ? 'Untitled section' : '',
+    body: '',
+    url: '',
+    mediaUrl: '',
+  }
+}
+
+function normalizeProfileLayout(layout: any): ProfileLayoutItem[] {
+  if (!Array.isArray(layout)) return DEFAULT_PROFILE_LAYOUT
+  const seenUnique = new Set<ProfileWidgetType>()
+  return layout.reduce<ProfileLayoutItem[]>((items, item) => {
+    const type = item?.type as ProfileWidgetType
+    if (!PROFILE_WIDGET_CONFIG[type]) return items
+    if (UNIQUE_PROFILE_WIDGETS.includes(type)) {
+      if (seenUnique.has(type)) return items
+      seenUnique.add(type)
+      items.push({ id: type, type })
+      return items
+    }
+    items.push({ id: item?.id || createProfileLayoutItem(type).id, type })
+    return items
+  }, [])
+}
+
+function moveProfileLayoutItem(layout: ProfileLayoutItem[], itemId: string, targetIndex: number) {
+  const currentIndex = layout.findIndex((item) => item.id === itemId)
+  if (currentIndex === -1) return layout
+  const next = Array.from(layout)
+  const [item] = next.splice(currentIndex, 1)
+  next.splice(Math.max(0, Math.min(targetIndex, next.length)), 0, item)
+  return next
+}
+
 function normalizeProfile(profile: any): ProfileShape {
-  if (!profile) return { header: { socials: [] }, featured: normalizeFeatured(null), achievements: normalizeAchievements(null), timelineEnabled: false, timeline: [], sections: [] }
+  if (!profile) return { header: { socials: [] }, featured: normalizeFeatured(null), achievements: normalizeAchievements(null), timelineEnabled: false, timeline: [], layout: DEFAULT_PROFILE_LAYOUT, sections: [] }
   if (typeof profile === 'string') {
     try {
       return normalizeProfile(JSON.parse(profile))
     } catch {
-      return { header: { socials: [] }, featured: normalizeFeatured(null), achievements: normalizeAchievements(null), timelineEnabled: false, timeline: [], sections: [] }
+      return { header: { socials: [] }, featured: normalizeFeatured(null), achievements: normalizeAchievements(null), timelineEnabled: false, timeline: [], layout: DEFAULT_PROFILE_LAYOUT, sections: [] }
     }
   }
   return {
@@ -139,6 +228,7 @@ function normalizeProfile(profile: any): ProfileShape {
     achievements: normalizeAchievements(profile.achievements),
     timelineEnabled: Boolean(profile.timelineEnabled),
     timeline: normalizeTimeline(profile.timeline),
+    layout: normalizeProfileLayout(profile.layout),
     sections: Array.isArray(profile.sections) ? profile.sections : [],
   }
 }
@@ -267,7 +357,7 @@ function ProfileNameLine({
     <span
       className={`block w-full overflow-visible whitespace-nowrap ${alignClass} font-black leading-[0.82] text-gray-950 ${className}`}
       style={{
-        fontSize: `clamp(${minRem}rem, calc(100cqw / ${fitFactor}), ${maxRem}rem)`,
+        fontSize: `min(${maxRem}rem, calc(100cqw / ${fitFactor}))`,
         letterSpacing: 0,
         WebkitTextStroke: '0.018em currentColor',
         textShadow: '0.012em 0 currentColor, -0.006em 0 currentColor',
@@ -304,6 +394,114 @@ function ProfileNameStack({
       <ProfileNameLine value={firstName} maxRem={maxRem} minRem={minRem} align={align} />
       <ProfileNameLine value={lastName} maxRem={maxRem} minRem={minRem} align={align} />
     </h1>
+  )
+}
+
+function EditableProfileNameLine({
+  value,
+  placeholder,
+  maxRem,
+  minRem,
+  align = 'left',
+  className = '',
+  disabled = false,
+  onChange,
+  onBlur,
+}: {
+  value: string
+  placeholder: string
+  maxRem: number
+  minRem: number
+  align?: 'left' | 'right'
+  className?: string
+  disabled?: boolean
+  onChange: (value: string) => void
+  onBlur: () => void
+}) {
+  const displayValue = value || placeholder
+  const fitFactor = Math.max(4, displayValue.length * 0.58)
+  const alignClass = align === 'right' ? 'text-right' : 'text-left'
+
+  return (
+    <input
+      type="text"
+      value={value}
+      placeholder={placeholder}
+      disabled={disabled}
+      onChange={(event) => onChange(event.target.value)}
+      onBlur={onBlur}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') event.currentTarget.blur()
+      }}
+      className={`block w-full overflow-visible whitespace-nowrap border-0 bg-transparent p-0 ${alignClass} font-black leading-[0.82] text-gray-950 outline-none transition-colors placeholder:text-gray-300 focus:text-emerald-700 disabled:cursor-wait disabled:opacity-70 ${className}`}
+      style={{
+        fontSize: `min(${maxRem}rem, calc(100cqw / ${fitFactor}))`,
+        letterSpacing: 0,
+        WebkitTextStroke: '0.018em currentColor',
+        textShadow: '0.012em 0 currentColor, -0.006em 0 currentColor',
+      }}
+      aria-label={placeholder}
+    />
+  )
+}
+
+function EditableProfileNameStack({
+  firstName,
+  lastName,
+  maxRem,
+  minRem,
+  align = 'left',
+  className = '',
+  disabled = false,
+  onFirstNameChange,
+  onLastNameChange,
+  onFirstNameBlur,
+  onLastNameBlur,
+  showLastName = true,
+}: {
+  firstName: string
+  lastName: string
+  maxRem: number
+  minRem: number
+  align?: 'left' | 'right'
+  className?: string
+  disabled?: boolean
+  onFirstNameChange: (value: string) => void
+  onLastNameChange: (value: string) => void
+  onFirstNameBlur: () => void
+  onLastNameBlur: () => void
+  showLastName?: boolean
+}) {
+  const alignClass = align === 'right' ? 'text-right' : 'text-left'
+
+  return (
+    <div
+      className={`min-w-0 ${alignClass} ${className}`}
+      style={{ containerType: 'inline-size' }}
+    >
+      <EditableProfileNameLine
+        value={firstName}
+        placeholder="First name"
+        maxRem={maxRem}
+        minRem={minRem}
+        align={align}
+        disabled={disabled}
+        onChange={onFirstNameChange}
+        onBlur={onFirstNameBlur}
+      />
+      {showLastName ? (
+        <EditableProfileNameLine
+          value={lastName}
+          placeholder="Last name"
+          maxRem={maxRem}
+          minRem={minRem}
+          align={align}
+          disabled={disabled}
+          onChange={onLastNameChange}
+          onBlur={onLastNameBlur}
+        />
+      ) : null}
+    </div>
   )
 }
 
@@ -835,6 +1033,292 @@ function TimelineOverviewSection({
   )
 }
 
+function EmptyWidgetPreview({ type }: { type: ProfileWidgetType }) {
+  const config = PROFILE_WIDGET_CONFIG[type]
+  const Icon = config.icon
+  return (
+    <div className="rounded-lg border border-dashed border-gray-300 bg-white p-5">
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-md bg-gray-100 text-gray-500">
+          <Icon className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-gray-500">{config.label}</p>
+          <div className="mt-2 h-3 w-1/2 rounded-full bg-gray-100" />
+        </div>
+      </div>
+      <div className="mt-5 grid gap-2">
+        <div className="h-4 w-3/4 rounded-full bg-gray-100" />
+        <div className="h-4 w-full rounded-full bg-gray-100" />
+        <div className="h-4 w-2/3 rounded-full bg-gray-100" />
+      </div>
+    </div>
+  )
+}
+
+function CustomProfileSectionView({
+  section,
+  canEdit = false,
+  onChange,
+  onBlur,
+}: {
+  section?: ProfileCustomSection
+  canEdit?: boolean
+  onChange?(patch: Partial<ProfileCustomSection>): void
+  onBlur?(): void
+}) {
+  if (!section) return null
+  if (section.type === 'title') {
+    return (
+      <section className="px-4 py-6 sm:px-0">
+        {canEdit ? (
+          <input
+            value={section.title || ''}
+            onChange={(event) => onChange?.({ title: event.target.value })}
+            onBlur={onBlur}
+            placeholder="Untitled section"
+            className="w-full select-none border-0 bg-transparent p-0 text-3xl font-black leading-tight text-gray-950 outline-none placeholder:text-gray-300 focus:select-text"
+          />
+        ) : (
+          <h2 className="select-none text-3xl font-black leading-tight text-gray-950">{section.title || 'Untitled section'}</h2>
+        )}
+      </section>
+    )
+  }
+  if (section.type === 'text') {
+    return (
+      <section className="px-4 py-6 sm:px-0">
+        {canEdit ? (
+          <>
+            <input
+              value={section.title || ''}
+              onChange={(event) => onChange?.({ title: event.target.value })}
+              onBlur={onBlur}
+              placeholder="Section title"
+              className="mb-3 w-full select-none border-0 bg-transparent p-0 text-2xl font-semibold text-gray-950 outline-none placeholder:text-gray-300 focus:select-text"
+            />
+            <Textarea
+              value={section.body || ''}
+              onChange={(event) => onChange?.({ body: event.target.value })}
+              onBlur={onBlur}
+              placeholder="Empty text section"
+              rows={1}
+              className="min-h-[1.75rem] select-none resize-y border-0 bg-transparent px-0 py-0 text-base leading-7 text-gray-800 shadow-none outline-none placeholder:text-gray-400 focus:select-text focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
+          </>
+        ) : (
+          <>
+            {section.title ? <h2 className="mb-3 select-none text-2xl font-semibold text-gray-950">{section.title}</h2> : null}
+            <div className="select-none whitespace-pre-wrap text-base leading-7 text-gray-800">{section.body || 'Empty text section'}</div>
+          </>
+        )}
+      </section>
+    )
+  }
+  if (section.type === 'link') {
+    const href = normalizeSocialInput('website', section.url || '')
+    return (
+      <section className="px-4 py-6 sm:px-0">
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 bg-white p-5 text-gray-950 shadow-sm">
+          <div>
+            {canEdit ? (
+              <>
+                <input
+                  value={section.title || ''}
+                  onChange={(event) => onChange?.({ title: event.target.value })}
+                  onBlur={onBlur}
+                  placeholder="Untitled link"
+                  className="w-full select-none border-0 bg-transparent p-0 text-lg font-semibold text-gray-950 outline-none placeholder:text-gray-300 focus:select-text"
+                />
+                <input
+                  value={section.url || ''}
+                  onChange={(event) => onChange?.({ url: event.target.value })}
+                  onBlur={onBlur}
+                  placeholder="No URL yet"
+                  className="mt-1 w-full select-none border-0 bg-transparent p-0 text-sm text-gray-500 outline-none placeholder:text-gray-300 focus:select-text"
+                />
+              </>
+            ) : (
+              <a href={href || '#'} target="_blank" rel="noopener noreferrer">
+                <p className="select-none text-lg font-semibold">{section.title || 'Untitled link'}</p>
+                <p className="mt-1 select-none text-sm text-gray-500">{section.url || 'No URL yet'}</p>
+              </a>
+            )}
+          </div>
+          <Link2 className="h-5 w-5 text-gray-400" />
+        </div>
+      </section>
+    )
+  }
+  if (section.type === 'media') {
+    return (
+      <section className="px-4 py-6 sm:px-0">
+        {canEdit ? (
+          <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+            <input
+              value={section.title || ''}
+              onChange={(event) => onChange?.({ title: event.target.value })}
+              onBlur={onBlur}
+              placeholder="Media title"
+              className="mb-3 w-full select-none border-0 bg-transparent p-0 text-lg font-semibold text-gray-950 outline-none placeholder:text-gray-300 focus:select-text"
+            />
+            <input
+              value={section.mediaUrl || ''}
+              onChange={(event) => onChange?.({ mediaUrl: event.target.value })}
+              onBlur={onBlur}
+              placeholder="Image or media URL"
+              className="w-full select-none border-0 bg-transparent p-0 text-sm text-gray-500 outline-none placeholder:text-gray-300 focus:select-text"
+            />
+          </div>
+        ) : section.mediaUrl ? (
+          <img src={section.mediaUrl} alt={section.title || ''} className="w-full rounded-lg object-cover" />
+        ) : (
+          <EmptyWidgetPreview type="media" />
+        )}
+      </section>
+    )
+  }
+  return null
+}
+
+function ReorderProfileSectionItem({
+  item,
+  children,
+  canDrag,
+  onNativeDragOver,
+  onRemove,
+  onDragEnd,
+}: {
+  item: ProfileLayoutItem
+  children: React.ReactNode
+  canDrag: boolean
+  onNativeDragOver(event: React.DragEvent<HTMLDivElement>): void
+  onRemove(item: ProfileLayoutItem): void
+  onDragEnd(event: MouseEvent | TouchEvent | PointerEvent): void
+}) {
+  const controls = useDragControls()
+
+  const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!canDrag) return
+    const target = event.target as HTMLElement | null
+    const isHandle = Boolean(target?.closest('[data-profile-drag-handle="true"]'))
+    const isInteractive = Boolean(target?.closest('input, textarea, button, a, select, label, [contenteditable="true"]'))
+    if (isInteractive && !isHandle) return
+    controls.start(event)
+  }
+
+  return (
+    <Reorder.Item
+      as="div"
+      value={item}
+      dragListener={false}
+      dragControls={controls}
+      onPointerDown={startDrag}
+      onDragOver={onNativeDragOver}
+      onDragEnd={onDragEnd}
+      className={`group relative grid grid-cols-[1.75rem_minmax(0,1fr)] gap-2 rounded-xl p-4 list-none select-none ${canDrag ? 'cursor-grab active:cursor-grabbing' : ''}`}
+      whileDrag={{
+        scale: 1.01,
+        zIndex: 30,
+        backgroundColor: '#ffffff',
+        boxShadow: '0 24px 70px rgba(15, 23, 42, 0.22), 0 8px 24px rgba(15, 23, 42, 0.12)',
+      }}
+      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+    >
+      <div className="flex justify-center pt-6">
+        {canDrag ? (
+          <div className="flex flex-col items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+            <button
+              type="button"
+              data-profile-drag-handle="true"
+              className="flex h-6 w-6 touch-none items-center justify-center text-gray-300 transition-colors hover:text-gray-600 focus:outline-none"
+              aria-label="Drag section"
+            >
+              <GripVertical className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onRemove(item)}
+              className="flex h-6 w-6 items-center justify-center text-gray-300 transition-colors hover:text-red-500 focus:outline-none"
+              aria-label="Delete section"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        ) : null}
+      </div>
+      <div className="min-w-0">
+        {children}
+      </div>
+    </Reorder.Item>
+  )
+}
+
+function ProfileAddTray({
+  open,
+  usedUniqueTypes,
+  onToggle,
+  onAdd,
+  onDragStart,
+  onDragEnd,
+}: {
+  open: boolean
+  usedUniqueTypes: Set<ProfileWidgetType>
+  onToggle(): void
+  onAdd(type: ProfileWidgetType): void
+  onDragStart(type: ProfileWidgetType, event: React.DragEvent<HTMLButtonElement>): void
+  onDragEnd(): void
+}) {
+  const widgetTypes = Object.keys(PROFILE_WIDGET_CONFIG) as ProfileWidgetType[]
+  return (
+    <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-3">
+      <AnimatePresence>
+        {open ? (
+          <motion.div
+            key="tray"
+            initial={{ opacity: 0, y: 12, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.96 }}
+            className="w-[min(92vw,420px)] rounded-lg border border-gray-200 bg-white p-3 shadow-xl"
+          >
+            <div className="grid grid-cols-3 gap-2">
+              {widgetTypes.map((type) => {
+                const config = PROFILE_WIDGET_CONFIG[type]
+                const Icon = config.icon
+                const disabled = config.unique && usedUniqueTypes.has(type)
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    draggable={!disabled}
+                    disabled={disabled}
+                    onClick={() => onAdd(type)}
+                    onDragStart={(event) => onDragStart(type, event)}
+                    onDragEnd={onDragEnd}
+                    className="flex aspect-square flex-col items-center justify-center gap-2 rounded-md border border-gray-200 bg-white p-2 text-gray-800 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                  >
+                    <Icon className="h-5 w-5" />
+                    <span className="text-xs font-semibold">{config.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+      <motion.button
+        type="button"
+        whileTap={{ scale: 0.94 }}
+        onClick={onToggle}
+        className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-950 text-white shadow-xl transition-colors hover:bg-black"
+        aria-label="Add profile section"
+      >
+        <Plus className={`h-6 w-6 transition-transform ${open ? 'rotate-45' : ''}`} />
+      </motion.button>
+    </div>
+  )
+}
+
 function ProfilePageClient({
   initialUser,
   orgslug,
@@ -845,6 +1329,11 @@ function ProfilePageClient({
 }: ProfilePageClientProps) {
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
+  const bioTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const draftProfileRef = useRef<ProfileShape>(normalizeProfile(initialUser.profile))
+  const pendingReorderProfileRef = useRef<ProfileShape | null>(null)
+  const trayDraftItemRef = useRef<ProfileLayoutItem | null>(null)
+  const trayDraftDroppedRef = useRef(false)
   const [user, setUser] = useState(initialUser)
   const [draft, setDraft] = useState(() => ({
     first_name: initialUser.first_name || '',
@@ -856,9 +1345,10 @@ function ProfilePageClient({
   const [isSaving, setIsSaving] = useState(false)
   const [uploading, setUploading] = useState<'avatar' | null>(null)
   const [bioExpanded, setBioExpanded] = useState(false)
-  const [bioEditing, setBioEditing] = useState(false)
   const [socialsExpanded, setSocialsExpanded] = useState(false)
   const [portfolioEditing, setPortfolioEditing] = useState(false)
+  const [addTrayOpen, setAddTrayOpen] = useState(false)
+  const [trayDraftItem, setTrayDraftItem] = useState<ProfileLayoutItem | null>(null)
   const activeTab = initialTab
 
   const isOwnerMode = mode === 'owner'
@@ -867,11 +1357,17 @@ function ProfilePageClient({
   const effectiveEditMode = false
   const profile = normalizeProfile(user.profile)
   const headerProfile = canManageProfile ? draft.profile : profile
+  const contentProfile = canManageProfile ? draft.profile : profile
   const header = headerProfile.header || {}
   const featured = (portfolioEditing ? draft.profile.featured : profile.featured) || normalizeFeatured(null)
   const achievements = profile.achievements || normalizeAchievements(null)
   const timelineEnabled = profile.timelineEnabled ?? false
   const timelinePublicVisible = profile.timelinePublicVisible !== false
+  const layout = contentProfile.layout || DEFAULT_PROFILE_LAYOUT
+  const usedUniqueTypes = useMemo(
+    () => new Set(layout.filter((item) => UNIQUE_PROFILE_WIDGETS.includes(item.type)).map((item) => item.type)),
+    [layout]
+  )
   const socials = useMemo(() => header.socials ?? [], [header.socials])
   const avatarUrl = user.avatar_image
     ? getUserAvatarMediaDirectory(user.user_uuid, user.avatar_image)
@@ -902,6 +1398,17 @@ function ProfilePageClient({
     document.addEventListener('pointerdown', handlePointerDown)
     return () => document.removeEventListener('pointerdown', handlePointerDown)
   }, [socialsExpanded])
+
+  useEffect(() => {
+    const textarea = bioTextareaRef.current
+    if (!textarea || !canManageProfile) return
+    textarea.style.height = 'auto'
+    textarea.style.height = `${textarea.scrollHeight}px`
+  }, [draft.bio, canManageProfile])
+
+  useEffect(() => {
+    draftProfileRef.current = draft.profile
+  }, [draft.profile])
 
   const updateDraftProfile = (updater: React.SetStateAction<ProfileShape>) => {
     setDraft((current) => ({
@@ -998,13 +1505,19 @@ function ProfilePageClient({
   const persistProfile = async ({
     profileOverride,
     bioOverride,
+    firstNameOverride,
+    lastNameOverride,
   }: {
     profileOverride?: ProfileShape
     bioOverride?: string
+    firstNameOverride?: string
+    lastNameOverride?: string
   } = {}) => {
     if (!accessToken) return false
     const nextProfile = profileOverride || draft.profile
     const nextBio = bioOverride ?? draft.bio
+    const nextFirstName = firstNameOverride ?? draft.first_name
+    const nextLastName = lastNameOverride ?? draft.last_name
     const nextSocials = nextProfile.header?.socials || []
 
     const invalidSocial = nextSocials.find((social) => social.url && !isValidSocialUrl(social.type, social.url))
@@ -1018,8 +1531,8 @@ function ProfilePageClient({
     try {
       const payload = {
         ...user,
-        first_name: draft.first_name,
-        last_name: draft.last_name,
+        first_name: nextFirstName,
+        last_name: nextLastName,
         username: user.username,
         bio: nextBio,
         profile: nextProfile,
@@ -1027,6 +1540,14 @@ function ProfilePageClient({
       const res = await updateProfile(payload, user.id, accessToken)
       if (!res.success) throw new Error(res.HTTPmessage)
       setUser(res.data)
+      setDraft((current) => ({
+        ...current,
+        first_name: res.data.first_name || '',
+        last_name: res.data.last_name || '',
+        username: res.data.username || current.username,
+        bio: res.data.bio || '',
+        profile: normalizeProfile(res.data.profile),
+      }))
       await session?.update?.(true)
       toast.success('Profile saved', { id: loadingToast })
       return true
@@ -1042,14 +1563,28 @@ function ProfilePageClient({
     return persistProfile()
   }
 
-  const cancelBioEdit = () => {
-    setDraft((current) => ({ ...current, bio: user.bio || '' }))
-    setBioEditing(false)
+  const saveNameField = async (field: 'first_name' | 'last_name') => {
+    const nextFirstName = field === 'first_name' ? draft.first_name.trim() : draft.first_name
+    const nextLastName = field === 'last_name' ? draft.last_name.trim() : draft.last_name
+    const currentFirstName = user.first_name || ''
+    const currentLastName = user.last_name || ''
+
+    if (nextFirstName === currentFirstName && nextLastName === currentLastName) return
+
+    setDraft((current) => ({
+      ...current,
+      first_name: nextFirstName,
+      last_name: nextLastName,
+    }))
+    await persistProfile({
+      firstNameOverride: nextFirstName,
+      lastNameOverride: nextLastName,
+    })
   }
 
-  const saveBioEdit = async () => {
-    const saved = await persistProfile({ bioOverride: draft.bio })
-    if (saved) setBioEditing(false)
+  const saveBioField = async () => {
+    if ((draft.bio || '') === (user.bio || '')) return
+    await persistProfile({ bioOverride: draft.bio })
   }
 
   const cancelPortfolioEdit = () => {
@@ -1063,6 +1598,238 @@ function ProfilePageClient({
   const savePortfolioEdit = async () => {
     const saved = await handleSave(getUriWithOrg(orgslug, routePaths.org.profile()))
     if (saved) setPortfolioEditing(false)
+  }
+
+  const commitProfileLayout = (nextProfile: ProfileShape) => {
+    draftProfileRef.current = nextProfile
+    updateDraftProfile(nextProfile)
+    void persistProfile({ profileOverride: nextProfile })
+  }
+
+  const addProfileSection = (type: ProfileWidgetType) => {
+    if (PROFILE_WIDGET_CONFIG[type].unique && layout.some((item) => item.type === type)) return
+    const item = createProfileLayoutItem(type)
+    const section = createProfileSection(item)
+    const nextProfile = {
+      ...draft.profile,
+      layout: [...layout, item],
+      sections: section
+        ? [...(draft.profile.sections || []), section]
+        : (draft.profile.sections || []),
+    }
+    commitProfileLayout(nextProfile)
+    setAddTrayOpen(false)
+  }
+
+  const startTrayDrag = (type: ProfileWidgetType, event: React.DragEvent<HTMLButtonElement>) => {
+    if (PROFILE_WIDGET_CONFIG[type].unique && layout.some((item) => item.type === type)) return
+    const item = createProfileLayoutItem(type)
+    const nextProfile = {
+      ...draftProfileRef.current,
+      layout: [...(draftProfileRef.current.layout || DEFAULT_PROFILE_LAYOUT), item],
+    }
+
+    event.dataTransfer.effectAllowed = 'copy'
+    event.dataTransfer.setData('text/plain', item.id)
+    trayDraftItemRef.current = item
+    trayDraftDroppedRef.current = false
+    setTrayDraftItem(item)
+    setAddTrayOpen(false)
+    draftProfileRef.current = nextProfile
+    updateDraftProfile(nextProfile)
+  }
+
+  const moveTrayDraft = (targetIndex: number) => {
+    const item = trayDraftItemRef.current
+    if (!item) return
+    const currentLayout = draftProfileRef.current.layout || DEFAULT_PROFILE_LAYOUT
+    const nextLayout = moveProfileLayoutItem(currentLayout, item.id, targetIndex)
+    if (nextLayout === currentLayout) return
+
+    const nextProfile = {
+      ...draftProfileRef.current,
+      layout: nextLayout,
+    }
+    draftProfileRef.current = nextProfile
+    updateDraftProfile(nextProfile)
+  }
+
+  const moveTrayDraftAroundItem = (
+    targetItem: ProfileLayoutItem,
+    targetIndex: number,
+    position: 'before' | 'after'
+  ) => {
+    const item = trayDraftItemRef.current
+    if (!item || item.id === targetItem.id) return
+    const currentLayout = draftProfileRef.current.layout || DEFAULT_PROFILE_LAYOUT
+    const currentIndex = currentLayout.findIndex((layoutItem) => layoutItem.id === item.id)
+    if (currentIndex === -1) return
+
+    const rawTargetIndex = position === 'before' ? targetIndex : targetIndex + 1
+    const adjustedTargetIndex = rawTargetIndex > currentIndex ? rawTargetIndex - 1 : rawTargetIndex
+    moveTrayDraft(adjustedTargetIndex)
+  }
+
+  const finishTrayDrop = () => {
+    const item = trayDraftItemRef.current
+    if (!item) return
+
+    trayDraftDroppedRef.current = true
+    const section = createProfileSection(item)
+    const nextProfile = {
+      ...draftProfileRef.current,
+      sections: section
+        ? [...(draftProfileRef.current.sections || []), section]
+        : (draftProfileRef.current.sections || []),
+    }
+    trayDraftItemRef.current = null
+    setTrayDraftItem(null)
+    commitProfileLayout(nextProfile)
+  }
+
+  const cancelTrayDrag = () => {
+    const item = trayDraftItemRef.current
+    if (!item) return
+    if (trayDraftDroppedRef.current) {
+      trayDraftDroppedRef.current = false
+      return
+    }
+
+    const nextProfile = {
+      ...draftProfileRef.current,
+      layout: (draftProfileRef.current.layout || DEFAULT_PROFILE_LAYOUT).filter((layoutItem) => layoutItem.id !== item.id),
+    }
+    trayDraftItemRef.current = null
+    setTrayDraftItem(null)
+    draftProfileRef.current = nextProfile
+    updateDraftProfile(nextProfile)
+    setAddTrayOpen(true)
+  }
+
+  const handleLayoutReorder = (nextLayout: ProfileLayoutItem[]) => {
+    const nextProfile = {
+      ...draftProfileRef.current,
+      layout: nextLayout,
+    }
+    draftProfileRef.current = nextProfile
+    pendingReorderProfileRef.current = nextProfile
+    updateDraftProfile(nextProfile)
+  }
+
+  const removeProfileLayoutItem = (item: ProfileLayoutItem) => {
+    const nextProfile = {
+      ...draftProfileRef.current,
+      layout: (draftProfileRef.current.layout || DEFAULT_PROFILE_LAYOUT).filter((layoutItem) => layoutItem.id !== item.id),
+      sections: (draftProfileRef.current.sections || []).filter((section) => section.id !== item.id),
+    }
+    pendingReorderProfileRef.current = null
+    commitProfileLayout(nextProfile)
+  }
+
+  const finishReorderDrag = () => {
+    const nextProfile = pendingReorderProfileRef.current
+    pendingReorderProfileRef.current = null
+    void persistProfile(nextProfile ? { profileOverride: nextProfile } : undefined)
+  }
+
+  const updateCustomSection = (sectionId: string, patch: Partial<ProfileCustomSection>) => {
+    updateDraftProfile((current) => ({
+      ...current,
+      sections: (current.sections || []).map((section) =>
+        section.id === sectionId ? { ...section, ...patch } : section
+      ),
+    }))
+  }
+
+  const saveCustomSections = () => {
+    void persistProfile()
+  }
+
+  const renderProfileLayoutSection = (item: ProfileLayoutItem) => {
+    if (trayDraftItem?.id === item.id) return <EmptyWidgetPreview type={item.type} />
+    if (item.type === 'timeline') {
+      if (!canManageProfile && (!timelineEnabled || !timelinePublicVisible)) return null
+      return (
+        <TimelineOverviewSection
+          timeline={profile.timeline || []}
+          href={timelineHref}
+          canManage={canManageProfile}
+        />
+      )
+    }
+    if (item.type === 'portfolio') {
+      return (
+        <FeaturedCarousel
+          featured={featured}
+          editMode={portfolioEditing}
+          accessToken={accessToken}
+          userId={user.id}
+          userUuid={user.user_uuid}
+          orgslug={orgslug}
+          authorName={getPortfolioAuthorName(user)}
+          updatedAtFallback={user.update_date}
+          profileUsername={profileUsername || user.username}
+          ownerView={canManageProfile}
+          publicVisible={isPublicMode || portfolioEditing ? featured.publicVisible : true}
+          actions={canManageProfile ? (
+            <div className="flex items-center gap-2">
+              {portfolioEditing ? (
+                <>
+                  <Button type="button" variant="outline" size="icon" onClick={cancelPortfolioEdit} aria-label="Cancel portfolio edits">
+                    <X className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    onClick={savePortfolioEdit}
+                    disabled={isSaving}
+                    aria-label="Save portfolio edits"
+                    className="bg-emerald-500 text-white hover:bg-emerald-600"
+                  >
+                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  </Button>
+                </>
+              ) : (
+                <Button type="button" variant="outline" size="icon" onClick={() => setPortfolioEditing(true)} aria-label="Edit portfolio">
+                  <Edit3 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          ) : null}
+          onChange={updateFeatured}
+          onPublicVisibleChange={(visible) => updateFeatured({ ...featured, publicVisible: visible })}
+        />
+      )
+    }
+    if (item.type === 'achievements') {
+      return (
+        <ProfileAchievementsSection
+          achievements={achievements}
+          orgslug={orgslug}
+          profileUsername={profileUsername}
+          editMode={effectiveEditMode}
+          canEdit={canManageProfile}
+          publicVisible={isPublicMode ? achievements.publicVisible : true}
+          onChange={(nextAchievements) => updateDraftProfile((current) => ({
+            ...current,
+            achievements: nextAchievements,
+          }))}
+          onPublicVisibleChange={(visible) => updateDraftProfile((current) => ({
+            ...current,
+            achievements: { ...achievements, publicVisible: visible },
+          }))}
+        />
+      )
+    }
+    const section = contentProfile.sections?.find((candidate) => candidate.id === item.id)
+    return section ? (
+      <CustomProfileSectionView
+        section={section}
+        canEdit={canManageProfile}
+        onChange={(patch) => updateCustomSection(item.id, patch)}
+        onBlur={saveCustomSections}
+      />
+    ) : <EmptyWidgetPreview type={item.type} />
   }
 
   return (
@@ -1081,20 +1848,14 @@ function ProfilePageClient({
         <section className="relative px-4 py-6 sm:px-0">
           <div className="flex flex-col gap-5 sm:grid sm:grid-cols-2 sm:items-start sm:gap-8">
             <div className="w-full shrink-0 sm:order-2">
-              <ProfileNameStack
-                firstName={user.first_name}
-                maxRem={4.25}
-                minRem={2.25}
-                className="mb-5 sm:hidden"
-              />
               <div className="relative w-full sm:hidden">
                 <ProfileHeaderAvatar
                   size={198}
                   avatarUrl={avatarUrl || getUriWithOrg(orgslug, '/empty_avatar.png')}
                   socials={socials}
                   userId={user.id}
-                  lastName={user.last_name}
-                  showNameCutout
+                  lastName={canManageProfile ? draft.last_name : user.last_name}
+                  showNameCutout={!canManageProfile}
                   fullWidth
                   canEditSocials={canManageProfile}
                   socialsExpanded={socialsExpanded}
@@ -1115,8 +1876,8 @@ function ProfilePageClient({
                   avatarUrl={avatarUrl || getUriWithOrg(orgslug, '/empty_avatar.png')}
                   socials={socials}
                   userId={user.id}
-                  firstName={user.first_name}
-                  lastName={user.last_name}
+                  firstName={canManageProfile ? draft.first_name : user.first_name}
+                  lastName={canManageProfile ? draft.last_name : user.last_name}
                   fullWidth
                   socialScale={AVATAR_SOCIAL_SCALE * 1.5}
                   canEditSocials={canManageProfile}
@@ -1138,26 +1899,66 @@ function ProfilePageClient({
               <div className="min-w-0">
                 <div className="flex min-w-0 items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <ProfileNameStack
-                      firstName={user.first_name}
-                      lastName={user.last_name}
-                      maxRem={8.5}
-                      minRem={3.5}
-                      align="right"
-                      className="hidden sm:block"
-                    />
+                    {canManageProfile ? (
+                      <>
+                        <EditableProfileNameStack
+                          firstName={draft.first_name}
+                          lastName={draft.last_name}
+                          maxRem={4.25}
+                          minRem={2.25}
+                          className="sm:hidden"
+                          onFirstNameChange={(value) => setDraft((current) => ({ ...current, first_name: value }))}
+                          onLastNameChange={(value) => setDraft((current) => ({ ...current, last_name: value }))}
+                          onFirstNameBlur={() => void saveNameField('first_name')}
+                          onLastNameBlur={() => void saveNameField('last_name')}
+                        />
+                        <EditableProfileNameStack
+                          firstName={draft.first_name}
+                          lastName={draft.last_name}
+                          maxRem={8.5}
+                          minRem={3.5}
+                          align="right"
+                          className="hidden sm:block"
+                          onFirstNameChange={(value) => setDraft((current) => ({ ...current, first_name: value }))}
+                          onLastNameChange={(value) => setDraft((current) => ({ ...current, last_name: value }))}
+                          onFirstNameBlur={() => void saveNameField('first_name')}
+                          onLastNameBlur={() => void saveNameField('last_name')}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <ProfileNameStack
+                          firstName={user.first_name}
+                          lastName={user.last_name}
+                          maxRem={4.25}
+                          minRem={2.25}
+                          className="sm:hidden"
+                        />
+                        <ProfileNameStack
+                          firstName={user.first_name}
+                          lastName={user.last_name}
+                          maxRem={8.5}
+                          minRem={3.5}
+                          align="right"
+                          className="hidden sm:block"
+                        />
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
 
               <div className="group relative max-w-2xl sm:ml-auto sm:w-3/4 sm:max-w-none">
-                {bioEditing ? (
+                {canManageProfile ? (
                   <Textarea
+                    ref={bioTextareaRef}
                     value={draft.bio}
                     onChange={(event) => setDraft((current) => ({ ...current, bio: event.target.value }))}
                     onFocus={() => setSocialsExpanded(false)}
+                    onBlur={() => void saveBioField()}
                     placeholder="Write a short profile"
-                    className="min-h-40 pr-20"
+                    rows={1}
+                    className="min-h-[1.75rem] resize-none overflow-hidden border-0 bg-transparent px-0 py-0 text-base leading-7 text-gray-700 shadow-none outline-none ring-0 transition-colors placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 sm:text-right"
                     maxLength={400}
                   />
                 ) : user.bio ? (
@@ -1180,24 +1981,6 @@ function ProfilePageClient({
                 ) : (
                   <p className="pr-12 text-base leading-7 text-gray-400">Add a short profile bio.</p>
                 )}
-                {canManageProfile ? (
-                  <div className="absolute right-0 top-0 flex items-center gap-1">
-                    {bioEditing ? (
-                      <>
-                        <Button type="button" variant="outline" size="icon" onClick={cancelBioEdit} aria-label="Cancel bio edit" className="h-8 w-8">
-                          <X className="h-4 w-4" />
-                        </Button>
-                        <Button type="button" size="icon" onClick={saveBioEdit} disabled={isSaving} aria-label="Save bio" className="h-8 w-8 bg-emerald-500 text-white hover:bg-emerald-600">
-                          {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                        </Button>
-                      </>
-                    ) : (
-                      <Button type="button" variant="outline" size="icon" onClick={() => setBioEditing(true)} aria-label="Edit bio" className="h-8 w-8">
-                        <Edit3 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                ) : null}
               </div>
               {(canManageProfile || isPublicMode) ? (
                 <div className="border-t border-gray-200 pt-3 sm:ml-auto sm:w-3/4">
@@ -1239,71 +2022,48 @@ function ProfilePageClient({
           </div>
         </section>
         {activeTab === 'overview' ? (
-          <>
-            {(canManageProfile || (timelineEnabled && timelinePublicVisible)) ? (
-              <TimelineOverviewSection
-                timeline={profile.timeline || []}
-                href={timelineHref}
-                canManage={canManageProfile}
-              />
-            ) : null}
-            <FeaturedCarousel
-              featured={featured}
-              editMode={portfolioEditing}
-              accessToken={accessToken}
-              userId={user.id}
-              userUuid={user.user_uuid}
-              orgslug={orgslug}
-              authorName={getPortfolioAuthorName(user)}
-              updatedAtFallback={user.update_date}
-              profileUsername={profileUsername || user.username}
-              ownerView={canManageProfile}
-              publicVisible={isPublicMode || portfolioEditing ? featured.publicVisible : true}
-              actions={canManageProfile ? (
-                <div className="flex items-center gap-2">
-                  {portfolioEditing ? (
-                    <>
-                      <Button type="button" variant="outline" size="icon" onClick={cancelPortfolioEdit} aria-label="Cancel portfolio edits">
-                        <X className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        size="icon"
-                        onClick={savePortfolioEdit}
-                        disabled={isSaving}
-                        aria-label="Save portfolio edits"
-                        className="bg-emerald-500 text-white hover:bg-emerald-600"
-                      >
-                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                      </Button>
-                    </>
-                  ) : (
-                    <Button type="button" variant="outline" size="icon" onClick={() => setPortfolioEditing(true)} aria-label="Edit portfolio">
-                      <Edit3 className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ) : null}
-              onChange={updateFeatured}
-              onPublicVisibleChange={(visible) => updateFeatured({ ...featured, publicVisible: visible })}
-            />
-            <ProfileAchievementsSection
-              achievements={achievements}
-              orgslug={orgslug}
-              profileUsername={profileUsername}
-              editMode={effectiveEditMode}
-              canEdit={canManageProfile}
-              publicVisible={isPublicMode ? achievements.publicVisible : true}
-              onChange={(nextAchievements) => updateDraftProfile((current) => ({
-                ...current,
-                achievements: nextAchievements,
-              }))}
-              onPublicVisibleChange={(visible) => updateDraftProfile((current) => ({
-                ...current,
-                achievements: { ...achievements, publicVisible: visible },
-              }))}
-            />
-          </>
+          <Reorder.Group
+            as="div"
+            axis="y"
+            values={layout}
+            onReorder={handleLayoutReorder}
+            layoutScroll
+            onDragOver={(event) => {
+              if (!trayDraftItemRef.current) return
+              event.preventDefault()
+              event.dataTransfer.dropEffect = 'copy'
+              if (event.currentTarget === event.target) moveTrayDraft(layout.length)
+            }}
+            onDrop={(event) => {
+              if (!trayDraftItemRef.current) return
+              event.preventDefault()
+              finishTrayDrop()
+            }}
+          >
+            {layout.map((item, index) => {
+              const rendered = renderProfileLayoutSection(item)
+              if (!rendered) return null
+              return (
+                <ReorderProfileSectionItem
+                  key={item.id}
+                  item={item}
+                  canDrag={canManageProfile}
+                  onNativeDragOver={(event) => {
+                    if (!trayDraftItemRef.current) return
+                    event.preventDefault()
+                    event.dataTransfer.dropEffect = 'copy'
+                    const rect = event.currentTarget.getBoundingClientRect()
+                    const position = event.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
+                    moveTrayDraftAroundItem(item, index, position)
+                  }}
+                  onRemove={removeProfileLayoutItem}
+                  onDragEnd={finishReorderDrag}
+                >
+                  {rendered}
+                </ReorderProfileSectionItem>
+              )
+            })}
+          </Reorder.Group>
         ) : null}
         {activeTab === 'timeline' ? (
           <ProfileTimeline
@@ -1324,6 +2084,16 @@ function ProfilePageClient({
           />
         ) : null}
       </div>
+      {canManageProfile && activeTab === 'overview' ? (
+        <ProfileAddTray
+          open={addTrayOpen}
+          usedUniqueTypes={usedUniqueTypes}
+          onToggle={() => setAddTrayOpen((current) => !current)}
+          onAdd={addProfileSection}
+          onDragStart={startTrayDrag}
+          onDragEnd={cancelTrayDrag}
+        />
+      ) : null}
     </main>
   )
 }
