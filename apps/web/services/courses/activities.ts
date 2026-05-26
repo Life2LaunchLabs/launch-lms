@@ -2,8 +2,14 @@ import { getAPIUrl } from '@services/config/config'
 import {
   RequestBodyFormWithAuthHeader,
   RequestBodyWithAuthHeader,
+  errorHandling,
   getResponseMetadata,
 } from '@services/utils/ts/requests'
+
+function normalizeActivityUuid(activity_uuid: any): string {
+  const value = String(activity_uuid || '')
+  return value.startsWith('activity_') ? value : `activity_${value}`
+}
 
 export async function createActivity(
   data: any,
@@ -141,10 +147,10 @@ export async function getActivityWithAuthHeader(
   access_token: string | null | undefined
 ) {
   const result = await fetch(
-    `${getAPIUrl()}activities/activity_${activity_uuid}`,
+    `${getAPIUrl()}activities/${normalizeActivityUuid(activity_uuid)}`,
     RequestBodyWithAuthHeader('GET', null, next, access_token || undefined)
   )
-  const res = await result.json()
+  const res = await errorHandling(result)
   return res
 }
 
