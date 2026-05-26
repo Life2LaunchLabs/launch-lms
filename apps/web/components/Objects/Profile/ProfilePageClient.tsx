@@ -23,6 +23,7 @@ import {
   Share2,
   Text,
   Trash2,
+  Youtube,
   X,
 } from 'lucide-react'
 import { AnimatePresence, motion, Reorder, useDragControls } from 'motion/react'
@@ -50,7 +51,7 @@ import { getUserAvatarMediaDirectory } from '@services/media/media'
 import { updateProfile } from '@services/settings/profile'
 import { updateUserAvatar } from '@services/users/users'
 
-type SocialType = 'website' | 'linkedin' | 'instagram' | 'x'
+type SocialType = 'website' | 'linkedin' | 'instagram' | 'youtube' | 'x'
 
 type SocialLink = {
   type: SocialType
@@ -62,7 +63,7 @@ type ProfileHeader = {
   socials?: SocialLink[]
 }
 
-type ProfileWidgetType = 'timeline' | 'portfolio' | 'achievements' | 'title' | 'text' | 'link' | 'media'
+type ProfileWidgetType = 'timeline' | 'portfolio' | 'achievements' | 'instagramPreview' | 'youtubePreview' | 'title' | 'text' | 'link' | 'media'
 
 type ProfileLayoutItem = {
   id: string
@@ -103,6 +104,13 @@ type OwnerProfilePageClientProps = Omit<ProfilePageClientProps, 'mode' | 'isSelf
 type PublicProfilePageClientProps = Omit<ProfilePageClientProps, 'mode' | 'editMode'>
 type ProfileTab = 'overview' | 'timeline'
 
+type SocialPreviewItem = {
+  id: string
+  title: string
+  url: string
+  thumbnailUrl?: string
+}
+
 const SOCIAL_CONFIG: Record<SocialType, {
   label: string
   placeholder: string
@@ -135,6 +143,14 @@ const SOCIAL_CONFIG: Record<SocialType, {
     inputPrefix: '@',
     inputPlaceholder: 'username',
   },
+  youtube: {
+    label: 'YouTube',
+    placeholder: 'https://youtube.com/@username',
+    icon: Youtube,
+    hostPattern: /(^|\.)youtube\.com$|(^|\.)youtu\.be$/i,
+    inputPrefix: '@',
+    inputPlaceholder: 'username',
+  },
   x: {
     label: 'X',
     placeholder: 'https://x.com/username',
@@ -145,7 +161,7 @@ const SOCIAL_CONFIG: Record<SocialType, {
   },
 }
 
-const UNIQUE_PROFILE_WIDGETS: ProfileWidgetType[] = ['timeline', 'portfolio', 'achievements']
+const UNIQUE_PROFILE_WIDGETS: ProfileWidgetType[] = ['timeline', 'portfolio', 'achievements', 'instagramPreview', 'youtubePreview']
 const DEFAULT_PROFILE_LAYOUT: ProfileLayoutItem[] = [
   { id: 'timeline', type: 'timeline' },
   { id: 'portfolio', type: 'portfolio' },
@@ -160,6 +176,8 @@ const PROFILE_WIDGET_CONFIG: Record<ProfileWidgetType, {
   timeline: { label: 'Timeline', icon: ChevronRight, unique: true },
   portfolio: { label: 'Portfolio', icon: FileText, unique: true },
   achievements: { label: 'Achievements', icon: Award, unique: true },
+  instagramPreview: { label: 'Instagram', icon: Instagram, unique: true },
+  youtubePreview: { label: 'YouTube', icon: Youtube, unique: true },
   title: { label: 'Title', icon: Heading1, unique: false },
   text: { label: 'Text', icon: Text, unique: false },
   link: { label: 'Link', icon: Link2, unique: false },
@@ -274,6 +292,13 @@ function getSocialInputValue(type: SocialType, value: string) {
       return cleanSocialHandle(parts[0] === 'in' ? parts[1] || '' : parts[0] || '')
     }
     if (type === 'instagram' && hostname === 'instagram.com') return cleanSocialHandle(parts[0] || '')
+    if (type === 'youtube' && hostname === 'youtube.com') {
+      const firstPart = parts[0] || ''
+      if (firstPart === 'channel') return cleanSocialHandle(parts[1] || '')
+      if (firstPart === 'c' || firstPart === 'user') return cleanSocialHandle(parts[1] || '')
+      return cleanSocialHandle(firstPart)
+    }
+    if (type === 'youtube' && hostname === 'youtu.be') return cleanSocialHandle(parts[0] || '')
     if (type === 'x' && (hostname === 'x.com' || hostname === 'twitter.com')) return cleanSocialHandle(parts[0] || '')
   } catch {
     // Fall back to lightweight handle parsing below.
@@ -281,6 +306,7 @@ function getSocialInputValue(type: SocialType, value: string) {
 
   if (type === 'website') return trimmed.replace(/^https?:\/\//i, '').replace(/\/$/, '')
   if (type === 'linkedin') return cleanSocialHandle(trimmed.replace(/^(www\.)?linkedin\.com\/in\//i, ''))
+  if (type === 'youtube') return cleanSocialHandle(trimmed.replace(/^(www\.)?(youtube\.com\/(@|channel\/|c\/|user\/)?|youtu\.be\/)/i, ''))
   return cleanSocialHandle(trimmed.replace(/^(www\.)?(instagram\.com|x\.com|twitter\.com)\//i, ''))
 }
 
@@ -290,6 +316,10 @@ function normalizeSocialInput(type: SocialType, value: string) {
   if (type === 'website') return /^https?:\/\//i.test(inputValue) ? inputValue : `https://${inputValue}`
   if (type === 'linkedin') return `https://linkedin.com/in/${inputValue}`
   if (type === 'instagram') return `https://instagram.com/${inputValue}`
+  if (type === 'youtube') {
+    if (/^UC[a-zA-Z0-9_-]{20,}$/.test(inputValue)) return `https://youtube.com/channel/${inputValue}`
+    return `https://youtube.com/@${inputValue.replace(/^@+/, '')}`
+  }
   return `https://x.com/${inputValue}`
 }
 
@@ -301,6 +331,7 @@ function getSocialBubbleStyle(type: SocialType): React.CSSProperties {
         'radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 90%)',
     }
   }
+  if (type === 'youtube') return { backgroundColor: '#FF0033' }
   if (type === 'x') return { backgroundColor: '#000000' }
   return { backgroundColor: '#111827' }
 }
@@ -1033,6 +1064,169 @@ function TimelineOverviewSection({
   )
 }
 
+function SocialPreviewWidget({
+  type,
+  social,
+  canEdit,
+  onChange,
+  onBlur,
+}: {
+  type: Extract<SocialType, 'instagram' | 'youtube'>
+  social?: SocialLink
+  canEdit: boolean
+  onChange(value: string): void
+  onBlur(): void
+}) {
+  const config = SOCIAL_CONFIG[type]
+  const Icon = config.icon
+  const handle = getSocialInputValue(type, social?.url || '')
+  const href = social?.url ? getSocialHref(social) : ''
+  const [items, setItems] = useState<SocialPreviewItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const [loadedHandle, setLoadedHandle] = useState('')
+
+  useEffect(() => {
+    if (!handle) {
+      setItems([])
+      setLoadedHandle('')
+      return
+    }
+
+    let cancelled = false
+    setLoading(true)
+    fetch(`/api/profile/social-previews?site=${type}&handle=${encodeURIComponent(handle)}`)
+      .then(async (response) => {
+        if (!response.ok) return []
+        const data = await response.json()
+        return Array.isArray(data.items) ? data.items.slice(0, 6) : []
+      })
+      .then((nextItems: SocialPreviewItem[]) => {
+        if (cancelled) return
+        setItems(nextItems)
+        setLoadedHandle(handle)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setItems([])
+          setLoadedHandle(handle)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [handle, type])
+
+  const emptyMessage = type === 'instagram'
+    ? 'Public Instagram previews are limited by Instagram. Add a handle here now; previews appear when public page data is available.'
+    : 'Add a YouTube handle to show recent videos.'
+
+  return (
+    <section className="px-4 py-6 sm:px-0">
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white"
+              style={getSocialBubbleStyle(type)}
+            >
+              <Icon className="h-4 w-4" />
+            </span>
+            <h2 className="text-2xl font-semibold text-gray-950">{config.label}</h2>
+          </div>
+          <div className="mt-2 flex min-w-0 items-center gap-1.5 text-sm text-gray-500">
+            <span className="shrink-0">{config.inputPrefix}</span>
+            {canEdit ? (
+              <input
+                value={handle}
+                onChange={(event) => onChange(normalizeSocialInput(type, event.target.value))}
+                onPaste={(event) => {
+                  event.preventDefault()
+                  onChange(normalizeSocialInput(type, event.clipboardData.getData('text')))
+                }}
+                onBlur={onBlur}
+                placeholder={config.inputPlaceholder}
+                className="min-w-0 flex-1 border-0 bg-transparent p-0 font-medium text-gray-700 outline-none placeholder:text-gray-300 focus:text-emerald-700"
+                autoComplete="url"
+              />
+            ) : handle && href ? (
+              <a href={href} target="_blank" rel="noopener noreferrer" className="min-w-0 truncate font-medium text-gray-700 hover:text-gray-950 hover:underline">
+                {handle}
+              </a>
+            ) : (
+              <span className="font-medium text-gray-400">No handle yet</span>
+            )}
+          </div>
+        </div>
+        {href ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-semibold text-gray-500 transition-colors hover:text-gray-950"
+          >
+            Open {config.label}
+          </a>
+        ) : null}
+      </div>
+
+      {handle ? (
+        <div className="-mx-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+          <div className="flex min-w-0 gap-3">
+            {loading && loadedHandle !== handle ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="aspect-square w-32 shrink-0 animate-pulse rounded-lg bg-gray-100 sm:w-36" />
+              ))
+            ) : items.length > 0 ? (
+              items.map((item) => (
+                <a
+                  key={item.id}
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group relative aspect-square w-32 shrink-0 overflow-hidden rounded-lg bg-gray-100 ring-1 ring-gray-200 transition-transform hover:-translate-y-0.5 sm:w-36"
+                  aria-label={item.title || `${config.label} preview`}
+                >
+                  {item.thumbnailUrl ? (
+                    <img src={item.thumbnailUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-gray-400">
+                      <Icon className="h-8 w-8" />
+                    </div>
+                  )}
+                  {type === 'youtube' ? (
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/10 text-white opacity-95">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70">
+                        <Youtube className="h-5 w-5" />
+                      </span>
+                    </span>
+                  ) : null}
+                  {item.title ? (
+                    <span className="absolute inset-x-0 bottom-0 line-clamp-2 bg-gradient-to-t from-black/70 to-transparent px-2 pb-2 pt-8 text-xs font-semibold leading-4 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                      {item.title}
+                    </span>
+                  ) : null}
+                </a>
+              ))
+            ) : (
+              <div className="rounded-lg border border-dashed border-gray-300 bg-white p-5 text-sm leading-6 text-gray-500">
+                {emptyMessage}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-dashed border-gray-300 bg-white p-5 text-sm leading-6 text-gray-500">
+          {emptyMessage}
+        </div>
+      )}
+    </section>
+  )
+}
+
 function EmptyWidgetPreview({ type }: { type: ProfileWidgetType }) {
   const config = PROFILE_WIDGET_CONFIG[type]
   const Icon = config.icon
@@ -1424,9 +1618,11 @@ function ProfilePageClient({
       ...current,
       header: {
         ...(current.header || {}),
-        socials: (current.header?.socials || []).map((social) =>
-          social.type === type ? { ...social, url } : social
-        ),
+        socials: (current.header?.socials || []).some((social) => social.type === type)
+          ? (current.header?.socials || []).map((social) =>
+              social.type === type ? { ...social, url } : social
+            )
+          : [...(current.header?.socials || []), { type, url }],
       },
     }))
   }
@@ -1818,6 +2014,20 @@ function ProfilePageClient({
             ...current,
             achievements: { ...achievements, publicVisible: visible },
           }))}
+        />
+      )
+    }
+    if (item.type === 'instagramPreview' || item.type === 'youtubePreview') {
+      const type = item.type === 'instagramPreview' ? 'instagram' : 'youtube'
+      const social = (contentProfile.header?.socials || []).find((candidate) => candidate.type === type)
+      if (!canManageProfile && !social?.url) return null
+      return (
+        <SocialPreviewWidget
+          type={type}
+          social={social}
+          canEdit={canManageProfile}
+          onChange={(url) => updateSocial(type, url)}
+          onBlur={() => void persistProfile()}
         />
       )
     }
