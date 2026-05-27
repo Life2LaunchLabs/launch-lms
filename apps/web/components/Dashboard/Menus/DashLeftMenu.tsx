@@ -26,7 +26,6 @@ import {
   UserPlus,
   ClipboardText,
   Palette,
-  Rocket,
   Robot,
   LinkSimple,
   Key,
@@ -503,14 +502,6 @@ function DashLeftMenu() {
                       <Link href={routePaths.org.dash.orgSettings.features()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                         <ToggleRight size={16} weight="fill" />
                         <span>{t('dashboard.organization.settings.tabs.features')}</span>
-                      </Link>
-                    </HoverMenuItem>
-                  )}
-                  {isEnterpriseOrMaster && (
-                    <HoverMenuItem asChild>
-                      <Link href={routePaths.org.dash.orgSettings.landing()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                        <Rocket size={16} weight="fill" />
-                        <span>{t('dashboard.organization.settings.tabs.landing')}</span>
                       </Link>
                     </HoverMenuItem>
                   )}

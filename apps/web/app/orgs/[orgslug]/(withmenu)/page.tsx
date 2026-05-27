@@ -1,15 +1,13 @@
 export const dynamic = 'force-dynamic'
 import { Metadata } from 'next'
 import { redirect } from 'next/navigation'
-import { getOrgCourses } from '@services/courses/courses'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
-import { getOrgCollections } from '@services/courses/collections'
 import { getServerSession } from '@/lib/auth/server'
 import { getOrgThumbnailMediaDirectory, getOrgLogoMediaDirectory, getOrgOgImageMediaDirectory } from '@services/media/media'
 import { getCanonicalUrl, getOrgSeoConfig, buildPageTitle } from '@/lib/seo/utils'
 import { JsonLd } from '@components/SEO/JsonLd'
 import LandingClassic from '@components/Landings/LandingClassic'
-import LandingCustom from '@components/Landings/LandingCustom'
+import DashboardActionHero from '@components/Landings/DashboardActionHero'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string }>
@@ -88,37 +86,12 @@ const OrgHomePage = async (params: any) => {
     redirect('/welcome')
   }
 
-  const access_token = session?.tokens?.access_token
   const dashboardDisplayName =
     session?.user?.first_name || session?.user?.username || 'there'
-  const courses = await getOrgCourses(
-    orgslug,
-    { revalidate: 0, tags: ['courses'] },
-    access_token ?? undefined
-  )
   const org = await getOrganizationContextInfo(orgslug, {
     revalidate: 0,
     tags: ['organizations'],
   })
-  const org_id = org.id
-  let collections: any[] = []
-  try {
-    collections = await getOrgCollections(
-      org.id,
-      access_token ?? undefined,
-      { revalidate: 0, tags: ['courses'] }
-    )
-  } catch (error) {
-    console.error('Failed to load collections for org home page', {
-      orgslug,
-      org_id,
-      error,
-    })
-  }
-
-  // Check if custom landing is enabled (v2: customization.landing, v1: landing)
-  const landingConfig = org.config?.config?.customization?.landing || org.config?.config?.landing
-  const hasCustomLanding = landingConfig?.enabled
 
   const logoUrl = org?.logo_image ? getOrgLogoMediaDirectory(org.org_uuid, org.logo_image) : undefined
   const orgJsonLd = {
@@ -133,21 +106,11 @@ const OrgHomePage = async (params: any) => {
   return (
     <div className="w-full">
       <JsonLd data={orgJsonLd} />
-      {hasCustomLanding ? (
-        <LandingCustom
-          landing={landingConfig}
-          orgslug={orgslug}
-          dashboardDisplayName={dashboardDisplayName}
-        />
-      ) : (
-        <LandingClassic 
-          courses={courses}
-          collections={collections}
-          orgslug={orgslug}
-          org_id={org_id}
-          dashboardDisplayName={dashboardDisplayName}
-        />
-      )}
+      <DashboardActionHero
+        displayName={dashboardDisplayName}
+        orgslug={orgslug}
+      />
+      <LandingClassic orgslug={orgslug} />
     </div>
   )
 }

@@ -68,7 +68,7 @@ export default function CoreCoursesProgressSection({
         </div>
       </div>
 
-      <div className={isProfile ? 'grid gap-4' : 'grid grid-cols-1 gap-4 lg:grid-cols-2'}>
+      <div className={isProfile ? 'grid gap-4' : 'grid gap-5'}>
         {isLoading ? (
           (courseUuid ? [1] : [1, 2]).map((item) => (
             <div key={item} className="rounded-xl border border-gray-100 bg-white p-5 nice-shadow">
@@ -85,7 +85,7 @@ export default function CoreCoursesProgressSection({
           const courseHref = getUriWithOrg(orgslug, `/course/${cleanCourseUuid(course.course_uuid)}`)
 
           return (
-            <div key={course.course_uuid} className="rounded-xl border border-gray-100 bg-white p-5 nice-shadow">
+            <section key={course.course_uuid} className="rounded-xl border border-gray-100 bg-white p-5 nice-shadow">
               <div className="mb-4 flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-600">
@@ -133,7 +133,7 @@ export default function CoreCoursesProgressSection({
                   </div>
                 ) : null}
               </div>
-            </div>
+            </section>
           )
         })}
       </div>

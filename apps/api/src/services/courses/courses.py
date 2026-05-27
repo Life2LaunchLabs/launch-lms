@@ -694,8 +694,9 @@ async def get_core_courses_progress(
     current_user: PublicUser,
     db_session: Session,
 ) -> list[dict]:
+    _ = org_slug
     owner_org = _get_owner_org(db_session)
-    if not owner_org or owner_org.slug != org_slug:
+    if not owner_org:
         return []
 
     courses = db_session.exec(
