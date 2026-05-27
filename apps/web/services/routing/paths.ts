@@ -98,6 +98,7 @@ export const routePaths = {
     communityDiscussion: (communityUuid: string, discussionUuid: string) =>
       `/community/${communityUuid}/discussion/${discussionUuid}`,
     user: (username: string) => `/user/${username}`,
+    userResume: (username: string) => `/user/${username}/resume`,
     userPortfolioPost: (username: string, slug: string) => `/user/${username}/portfolio/${slug}`,
     userTimeline: (username: string) => `/user/${username}/timeline`,
     userAchievements: (username: string) => `/user/${username}/achievements`,

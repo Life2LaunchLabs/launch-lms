@@ -27,7 +27,7 @@ function OrgFooter() {
   if (!footerText) return null
 
   return (
-    <footer className="w-full py-8 mt-12">
+    <footer className="w-full py-8 mt-12 print:hidden">
       <div className="flex flex-col items-center justify-center space-y-4">
         <p className="text-sm text-gray-500">{footerText}</p>
       </div>
@@ -48,17 +48,19 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
 
   return (
     <div
-      className="flex flex-col min-h-screen"
+      className="flex flex-col min-h-screen print:min-h-0"
       style={{
         backgroundColor: primaryColor ? hexToRgba(primaryColor, 0.05) : 'transparent'
       }}
     >
       <PageViewTracker />
       <OrgJoinBanner />
-      <div className="flex-1 relative" style={{ zIndex: 'var(--z-content)' }}>
-        <div className="w-full md:flex md:items-start md:px-4 lg:px-5 xl:px-6 2xl:px-8">
-          <OrgMenu orgslug={orgslug} autoContractDesktopNav={false} />
-          <div className="flex-1 min-w-0 pb-28 md:pb-0">
+      <div className="flex-1 relative print:flex-none" style={{ zIndex: 'var(--z-content)' }}>
+        <div className="w-full md:flex md:items-start md:px-4 lg:px-5 xl:px-6 2xl:px-8 print:block print:px-0">
+          <div className="print:hidden">
+            <OrgMenu orgslug={orgslug} autoContractDesktopNav={false} />
+          </div>
+          <div className="flex-1 min-w-0 pb-28 md:pb-0 print:pb-0">
             {children}
           </div>
         </div>

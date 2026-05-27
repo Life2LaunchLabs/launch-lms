@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Copy,
   Edit3,
-  Eye,
   FileText,
   Globe,
   GripVertical,
@@ -2197,9 +2196,9 @@ function ProfilePageClient({
                   <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                     {canManageProfile ? (
                       <Button asChild variant="outline">
-                        <Link href={publicProfileHref}>
-                          <Eye size={16} className="mr-2" />
-                          Public profile
+                        <Link href={resumeHref}>
+                          <FileText size={16} className="mr-2" />
+                          Resume
                         </Link>
                       </Button>
                     ) : null}
@@ -2215,14 +2214,6 @@ function ProfilePageClient({
                           <Copy className="h-4 w-4" />
                           <span>Copy link</span>
                         </DropdownMenuItem>
-                        {canManageProfile ? (
-                          <DropdownMenuItem asChild>
-                            <Link href={resumeHref}>
-                              <FileText className="h-4 w-4" />
-                              <span>Resume</span>
-                            </Link>
-                          </DropdownMenuItem>
-                        ) : null}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
