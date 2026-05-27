@@ -59,7 +59,8 @@ function getDefaultCorrectVector(): ScoringVector {
 }
 
 function getActiveScoringVectors(details: any): ScoringVector[] {
-  const quizMode = details?.quiz_mode === 'graded' ? 'graded' : 'categories'
+  const quizMode = details?.quiz_mode === 'graded' ? 'graded' : details?.quiz_mode === 'ungraded' ? 'ungraded' : 'categories'
+  if (quizMode === 'ungraded') return []
   if (quizMode === 'graded') {
     const gradedVectors = details?.graded_scoring_vectors || details?.scoring_vectors || []
     return gradedVectors.length > 0 ? gradedVectors : [getDefaultCorrectVector()]
@@ -68,14 +69,14 @@ function getActiveScoringVectors(details: any): ScoringVector[] {
 }
 
 function getScoringPayload(
-  quizMode: 'categories' | 'graded',
+  quizMode: 'categories' | 'graded' | 'ungraded',
   vectors: ScoringVector[],
   optionScores: Record<string, Record<string, number>>,
   categoryVectors: ScoringVector[],
   gradedVectors: ScoringVector[]
 ) {
   return {
-    scoring_vectors: vectors,
+    scoring_vectors: quizMode === 'ungraded' ? [] : vectors,
     category_scoring_vectors: quizMode === 'categories' ? vectors : categoryVectors,
     graded_scoring_vectors: quizMode === 'graded' ? vectors : gradedVectors,
     option_scores: optionScores,
@@ -387,7 +388,9 @@ function QuizSelectBlockComponent(props: any) {
   const [showResponses, setShowResponses] = useState<boolean>(attrs.show_responses || false)
   const [activeTab, setActiveTab] = useState<Tab>('question')
   const [uploadingMap, setUploadingMap] = useState<Record<string, boolean>>({})
-  const [quizMode, setQuizMode] = useState<'categories' | 'graded'>(activity?.details?.quiz_mode === 'graded' ? 'graded' : 'categories')
+  const [quizMode, setQuizMode] = useState<'categories' | 'graded' | 'ungraded'>(
+    activity?.details?.quiz_mode === 'graded' || activity?.details?.quiz_mode === 'ungraded' ? activity.details.quiz_mode : 'categories'
+  )
 
   const [optionScores, setOptionScores] = useState<Record<string, Record<string, number>>>(activity?.details?.option_scores || {})
   const [vectors, setVectors] = useState<ScoringVector[]>(getActiveScoringVectors(activity?.details))
@@ -399,7 +402,7 @@ function QuizSelectBlockComponent(props: any) {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail
       if (detail?.vectors) setVectors(detail.vectors)
-      if (detail?.quizMode === 'graded' || detail?.quizMode === 'categories') setQuizMode(detail.quizMode)
+      if (detail?.quizMode === 'graded' || detail?.quizMode === 'categories' || detail?.quizMode === 'ungraded') setQuizMode(detail.quizMode)
       if (detail?.categoryVectors) setCategoryVectors(detail.categoryVectors)
       if (detail?.gradedVectors) setGradedVectors(detail.gradedVectors)
       if (detail?.optionScores) setOptionScores(detail.optionScores)
@@ -410,7 +413,8 @@ function QuizSelectBlockComponent(props: any) {
 
   useEffect(() => {
     if (!showResponses && activeTab === 'response') setActiveTab('question')
-  }, [showResponses, activeTab])
+    if (quizMode === 'ungraded' && activeTab === 'scoring') setActiveTab('question')
+  }, [showResponses, activeTab, quizMode])
 
   const saveAttrs = useCallback((
     newOptions: QuizOption[], newCount: number, newText: string, newShowResponses: boolean,
@@ -611,6 +615,11 @@ function QuizSelectBlockComponent(props: any) {
     gridTemplateRows: optionCount === 4 ? '1fr 1fr' : `repeat(${optionCount}, minmax(0, 1fr))`,
     gap: 4, borderRadius: 12, overflow: 'hidden', height: 420,
   }
+  const visibleTabs: Tab[] = [
+    'question',
+    ...(quizMode === 'ungraded' ? [] : (['scoring'] as Tab[])),
+    ...(showResponses ? (['response'] as Tab[]) : []),
+  ]
 
   return (
     <NodeViewWrapper className="quiz-select-block my-4 w-full first:mt-0 last:mb-0">
@@ -665,11 +674,13 @@ function QuizSelectBlockComponent(props: any) {
         </div>
 
         {/* ── Tab strip ── */}
-        <div style={{ display: 'flex', gap: 4, padding: '8px 12px 4px', background: '#fff', borderBottom: '1px solid #f3f4f6' }}>
-          <TabBtn active={activeTab === 'question'} onClick={() => setActiveTab('question')}>Question</TabBtn>
-          <TabBtn active={activeTab === 'scoring'} onClick={() => setActiveTab('scoring')}>Scoring</TabBtn>
-          {showResponses && <TabBtn active={activeTab === 'response'} onClick={() => setActiveTab('response')}>Response</TabBtn>}
-        </div>
+        {visibleTabs.length > 1 && (
+          <div style={{ display: 'flex', gap: 4, padding: '8px 12px 4px', background: '#fff', borderBottom: '1px solid #f3f4f6' }}>
+            <TabBtn active={activeTab === 'question'} onClick={() => setActiveTab('question')}>Question</TabBtn>
+            {quizMode !== 'ungraded' && <TabBtn active={activeTab === 'scoring'} onClick={() => setActiveTab('scoring')}>Scoring</TabBtn>}
+            {showResponses && <TabBtn active={activeTab === 'response'} onClick={() => setActiveTab('response')}>Response</TabBtn>}
+          </div>
+        )}
 
         {/* ── Content area ── */}
         <div style={{ padding: '12px', background: '#fff' }}>
@@ -703,7 +714,7 @@ function QuizSelectBlockComponent(props: any) {
             )
           )}
 
-          {activeTab === 'scoring' && (
+          {activeTab === 'scoring' && quizMode !== 'ungraded' && (
             <div style={gridStyle}>
               {options.map((opt, idx) => (
                 <ScoringCard key={opt.option_uuid} opt={opt} idx={idx} vectors={vectors}

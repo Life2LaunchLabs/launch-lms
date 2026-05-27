@@ -43,6 +43,18 @@ export function computeQuizScoresPreview(
       return
     }
 
+    if (answerType === 'multiselect') {
+      const optionUuids = Array.isArray(answerJson.option_uuids) ? answerJson.option_uuids : []
+      optionUuids.forEach((optionUuid: string) => {
+        const scoreMap = optionScores?.[optionUuid] || {}
+        vectorKeys.forEach(key => {
+          totals[key] += Number(scoreMap[key] ?? 0)
+          counts[key] += 1
+        })
+      })
+      return
+    }
+
     if (answerType === 'text') {
       const rule = textScores?.[answer.question_uuid] || {}
       if (rule.mode !== 'min_length') return

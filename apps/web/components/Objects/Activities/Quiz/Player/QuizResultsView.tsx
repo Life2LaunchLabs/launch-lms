@@ -35,6 +35,7 @@ export default function QuizResultsView({ result, activity, org, course, onRetak
   const matched: any = latestMatchedOption ? { ...matchedFromAttempt, ...latestMatchedOption } : matchedFromAttempt
   const quizMode = resultJson?.quiz_mode || activity?.details?.quiz_mode || 'categories'
   const graded = resultJson?.graded_result || null
+  const contentNodes: any[] = activity?.content?.content || []
 
   const getCoverUrl = (blockObj: any) => {
     if (!blockObj) return null
@@ -46,6 +47,85 @@ export default function QuizResultsView({ result, activity, org, course, onRetak
       blockObj.block_uuid,
       fileId,
       'imageBlock'
+    )
+  }
+
+  const getQuestionNode = (questionUuid: string) => {
+    return contentNodes.find(node => node?.attrs?.question_uuid === questionUuid) || null
+  }
+
+  const getResponseText = (answer: any, node: any): string => {
+    const answerJson = answer?.answer_json || {}
+    const attrs = node?.attrs || {}
+    if (answerJson.type === 'select') {
+      const option = (attrs.options || []).find((opt: any) => opt.option_uuid === answerJson.option_uuid)
+      return option?.label || 'Selected option'
+    }
+    if (answerJson.type === 'multiselect') {
+      const selected = new Set(Array.isArray(answerJson.option_uuids) ? answerJson.option_uuids : [])
+      const labels = (attrs.categories || []).flatMap((category: any) =>
+        (category.options || [])
+          .filter((option: any) => selected.has(option.option_uuid))
+          .map((option: any) => `${category.title || 'Category'}: ${option.label || 'Option'}`)
+      )
+      return labels.join('\n') || 'No response'
+    }
+    if (answerJson.type === 'text') {
+      return answerJson.text || 'No response'
+    }
+    if (answerJson.type === 'slider') {
+      const values = answerJson.values || {}
+      const sliders = attrs.sliders || []
+      const isStars = attrs.direction_mode === 'stars'
+      return Object.entries(values).map(([sliderUuid, value]) => {
+        const slider = sliders.find((item: any) => item.slider_uuid === sliderUuid)
+        const label = slider?.label || attrs.question_text || 'Rating'
+        const numeric = Number(value)
+        const displayValue = isStars ? `${(numeric * 5).toFixed(1)} / 5` : `${Math.round(numeric * 100)}%`
+        return `${label}: ${displayValue}`
+      }).join('\n') || 'No response'
+    }
+    if (answerJson.type === 'sort') {
+      const assignments = answerJson.assignments || {}
+      const cards = attrs.cards || []
+      const categories = attrs.categories || []
+      return Object.entries(assignments).map(([cardUuid, categoryUuid]) => {
+        const card = cards.find((item: any) => item.card_uuid === cardUuid)
+        const category = categories.find((item: any) => item.category_uuid === categoryUuid)
+        return `${card?.title || 'Card'}: ${category?.label || 'Unsorted'}`
+      }).join('\n') || 'No response'
+    }
+    return 'No response'
+  }
+
+  if (quizMode === 'ungraded') {
+    const answers = (resultJson?.answers || []).filter((answer: any) => answer?.answer_json?.type !== 'info')
+
+    return (
+      <div className="w-full max-w-3xl mx-auto pb-8">
+        <div className="bg-white rounded-3xl border border-neutral-100 p-5 md:p-6">
+          <div className="mb-5">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-neutral-400">Responses</p>
+            <h2 className="mt-2 text-xl font-bold text-neutral-900">Your responses</h2>
+          </div>
+          {answers.length === 0 ? (
+            <p className="text-sm text-neutral-500">No responses were recorded.</p>
+          ) : (
+            <div className="space-y-3">
+              {answers.map((answer: any, index: number) => {
+                const node = getQuestionNode(answer.question_uuid)
+                const question = node?.attrs?.question_text || `Question ${index + 1}`
+                return (
+                  <div key={`${answer.question_uuid}-${index}`} className="rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
+                    <p className="text-sm font-semibold text-neutral-900">{question}</p>
+                    <p className="mt-2 whitespace-pre-line text-sm text-neutral-600">{getResponseText(answer, node)}</p>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
     )
   }
 

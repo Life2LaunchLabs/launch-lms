@@ -18,6 +18,7 @@ import QuizInfoBlock from '@components/Objects/Editor/Extensions/QuizInfo/QuizIn
 import QuizTextBlock from '@components/Objects/Editor/Extensions/QuizText/QuizTextBlock'
 import QuizSliderBlock from '@components/Objects/Editor/Extensions/QuizSlider/QuizSliderBlock'
 import QuizSortBlock from '@components/Objects/Editor/Extensions/QuizSort/QuizSortBlock'
+import QuizMultiSelectBlock from '@components/Objects/Editor/Extensions/QuizMultiSelect/QuizMultiSelectBlock'
 import { CourseProvider } from '@components/Contexts/CourseContext'
 import { updateActivity } from '@services/courses/activities'
 import { updateQuizScoring, updateQuizResults, updateQuizSettings } from '@services/quiz/quiz'
@@ -38,7 +39,7 @@ interface ScoringVector {
   color: string
 }
 
-type QuizMode = 'categories' | 'graded'
+type QuizMode = 'categories' | 'graded' | 'ungraded'
 
 interface GradingRules {
   pass_percent: number
@@ -129,7 +130,9 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
 
   // ── Scoring state ─────────────────────────────────────────────────────
   const details = activity.details || {}
-  const [quizMode, setQuizMode] = useState<QuizMode>(details.quiz_mode === 'graded' ? 'graded' : 'categories')
+  const [quizMode, setQuizMode] = useState<QuizMode>(
+    details.quiz_mode === 'graded' || details.quiz_mode === 'ungraded' ? details.quiz_mode : 'categories'
+  )
   const [gradingRules, setGradingRules] = useState<GradingRules>({
     pass_percent: details.grading_rules?.pass_percent ?? 70,
     max_attempts: details.grading_rules?.max_attempts ?? null,
@@ -167,6 +170,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   const [sidebarDragSrc, setSidebarDragSrc] = useState<number | null>(null)
   const [sidebarDragOver, setSidebarDragOver] = useState<number | null>(null)
   const suppressBlockExtraction = useRef(false)
+  const editorActivityRef = useRef<any>({ ...activity, details: { ...details, quiz_mode: quizMode } })
 
   // ── Editor ────────────────────────────────────────────────────────────
   const editor = useEditor({
@@ -175,16 +179,49 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
     extensions: [
       Document,
       Text,
-      QuizSelectBlock.configure({ activity }),
-      QuizTextBlock.configure({ activity }),
-      QuizSliderBlock.configure({ activity }),
-      QuizSortBlock.configure({ activity }),
-      QuizInfoBlock.configure({ activity }),
+      QuizSelectBlock.configure({ activity: editorActivityRef.current }),
+      QuizTextBlock.configure({ activity: editorActivityRef.current }),
+      QuizSliderBlock.configure({ activity: editorActivityRef.current }),
+      QuizSortBlock.configure({ activity: editorActivityRef.current }),
+      QuizMultiSelectBlock.configure({ activity: editorActivityRef.current }),
+      QuizInfoBlock.configure({ activity: editorActivityRef.current }),
     ],
     content: activity.content && Object.keys(activity.content).length > 0
       ? activity.content
       : { type: 'doc', content: [] },
   })
+
+  const syncEditorActivity = useCallback((detailOverrides: Record<string, any> = {}) => {
+    const nextActivity = {
+      ...editorActivityRef.current,
+      ...activity,
+      name: quizName,
+      details: {
+        ...(editorActivityRef.current?.details || {}),
+        ...(activity.details || {}),
+        quiz_mode: quizMode,
+        grading_rules: gradingRules,
+        scoring_vectors: vectors,
+        category_scoring_vectors: categoryVectors,
+        graded_scoring_vectors: gradedVectors,
+        option_scores: optionScores,
+        text_scores: textScores,
+        result_options: resultOptions,
+        results_template: resultsTemplate,
+        ...detailOverrides,
+      },
+    }
+    editorActivityRef.current = nextActivity
+    editor?.extensionManager.extensions.forEach((extension: any) => {
+      if (['quizSelectBlock', 'quizTextBlock', 'quizSliderBlock', 'quizSortBlock', 'quizMultiSelectBlock', 'quizInfoBlock'].includes(extension.name)) {
+        extension.options.activity = nextActivity
+      }
+    })
+  }, [activity, quizName, quizMode, gradingRules, vectors, categoryVectors, gradedVectors, optionScores, textScores, resultOptions, resultsTemplate, editor])
+
+  useEffect(() => {
+    syncEditorActivity()
+  }, [syncEditorActivity])
 
   useEffect(() => { editor?.setEditable(!previewMode) }, [previewMode, editor])
 
@@ -202,7 +239,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   const extractAndSetBlocks = useCallback((editorInstance: NonNullable<typeof editor>) => {
     const blocks: EditorBlockInfo[] = []
     editorInstance.state.doc.forEach((node, pos) => {
-      if (['quizSelectBlock', 'quizTextBlock', 'quizSliderBlock', 'quizSortBlock', 'quizInfoBlock'].includes(node.type.name)) {
+      if (['quizSelectBlock', 'quizTextBlock', 'quizSliderBlock', 'quizSortBlock', 'quizMultiSelectBlock', 'quizInfoBlock'].includes(node.type.name)) {
         blocks.push({ type: node.type.name, attrs: node.attrs, pos, nodeSize: node.nodeSize })
       }
     })
@@ -248,7 +285,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   const saveScoring = useCallback(async () => {
     setIsSavingScoring(true)
     try {
-      const activeVectors = normalizeVectors(quizMode === 'graded' ? ensureGradedVectors(vectors) : vectors)
+      const activeVectors = normalizeVectors(quizMode === 'graded' ? ensureGradedVectors(vectors) : quizMode === 'ungraded' ? [] : vectors)
       const nextCategoryVectors = normalizeVectors(quizMode === 'categories' ? vectors : categoryVectors)
       const nextGradedVectors = normalizeVectors(quizMode === 'graded' ? ensureGradedVectors(vectors) : ensureGradedVectors(gradedVectors))
       await updateQuizScoring(
@@ -342,14 +379,14 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   }, [activeTab, scoringDirty, resultsDirty, saveScoring, saveResults])
 
   useEffect(() => {
-    if (quizMode === 'graded' && (activeTab === 'scoring' || activeTab === 'results')) {
+    if (quizMode !== 'categories' && (activeTab === 'scoring' || activeTab === 'results')) {
       setActiveTab('general')
     }
   }, [quizMode, activeTab])
 
   // ── Sidebar helpers ───────────────────────────────────────────────────
   const scrollToBlock = (idx: number) => {
-    const allBlocks = document.querySelectorAll('.quiz-select-block, .quiz-text-block, .quiz-slider-block, .quiz-sort-block, .quiz-info-block')
+    const allBlocks = document.querySelectorAll('.quiz-select-block, .quiz-text-block, .quiz-slider-block, .quiz-sort-block, .quiz-multi-select-block, .quiz-info-block')
     const el = allBlocks[idx] as HTMLElement | undefined
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
@@ -439,6 +476,15 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
           color: '#0284c7',
           title: block.attrs.question_text || 'Sort question',
           preview: `${cards.length} cards · ${categories.map((category: any) => category.label || '—').join(' / ')}`,
+        }
+      }
+      case 'quizMultiSelectBlock': {
+        const categories = (block.attrs.categories || []) as any[]
+        return {
+          iconType: 'layers3' as const,
+          color: '#db2777',
+          title: block.attrs.question_text || 'Multi select',
+          preview: categories.map((category: any) => category.title || '—').filter(Boolean).join(' / '),
         }
       }
       case 'quizInfoBlock':
@@ -543,6 +589,32 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
     }).run()
   }
 
+  const insertMultiSelectBlock = () => {
+    if (!editor) return
+    editor.chain().insertContentAt(editor.state.doc.content.size, {
+      type: 'quizMultiSelectBlock',
+      attrs: {
+        question_uuid: uuidv4(),
+        question_text: '',
+        categories: [
+          {
+            category_uuid: uuidv4(),
+            title: 'Category 1',
+            options: Array.from({ length: 4 }, (_, idx) => ({ option_uuid: uuidv4(), label: `Option ${idx + 1}` })),
+          },
+          {
+            category_uuid: uuidv4(),
+            title: 'Category 2',
+            options: Array.from({ length: 4 }, (_, idx) => ({ option_uuid: uuidv4(), label: `Option ${idx + 1}` })),
+          },
+        ],
+        background_gradient_seed: uuidv4(),
+        background_image_file_id: null,
+        background_image_block_object: null,
+      },
+    }).run()
+  }
+
   const handleQuizModeChange = async (nextMode: QuizMode) => {
     const nextCategoryVectors = normalizeVectors(quizMode === 'categories' ? vectors : categoryVectors)
     const nextGradedVectors = normalizeVectors(ensureGradedVectors(
@@ -551,11 +623,19 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
     setCategoryVectors(nextCategoryVectors)
     setGradedVectors(nextGradedVectors)
     setQuizMode(nextMode)
-    const activeVectors = normalizeVectors(nextMode === 'graded'
+    const activeVectors = normalizeVectors(nextMode === 'ungraded'
+      ? []
+      : nextMode === 'graded'
       ? ensureGradedVectors(nextGradedVectors)
       : nextCategoryVectors)
     setVectors(activeVectors)
     setScoringDirty(false)
+    syncEditorActivity({
+      quiz_mode: nextMode,
+      scoring_vectors: activeVectors,
+      category_scoring_vectors: nextCategoryVectors,
+      graded_scoring_vectors: nextGradedVectors,
+    })
     window.dispatchEvent(new CustomEvent('lh:quiz-scoring-updated', {
       detail: {
         vectors: activeVectors,
@@ -725,10 +805,10 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
             <div className="flex space-x-2 px-6 border-b border-neutral-100 bg-white/95 backdrop-blur sticky top-[41px] z-20 shadow-md shadow-gray-300/20">
               <TabBtn active={activeTab === 'general'} onClick={() => handleTabChange('general')} icon={<InfoIcon size={16} />} label="General" />
               <TabBtn active={activeTab === 'content'} onClick={() => handleTabChange('content')} icon={<ListChecks size={16} />} label="Content" />
-              {quizMode !== 'graded' && (
+              {quizMode === 'categories' && (
                 <TabBtn active={activeTab === 'scoring'} onClick={() => handleTabChange('scoring')} icon={<Save size={16} />} label="Scoring" />
               )}
-              {quizMode !== 'graded' && (
+              {quizMode === 'categories' && (
                 <TabBtn active={activeTab === 'results'} onClick={() => handleTabChange('results')} icon={<Eye size={16} />} label="Results" />
               )}
             </div>
@@ -778,10 +858,13 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                   >
                     <option value="categories">Categories</option>
                     <option value="graded">Graded</option>
+                    <option value="ungraded">Un graded</option>
                   </select>
                   <p className="text-xs text-neutral-400 mt-1.5">
                     {quizMode === 'graded'
                       ? 'Graded quizzes lock scoring to the Correct binary vector and use pass/fail results.'
+                      : quizMode === 'ungraded'
+                        ? 'Un graded quizzes collect responses without scoring.'
                       : 'Category quizzes use custom scoring vectors and result cards.'}
                   </p>
                 </div>
@@ -836,6 +919,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                       <button type="button" onClick={insertTextBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-medium outline-none transition-colors"><Type size={13} /> Text question</button>
                       <button type="button" onClick={insertSliderBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-medium outline-none transition-colors"><SlidersHorizontal size={13} /> Rating</button>
                       <button type="button" onClick={insertSortBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-medium outline-none transition-colors"><Layers3 size={13} /> Sort</button>
+                      <button type="button" onClick={insertMultiSelectBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-pink-50 hover:bg-pink-100 text-pink-700 text-xs font-medium outline-none transition-colors"><Layers3 size={13} /> Multi select</button>
                       <button type="button" onClick={insertInfoBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium outline-none transition-colors"><InfoIcon size={13} /> Info slide</button>
                     </div>
                   </div>
@@ -945,7 +1029,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
             )}
 
             {/* ── Scoring ── */}
-            {!previewMode && activeTab === 'scoring' && quizMode !== 'graded' && (
+            {!previewMode && activeTab === 'scoring' && quizMode === 'categories' && (
               <div className="max-w-2xl mx-auto py-8 px-6 space-y-6">
                 <div className="flex items-center justify-between">
                   <div>

@@ -27,6 +27,7 @@ Activity.details shape expected by these functions:
 
 Answer format (from QuizAnswerInput):
   {"type": "select", "option_uuid": "o_abc123"}
+  {"type": "multiselect", "option_uuids": ["o_abc123", "o_def456"]}
   {"type": "text", "text": "freeform answer"}
   {"type": "slider", "values": {"slider_a": 0.5, "slider_b": 1.0}}
   {"type": "sort", "assignments": {"card_a": "cat_left", "card_b": "cat_right"}}
@@ -98,6 +99,19 @@ def compute_scores(
             for k in vector_keys:
                 totals[k] += scores.get(k, 0.0)
                 counts[k] += 1
+            continue
+
+        if answer_type == "multiselect":
+            option_uuids = answer_json.get("option_uuids", []) or []
+            if not isinstance(option_uuids, list):
+                continue
+            for option_uuid in option_uuids:
+                if not option_uuid:
+                    continue
+                scores = option_scores.get(str(option_uuid), {})
+                for k in vector_keys:
+                    totals[k] += scores.get(k, 0.0)
+                    counts[k] += 1
             continue
 
         if answer_type == "text":

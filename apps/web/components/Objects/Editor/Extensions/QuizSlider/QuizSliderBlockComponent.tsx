@@ -65,7 +65,8 @@ function getDefaultCorrectVector(): ScoringVector {
 }
 
 function getActiveScoringVectors(details: any): ScoringVector[] {
-  const quizMode = details?.quiz_mode === 'graded' ? 'graded' : 'categories'
+  const quizMode = details?.quiz_mode === 'graded' ? 'graded' : details?.quiz_mode === 'ungraded' ? 'ungraded' : 'categories'
+  if (quizMode === 'ungraded') return []
   if (quizMode === 'graded') {
     const gradedVectors = details?.graded_scoring_vectors || details?.scoring_vectors || []
     return gradedVectors.length > 0 ? gradedVectors : [getDefaultCorrectVector()]
@@ -74,14 +75,14 @@ function getActiveScoringVectors(details: any): ScoringVector[] {
 }
 
 function getScoringPayload(
-  quizMode: 'categories' | 'graded',
+  quizMode: 'categories' | 'graded' | 'ungraded',
   vectors: ScoringVector[],
   optionScores: Record<string, Record<string, number>>,
   categoryVectors: ScoringVector[],
   gradedVectors: ScoringVector[]
 ) {
   return {
-    scoring_vectors: vectors,
+    scoring_vectors: quizMode === 'ungraded' ? [] : vectors,
     category_scoring_vectors: quizMode === 'categories' ? vectors : categoryVectors,
     graded_scoring_vectors: quizMode === 'graded' ? vectors : gradedVectors,
     option_scores: optionScores,
@@ -266,7 +267,9 @@ function QuizSliderBlockComponent(props: any) {
   const [backgroundImageFileId, setBackgroundImageFileId] = useState<string | null>(attrs.background_image_file_id || null)
   const [backgroundImageBlockObject, setBackgroundImageBlockObject] = useState<any | null>(attrs.background_image_block_object || null)
   const [activeTab, setActiveTab] = useState<Tab>('question')
-  const [quizMode, setQuizMode] = useState<'categories' | 'graded'>(activity?.details?.quiz_mode === 'graded' ? 'graded' : 'categories')
+  const [quizMode, setQuizMode] = useState<'categories' | 'graded' | 'ungraded'>(
+    activity?.details?.quiz_mode === 'graded' || activity?.details?.quiz_mode === 'ungraded' ? activity.details.quiz_mode : 'categories'
+  )
   const [vectors, setVectors] = useState<ScoringVector[]>(getActiveScoringVectors(activity?.details))
   const [categoryVectors, setCategoryVectors] = useState<ScoringVector[]>(activity?.details?.category_scoring_vectors || activity?.details?.scoring_vectors || [])
   const [gradedVectors, setGradedVectors] = useState<ScoringVector[]>(activity?.details?.graded_scoring_vectors || activity?.details?.scoring_vectors || [getDefaultCorrectVector()])
@@ -278,7 +281,7 @@ function QuizSliderBlockComponent(props: any) {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail
       if (detail?.vectors) setVectors(detail.vectors)
-      if (detail?.quizMode === 'graded' || detail?.quizMode === 'categories') setQuizMode(detail.quizMode)
+      if (detail?.quizMode === 'graded' || detail?.quizMode === 'categories' || detail?.quizMode === 'ungraded') setQuizMode(detail.quizMode)
       if (detail?.categoryVectors) setCategoryVectors(detail.categoryVectors)
       if (detail?.gradedVectors) setGradedVectors(detail.gradedVectors)
       if (detail?.optionScores) setOptionScores(detail.optionScores)
@@ -286,6 +289,10 @@ function QuizSliderBlockComponent(props: any) {
     window.addEventListener('lh:quiz-scoring-updated', handler)
     return () => window.removeEventListener('lh:quiz-scoring-updated', handler)
   }, [])
+
+  useEffect(() => {
+    if (quizMode === 'ungraded' && activeTab === 'scoring') setActiveTab('question')
+  }, [quizMode, activeTab])
 
   const persistAttrs = useCallback((next: Partial<{
     questionText: string
@@ -537,10 +544,12 @@ function QuizSliderBlockComponent(props: any) {
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: 4, padding: '8px 12px 4px', background: '#fff', borderBottom: '1px solid #f3f4f6' }}>
-          <TabBtn active={activeTab === 'question'} onClick={() => setActiveTab('question')}>Question</TabBtn>
-          <TabBtn active={activeTab === 'scoring'} onClick={() => setActiveTab('scoring')}>Scoring</TabBtn>
-        </div>
+        {quizMode !== 'ungraded' && (
+          <div style={{ display: 'flex', gap: 4, padding: '8px 12px 4px', background: '#fff', borderBottom: '1px solid #f3f4f6' }}>
+            <TabBtn active={activeTab === 'question'} onClick={() => setActiveTab('question')}>Question</TabBtn>
+            <TabBtn active={activeTab === 'scoring'} onClick={() => setActiveTab('scoring')}>Scoring</TabBtn>
+          </div>
+        )}
 
         <div style={{ padding: '12px', background: '#fff' }}>
           {activeTab === 'question' && (
@@ -706,7 +715,7 @@ function QuizSliderBlockComponent(props: any) {
             </div>
           )}
 
-          {activeTab === 'scoring' && (
+          {activeTab === 'scoring' && quizMode !== 'ungraded' && (
             <div className="rounded-xl border border-neutral-200 bg-white p-4 space-y-3 min-h-[420px]">
               <p className="text-xs text-neutral-500">
                 Each row uses its configured vector scores as the full-strength value, and the learner&apos;s slider position applies a 0..1 multiplier to all of them.
