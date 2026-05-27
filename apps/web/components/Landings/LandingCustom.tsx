@@ -20,6 +20,7 @@ import QuickstartSection from '@components/Landings/QuickstartSection'
 import TrendingSection from '@components/Landings/TrendingSection'
 import DashboardWelcomeHeader from '@components/Landings/DashboardWelcomeHeader'
 import DashboardOnboardingBanner from '@components/Onboarding/DashboardOnboardingBanner'
+import CoreCoursesProgressSection from '@components/CoreCourses/CoreCoursesProgressSection'
 
 interface LandingCustomProps {
   landing: {
@@ -335,6 +336,7 @@ function LandingCustom({
     <div className="flex flex-col items-center justify-between w-full max-w-(--breakpoint-2xl) mx-auto px-4 sm:px-6 lg:px-16 py-8 md:py-10 h-full">
       <DashboardWelcomeHeader displayName={dashboardDisplayName} />
       <DashboardOnboardingBanner orgslug={orgslug} />
+      <CoreCoursesProgressSection orgslug={orgslug} className="w-full" />
       {landing.sections.map((section) => renderSection(section))}
     </div>
   )

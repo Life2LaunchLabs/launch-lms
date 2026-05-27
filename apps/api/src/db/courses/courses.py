@@ -59,6 +59,7 @@ class CourseBase(SQLModel):
     guest_access: bool = Field(default=False)
     published: bool = Field(default=False)
     coming_soon: bool = Field(default=False)
+    core_course: bool = Field(default=False)
     open_to_contributors: bool
 
 
@@ -95,6 +96,7 @@ class CourseUpdate(SQLModel):
     guest_access: Optional[bool] = None
     published: Optional[bool] = None
     coming_soon: Optional[bool] = None
+    core_course: Optional[bool] = None
     open_to_contributors: Optional[bool] = None
     seo: Optional[dict] = None
 

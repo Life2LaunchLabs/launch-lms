@@ -7,6 +7,10 @@ from src.db.usergroup_user import UserGroupUser
 from src.db.organizations import Organization
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
+from src.db.courses.chapter_activities import ChapterActivity
+from src.db.courses.chapters import Chapter
+from src.db.trail_runs import TrailRun
+from src.db.trail_steps import TrailStep
 from src.security.features_utils.usage import (
     check_limits_with_usage,
     decrease_feature_usage,
@@ -39,6 +43,10 @@ from fastapi import HTTPException, Request, UploadFile, status
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+
+def _get_owner_org(db_session: Session) -> Organization | None:
+    return db_session.exec(select(Organization).order_by(Organization.id).limit(1)).first()
 
 
 async def _user_can_view_unpublished_course(
@@ -680,6 +688,110 @@ async def search_courses(
     return course_reads
 
 
+async def get_core_courses_progress(
+    request: Request,
+    org_slug: str,
+    current_user: PublicUser,
+    db_session: Session,
+) -> list[dict]:
+    owner_org = _get_owner_org(db_session)
+    if not owner_org or owner_org.slug != org_slug:
+        return []
+
+    courses = db_session.exec(
+        select(Course)
+        .where(
+            Course.org_id == owner_org.id,
+            Course.core_course == True,
+            Course.published == True,
+        )
+        .order_by(Course.update_date.desc())
+    ).all()
+
+    if not courses:
+        return []
+
+    course_ids = [course.id for course in courses if course.id is not None]
+    runs = db_session.exec(
+        select(TrailRun).where(
+            TrailRun.user_id == current_user.id,
+            TrailRun.course_id.in_(course_ids),  # type: ignore
+        )
+    ).all()
+    runs_by_course_id = {run.course_id: run for run in runs}
+    run_ids = [run.id for run in runs if run.id is not None]
+
+    completed_activity_ids_by_course_id: dict[int, set[int]] = {}
+    if run_ids:
+        completed_steps = db_session.exec(
+            select(TrailStep).where(
+                TrailStep.user_id == current_user.id,
+                TrailStep.trailrun_id.in_(run_ids),  # type: ignore
+                TrailStep.complete == True,
+            )
+        ).all()
+        for step in completed_steps:
+            completed_activity_ids_by_course_id.setdefault(step.course_id, set()).add(step.activity_id)
+
+    chapters = db_session.exec(
+        select(Chapter)
+        .where(Chapter.course_id.in_(course_ids))  # type: ignore
+        .order_by(Chapter.creation_date.asc())
+    ).all()
+    chapters_by_course_id: dict[int, list[Chapter]] = {}
+    for chapter in chapters:
+        chapters_by_course_id.setdefault(chapter.course_id, []).append(chapter)
+
+    chapter_activities = db_session.exec(
+        select(ChapterActivity)
+        .where(ChapterActivity.course_id.in_(course_ids))  # type: ignore
+        .order_by(ChapterActivity.order.asc())
+    ).all()
+    activity_ids_by_chapter_id: dict[int, set[int]] = {}
+    for chapter_activity in chapter_activities:
+        activity_ids_by_chapter_id.setdefault(chapter_activity.chapter_id, set()).add(chapter_activity.activity_id)
+
+    result = []
+    for course in courses:
+        if course.id is None:
+            continue
+        completed_activity_ids = completed_activity_ids_by_course_id.get(course.id, set())
+        course_chapters = []
+        total_activities = 0
+        completed_activities = 0
+
+        for chapter in chapters_by_course_id.get(course.id, []):
+            activity_ids = activity_ids_by_chapter_id.get(chapter.id or 0, set())
+            chapter_total = len(activity_ids)
+            chapter_completed = len(activity_ids & completed_activity_ids)
+            total_activities += chapter_total
+            completed_activities += chapter_completed
+            course_chapters.append({
+                "id": chapter.id,
+                "chapter_uuid": chapter.chapter_uuid,
+                "name": chapter.name,
+                "total_activities": chapter_total,
+                "completed_activities": chapter_completed,
+                "progress": round((chapter_completed / chapter_total) * 100) if chapter_total else 0,
+                "complete": chapter_total > 0 and chapter_completed >= chapter_total,
+            })
+
+        run = runs_by_course_id.get(course.id)
+        result.append({
+            "course": {
+                **course.model_dump(),
+                **owner_org_payload(owner_org),
+            },
+            "run_status": run.status.value if run else None,
+            "total_activities": total_activities,
+            "completed_activities": completed_activities,
+            "progress": round((completed_activities / total_activities) * 100) if total_activities else 0,
+            "chapters": course_chapters,
+        })
+
+    return result
+
+
 async def create_course(
     request: Request,
     org_id: int,
@@ -907,6 +1019,8 @@ async def update_course(
         sensitive_fields_updated.append("public")
     if course_object.open_to_contributors is not None:
         sensitive_fields_updated.append("open_to_contributors")
+    if course_object.core_course is not None:
+        sensitive_fields_updated.append("core_course")
     
     # If sensitive fields are being updated, require additional validation
     if sensitive_fields_updated:
@@ -935,6 +1049,22 @@ async def update_course(
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"You must be the course owner (CREATOR or MAINTAINER) or have admin role to change access settings: {', '.join(sensitive_fields_updated)}",
+            )
+
+    if course_object.core_course is not None:
+        owner_org = _get_owner_org(db_session)
+        if not owner_org or course.org_id != owner_org.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only courses owned by the default organization can be marked as CORE",
+            )
+        is_owner_org_admin = await authorization_verify_based_on_org_admin_status(
+            request, current_user.id, "update", course_uuid, db_session
+        )
+        if not is_owner_org_admin and not is_user_superadmin(current_user.id, db_session):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only default organization admins can manage CORE courses",
             )
 
     # Update only the fields that were passed in

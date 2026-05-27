@@ -2,8 +2,10 @@
 
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import useSWR from 'swr'
 import {
   Award,
+  BookOpen,
   Camera,
   Check,
   ChevronRight,
@@ -45,10 +47,12 @@ import {
 } from '@components/Objects/Profile/ProfilePortfolio'
 import ProfileTimeline, { normalizeTimeline, type TimelineEntry } from '@components/Objects/Profile/ProfileTimeline'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { getUserAvatarMediaDirectory } from '@services/media/media'
 import { updateProfile } from '@services/settings/profile'
 import { updateUserAvatar } from '@services/users/users'
+import CoreCoursesProgressSection from '@components/CoreCourses/CoreCoursesProgressSection'
+import { swrFetcher } from '@services/utils/ts/requests'
 
 type SocialType = 'website' | 'linkedin' | 'instagram' | 'youtube' | 'x'
 
@@ -62,11 +66,12 @@ type ProfileHeader = {
   socials?: SocialLink[]
 }
 
-type ProfileWidgetType = 'timeline' | 'portfolio' | 'achievements' | 'instagramPreview' | 'youtubePreview' | 'title' | 'text' | 'link' | 'media'
+type ProfileWidgetType = 'timeline' | 'portfolio' | 'achievements' | 'coreCourse' | 'instagramPreview' | 'youtubePreview' | 'title' | 'text' | 'link' | 'media'
 
 type ProfileLayoutItem = {
   id: string
   type: ProfileWidgetType
+  courseUuid?: string
 }
 
 type ProfileCustomSection = {
@@ -175,6 +180,7 @@ const PROFILE_WIDGET_CONFIG: Record<ProfileWidgetType, {
   timeline: { label: 'Timeline', icon: ChevronRight, unique: true },
   portfolio: { label: 'Portfolio', icon: FileText, unique: true },
   achievements: { label: 'Achievements', icon: Award, unique: true },
+  coreCourse: { label: 'CORE Course', icon: BookOpen, unique: false },
   instagramPreview: { label: 'Instagram', icon: Instagram, unique: true },
   youtubePreview: { label: 'YouTube', icon: Youtube, unique: true },
   title: { label: 'Title', icon: Heading1, unique: false },
@@ -183,12 +189,14 @@ const PROFILE_WIDGET_CONFIG: Record<ProfileWidgetType, {
   media: { label: 'Media', icon: ImageIcon, unique: false },
 }
 
-function createProfileLayoutItem(type: ProfileWidgetType): ProfileLayoutItem {
+function createProfileLayoutItem(type: ProfileWidgetType, courseUuid?: string): ProfileLayoutItem {
+  if (type === 'coreCourse' && courseUuid) return { id: `coreCourse-${courseUuid}`, type, courseUuid }
   if (UNIQUE_PROFILE_WIDGETS.includes(type)) return { id: type, type }
   return { id: `${type}-${Date.now()}-${Math.random().toString(16).slice(2)}`, type }
 }
 
 function createProfileSection(item: ProfileLayoutItem): ProfileCustomSection | null {
+  if (item.type === 'coreCourse') return null
   if (UNIQUE_PROFILE_WIDGETS.includes(item.type)) return null
   return {
     id: item.id,
@@ -206,6 +214,12 @@ function normalizeProfileLayout(layout: any): ProfileLayoutItem[] {
   return layout.reduce<ProfileLayoutItem[]>((items, item) => {
     const type = item?.type as ProfileWidgetType
     if (!PROFILE_WIDGET_CONFIG[type]) return items
+    if (type === 'coreCourse') {
+      const courseUuid = typeof item?.courseUuid === 'string' ? item.courseUuid : ''
+      if (!courseUuid) return items
+      items.push({ id: item?.id || createProfileLayoutItem(type, courseUuid).id, type, courseUuid })
+      return items
+    }
     if (UNIQUE_PROFILE_WIDGETS.includes(type)) {
       if (seenUnique.has(type)) return items
       seenUnique.add(type)
@@ -1450,6 +1464,8 @@ function ReorderProfileSectionItem({
 function ProfileAddTray({
   open,
   usedUniqueTypes,
+  usedCoreCourseUuids,
+  coreCourses,
   onToggle,
   onAdd,
   onDragStart,
@@ -1457,12 +1473,15 @@ function ProfileAddTray({
 }: {
   open: boolean
   usedUniqueTypes: Set<ProfileWidgetType>
+  usedCoreCourseUuids: Set<string>
+  coreCourses: any[]
   onToggle(): void
-  onAdd(type: ProfileWidgetType): void
-  onDragStart(type: ProfileWidgetType, event: React.DragEvent<HTMLButtonElement>): void
+  onAdd(type: ProfileWidgetType, courseUuid?: string): void
+  onDragStart(type: ProfileWidgetType, event: React.DragEvent<HTMLButtonElement>, courseUuid?: string): void
   onDragEnd(): void
 }) {
-  const widgetTypes = Object.keys(PROFILE_WIDGET_CONFIG) as ProfileWidgetType[]
+  const widgetTypes = (Object.keys(PROFILE_WIDGET_CONFIG) as ProfileWidgetType[])
+    .filter((type) => type !== 'coreCourse')
   return (
     <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-3">
       <AnimatePresence>
@@ -1496,6 +1515,33 @@ function ProfileAddTray({
                 )
               })}
             </div>
+            {coreCourses.length > 0 ? (
+              <div className="mt-3 border-t border-gray-100 pt-3">
+                <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">CORE Courses</p>
+                <div className="grid gap-2">
+                  {coreCourses.map((item: any) => {
+                    const course = item.course || {}
+                    const courseUuid = course.course_uuid || ''
+                    const disabled = usedCoreCourseUuids.has(courseUuid)
+                    return (
+                      <button
+                        key={courseUuid}
+                        type="button"
+                        draggable={!disabled}
+                        disabled={disabled}
+                        onClick={() => onAdd('coreCourse', courseUuid)}
+                        onDragStart={(event) => onDragStart('coreCourse', event, courseUuid)}
+                        onDragEnd={onDragEnd}
+                        className="flex items-center gap-3 rounded-md border border-gray-200 bg-white p-3 text-left text-gray-800 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                      >
+                        <BookOpen className="h-4 w-4 shrink-0" />
+                        <span className="min-w-0 flex-1 truncate text-xs font-semibold">{course.name || 'Untitled CORE course'}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : null}
           </motion.div>
         ) : null}
       </AnimatePresence>
@@ -1522,6 +1568,13 @@ function ProfilePageClient({
 }: ProfilePageClientProps) {
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
+  const { data: coreCoursesData } = useSWR(
+    accessToken && orgslug
+      ? `${getAPIUrl()}courses/core/progress?org_slug=${encodeURIComponent(orgslug)}`
+      : null,
+    (url) => swrFetcher(url, accessToken),
+    { revalidateOnFocus: false }
+  )
   const bioTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const draftProfileRef = useRef<ProfileShape>(normalizeProfile(initialUser.profile))
   const pendingReorderProfileRef = useRef<ProfileShape | null>(null)
@@ -1557,8 +1610,13 @@ function ProfilePageClient({
   const timelineEnabled = profile.timelineEnabled ?? false
   const timelinePublicVisible = profile.timelinePublicVisible !== false
   const layout = contentProfile.layout || DEFAULT_PROFILE_LAYOUT
+  const coreCourses = Array.isArray(coreCoursesData) ? coreCoursesData : []
   const usedUniqueTypes = useMemo(
     () => new Set(layout.filter((item) => UNIQUE_PROFILE_WIDGETS.includes(item.type)).map((item) => item.type)),
+    [layout]
+  )
+  const usedCoreCourseUuids = useMemo(
+    () => new Set(layout.filter((item) => item.type === 'coreCourse' && item.courseUuid).map((item) => item.courseUuid as string)),
     [layout]
   )
   const socials = useMemo(() => header.socials ?? [], [header.socials])
@@ -1801,9 +1859,10 @@ function ProfilePageClient({
     void persistProfile({ profileOverride: nextProfile })
   }
 
-  const addProfileSection = (type: ProfileWidgetType) => {
+  const addProfileSection = (type: ProfileWidgetType, courseUuid?: string) => {
+    if (type === 'coreCourse' && (!courseUuid || usedCoreCourseUuids.has(courseUuid))) return
     if (PROFILE_WIDGET_CONFIG[type].unique && layout.some((item) => item.type === type)) return
-    const item = createProfileLayoutItem(type)
+    const item = createProfileLayoutItem(type, courseUuid)
     const section = createProfileSection(item)
     const nextProfile = {
       ...draft.profile,
@@ -1816,9 +1875,10 @@ function ProfilePageClient({
     setAddTrayOpen(false)
   }
 
-  const startTrayDrag = (type: ProfileWidgetType, event: React.DragEvent<HTMLButtonElement>) => {
+  const startTrayDrag = (type: ProfileWidgetType, event: React.DragEvent<HTMLButtonElement>, courseUuid?: string) => {
+    if (type === 'coreCourse' && (!courseUuid || usedCoreCourseUuids.has(courseUuid))) return
     if (PROFILE_WIDGET_CONFIG[type].unique && layout.some((item) => item.type === type)) return
-    const item = createProfileLayoutItem(type)
+    const item = createProfileLayoutItem(type, courseUuid)
     const nextProfile = {
       ...draftProfileRef.current,
       layout: [...(draftProfileRef.current.layout || DEFAULT_PROFILE_LAYOUT), item],
@@ -2015,6 +2075,9 @@ function ProfilePageClient({
           }))}
         />
       )
+    }
+    if (item.type === 'coreCourse') {
+      return <CoreCoursesProgressSection orgslug={orgslug} variant="profile" courseUuid={item.courseUuid} />
     }
     if (item.type === 'instagramPreview' || item.type === 'youtubePreview') {
       const type = item.type === 'instagramPreview' ? 'instagram' : 'youtube'
@@ -2289,6 +2352,8 @@ function ProfilePageClient({
         <ProfileAddTray
           open={addTrayOpen}
           usedUniqueTypes={usedUniqueTypes}
+          usedCoreCourseUuids={usedCoreCourseUuids}
+          coreCourses={coreCourses}
           onToggle={() => setAddTrayOpen((current) => !current)}
           onAdd={addProfileSection}
           onDragStart={startTrayDrag}

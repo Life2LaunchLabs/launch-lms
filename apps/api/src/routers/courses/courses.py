@@ -27,6 +27,7 @@ from src.services.courses.courses import (
     get_course_meta,
     get_courses_orgslug,
     get_courses_count_orgslug,
+    get_core_courses_progress,
     update_course,
     delete_course,
     update_course_thumbnail,
@@ -134,7 +135,6 @@ async def api_export_courses_batch(
     zip_content = await export_courses_batch(
         request, batch_request.course_uuids, current_user, db_session
     )
-
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"launch-lms-export-batch-{timestamp}.zip"
 
@@ -143,6 +143,18 @@ async def api_export_courses_batch(
         io.BytesIO(zip_content),
         media_type="application/zip",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@router.get("/core/progress")
+async def api_get_core_courses_progress(
+    request: Request,
+    org_slug: str = Query(...),
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    return await get_core_courses_progress(
+        request, org_slug, current_user, db_session
     )
 
 

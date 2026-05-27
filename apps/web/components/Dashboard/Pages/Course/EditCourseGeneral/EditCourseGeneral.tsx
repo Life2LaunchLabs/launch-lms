@@ -24,6 +24,8 @@ import { useTranslation } from 'react-i18next';
 import { useLHSession } from '@components/Contexts/LHSessionContext';
 import { exportCourse, downloadBlob, ExportStatus } from '@services/courses/transfer';
 import { exportToast } from '@components/Objects/StyledElements/Toast/ExportToast';
+import { Switch } from '@components/ui/switch';
+import { getDefaultOrg } from '@services/config/config';
 
 type EditCourseStructureProps = {
   orgslug: string
@@ -75,6 +77,7 @@ function EditCourseGeneral(props: EditCourseStructureProps) {
   const session = useLHSession() as any
   const access_token = session.data?.tokens?.access_token
   const [isExporting, setIsExporting] = useState(false)
+  const canConfigureCoreCourse = props.orgslug === getDefaultOrg()
 
   // Use the new field sync hook
   const {
@@ -156,11 +159,12 @@ function EditCourseGeneral(props: EditCourseStructureProps) {
       learnings: initializeLearnings(courseStructure?.learnings || ''),
       tags: courseStructure?.tags || '',
       public: courseStructure?.public || false,
+      core_course: courseStructure?.core_course || false,
       thumbnail_type: thumbnailType,
     };
   }, [courseStructure?.name, courseStructure?.description, courseStructure?.about,
       courseStructure?.learnings, courseStructure?.tags, courseStructure?.public,
-      courseStructure?.thumbnail_type, initializeLearnings]);
+      courseStructure?.core_course, courseStructure?.thumbnail_type, initializeLearnings]);
 
   const formik = useFormik({
     initialValues,
@@ -325,6 +329,24 @@ function EditCourseGeneral(props: EditCourseStructureProps) {
                   <ThumbnailUpdate thumbnailType={formik.values.thumbnail_type} />
                 </Form.Control>
               </FormField>
+
+              {canConfigureCoreCourse && (
+                <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-800">CORE course</h3>
+                      <p className="mt-1 text-xs leading-5 text-gray-500">
+                        Show this course in the learner dashboard CORE section and make its profile widget available.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={formik.values.core_course}
+                      onCheckedChange={(checked) => formik.setFieldValue('core_course', checked)}
+                      disabled={isSaving}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </FormLayout>
         </div>
