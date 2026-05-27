@@ -73,6 +73,7 @@ export type AchievementFeaturedRef = {
 
 export type AchievementsSection = {
   enabled: boolean
+  publicVisible: boolean
   custom: CustomAchievement[]
   featured: AchievementFeaturedRef[]
 }
@@ -118,8 +119,11 @@ type ProfileAchievementsSectionProps = {
   profileUsername?: string
   editMode?: boolean
   canEdit?: boolean
+  publicVisible?: boolean
   // eslint-disable-next-line no-unused-vars
   onChange?(next: AchievementsSection): void
+  // eslint-disable-next-line no-unused-vars
+  onPublicVisibleChange?(visible: boolean): void
 }
 
 type ProfileAchievementsManagerProps = {
@@ -161,6 +165,7 @@ function createId(prefix: string) {
 export function normalizeAchievements(achievements: any): AchievementsSection {
   return {
     enabled: Boolean(achievements?.enabled),
+    publicVisible: achievements?.publicVisible !== false,
     custom: Array.isArray(achievements?.custom)
       ? achievements.custom.map((item: any) => ({
         id: item.id || createId('achievement'),
@@ -782,7 +787,9 @@ export function ProfileAchievementsSection({
   profileUsername,
   editMode = false,
   canEdit = true,
+  publicVisible = true,
   onChange,
+  onPublicVisibleChange,
 }: ProfileAchievementsSectionProps) {
   const routes = useMemo(() => getAchievementRoutes(orgslug, profileUsername), [orgslug, profileUsername])
   const { credentials } = useCredentialAchievements(orgslug)
@@ -792,7 +799,7 @@ export function ProfileAchievementsSection({
     [achievements, credentials, routes]
   )
 
-  if (!editMode && !achievements.enabled) return null
+  if (!editMode && (!achievements.enabled || !publicVisible)) return null
   if (!editMode && achievements.enabled && featuredItems.length === 0) return null
 
   return (
@@ -808,13 +815,24 @@ export function ProfileAchievementsSection({
         </div>
 
         {editMode && canEdit ? (
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-500">{achievements.enabled ? 'Visible on profile' : 'Hidden from profile'}</span>
-            <Switch
-              checked={achievements.enabled}
-              onCheckedChange={(checked) => onChange?.({ ...achievements, enabled: checked })}
-              aria-label="Toggle achievements section"
-            />
+          <div className="flex flex-col items-end gap-2">
+            <label className="flex items-center gap-3">
+              <span className="text-sm text-gray-500">{achievements.enabled ? 'On your profile' : 'Hidden from profile'}</span>
+              <Switch
+                checked={achievements.enabled}
+                onCheckedChange={(checked) => onChange?.({ ...achievements, enabled: checked })}
+                aria-label="Toggle achievements section"
+              />
+            </label>
+            <label className="flex items-center gap-3">
+              <span className="text-sm text-gray-500">{publicVisible ? 'Visible to others' : 'Hidden from others'}</span>
+              <Switch
+                checked={publicVisible}
+                onCheckedChange={onPublicVisibleChange}
+                disabled={!achievements.enabled}
+                aria-label="Toggle public achievements visibility"
+              />
+            </label>
           </div>
         ) : (
           <Button variant="ghost" className="px-0 text-sm font-medium text-gray-500 hover:bg-transparent hover:text-gray-950" asChild>

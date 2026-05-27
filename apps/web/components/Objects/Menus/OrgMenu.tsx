@@ -448,7 +448,6 @@ function DesktopAccountLink({
   isExpanded: boolean
 }) {
   const session = useLHSession() as any
-  const profileHref = getUriWithOrg(orgslug, routePaths.org.profile())
   const accountHref = getUriWithOrg(orgslug, routePaths.owner.account.security())
 
   return (
@@ -506,12 +505,6 @@ function DesktopAccountLink({
             </Link>
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem asChild>
-          <Link href={profileHref} className="flex items-center gap-2">
-            <User size={16} weight="fill" />
-            <span>Profile</span>
-          </Link>
-        </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link href={accountHref} className="flex items-center gap-2">
             <User size={16} weight="fill" />
@@ -628,15 +621,6 @@ function MobileMoreMenu({
             </Link>
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem asChild>
-          <Link
-            href={getUriWithOrg(orgslug, routePaths.org.profile())}
-            className="flex items-center gap-3 rounded-xl px-3 py-2"
-          >
-            <User size={18} weight="fill" />
-            <span>Profile</span>
-          </Link>
-        </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link
             href={getUriWithOrg(orgslug, routePaths.owner.account.security())}

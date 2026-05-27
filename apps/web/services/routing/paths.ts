@@ -60,6 +60,8 @@ export const routePaths = {
     root: () => '/',
     profile: () => '/profile',
     profileEdit: () => '/profile/edit',
+    profilePortfolioPost: (slug: string) => `/profile/portfolio/${slug}`,
+    profileResume: () => '/profile/resume',
     profileTimeline: () => '/profile/timeline',
     profileAchievements: () => '/profile/achievements',
     profileAchievementDetail: (achievementId: string) => `/profile/achievements/${achievementId}`,
@@ -96,6 +98,8 @@ export const routePaths = {
     communityDiscussion: (communityUuid: string, discussionUuid: string) =>
       `/community/${communityUuid}/discussion/${discussionUuid}`,
     user: (username: string) => `/user/${username}`,
+    userResume: (username: string) => `/user/${username}/resume`,
+    userPortfolioPost: (username: string, slug: string) => `/user/${username}/portfolio/${slug}`,
     userTimeline: (username: string) => `/user/${username}/timeline`,
     userAchievements: (username: string) => `/user/${username}/achievements`,
     userAchievementDetail: (username: string, achievementId: string) => `/user/${username}/achievements/${achievementId}`,

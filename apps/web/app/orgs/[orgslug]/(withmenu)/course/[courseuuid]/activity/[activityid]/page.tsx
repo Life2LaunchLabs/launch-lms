@@ -27,23 +27,35 @@ export async function generateMetadata(props: MetadataProps): Promise<Metadata> 
   const params = await props.params;
   const session = await getServerSession()
   const access_token = session?.tokens?.access_token || null
+  const isCourseEnd = params.activityid === 'end';
 
   // Get Org context information
   const org = await getOrganizationContextInfo(params.orgslug, {
     revalidate: 1800,
     tags: ['organizations'],
   })
-  const course_meta = await fetchCourseMetadata(params.courseuuid, access_token)
-  const activity = await getActivityWithAuthHeader(
-    params.activityid,
-    { revalidate: 0, tags: ['activities'] },
-    access_token || null
-  )
+  let course_meta: any
+  let activity: any = null
+
+  try {
+    course_meta = await fetchCourseMetadata(params.courseuuid, access_token)
+    if (!isCourseEnd) {
+      activity = await getActivityWithAuthHeader(
+        params.activityid,
+        { revalidate: 0, tags: ['activities'] },
+        access_token || null
+      )
+    }
+  } catch {
+    return {
+      title: `Activity — ${org?.name || 'Launch LMS'}`,
+      description: 'View this course activity on Launch LMS',
+    }
+  }
 
   // Check if this is the course end page
-  const isCourseEnd = params.activityid === 'end';
   const seoConfig = getOrgSeoConfig(org)
-  const rawTitle = isCourseEnd ? `Congratulations — ${course_meta.name} Course` : `${activity.name} — ${course_meta.name} Course`
+  const rawTitle = isCourseEnd ? `Congratulations — ${course_meta.name} Course` : `${activity?.name || 'Activity'} — ${course_meta.name} Course`
   const pageTitle = seoConfig.default_meta_title_suffix ? `${rawTitle}${seoConfig.default_meta_title_suffix}` : rawTitle
 
   const orgOgImageUrl = seoConfig.default_og_image

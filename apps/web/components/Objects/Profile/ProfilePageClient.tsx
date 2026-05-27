@@ -1,42 +1,56 @@
 'use client'
 
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import {
-  ArrowLeft,
+  Award,
   Camera,
   Check,
-  ChevronLeft,
   ChevronRight,
+  Copy,
   Edit3,
-  ExternalLink,
+  FileText,
   Globe,
-  ImageIcon,
+  GripVertical,
+  Heading1,
+  Image as ImageIcon,
   Instagram,
-  Linkedin,
   Link2,
+  Linkedin,
   Loader2,
   Plus,
-  Save,
+  Share2,
+  Text,
+  Trash2,
+  Youtube,
   X,
 } from 'lucide-react'
+import { AnimatePresence, motion, Reorder, useDragControls } from 'motion/react'
 import { toast } from 'react-hot-toast'
 import { Button } from '@components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@components/ui/dropdown-menu'
 import { Input } from '@components/ui/input'
-import { Switch } from '@components/ui/switch'
 import { Textarea } from '@components/ui/textarea'
-import UserAvatar from '@components/Objects/UserAvatar'
 import { normalizeAchievements, ProfileAchievementsSection } from '@components/Objects/Profile/ProfileAchievements'
-import { normalizeTimeline, ProfileTimelineSummary } from '@components/Objects/Profile/ProfileTimeline'
+import {
+  FeaturedCarousel,
+  getPortfolioAuthorName,
+  normalizeFeatured,
+  type FeaturedSection,
+} from '@components/Objects/Profile/ProfilePortfolio'
+import ProfileTimeline, { normalizeTimeline, type TimelineEntry } from '@components/Objects/Profile/ProfileTimeline'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { getUserAvatarMediaDirectory, getUserProfileCoverMediaDirectory, getUserProfileFeaturedMediaDirectory } from '@services/media/media'
-import { getResourceUrlPreview, ResourceUrlPreview } from '@services/resources/resources'
+import { getUserAvatarMediaDirectory } from '@services/media/media'
 import { updateProfile } from '@services/settings/profile'
-import { updateUserAvatar, updateUserProfileCover, uploadUserProfileFeaturedImage } from '@services/users/users'
+import { updateUserAvatar } from '@services/users/users'
 
-type SocialType = 'website' | 'linkedin' | 'instagram' | 'x'
+type SocialType = 'website' | 'linkedin' | 'instagram' | 'youtube' | 'x'
 
 type SocialLink = {
   type: SocialType
@@ -48,18 +62,20 @@ type ProfileHeader = {
   socials?: SocialLink[]
 }
 
-type FeaturedCard = {
+type ProfileWidgetType = 'timeline' | 'portfolio' | 'achievements' | 'instagramPreview' | 'youtubePreview' | 'title' | 'text' | 'link' | 'media'
+
+type ProfileLayoutItem = {
   id: string
-  url: string
-  title: string
-  subtext: string
-  imageUrl: string
-  textTone: 'dark' | 'light'
+  type: ProfileWidgetType
 }
 
-type FeaturedSection = {
-  enabled: boolean
-  cards: FeaturedCard[]
+type ProfileCustomSection = {
+  id: string
+  type: ProfileWidgetType
+  title?: string
+  body?: string
+  url?: string
+  mediaUrl?: string
 }
 
 type ProfileShape = {
@@ -67,8 +83,10 @@ type ProfileShape = {
   featured?: FeaturedSection
   achievements?: any
   timelineEnabled?: boolean
+  timelinePublicVisible?: boolean
   timeline?: any[]
-  sections?: any[]
+  layout?: ProfileLayoutItem[]
+  sections?: ProfileCustomSection[]
 }
 
 type ProfilePageClientProps = {
@@ -76,7 +94,20 @@ type ProfilePageClientProps = {
   orgslug: string
   profileUsername?: string
   editMode?: boolean
-  canEdit?: boolean
+  initialTab?: ProfileTab
+  mode: 'owner' | 'public'
+  isSelf?: boolean
+}
+
+type OwnerProfilePageClientProps = Omit<ProfilePageClientProps, 'mode' | 'isSelf'>
+type PublicProfilePageClientProps = Omit<ProfilePageClientProps, 'mode' | 'editMode'>
+type ProfileTab = 'overview' | 'timeline'
+
+type SocialPreviewItem = {
+  id: string
+  title: string
+  url: string
+  thumbnailUrl?: string
 }
 
 const SOCIAL_CONFIG: Record<SocialType, {
@@ -84,56 +115,124 @@ const SOCIAL_CONFIG: Record<SocialType, {
   placeholder: string
   icon: React.ComponentType<{ className?: string }>
   hostPattern: RegExp
+  inputPrefix: string
+  inputPlaceholder: string
 }> = {
   website: {
     label: 'Website',
     placeholder: 'https://example.com',
     icon: Globe,
     hostPattern: /.+/,
+    inputPrefix: 'https://',
+    inputPlaceholder: 'your-site.com',
   },
   linkedin: {
     label: 'LinkedIn',
     placeholder: 'https://linkedin.com/in/username',
     icon: Linkedin,
     hostPattern: /(^|\.)linkedin\.com$/i,
+    inputPrefix: 'linkedin.com/in/',
+    inputPlaceholder: 'username',
   },
   instagram: {
     label: 'Instagram',
     placeholder: 'https://instagram.com/username',
     icon: Instagram,
     hostPattern: /(^|\.)instagram\.com$/i,
+    inputPrefix: '@',
+    inputPlaceholder: 'username',
+  },
+  youtube: {
+    label: 'YouTube',
+    placeholder: 'https://youtube.com/@username',
+    icon: Youtube,
+    hostPattern: /(^|\.)youtube\.com$|(^|\.)youtu\.be$/i,
+    inputPrefix: '@',
+    inputPlaceholder: 'username',
   },
   x: {
     label: 'X',
     placeholder: 'https://x.com/username',
     icon: X,
     hostPattern: /(^|\.)x\.com$|(^|\.)twitter\.com$/i,
+    inputPrefix: '@',
+    inputPlaceholder: 'username',
   },
 }
 
-function normalizeFeatured(featured: any): FeaturedSection {
+const UNIQUE_PROFILE_WIDGETS: ProfileWidgetType[] = ['timeline', 'portfolio', 'achievements', 'instagramPreview', 'youtubePreview']
+const DEFAULT_PROFILE_LAYOUT: ProfileLayoutItem[] = [
+  { id: 'timeline', type: 'timeline' },
+  { id: 'portfolio', type: 'portfolio' },
+  { id: 'achievements', type: 'achievements' },
+]
+
+const PROFILE_WIDGET_CONFIG: Record<ProfileWidgetType, {
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  unique: boolean
+}> = {
+  timeline: { label: 'Timeline', icon: ChevronRight, unique: true },
+  portfolio: { label: 'Portfolio', icon: FileText, unique: true },
+  achievements: { label: 'Achievements', icon: Award, unique: true },
+  instagramPreview: { label: 'Instagram', icon: Instagram, unique: true },
+  youtubePreview: { label: 'YouTube', icon: Youtube, unique: true },
+  title: { label: 'Title', icon: Heading1, unique: false },
+  text: { label: 'Text', icon: Text, unique: false },
+  link: { label: 'Link', icon: Link2, unique: false },
+  media: { label: 'Media', icon: ImageIcon, unique: false },
+}
+
+function createProfileLayoutItem(type: ProfileWidgetType): ProfileLayoutItem {
+  if (UNIQUE_PROFILE_WIDGETS.includes(type)) return { id: type, type }
+  return { id: `${type}-${Date.now()}-${Math.random().toString(16).slice(2)}`, type }
+}
+
+function createProfileSection(item: ProfileLayoutItem): ProfileCustomSection | null {
+  if (UNIQUE_PROFILE_WIDGETS.includes(item.type)) return null
   return {
-    enabled: Boolean(featured?.enabled),
-    cards: Array.isArray(featured?.cards)
-      ? featured.cards.slice(0, 10).map((card: any) => ({
-        id: card.id || `featured-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        url: card.url || '',
-        title: card.title || '',
-        subtext: card.subtext || '',
-        imageUrl: card.imageUrl || card.coverImageUrl || '',
-        textTone: card.textTone === 'light' ? 'light' : 'dark',
-      }))
-      : [],
+    id: item.id,
+    type: item.type,
+    title: item.type === 'title' ? 'Untitled section' : '',
+    body: '',
+    url: '',
+    mediaUrl: '',
   }
 }
 
+function normalizeProfileLayout(layout: any): ProfileLayoutItem[] {
+  if (!Array.isArray(layout)) return DEFAULT_PROFILE_LAYOUT
+  const seenUnique = new Set<ProfileWidgetType>()
+  return layout.reduce<ProfileLayoutItem[]>((items, item) => {
+    const type = item?.type as ProfileWidgetType
+    if (!PROFILE_WIDGET_CONFIG[type]) return items
+    if (UNIQUE_PROFILE_WIDGETS.includes(type)) {
+      if (seenUnique.has(type)) return items
+      seenUnique.add(type)
+      items.push({ id: type, type })
+      return items
+    }
+    items.push({ id: item?.id || createProfileLayoutItem(type).id, type })
+    return items
+  }, [])
+}
+
+function moveProfileLayoutItem(layout: ProfileLayoutItem[], itemId: string, targetIndex: number) {
+  const currentIndex = layout.findIndex((item) => item.id === itemId)
+  if (currentIndex === -1) return layout
+  const next = Array.from(layout)
+  const [item] = next.splice(currentIndex, 1)
+  next.splice(Math.max(0, Math.min(targetIndex, next.length)), 0, item)
+  return next
+}
+
 function normalizeProfile(profile: any): ProfileShape {
-  if (!profile) return { header: { socials: [] }, featured: normalizeFeatured(null), achievements: normalizeAchievements(null), timelineEnabled: false, timeline: [], sections: [] }
+  if (!profile) return { header: { socials: [] }, featured: normalizeFeatured(null), achievements: normalizeAchievements(null), timelineEnabled: false, timeline: [], layout: DEFAULT_PROFILE_LAYOUT, sections: [] }
   if (typeof profile === 'string') {
     try {
       return normalizeProfile(JSON.parse(profile))
     } catch {
-      return { header: { socials: [] }, featured: normalizeFeatured(null), achievements: normalizeAchievements(null), timelineEnabled: false, timeline: [], sections: [] }
+      return { header: { socials: [] }, featured: normalizeFeatured(null), achievements: normalizeAchievements(null), timelineEnabled: false, timeline: [], layout: DEFAULT_PROFILE_LAYOUT, sections: [] }
     }
   }
   return {
@@ -146,6 +245,7 @@ function normalizeProfile(profile: any): ProfileShape {
     achievements: normalizeAchievements(profile.achievements),
     timelineEnabled: Boolean(profile.timelineEnabled),
     timeline: normalizeTimeline(profile.timeline),
+    layout: normalizeProfileLayout(profile.layout),
     sections: Array.isArray(profile.sections) ? profile.sections : [],
   }
 }
@@ -167,653 +267,1266 @@ function getSocialHref(social: SocialLink) {
   return `https://${social.url}`
 }
 
-function normalizeUrl(value: string) {
+function cleanSocialHandle(value: string) {
+  return value
+    .trim()
+    .replace(/^@+/, '')
+    .replace(/^\/+/, '')
+    .split(/[/?#]/)[0]
+}
+
+function getSocialInputValue(type: SocialType, value: string) {
   const trimmed = value.trim()
   if (!trimmed) return ''
-  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
-}
 
-function previewToCardUpdate(preview: ResourceUrlPreview) {
-  return {
-    url: preview.og_url || preview.url || '',
-    title: preview.title || '',
-    subtext: preview.description || '',
-    imageUrl: preview.og_image || '',
-  }
-}
-
-function createEmptyFeaturedCard(): FeaturedCard {
-  return {
-    id: `featured-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    url: '',
-    title: '',
-    subtext: '',
-    imageUrl: '',
-    textTone: 'dark',
-  }
-}
-
-function getCardImage(card?: FeaturedCard) {
-  return card?.imageUrl || ''
-}
-
-function getDisplayUrl(value: string) {
   try {
-    const url = new URL(normalizeUrl(value))
-    return `${url.hostname}${url.pathname === '/' ? '' : url.pathname}`.replace(/\/$/, '')
+    const url = new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`)
+    const hostname = url.hostname.replace(/^www\./i, '').toLowerCase()
+    const parts = url.pathname.split('/').filter(Boolean)
+
+    if (type === 'website') {
+      return `${url.hostname}${url.pathname === '/' ? '' : url.pathname}`.replace(/\/$/, '')
+    }
+    if (type === 'linkedin' && hostname === 'linkedin.com') {
+      return cleanSocialHandle(parts[0] === 'in' ? parts[1] || '' : parts[0] || '')
+    }
+    if (type === 'instagram' && hostname === 'instagram.com') return cleanSocialHandle(parts[0] || '')
+    if (type === 'youtube' && hostname === 'youtube.com') {
+      const firstPart = parts[0] || ''
+      if (firstPart === 'channel') return cleanSocialHandle(parts[1] || '')
+      if (firstPart === 'c' || firstPart === 'user') return cleanSocialHandle(parts[1] || '')
+      return cleanSocialHandle(firstPart)
+    }
+    if (type === 'youtube' && hostname === 'youtu.be') return cleanSocialHandle(parts[0] || '')
+    if (type === 'x' && (hostname === 'x.com' || hostname === 'twitter.com')) return cleanSocialHandle(parts[0] || '')
   } catch {
-    return value
+    // Fall back to lightweight handle parsing below.
   }
+
+  if (type === 'website') return trimmed.replace(/^https?:\/\//i, '').replace(/\/$/, '')
+  if (type === 'linkedin') return cleanSocialHandle(trimmed.replace(/^(www\.)?linkedin\.com\/in\//i, ''))
+  if (type === 'youtube') return cleanSocialHandle(trimmed.replace(/^(www\.)?(youtube\.com\/(@|channel\/|c\/|user\/)?|youtu\.be\/)/i, ''))
+  return cleanSocialHandle(trimmed.replace(/^(www\.)?(instagram\.com|x\.com|twitter\.com)\//i, ''))
 }
 
-function getToneClasses(tone: FeaturedCard['textTone']) {
-  if (tone === 'light') {
+function normalizeSocialInput(type: SocialType, value: string) {
+  const inputValue = getSocialInputValue(type, value)
+  if (!inputValue) return ''
+  if (type === 'website') return /^https?:\/\//i.test(inputValue) ? inputValue : `https://${inputValue}`
+  if (type === 'linkedin') return `https://linkedin.com/in/${inputValue}`
+  if (type === 'instagram') return `https://instagram.com/${inputValue}`
+  if (type === 'youtube') {
+    if (/^UC[a-zA-Z0-9_-]{20,}$/.test(inputValue)) return `https://youtube.com/channel/${inputValue}`
+    return `https://youtube.com/@${inputValue.replace(/^@+/, '')}`
+  }
+  return `https://x.com/${inputValue}`
+}
+
+function getSocialBubbleStyle(type: SocialType): React.CSSProperties {
+  if (type === 'linkedin') return { backgroundColor: '#0A66C2' }
+  if (type === 'instagram') {
     return {
-      title: 'text-white placeholder:text-white/55',
-      body: 'text-white/90 placeholder:text-white/55',
-      link: 'text-white hover:text-white',
-      muted: 'text-white/75',
-      line: 'border-white/25',
-      panel: 'bg-black/12',
-      control: 'bg-black/20 text-white placeholder:text-white/55',
-      topGradient: 'from-black/80',
-      bottomGradient: 'from-black/80',
+      background:
+        'radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 90%)',
     }
   }
+  if (type === 'youtube') return { backgroundColor: '#FF0033' }
+  if (type === 'x') return { backgroundColor: '#000000' }
+  return { backgroundColor: '#111827' }
+}
+
+const AVATAR_SOCIAL_SCALE = 198
+
+function getAvatarSocialGeometry(size: number, socialCount: number, expanded = false, socialScale = AVATAR_SOCIAL_SCALE) {
+  const gap = socialScale * 0.055
+  const bubble = Math.min(socialScale * 0.22, (socialScale - ((socialCount + 1) * gap)) / Math.max(1, socialCount))
+  const padding = socialScale * 0.05
+  const contentWidth = expanded ? Math.min(size * 0.68, socialScale * 1.62) : bubble
+  const channelWidth = Math.min(size, contentWidth + (padding * 2))
+  const channelX = size - channelWidth
+  const barHeight = (socialCount * bubble) + (Math.max(0, socialCount - 1) * gap)
+  const channelTop = Math.max(size * 0.14, size - barHeight - padding)
+  const innerRadius = (bubble / 2) + padding
 
   return {
-    title: 'text-gray-950 placeholder:text-gray-500',
-    body: 'text-gray-800 placeholder:text-gray-500',
-    link: 'text-gray-950 hover:text-gray-950',
-    muted: 'text-gray-700',
-    line: 'border-gray-950/15',
-    panel: 'bg-white/12',
-    control: 'bg-white/20 text-gray-950 placeholder:text-gray-500',
-    topGradient: 'from-white/85',
-    bottomGradient: 'from-white/95',
+    bubble,
+    contentWidth: Math.max(bubble, channelWidth - (padding * 2)),
+    channelWidth,
+    channelX,
+    gap,
+    padding,
+    innerRadius,
+    channelTop,
   }
 }
 
-function FeaturedDisplayCard({
-  card,
-  active,
+function estimateTextWidth(value: string, fontSize: number) {
+  return value.length * fontSize * 0.56
+}
+
+function ProfileNameLine({
+  value,
+  maxRem,
+  minRem,
+  align = 'left',
+  className = '',
 }: {
-  card: FeaturedCard
-  active: boolean
+  value?: string
+  maxRem: number
+  minRem: number
+  align?: 'left' | 'right'
+  className?: string
 }) {
-  const image = getCardImage(card)
-  const tone = getToneClasses(card.textTone)
+  const name = value?.trim()
+  if (!name) return null
+
+  const fitFactor = Math.max(4, name.length * 0.58)
+  const alignClass = align === 'right' ? 'text-right' : 'text-left'
+
+  return (
+    <span
+      className={`block w-full overflow-visible whitespace-nowrap ${alignClass} font-black leading-[0.82] text-gray-950 ${className}`}
+      style={{
+        fontSize: `min(${maxRem}rem, calc(100cqw / ${fitFactor}))`,
+        letterSpacing: 0,
+        WebkitTextStroke: '0.018em currentColor',
+        textShadow: '0.012em 0 currentColor, -0.006em 0 currentColor',
+      }}
+    >
+      {name}
+    </span>
+  )
+}
+
+function ProfileNameStack({
+  firstName,
+  lastName,
+  maxRem,
+  minRem,
+  align = 'left',
+  className = '',
+}: {
+  firstName?: string
+  lastName?: string
+  maxRem: number
+  minRem: number
+  align?: 'left' | 'right'
+  className?: string
+}) {
+  const alignClass = align === 'right' ? 'text-right' : 'text-left'
+
+  return (
+    <h1
+      className={`min-w-0 ${alignClass} ${className}`}
+      style={{ containerType: 'inline-size' }}
+      aria-label={[firstName, lastName].filter(Boolean).join(' ')}
+    >
+      <ProfileNameLine value={firstName} maxRem={maxRem} minRem={minRem} align={align} />
+      <ProfileNameLine value={lastName} maxRem={maxRem} minRem={minRem} align={align} />
+    </h1>
+  )
+}
+
+function EditableProfileNameLine({
+  value,
+  placeholder,
+  maxRem,
+  minRem,
+  align = 'left',
+  className = '',
+  disabled = false,
+  onChange,
+  onBlur,
+}: {
+  value: string
+  placeholder: string
+  maxRem: number
+  minRem: number
+  align?: 'left' | 'right'
+  className?: string
+  disabled?: boolean
+  onChange: (value: string) => void
+  onBlur: () => void
+}) {
+  const displayValue = value || placeholder
+  const fitFactor = Math.max(4, displayValue.length * 0.58)
+  const alignClass = align === 'right' ? 'text-right' : 'text-left'
+
+  return (
+    <input
+      type="text"
+      value={value}
+      placeholder={placeholder}
+      disabled={disabled}
+      onChange={(event) => onChange(event.target.value)}
+      onBlur={onBlur}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') event.currentTarget.blur()
+      }}
+      className={`block w-full overflow-visible whitespace-nowrap border-0 bg-transparent p-0 ${alignClass} font-black leading-[0.82] text-gray-950 outline-none transition-colors placeholder:text-gray-300 focus:text-emerald-700 disabled:cursor-wait disabled:opacity-70 ${className}`}
+      style={{
+        fontSize: `min(${maxRem}rem, calc(100cqw / ${fitFactor}))`,
+        letterSpacing: 0,
+        WebkitTextStroke: '0.018em currentColor',
+        textShadow: '0.012em 0 currentColor, -0.006em 0 currentColor',
+      }}
+      aria-label={placeholder}
+    />
+  )
+}
+
+function EditableProfileNameStack({
+  firstName,
+  lastName,
+  maxRem,
+  minRem,
+  align = 'left',
+  className = '',
+  disabled = false,
+  onFirstNameChange,
+  onLastNameChange,
+  onFirstNameBlur,
+  onLastNameBlur,
+  showLastName = true,
+}: {
+  firstName: string
+  lastName: string
+  maxRem: number
+  minRem: number
+  align?: 'left' | 'right'
+  className?: string
+  disabled?: boolean
+  onFirstNameChange: (value: string) => void
+  onLastNameChange: (value: string) => void
+  onFirstNameBlur: () => void
+  onLastNameBlur: () => void
+  showLastName?: boolean
+}) {
+  const alignClass = align === 'right' ? 'text-right' : 'text-left'
 
   return (
     <div
-      className={`relative flex h-[270px] w-[min(82vw,360px)] flex-col overflow-hidden rounded-[28px] border bg-white p-1 transition-all duration-300 sm:h-[285px] sm:w-[380px] ${
-        active ? 'border-[3px] border-gray-950' : 'border border-gray-200'
-      }`}
+      className={`min-w-0 ${alignClass} ${className}`}
+      style={{ containerType: 'inline-size' }}
     >
-      {image ? (
-        <img src={image} alt="" className="absolute inset-1 h-[calc(100%-8px)] w-[calc(100%-8px)] rounded-[24px] object-cover" />
-      ) : (
-        <div className="absolute inset-1 rounded-[24px] bg-[linear-gradient(135deg,#eef2ff,#f8fafc,#dcfce7)]" />
-      )}
-      <div className={`absolute inset-x-1 top-1 h-32 rounded-t-[24px] bg-gradient-to-b ${tone.topGradient} to-transparent`} />
-      <div className={`absolute inset-x-1 bottom-1 h-32 rounded-b-[24px] bg-gradient-to-t ${tone.bottomGradient} to-transparent`} />
-      <div className="relative flex min-h-0 flex-1 flex-col p-5">
-        <div className="space-y-2">
-          <h3 className={`text-2xl font-black leading-none ${tone.title}`}>
-            {card.title || 'Featured link'}
-          </h3>
-          {card.subtext ? (
-            <p className={`text-lg leading-7 ${tone.body}`}>{card.subtext}</p>
-          ) : null}
+      <EditableProfileNameLine
+        value={firstName}
+        placeholder="First name"
+        maxRem={maxRem}
+        minRem={minRem}
+        align={align}
+        disabled={disabled}
+        onChange={onFirstNameChange}
+        onBlur={onFirstNameBlur}
+      />
+      {showLastName ? (
+        <EditableProfileNameLine
+          value={lastName}
+          placeholder="Last name"
+          maxRem={maxRem}
+          minRem={minRem}
+          align={align}
+          disabled={disabled}
+          onChange={onLastNameChange}
+          onBlur={onLastNameBlur}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function getAvatarNameGeometry(size: number, firstName: string, lastName: string) {
+  const name = (lastName || firstName).trim()
+  if (!name) return null
+
+  const maxWidth = size * 0.8
+  const paddingLeft = 0
+  const paddingRight = size * 0.045
+  const paddingY = 0
+  const baseFontSize = size * 0.18
+  const minFontSize = size * 0.08
+  const nameWidth = estimateTextWidth(name, baseFontSize)
+  const fontSize = Math.max(minFontSize, Math.min(baseFontSize, (maxWidth - paddingRight) / Math.max(1, nameWidth / baseFontSize)))
+  const lineHeight = fontSize * 1.08
+  const width = Math.min(maxWidth, estimateTextWidth(name, fontSize) + paddingRight)
+  const height = lineHeight * 0.6
+  const radius = height / 2
+  const textOffsetY = -(fontSize * 0.18)
+
+  return {
+    lines: [name],
+    width,
+    height,
+    fontSize,
+    lineHeight,
+    radius,
+    paddingLeft,
+    paddingRight,
+    paddingY,
+    textOffsetY,
+    needsWordBreak: nameWidth + paddingRight > maxWidth,
+  }
+}
+
+function getAvatarClipPath(size: number, socialCount: number, nameGeometry: ReturnType<typeof getAvatarNameGeometry> = null, socialsExpanded = false, socialScale = AVATAR_SOCIAL_SCALE) {
+  const baseGeometry = getAvatarSocialGeometry(size, Math.max(1, socialCount), socialsExpanded, socialScale)
+  const radius = baseGeometry.innerRadius
+  if (socialCount === 0 && !nameGeometry) {
+    return `M ${radius} 0 H ${size - radius} Q ${size} 0 ${size} ${radius} V ${size - radius} Q ${size} ${size} ${size - radius} ${size} H ${radius} Q 0 ${size} 0 ${size - radius} V ${radius} Q 0 0 ${radius} 0 Z`
+  }
+
+  const socialGeometry = socialCount > 0 ? getAvatarSocialGeometry(size, socialCount, socialsExpanded, socialScale) : null
+  const channelX = socialGeometry?.channelX ?? size
+  const channelTop = socialGeometry?.channelTop ?? size
+  const innerRadius = socialGeometry?.innerRadius ?? 0
+  const nameWidth = nameGeometry?.width ?? 0
+  const nameHeight = nameGeometry?.height ?? 0
+  const nameRadius = Math.min(radius, nameWidth / 2, nameHeight / 2)
+  const startsAfterNameCutout = Boolean(nameGeometry)
+
+  return [
+    `M ${startsAfterNameCutout ? nameWidth + nameRadius : radius} 0`,
+    `H ${size - radius}`,
+    `Q ${size} 0 ${size} ${radius}`,
+    ...(socialGeometry ? [
+      `V ${channelTop - innerRadius}`,
+      `Q ${size} ${channelTop} ${size - innerRadius} ${channelTop}`,
+      `H ${channelX + innerRadius}`,
+      `Q ${channelX} ${channelTop} ${channelX} ${channelTop + innerRadius}`,
+      `V ${size - innerRadius}`,
+      `Q ${channelX} ${size} ${channelX - innerRadius} ${size}`,
+    ] : [
+      `V ${size - radius}`,
+      `Q ${size} ${size} ${size - radius} ${size}`,
+    ]),
+    `H ${radius}`,
+    `Q 0 ${size} 0 ${size - radius}`,
+    ...(nameGeometry ? [
+      `V ${nameHeight + nameRadius}`,
+      `Q 0 ${nameHeight} ${nameRadius} ${nameHeight}`,
+      `H ${nameWidth - nameRadius}`,
+      `Q ${nameWidth} ${nameHeight} ${nameWidth} ${nameHeight - nameRadius}`,
+      `V ${nameRadius}`,
+      `Q ${nameWidth} 0 ${nameWidth + nameRadius} 0`,
+    ] : [
+      `V ${radius}`,
+      `Q 0 0 ${radius} 0`,
+    ]),
+    'Z',
+  ].join(' ')
+}
+
+function ProfileHeaderAvatar({
+  avatarUrl,
+  socials,
+  size,
+  userId,
+  firstName,
+  lastName,
+  showNameCutout = false,
+  fullWidth = false,
+  socialScale = AVATAR_SOCIAL_SCALE,
+  canEditSocials,
+  socialsExpanded = false,
+  uploading,
+  missingSocialTypes = [],
+  onAvatarChange,
+  onAddSocial,
+  onUpdateSocial,
+  onRemoveSocial,
+  onSocialsFocus,
+  onSocialsBlur,
+  onSaveSocials,
+}: {
+  avatarUrl: string
+  socials: SocialLink[]
+  size: number
+  userId: number | string
+  firstName?: string
+  lastName?: string
+  showNameCutout?: boolean
+  fullWidth?: boolean
+  socialScale?: number
+  canEditSocials: boolean
+  socialsExpanded?: boolean
+  uploading: boolean
+  missingSocialTypes?: SocialType[]
+  // eslint-disable-next-line no-unused-vars
+  onAvatarChange(event: React.ChangeEvent<HTMLInputElement>): void
+  // eslint-disable-next-line no-unused-vars
+  onAddSocial?(type: SocialType): void
+  // eslint-disable-next-line no-unused-vars
+  onUpdateSocial?(type: SocialType, url: string): void
+  // eslint-disable-next-line no-unused-vars
+  onRemoveSocial?(type: SocialType): void
+  onSocialsFocus?(): void
+  onSocialsBlur?(): void
+  onSaveSocials?(): void
+}) {
+  const clipId = useId()
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const [measuredSize, setMeasuredSize] = useState(size)
+  const actualSize = fullWidth ? measuredSize : size
+  const safeClipId = `profile-avatar-${clipId.replace(/[^a-zA-Z0-9_-]/g, '')}`
+  const visibleSocials = (canEditSocials ? socials : socials.filter((social) => social.url)).slice(0, 5)
+  const socialSlotCount = visibleSocials.length || (canEditSocials ? 1 : 0)
+  const nameGeometry = showNameCutout ? getAvatarNameGeometry(actualSize, firstName || '', lastName || '') : null
+  const clipPath = getAvatarClipPath(actualSize, socialSlotCount, nameGeometry, socialsExpanded, socialScale)
+  const { bubble, contentWidth, channelWidth, gap, padding } = getAvatarSocialGeometry(actualSize, socialSlotCount, socialsExpanded, socialScale)
+  const bubbleSize = Math.round(bubble)
+  const socialContentWidth = Math.round(contentWidth)
+  const avatarImageUrl = avatarUrl || '/empty_avatar.png'
+  const socialsTop = socialSlotCount > 0
+    ? getAvatarSocialGeometry(actualSize, socialSlotCount, socialsExpanded, socialScale).channelTop
+    : actualSize
+
+  useEffect(() => {
+    if (!fullWidth || !containerRef.current) return
+    const observer = new ResizeObserver(([entry]) => {
+      const nextSize = Math.max(1, Math.round(entry.contentRect.width))
+      setMeasuredSize(nextSize)
+    })
+    observer.observe(containerRef.current)
+    return () => observer.disconnect()
+  }, [fullWidth])
+
+  return (
+    <div
+      ref={containerRef}
+      className={`relative shrink-0 ${fullWidth ? 'w-full' : ''}`}
+      style={{ width: fullWidth ? undefined : actualSize, height: actualSize }}
+    >
+      <svg
+        viewBox={`0 0 ${actualSize} ${actualSize}`}
+        className="h-full w-full overflow-visible"
+        role="img"
+        aria-label="Profile photo"
+      >
+        <defs>
+          <clipPath id={safeClipId}>
+            <path d={clipPath} />
+          </clipPath>
+        </defs>
+        <rect width={actualSize} height={actualSize} clipPath={`url(#${safeClipId})`} className="fill-gray-100" />
+        <image
+          href={avatarImageUrl}
+          width={actualSize}
+          height={actualSize}
+          preserveAspectRatio="xMidYMid slice"
+          clipPath={`url(#${safeClipId})`}
+        />
+      </svg>
+
+      {nameGeometry ? (
+        <div
+          className="absolute left-0 top-0 flex flex-col items-start justify-center text-left font-black leading-none text-gray-950"
+          style={{
+            width: nameGeometry.width,
+            height: nameGeometry.height,
+            paddingLeft: nameGeometry.paddingLeft,
+            paddingRight: nameGeometry.paddingRight,
+            paddingTop: nameGeometry.paddingY,
+            paddingBottom: nameGeometry.paddingY,
+            fontSize: nameGeometry.fontSize,
+            lineHeight: `${nameGeometry.lineHeight}px`,
+            transform: `translateY(${nameGeometry.textOffsetY}px)`,
+            WebkitTextStroke: '0.018em currentColor',
+            textShadow: '0.012em 0 currentColor, -0.006em 0 currentColor',
+            wordBreak: nameGeometry.needsWordBreak ? 'break-word' : 'normal',
+          }}
+        >
+          {nameGeometry.lines.map((line, index) => (
+            <span key={`${line}-${index}`} className="block">
+              {line}
+            </span>
+          ))}
         </div>
-        <div className={`mt-auto border-t pt-3 ${tone.line}`}>
+      ) : null}
+
+      {canEditSocials && missingSocialTypes.length > 0 && socialsExpanded ? (
+        <div
+          data-profile-socials="true"
+          className="absolute right-0 z-10 flex items-center justify-end gap-2"
+          style={{
+            right: padding,
+            bottom: Math.max(8, actualSize - socialsTop + gap),
+            gap,
+          }}
+          onMouseDown={(event) => event.stopPropagation()}
+          onFocus={onSocialsFocus}
+        >
+          {missingSocialTypes.map((type) => {
+            const Icon = SOCIAL_CONFIG[type].icon
+            return (
+              <button
+                key={type}
+                type="button"
+                aria-label={`Add ${SOCIAL_CONFIG[type].label}`}
+                title={`Add ${SOCIAL_CONFIG[type].label}`}
+                onClick={() => {
+                  onSocialsFocus?.()
+                  onAddSocial?.(type)
+                }}
+                className="flex shrink-0 items-center justify-center rounded-full text-white shadow-sm ring-2 ring-white"
+                style={{
+                  width: bubbleSize,
+                  height: bubbleSize,
+                  ...getSocialBubbleStyle(type),
+                }}
+              >
+                <Icon className="h-[45%] w-[45%]" />
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+
+      {socialSlotCount > 0 ? (
+        <div
+          data-profile-socials="true"
+          className="absolute right-0 bottom-0 flex flex-col items-center"
+          style={{
+            width: channelWidth,
+            gap,
+          }}
+          onMouseDown={(event) => {
+            event.stopPropagation()
+          }}
+          onFocus={onSocialsFocus}
+          onClick={() => {
+            onSocialsFocus?.()
+          }}
+        >
+          {visibleSocials.length === 0 && canEditSocials ? (
+            <button
+              type="button"
+              aria-label="Add social links"
+              onClick={onSocialsFocus}
+              className="flex shrink-0 items-center justify-center rounded-full bg-gray-950 text-white shadow-sm ring-2 ring-white transition-transform hover:-translate-y-0.5"
+              style={{
+                width: bubbleSize,
+                height: bubbleSize,
+              }}
+            >
+              <Plus className="h-[45%] w-[45%]" />
+            </button>
+          ) : null}
+          {visibleSocials.map((social) => {
+            const config = SOCIAL_CONFIG[social.type]
+            const Icon = config.icon
+            const socialStyle = getSocialBubbleStyle(social.type)
+            return canEditSocials && socialsExpanded ? (
+              <div
+                key={social.type}
+                className="flex shrink-0 items-center gap-2 rounded-full pl-3 pr-2 text-white shadow-sm ring-2 ring-white"
+                style={{
+                  width: socialContentWidth,
+                  height: bubbleSize,
+                  ...socialStyle,
+                }}
+              >
+                <span
+                  className="flex shrink-0 items-center justify-center rounded-full text-white"
+                  style={{
+                    width: Math.max(28, bubbleSize - 8),
+                    height: Math.max(28, bubbleSize - 8),
+                  }}
+                >
+                  <Icon className="h-[45%] w-[45%]" />
+                </span>
+                <span className="shrink-0 text-xs font-semibold text-white/80">
+                  {config.inputPrefix}
+                </span>
+                <Input
+                  value={getSocialInputValue(social.type, social.url)}
+                  onChange={(event) => onUpdateSocial?.(social.type, normalizeSocialInput(social.type, event.target.value))}
+                  onPaste={(event) => {
+                    event.preventDefault()
+                    const pasted = event.clipboardData.getData('text')
+                    onUpdateSocial?.(social.type, normalizeSocialInput(social.type, pasted))
+                  }}
+                  placeholder={config.inputPlaceholder}
+                  className="h-8 min-w-0 border-0 bg-transparent px-0 text-xs text-white shadow-none placeholder:text-white/70 focus-visible:ring-0"
+                  autoComplete="url"
+                  onFocus={onSocialsFocus}
+                  onBlur={() => {
+                    onSaveSocials?.()
+                    onSocialsBlur?.()
+                  }}
+                />
+                <button
+                  type="button"
+                  aria-label={`Remove ${config.label}`}
+                  onClick={() => onRemoveSocial?.(social.type)}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white/85 hover:bg-white/15 hover:text-white"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : socialsExpanded ? (
+              <a
+                key={social.type}
+                href={getSocialHref(social)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex shrink-0 items-center gap-2 rounded-full px-3 text-sm font-semibold text-white shadow-sm ring-2 ring-white transition-transform hover:-translate-y-0.5"
+                style={{
+                  width: socialContentWidth,
+                  height: bubbleSize,
+                  ...socialStyle,
+                }}
+                aria-label={config.label}
+                title={config.label}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="min-w-0 truncate">{config.label}</span>
+              </a>
+            ) : (
+              <a
+                key={social.type}
+                href={getSocialHref(social)}
+                onClick={(event) => {
+                  event.preventDefault()
+                  onSocialsFocus?.()
+                }}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex shrink-0 items-center justify-center rounded-full text-white shadow-sm ring-2 ring-white transition-transform hover:-translate-y-0.5"
+                style={{
+                  width: bubbleSize,
+                  height: bubbleSize,
+                  ...socialStyle,
+                }}
+                aria-label={config.label}
+                title={config.label}
+              >
+                <Icon className="h-[45%] w-[45%]" />
+              </a>
+            )
+          })}
+        </div>
+      ) : null}
+
+      {canEditSocials ? (
+        <>
+          <input
+            id={`profile-avatar-upload-${userId}-${size}`}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            className="hidden"
+            onChange={onAvatarChange}
+          />
+          <button
+            type="button"
+            aria-label="Upload profile photo"
+            onClick={() => document.getElementById(`profile-avatar-upload-${userId}-${size}`)?.click()}
+            className="absolute flex items-center justify-center rounded-full bg-white text-gray-800 shadow-md ring-1 ring-gray-200 hover:text-gray-950"
+            style={{
+              right: padding,
+              top: padding,
+              width: bubbleSize,
+              height: bubbleSize,
+            }}
+            disabled={uploading}
+          >
+            {uploading ? <Loader2 className="h-[45%] w-[45%] animate-spin" /> : <Camera className="h-[45%] w-[45%]" />}
+          </button>
+        </>
+      ) : null}
+    </div>
+  )
+}
+
+const PROFILE_TIMELINE_MONTH_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  year: 'numeric',
+})
+
+function getProfileTimelineMonthKey(value?: string) {
+  const match = value ? /^(\d{4})-(\d{2})$/.exec(value) : null
+  if (!match) return Number.NEGATIVE_INFINITY
+  return Number(match[1]) * 12 + (Number(match[2]) - 1)
+}
+
+function getProfileTimelineEffectiveEndDate(entry: TimelineEntry) {
+  if (entry.isOngoing || !entry.endDate) {
+    const today = new Date()
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+  }
+  return entry.endDate
+}
+
+function formatProfileTimelineMonth(value?: string) {
+  const match = value ? /^(\d{4})-(\d{2})$/.exec(value) : null
+  if (!match) return ''
+  return PROFILE_TIMELINE_MONTH_FORMATTER.format(
+    new Date(Number(match[1]), Number(match[2]) - 1, 1)
+  )
+}
+
+function formatProfileTimelineRange(entry: TimelineEntry) {
+  const start = formatProfileTimelineMonth(entry.startDate)
+  const end = entry.isOngoing ? 'Present' : formatProfileTimelineMonth(entry.endDate)
+  if (!start) return end
+  if (!end) return start
+  return `${start} - ${end}`
+}
+
+function getRecentTimelineEntries(timeline: TimelineEntry[]) {
+  return [...timeline]
+    .sort((a, b) => {
+      const endDiff = getProfileTimelineMonthKey(getProfileTimelineEffectiveEndDate(b)) -
+        getProfileTimelineMonthKey(getProfileTimelineEffectiveEndDate(a))
+      if (endDiff !== 0) return endDiff
+      return getProfileTimelineMonthKey(b.startDate) - getProfileTimelineMonthKey(a.startDate)
+    })
+    .slice(0, 4)
+}
+
+function getTimelineEntryDetail(entry: TimelineEntry) {
+  if (entry.category === 'work') return entry.employer
+  if (entry.category === 'education') return entry.institution
+  return ''
+}
+
+function TimelineOverviewSection({
+  timeline,
+  href,
+  canManage,
+}: {
+  timeline: TimelineEntry[]
+  href: string
+  canManage: boolean
+}) {
+  const recentEntries = getRecentTimelineEntries(timeline)
+
+  if (!canManage && recentEntries.length === 0) return null
+
+  return (
+    <section className="px-4 py-6 sm:px-0">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-2xl font-semibold text-gray-950">Timeline</h2>
+        <Link
+          href={href}
+          className="flex items-center gap-1.5 text-sm font-semibold text-gray-600 transition-colors hover:text-gray-950"
+        >
+          <span>See whole timeline</span>
+          <ChevronRight className="h-4 w-4" />
+        </Link>
+      </div>
+      {recentEntries.length > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {recentEntries.map((entry) => {
+            const detail = getTimelineEntryDetail(entry)
+            return (
+              <article key={entry.id} className="min-h-40 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold capitalize text-gray-600">
+                    {entry.category}
+                  </span>
+                  {entry.isOngoing ? (
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                      Current
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-4 line-clamp-2 text-base font-semibold leading-6 text-gray-950">{entry.title}</p>
+                <p className="mt-2 text-sm text-gray-500">{formatProfileTimelineRange(entry)}</p>
+                {detail ? <p className="mt-2 truncate text-sm font-medium text-gray-700">{detail}</p> : null}
+                {entry.description ? (
+                  <p className="mt-3 line-clamp-2 text-sm leading-6 text-gray-600">{entry.description}</p>
+                ) : null}
+              </article>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="rounded-lg border-2 border-dotted border-emerald-400 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-4 rounded-lg bg-emerald-50/50 p-5">
+            <div>
+              <p className="text-sm font-semibold text-emerald-950">Add timeline events</p>
+              <p className="mt-1 text-sm leading-6 text-emerald-800">
+                Capture work, education, and life moments to show them here.
+              </p>
+            </div>
+            <Link
+              href={href}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm transition-colors hover:bg-emerald-600"
+              aria-label="Add timeline events"
+            >
+              <ChevronRight className="h-6 w-6" />
+            </Link>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function SocialPreviewWidget({
+  type,
+  social,
+  canEdit,
+  onChange,
+  onBlur,
+}: {
+  type: Extract<SocialType, 'instagram' | 'youtube'>
+  social?: SocialLink
+  canEdit: boolean
+  onChange(value: string): void
+  onBlur(): void
+}) {
+  const config = SOCIAL_CONFIG[type]
+  const Icon = config.icon
+  const handle = getSocialInputValue(type, social?.url || '')
+  const href = social?.url ? getSocialHref(social) : ''
+  const [items, setItems] = useState<SocialPreviewItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const [loadedHandle, setLoadedHandle] = useState('')
+
+  useEffect(() => {
+    if (!handle) {
+      setItems([])
+      setLoadedHandle('')
+      return
+    }
+
+    let cancelled = false
+    setLoading(true)
+    fetch(`/api/profile/social-previews?site=${type}&handle=${encodeURIComponent(handle)}`)
+      .then(async (response) => {
+        if (!response.ok) return []
+        const data = await response.json()
+        return Array.isArray(data.items) ? data.items.slice(0, 6) : []
+      })
+      .then((nextItems: SocialPreviewItem[]) => {
+        if (cancelled) return
+        setItems(nextItems)
+        setLoadedHandle(handle)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setItems([])
+          setLoadedHandle(handle)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [handle, type])
+
+  const emptyMessage = type === 'instagram'
+    ? 'Public Instagram previews are limited by Instagram. Add a handle here now; previews appear when public page data is available.'
+    : 'Add a YouTube handle to show recent videos.'
+
+  return (
+    <section className="px-4 py-6 sm:px-0">
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white"
+              style={getSocialBubbleStyle(type)}
+            >
+              <Icon className="h-4 w-4" />
+            </span>
+            <h2 className="text-2xl font-semibold text-gray-950">{config.label}</h2>
+          </div>
+          <div className="mt-2 flex min-w-0 items-center gap-1.5 text-sm text-gray-500">
+            <span className="shrink-0">{config.inputPrefix}</span>
+            {canEdit ? (
+              <input
+                value={handle}
+                onChange={(event) => onChange(normalizeSocialInput(type, event.target.value))}
+                onPaste={(event) => {
+                  event.preventDefault()
+                  onChange(normalizeSocialInput(type, event.clipboardData.getData('text')))
+                }}
+                onBlur={onBlur}
+                placeholder={config.inputPlaceholder}
+                className="min-w-0 flex-1 border-0 bg-transparent p-0 font-medium text-gray-700 outline-none placeholder:text-gray-300 focus:text-emerald-700"
+                autoComplete="url"
+              />
+            ) : handle && href ? (
+              <a href={href} target="_blank" rel="noopener noreferrer" className="min-w-0 truncate font-medium text-gray-700 hover:text-gray-950 hover:underline">
+                {handle}
+              </a>
+            ) : (
+              <span className="font-medium text-gray-400">No handle yet</span>
+            )}
+          </div>
+        </div>
+        {href ? (
           <a
-            href={normalizeUrl(card.url)}
+            href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className={`flex items-center gap-2 text-base font-semibold hover:underline ${tone.link}`}
+            className="text-sm font-semibold text-gray-500 transition-colors hover:text-gray-950"
           >
-            <Link2 className="h-4 w-4" />
-            <span className="truncate">{getDisplayUrl(card.url)}</span>
+            Open {config.label}
           </a>
+        ) : null}
+      </div>
+
+      {handle ? (
+        <div className="-mx-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+          <div className="flex min-w-0 gap-3">
+            {loading && loadedHandle !== handle ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="aspect-square w-32 shrink-0 animate-pulse rounded-lg bg-gray-100 sm:w-36" />
+              ))
+            ) : items.length > 0 ? (
+              items.map((item) => (
+                <a
+                  key={item.id}
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group relative aspect-square w-32 shrink-0 overflow-hidden rounded-lg bg-gray-100 ring-1 ring-gray-200 transition-transform hover:-translate-y-0.5 sm:w-36"
+                  aria-label={item.title || `${config.label} preview`}
+                >
+                  {item.thumbnailUrl ? (
+                    <img src={item.thumbnailUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-gray-400">
+                      <Icon className="h-8 w-8" />
+                    </div>
+                  )}
+                  {type === 'youtube' ? (
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/10 text-white opacity-95">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70">
+                        <Youtube className="h-5 w-5" />
+                      </span>
+                    </span>
+                  ) : null}
+                  {item.title ? (
+                    <span className="absolute inset-x-0 bottom-0 line-clamp-2 bg-gradient-to-t from-black/70 to-transparent px-2 pb-2 pt-8 text-xs font-semibold leading-4 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                      {item.title}
+                    </span>
+                  ) : null}
+                </a>
+              ))
+            ) : (
+              <div className="rounded-lg border border-dashed border-gray-300 bg-white p-5 text-sm leading-6 text-gray-500">
+                {emptyMessage}
+              </div>
+            )}
+          </div>
         </div>
+      ) : (
+        <div className="rounded-lg border border-dashed border-gray-300 bg-white p-5 text-sm leading-6 text-gray-500">
+          {emptyMessage}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function EmptyWidgetPreview({ type }: { type: ProfileWidgetType }) {
+  const config = PROFILE_WIDGET_CONFIG[type]
+  const Icon = config.icon
+  return (
+    <div className="rounded-lg border border-dashed border-gray-300 bg-white p-5">
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-md bg-gray-100 text-gray-500">
+          <Icon className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-gray-500">{config.label}</p>
+          <div className="mt-2 h-3 w-1/2 rounded-full bg-gray-100" />
+        </div>
+      </div>
+      <div className="mt-5 grid gap-2">
+        <div className="h-4 w-3/4 rounded-full bg-gray-100" />
+        <div className="h-4 w-full rounded-full bg-gray-100" />
+        <div className="h-4 w-2/3 rounded-full bg-gray-100" />
       </div>
     </div>
   )
 }
 
-function FeaturedCarousel({
-  featured,
-  editMode,
-  accessToken,
-  userId,
-  userUuid,
+function CustomProfileSectionView({
+  section,
+  canEdit = false,
   onChange,
+  onBlur,
 }: {
-  featured: FeaturedSection
-  editMode: boolean
-  accessToken?: string
-  userId: number
-  userUuid: string
-  // eslint-disable-next-line no-unused-vars
-  onChange(next: FeaturedSection): void
+  section?: ProfileCustomSection
+  canEdit?: boolean
+  onChange?(patch: Partial<ProfileCustomSection>): void
+  onBlur?(): void
 }) {
-  const cards = featured.cards || []
-  const [activeIndex, setActiveIndex] = useState(0)
-  const [linkModeCardId, setLinkModeCardId] = useState<string | null>(null)
-  const [linkDraft, setLinkDraft] = useState('')
-  const [isScraping, setIsScraping] = useState(false)
-  const [isUploadingImage, setIsUploadingImage] = useState(false)
-  const [pendingPreview, setPendingPreview] = useState<ResourceUrlPreview | null>(null)
-  const mobileScrollerRef = useRef<HTMLDivElement | null>(null)
-  const [, setDraggingThumbIndex] = useState<number | null>(null)
-  const draggingThumbIndexRef = useRef<number | null>(null)
-  const thumbDragMovedRef = useRef(false)
-
-  const activeCard = cards[Math.min(activeIndex, Math.max(cards.length - 1, 0))]
-  const enabled = featured.enabled
-
-  const updateFeatured = (next: Partial<FeaturedSection>) => {
-    onChange({ ...featured, ...next })
+  if (!section) return null
+  if (section.type === 'title') {
+    return (
+      <section className="px-4 py-6 sm:px-0">
+        {canEdit ? (
+          <input
+            value={section.title || ''}
+            onChange={(event) => onChange?.({ title: event.target.value })}
+            onBlur={onBlur}
+            placeholder="Untitled section"
+            className="w-full select-none border-0 bg-transparent p-0 text-3xl font-black leading-tight text-gray-950 outline-none placeholder:text-gray-300 focus:select-text"
+          />
+        ) : (
+          <h2 className="select-none text-3xl font-black leading-tight text-gray-950">{section.title || 'Untitled section'}</h2>
+        )}
+      </section>
+    )
   }
-
-  const updateCard = (cardId: string, patch: Partial<FeaturedCard>) => {
-    updateFeatured({
-      cards: cards.map((card) => card.id === cardId ? { ...card, ...patch } : card),
-    })
+  if (section.type === 'text') {
+    return (
+      <section className="px-4 py-6 sm:px-0">
+        {canEdit ? (
+          <>
+            <input
+              value={section.title || ''}
+              onChange={(event) => onChange?.({ title: event.target.value })}
+              onBlur={onBlur}
+              placeholder="Section title"
+              className="mb-3 w-full select-none border-0 bg-transparent p-0 text-2xl font-semibold text-gray-950 outline-none placeholder:text-gray-300 focus:select-text"
+            />
+            <Textarea
+              value={section.body || ''}
+              onChange={(event) => onChange?.({ body: event.target.value })}
+              onBlur={onBlur}
+              placeholder="Empty text section"
+              rows={1}
+              className="min-h-[1.75rem] select-none resize-y border-0 bg-transparent px-0 py-0 text-base leading-7 text-gray-800 shadow-none outline-none placeholder:text-gray-400 focus:select-text focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
+          </>
+        ) : (
+          <>
+            {section.title ? <h2 className="mb-3 select-none text-2xl font-semibold text-gray-950">{section.title}</h2> : null}
+            <div className="select-none whitespace-pre-wrap text-base leading-7 text-gray-800">{section.body || 'Empty text section'}</div>
+          </>
+        )}
+      </section>
+    )
   }
-
-  const setEnabled = (value: boolean) => {
-    updateFeatured({ enabled: value })
+  if (section.type === 'link') {
+    const href = normalizeSocialInput('website', section.url || '')
+    return (
+      <section className="px-4 py-6 sm:px-0">
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 bg-white p-5 text-gray-950 shadow-sm">
+          <div>
+            {canEdit ? (
+              <>
+                <input
+                  value={section.title || ''}
+                  onChange={(event) => onChange?.({ title: event.target.value })}
+                  onBlur={onBlur}
+                  placeholder="Untitled link"
+                  className="w-full select-none border-0 bg-transparent p-0 text-lg font-semibold text-gray-950 outline-none placeholder:text-gray-300 focus:select-text"
+                />
+                <input
+                  value={section.url || ''}
+                  onChange={(event) => onChange?.({ url: event.target.value })}
+                  onBlur={onBlur}
+                  placeholder="No URL yet"
+                  className="mt-1 w-full select-none border-0 bg-transparent p-0 text-sm text-gray-500 outline-none placeholder:text-gray-300 focus:select-text"
+                />
+              </>
+            ) : (
+              <a href={href || '#'} target="_blank" rel="noopener noreferrer">
+                <p className="select-none text-lg font-semibold">{section.title || 'Untitled link'}</p>
+                <p className="mt-1 select-none text-sm text-gray-500">{section.url || 'No URL yet'}</p>
+              </a>
+            )}
+          </div>
+          <Link2 className="h-5 w-5 text-gray-400" />
+        </div>
+      </section>
+    )
   }
-
-  const addCard = () => {
-    if (cards.length >= 10) {
-      toast.error('Featured carousel is capped at 10 cards')
-      return
-    }
-    const nextCard = createEmptyFeaturedCard()
-    updateFeatured({ enabled: true, cards: [...cards, nextCard] })
-    setActiveIndex(cards.length)
-    setLinkModeCardId(nextCard.id)
-    setLinkDraft('')
-    setPendingPreview(null)
+  if (section.type === 'media') {
+    return (
+      <section className="px-4 py-6 sm:px-0">
+        {canEdit ? (
+          <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+            <input
+              value={section.title || ''}
+              onChange={(event) => onChange?.({ title: event.target.value })}
+              onBlur={onBlur}
+              placeholder="Media title"
+              className="mb-3 w-full select-none border-0 bg-transparent p-0 text-lg font-semibold text-gray-950 outline-none placeholder:text-gray-300 focus:select-text"
+            />
+            <input
+              value={section.mediaUrl || ''}
+              onChange={(event) => onChange?.({ mediaUrl: event.target.value })}
+              onBlur={onBlur}
+              placeholder="Image or media URL"
+              className="w-full select-none border-0 bg-transparent p-0 text-sm text-gray-500 outline-none placeholder:text-gray-300 focus:select-text"
+            />
+          </div>
+        ) : section.mediaUrl ? (
+          <img src={section.mediaUrl} alt={section.title || ''} className="w-full rounded-lg object-cover" />
+        ) : (
+          <EmptyWidgetPreview type="media" />
+        )}
+      </section>
+    )
   }
+  return null
+}
 
-  const deleteCard = (cardId: string) => {
-    const nextCards = cards.filter((card) => card.id !== cardId)
-    updateFeatured({ cards: nextCards })
-    setActiveIndex((current) => Math.max(0, Math.min(current, nextCards.length - 1)))
-    if (linkModeCardId === cardId) setLinkModeCardId(null)
+function ReorderProfileSectionItem({
+  item,
+  children,
+  canDrag,
+  onNativeDragOver,
+  onRemove,
+  onDragEnd,
+}: {
+  item: ProfileLayoutItem
+  children: React.ReactNode
+  canDrag: boolean
+  onNativeDragOver(event: React.DragEvent<HTMLDivElement>): void
+  onRemove(item: ProfileLayoutItem): void
+  onDragEnd(event: MouseEvent | TouchEvent | PointerEvent): void
+}) {
+  const controls = useDragControls()
+
+  const startDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!canDrag) return
+    const target = event.target as HTMLElement | null
+    const isHandle = Boolean(target?.closest('[data-profile-drag-handle="true"]'))
+    const isInteractive = Boolean(target?.closest('input, textarea, button, a, select, label, [contenteditable="true"]'))
+    if (isInteractive && !isHandle) return
+    controls.start(event)
   }
-
-  const moveTo = (index: number) => {
-    if (!cards.length) return
-    const next = (index + cards.length) % cards.length
-    setActiveIndex(next)
-    setLinkModeCardId(null)
-    setPendingPreview(null)
-  }
-
-  const applyPreview = (cardId: string, preview: ResourceUrlPreview, overwrite: boolean) => {
-    const update = previewToCardUpdate(preview)
-    const card = cards.find((item) => item.id === cardId)
-    updateCard(cardId, {
-      url: normalizeUrl(update.url || linkDraft),
-      title: overwrite || !card?.title ? update.title : card.title,
-      subtext: overwrite || !card?.subtext ? update.subtext : card.subtext,
-      imageUrl: overwrite || !card?.imageUrl ? update.imageUrl : card.imageUrl,
-    })
-    setLinkModeCardId(null)
-    setPendingPreview(null)
-  }
-
-  const scrapeLink = async (cardId: string, rawValue: string) => {
-    const url = normalizeUrl(rawValue)
-    if (!url || !accessToken) return
-
-    try {
-      setIsScraping(true)
-      setPendingPreview(null)
-      const preview = await getResourceUrlPreview(url, accessToken)
-      const card = cards.find((item) => item.id === cardId)
-      const hasExistingDetails = Boolean(card?.title || card?.subtext || card?.imageUrl)
-      if (hasExistingDetails) {
-        updateCard(cardId, { url })
-        setPendingPreview(preview)
-      } else {
-        applyPreview(cardId, preview, true)
-      }
-    } catch {
-      updateCard(cardId, { url })
-      toast.error('Could not find details for that link')
-    } finally {
-      setIsScraping(false)
-    }
-  }
-
-  const reorderThumb = (fromIndex: number, toIndex: number) => {
-    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return
-    if (fromIndex >= cards.length || toIndex >= cards.length) return
-
-    const nextCards = Array.from(cards)
-    const [moved] = nextCards.splice(fromIndex, 1)
-    nextCards.splice(toIndex, 0, moved)
-    updateFeatured({ cards: nextCards })
-    setActiveIndex(toIndex)
-    setDraggingThumbIndex(toIndex)
-    draggingThumbIndexRef.current = toIndex
-    thumbDragMovedRef.current = true
-  }
-
-  const handleFeaturedImageUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-    cardId: string
-  ) => {
-    const file = event.target.files?.[0]
-    if (!file || !accessToken) return
-
-    setIsUploadingImage(true)
-    try {
-      const res = await uploadUserProfileFeaturedImage(userId, file, accessToken)
-      if (!res.success) throw new Error(res.HTTPmessage)
-      const imageUrl = getUserProfileFeaturedMediaDirectory(
-        res.data.user_uuid || userUuid,
-        res.data.filename
-      )
-      updateCard(cardId, { imageUrl })
-      toast.success('Featured image uploaded')
-    } catch {
-      toast.error('Could not upload featured image')
-    } finally {
-      setIsUploadingImage(false)
-      event.target.value = ''
-    }
-  }
-
-  const handleMobileScroll = () => {
-    const scroller = mobileScrollerRef.current
-    if (!scroller || cards.length === 0) return
-    const scrollerCenter = scroller.scrollLeft + scroller.clientWidth / 2
-    let closestIndex = 0
-    let closestDistance = Number.POSITIVE_INFINITY
-
-    Array.from(scroller.children).forEach((child, index) => {
-      const element = child as HTMLElement
-      const childCenter = element.offsetLeft + element.offsetWidth / 2
-      const distance = Math.abs(childCenter - scrollerCenter)
-      if (distance < closestDistance) {
-        closestDistance = distance
-        closestIndex = index
-      }
-    })
-
-    setActiveIndex(closestIndex)
-  }
-
-  if (!editMode && (!enabled || cards.length === 0)) return null
 
   return (
-    <section className="mt-4 px-4 sm:px-0">
-      <div className="mb-3 flex items-center justify-between gap-4">
-        <h2 className="text-2xl font-semibold text-gray-950">Featured</h2>
-        {editMode ? (
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-500">{enabled ? 'Active' : 'Hidden'}</span>
-            <Switch checked={enabled} onCheckedChange={setEnabled} />
+    <Reorder.Item
+      as="div"
+      value={item}
+      dragListener={false}
+      dragControls={controls}
+      onPointerDown={startDrag}
+      onDragOver={onNativeDragOver}
+      onDragEnd={onDragEnd}
+      className={`group relative grid grid-cols-[1.75rem_minmax(0,1fr)] gap-2 rounded-xl p-4 list-none select-none ${canDrag ? 'cursor-grab active:cursor-grabbing' : ''}`}
+      whileDrag={{
+        scale: 1.01,
+        zIndex: 30,
+        backgroundColor: '#ffffff',
+        boxShadow: '0 24px 70px rgba(15, 23, 42, 0.22), 0 8px 24px rgba(15, 23, 42, 0.12)',
+      }}
+      transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+    >
+      <div className="flex justify-center pt-6">
+        {canDrag ? (
+          <div className="flex flex-col items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+            <button
+              type="button"
+              data-profile-drag-handle="true"
+              className="flex h-6 w-6 touch-none items-center justify-center text-gray-300 transition-colors hover:text-gray-600 focus:outline-none"
+              aria-label="Drag section"
+            >
+              <GripVertical className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onRemove(item)}
+              className="flex h-6 w-6 items-center justify-center text-gray-300 transition-colors hover:text-red-500 focus:outline-none"
+              aria-label="Delete section"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
           </div>
         ) : null}
       </div>
-
-      <div
-        className={`origin-top transition-all duration-300 ${
-          enabled ? 'scale-100 opacity-100' : 'max-h-0 scale-95 overflow-hidden opacity-0'
-        }`}
-      >
-        {editMode ? (
-          <div className="space-y-4">
-            <div className="flex min-h-[290px] items-center justify-center">
-              {activeCard ? (
-                <div className="relative">
-                  {linkModeCardId !== activeCard.id ? (
-                    <button
-                      type="button"
-                      aria-label="Delete featured card"
-                      onClick={() => deleteCard(activeCard.id)}
-                      className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-gray-700 shadow-sm hover:text-red-600"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  ) : null}
-
-                  {linkModeCardId === activeCard.id ? (
-                    <div className="relative flex h-[270px] w-[min(82vw,360px)] flex-col justify-center overflow-hidden rounded-[28px] border border-gray-200 bg-white p-5 shadow-lg sm:h-[285px] sm:w-[380px]">
-                      {activeCard.url && (
-                        <button
-                          type="button"
-                          aria-label="Back to details"
-                          onClick={() => {
-                            setLinkModeCardId(null)
-                            setPendingPreview(null)
-                          }}
-                          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-700"
-                        >
-                          <ArrowLeft className="h-4 w-4" />
-                        </button>
-                      )}
-                      <div className="space-y-4">
-                        <div>
-                          <h3 className="text-2xl font-semibold text-gray-950">Add a featured link</h3>
-                          <p className="mt-2 text-sm text-gray-500">Paste a link and I will try to pull in its title, text, and image.</p>
-                        </div>
-                        <Input
-                          value={linkDraft}
-                          onChange={(event) => setLinkDraft(event.target.value)}
-                          onPaste={(event) => {
-                            const pasted = event.clipboardData.getData('text')
-                            setLinkDraft(pasted)
-                            window.setTimeout(() => scrapeLink(activeCard.id, pasted), 0)
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter') scrapeLink(activeCard.id, linkDraft)
-                          }}
-                          placeholder="https://example.com"
-                          className="h-12"
-                        />
-                        {isScraping ? (
-                          <div className="flex items-center gap-2 text-sm text-gray-500">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Searching for link details...
-                          </div>
-                        ) : null}
-                        {pendingPreview ? (
-                          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
-                            <p className="text-gray-700">Use the details I found, or keep your existing text?</p>
-                            <div className="mt-3 flex gap-2">
-                              <Button type="button" size="sm" onClick={() => applyPreview(activeCard.id, pendingPreview, true)}>
-                                Accept
-                              </Button>
-                              <Button type="button" size="sm" variant="outline" onClick={() => applyPreview(activeCard.id, pendingPreview, false)}>
-                                Keep existing
-                              </Button>
-                            </div>
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="relative flex h-[270px] w-[min(82vw,360px)] flex-col overflow-hidden rounded-[28px] border-[3px] border-gray-950 bg-white p-1 sm:h-[285px] sm:w-[380px]">
-                      {activeCard.imageUrl ? (
-                        <img src={activeCard.imageUrl} alt="" className="absolute inset-1 h-[calc(100%-8px)] w-[calc(100%-8px)] rounded-[24px] object-cover" />
-                      ) : (
-                        <div className="absolute inset-1 rounded-[24px] bg-[linear-gradient(135deg,#eef2ff,#f8fafc,#dcfce7)]" />
-                      )}
-                      {(() => {
-                        const tone = getToneClasses(activeCard.textTone)
-                        return (
-                      <>
-                      <div className={`absolute inset-x-1 top-1 h-32 rounded-t-[24px] bg-gradient-to-b ${tone.topGradient} to-transparent`} />
-                      <div className={`absolute inset-x-1 bottom-1 h-32 rounded-b-[24px] bg-gradient-to-t ${tone.bottomGradient} to-transparent`} />
-                      <div className="relative flex min-h-0 flex-1 flex-col p-5 pt-12">
-                        <div className="absolute left-7 top-5 z-10 flex items-center gap-2 rounded-full bg-white/75 px-2 py-1 text-xs text-gray-700 backdrop-blur-sm">
-                          <span>Text</span>
-                          <button
-                            type="button"
-                            onClick={() => updateCard(activeCard.id, { textTone: 'dark' })}
-                            className={`rounded-full px-2 py-0.5 ${activeCard.textTone === 'dark' ? 'bg-gray-950 text-white' : 'text-gray-600'}`}
-                          >
-                            Dark
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateCard(activeCard.id, { textTone: 'light' })}
-                            className={`rounded-full px-2 py-0.5 ${activeCard.textTone === 'light' ? 'bg-gray-950 text-white' : 'text-gray-600'}`}
-                          >
-                            Light
-                          </button>
-                        </div>
-                        <div className="space-y-3">
-                          <Input
-                            value={activeCard.title}
-                            onChange={(event) => updateCard(activeCard.id, { title: event.target.value })}
-                            placeholder="Title"
-                            className={`border-0 bg-transparent px-0 text-2xl font-black shadow-none focus-visible:ring-0 ${tone.title}`}
-                          />
-                          <Textarea
-                            value={activeCard.subtext}
-                            onChange={(event) => updateCard(activeCard.id, { subtext: event.target.value })}
-                            placeholder="Subtext"
-                            className={`min-h-14 resize-none border-0 bg-transparent px-0 text-base shadow-none focus-visible:ring-0 ${tone.body}`}
-                          />
-                          <div className={`flex items-center gap-2 rounded-lg px-3 py-2 backdrop-blur-sm ${tone.panel}`}>
-                            <ImageIcon className={`h-4 w-4 ${tone.muted}`} />
-                            <Input
-                              value={activeCard.imageUrl}
-                              onChange={(event) => updateCard(activeCard.id, { imageUrl: event.target.value })}
-                              placeholder="Background image URL"
-                              className={`h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0 ${tone.body}`}
-                            />
-                            <input
-                              id={`featured-image-upload-${activeCard.id}`}
-                              type="file"
-                              accept="image/png,image/jpeg,image/webp,image/gif"
-                              className="hidden"
-                              onChange={(event) => handleFeaturedImageUpload(event, activeCard.id)}
-                            />
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => document.getElementById(`featured-image-upload-${activeCard.id}`)?.click()}
-                              disabled={isUploadingImage}
-                              className="h-8 bg-white/80 px-2 text-xs text-gray-900 hover:bg-white"
-                            >
-                              {isUploadingImage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
-                            </Button>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setLinkDraft(activeCard.url)
-                            setLinkModeCardId(activeCard.id)
-                          }}
-                          className={`relative mt-auto flex items-center gap-2 border-t pt-3 text-left text-base font-semibold hover:underline ${tone.line} ${tone.link}`}
-                        >
-                          <Link2 className="h-4 w-4" />
-                          <span className="truncate">{activeCard.url ? getDisplayUrl(activeCard.url) : 'Add link'}</span>
-                        </button>
-                      </div>
-                      </>
-                        )
-                      })()}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={addCard}
-                  className="flex h-[200px] w-[min(82vw,360px)] flex-col items-center justify-center rounded-[28px] border border-dashed border-gray-300 text-gray-500 hover:border-gray-500 hover:text-gray-900"
-                >
-                  <Plus className="mb-2 h-6 w-6" />
-                  Add featured card
-                </button>
-              )}
-            </div>
-
-            <div
-              className="scrollbar-hide flex items-center justify-center gap-2 overflow-x-auto px-2 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-              onPointerMove={(event) => {
-                const fromIndex = draggingThumbIndexRef.current
-                if (fromIndex === null) return
-
-                const target = document
-                  .elementFromPoint(event.clientX, event.clientY)
-                  ?.closest('[data-featured-thumb-index]')
-                const targetIndex = Number((target as HTMLElement | null)?.dataset.featuredThumbIndex)
-
-                if (Number.isInteger(targetIndex) && targetIndex !== fromIndex) {
-                  reorderThumb(fromIndex, targetIndex)
-                }
-              }}
-              onPointerUp={() => {
-                setDraggingThumbIndex(null)
-                draggingThumbIndexRef.current = null
-              }}
-              onPointerCancel={() => {
-                setDraggingThumbIndex(null)
-                draggingThumbIndexRef.current = null
-              }}
-              onPointerLeave={() => {
-                setDraggingThumbIndex(null)
-                draggingThumbIndexRef.current = null
-              }}
-            >
-              {cards.map((card, index) => (
-                <div
-                  key={card.id}
-                  data-featured-thumb-index={index}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Select featured card ${index + 1}`}
-                  onPointerDown={() => {
-                    setDraggingThumbIndex(index)
-                    draggingThumbIndexRef.current = index
-                    thumbDragMovedRef.current = false
-                  }}
-                  onClick={() => {
-                    if (thumbDragMovedRef.current) {
-                      thumbDragMovedRef.current = false
-                      return
-                    }
-                    setActiveIndex(index)
-                    setLinkModeCardId(null)
-                    setPendingPreview(null)
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault()
-                      setActiveIndex(index)
-                      setLinkModeCardId(null)
-                      setPendingPreview(null)
-                    }
-                  }}
-                  className={`h-14 w-14 shrink-0 cursor-grab touch-none overflow-hidden rounded-md border active:cursor-grabbing ${
-                    index === activeIndex ? 'border-gray-950 ring-2 ring-gray-950/10' : 'border-gray-200'
-                  }`}
-                  style={{
-                    backgroundImage: getCardImage(card) ? `url(${getCardImage(card)})` : undefined,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                  }}
-                >
-                  {!getCardImage(card) ? (
-                    <span className="flex h-full w-full items-center justify-center bg-gray-100 text-xs font-semibold text-gray-500">
-                      {index + 1}
-                    </span>
-                  ) : null}
-                </div>
-              ))}
-              <button
-                type="button"
-                aria-label="Add featured card"
-                onClick={addCard}
-                disabled={cards.length >= 10}
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-dashed border-gray-300 text-gray-500 hover:border-gray-500 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <Plus className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="relative flex flex-col items-center overflow-visible py-2">
-            <div
-              ref={mobileScrollerRef}
-              onScroll={handleMobileScroll}
-              className="scrollbar-hide -mx-4 flex w-screen snap-x snap-mandatory gap-4 overflow-x-auto px-[9vw] pb-4 sm:mx-0 sm:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            >
-              {cards.map((card, index) => (
-                <div key={`mobile-${card.id}`} className="snap-center">
-                  <FeaturedDisplayCard card={card} active={index === activeIndex} />
-                </div>
-              ))}
-            </div>
-
-            <div className="relative hidden h-[290px] w-full items-center justify-center sm:flex sm:h-[305px]">
-              {cards.map((card, index) => {
-                const offset = index - activeIndex
-                if (Math.abs(offset) > 2) return null
-                const active = offset === 0
-                return (
-                  <div
-                    key={`desktop-${card.id}`}
-                    className="absolute hidden transition-all duration-300 sm:block"
-                    style={{
-                      transform: active
-                        ? 'translateX(0) scale(1)'
-                        : `translateX(${offset * 76}px) scale(${1 - Math.abs(offset) * 0.08})`,
-                      opacity: active ? 1 : 0.42 - Math.abs(offset) * 0.1,
-                      zIndex: 10 - Math.abs(offset),
-                    }}
-                  >
-                    <FeaturedDisplayCard card={card} active={active} />
-                  </div>
-                )
-              })}
-              {cards.length > 1 ? (
-                <>
-                  <button
-                    type="button"
-                    aria-label="Previous featured card"
-                    onClick={() => moveTo(activeIndex - 1)}
-                    className="absolute left-1/2 z-30 hidden h-11 w-11 -translate-x-[250px] items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-md hover:bg-white sm:flex"
-                  >
-                    <ChevronLeft className="h-5 w-5" />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Next featured card"
-                    onClick={() => moveTo(activeIndex + 1)}
-                    className="absolute right-1/2 z-30 hidden h-11 w-11 translate-x-[250px] items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-md hover:bg-white sm:flex"
-                  >
-                    <ChevronRight className="h-5 w-5" />
-                  </button>
-                </>
-              ) : null}
-            </div>
-            {cards.length > 1 ? (
-              <div className="mt-3 flex items-center justify-center gap-2">
-                {cards.map((card, index) => (
-                  <button
-                    key={card.id}
-                    type="button"
-                    aria-label={`Show featured card ${index + 1}`}
-                    onClick={() => moveTo(index)}
-                    className={`h-2.5 w-2.5 rounded-full transition-colors ${
-                      index === activeIndex ? 'bg-gray-950' : 'bg-gray-300'
-                    }`}
-                  />
-                ))}
-              </div>
-            ) : null}
-          </div>
-        )}
+      <div className="min-w-0">
+        {children}
       </div>
-    </section>
+    </Reorder.Item>
   )
 }
 
-export default function ProfilePageClient({
+function ProfileAddTray({
+  open,
+  usedUniqueTypes,
+  onToggle,
+  onAdd,
+  onDragStart,
+  onDragEnd,
+}: {
+  open: boolean
+  usedUniqueTypes: Set<ProfileWidgetType>
+  onToggle(): void
+  onAdd(type: ProfileWidgetType): void
+  onDragStart(type: ProfileWidgetType, event: React.DragEvent<HTMLButtonElement>): void
+  onDragEnd(): void
+}) {
+  const widgetTypes = Object.keys(PROFILE_WIDGET_CONFIG) as ProfileWidgetType[]
+  return (
+    <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-3">
+      <AnimatePresence>
+        {open ? (
+          <motion.div
+            key="tray"
+            initial={{ opacity: 0, y: 12, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.96 }}
+            className="w-[min(92vw,420px)] rounded-lg border border-gray-200 bg-white p-3 shadow-xl"
+          >
+            <div className="grid grid-cols-3 gap-2">
+              {widgetTypes.map((type) => {
+                const config = PROFILE_WIDGET_CONFIG[type]
+                const Icon = config.icon
+                const disabled = config.unique && usedUniqueTypes.has(type)
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    draggable={!disabled}
+                    disabled={disabled}
+                    onClick={() => onAdd(type)}
+                    onDragStart={(event) => onDragStart(type, event)}
+                    onDragEnd={onDragEnd}
+                    className="flex aspect-square flex-col items-center justify-center gap-2 rounded-md border border-gray-200 bg-white p-2 text-gray-800 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                  >
+                    <Icon className="h-5 w-5" />
+                    <span className="text-xs font-semibold">{config.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+      <motion.button
+        type="button"
+        whileTap={{ scale: 0.94 }}
+        onClick={onToggle}
+        className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-950 text-white shadow-xl transition-colors hover:bg-black"
+        aria-label="Add profile section"
+      >
+        <Plus className={`h-6 w-6 transition-transform ${open ? 'rotate-45' : ''}`} />
+      </motion.button>
+    </div>
+  )
+}
+
+function ProfilePageClient({
   initialUser,
   orgslug,
   profileUsername,
-  editMode = false,
-  canEdit = true,
+  initialTab = 'overview',
+  mode,
+  isSelf = false,
 }: ProfilePageClientProps) {
-  const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
+  const bioTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const draftProfileRef = useRef<ProfileShape>(normalizeProfile(initialUser.profile))
+  const pendingReorderProfileRef = useRef<ProfileShape | null>(null)
+  const trayDraftItemRef = useRef<ProfileLayoutItem | null>(null)
+  const trayDraftDroppedRef = useRef(false)
   const [user, setUser] = useState(initialUser)
   const [draft, setDraft] = useState(() => ({
     first_name: initialUser.first_name || '',
@@ -823,21 +1536,43 @@ export default function ProfilePageClient({
     profile: normalizeProfile(initialUser.profile),
   }))
   const [isSaving, setIsSaving] = useState(false)
-  const [uploading, setUploading] = useState<'avatar' | 'cover' | null>(null)
+  const [uploading, setUploading] = useState<'avatar' | null>(null)
+  const [bioExpanded, setBioExpanded] = useState(false)
+  const [socialsExpanded, setSocialsExpanded] = useState(false)
+  const [portfolioEditing, setPortfolioEditing] = useState(false)
+  const [addTrayOpen, setAddTrayOpen] = useState(false)
+  const [trayDraftItem, setTrayDraftItem] = useState<ProfileLayoutItem | null>(null)
+  const activeTab = initialTab
 
-  const profile = editMode ? draft.profile : normalizeProfile(user.profile)
-  const header = profile.header || {}
-  const featured = profile.featured || normalizeFeatured(null)
+  const isOwnerMode = mode === 'owner'
+  const isPublicMode = mode === 'public'
+  const canManageProfile = isOwnerMode
+  const effectiveEditMode = false
+  const profile = normalizeProfile(user.profile)
+  const headerProfile = canManageProfile ? draft.profile : profile
+  const contentProfile = canManageProfile ? draft.profile : profile
+  const header = headerProfile.header || {}
+  const featured = (portfolioEditing ? draft.profile.featured : profile.featured) || normalizeFeatured(null)
   const achievements = profile.achievements || normalizeAchievements(null)
-  const timeline = profile.timeline || []
   const timelineEnabled = profile.timelineEnabled ?? false
+  const timelinePublicVisible = profile.timelinePublicVisible !== false
+  const layout = contentProfile.layout || DEFAULT_PROFILE_LAYOUT
+  const usedUniqueTypes = useMemo(
+    () => new Set(layout.filter((item) => UNIQUE_PROFILE_WIDGETS.includes(item.type)).map((item) => item.type)),
+    [layout]
+  )
   const socials = useMemo(() => header.socials ?? [], [header.socials])
-  const coverUrl = header.coverImage
-    ? getUserProfileCoverMediaDirectory(user.user_uuid, header.coverImage)
-    : ''
   const avatarUrl = user.avatar_image
     ? getUserAvatarMediaDirectory(user.user_uuid, user.avatar_image)
     : ''
+  const publicProfileHref = getUriWithOrg(orgslug, routePaths.org.user(user.username))
+  const resumeHref = getUriWithOrg(orgslug, routePaths.org.profileResume())
+  const timelineHref = getUriWithOrg(
+    orgslug,
+    isPublicMode
+      ? routePaths.org.userTimeline(profileUsername || user.username)
+      : routePaths.org.profileTimeline()
+  )
 
   const missingSocialTypes = useMemo(
     () => (Object.keys(SOCIAL_CONFIG) as SocialType[]).filter(
@@ -845,6 +1580,28 @@ export default function ProfilePageClient({
     ),
     [socials]
   )
+
+  useEffect(() => {
+    if (!socialsExpanded) return
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target?.closest('[data-profile-socials="true"]')) return
+      setSocialsExpanded(false)
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [socialsExpanded])
+
+  useEffect(() => {
+    const textarea = bioTextareaRef.current
+    if (!textarea || !canManageProfile) return
+    textarea.style.height = 'auto'
+    textarea.style.height = `${textarea.scrollHeight}px`
+  }, [draft.bio, canManageProfile])
+
+  useEffect(() => {
+    draftProfileRef.current = draft.profile
+  }, [draft.profile])
 
   const updateDraftProfile = (updater: React.SetStateAction<ProfileShape>) => {
     setDraft((current) => ({
@@ -860,31 +1617,38 @@ export default function ProfilePageClient({
       ...current,
       header: {
         ...(current.header || {}),
-        socials: (current.header?.socials || []).map((social) =>
-          social.type === type ? { ...social, url } : social
-        ),
+        socials: (current.header?.socials || []).some((social) => social.type === type)
+          ? (current.header?.socials || []).map((social) =>
+              social.type === type ? { ...social, url } : social
+            )
+          : [...(current.header?.socials || []), { type, url }],
       },
     }))
   }
 
   const addSocial = (type: SocialType) => {
-    updateDraftProfile((current) => ({
-      ...current,
-      header: {
-        ...(current.header || {}),
-        socials: [...(current.header?.socials || []), { type, url: '' }],
-      },
-    }))
+    updateDraftProfile((current) => {
+      if ((current.header?.socials || []).some((social) => social.type === type)) return current
+      return {
+        ...current,
+        header: {
+          ...(current.header || {}),
+          socials: [...(current.header?.socials || []), { type, url: '' }],
+        },
+      }
+    })
   }
 
   const removeSocial = (type: SocialType) => {
-    updateDraftProfile((current) => ({
-      ...current,
+    const nextProfile = {
+      ...draft.profile,
       header: {
-        ...(current.header || {}),
-        socials: (current.header?.socials || []).filter((social) => social.type !== type),
+        ...(draft.profile.header || {}),
+        socials: (draft.profile.header?.socials || []).filter((social) => social.type !== type),
       },
-    }))
+    }
+    updateDraftProfile(nextProfile)
+    void persistProfile({ profileOverride: nextProfile })
   }
 
   const updateFeatured = (nextFeatured: FeaturedSection) => {
@@ -892,6 +1656,26 @@ export default function ProfilePageClient({
       ...current,
       featured: nextFeatured,
     }))
+  }
+
+  const updateTimelinePublicVisible = (visible: boolean) => {
+    updateDraftProfile((current) => ({
+      ...current,
+      timelinePublicVisible: visible,
+    }))
+  }
+
+  const copyProfileLink = async () => {
+    const link = typeof window === 'undefined'
+      ? publicProfileHref
+      : new URL(publicProfileHref, window.location.origin).toString()
+
+    try {
+      await navigator.clipboard.writeText(link)
+      toast.success('Profile link copied')
+    } catch {
+      toast.error('Could not copy profile link')
+    }
   }
 
   const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -913,34 +1697,28 @@ export default function ProfilePageClient({
     }
   }
 
-  const handleCoverChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file || !accessToken) return
+  const persistProfile = async ({
+    profileOverride,
+    bioOverride,
+    firstNameOverride,
+    lastNameOverride,
+  }: {
+    profileOverride?: ProfileShape
+    bioOverride?: string
+    firstNameOverride?: string
+    lastNameOverride?: string
+  } = {}) => {
+    if (!accessToken) return false
+    const nextProfile = profileOverride || draft.profile
+    const nextBio = bioOverride ?? draft.bio
+    const nextFirstName = firstNameOverride ?? draft.first_name
+    const nextLastName = lastNameOverride ?? draft.last_name
+    const nextSocials = nextProfile.header?.socials || []
 
-    setUploading('cover')
-    try {
-      const res = await updateUserProfileCover(user.id, file, accessToken)
-      if (!res.success) throw new Error(res.HTTPmessage)
-      const nextProfile = normalizeProfile(res.data.profile)
-      setUser(res.data)
-      setDraft((current) => ({ ...current, profile: nextProfile }))
-      await session?.update?.(true)
-      toast.success('Cover photo updated')
-    } catch {
-      toast.error('Could not update cover photo')
-    } finally {
-      setUploading(null)
-      event.target.value = ''
-    }
-  }
-
-  const handleSave = async () => {
-    if (!accessToken) return
-
-    const invalidSocial = socials.find((social) => social.url && !isValidSocialUrl(social.type, social.url))
+    const invalidSocial = nextSocials.find((social) => social.url && !isValidSocialUrl(social.type, social.url))
     if (invalidSocial) {
       toast.error(`Enter a valid ${SOCIAL_CONFIG[invalidSocial.type].label} link`)
-      return
+      return false
     }
 
     setIsSaving(true)
@@ -948,254 +1726,585 @@ export default function ProfilePageClient({
     try {
       const payload = {
         ...user,
-        first_name: draft.first_name,
-        last_name: draft.last_name,
+        first_name: nextFirstName,
+        last_name: nextLastName,
         username: user.username,
-        bio: draft.bio,
-        profile: draft.profile,
+        bio: nextBio,
+        profile: nextProfile,
       }
       const res = await updateProfile(payload, user.id, accessToken)
       if (!res.success) throw new Error(res.HTTPmessage)
       setUser(res.data)
+      setDraft((current) => ({
+        ...current,
+        first_name: res.data.first_name || '',
+        last_name: res.data.last_name || '',
+        username: res.data.username || current.username,
+        bio: res.data.bio || '',
+        profile: normalizeProfile(res.data.profile),
+      }))
       await session?.update?.(true)
       toast.success('Profile saved', { id: loadingToast })
-      router.push(getUriWithOrg(orgslug, routePaths.org.profile()))
+      return true
     } catch {
       toast.error('Could not save profile', { id: loadingToast })
+      return false
     } finally {
       setIsSaving(false)
     }
   }
 
-  return (
-    <main className="min-h-screen">
-      <div className="mx-auto w-full max-w-5xl px-0 pt-0 pb-6 sm:px-6 sm:py-6 lg:px-8">
-        <section className="relative">
-          <div className="relative h-48 overflow-hidden rounded-none bg-gray-100 sm:h-64 sm:rounded-lg">
-            {coverUrl ? (
-              <img src={coverUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,#f3f4f6,#dbeafe,#f8fafc)] text-sm text-gray-500">
-                {editMode ? 'Upload a cover photo' : ''}
-              </div>
-            )}
-            <div className="absolute right-4 top-4 flex items-center gap-2">
-              {editMode && canEdit ? (
-                <>
-                  <input
-                    id="profile-cover-upload"
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,image/gif"
-                    className="hidden"
-                    onChange={handleCoverChange}
-                  />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="bg-white/90 text-gray-900 hover:bg-white"
-                    onClick={() => document.getElementById('profile-cover-upload')?.click()}
-                    disabled={uploading === 'cover'}
-                  >
-                    <Camera size={16} className="mr-2" />
-                    {uploading === 'cover' ? 'Uploading' : 'Cover'}
-                  </Button>
-                  <Button type="button" onClick={handleSave} disabled={isSaving} className="bg-black text-white hover:bg-black/90">
-                    <Save size={16} className="mr-2" />
-                    {isSaving ? 'Saving' : 'Save'}
-                  </Button>
-                </>
-              ) : canEdit ? (
-                <Button asChild className="bg-white/90 text-gray-900 hover:bg-white">
-                  <Link href={getUriWithOrg(orgslug, routePaths.org.profileEdit())}>
-                    <Edit3 size={16} className="mr-2" />
-                    Edit
-                  </Link>
-                </Button>
-              ) : null}
-            </div>
-          </div>
+  const handleSave = async (_redirectHref = getUriWithOrg(orgslug, routePaths.org.profile())) => {
+    return persistProfile()
+  }
 
-          <div className="px-4 pb-4 pt-0 sm:px-4">
-            <div className="-mt-14 flex flex-col items-start gap-5 sm:-mt-16">
-              <div className="relative">
-                <div className="rounded-full border-4 border-white bg-white shadow-md">
-                  <UserAvatar
-                    width={128}
-                    rounded="rounded-full"
-                    avatar_url={avatarUrl}
-                    predefined_avatar={avatarUrl ? undefined : 'empty'}
-                    userId={String(user.id)}
-                    shadow="shadow-none"
-                  />
-                </div>
-                {editMode && canEdit && (
-                  <>
-                    <input
-                      id="profile-avatar-upload"
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp,image/gif"
-                      className="hidden"
-                      onChange={handleAvatarChange}
-                    />
-                    <button
-                      type="button"
-                      aria-label="Upload profile photo"
-                      onClick={() => document.getElementById('profile-avatar-upload')?.click()}
-                      className="absolute bottom-1 right-1 flex h-10 w-10 items-center justify-center rounded-full bg-black text-white shadow-md"
-                      disabled={uploading === 'avatar'}
-                    >
-                      <Camera size={18} />
-                    </button>
-                  </>
-                )}
-              </div>
+  const saveNameField = async (field: 'first_name' | 'last_name') => {
+    const nextFirstName = field === 'first_name' ? draft.first_name.trim() : draft.first_name
+    const nextLastName = field === 'last_name' ? draft.last_name.trim() : draft.last_name
+    const currentFirstName = user.first_name || ''
+    const currentLastName = user.last_name || ''
 
-              <div className="w-full max-w-2xl space-y-3">
-                {editMode ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Input
-                      value={draft.first_name}
-                      onChange={(event) => setDraft((current) => ({ ...current, first_name: event.target.value }))}
-                      placeholder="First name"
-                    />
-                    <Input
-                      value={draft.last_name}
-                      onChange={(event) => setDraft((current) => ({ ...current, last_name: event.target.value }))}
-                      placeholder="Last name"
-                    />
-                    <div className="sm:col-span-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
-                      @{user.username}
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <h1 className="text-3xl font-semibold text-gray-950">
-                      {user.first_name} {user.last_name}
-                    </h1>
-                    <p className="mt-1 text-sm text-gray-500">@{user.username}</p>
-                  </div>
-                )}
+    if (nextFirstName === currentFirstName && nextLastName === currentLastName) return
 
-                {editMode ? (
-                  <Textarea
-                    value={draft.bio}
-                    onChange={(event) => setDraft((current) => ({ ...current, bio: event.target.value }))}
-                    placeholder="Write a short profile"
-                    className="min-h-32"
-                    maxLength={400}
-                  />
-                ) : user.bio ? (
-                  <p className="max-w-2xl text-base leading-7 text-gray-700">{user.bio}</p>
-                ) : null}
+    setDraft((current) => ({
+      ...current,
+      first_name: nextFirstName,
+      last_name: nextLastName,
+    }))
+    await persistProfile({
+      firstNameOverride: nextFirstName,
+      lastNameOverride: nextLastName,
+    })
+  }
 
-                {editMode ? (
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap gap-2">
-                      {missingSocialTypes.map((type) => {
-                        const Icon = SOCIAL_CONFIG[type].icon
-                        return (
-                          <Button
-                            key={type}
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            onClick={() => addSocial(type)}
-                            className="h-9 w-9 rounded-full"
-                            aria-label={`Add ${SOCIAL_CONFIG[type].label}`}
-                            title={`Add ${SOCIAL_CONFIG[type].label}`}
-                          >
-                            <Icon className="h-4 w-4" />
-                          </Button>
-                        )
-                      })}
-                    </div>
-                    <div className="space-y-2">
-                      {socials.map((social) => {
-                        const config = SOCIAL_CONFIG[social.type]
-                        const Icon = config.icon
-                        const valid = social.url ? isValidSocialUrl(social.type, social.url) : true
-                        return (
-                          <div
-                            key={social.type}
-                            className={`flex items-center gap-2 rounded-full border px-3 py-2 ${
-                              valid ? 'border-gray-200' : 'border-red-300 bg-red-50'
-                            }`}
-                          >
-                            <Icon className="h-4 w-4 text-gray-600" />
-                            <Input
-                              value={social.url}
-                              onChange={(event) => updateSocial(social.type, event.target.value)}
-                              placeholder={config.placeholder}
-                              className="h-8 border-0 px-0 shadow-none focus-visible:ring-0"
-                            />
-                            {valid && social.url ? <Check className="h-4 w-4 text-green-600" /> : null}
-                            <button
-                              type="button"
-                              aria-label={`Remove ${config.label}`}
-                              onClick={() => removeSocial(social.type)}
-                              className="rounded-full p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ) : socials.length > 0 ? (
-                  <div className="flex flex-col items-start gap-3">
-                    {socials.filter((social) => social.url).map((social) => {
-                      const config = SOCIAL_CONFIG[social.type]
-                      const Icon = config.icon
-                      return (
-                        <a
-                          key={social.type}
-                          href={getSocialHref(social)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-gray-950"
-                        >
-                          <Icon className="h-4 w-4" />
-                          <span>{social.url}</span>
-                          <ExternalLink className="h-3.5 w-3.5 text-gray-400" />
-                        </a>
-                      )
-                    })}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        </section>
+  const saveBioField = async () => {
+    if ((draft.bio || '') === (user.bio || '')) return
+    await persistProfile({ bioOverride: draft.bio })
+  }
+
+  const cancelPortfolioEdit = () => {
+    setDraft((current) => ({
+      ...current,
+      profile: normalizeProfile(user.profile),
+    }))
+    setPortfolioEditing(false)
+  }
+
+  const savePortfolioEdit = async () => {
+    const saved = await handleSave(getUriWithOrg(orgslug, routePaths.org.profile()))
+    if (saved) setPortfolioEditing(false)
+  }
+
+  const commitProfileLayout = (nextProfile: ProfileShape) => {
+    draftProfileRef.current = nextProfile
+    updateDraftProfile(nextProfile)
+    void persistProfile({ profileOverride: nextProfile })
+  }
+
+  const addProfileSection = (type: ProfileWidgetType) => {
+    if (PROFILE_WIDGET_CONFIG[type].unique && layout.some((item) => item.type === type)) return
+    const item = createProfileLayoutItem(type)
+    const section = createProfileSection(item)
+    const nextProfile = {
+      ...draft.profile,
+      layout: [...layout, item],
+      sections: section
+        ? [...(draft.profile.sections || []), section]
+        : (draft.profile.sections || []),
+    }
+    commitProfileLayout(nextProfile)
+    setAddTrayOpen(false)
+  }
+
+  const startTrayDrag = (type: ProfileWidgetType, event: React.DragEvent<HTMLButtonElement>) => {
+    if (PROFILE_WIDGET_CONFIG[type].unique && layout.some((item) => item.type === type)) return
+    const item = createProfileLayoutItem(type)
+    const nextProfile = {
+      ...draftProfileRef.current,
+      layout: [...(draftProfileRef.current.layout || DEFAULT_PROFILE_LAYOUT), item],
+    }
+
+    event.dataTransfer.effectAllowed = 'copy'
+    event.dataTransfer.setData('text/plain', item.id)
+    trayDraftItemRef.current = item
+    trayDraftDroppedRef.current = false
+    setTrayDraftItem(item)
+    setAddTrayOpen(false)
+    draftProfileRef.current = nextProfile
+    updateDraftProfile(nextProfile)
+  }
+
+  const moveTrayDraft = (targetIndex: number) => {
+    const item = trayDraftItemRef.current
+    if (!item) return
+    const currentLayout = draftProfileRef.current.layout || DEFAULT_PROFILE_LAYOUT
+    const nextLayout = moveProfileLayoutItem(currentLayout, item.id, targetIndex)
+    if (nextLayout === currentLayout) return
+
+    const nextProfile = {
+      ...draftProfileRef.current,
+      layout: nextLayout,
+    }
+    draftProfileRef.current = nextProfile
+    updateDraftProfile(nextProfile)
+  }
+
+  const moveTrayDraftAroundItem = (
+    targetItem: ProfileLayoutItem,
+    targetIndex: number,
+    position: 'before' | 'after'
+  ) => {
+    const item = trayDraftItemRef.current
+    if (!item || item.id === targetItem.id) return
+    const currentLayout = draftProfileRef.current.layout || DEFAULT_PROFILE_LAYOUT
+    const currentIndex = currentLayout.findIndex((layoutItem) => layoutItem.id === item.id)
+    if (currentIndex === -1) return
+
+    const rawTargetIndex = position === 'before' ? targetIndex : targetIndex + 1
+    const adjustedTargetIndex = rawTargetIndex > currentIndex ? rawTargetIndex - 1 : rawTargetIndex
+    moveTrayDraft(adjustedTargetIndex)
+  }
+
+  const finishTrayDrop = () => {
+    const item = trayDraftItemRef.current
+    if (!item) return
+
+    trayDraftDroppedRef.current = true
+    const section = createProfileSection(item)
+    const nextProfile = {
+      ...draftProfileRef.current,
+      sections: section
+        ? [...(draftProfileRef.current.sections || []), section]
+        : (draftProfileRef.current.sections || []),
+    }
+    trayDraftItemRef.current = null
+    setTrayDraftItem(null)
+    commitProfileLayout(nextProfile)
+  }
+
+  const cancelTrayDrag = () => {
+    const item = trayDraftItemRef.current
+    if (!item) return
+    if (trayDraftDroppedRef.current) {
+      trayDraftDroppedRef.current = false
+      return
+    }
+
+    const nextProfile = {
+      ...draftProfileRef.current,
+      layout: (draftProfileRef.current.layout || DEFAULT_PROFILE_LAYOUT).filter((layoutItem) => layoutItem.id !== item.id),
+    }
+    trayDraftItemRef.current = null
+    setTrayDraftItem(null)
+    draftProfileRef.current = nextProfile
+    updateDraftProfile(nextProfile)
+    setAddTrayOpen(true)
+  }
+
+  const handleLayoutReorder = (nextLayout: ProfileLayoutItem[]) => {
+    const nextProfile = {
+      ...draftProfileRef.current,
+      layout: nextLayout,
+    }
+    draftProfileRef.current = nextProfile
+    pendingReorderProfileRef.current = nextProfile
+    updateDraftProfile(nextProfile)
+  }
+
+  const removeProfileLayoutItem = (item: ProfileLayoutItem) => {
+    const nextProfile = {
+      ...draftProfileRef.current,
+      layout: (draftProfileRef.current.layout || DEFAULT_PROFILE_LAYOUT).filter((layoutItem) => layoutItem.id !== item.id),
+      sections: (draftProfileRef.current.sections || []).filter((section) => section.id !== item.id),
+    }
+    pendingReorderProfileRef.current = null
+    commitProfileLayout(nextProfile)
+  }
+
+  const finishReorderDrag = () => {
+    const nextProfile = pendingReorderProfileRef.current
+    pendingReorderProfileRef.current = null
+    void persistProfile(nextProfile ? { profileOverride: nextProfile } : undefined)
+  }
+
+  const updateCustomSection = (sectionId: string, patch: Partial<ProfileCustomSection>) => {
+    updateDraftProfile((current) => ({
+      ...current,
+      sections: (current.sections || []).map((section) =>
+        section.id === sectionId ? { ...section, ...patch } : section
+      ),
+    }))
+  }
+
+  const saveCustomSections = () => {
+    void persistProfile()
+  }
+
+  const renderProfileLayoutSection = (item: ProfileLayoutItem) => {
+    if (trayDraftItem?.id === item.id) return <EmptyWidgetPreview type={item.type} />
+    if (item.type === 'timeline') {
+      if (!canManageProfile && (!timelineEnabled || !timelinePublicVisible)) return null
+      return (
+        <TimelineOverviewSection
+          timeline={profile.timeline || []}
+          href={timelineHref}
+          canManage={canManageProfile}
+        />
+      )
+    }
+    if (item.type === 'portfolio') {
+      return (
         <FeaturedCarousel
           featured={featured}
-          editMode={editMode && canEdit}
+          editMode={portfolioEditing}
           accessToken={accessToken}
           userId={user.id}
           userUuid={user.user_uuid}
-          onChange={updateFeatured}
-        />
-        <ProfileTimelineSummary
-          timeline={timeline}
           orgslug={orgslug}
-          profileUsername={profileUsername}
-          editMode={editMode && canEdit}
-          canEdit={canEdit}
-          enabled={timelineEnabled}
-          onEnabledChange={(value) => updateDraftProfile((current) => ({ ...current, timelineEnabled: value }))}
+          authorName={getPortfolioAuthorName(user)}
+          updatedAtFallback={user.update_date}
+          profileUsername={profileUsername || user.username}
+          ownerView={canManageProfile}
+          publicVisible={isPublicMode || portfolioEditing ? featured.publicVisible : true}
+          actions={canManageProfile ? (
+            <div className="flex items-center gap-2">
+              {portfolioEditing ? (
+                <>
+                  <Button type="button" variant="outline" size="icon" onClick={cancelPortfolioEdit} aria-label="Cancel portfolio edits">
+                    <X className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    onClick={savePortfolioEdit}
+                    disabled={isSaving}
+                    aria-label="Save portfolio edits"
+                    className="bg-emerald-500 text-white hover:bg-emerald-600"
+                  >
+                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  </Button>
+                </>
+              ) : (
+                <Button type="button" variant="outline" size="icon" onClick={() => setPortfolioEditing(true)} aria-label="Edit portfolio">
+                  <Edit3 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          ) : null}
+          onChange={updateFeatured}
+          onPublicVisibleChange={(visible) => updateFeatured({ ...featured, publicVisible: visible })}
         />
+      )
+    }
+    if (item.type === 'achievements') {
+      return (
         <ProfileAchievementsSection
           achievements={achievements}
           orgslug={orgslug}
           profileUsername={profileUsername}
-          editMode={editMode && canEdit}
-          canEdit={canEdit}
+          editMode={effectiveEditMode}
+          canEdit={canManageProfile}
+          publicVisible={isPublicMode ? achievements.publicVisible : true}
           onChange={(nextAchievements) => updateDraftProfile((current) => ({
             ...current,
             achievements: nextAchievements,
           }))}
+          onPublicVisibleChange={(visible) => updateDraftProfile((current) => ({
+            ...current,
+            achievements: { ...achievements, publicVisible: visible },
+          }))}
         />
+      )
+    }
+    if (item.type === 'instagramPreview' || item.type === 'youtubePreview') {
+      const type = item.type === 'instagramPreview' ? 'instagram' : 'youtube'
+      const social = (contentProfile.header?.socials || []).find((candidate) => candidate.type === type)
+      if (!canManageProfile && !social?.url) return null
+      return (
+        <SocialPreviewWidget
+          type={type}
+          social={social}
+          canEdit={canManageProfile}
+          onChange={(url) => updateSocial(type, url)}
+          onBlur={() => void persistProfile()}
+        />
+      )
+    }
+    const section = contentProfile.sections?.find((candidate) => candidate.id === item.id)
+    return section ? (
+      <CustomProfileSectionView
+        section={section}
+        canEdit={canManageProfile}
+        onChange={(patch) => updateCustomSection(item.id, patch)}
+        onBlur={saveCustomSections}
+      />
+    ) : <EmptyWidgetPreview type={item.type} />
+  }
+
+  return (
+    <main className="min-h-screen">
+      <div className="mx-auto w-full max-w-5xl px-0 pt-0 pb-6 sm:px-6 sm:py-6 lg:px-8">
+        {isPublicMode && isSelf ? (
+          <div className="mx-4 mt-4 flex flex-col gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 sm:mx-0 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-medium text-gray-700">
+              You are viewing your public profile.
+            </p>
+            <Button asChild variant="outline" size="sm">
+              <Link href={getUriWithOrg(orgslug, routePaths.org.profile())}>View full profile</Link>
+            </Button>
+          </div>
+        ) : null}
+        <section className="relative px-4 py-6 sm:px-0">
+          <div className="flex flex-col gap-5 sm:grid sm:grid-cols-2 sm:items-start sm:gap-8">
+            <div className="w-full shrink-0 sm:order-2">
+              <div className="relative w-full sm:hidden">
+                <ProfileHeaderAvatar
+                  size={198}
+                  avatarUrl={avatarUrl || getUriWithOrg(orgslug, '/empty_avatar.png')}
+                  socials={socials}
+                  userId={user.id}
+                  lastName={canManageProfile ? draft.last_name : user.last_name}
+                  showNameCutout={!canManageProfile}
+                  fullWidth
+                  canEditSocials={canManageProfile}
+                  socialsExpanded={socialsExpanded}
+                  uploading={uploading === 'avatar'}
+                  missingSocialTypes={missingSocialTypes}
+                  onAvatarChange={handleAvatarChange}
+                  onAddSocial={addSocial}
+                  onUpdateSocial={updateSocial}
+                  onRemoveSocial={removeSocial}
+                  onSocialsFocus={() => setSocialsExpanded(true)}
+                  onSocialsBlur={() => undefined}
+                  onSaveSocials={() => void persistProfile()}
+                />
+              </div>
+              <div className="hidden w-full sm:block">
+                <ProfileHeaderAvatar
+                  size={270}
+                  avatarUrl={avatarUrl || getUriWithOrg(orgslug, '/empty_avatar.png')}
+                  socials={socials}
+                  userId={user.id}
+                  firstName={canManageProfile ? draft.first_name : user.first_name}
+                  lastName={canManageProfile ? draft.last_name : user.last_name}
+                  fullWidth
+                  socialScale={AVATAR_SOCIAL_SCALE * 1.5}
+                  canEditSocials={canManageProfile}
+                  socialsExpanded={socialsExpanded}
+                  uploading={uploading === 'avatar'}
+                  missingSocialTypes={missingSocialTypes}
+                  onAvatarChange={handleAvatarChange}
+                  onAddSocial={addSocial}
+                  onUpdateSocial={updateSocial}
+                  onRemoveSocial={removeSocial}
+                  onSocialsFocus={() => setSocialsExpanded(true)}
+                  onSocialsBlur={() => undefined}
+                  onSaveSocials={() => void persistProfile()}
+                />
+              </div>
+            </div>
+
+            <div className="min-w-0 flex-1 space-y-4 sm:order-1 sm:text-right">
+              <div className="min-w-0">
+                <div className="flex min-w-0 items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    {canManageProfile ? (
+                      <>
+                        <EditableProfileNameStack
+                          firstName={draft.first_name}
+                          lastName={draft.last_name}
+                          maxRem={4.25}
+                          minRem={2.25}
+                          className="sm:hidden"
+                          onFirstNameChange={(value) => setDraft((current) => ({ ...current, first_name: value }))}
+                          onLastNameChange={(value) => setDraft((current) => ({ ...current, last_name: value }))}
+                          onFirstNameBlur={() => void saveNameField('first_name')}
+                          onLastNameBlur={() => void saveNameField('last_name')}
+                        />
+                        <EditableProfileNameStack
+                          firstName={draft.first_name}
+                          lastName={draft.last_name}
+                          maxRem={8.5}
+                          minRem={3.5}
+                          align="right"
+                          className="hidden sm:block"
+                          onFirstNameChange={(value) => setDraft((current) => ({ ...current, first_name: value }))}
+                          onLastNameChange={(value) => setDraft((current) => ({ ...current, last_name: value }))}
+                          onFirstNameBlur={() => void saveNameField('first_name')}
+                          onLastNameBlur={() => void saveNameField('last_name')}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <ProfileNameStack
+                          firstName={user.first_name}
+                          lastName={user.last_name}
+                          maxRem={4.25}
+                          minRem={2.25}
+                          className="sm:hidden"
+                        />
+                        <ProfileNameStack
+                          firstName={user.first_name}
+                          lastName={user.last_name}
+                          maxRem={8.5}
+                          minRem={3.5}
+                          align="right"
+                          className="hidden sm:block"
+                        />
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="group relative max-w-2xl sm:ml-auto sm:w-3/4 sm:max-w-none">
+                {canManageProfile ? (
+                  <Textarea
+                    ref={bioTextareaRef}
+                    value={draft.bio}
+                    onChange={(event) => setDraft((current) => ({ ...current, bio: event.target.value }))}
+                    onFocus={() => setSocialsExpanded(false)}
+                    onBlur={() => void saveBioField()}
+                    placeholder="Write a short profile"
+                    rows={1}
+                    className="min-h-[1.75rem] resize-none overflow-hidden border-0 bg-transparent px-0 py-0 text-base leading-7 text-gray-700 shadow-none outline-none ring-0 transition-colors placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 sm:text-right"
+                    maxLength={400}
+                  />
+                ) : user.bio ? (
+                  <>
+                    <p className={`overflow-hidden pr-12 text-base leading-7 text-gray-700 transition-[max-height] duration-300 ${
+                      bioExpanded ? 'max-h-[640px]' : 'max-h-24'
+                    }`}>
+                      {user.bio}
+                    </p>
+                    {user.bio.length > 180 ? (
+                      <button
+                        type="button"
+                        onClick={() => setBioExpanded((current) => !current)}
+                        className="mt-1 text-sm font-medium text-gray-950 hover:underline"
+                      >
+                        {bioExpanded ? 'Show less' : 'Show more'}
+                      </button>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="pr-12 text-base leading-7 text-gray-400">Add a short profile bio.</p>
+                )}
+              </div>
+              {(canManageProfile || isPublicMode) ? (
+                <div className="border-t border-gray-200 pt-3 sm:ml-auto sm:w-3/4">
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    {canManageProfile ? (
+                      <Button asChild variant="outline">
+                        <Link href={resumeHref}>
+                          <FileText size={16} className="mr-2" />
+                          Resume
+                        </Link>
+                      </Button>
+                    ) : null}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button type="button" variant="outline">
+                          <Share2 size={16} className="mr-2" />
+                          Share
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuItem onClick={copyProfileLink}>
+                          <Copy className="h-4 w-4" />
+                          <span>Copy link</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </section>
+        {activeTab === 'overview' ? (
+          <Reorder.Group
+            as="div"
+            axis="y"
+            values={layout}
+            onReorder={handleLayoutReorder}
+            layoutScroll
+            onDragOver={(event) => {
+              if (!trayDraftItemRef.current) return
+              event.preventDefault()
+              event.dataTransfer.dropEffect = 'copy'
+              if (event.currentTarget === event.target) moveTrayDraft(layout.length)
+            }}
+            onDrop={(event) => {
+              if (!trayDraftItemRef.current) return
+              event.preventDefault()
+              finishTrayDrop()
+            }}
+          >
+            {layout.map((item, index) => {
+              const rendered = renderProfileLayoutSection(item)
+              if (!rendered) return null
+              return (
+                <ReorderProfileSectionItem
+                  key={item.id}
+                  item={item}
+                  canDrag={canManageProfile}
+                  onNativeDragOver={(event) => {
+                    if (!trayDraftItemRef.current) return
+                    event.preventDefault()
+                    event.dataTransfer.dropEffect = 'copy'
+                    const rect = event.currentTarget.getBoundingClientRect()
+                    const position = event.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
+                    moveTrayDraftAroundItem(item, index, position)
+                  }}
+                  onRemove={removeProfileLayoutItem}
+                  onDragEnd={finishReorderDrag}
+                >
+                  {rendered}
+                </ReorderProfileSectionItem>
+              )
+            })}
+          </Reorder.Group>
+        ) : null}
+        {activeTab === 'timeline' ? (
+          <ProfileTimeline
+            initialUser={{ ...user, profile }}
+            orgslug={orgslug}
+            profileUsername={profileUsername}
+            editMode={effectiveEditMode}
+            embedded
+            canEdit={effectiveEditMode}
+            enabled={timelineEnabled}
+            publicVisible={isPublicMode ? timelinePublicVisible : true}
+            onEnabledChange={(value) => updateDraftProfile((current) => ({ ...current, timelineEnabled: value }))}
+            onPublicVisibleChange={updateTimelinePublicVisible}
+            onUserChange={(updatedUser) => {
+              setUser(updatedUser)
+              updateDraftProfile(normalizeProfile(updatedUser.profile))
+            }}
+          />
+        ) : null}
       </div>
+      {canManageProfile && activeTab === 'overview' ? (
+        <ProfileAddTray
+          open={addTrayOpen}
+          usedUniqueTypes={usedUniqueTypes}
+          onToggle={() => setAddTrayOpen((current) => !current)}
+          onAdd={addProfileSection}
+          onDragStart={startTrayDrag}
+          onDragEnd={cancelTrayDrag}
+        />
+      ) : null}
     </main>
   )
 }
+
+export function OwnerProfilePageClient(props: OwnerProfilePageClientProps) {
+  return <ProfilePageClient {...props} mode="owner" />
+}
+
+export function PublicProfilePageClient(props: PublicProfilePageClientProps) {
+  return <ProfilePageClient {...props} mode="public" />
+}
+
+export default OwnerProfilePageClient

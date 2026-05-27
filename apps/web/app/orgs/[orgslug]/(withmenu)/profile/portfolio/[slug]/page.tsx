@@ -1,10 +1,12 @@
 import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/auth/server'
-import { OwnerProfilePageClient } from '@components/Objects/Profile/ProfilePageClient'
+import { PortfolioPostPageClient } from '@components/Objects/Profile/ProfilePortfolio'
 import { getUser } from '@services/users/users'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 
-const ProfilePage = async (props: { params: Promise<{ orgslug: string }> }) => {
+const ProfilePortfolioPostPage = async (props: {
+  params: Promise<{ orgslug: string; slug: string }>
+}) => {
   const params = await props.params
   const session = await getServerSession()
   const accessToken = session?.tokens?.access_token
@@ -16,7 +18,14 @@ const ProfilePage = async (props: { params: Promise<{ orgslug: string }> }) => {
 
   const user = await getUser(String(userId), accessToken)
 
-  return <OwnerProfilePageClient initialUser={user} orgslug={params.orgslug} />
+  return (
+    <PortfolioPostPageClient
+      initialUser={user}
+      orgslug={params.orgslug}
+      postSlug={params.slug}
+      mode="owner"
+    />
+  )
 }
 
-export default ProfilePage
+export default ProfilePortfolioPostPage

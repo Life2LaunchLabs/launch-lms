@@ -1,10 +1,10 @@
 import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/auth/server'
-import { OwnerProfilePageClient } from '@components/Objects/Profile/ProfilePageClient'
-import { getUser } from '@services/users/users'
 import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUser } from '@services/users/users'
+import ProfileResumeClient from './ProfileResumeClient'
 
-const ProfilePage = async (props: { params: Promise<{ orgslug: string }> }) => {
+const ProfileResumePage = async (props: { params: Promise<{ orgslug: string }> }) => {
   const params = await props.params
   const session = await getServerSession()
   const accessToken = session?.tokens?.access_token
@@ -16,7 +16,14 @@ const ProfilePage = async (props: { params: Promise<{ orgslug: string }> }) => {
 
   const user = await getUser(String(userId), accessToken)
 
-  return <OwnerProfilePageClient initialUser={user} orgslug={params.orgslug} />
+  return (
+    <ProfileResumeClient
+      initialUser={user}
+      orgslug={params.orgslug}
+      accessToken={accessToken}
+      mode="owner"
+    />
+  )
 }
 
-export default ProfilePage
+export default ProfileResumePage

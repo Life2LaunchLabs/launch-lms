@@ -54,6 +54,16 @@ type ProfileTimelineProps = {
   orgslug: string
   profileUsername?: string
   canEdit?: boolean
+  embedded?: boolean
+  editMode?: boolean
+  enabled?: boolean
+  publicVisible?: boolean
+  // eslint-disable-next-line no-unused-vars
+  onEnabledChange?: (enabled: boolean) => void
+  // eslint-disable-next-line no-unused-vars
+  onPublicVisibleChange?: (visible: boolean) => void
+  // eslint-disable-next-line no-unused-vars
+  onUserChange?: (user: any) => void
 }
 
 type ProfileTimelineSummaryProps = {
@@ -63,8 +73,11 @@ type ProfileTimelineSummaryProps = {
   editMode?: boolean
   canEdit?: boolean
   enabled?: boolean
+  publicVisible?: boolean
   // eslint-disable-next-line no-unused-vars
   onEnabledChange?: (enabled: boolean) => void
+  // eslint-disable-next-line no-unused-vars
+  onPublicVisibleChange?: (visible: boolean) => void
 }
 
 type TimelineEntryModalProps = {
@@ -450,12 +463,6 @@ function buildLayout(entries: TimelineEntry[]) {
   }
 }
 
-function getTimelineHref(orgslug: string, profileUsername?: string) {
-  return profileUsername
-    ? getUriWithOrg(orgslug, routePaths.org.userTimeline(profileUsername))
-    : getUriWithOrg(orgslug, routePaths.org.profileTimeline())
-}
-
 function TimelineSummaryCard({ entry }: { entry: TimelineEntry }) {
   const config = CATEGORY_CONFIG[entry.category]
   const Icon = config.icon
@@ -477,17 +484,16 @@ function TimelineSummaryCard({ entry }: { entry: TimelineEntry }) {
 
 export function ProfileTimelineSummary({
   timeline,
-  orgslug,
-  profileUsername,
   editMode = false,
   canEdit = false,
   enabled = false,
+  publicVisible = true,
   onEnabledChange,
+  onPublicVisibleChange,
 }: ProfileTimelineSummaryProps) {
   const summaryEntries = summarizeTimeline(timeline)
-  const href = getTimelineHref(orgslug, profileUsername)
 
-  if (!editMode && !enabled) return null
+  if (!editMode && (!enabled || !publicVisible)) return null
   if (!editMode && enabled && summaryEntries.length === 0) return null
 
   return (
@@ -495,22 +501,23 @@ export function ProfileTimelineSummary({
       <div className="mb-3 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <h2 className="text-2xl font-semibold text-gray-950">Timeline</h2>
-          {editMode && canEdit && enabled ? (
-            <Button asChild variant="outline" size="sm">
-              <Link href={href}>Edit</Link>
-            </Button>
-          ) : null}
         </div>
         {editMode && canEdit ? (
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-500">{enabled ? 'Visible on profile' : 'Hidden from profile'}</span>
-            <Switch checked={enabled} onCheckedChange={onEnabledChange} />
+          <div className="flex flex-col items-end gap-2">
+            <label className="flex items-center gap-3">
+              <span className="text-sm text-gray-500">{enabled ? 'On your profile' : 'Hidden from profile'}</span>
+              <Switch checked={enabled} onCheckedChange={onEnabledChange} />
+            </label>
+            <label className="flex items-center gap-3">
+              <span className="text-sm text-gray-500">{publicVisible ? 'Visible to others' : 'Hidden from others'}</span>
+              <Switch
+                checked={publicVisible}
+                onCheckedChange={onPublicVisibleChange}
+                disabled={!enabled}
+              />
+            </label>
           </div>
-        ) : (
-          <Button variant="ghost" className="px-0 text-sm font-medium text-gray-500 hover:bg-transparent hover:text-gray-950" asChild>
-            <Link href={href}>See full timeline</Link>
-          </Button>
-        )}
+        ) : null}
       </div>
 
       {enabled ? (
@@ -524,13 +531,6 @@ export function ProfileTimelineSummary({
           <div className="rounded-[20px] border border-dashed border-gray-200 bg-gray-50 px-6 py-10 text-center">
             <p className="text-base font-semibold text-gray-800">No timeline entries yet</p>
             <p className="mt-2 text-sm text-gray-500">Add work, education, and life chapters from the timeline editor.</p>
-            {canEdit ? (
-              <div className="mt-4">
-                <Button asChild variant="outline" size="sm">
-                  <Link href={href}>Edit timeline</Link>
-                </Button>
-              </div>
-            ) : null}
           </div>
         ) : null
       ) : null}
@@ -686,6 +686,13 @@ export default function ProfileTimeline({
   orgslug,
   profileUsername,
   canEdit = false,
+  embedded = false,
+  editMode = false,
+  enabled = true,
+  publicVisible = true,
+  onEnabledChange,
+  onPublicVisibleChange,
+  onUserChange,
 }: ProfileTimelineProps) {
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
@@ -726,6 +733,7 @@ export default function ProfileTimeline({
       if (!res.success) throw new Error(res.HTTPmessage)
       setUser(res.data)
       setTimeline(getTimelineProfile(res.data.profile))
+      onUserChange?.(res.data)
       toast.success(successMessage, { id: loadingToast })
       setModal((current) => ({ ...current, open: false }))
     } catch {
@@ -778,10 +786,13 @@ export default function ProfileTimeline({
     )
   }
 
-  return (
-    <main className="min-h-screen">
-      <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+  if (!editMode && (!enabled || !publicVisible || timeline.length === 0)) return null
+
+  const content = (
+    <>
+      <div className={embedded ? 'px-4 py-6 sm:px-0' : 'mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8'}>
+          {!embedded ? (
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <Link href={profileHref} className="text-sm font-medium text-gray-500 hover:text-gray-800">
                 Back to profile
@@ -789,8 +800,27 @@ export default function ProfileTimeline({
               <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-950">Timeline</h1>
             </div>
           </div>
+          ) : editMode && canEdit ? (
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <h2 className="text-2xl font-semibold text-gray-950">Timeline</h2>
+              <div className="flex flex-col items-end gap-2">
+                <label className="flex items-center gap-3">
+                  <span className="text-sm text-gray-500">{enabled ? 'On your profile' : 'Hidden from profile'}</span>
+                  <Switch checked={enabled} onCheckedChange={onEnabledChange} />
+                </label>
+                <label className="flex items-center gap-3">
+                  <span className="text-sm text-gray-500">{publicVisible ? 'Visible to others' : 'Hidden from others'}</span>
+                  <Switch
+                    checked={publicVisible}
+                    onCheckedChange={onPublicVisibleChange}
+                    disabled={!enabled}
+                  />
+                </label>
+              </div>
+            </div>
+          ) : null}
 
-          <div className="mt-8">
+          <div className={embedded ? '' : 'mt-8'}>
             <div className="relative grid gap-2 sm:gap-3" style={{ gridTemplateColumns: timelineGridTemplate }}>
                 <div className="relative" style={{ height: layout.totalHeight }}>
                   {layout.rows.map((row) => (
@@ -913,6 +943,16 @@ export default function ProfileTimeline({
         onSave={handleSaveEntry}
         onDelete={modal.mode === 'edit' ? handleDeleteEntry : null}
       />
+    </>
+  )
+
+  if (embedded) {
+    return <section>{content}</section>
+  }
+
+  return (
+    <main className="min-h-screen">
+      {content}
     </main>
   )
 }

@@ -2,8 +2,10 @@ import React from 'react'
 import { getUserByUsername } from '@services/users/users'
 import { Metadata } from 'next'
 import { getServerSession } from '@/lib/auth/server'
-import ProfilePageClient from '@components/Objects/Profile/ProfilePageClient'
+import { PublicProfilePageClient } from '@components/Objects/Profile/ProfilePageClient'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 
 interface UserPageParams {
   username: string;
@@ -12,7 +14,43 @@ interface UserPageParams {
 
 interface UserPageProps {
   params: Promise<UserPageParams>;
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}
+
+function normalizeProfileValue(profile: any) {
+  if (!profile) return {}
+  if (typeof profile === 'string') {
+    try {
+      return JSON.parse(profile)
+    } catch {
+      return {}
+    }
+  }
+  return { ...profile }
+}
+
+function getPublicUserData(userData: any) {
+  const profile = normalizeProfileValue(userData.profile)
+
+  if (profile.featured?.publicVisible === false) {
+    profile.featured = { ...profile.featured, enabled: false }
+  }
+
+  if (profile.timelinePublicVisible === false) {
+    profile.timelineEnabled = false
+  }
+
+  if (profile.achievements?.publicVisible === false) {
+    profile.achievements = { ...profile.achievements, enabled: false }
+  }
+
+  if (Array.isArray(profile.sections)) {
+    profile.sections = profile.sections.filter((section: any) => section?.publicVisible !== false)
+  }
+
+  return {
+    ...userData,
+    profile,
+  }
 }
 
 export async function generateMetadata({ params }: UserPageProps): Promise<Metadata> {
@@ -68,13 +106,33 @@ async function UserPage({ params }: UserPageProps) {
     )
   }
 
+  const isSelf =
+    String(session?.user?.id ?? '') === String(userData.id ?? '') ||
+    session?.user?.username === userData.username
+  const publicUserData = getPublicUserData(userData)
+
   return (
     <div>
-      <ProfilePageClient
-        initialUser={userData}
+      {isSelf ? (
+        <div className="mx-auto w-full max-w-5xl px-4 pt-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-medium text-gray-700">
+              You are viewing your public profile.
+            </p>
+            <Link
+              href={getUriWithOrg(orgslug, routePaths.org.profile())}
+              className="inline-flex h-9 items-center justify-center rounded-md border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:text-gray-950"
+            >
+              View full profile
+            </Link>
+          </div>
+        </div>
+      ) : null}
+      <PublicProfilePageClient
+        initialUser={publicUserData}
         orgslug={orgslug}
-        profileUsername={userData.username}
-        canEdit={session?.user?.username === userData.username}
+        profileUsername={publicUserData.username}
+        isSelf={false}
       />
     </div>
   )

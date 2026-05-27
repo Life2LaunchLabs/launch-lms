@@ -6,6 +6,11 @@ import {
   getResponseMetadata,
 } from '@services/utils/ts/requests'
 
+function normalizeCourseUuid(course_uuid: any): string {
+  const value = String(course_uuid || '')
+  return value.startsWith('course_') ? value : `course_${value}`
+}
+
 /*
  This file includes only POST, PUT, DELETE requests
  GET requests are called from the frontend using SWR (https://swr.vercel.app/)
@@ -48,7 +53,7 @@ export async function getCourseMetadata(
   access_token: string | null | undefined
 ) {
   const result = await fetch(
-    `${getAPIUrl()}courses/course_${course_uuid}/meta`,
+    `${getAPIUrl()}courses/${normalizeCourseUuid(course_uuid)}/meta`,
     RequestBodyWithAuthHeader('GET', null, next, access_token || undefined)
   )
   const res = await errorHandling(result)
