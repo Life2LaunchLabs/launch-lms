@@ -9,6 +9,8 @@ from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.courses.chapter_activities import ChapterActivity
 from src.db.courses.chapters import Chapter
+from src.db.courses.activities import Activity, ActivityTypeEnum
+from src.db.courses.quiz import QuizAttempt, QuizResult
 from src.db.trail_runs import TrailRun
 from src.db.trail_steps import TrailStep
 from src.security.features_utils.usage import (
@@ -749,8 +751,71 @@ async def get_core_courses_progress(
         .order_by(ChapterActivity.order.asc())
     ).all()
     activity_ids_by_chapter_id: dict[int, set[int]] = {}
+    ordered_activity_ids_by_chapter_id: dict[int, list[int]] = {}
     for chapter_activity in chapter_activities:
         activity_ids_by_chapter_id.setdefault(chapter_activity.chapter_id, set()).add(chapter_activity.activity_id)
+        ordered_activity_ids_by_chapter_id.setdefault(chapter_activity.chapter_id, []).append(chapter_activity.activity_id)
+
+    activity_ids = [chapter_activity.activity_id for chapter_activity in chapter_activities]
+    activities_by_id: dict[int, Activity] = {}
+    if activity_ids:
+        activities = db_session.exec(
+            select(Activity).where(Activity.id.in_(activity_ids))  # type: ignore
+        ).all()
+        activities_by_id = {
+            activity.id: activity
+            for activity in activities
+            if activity.id is not None
+        }
+
+    quiz_activity_ids = [
+        activity.id
+        for activity in activities_by_id.values()
+        if activity.id is not None and activity.activity_type == ActivityTypeEnum.TYPE_QUIZ
+    ]
+    quiz_results_by_activity_id: dict[int, dict] = {}
+    if quiz_activity_ids:
+        quiz_attempts = db_session.exec(
+            select(QuizAttempt)
+            .where(
+                QuizAttempt.user_id == current_user.id,
+                QuizAttempt.activity_id.in_(quiz_activity_ids),  # type: ignore
+                QuizAttempt.completed_at.is_not(None),  # type: ignore
+            )
+            .order_by(QuizAttempt.completed_at.desc())  # type: ignore
+        ).all()
+        latest_attempt_by_activity_id: dict[int, QuizAttempt] = {}
+        for attempt in quiz_attempts:
+            if attempt.activity_id not in latest_attempt_by_activity_id:
+                latest_attempt_by_activity_id[attempt.activity_id] = attempt
+
+        latest_attempt_ids = [
+            attempt.id
+            for attempt in latest_attempt_by_activity_id.values()
+            if attempt.id is not None
+        ]
+        if latest_attempt_ids:
+            results = db_session.exec(
+                select(QuizResult).where(QuizResult.attempt_id.in_(latest_attempt_ids))  # type: ignore
+            ).all()
+            results_by_attempt_id = {result.attempt_id: result for result in results}
+            for activity_id, attempt in latest_attempt_by_activity_id.items():
+                result = results_by_attempt_id.get(attempt.id)
+                activity = activities_by_id.get(activity_id)
+                if not result or not activity:
+                    continue
+                quiz_results_by_activity_id[activity_id] = {
+                    "id": f"{activity.activity_uuid}:{result.id}",
+                    "activity": activity.model_dump(),
+                    "result": {
+                        "id": result.id,
+                        "attempt_id": result.attempt_id,
+                        "attempt_uuid": attempt.attempt_uuid,
+                        "result_json": result.result_json,
+                        "computed_at": result.computed_at,
+                    },
+                    "computed_at": result.computed_at.isoformat() if result.computed_at else result.creation_date,
+                }
 
     result = []
     for course in courses:
@@ -760,11 +825,50 @@ async def get_core_courses_progress(
         course_chapters = []
         total_activities = 0
         completed_activities = 0
+        course_seo = course.seo or {}
+        highlighted_quiz_activity_uuid = course_seo.get("core_highlight_quiz_activity_uuid") if isinstance(course_seo, dict) else None
 
         for chapter in chapters_by_course_id.get(course.id, []):
             activity_ids = activity_ids_by_chapter_id.get(chapter.id or 0, set())
+            ordered_activity_ids = ordered_activity_ids_by_chapter_id.get(chapter.id or 0, [])
             chapter_total = len(activity_ids)
             chapter_completed = len(activity_ids & completed_activity_ids)
+            chapter_quizzes = [
+                activities_by_id[activity_id]
+                for activity_id in ordered_activity_ids
+                if activity_id in activities_by_id
+                and activities_by_id[activity_id].activity_type == ActivityTypeEnum.TYPE_QUIZ
+            ]
+            completed_quiz_results = [
+                quiz_results_by_activity_id[activity.id]
+                for activity in chapter_quizzes
+                if activity.id in quiz_results_by_activity_id
+            ]
+            highlighted_result = None
+            if highlighted_quiz_activity_uuid:
+                highlighted_result = next(
+                    (
+                        quiz_results_by_activity_id.get(activity.id)
+                        for activity in chapter_quizzes
+                        if activity.activity_uuid == highlighted_quiz_activity_uuid
+                        and activity.id in quiz_results_by_activity_id
+                    ),
+                    None,
+                )
+            if not highlighted_result and completed_quiz_results:
+                highlighted_result = completed_quiz_results[0]
+            last_completed_result = max(
+                completed_quiz_results,
+                key=lambda item: item.get("computed_at") or "",
+            ) if completed_quiz_results else None
+            next_activity = next(
+                (
+                    activities_by_id[activity_id]
+                    for activity_id in ordered_activity_ids
+                    if activity_id in activities_by_id and activity_id not in completed_activity_ids
+                ),
+                None,
+            )
             total_activities += chapter_total
             completed_activities += chapter_completed
             course_chapters.append({
@@ -775,6 +879,23 @@ async def get_core_courses_progress(
                 "completed_activities": chapter_completed,
                 "progress": round((chapter_completed / chapter_total) * 100) if chapter_total else 0,
                 "complete": chapter_total > 0 and chapter_completed >= chapter_total,
+                "quiz_activities": [
+                    {
+                        "id": activity.id,
+                        "activity_uuid": activity.activity_uuid,
+                        "name": activity.name,
+                    }
+                    for activity in chapter_quizzes
+                ],
+                "highlight_quiz_activity_uuid": highlighted_quiz_activity_uuid or (chapter_quizzes[0].activity_uuid if chapter_quizzes else None),
+                "highlight_result": highlighted_result,
+                "last_completed_result": last_completed_result,
+                "completed_quiz_results": completed_quiz_results,
+                "next_activity": {
+                    "id": next_activity.id,
+                    "activity_uuid": next_activity.activity_uuid,
+                    "name": next_activity.name,
+                } if next_activity else None,
             })
 
         run = runs_by_course_id.get(course.id)

@@ -160,11 +160,24 @@ function EditCourseGeneral(props: EditCourseStructureProps) {
       tags: courseStructure?.tags || '',
       public: courseStructure?.public || false,
       core_course: courseStructure?.core_course || false,
+      core_highlight_quiz_activity_uuid: courseStructure?.seo?.core_highlight_quiz_activity_uuid || '',
       thumbnail_type: thumbnailType,
     };
   }, [courseStructure?.name, courseStructure?.description, courseStructure?.about,
       courseStructure?.learnings, courseStructure?.tags, courseStructure?.public,
-      courseStructure?.core_course, courseStructure?.thumbnail_type, initializeLearnings]);
+      courseStructure?.core_course, courseStructure?.seo, courseStructure?.thumbnail_type, initializeLearnings]);
+
+  const coreQuizOptions = useMemo(() => {
+    return (courseStructure?.chapters || []).flatMap((chapter: any) =>
+      (chapter.activities || [])
+        .filter((activity: any) => activity.activity_type === 'TYPE_QUIZ')
+        .map((activity: any) => ({
+          activity_uuid: activity.activity_uuid,
+          name: activity.name || 'Untitled quiz',
+          chapterName: chapter.name || 'Chapter',
+        }))
+    )
+  }, [courseStructure?.chapters])
 
   const formik = useFormik({
     initialValues,
@@ -186,7 +199,14 @@ function EditCourseGeneral(props: EditCourseStructureProps) {
     const changes: any = {};
     Object.keys(formik.values).forEach(key => {
       if (formik.values[key] !== formik.initialValues[key]) {
-        changes[key] = formik.values[key];
+        if (key === 'core_highlight_quiz_activity_uuid') {
+          changes.seo = {
+            ...(courseStructure?.seo || {}),
+            core_highlight_quiz_activity_uuid: formik.values[key] || null,
+          };
+        } else {
+          changes[key] = formik.values[key];
+        }
       }
     });
 
@@ -345,6 +365,35 @@ function EditCourseGeneral(props: EditCourseStructureProps) {
                       disabled={isSaving}
                     />
                   </div>
+                  {formik.values.core_course && coreQuizOptions.length > 0 && (
+                    <div className="mt-4 border-t border-gray-200 pt-4">
+                      <FormLabelAndMessage label="CORE highlight quiz" />
+                      <CustomSelect
+                        value={formik.values.core_highlight_quiz_activity_uuid || coreQuizOptions[0]?.activity_uuid || ''}
+                        onValueChange={(value) => {
+                          if (!value) return
+                          formik.setFieldValue('core_highlight_quiz_activity_uuid', value)
+                        }}
+                        disabled={isSaving}
+                      >
+                        <CustomSelectTrigger className="w-full bg-white">
+                          <CustomSelectValue>
+                            {coreQuizOptions.find((item: any) => item.activity_uuid === (formik.values.core_highlight_quiz_activity_uuid || coreQuizOptions[0]?.activity_uuid))?.name || 'First quiz in the course'}
+                          </CustomSelectValue>
+                        </CustomSelectTrigger>
+                        <CustomSelectContent>
+                          {coreQuizOptions.map((quiz: any) => (
+                            <CustomSelectItem key={quiz.activity_uuid} value={quiz.activity_uuid}>
+                              {quiz.name} · {quiz.chapterName}
+                            </CustomSelectItem>
+                          ))}
+                        </CustomSelectContent>
+                      </CustomSelect>
+                      <p className="mt-2 text-xs leading-5 text-gray-500">
+                        This quiz result is preferred as the chapter card highlight when the learner has completed it. Defaults to the first quiz.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

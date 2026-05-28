@@ -90,12 +90,22 @@ function ActionDisplayCard({
   )
 }
 
-function ActionCarousel({
+export function LayeredCardCarousel<T extends { id: string }>({
   cards,
-  orgslug,
+  renderCard,
+  ariaLabel = 'featured card',
+  className = '',
+  stageClassName = 'h-[290px] sm:h-[305px]',
+  previousButtonClassName = '-translate-x-[250px]',
+  nextButtonClassName = 'translate-x-[250px]',
 }: {
-  cards: ActionCard[]
-  orgslug: string
+  cards: T[]
+  renderCard: (card: T, elevation: number) => React.ReactNode
+  ariaLabel?: string
+  className?: string
+  stageClassName?: string
+  previousButtonClassName?: string
+  nextButtonClassName?: string
 }) {
   const [activeIndex, setActiveIndex] = useState(0)
   const [dragX, setDragX] = useState(0)
@@ -161,9 +171,9 @@ function ActionCarousel({
   }
 
   return (
-    <div className="relative flex flex-col items-center overflow-visible py-2">
+    <div className={`relative flex flex-col items-center overflow-visible py-2 ${className}`}>
       <div
-        className="relative flex h-[290px] w-full items-center justify-center sm:h-[305px]"
+        className={`relative flex w-full items-center justify-center ${stageClassName}`}
         style={{ touchAction: 'pan-y' }}
         onTouchStart={(event) => onDragStart(event.touches[0].clientX)}
         onTouchMove={(event) => onDragMove(event.touches[0].clientX)}
@@ -201,20 +211,16 @@ function ActionCarousel({
                     : 'transform 300ms ease',
               }}
             >
-              <ActionDisplayCard
-                card={card}
-                elevation={Math.abs(offset)}
-                orgslug={orgslug}
-              />
+              {renderCard(card, Math.abs(offset))}
             </div>
           )
         })}
         {activeIndex > 0 ? (
           <button
             type="button"
-            aria-label="Previous featured card"
+            aria-label={`Previous ${ariaLabel}`}
             onClick={() => navigateTo('prev')}
-            className="absolute left-1/2 z-30 hidden h-11 w-11 -translate-x-[250px] items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-md hover:bg-white sm:flex"
+            className={`absolute left-1/2 z-30 hidden h-11 w-11 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-md hover:bg-white sm:flex ${previousButtonClassName}`}
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
@@ -222,9 +228,9 @@ function ActionCarousel({
         {activeIndex < cards.length - 1 ? (
           <button
             type="button"
-            aria-label="Next featured card"
+            aria-label={`Next ${ariaLabel}`}
             onClick={() => navigateTo('next')}
-            className="absolute right-1/2 z-30 hidden h-11 w-11 translate-x-[250px] items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-md hover:bg-white sm:flex"
+            className={`absolute right-1/2 z-30 hidden h-11 w-11 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-md hover:bg-white sm:flex ${nextButtonClassName}`}
           >
             <ChevronRight className="h-5 w-5" />
           </button>
@@ -236,7 +242,7 @@ function ActionCarousel({
             <button
               key={card.id}
               type="button"
-              aria-label={`Show featured card ${index + 1}`}
+              aria-label={`Show ${ariaLabel} ${index + 1}`}
               onClick={() => moveTo(index)}
               className={`h-2 rounded-full bg-white transition-all duration-300 ${
                 index === activeIndex ? 'w-5' : 'w-2 opacity-50'
@@ -246,6 +252,24 @@ function ActionCarousel({
         </div>
       </div>
     </div>
+  )
+}
+
+function ActionCarousel({
+  cards,
+  orgslug,
+}: {
+  cards: ActionCard[]
+  orgslug: string
+}) {
+  return (
+    <LayeredCardCarousel
+      cards={cards}
+      ariaLabel="featured card"
+      renderCard={(card, elevation) => (
+        <ActionDisplayCard card={card} elevation={elevation} orgslug={orgslug} />
+      )}
+    />
   )
 }
 
