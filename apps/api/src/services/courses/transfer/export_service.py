@@ -198,6 +198,7 @@ def _export_course_to_zip(
             "name": chapter.name,
             "description": chapter.description,
             "thumbnail_image": chapter.thumbnail_image,
+            "icon": chapter.icon,
             "order": course_chapter.order,
             "creation_date": chapter.creation_date,
             "update_date": chapter.update_date,

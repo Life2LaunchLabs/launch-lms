@@ -502,6 +502,7 @@ async def _import_chapter(
         name=chapter_data.get("name", "Untitled Chapter"),
         description=chapter_data.get("description", ""),
         thumbnail_image=chapter_data.get("thumbnail_image", ""),
+        icon=chapter_data.get("icon"),
         chapter_uuid=new_chapter_uuid,
         org_id=organization.id,
         course_id=new_course.id,

@@ -1,6 +1,5 @@
 import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal'
 import {
-  Hexagon,
   MoreHorizontal,
   MoreVertical,
   Pencil,
@@ -19,6 +18,8 @@ import { mutate } from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useCourse } from '@components/Contexts/CourseContext'
 import { useTranslation } from 'react-i18next'
+import ChapterIconPicker from '@components/Objects/Modals/Chapters/ChapterIconPicker'
+import { defaultChapterIconName, getChannelIcon } from '@components/Resources/ResourceChannelStyle'
 
 type ChapterElementProps = {
   chapter: any
@@ -30,6 +31,7 @@ type ChapterElementProps = {
 interface ModifiedChapterInterface {
   chapterId: string
   chapterName: string
+  chapterDescription: string
 }
 
 function ChapterElement(props: ChapterElementProps) {
@@ -43,8 +45,10 @@ function ChapterElement(props: ChapterElementProps) {
   const [selectedChapter, setSelectedChapter] = React.useState<
     string | undefined
   >(undefined)
+  const [chapterIconModalOpen, setChapterIconModalOpen] = React.useState(false)
   const course = useCourse() as any;
   const withUnpublishedActivities = course ? course.withUnpublishedActivities : false
+  const ChapterIcon = getChannelIcon(props.chapter.icon || defaultChapterIconName)
 
   const router = useRouter()
 
@@ -55,10 +59,11 @@ function ChapterElement(props: ChapterElementProps) {
     router.refresh()
   }
 
-  async function updateChapterName(chapterId: string) {
+  async function updateChapterDetails(chapterId: string) {
     if (modifiedChapter?.chapterId === chapterId) {
       let modifiedChapterCopy = {
         name: modifiedChapter.chapterName,
+        description: modifiedChapter.chapterDescription,
       }
       await updateChapter(chapterId, modifiedChapterCopy, access_token)
       mutate(`${getAPIUrl()}courses/${props.course_uuid}/meta?with_unpublished_activities=${withUnpublishedActivities}`)
@@ -84,50 +89,93 @@ function ChapterElement(props: ChapterElementProps) {
           {...provided.dragHandleProps}
           ref={provided.innerRef}
         >
-          <div className="flex flex-wrap items-center justify-between pb-3">
-            <div className="flex grow items-center space-x-2 mb-2 sm:mb-0">
-              <div className="bg-neutral-100 rounded-md p-2">
-                <Hexagon
-                  strokeWidth={3}
-                  size={16}
-                  className="text-neutral-600"
-                />
-              </div>
-              <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-start justify-between gap-3 pb-3">
+            <div className="flex grow items-start space-x-2 mb-2 sm:mb-0">
+              <button
+                type="button"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  setChapterIconModalOpen(true)
+                }}
+                className="rounded-md bg-neutral-100 p-2 text-neutral-600 transition-colors hover:bg-neutral-200 hover:text-neutral-900"
+                aria-label="Edit chapter icon"
+              >
+                <ChapterIcon strokeWidth={2.5} size={16} />
+              </button>
+              <div className="flex min-w-0 items-start space-x-2">
                 {selectedChapter === props.chapter.id ? (
-                  <div className="chapter-modification-zone bg-neutral-100 py-1 px-2 sm:px-4 rounded-lg flex items-center space-x-2">
-                    <input
-                      type="text"
-                      className="bg-transparent outline-hidden text-sm text-neutral-700 w-full max-w-[150px] sm:max-w-none"
-                      placeholder={t('dashboard.courses.structure.chapter_element.chapter_name_placeholder')}
-                      value={
-                        modifiedChapter
-                          ? modifiedChapter?.chapterName
-                          : props.chapter.name
-                      }
-                      onChange={(e) =>
-                        setModifiedChapter({
-                          chapterId: props.chapter.id,
-                          chapterName: e.target.value,
-                        })
-                      }
-                    />
+                  <div className="chapter-modification-zone flex w-full max-w-xl items-start space-x-2 rounded-lg bg-neutral-100 px-2 py-2 sm:px-4">
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <input
+                        type="text"
+                        className="w-full bg-transparent text-sm text-neutral-700 outline-hidden"
+                        placeholder={t('dashboard.courses.structure.chapter_element.chapter_name_placeholder')}
+                        value={
+                          modifiedChapter
+                            ? modifiedChapter.chapterName
+                            : props.chapter.name
+                        }
+                        onChange={(e) =>
+                          setModifiedChapter({
+                            chapterId: props.chapter.id,
+                            chapterName: e.target.value,
+                            chapterDescription: modifiedChapter?.chapterDescription ?? props.chapter.description ?? '',
+                          })
+                        }
+                      />
+                      <textarea
+                        className="min-h-16 w-full resize-none bg-transparent text-xs leading-5 text-neutral-600 outline-hidden placeholder:text-neutral-400"
+                        placeholder="Optional chapter description"
+                        value={
+                          modifiedChapter
+                            ? modifiedChapter.chapterDescription
+                            : props.chapter.description || ''
+                        }
+                        onChange={(e) =>
+                          setModifiedChapter({
+                            chapterId: props.chapter.id,
+                            chapterName: modifiedChapter?.chapterName ?? props.chapter.name,
+                            chapterDescription: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
                     <button
-                      onClick={() => updateChapterName(props.chapter.id)}
-                      className="bg-transparent text-neutral-700 hover:cursor-pointer hover:text-neutral-900"
+                      onClick={() => updateChapterDetails(props.chapter.id)}
+                      className="mt-0.5 bg-transparent text-neutral-700 hover:cursor-pointer hover:text-neutral-900"
+                      aria-label="Save chapter details"
                     >
                       <Save size={15} />
                     </button>
                   </div>
                 ) : (
-                  <p className="text-neutral-700 first-letter:uppercase text-sm sm:text-base">
-                    {props.chapter.name}
-                  </p>
+                  <div className="min-w-0">
+                    <p className="text-neutral-700 first-letter:uppercase text-sm sm:text-base">
+                      {props.chapter.name}
+                    </p>
+                    {props.chapter.description ? (
+                      <p className="mt-1 max-w-2xl text-xs leading-5 text-neutral-500">
+                        {props.chapter.description}
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-xs text-neutral-400">
+                        Add chapter description
+                      </p>
+                    )}
+                  </div>
                 )}
                 <Pencil
                   size={15}
-                  onClick={() => setSelectedChapter(props.chapter.id)}
-                  className="text-neutral-600 hover:cursor-pointer"
+                  onClick={() => {
+                    setModifiedChapter({
+                      chapterId: props.chapter.id,
+                      chapterName: props.chapter.name,
+                      chapterDescription: props.chapter.description || '',
+                    })
+                    setSelectedChapter(props.chapter.id)
+                  }}
+                  className="mt-0.5 shrink-0 text-neutral-600 hover:cursor-pointer"
                 />
               </div>
             </div>
@@ -185,6 +233,15 @@ function ChapterElement(props: ChapterElementProps) {
               <MoreHorizontal size={19} className="text-gray-300 mx-auto" />
             </div>
           </div>
+          <ChapterIconPicker
+            open={chapterIconModalOpen}
+            onClose={() => setChapterIconModalOpen(false)}
+            chapter={props.chapter}
+            accessToken={access_token}
+            courseUuid={props.course_uuid}
+            orgslug={props.orgslug}
+            withUnpublishedActivities={withUnpublishedActivities}
+          />
         </div>
       )}
     </Draggable>

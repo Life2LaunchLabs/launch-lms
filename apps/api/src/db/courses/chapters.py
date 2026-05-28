@@ -9,6 +9,7 @@ class ChapterBase(SQLModel):
     name: str
     description: Optional[str] = ""
     thumbnail_image: Optional[str] = ""
+    icon: Optional[str] = None
     org_id: int = Field(
         sa_column=Column("org_id", Integer, ForeignKey("organization.id", ondelete="CASCADE"))
     )
@@ -34,6 +35,7 @@ class ChapterUpdate(SQLModel):
     name: Optional[str] = None
     description: Optional[str] = None
     thumbnail_image: Optional[str] = None
+    icon: Optional[str] = None
     course_id: Optional[int] = None
     org_id: Optional[int] = None
 

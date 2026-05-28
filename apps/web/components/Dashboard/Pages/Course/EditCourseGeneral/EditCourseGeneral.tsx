@@ -366,33 +366,35 @@ function EditCourseGeneral(props: EditCourseStructureProps) {
                     />
                   </div>
                   {formik.values.core_course && coreQuizOptions.length > 0 && (
-                    <div className="mt-4 border-t border-gray-200 pt-4">
+                    <FormField name="core_highlight_quiz_activity_uuid" className="mt-4 border-t border-gray-200 pt-4">
                       <FormLabelAndMessage label="CORE highlight quiz" />
-                      <CustomSelect
-                        value={formik.values.core_highlight_quiz_activity_uuid || coreQuizOptions[0]?.activity_uuid || ''}
-                        onValueChange={(value) => {
-                          if (!value) return
-                          formik.setFieldValue('core_highlight_quiz_activity_uuid', value)
-                        }}
-                        disabled={isSaving}
-                      >
-                        <CustomSelectTrigger className="w-full bg-white">
-                          <CustomSelectValue>
-                            {coreQuizOptions.find((item: any) => item.activity_uuid === (formik.values.core_highlight_quiz_activity_uuid || coreQuizOptions[0]?.activity_uuid))?.name || 'First quiz in the course'}
-                          </CustomSelectValue>
-                        </CustomSelectTrigger>
-                        <CustomSelectContent>
-                          {coreQuizOptions.map((quiz: any) => (
-                            <CustomSelectItem key={quiz.activity_uuid} value={quiz.activity_uuid}>
-                              {quiz.name} · {quiz.chapterName}
-                            </CustomSelectItem>
-                          ))}
-                        </CustomSelectContent>
-                      </CustomSelect>
+                      <Form.Control asChild>
+                        <CustomSelect
+                          value={formik.values.core_highlight_quiz_activity_uuid || coreQuizOptions[0]?.activity_uuid || ''}
+                          onValueChange={(value) => {
+                            if (!value) return
+                            formik.setFieldValue('core_highlight_quiz_activity_uuid', value)
+                          }}
+                          disabled={isSaving}
+                        >
+                          <CustomSelectTrigger className="w-full bg-white">
+                            <CustomSelectValue>
+                              {coreQuizOptions.find((item: any) => item.activity_uuid === (formik.values.core_highlight_quiz_activity_uuid || coreQuizOptions[0]?.activity_uuid))?.name || 'First quiz in the course'}
+                            </CustomSelectValue>
+                          </CustomSelectTrigger>
+                          <CustomSelectContent>
+                            {coreQuizOptions.map((quiz: any) => (
+                              <CustomSelectItem key={quiz.activity_uuid} value={quiz.activity_uuid}>
+                                {quiz.name} · {quiz.chapterName}
+                              </CustomSelectItem>
+                            ))}
+                          </CustomSelectContent>
+                        </CustomSelect>
+                      </Form.Control>
                       <p className="mt-2 text-xs leading-5 text-gray-500">
                         This quiz result is preferred as the chapter card highlight when the learner has completed it. Defaults to the first quiz.
                       </p>
-                    </div>
+                    </FormField>
                   )}
                 </div>
               )}

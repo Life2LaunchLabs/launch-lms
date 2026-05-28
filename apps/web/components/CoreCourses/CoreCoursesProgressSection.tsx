@@ -3,12 +3,13 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
-import { ArrowRight, BookOpen, CheckCircle2, Gauge, Play, X } from 'lucide-react'
+import { ArrowRight, BookOpen, Lock } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getAPIUrl, getUriWithOrg } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
 import QuizResultsView from '@components/Objects/Activities/Quiz/Player/QuizResultsView'
-import { LayeredCardCarousel } from '@components/Landings/DashboardActionHero'
+import { getCourseThumbnailMediaDirectory } from '@services/media/media'
+import { defaultChapterIconName, getChannelIcon } from '@components/Resources/ResourceChannelStyle'
 
 type CoreCourseProgressSectionProps = {
   orgslug: string
@@ -39,241 +40,204 @@ function getActivityHref(orgslug: string, courseUuid: string, activityUuid?: str
   return getUriWithOrg(orgslug, `/course/${cleanCourse}/activity/${cleanActivity}`)
 }
 
-function getResultTitle(resultItem: any) {
-  const resultJson = resultItem?.result?.result_json || {}
-  const matched = resultJson?.matched_result
-  const graded = resultJson?.graded_result
-  if (matched?.title) return matched.title
-  if (matched?.label) return matched.label
-  if (graded) return graded.passed ? 'Passed' : 'Result ready'
-  if (resultJson?.quiz_mode === 'ungraded') return 'Responses saved'
-  return 'Result ready'
-}
-
-function getResultSubtext(resultItem: any) {
-  const resultJson = resultItem?.result?.result_json || {}
-  const matched = resultJson?.matched_result
-  const graded = resultJson?.graded_result
-  if (matched?.subtitle) return matched.subtitle
-  if (graded) return `${Number(graded.score_percent || 0).toFixed(1)}% score`
-  if (resultJson?.quiz_mode === 'ungraded') return resultItem?.activity?.name || 'Quiz response'
-  return resultItem?.activity?.name || 'Completed quiz'
-}
-
-function ChapterResultCard({
-  item,
-  elevation,
-  course,
-}: {
-  item: any
-  elevation: number
-  course: any
-}) {
-  const bgClass = (['bg-white', 'bg-gray-100', 'bg-gray-200'] as const)[Math.min(elevation, 2)]
-
+function getResultForQuiz(chapter: any, quiz: any) {
   return (
-    <div className={`h-[520px] w-[min(86vw,720px)] overflow-hidden rounded-2xl border border-gray-100 ${bgClass} shadow-xl`}>
-      <div className="border-b border-gray-100 px-5 py-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
-          {item?.activity?.name || 'Quiz result'}
-        </p>
-        <h3 className="mt-1 text-lg font-bold text-gray-950">{getResultTitle(item)}</h3>
-      </div>
-      <div className="h-[440px] overflow-y-auto bg-white">
-        <QuizResultsView
-          result={item.result}
-          activity={item.activity}
-          org={{ org_uuid: course?.owner_org_uuid || course?.org_uuid }}
-          course={{ courseStructure: { course_uuid: course?.course_uuid } }}
-          onRetake={() => {}}
-          showRetakeButton={false}
-        />
-      </div>
-    </div>
+    (chapter.completed_quiz_results || []).find(
+      (item: any) => item?.activity?.activity_uuid === quiz?.activity_uuid
+    ) || null
   )
 }
 
-function ChapterResultsModal({
+function getInitialActiveQuizUuid(chapter: any) {
+  const highlightUuid = chapter.highlight_result?.activity?.activity_uuid
+  const lastUuid = chapter.last_completed_result?.activity?.activity_uuid
+  return highlightUuid || lastUuid || chapter.quiz_activities?.[0]?.activity_uuid || ''
+}
+
+function getCourseThumbnailUrl(course: any) {
+  const orgUuid = course?.owner_org_uuid || course?.org_uuid
+  if (!orgUuid || !course?.course_uuid || !course?.thumbnail_image) return null
+  return getCourseThumbnailMediaDirectory(orgUuid, course.course_uuid, course.thumbnail_image)
+}
+
+function StickyCourseIdentity({
+  course,
+  item,
+  orgslug,
+}: {
+  course: any
+  item: any
+  orgslug: string
+}) {
+  const courseHref = getUriWithOrg(orgslug, `/course/${cleanCourseUuid(course.course_uuid)}`)
+
+  return (
+    <aside className="lg:sticky lg:top-0 lg:self-start">
+      <div className="relative flex p-5 text-gray-950">
+        <div className="flex w-full flex-col">
+          <h3 className="text-2xl font-black leading-tight text-gray-950 lg:text-3xl">
+            {course.name}
+          </h3>
+          <div className="mt-5">
+            <div className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-gray-800">
+              <span>overall progress</span>
+              <span>{item.completed_activities}/{item.total_activities}</span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-black/15">
+              <div
+                className="h-full rounded-full bg-gray-950 transition-all"
+                style={{ width: `${Math.max(0, Math.min(100, item.progress || 0))}%` }}
+              />
+            </div>
+          </div>
+          <Link
+            href={courseHref}
+            className="mt-6 inline-flex w-fit items-center gap-2 rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+          >
+            Explore
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </div>
+    </aside>
+  )
+}
+
+function ChapterDashboardCard({
   chapter,
   course,
   orgslug,
-  onClose,
+  activeQuizUuid,
+  setActiveQuizUuid,
 }: {
   chapter: any
   course: any
   orgslug: string
-  onClose: () => void
+  activeQuizUuid?: string
+  setActiveQuizUuid: (chapterKey: string, quizUuid: string) => void
 }) {
-  const resultCards = chapter.completed_quiz_results || []
-  const continueHref = getActivityHref(orgslug, course.course_uuid, chapter.next_activity?.activity_uuid)
+  const started = chapter.completed_activities > 0
   const complete = chapter.complete
+  const chapterKey = chapter.chapter_uuid || String(chapter.id)
+  const quizzes = chapter.quiz_activities || []
+  const resolvedActiveQuizUuid = activeQuizUuid || getInitialActiveQuizUuid(chapter)
+  const activeQuiz = quizzes.find((quiz: any) => quiz.activity_uuid === resolvedActiveQuizUuid) || quizzes[0]
+  const activeResult = activeQuiz ? getResultForQuiz(chapter, activeQuiz) : null
+  const ChapterIcon = getChannelIcon(chapter.icon || defaultChapterIconName)
+  const continueHref = getActivityHref(
+    orgslug,
+    course.course_uuid,
+    chapter.next_activity?.activity_uuid || activeQuiz?.activity_uuid
+  )
 
   return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-stretch bg-black/50 p-0 sm:items-center sm:justify-center sm:p-8"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose()
-      }}
-    >
-      <div className="relative flex h-full w-full flex-col overflow-y-auto bg-gray-50 sm:max-h-[92vh] sm:max-w-[920px] sm:rounded-2xl sm:shadow-2xl">
-        <button
-          type="button"
-          aria-label="Close chapter results"
-          onClick={onClose}
-          className="absolute right-4 top-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white text-gray-900 shadow-md hover:bg-gray-100"
-        >
-          <X className="h-4 w-4" />
-        </button>
-
-        <div className="border-b border-gray-200 bg-white px-5 py-5 sm:px-7">
-          <div className="pr-12">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
-              {complete ? 'Chapter complete' : 'Chapter in progress'}
-            </p>
-            <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-950">{chapter.name}</h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  {chapter.completed_activities} of {chapter.total_activities} activities complete
-                </p>
+    <section className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+      <div className="border-b border-gray-100 p-5">
+        <div className="flex items-start gap-3">
+          <div
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+              complete
+                ? 'bg-emerald-50 text-gray-900'
+                : started
+                  ? 'bg-gray-100 text-gray-900'
+                  : 'bg-gray-50 text-gray-500'
+            }`}
+          >
+            <ChapterIcon className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <h3 className="truncate text-base font-bold text-gray-950">{chapter.name}</h3>
+                {chapter.description ? (
+                  <p className="mt-1 line-clamp-2 text-sm leading-5 text-gray-600">
+                    {chapter.description}
+                  </p>
+                ) : null}
               </div>
-              {!complete && chapter.next_activity ? (
+              {chapter.next_activity || !started ? (
                 <Link
                   href={continueHref}
-                  className="inline-flex w-fit items-center gap-2 rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+                  className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
                 >
-                  Continue
+                  {started ? 'Continue' : 'Get started'}
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               ) : null}
             </div>
-          </div>
-          <div className="mt-4">
-            <ProgressBar value={chapter.progress || 0} />
-          </div>
-        </div>
-
-        <div className="flex-1 px-4 py-5 sm:px-7">
-          {resultCards.length > 0 ? (
-            <LayeredCardCarousel
-              cards={resultCards}
-              ariaLabel="chapter result"
-              stageClassName="h-[560px]"
-              previousButtonClassName="-translate-x-[410px]"
-              nextButtonClassName="translate-x-[410px]"
-              renderCard={(item, elevation) => (
-                <ChapterResultCard item={item} elevation={elevation} course={course} />
-              )}
-            />
-          ) : (
-            <div className="rounded-xl border border-dashed border-gray-200 bg-white p-6 text-center">
-              <p className="text-sm font-semibold text-gray-800">No completed quiz results yet</p>
-              <p className="mt-1 text-sm text-gray-500">Complete a quiz in this chapter to see its result card here.</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ChapterDashboardTile({
-  chapter,
-  course,
-  orgslug,
-  onOpen,
-}: {
-  chapter: any
-  course: any
-  orgslug: string
-  onOpen: () => void
-}) {
-  const started = chapter.completed_activities > 0
-  const complete = chapter.complete
-  const result = complete
-    ? chapter.highlight_result || chapter.last_completed_result
-    : chapter.last_completed_result
-  const startHref = getActivityHref(
-    orgslug,
-    course.course_uuid,
-    chapter.next_activity?.activity_uuid || chapter.quiz_activities?.[0]?.activity_uuid
-  )
-
-  if (!started) {
-    return (
-      <Link
-        href={startHref}
-        className="group flex aspect-square min-h-[180px] flex-col justify-between rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4 transition hover:border-gray-300 hover:bg-white"
-      >
-        <div>
-          <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-gray-500 shadow-xs">
-            <Play className="h-4 w-4" />
-          </div>
-          <h3 className="line-clamp-2 text-sm font-bold text-gray-900">{chapter.name}</h3>
-          <p className="mt-2 text-xs text-gray-500">Not started</p>
-        </div>
-        <div className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700">
-          Get started
-          <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
-        </div>
-      </Link>
-    )
-  }
-
-  return (
-    <div className="flex aspect-square min-h-[180px] flex-col justify-between rounded-lg border border-gray-100 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-      <div>
-        <div className="mb-3 flex items-start justify-between gap-3">
-          <button
-            type="button"
-            onClick={onOpen}
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${complete ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-900'}`}
-          >
-            {complete ? <CheckCircle2 className="h-5 w-5" /> : <Gauge className="h-5 w-5" />}
-          </button>
-          {!complete && chapter.next_activity ? (
-            <Link
-              href={startHref}
-              className="inline-flex items-center gap-1 rounded-full bg-gray-950 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-gray-800"
-            >
-              Continue
-              <ArrowRight className="h-3 w-3" />
-            </Link>
-          ) : (
-            <div className="text-right">
-              <div className="text-xl font-black text-gray-950">{chapter.progress}%</div>
-              <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">done</div>
-            </div>
-          )}
-        </div>
-        {!complete ? (
-          <div className="mb-3">
-            <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-              <span>active</span>
-              <span>{chapter.progress}%</span>
-            </div>
-            <div className="mt-1">
+            <div className="mt-4">
               <ProgressBar value={chapter.progress || 0} />
             </div>
           </div>
-        ) : null}
-        <h3 className="line-clamp-2 text-sm font-bold text-gray-950">{chapter.name}</h3>
-        <p className="mt-2 text-xs text-gray-500">
-          {chapter.completed_activities} of {chapter.total_activities} activities
-        </p>
+        </div>
       </div>
-      <button type="button" onClick={onOpen} className="rounded-lg bg-gray-50 p-3 text-left hover:bg-gray-100">
-        <p className="line-clamp-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-          {result ? result.activity?.name : 'Result'}
-        </p>
-        <p className="mt-1 line-clamp-2 text-sm font-semibold text-gray-800">
-          {result ? getResultTitle(result) : 'No quiz result yet'}
-        </p>
-        {result ? (
-          <p className="mt-1 line-clamp-1 text-xs text-gray-500">{getResultSubtext(result)}</p>
-        ) : null}
-      </button>
-    </div>
+
+      {quizzes.length > 0 ? (
+        <div>
+          <div className="flex overflow-x-auto border-b border-gray-200 bg-white px-4">
+            {quizzes.map((quiz: any, index: number) => {
+              const active = quiz.activity_uuid === activeQuiz?.activity_uuid
+              return (
+                <button
+                  key={quiz.activity_uuid || quiz.id}
+                  type="button"
+                  onClick={() => setActiveQuizUuid(chapterKey, quiz.activity_uuid)}
+                  className={`min-w-36 flex-1 border-b-2 px-4 py-3 text-center text-xs font-bold transition-colors ${
+                    active
+                      ? 'border-emerald-600 text-gray-950'
+                      : 'border-transparent text-gray-500 hover:text-gray-900'
+                  }`}
+                >
+                  <span className="block truncate">{quiz.name || `Response ${index + 1}`}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="bg-white p-4 sm:p-5">
+            {activeResult ? (
+              <div className="max-h-[620px] overflow-y-auto">
+                <QuizResultsView
+                  result={activeResult.result}
+                  activity={activeResult.activity}
+                  org={{ org_uuid: course?.owner_org_uuid || course?.org_uuid }}
+                  course={{ courseStructure: { course_uuid: course?.course_uuid } }}
+                  onRetake={() => {}}
+                  showRetakeButton={false}
+                  sectionedContent
+                />
+              </div>
+            ) : activeQuiz ? (
+              <div className="flex min-h-[220px] flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-400 shadow-xs">
+                  <Lock className="h-5 w-5" />
+                </div>
+                <p className="mt-3 text-sm font-semibold text-gray-800">{activeQuiz.name || 'Result locked'}</p>
+                <p className="mt-1 max-w-md text-sm text-gray-500">
+                  Complete this quiz activity to unlock its response card here.
+                </p>
+                {chapter.next_activity ? (
+                  <Link
+                    href={continueHref}
+                    className="mt-4 inline-flex items-center gap-2 rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+                  >
+                    {started ? 'Continue chapter' : 'Start chapter'}
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : (
+        <div className="p-4 sm:p-5">
+          <div className="flex items-center gap-2 rounded-lg border border-dashed border-gray-200 p-4 text-sm text-gray-400">
+            <BookOpen className="h-4 w-4" />
+            No quiz response cards in this chapter yet.
+          </div>
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -285,6 +249,7 @@ export default function CoreCoursesProgressSection({
 }: CoreCourseProgressSectionProps) {
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
+  const [activeQuizByChapter, setActiveQuizByChapter] = useState<Record<string, string>>({})
 
   const { data, isLoading } = useSWR(
     accessToken && orgslug
@@ -297,11 +262,13 @@ export default function CoreCoursesProgressSection({
   const coreCourses = Array.isArray(data)
     ? data.filter((item: any) => !courseUuid || item?.course?.course_uuid === courseUuid)
     : []
-  const [selectedChapter, setSelectedChapter] = useState<{ chapter: any; course: any } | null>(null)
 
   if (!accessToken || (!isLoading && coreCourses.length === 0)) return null
 
   const isProfile = variant === 'profile'
+  const setChapterQuiz = (chapterKey: string, quizUuid: string) => {
+    setActiveQuizByChapter((current) => ({ ...current, [chapterKey]: quizUuid }))
+  }
 
   return (
     <section className={`${isProfile ? 'px-4 py-6 sm:px-0' : 'flex flex-col space-y-2 mb-6'} ${className}`}>
@@ -316,7 +283,7 @@ export default function CoreCoursesProgressSection({
         </div>
       </div>
 
-      <div className={isProfile ? 'grid gap-4' : 'grid gap-5'}>
+      <div className="grid gap-0">
         {isLoading ? (
           (courseUuid ? [1] : [1, 2]).map((item) => (
             <div key={item} className="rounded-xl border border-gray-100 bg-white p-5 nice-shadow">
@@ -330,60 +297,54 @@ export default function CoreCoursesProgressSection({
           ))
         ) : coreCourses.map((item: any) => {
           const course = item.course || {}
-          const courseHref = getUriWithOrg(orgslug, `/course/${cleanCourseUuid(course.course_uuid)}`)
+          const thumbnailUrl = getCourseThumbnailUrl(course)
 
           return (
-            <section key={course.course_uuid} className="rounded-xl border border-gray-100 bg-white p-5 nice-shadow">
-              <div className="mb-4 flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-600">
-                    <Gauge className="h-3 w-3" />
-                    CORE
-                  </div>
-                  <Link href={courseHref} className="block truncate text-base font-semibold text-gray-900 hover:text-gray-700">
-                    {course.name}
-                  </Link>
-                  <p className="mt-1 text-xs text-gray-400">
-                    {item.completed_activities} of {item.total_activities} activities complete
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <div className="text-2xl font-bold text-gray-900">{item.progress}%</div>
-                  <div className="text-[10px] font-medium text-gray-400">overall</div>
-                </div>
+            <section
+              key={course.course_uuid}
+              className="relative overflow-visible shadow-sm"
+            >
+              <div className="sticky top-0 z-0 h-screen min-h-[560px] overflow-hidden bg-gray-950">
+                {thumbnailUrl ? (
+                  <img
+                    src={thumbnailUrl}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-[linear-gradient(135deg,#111827,#334155)]" />
+                )}
               </div>
 
-              <ProgressBar value={item.progress || 0} />
+              <div className="relative z-10 -mt-[100vh] grid gap-4 p-3 lg:grid-cols-[minmax(260px,320px)_1fr] lg:items-start lg:gap-5">
+                <StickyCourseIdentity course={course} item={item} orgslug={orgslug} />
 
-              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {(item.chapters || []).slice(0, isProfile ? 4 : 6).map((chapter: any) => (
-                  <ChapterDashboardTile
-                    key={chapter.chapter_uuid || chapter.id}
-                    chapter={chapter}
-                    course={course}
-                    orgslug={orgslug}
-                    onOpen={() => setSelectedChapter({ chapter, course })}
-                  />
-                ))}
-                {(item.chapters || []).length === 0 ? (
-                  <div className="flex items-center gap-2 rounded-lg border border-dashed border-gray-200 p-3 text-xs text-gray-400">
-                    <BookOpen className="h-4 w-4" />
-                    No chapters yet
-                  </div>
-                ) : null}
+                <div className="grid gap-4 pt-8 lg:pt-14">
+                  {(item.chapters || []).map((chapter: any) => {
+                    const chapterKey = chapter.chapter_uuid || String(chapter.id)
+                    return (
+                      <ChapterDashboardCard
+                        key={chapterKey}
+                        chapter={chapter}
+                        course={course}
+                        orgslug={orgslug}
+                        activeQuizUuid={activeQuizByChapter[chapterKey]}
+                        setActiveQuizUuid={setChapterQuiz}
+                      />
+                    )
+                  })}
+                  {(item.chapters || []).length === 0 ? (
+                    <div className="flex items-center gap-2 rounded-lg border border-dashed border-gray-200 bg-white p-3 text-xs text-gray-400">
+                      <BookOpen className="h-4 w-4" />
+                      No chapters yet
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </section>
           )
         })}
       </div>
-      {selectedChapter ? (
-        <ChapterResultsModal
-          chapter={selectedChapter.chapter}
-          course={selectedChapter.course}
-          orgslug={orgslug}
-          onClose={() => setSelectedChapter(null)}
-        />
-      ) : null}
     </section>
   )
 }

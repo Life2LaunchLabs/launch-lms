@@ -102,21 +102,20 @@ export default function QuizResultsView({ result, activity, org, course, onRetak
     const answers = (resultJson?.answers || []).filter((answer: any) => answer?.answer_json?.type !== 'info')
 
     return (
-      <div className="w-full max-w-3xl mx-auto pb-8">
-        <div className="bg-white rounded-3xl border border-neutral-100 p-5 md:p-6">
-          <div className="mb-5">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-neutral-400">Responses</p>
-            <h2 className="mt-2 text-xl font-bold text-neutral-900">Your responses</h2>
-          </div>
+      <div className={sectionedContent ? 'w-full' : 'w-full max-w-3xl mx-auto p-4 sm:p-5'}>
+        <div className="bg-white">
           {answers.length === 0 ? (
             <p className="text-sm text-neutral-500">No responses were recorded.</p>
           ) : (
-            <div className="space-y-3">
+            <div className={sectionedContent ? 'divide-y divide-neutral-100' : 'space-y-3'}>
               {answers.map((answer: any, index: number) => {
                 const node = getQuestionNode(answer.question_uuid)
                 const question = node?.attrs?.question_text || `Question ${index + 1}`
                 return (
-                  <div key={`${answer.question_uuid}-${index}`} className="rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
+                  <div
+                    key={`${answer.question_uuid}-${index}`}
+                    className={sectionedContent ? 'py-4 first:pt-0 last:pb-0' : 'rounded-2xl border border-neutral-100 bg-neutral-50 p-4'}
+                  >
                     <p className="text-sm font-semibold text-neutral-900">{question}</p>
                     <p className="mt-2 whitespace-pre-line text-sm text-neutral-600">{getResponseText(answer, node)}</p>
                   </div>
