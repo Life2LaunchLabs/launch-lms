@@ -1,5 +1,5 @@
 'use client'
-import React, { useEffect, useState } from 'react'
+import React, { MouseEvent, useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
@@ -11,7 +11,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { SearchBar } from '@components/Objects/Search/SearchBar'
 import { usePathname } from 'next/navigation'
 import { useTranslation } from 'react-i18next'
-import { Buildings, CaretDown, Question, SignOut, User } from '@phosphor-icons/react'
+import { Buildings, CaretDown, Question, SidebarSimple, SignOut, User } from '@phosphor-icons/react'
 import { FeedbackModal } from '@components/Objects/Modals/FeedbackModal'
 import { useJoinBannerVisible, JOIN_BANNER_HEIGHT } from '@components/Objects/Banners/OrgJoinBanner'
 import { GuestHeader } from '@components/Objects/Menus/GuestHeader'
@@ -45,16 +45,19 @@ import { cn } from '@/lib/utils'
 
 const DESKTOP_NAV_COLLAPSED_WIDTH = '80px'
 const DESKTOP_NAV_EXPANDED_WIDTH = '264px'
+const DESKTOP_NAV_STORAGE_KEY = 'org-menu-collapsed'
 
-export const OrgMenu = (props: { orgslug: string; autoContractDesktopNav?: boolean }) => {
+export const OrgMenu = (props: { orgslug: string }) => {
   const orgslug = props.orgslug
-  const autoContractDesktopNav = props.autoContractDesktopNav ?? false
   const session = useLHSession() as any
   const org = useOrg() as any
   const pathname = usePathname()
   const { t } = useTranslation()
   const [, setFocusModeTick] = useState(0)
-  const [isDesktopExpanded, setIsDesktopExpanded] = useState(false)
+  const [isDesktopExpanded, setIsDesktopExpanded] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return window.localStorage.getItem(DESKTOP_NAV_STORAGE_KEY) !== 'true'
+  })
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false)
   const { isVisible: isJoinBannerVisible } = useJoinBannerVisible()
   const accessToken = session?.data?.tokens?.access_token
@@ -165,40 +168,39 @@ export const OrgMenu = (props: { orgslug: string; autoContractDesktopNav?: boole
     isHelpOpen: feedbackModalOpen,
   }).filter((item) => item.show)
 
-  const isDesktopNavExpanded = !autoContractDesktopNav || isDesktopExpanded
+  const isDesktopNavExpanded = isDesktopExpanded
   const desktopNavWidth = isDesktopNavExpanded
     ? DESKTOP_NAV_EXPANDED_WIDTH
     : DESKTOP_NAV_COLLAPSED_WIDTH
 
-  const handleDesktopMouseEnter = () => {
-    if (
-      autoContractDesktopNav &&
-      typeof window !== 'undefined' &&
-      window.innerWidth >= 1024
-    ) {
-      setIsDesktopExpanded(true)
+  const setDesktopExpanded = (expanded: boolean) => {
+    setIsDesktopExpanded(expanded)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(DESKTOP_NAV_STORAGE_KEY, String(!expanded))
     }
   }
 
-  const handleDesktopMouseLeave = () => {
-    if (
-      autoContractDesktopNav &&
-      typeof window !== 'undefined' &&
-      window.innerWidth >= 1024
-    ) {
-      setIsDesktopExpanded(false)
+  const handleCollapsedRailClick = (event: MouseEvent<HTMLElement>) => {
+    if (isDesktopNavExpanded) return
+
+    const target = event.target as HTMLElement
+    if (target.closest('[data-sidebar-logo]')) {
+      return
     }
+
+    event.preventDefault()
+    event.stopPropagation()
+    setDesktopExpanded(true)
   }
 
   return (
     <>
       <aside
         className={cn(
-          'hidden md:flex md:self-start md:shrink-0',
-          autoContractDesktopNav ? 'md:w-20 lg:w-[264px]' : 'md:w-[264px]'
+          'group/sidebar hidden md:flex md:self-start md:shrink-0 transition-[width] duration-200 ease-out',
+          isDesktopNavExpanded ? 'md:w-[264px]' : 'md:w-20'
         )}
-        onMouseEnter={handleDesktopMouseEnter}
-        onMouseLeave={handleDesktopMouseLeave}
+        onClickCapture={handleCollapsedRailClick}
         style={{
           top: topOffset,
           height: `calc(100dvh - ${topOffset}px)`,
@@ -218,40 +220,82 @@ export const OrgMenu = (props: { orgslug: string; autoContractDesktopNav?: boole
               width: desktopNavWidth,
             }}
           >
-            <div className="flex h-10 items-center justify-center">
-              <Link
-                href={getUriWithOrg(orgslug, '/')}
-                className={cn(
-                  'flex h-10 items-center overflow-hidden',
-                  isDesktopNavExpanded ? 'w-full gap-3 pl-1' : 'w-10 justify-center'
-                )}
-              >
-                <div className="flex h-10 shrink-0 items-center justify-center">
-                  {org?.logo_image ? (
-                    <img
-                      src={getOrgLogoMediaDirectory(org.org_uuid, org.logo_image)}
-                      alt="Logo"
-                      className={cn(
-                        'h-10 w-auto object-contain',
-                        isDesktopNavExpanded ? 'max-w-[120px]' : 'max-w-[40px]'
-                      )}
-                    />
-                  ) : (
-                    <LaunchLMSIcon />
-                  )}
+            <div className={cn('flex h-10 items-center', isDesktopNavExpanded ? 'justify-between gap-2' : 'justify-center')}>
+              {isDesktopNavExpanded ? (
+                <Link
+                  href={getUriWithOrg(orgslug, '/')}
+                  data-sidebar-logo
+                  className="flex h-10 w-full items-center gap-3 overflow-hidden pl-1"
+                >
+                  <div className="flex h-10 shrink-0 items-center justify-center">
+                    {org?.logo_image ? (
+                      <img
+                        src={getOrgLogoMediaDirectory(org.org_uuid, org.logo_image)}
+                        alt="Logo"
+                        className="h-10 w-auto max-w-[120px] object-contain"
+                      />
+                    ) : (
+                      <LaunchLMSIcon />
+                    )}
+                  </div>
+                  <div className="flex min-w-0 items-center">
+                    {org?.logo_image ? (
+                      !hideOrgName && (
+                        <span className="truncate text-sm font-semibold text-gray-900">
+                          {org?.name}
+                        </span>
+                      )
+                    ) : (
+                      <LaunchLMSLogo />
+                    )}
+                  </div>
+                </Link>
+              ) : (
+                <div className="relative h-10 w-10">
+                  <Link
+                    href={getUriWithOrg(orgslug, '/')}
+                    data-sidebar-logo
+                    className="absolute inset-0 flex items-center justify-center overflow-hidden transition-opacity duration-150 group-hover/sidebar:pointer-events-none group-hover/sidebar:opacity-0"
+                  >
+                    {org?.logo_image ? (
+                      <img
+                        src={getOrgLogoMediaDirectory(org.org_uuid, org.logo_image)}
+                        alt="Logo"
+                        className="h-10 w-auto max-w-[40px] object-contain"
+                      />
+                    ) : (
+                      <LaunchLMSIcon />
+                    )}
+                  </Link>
+                  <TooltipProvider delayDuration={0}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() => setDesktopExpanded(true)}
+                          className="absolute inset-0 flex items-center justify-center rounded-2xl text-gray-500 opacity-0 transition-colors transition-opacity duration-150 hover:bg-black/[0.06] hover:text-gray-900 group-hover/sidebar:opacity-100"
+                          aria-label="Open sidebar"
+                        >
+                          <SidebarSimple size={20} weight="bold" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="text-xs">
+                        Open sidebar
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
-                <div className={cn('min-w-0 items-center', isDesktopNavExpanded ? 'flex' : 'hidden')}>
-                  {org?.logo_image ? (
-                    !hideOrgName && (
-                      <span className="truncate text-sm font-semibold text-gray-900">
-                        {org?.name}
-                      </span>
-                    )
-                  ) : (
-                    <LaunchLMSLogo />
-                  )}
-                </div>
-              </Link>
+              )}
+              {isDesktopNavExpanded ? (
+                <button
+                  type="button"
+                  onClick={() => setDesktopExpanded(false)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-gray-500 transition-colors hover:bg-black/[0.06] hover:text-gray-900"
+                  aria-label="Collapse sidebar"
+                >
+                  <SidebarSimple size={20} weight="bold" />
+                </button>
+              ) : null}
             </div>
 
             {isDesktopNavExpanded ? (
@@ -260,7 +304,18 @@ export const OrgMenu = (props: { orgslug: string; autoContractDesktopNav?: boole
               </div>
             ) : (
               <div className="mt-4 flex h-9 items-center justify-center">
-                <SearchBar orgslug={orgslug} isMobile />
+                <TooltipProvider delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <SearchBar orgslug={orgslug} isMobile />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="text-xs">
+                      {t('search.search_placeholder')}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             )}
 
