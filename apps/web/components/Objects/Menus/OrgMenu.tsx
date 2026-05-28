@@ -1,5 +1,5 @@
 'use client'
-import React, { MouseEvent, useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
@@ -42,6 +42,7 @@ import {
   useOrgOnboarding,
 } from '@components/Onboarding/orgOnboarding'
 import { cn } from '@/lib/utils'
+import { Z_INDEX } from '@/lib/z-index'
 
 const DESKTOP_NAV_COLLAPSED_WIDTH = '80px'
 const DESKTOP_NAV_EXPANDED_WIDTH = '264px'
@@ -180,19 +181,6 @@ export const OrgMenu = (props: { orgslug: string }) => {
     }
   }
 
-  const handleCollapsedRailClick = (event: MouseEvent<HTMLElement>) => {
-    if (isDesktopNavExpanded) return
-
-    const target = event.target as HTMLElement
-    if (target.closest('[data-sidebar-logo]')) {
-      return
-    }
-
-    event.preventDefault()
-    event.stopPropagation()
-    setDesktopExpanded(true)
-  }
-
   return (
     <>
       <aside
@@ -200,7 +188,6 @@ export const OrgMenu = (props: { orgslug: string }) => {
           'group/sidebar hidden md:flex md:self-start md:shrink-0 transition-[width] duration-200 ease-out',
           isDesktopNavExpanded ? 'md:w-[264px]' : 'md:w-20'
         )}
-        onClickCapture={handleCollapsedRailClick}
         style={{
           top: topOffset,
           height: `calc(100dvh - ${topOffset}px)`,
@@ -308,7 +295,7 @@ export const OrgMenu = (props: { orgslug: string }) => {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div>
-                        <SearchBar orgslug={orgslug} isMobile />
+                        <SearchBar orgslug={orgslug} isRail />
                       </div>
                     </TooltipTrigger>
                     <TooltipContent side="right" className="text-xs">
@@ -506,7 +493,7 @@ function DesktopAccountLink({
   const accountHref = getUriWithOrg(orgslug, routePaths.owner.account.security())
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <TooltipProvider delayDuration={0}>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -541,7 +528,13 @@ function DesktopAccountLink({
           )}
         </Tooltip>
       </TooltipProvider>
-      <DropdownMenuContent side="top" align="start" className="mb-2 w-56">
+      <DropdownMenuContent
+        side={isExpanded ? 'top' : 'right'}
+        align={isExpanded ? 'start' : 'end'}
+        sideOffset={isExpanded ? 8 : 12}
+        className="w-56"
+        style={{ zIndex: Z_INDEX.NAV_MENU + 1 }}
+      >
         <DropdownMenuLabel>
           <div className="flex items-center gap-2">
             <UserAvatar border="border-2" rounded="rounded-full" width={24} shadow="" />
