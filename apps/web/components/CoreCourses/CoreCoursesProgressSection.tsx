@@ -22,17 +22,6 @@ function cleanCourseUuid(courseUuid?: string) {
   return String(courseUuid || '').replace('course_', '')
 }
 
-function ProgressBar({ value }: { value: number }) {
-  return (
-    <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
-      <div
-        className="h-full rounded-full bg-gray-900 transition-all"
-        style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
-      />
-    </div>
-  )
-}
-
 function getActivityHref(orgslug: string, courseUuid: string, activityUuid?: string | null) {
   const cleanCourse = cleanCourseUuid(courseUuid)
   const cleanActivity = String(activityUuid || '').replace('activity_', '')
@@ -46,12 +35,6 @@ function getResultForQuiz(chapter: any, quiz: any) {
       (item: any) => item?.activity?.activity_uuid === quiz?.activity_uuid
     ) || null
   )
-}
-
-function getInitialActiveQuizUuid(chapter: any) {
-  const highlightUuid = chapter.highlight_result?.activity?.activity_uuid
-  const lastUuid = chapter.last_completed_result?.activity?.activity_uuid
-  return highlightUuid || lastUuid || chapter.quiz_activities?.[0]?.activity_uuid || ''
 }
 
 function getCourseThumbnailUrl(course: any) {
@@ -207,141 +190,164 @@ function StickyCourseIdentity({
   )
 }
 
-function ChapterDashboardCard({
-  chapter,
+function QuizDashboardCard({
+  quiz,
+  result,
   course,
   orgslug,
-  activeQuizUuid,
-  setActiveQuizUuid,
 }: {
-  chapter: any
+  quiz: any
+  result: any
   course: any
   orgslug: string
-  activeQuizUuid?: string
-  setActiveQuizUuid: (chapterKey: string, quizUuid: string) => void
 }) {
-  const started = chapter.completed_activities > 0
-  const complete = chapter.complete
-  const chapterKey = chapter.chapter_uuid || String(chapter.id)
-  const quizzes = chapter.quiz_activities || []
-  const resolvedActiveQuizUuid = activeQuizUuid || getInitialActiveQuizUuid(chapter)
-  const activeQuiz = quizzes.find((quiz: any) => quiz.activity_uuid === resolvedActiveQuizUuid) || quizzes[0]
-  const activeResult = activeQuiz ? getResultForQuiz(chapter, activeQuiz) : null
-  const ChapterIcon = getChannelIcon(chapter.icon || defaultChapterIconName)
-  const continueHref = getActivityHref(
-    orgslug,
-    course.course_uuid,
-    chapter.next_activity?.activity_uuid || activeQuiz?.activity_uuid
-  )
+  const ActivityIcon = getChannelIcon(quiz.icon || defaultChapterIconName)
+  const quizHref = getActivityHref(orgslug, course.course_uuid, quiz.activity_uuid)
 
   return (
     <section className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
       <div className="border-b border-gray-100 p-5">
         <div className="flex items-start gap-3">
-          <div
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-              complete
-                ? 'bg-emerald-50 text-gray-900'
-                : started
-                  ? 'bg-gray-100 text-gray-900'
-                  : 'bg-gray-50 text-gray-500'
-            }`}
-          >
-            <ChapterIcon className="h-5 w-5" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-900">
+            <ActivityIcon className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
-                <h3 className="truncate text-base font-bold text-gray-950">{chapter.name}</h3>
-                {chapter.description ? (
+                <h3 className="truncate text-base font-bold text-gray-950">{quiz.name}</h3>
+                {quiz.description ? (
                   <p className="mt-1 line-clamp-2 text-sm leading-5 text-gray-600">
-                    {chapter.description}
+                    {quiz.description}
                   </p>
                 ) : null}
               </div>
-              {chapter.next_activity || !started ? (
-                <Link
-                  href={continueHref}
-                  className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
-                >
-                  {started ? 'Continue' : 'Get started'}
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              ) : null}
-            </div>
-            <div className="mt-4">
-              <ProgressBar value={chapter.progress || 0} />
+              <Link
+                href={quizHref}
+                className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+              >
+                Get started
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
           </div>
         </div>
       </div>
 
-      {quizzes.length > 0 ? (
-        <div>
-          <div className="flex overflow-x-auto border-b border-gray-200 bg-white px-4">
-            {quizzes.map((quiz: any, index: number) => {
-              const active = quiz.activity_uuid === activeQuiz?.activity_uuid
-              return (
-                <button
-                  key={quiz.activity_uuid || quiz.id}
-                  type="button"
-                  onClick={() => setActiveQuizUuid(chapterKey, quiz.activity_uuid)}
-                  className={`min-w-36 flex-1 border-b-2 px-4 py-3 text-center text-xs font-bold transition-colors ${
-                    active
-                      ? 'border-emerald-600 text-gray-950'
-                      : 'border-transparent text-gray-500 hover:text-gray-900'
-                  }`}
-                >
-                  <span className="block truncate">{quiz.name || `Response ${index + 1}`}</span>
-                </button>
-              )
-            })}
+      <div className="bg-white px-4 pb-0 pt-4 sm:px-5 sm:pt-5">
+        {result ? (
+          <div className="core-quiz-result-scroll max-h-[620px] overflow-y-auto">
+            <style jsx global>{`
+              .core-quiz-result-scroll {
+                scrollbar-width: none;
+              }
+              .core-quiz-result-scroll:hover {
+                scrollbar-width: thin;
+                scrollbar-color: #d4d4d8 transparent;
+              }
+              .core-quiz-result-scroll::-webkit-scrollbar {
+                width: 0;
+                height: 0;
+              }
+              .core-quiz-result-scroll:hover::-webkit-scrollbar {
+                width: 6px;
+                height: 6px;
+              }
+              .core-quiz-result-scroll:hover::-webkit-scrollbar-thumb {
+                background: #d4d4d8;
+                border-radius: 999px;
+              }
+              .core-quiz-result-scroll:hover::-webkit-scrollbar-track {
+                background: transparent;
+              }
+            `}</style>
+            <QuizResultsView
+              result={result.result}
+              activity={result.activity}
+              org={{ org_uuid: course?.owner_org_uuid || course?.org_uuid }}
+              course={{ courseStructure: { course_uuid: course?.course_uuid } }}
+              onRetake={() => {}}
+              showRetakeButton={false}
+              sectionedContent
+            />
           </div>
-
-          <div className="bg-white p-4 sm:p-5">
-            {activeResult ? (
-              <div className="max-h-[620px] overflow-y-auto">
-                <QuizResultsView
-                  result={activeResult.result}
-                  activity={activeResult.activity}
-                  org={{ org_uuid: course?.owner_org_uuid || course?.org_uuid }}
-                  course={{ courseStructure: { course_uuid: course?.course_uuid } }}
-                  onRetake={() => {}}
-                  showRetakeButton={false}
-                  sectionedContent
-                />
-              </div>
-            ) : activeQuiz ? (
-              <div className="flex min-h-[220px] flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-400 shadow-xs">
-                  <Lock className="h-5 w-5" />
-                </div>
-                <p className="mt-3 text-sm font-semibold text-gray-800">{activeQuiz.name || 'Result locked'}</p>
-                <p className="mt-1 max-w-md text-sm text-gray-500">
-                  Complete this quiz activity to unlock its response card here.
-                </p>
-                {chapter.next_activity ? (
-                  <Link
-                    href={continueHref}
-                    className="mt-4 inline-flex items-center gap-2 rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
-                  >
-                    {started ? 'Continue chapter' : 'Start chapter'}
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                ) : null}
-              </div>
-            ) : null}
+        ) : (
+          <div className="flex min-h-[220px] flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-400 shadow-xs">
+              <Lock className="h-5 w-5" />
+            </div>
+            <p className="mt-3 text-sm font-semibold text-gray-800">{quiz.name || 'Result locked'}</p>
+            <p className="mt-1 max-w-md text-sm text-gray-500">
+              Complete this quiz activity to unlock its response card here.
+            </p>
+            <Link
+              href={quizHref}
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+            >
+              Get started
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
-        </div>
-      ) : (
-        <div className="p-4 sm:p-5">
-          <div className="flex items-center gap-2 rounded-lg border border-dashed border-gray-200 p-4 text-sm text-gray-400">
-            <BookOpen className="h-4 w-4" />
-            No quiz response cards in this chapter yet.
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </section>
+  )
+}
+
+function ChapterSeparator({ title }: { title: string }) {
+  return (
+    <div className="flex items-center gap-3 px-1 py-2">
+      <div className="h-px flex-1 bg-gray-950/20" />
+      <span className="text-xs font-bold uppercase tracking-[0.22em] text-gray-950">
+        {title}
+      </span>
+      <div className="h-px flex-1 bg-gray-950/20" />
+    </div>
+  )
+}
+
+function ChapterQuizCards({ chapter, course, orgslug }: { chapter: any; course: any; orgslug: string }) {
+  const quizzes = chapter.quiz_activities || []
+  if (quizzes.length === 0) return null
+  return (
+    <div className="grid gap-4">
+      <ChapterSeparator title={chapter.name} />
+      {quizzes.map((quiz: any) => (
+        <QuizDashboardCard
+          key={quiz.activity_uuid || quiz.id}
+          quiz={quiz}
+          result={getResultForQuiz(chapter, quiz)}
+          course={course}
+          orgslug={orgslug}
+        />
+      ))}
+    </div>
+  )
+}
+
+function hasQuizCards(item: any) {
+  return (item.chapters || []).some((chapter: any) => (chapter.quiz_activities || []).length > 0)
+}
+
+function CourseDashboardCards({ item, course, orgslug }: { item: any; course: any; orgslug: string }) {
+  if (!hasQuizCards(item)) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-dashed border-gray-200 bg-white p-3 text-xs text-gray-400">
+        <BookOpen className="h-4 w-4" />
+        No quiz response cards yet
+      </div>
+    )
+  }
+  return (
+    <>
+      {(item.chapters || []).map((chapter: any) => (
+        <ChapterQuizCards
+          key={chapter.chapter_uuid || chapter.id || chapter.name}
+          chapter={chapter}
+          course={course}
+          orgslug={orgslug}
+        />
+      ))}
+    </>
   )
 }
 
@@ -350,15 +356,11 @@ function CourseDomainSection({
   item,
   orgslug,
   backgroundUrl,
-  activeQuizByChapter,
-  setChapterQuiz,
 }: {
   course: any
   item: any
   orgslug: string
   backgroundUrl: string | null
-  activeQuizByChapter: Record<string, string>
-  setChapterQuiz: (chapterKey: string, quizUuid: string) => void
 }) {
   const sectionRef = useRef<HTMLElement>(null)
   const [bgH, setBgH] = useState(0)
@@ -408,25 +410,7 @@ function CourseDomainSection({
       >
         <StickyCourseIdentity course={course} item={item} orgslug={orgslug} />
         <div className="grid gap-4 pt-8 lg:pt-14">
-          {(item.chapters || []).map((chapter: any) => {
-            const chapterKey = chapter.chapter_uuid || String(chapter.id)
-            return (
-              <ChapterDashboardCard
-                key={chapterKey}
-                chapter={chapter}
-                course={course}
-                orgslug={orgslug}
-                activeQuizUuid={activeQuizByChapter[chapterKey]}
-                setActiveQuizUuid={setChapterQuiz}
-              />
-            )
-          })}
-          {(item.chapters || []).length === 0 ? (
-            <div className="flex items-center gap-2 rounded-lg border border-dashed border-gray-200 bg-white p-3 text-xs text-gray-400">
-              <BookOpen className="h-4 w-4" />
-              No chapters yet
-            </div>
-          ) : null}
+          <CourseDashboardCards item={item} course={course} orgslug={orgslug} />
         </div>
       </div>
     </section>
@@ -441,7 +425,6 @@ export default function CoreCoursesProgressSection({
 }: CoreCourseProgressSectionProps) {
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
-  const [activeQuizByChapter, setActiveQuizByChapter] = useState<Record<string, string>>({})
 
   const { data, isLoading } = useSWR(
     accessToken && orgslug
@@ -458,9 +441,6 @@ export default function CoreCoursesProgressSection({
   if (!accessToken || (!isLoading && coreCourses.length === 0)) return null
 
   const isProfile = variant === 'profile'
-  const setChapterQuiz = (chapterKey: string, quizUuid: string) => {
-    setActiveQuizByChapter((current) => ({ ...current, [chapterKey]: quizUuid }))
-  }
 
   return (
     <section className={`${isProfile ? 'px-4 py-6 sm:px-0' : 'flex flex-col space-y-2 mb-6'} ${className}`}>
@@ -488,8 +468,6 @@ export default function CoreCoursesProgressSection({
               item={item}
               orgslug={orgslug}
               backgroundUrl={backgroundUrl}
-              activeQuizByChapter={activeQuizByChapter}
-              setChapterQuiz={setChapterQuiz}
             />
           )
         })}

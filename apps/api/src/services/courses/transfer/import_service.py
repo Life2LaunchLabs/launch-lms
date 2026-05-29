@@ -591,6 +591,8 @@ async def _import_activity(
 
     new_activity = Activity(
         name=activity_data.get("name", "Untitled Activity"),
+        description=activity_data.get("description"),
+        icon=activity_data.get("icon"),
         activity_type=activity_type,
         activity_sub_type=activity_sub_type,
         content=new_content,

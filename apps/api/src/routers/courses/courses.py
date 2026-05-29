@@ -151,11 +151,12 @@ async def api_export_courses_batch(
 async def api_get_core_courses_progress(
     request: Request,
     org_slug: str = Query(...),
+    profile_user_id: int | None = Query(None),
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
     return await get_core_courses_progress(
-        request, org_slug, current_user, db_session
+        request, org_slug, current_user, db_session, profile_user_id=profile_user_id
     )
 
 

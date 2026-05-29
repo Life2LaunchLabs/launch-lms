@@ -32,6 +32,7 @@ import toast from 'react-hot-toast'
 import { useMediaQuery } from 'usehooks-ts'
 import ToolTip from '@components/Objects/StyledElements/Tooltip/Tooltip'
 import { useTranslation } from 'react-i18next'
+import { channelIconOptions, defaultChapterIconName, getChannelIcon } from '@components/Resources/ResourceChannelStyle'
 
 type ActivitiyElementProps = {
   orgslug: string
@@ -43,6 +44,7 @@ type ActivitiyElementProps = {
 interface ModifiedActivityInterface {
   activityId: string
   activityName: string
+  activityDescription: string
 }
 
 function ActivityElement(props: ActivitiyElementProps) {
@@ -57,6 +59,7 @@ function ActivityElement(props: ActivitiyElementProps) {
     string | undefined
   >(undefined)
   const [isUpdatingName, setIsUpdatingName] = React.useState<boolean>(false)
+  const [activityIconModalOpen, setActivityIconModalOpen] = React.useState(false)
   const activityUUID = props.activity.activity_uuid
   const isMobile = useMediaQuery('(max-width: 767px)')
   const course = useCourse() as any;
@@ -104,7 +107,10 @@ function ActivityElement(props: ActivitiyElementProps) {
       setIsUpdatingName(true)
       
       try {
-        await updateActivity({ name: modifiedActivity.activityName }, activityUUID, access_token)
+        await updateActivity({
+          name: modifiedActivity.activityName,
+          description: modifiedActivity.activityDescription,
+        }, activityUUID, access_token)
         mutate(`${getAPIUrl()}courses/${props.course_uuid}/meta?with_unpublished_activities=${withUnpublishedActivities}`)
         await revalidateTags(['courses'], props.orgslug)
         toast.success(t('dashboard.courses.structure.activity.toasts.name_update_success'))
@@ -150,32 +156,65 @@ function ActivityElement(props: ActivitiyElementProps) {
           </div>
 
           {/*   Activity Type Icon  */}
-          <ActivityTypeIndicator activityType={props.activity.activity_type} isMobile={isMobile} />
+          {props.activity.activity_type === 'TYPE_QUIZ' ? (
+            <button
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation()
+                setActivityIconModalOpen(true)
+              }}
+              className="rounded-md bg-neutral-100 p-2 text-neutral-600 transition-colors hover:bg-neutral-200 hover:text-neutral-900"
+              aria-label="Edit quiz icon"
+            >
+              {React.createElement(getChannelIcon(props.activity.icon || defaultChapterIconName), { size: 16, strokeWidth: 2.5 })}
+            </button>
+          ) : (
+            <ActivityTypeIndicator activityType={props.activity.activity_type} isMobile={isMobile} />
+          )}
 
           {/*   Activity Name  */}
           <div className="flex-1 flex items-center gap-2 min-w-0">
             {selectedActivity === props.activity.id ? (
-              <div className="flex items-center gap-2 bg-gray-100 py-1 px-3 rounded-md">
-                <input
-                  type="text"
-                  className="bg-transparent outline-none text-sm text-gray-600 min-w-0"
-                  placeholder={t('dashboard.courses.structure.activity.name_placeholder')}
-                  value={
-                    modifiedActivity
-                      ? modifiedActivity?.activityName
-                      : props.activity.name
-                  }
-                  onChange={(e) =>
-                    setModifiedActivity({
-                      activityId: props.activity.id,
-                      activityName: e.target.value,
-                    })
-                  }
-                  disabled={isUpdatingName}
-                />
+              <div className="flex items-start gap-2 bg-gray-100 py-2 px-3 rounded-md">
+                <div className="min-w-0 flex-1 space-y-2">
+                  <input
+                    type="text"
+                    className="w-full bg-transparent outline-none text-sm text-gray-600 min-w-0"
+                    placeholder={t('dashboard.courses.structure.activity.name_placeholder')}
+                    value={
+                      modifiedActivity
+                        ? modifiedActivity?.activityName
+                        : props.activity.name
+                    }
+                    onChange={(e) =>
+                      setModifiedActivity({
+                        activityId: props.activity.id,
+                        activityName: e.target.value,
+                        activityDescription: modifiedActivity?.activityDescription ?? props.activity.description ?? '',
+                      })
+                    }
+                    disabled={isUpdatingName}
+                  />
+                  {props.activity.activity_type === 'TYPE_QUIZ' && (
+                    <textarea
+                      className="min-h-14 w-full resize-none bg-transparent text-xs leading-5 text-gray-500 outline-none placeholder:text-gray-400"
+                      placeholder="Optional quiz description"
+                      value={modifiedActivity?.activityDescription ?? props.activity.description ?? ''}
+                      onChange={(e) =>
+                        setModifiedActivity({
+                          activityId: props.activity.id,
+                          activityName: modifiedActivity?.activityName ?? props.activity.name,
+                          activityDescription: e.target.value,
+                        })
+                      }
+                      disabled={isUpdatingName}
+                    />
+                  )}
+                </div>
                 <button
                   onClick={() => updateActivityName(props.activity.id)}
-                  className="text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="mt-0.5 text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={isUpdatingName}
                 >
                   {isUpdatingName ? (
@@ -186,10 +225,23 @@ function ActivityElement(props: ActivitiyElementProps) {
                 </button>
               </div>
             ) : (
-              <p className="first-letter:uppercase text-sm text-gray-600 truncate">{props.activity.name}</p>
+              <div className="min-w-0">
+                <p className="first-letter:uppercase text-sm text-gray-600 truncate">{props.activity.name}</p>
+                {props.activity.activity_type === 'TYPE_QUIZ' && props.activity.description ? (
+                  <p className="mt-0.5 truncate text-xs text-gray-400">{props.activity.description}</p>
+                ) : null}
+              </div>
             )}
             <button
-              onClick={() => !isUpdatingName && setSelectedActivity(props.activity.id)}
+              onClick={() => {
+                if (isUpdatingName) return
+                setModifiedActivity({
+                  activityId: props.activity.id,
+                  activityName: props.activity.name,
+                  activityDescription: props.activity.description || '',
+                })
+                setSelectedActivity(props.activity.id)
+              }}
               className={`text-gray-300 hover:text-gray-400 flex-shrink-0 ${isUpdatingName ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <Pencil size={14} />
@@ -247,9 +299,109 @@ function ActivityElement(props: ActivitiyElementProps) {
               status="warning"
             />
           </div>
+          <ActivityIconPicker
+            open={activityIconModalOpen}
+            onClose={() => setActivityIconModalOpen(false)}
+            activity={props.activity}
+            accessToken={access_token}
+            courseUuid={props.course_uuid}
+            orgslug={props.orgslug}
+            withUnpublishedActivities={withUnpublishedActivities}
+          />
         </div>
       )}
     </Draggable>
+  )
+}
+
+function ActivityIconPicker({
+  open,
+  onClose,
+  activity,
+  accessToken,
+  courseUuid,
+  orgslug,
+  withUnpublishedActivities,
+}: {
+  open: boolean
+  onClose: () => void
+  activity: any
+  accessToken?: string
+  courseUuid: string
+  orgslug: string
+  withUnpublishedActivities: boolean
+}) {
+  const router = useRouter()
+  const [selectedIcon, setSelectedIcon] = React.useState(defaultChapterIconName)
+  const [saving, setSaving] = React.useState(false)
+
+  React.useEffect(() => {
+    if (!open) return
+    setSelectedIcon(activity?.icon || defaultChapterIconName)
+  }, [activity?.icon, open])
+
+  if (!open) return null
+
+  const SelectedIcon = getChannelIcon(selectedIcon)
+  const handleSave = async () => {
+    if (!activity?.activity_uuid || !accessToken || saving) return
+    setSaving(true)
+    try {
+      await updateActivity({ icon: selectedIcon }, activity.activity_uuid, accessToken)
+      mutate(`${getAPIUrl()}courses/${courseUuid}/meta?with_unpublished_activities=${withUnpublishedActivities}`)
+      await revalidateTags(['courses'], orgslug)
+      toast.success('Quiz icon updated')
+      router.refresh()
+      onClose()
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to update quiz icon')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/40 p-4" onPointerDown={(event) => event.stopPropagation()}>
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-6 nice-shadow">
+        <div className="mb-5 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">Edit quiz icon</h3>
+          <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-gray-100">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="mb-5 flex h-36 items-center justify-center">
+          <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-gray-100 text-gray-900 shadow-sm ring-1 ring-black/5">
+            <SelectedIcon size={46} />
+          </div>
+        </div>
+        <div className="grid max-h-52 grid-cols-5 gap-1.5 overflow-y-auto pr-1">
+          {channelIconOptions.map(({ name: optionName, Icon }) => (
+            <button
+              key={optionName}
+              type="button"
+              onClick={() => setSelectedIcon(optionName)}
+              title={optionName}
+              className={`flex aspect-square items-center justify-center rounded-lg border transition-colors ${
+                selectedIcon === optionName
+                  ? 'border-black bg-white text-gray-900'
+                  : 'border-gray-200 bg-white/70 text-gray-500 hover:bg-white'
+              }`}
+            >
+              <Icon size={17} />
+            </button>
+          ))}
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded-xl border border-gray-200 px-4 py-2 text-sm transition-colors hover:bg-gray-50">
+            Cancel
+          </button>
+          <button type="button" onClick={handleSave} disabled={saving} className="flex items-center gap-1.5 rounded-xl bg-black px-4 py-2 text-sm text-white transition-colors hover:bg-gray-800 disabled:opacity-40">
+            {saving && <Loader2 size={13} className="animate-spin" />}
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 

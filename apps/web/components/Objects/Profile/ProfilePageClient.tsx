@@ -5,6 +5,7 @@ import Link from 'next/link'
 import useSWR from 'swr'
 import {
   Award,
+  ArrowRight,
   BookOpen,
   Camera,
   Check,
@@ -20,6 +21,7 @@ import {
   Link2,
   Linkedin,
   Loader2,
+  Lock,
   Plus,
   Share2,
   Text,
@@ -53,6 +55,8 @@ import { updateProfile } from '@services/settings/profile'
 import { updateUserAvatar } from '@services/users/users'
 import CoreCoursesProgressSection from '@components/CoreCourses/CoreCoursesProgressSection'
 import { swrFetcher } from '@services/utils/ts/requests'
+import QuizResultsView from '@components/Objects/Activities/Quiz/Player/QuizResultsView'
+import { defaultChapterIconName, getChannelIcon } from '@components/Resources/ResourceChannelStyle'
 
 type SocialType = 'website' | 'linkedin' | 'instagram' | 'youtube' | 'x'
 
@@ -66,12 +70,14 @@ type ProfileHeader = {
   socials?: SocialLink[]
 }
 
-type ProfileWidgetType = 'timeline' | 'portfolio' | 'achievements' | 'coreCourse' | 'instagramPreview' | 'youtubePreview' | 'title' | 'text' | 'link' | 'media'
+type ProfileWidgetType = 'timeline' | 'portfolio' | 'achievements' | 'coreCourse' | 'coreQuiz' | 'instagramPreview' | 'youtubePreview' | 'title' | 'text' | 'link' | 'media'
 
 type ProfileLayoutItem = {
   id: string
   type: ProfileWidgetType
   courseUuid?: string
+  activityUuid?: string
+  hiddenQuestionUuids?: string[]
 }
 
 type ProfileCustomSection = {
@@ -181,6 +187,7 @@ const PROFILE_WIDGET_CONFIG: Record<ProfileWidgetType, {
   portfolio: { label: 'Portfolio', icon: FileText, unique: true },
   achievements: { label: 'Achievements', icon: Award, unique: true },
   coreCourse: { label: 'CORE Course', icon: BookOpen, unique: false },
+  coreQuiz: { label: 'Quiz Result', icon: BookOpen, unique: false },
   instagramPreview: { label: 'Instagram', icon: Instagram, unique: true },
   youtubePreview: { label: 'YouTube', icon: Youtube, unique: true },
   title: { label: 'Title', icon: Heading1, unique: false },
@@ -189,14 +196,15 @@ const PROFILE_WIDGET_CONFIG: Record<ProfileWidgetType, {
   media: { label: 'Media', icon: ImageIcon, unique: false },
 }
 
-function createProfileLayoutItem(type: ProfileWidgetType, courseUuid?: string): ProfileLayoutItem {
+function createProfileLayoutItem(type: ProfileWidgetType, courseUuid?: string, activityUuid?: string): ProfileLayoutItem {
   if (type === 'coreCourse' && courseUuid) return { id: `coreCourse-${courseUuid}`, type, courseUuid }
+  if (type === 'coreQuiz' && courseUuid && activityUuid) return { id: `coreQuiz-${activityUuid}`, type, courseUuid, activityUuid, hiddenQuestionUuids: [] }
   if (UNIQUE_PROFILE_WIDGETS.includes(type)) return { id: type, type }
   return { id: `${type}-${Date.now()}-${Math.random().toString(16).slice(2)}`, type }
 }
 
 function createProfileSection(item: ProfileLayoutItem): ProfileCustomSection | null {
-  if (item.type === 'coreCourse') return null
+  if (item.type === 'coreCourse' || item.type === 'coreQuiz') return null
   if (UNIQUE_PROFILE_WIDGETS.includes(item.type)) return null
   return {
     id: item.id,
@@ -218,6 +226,22 @@ function normalizeProfileLayout(layout: any): ProfileLayoutItem[] {
       const courseUuid = typeof item?.courseUuid === 'string' ? item.courseUuid : ''
       if (!courseUuid) return items
       items.push({ id: item?.id || createProfileLayoutItem(type, courseUuid).id, type, courseUuid })
+      return items
+    }
+    if (type === 'coreQuiz') {
+      const courseUuid = typeof item?.courseUuid === 'string' ? item.courseUuid : ''
+      const activityUuid = typeof item?.activityUuid === 'string' ? item.activityUuid : ''
+      const hiddenQuestionUuids = Array.isArray(item?.hiddenQuestionUuids)
+        ? item.hiddenQuestionUuids.filter((uuid: any) => typeof uuid === 'string')
+        : []
+      if (!courseUuid || !activityUuid) return items
+      items.push({
+        id: item?.id || createProfileLayoutItem(type, courseUuid, activityUuid).id,
+        type,
+        courseUuid,
+        activityUuid,
+        hiddenQuestionUuids,
+      })
       return items
     }
     if (UNIQUE_PROFILE_WIDGETS.includes(type)) {
@@ -1263,6 +1287,165 @@ function EmptyWidgetPreview({ type }: { type: ProfileWidgetType }) {
   )
 }
 
+function cleanCourseUuid(courseUuid?: string) {
+  return String(courseUuid || '').replace('course_', '')
+}
+
+function getActivityHref(orgslug: string, courseUuid: string, activityUuid?: string | null) {
+  const cleanCourse = cleanCourseUuid(courseUuid)
+  const cleanActivity = String(activityUuid || '').replace('activity_', '')
+  if (!cleanActivity) return getUriWithOrg(orgslug, `/course/${cleanCourse}`)
+  return getUriWithOrg(orgslug, `/course/${cleanCourse}/activity/${cleanActivity}`)
+}
+
+function getResultForQuiz(chapter: any, quiz: any) {
+  return (
+    (chapter?.completed_quiz_results || []).find(
+      (item: any) => item?.activity?.activity_uuid === quiz?.activity_uuid
+    ) || null
+  )
+}
+
+function getCoreCourseQuizzes(coreCourseItem: any) {
+  const course = coreCourseItem?.course || {}
+  return (coreCourseItem?.chapters || []).flatMap((chapter: any) =>
+    (chapter?.quiz_activities || []).map((quiz: any) => ({
+      chapter,
+      course,
+      quiz,
+      result: getResultForQuiz(chapter, quiz),
+    }))
+  )
+}
+
+function findCoreQuizWidget(coreCourses: any[], item: ProfileLayoutItem) {
+  for (const coreCourseItem of coreCourses || []) {
+    const course = coreCourseItem?.course || {}
+    if (item.courseUuid && course.course_uuid !== item.courseUuid) continue
+    const match = getCoreCourseQuizzes(coreCourseItem).find(
+      (quizItem: any) => quizItem.quiz?.activity_uuid === item.activityUuid
+    )
+    if (match) return match
+  }
+  return null
+}
+
+function ProfileCoreQuizWidget({
+  item,
+  coreCourses,
+  orgslug,
+  canManage,
+  publicMode,
+  onToggleQuestionHidden,
+}: {
+  item: ProfileLayoutItem
+  coreCourses: any[]
+  orgslug: string
+  canManage: boolean
+  publicMode: boolean
+  onToggleQuestionHidden(questionUuid: string): void
+}) {
+  const quizItem = findCoreQuizWidget(coreCourses, item)
+  if (!quizItem) return canManage ? <EmptyWidgetPreview type="coreQuiz" /> : null
+
+  const { course, quiz, result } = quizItem
+  if (!canManage && !result) return null
+
+  const ActivityIcon = getChannelIcon(quiz.icon || defaultChapterIconName)
+  const quizHref = getActivityHref(orgslug, course.course_uuid, quiz.activity_uuid)
+
+  return (
+    <section className="w-full overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+      <div className="border-b border-gray-100 p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-900">
+            <ActivityIcon className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <h3 className="truncate text-base font-bold text-gray-950">{quiz.name || 'Untitled quiz'}</h3>
+                {quiz.description ? (
+                  <p className="mt-1 line-clamp-2 text-sm leading-5 text-gray-600">
+                    {quiz.description}
+                  </p>
+                ) : null}
+              </div>
+              <Link
+                href={quizHref}
+                className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+              >
+                Get started
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white px-4 pb-0 pt-4 sm:px-5 sm:pt-5">
+        {result ? (
+          <div className="profile-quiz-result-scroll max-h-[680px] overflow-y-auto">
+            <style jsx global>{`
+              .profile-quiz-result-scroll {
+                scrollbar-width: none;
+              }
+              .profile-quiz-result-scroll:hover {
+                scrollbar-width: thin;
+                scrollbar-color: #d4d4d8 transparent;
+              }
+              .profile-quiz-result-scroll::-webkit-scrollbar {
+                width: 0;
+                height: 0;
+              }
+              .profile-quiz-result-scroll:hover::-webkit-scrollbar {
+                width: 6px;
+                height: 6px;
+              }
+              .profile-quiz-result-scroll:hover::-webkit-scrollbar-thumb {
+                background: #d4d4d8;
+                border-radius: 999px;
+              }
+              .profile-quiz-result-scroll:hover::-webkit-scrollbar-track {
+                background: transparent;
+              }
+            `}</style>
+            <QuizResultsView
+              result={result.result}
+              activity={result.activity}
+              org={{ org_uuid: course?.owner_org_uuid || course?.org_uuid }}
+              course={{ courseStructure: { course_uuid: course?.course_uuid } }}
+              onRetake={() => {}}
+              showRetakeButton={false}
+              sectionedContent
+              hiddenQuestionUuids={item.hiddenQuestionUuids || []}
+              onToggleQuestionHidden={canManage ? onToggleQuestionHidden : undefined}
+              publicMode={publicMode}
+            />
+          </div>
+        ) : (
+          <div className="flex min-h-[220px] flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-400 shadow-xs">
+              <Lock className="h-5 w-5" />
+            </div>
+            <p className="mt-3 text-sm font-semibold text-gray-800">{quiz.name || 'Result locked'}</p>
+            <p className="mt-1 max-w-md text-sm text-gray-500">
+              Complete this quiz activity to unlock its response card here.
+            </p>
+            <Link
+              href={quizHref}
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+            >
+              Get started
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
 function CustomProfileSectionView({
   section,
   canEdit = false,
@@ -1464,7 +1647,7 @@ function ReorderProfileSectionItem({
 function ProfileAddTray({
   open,
   usedUniqueTypes,
-  usedCoreCourseUuids,
+  usedCoreQuizActivityUuids,
   coreCourses,
   onToggle,
   onAdd,
@@ -1473,15 +1656,15 @@ function ProfileAddTray({
 }: {
   open: boolean
   usedUniqueTypes: Set<ProfileWidgetType>
-  usedCoreCourseUuids: Set<string>
+  usedCoreQuizActivityUuids: Set<string>
   coreCourses: any[]
   onToggle(): void
-  onAdd(type: ProfileWidgetType, courseUuid?: string): void
-  onDragStart(type: ProfileWidgetType, event: React.DragEvent<HTMLButtonElement>, courseUuid?: string): void
+  onAdd(type: ProfileWidgetType, courseUuid?: string, activityUuid?: string): void
+  onDragStart(type: ProfileWidgetType, event: React.DragEvent<HTMLButtonElement>, courseUuid?: string, activityUuid?: string): void
   onDragEnd(): void
 }) {
   const widgetTypes = (Object.keys(PROFILE_WIDGET_CONFIG) as ProfileWidgetType[])
-    .filter((type) => type !== 'coreCourse')
+    .filter((type) => type !== 'coreCourse' && type !== 'coreQuiz')
   return (
     <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-3">
       <AnimatePresence>
@@ -1517,26 +1700,39 @@ function ProfileAddTray({
             </div>
             {coreCourses.length > 0 ? (
               <div className="mt-3 border-t border-gray-100 pt-3">
-                <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">CORE Courses</p>
-                <div className="grid gap-2">
+                <div className="grid max-h-[52vh] gap-4 overflow-y-auto pr-1">
                   {coreCourses.map((item: any) => {
                     const course = item.course || {}
                     const courseUuid = course.course_uuid || ''
-                    const disabled = usedCoreCourseUuids.has(courseUuid)
+                    const quizzes = getCoreCourseQuizzes(item)
+                    if (!courseUuid || quizzes.length === 0) return null
                     return (
-                      <button
+                      <section
                         key={courseUuid}
-                        type="button"
-                        draggable={!disabled}
-                        disabled={disabled}
-                        onClick={() => onAdd('coreCourse', courseUuid)}
-                        onDragStart={(event) => onDragStart('coreCourse', event, courseUuid)}
-                        onDragEnd={onDragEnd}
-                        className="flex items-center gap-3 rounded-md border border-gray-200 bg-white p-3 text-left text-gray-800 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                        className="grid gap-2"
                       >
-                        <BookOpen className="h-4 w-4 shrink-0" />
-                        <span className="min-w-0 flex-1 truncate text-xs font-semibold">{course.name || 'Untitled CORE course'}</span>
-                      </button>
+                        <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{course.name || 'Untitled CORE course'}</p>
+                        {quizzes.map(({ quiz }: any) => {
+                          const activityUuid = quiz.activity_uuid || ''
+                          const disabled = usedCoreQuizActivityUuids.has(activityUuid)
+                          const ActivityIcon = getChannelIcon(quiz.icon || defaultChapterIconName)
+                          return (
+                            <button
+                              key={activityUuid || quiz.id}
+                              type="button"
+                              draggable={!disabled}
+                              disabled={disabled}
+                              onClick={() => onAdd('coreQuiz', courseUuid, activityUuid)}
+                              onDragStart={(event) => onDragStart('coreQuiz', event, courseUuid, activityUuid)}
+                              onDragEnd={onDragEnd}
+                              className="flex items-center gap-3 rounded-md border border-gray-200 bg-white p-3 text-left text-gray-800 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                            >
+                              <ActivityIcon className="h-4 w-4 shrink-0" />
+                              <span className="min-w-0 flex-1 truncate text-xs font-semibold">{quiz.name || 'Untitled quiz'}</span>
+                            </button>
+                          )
+                        })}
+                      </section>
                     )
                   })}
                 </div>
@@ -1568,10 +1764,15 @@ function ProfilePageClient({
 }: ProfilePageClientProps) {
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
+  const coreProgressUrl = accessToken && orgslug
+    ? `${getAPIUrl()}courses/core/progress?org_slug=${encodeURIComponent(orgslug)}${
+        mode === 'public' && initialUser?.id
+          ? `&profile_user_id=${encodeURIComponent(String(initialUser.id))}`
+          : ''
+      }`
+    : null
   const { data: coreCoursesData } = useSWR(
-    accessToken && orgslug
-      ? `${getAPIUrl()}courses/core/progress?org_slug=${encodeURIComponent(orgslug)}`
-      : null,
+    coreProgressUrl,
     (url) => swrFetcher(url, accessToken),
     { revalidateOnFocus: false }
   )
@@ -1615,8 +1816,8 @@ function ProfilePageClient({
     () => new Set(layout.filter((item) => UNIQUE_PROFILE_WIDGETS.includes(item.type)).map((item) => item.type)),
     [layout]
   )
-  const usedCoreCourseUuids = useMemo(
-    () => new Set(layout.filter((item) => item.type === 'coreCourse' && item.courseUuid).map((item) => item.courseUuid as string)),
+  const usedCoreQuizActivityUuids = useMemo(
+    () => new Set(layout.filter((item) => item.type === 'coreQuiz' && item.activityUuid).map((item) => item.activityUuid as string)),
     [layout]
   )
   const socials = useMemo(() => header.socials ?? [], [header.socials])
@@ -1859,10 +2060,11 @@ function ProfilePageClient({
     void persistProfile({ profileOverride: nextProfile })
   }
 
-  const addProfileSection = (type: ProfileWidgetType, courseUuid?: string) => {
-    if (type === 'coreCourse' && (!courseUuid || usedCoreCourseUuids.has(courseUuid))) return
+  const addProfileSection = (type: ProfileWidgetType, courseUuid?: string, activityUuid?: string) => {
+    if (type === 'coreQuiz' && (!courseUuid || !activityUuid || usedCoreQuizActivityUuids.has(activityUuid))) return
+    if (type === 'coreCourse' && !courseUuid) return
     if (PROFILE_WIDGET_CONFIG[type].unique && layout.some((item) => item.type === type)) return
-    const item = createProfileLayoutItem(type, courseUuid)
+    const item = createProfileLayoutItem(type, courseUuid, activityUuid)
     const section = createProfileSection(item)
     const nextProfile = {
       ...draft.profile,
@@ -1875,10 +2077,11 @@ function ProfilePageClient({
     setAddTrayOpen(false)
   }
 
-  const startTrayDrag = (type: ProfileWidgetType, event: React.DragEvent<HTMLButtonElement>, courseUuid?: string) => {
-    if (type === 'coreCourse' && (!courseUuid || usedCoreCourseUuids.has(courseUuid))) return
+  const startTrayDrag = (type: ProfileWidgetType, event: React.DragEvent<HTMLButtonElement>, courseUuid?: string, activityUuid?: string) => {
+    if (type === 'coreQuiz' && (!courseUuid || !activityUuid || usedCoreQuizActivityUuids.has(activityUuid))) return
+    if (type === 'coreCourse' && !courseUuid) return
     if (PROFILE_WIDGET_CONFIG[type].unique && layout.some((item) => item.type === type)) return
-    const item = createProfileLayoutItem(type, courseUuid)
+    const item = createProfileLayoutItem(type, courseUuid, activityUuid)
     const nextProfile = {
       ...draftProfileRef.current,
       layout: [...(draftProfileRef.current.layout || DEFAULT_PROFILE_LAYOUT), item],
@@ -1981,6 +2184,25 @@ function ProfilePageClient({
     commitProfileLayout(nextProfile)
   }
 
+  const toggleProfileQuizQuestionHidden = (itemId: string, questionUuid: string) => {
+    const nextLayout = (draftProfileRef.current.layout || DEFAULT_PROFILE_LAYOUT).map((layoutItem) => {
+      if (layoutItem.id !== itemId || layoutItem.type !== 'coreQuiz') return layoutItem
+      const currentHidden = new Set(layoutItem.hiddenQuestionUuids || [])
+      if (currentHidden.has(questionUuid)) currentHidden.delete(questionUuid)
+      else currentHidden.add(questionUuid)
+      return {
+        ...layoutItem,
+        hiddenQuestionUuids: Array.from(currentHidden),
+      }
+    })
+    const nextProfile = {
+      ...draftProfileRef.current,
+      layout: nextLayout,
+    }
+    pendingReorderProfileRef.current = null
+    commitProfileLayout(nextProfile)
+  }
+
   const finishReorderDrag = () => {
     const nextProfile = pendingReorderProfileRef.current
     pendingReorderProfileRef.current = null
@@ -2078,6 +2300,20 @@ function ProfilePageClient({
     }
     if (item.type === 'coreCourse') {
       return <CoreCoursesProgressSection orgslug={orgslug} variant="profile" courseUuid={item.courseUuid} />
+    }
+    if (item.type === 'coreQuiz') {
+      return (
+        <section className="px-4 py-6 sm:px-0">
+          <ProfileCoreQuizWidget
+            item={item}
+            coreCourses={coreCourses}
+            orgslug={orgslug}
+            canManage={canManageProfile}
+            publicMode={isPublicMode}
+            onToggleQuestionHidden={(questionUuid) => toggleProfileQuizQuestionHidden(item.id, questionUuid)}
+          />
+        </section>
+      )
     }
     if (item.type === 'instagramPreview' || item.type === 'youtubePreview') {
       const type = item.type === 'instagramPreview' ? 'instagram' : 'youtube'
@@ -2352,7 +2588,7 @@ function ProfilePageClient({
         <ProfileAddTray
           open={addTrayOpen}
           usedUniqueTypes={usedUniqueTypes}
-          usedCoreCourseUuids={usedCoreCourseUuids}
+          usedCoreQuizActivityUuids={usedCoreQuizActivityUuids}
           coreCourses={coreCourses}
           onToggle={() => setAddTrayOpen((current) => !current)}
           onAdd={addProfileSection}

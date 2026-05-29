@@ -225,6 +225,8 @@ def _export_course_to_zip(
             activity_data = {
                 "activity_uuid": activity.activity_uuid,
                 "name": activity.name,
+                "description": activity.description,
+                "icon": activity.icon,
                 "activity_type": activity.activity_type.value,
                 "activity_sub_type": activity.activity_sub_type.value if activity.activity_sub_type else None,
                 "content": activity.content,

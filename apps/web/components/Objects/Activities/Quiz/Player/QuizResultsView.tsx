@@ -1,6 +1,6 @@
 'use client'
 import React from 'react'
-import { Trophy, CheckCircle2, XCircle, BarChart3, RotateCcw, Star, Heart, Flame, Leaf, Zap, Sun, Flag, Triangle, Square, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { Trophy, CheckCircle2, XCircle, BarChart3, RotateCcw, Star, Heart, Flame, Leaf, Zap, Sun, Flag, Triangle, Square, ThumbsUp, ThumbsDown, EyeOff } from 'lucide-react'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
 import QuizResultContentRenderer from '../Results/QuizResultContentRenderer'
 
@@ -25,6 +25,9 @@ interface Props {
   onRetake: () => void
   showRetakeButton?: boolean
   sectionedContent?: boolean
+  hiddenQuestionUuids?: string[]
+  onToggleQuestionHidden?: (questionUuid: string) => void
+  publicMode?: boolean
 }
 
 function findQuestionNode(nodes: any[] = [], questionUuid: string): any | null {
@@ -72,29 +75,23 @@ function renderSortIcon(icon: string | undefined, color: string, size = 16) {
   }
 }
 
-function TextResponseQuote({ question, response, sectionedContent }: { question: string; response: string; sectionedContent: boolean }) {
+function TextResponseQuote({ response, sectionedContent }: { response: string; sectionedContent: boolean }) {
   return (
-    <figure className={`${sectionedContent ? 'my-2' : ''} relative ml-3 border-l-4 border-sky-500 bg-sky-50/80 px-5 py-4 sm:ml-6 sm:px-6`}>
+    <figure className={`${sectionedContent ? 'my-1' : ''} relative ml-2 min-h-[190px] border-l-4 border-sky-500 bg-sky-50/80 px-5 py-4 sm:ml-4 sm:px-6`}>
       <div className="pointer-events-none absolute left-3 top-0 text-7xl font-serif leading-none text-sky-200/90" aria-hidden="true">
         &ldquo;
       </div>
       <blockquote className="relative pl-7 text-xl font-medium italic leading-relaxed text-neutral-900 sm:text-2xl">
         <p className="whitespace-pre-line">{response}</p>
       </blockquote>
-      <figcaption className="relative mt-3 pl-7 text-xs font-semibold uppercase text-neutral-500">
-        {question}
-      </figcaption>
     </figure>
   )
 }
 
-function UngradedResponseCard({ title, children }: { title: string; children: React.ReactNode }) {
+function UngradedResponseCard({ children }: { children: React.ReactNode }) {
   return (
-    <section className="w-full rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm sm:p-5">
-      <h3 className="text-sm font-semibold text-neutral-900">{title}</h3>
-      <div className="mt-4">
-        {children}
-      </div>
+    <section className="w-full min-h-[210px] rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm sm:p-5">
+      {children}
     </section>
   )
 }
@@ -171,7 +168,7 @@ function RatingResponseCard({ question, answer, node }: { question: string; answ
   const hiddenCount = Math.max(0, rows.length - visibleRows.length)
 
   return (
-    <UngradedResponseCard title={question}>
+    <UngradedResponseCard>
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(120px,1fr)] gap-x-5 gap-y-3 sm:grid-cols-[minmax(0,1fr)_minmax(180px,1fr)]">
         {visibleRows.map((row: any) => (
           <React.Fragment key={row.uuid}>
@@ -226,7 +223,7 @@ function SortResponseCard({ question, answer, node }: { question: string; answer
   const totalHidden = categoryGroups.reduce((total: number, group: any) => total + Math.max(0, group.cards.length - 3), 0)
 
   return (
-    <UngradedResponseCard title={question}>
+    <UngradedResponseCard>
       {categoryGroups.length === 0 ? (
         <p className="text-sm text-neutral-500">No response</p>
       ) : (
@@ -300,7 +297,7 @@ function MultiSelectResponseCard({ question, answer, node }: { question: string;
   })).filter((group: any) => group.options.length > 0)
 
   return (
-    <UngradedResponseCard title={question}>
+    <UngradedResponseCard>
       {groups.length === 0 ? (
         <p className="text-sm text-neutral-500">No response</p>
       ) : (
@@ -328,7 +325,167 @@ function MultiSelectResponseCard({ question, answer, node }: { question: string;
   )
 }
 
-export default function QuizResultsView({ result, activity, org, course, onRetake, showRetakeButton = false, sectionedContent = false }: Props) {
+function UngradedAnswerResponse({
+  answer,
+  node,
+  question,
+  index,
+  sectionedContent,
+  getResponseText,
+}: {
+  answer: any
+  node: any
+  question: string
+  index: number
+  sectionedContent: boolean
+  getResponseText: (answer: any, node: any) => string
+}) {
+  const answerType = answer?.answer_json?.type
+  const response = getResponseText(answer, node)
+
+  if (answerType === 'text') {
+    return (
+      <TextResponseQuote
+        response={response}
+        sectionedContent={sectionedContent}
+      />
+    )
+  }
+  if (answerType === 'slider') {
+    return <RatingResponseCard question={question} answer={answer} node={node} />
+  }
+  if (answerType === 'sort') {
+    return <SortResponseCard question={question} answer={answer} node={node} />
+  }
+  if (answerType === 'multiselect') {
+    return <MultiSelectResponseCard question={question} answer={answer} node={node} />
+  }
+  return (
+    <div
+      key={`${answer.question_uuid}-${index}`}
+      className={sectionedContent ? 'py-4 first:pt-0 last:pb-0' : 'rounded-2xl border border-neutral-100 bg-neutral-50 p-4'}
+    >
+      <p className="whitespace-pre-line text-sm text-neutral-600">{response}</p>
+    </div>
+  )
+}
+
+function UngradedResultsTabs({
+  answers,
+  getQuestionNode,
+  getResponseText,
+  sectionedContent,
+  hiddenQuestionUuids = [],
+  onToggleQuestionHidden,
+}: {
+  answers: any[]
+  getQuestionNode: (questionUuid: string) => any | null
+  getResponseText: (answer: any, node: any) => string
+  sectionedContent: boolean
+  hiddenQuestionUuids?: string[]
+  onToggleQuestionHidden?: (questionUuid: string) => void
+}) {
+  const [activeIndex, setActiveIndex] = React.useState(0)
+  const activeAnswer = answers[Math.min(activeIndex, Math.max(0, answers.length - 1))]
+  const activeNode = activeAnswer ? getQuestionNode(activeAnswer.question_uuid) : null
+  const activeQuestion = activeNode?.attrs?.question_text || `Question ${activeIndex + 1}`
+  const hiddenSet = React.useMemo(() => new Set(hiddenQuestionUuids), [hiddenQuestionUuids])
+  const activeHidden = activeAnswer ? hiddenSet.has(activeAnswer.question_uuid) : false
+
+  React.useEffect(() => {
+    if (activeIndex <= Math.max(0, answers.length - 1)) return
+    setActiveIndex(Math.max(0, answers.length - 1))
+  }, [activeIndex, answers.length])
+
+  if (!activeAnswer) return null
+
+  return (
+    <div className="space-y-3">
+      {answers.length > 1 && (
+        <div className="quiz-result-tab-scroll flex overflow-x-auto border-b border-neutral-200 bg-white px-1 pb-1">
+          <style jsx global>{`
+            .quiz-result-tab-scroll {
+              scrollbar-width: thin;
+              scrollbar-color: #c7c7cc #f2f2f7;
+            }
+            .quiz-result-tab-scroll::-webkit-scrollbar {
+              height: 8px;
+            }
+            .quiz-result-tab-scroll::-webkit-scrollbar-track {
+              background: #f2f2f7;
+              border-radius: 999px;
+            }
+            .quiz-result-tab-scroll::-webkit-scrollbar-thumb {
+              background: #c7c7cc;
+              border-radius: 999px;
+              border: 2px solid #f2f2f7;
+            }
+          `}</style>
+          {answers.map((answer: any, index: number) => {
+            const node = getQuestionNode(answer.question_uuid)
+            const question = node?.attrs?.question_text || `Question ${index + 1}`
+            const active = index === activeIndex
+            const hidden = hiddenSet.has(answer.question_uuid)
+            return (
+              <div
+                key={`${answer.question_uuid}-${index}`}
+                className={`group flex min-w-fit flex-1 items-center justify-center gap-2 border-b-2 px-4 text-center text-xs font-bold transition-colors ${
+                  active ? 'border-emerald-600 text-neutral-950' : 'border-transparent text-neutral-500 hover:text-neutral-900'
+                } ${hidden ? 'bg-neutral-100 text-neutral-500' : ''}`}
+              >
+                <button
+                  type="button"
+                  onClick={() => setActiveIndex(index)}
+                  className="min-w-0 flex-1 py-3"
+                >
+                  <span className="block whitespace-normal leading-snug">{question}</span>
+                </button>
+                {onToggleQuestionHidden ? (
+                  <button
+                    type="button"
+                    aria-label={hidden ? 'Show response publicly' : 'Hide response publicly'}
+                    title={hidden ? 'Show response publicly' : 'Hide response publicly'}
+                    onClick={() => {
+                      onToggleQuestionHidden(answer.question_uuid)
+                    }}
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
+                      active || hidden ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                    } ${hidden ? 'bg-neutral-200 text-neutral-700' : 'text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700'}`}
+                  >
+                    <EyeOff className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+              </div>
+            )
+          })}
+        </div>
+      )}
+      <div className={`min-h-[220px] ${activeHidden ? 'rounded-2xl bg-neutral-100 p-3' : ''}`}>
+        <UngradedAnswerResponse
+          answer={activeAnswer}
+          node={activeNode}
+          question={activeQuestion}
+          index={activeIndex}
+          sectionedContent={sectionedContent}
+          getResponseText={getResponseText}
+        />
+      </div>
+    </div>
+  )
+}
+
+export default function QuizResultsView({
+  result,
+  activity,
+  org,
+  course,
+  onRetake,
+  showRetakeButton = false,
+  sectionedContent = false,
+  hiddenQuestionUuids = [],
+  onToggleQuestionHidden,
+  publicMode = false,
+}: Props) {
   const resultJson = result?.result_json
   const scores: Record<string, number> = resultJson?.scores || {}
   const vectors: any[] = resultJson?.vectors || []
@@ -401,87 +558,25 @@ export default function QuizResultsView({ result, activity, org, course, onRetak
   }
 
   if (quizMode === 'ungraded') {
-    const answers = (resultJson?.answers || []).filter((answer: any) => answer?.answer_json?.type !== 'info')
+    const hiddenSet = new Set(hiddenQuestionUuids)
+    const answers = (resultJson?.answers || [])
+      .filter((answer: any) => answer?.answer_json?.type !== 'info')
+      .filter((answer: any) => !publicMode || !hiddenSet.has(answer?.question_uuid))
 
     return (
       <div className={sectionedContent ? 'w-full' : 'w-full max-w-3xl mx-auto p-4 sm:p-5'}>
         <div className="bg-white">
           {answers.length === 0 ? (
-            <p className="text-sm text-neutral-500">No responses were recorded.</p>
+            <p className="text-sm text-neutral-500">{publicMode ? 'No public responses are visible.' : 'No responses were recorded.'}</p>
           ) : (
-            <div className={sectionedContent ? 'divide-y divide-neutral-100' : 'space-y-3'}>
-              {answers.map((answer: any, index: number) => {
-                const node = getQuestionNode(answer.question_uuid)
-                const question = node?.attrs?.question_text || `Question ${index + 1}`
-                const answerType = answer?.answer_json?.type
-                const response = getResponseText(answer, node)
-                if (answerType === 'text') {
-                  return (
-                    <div
-                      key={`${answer.question_uuid}-${index}`}
-                      className={sectionedContent ? 'py-4 first:pt-0 last:pb-0' : ''}
-                    >
-                      <TextResponseQuote
-                        question={question}
-                        response={response}
-                        sectionedContent={sectionedContent}
-                      />
-                    </div>
-                  )
-                }
-                if (answerType === 'slider') {
-                  return (
-                    <div
-                      key={`${answer.question_uuid}-${index}`}
-                      className={sectionedContent ? 'py-4 first:pt-0 last:pb-0' : ''}
-                    >
-                      <RatingResponseCard
-                        question={question}
-                        answer={answer}
-                        node={node}
-                      />
-                    </div>
-                  )
-                }
-                if (answerType === 'sort') {
-                  return (
-                    <div
-                      key={`${answer.question_uuid}-${index}`}
-                      className={sectionedContent ? 'py-4 first:pt-0 last:pb-0' : ''}
-                    >
-                      <SortResponseCard
-                        question={question}
-                        answer={answer}
-                        node={node}
-                      />
-                    </div>
-                  )
-                }
-                if (answerType === 'multiselect') {
-                  return (
-                    <div
-                      key={`${answer.question_uuid}-${index}`}
-                      className={sectionedContent ? 'py-4 first:pt-0 last:pb-0' : ''}
-                    >
-                      <MultiSelectResponseCard
-                        question={question}
-                        answer={answer}
-                        node={node}
-                      />
-                    </div>
-                  )
-                }
-                return (
-                  <div
-                    key={`${answer.question_uuid}-${index}`}
-                    className={sectionedContent ? 'py-4 first:pt-0 last:pb-0' : 'rounded-2xl border border-neutral-100 bg-neutral-50 p-4'}
-                  >
-                    <p className="text-sm font-semibold text-neutral-900">{question}</p>
-                    <p className="mt-2 whitespace-pre-line text-sm text-neutral-600">{response}</p>
-                  </div>
-                )
-              })}
-            </div>
+            <UngradedResultsTabs
+              answers={answers}
+              getQuestionNode={getQuestionNode}
+              getResponseText={getResponseText}
+              sectionedContent={sectionedContent}
+              hiddenQuestionUuids={hiddenQuestionUuids}
+              onToggleQuestionHidden={onToggleQuestionHidden}
+            />
           )}
         </div>
       </div>

@@ -1,6 +1,7 @@
 from typing import List
 from uuid import uuid4
 import logging
+import json
 from sqlmodel import Session, select, or_, and_, text, func
 from src.db.usergroup_resources import UserGroupResource
 from src.db.usergroup_user import UserGroupUser
@@ -45,6 +46,54 @@ from fastapi import HTTPException, Request, UploadFile, status
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_profile_payload(profile: object) -> dict:
+    if isinstance(profile, dict):
+        return profile
+    if isinstance(profile, str) and profile:
+        try:
+            value = json.loads(profile)
+            return value if isinstance(value, dict) else {}
+        except Exception:
+            return {}
+    return {}
+
+
+def _get_public_profile_quiz_visibility(profile: object) -> dict[str, set[str]]:
+    profile_payload = _normalize_profile_payload(profile)
+    visibility: dict[str, set[str]] = {}
+    layout = profile_payload.get("layout")
+    if not isinstance(layout, list):
+        return visibility
+    for item in layout:
+        if not isinstance(item, dict) or item.get("type") != "coreQuiz":
+            continue
+        activity_uuid = item.get("activityUuid")
+        if not isinstance(activity_uuid, str) or not activity_uuid:
+            continue
+        hidden_question_uuids = item.get("hiddenQuestionUuids")
+        visibility[activity_uuid] = (
+            {uuid for uuid in hidden_question_uuids if isinstance(uuid, str)}
+            if isinstance(hidden_question_uuids, list)
+            else set()
+        )
+    return visibility
+
+
+def _strip_hidden_ungraded_answers(result_json: object, hidden_question_uuids: set[str]) -> object:
+    if not hidden_question_uuids or not isinstance(result_json, dict):
+        return result_json
+    answers = result_json.get("answers")
+    if not isinstance(answers, list):
+        return result_json
+    return {
+        **result_json,
+        "answers": [
+            answer for answer in answers
+            if not isinstance(answer, dict) or answer.get("question_uuid") not in hidden_question_uuids
+        ],
+    }
 
 
 def _get_owner_org(db_session: Session) -> Organization | None:
@@ -695,11 +744,23 @@ async def get_core_courses_progress(
     org_slug: str,
     current_user: PublicUser,
     db_session: Session,
+    profile_user_id: int | None = None,
 ) -> list[dict]:
     _ = org_slug
     owner_org = _get_owner_org(db_session)
     if not owner_org:
         return []
+
+    progress_user_id = current_user.id
+    public_quiz_visibility: dict[str, set[str]] | None = None
+    if profile_user_id is not None:
+        profile_user = db_session.exec(select(User).where(User.id == profile_user_id)).first()
+        if not profile_user:
+            return []
+        public_quiz_visibility = _get_public_profile_quiz_visibility(profile_user.profile)
+        if not public_quiz_visibility:
+            return []
+        progress_user_id = profile_user.id
 
     courses = db_session.exec(
         select(Course)
@@ -717,7 +778,7 @@ async def get_core_courses_progress(
     course_ids = [course.id for course in courses if course.id is not None]
     runs = db_session.exec(
         select(TrailRun).where(
-            TrailRun.user_id == current_user.id,
+            TrailRun.user_id == progress_user_id,
             TrailRun.course_id.in_(course_ids),  # type: ignore
         )
     ).all()
@@ -728,7 +789,7 @@ async def get_core_courses_progress(
     if run_ids:
         completed_steps = db_session.exec(
             select(TrailStep).where(
-                TrailStep.user_id == current_user.id,
+                TrailStep.user_id == progress_user_id,
                 TrailStep.trailrun_id.in_(run_ids),  # type: ignore
                 TrailStep.complete == True,
             )
@@ -771,14 +832,19 @@ async def get_core_courses_progress(
     quiz_activity_ids = [
         activity.id
         for activity in activities_by_id.values()
-        if activity.id is not None and activity.activity_type == ActivityTypeEnum.TYPE_QUIZ
+        if activity.id is not None
+        and activity.activity_type == ActivityTypeEnum.TYPE_QUIZ
+        and (
+            public_quiz_visibility is None
+            or activity.activity_uuid in public_quiz_visibility
+        )
     ]
     quiz_results_by_activity_id: dict[int, dict] = {}
     if quiz_activity_ids:
         quiz_attempts = db_session.exec(
             select(QuizAttempt)
             .where(
-                QuizAttempt.user_id == current_user.id,
+                QuizAttempt.user_id == progress_user_id,
                 QuizAttempt.activity_id.in_(quiz_activity_ids),  # type: ignore
                 QuizAttempt.completed_at.is_not(None),  # type: ignore
             )
@@ -804,6 +870,11 @@ async def get_core_courses_progress(
                 activity = activities_by_id.get(activity_id)
                 if not result or not activity:
                     continue
+                hidden_question_uuids = (
+                    public_quiz_visibility.get(activity.activity_uuid, set())
+                    if public_quiz_visibility is not None
+                    else set()
+                )
                 quiz_results_by_activity_id[activity_id] = {
                     "id": f"{activity.activity_uuid}:{result.id}",
                     "activity": activity.model_dump(),
@@ -811,7 +882,7 @@ async def get_core_courses_progress(
                         "id": result.id,
                         "attempt_id": result.attempt_id,
                         "attempt_uuid": attempt.attempt_uuid,
-                        "result_json": result.result_json,
+                        "result_json": _strip_hidden_ungraded_answers(result.result_json, hidden_question_uuids),
                         "computed_at": result.computed_at,
                     },
                     "computed_at": result.computed_at.isoformat() if result.computed_at else result.creation_date,
@@ -835,6 +906,10 @@ async def get_core_courses_progress(
                 for activity_id in ordered_activity_ids
                 if activity_id in activities_by_id
                 and activities_by_id[activity_id].activity_type == ActivityTypeEnum.TYPE_QUIZ
+                and (
+                    public_quiz_visibility is None
+                    or activities_by_id[activity_id].activity_uuid in public_quiz_visibility
+                )
             ]
             completed_quiz_results = [
                 quiz_results_by_activity_id[activity.id]
@@ -871,6 +946,8 @@ async def get_core_courses_progress(
                         "id": activity.id,
                         "activity_uuid": activity.activity_uuid,
                         "name": activity.name,
+                        "description": activity.description,
+                        "icon": activity.icon,
                     }
                     for activity in chapter_quizzes
                 ],
@@ -1671,6 +1748,8 @@ async def clone_course(
 
             new_activity = Activity(
                 name=original_activity.name,
+                description=original_activity.description,
+                icon=original_activity.icon,
                 activity_type=original_activity.activity_type,
                 activity_sub_type=original_activity.activity_sub_type,
                 content=new_content,

@@ -27,6 +27,7 @@ import { getActivityBlockMediaDirectory } from '@services/media/media'
 import toast from 'react-hot-toast'
 import QuizActivityPlayer from '../Player/QuizActivityPlayer'
 import QuizResultContentEditor from '../Results/QuizResultContentEditor'
+import { channelIconOptions, defaultChapterIconName, getChannelIcon } from '@components/Resources/ResourceChannelStyle'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -126,6 +127,8 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   const [previewMode, setPreviewMode] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [quizName, setQuizName] = useState<string>(activity.name || '')
+  const [quizDescription, setQuizDescription] = useState<string>(activity.description || '')
+  const [quizIcon, setQuizIcon] = useState<string>(activity.icon || defaultChapterIconName)
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // ── Scoring state ─────────────────────────────────────────────────────
@@ -196,6 +199,8 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
       ...editorActivityRef.current,
       ...activity,
       name: quizName,
+      description: quizDescription,
+      icon: quizIcon,
       details: {
         ...(editorActivityRef.current?.details || {}),
         ...(activity.details || {}),
@@ -217,7 +222,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
         extension.options.activity = nextActivity
       }
     })
-  }, [activity, quizName, quizMode, gradingRules, vectors, categoryVectors, gradedVectors, optionScores, textScores, resultOptions, resultsTemplate, editor])
+  }, [activity, quizName, quizDescription, quizIcon, quizMode, gradingRules, vectors, categoryVectors, gradedVectors, optionScores, textScores, resultOptions, resultsTemplate, editor])
 
   useEffect(() => {
     syncEditorActivity()
@@ -262,14 +267,14 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
     if (!editor) return
     setIsSaving(true)
     try {
-      await updateActivity({ content: editor.getJSON(), name: quizName }, activity.activity_uuid, access_token)
+      await updateActivity({ content: editor.getJSON(), name: quizName, description: quizDescription, icon: quizIcon }, activity.activity_uuid, access_token)
       if (showToast) toast.success('Quiz saved')
     } catch {
       toast.error('Failed to save quiz')
     } finally {
       setIsSaving(false)
     }
-  }, [editor, quizName, activity.activity_uuid, access_token])
+  }, [editor, quizName, quizDescription, quizIcon, activity.activity_uuid, access_token])
 
   useEffect(() => {
     if (!editor) return
@@ -823,6 +828,8 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                 activity={{
                   ...activity,
                   name: quizName,
+                  description: quizDescription,
+                  icon: quizIcon,
                   details: {
                     ...details,
                     quiz_mode: quizMode,
@@ -848,6 +855,48 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                   <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Quiz name</label>
                   <input value={quizName} onChange={e => setQuizName(e.target.value)} onBlur={() => save(false)} placeholder="Enter quiz name…"
                     className="w-full text-neutral-800 bg-white border border-neutral-200 rounded-lg px-3 py-2.5 text-sm font-semibold outline-none focus:border-violet-400 transition-colors" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Description</label>
+                  <textarea
+                    value={quizDescription}
+                    onChange={e => setQuizDescription(e.target.value)}
+                    onBlur={() => save(false)}
+                    placeholder="Optional quiz description..."
+                    rows={3}
+                    className="w-full resize-none text-neutral-800 bg-white border border-neutral-200 rounded-lg px-3 py-2.5 text-sm font-medium outline-none focus:border-violet-400 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Icon</label>
+                  <div className="rounded-xl border border-neutral-200 bg-white p-3">
+                    <div className="mb-3 flex items-center gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-neutral-100 text-neutral-900">
+                        {React.createElement(getChannelIcon(quizIcon), { size: 22 })}
+                      </div>
+                      <span className="text-sm font-semibold text-neutral-700">{quizIcon || defaultChapterIconName}</span>
+                    </div>
+                    <div className="grid max-h-36 grid-cols-8 gap-1.5 overflow-y-auto pr-1">
+                      {channelIconOptions.map(({ name, Icon }) => (
+                        <button
+                          key={name}
+                          type="button"
+                          title={name}
+                          onClick={() => {
+                            setQuizIcon(name)
+                            void updateActivity({ icon: name }, activity.activity_uuid, access_token)
+                          }}
+                          className={`flex aspect-square items-center justify-center rounded-lg border transition-colors ${
+                            quizIcon === name
+                              ? 'border-black bg-white text-neutral-900'
+                              : 'border-neutral-200 bg-white text-neutral-500 hover:bg-neutral-50'
+                          }`}
+                        >
+                          <Icon size={15} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Type</label>
