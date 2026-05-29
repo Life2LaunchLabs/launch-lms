@@ -26,6 +26,7 @@ import { uploadNewImageFile } from '@services/blocks/Image/images'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
 import toast from 'react-hot-toast'
 import QuizActivityPlayer from '../Player/QuizActivityPlayer'
+import QuizResultsView from '../Player/QuizResultsView'
 import QuizResultContentEditor from '../Results/QuizResultContentEditor'
 import { channelIconOptions, defaultChapterIconName, getChannelIcon } from '@components/Resources/ResourceChannelStyle'
 
@@ -117,6 +118,8 @@ function TabBtn({ active, onClick, icon, label }: { active: boolean; onClick: ()
 
 interface EditorBlockInfo { type: string; attrs: any; pos: number; nodeSize: number }
 
+const QUESTION_BLOCK_TYPES = ['quizSelectBlock', 'quizTextBlock', 'quizSliderBlock', 'quizSortBlock', 'quizMultiSelectBlock']
+
 // ── Main editor ────────────────────────────────────────────────────────────
 
 export default function QuizActivityEditor({ activity, course, org }: QuizActivityEditorProps) {
@@ -160,6 +163,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   // ── Results state ─────────────────────────────────────────────────────
   const [resultOptions, setResultOptions] = useState<QuizResultOption[]>(details.result_options || [])
   const [resultsTemplate, setResultsTemplate] = useState<any>(details.results_template || null)
+  const [ungradedResultTabLabels, setUngradedResultTabLabels] = useState<Record<string, string>>(details.ungraded_result_tab_labels || {})
   const [selectedResultUuid, setSelectedResultUuid] = useState<string | null>(null)
   const [resultsDirty, setResultsDirty] = useState(false)
   const [isSavingResults, setIsSavingResults] = useState(false)
@@ -213,6 +217,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
         text_scores: textScores,
         result_options: resultOptions,
         results_template: resultsTemplate,
+        ungraded_result_tab_labels: ungradedResultTabLabels,
         ...detailOverrides,
       },
     }
@@ -222,7 +227,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
         extension.options.activity = nextActivity
       }
     })
-  }, [activity, quizName, quizDescription, quizIcon, quizMode, gradingRules, vectors, categoryVectors, gradedVectors, optionScores, textScores, resultOptions, resultsTemplate, editor])
+  }, [activity, quizName, quizDescription, quizIcon, quizMode, gradingRules, vectors, categoryVectors, gradedVectors, optionScores, textScores, resultOptions, resultsTemplate, ungradedResultTabLabels, editor])
 
   useEffect(() => {
     syncEditorActivity()
@@ -329,6 +334,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
       await updateQuizResults(activity.activity_uuid, {
         result_options: resultOptions,
         results_template: resultsTemplate,
+        ungraded_result_tab_labels: ungradedResultTabLabels,
       }, access_token)
       setResultsDirty(false)
     } catch {
@@ -336,7 +342,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
     } finally {
       setIsSavingResults(false)
     }
-  }, [resultOptions, resultsTemplate, activity.activity_uuid, access_token])
+  }, [resultOptions, resultsTemplate, ungradedResultTabLabels, activity.activity_uuid, access_token])
 
   const saveCurrentTab = useCallback(async () => {
     if (activeTab === 'scoring' && scoringDirty) {
@@ -384,7 +390,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   }, [activeTab, scoringDirty, resultsDirty, saveScoring, saveResults])
 
   useEffect(() => {
-    if (quizMode !== 'categories' && (activeTab === 'scoring' || activeTab === 'results')) {
+    if ((quizMode !== 'categories' && activeTab === 'scoring') || (quizMode === 'graded' && activeTab === 'results')) {
       setActiveTab('general')
     }
   }, [quizMode, activeTab])
@@ -764,6 +770,70 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
     updateResult(selectedResultUuid, 'cover_image_file_id', null)
   }
 
+  const ungradedQuestionBlocks = editorBlocks.filter(block => QUESTION_BLOCK_TYPES.includes(block.type))
+
+  const getUngradedPreviewAnswer = (block: EditorBlockInfo) => {
+    const attrs = block.attrs || {}
+    const questionUuid = attrs.question_uuid
+    if (!questionUuid) return null
+
+    if (block.type === 'quizTextBlock') {
+      return { question_uuid: questionUuid, answer_json: { type: 'text', text: attrs.placeholder || 'Learner response appears here.' } }
+    }
+
+    if (block.type === 'quizSliderBlock') {
+      const values = Object.fromEntries((attrs.sliders || []).map((slider: any) => [slider.slider_uuid, attrs.direction_mode === 'stars' ? 0.8 : 0.6]))
+      return { question_uuid: questionUuid, answer_json: { type: 'slider', values } }
+    }
+
+    if (block.type === 'quizSortBlock') {
+      const categories = attrs.categories || []
+      const assignments = Object.fromEntries((attrs.cards || []).map((card: any, index: number) => [
+        card.card_uuid,
+        categories[index % Math.max(1, categories.length)]?.category_uuid,
+      ]).filter(([, categoryUuid]: any[]) => !!categoryUuid))
+      return { question_uuid: questionUuid, answer_json: { type: 'sort', assignments } }
+    }
+
+    if (block.type === 'quizMultiSelectBlock') {
+      const optionUuids = (attrs.categories || []).flatMap((category: any) => (category.options || []).slice(0, 2).map((option: any) => option.option_uuid))
+      return { question_uuid: questionUuid, answer_json: { type: 'multiselect', option_uuids: optionUuids } }
+    }
+
+    const selectedOption = (attrs.options || []).find((option: any) => option.label?.trim()) || attrs.options?.[0]
+    return { question_uuid: questionUuid, answer_json: { type: 'select', option_uuid: selectedOption?.option_uuid } }
+  }
+
+  const ungradedPreviewResult = {
+    result_json: {
+      quiz_mode: 'ungraded',
+      answers: ungradedQuestionBlocks
+        .map(getUngradedPreviewAnswer)
+        .filter(Boolean),
+    },
+  }
+
+  const saveUngradedTabLabel = async (questionUuid: string, label: string) => {
+    const trimmed = label.trim()
+    const nextLabels = { ...ungradedResultTabLabels }
+    if (trimmed) nextLabels[questionUuid] = trimmed
+    else delete nextLabels[questionUuid]
+    setUngradedResultTabLabels(nextLabels)
+    setIsSavingResults(true)
+    try {
+      await updateQuizResults(activity.activity_uuid, {
+        result_options: resultOptions,
+        results_template: resultsTemplate,
+        ungraded_result_tab_labels: nextLabels,
+      }, access_token)
+      setResultsDirty(false)
+    } catch {
+      toast.error('Failed to save results')
+    } finally {
+      setIsSavingResults(false)
+    }
+  }
+
   const getCoverUrl = (blockObj: any): string | null => {
     if (!blockObj?.content?.file_id) return null
     return getActivityBlockMediaDirectory(
@@ -813,7 +883,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
               {quizMode === 'categories' && (
                 <TabBtn active={activeTab === 'scoring'} onClick={() => handleTabChange('scoring')} icon={<Save size={16} />} label="Scoring" />
               )}
-              {quizMode === 'categories' && (
+              {quizMode !== 'graded' && (
                 <TabBtn active={activeTab === 'results'} onClick={() => handleTabChange('results')} icon={<Eye size={16} />} label="Results" />
               )}
             </div>
@@ -841,6 +911,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                     text_scores: textScores,
                     result_options: resultOptions,
                     results_template: resultsTemplate,
+                    ungraded_result_tab_labels: ungradedResultTabLabels,
                   },
                 }}
                 editorPreviewContent={editor?.getJSON()}
@@ -1141,6 +1212,38 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
 
             {/* ── Results ── */}
             {!previewMode && activeTab === 'results' && (
+              quizMode === 'ungraded' ? (
+                <div className="min-h-full bg-[#eceef2] px-4 py-8 sm:px-6">
+                  <div className="mx-auto flex min-h-[calc(100vh-150px)] w-full max-w-5xl items-center justify-center">
+                    <div className="w-full max-w-3xl rounded-[28px] border border-neutral-200 bg-white p-4 shadow-[0_24px_80px_rgba(15,23,42,0.12)] sm:p-5">
+                      {ungradedQuestionBlocks.length === 0 ? (
+                        <div className="flex min-h-[320px] items-center justify-center rounded-2xl bg-neutral-50 text-center">
+                          <p className="text-sm font-medium text-neutral-400">Add questions to customize result tabs.</p>
+                        </div>
+                      ) : (
+                        <QuizResultsView
+                          result={ungradedPreviewResult}
+                          activity={{
+                            ...activity,
+                            content: editor?.getJSON(),
+                            details: {
+                              ...details,
+                              quiz_mode: 'ungraded',
+                              ungraded_result_tab_labels: ungradedResultTabLabels,
+                            },
+                          }}
+                          org={org}
+                          course={course}
+                          onRetake={() => {}}
+                          editableUngradedTabLabels
+                          onSaveUngradedTabLabel={saveUngradedTabLabel}
+                          isSavingUngradedTabLabel={isSavingResults}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
               <div className="flex h-full" style={{ minHeight: 'calc(100vh - 90px)' }}>
 
                 {/* Left: sticky selector panel */}
@@ -1381,6 +1484,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                   )}
                 </div>
               </div>
+              )
             )}
 
           </div>

@@ -379,6 +379,10 @@ async def update_quiz_results(
     details["result_options"] = results_data.get("result_options", [])
     if "results_template" in results_data:
         details["results_template"] = results_data["results_template"]
+    if "ungraded_result_tab_labels" in results_data:
+        details["ungraded_result_tab_labels"] = results_data.get(
+            "ungraded_result_tab_labels", {}
+        )
     activity.details = details
     activity.update_date = str(datetime.utcnow())
     db_session.add(activity)

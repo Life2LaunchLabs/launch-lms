@@ -57,7 +57,7 @@ export async function updateQuizCategories(
 
 export async function updateQuizResults(
   activityUuid: string,
-  data: { result_options: any[]; results_template?: any },
+  data: { result_options: any[]; results_template?: any; ungraded_result_tab_labels?: Record<string, string> },
   access_token: string
 ) {
   const res = await fetch(

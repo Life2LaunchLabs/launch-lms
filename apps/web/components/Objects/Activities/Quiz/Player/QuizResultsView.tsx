@@ -1,6 +1,6 @@
 'use client'
 import React from 'react'
-import { Trophy, CheckCircle2, XCircle, BarChart3, RotateCcw, Star, Heart, Flame, Leaf, Zap, Sun, Flag, Triangle, Square, ThumbsUp, ThumbsDown, EyeOff } from 'lucide-react'
+import { Trophy, CheckCircle2, XCircle, BarChart3, RotateCcw, Star, Heart, Flame, Leaf, Zap, Sun, Flag, Triangle, Square, ThumbsUp, ThumbsDown, EyeOff, Edit3, Check } from 'lucide-react'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
 import QuizResultContentRenderer from '../Results/QuizResultContentRenderer'
 
@@ -27,6 +27,9 @@ interface Props {
   sectionedContent?: boolean
   hiddenQuestionUuids?: string[]
   onToggleQuestionHidden?: (questionUuid: string) => void
+  editableUngradedTabLabels?: boolean
+  onSaveUngradedTabLabel?: (questionUuid: string, label: string) => void | Promise<void>
+  isSavingUngradedTabLabel?: boolean
   publicMode?: boolean
 }
 
@@ -374,21 +377,31 @@ function UngradedResultsTabs({
   answers,
   getQuestionNode,
   getResponseText,
+  getQuestionDisplayLabel,
   sectionedContent,
   hiddenQuestionUuids = [],
   onToggleQuestionHidden,
+  editableTabLabels = false,
+  onSaveTabLabel,
+  isSavingTabLabel = false,
 }: {
   answers: any[]
   getQuestionNode: (questionUuid: string) => any | null
   getResponseText: (answer: any, node: any) => string
+  getQuestionDisplayLabel: (answer: any, node: any | null, index: number) => string
   sectionedContent: boolean
   hiddenQuestionUuids?: string[]
   onToggleQuestionHidden?: (questionUuid: string) => void
+  editableTabLabels?: boolean
+  onSaveTabLabel?: (questionUuid: string, label: string) => void | Promise<void>
+  isSavingTabLabel?: boolean
 }) {
   const [activeIndex, setActiveIndex] = React.useState(0)
+  const [editingQuestionUuid, setEditingQuestionUuid] = React.useState<string | null>(null)
+  const [editingLabel, setEditingLabel] = React.useState('')
   const activeAnswer = answers[Math.min(activeIndex, Math.max(0, answers.length - 1))]
   const activeNode = activeAnswer ? getQuestionNode(activeAnswer.question_uuid) : null
-  const activeQuestion = activeNode?.attrs?.question_text || `Question ${activeIndex + 1}`
+  const activeQuestion = activeAnswer ? getQuestionDisplayLabel(activeAnswer, activeNode, activeIndex) : `Question ${activeIndex + 1}`
   const hiddenSet = React.useMemo(() => new Set(hiddenQuestionUuids), [hiddenQuestionUuids])
   const activeHidden = activeAnswer ? hiddenSet.has(activeAnswer.question_uuid) : false
 
@@ -398,6 +411,18 @@ function UngradedResultsTabs({
   }, [activeIndex, answers.length])
 
   if (!activeAnswer) return null
+
+  const startEditingLabel = (questionUuid: string, label: string) => {
+    setEditingQuestionUuid(questionUuid)
+    setEditingLabel(label)
+  }
+
+  const saveEditingLabel = async (questionUuid: string) => {
+    if (!onSaveTabLabel) return
+    await onSaveTabLabel(questionUuid, editingLabel)
+    setEditingQuestionUuid(null)
+    setEditingLabel('')
+  }
 
   return (
     <div className="space-y-3">
@@ -423,9 +448,10 @@ function UngradedResultsTabs({
           `}</style>
           {answers.map((answer: any, index: number) => {
             const node = getQuestionNode(answer.question_uuid)
-            const question = node?.attrs?.question_text || `Question ${index + 1}`
+            const question = getQuestionDisplayLabel(answer, node, index)
             const active = index === activeIndex
             const hidden = hiddenSet.has(answer.question_uuid)
+            const isEditing = editableTabLabels && editingQuestionUuid === answer.question_uuid
             return (
               <div
                 key={`${answer.question_uuid}-${index}`}
@@ -433,13 +459,55 @@ function UngradedResultsTabs({
                   active ? 'border-emerald-600 text-neutral-950' : 'border-transparent text-neutral-500 hover:text-neutral-900'
                 } ${hidden ? 'bg-neutral-100 text-neutral-500' : ''}`}
               >
-                <button
-                  type="button"
-                  onClick={() => setActiveIndex(index)}
-                  className="min-w-0 flex-1 py-3"
-                >
-                  <span className="block whitespace-normal leading-snug">{question}</span>
-                </button>
+                {isEditing ? (
+                  <input
+                    value={editingLabel}
+                    onChange={e => setEditingLabel(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') void saveEditingLabel(answer.question_uuid)
+                      if (e.key === 'Escape') {
+                        setEditingQuestionUuid(null)
+                        setEditingLabel('')
+                      }
+                    }}
+                    className="my-2 min-w-0 flex-1 rounded-md border border-emerald-200 bg-white px-2 py-1.5 text-center text-xs font-bold text-neutral-900 outline-none focus:border-emerald-500"
+                    autoFocus
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setActiveIndex(index)}
+                    className="min-w-0 flex-1 py-3"
+                  >
+                    <span className="block whitespace-normal leading-snug">{question}</span>
+                  </button>
+                )}
+                {editableTabLabels && onSaveTabLabel ? (
+                  isEditing ? (
+                    <button
+                      type="button"
+                      aria-label="Save display name"
+                      title="Save display name"
+                      disabled={isSavingTabLabel}
+                      onClick={() => void saveEditingLabel(answer.question_uuid)}
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-emerald-600 transition hover:bg-emerald-50 disabled:opacity-50"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      aria-label="Edit display name"
+                      title="Edit display name"
+                      onClick={() => startEditingLabel(answer.question_uuid, question)}
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 ${
+                        active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                      }`}
+                    >
+                      <Edit3 className="h-3.5 w-3.5" />
+                    </button>
+                  )
+                ) : null}
                 {onToggleQuestionHidden ? (
                   <button
                     type="button"
@@ -484,6 +552,9 @@ export default function QuizResultsView({
   sectionedContent = false,
   hiddenQuestionUuids = [],
   onToggleQuestionHidden,
+  editableUngradedTabLabels = false,
+  onSaveUngradedTabLabel,
+  isSavingUngradedTabLabel = false,
   publicMode = false,
 }: Props) {
   const resultJson = result?.result_json
@@ -512,6 +583,12 @@ export default function QuizResultsView({
   }
 
   const getQuestionNode = (questionUuid: string) => findQuestionNode(contentNodes, questionUuid)
+  const tabLabelOverrides = activity?.details?.ungraded_result_tab_labels || {}
+  const getQuestionDisplayLabel = (answer: any, node: any | null, index: number): string => {
+    const override = tabLabelOverrides?.[answer?.question_uuid]
+    if (typeof override === 'string' && override.trim()) return override.trim()
+    return node?.attrs?.question_text || `Question ${index + 1}`
+  }
 
   const getResponseText = (answer: any, node: any): string => {
     const answerJson = answer?.answer_json || {}
@@ -573,9 +650,13 @@ export default function QuizResultsView({
               answers={answers}
               getQuestionNode={getQuestionNode}
               getResponseText={getResponseText}
+              getQuestionDisplayLabel={getQuestionDisplayLabel}
               sectionedContent={sectionedContent}
               hiddenQuestionUuids={hiddenQuestionUuids}
               onToggleQuestionHidden={onToggleQuestionHidden}
+              editableTabLabels={editableUngradedTabLabels}
+              onSaveTabLabel={onSaveUngradedTabLabel}
+              isSavingTabLabel={isSavingUngradedTabLabel}
             />
           )}
         </div>
