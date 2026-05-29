@@ -71,6 +71,14 @@ export function getCourseThumbnailMediaDirectory(
   return uri
 }
 
+export function getCourseCoreBackgroundMediaDirectory(
+  orgUUID: string,
+  courseUUID: string,
+  fileId: string
+) {
+  return getCourseThumbnailMediaDirectory(orgUUID, courseUUID, fileId)
+}
+
 export function getBoardThumbnailMediaDirectory(
   orgUUID: string,
   boardUUID: string,

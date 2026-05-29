@@ -29,6 +29,7 @@ from src.services.courses.courses import (
     get_courses_count_orgslug,
     get_core_courses_progress,
     update_course,
+    update_course_core_background,
     delete_course,
     update_course_thumbnail,
     search_courses,
@@ -333,6 +334,22 @@ async def api_create_course_thumbnail(
     """
     return await update_course_thumbnail(
         request, course_uuid, current_user, db_session, thumbnail, thumbnail_type
+    )
+
+
+@router.put("/{course_uuid}/core-background")
+async def api_update_course_core_background(
+    request: Request,
+    course_uuid: str,
+    background: UploadFile | None = File(None),
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+) -> CourseRead:
+    """
+    Update CORE course background image.
+    """
+    return await update_course_core_background(
+        request, course_uuid, current_user, db_session, background
     )
 
 

@@ -4,18 +4,19 @@ import { CourseProvider } from '../../../../../../../../components/Contexts/Cour
 import Link from 'next/link'
 import { CourseOverviewTop } from '@components/Dashboard/Misc/CourseOverviewTop'
 import { motion } from 'motion/react'
-import { GalleryVerticalEnd, Globe, Info, UserPen, Award, Lock, Search } from 'lucide-react'
+import { GalleryVerticalEnd, Globe, Info, UserPen, Award, Lock, Search, Sparkles } from 'lucide-react'
 import { ChartBar } from '@phosphor-icons/react'
 import EditCourseStructure from '@components/Dashboard/Pages/Course/EditCourseStructure/EditCourseStructure'
 import EditCourseGeneral from '@components/Dashboard/Pages/Course/EditCourseGeneral/EditCourseGeneral'
 import EditCourseAccess from '@components/Dashboard/Pages/Course/EditCourseAccess/EditCourseAccess'
 import EditCourseContributors from '@components/Dashboard/Pages/Course/EditCourseContributors/EditCourseContributors'
 import EditCourseCertification from '@components/Dashboard/Pages/Course/EditCourseCertification/EditCourseCertification'
+import EditCourseCore from '@components/Dashboard/Pages/Course/EditCourseCore/EditCourseCore'
 import EditCourseSEO from '@components/Dashboard/Pages/Course/EditCourseSEO/EditCourseSEO'
 import { useCourseRights } from '@hooks/useCourseRights'
 import { useRouter } from 'next/navigation'
 import ToolTip from '@components/Objects/StyledElements/Tooltip/Tooltip'
-import { getUriWithOrg, routePaths } from '@services/config/config';
+import { getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config';
 import { useTranslation } from 'react-i18next';
 import { useOrg } from '@components/Contexts/OrgContext';
 import { PlanLevel, isFeatureAvailable } from '@services/plans/plans';
@@ -38,6 +39,7 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
   const currentPlan = usePlan();
   const hasCertificationsAccess = isFeatureAvailable('certifications', currentPlan);
   const hasSEOAccess = isFeatureAvailable('seo', currentPlan);
+  const canConfigureCoreCourse = params.orgslug === getDefaultOrg()
 
   function getEntireCourseUUID(courseuuid: string) {
     // add course_ to uuid
@@ -62,6 +64,14 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
       icon: GalleryVerticalEnd,
       href: routePaths.org.dash.courseSettings(params.courseuuid, 'content'),
       requiredPermission: 'update_content' as const
+    },
+    {
+      key: 'core',
+      label: 'CORE',
+      icon: Sparkles,
+      href: routePaths.org.dash.courseSettings(params.courseuuid, 'core'),
+      requiredPermission: 'update' as const,
+      visible: canConfigureCoreCourse
     },
     {
       key: 'access',
@@ -104,10 +114,10 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
   ]
 
   // Filter tabs based on permissions
-  const visibleTabs = tabs.filter(tab => hasPermission(tab.requiredPermission))
+  const visibleTabs = tabs.filter(tab => tab.visible !== false && hasPermission(tab.requiredPermission))
 
   // Check if current subpage is accessible
-  const currentTab = tabs.find(tab => tab.key === params.subpage)
+  const currentTab = tabs.find(tab => tab.key === params.subpage && tab.visible !== false)
   const hasAccessToCurrentPage = currentTab ? hasPermission(currentTab.requiredPermission) : false
 
   // Redirect to first available tab if current page is not accessible
@@ -146,7 +156,7 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
         <div className="pl-10 pr-10 text-sm tracking-tight bg-[#fcfbfc] z-10 nice-shadow relative">
           <CourseOverviewTop params={params} />
           <div className="flex space-x-3 font-black text-sm">
-            {tabs.map((tab) => {
+            {tabs.filter(tab => tab.visible !== false).map((tab) => {
               const IconComponent = tab.icon
               const isActive = params.subpage.toString() === tab.key
               const hasAccess = hasPermission(tab.requiredPermission)
@@ -214,6 +224,9 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
             ) : null}
             {params.subpage == 'access' && hasPermission('manage_access') ? (
               <EditCourseAccess orgslug={params.orgslug} />
+            ) : null}
+            {params.subpage == 'core' && canConfigureCoreCourse && hasPermission('update') ? (
+              <EditCourseCore />
             ) : null}
             {params.subpage == 'contributors' && hasPermission('manage_contributors') ? (
               <EditCourseContributors orgslug={params.orgslug} />

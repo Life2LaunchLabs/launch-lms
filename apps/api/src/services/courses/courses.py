@@ -39,7 +39,7 @@ from src.security.rbac import (
 )
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.security.superadmin import is_user_superadmin
-from src.services.courses.thumbnails import upload_thumbnail
+from src.services.courses.thumbnails import upload_core_background, upload_thumbnail
 from src.services.shared_content import owner_org_payload
 from fastapi import HTTPException, Request, UploadFile, status
 from datetime import datetime
@@ -825,9 +825,6 @@ async def get_core_courses_progress(
         course_chapters = []
         total_activities = 0
         completed_activities = 0
-        course_seo = course.seo or {}
-        highlighted_quiz_activity_uuid = course_seo.get("core_highlight_quiz_activity_uuid") if isinstance(course_seo, dict) else None
-
         for chapter in chapters_by_course_id.get(course.id, []):
             activity_ids = activity_ids_by_chapter_id.get(chapter.id or 0, set())
             ordered_activity_ids = ordered_activity_ids_by_chapter_id.get(chapter.id or 0, [])
@@ -844,19 +841,7 @@ async def get_core_courses_progress(
                 for activity in chapter_quizzes
                 if activity.id in quiz_results_by_activity_id
             ]
-            highlighted_result = None
-            if highlighted_quiz_activity_uuid:
-                highlighted_result = next(
-                    (
-                        quiz_results_by_activity_id.get(activity.id)
-                        for activity in chapter_quizzes
-                        if activity.activity_uuid == highlighted_quiz_activity_uuid
-                        and activity.id in quiz_results_by_activity_id
-                    ),
-                    None,
-                )
-            if not highlighted_result and completed_quiz_results:
-                highlighted_result = completed_quiz_results[0]
+            highlighted_result = completed_quiz_results[0] if completed_quiz_results else None
             last_completed_result = max(
                 completed_quiz_results,
                 key=lambda item: item.get("computed_at") or "",
@@ -889,7 +874,6 @@ async def get_core_courses_progress(
                     }
                     for activity in chapter_quizzes
                 ],
-                "highlight_quiz_activity_uuid": highlighted_quiz_activity_uuid or (chapter_quizzes[0].activity_uuid if chapter_quizzes else None),
                 "highlight_result": highlighted_result,
                 "last_completed_result": last_completed_result,
                 "completed_quiz_results": completed_quiz_results,
@@ -1106,6 +1090,89 @@ async def update_course_thumbnail(
     course = CourseRead(**course.model_dump(), authors=authors)
 
     return course
+
+
+async def update_course_core_background(
+    request: Request,
+    course_uuid: str,
+    current_user: PublicUser | AnonymousUser,
+    db_session: Session,
+    background_file: UploadFile | None = None,
+):
+    statement = select(Course).where(Course.course_uuid == course_uuid)
+    course = db_session.exec(statement).first()
+
+    if not course:
+        raise HTTPException(
+            status_code=404,
+            detail="Course not found",
+        )
+
+    await check_resource_access(request, db_session, current_user, course.course_uuid, AccessAction.UPDATE)
+
+    owner_org = _get_owner_org(db_session)
+    if not owner_org or course.org_id != owner_org.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only courses owned by the default organization can use CORE settings",
+        )
+
+    is_owner_org_admin = await authorization_verify_based_on_org_admin_status(
+        request, current_user.id, "update", course_uuid, db_session
+    )
+    if not is_owner_org_admin and not is_user_superadmin(current_user.id, db_session):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only default organization admins can manage CORE courses",
+        )
+
+    org_statement = select(Organization).where(Organization.id == course.org_id)
+    org = db_session.exec(org_statement).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    if not background_file or not background_file.filename:
+        raise HTTPException(
+            status_code=400,
+            detail="Background image is required",
+        )
+
+    name_in_disk = await upload_core_background(
+        background_file, org.org_uuid, course.course_uuid  # type: ignore
+    )
+
+    course.seo = {
+        **(course.seo or {}),
+        "core_background_image": name_in_disk,
+    }
+    course.update_date = str(datetime.now())
+
+    db_session.add(course)
+    db_session.commit()
+    db_session.refresh(course)
+
+    authors_statement = (
+        select(ResourceAuthor, User)
+        .join(User, ResourceAuthor.user_id == User.id) # type: ignore
+        .where(ResourceAuthor.resource_uuid == course.course_uuid)
+        .order_by(
+            ResourceAuthor.id.asc() # type: ignore
+        )
+    )
+    author_results = db_session.exec(authors_statement).all()
+
+    authors = [
+        AuthorWithRole(
+            user=UserRead.model_validate(user),
+            authorship=resource_author.authorship,
+            authorship_status=resource_author.authorship_status,
+            creation_date=resource_author.creation_date,
+            update_date=resource_author.update_date
+        )
+        for resource_author, user in author_results
+    ]
+
+    return CourseRead(**course.model_dump(), authors=authors)
 
 
 async def update_course(

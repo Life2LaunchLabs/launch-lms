@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
 import { ArrowRight, BookOpen, Lock } from 'lucide-react'
@@ -8,7 +8,7 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getAPIUrl, getUriWithOrg } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
 import QuizResultsView from '@components/Objects/Activities/Quiz/Player/QuizResultsView'
-import { getCourseThumbnailMediaDirectory } from '@services/media/media'
+import { getCourseCoreBackgroundMediaDirectory, getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { defaultChapterIconName, getChannelIcon } from '@components/Resources/ResourceChannelStyle'
 
 type CoreCourseProgressSectionProps = {
@@ -60,6 +60,104 @@ function getCourseThumbnailUrl(course: any) {
   return getCourseThumbnailMediaDirectory(orgUuid, course.course_uuid, course.thumbnail_image)
 }
 
+function getCourseBackgroundUrl(course: any) {
+  const orgUuid = course?.owner_org_uuid || course?.org_uuid
+  const coreBackgroundImage = course?.seo?.core_background_image
+  if (orgUuid && course?.course_uuid && coreBackgroundImage) {
+    return getCourseCoreBackgroundMediaDirectory(orgUuid, course.course_uuid, coreBackgroundImage)
+  }
+  return getCourseThumbnailUrl(course)
+}
+
+function getCourseDescription(course: any) {
+  return course?.description || course?.about || ''
+}
+
+function getCourseSectionId(courseUuid?: string) {
+  return `life-domain-${cleanCourseUuid(courseUuid)}`
+}
+
+function scrollToCourseSection(courseUuid?: string) {
+  const section = document.getElementById(getCourseSectionId(courseUuid))
+  if (!section) return
+  window.scrollTo({
+    top: section.getBoundingClientRect().top + window.scrollY,
+    behavior: 'smooth',
+  })
+}
+
+function CourseDomainNav({ items, isLoading }: { items: any[]; isLoading: boolean }) {
+  if (!isLoading && items.length === 0) return null
+
+  return (
+    <div className="mb-5">
+      <h2 className="my-2 text-lg font-bold tracking-tight text-gray-900">
+        Life Launching Domains
+      </h2>
+      <div className="flex justify-center gap-2 overflow-x-auto pb-1">
+        {isLoading ? (
+          [1, 2, 3].map((item) => (
+            <div
+              key={item}
+              className="min-w-[160px] max-w-[220px] flex-1 overflow-hidden rounded-lg border border-gray-100 bg-white shadow-sm"
+            >
+              <div className="h-20 animate-pulse bg-gray-100" />
+              <div className="p-3">
+                <div className="h-4 w-2/3 animate-pulse rounded-full bg-gray-100" />
+                <div className="mt-2 h-1 animate-pulse rounded-full bg-gray-100" />
+                <div className="mt-3 space-y-1.5">
+                  <div className="h-3 w-full animate-pulse rounded-full bg-gray-100" />
+                  <div className="h-3 w-4/5 animate-pulse rounded-full bg-gray-100" />
+                </div>
+              </div>
+            </div>
+          ))
+        ) : null}
+        {items.map((item: any) => {
+          const course = item.course || {}
+          const thumbnailUrl = getCourseThumbnailUrl(course)
+          const description = getCourseDescription(course)
+
+          return (
+            <button
+              key={course.course_uuid}
+              type="button"
+              onClick={() => scrollToCourseSection(course.course_uuid)}
+              className="group min-w-[160px] max-w-[220px] flex-1 overflow-hidden rounded-lg border border-gray-100 bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-md"
+            >
+              <div className="relative h-20 overflow-hidden bg-gray-100">
+                {thumbnailUrl ? (
+                  <img
+                    src={thumbnailUrl}
+                    alt=""
+                    className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="h-full w-full bg-[linear-gradient(135deg,#111827,#334155)]" />
+                )}
+              </div>
+              <div className="p-3">
+                <h3 className="truncate text-sm font-bold text-gray-950">{course.name}</h3>
+                <div className="mt-2 h-1 overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className="h-full rounded-full bg-emerald-600 transition-all"
+                    style={{ width: `${Math.max(0, Math.min(100, item.progress || 0))}%` }}
+                  />
+                </div>
+                {description ? (
+                  <p className="mt-2 line-clamp-2 text-xs leading-4 text-gray-500">
+                    {description}
+                  </p>
+                ) : null}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function StickyCourseIdentity({
   course,
   item,
@@ -70,6 +168,7 @@ function StickyCourseIdentity({
   orgslug: string
 }) {
   const courseHref = getUriWithOrg(orgslug, `/course/${cleanCourseUuid(course.course_uuid)}`)
+  const description = getCourseDescription(course)
 
   return (
     <aside className="lg:sticky lg:top-0 lg:self-start">
@@ -89,6 +188,11 @@ function StickyCourseIdentity({
                 style={{ width: `${Math.max(0, Math.min(100, item.progress || 0))}%` }}
               />
             </div>
+            {description ? (
+              <p className="mt-3 text-sm leading-5 text-gray-700">
+                {description}
+              </p>
+            ) : null}
           </div>
           <Link
             href={courseHref}
@@ -241,6 +345,94 @@ function ChapterDashboardCard({
   )
 }
 
+function CourseDomainSection({
+  course,
+  item,
+  orgslug,
+  backgroundUrl,
+  activeQuizByChapter,
+  setChapterQuiz,
+}: {
+  course: any
+  item: any
+  orgslug: string
+  backgroundUrl: string | null
+  activeQuizByChapter: Record<string, string>
+  setChapterQuiz: (chapterKey: string, quizUuid: string) => void
+}) {
+  const sectionRef = useRef<HTMLElement>(null)
+  const [bgH, setBgH] = useState(0)
+
+  useEffect(() => {
+    const section = sectionRef.current
+    if (!section) return
+    const update = () => {
+      setBgH(Math.min(section.offsetHeight, window.innerHeight))
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(section)
+    window.addEventListener('resize', update)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', update)
+    }
+  }, [])
+
+  const bgHeight = bgH > 0 ? `${bgH}px` : '100vh'
+  const negMargin = bgH > 0 ? `-${bgH}px` : '-100vh'
+
+  return (
+    <section
+      ref={sectionRef}
+      id={getCourseSectionId(course.course_uuid)}
+      className="relative scroll-mt-0 overflow-visible shadow-sm"
+    >
+      <div
+        style={{ height: bgHeight }}
+        className="sticky top-0 z-0 min-h-[560px] overflow-hidden bg-gray-950"
+      >
+        {backgroundUrl ? (
+          <img
+            src={backgroundUrl}
+            alt=""
+            className="h-full w-full object-cover object-left-bottom"
+          />
+        ) : (
+          <div className="h-full w-full bg-[linear-gradient(135deg,#111827,#334155)]" />
+        )}
+      </div>
+      <div
+        style={{ marginTop: negMargin }}
+        className="relative z-10 grid gap-4 p-3 lg:grid-cols-[minmax(260px,320px)_1fr] lg:items-start lg:gap-5"
+      >
+        <StickyCourseIdentity course={course} item={item} orgslug={orgslug} />
+        <div className="grid gap-4 pt-8 lg:pt-14">
+          {(item.chapters || []).map((chapter: any) => {
+            const chapterKey = chapter.chapter_uuid || String(chapter.id)
+            return (
+              <ChapterDashboardCard
+                key={chapterKey}
+                chapter={chapter}
+                course={course}
+                orgslug={orgslug}
+                activeQuizUuid={activeQuizByChapter[chapterKey]}
+                setActiveQuizUuid={setChapterQuiz}
+              />
+            )
+          })}
+          {(item.chapters || []).length === 0 ? (
+            <div className="flex items-center gap-2 rounded-lg border border-dashed border-gray-200 bg-white p-3 text-xs text-gray-400">
+              <BookOpen className="h-4 w-4" />
+              No chapters yet
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export default function CoreCoursesProgressSection({
   orgslug,
   variant = 'dashboard',
@@ -272,16 +464,7 @@ export default function CoreCoursesProgressSection({
 
   return (
     <section className={`${isProfile ? 'px-4 py-6 sm:px-0' : 'flex flex-col space-y-2 mb-6'} ${className}`}>
-      <div className={isProfile ? 'mb-4 flex items-center justify-between gap-3' : 'flex items-center gap-2'}>
-        <div>
-          <h2 className={isProfile ? 'text-2xl font-semibold text-gray-950' : 'my-2 text-lg font-bold tracking-tight text-gray-900'}>
-            CORE Courses
-          </h2>
-          {isProfile ? (
-            <p className="mt-1 text-sm text-gray-500">Progress across highlighted courses</p>
-          ) : null}
-        </div>
-      </div>
+      <CourseDomainNav items={coreCourses} isLoading={isLoading} />
 
       <div className="grid gap-0">
         {isLoading ? (
@@ -297,51 +480,17 @@ export default function CoreCoursesProgressSection({
           ))
         ) : coreCourses.map((item: any) => {
           const course = item.course || {}
-          const thumbnailUrl = getCourseThumbnailUrl(course)
-
+          const backgroundUrl = getCourseBackgroundUrl(course)
           return (
-            <section
+            <CourseDomainSection
               key={course.course_uuid}
-              className="relative overflow-visible shadow-sm"
-            >
-              <div className="sticky top-0 z-0 h-screen min-h-[560px] overflow-hidden bg-gray-950">
-                {thumbnailUrl ? (
-                  <img
-                    src={thumbnailUrl}
-                    alt=""
-                    className="absolute inset-0 h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="absolute inset-0 bg-[linear-gradient(135deg,#111827,#334155)]" />
-                )}
-              </div>
-
-              <div className="relative z-10 -mt-[100vh] grid gap-4 p-3 lg:grid-cols-[minmax(260px,320px)_1fr] lg:items-start lg:gap-5">
-                <StickyCourseIdentity course={course} item={item} orgslug={orgslug} />
-
-                <div className="grid gap-4 pt-8 lg:pt-14">
-                  {(item.chapters || []).map((chapter: any) => {
-                    const chapterKey = chapter.chapter_uuid || String(chapter.id)
-                    return (
-                      <ChapterDashboardCard
-                        key={chapterKey}
-                        chapter={chapter}
-                        course={course}
-                        orgslug={orgslug}
-                        activeQuizUuid={activeQuizByChapter[chapterKey]}
-                        setActiveQuizUuid={setChapterQuiz}
-                      />
-                    )
-                  })}
-                  {(item.chapters || []).length === 0 ? (
-                    <div className="flex items-center gap-2 rounded-lg border border-dashed border-gray-200 bg-white p-3 text-xs text-gray-400">
-                      <BookOpen className="h-4 w-4" />
-                      No chapters yet
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </section>
+              course={course}
+              item={item}
+              orgslug={orgslug}
+              backgroundUrl={backgroundUrl}
+              activeQuizByChapter={activeQuizByChapter}
+              setChapterQuiz={setChapterQuiz}
+            />
           )
         })}
       </div>

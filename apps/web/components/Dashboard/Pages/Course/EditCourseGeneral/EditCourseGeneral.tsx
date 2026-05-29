@@ -24,8 +24,6 @@ import { useTranslation } from 'react-i18next';
 import { useLHSession } from '@components/Contexts/LHSessionContext';
 import { exportCourse, downloadBlob, ExportStatus } from '@services/courses/transfer';
 import { exportToast } from '@components/Objects/StyledElements/Toast/ExportToast';
-import { Switch } from '@components/ui/switch';
-import { getDefaultOrg } from '@services/config/config';
 
 type EditCourseStructureProps = {
   orgslug: string
@@ -77,7 +75,6 @@ function EditCourseGeneral(props: EditCourseStructureProps) {
   const session = useLHSession() as any
   const access_token = session.data?.tokens?.access_token
   const [isExporting, setIsExporting] = useState(false)
-  const canConfigureCoreCourse = props.orgslug === getDefaultOrg()
 
   // Use the new field sync hook
   const {
@@ -159,25 +156,11 @@ function EditCourseGeneral(props: EditCourseStructureProps) {
       learnings: initializeLearnings(courseStructure?.learnings || ''),
       tags: courseStructure?.tags || '',
       public: courseStructure?.public || false,
-      core_course: courseStructure?.core_course || false,
-      core_highlight_quiz_activity_uuid: courseStructure?.seo?.core_highlight_quiz_activity_uuid || '',
       thumbnail_type: thumbnailType,
     };
   }, [courseStructure?.name, courseStructure?.description, courseStructure?.about,
       courseStructure?.learnings, courseStructure?.tags, courseStructure?.public,
-      courseStructure?.core_course, courseStructure?.seo, courseStructure?.thumbnail_type, initializeLearnings]);
-
-  const coreQuizOptions = useMemo(() => {
-    return (courseStructure?.chapters || []).flatMap((chapter: any) =>
-      (chapter.activities || [])
-        .filter((activity: any) => activity.activity_type === 'TYPE_QUIZ')
-        .map((activity: any) => ({
-          activity_uuid: activity.activity_uuid,
-          name: activity.name || 'Untitled quiz',
-          chapterName: chapter.name || 'Chapter',
-        }))
-    )
-  }, [courseStructure?.chapters])
+      courseStructure?.thumbnail_type, initializeLearnings]);
 
   const formik = useFormik({
     initialValues,
@@ -199,14 +182,7 @@ function EditCourseGeneral(props: EditCourseStructureProps) {
     const changes: any = {};
     Object.keys(formik.values).forEach(key => {
       if (formik.values[key] !== formik.initialValues[key]) {
-        if (key === 'core_highlight_quiz_activity_uuid') {
-          changes.seo = {
-            ...(courseStructure?.seo || {}),
-            core_highlight_quiz_activity_uuid: formik.values[key] || null,
-          };
-        } else {
-          changes[key] = formik.values[key];
-        }
+        changes[key] = formik.values[key];
       }
     });
 
@@ -349,55 +325,6 @@ function EditCourseGeneral(props: EditCourseStructureProps) {
                   <ThumbnailUpdate thumbnailType={formik.values.thumbnail_type} />
                 </Form.Control>
               </FormField>
-
-              {canConfigureCoreCourse && (
-                <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-800">CORE course</h3>
-                      <p className="mt-1 text-xs leading-5 text-gray-500">
-                        Show this course in the learner dashboard CORE section and make its profile widget available.
-                      </p>
-                    </div>
-                    <Switch
-                      checked={formik.values.core_course}
-                      onCheckedChange={(checked) => formik.setFieldValue('core_course', checked)}
-                      disabled={isSaving}
-                    />
-                  </div>
-                  {formik.values.core_course && coreQuizOptions.length > 0 && (
-                    <FormField name="core_highlight_quiz_activity_uuid" className="mt-4 border-t border-gray-200 pt-4">
-                      <FormLabelAndMessage label="CORE highlight quiz" />
-                      <Form.Control asChild>
-                        <CustomSelect
-                          value={formik.values.core_highlight_quiz_activity_uuid || coreQuizOptions[0]?.activity_uuid || ''}
-                          onValueChange={(value) => {
-                            if (!value) return
-                            formik.setFieldValue('core_highlight_quiz_activity_uuid', value)
-                          }}
-                          disabled={isSaving}
-                        >
-                          <CustomSelectTrigger className="w-full bg-white">
-                            <CustomSelectValue>
-                              {coreQuizOptions.find((item: any) => item.activity_uuid === (formik.values.core_highlight_quiz_activity_uuid || coreQuizOptions[0]?.activity_uuid))?.name || 'First quiz in the course'}
-                            </CustomSelectValue>
-                          </CustomSelectTrigger>
-                          <CustomSelectContent>
-                            {coreQuizOptions.map((quiz: any) => (
-                              <CustomSelectItem key={quiz.activity_uuid} value={quiz.activity_uuid}>
-                                {quiz.name} · {quiz.chapterName}
-                              </CustomSelectItem>
-                            ))}
-                          </CustomSelectContent>
-                        </CustomSelect>
-                      </Form.Control>
-                      <p className="mt-2 text-xs leading-5 text-gray-500">
-                        This quiz result is preferred as the chapter card highlight when the learner has completed it. Defaults to the first quiz.
-                      </p>
-                    </FormField>
-                  )}
-                </div>
-              )}
             </div>
           </FormLayout>
         </div>

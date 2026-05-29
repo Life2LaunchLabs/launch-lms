@@ -1,8 +1,11 @@
 'use client'
 import React from 'react'
-import { Trophy, CheckCircle2, XCircle, BarChart3, RotateCcw } from 'lucide-react'
+import { Trophy, CheckCircle2, XCircle, BarChart3, RotateCcw, Star, Heart, Flame, Leaf, Zap, Sun, Flag, Triangle, Square, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
 import QuizResultContentRenderer from '../Results/QuizResultContentRenderer'
+
+const SLIDER_BLUE = '#2563eb'
+const SLIDER_RED = '#dc2626'
 
 function getGradient(seed: string): string {
   let hash = 0
@@ -22,6 +25,307 @@ interface Props {
   onRetake: () => void
   showRetakeButton?: boolean
   sectionedContent?: boolean
+}
+
+function findQuestionNode(nodes: any[] = [], questionUuid: string): any | null {
+  for (const node of nodes) {
+    if (node?.attrs?.question_uuid === questionUuid) return node
+    if (Array.isArray(node?.content)) {
+      const match = findQuestionNode(node.content, questionUuid)
+      if (match) return match
+    }
+  }
+  return null
+}
+
+function getCategoryDisplayLabel(category: any): string {
+  if (!category) return 'Unsorted'
+  const label = category.label || category.title || category.name
+  if (typeof label === 'string' && label.trim()) return label
+  if (typeof category.icon === 'string' && category.icon.trim()) {
+    return category.icon
+      .split('_')
+      .filter(Boolean)
+      .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+  }
+  if (typeof category.position === 'string' && category.position.trim()) {
+    return `${category.position.charAt(0).toUpperCase()}${category.position.slice(1)} tray`
+  }
+  return 'Sorted'
+}
+
+function renderSortIcon(icon: string | undefined, color: string, size = 16) {
+  const shared = { color, size }
+  switch (icon) {
+    case 'heart': return <Heart {...shared} />
+    case 'flame': return <Flame {...shared} />
+    case 'leaf': return <Leaf {...shared} />
+    case 'zap': return <Zap {...shared} />
+    case 'sun': return <Sun {...shared} />
+    case 'flag': return <Flag {...shared} />
+    case 'triangle': return <Triangle {...shared} />
+    case 'square': return <Square {...shared} />
+    case 'thumbs_down': return <ThumbsDown {...shared} />
+    case 'thumbs_up': return <ThumbsUp {...shared} />
+    default: return <Star {...shared} />
+  }
+}
+
+function TextResponseQuote({ question, response, sectionedContent }: { question: string; response: string; sectionedContent: boolean }) {
+  return (
+    <figure className={`${sectionedContent ? 'my-2' : ''} relative ml-3 border-l-4 border-sky-500 bg-sky-50/80 px-5 py-4 sm:ml-6 sm:px-6`}>
+      <div className="pointer-events-none absolute left-3 top-0 text-7xl font-serif leading-none text-sky-200/90" aria-hidden="true">
+        &ldquo;
+      </div>
+      <blockquote className="relative pl-7 text-xl font-medium italic leading-relaxed text-neutral-900 sm:text-2xl">
+        <p className="whitespace-pre-line">{response}</p>
+      </blockquote>
+      <figcaption className="relative mt-3 pl-7 text-xs font-semibold uppercase text-neutral-500">
+        {question}
+      </figcaption>
+    </figure>
+  )
+}
+
+function UngradedResponseCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="w-full rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm sm:p-5">
+      <h3 className="text-sm font-semibold text-neutral-900">{title}</h3>
+      <div className="mt-4">
+        {children}
+      </div>
+    </section>
+  )
+}
+
+function SliderIndicator({ value, directionMode }: { value: number; directionMode: 'unidirectional' | 'bidirectional' | 'stars' }) {
+  const normalized = Math.max(0, Math.min(1, Number(value) || 0))
+
+  if (directionMode === 'stars') {
+    const selectedStars = Math.round(normalized * 5)
+    return (
+      <div className="flex items-center gap-1">
+        {Array.from({ length: 5 }, (_, index) => {
+          const filled = index + 1 <= selectedStars
+          return (
+            <Star
+              key={index}
+              size={18}
+              strokeWidth={2.1}
+              className={filled ? 'text-amber-400' : 'text-neutral-300'}
+              style={{ fill: filled ? 'currentColor' : 'transparent' }}
+            />
+          )
+        })}
+      </div>
+    )
+  }
+
+  if (directionMode === 'bidirectional') {
+    const pct = normalized * 100
+    const isLeft = pct < 50
+    const fillWidth = `${Math.abs(pct - 50)}%`
+    return (
+      <div className="relative h-3 w-full overflow-hidden rounded-full bg-neutral-200">
+        <div className="absolute left-1/2 top-0 z-10 h-full w-px bg-neutral-500/70" />
+        <div
+          className="absolute top-0 h-full"
+          style={{
+            left: isLeft ? `calc(50% - ${fillWidth})` : '50%',
+            width: fillWidth,
+            background: isLeft ? SLIDER_RED : SLIDER_BLUE,
+            borderRadius: isLeft ? '999px 0 0 999px' : '0 999px 999px 0',
+          }}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="h-3 w-full overflow-hidden rounded-full bg-neutral-200">
+      <div
+        className="h-full rounded-r-full"
+        style={{ width: `${normalized * 100}%`, background: SLIDER_BLUE }}
+      />
+    </div>
+  )
+}
+
+function RatingResponseCard({ question, answer, node }: { question: string; answer: any; node: any }) {
+  const [expanded, setExpanded] = React.useState(false)
+  const attrs = node?.attrs || {}
+  const values = answer?.answer_json?.values || {}
+  const directionMode = attrs.direction_mode === 'bidirectional' || attrs.direction_mode === 'stars'
+    ? attrs.direction_mode
+    : 'unidirectional'
+  const rows = (attrs.sliders || [])
+    .map((slider: any, index: number) => ({
+      uuid: slider.slider_uuid,
+      label: slider.label || (attrs.slider_count === 1 ? question : `Option ${index + 1}`),
+      value: typeof values?.[slider.slider_uuid] === 'number' ? values[slider.slider_uuid] : 0,
+    }))
+    .filter((row: any) => row.uuid)
+    .sort((a: any, b: any) => b.value - a.value)
+  const visibleRows = expanded ? rows : rows.slice(0, 3)
+  const hiddenCount = Math.max(0, rows.length - visibleRows.length)
+
+  return (
+    <UngradedResponseCard title={question}>
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(120px,1fr)] gap-x-5 gap-y-3 sm:grid-cols-[minmax(0,1fr)_minmax(180px,1fr)]">
+        {visibleRows.map((row: any) => (
+          <React.Fragment key={row.uuid}>
+            <div className="min-w-0 self-center text-left text-sm font-medium leading-snug text-neutral-700">
+              {row.label}
+            </div>
+            <div className="flex min-w-0 items-center justify-start">
+              <SliderIndicator value={row.value} directionMode={directionMode} />
+            </div>
+          </React.Fragment>
+        ))}
+      </div>
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="mt-4 rounded-full px-3 py-1.5 text-xs font-semibold text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-800"
+        >
+          See {hiddenCount} more
+        </button>
+      )}
+      {expanded && rows.length > 3 && (
+        <button
+          type="button"
+          onClick={() => setExpanded(false)}
+          className="mt-4 rounded-full px-3 py-1.5 text-xs font-semibold text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-800"
+        >
+          Show top 3
+        </button>
+      )}
+    </UngradedResponseCard>
+  )
+}
+
+function SortResponseCard({ question, answer, node }: { question: string; answer: any; node: any }) {
+  const [expanded, setExpanded] = React.useState(false)
+  const attrs = node?.attrs || {}
+  const assignments = answer?.answer_json?.assignments || {}
+  const cards = Array.isArray(attrs.cards) ? attrs.cards : []
+  const categories = Array.isArray(attrs.categories) ? attrs.categories : []
+  const cardByUuid = new Map(cards.map((card: any, index: number) => [
+    card.card_uuid,
+    { ...card, title: card.title || `Card ${index + 1}` },
+  ]))
+  const categoryGroups = categories.map((category: any) => {
+    const sortedCards = Object.entries(assignments)
+      .filter(([, categoryUuid]) => categoryUuid === category.category_uuid)
+      .map(([cardUuid]) => cardByUuid.get(cardUuid))
+      .filter(Boolean)
+    return { category, cards: sortedCards }
+  }).filter((group: any) => group.cards.length > 0)
+  const totalHidden = categoryGroups.reduce((total: number, group: any) => total + Math.max(0, group.cards.length - 3), 0)
+
+  return (
+    <UngradedResponseCard title={question}>
+      {categoryGroups.length === 0 ? (
+        <p className="text-sm text-neutral-500">No response</p>
+      ) : (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {categoryGroups.map(({ category, cards: sortedCards }: any) => {
+              const color = category.color || '#64748b'
+              const visibleCards = expanded ? sortedCards : sortedCards.slice(0, 3)
+              const hiddenCount = Math.max(0, sortedCards.length - visibleCards.length)
+              return (
+                <section
+                  key={category.category_uuid}
+                  className="rounded-xl border bg-white p-3"
+                  style={{ borderColor: color, backgroundColor: `${color}0F` }}
+                >
+                  <div className="mb-3 flex items-center gap-2">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
+                      {renderSortIcon(category.icon, color, 15)}
+                    </div>
+                    <h4 className="min-w-0 text-sm font-semibold text-neutral-900">
+                      {getCategoryDisplayLabel(category)}
+                    </h4>
+                  </div>
+                  <div className="space-y-2">
+                    {visibleCards.map((card: any) => (
+                      <div key={card.card_uuid} className="rounded-lg border border-white/80 bg-white px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm">
+                        {card.title}
+                      </div>
+                    ))}
+                  </div>
+                  {!expanded && hiddenCount > 0 && (
+                    <div className="mt-3 text-xs font-semibold text-neutral-500">
+                      See {hiddenCount} more
+                    </div>
+                  )}
+                </section>
+              )
+            })}
+          </div>
+          {totalHidden > 0 && (
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="mt-4 rounded-full px-3 py-1.5 text-xs font-semibold text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-800"
+            >
+              See {totalHidden} more
+            </button>
+          )}
+          {expanded && totalHidden > 0 && (
+            <button
+              type="button"
+              onClick={() => setExpanded(false)}
+              className="mt-4 rounded-full px-3 py-1.5 text-xs font-semibold text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-800"
+            >
+              Show top 3
+            </button>
+          )}
+        </>
+      )}
+    </UngradedResponseCard>
+  )
+}
+
+function MultiSelectResponseCard({ question, answer, node }: { question: string; answer: any; node: any }) {
+  const attrs = node?.attrs || {}
+  const selected = new Set(Array.isArray(answer?.answer_json?.option_uuids) ? answer.answer_json.option_uuids : [])
+  const categories = Array.isArray(attrs.categories) ? attrs.categories : []
+  const groups = categories.map((category: any, index: number) => ({
+    title: category.title || `Section ${index + 1}`,
+    options: (category.options || []).filter((option: any) => selected.has(option.option_uuid)),
+  })).filter((group: any) => group.options.length > 0)
+
+  return (
+    <UngradedResponseCard title={question}>
+      {groups.length === 0 ? (
+        <p className="text-sm text-neutral-500">No response</p>
+      ) : (
+        <div className="space-y-4">
+          {groups.map((group: any) => (
+            <section key={group.title} className="space-y-2">
+              <h4 className="text-xs font-semibold uppercase text-neutral-500">
+                {group.title}
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {group.options.map((option: any) => (
+                  <span
+                    key={option.option_uuid}
+                    className="rounded-full border border-sky-100 bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-900"
+                  >
+                    {option.label || 'Option'}
+                  </span>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
+    </UngradedResponseCard>
+  )
 }
 
 export default function QuizResultsView({ result, activity, org, course, onRetake, showRetakeButton = false, sectionedContent = false }: Props) {
@@ -50,9 +354,7 @@ export default function QuizResultsView({ result, activity, org, course, onRetak
     )
   }
 
-  const getQuestionNode = (questionUuid: string) => {
-    return contentNodes.find(node => node?.attrs?.question_uuid === questionUuid) || null
-  }
+  const getQuestionNode = (questionUuid: string) => findQuestionNode(contentNodes, questionUuid)
 
   const getResponseText = (answer: any, node: any): string => {
     const answerJson = answer?.answer_json || {}
@@ -92,7 +394,7 @@ export default function QuizResultsView({ result, activity, org, course, onRetak
       return Object.entries(assignments).map(([cardUuid, categoryUuid]) => {
         const card = cards.find((item: any) => item.card_uuid === cardUuid)
         const category = categories.find((item: any) => item.category_uuid === categoryUuid)
-        return `${card?.title || 'Card'}: ${category?.label || 'Unsorted'}`
+        return `${card?.title || 'Card'}: ${getCategoryDisplayLabel(category)}`
       }).join('\n') || 'No response'
     }
     return 'No response'
@@ -111,13 +413,71 @@ export default function QuizResultsView({ result, activity, org, course, onRetak
               {answers.map((answer: any, index: number) => {
                 const node = getQuestionNode(answer.question_uuid)
                 const question = node?.attrs?.question_text || `Question ${index + 1}`
+                const answerType = answer?.answer_json?.type
+                const response = getResponseText(answer, node)
+                if (answerType === 'text') {
+                  return (
+                    <div
+                      key={`${answer.question_uuid}-${index}`}
+                      className={sectionedContent ? 'py-4 first:pt-0 last:pb-0' : ''}
+                    >
+                      <TextResponseQuote
+                        question={question}
+                        response={response}
+                        sectionedContent={sectionedContent}
+                      />
+                    </div>
+                  )
+                }
+                if (answerType === 'slider') {
+                  return (
+                    <div
+                      key={`${answer.question_uuid}-${index}`}
+                      className={sectionedContent ? 'py-4 first:pt-0 last:pb-0' : ''}
+                    >
+                      <RatingResponseCard
+                        question={question}
+                        answer={answer}
+                        node={node}
+                      />
+                    </div>
+                  )
+                }
+                if (answerType === 'sort') {
+                  return (
+                    <div
+                      key={`${answer.question_uuid}-${index}`}
+                      className={sectionedContent ? 'py-4 first:pt-0 last:pb-0' : ''}
+                    >
+                      <SortResponseCard
+                        question={question}
+                        answer={answer}
+                        node={node}
+                      />
+                    </div>
+                  )
+                }
+                if (answerType === 'multiselect') {
+                  return (
+                    <div
+                      key={`${answer.question_uuid}-${index}`}
+                      className={sectionedContent ? 'py-4 first:pt-0 last:pb-0' : ''}
+                    >
+                      <MultiSelectResponseCard
+                        question={question}
+                        answer={answer}
+                        node={node}
+                      />
+                    </div>
+                  )
+                }
                 return (
                   <div
                     key={`${answer.question_uuid}-${index}`}
                     className={sectionedContent ? 'py-4 first:pt-0 last:pb-0' : 'rounded-2xl border border-neutral-100 bg-neutral-50 p-4'}
                   >
                     <p className="text-sm font-semibold text-neutral-900">{question}</p>
-                    <p className="mt-2 whitespace-pre-line text-sm text-neutral-600">{getResponseText(answer, node)}</p>
+                    <p className="mt-2 whitespace-pre-line text-sm text-neutral-600">{response}</p>
                   </div>
                 )
               })}
