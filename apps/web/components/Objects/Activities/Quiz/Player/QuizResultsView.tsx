@@ -1,8 +1,14 @@
 'use client'
 import React from 'react'
-import { Trophy, CheckCircle2, XCircle, BarChart3, RotateCcw, Star, Heart, Flame, Leaf, Zap, Sun, Flag, Triangle, Square, ThumbsUp, ThumbsDown, EyeOff, Edit3, Check } from 'lucide-react'
+import { Trophy, CheckCircle2, XCircle, BarChart3, RotateCcw, Star, Heart, Flame, Leaf, Zap, Sun, Flag, Triangle, Square, ThumbsUp, ThumbsDown, Edit3, Check, X, Plus } from 'lucide-react'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
 import QuizResultContentRenderer from '../Results/QuizResultContentRenderer'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@components/ui/dropdown-menu'
 
 const SLIDER_BLUE = '#2563eb'
 const SLIDER_RED = '#dc2626'
@@ -31,6 +37,7 @@ interface Props {
   onSaveUngradedTabLabel?: (questionUuid: string, label: string) => void | Promise<void>
   isSavingUngradedTabLabel?: boolean
   publicMode?: boolean
+  selectedQuestionUuid?: string
 }
 
 function findQuestionNode(nodes: any[] = [], questionUuid: string): any | null {
@@ -399,18 +406,23 @@ function UngradedResultsTabs({
   const [activeIndex, setActiveIndex] = React.useState(0)
   const [editingQuestionUuid, setEditingQuestionUuid] = React.useState<string | null>(null)
   const [editingLabel, setEditingLabel] = React.useState('')
-  const activeAnswer = answers[Math.min(activeIndex, Math.max(0, answers.length - 1))]
+  const hiddenSet = React.useMemo(() => new Set(hiddenQuestionUuids), [hiddenQuestionUuids])
+  const visibleAnswers = React.useMemo(
+    () => onToggleQuestionHidden ? answers.filter((answer: any) => !hiddenSet.has(answer.question_uuid)) : answers,
+    [answers, hiddenSet, onToggleQuestionHidden]
+  )
+  const removedAnswers = React.useMemo(
+    () => onToggleQuestionHidden ? answers.filter((answer: any) => hiddenSet.has(answer.question_uuid)) : [],
+    [answers, hiddenSet, onToggleQuestionHidden]
+  )
+  const activeAnswer = visibleAnswers[Math.min(activeIndex, Math.max(0, visibleAnswers.length - 1))]
   const activeNode = activeAnswer ? getQuestionNode(activeAnswer.question_uuid) : null
   const activeQuestion = activeAnswer ? getQuestionDisplayLabel(activeAnswer, activeNode, activeIndex) : `Question ${activeIndex + 1}`
-  const hiddenSet = React.useMemo(() => new Set(hiddenQuestionUuids), [hiddenQuestionUuids])
-  const activeHidden = activeAnswer ? hiddenSet.has(activeAnswer.question_uuid) : false
 
   React.useEffect(() => {
-    if (activeIndex <= Math.max(0, answers.length - 1)) return
-    setActiveIndex(Math.max(0, answers.length - 1))
-  }, [activeIndex, answers.length])
-
-  if (!activeAnswer) return null
+    if (activeIndex <= Math.max(0, visibleAnswers.length - 1)) return
+    setActiveIndex(Math.max(0, visibleAnswers.length - 1))
+  }, [activeIndex, visibleAnswers.length])
 
   const startEditingLabel = (questionUuid: string, label: string) => {
     setEditingQuestionUuid(questionUuid)
@@ -425,9 +437,9 @@ function UngradedResultsTabs({
   }
 
   return (
-    <div className="space-y-3">
-      {answers.length > 1 && (
-        <div className="quiz-result-tab-scroll flex overflow-x-auto border-b border-neutral-200 bg-white px-1 pb-1">
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      {(visibleAnswers.length > 1 || removedAnswers.length > 0) && (
+        <div className="quiz-result-tab-scroll flex shrink-0 overflow-x-auto border-b border-neutral-200 bg-white px-1 pb-1">
           <style jsx global>{`
             .quiz-result-tab-scroll {
               scrollbar-width: thin;
@@ -446,18 +458,17 @@ function UngradedResultsTabs({
               border: 2px solid #f2f2f7;
             }
           `}</style>
-          {answers.map((answer: any, index: number) => {
+          {visibleAnswers.map((answer: any, index: number) => {
             const node = getQuestionNode(answer.question_uuid)
             const question = getQuestionDisplayLabel(answer, node, index)
             const active = index === activeIndex
-            const hidden = hiddenSet.has(answer.question_uuid)
             const isEditing = editableTabLabels && editingQuestionUuid === answer.question_uuid
             return (
               <div
                 key={`${answer.question_uuid}-${index}`}
                 className={`group flex min-w-fit flex-1 items-center justify-center gap-2 border-b-2 px-4 text-center text-xs font-bold transition-colors ${
                   active ? 'border-emerald-600 text-neutral-950' : 'border-transparent text-neutral-500 hover:text-neutral-900'
-                } ${hidden ? 'bg-neutral-100 text-neutral-500' : ''}`}
+                }`}
               >
                 {isEditing ? (
                   <input
@@ -511,32 +522,71 @@ function UngradedResultsTabs({
                 {onToggleQuestionHidden ? (
                   <button
                     type="button"
-                    aria-label={hidden ? 'Show response publicly' : 'Hide response publicly'}
-                    title={hidden ? 'Show response publicly' : 'Hide response publicly'}
+                    aria-label="Remove response tab"
+                    title="Remove response tab"
                     onClick={() => {
                       onToggleQuestionHidden(answer.question_uuid)
                     }}
                     className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
-                      active || hidden ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                    } ${hidden ? 'bg-neutral-200 text-neutral-700' : 'text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700'}`}
+                      active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                    } text-neutral-400 hover:bg-neutral-100 hover:text-red-600`}
                   >
-                    <EyeOff className="h-3.5 w-3.5" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 ) : null}
               </div>
             )
           })}
+          {removedAnswers.length > 0 && onToggleQuestionHidden ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Restore removed response tabs"
+                  title="Restore removed response tabs"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {removedAnswers.map((answer: any, index: number) => {
+                  const node = getQuestionNode(answer.question_uuid)
+                  const originalIndex = answers.findIndex((item: any) => item.question_uuid === answer.question_uuid)
+                  const label = getQuestionDisplayLabel(answer, node, originalIndex >= 0 ? originalIndex : index)
+                  return (
+                    <DropdownMenuItem
+                      key={answer.question_uuid}
+                      onSelect={() => {
+                        onToggleQuestionHidden(answer.question_uuid)
+                        setActiveIndex(Math.max(0, visibleAnswers.length))
+                      }}
+                      className="text-xs font-semibold"
+                    >
+                      {label}
+                    </DropdownMenuItem>
+                  )
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
         </div>
       )}
-      <div className={`min-h-[220px] ${activeHidden ? 'rounded-2xl bg-neutral-100 p-3' : ''}`}>
-        <UngradedAnswerResponse
-          answer={activeAnswer}
-          node={activeNode}
-          question={activeQuestion}
-          index={activeIndex}
-          sectionedContent={sectionedContent}
-          getResponseText={getResponseText}
-        />
+      <div className="min-h-0 flex-1">
+        {activeAnswer ? (
+          <UngradedAnswerResponse
+            answer={activeAnswer}
+            node={activeNode}
+            question={activeQuestion}
+            index={activeIndex}
+            sectionedContent={sectionedContent}
+            getResponseText={getResponseText}
+          />
+        ) : (
+          <div className="flex h-full min-h-0 items-center justify-center rounded-xl border border-dashed border-neutral-200 bg-neutral-50 p-4 text-center text-sm text-neutral-500">
+            Use the plus button to restore a removed response.
+          </div>
+        )}
       </div>
     </div>
   )
@@ -556,6 +606,7 @@ export default function QuizResultsView({
   onSaveUngradedTabLabel,
   isSavingUngradedTabLabel = false,
   publicMode = false,
+  selectedQuestionUuid,
 }: Props) {
   const resultJson = result?.result_json
   const scores: Record<string, number> = resultJson?.scores || {}
@@ -638,13 +689,25 @@ export default function QuizResultsView({
     const hiddenSet = new Set(hiddenQuestionUuids)
     const answers = (resultJson?.answers || [])
       .filter((answer: any) => answer?.answer_json?.type !== 'info')
+      .filter((answer: any) => !selectedQuestionUuid || answer?.question_uuid === selectedQuestionUuid)
       .filter((answer: any) => !publicMode || !hiddenSet.has(answer?.question_uuid))
 
     return (
-      <div className={sectionedContent ? 'w-full' : 'w-full max-w-3xl mx-auto p-4 sm:p-5'}>
-        <div className="bg-white">
+      <div className={sectionedContent ? 'h-full min-h-0 w-full' : 'w-full max-w-3xl mx-auto p-4 sm:p-5'}>
+        <div className="h-full min-h-0 bg-white">
           {answers.length === 0 ? (
             <p className="text-sm text-neutral-500">{publicMode ? 'No public responses are visible.' : 'No responses were recorded.'}</p>
+          ) : selectedQuestionUuid ? (
+            <div className="h-full min-h-0">
+              <UngradedAnswerResponse
+                answer={answers[0]}
+                node={getQuestionNode(answers[0]?.question_uuid)}
+                question={getQuestionDisplayLabel(answers[0], getQuestionNode(answers[0]?.question_uuid), 0)}
+                index={0}
+                sectionedContent={sectionedContent}
+                getResponseText={getResponseText}
+              />
+            </div>
           ) : (
             <UngradedResultsTabs
               answers={answers}

@@ -2,30 +2,40 @@
 
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
 import {
   Award,
   ArrowRight,
   BookOpen,
+  Bold,
   Camera,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Copy,
-  Edit3,
   FileText,
   Globe,
   Heading1,
+  Heading2,
   Image as ImageIcon,
   Instagram,
+  Italic,
   Link2,
   Linkedin,
+  List,
+  ListOrdered,
   Loader2,
   Lock,
   Plus,
+  Quote,
+  RemoveFormatting,
   Share2,
   Text,
   Trash2,
+  Upload,
+  Underline,
   Youtube,
   X,
 } from 'lucide-react'
@@ -43,6 +53,7 @@ import { Input } from '@components/ui/input'
 import { Textarea } from '@components/ui/textarea'
 import { normalizeAchievements, ProfileAchievementsSection } from '@components/Objects/Profile/ProfileAchievements'
 import {
+  createEmptyFeaturedCard,
   FeaturedCarousel,
   getPortfolioAuthorName,
   normalizeFeatured,
@@ -51,9 +62,9 @@ import {
 import ProfileTimeline, { normalizeTimeline, type TimelineEntry } from '@components/Objects/Profile/ProfileTimeline'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
-import { getUserAvatarMediaDirectory } from '@services/media/media'
+import { getUserAvatarMediaDirectory, getUserProfileFeaturedMediaDirectory } from '@services/media/media'
 import { updateProfile } from '@services/settings/profile'
-import { updateUserAvatar } from '@services/users/users'
+import { updateUserAvatar, uploadUserProfileFeaturedImage } from '@services/users/users'
 import CoreCoursesProgressSection from '@components/CoreCourses/CoreCoursesProgressSection'
 import { swrFetcher } from '@services/utils/ts/requests'
 import QuizResultsView from '@components/Objects/Activities/Quiz/Player/QuizResultsView'
@@ -78,6 +89,7 @@ type ProfileLayoutItem = {
   type: ProfileWidgetType
   courseUuid?: string
   activityUuid?: string
+  questionUuid?: string
   hiddenQuestionUuids?: string[]
   grid?: ProfileGridPosition
   mobileGrid?: ProfileGridPosition
@@ -215,9 +227,18 @@ const PROFILE_WIDGET_CONFIG: Record<ProfileWidgetType, {
   media: { label: 'Media', icon: ImageIcon, unique: false },
 }
 
-function createProfileLayoutItem(type: ProfileWidgetType, courseUuid?: string, activityUuid?: string): ProfileLayoutItem {
+function createProfileLayoutItem(type: ProfileWidgetType, courseUuid?: string, activityUuid?: string, questionUuid?: string): ProfileLayoutItem {
   if (type === 'coreCourse' && courseUuid) return { id: `coreCourse-${courseUuid}`, type, courseUuid }
-  if (type === 'coreQuiz' && courseUuid && activityUuid) return { id: `coreQuiz-${activityUuid}`, type, courseUuid, activityUuid, hiddenQuestionUuids: [] }
+  if (type === 'coreQuiz' && courseUuid && activityUuid) {
+    return {
+      id: questionUuid ? `coreQuiz-${activityUuid}-${questionUuid}` : `coreQuiz-${activityUuid}`,
+      type,
+      courseUuid,
+      activityUuid,
+      questionUuid,
+      hiddenQuestionUuids: [],
+    }
+  }
   if (UNIQUE_PROFILE_WIDGETS.includes(type)) return { id: type, type }
   return { id: `${type}-${Date.now()}-${Math.random().toString(16).slice(2)}`, type }
 }
@@ -356,15 +377,17 @@ function normalizeProfileLayout(layout: any): ProfileLayoutItem[] {
     if (type === 'coreQuiz') {
       const courseUuid = typeof item?.courseUuid === 'string' ? item.courseUuid : ''
       const activityUuid = typeof item?.activityUuid === 'string' ? item.activityUuid : ''
+      const questionUuid = typeof item?.questionUuid === 'string' ? item.questionUuid : ''
       const hiddenQuestionUuids = Array.isArray(item?.hiddenQuestionUuids)
         ? item.hiddenQuestionUuids.filter((uuid: any) => typeof uuid === 'string')
         : []
       if (!courseUuid || !activityUuid) return items
       items.push({
-        id: item?.id || createProfileLayoutItem(type, courseUuid, activityUuid).id,
+        id: item?.id || createProfileLayoutItem(type, courseUuid, activityUuid, questionUuid).id,
         type,
         courseUuid,
         activityUuid,
+        questionUuid: questionUuid || undefined,
         hiddenQuestionUuids,
         grid,
         mobileGrid: item?.mobileGrid ? clampProfileGridPosition(item.mobileGrid, type, items.length, PROFILE_GRID_MOBILE_COLS) : undefined,
@@ -1610,6 +1633,42 @@ function findCoreQuizWidget(coreCourses: any[], item: ProfileLayoutItem) {
   return null
 }
 
+function collectQuizQuestionPages(quizItem: any) {
+  const contentNodes = quizItem?.result?.activity?.content?.content
+    || quizItem?.quiz?.content?.content
+    || quizItem?.quiz?.content
+    || []
+  const tabLabels = quizItem?.result?.activity?.details?.ungraded_result_tab_labels
+    || quizItem?.quiz?.details?.ungraded_result_tab_labels
+    || {}
+  const pages: Array<{ questionUuid: string; label: string }> = []
+
+  const visit = (nodes: any[]) => {
+    for (const node of nodes || []) {
+      const questionUuid = node?.attrs?.question_uuid
+      if (typeof questionUuid === 'string' && questionUuid) {
+        const override = tabLabels?.[questionUuid]
+        pages.push({
+          questionUuid,
+          label: typeof override === 'string' && override.trim()
+            ? override.trim()
+            : node?.attrs?.question_text || `Page ${pages.length + 1}`,
+        })
+      }
+      if (Array.isArray(node?.content)) visit(node.content)
+    }
+  }
+
+  visit(Array.isArray(contentNodes) ? contentNodes : [])
+  return pages
+}
+
+function getQuizPageLabel(quizItem: any, questionUuid?: string) {
+  if (!questionUuid) return quizItem?.quiz?.name || 'Quiz result'
+  const page = collectQuizQuestionPages(quizItem).find((item) => item.questionUuid === questionUuid)
+  return page?.label || quizItem?.quiz?.name || 'Quiz result'
+}
+
 function ProfileCoreQuizWidget({
   item,
   coreCourses,
@@ -1635,6 +1694,7 @@ function ProfileCoreQuizWidget({
 
   const ActivityIcon = getChannelIcon(quiz.icon || defaultChapterIconName)
   const quizHref = getActivityHref(orgslug, course.course_uuid, quiz.activity_uuid)
+  const pageLabel = getQuizPageLabel(quizItem, item.questionUuid)
   const isCompact = grid.h === 1
   const isNarrow = grid.w === 1
 
@@ -1646,9 +1706,9 @@ function ProfileCoreQuizWidget({
             <ActivityIcon className="h-4 w-4" />
           </div>
           <div className="min-w-0">
-            <h3 className="truncate text-base font-semibold text-gray-950">{quiz.name || 'Untitled quiz'}</h3>
+            <h3 className="truncate text-base font-semibold text-gray-950">{pageLabel}</h3>
             <p className="mt-1 truncate text-sm font-medium text-gray-500">
-              {result ? 'Result available' : 'Result locked'}
+              {result ? quiz.name || 'Result available' : 'Result locked'}
             </p>
           </div>
         </div>
@@ -1664,7 +1724,7 @@ function ProfileCoreQuizWidget({
 
   return (
     <section className="flex h-full min-w-0 min-h-0 flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-      <div className={`${isNarrow ? 'p-4' : 'p-5'} border-b border-gray-100`}>
+      <div className={`${isNarrow ? 'p-2' : 'p-2.5'} border-b border-gray-100`}>
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-900">
             <ActivityIcon className="h-5 w-5" />
@@ -1672,10 +1732,10 @@ function ProfileCoreQuizWidget({
           <div className="min-w-0 flex-1">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
-                <h3 className={`${isNarrow ? 'text-base' : 'text-lg'} truncate font-bold text-gray-950`}>{quiz.name || 'Untitled quiz'}</h3>
-                {quiz.description && !isNarrow ? (
+                <h3 className={`${isNarrow ? 'text-base' : 'text-lg'} truncate font-bold text-gray-950`}>{pageLabel}</h3>
+                {!isNarrow && (item.questionUuid || quiz.description) ? (
                   <p className="mt-1 line-clamp-2 text-sm leading-5 text-gray-600">
-                    {quiz.description}
+                    {item.questionUuid ? quiz.name || 'Quiz result' : quiz.description}
                   </p>
                 ) : null}
               </div>
@@ -1691,7 +1751,7 @@ function ProfileCoreQuizWidget({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 bg-white px-4 pb-0 pt-4 sm:px-5 sm:pt-5">
+      <div className="min-h-0 flex-1 bg-white px-2 pb-0 pt-2 sm:px-2.5 sm:pt-2.5">
         {result ? (
           <div className="profile-quiz-result-scroll h-full overflow-y-auto">
             <style jsx global>{`
@@ -1727,6 +1787,7 @@ function ProfileCoreQuizWidget({
               showRetakeButton={false}
               sectionedContent
               hiddenQuestionUuids={item.hiddenQuestionUuids || []}
+              selectedQuestionUuid={item.questionUuid}
               onToggleQuestionHidden={canManage ? onToggleQuestionHidden : undefined}
               publicMode={publicMode}
             />
@@ -1754,18 +1815,447 @@ function ProfileCoreQuizWidget({
   )
 }
 
+const RICH_TEXT_ALLOWED_TAGS = new Set(['a', 'b', 'blockquote', 'br', 'em', 'h2', 'h3', 'i', 'li', 'ol', 'p', 's', 'strong', 'u', 'ul'])
+
+function hasHtmlMarkup(value: string) {
+  return /<\/?[a-z][\s\S]*>/i.test(value)
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function plainTextToHtml(value: string) {
+  const lines = escapeHtml(value || '').split(/\r?\n/)
+  return lines.map((line) => line || '<br>').join('<br>')
+}
+
+function sanitizeProfileRichText(value: string) {
+  const source = hasHtmlMarkup(value) ? value : plainTextToHtml(value)
+  return source
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, '')
+    .replace(/<\/?([a-z0-9]+)([^>]*)>/gi, (match, rawTag, rawAttrs) => {
+      const tag = String(rawTag).toLowerCase()
+      if (!RICH_TEXT_ALLOWED_TAGS.has(tag)) return ''
+      if (tag === 'br') return '<br>'
+      const isClosing = /^<\//.test(match)
+      if (isClosing) return `</${tag}>`
+      if (tag !== 'a') return `<${tag}>`
+
+      const hrefMatch = /href\s*=\s*["']([^"']+)["']/i.exec(rawAttrs || '')
+      const href = hrefMatch?.[1]?.trim() || ''
+      if (!href || /^javascript:/i.test(href)) return '<a>'
+      return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">`
+    })
+}
+
+function getRichTextPlainText(value: string) {
+  return value
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|li|h2|h3|blockquote)>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .trim()
+}
+
+function RichTextFormatButton({
+  label,
+  onCommand,
+  children,
+}: {
+  label: string
+  onCommand(): void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onMouseDown={(event) => {
+        event.preventDefault()
+        onCommand()
+      }}
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-950"
+    >
+      {children}
+    </button>
+  )
+}
+
+function ProfileRichTextEditor({
+  value,
+  placeholder,
+  compact,
+  onChange,
+  onBlur,
+}: {
+  value: string
+  placeholder: string
+  compact: boolean
+  onChange(value: string): void
+  onBlur?(): void
+}) {
+  const editorRef = useRef<HTMLDivElement | null>(null)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const lastHtmlRef = useRef(sanitizeProfileRichText(value || ''))
+  const [active, setActive] = useState(false)
+  const [currentHtml, setCurrentHtml] = useState(lastHtmlRef.current)
+  const empty = !getRichTextPlainText(currentHtml)
+
+  useEffect(() => {
+    const editor = editorRef.current
+    if (!editor || document.activeElement === editor) return
+    const nextHtml = sanitizeProfileRichText(value || '')
+    lastHtmlRef.current = nextHtml
+    setCurrentHtml(nextHtml)
+    if (editor.innerHTML !== nextHtml) editor.innerHTML = nextHtml
+  }, [value])
+
+  const syncValue = () => {
+    const editor = editorRef.current
+    if (!editor) return
+    const nextHtml = editor.innerHTML
+    lastHtmlRef.current = nextHtml
+    setCurrentHtml(nextHtml)
+    onChange(nextHtml)
+  }
+
+  const runCommand = (command: string, commandValue?: string) => {
+    const editor = editorRef.current
+    if (!editor) return
+    editor.focus()
+    document.execCommand(command, false, commandValue)
+    syncValue()
+  }
+
+  const handleBlur = () => {
+    window.setTimeout(() => {
+      if (containerRef.current?.contains(document.activeElement)) return
+      setActive(false)
+      const editor = editorRef.current
+      if (editor) {
+        const sanitized = sanitizeProfileRichText(editor.innerHTML)
+        if (editor.innerHTML !== sanitized) editor.innerHTML = sanitized
+        lastHtmlRef.current = sanitized
+        setCurrentHtml(sanitized)
+        onChange(sanitized)
+      }
+      onBlur?.()
+    }, 0)
+  }
+
+  return (
+    <div ref={containerRef} className="flex min-h-0 flex-1 flex-col">
+      <div className="relative min-h-0 flex-1">
+        {empty ? (
+          <div className="pointer-events-none absolute inset-0 select-none text-base leading-7 text-gray-400">
+            {placeholder}
+          </div>
+        ) : null}
+        <div
+          ref={editorRef}
+          contentEditable
+          suppressContentEditableWarning
+          onFocus={() => setActive(true)}
+          onBlur={handleBlur}
+          onInput={syncValue}
+          className={`${compact ? 'leading-6' : 'leading-7'} profile-rich-text min-h-0 h-full overflow-y-auto break-words text-base text-gray-800 outline-none`}
+        />
+      </div>
+
+      {active ? (
+        <div className="mt-2 flex w-full shrink-0 items-center gap-1 rounded-lg border border-gray-200 bg-white p-1 shadow-sm">
+          <RichTextFormatButton label="Bold" onCommand={() => runCommand('bold')}>
+            <Bold className="h-4 w-4" />
+          </RichTextFormatButton>
+          <RichTextFormatButton label="Italic" onCommand={() => runCommand('italic')}>
+            <Italic className="h-4 w-4" />
+          </RichTextFormatButton>
+          <RichTextFormatButton label="Underline" onCommand={() => runCommand('underline')}>
+            <Underline className="h-4 w-4" />
+          </RichTextFormatButton>
+          <RichTextFormatButton label="Bullet list" onCommand={() => runCommand('insertUnorderedList')}>
+            <List className="h-4 w-4" />
+          </RichTextFormatButton>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="More formatting"
+                title="More formatting"
+                onMouseDown={(event) => event.preventDefault()}
+                className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-950"
+              >
+                <ChevronDown className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onMouseDown={(event) => event.preventDefault()} onSelect={() => runCommand('insertOrderedList')}>
+                <ListOrdered className="mr-2 h-4 w-4" />
+                Numbered list
+              </DropdownMenuItem>
+              <DropdownMenuItem onMouseDown={(event) => event.preventDefault()} onSelect={() => runCommand('formatBlock', 'h2')}>
+                <Heading2 className="mr-2 h-4 w-4" />
+                Heading
+              </DropdownMenuItem>
+              <DropdownMenuItem onMouseDown={(event) => event.preventDefault()} onSelect={() => runCommand('formatBlock', 'blockquote')}>
+                <Quote className="mr-2 h-4 w-4" />
+                Quote
+              </DropdownMenuItem>
+              <DropdownMenuItem onMouseDown={(event) => event.preventDefault()} onSelect={() => runCommand('removeFormat')}>
+                <RemoveFormatting className="mr-2 h-4 w-4" />
+                Clear style
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function normalizeProfileMediaUrl(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  if (/^(https?:|blob:|data:|\/)/i.test(trimmed)) return trimmed
+  return `https://${trimmed}`
+}
+
+function getYouTubeEmbedUrl(value: string) {
+  try {
+    const url = new URL(normalizeProfileMediaUrl(value))
+    const hostname = url.hostname.replace(/^www\./i, '').toLowerCase()
+    if (hostname === 'youtu.be') {
+      const id = url.pathname.split('/').filter(Boolean)[0]
+      return id ? `https://www.youtube.com/embed/${id}` : ''
+    }
+    if (hostname.endsWith('youtube.com')) {
+      const id = url.searchParams.get('v') || url.pathname.split('/').filter(Boolean).at(-1)
+      return id ? `https://www.youtube.com/embed/${id}` : ''
+    }
+  } catch {
+    return ''
+  }
+  return ''
+}
+
+function getVimeoEmbedUrl(value: string) {
+  try {
+    const url = new URL(normalizeProfileMediaUrl(value))
+    const hostname = url.hostname.replace(/^www\./i, '').toLowerCase()
+    if (!hostname.endsWith('vimeo.com')) return ''
+    const id = url.pathname.split('/').filter(Boolean).find((part) => /^\d+$/.test(part))
+    return id ? `https://player.vimeo.com/video/${id}` : ''
+  } catch {
+    return ''
+  }
+}
+
+function getProfileMediaKind(value: string): 'image' | 'video' | 'audio' | 'embed' | 'link' {
+  const url = normalizeProfileMediaUrl(value)
+  if (!url) return 'link'
+  if (getYouTubeEmbedUrl(url) || getVimeoEmbedUrl(url)) return 'embed'
+  const cleanUrl = url.split(/[?#]/)[0].toLowerCase()
+  if (/\.(png|jpe?g|gif|webp|avif|svg)$/.test(cleanUrl) || /^data:image\//i.test(url)) return 'image'
+  if (/\.(mp4|webm|ogg|mov|m4v)$/.test(cleanUrl) || /^data:video\//i.test(url)) return 'video'
+  if (/\.(mp3|wav|oga|m4a|aac|flac)$/.test(cleanUrl) || /^data:audio\//i.test(url)) return 'audio'
+  return 'link'
+}
+
+function ProfileMediaDisplay({ url, title }: { url: string; title?: string }) {
+  const mediaUrl = normalizeProfileMediaUrl(url)
+  const kind = getProfileMediaKind(mediaUrl)
+  const embedUrl = kind === 'embed' ? getYouTubeEmbedUrl(mediaUrl) || getVimeoEmbedUrl(mediaUrl) : ''
+
+  if (!mediaUrl) return <EmptyWidgetPreview type="media" />
+  if (kind === 'image') {
+    return <img src={mediaUrl} alt={title || ''} className="h-full w-full object-contain" loading="lazy" />
+  }
+  if (kind === 'video') {
+    return <video src={mediaUrl} className="h-full w-full bg-black object-contain" controls playsInline />
+  }
+  if (kind === 'audio') {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-gray-950 p-5">
+        <audio src={mediaUrl} controls className="w-full" />
+      </div>
+    )
+  }
+  if (embedUrl) {
+    return (
+      <iframe
+        src={embedUrl}
+        title={title || 'Profile media'}
+        className="h-full w-full border-0 bg-black"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowFullScreen
+      />
+    )
+  }
+  return (
+    <a
+      href={mediaUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex h-full w-full flex-col items-center justify-center gap-3 bg-gray-950 p-5 text-center text-white"
+    >
+      <Link2 className="h-7 w-7" />
+      <span className="line-clamp-2 text-sm font-semibold">{title || mediaUrl}</span>
+    </a>
+  )
+}
+
+function ProfileMediaSection({
+  section,
+  canEdit,
+  uploading,
+  onChange,
+  onBlur,
+  onUpload,
+}: {
+  section: ProfileCustomSection
+  canEdit: boolean
+  uploading?: boolean
+  onChange?(patch: Partial<ProfileCustomSection>): void
+  onBlur?(): void
+  onUpload?(file: File): Promise<string | null>
+}) {
+  const fileInputId = useId()
+  const [editing, setEditing] = useState(!section.mediaUrl && canEdit)
+  const [linkDraft, setLinkDraft] = useState(section.mediaUrl || '')
+  const mediaUrl = normalizeProfileMediaUrl(section.mediaUrl || '')
+  const hasMedia = Boolean(mediaUrl)
+
+  useEffect(() => {
+    if (!editing) setLinkDraft(section.mediaUrl || '')
+  }, [editing, section.mediaUrl])
+
+  const commitMedia = () => {
+    onChange?.({ mediaUrl: normalizeProfileMediaUrl(linkDraft) })
+    setEditing(false)
+    window.setTimeout(() => onBlur?.(), 0)
+  }
+
+  const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !onUpload) return
+    const uploadedUrl = await onUpload(file)
+    if (uploadedUrl) {
+      setLinkDraft(uploadedUrl)
+      onChange?.({ mediaUrl: uploadedUrl })
+      setEditing(false)
+      window.setTimeout(() => onBlur?.(), 0)
+    }
+    event.target.value = ''
+  }
+
+  return (
+    <section className="group/profile-media relative h-full min-h-0 overflow-hidden rounded-xl bg-white">
+      <div className="absolute inset-0 bg-gray-100">
+        {hasMedia ? <ProfileMediaDisplay url={mediaUrl} title={section.title} /> : <EmptyWidgetPreview type="media" />}
+      </div>
+
+      {section.title || canEdit ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-4 pb-4 pt-14 opacity-0 transition-opacity group-hover/profile-media:opacity-100">
+          {canEdit ? (
+            <input
+              value={section.title || ''}
+              onChange={(event) => onChange?.({ title: event.target.value })}
+              onBlur={onBlur}
+              placeholder="Media title"
+              data-profile-grid-control="true"
+              className="pointer-events-auto w-full select-none border-0 bg-transparent p-0 text-base font-semibold text-white outline-none placeholder:text-white/70 focus:select-text"
+            />
+          ) : section.title ? (
+            <p className="line-clamp-2 select-none text-base font-semibold leading-5 text-white">{section.title}</p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {canEdit ? (
+        <>
+          <input
+            id={fileInputId}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            className="hidden"
+            onChange={handleUpload}
+          />
+          <button
+            type="button"
+            data-profile-grid-control="true"
+            onClick={() => editing ? commitMedia() : setEditing(true)}
+            disabled={uploading}
+            className={`absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white text-gray-800 shadow-sm ring-1 ring-gray-200 transition-all hover:text-gray-950 disabled:cursor-wait disabled:opacity-80 ${
+              editing ? 'opacity-100' : 'opacity-0 group-hover/profile-media:opacity-100'
+            }`}
+            aria-label={editing ? 'Save media' : 'Add media'}
+            title={editing ? 'Save media' : 'Add media'}
+          >
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : editing ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+          </button>
+
+          <AnimatePresence>
+            {editing ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 p-4"
+                data-profile-grid-control="true"
+              >
+                <div className="w-full max-w-sm rounded-lg border border-white/20 bg-white p-3 shadow-xl">
+                  <label
+                    htmlFor={fileInputId}
+                    className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-gray-300 px-3 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    <Upload className="h-4 w-4" />
+                    Upload image
+                  </label>
+                  <div className="mt-3 flex items-center gap-2">
+                    <Input
+                      value={linkDraft}
+                      onChange={(event) => setLinkDraft(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') commitMedia()
+                      }}
+                      placeholder="Paste image, video, YouTube, or Vimeo link"
+                      autoComplete="url"
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        </>
+      ) : null}
+    </section>
+  )
+}
+
 function CustomProfileSectionView({
   section,
   grid,
   canEdit = false,
   onChange,
   onBlur,
+  uploadingMedia = false,
+  onUploadMedia,
 }: {
   section?: ProfileCustomSection
   grid: ProfileGridPosition
   canEdit?: boolean
   onChange?(patch: Partial<ProfileCustomSection>): void
   onBlur?(): void
+  uploadingMedia?: boolean
+  onUploadMedia?(file: File): Promise<string | null>
 }) {
   if (!section) return null
   const compact = grid.h === 1
@@ -1789,6 +2279,48 @@ function CustomProfileSectionView({
   if (section.type === 'text') {
     return (
       <section className="flex h-full min-h-0 flex-col rounded-xl bg-white p-4">
+        <style jsx global>{`
+          .profile-rich-text ul,
+          .profile-rich-text ol,
+          .profile-rich-text-rendered ul,
+          .profile-rich-text-rendered ol {
+            margin: 0.35rem 0;
+            padding-left: 1.25rem;
+          }
+          .profile-rich-text ul,
+          .profile-rich-text-rendered ul {
+            list-style: disc;
+          }
+          .profile-rich-text ol,
+          .profile-rich-text-rendered ol {
+            list-style: decimal;
+          }
+          .profile-rich-text li,
+          .profile-rich-text-rendered li {
+            margin: 0.15rem 0;
+          }
+          .profile-rich-text h2,
+          .profile-rich-text-rendered h2 {
+            margin: 0.25rem 0;
+            font-size: 1.15rem;
+            font-weight: 700;
+            line-height: 1.25;
+            color: #111827;
+          }
+          .profile-rich-text blockquote,
+          .profile-rich-text-rendered blockquote {
+            margin: 0.35rem 0;
+            border-left: 3px solid #d1d5db;
+            padding-left: 0.75rem;
+            color: #4b5563;
+          }
+          .profile-rich-text a,
+          .profile-rich-text-rendered a {
+            color: #047857;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+          }
+        `}</style>
         {canEdit ? (
           <>
             <input
@@ -1798,19 +2330,21 @@ function CustomProfileSectionView({
               placeholder="Section title"
               className={`${compact ? 'mb-2 text-lg' : 'mb-3 text-2xl'} w-full select-none border-0 bg-transparent p-0 font-semibold text-gray-950 outline-none placeholder:text-gray-300 focus:select-text`}
             />
-            <Textarea
+            <ProfileRichTextEditor
               value={section.body || ''}
-              onChange={(event) => onChange?.({ body: event.target.value })}
+              onChange={(value) => onChange?.({ body: value })}
               onBlur={onBlur}
               placeholder="Empty text section"
-              rows={1}
-              className="min-h-0 flex-1 select-none resize-none border-0 bg-transparent px-0 py-0 text-base leading-7 text-gray-800 shadow-none outline-none placeholder:text-gray-400 focus:select-text focus-visible:ring-0 focus-visible:ring-offset-0"
+              compact={compact}
             />
           </>
         ) : (
           <>
             {section.title ? <h2 className={`${compact ? 'mb-2 text-lg' : 'mb-3 text-2xl'} select-none font-semibold text-gray-950`}>{section.title}</h2> : null}
-            <div className={`${compact ? 'line-clamp-2' : 'overflow-y-auto'} min-h-0 flex-1 select-none whitespace-pre-wrap text-base leading-7 text-gray-800`}>{section.body || 'Empty text section'}</div>
+            <div
+              className={`${compact ? 'line-clamp-2' : 'overflow-y-auto'} profile-rich-text-rendered min-h-0 flex-1 select-none text-base leading-7 text-gray-800`}
+              dangerouslySetInnerHTML={{ __html: sanitizeProfileRichText(section.body || 'Empty text section') }}
+            />
           </>
         )}
       </section>
@@ -1853,30 +2387,14 @@ function CustomProfileSectionView({
   }
   if (section.type === 'media') {
     return (
-      <section className="h-full min-h-0 rounded-xl bg-white">
-        {canEdit ? (
-          <div className="flex h-full min-h-0 flex-col rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-            <input
-              value={section.title || ''}
-              onChange={(event) => onChange?.({ title: event.target.value })}
-              onBlur={onBlur}
-              placeholder="Media title"
-              className="mb-3 w-full select-none border-0 bg-transparent p-0 text-lg font-semibold text-gray-950 outline-none placeholder:text-gray-300 focus:select-text"
-            />
-            <input
-              value={section.mediaUrl || ''}
-              onChange={(event) => onChange?.({ mediaUrl: event.target.value })}
-              onBlur={onBlur}
-              placeholder="Image or media URL"
-              className="w-full select-none border-0 bg-transparent p-0 text-sm text-gray-500 outline-none placeholder:text-gray-300 focus:select-text"
-            />
-          </div>
-        ) : section.mediaUrl ? (
-          <img src={section.mediaUrl} alt={section.title || ''} className="h-full w-full rounded-lg object-cover" />
-        ) : (
-          <EmptyWidgetPreview type="media" />
-        )}
-      </section>
+      <ProfileMediaSection
+        section={section}
+        canEdit={canEdit}
+        uploading={uploadingMedia}
+        onChange={onChange}
+        onBlur={onBlur}
+        onUpload={onUploadMedia}
+      />
     )
   }
   return null
@@ -1886,7 +2404,7 @@ function ProfileAddTray({
   open,
   anchorRef,
   usedUniqueTypes,
-  usedCoreQuizActivityUuids,
+  usedCoreQuizQuestionKeys,
   coreCourses,
   dragging,
   onToggle,
@@ -1900,13 +2418,13 @@ function ProfileAddTray({
   open: boolean
   anchorRef: React.RefObject<HTMLDivElement | null>
   usedUniqueTypes: Set<ProfileWidgetType>
-  usedCoreQuizActivityUuids: Set<string>
+  usedCoreQuizQuestionKeys: Set<string>
   coreCourses: any[]
   dragging: boolean
   onToggle(): void
   onClose(): void
-  onAdd(type: ProfileWidgetType, courseUuid?: string, activityUuid?: string): void
-  onDragStart(type: ProfileWidgetType, event: React.DragEvent<HTMLButtonElement>, courseUuid?: string, activityUuid?: string): void
+  onAdd(type: ProfileWidgetType, courseUuid?: string, activityUuid?: string, questionUuid?: string): void
+  onDragStart(type: ProfileWidgetType, event: React.DragEvent<HTMLButtonElement>, courseUuid?: string, activityUuid?: string, questionUuid?: string): void
   onDragging(): void
   onDragEnd(): void
   onCancelDrop(): void
@@ -2055,31 +2573,55 @@ function ProfileAddTray({
                     {coreCourseSections.map(({ course, quizzes }: any) => {
                       const courseUuid = course.course_uuid || ''
                       return (
-                        <section key={courseUuid} className="space-y-2">
+                        <section key={courseUuid} className="space-y-3">
                           <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
                             {course.name || 'Untitled CORE course'}
                           </p>
-                          <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6">
-                            {quizzes.map(({ quiz }: any) => {
+                          <div className="space-y-3">
+                            {quizzes.map((quizItem: any) => {
+                              const { quiz } = quizItem
                               const activityUuid = quiz.activity_uuid || ''
-                              const disabled = usedCoreQuizActivityUuids.has(activityUuid)
                               const ActivityIcon = getChannelIcon(quiz.icon || defaultChapterIconName)
+                              const pages = collectQuizQuestionPages(quizItem)
                               return (
-                                <button
+                                <div
                                   key={activityUuid || quiz.id}
-                                  type="button"
-                                  draggable={!disabled}
-                                  disabled={disabled}
-                                  onClick={() => onAdd('coreQuiz', courseUuid, activityUuid)}
-                                  onPointerDown={(event) => event.stopPropagation()}
-                                  onDragStart={(event) => onDragStart('coreQuiz', event, courseUuid, activityUuid)}
-                                  onDrag={onDragging}
-                                  onDragEnd={onDragEnd}
-                                  className="flex aspect-square flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white p-2 text-center text-gray-800 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                                  className="rounded-lg border border-gray-100 bg-gray-50/60 p-2"
                                 >
-                                  <ActivityIcon className="h-5 w-5 shrink-0" />
-                                  <span className="line-clamp-2 text-xs font-semibold leading-tight">{quiz.name || 'Untitled quiz'}</span>
-                                </button>
+                                  <div className="mb-2 flex min-w-0 items-center gap-2 px-1 text-gray-700">
+                                    <ActivityIcon className="h-4 w-4 shrink-0" />
+                                    <span className="truncate text-xs font-semibold">{quiz.name || 'Untitled quiz'}</span>
+                                  </div>
+                                  {pages.length > 0 ? (
+                                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6">
+                                      {pages.map((page) => {
+                                        const key = `${activityUuid}:${page.questionUuid}`
+                                        const disabled = usedCoreQuizQuestionKeys.has(key)
+                                        return (
+                                          <button
+                                            key={page.questionUuid}
+                                            type="button"
+                                            draggable={!disabled}
+                                            disabled={disabled}
+                                            onClick={() => onAdd('coreQuiz', courseUuid, activityUuid, page.questionUuid)}
+                                            onPointerDown={(event) => event.stopPropagation()}
+                                            onDragStart={(event) => onDragStart('coreQuiz', event, courseUuid, activityUuid, page.questionUuid)}
+                                            onDrag={onDragging}
+                                            onDragEnd={onDragEnd}
+                                            className="flex aspect-square flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white p-2 text-center text-gray-800 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                                          >
+                                            <BookOpen className="h-5 w-5 shrink-0" />
+                                            <span className="line-clamp-3 text-xs font-semibold leading-tight">{page.label}</span>
+                                          </button>
+                                        )
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <div className="rounded-md border border-dashed border-gray-200 bg-white p-3 text-center text-xs text-gray-400">
+                                      No quiz pages found.
+                                    </div>
+                                  )}
+                                </div>
                               )
                             })}
                           </div>
@@ -2132,6 +2674,7 @@ function ProfilePageClient({
   mode,
   isSelf = false,
 }: ProfilePageClientProps) {
+  const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
   const coreProgressUrl = accessToken && orgslug
@@ -2162,10 +2705,9 @@ function ProfilePageClient({
     profile: normalizeProfile(initialUser.profile),
   }))
   const [isSaving, setIsSaving] = useState(false)
-  const [uploading, setUploading] = useState<'avatar' | null>(null)
+  const [uploading, setUploading] = useState<'avatar' | `media:${string}` | null>(null)
   const [bioExpanded, setBioExpanded] = useState(false)
   const [socialsExpanded, setSocialsExpanded] = useState(false)
-  const [portfolioEditing, setPortfolioEditing] = useState(false)
   const [addTrayOpen, setAddTrayOpen] = useState(false)
   const [trayDraftItem, setTrayDraftItem] = useState<ProfileLayoutItem | null>(null)
   const [trayDropMode, setTrayDropMode] = useState(false)
@@ -2181,7 +2723,7 @@ function ProfilePageClient({
   const headerProfile = canManageProfile ? draft.profile : profile
   const contentProfile = canManageProfile ? draft.profile : profile
   const header = headerProfile.header || {}
-  const featured = (portfolioEditing ? draft.profile.featured : profile.featured) || normalizeFeatured(null)
+  const featured = (canManageProfile ? draft.profile.featured : profile.featured) || normalizeFeatured(null)
   const achievements = profile.achievements || normalizeAchievements(null)
   const timelineEnabled = profile.timelineEnabled ?? false
   const timelinePublicVisible = profile.timelinePublicVisible !== false
@@ -2204,8 +2746,10 @@ function ProfilePageClient({
     () => new Set(layout.filter((item) => UNIQUE_PROFILE_WIDGETS.includes(item.type)).map((item) => item.type)),
     [layout]
   )
-  const usedCoreQuizActivityUuids = useMemo(
-    () => new Set(layout.filter((item) => item.type === 'coreQuiz' && item.activityUuid).map((item) => item.activityUuid as string)),
+  const usedCoreQuizQuestionKeys = useMemo(
+    () => new Set(layout
+      .filter((item) => item.type === 'coreQuiz' && item.activityUuid && item.questionUuid)
+      .map((item) => `${item.activityUuid}:${item.questionUuid}`)),
     [layout]
   )
   const socials = useMemo(() => header.socials ?? [], [header.socials])
@@ -2385,6 +2929,26 @@ function ProfilePageClient({
     }
   }
 
+  const uploadProfileMedia = async (sectionId: string, file: File) => {
+    if (!accessToken) return null
+
+    setUploading(`media:${sectionId}`)
+    try {
+      const res = await uploadUserProfileFeaturedImage(user.id, file, accessToken)
+      if (!res.success) throw new Error(res.HTTPmessage)
+      const filename = res.data?.filename
+      const userUuid = res.data?.user_uuid || user.user_uuid
+      if (!filename || !userUuid) throw new Error('Missing uploaded media filename')
+      toast.success('Media uploaded')
+      return getUserProfileFeaturedMediaDirectory(userUuid, filename)
+    } catch {
+      toast.error('Could not upload media')
+      return null
+    } finally {
+      setUploading(null)
+    }
+  }
+
   const persistProfile = async ({
     profileOverride,
     bioOverride,
@@ -2470,17 +3034,28 @@ function ProfilePageClient({
     await persistProfile({ bioOverride: draft.bio })
   }
 
-  const cancelPortfolioEdit = () => {
-    setDraft((current) => ({
-      ...current,
-      profile: normalizeProfile(user.profile),
-    }))
-    setPortfolioEditing(false)
-  }
+  const createPortfolioPost = async () => {
+    if ((featured.cards || []).length >= 10) {
+      toast.error('Portfolio is capped at 10 posts')
+      return
+    }
 
-  const savePortfolioEdit = async () => {
-    const saved = await handleSave(getUriWithOrg(orgslug, routePaths.org.profile()))
-    if (saved) setPortfolioEditing(false)
+    const nextCard = createEmptyFeaturedCard()
+    const nextFeatured = {
+      ...normalizeFeatured(featured),
+      enabled: true,
+      cards: [...(featured.cards || []), nextCard],
+    }
+    const nextProfile = {
+      ...draft.profile,
+      featured: nextFeatured,
+    }
+
+    updateDraftProfile(nextProfile)
+    const saved = await persistProfile({ profileOverride: nextProfile })
+    if (saved) {
+      router.push(getUriWithOrg(orgslug, routePaths.org.profilePortfolioPost(nextCard.slug)))
+    }
   }
 
   const commitProfileLayout = (nextProfile: ProfileShape) => {
@@ -2575,11 +3150,11 @@ function ProfilePageClient({
     window.addEventListener('pointerup', handlePointerUp, { once: true })
   }
 
-  const addProfileSection = (type: ProfileWidgetType, courseUuid?: string, activityUuid?: string) => {
-    if (type === 'coreQuiz' && (!courseUuid || !activityUuid || usedCoreQuizActivityUuids.has(activityUuid))) return
+  const addProfileSection = (type: ProfileWidgetType, courseUuid?: string, activityUuid?: string, questionUuid?: string) => {
+    if (type === 'coreQuiz' && (!courseUuid || !activityUuid || !questionUuid || usedCoreQuizQuestionKeys.has(`${activityUuid}:${questionUuid}`))) return
     if (type === 'coreCourse' && !courseUuid) return
     if (PROFILE_WIDGET_CONFIG[type].unique && layout.some((item) => item.type === type)) return
-    const item = createProfileLayoutItem(type, courseUuid, activityUuid)
+    const item = createProfileLayoutItem(type, courseUuid, activityUuid, questionUuid)
     item.grid = clampProfileGridPosition(PROFILE_GRID_DROP_SIZE, type, layout.length, PROFILE_GRID_DESKTOP_COLS)
     item.mobileGrid = clampProfileGridPosition(PROFILE_GRID_DROP_SIZE, type, layout.length, PROFILE_GRID_MOBILE_COLS)
     const section = createProfileSection(item)
@@ -2594,11 +3169,11 @@ function ProfilePageClient({
     setAddTrayOpen(false)
   }
 
-  const startTrayDrag = (type: ProfileWidgetType, event: React.DragEvent<HTMLButtonElement>, courseUuid?: string, activityUuid?: string) => {
-    if (type === 'coreQuiz' && (!courseUuid || !activityUuid || usedCoreQuizActivityUuids.has(activityUuid))) return
+  const startTrayDrag = (type: ProfileWidgetType, event: React.DragEvent<HTMLButtonElement>, courseUuid?: string, activityUuid?: string, questionUuid?: string) => {
+    if (type === 'coreQuiz' && (!courseUuid || !activityUuid || !questionUuid || usedCoreQuizQuestionKeys.has(`${activityUuid}:${questionUuid}`))) return
     if (type === 'coreCourse' && !courseUuid) return
     if (PROFILE_WIDGET_CONFIG[type].unique && layout.some((item) => item.type === type)) return
-    const item = createProfileLayoutItem(type, courseUuid, activityUuid)
+    const item = createProfileLayoutItem(type, courseUuid, activityUuid, questionUuid)
     const itemIndex = (draftProfileRef.current.layout || DEFAULT_PROFILE_LAYOUT).length
     item.grid = clampProfileGridPosition(PROFILE_GRID_DROP_SIZE, type, itemIndex, PROFILE_GRID_DESKTOP_COLS)
     item.mobileGrid = clampProfileGridPosition(PROFILE_GRID_DROP_SIZE, type, itemIndex, PROFILE_GRID_MOBILE_COLS)
@@ -2814,7 +3389,7 @@ function ProfilePageClient({
       return (
         <FeaturedCarousel
           featured={featured}
-          editMode={portfolioEditing}
+          editMode={false}
           grid={grid}
           accessToken={accessToken}
           userId={user.id}
@@ -2824,31 +3399,11 @@ function ProfilePageClient({
           updatedAtFallback={user.update_date}
           profileUsername={profileUsername || user.username}
           ownerView={canManageProfile}
-          publicVisible={isPublicMode || portfolioEditing ? featured.publicVisible : true}
+          publicVisible={isPublicMode ? featured.publicVisible : true}
           actions={canManageProfile ? (
-            <div className="flex items-center gap-2">
-              {portfolioEditing ? (
-                <>
-                  <Button type="button" variant="outline" size="icon" onClick={cancelPortfolioEdit} aria-label="Cancel portfolio edits">
-                    <X className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    size="icon"
-                    onClick={savePortfolioEdit}
-                    disabled={isSaving}
-                    aria-label="Save portfolio edits"
-                    className="bg-emerald-500 text-white hover:bg-emerald-600"
-                  >
-                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                  </Button>
-                </>
-              ) : (
-                <Button type="button" variant="outline" size="icon" onClick={() => setPortfolioEditing(true)} aria-label="Edit portfolio">
-                  <Edit3 className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
+            <Button type="button" variant="outline" size="icon" onClick={createPortfolioPost} disabled={isSaving} aria-label="Add portfolio post">
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            </Button>
           ) : null}
           onChange={updateFeatured}
           onPublicVisibleChange={(visible) => updateFeatured({ ...featured, publicVisible: visible })}
@@ -2915,6 +3470,8 @@ function ProfilePageClient({
         canEdit={canManageProfile}
         onChange={(patch) => updateCustomSection(item.id, patch)}
         onBlur={saveCustomSections}
+        uploadingMedia={uploading === `media:${item.id}`}
+        onUploadMedia={(file) => uploadProfileMedia(item.id, file)}
       />
     ) : <EmptyWidgetPreview type={item.type} />
   }
@@ -3240,7 +3797,7 @@ function ProfilePageClient({
           open={addTrayOpen}
           anchorRef={profileContentRef}
           usedUniqueTypes={usedUniqueTypes}
-          usedCoreQuizActivityUuids={usedCoreQuizActivityUuids}
+          usedCoreQuizQuestionKeys={usedCoreQuizQuestionKeys}
           coreCourses={coreCourses}
           dragging={trayDropMode}
           onToggle={() => setAddTrayOpen((current) => !current)}
