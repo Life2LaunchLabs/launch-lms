@@ -27,7 +27,9 @@ from src.services.courses.courses import (
     get_course_meta,
     get_courses_orgslug,
     get_courses_count_orgslug,
+    get_core_courses,
     get_core_courses_progress,
+    reorder_core_courses,
     update_course,
     update_course_core_background,
     delete_course,
@@ -106,6 +108,17 @@ class ImportRequest(BaseModel):
         return v
 
 
+class CoreCourseReorderRequest(BaseModel):
+    course_uuids: List[str]
+
+    @field_validator('course_uuids')
+    @classmethod
+    def validate_course_uuids(cls, v):
+        if len(v) != len(set(v)):
+            raise ValueError('Course UUIDs must be unique')
+        return v
+
+
 router = APIRouter(dependencies=[Depends(require_courses_feature)])
 
 
@@ -157,6 +170,27 @@ async def api_get_core_courses_progress(
 ):
     return await get_core_courses_progress(
         request, org_slug, current_user, db_session, profile_user_id=profile_user_id
+    )
+
+
+@router.get("/core/list")
+async def api_get_core_courses(
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    return await get_core_courses(current_user, db_session)
+
+
+@router.put("/core/reorder")
+async def api_reorder_core_courses(
+    reorder_request: CoreCourseReorderRequest,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    return await reorder_core_courses(
+        reorder_request.course_uuids,
+        current_user,
+        db_session,
     )
 
 

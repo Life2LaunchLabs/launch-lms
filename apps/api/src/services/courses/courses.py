@@ -186,6 +186,8 @@ def _serialize_course_read(
         "shared": course.shared,
         "guest_access": course.guest_access,
         "published": course.published,
+        "core_course": course.core_course,
+        "core_course_order": course.core_course_order,
         "open_to_contributors": course.open_to_contributors,
         "course_uuid": course.course_uuid,
         "creation_date": course.creation_date,
@@ -196,6 +198,61 @@ def _serialize_course_read(
     if owner_org:
         payload.update(owner_org_payload(owner_org, current_org_id))
     return CourseRead.model_validate(payload)
+
+
+def _core_course_order_clause():
+    return (
+        func.coalesce(Course.core_course_order, 2147483647).asc(),
+        Course.creation_date.asc(),
+        Course.id.asc(),
+    )
+
+
+def _serialize_core_course_item(course: Course, owner_org: Organization) -> dict:
+    return {
+        "id": course.id,
+        "course_uuid": course.course_uuid,
+        "name": course.name,
+        "description": course.description or "",
+        "published": course.published,
+        "thumbnail_image": course.thumbnail_image or "",
+        "thumbnail_type": course.thumbnail_type,
+        "core_course_order": course.core_course_order,
+        **owner_org_payload(owner_org),
+    }
+
+
+async def _ensure_can_manage_core_courses(
+    current_user: PublicUser,
+    db_session: Session,
+    owner_org: Organization,
+) -> None:
+    if is_user_superadmin(current_user.id, db_session):
+        return
+
+    user_org = db_session.exec(
+        select(UserOrganization)
+        .where(UserOrganization.user_id == current_user.id)
+        .where(UserOrganization.org_id == owner_org.id)
+        .where(UserOrganization.role_id.in_(ADMIN_OR_MAINTAINER_ROLE_IDS))
+    ).first()
+    if user_org:
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Only default organization admins can manage CORE courses",
+    )
+
+
+def _next_core_course_order(db_session: Session, owner_org_id: int) -> int:
+    max_order = db_session.exec(
+        select(func.max(Course.core_course_order)).where(
+            Course.org_id == owner_org_id,
+            Course.core_course == True,
+        )
+    ).first()
+    return int(max_order or 0) + 1
 
 
 async def get_course(
@@ -769,7 +826,7 @@ async def get_core_courses_progress(
             Course.core_course == True,
             Course.published == True,
         )
-        .order_by(Course.update_date.desc())
+        .order_by(*_core_course_order_clause())
     ).all()
 
     if not courses:
@@ -975,6 +1032,93 @@ async def get_core_courses_progress(
         })
 
     return result
+
+
+async def get_core_courses(
+    current_user: PublicUser,
+    db_session: Session,
+) -> list[dict]:
+    owner_org = _get_owner_org(db_session)
+    if not owner_org:
+        return []
+
+    await _ensure_can_manage_core_courses(current_user, db_session, owner_org)
+
+    courses = db_session.exec(
+        select(Course)
+        .where(
+            Course.org_id == owner_org.id,
+            Course.core_course == True,
+        )
+        .order_by(*_core_course_order_clause())
+    ).all()
+
+    return [_serialize_core_course_item(course, owner_org) for course in courses]
+
+
+async def reorder_core_courses(
+    course_uuids: list[str],
+    current_user: PublicUser,
+    db_session: Session,
+) -> list[dict]:
+    owner_org = _get_owner_org(db_session)
+    if not owner_org:
+        return []
+
+    await _ensure_can_manage_core_courses(current_user, db_session, owner_org)
+
+    normalized_course_uuids = [
+        course_uuid if course_uuid.startswith("course_") else f"course_{course_uuid}"
+        for course_uuid in course_uuids
+    ]
+    if len(normalized_course_uuids) != len(set(normalized_course_uuids)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="CORE course order contains duplicate courses",
+        )
+
+    core_courses = db_session.exec(
+        select(Course)
+        .where(
+            Course.org_id == owner_org.id,
+            Course.core_course == True,
+        )
+    ).all()
+    courses_by_uuid = {course.course_uuid: course for course in core_courses}
+
+    missing_course_uuids = [
+        course_uuid for course_uuid in normalized_course_uuids
+        if course_uuid not in courses_by_uuid
+    ]
+    if missing_course_uuids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="CORE course order includes courses that are not CORE courses",
+        )
+
+    ordered_course_uuids = normalized_course_uuids + [
+        course.course_uuid
+        for course in sorted(
+            core_courses,
+            key=lambda course: (
+                course.core_course_order if course.core_course_order is not None else 2147483647,
+                course.creation_date,
+                course.id or 0,
+            ),
+        )
+        if course.course_uuid not in normalized_course_uuids
+    ]
+
+    now = str(datetime.now())
+    for index, course_uuid in enumerate(ordered_course_uuids, start=1):
+        course = courses_by_uuid[course_uuid]
+        course.core_course_order = index
+        course.update_date = now
+        db_session.add(course)
+
+    db_session.commit()
+
+    return await get_core_courses(current_user, db_session)
 
 
 async def create_course(
@@ -1319,6 +1463,7 @@ async def update_course(
                 detail=f"You must be the course owner (CREATOR or MAINTAINER) or have admin role to change access settings: {', '.join(sensitive_fields_updated)}",
             )
 
+    core_course_was_enabled = course.core_course
     if course_object.core_course is not None:
         owner_org = _get_owner_org(db_session)
         if not owner_org or course.org_id != owner_org.id:
@@ -1334,6 +1479,10 @@ async def update_course(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Only default organization admins can manage CORE courses",
             )
+        if course_object.core_course and not core_course_was_enabled:
+            course_object.core_course_order = _next_core_course_order(db_session, owner_org.id)
+        if not course_object.core_course:
+            course_object.core_course_order = None
 
     # Update only the fields that were passed in
     for var, value in vars(course_object).items():

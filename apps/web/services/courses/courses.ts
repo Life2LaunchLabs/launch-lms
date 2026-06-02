@@ -105,6 +105,15 @@ export async function updateCourseCoreBackground(course_uuid: any, formData: For
   return res
 }
 
+export async function updateCoreCourseOrder(course_uuids: string[], access_token:any) {
+  const result: any = await fetch(
+    `${getAPIUrl()}courses/core/reorder`,
+    RequestBodyWithAuthHeader('PUT', { course_uuids }, null, access_token)
+  )
+  const res = await errorHandling(result)
+  return res
+}
+
 export async function createNewCourse(
   org_id: string,
   course_body: any,
