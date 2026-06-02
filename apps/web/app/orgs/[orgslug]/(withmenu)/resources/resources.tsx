@@ -863,13 +863,13 @@ export default function ResourcesClient({
         </div>
       </div>
 
-      {/* Resources grid */}
-      <div className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-1">
+      {/* Resources list */}
+      <div className="mt-4 flex flex-col gap-3">
         {resources.map((resource) => (
           <ResourceCard key={resource.resource_uuid} resource={resource} orgslug={orgslug} orgUUID={orgUUID} />
         ))}
         {resources.length === 0 && (
-          <div className="col-span-full rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-10 text-center text-gray-500">
+          <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-10 text-center text-gray-500">
             No resources match this view yet.
           </div>
         )}
