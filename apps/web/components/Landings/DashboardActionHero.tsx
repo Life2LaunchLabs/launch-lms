@@ -1,15 +1,22 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import useSWR from 'swr'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { getUriWithOrg } from '@services/config/config'
+import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
+import { getCourseThumbnailMediaDirectory } from '@services/media/media'
+import { swrFetcher } from '@services/utils/ts/requests'
 
 type ActionCard = {
   id: string
   url: string
   title: string
   subtext: string
+  progress?: number
+  nextActivityName?: string
+  ctaLabel?: string
   imageUrl?: string
 }
 
@@ -18,27 +25,83 @@ type DashboardActionHeroProps = {
   orgslug: string
 }
 
-const placeholderCards: ActionCard[] = [
+function cleanCourseUuid(courseUuid?: string | null) {
+  return String(courseUuid || '').replace('course_', '')
+}
+
+function cleanActivityUuid(activityUuid?: string | null) {
+  return String(activityUuid || '').replace('activity_', '')
+}
+
+function getCourseThumbnailUrl(course: any) {
+  const orgUuid = course?.owner_org_uuid || course?.org_uuid
+  if (!orgUuid || !course?.course_uuid || !course?.thumbnail_image) return null
+  return getCourseThumbnailMediaDirectory(orgUuid, course.course_uuid, course.thumbnail_image)
+}
+
+function getFirstIncompleteCoreCourse(coreCourses: any[]) {
+  return coreCourses.find((item: any) => {
+    const totalActivities = Number(item?.total_activities || 0)
+    const completedActivities = Number(item?.completed_activities || 0)
+    return totalActivities > 0 && completedActivities < totalActivities
+  }) || null
+}
+
+function getNextCoreActivity(item: any) {
+  for (const chapter of item?.chapters || []) {
+    if (chapter?.next_activity?.activity_uuid) return chapter.next_activity
+  }
+  return null
+}
+
+function getCoreCourseActionCard(item: any): ActionCard {
+  const course = item?.course || {}
+  const cleanCourse = cleanCourseUuid(course?.course_uuid)
+  const nextActivity = getNextCoreActivity(item)
+  const cleanActivity = cleanActivityUuid(nextActivity?.activity_uuid)
+  const url = cleanCourse && cleanActivity
+    ? routePaths.org.courseActivity(cleanCourse, cleanActivity)
+    : cleanCourse
+      ? routePaths.org.course(cleanCourse)
+      : routePaths.org.courses()
+  const courseName = course?.name || 'your next CORE course'
+
+  return {
+    id: `continue-core-${cleanCourse || 'course'}`,
+    url,
+    title: `Continue ${courseName}`,
+    subtext: '',
+    progress: Number(item?.progress || 0),
+    nextActivityName: nextActivity?.name,
+    ctaLabel: 'Continue',
+    imageUrl: getCourseThumbnailUrl(course) || '/welcome_cards.png',
+  }
+}
+
+const fallbackCoreCard: ActionCard = {
+  id: 'explore-core-courses',
+  url: routePaths.org.courses(),
+  title: 'Explore CORE courses',
+  subtext: 'Start with the CORE courses below and build your foundation.',
+  ctaLabel: 'Explore',
+  imageUrl: '/welcome_cards.png',
+}
+
+const staticActionCards: ActionCard[] = [
   {
-    id: 'continue-learning',
-    url: '/courses',
-    title: 'Continue learning',
-    subtext: 'Jump back into your courses and keep your momentum going.',
-    imageUrl: '/welcome_cards.png',
-  },
-  {
-    id: 'browse-collections',
-    url: '/collections',
-    title: 'Browse collections',
-    subtext: 'Explore curated paths and find something useful for today.',
-    imageUrl: '/quickstart_final_background.png',
-  },
-  {
-    id: 'complete-profile',
-    url: '/profile',
-    title: 'Complete your profile',
-    subtext: 'Add a few details so your workspace feels more like yours.',
+    id: 'develop-profile',
+    url: routePaths.org.profileEdit(),
+    title: 'Develop your profile',
+    subtext: 'Add your story, strengths, and goals so your progress has a place to land.',
+    ctaLabel: 'Build profile',
     imageUrl: '/empty_avatar.png',
+  },
+  {
+    id: 'explore-resources',
+    url: routePaths.org.resources(),
+    title: 'Explore resources',
+    subtext: 'Find guides, tools, and references that can help with what you are working on now.',
+    ctaLabel: 'Browse',
   },
 ]
 
@@ -68,13 +131,29 @@ function ActionDisplayCard({
       </h3>
       <div className="mt-3 flex flex-1 items-stretch gap-4">
         <div className="flex flex-1 flex-col">
-          <p className="text-base leading-6 text-gray-500">{card.subtext}</p>
+          {typeof card.progress === 'number' ? (
+            <div>
+              <div className="mt-1 h-2 overflow-hidden rounded-full bg-gray-200">
+                <div
+                  className="h-full rounded-full bg-gray-950 transition-all"
+                  style={{ width: `${Math.max(0, Math.min(100, card.progress))}%` }}
+                />
+              </div>
+              {card.nextActivityName ? (
+                <p className="mt-3 text-base font-semibold leading-6 text-gray-600">
+                  Next up: {card.nextActivityName}
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-base leading-6 text-gray-500">{card.subtext}</p>
+          )}
           <div className="mt-auto">
             <Link
               href={href}
               className="inline-flex items-center rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
             >
-              Let&apos;s go!
+              {card.ctaLabel || 'Let&apos;s go!'}
             </Link>
           </div>
         </div>
@@ -100,6 +179,7 @@ export function LayeredCardCarousel<T extends { id: string }>({
   nextButtonClassName = 'translate-x-[250px]',
 }: {
   cards: T[]
+  // eslint-disable-next-line no-unused-vars
   renderCard: (card: T, elevation: number) => React.ReactNode
   ariaLabel?: string
   className?: string
@@ -277,6 +357,24 @@ export default function DashboardActionHero({
   displayName,
   orgslug,
 }: DashboardActionHeroProps) {
+  const session = useLHSession() as any
+  const accessToken = session?.data?.tokens?.access_token
+  const { data: coreProgressData } = useSWR(
+    accessToken && orgslug
+      ? `${getAPIUrl()}courses/core/progress?org_slug=${encodeURIComponent(orgslug)}`
+      : null,
+    (url) => swrFetcher(url, accessToken),
+    { revalidateOnFocus: false }
+  )
+  const actionCards = useMemo(() => {
+    const coreCourses = Array.isArray(coreProgressData) ? coreProgressData : []
+    const nextCoreCourse = getFirstIncompleteCoreCourse(coreCourses)
+    return [
+      nextCoreCourse ? getCoreCourseActionCard(nextCoreCourse) : fallbackCoreCard,
+      ...staticActionCards,
+    ]
+  }, [coreProgressData])
+
   return (
     <section className="relative w-full px-0 pt-0 md:px-6 md:pt-6 lg:px-8">
       <div className="mx-auto w-full max-w-(--breakpoint-2xl)">
@@ -302,7 +400,7 @@ export default function DashboardActionHero({
                 <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/70">
                   What&apos;s next?
                 </p>
-                <ActionCarousel cards={placeholderCards} orgslug={orgslug} />
+                <ActionCarousel cards={actionCards} orgslug={orgslug} />
               </div>
             </div>
           </div>
