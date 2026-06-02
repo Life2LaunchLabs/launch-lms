@@ -4,6 +4,7 @@
 @plugin 'tailwindcss-animate';
 
 @import 'tailwindcss';
+@import 'react-grid-layout/css/styles.css';
 
 
 @custom-variant dark (&:is(.dark *));
@@ -181,6 +182,13 @@
 
   .light-shadow {
     @apply shadow-lg shadow-gray-300/15 outline outline-1 outline-neutral-200/30;
+  }
+
+  .profile-grid-layout .react-grid-placeholder {
+    background: rgb(229 231 235 / 0.85) !important;
+    border: 1px solid rgb(209 213 219 / 0.95) !important;
+    border-radius: 0.75rem !important;
+    opacity: 1 !important;
   }
 
   /* Hide scrollbar while maintaining scroll functionality */

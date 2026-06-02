@@ -216,7 +216,7 @@ async function getInstagramApiPreviews(handle: string): Promise<SocialPreviewIte
     const node = edge?.node || {}
     const shortcode = String(node.shortcode || '')
     const caption = node.edge_media_to_caption?.edges?.[0]?.node?.text || ''
-    const thumbnailUrl = node.thumbnail_src || node.display_url || node.thumbnail_resources?.at(-1)?.src || ''
+    const thumbnailUrl = node.display_url || node.thumbnail_src || node.thumbnail_resources?.at(-1)?.src || ''
 
     return {
       id: String(node.id || shortcode || `${handle}-${index}`),

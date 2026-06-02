@@ -50,6 +50,7 @@ export type FeaturedSection = {
 type FeaturedCarouselProps = {
   featured: FeaturedSection
   editMode: boolean
+  grid?: { w: number; h: number }
   accessToken?: string
   userId: number
   userUuid: string
@@ -378,16 +379,20 @@ function FeaturedDisplayCard({
   href,
   authorName,
   updatedAtFallback,
+  fill = false,
 }: {
   card: FeaturedCard
   href: string
   authorName: string
   updatedAtFallback?: string
+  fill?: boolean
 }) {
   return (
     <Link
       href={href}
-      className="group block h-full w-[min(82vw,340px)] rounded-lg p-2 transition-all duration-200 hover:-translate-y-1 hover:bg-gray-50 hover:shadow-md sm:w-[320px]"
+      className={`group block h-full min-w-0 rounded-lg p-2 transition-all duration-200 hover:-translate-y-1 hover:bg-gray-50 hover:shadow-md ${
+        fill ? 'w-full' : 'w-56 min-[420px]:w-[min(70vw,300px)] sm:w-[320px]'
+      }`}
     >
       <PortfolioPreviewImage card={card} />
       <div className="px-1 pt-4">
@@ -412,6 +417,7 @@ function FeaturedDisplayCard({
 export function FeaturedCarousel({
   featured,
   editMode,
+  grid,
   accessToken,
   userId,
   userUuid,
@@ -611,11 +617,33 @@ export function FeaturedCarousel({
       ? routePaths.org.profilePortfolioPost(card.slug)
       : routePaths.org.userPortfolioPost(profileUsername || '', card.slug)
   )
+  const isCompact = grid?.h === 1
+  const isNarrow = grid?.w === 1
+  const compactHref = cards[0] ? getPostHref(cards[0]) : getUriWithOrg(orgslug, ownerView ? routePaths.org.profile() : routePaths.org.user(profileUsername || ''))
+
+  if (isCompact) {
+    return (
+      <section className="flex h-full min-w-0 min-h-0 items-center justify-between gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div className="min-w-0">
+          <h2 className="truncate text-base font-semibold text-gray-950">Portfolio</h2>
+          <p className="mt-1 truncate text-sm font-medium text-gray-500">
+            {cards.length} {cards.length === 1 ? 'post' : 'posts'}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {actions}
+          <Button asChild size="sm" className="bg-gray-950 text-white hover:bg-gray-800">
+            <Link href={compactHref}>Open</Link>
+          </Button>
+        </div>
+      </section>
+    )
+  }
 
   return (
-    <section className="mt-4 px-4 sm:px-0">
+    <section className="flex h-full min-w-0 min-h-0 flex-col rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-4">
-        <h2 className="text-2xl font-semibold text-gray-950">Portfolio</h2>
+        <h2 className={`${isNarrow ? 'text-xl' : 'text-2xl'} min-w-0 truncate font-semibold text-gray-950`}>Portfolio</h2>
         <div className="flex items-start gap-3">
           {editMode ? (
             <div className="flex flex-col items-end gap-2">
@@ -633,7 +661,7 @@ export function FeaturedCarousel({
         </div>
       </div>
 
-      <div className={`origin-top transition-all duration-300 ${enabled ? 'scale-100 opacity-100' : 'max-h-0 scale-95 overflow-hidden opacity-0'}`}>
+      <div className={`min-h-0 flex-1 origin-top transition-all duration-300 ${enabled ? 'scale-100 opacity-100' : 'max-h-0 scale-95 overflow-hidden opacity-0'}`}>
         {editMode ? (
           <div className="space-y-4">
             <div className="flex min-h-[290px] items-center justify-center">
@@ -809,26 +837,73 @@ export function FeaturedCarousel({
             </div>
           </div>
         ) : (
-          <div className="relative flex flex-col items-center overflow-visible py-2">
-            <div
-              ref={mobileScrollerRef}
-              onScroll={handleMobileScroll}
-              className="scrollbar-hide -mx-4 flex w-screen snap-x snap-mandatory gap-4 overflow-x-auto px-[9vw] pb-4 sm:mx-0 sm:w-full sm:px-14 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            >
-              {cards.map((card) => (
-                <div key={`mobile-${card.id}`} className="snap-center">
+          <div className="relative flex h-full min-h-0 flex-col items-center overflow-visible py-2">
+            {isNarrow && activeCard ? (
+              <div className="flex h-full min-h-0 w-full flex-col">
+                <div className="relative min-h-0 flex-1">
                   <FeaturedDisplayCard
-                    card={card}
-                    href={getPostHref(card)}
+                    card={activeCard}
+                    href={getPostHref(activeCard)}
                     authorName={authorName}
                     updatedAtFallback={updatedAtFallback}
+                    fill
                   />
+                  {cards.length > 1 ? (
+                    <>
+                      <button
+                        type="button"
+                        aria-label="Previous portfolio post"
+                        onClick={() => setActiveIndex((current) => (current - 1 + cards.length) % cards.length)}
+                        className="absolute left-2 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-white"
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Next portfolio post"
+                        onClick={() => setActiveIndex((current) => (current + 1) % cards.length)}
+                        className="absolute right-2 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-white"
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                      </button>
+                    </>
+                  ) : null}
                 </div>
-              ))}
-            </div>
+                {cards.length > 1 ? (
+                  <div className="mt-3 flex items-center justify-center gap-1.5">
+                    {cards.map((card, index) => (
+                      <button
+                        key={card.id}
+                        type="button"
+                        aria-label={`Show portfolio post ${index + 1}`}
+                        onClick={() => moveTo(index)}
+                        className={`h-2 rounded-full transition-all ${index === activeIndex ? 'w-5 bg-gray-950' : 'w-2 bg-gray-300 hover:bg-gray-400'}`}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div
+                ref={mobileScrollerRef}
+                onScroll={handleMobileScroll}
+                className="scrollbar-hide flex h-full min-h-0 w-full snap-x snap-mandatory gap-4 overflow-x-auto pb-4 sm:px-10 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              >
+                {cards.map((card) => (
+                  <div key={`mobile-${card.id}`} className="snap-center">
+                    <FeaturedDisplayCard
+                      card={card}
+                      href={getPostHref(card)}
+                      authorName={authorName}
+                      updatedAtFallback={updatedAtFallback}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
             {cards.length > 1 ? (
               <>
-                {canScrollBack ? (
+                {!isNarrow && canScrollBack ? (
                   <button
                     type="button"
                     aria-label="Previous portfolio post"
@@ -838,7 +913,7 @@ export function FeaturedCarousel({
                     <ChevronLeft className="h-5 w-5" />
                   </button>
                 ) : null}
-                {canScrollForward ? (
+                {!isNarrow && canScrollForward ? (
                   <button
                     type="button"
                     aria-label="Next portfolio post"
@@ -850,7 +925,7 @@ export function FeaturedCarousel({
                 ) : null}
               </>
             ) : null}
-            {cards.length > 1 ? (
+            {!isNarrow && cards.length > 1 ? (
               <div className="mt-3 flex items-center justify-center gap-2 sm:hidden">
                 {cards.map((card, index) => (
                   <button

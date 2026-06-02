@@ -16,6 +16,7 @@ type CoreCourseProgressSectionProps = {
   variant?: 'dashboard' | 'profile'
   className?: string
   courseUuid?: string
+  grid?: { w: number; h: number }
 }
 
 function cleanCourseUuid(courseUuid?: string) {
@@ -69,8 +70,9 @@ function scrollToCourseSection(courseUuid?: string) {
   })
 }
 
-function CourseDomainNav({ items, isLoading }: { items: any[]; isLoading: boolean }) {
+function CourseDomainNav({ items, isLoading, compact = false }: { items: any[]; isLoading: boolean; compact?: boolean }) {
   if (!isLoading && items.length === 0) return null
+  if (compact) return null
 
   return (
     <div className="mb-5">
@@ -356,16 +358,24 @@ function CourseDomainSection({
   item,
   orgslug,
   backgroundUrl,
+  profileGrid,
 }: {
   course: any
   item: any
   orgslug: string
   backgroundUrl: string | null
+  profileGrid?: { w: number; h: number }
 }) {
   const sectionRef = useRef<HTMLElement>(null)
   const [bgH, setBgH] = useState(0)
+  const isProfileGrid = Boolean(profileGrid)
+  const isCompact = profileGrid?.h === 1
+  const isNarrow = profileGrid?.w === 1
+  const courseHref = getUriWithOrg(orgslug, `/course/${cleanCourseUuid(course.course_uuid)}`)
+  const description = getCourseDescription(course)
 
   useEffect(() => {
+    if (isProfileGrid) return
     const section = sectionRef.current
     if (!section) return
     const update = () => {
@@ -379,7 +389,91 @@ function CourseDomainSection({
       ro.disconnect()
       window.removeEventListener('resize', update)
     }
-  }, [])
+  }, [isProfileGrid])
+
+  if (isCompact) {
+    return (
+      <section className="flex h-full min-w-0 items-center justify-between gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div className="min-w-0">
+          <h2 className="truncate text-base font-semibold text-gray-950">{course.name || 'CORE course'}</h2>
+          <p className="mt-1 truncate text-sm font-medium text-gray-500">
+            {item.completed_activities || 0}/{item.total_activities || 0} complete
+          </p>
+        </div>
+        <Link
+          href={courseHref}
+          className="inline-flex h-9 shrink-0 items-center rounded-full bg-gray-950 px-3 text-sm font-semibold text-white hover:bg-gray-800"
+        >
+          Open
+        </Link>
+      </section>
+    )
+  }
+
+  if (isProfileGrid) {
+    return (
+      <section className="flex h-full min-w-0 min-h-0 flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+        <div className={`${isNarrow ? 'p-4' : 'p-5'} border-b border-gray-100`}>
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-900">
+              <BookOpen className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className={`${isNarrow ? 'text-lg' : 'text-xl'} truncate font-bold text-gray-950`}>
+                {course.name || 'CORE course'}
+              </h2>
+              {description && !isNarrow ? (
+                <p className="mt-1 line-clamp-2 text-sm leading-5 text-gray-600">{description}</p>
+              ) : null}
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100">
+                <div
+                  className="h-full rounded-full bg-emerald-600"
+                  style={{ width: `${Math.max(0, Math.min(100, item.progress || 0))}%` }}
+                />
+              </div>
+            </div>
+            <Link
+              href={courseHref}
+              className="inline-flex h-9 shrink-0 items-center rounded-full bg-gray-950 px-3 text-sm font-semibold text-white hover:bg-gray-800"
+            >
+              {isNarrow ? 'Open' : 'Explore'}
+            </Link>
+          </div>
+        </div>
+        <div className={`${isNarrow ? 'grid gap-3 overflow-y-auto p-4' : 'flex gap-3 overflow-x-auto p-4'} min-h-0 flex-1`}>
+          {(item.chapters || []).flatMap((chapter: any) =>
+            (chapter.quiz_activities || []).map((quiz: any) => {
+              const ActivityIcon = getChannelIcon(quiz.icon || defaultChapterIconName)
+              const result = getResultForQuiz(chapter, quiz)
+              const quizHref = getActivityHref(orgslug, course.course_uuid, quiz.activity_uuid)
+              return (
+                <Link
+                  key={quiz.activity_uuid || quiz.id}
+                  href={quizHref}
+                  className={`${isNarrow ? 'w-full' : 'w-56 min-w-56'} rounded-lg border border-gray-100 bg-gray-50 p-3 text-left hover:bg-gray-100`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-gray-800 shadow-xs">
+                      <ActivityIcon className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-gray-950">{quiz.name || 'Untitled quiz'}</p>
+                      <p className="mt-0.5 text-xs font-medium text-gray-500">{result ? 'Completed' : 'Not completed'}</p>
+                    </div>
+                  </div>
+                </Link>
+              )
+            })
+          )}
+          {!hasQuizCards(item) ? (
+            <div className="flex h-full min-h-24 flex-1 items-center rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
+              No quiz response cards yet
+            </div>
+          ) : null}
+        </div>
+      </section>
+    )
+  }
 
   const bgHeight = bgH > 0 ? `${bgH}px` : '100vh'
   const negMargin = bgH > 0 ? `-${bgH}px` : '-100vh'
@@ -422,6 +516,7 @@ export default function CoreCoursesProgressSection({
   variant = 'dashboard',
   className = '',
   courseUuid,
+  grid,
 }: CoreCourseProgressSectionProps) {
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
@@ -443,13 +538,13 @@ export default function CoreCoursesProgressSection({
   const isProfile = variant === 'profile'
 
   return (
-    <section className={`${isProfile ? 'px-4 py-6 sm:px-0' : 'flex flex-col space-y-2 mb-6'} ${className}`}>
-      <CourseDomainNav items={coreCourses} isLoading={isLoading} />
+    <section className={`${isProfile ? 'h-full min-w-0 min-h-0' : 'flex flex-col space-y-2 mb-6'} ${className}`}>
+      <CourseDomainNav items={coreCourses} isLoading={isLoading} compact={isProfile} />
 
-      <div className="grid gap-0">
+      <div className={`${isProfile ? 'h-full min-h-0' : 'grid gap-0'}`}>
         {isLoading ? (
           (courseUuid ? [1] : [1, 2]).map((item) => (
-            <div key={item} className="rounded-xl border border-gray-100 bg-white p-5 nice-shadow">
+            <div key={item} className="h-full rounded-xl border border-gray-100 bg-white p-5 nice-shadow">
               <div className="mb-4 h-4 w-1/2 animate-pulse rounded-full bg-gray-100" />
               <div className="mb-5 h-2 w-full animate-pulse rounded-full bg-gray-100" />
               <div className="grid gap-2">
@@ -468,6 +563,7 @@ export default function CoreCoursesProgressSection({
               item={item}
               orgslug={orgslug}
               backgroundUrl={backgroundUrl}
+              profileGrid={isProfile ? grid : undefined}
             />
           )
         })}

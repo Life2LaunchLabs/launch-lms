@@ -117,6 +117,7 @@ type ProfileAchievementsSectionProps = {
   achievements: AchievementsSection
   orgslug: string
   profileUsername?: string
+  grid?: { w: number; h: number }
   editMode?: boolean
   canEdit?: boolean
   publicVisible?: boolean
@@ -428,11 +429,13 @@ function AchievementCard({
   overlayActions,
   footerAction,
   widthClass = '',
+  compact = false,
 }: {
   item: DisplayAchievement
   overlayActions?: React.ReactNode
   footerAction?: React.ReactNode
   widthClass?: string
+  compact?: boolean
 }) {
   return (
     <div className={`group ${widthClass}`}>
@@ -446,15 +449,15 @@ function AchievementCard({
           ) : null}
         </div>
       </Link>
-      <div className="mt-2.5 flex items-start justify-between gap-3">
+      <div className={`${compact ? 'mt-2' : 'mt-2.5'} flex items-start justify-between gap-3`}>
         <Link href={item.href} className="min-w-0 flex-1">
-          <h3 className="line-clamp-2 text-sm font-semibold leading-5 text-gray-950 transition-colors group-hover:text-black">
+          <h3 className={`line-clamp-2 font-semibold text-gray-950 transition-colors group-hover:text-black ${compact ? 'text-xs leading-4' : 'text-sm leading-5'}`}>
             {item.title || 'Untitled achievement'}
           </h3>
-          <p className="mt-0.5 line-clamp-1 text-sm text-gray-500">
+          <p className={`mt-0.5 line-clamp-1 text-gray-500 ${compact ? 'text-xs' : 'text-sm'}`}>
             {item.organization || 'Organization'}
           </p>
-          {item.receivedDate ? (
+          {item.receivedDate && !compact ? (
             <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500">
               <Calendar className="h-3.5 w-3.5" />
               <span>{formatDisplayDate(item.receivedDate)}</span>
@@ -785,6 +788,7 @@ export function ProfileAchievementsSection({
   achievements,
   orgslug,
   profileUsername,
+  grid,
   editMode = false,
   canEdit = true,
   publicVisible = true,
@@ -802,11 +806,15 @@ export function ProfileAchievementsSection({
   if (!editMode && (!achievements.enabled || !publicVisible)) return null
   if (!editMode && achievements.enabled && featuredItems.length === 0) return null
 
+  const isCompact = grid?.h === 1
+  const isNarrow = grid?.w === 1
+  const sectionHref = routes.achievementsHref
+
   return (
-    <section className="mt-6 px-4 sm:px-0">
-      <div className="mb-3 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-semibold text-gray-950">Achievements</h2>
+    <section className="flex h-full min-w-0 min-h-0 flex-col rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+      <div className={`${isCompact ? 'h-full' : 'mb-3'} flex items-center justify-between gap-4`}>
+        <div className="flex min-w-0 items-center gap-3">
+          <h2 className={`${isCompact ? 'text-base' : isNarrow ? 'text-xl' : 'text-2xl'} min-w-0 truncate font-semibold text-gray-950`}>Achievements</h2>
           {editMode && canEdit && achievements.enabled ? (
             <Button asChild variant="outline" size="sm">
               <Link href={routes.achievementsHref}>Edit</Link>
@@ -814,7 +822,16 @@ export function ProfileAchievementsSection({
           ) : null}
         </div>
 
-        {editMode && canEdit ? (
+        {isCompact ? (
+          <div className="ml-auto flex shrink-0 items-center gap-3">
+            <span className="hidden text-sm font-semibold text-gray-500 sm:inline">
+              {featuredItems.length} featured
+            </span>
+            <Button asChild size="sm" className="bg-gray-950 text-white hover:bg-gray-800">
+              <Link href={sectionHref}>Open</Link>
+            </Button>
+          </div>
+        ) : editMode && canEdit ? (
           <div className="flex flex-col items-end gap-2">
             <label className="flex items-center gap-3">
               <span className="text-sm text-gray-500">{achievements.enabled ? 'On your profile' : 'Hidden from profile'}</span>
@@ -837,17 +854,22 @@ export function ProfileAchievementsSection({
         ) : (
           <Button variant="ghost" className="px-0 text-sm font-medium text-gray-500 hover:bg-transparent hover:text-gray-950" asChild>
             <Link href={routes.achievementsHref}>
-              See all
+              {isCompact ? 'Open' : 'See all'}
             </Link>
           </Button>
         )}
       </div>
 
-      {achievements.enabled ? (
+      {!isCompact && achievements.enabled ? (
         featuredItems.length > 0 ? (
-          <div className="flex gap-4 overflow-x-auto pb-2">
+          <div className={`${isNarrow ? 'grid grid-cols-2 gap-3 overflow-y-auto pr-1' : 'flex gap-4 overflow-x-auto pb-2'} min-h-0 flex-1`}>
             {featuredItems.map((item) => (
-              <AchievementCard key={`${item.kind}-${item.id}`} item={item} widthClass="w-[176px] min-w-[176px]" />
+              <AchievementCard
+                key={`${item.kind}-${item.id}`}
+                item={item}
+                compact={isNarrow}
+                widthClass={isNarrow ? '' : 'w-[176px] min-w-[176px]'}
+              />
             ))}
           </div>
         ) : (
