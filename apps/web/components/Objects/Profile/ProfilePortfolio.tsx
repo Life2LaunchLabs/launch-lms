@@ -392,7 +392,7 @@ function FeaturedDisplayCard({
         ) : null}
       </div>
       <div className="flex min-h-0 flex-1 flex-col p-4">
-        <h3 className="line-clamp-2 break-words text-lg font-semibold leading-snug text-gray-950">
+        <h3 className="truncate text-lg font-semibold leading-snug text-gray-950">
           {card.title || 'Untitled post'}
         </h3>
         <div className="mt-2 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium uppercase tracking-wide text-gray-500">

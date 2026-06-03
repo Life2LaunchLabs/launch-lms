@@ -489,6 +489,22 @@ function AchievementCard({
   )
 }
 
+function AchievementListRow({ item }: { item: DisplayAchievement }) {
+  return (
+    <Link
+      href={item.href}
+      className="flex min-w-0 items-center gap-3 border-b border-gray-100 py-2.5 last:border-b-0"
+    >
+      <div className="h-9 w-9 shrink-0">
+        <AchievementSquare imageUrl={item.imageUrl} customType={item.customType} title={item.title} />
+      </div>
+      <p className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-950">
+        {item.title || 'Untitled achievement'}
+      </p>
+    </Link>
+  )
+}
+
 function useCredentialAchievements(orgslug: string) {
   const session = useLHSession() as any
   const org = useOrg() as any
@@ -833,7 +849,9 @@ export function ProfileAchievementsSection({
     <section className="flex h-full min-w-0 min-h-0 flex-col rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
       <div className={`${isCompact ? 'h-full' : 'mb-3'} flex items-center justify-between gap-4`}>
         <div className="flex min-w-0 items-center gap-3">
-          <h2 className={`${isCompact ? 'text-base' : isNarrow ? 'text-xl' : 'text-2xl'} min-w-0 truncate font-semibold text-gray-950`}>Achievements</h2>
+          <h2 className={`${isCompact ? 'text-base' : isNarrow ? 'text-base uppercase text-blue-900' : 'text-2xl'} min-w-0 truncate font-semibold ${isNarrow ? '' : 'text-gray-950'}`}>
+            {isNarrow ? 'Skills & Credentials' : 'Achievements'}
+          </h2>
           {editMode && canEdit && achievements.enabled ? (
             <Button asChild variant="outline" size="sm">
               <Link href={routes.achievementsHref}>Edit</Link>
@@ -881,16 +899,26 @@ export function ProfileAchievementsSection({
 
       {!isCompact && achievements.enabled ? (
         featuredItems.length > 0 ? (
-          <div className={`${isNarrow ? 'grid grid-cols-2 gap-3 overflow-y-auto pr-1' : 'flex gap-4 overflow-x-auto pb-2'} min-h-0 flex-1`}>
-            {featuredItems.map((item) => (
-              <AchievementCard
-                key={`${item.kind}-${item.id}`}
-                item={item}
-                compact={isNarrow}
-                widthClass={isNarrow ? '' : 'w-[176px] min-w-[176px]'}
-              />
-            ))}
-          </div>
+          isNarrow ? (
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+              {featuredItems.map((item) => (
+                <AchievementListRow
+                  key={`${item.kind}-${item.id}`}
+                  item={item}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto pb-2">
+              {featuredItems.map((item) => (
+                <AchievementCard
+                  key={`${item.kind}-${item.id}`}
+                  item={item}
+                  widthClass="w-[176px] min-w-[176px]"
+                />
+              ))}
+            </div>
+          )
         ) : (
           <EmptyState
             title="No featured achievements yet"

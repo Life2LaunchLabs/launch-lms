@@ -205,8 +205,8 @@ const PROFILE_GRID_DESKTOP_COLS = 3
 const PROFILE_GRID_MOBILE_COLS = 2
 const PROFILE_GRID_MOBILE_MAX_WIDTH = 720
 const PROFILE_GRID_MARGIN: readonly [number, number] = [16, 16]
-const PROFILE_GRID_DESKTOP_ROW_HEIGHT = 164
-const PROFILE_GRID_MOBILE_ROW_HEIGHT = 164
+const PROFILE_GRID_DESKTOP_ROW_HEIGHT = 131
+const PROFILE_GRID_MOBILE_ROW_HEIGHT = 131
 const PROFILE_GRID_DROP_SIZE: Pick<ProfileGridPosition, 'w' | 'h'> = { w: 1, h: 1 }
 
 const PROFILE_WIDGET_CONFIG: Record<ProfileWidgetType, {
@@ -1692,7 +1692,6 @@ function ProfileCoreQuizWidget({
   const { course, quiz, result } = quizItem
   if (!canManage && !result) return null
 
-  const ActivityIcon = getChannelIcon(quiz.icon || defaultChapterIconName)
   const quizHref = getActivityHref(orgslug, course.course_uuid, quiz.activity_uuid)
   const pageLabel = getQuizPageLabel(quizItem, item.questionUuid)
   const isCompact = grid.h === 1
@@ -1701,16 +1700,8 @@ function ProfileCoreQuizWidget({
   if (isCompact) {
     return (
       <section className="flex h-full min-w-0 items-center justify-between gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-900">
-            <ActivityIcon className="h-4 w-4" />
-          </div>
-          <div className="min-w-0">
-            <h3 className="truncate text-base font-semibold text-gray-950">{pageLabel}</h3>
-            <p className="mt-1 truncate text-sm font-medium text-gray-500">
-              {result ? quiz.name || 'Result available' : 'Result locked'}
-            </p>
-          </div>
+        <div className="min-w-0">
+          <h3 className="truncate text-base font-semibold text-gray-950">{pageLabel}</h3>
         </div>
         <Link
           href={quizHref}
@@ -1726,24 +1717,16 @@ function ProfileCoreQuizWidget({
     <section className="flex h-full min-w-0 min-h-0 flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
       <div className={`${isNarrow ? 'p-2' : 'p-2.5'} border-b border-gray-100`}>
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-900">
-            <ActivityIcon className="h-5 w-5" />
-          </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <h3 className={`${isNarrow ? 'text-base' : 'text-lg'} truncate font-bold text-gray-950`}>{pageLabel}</h3>
-                {!isNarrow && (item.questionUuid || quiz.description) ? (
-                  <p className="mt-1 line-clamp-2 text-sm leading-5 text-gray-600">
-                    {item.questionUuid ? quiz.name || 'Quiz result' : quiz.description}
-                  </p>
-                ) : null}
               </div>
               <Link
                 href={quizHref}
                 className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
               >
-                {isNarrow ? 'Open' : 'Get started'}
+                Open
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
@@ -1790,6 +1773,7 @@ function ProfileCoreQuizWidget({
               selectedQuestionUuid={item.questionUuid}
               onToggleQuestionHidden={canManage ? onToggleQuestionHidden : undefined}
               publicMode={publicMode}
+              profileGrid={{ w: grid.w, h: grid.h }}
             />
           </div>
         ) : (

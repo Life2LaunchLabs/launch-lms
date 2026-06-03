@@ -38,6 +38,7 @@ interface Props {
   isSavingUngradedTabLabel?: boolean
   publicMode?: boolean
   selectedQuestionUuid?: string
+  profileGrid?: { w: number; h: number }
 }
 
 function findQuestionNode(nodes: any[] = [], questionUuid: string): any | null {
@@ -98,7 +99,15 @@ function TextResponseQuote({ response, sectionedContent }: { response: string; s
   )
 }
 
-function UngradedResponseCard({ children }: { children: React.ReactNode }) {
+function UngradedResponseCard({ children, embedded = false }: { children: React.ReactNode; embedded?: boolean }) {
+  if (embedded) {
+    return (
+      <section className="h-full min-h-0 w-full">
+        {children}
+      </section>
+    )
+  }
+
   return (
     <section className="w-full min-h-[210px] rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm sm:p-5">
       {children}
@@ -159,13 +168,25 @@ function SliderIndicator({ value, directionMode }: { value: number; directionMod
   )
 }
 
-function RatingResponseCard({ question, answer, node }: { question: string; answer: any; node: any }) {
+function RatingResponseCard({
+  question,
+  answer,
+  node,
+  profileGrid,
+}: {
+  question: string
+  answer: any
+  node: any
+  profileGrid?: { w: number; h: number }
+}) {
   const [expanded, setExpanded] = React.useState(false)
   const attrs = node?.attrs || {}
   const values = answer?.answer_json?.values || {}
   const directionMode = attrs.direction_mode === 'bidirectional' || attrs.direction_mode === 'stars'
     ? attrs.direction_mode
     : 'unidirectional'
+  const isEmbedded = Boolean(profileGrid)
+  const hideIndicators = profileGrid?.w === 1 && directionMode === 'stars'
   const rows = (attrs.sliders || [])
     .map((slider: any, index: number) => ({
       uuid: slider.slider_uuid,
@@ -174,23 +195,38 @@ function RatingResponseCard({ question, answer, node }: { question: string; answ
     }))
     .filter((row: any) => row.uuid)
     .sort((a: any, b: any) => b.value - a.value)
-  const visibleRows = expanded ? rows : rows.slice(0, 3)
+  const visibleRows = expanded || isEmbedded ? rows : rows.slice(0, 3)
   const hiddenCount = Math.max(0, rows.length - visibleRows.length)
 
   return (
-    <UngradedResponseCard>
-      <div className="grid grid-cols-[minmax(0,1fr)_minmax(120px,1fr)] gap-x-5 gap-y-3 sm:grid-cols-[minmax(0,1fr)_minmax(180px,1fr)]">
-        {visibleRows.map((row: any) => (
-          <React.Fragment key={row.uuid}>
-            <div className="min-w-0 self-center text-left text-sm font-medium leading-snug text-neutral-700">
-              {row.label}
+    <UngradedResponseCard embedded={isEmbedded}>
+      {hideIndicators ? (
+        <div className="space-y-3">
+          {visibleRows.map((row: any) => (
+            <div key={row.uuid} className="flex min-w-0 items-center gap-3 text-left">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-700 text-white">
+                <Star className="h-3 w-3 fill-current" strokeWidth={2.4} />
+              </span>
+              <span className="min-w-0 truncate text-sm font-medium leading-snug text-neutral-900">
+                {row.label}
+              </span>
             </div>
-            <div className="flex min-w-0 items-center justify-start">
-              <SliderIndicator value={row.value} directionMode={directionMode} />
-            </div>
-          </React.Fragment>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(120px,1fr)] gap-x-5 gap-y-3 sm:grid-cols-[minmax(0,1fr)_minmax(180px,1fr)]">
+          {visibleRows.map((row: any) => (
+            <React.Fragment key={row.uuid}>
+              <div className="min-w-0 self-center text-left text-sm font-medium leading-snug text-neutral-700">
+                {row.label}
+              </div>
+              <div className="flex min-w-0 items-center justify-start">
+                <SliderIndicator value={row.value} directionMode={directionMode} />
+              </div>
+            </React.Fragment>
+          ))}
+        </div>
+      )}
       {hiddenCount > 0 && (
         <button
           type="button"
@@ -200,7 +236,7 @@ function RatingResponseCard({ question, answer, node }: { question: string; answ
           See {hiddenCount} more
         </button>
       )}
-      {expanded && rows.length > 3 && (
+      {expanded && rows.length > 3 && !isEmbedded && (
         <button
           type="button"
           onClick={() => setExpanded(false)}
@@ -213,7 +249,7 @@ function RatingResponseCard({ question, answer, node }: { question: string; answ
   )
 }
 
-function SortResponseCard({ question, answer, node }: { question: string; answer: any; node: any }) {
+function SortResponseCard({ question, answer, node, embedded = false }: { question: string; answer: any; node: any; embedded?: boolean }) {
   const [expanded, setExpanded] = React.useState(false)
   const attrs = node?.attrs || {}
   const assignments = answer?.answer_json?.assignments || {}
@@ -233,7 +269,7 @@ function SortResponseCard({ question, answer, node }: { question: string; answer
   const totalHidden = categoryGroups.reduce((total: number, group: any) => total + Math.max(0, group.cards.length - 3), 0)
 
   return (
-    <UngradedResponseCard>
+    <UngradedResponseCard embedded={embedded}>
       {categoryGroups.length === 0 ? (
         <p className="text-sm text-neutral-500">No response</p>
       ) : (
@@ -297,37 +333,27 @@ function SortResponseCard({ question, answer, node }: { question: string; answer
   )
 }
 
-function MultiSelectResponseCard({ question, answer, node }: { question: string; answer: any; node: any }) {
+function MultiSelectResponseCard({ question, answer, node, embedded = false }: { question: string; answer: any; node: any; embedded?: boolean }) {
   const attrs = node?.attrs || {}
   const selected = new Set(Array.isArray(answer?.answer_json?.option_uuids) ? answer.answer_json.option_uuids : [])
   const categories = Array.isArray(attrs.categories) ? attrs.categories : []
-  const groups = categories.map((category: any, index: number) => ({
-    title: category.title || `Section ${index + 1}`,
-    options: (category.options || []).filter((option: any) => selected.has(option.option_uuid)),
-  })).filter((group: any) => group.options.length > 0)
+  const options = categories.flatMap((category: any) =>
+    (category.options || []).filter((option: any) => selected.has(option.option_uuid))
+  )
 
   return (
-    <UngradedResponseCard>
-      {groups.length === 0 ? (
+    <UngradedResponseCard embedded={embedded}>
+      {options.length === 0 ? (
         <p className="text-sm text-neutral-500">No response</p>
       ) : (
-        <div className="space-y-4">
-          {groups.map((group: any) => (
-            <section key={group.title} className="space-y-2">
-              <h4 className="text-xs font-semibold uppercase text-neutral-500">
-                {group.title}
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {group.options.map((option: any) => (
-                  <span
-                    key={option.option_uuid}
-                    className="rounded-full border border-sky-100 bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-900"
-                  >
-                    {option.label || 'Option'}
-                  </span>
-                ))}
-              </div>
-            </section>
+        <div className="flex flex-wrap gap-2">
+          {options.map((option: any) => (
+            <span
+              key={option.option_uuid}
+              className="rounded-full border border-sky-100 bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-900"
+            >
+              {option.label || 'Option'}
+            </span>
           ))}
         </div>
       )}
@@ -342,6 +368,7 @@ function UngradedAnswerResponse({
   index,
   sectionedContent,
   getResponseText,
+  profileGrid,
 }: {
   answer: any
   node: any
@@ -349,6 +376,7 @@ function UngradedAnswerResponse({
   index: number
   sectionedContent: boolean
   getResponseText: (answer: any, node: any) => string
+  profileGrid?: { w: number; h: number }
 }) {
   const answerType = answer?.answer_json?.type
   const response = getResponseText(answer, node)
@@ -362,13 +390,13 @@ function UngradedAnswerResponse({
     )
   }
   if (answerType === 'slider') {
-    return <RatingResponseCard question={question} answer={answer} node={node} />
+    return <RatingResponseCard question={question} answer={answer} node={node} profileGrid={profileGrid} />
   }
   if (answerType === 'sort') {
-    return <SortResponseCard question={question} answer={answer} node={node} />
+    return <SortResponseCard question={question} answer={answer} node={node} embedded={Boolean(profileGrid)} />
   }
   if (answerType === 'multiselect') {
-    return <MultiSelectResponseCard question={question} answer={answer} node={node} />
+    return <MultiSelectResponseCard question={question} answer={answer} node={node} embedded={Boolean(profileGrid)} />
   }
   return (
     <div
@@ -391,6 +419,7 @@ function UngradedResultsTabs({
   editableTabLabels = false,
   onSaveTabLabel,
   isSavingTabLabel = false,
+  profileGrid,
 }: {
   answers: any[]
   getQuestionNode: (questionUuid: string) => any | null
@@ -402,6 +431,7 @@ function UngradedResultsTabs({
   editableTabLabels?: boolean
   onSaveTabLabel?: (questionUuid: string, label: string) => void | Promise<void>
   isSavingTabLabel?: boolean
+  profileGrid?: { w: number; h: number }
 }) {
   const [activeIndex, setActiveIndex] = React.useState(0)
   const [editingQuestionUuid, setEditingQuestionUuid] = React.useState<string | null>(null)
@@ -581,6 +611,7 @@ function UngradedResultsTabs({
             index={activeIndex}
             sectionedContent={sectionedContent}
             getResponseText={getResponseText}
+            profileGrid={profileGrid}
           />
         ) : (
           <div className="flex h-full min-h-0 items-center justify-center rounded-xl border border-dashed border-neutral-200 bg-neutral-50 p-4 text-center text-sm text-neutral-500">
@@ -607,6 +638,7 @@ export default function QuizResultsView({
   isSavingUngradedTabLabel = false,
   publicMode = false,
   selectedQuestionUuid,
+  profileGrid,
 }: Props) {
   const resultJson = result?.result_json
   const scores: Record<string, number> = resultJson?.scores || {}
@@ -706,6 +738,7 @@ export default function QuizResultsView({
                 index={0}
                 sectionedContent={sectionedContent}
                 getResponseText={getResponseText}
+                profileGrid={profileGrid}
               />
             </div>
           ) : (
@@ -720,6 +753,7 @@ export default function QuizResultsView({
               editableTabLabels={editableUngradedTabLabels}
               onSaveTabLabel={onSaveUngradedTabLabel}
               isSavingTabLabel={isSavingUngradedTabLabel}
+              profileGrid={profileGrid}
             />
           )}
         </div>
