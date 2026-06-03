@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { getChannelIcon } from '@components/Resources/ResourceChannelStyle'
 
 interface ActivityCourseOutlineProps {
   course: any
@@ -127,7 +128,9 @@ export default function ActivityCourseOutline({
 
   const getActivityStatusIcon = (activity: any, isHighlighted: boolean) => {
     const complete = isActivityComplete(activity)
-    const Icon = ACTIVITY_TYPE_ICONS[activity.activity_type] ?? FileText
+    const Icon = activity.activity_type === 'TYPE_QUIZ' && activity.icon
+      ? getChannelIcon(activity.icon)
+      : ACTIVITY_TYPE_ICONS[activity.activity_type] ?? FileText
 
     let containerClass: string
     if (complete) {

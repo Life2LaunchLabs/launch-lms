@@ -1,8 +1,17 @@
 'use client'
 import React from 'react'
-import { Trophy, CheckCircle2, XCircle, BarChart3, RotateCcw } from 'lucide-react'
+import { Trophy, CheckCircle2, XCircle, BarChart3, RotateCcw, Star, Heart, Flame, Leaf, Zap, Sun, Flag, Triangle, Square, ThumbsUp, ThumbsDown, Edit3, Check, X, Plus } from 'lucide-react'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
 import QuizResultContentRenderer from '../Results/QuizResultContentRenderer'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@components/ui/dropdown-menu'
+
+const SLIDER_BLUE = '#2563eb'
+const SLIDER_RED = '#dc2626'
 
 function getGradient(seed: string): string {
   let hash = 0
@@ -22,9 +31,615 @@ interface Props {
   onRetake: () => void
   showRetakeButton?: boolean
   sectionedContent?: boolean
+  hiddenQuestionUuids?: string[]
+  onToggleQuestionHidden?: (questionUuid: string) => void
+  editableUngradedTabLabels?: boolean
+  onSaveUngradedTabLabel?: (questionUuid: string, label: string) => void | Promise<void>
+  isSavingUngradedTabLabel?: boolean
+  publicMode?: boolean
+  selectedQuestionUuid?: string
+  profileGrid?: { w: number; h: number }
 }
 
-export default function QuizResultsView({ result, activity, org, course, onRetake, showRetakeButton = false, sectionedContent = false }: Props) {
+function findQuestionNode(nodes: any[] = [], questionUuid: string): any | null {
+  for (const node of nodes) {
+    if (node?.attrs?.question_uuid === questionUuid) return node
+    if (Array.isArray(node?.content)) {
+      const match = findQuestionNode(node.content, questionUuid)
+      if (match) return match
+    }
+  }
+  return null
+}
+
+function getCategoryDisplayLabel(category: any): string {
+  if (!category) return 'Unsorted'
+  const label = category.label || category.title || category.name
+  if (typeof label === 'string' && label.trim()) return label
+  if (typeof category.icon === 'string' && category.icon.trim()) {
+    return category.icon
+      .split('_')
+      .filter(Boolean)
+      .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+  }
+  if (typeof category.position === 'string' && category.position.trim()) {
+    return `${category.position.charAt(0).toUpperCase()}${category.position.slice(1)} tray`
+  }
+  return 'Sorted'
+}
+
+function renderSortIcon(icon: string | undefined, color: string, size = 16) {
+  const shared = { color, size }
+  switch (icon) {
+    case 'heart': return <Heart {...shared} />
+    case 'flame': return <Flame {...shared} />
+    case 'leaf': return <Leaf {...shared} />
+    case 'zap': return <Zap {...shared} />
+    case 'sun': return <Sun {...shared} />
+    case 'flag': return <Flag {...shared} />
+    case 'triangle': return <Triangle {...shared} />
+    case 'square': return <Square {...shared} />
+    case 'thumbs_down': return <ThumbsDown {...shared} />
+    case 'thumbs_up': return <ThumbsUp {...shared} />
+    default: return <Star {...shared} />
+  }
+}
+
+function TextResponseQuote({ response, sectionedContent }: { response: string; sectionedContent: boolean }) {
+  return (
+    <figure className={`${sectionedContent ? 'my-1' : ''} relative ml-2 min-h-[190px] border-l-4 border-sky-500 bg-sky-50/80 px-5 py-4 sm:ml-4 sm:px-6`}>
+      <div className="pointer-events-none absolute left-3 top-0 text-7xl font-serif leading-none text-sky-200/90" aria-hidden="true">
+        &ldquo;
+      </div>
+      <blockquote className="relative pl-7 text-xl font-medium italic leading-relaxed text-neutral-900 sm:text-2xl">
+        <p className="whitespace-pre-line">{response}</p>
+      </blockquote>
+    </figure>
+  )
+}
+
+function UngradedResponseCard({ children, embedded = false }: { children: React.ReactNode; embedded?: boolean }) {
+  if (embedded) {
+    return (
+      <section className="h-full min-h-0 w-full">
+        {children}
+      </section>
+    )
+  }
+
+  return (
+    <section className="w-full min-h-[210px] rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm sm:p-5">
+      {children}
+    </section>
+  )
+}
+
+function SliderIndicator({ value, directionMode }: { value: number; directionMode: 'unidirectional' | 'bidirectional' | 'stars' }) {
+  const normalized = Math.max(0, Math.min(1, Number(value) || 0))
+
+  if (directionMode === 'stars') {
+    const selectedStars = Math.round(normalized * 5)
+    return (
+      <div className="flex items-center gap-1">
+        {Array.from({ length: 5 }, (_, index) => {
+          const filled = index + 1 <= selectedStars
+          return (
+            <Star
+              key={index}
+              size={18}
+              strokeWidth={2.1}
+              className={filled ? 'text-amber-400' : 'text-neutral-300'}
+              style={{ fill: filled ? 'currentColor' : 'transparent' }}
+            />
+          )
+        })}
+      </div>
+    )
+  }
+
+  if (directionMode === 'bidirectional') {
+    const pct = normalized * 100
+    const isLeft = pct < 50
+    const fillWidth = `${Math.abs(pct - 50)}%`
+    return (
+      <div className="relative h-3 w-full overflow-hidden rounded-full bg-neutral-200">
+        <div className="absolute left-1/2 top-0 z-10 h-full w-px bg-neutral-500/70" />
+        <div
+          className="absolute top-0 h-full"
+          style={{
+            left: isLeft ? `calc(50% - ${fillWidth})` : '50%',
+            width: fillWidth,
+            background: isLeft ? SLIDER_RED : SLIDER_BLUE,
+            borderRadius: isLeft ? '999px 0 0 999px' : '0 999px 999px 0',
+          }}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="h-3 w-full overflow-hidden rounded-full bg-neutral-200">
+      <div
+        className="h-full rounded-r-full"
+        style={{ width: `${normalized * 100}%`, background: SLIDER_BLUE }}
+      />
+    </div>
+  )
+}
+
+function RatingResponseCard({
+  question,
+  answer,
+  node,
+  profileGrid,
+}: {
+  question: string
+  answer: any
+  node: any
+  profileGrid?: { w: number; h: number }
+}) {
+  const [expanded, setExpanded] = React.useState(false)
+  const attrs = node?.attrs || {}
+  const values = answer?.answer_json?.values || {}
+  const directionMode = attrs.direction_mode === 'bidirectional' || attrs.direction_mode === 'stars'
+    ? attrs.direction_mode
+    : 'unidirectional'
+  const isEmbedded = Boolean(profileGrid)
+  const hideIndicators = profileGrid?.w === 1 && directionMode === 'stars'
+  const rows = (attrs.sliders || [])
+    .map((slider: any, index: number) => ({
+      uuid: slider.slider_uuid,
+      label: slider.label || (attrs.slider_count === 1 ? question : `Option ${index + 1}`),
+      value: typeof values?.[slider.slider_uuid] === 'number' ? values[slider.slider_uuid] : 0,
+    }))
+    .filter((row: any) => row.uuid)
+    .sort((a: any, b: any) => b.value - a.value)
+  const visibleRows = expanded || isEmbedded ? rows : rows.slice(0, 3)
+  const hiddenCount = Math.max(0, rows.length - visibleRows.length)
+
+  return (
+    <UngradedResponseCard embedded={isEmbedded}>
+      {hideIndicators ? (
+        <div className="space-y-3">
+          {visibleRows.map((row: any) => (
+            <div key={row.uuid} className="flex min-w-0 items-center gap-3 text-left">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-700 text-white">
+                <Star className="h-3 w-3 fill-current" strokeWidth={2.4} />
+              </span>
+              <span className="min-w-0 truncate text-sm font-medium leading-snug text-neutral-900">
+                {row.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(120px,1fr)] gap-x-5 gap-y-3 sm:grid-cols-[minmax(0,1fr)_minmax(180px,1fr)]">
+          {visibleRows.map((row: any) => (
+            <React.Fragment key={row.uuid}>
+              <div className="min-w-0 self-center text-left text-sm font-medium leading-snug text-neutral-700">
+                {row.label}
+              </div>
+              <div className="flex min-w-0 items-center justify-start">
+                <SliderIndicator value={row.value} directionMode={directionMode} />
+              </div>
+            </React.Fragment>
+          ))}
+        </div>
+      )}
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="mt-4 rounded-full px-3 py-1.5 text-xs font-semibold text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-800"
+        >
+          See {hiddenCount} more
+        </button>
+      )}
+      {expanded && rows.length > 3 && !isEmbedded && (
+        <button
+          type="button"
+          onClick={() => setExpanded(false)}
+          className="mt-4 rounded-full px-3 py-1.5 text-xs font-semibold text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-800"
+        >
+          Show top 3
+        </button>
+      )}
+    </UngradedResponseCard>
+  )
+}
+
+function SortResponseCard({ question, answer, node, embedded = false }: { question: string; answer: any; node: any; embedded?: boolean }) {
+  const [expanded, setExpanded] = React.useState(false)
+  const attrs = node?.attrs || {}
+  const assignments = answer?.answer_json?.assignments || {}
+  const cards = Array.isArray(attrs.cards) ? attrs.cards : []
+  const categories = Array.isArray(attrs.categories) ? attrs.categories : []
+  const cardByUuid = new Map(cards.map((card: any, index: number) => [
+    card.card_uuid,
+    { ...card, title: card.title || `Card ${index + 1}` },
+  ]))
+  const categoryGroups = categories.map((category: any) => {
+    const sortedCards = Object.entries(assignments)
+      .filter(([, categoryUuid]) => categoryUuid === category.category_uuid)
+      .map(([cardUuid]) => cardByUuid.get(cardUuid))
+      .filter(Boolean)
+    return { category, cards: sortedCards }
+  }).filter((group: any) => group.cards.length > 0)
+  const totalHidden = categoryGroups.reduce((total: number, group: any) => total + Math.max(0, group.cards.length - 3), 0)
+
+  return (
+    <UngradedResponseCard embedded={embedded}>
+      {categoryGroups.length === 0 ? (
+        <p className="text-sm text-neutral-500">No response</p>
+      ) : (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {categoryGroups.map(({ category, cards: sortedCards }: any) => {
+              const color = category.color || '#64748b'
+              const visibleCards = expanded ? sortedCards : sortedCards.slice(0, 3)
+              const hiddenCount = Math.max(0, sortedCards.length - visibleCards.length)
+              return (
+                <section
+                  key={category.category_uuid}
+                  className="rounded-xl border bg-white p-3"
+                  style={{ borderColor: color, backgroundColor: `${color}0F` }}
+                >
+                  <div className="mb-3 flex items-center gap-2">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
+                      {renderSortIcon(category.icon, color, 15)}
+                    </div>
+                    <h4 className="min-w-0 text-sm font-semibold text-neutral-900">
+                      {getCategoryDisplayLabel(category)}
+                    </h4>
+                  </div>
+                  <div className="space-y-2">
+                    {visibleCards.map((card: any) => (
+                      <div key={card.card_uuid} className="rounded-lg border border-white/80 bg-white px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm">
+                        {card.title}
+                      </div>
+                    ))}
+                  </div>
+                  {!expanded && hiddenCount > 0 && (
+                    <div className="mt-3 text-xs font-semibold text-neutral-500">
+                      See {hiddenCount} more
+                    </div>
+                  )}
+                </section>
+              )
+            })}
+          </div>
+          {totalHidden > 0 && (
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="mt-4 rounded-full px-3 py-1.5 text-xs font-semibold text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-800"
+            >
+              See {totalHidden} more
+            </button>
+          )}
+          {expanded && totalHidden > 0 && (
+            <button
+              type="button"
+              onClick={() => setExpanded(false)}
+              className="mt-4 rounded-full px-3 py-1.5 text-xs font-semibold text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-800"
+            >
+              Show top 3
+            </button>
+          )}
+        </>
+      )}
+    </UngradedResponseCard>
+  )
+}
+
+function MultiSelectResponseCard({ question, answer, node, embedded = false }: { question: string; answer: any; node: any; embedded?: boolean }) {
+  const attrs = node?.attrs || {}
+  const selected = new Set(Array.isArray(answer?.answer_json?.option_uuids) ? answer.answer_json.option_uuids : [])
+  const categories = Array.isArray(attrs.categories) ? attrs.categories : []
+  const options = categories.flatMap((category: any) =>
+    (category.options || []).filter((option: any) => selected.has(option.option_uuid))
+  )
+
+  return (
+    <UngradedResponseCard embedded={embedded}>
+      {options.length === 0 ? (
+        <p className="text-sm text-neutral-500">No response</p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {options.map((option: any) => (
+            <span
+              key={option.option_uuid}
+              className="rounded-full border border-sky-100 bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-900"
+            >
+              {option.label || 'Option'}
+            </span>
+          ))}
+        </div>
+      )}
+    </UngradedResponseCard>
+  )
+}
+
+function UngradedAnswerResponse({
+  answer,
+  node,
+  question,
+  index,
+  sectionedContent,
+  getResponseText,
+  profileGrid,
+}: {
+  answer: any
+  node: any
+  question: string
+  index: number
+  sectionedContent: boolean
+  getResponseText: (answer: any, node: any) => string
+  profileGrid?: { w: number; h: number }
+}) {
+  const answerType = answer?.answer_json?.type
+  const response = getResponseText(answer, node)
+
+  if (answerType === 'text') {
+    return (
+      <TextResponseQuote
+        response={response}
+        sectionedContent={sectionedContent}
+      />
+    )
+  }
+  if (answerType === 'slider') {
+    return <RatingResponseCard question={question} answer={answer} node={node} profileGrid={profileGrid} />
+  }
+  if (answerType === 'sort') {
+    return <SortResponseCard question={question} answer={answer} node={node} embedded={Boolean(profileGrid)} />
+  }
+  if (answerType === 'multiselect') {
+    return <MultiSelectResponseCard question={question} answer={answer} node={node} embedded={Boolean(profileGrid)} />
+  }
+  return (
+    <div
+      key={`${answer.question_uuid}-${index}`}
+      className={sectionedContent ? 'py-4 first:pt-0 last:pb-0' : 'rounded-2xl border border-neutral-100 bg-neutral-50 p-4'}
+    >
+      <p className="whitespace-pre-line text-sm text-neutral-600">{response}</p>
+    </div>
+  )
+}
+
+function UngradedResultsTabs({
+  answers,
+  getQuestionNode,
+  getResponseText,
+  getQuestionDisplayLabel,
+  sectionedContent,
+  hiddenQuestionUuids = [],
+  onToggleQuestionHidden,
+  editableTabLabels = false,
+  onSaveTabLabel,
+  isSavingTabLabel = false,
+  profileGrid,
+}: {
+  answers: any[]
+  getQuestionNode: (questionUuid: string) => any | null
+  getResponseText: (answer: any, node: any) => string
+  getQuestionDisplayLabel: (answer: any, node: any | null, index: number) => string
+  sectionedContent: boolean
+  hiddenQuestionUuids?: string[]
+  onToggleQuestionHidden?: (questionUuid: string) => void
+  editableTabLabels?: boolean
+  onSaveTabLabel?: (questionUuid: string, label: string) => void | Promise<void>
+  isSavingTabLabel?: boolean
+  profileGrid?: { w: number; h: number }
+}) {
+  const [activeIndex, setActiveIndex] = React.useState(0)
+  const [editingQuestionUuid, setEditingQuestionUuid] = React.useState<string | null>(null)
+  const [editingLabel, setEditingLabel] = React.useState('')
+  const hiddenSet = React.useMemo(() => new Set(hiddenQuestionUuids), [hiddenQuestionUuids])
+  const visibleAnswers = React.useMemo(
+    () => onToggleQuestionHidden ? answers.filter((answer: any) => !hiddenSet.has(answer.question_uuid)) : answers,
+    [answers, hiddenSet, onToggleQuestionHidden]
+  )
+  const removedAnswers = React.useMemo(
+    () => onToggleQuestionHidden ? answers.filter((answer: any) => hiddenSet.has(answer.question_uuid)) : [],
+    [answers, hiddenSet, onToggleQuestionHidden]
+  )
+  const activeAnswer = visibleAnswers[Math.min(activeIndex, Math.max(0, visibleAnswers.length - 1))]
+  const activeNode = activeAnswer ? getQuestionNode(activeAnswer.question_uuid) : null
+  const activeQuestion = activeAnswer ? getQuestionDisplayLabel(activeAnswer, activeNode, activeIndex) : `Question ${activeIndex + 1}`
+
+  React.useEffect(() => {
+    if (activeIndex <= Math.max(0, visibleAnswers.length - 1)) return
+    setActiveIndex(Math.max(0, visibleAnswers.length - 1))
+  }, [activeIndex, visibleAnswers.length])
+
+  const startEditingLabel = (questionUuid: string, label: string) => {
+    setEditingQuestionUuid(questionUuid)
+    setEditingLabel(label)
+  }
+
+  const saveEditingLabel = async (questionUuid: string) => {
+    if (!onSaveTabLabel) return
+    await onSaveTabLabel(questionUuid, editingLabel)
+    setEditingQuestionUuid(null)
+    setEditingLabel('')
+  }
+
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      {(visibleAnswers.length > 1 || removedAnswers.length > 0) && (
+        <div className="quiz-result-tab-scroll flex shrink-0 overflow-x-auto border-b border-neutral-200 bg-white px-1 pb-1">
+          <style jsx global>{`
+            .quiz-result-tab-scroll {
+              scrollbar-width: thin;
+              scrollbar-color: #c7c7cc #f2f2f7;
+            }
+            .quiz-result-tab-scroll::-webkit-scrollbar {
+              height: 8px;
+            }
+            .quiz-result-tab-scroll::-webkit-scrollbar-track {
+              background: #f2f2f7;
+              border-radius: 999px;
+            }
+            .quiz-result-tab-scroll::-webkit-scrollbar-thumb {
+              background: #c7c7cc;
+              border-radius: 999px;
+              border: 2px solid #f2f2f7;
+            }
+          `}</style>
+          {visibleAnswers.map((answer: any, index: number) => {
+            const node = getQuestionNode(answer.question_uuid)
+            const question = getQuestionDisplayLabel(answer, node, index)
+            const active = index === activeIndex
+            const isEditing = editableTabLabels && editingQuestionUuid === answer.question_uuid
+            return (
+              <div
+                key={`${answer.question_uuid}-${index}`}
+                className={`group flex min-w-fit flex-1 items-center justify-center gap-2 border-b-2 px-4 text-center text-xs font-bold transition-colors ${
+                  active ? 'border-emerald-600 text-neutral-950' : 'border-transparent text-neutral-500 hover:text-neutral-900'
+                }`}
+              >
+                {isEditing ? (
+                  <input
+                    value={editingLabel}
+                    onChange={e => setEditingLabel(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') void saveEditingLabel(answer.question_uuid)
+                      if (e.key === 'Escape') {
+                        setEditingQuestionUuid(null)
+                        setEditingLabel('')
+                      }
+                    }}
+                    className="my-2 min-w-0 flex-1 rounded-md border border-emerald-200 bg-white px-2 py-1.5 text-center text-xs font-bold text-neutral-900 outline-none focus:border-emerald-500"
+                    autoFocus
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setActiveIndex(index)}
+                    className="min-w-0 flex-1 py-3"
+                  >
+                    <span className="block whitespace-normal leading-snug">{question}</span>
+                  </button>
+                )}
+                {editableTabLabels && onSaveTabLabel ? (
+                  isEditing ? (
+                    <button
+                      type="button"
+                      aria-label="Save display name"
+                      title="Save display name"
+                      disabled={isSavingTabLabel}
+                      onClick={() => void saveEditingLabel(answer.question_uuid)}
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-emerald-600 transition hover:bg-emerald-50 disabled:opacity-50"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      aria-label="Edit display name"
+                      title="Edit display name"
+                      onClick={() => startEditingLabel(answer.question_uuid, question)}
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 ${
+                        active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                      }`}
+                    >
+                      <Edit3 className="h-3.5 w-3.5" />
+                    </button>
+                  )
+                ) : null}
+                {onToggleQuestionHidden ? (
+                  <button
+                    type="button"
+                    aria-label="Remove response tab"
+                    title="Remove response tab"
+                    onClick={() => {
+                      onToggleQuestionHidden(answer.question_uuid)
+                    }}
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
+                      active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                    } text-neutral-400 hover:bg-neutral-100 hover:text-red-600`}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+              </div>
+            )
+          })}
+          {removedAnswers.length > 0 && onToggleQuestionHidden ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Restore removed response tabs"
+                  title="Restore removed response tabs"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {removedAnswers.map((answer: any, index: number) => {
+                  const node = getQuestionNode(answer.question_uuid)
+                  const originalIndex = answers.findIndex((item: any) => item.question_uuid === answer.question_uuid)
+                  const label = getQuestionDisplayLabel(answer, node, originalIndex >= 0 ? originalIndex : index)
+                  return (
+                    <DropdownMenuItem
+                      key={answer.question_uuid}
+                      onSelect={() => {
+                        onToggleQuestionHidden(answer.question_uuid)
+                        setActiveIndex(Math.max(0, visibleAnswers.length))
+                      }}
+                      className="text-xs font-semibold"
+                    >
+                      {label}
+                    </DropdownMenuItem>
+                  )
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+        </div>
+      )}
+      <div className="min-h-0 flex-1">
+        {activeAnswer ? (
+          <UngradedAnswerResponse
+            answer={activeAnswer}
+            node={activeNode}
+            question={activeQuestion}
+            index={activeIndex}
+            sectionedContent={sectionedContent}
+            getResponseText={getResponseText}
+            profileGrid={profileGrid}
+          />
+        ) : (
+          <div className="flex h-full min-h-0 items-center justify-center rounded-xl border border-dashed border-neutral-200 bg-neutral-50 p-4 text-center text-sm text-neutral-500">
+            Use the plus button to restore a removed response.
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default function QuizResultsView({
+  result,
+  activity,
+  org,
+  course,
+  onRetake,
+  showRetakeButton = false,
+  sectionedContent = false,
+  hiddenQuestionUuids = [],
+  onToggleQuestionHidden,
+  editableUngradedTabLabels = false,
+  onSaveUngradedTabLabel,
+  isSavingUngradedTabLabel = false,
+  publicMode = false,
+  selectedQuestionUuid,
+  profileGrid,
+}: Props) {
   const resultJson = result?.result_json
   const scores: Record<string, number> = resultJson?.scores || {}
   const vectors: any[] = resultJson?.vectors || []
@@ -35,6 +650,7 @@ export default function QuizResultsView({ result, activity, org, course, onRetak
   const matched: any = latestMatchedOption ? { ...matchedFromAttempt, ...latestMatchedOption } : matchedFromAttempt
   const quizMode = resultJson?.quiz_mode || activity?.details?.quiz_mode || 'categories'
   const graded = resultJson?.graded_result || null
+  const contentNodes: any[] = activity?.content?.content || []
 
   const getCoverUrl = (blockObj: any) => {
     if (!blockObj) return null
@@ -46,6 +662,102 @@ export default function QuizResultsView({ result, activity, org, course, onRetak
       blockObj.block_uuid,
       fileId,
       'imageBlock'
+    )
+  }
+
+  const getQuestionNode = (questionUuid: string) => findQuestionNode(contentNodes, questionUuid)
+  const tabLabelOverrides = activity?.details?.ungraded_result_tab_labels || {}
+  const getQuestionDisplayLabel = (answer: any, node: any | null, index: number): string => {
+    const override = tabLabelOverrides?.[answer?.question_uuid]
+    if (typeof override === 'string' && override.trim()) return override.trim()
+    return node?.attrs?.question_text || `Question ${index + 1}`
+  }
+
+  const getResponseText = (answer: any, node: any): string => {
+    const answerJson = answer?.answer_json || {}
+    const attrs = node?.attrs || {}
+    if (answerJson.type === 'select') {
+      const option = (attrs.options || []).find((opt: any) => opt.option_uuid === answerJson.option_uuid)
+      return option?.label || 'Selected option'
+    }
+    if (answerJson.type === 'multiselect') {
+      const selected = new Set(Array.isArray(answerJson.option_uuids) ? answerJson.option_uuids : [])
+      const labels = (attrs.categories || []).flatMap((category: any) =>
+        (category.options || [])
+          .filter((option: any) => selected.has(option.option_uuid))
+          .map((option: any) => `${category.title || 'Category'}: ${option.label || 'Option'}`)
+      )
+      return labels.join('\n') || 'No response'
+    }
+    if (answerJson.type === 'text') {
+      return answerJson.text || 'No response'
+    }
+    if (answerJson.type === 'slider') {
+      const values = answerJson.values || {}
+      const sliders = attrs.sliders || []
+      const isStars = attrs.direction_mode === 'stars'
+      return Object.entries(values).map(([sliderUuid, value]) => {
+        const slider = sliders.find((item: any) => item.slider_uuid === sliderUuid)
+        const label = slider?.label || attrs.question_text || 'Rating'
+        const numeric = Number(value)
+        const displayValue = isStars ? `${(numeric * 5).toFixed(1)} / 5` : `${Math.round(numeric * 100)}%`
+        return `${label}: ${displayValue}`
+      }).join('\n') || 'No response'
+    }
+    if (answerJson.type === 'sort') {
+      const assignments = answerJson.assignments || {}
+      const cards = attrs.cards || []
+      const categories = attrs.categories || []
+      return Object.entries(assignments).map(([cardUuid, categoryUuid]) => {
+        const card = cards.find((item: any) => item.card_uuid === cardUuid)
+        const category = categories.find((item: any) => item.category_uuid === categoryUuid)
+        return `${card?.title || 'Card'}: ${getCategoryDisplayLabel(category)}`
+      }).join('\n') || 'No response'
+    }
+    return 'No response'
+  }
+
+  if (quizMode === 'ungraded') {
+    const hiddenSet = new Set(hiddenQuestionUuids)
+    const answers = (resultJson?.answers || [])
+      .filter((answer: any) => answer?.answer_json?.type !== 'info')
+      .filter((answer: any) => !selectedQuestionUuid || answer?.question_uuid === selectedQuestionUuid)
+      .filter((answer: any) => !publicMode || !hiddenSet.has(answer?.question_uuid))
+
+    return (
+      <div className={sectionedContent ? 'h-full min-h-0 w-full' : 'w-full max-w-3xl mx-auto p-4 sm:p-5'}>
+        <div className="h-full min-h-0 bg-white">
+          {answers.length === 0 ? (
+            <p className="text-sm text-neutral-500">{publicMode ? 'No public responses are visible.' : 'No responses were recorded.'}</p>
+          ) : selectedQuestionUuid ? (
+            <div className="h-full min-h-0">
+              <UngradedAnswerResponse
+                answer={answers[0]}
+                node={getQuestionNode(answers[0]?.question_uuid)}
+                question={getQuestionDisplayLabel(answers[0], getQuestionNode(answers[0]?.question_uuid), 0)}
+                index={0}
+                sectionedContent={sectionedContent}
+                getResponseText={getResponseText}
+                profileGrid={profileGrid}
+              />
+            </div>
+          ) : (
+            <UngradedResultsTabs
+              answers={answers}
+              getQuestionNode={getQuestionNode}
+              getResponseText={getResponseText}
+              getQuestionDisplayLabel={getQuestionDisplayLabel}
+              sectionedContent={sectionedContent}
+              hiddenQuestionUuids={hiddenQuestionUuids}
+              onToggleQuestionHidden={onToggleQuestionHidden}
+              editableTabLabels={editableUngradedTabLabels}
+              onSaveTabLabel={onSaveUngradedTabLabel}
+              isSavingTabLabel={isSavingUngradedTabLabel}
+              profileGrid={profileGrid}
+            />
+          )}
+        </div>
+      </div>
     )
   }
 

@@ -13,9 +13,31 @@ type SocialPreviewItem = {
   thumbnailUrl?: string
 }
 
+type SocialPreviewSite = 'instagram' | 'youtube'
+
+type SocialPreviewCacheEntry = {
+  items: SocialPreviewItem[]
+  expiresAt: number
+  staleUntil: number
+  retryAfter?: number
+  pending?: Promise<SocialPreviewItem[]>
+}
+
 const YOUTUBE_CHANNEL_ID_PATTERN = /^UC[a-zA-Z0-9_-]{20,}$/
 const HANDLE_PATTERN = /^[a-zA-Z0-9._-]{1,64}$/
+const PREVIEW_CACHE_TTL_MS = 15 * 60 * 1000
+const INSTAGRAM_EMPTY_CACHE_TTL_MS = 5 * 60 * 1000
+const PREVIEW_STALE_TTL_MS = 24 * 60 * 60 * 1000
+const INSTAGRAM_FAILURE_BACKOFF_MS = 10 * 60 * 1000
 const execFileAsync = promisify(execFile)
+const globalSocialPreviewCache = globalThis as typeof globalThis & {
+  __launchLmsSocialPreviewCache?: Map<string, SocialPreviewCacheEntry>
+}
+
+const socialPreviewCache = globalSocialPreviewCache.__launchLmsSocialPreviewCache
+  ?? new Map<string, SocialPreviewCacheEntry>()
+
+globalSocialPreviewCache.__launchLmsSocialPreviewCache = socialPreviewCache
 
 function cleanHandle(value: string) {
   const trimmed = value.trim().replace(/^@+/, '').replace(/^\/+/, '')
@@ -216,7 +238,7 @@ async function getInstagramApiPreviews(handle: string): Promise<SocialPreviewIte
     const node = edge?.node || {}
     const shortcode = String(node.shortcode || '')
     const caption = node.edge_media_to_caption?.edges?.[0]?.node?.text || ''
-    const thumbnailUrl = node.thumbnail_src || node.display_url || node.thumbnail_resources?.at(-1)?.src || ''
+    const thumbnailUrl = node.display_url || node.thumbnail_src || node.thumbnail_resources?.at(-1)?.src || ''
 
     return {
       id: String(node.id || shortcode || `${handle}-${index}`),
@@ -225,6 +247,78 @@ async function getInstagramApiPreviews(handle: string): Promise<SocialPreviewIte
       thumbnailUrl: getProxiedInstagramImageUrl(thumbnailUrl),
     }
   }).filter((item) => item.thumbnailUrl)
+}
+
+async function getSocialPreviews(site: SocialPreviewSite, handle: string) {
+  return site === 'youtube'
+    ? getYouTubePreviews(handle)
+    : getInstagramPreviews(handle)
+}
+
+async function getCachedSocialPreviews(site: SocialPreviewSite, handle: string) {
+  const normalizedHandle = handle.toLowerCase()
+  const cacheKey = `${site}:${normalizedHandle}`
+  const now = Date.now()
+  const existing = socialPreviewCache.get(cacheKey)
+
+  if (existing && existing.expiresAt > now) {
+    return { items: existing.items, cacheStatus: 'hit' }
+  }
+
+  if (site === 'instagram' && existing?.retryAfter && existing.retryAfter > now) {
+    return { items: existing.items, cacheStatus: existing.items.length ? 'stale' : 'backoff' }
+  }
+
+  if (existing?.pending) {
+    try {
+      return { items: await existing.pending, cacheStatus: 'pending' }
+    } catch {
+      const latest = socialPreviewCache.get(cacheKey)
+      return { items: latest?.items || [], cacheStatus: latest?.items.length ? 'stale' : 'error' }
+    }
+  }
+
+  const pending = getSocialPreviews(site, handle)
+  socialPreviewCache.set(cacheKey, {
+    items: existing?.items || [],
+    expiresAt: existing?.expiresAt || 0,
+    staleUntil: existing?.staleUntil || 0,
+    retryAfter: existing?.retryAfter,
+    pending,
+  })
+
+  try {
+    const items = await pending
+    const ttl = site === 'instagram' && items.length === 0
+      ? INSTAGRAM_EMPTY_CACHE_TTL_MS
+      : PREVIEW_CACHE_TTL_MS
+
+    socialPreviewCache.set(cacheKey, {
+      items,
+      expiresAt: now + ttl,
+      staleUntil: now + PREVIEW_STALE_TTL_MS,
+    })
+
+    return { items, cacheStatus: 'miss' }
+  } catch {
+    if (existing?.items.length && existing.staleUntil > now) {
+      socialPreviewCache.set(cacheKey, {
+        ...existing,
+        expiresAt: now + INSTAGRAM_EMPTY_CACHE_TTL_MS,
+        retryAfter: site === 'instagram' ? now + INSTAGRAM_FAILURE_BACKOFF_MS : undefined,
+      })
+      return { items: existing.items, cacheStatus: 'stale' }
+    }
+
+    socialPreviewCache.set(cacheKey, {
+      items: [],
+      expiresAt: now + (site === 'instagram' ? INSTAGRAM_FAILURE_BACKOFF_MS : INSTAGRAM_EMPTY_CACHE_TTL_MS),
+      staleUntil: now + (site === 'instagram' ? INSTAGRAM_FAILURE_BACKOFF_MS : INSTAGRAM_EMPTY_CACHE_TTL_MS),
+      retryAfter: site === 'instagram' ? now + INSTAGRAM_FAILURE_BACKOFF_MS : undefined,
+    })
+
+    return { items: [], cacheStatus: 'error' }
+  }
 }
 
 function isAllowedInstagramImageUrl(value: string) {
@@ -298,13 +392,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ items: [] }, { status: 400 })
   }
 
-  try {
-    const items = site === 'youtube'
-      ? await getYouTubePreviews(handle)
-      : await getInstagramPreviews(handle)
+  const { items, cacheStatus } = await getCachedSocialPreviews(site, handle)
 
-    return NextResponse.json({ items })
-  } catch {
-    return NextResponse.json({ items: [] })
-  }
+  return NextResponse.json(
+    { items },
+    {
+      headers: {
+        'cache-control': 'public, max-age=300, stale-while-revalidate=3600',
+        'x-social-preview-cache': cacheStatus,
+      },
+    }
+  )
 }

@@ -1,12 +1,19 @@
 from typing import List
 from uuid import uuid4
 import logging
+import json
 from sqlmodel import Session, select, or_, and_, text, func
 from src.db.usergroup_resources import UserGroupResource
 from src.db.usergroup_user import UserGroupUser
 from src.db.organizations import Organization
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
+from src.db.courses.chapter_activities import ChapterActivity
+from src.db.courses.chapters import Chapter
+from src.db.courses.activities import Activity, ActivityTypeEnum
+from src.db.courses.quiz import QuizAttempt, QuizResult
+from src.db.trail_runs import TrailRun
+from src.db.trail_steps import TrailStep
 from src.security.features_utils.usage import (
     check_limits_with_usage,
     decrease_feature_usage,
@@ -33,12 +40,64 @@ from src.security.rbac import (
 )
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.security.superadmin import is_user_superadmin
-from src.services.courses.thumbnails import upload_thumbnail
+from src.services.courses.thumbnails import upload_core_background, upload_thumbnail
 from src.services.shared_content import owner_org_payload
 from fastapi import HTTPException, Request, UploadFile, status
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_profile_payload(profile: object) -> dict:
+    if isinstance(profile, dict):
+        return profile
+    if isinstance(profile, str) and profile:
+        try:
+            value = json.loads(profile)
+            return value if isinstance(value, dict) else {}
+        except Exception:
+            return {}
+    return {}
+
+
+def _get_public_profile_quiz_visibility(profile: object) -> dict[str, set[str]]:
+    profile_payload = _normalize_profile_payload(profile)
+    visibility: dict[str, set[str]] = {}
+    layout = profile_payload.get("layout")
+    if not isinstance(layout, list):
+        return visibility
+    for item in layout:
+        if not isinstance(item, dict) or item.get("type") != "coreQuiz":
+            continue
+        activity_uuid = item.get("activityUuid")
+        if not isinstance(activity_uuid, str) or not activity_uuid:
+            continue
+        hidden_question_uuids = item.get("hiddenQuestionUuids")
+        visibility[activity_uuid] = (
+            {uuid for uuid in hidden_question_uuids if isinstance(uuid, str)}
+            if isinstance(hidden_question_uuids, list)
+            else set()
+        )
+    return visibility
+
+
+def _strip_hidden_ungraded_answers(result_json: object, hidden_question_uuids: set[str]) -> object:
+    if not hidden_question_uuids or not isinstance(result_json, dict):
+        return result_json
+    answers = result_json.get("answers")
+    if not isinstance(answers, list):
+        return result_json
+    return {
+        **result_json,
+        "answers": [
+            answer for answer in answers
+            if not isinstance(answer, dict) or answer.get("question_uuid") not in hidden_question_uuids
+        ],
+    }
+
+
+def _get_owner_org(db_session: Session) -> Organization | None:
+    return db_session.exec(select(Organization).order_by(Organization.id).limit(1)).first()
 
 
 async def _user_can_view_unpublished_course(
@@ -127,6 +186,8 @@ def _serialize_course_read(
         "shared": course.shared,
         "guest_access": course.guest_access,
         "published": course.published,
+        "core_course": course.core_course,
+        "core_course_order": course.core_course_order,
         "open_to_contributors": course.open_to_contributors,
         "course_uuid": course.course_uuid,
         "creation_date": course.creation_date,
@@ -137,6 +198,61 @@ def _serialize_course_read(
     if owner_org:
         payload.update(owner_org_payload(owner_org, current_org_id))
     return CourseRead.model_validate(payload)
+
+
+def _core_course_order_clause():
+    return (
+        func.coalesce(Course.core_course_order, 2147483647).asc(),
+        Course.creation_date.asc(),
+        Course.id.asc(),
+    )
+
+
+def _serialize_core_course_item(course: Course, owner_org: Organization) -> dict:
+    return {
+        "id": course.id,
+        "course_uuid": course.course_uuid,
+        "name": course.name,
+        "description": course.description or "",
+        "published": course.published,
+        "thumbnail_image": course.thumbnail_image or "",
+        "thumbnail_type": course.thumbnail_type,
+        "core_course_order": course.core_course_order,
+        **owner_org_payload(owner_org),
+    }
+
+
+async def _ensure_can_manage_core_courses(
+    current_user: PublicUser,
+    db_session: Session,
+    owner_org: Organization,
+) -> None:
+    if is_user_superadmin(current_user.id, db_session):
+        return
+
+    user_org = db_session.exec(
+        select(UserOrganization)
+        .where(UserOrganization.user_id == current_user.id)
+        .where(UserOrganization.org_id == owner_org.id)
+        .where(UserOrganization.role_id.in_(ADMIN_OR_MAINTAINER_ROLE_IDS))
+    ).first()
+    if user_org:
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Only default organization admins can manage CORE courses",
+    )
+
+
+def _next_core_course_order(db_session: Session, owner_org_id: int) -> int:
+    max_order = db_session.exec(
+        select(func.max(Course.core_course_order)).where(
+            Course.org_id == owner_org_id,
+            Course.core_course == True,
+        )
+    ).first()
+    return int(max_order or 0) + 1
 
 
 async def get_course(
@@ -680,6 +796,331 @@ async def search_courses(
     return course_reads
 
 
+async def get_core_courses_progress(
+    request: Request,
+    org_slug: str,
+    current_user: PublicUser,
+    db_session: Session,
+    profile_user_id: int | None = None,
+) -> list[dict]:
+    _ = org_slug
+    owner_org = _get_owner_org(db_session)
+    if not owner_org:
+        return []
+
+    progress_user_id = current_user.id
+    public_quiz_visibility: dict[str, set[str]] | None = None
+    if profile_user_id is not None:
+        profile_user = db_session.exec(select(User).where(User.id == profile_user_id)).first()
+        if not profile_user:
+            return []
+        public_quiz_visibility = _get_public_profile_quiz_visibility(profile_user.profile)
+        if not public_quiz_visibility:
+            return []
+        progress_user_id = profile_user.id
+
+    courses = db_session.exec(
+        select(Course)
+        .where(
+            Course.org_id == owner_org.id,
+            Course.core_course == True,
+            Course.published == True,
+        )
+        .order_by(*_core_course_order_clause())
+    ).all()
+
+    if not courses:
+        return []
+
+    course_ids = [course.id for course in courses if course.id is not None]
+    runs = db_session.exec(
+        select(TrailRun).where(
+            TrailRun.user_id == progress_user_id,
+            TrailRun.course_id.in_(course_ids),  # type: ignore
+        )
+    ).all()
+    runs_by_course_id = {run.course_id: run for run in runs}
+    run_ids = [run.id for run in runs if run.id is not None]
+
+    completed_activity_ids_by_course_id: dict[int, set[int]] = {}
+    if run_ids:
+        completed_steps = db_session.exec(
+            select(TrailStep).where(
+                TrailStep.user_id == progress_user_id,
+                TrailStep.trailrun_id.in_(run_ids),  # type: ignore
+                TrailStep.complete == True,
+            )
+        ).all()
+        for step in completed_steps:
+            completed_activity_ids_by_course_id.setdefault(step.course_id, set()).add(step.activity_id)
+
+    chapters = db_session.exec(
+        select(Chapter)
+        .where(Chapter.course_id.in_(course_ids))  # type: ignore
+        .order_by(Chapter.creation_date.asc())
+    ).all()
+    chapters_by_course_id: dict[int, list[Chapter]] = {}
+    for chapter in chapters:
+        chapters_by_course_id.setdefault(chapter.course_id, []).append(chapter)
+
+    chapter_activities = db_session.exec(
+        select(ChapterActivity)
+        .where(ChapterActivity.course_id.in_(course_ids))  # type: ignore
+        .order_by(ChapterActivity.order.asc())
+    ).all()
+    activity_ids_by_chapter_id: dict[int, set[int]] = {}
+    ordered_activity_ids_by_chapter_id: dict[int, list[int]] = {}
+    for chapter_activity in chapter_activities:
+        activity_ids_by_chapter_id.setdefault(chapter_activity.chapter_id, set()).add(chapter_activity.activity_id)
+        ordered_activity_ids_by_chapter_id.setdefault(chapter_activity.chapter_id, []).append(chapter_activity.activity_id)
+
+    activity_ids = [chapter_activity.activity_id for chapter_activity in chapter_activities]
+    activities_by_id: dict[int, Activity] = {}
+    if activity_ids:
+        activities = db_session.exec(
+            select(Activity).where(Activity.id.in_(activity_ids))  # type: ignore
+        ).all()
+        activities_by_id = {
+            activity.id: activity
+            for activity in activities
+            if activity.id is not None
+        }
+
+    quiz_activity_ids = [
+        activity.id
+        for activity in activities_by_id.values()
+        if activity.id is not None
+        and activity.activity_type == ActivityTypeEnum.TYPE_QUIZ
+        and (
+            public_quiz_visibility is None
+            or activity.activity_uuid in public_quiz_visibility
+        )
+    ]
+    quiz_results_by_activity_id: dict[int, dict] = {}
+    if quiz_activity_ids:
+        quiz_attempts = db_session.exec(
+            select(QuizAttempt)
+            .where(
+                QuizAttempt.user_id == progress_user_id,
+                QuizAttempt.activity_id.in_(quiz_activity_ids),  # type: ignore
+                QuizAttempt.completed_at.is_not(None),  # type: ignore
+            )
+            .order_by(QuizAttempt.completed_at.desc())  # type: ignore
+        ).all()
+        latest_attempt_by_activity_id: dict[int, QuizAttempt] = {}
+        for attempt in quiz_attempts:
+            if attempt.activity_id not in latest_attempt_by_activity_id:
+                latest_attempt_by_activity_id[attempt.activity_id] = attempt
+
+        latest_attempt_ids = [
+            attempt.id
+            for attempt in latest_attempt_by_activity_id.values()
+            if attempt.id is not None
+        ]
+        if latest_attempt_ids:
+            results = db_session.exec(
+                select(QuizResult).where(QuizResult.attempt_id.in_(latest_attempt_ids))  # type: ignore
+            ).all()
+            results_by_attempt_id = {result.attempt_id: result for result in results}
+            for activity_id, attempt in latest_attempt_by_activity_id.items():
+                result = results_by_attempt_id.get(attempt.id)
+                activity = activities_by_id.get(activity_id)
+                if not result or not activity:
+                    continue
+                hidden_question_uuids = (
+                    public_quiz_visibility.get(activity.activity_uuid, set())
+                    if public_quiz_visibility is not None
+                    else set()
+                )
+                quiz_results_by_activity_id[activity_id] = {
+                    "id": f"{activity.activity_uuid}:{result.id}",
+                    "activity": activity.model_dump(),
+                    "result": {
+                        "id": result.id,
+                        "attempt_id": result.attempt_id,
+                        "attempt_uuid": attempt.attempt_uuid,
+                        "result_json": _strip_hidden_ungraded_answers(result.result_json, hidden_question_uuids),
+                        "computed_at": result.computed_at,
+                    },
+                    "computed_at": result.computed_at.isoformat() if result.computed_at else result.creation_date,
+                }
+
+    result = []
+    for course in courses:
+        if course.id is None:
+            continue
+        completed_activity_ids = completed_activity_ids_by_course_id.get(course.id, set())
+        course_chapters = []
+        total_activities = 0
+        completed_activities = 0
+        for chapter in chapters_by_course_id.get(course.id, []):
+            activity_ids = activity_ids_by_chapter_id.get(chapter.id or 0, set())
+            ordered_activity_ids = ordered_activity_ids_by_chapter_id.get(chapter.id or 0, [])
+            chapter_total = len(activity_ids)
+            chapter_completed = len(activity_ids & completed_activity_ids)
+            chapter_quizzes = [
+                activities_by_id[activity_id]
+                for activity_id in ordered_activity_ids
+                if activity_id in activities_by_id
+                and activities_by_id[activity_id].activity_type == ActivityTypeEnum.TYPE_QUIZ
+                and (
+                    public_quiz_visibility is None
+                    or activities_by_id[activity_id].activity_uuid in public_quiz_visibility
+                )
+            ]
+            completed_quiz_results = [
+                quiz_results_by_activity_id[activity.id]
+                for activity in chapter_quizzes
+                if activity.id in quiz_results_by_activity_id
+            ]
+            highlighted_result = completed_quiz_results[0] if completed_quiz_results else None
+            last_completed_result = max(
+                completed_quiz_results,
+                key=lambda item: item.get("computed_at") or "",
+            ) if completed_quiz_results else None
+            next_activity = next(
+                (
+                    activities_by_id[activity_id]
+                    for activity_id in ordered_activity_ids
+                    if activity_id in activities_by_id and activity_id not in completed_activity_ids
+                ),
+                None,
+            )
+            total_activities += chapter_total
+            completed_activities += chapter_completed
+            course_chapters.append({
+                "id": chapter.id,
+                "chapter_uuid": chapter.chapter_uuid,
+                "name": chapter.name,
+                "description": chapter.description,
+                "icon": chapter.icon,
+                "total_activities": chapter_total,
+                "completed_activities": chapter_completed,
+                "progress": round((chapter_completed / chapter_total) * 100) if chapter_total else 0,
+                "complete": chapter_total > 0 and chapter_completed >= chapter_total,
+                "quiz_activities": [
+                    {
+                        "id": activity.id,
+                        "activity_uuid": activity.activity_uuid,
+                        "name": activity.name,
+                        "description": activity.description,
+                        "icon": activity.icon,
+                    }
+                    for activity in chapter_quizzes
+                ],
+                "highlight_result": highlighted_result,
+                "last_completed_result": last_completed_result,
+                "completed_quiz_results": completed_quiz_results,
+                "next_activity": {
+                    "id": next_activity.id,
+                    "activity_uuid": next_activity.activity_uuid,
+                    "name": next_activity.name,
+                } if next_activity else None,
+            })
+
+        run = runs_by_course_id.get(course.id)
+        result.append({
+            "course": {
+                **course.model_dump(),
+                **owner_org_payload(owner_org),
+            },
+            "run_status": run.status.value if run else None,
+            "total_activities": total_activities,
+            "completed_activities": completed_activities,
+            "progress": round((completed_activities / total_activities) * 100) if total_activities else 0,
+            "chapters": course_chapters,
+        })
+
+    return result
+
+
+async def get_core_courses(
+    current_user: PublicUser,
+    db_session: Session,
+) -> list[dict]:
+    owner_org = _get_owner_org(db_session)
+    if not owner_org:
+        return []
+
+    await _ensure_can_manage_core_courses(current_user, db_session, owner_org)
+
+    courses = db_session.exec(
+        select(Course)
+        .where(
+            Course.org_id == owner_org.id,
+            Course.core_course == True,
+        )
+        .order_by(*_core_course_order_clause())
+    ).all()
+
+    return [_serialize_core_course_item(course, owner_org) for course in courses]
+
+
+async def reorder_core_courses(
+    course_uuids: list[str],
+    current_user: PublicUser,
+    db_session: Session,
+) -> list[dict]:
+    owner_org = _get_owner_org(db_session)
+    if not owner_org:
+        return []
+
+    await _ensure_can_manage_core_courses(current_user, db_session, owner_org)
+
+    normalized_course_uuids = [
+        course_uuid if course_uuid.startswith("course_") else f"course_{course_uuid}"
+        for course_uuid in course_uuids
+    ]
+    if len(normalized_course_uuids) != len(set(normalized_course_uuids)):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="CORE course order contains duplicate courses",
+        )
+
+    core_courses = db_session.exec(
+        select(Course)
+        .where(
+            Course.org_id == owner_org.id,
+            Course.core_course == True,
+        )
+    ).all()
+    courses_by_uuid = {course.course_uuid: course for course in core_courses}
+
+    missing_course_uuids = [
+        course_uuid for course_uuid in normalized_course_uuids
+        if course_uuid not in courses_by_uuid
+    ]
+    if missing_course_uuids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="CORE course order includes courses that are not CORE courses",
+        )
+
+    ordered_course_uuids = normalized_course_uuids + [
+        course.course_uuid
+        for course in sorted(
+            core_courses,
+            key=lambda course: (
+                course.core_course_order if course.core_course_order is not None else 2147483647,
+                course.creation_date,
+                course.id or 0,
+            ),
+        )
+        if course.course_uuid not in normalized_course_uuids
+    ]
+
+    now = str(datetime.now())
+    for index, course_uuid in enumerate(ordered_course_uuids, start=1):
+        course = courses_by_uuid[course_uuid]
+        course.core_course_order = index
+        course.update_date = now
+        db_session.add(course)
+
+    db_session.commit()
+
+    return await get_core_courses(current_user, db_session)
+
+
 async def create_course(
     request: Request,
     org_id: int,
@@ -872,6 +1313,89 @@ async def update_course_thumbnail(
     return course
 
 
+async def update_course_core_background(
+    request: Request,
+    course_uuid: str,
+    current_user: PublicUser | AnonymousUser,
+    db_session: Session,
+    background_file: UploadFile | None = None,
+):
+    statement = select(Course).where(Course.course_uuid == course_uuid)
+    course = db_session.exec(statement).first()
+
+    if not course:
+        raise HTTPException(
+            status_code=404,
+            detail="Course not found",
+        )
+
+    await check_resource_access(request, db_session, current_user, course.course_uuid, AccessAction.UPDATE)
+
+    owner_org = _get_owner_org(db_session)
+    if not owner_org or course.org_id != owner_org.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only courses owned by the default organization can use CORE settings",
+        )
+
+    is_owner_org_admin = await authorization_verify_based_on_org_admin_status(
+        request, current_user.id, "update", course_uuid, db_session
+    )
+    if not is_owner_org_admin and not is_user_superadmin(current_user.id, db_session):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only default organization admins can manage CORE courses",
+        )
+
+    org_statement = select(Organization).where(Organization.id == course.org_id)
+    org = db_session.exec(org_statement).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    if not background_file or not background_file.filename:
+        raise HTTPException(
+            status_code=400,
+            detail="Background image is required",
+        )
+
+    name_in_disk = await upload_core_background(
+        background_file, org.org_uuid, course.course_uuid  # type: ignore
+    )
+
+    course.seo = {
+        **(course.seo or {}),
+        "core_background_image": name_in_disk,
+    }
+    course.update_date = str(datetime.now())
+
+    db_session.add(course)
+    db_session.commit()
+    db_session.refresh(course)
+
+    authors_statement = (
+        select(ResourceAuthor, User)
+        .join(User, ResourceAuthor.user_id == User.id) # type: ignore
+        .where(ResourceAuthor.resource_uuid == course.course_uuid)
+        .order_by(
+            ResourceAuthor.id.asc() # type: ignore
+        )
+    )
+    author_results = db_session.exec(authors_statement).all()
+
+    authors = [
+        AuthorWithRole(
+            user=UserRead.model_validate(user),
+            authorship=resource_author.authorship,
+            authorship_status=resource_author.authorship_status,
+            creation_date=resource_author.creation_date,
+            update_date=resource_author.update_date
+        )
+        for resource_author, user in author_results
+    ]
+
+    return CourseRead(**course.model_dump(), authors=authors)
+
+
 async def update_course(
     request: Request,
     course_object: CourseUpdate,
@@ -907,6 +1431,8 @@ async def update_course(
         sensitive_fields_updated.append("public")
     if course_object.open_to_contributors is not None:
         sensitive_fields_updated.append("open_to_contributors")
+    if course_object.core_course is not None:
+        sensitive_fields_updated.append("core_course")
     
     # If sensitive fields are being updated, require additional validation
     if sensitive_fields_updated:
@@ -936,6 +1462,27 @@ async def update_course(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"You must be the course owner (CREATOR or MAINTAINER) or have admin role to change access settings: {', '.join(sensitive_fields_updated)}",
             )
+
+    core_course_was_enabled = course.core_course
+    if course_object.core_course is not None:
+        owner_org = _get_owner_org(db_session)
+        if not owner_org or course.org_id != owner_org.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only courses owned by the default organization can be marked as CORE",
+            )
+        is_owner_org_admin = await authorization_verify_based_on_org_admin_status(
+            request, current_user.id, "update", course_uuid, db_session
+        )
+        if not is_owner_org_admin and not is_user_superadmin(current_user.id, db_session):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only default organization admins can manage CORE courses",
+            )
+        if course_object.core_course and not core_course_was_enabled:
+            course_object.core_course_order = _next_core_course_order(db_session, owner_org.id)
+        if not course_object.core_course:
+            course_object.core_course_order = None
 
     # Update only the fields that were passed in
     for var, value in vars(course_object).items():
@@ -1308,6 +1855,7 @@ async def clone_course(
             name=original_chapter.name,
             description=original_chapter.description,
             thumbnail_image=original_chapter.thumbnail_image,
+            icon=original_chapter.icon,
             chapter_uuid=new_chapter_uuid,
             org_id=original_course.org_id,
             course_id=new_course.id,
@@ -1349,6 +1897,8 @@ async def clone_course(
 
             new_activity = Activity(
                 name=original_activity.name,
+                description=original_activity.description,
+                icon=original_activity.icon,
                 activity_type=original_activity.activity_type,
                 activity_sub_type=original_activity.activity_sub_type,
                 content=new_content,

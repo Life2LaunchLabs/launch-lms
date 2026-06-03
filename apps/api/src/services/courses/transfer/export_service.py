@@ -198,6 +198,7 @@ def _export_course_to_zip(
             "name": chapter.name,
             "description": chapter.description,
             "thumbnail_image": chapter.thumbnail_image,
+            "icon": chapter.icon,
             "order": course_chapter.order,
             "creation_date": chapter.creation_date,
             "update_date": chapter.update_date,
@@ -224,6 +225,8 @@ def _export_course_to_zip(
             activity_data = {
                 "activity_uuid": activity.activity_uuid,
                 "name": activity.name,
+                "description": activity.description,
+                "icon": activity.icon,
                 "activity_type": activity.activity_type.value,
                 "activity_sub_type": activity.activity_sub_type.value if activity.activity_sub_type else None,
                 "content": activity.content,

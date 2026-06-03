@@ -502,6 +502,7 @@ async def _import_chapter(
         name=chapter_data.get("name", "Untitled Chapter"),
         description=chapter_data.get("description", ""),
         thumbnail_image=chapter_data.get("thumbnail_image", ""),
+        icon=chapter_data.get("icon"),
         chapter_uuid=new_chapter_uuid,
         org_id=organization.id,
         course_id=new_course.id,
@@ -590,6 +591,8 @@ async def _import_activity(
 
     new_activity = Activity(
         name=activity_data.get("name", "Untitled Activity"),
+        description=activity_data.get("description"),
+        icon=activity_data.get("icon"),
         activity_type=activity_type,
         activity_sub_type=activity_sub_type,
         content=new_content,

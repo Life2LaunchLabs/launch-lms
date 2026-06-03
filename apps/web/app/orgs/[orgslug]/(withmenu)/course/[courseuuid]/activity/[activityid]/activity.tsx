@@ -34,6 +34,7 @@ import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/Ge
 import { useTranslation } from 'react-i18next'
 import { useAnalytics } from '@/hooks/useAnalytics'
 import { Dialog, DialogContent } from '@components/ui/dialog'
+import { defaultChapterIconName, getChannelIcon } from '@components/Resources/ResourceChannelStyle'
 
 // Lazy load heavy components
 const Canva = lazy(() => import('@components/Objects/Activities/DynamicCanva/DynamicCanva'))
@@ -156,6 +157,7 @@ function ActivityActions({ activity, activityid, course, orgslug, assignment, sh
 function ActivityClient(props: ActivityClientProps) {
   const { t } = useTranslation()
   const activityid = props.activityid
+  const isCourseEnd = activityid === 'end'
   const guestMode = props.guestMode === true
   const unauthenticated = props.unauthenticated === true
   const guestCompletedHint = props.guestCompletedHint === true
@@ -364,11 +366,13 @@ function ActivityClient(props: ActivityClientProps) {
   }, [isFocusMode]);
 
   async function getAssignmentUI() {
+    if (!activity) return
     const assignment = await getAssignmentFromActivityUUID(activity.activity_uuid, access_token)
     setAssignment(assignment.data)
   }
 
   useEffect(() => {
+    if (!activity) return
     if (activity.activity_type == 'TYPE_DYNAMIC' || activity.activity_type == 'TYPE_SCORM' || activity.activity_type == 'TYPE_QUIZ') {
       setBgColor(isFocusMode ? 'bg-white' : 'bg-white nice-shadow');
     }
@@ -389,7 +393,7 @@ function ActivityClient(props: ActivityClientProps) {
           <AIChatBotProvider>
             <Suspense fallback={null}>
               <AISidePanelContentWrapper>
-            {isFocusMode ? (
+            {isFocusMode && !isCourseEnd ? (
               <AnimatePresence>
                 <motion.div
                   initial={isInitialRender.current ? false : { opacity: 0 }}
@@ -719,9 +723,23 @@ function ActivityClient(props: ActivityClientProps) {
                                   </button>
                                   */}
                                   <div className={`flex items-start justify-between gap-3 ${activity.activity_type === 'TYPE_SCORM' ? 'absolute left-4 top-4 z-10 sm:left-0 sm:top-0 sm:static sm:mb-5 sm:px-0 sm:pt-0' : 'p-0 pb-4 sm:pb-5'}`}>
-                                    <h1 className="min-w-0 font-bold text-gray-950 text-2xl first-letter:uppercase sm:text-3xl">
-                                      {activity.name}
-                                    </h1>
+                                    <div className="flex min-w-0 items-start gap-3">
+                                      {activity.activity_type === 'TYPE_QUIZ' && (
+                                        <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-900">
+                                          {React.createElement(getChannelIcon(activity.icon || defaultChapterIconName), { size: 21 })}
+                                        </div>
+                                      )}
+                                      <div className="min-w-0">
+                                        <h1 className="min-w-0 font-bold text-gray-950 text-2xl first-letter:uppercase sm:text-3xl">
+                                          {activity.name}
+                                        </h1>
+                                        {activity.activity_type === 'TYPE_QUIZ' && activity.description ? (
+                                          <p className="mt-2 max-w-2xl text-sm leading-5 text-gray-600">
+                                            {activity.description}
+                                          </p>
+                                        ) : null}
+                                      </div>
+                                    </div>
                                     {activity.activity_type === 'TYPE_QUIZ' && (
                                       <Suspense fallback={null}>
                                         <QuizTitleActions activity={activity} />

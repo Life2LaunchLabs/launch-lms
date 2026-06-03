@@ -47,7 +47,7 @@ def build_issuer_payload(
     issuer_config = get_org_badge_issuer_config(org, org_config)
     issuer_url = issuer_config["url"] or f"{base_url}/orgs/{org.slug}"
     image_url = issuer_config["image_url"] or (
-        f"{base_url}/api/v1/content/orgs/{org.org_uuid}/logos/{org.logo_image}"
+        f"{base_url}/content/orgs/{org.org_uuid}/logos/{org.logo_image}"
         if org.logo_image else f"{base_url}/logo-icon.svg"
     )
 
@@ -76,7 +76,11 @@ def build_badge_class_payload(
     config = certification.config or {}
     criteria_url = config.get("badge_criteria_url") or f"{base_url}/orgs/{org.slug}/course/{course.course_uuid.replace('course_', '')}"
     criteria_narrative = config.get("badge_criteria_text") or DEFAULT_BADGE_CRITERIA_TEXT
-    image_url = config.get("badge_image_url") or issuer.get("image") or f"{base_url}/logo-icon.svg"
+    course_thumbnail_url = (
+        f"{base_url}/content/orgs/{org.org_uuid}/courses/{course.course_uuid}/thumbnails/{course.thumbnail_image}"
+        if course.thumbnail_image else ""
+    )
+    image_url = config.get("badge_image_url") or course_thumbnail_url or issuer.get("image") or f"{base_url}/logo-icon.svg"
 
     badge_class: dict[str, Any] = {
         "@context": OPEN_BADGES_CONTEXT,

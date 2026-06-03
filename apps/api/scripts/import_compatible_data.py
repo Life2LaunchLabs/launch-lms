@@ -6,7 +6,7 @@ from collections import defaultdict, deque
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import MetaData, Table, create_engine, func, select
+from sqlalchemy import MetaData, Table, create_engine, func, select, text
 from sqlalchemy.dialects.postgresql import insert
 
 
@@ -140,6 +140,51 @@ def _copy_table(source_connection: Any, target_connection: Any, source_table: Ta
     return stats
 
 
+def _reset_sequences(connection: Any, metadata: MetaData) -> None:
+    preparer = connection.dialect.identifier_preparer
+
+    for table_name, table in metadata.tables.items():
+        for column in table.columns:
+            is_sequence_column = (
+                column.autoincrement is True
+                or (column.autoincrement == "auto" and column.primary_key)
+                or bool(getattr(column, "identity", None))
+            )
+            if not is_sequence_column:
+                continue
+
+            quoted_table = preparer.quote(table.name)
+            if table.schema:
+                quoted_table = f"{preparer.quote_schema(table.schema)}.{quoted_table}"
+
+            try:
+                connection.execute(text("SAVEPOINT reset_seq"))
+                sequence_name = connection.execute(
+                    text("SELECT pg_get_serial_sequence(:table_name, :column_name)"),
+                    {"table_name": quoted_table, "column_name": column.name},
+                ).scalar()
+
+                if not sequence_name:
+                    print(f"warning: no owned sequence found for {table_name}.{column.name}")
+                    connection.execute(text("RELEASE SAVEPOINT reset_seq"))
+                    continue
+
+                max_value = connection.execute(select(func.max(column))).scalar()
+                next_value = (max_value or 0) + 1
+                connection.execute(
+                    text("SELECT setval(CAST(:sequence_name AS regclass), :next_value, false)"),
+                    {"sequence_name": sequence_name, "next_value": next_value},
+                )
+                connection.execute(text("RELEASE SAVEPOINT reset_seq"))
+            except Exception as e:
+                connection.execute(text("ROLLBACK TO SAVEPOINT reset_seq"))
+                connection.execute(text("RELEASE SAVEPOINT reset_seq"))
+                print(
+                    f"warning: could not reset sequence for {table_name}.{column.name}: {e}"
+                )
+    connection.commit()
+
+
 def import_compatible_data(source_url: str, target_url: str) -> None:
     source_engine = create_engine(source_url, pool_pre_ping=True)
     target_engine = create_engine(target_url, pool_pre_ping=True)
@@ -174,19 +219,37 @@ def import_compatible_data(source_url: str, target_url: str) -> None:
                     f"skipped_fk={stats.skipped_fk} skipped_error={stats.skipped_error}"
                 )
 
+        _reset_sequences(target_connection, target_metadata)
+        print("sequences reset")
+
     print(
         "compatible import complete: "
         f"copied={copied_total} skipped_fk={skipped_fk_total} skipped_error={skipped_error_total}"
     )
 
 
+def reset_sequences(target_url: str) -> None:
+    engine = create_engine(target_url, pool_pre_ping=True)
+    metadata = MetaData()
+    metadata.reflect(engine)
+    with engine.connect() as connection:
+        _reset_sequences(connection, metadata)
+    print("sequences reset")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Import compatible rows between Launch LMS dev databases.")
-    parser.add_argument("--source-url", required=True)
+    parser.add_argument("--source-url")
     parser.add_argument("--target-url", required=True)
+    parser.add_argument("--reset-sequences", action="store_true", help="Reset all sequences without importing data")
     args = parser.parse_args()
 
-    import_compatible_data(args.source_url, args.target_url)
+    if args.reset_sequences:
+        reset_sequences(args.target_url)
+    else:
+        if not args.source_url:
+            parser.error("--source-url is required unless --reset-sequences is used")
+        import_compatible_data(args.source_url, args.target_url)
     return 0
 
 

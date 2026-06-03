@@ -59,6 +59,8 @@ def _default_correct_vector() -> dict:
 
 
 def _get_active_scoring_vectors(details: dict, quiz_mode: str) -> list[dict]:
+    if quiz_mode == "ungraded":
+        return []
     if quiz_mode == "graded":
         return (
             details.get("graded_scoring_vectors")
@@ -153,13 +155,20 @@ async def submit_quiz_attempt(
         db_session.add(db_answer)
     db_session.commit()
 
-    # Compute scores
     scored_answers = [
         {"question_uuid": a.question_uuid, "answer_json": a.answer_json}
         for a in submission.answers
     ]
-    scores = compute_scores(scored_answers, option_scores, text_scores, vectors)
-    result_json = compute_result_bundle(scores, vectors, category_sets, result_options)
+
+    if quiz_mode == "ungraded":
+        result_json = {
+            "quiz_mode": "ungraded",
+            "answers": scored_answers,
+        }
+    else:
+        # Compute scores
+        scores = compute_scores(scored_answers, option_scores, text_scores, vectors)
+        result_json = compute_result_bundle(scores, vectors, category_sets, result_options)
 
     if quiz_mode == "graded":
         correct_score = float(scores.get("correct", 0.0))
@@ -194,6 +203,11 @@ async def submit_quiz_attempt(
             if answer_json.get("type") == "select":
                 graded_question_count += 1
                 continue
+            if answer_json.get("type") == "multiselect":
+                option_uuids = answer_json.get("option_uuids", []) or []
+                if isinstance(option_uuids, list):
+                    graded_question_count += len(option_uuids)
+                continue
             if answer_json.get("type") == "text":
                 rule = text_scores.get(item.get("question_uuid"), {})
                 if rule.get("mode") == "min_length":
@@ -219,7 +233,7 @@ async def submit_quiz_attempt(
             "correct_answers": int(round(correct_score * graded_question_count)),
             "question_count": graded_question_count,
         }
-    else:
+    elif quiz_mode == "categories":
         result_json["quiz_mode"] = "categories"
 
     # Persist result
@@ -365,6 +379,10 @@ async def update_quiz_results(
     details["result_options"] = results_data.get("result_options", [])
     if "results_template" in results_data:
         details["results_template"] = results_data["results_template"]
+    if "ungraded_result_tab_labels" in results_data:
+        details["ungraded_result_tab_labels"] = results_data.get(
+            "ungraded_result_tab_labels", {}
+        )
     activity.details = details
     activity.update_date = str(datetime.utcnow())
     db_session.add(activity)

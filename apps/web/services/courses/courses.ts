@@ -96,6 +96,24 @@ export async function updateCourseThumbnail(course_uuid: any, formData: FormData
   return res
 }
 
+export async function updateCourseCoreBackground(course_uuid: any, formData: FormData, access_token:any) {
+  const result: any = await fetch(
+    `${getAPIUrl()}courses/${course_uuid}/core-background`,
+    RequestBodyFormWithAuthHeader('PUT', formData, null, access_token)
+  )
+  const res = await getResponseMetadata(result)
+  return res
+}
+
+export async function updateCoreCourseOrder(course_uuids: string[], access_token:any) {
+  const result: any = await fetch(
+    `${getAPIUrl()}courses/core/reorder`,
+    RequestBodyWithAuthHeader('PUT', { course_uuids }, null, access_token)
+  )
+  const res = await errorHandling(result)
+  return res
+}
+
 export async function createNewCourse(
   org_id: string,
   course_body: any,

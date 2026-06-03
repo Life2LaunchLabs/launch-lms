@@ -88,6 +88,33 @@ def test_compute_scores_applies_sort_assignments_per_card_category() -> None:
     }
 
 
+def test_compute_scores_applies_multiselect_options_per_vector() -> None:
+    answers = [
+        {
+            "question_uuid": "question_multi",
+            "answer_json": {
+                "type": "multiselect",
+                "option_uuids": ["option_1", "option_2"],
+            },
+        }
+    ]
+    option_scores = {
+        "option_1": {"energy": 1.0, "focus": 0.2},
+        "option_2": {"energy": 0.5, "focus": 0.8},
+    }
+    vectors = [
+        {"key": "energy"},
+        {"key": "focus"},
+    ]
+
+    scores = compute_scores(answers, option_scores, text_scores={}, vectors=vectors)
+
+    assert scores == {
+        "energy": 0.75,
+        "focus": 0.5,
+    }
+
+
 def test_match_result_option_prefers_low_target_for_zero_score() -> None:
     result = match_result_option(
         {"energy": 0.0},

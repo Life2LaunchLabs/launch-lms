@@ -186,10 +186,10 @@ export default function SaveDropdown({
   const isCard = variant === 'card'
 
   const saveButtonClass = isCard
-    ? `rounded-full p-2 transition-opacity ${
+    ? `rounded-full p-2 transition-colors ${
           isSaved
-            ? 'opacity-100 bg-black/60 text-white'
-            : 'opacity-0 group-hover:opacity-100 bg-black/40 text-white'
+            ? 'bg-gray-950 text-white'
+            : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-800'
         }`
     : `ml-auto flex items-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${
           isSaved
@@ -198,12 +198,12 @@ export default function SaveDropdown({
         }`
 
   const menuButtonClass = isCard
-    ? `rounded-full p-2 transition-opacity ${
+    ? `rounded-full p-2 transition-colors ${
         open
-          ? 'opacity-100 bg-white/85 text-gray-900'
+          ? 'bg-gray-950 text-white'
           : isSaved
-            ? 'opacity-100 bg-black/60 text-white'
-            : 'opacity-0 group-hover:opacity-100 bg-black/40 text-white'
+            ? 'bg-gray-100 text-gray-700'
+            : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-800'
       }`
     : `flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-500 transition-colors ${
         open ? 'bg-gray-100 text-gray-900' : 'hover:border-gray-200 hover:bg-gray-50'

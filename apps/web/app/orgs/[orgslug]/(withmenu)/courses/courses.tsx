@@ -6,6 +6,7 @@ import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/Fe
 import CollectionsOverviewSection from '@components/Pages/Courses/CollectionsOverviewSection'
 import { SquareLibrary } from 'lucide-react'
 import FeatureInfoBanner from '@components/Onboarding/FeatureInfoBanner'
+import InProgressSection from '@components/Landings/InProgressSection'
 
 interface CourseProps {
   orgslug: string
@@ -15,23 +16,26 @@ interface CourseProps {
 
 function Courses(props: CourseProps) {
   return (
-    <FeatureDisabledView
-      featureName="collections"
-      orgslug={props.orgslug}
-      icon={SquareLibrary}
-      context="public"
-    >
-      <div className="w-full">
-        <GeneralWrapperStyled>
-          <FeatureInfoBanner orgslug={props.orgslug} feature="courses" />
+    <div className="w-full">
+      <GeneralWrapperStyled>
+        <div className="mb-8">
+          <InProgressSection orgslug={props.orgslug} />
+        </div>
+        <FeatureInfoBanner orgslug={props.orgslug} feature="courses" />
+        <FeatureDisabledView
+          featureName="collections"
+          orgslug={props.orgslug}
+          icon={SquareLibrary}
+          context="public"
+        >
           <CollectionsOverviewSection
             collections={props.collections || []}
             orgslug={props.orgslug}
             org_id={props.org_id}
           />
-        </GeneralWrapperStyled>
-      </div>
-    </FeatureDisabledView>
+        </FeatureDisabledView>
+      </GeneralWrapperStyled>
+    </div>
   )
 }
 

@@ -1,14 +1,13 @@
 'use client'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { getCoreCapabilities, getUriWithOrg, routePaths } from '@services/config/config'
-import { TextIcon, LucideIcon, LayoutDashboardIcon, CodeIcon, KeyIcon, Palette, School, ToggleRight, Shield, Globe, Search, BarChart3, Layers } from 'lucide-react'
+import { TextIcon, LucideIcon, CodeIcon, KeyIcon, Palette, School, ToggleRight, Shield, Globe, Search, BarChart3, Layers } from 'lucide-react'
 import Link from 'next/link'
 import React, { useEffect, use } from 'react';
 import { motion } from 'motion/react'
 import Image from 'next/image'
 import OrgEditGeneral from '@components/Dashboard/Pages/Org/OrgEditGeneral/OrgEditGeneral'
 import OrgEditBranding from '@components/Dashboard/Pages/Org/OrgEditBranding/OrgEditBranding'
-import OrgEditLanding from '@components/Dashboard/Pages/Org/OrgEditLanding/OrgEditLanding'
 import OrgEditOther from '@components/Dashboard/Pages/Org/OrgEditOther/OrgEditOther'
 import OrgEditAPIAccess from '@components/Dashboard/Pages/Org/OrgEditAPIAccess/OrgEditAPIAccess'
 import OrgEditAI from '@components/Dashboard/Pages/Org/OrgEditAI/OrgEditAI'
@@ -41,7 +40,6 @@ const getSettingTabs = (t: any): TabItem[] => [
   { id: 'general', label: t('dashboard.organization.settings.tabs.general'), icon: TextIcon },
   { id: 'branding', label: t('dashboard.organization.settings.tabs.branding'), icon: Palette, requiredPlan: 'enterprise' },
   { id: 'features', label: t('dashboard.organization.settings.tabs.features') || 'Features', icon: ToggleRight, requiredPlan: 'enterprise' },
-  { id: 'landing', label: t('dashboard.organization.settings.tabs.landing'), icon: LayoutDashboardIcon, requiredPlan: 'enterprise' },
   { id: 'seo', label: 'SEO', icon: Search, requiredPlan: 'enterprise' },
   { id: 'ai', label: t('dashboard.organization.settings.tabs.ai') || 'AI', customIcon: '/ai_icon.svg', requiredPlan: 'full' },
   { id: 'domains', label: t('dashboard.organization.settings.tabs.domains') || 'Domains', icon: Globe, requiredPlan: 'enterprise' },
@@ -111,9 +109,6 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
     } else if (params.subpage == 'branding') {
       setH1Label(t('dashboard.organization.settings.pages.branding.title'))
       setH2Label(t('dashboard.organization.settings.pages.branding.subtitle'))
-    } else if (params.subpage == 'landing') {
-      setH1Label(t('dashboard.organization.settings.pages.landing.title'))
-      setH2Label(t('dashboard.organization.settings.pages.landing.subtitle'))
     } else if (params.subpage == 'seo') {
       setH1Label('SEO')
       setH2Label('Manage search engine optimization settings')
@@ -189,7 +184,6 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
         {params.subpage == 'general' ? <OrgEditGeneral /> : ''}
         {params.subpage == 'features' ? <OrgEditFeatures /> : ''}
         {params.subpage == 'branding' ? <OrgEditBranding /> : ''}
-        {params.subpage == 'landing' ? <OrgEditLanding /> : ''}
         {params.subpage == 'seo' ? <OrgEditSEO /> : ''}
         {params.subpage == 'ai' ? <OrgEditAI /> : ''}
         {params.subpage == 'domains' ? <OrgEditDomains /> : ''}

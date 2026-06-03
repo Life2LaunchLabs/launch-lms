@@ -57,8 +57,8 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
       <OrgJoinBanner />
       <div className="flex-1 relative print:flex-none" style={{ zIndex: 'var(--z-content)' }}>
         <div className="w-full md:flex md:items-start md:px-4 lg:px-5 xl:px-6 2xl:px-8 print:block print:px-0">
-          <div className="print:hidden">
-            <OrgMenu orgslug={orgslug} autoContractDesktopNav={false} />
+          <div className="print:hidden md:contents">
+            <OrgMenu orgslug={orgslug} />
           </div>
           <div className="flex-1 min-w-0 pb-28 md:pb-0 print:pb-0">
             {children}

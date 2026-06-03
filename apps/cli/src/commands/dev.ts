@@ -355,6 +355,42 @@ function importCompatibleDevData(root: string, apiDir: string, sourceDatabase: s
   }
 }
 
+function resetDevSequences(root: string, apiDir: string, targetDatabaseUrl: string): void {
+  const importScript = path.join(apiDir, 'scripts', 'import_compatible_data.py')
+  const uvCacheDir = path.join(root, '.launch-lms', 'uv-cache')
+
+  const sequenceSpinner = p.spinner()
+  sequenceSpinner.start('Resetting database sequences...')
+
+  try {
+    const output = execFileSync(
+      'uv',
+      [
+        'run',
+        'python',
+        importScript,
+        '--target-url',
+        targetDatabaseUrl,
+        '--reset-sequences',
+      ],
+      {
+        cwd: apiDir,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          UV_CACHE_DIR: process.env.UV_CACHE_DIR || uvCacheDir,
+        },
+      }
+    ).trim()
+    sequenceSpinner.stop('Database sequences are up to date')
+    if (output) p.log.info(output)
+  } catch (e: any) {
+    sequenceSpinner.stop('Database sequence reset failed')
+    p.log.warning(e?.stderr?.toString()?.trim() || e?.stdout?.toString()?.trim() || 'Continuing without resetting sequences.')
+  }
+}
+
 function runDevMigrations(root: string, apiDir: string, databaseUrl: string): void {
   const migrationsScript = path.join(apiDir, 'scripts', 'run_alembic_migrations.sh')
   const uvCacheDir = path.join(root, '.launch-lms', 'uv-cache')
@@ -656,6 +692,10 @@ export async function devCommand(opts: { ee?: boolean }) {
 
   serviceEnv.LAUNCHLMS_SQL_CONNECTION_STRING = devDatabaseUrl
   runDevMigrations(root, apiDir, devDatabaseUrl)
+
+  if (selectedDatabase) {
+    resetDevSequences(root, apiDir, devDatabaseUrl)
+  }
 
   if (selectedDatabase?.importSourceDatabase) {
     importCompatibleDevData(root, apiDir, selectedDatabase.importSourceDatabase, devDatabaseUrl)

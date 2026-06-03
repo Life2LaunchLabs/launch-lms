@@ -18,6 +18,7 @@ import QuizInfoBlock from '@components/Objects/Editor/Extensions/QuizInfo/QuizIn
 import QuizTextBlock from '@components/Objects/Editor/Extensions/QuizText/QuizTextBlock'
 import QuizSliderBlock from '@components/Objects/Editor/Extensions/QuizSlider/QuizSliderBlock'
 import QuizSortBlock from '@components/Objects/Editor/Extensions/QuizSort/QuizSortBlock'
+import QuizMultiSelectBlock from '@components/Objects/Editor/Extensions/QuizMultiSelect/QuizMultiSelectBlock'
 import { CourseProvider } from '@components/Contexts/CourseContext'
 import { updateActivity } from '@services/courses/activities'
 import { updateQuizScoring, updateQuizResults, updateQuizSettings } from '@services/quiz/quiz'
@@ -25,7 +26,9 @@ import { uploadNewImageFile } from '@services/blocks/Image/images'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
 import toast from 'react-hot-toast'
 import QuizActivityPlayer from '../Player/QuizActivityPlayer'
+import QuizResultsView from '../Player/QuizResultsView'
 import QuizResultContentEditor from '../Results/QuizResultContentEditor'
+import { channelIconOptions, defaultChapterIconName, getChannelIcon } from '@components/Resources/ResourceChannelStyle'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -38,7 +41,7 @@ interface ScoringVector {
   color: string
 }
 
-type QuizMode = 'categories' | 'graded'
+type QuizMode = 'categories' | 'graded' | 'ungraded'
 
 interface GradingRules {
   pass_percent: number
@@ -115,6 +118,8 @@ function TabBtn({ active, onClick, icon, label }: { active: boolean; onClick: ()
 
 interface EditorBlockInfo { type: string; attrs: any; pos: number; nodeSize: number }
 
+const QUESTION_BLOCK_TYPES = ['quizSelectBlock', 'quizTextBlock', 'quizSliderBlock', 'quizSortBlock', 'quizMultiSelectBlock']
+
 // ── Main editor ────────────────────────────────────────────────────────────
 
 export default function QuizActivityEditor({ activity, course, org }: QuizActivityEditorProps) {
@@ -125,11 +130,15 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   const [previewMode, setPreviewMode] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [quizName, setQuizName] = useState<string>(activity.name || '')
+  const [quizDescription, setQuizDescription] = useState<string>(activity.description || '')
+  const [quizIcon, setQuizIcon] = useState<string>(activity.icon || defaultChapterIconName)
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // ── Scoring state ─────────────────────────────────────────────────────
   const details = activity.details || {}
-  const [quizMode, setQuizMode] = useState<QuizMode>(details.quiz_mode === 'graded' ? 'graded' : 'categories')
+  const [quizMode, setQuizMode] = useState<QuizMode>(
+    details.quiz_mode === 'graded' || details.quiz_mode === 'ungraded' ? details.quiz_mode : 'categories'
+  )
   const [gradingRules, setGradingRules] = useState<GradingRules>({
     pass_percent: details.grading_rules?.pass_percent ?? 70,
     max_attempts: details.grading_rules?.max_attempts ?? null,
@@ -154,6 +163,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   // ── Results state ─────────────────────────────────────────────────────
   const [resultOptions, setResultOptions] = useState<QuizResultOption[]>(details.result_options || [])
   const [resultsTemplate, setResultsTemplate] = useState<any>(details.results_template || null)
+  const [ungradedResultTabLabels, setUngradedResultTabLabels] = useState<Record<string, string>>(details.ungraded_result_tab_labels || {})
   const [selectedResultUuid, setSelectedResultUuid] = useState<string | null>(null)
   const [resultsDirty, setResultsDirty] = useState(false)
   const [isSavingResults, setIsSavingResults] = useState(false)
@@ -167,6 +177,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   const [sidebarDragSrc, setSidebarDragSrc] = useState<number | null>(null)
   const [sidebarDragOver, setSidebarDragOver] = useState<number | null>(null)
   const suppressBlockExtraction = useRef(false)
+  const editorActivityRef = useRef<any>({ ...activity, details: { ...details, quiz_mode: quizMode } })
 
   // ── Editor ────────────────────────────────────────────────────────────
   const editor = useEditor({
@@ -175,16 +186,52 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
     extensions: [
       Document,
       Text,
-      QuizSelectBlock.configure({ activity }),
-      QuizTextBlock.configure({ activity }),
-      QuizSliderBlock.configure({ activity }),
-      QuizSortBlock.configure({ activity }),
-      QuizInfoBlock.configure({ activity }),
+      QuizSelectBlock.configure({ activity: editorActivityRef.current }),
+      QuizTextBlock.configure({ activity: editorActivityRef.current }),
+      QuizSliderBlock.configure({ activity: editorActivityRef.current }),
+      QuizSortBlock.configure({ activity: editorActivityRef.current }),
+      QuizMultiSelectBlock.configure({ activity: editorActivityRef.current }),
+      QuizInfoBlock.configure({ activity: editorActivityRef.current }),
     ],
     content: activity.content && Object.keys(activity.content).length > 0
       ? activity.content
       : { type: 'doc', content: [] },
   })
+
+  const syncEditorActivity = useCallback((detailOverrides: Record<string, any> = {}) => {
+    const nextActivity = {
+      ...editorActivityRef.current,
+      ...activity,
+      name: quizName,
+      description: quizDescription,
+      icon: quizIcon,
+      details: {
+        ...(editorActivityRef.current?.details || {}),
+        ...(activity.details || {}),
+        quiz_mode: quizMode,
+        grading_rules: gradingRules,
+        scoring_vectors: vectors,
+        category_scoring_vectors: categoryVectors,
+        graded_scoring_vectors: gradedVectors,
+        option_scores: optionScores,
+        text_scores: textScores,
+        result_options: resultOptions,
+        results_template: resultsTemplate,
+        ungraded_result_tab_labels: ungradedResultTabLabels,
+        ...detailOverrides,
+      },
+    }
+    editorActivityRef.current = nextActivity
+    editor?.extensionManager.extensions.forEach((extension: any) => {
+      if (['quizSelectBlock', 'quizTextBlock', 'quizSliderBlock', 'quizSortBlock', 'quizMultiSelectBlock', 'quizInfoBlock'].includes(extension.name)) {
+        extension.options.activity = nextActivity
+      }
+    })
+  }, [activity, quizName, quizDescription, quizIcon, quizMode, gradingRules, vectors, categoryVectors, gradedVectors, optionScores, textScores, resultOptions, resultsTemplate, ungradedResultTabLabels, editor])
+
+  useEffect(() => {
+    syncEditorActivity()
+  }, [syncEditorActivity])
 
   useEffect(() => { editor?.setEditable(!previewMode) }, [previewMode, editor])
 
@@ -202,7 +249,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   const extractAndSetBlocks = useCallback((editorInstance: NonNullable<typeof editor>) => {
     const blocks: EditorBlockInfo[] = []
     editorInstance.state.doc.forEach((node, pos) => {
-      if (['quizSelectBlock', 'quizTextBlock', 'quizSliderBlock', 'quizSortBlock', 'quizInfoBlock'].includes(node.type.name)) {
+      if (['quizSelectBlock', 'quizTextBlock', 'quizSliderBlock', 'quizSortBlock', 'quizMultiSelectBlock', 'quizInfoBlock'].includes(node.type.name)) {
         blocks.push({ type: node.type.name, attrs: node.attrs, pos, nodeSize: node.nodeSize })
       }
     })
@@ -225,14 +272,14 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
     if (!editor) return
     setIsSaving(true)
     try {
-      await updateActivity({ content: editor.getJSON(), name: quizName }, activity.activity_uuid, access_token)
+      await updateActivity({ content: editor.getJSON(), name: quizName, description: quizDescription, icon: quizIcon }, activity.activity_uuid, access_token)
       if (showToast) toast.success('Quiz saved')
     } catch {
       toast.error('Failed to save quiz')
     } finally {
       setIsSaving(false)
     }
-  }, [editor, quizName, activity.activity_uuid, access_token])
+  }, [editor, quizName, quizDescription, quizIcon, activity.activity_uuid, access_token])
 
   useEffect(() => {
     if (!editor) return
@@ -248,7 +295,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   const saveScoring = useCallback(async () => {
     setIsSavingScoring(true)
     try {
-      const activeVectors = normalizeVectors(quizMode === 'graded' ? ensureGradedVectors(vectors) : vectors)
+      const activeVectors = normalizeVectors(quizMode === 'graded' ? ensureGradedVectors(vectors) : quizMode === 'ungraded' ? [] : vectors)
       const nextCategoryVectors = normalizeVectors(quizMode === 'categories' ? vectors : categoryVectors)
       const nextGradedVectors = normalizeVectors(quizMode === 'graded' ? ensureGradedVectors(vectors) : ensureGradedVectors(gradedVectors))
       await updateQuizScoring(
@@ -287,6 +334,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
       await updateQuizResults(activity.activity_uuid, {
         result_options: resultOptions,
         results_template: resultsTemplate,
+        ungraded_result_tab_labels: ungradedResultTabLabels,
       }, access_token)
       setResultsDirty(false)
     } catch {
@@ -294,7 +342,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
     } finally {
       setIsSavingResults(false)
     }
-  }, [resultOptions, resultsTemplate, activity.activity_uuid, access_token])
+  }, [resultOptions, resultsTemplate, ungradedResultTabLabels, activity.activity_uuid, access_token])
 
   const saveCurrentTab = useCallback(async () => {
     if (activeTab === 'scoring' && scoringDirty) {
@@ -342,14 +390,14 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   }, [activeTab, scoringDirty, resultsDirty, saveScoring, saveResults])
 
   useEffect(() => {
-    if (quizMode === 'graded' && (activeTab === 'scoring' || activeTab === 'results')) {
+    if ((quizMode !== 'categories' && activeTab === 'scoring') || (quizMode === 'graded' && activeTab === 'results')) {
       setActiveTab('general')
     }
   }, [quizMode, activeTab])
 
   // ── Sidebar helpers ───────────────────────────────────────────────────
   const scrollToBlock = (idx: number) => {
-    const allBlocks = document.querySelectorAll('.quiz-select-block, .quiz-text-block, .quiz-slider-block, .quiz-sort-block, .quiz-info-block')
+    const allBlocks = document.querySelectorAll('.quiz-select-block, .quiz-text-block, .quiz-slider-block, .quiz-sort-block, .quiz-multi-select-block, .quiz-info-block')
     const el = allBlocks[idx] as HTMLElement | undefined
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
@@ -439,6 +487,15 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
           color: '#0284c7',
           title: block.attrs.question_text || 'Sort question',
           preview: `${cards.length} cards · ${categories.map((category: any) => category.label || '—').join(' / ')}`,
+        }
+      }
+      case 'quizMultiSelectBlock': {
+        const categories = (block.attrs.categories || []) as any[]
+        return {
+          iconType: 'layers3' as const,
+          color: '#db2777',
+          title: block.attrs.question_text || 'Multi select',
+          preview: categories.map((category: any) => category.title || '—').filter(Boolean).join(' / '),
         }
       }
       case 'quizInfoBlock':
@@ -543,6 +600,32 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
     }).run()
   }
 
+  const insertMultiSelectBlock = () => {
+    if (!editor) return
+    editor.chain().insertContentAt(editor.state.doc.content.size, {
+      type: 'quizMultiSelectBlock',
+      attrs: {
+        question_uuid: uuidv4(),
+        question_text: '',
+        categories: [
+          {
+            category_uuid: uuidv4(),
+            title: 'Category 1',
+            options: Array.from({ length: 4 }, (_, idx) => ({ option_uuid: uuidv4(), label: `Option ${idx + 1}` })),
+          },
+          {
+            category_uuid: uuidv4(),
+            title: 'Category 2',
+            options: Array.from({ length: 4 }, (_, idx) => ({ option_uuid: uuidv4(), label: `Option ${idx + 1}` })),
+          },
+        ],
+        background_gradient_seed: uuidv4(),
+        background_image_file_id: null,
+        background_image_block_object: null,
+      },
+    }).run()
+  }
+
   const handleQuizModeChange = async (nextMode: QuizMode) => {
     const nextCategoryVectors = normalizeVectors(quizMode === 'categories' ? vectors : categoryVectors)
     const nextGradedVectors = normalizeVectors(ensureGradedVectors(
@@ -551,11 +634,19 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
     setCategoryVectors(nextCategoryVectors)
     setGradedVectors(nextGradedVectors)
     setQuizMode(nextMode)
-    const activeVectors = normalizeVectors(nextMode === 'graded'
+    const activeVectors = normalizeVectors(nextMode === 'ungraded'
+      ? []
+      : nextMode === 'graded'
       ? ensureGradedVectors(nextGradedVectors)
       : nextCategoryVectors)
     setVectors(activeVectors)
     setScoringDirty(false)
+    syncEditorActivity({
+      quiz_mode: nextMode,
+      scoring_vectors: activeVectors,
+      category_scoring_vectors: nextCategoryVectors,
+      graded_scoring_vectors: nextGradedVectors,
+    })
     window.dispatchEvent(new CustomEvent('lh:quiz-scoring-updated', {
       detail: {
         vectors: activeVectors,
@@ -679,6 +770,70 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
     updateResult(selectedResultUuid, 'cover_image_file_id', null)
   }
 
+  const ungradedQuestionBlocks = editorBlocks.filter(block => QUESTION_BLOCK_TYPES.includes(block.type))
+
+  const getUngradedPreviewAnswer = (block: EditorBlockInfo) => {
+    const attrs = block.attrs || {}
+    const questionUuid = attrs.question_uuid
+    if (!questionUuid) return null
+
+    if (block.type === 'quizTextBlock') {
+      return { question_uuid: questionUuid, answer_json: { type: 'text', text: attrs.placeholder || 'Learner response appears here.' } }
+    }
+
+    if (block.type === 'quizSliderBlock') {
+      const values = Object.fromEntries((attrs.sliders || []).map((slider: any) => [slider.slider_uuid, attrs.direction_mode === 'stars' ? 0.8 : 0.6]))
+      return { question_uuid: questionUuid, answer_json: { type: 'slider', values } }
+    }
+
+    if (block.type === 'quizSortBlock') {
+      const categories = attrs.categories || []
+      const assignments = Object.fromEntries((attrs.cards || []).map((card: any, index: number) => [
+        card.card_uuid,
+        categories[index % Math.max(1, categories.length)]?.category_uuid,
+      ]).filter(([, categoryUuid]: any[]) => !!categoryUuid))
+      return { question_uuid: questionUuid, answer_json: { type: 'sort', assignments } }
+    }
+
+    if (block.type === 'quizMultiSelectBlock') {
+      const optionUuids = (attrs.categories || []).flatMap((category: any) => (category.options || []).slice(0, 2).map((option: any) => option.option_uuid))
+      return { question_uuid: questionUuid, answer_json: { type: 'multiselect', option_uuids: optionUuids } }
+    }
+
+    const selectedOption = (attrs.options || []).find((option: any) => option.label?.trim()) || attrs.options?.[0]
+    return { question_uuid: questionUuid, answer_json: { type: 'select', option_uuid: selectedOption?.option_uuid } }
+  }
+
+  const ungradedPreviewResult = {
+    result_json: {
+      quiz_mode: 'ungraded',
+      answers: ungradedQuestionBlocks
+        .map(getUngradedPreviewAnswer)
+        .filter(Boolean),
+    },
+  }
+
+  const saveUngradedTabLabel = async (questionUuid: string, label: string) => {
+    const trimmed = label.trim()
+    const nextLabels = { ...ungradedResultTabLabels }
+    if (trimmed) nextLabels[questionUuid] = trimmed
+    else delete nextLabels[questionUuid]
+    setUngradedResultTabLabels(nextLabels)
+    setIsSavingResults(true)
+    try {
+      await updateQuizResults(activity.activity_uuid, {
+        result_options: resultOptions,
+        results_template: resultsTemplate,
+        ungraded_result_tab_labels: nextLabels,
+      }, access_token)
+      setResultsDirty(false)
+    } catch {
+      toast.error('Failed to save results')
+    } finally {
+      setIsSavingResults(false)
+    }
+  }
+
   const getCoverUrl = (blockObj: any): string | null => {
     if (!blockObj?.content?.file_id) return null
     return getActivityBlockMediaDirectory(
@@ -725,7 +880,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
             <div className="flex space-x-2 px-6 border-b border-neutral-100 bg-white/95 backdrop-blur sticky top-[41px] z-20 shadow-md shadow-gray-300/20">
               <TabBtn active={activeTab === 'general'} onClick={() => handleTabChange('general')} icon={<InfoIcon size={16} />} label="General" />
               <TabBtn active={activeTab === 'content'} onClick={() => handleTabChange('content')} icon={<ListChecks size={16} />} label="Content" />
-              {quizMode !== 'graded' && (
+              {quizMode === 'categories' && (
                 <TabBtn active={activeTab === 'scoring'} onClick={() => handleTabChange('scoring')} icon={<Save size={16} />} label="Scoring" />
               )}
               {quizMode !== 'graded' && (
@@ -743,6 +898,8 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                 activity={{
                   ...activity,
                   name: quizName,
+                  description: quizDescription,
+                  icon: quizIcon,
                   details: {
                     ...details,
                     quiz_mode: quizMode,
@@ -754,6 +911,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                     text_scores: textScores,
                     result_options: resultOptions,
                     results_template: resultsTemplate,
+                    ungraded_result_tab_labels: ungradedResultTabLabels,
                   },
                 }}
                 editorPreviewContent={editor?.getJSON()}
@@ -770,6 +928,48 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                     className="w-full text-neutral-800 bg-white border border-neutral-200 rounded-lg px-3 py-2.5 text-sm font-semibold outline-none focus:border-violet-400 transition-colors" />
                 </div>
                 <div>
+                  <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Description</label>
+                  <textarea
+                    value={quizDescription}
+                    onChange={e => setQuizDescription(e.target.value)}
+                    onBlur={() => save(false)}
+                    placeholder="Optional quiz description..."
+                    rows={3}
+                    className="w-full resize-none text-neutral-800 bg-white border border-neutral-200 rounded-lg px-3 py-2.5 text-sm font-medium outline-none focus:border-violet-400 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Icon</label>
+                  <div className="rounded-xl border border-neutral-200 bg-white p-3">
+                    <div className="mb-3 flex items-center gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-neutral-100 text-neutral-900">
+                        {React.createElement(getChannelIcon(quizIcon), { size: 22 })}
+                      </div>
+                      <span className="text-sm font-semibold text-neutral-700">{quizIcon || defaultChapterIconName}</span>
+                    </div>
+                    <div className="grid max-h-36 grid-cols-8 gap-1.5 overflow-y-auto pr-1">
+                      {channelIconOptions.map(({ name, Icon }) => (
+                        <button
+                          key={name}
+                          type="button"
+                          title={name}
+                          onClick={() => {
+                            setQuizIcon(name)
+                            void updateActivity({ icon: name }, activity.activity_uuid, access_token)
+                          }}
+                          className={`flex aspect-square items-center justify-center rounded-lg border transition-colors ${
+                            quizIcon === name
+                              ? 'border-black bg-white text-neutral-900'
+                              : 'border-neutral-200 bg-white text-neutral-500 hover:bg-neutral-50'
+                          }`}
+                        >
+                          <Icon size={15} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div>
                   <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Type</label>
                   <select
                     value={quizMode}
@@ -778,10 +978,13 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                   >
                     <option value="categories">Categories</option>
                     <option value="graded">Graded</option>
+                    <option value="ungraded">Un graded</option>
                   </select>
                   <p className="text-xs text-neutral-400 mt-1.5">
                     {quizMode === 'graded'
                       ? 'Graded quizzes lock scoring to the Correct binary vector and use pass/fail results.'
+                      : quizMode === 'ungraded'
+                        ? 'Un graded quizzes collect responses without scoring.'
                       : 'Category quizzes use custom scoring vectors and result cards.'}
                   </p>
                 </div>
@@ -836,6 +1039,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                       <button type="button" onClick={insertTextBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-medium outline-none transition-colors"><Type size={13} /> Text question</button>
                       <button type="button" onClick={insertSliderBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-medium outline-none transition-colors"><SlidersHorizontal size={13} /> Rating</button>
                       <button type="button" onClick={insertSortBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-medium outline-none transition-colors"><Layers3 size={13} /> Sort</button>
+                      <button type="button" onClick={insertMultiSelectBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-pink-50 hover:bg-pink-100 text-pink-700 text-xs font-medium outline-none transition-colors"><Layers3 size={13} /> Multi select</button>
                       <button type="button" onClick={insertInfoBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-medium outline-none transition-colors"><InfoIcon size={13} /> Info slide</button>
                     </div>
                   </div>
@@ -945,7 +1149,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
             )}
 
             {/* ── Scoring ── */}
-            {!previewMode && activeTab === 'scoring' && quizMode !== 'graded' && (
+            {!previewMode && activeTab === 'scoring' && quizMode === 'categories' && (
               <div className="max-w-2xl mx-auto py-8 px-6 space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -1008,6 +1212,38 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
 
             {/* ── Results ── */}
             {!previewMode && activeTab === 'results' && (
+              quizMode === 'ungraded' ? (
+                <div className="min-h-full bg-[#eceef2] px-4 py-8 sm:px-6">
+                  <div className="mx-auto flex min-h-[calc(100vh-150px)] w-full max-w-5xl items-center justify-center">
+                    <div className="w-full max-w-3xl rounded-[28px] border border-neutral-200 bg-white p-4 shadow-[0_24px_80px_rgba(15,23,42,0.12)] sm:p-5">
+                      {ungradedQuestionBlocks.length === 0 ? (
+                        <div className="flex min-h-[320px] items-center justify-center rounded-2xl bg-neutral-50 text-center">
+                          <p className="text-sm font-medium text-neutral-400">Add questions to customize result tabs.</p>
+                        </div>
+                      ) : (
+                        <QuizResultsView
+                          result={ungradedPreviewResult}
+                          activity={{
+                            ...activity,
+                            content: editor?.getJSON(),
+                            details: {
+                              ...details,
+                              quiz_mode: 'ungraded',
+                              ungraded_result_tab_labels: ungradedResultTabLabels,
+                            },
+                          }}
+                          org={org}
+                          course={course}
+                          onRetake={() => {}}
+                          editableUngradedTabLabels
+                          onSaveUngradedTabLabel={saveUngradedTabLabel}
+                          isSavingUngradedTabLabel={isSavingResults}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
               <div className="flex h-full" style={{ minHeight: 'calc(100vh - 90px)' }}>
 
                 {/* Left: sticky selector panel */}
@@ -1248,6 +1484,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                   )}
                 </div>
               </div>
+              )
             )}
 
           </div>

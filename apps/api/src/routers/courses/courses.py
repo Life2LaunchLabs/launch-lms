@@ -27,7 +27,11 @@ from src.services.courses.courses import (
     get_course_meta,
     get_courses_orgslug,
     get_courses_count_orgslug,
+    get_core_courses,
+    get_core_courses_progress,
+    reorder_core_courses,
     update_course,
+    update_course_core_background,
     delete_course,
     update_course_thumbnail,
     search_courses,
@@ -104,6 +108,17 @@ class ImportRequest(BaseModel):
         return v
 
 
+class CoreCourseReorderRequest(BaseModel):
+    course_uuids: List[str]
+
+    @field_validator('course_uuids')
+    @classmethod
+    def validate_course_uuids(cls, v):
+        if len(v) != len(set(v)):
+            raise ValueError('Course UUIDs must be unique')
+        return v
+
+
 router = APIRouter(dependencies=[Depends(require_courses_feature)])
 
 
@@ -134,7 +149,6 @@ async def api_export_courses_batch(
     zip_content = await export_courses_batch(
         request, batch_request.course_uuids, current_user, db_session
     )
-
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"launch-lms-export-batch-{timestamp}.zip"
 
@@ -143,6 +157,40 @@ async def api_export_courses_batch(
         io.BytesIO(zip_content),
         media_type="application/zip",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@router.get("/core/progress")
+async def api_get_core_courses_progress(
+    request: Request,
+    org_slug: str = Query(...),
+    profile_user_id: int | None = Query(None),
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    return await get_core_courses_progress(
+        request, org_slug, current_user, db_session, profile_user_id=profile_user_id
+    )
+
+
+@router.get("/core/list")
+async def api_get_core_courses(
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    return await get_core_courses(current_user, db_session)
+
+
+@router.put("/core/reorder")
+async def api_reorder_core_courses(
+    reorder_request: CoreCourseReorderRequest,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    return await reorder_core_courses(
+        reorder_request.course_uuids,
+        current_user,
+        db_session,
     )
 
 
@@ -321,6 +369,22 @@ async def api_create_course_thumbnail(
     """
     return await update_course_thumbnail(
         request, course_uuid, current_user, db_session, thumbnail, thumbnail_type
+    )
+
+
+@router.put("/{course_uuid}/core-background")
+async def api_update_course_core_background(
+    request: Request,
+    course_uuid: str,
+    background: UploadFile | None = File(None),
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+) -> CourseRead:
+    """
+    Update CORE course background image.
+    """
+    return await update_course_core_background(
+        request, course_uuid, current_user, db_session, background
     )
 
 

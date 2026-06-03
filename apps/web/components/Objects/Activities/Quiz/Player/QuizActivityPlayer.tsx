@@ -42,6 +42,26 @@ interface SelectSlide {
   background_image_block_object?: any
 }
 
+interface MultiSelectOption {
+  option_uuid: string
+  label: string
+}
+
+interface MultiSelectCategory {
+  category_uuid: string
+  title: string
+  options: MultiSelectOption[]
+}
+
+interface MultiSelectSlide {
+  type: 'quizMultiSelectBlock'
+  question_uuid: string
+  question_text: string
+  categories: MultiSelectCategory[]
+  background_gradient_seed?: string
+  background_image_block_object?: any
+}
+
 interface TextSlide {
   type: 'quizTextBlock'
   question_uuid: string
@@ -109,7 +129,7 @@ interface SortSlide {
   background_image_block_object?: any
 }
 
-type Slide = SelectSlide | TextSlide | SliderSlide | SortSlide | InfoSlide
+type Slide = SelectSlide | MultiSelectSlide | TextSlide | SliderSlide | SortSlide | InfoSlide
 
 interface TextScoringRule {
   mode?: 'optional' | 'min_length'
@@ -140,6 +160,30 @@ const QUIZ_STYLES = `
 .sq-opt-pop  { animation: sqSelectPop 220ms cubic-bezier(.2,.9,.2,1) both !important; }
 .sq-next-in  { animation: sqNextIn  240ms cubic-bezier(.2,.9,.2,1) both !important; }
 .sq-next-out { animation: sqNextOut 200ms cubic-bezier(.4,0,1,1) both !important; }
+
+.quiz-multiselect-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 180ms ease;
+}
+.quiz-multiselect-scroll:hover,
+.quiz-multiselect-scroll:focus-within {
+  scrollbar-color: rgba(255,255,255,0.38) transparent;
+}
+.quiz-multiselect-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.quiz-multiselect-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.quiz-multiselect-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+}
+.quiz-multiselect-scroll:hover::-webkit-scrollbar-thumb,
+.quiz-multiselect-scroll:focus-within::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.38);
+}
 
 .quiz-shell-outer {
   position: fixed;
@@ -297,7 +341,7 @@ function extractSlides(content: any): Slide[] {
   const visit = (node: any) => {
     if (!node || typeof node !== 'object') return
 
-    if (node.type === 'quizSelectBlock' || node.type === 'quizTextBlock' || node.type === 'quizSliderBlock' || node.type === 'quizSortBlock' || node.type === 'quizInfoBlock') {
+    if (node.type === 'quizSelectBlock' || node.type === 'quizMultiSelectBlock' || node.type === 'quizTextBlock' || node.type === 'quizSliderBlock' || node.type === 'quizSortBlock' || node.type === 'quizInfoBlock') {
       slides.push({ type: node.type, ...node.attrs })
     }
 
@@ -715,6 +759,7 @@ function SlideFrame({
   infoOverlay,
   popUuid,
   onSelectOption,
+  onToggleMultiSelectOption,
   onTextAnswerChange,
   onSliderAnswerChange,
   buildImageUrl,
@@ -726,6 +771,7 @@ function SlideFrame({
   infoOverlay: QuizOption | null
   popUuid: string | null      // option that just got the pop animation
   onSelectOption: (slide: SelectSlide | SortSlide, optUuid: string) => void
+  onToggleMultiSelectOption: (slide: MultiSelectSlide, optUuid: string) => void
   onTextAnswerChange: (slide: TextSlide | SortSlide, value: string) => void
   onSliderAnswerChange: (slide: SliderSlide, sliderUuid: string, value: number) => void
   buildImageUrl: (blockObj: any) => string | null
@@ -954,6 +1000,83 @@ function SlideFrame({
         onSortCard={onSelectOption}
         onReturnCard={onTextAnswerChange}
       />
+    )
+  }
+
+  if (slide.type === 'quizMultiSelectBlock') {
+    const multi = slide as MultiSelectSlide
+    const selectedUuids = (answers.get(multi.question_uuid) || []) as string[]
+    const selectedSet = new Set(selectedUuids)
+    const backgroundUrl = buildImageUrl(multi.background_image_block_object)
+    const background = getGradient(multi.background_gradient_seed || multi.question_uuid || 'multi-select-question')
+
+    return (
+      <div style={{ height: '100%', position: 'relative', overflow: 'hidden', background: backgroundUrl ? '#000' : background }}>
+        {backgroundUrl && (
+          <img src={backgroundUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        )}
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.28)' }} />
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'stretch', justifyContent: 'center', padding: '112px 44px 96px', boxSizing: 'border-box' }}>
+          <div style={{ width: 'min(860px, 100%)', display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}>
+            {multi.question_text && (
+              <p style={{ margin: 0, textAlign: 'center', color: '#fff', fontSize: 24, fontWeight: 800, lineHeight: 1.2, textShadow: '0 2px 10px rgba(0,0,0,0.65)' }}>
+                {multi.question_text}
+              </p>
+            )}
+            <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.82)', fontSize: 12, fontWeight: 800, textShadow: '0 2px 10px rgba(0,0,0,0.35)' }}>
+              {selectedUuids.length} selected
+            </div>
+            <div
+              className="quiz-multiselect-scroll"
+              style={{
+                flex: 1,
+                minHeight: 0,
+                overflowY: 'auto',
+                padding: '24px 10px 28px',
+                margin: '0 -10px',
+                maskImage: 'linear-gradient(to bottom, transparent 0, black 28px, black calc(100% - 28px), transparent 100%)',
+                WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, black 28px, black calc(100% - 28px), transparent 100%)',
+              }}
+            >
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', columnGap: 28, rowGap: 20, alignItems: 'start' }}>
+                {multi.categories.map(category => (
+                  <div key={category.category_uuid} style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
+                    <p style={{ margin: 0, paddingBottom: 8, width: '100%', borderBottom: '1px solid rgba(255,255,255,0.48)', textAlign: 'left', color: '#fff', fontSize: 17, fontWeight: 800, lineHeight: 1.2, textShadow: '0 2px 10px rgba(0,0,0,0.65)' }}>
+                      {category.title || 'Category'}
+                    </p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {(category.options || []).map(option => {
+                        const selected = selectedSet.has(option.option_uuid)
+                        return (
+                          <button
+                            key={option.option_uuid}
+                            type="button"
+                            onClick={() => onToggleMultiSelectOption(multi, option.option_uuid)}
+                            style={{
+                              border: selected ? '1px solid #111827' : '1px solid #e5e7eb',
+                              borderRadius: 999,
+                              background: selected ? '#111827' : '#fff',
+                              color: selected ? '#fff' : '#374151',
+                              boxShadow: selected ? '0 10px 22px rgba(15,23,42,0.18)' : 'none',
+                              padding: '8px 12px',
+                              fontSize: 13,
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              transition: 'all 160ms ease',
+                            }}
+                          >
+                            {option.label || 'Option'}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     )
   }
 
@@ -1214,9 +1337,11 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
   const [showResults, setShowResults] = useState(!!initialShowResults)
   const [loadingExistingResult, setLoadingExistingResult] = useState(!editorPreviewContent && !initialShowResults)
   const quizMode = activity?.details?.quiz_mode || 'categories'
-  const activeVectors = quizMode === 'graded'
-    ? (activity?.details?.graded_scoring_vectors || activity?.details?.scoring_vectors || [{ key: 'correct', label: 'Correct', type: 'binary', low_label: 'False', high_label: 'True' }])
-    : (activity?.details?.category_scoring_vectors || activity?.details?.scoring_vectors || [])
+  const activeVectors = quizMode === 'ungraded'
+    ? []
+    : quizMode === 'graded'
+      ? (activity?.details?.graded_scoring_vectors || activity?.details?.scoring_vectors || [{ key: 'correct', label: 'Correct', type: 'binary', low_label: 'False', high_label: 'True' }])
+      : (activity?.details?.category_scoring_vectors || activity?.details?.scoring_vectors || [])
 
   useEffect(() => {
     if (editorPreviewContent) return
@@ -1272,6 +1397,11 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
       const slide = currentSlide as SortSlide
       return normalizeSortAnswer(slide, answers.get(slide.question_uuid)).stackOrder.length === 0
     }
+    if (currentSlide.type === 'quizMultiSelectBlock') {
+      const slide = currentSlide as MultiSelectSlide
+      const selected = answers.get(slide.question_uuid)
+      return Array.isArray(selected) && selected.length > 0
+    }
     return answers.has((currentSlide as SelectSlide).question_uuid)
   }, [showingResponse, currentSlide, answers, textScoringRules])
 
@@ -1326,6 +1456,14 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
           answer_json: { type: 'sort', assignments: normalized.assignments },
         }
       }
+      if (slide.type === 'quizMultiSelectBlock') {
+        const s = slide as MultiSelectSlide
+        const optionUuids = (answers.get(s.question_uuid) || []) as string[]
+        return {
+          question_uuid: s.question_uuid,
+          answer_json: optionUuids.length > 0 ? { type: 'multiselect', option_uuids: optionUuids } : { type: 'skipped' },
+        }
+      }
       const s = slide as SelectSlide
       const selectedUuid = answers.get(s.question_uuid) || null
       return {
@@ -1335,6 +1473,20 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     })
 
     if (editorPreviewContent) {
+      if (quizMode === 'ungraded') {
+        setResult({
+          id: 'preview',
+          attempt_id: 'preview',
+          attempt_uuid: 'preview',
+          computed_at: new Date().toISOString(),
+          result_json: {
+            quiz_mode: quizMode,
+            answers: answerPayload,
+          },
+        })
+        setShowResults(true)
+        return
+      }
       const previewScores = computeQuizScoresPreview(
         answerPayload,
         activity?.details?.option_scores || {},
@@ -1351,6 +1503,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
           if (answerJson.type === 'text' && (activity?.details?.text_scores?.[answer.question_uuid] || {}).mode === 'min_length') gradedQuestionCount += 1
           if (answerJson.type === 'slider') gradedQuestionCount += Object.keys(answerJson.values || {}).length
           if (answerJson.type === 'sort') gradedQuestionCount += Object.keys(answerJson.assignments || {}).length
+          if (answerJson.type === 'multiselect') gradedQuestionCount += (answerJson.option_uuids || []).length
         })
         setResult({
           id: 'preview',
@@ -1500,6 +1653,19 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     })
   }
 
+  const handleToggleMultiSelectOption = (slide: MultiSelectSlide, optUuid: string) => {
+    setAnswers(prev => {
+      const next = new Map(prev)
+      const current = Array.isArray(next.get(slide.question_uuid)) ? [...next.get(slide.question_uuid)] : []
+      const nextSelected = current.includes(optUuid)
+        ? current.filter(uuid => uuid !== optUuid)
+        : [...current, optUuid]
+      if (nextSelected.length === 0) next.delete(slide.question_uuid)
+      else next.set(slide.question_uuid, nextSelected)
+      return next
+    })
+  }
+
   const handleRetake = () => {
     setAnswers(new Map())
     setCurrentIdx(0)
@@ -1523,7 +1689,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     return (
       <QuizResultsModal
         result={result}
-        activity={activity}
+        activity={editorPreviewContent ? { ...activity, content: editorPreviewContent } : activity}
         org={org}
         course={course}
         onRetake={handleRetake}
@@ -1547,6 +1713,8 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
 
   const currentTitle = currentSlide.type === 'quizSelectBlock'
     ? (currentSlide as SelectSlide).question_text
+    : currentSlide.type === 'quizMultiSelectBlock'
+      ? (currentSlide as MultiSelectSlide).question_text
     : currentSlide.type === 'quizTextBlock'
       ? (currentSlide as TextSlide).question_text
       : currentSlide.type === 'quizSliderBlock'
@@ -1557,6 +1725,8 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
   const shouldShowHeaderTitle =
     currentSlide.type === 'quizSelectBlock'
       ? (currentSlide as SelectSlide).display_style !== 'text'
+      : currentSlide.type === 'quizMultiSelectBlock'
+        ? false
       : currentSlide.type === 'quizSliderBlock'
         ? false
         : currentSlide.type === 'quizSortBlock'
@@ -1628,6 +1798,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
               infoOverlay={null}
               popUuid={idx === currentIdx ? popUuid : null}
               onSelectOption={handleSelectOption}
+              onToggleMultiSelectOption={handleToggleMultiSelectOption}
               onTextAnswerChange={handleTextAnswerChange}
               onSliderAnswerChange={handleSliderAnswerChange}
               buildImageUrl={buildImageUrl}

@@ -20,6 +20,11 @@ import { useAnalytics } from '@/hooks/useAnalytics';
 import { getMenuColorClasses } from '@services/utils/ts/colorUtils';
 import { Z_INDEX } from '@/lib/z-index';
 import { DiscoverOrganization } from '@services/organizations/orgs';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@components/ui/popover';
 
 interface User {
   username: string;
@@ -111,6 +116,7 @@ interface SearchBarProps {
   orgslug: string;
   className?: string;
   isMobile?: boolean;
+  isRail?: boolean;
   showSearchSuggestions?: boolean;
   primaryColor?: string;
 }
@@ -137,6 +143,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   orgslug,
   className = '',
   isMobile = false,
+  isRail = false,
   showSearchSuggestions = false,
   primaryColor = '',
 }) => {
@@ -156,6 +163,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState(false);
+  const [railOpen, setRailOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const session = useLHSession() as any;
@@ -168,11 +176,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
   // Focus input when mobile search expands
   useEffect(() => {
-    if (isMobile && mobileExpanded) {
+    if ((isMobile && mobileExpanded) || (isRail && railOpen)) {
       const id = setTimeout(() => inputRef.current?.focus(), 50);
       return () => clearTimeout(id);
     }
-  }, [isMobile, mobileExpanded]);
+  }, [isMobile, isRail, mobileExpanded, railOpen]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -534,6 +542,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     setSearchQuery('');
   }, []);
 
+  const closeRail = useCallback(() => {
+    setRailOpen(false);
+    setShowResults(false);
+    setSearchQuery('');
+  }, []);
+
   // Shared dropdown content (used by both desktop and mobile expanded)
   const dropdownContent = (!searchQuery.trim() || isInitialLoad) ? (
     MemoizedEmptyState
@@ -564,6 +578,75 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       )}
     </>
   );
+
+  if (isRail) {
+    return (
+      <Popover open={railOpen} onOpenChange={(open) => {
+        setRailOpen(open);
+        if (open) {
+          setShowResults(true);
+        } else {
+          setShowResults(false);
+        }
+      }}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="flex h-11 w-11 items-center justify-center rounded-2xl text-gray-500 transition-colors hover:bg-black/[0.05] hover:text-gray-900"
+            aria-label={t('search.search_placeholder')}
+          >
+            <Search size={18} />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          side="right"
+          align="start"
+          sideOffset={12}
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            setTimeout(() => inputRef.current?.focus(), 0);
+          }}
+          className="w-[420px] max-w-[calc(100vw-7rem)] max-h-[min(640px,calc(100vh-2rem))] overflow-hidden rounded-xl border border-black/5 bg-white p-0 shadow-[0_20px_60px_rgba(15,23,42,0.18)]"
+          style={{ zIndex: Z_INDEX.NAV_MENU + 1 }}
+        >
+          <div ref={searchRef} className="flex max-h-[inherit] flex-col">
+            <div className="flex items-center gap-2 border-b border-black/5 p-3">
+              <div className="relative flex-1">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  onFocus={() => setShowResults(true)}
+                  aria-label={t('search.search_placeholder')}
+                  placeholder={t('search.search_placeholder')}
+                  className={`w-full h-10 pl-11 pr-4 rounded-xl focus:outline-none focus:ring-1 transition-all text-sm ${colors.searchBg}`}
+                />
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                  <Search className={`${colors.searchIcon} transition-colors`} size={18} />
+                </div>
+              </div>
+              <button
+                onClick={closeRail}
+                className={`flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-xl transition-colors ${colors.iconBtn}`}
+                aria-label="Close search"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            {showResults && (
+              <div
+                ref={dropdownRef}
+                className="min-h-0 overflow-y-auto divide-y divide-black/5"
+              >
+                {dropdownContent}
+              </div>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  }
 
   // Mobile: icon-only button in the navbar, plus a portalled overlay when expanded.
   // We must portal the overlay to document.body to escape the navbar's backdrop-blur

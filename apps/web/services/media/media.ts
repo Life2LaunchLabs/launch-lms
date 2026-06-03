@@ -21,6 +21,11 @@ function getApiUrl() {
   return getBackendUrl()
 }
 
+export function normalizeMediaUrl(url?: string | null) {
+  if (!url) return ''
+  return url.replace('/api/v1/content/', '/content/')
+}
+
 /**
  * Get the streaming URL for an activity video.
  * Uses the optimized streaming endpoint with proper Range request support.
@@ -69,6 +74,14 @@ export function getCourseThumbnailMediaDirectory(
 ) {
   let uri = `${getMediaUrl()}content/orgs/${orgUUID}/courses/${courseUUID}/thumbnails/${fileId}`
   return uri
+}
+
+export function getCourseCoreBackgroundMediaDirectory(
+  orgUUID: string,
+  courseUUID: string,
+  fileId: string
+) {
+  return getCourseThumbnailMediaDirectory(orgUUID, courseUUID, fileId)
 }
 
 export function getBoardThumbnailMediaDirectory(

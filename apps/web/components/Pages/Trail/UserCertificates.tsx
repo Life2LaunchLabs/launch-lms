@@ -10,7 +10,7 @@ import useSWR from 'swr'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { getAPIUrl } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
-import { getCourseThumbnailMediaDirectory } from '@services/media/media'
+import { getCourseThumbnailMediaDirectory, normalizeMediaUrl } from '@services/media/media'
 
 interface UserCertificatesProps {
   orgslug: string
@@ -117,6 +117,17 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug }) => {
             month: 'long',
             day: 'numeric'
           })
+          const courseThumbnailUrl = certificate.course?.thumbnail_image && org?.org_uuid
+            ? getCourseThumbnailMediaDirectory(
+                org.org_uuid,
+                certificate.course.course_uuid,
+                certificate.course.thumbnail_image
+              )
+            : ''
+          const badgeImageUrl = normalizeMediaUrl(certificate.badge_class?.image)
+            || normalizeMediaUrl(certificate.certification?.config?.badge_image_url)
+            || courseThumbnailUrl
+            || '/empty_thumbnail.png'
 
           return (
             <div
@@ -130,22 +141,14 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug }) => {
                 rel="noopener noreferrer"
                 className="block relative aspect-video overflow-hidden bg-gradient-to-br from-yellow-50 to-amber-100"
               >
-                {certificate.course?.thumbnail_image && org?.org_uuid ? (
-                  <img
-                    src={getCourseThumbnailMediaDirectory(
-                      org.org_uuid,
-                      certificate.course.course_uuid,
-                      certificate.course.thumbnail_image
-                    )}
-                    alt={certificate.course.name}
-                    className="w-full h-full object-cover opacity-60"
-                  />
-                ) : null}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="p-3 bg-white/90 backdrop-blur-sm rounded-full shadow-lg">
-                    <Award className="w-8 h-8 text-yellow-500" />
-                  </div>
-                </div>
+                <img
+                  src={badgeImageUrl}
+                  alt={certificate.badge_class?.name || certificate.certification.config.badge_name || certificate.course.name}
+                  className="w-full h-full object-cover"
+                  onError={(event) => {
+                    event.currentTarget.src = '/empty_thumbnail.png'
+                  }}
+                />
               </Link>
 
               {/* Content */}

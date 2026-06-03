@@ -11,8 +11,6 @@ import {
   ExternalLink,
   Link2,
   Loader2,
-  Plus,
-  X,
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { Button } from '@components/ui/button'
@@ -22,7 +20,6 @@ import { Textarea } from '@components/ui/textarea'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getUserProfileFeaturedMediaDirectory } from '@services/media/media'
-import { getResourceUrlPreview, ResourceUrlPreview } from '@services/resources/resources'
 import { updateProfile } from '@services/settings/profile'
 import { uploadUserProfileFeaturedImage } from '@services/users/users'
 
@@ -50,6 +47,7 @@ export type FeaturedSection = {
 type FeaturedCarouselProps = {
   featured: FeaturedSection
   editMode: boolean
+  grid?: { w: number; h: number }
   accessToken?: string
   userId: number
   userUuid: string
@@ -157,15 +155,6 @@ function normalizeProfileValue(profile: any) {
   return { ...profile }
 }
 
-function previewToCardUpdate(preview: ResourceUrlPreview) {
-  return {
-    actionUrl: preview.og_url || preview.url || '',
-    title: preview.title || '',
-    body: preview.description || '',
-    imageUrl: preview.og_image || '',
-  }
-}
-
 export function normalizeFeatured(featured: any): FeaturedSection {
   const seenSlugs = new Map<string, number>()
   return {
@@ -199,7 +188,7 @@ export function normalizeFeatured(featured: any): FeaturedSection {
   }
 }
 
-function createEmptyFeaturedCard(): FeaturedCard {
+export function createEmptyFeaturedCard(): FeaturedCard {
   return {
     id: `featured-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     slug: `post-${Date.now().toString(36)}`,
@@ -378,29 +367,41 @@ function FeaturedDisplayCard({
   href,
   authorName,
   updatedAtFallback,
+  fill = false,
 }: {
   card: FeaturedCard
   href: string
   authorName: string
   updatedAtFallback?: string
+  fill?: boolean
 }) {
+  const image = getCardImage(card)
   return (
     <Link
       href={href}
-      className="group block h-full w-[min(82vw,340px)] rounded-lg p-2 transition-all duration-200 hover:-translate-y-1 hover:bg-gray-50 hover:shadow-md sm:w-[320px]"
+      className={`group flex h-full min-w-0 shrink-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+        fill ? 'w-full' : 'w-64 min-[420px]:w-[min(72vw,300px)] sm:w-72'
+      }`}
     >
-      <PortfolioPreviewImage card={card} />
-      <div className="px-1 pt-4">
-        <h3 className="break-words text-lg font-semibold leading-snug text-gray-950">
+      <div
+        className="h-1/2 min-h-0 w-full shrink-0 overflow-hidden bg-gray-100"
+        style={{ background: image ? undefined : getPortfolioGradient(card) }}
+      >
+        {image ? (
+          <img src={image} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" loading="lazy" />
+        ) : null}
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col p-4">
+        <h3 className="truncate text-lg font-semibold leading-snug text-gray-950">
           {card.title || 'Untitled post'}
         </h3>
-        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium uppercase tracking-wide text-gray-500">
+        <div className="mt-2 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium uppercase tracking-wide text-gray-500">
           <span>{authorName}</span>
           <span aria-hidden="true">/</span>
           <span>Updated {formatPortfolioDate(card.updatedAt || updatedAtFallback)}</span>
         </div>
         {card.body ? (
-          <p className="mt-2 line-clamp-3 text-sm leading-5 text-gray-600">
+          <p className="mt-3 line-clamp-4 min-h-0 text-sm leading-5 text-gray-600">
             {card.body}
           </p>
         ) : null}
@@ -412,9 +413,7 @@ function FeaturedDisplayCard({
 export function FeaturedCarousel({
   featured,
   editMode,
-  accessToken,
-  userId,
-  userUuid,
+  grid,
   orgslug,
   authorName,
   updatedAtFallback,
@@ -422,58 +421,15 @@ export function FeaturedCarousel({
   ownerView,
   publicVisible = true,
   actions,
-  onChange,
-  onPublicVisibleChange,
 }: FeaturedCarouselProps) {
   const cards = featured.cards || []
   const [activeIndex, setActiveIndex] = useState(0)
-  const [linkDraft, setLinkDraft] = useState('')
-  const [isScraping, setIsScraping] = useState(false)
-  const [isUploadingImage, setIsUploadingImage] = useState(false)
-  const [pendingPreview, setPendingPreview] = useState<ResourceUrlPreview | null>(null)
   const [canScrollBack, setCanScrollBack] = useState(false)
   const [canScrollForward, setCanScrollForward] = useState(false)
   const mobileScrollerRef = useRef<HTMLDivElement | null>(null)
-  const [, setDraggingThumbIndex] = useState<number | null>(null)
-  const draggingThumbIndexRef = useRef<number | null>(null)
-  const thumbDragMovedRef = useRef(false)
   const activeCard = cards[Math.min(activeIndex, Math.max(cards.length - 1, 0))]
   const enabled = featured.enabled
-
-  const updateFeatured = (next: Partial<FeaturedSection>) => {
-    onChange({ ...featured, ...next })
-  }
-
-  const updateCard = (cardId: string, patch: Partial<FeaturedCard>) => {
-    updateFeatured({
-      cards: cards.map((card) => card.id === cardId ? {
-        ...card,
-        ...patch,
-        slug: patch.title !== undefined
-          ? getUniquePortfolioSlug(cards, cardId, { ...card, ...patch })
-          : (patch.slug || card.slug),
-        updatedAt: new Date().toISOString(),
-      } : card),
-    })
-  }
-
-  const addCard = () => {
-    if (cards.length >= 10) {
-      toast.error('Portfolio is capped at 10 posts')
-      return
-    }
-    const nextCard = createEmptyFeaturedCard()
-    updateFeatured({ enabled: true, cards: [...cards, nextCard] })
-    setActiveIndex(cards.length)
-    setLinkDraft('')
-    setPendingPreview(null)
-  }
-
-  const deleteCard = (cardId: string) => {
-    const nextCards = cards.filter((card) => card.id !== cardId)
-    updateFeatured({ cards: nextCards })
-    setActiveIndex((current) => Math.max(0, Math.min(current, nextCards.length - 1)))
-  }
+  const visibleEnabled = ownerView || enabled
 
   const scrollPortfolioCardIntoView = (index: number) => {
     const scroller = mobileScrollerRef.current
@@ -495,7 +451,6 @@ export function FeaturedCarousel({
     if (!cards.length) return
     const next = Math.max(0, Math.min(index, cards.length - 1))
     setActiveIndex(next)
-    setPendingPreview(null)
     scrollPortfolioCardIntoView(next)
   }
 
@@ -503,79 +458,6 @@ export function FeaturedCarousel({
     const scroller = mobileScrollerRef.current
     if (!scroller) return
     scroller.scrollBy({ left: direction * scroller.clientWidth * 0.9, behavior: 'smooth' })
-  }
-
-  const applyPreview = (cardId: string, preview: ResourceUrlPreview, overwrite: boolean) => {
-    const update = previewToCardUpdate(preview)
-    const card = cards.find((item) => item.id === cardId)
-    updateCard(cardId, {
-      url: normalizeUrl(update.actionUrl || linkDraft),
-      actionUrl: normalizeUrl(update.actionUrl || linkDraft),
-      title: overwrite || !card?.title ? update.title : card?.title || '',
-      body: overwrite || !card?.body ? update.body : card?.body || '',
-      subtext: overwrite || !card?.subtext ? update.body : card?.subtext || '',
-      imageUrl: overwrite || !card?.imageUrl ? update.imageUrl : card?.imageUrl || '',
-    })
-    setPendingPreview(null)
-  }
-
-  const scrapeLink = async (cardId: string, rawValue: string) => {
-    const url = normalizeUrl(rawValue)
-    if (!url || !accessToken) return
-
-    try {
-      setIsScraping(true)
-      setPendingPreview(null)
-      const preview = await getResourceUrlPreview(url, accessToken)
-      const card = cards.find((item) => item.id === cardId)
-      const hasExistingDetails = Boolean(card?.title || card?.subtext || card?.imageUrl)
-      if (hasExistingDetails) {
-        updateCard(cardId, { url, actionUrl: url })
-        setPendingPreview(preview)
-      } else {
-        applyPreview(cardId, preview, true)
-      }
-    } catch {
-      updateCard(cardId, { url, actionUrl: url })
-      toast.error('Could not find details for that link')
-    } finally {
-      setIsScraping(false)
-    }
-  }
-
-  const reorderThumb = (fromIndex: number, toIndex: number) => {
-    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return
-    if (fromIndex >= cards.length || toIndex >= cards.length) return
-    const nextCards = Array.from(cards)
-    const [moved] = nextCards.splice(fromIndex, 1)
-    nextCards.splice(toIndex, 0, moved)
-    updateFeatured({ cards: nextCards })
-    setActiveIndex(toIndex)
-    setDraggingThumbIndex(toIndex)
-    draggingThumbIndexRef.current = toIndex
-    thumbDragMovedRef.current = true
-  }
-
-  const handleFeaturedImageUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-    cardId: string
-  ) => {
-    const file = event.target.files?.[0]
-    if (!file || !accessToken) return
-
-    setIsUploadingImage(true)
-    try {
-      const res = await uploadUserProfileFeaturedImage(userId, file, accessToken)
-      if (!res.success) throw new Error(res.HTTPmessage)
-      const imageUrl = getUserProfileFeaturedMediaDirectory(res.data.user_uuid || userUuid, res.data.filename)
-      updateCard(cardId, { imageUrl })
-      toast.success('Portfolio image uploaded')
-    } catch {
-      toast.error('Could not upload portfolio image')
-    } finally {
-      setIsUploadingImage(false)
-      event.target.value = ''
-    }
   }
 
   const handleMobileScroll = () => {
@@ -611,212 +493,95 @@ export function FeaturedCarousel({
       ? routePaths.org.profilePortfolioPost(card.slug)
       : routePaths.org.userPortfolioPost(profileUsername || '', card.slug)
   )
+  const isCompact = grid?.h === 1
+  const isNarrow = grid?.w === 1
+  const compactHref = cards[0] ? getPostHref(cards[0]) : getUriWithOrg(orgslug, ownerView ? routePaths.org.profile() : routePaths.org.user(profileUsername || ''))
+
+  if (isCompact) {
+    return (
+      <section className="flex h-full min-w-0 min-h-0 items-center justify-between gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div className="min-w-0">
+          <h2 className="truncate text-base font-semibold text-gray-950">Portfolio</h2>
+          <p className="mt-1 truncate text-sm font-medium text-gray-500">
+            {cards.length} {cards.length === 1 ? 'post' : 'posts'}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {actions}
+          <Button asChild size="sm" className="bg-gray-950 text-white hover:bg-gray-800">
+            <Link href={compactHref}>Open</Link>
+          </Button>
+        </div>
+      </section>
+    )
+  }
 
   return (
-    <section className="mt-4 px-4 sm:px-0">
+    <section className="flex h-full min-w-0 min-h-0 flex-col rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-4">
-        <h2 className="text-2xl font-semibold text-gray-950">Portfolio</h2>
-        <div className="flex items-start gap-3">
-          {editMode ? (
-            <div className="flex flex-col items-end gap-2">
-              <label className="flex items-center gap-3">
-                <span className="text-sm text-gray-500">{enabled ? 'On your profile' : 'Hidden from profile'}</span>
-                <Switch checked={enabled} onCheckedChange={(value) => updateFeatured({ enabled: value })} />
-              </label>
-              <label className="flex items-center gap-3">
-                <span className="text-sm text-gray-500">{publicVisible ? 'Visible to others' : 'Hidden from others'}</span>
-                <Switch checked={publicVisible} onCheckedChange={onPublicVisibleChange} disabled={!enabled} />
-              </label>
-            </div>
-          ) : null}
-          {actions}
-        </div>
+        <h2 className={`${isNarrow ? 'text-xl' : 'text-2xl'} min-w-0 truncate font-semibold text-gray-950`}>Portfolio</h2>
+        {actions}
       </div>
 
-      <div className={`origin-top transition-all duration-300 ${enabled ? 'scale-100 opacity-100' : 'max-h-0 scale-95 overflow-hidden opacity-0'}`}>
-        {editMode ? (
-          <div className="space-y-4">
-            <div className="flex min-h-[290px] items-center justify-center">
-              {activeCard ? (
-                <div className="relative w-[min(82vw,360px)] rounded-lg bg-white p-2 sm:w-[340px]">
-                  <button
-                    type="button"
-                    aria-label="Delete portfolio post"
-                    onClick={() => deleteCard(activeCard.id)}
-                    className="absolute right-4 top-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-gray-700 shadow-sm ring-1 ring-gray-200 hover:text-red-600"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                  <PortfolioPreviewImage card={activeCard}>
-                    <input
-                      id={`featured-image-upload-${activeCard.id}`}
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp,image/gif"
-                      className="hidden"
-                      onChange={(event) => handleFeaturedImageUpload(event, activeCard.id)}
-                    />
-                    <Button
+      <div className={`min-h-0 flex-1 origin-top transition-all duration-300 ${visibleEnabled ? 'scale-100 opacity-100' : 'max-h-0 scale-95 overflow-hidden opacity-0'}`}>
+        <div className="relative flex h-full min-h-0 flex-col items-center overflow-visible">
+          {cards.length === 0 ? (
+            <div className="flex h-full w-full items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 p-5 text-center text-sm leading-6 text-gray-500">
+              No portfolio posts yet.
+            </div>
+          ) : isNarrow && activeCard ? (
+            <div className="flex h-full min-h-0 w-full flex-col">
+              <div className="relative min-h-0 flex-1">
+                <FeaturedDisplayCard
+                  card={activeCard}
+                  href={getPostHref(activeCard)}
+                  authorName={authorName}
+                  updatedAtFallback={updatedAtFallback}
+                  fill
+                />
+                {cards.length > 1 ? (
+                  <>
+                    <button
                       type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => document.getElementById(`featured-image-upload-${activeCard.id}`)?.click()}
-                      disabled={isUploadingImage}
-                      className="absolute bottom-3 right-3 h-8 bg-white/90 px-2 text-xs text-gray-900 hover:bg-white"
+                      aria-label="Previous portfolio post"
+                      onClick={() => setActiveIndex((current) => (current - 1 + cards.length) % cards.length)}
+                      className="absolute left-2 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-white"
                     >
-                      {isUploadingImage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
-                    </Button>
-                  </PortfolioPreviewImage>
-                  <div className="space-y-3 px-1 pt-4">
-                    <Input
-                      value={activeCard.title}
-                      onChange={(event) => updateCard(activeCard.id, { title: event.target.value })}
-                      placeholder="Post title"
-                      className="border-0 px-0 text-lg font-semibold text-gray-950 shadow-none focus-visible:ring-0"
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Next portfolio post"
+                      onClick={() => setActiveIndex((current) => (current + 1) % cards.length)}
+                      className="absolute right-2 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-white"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </>
+                ) : null}
+              </div>
+              {cards.length > 1 ? (
+                <div className="mt-3 flex items-center justify-center gap-1.5">
+                  {cards.map((card, index) => (
+                    <button
+                      key={card.id}
+                      type="button"
+                      aria-label={`Show portfolio post ${index + 1}`}
+                      onClick={() => moveTo(index)}
+                      className={`h-2 rounded-full transition-all ${index === activeIndex ? 'w-5 bg-gray-950' : 'w-2 bg-gray-300 hover:bg-gray-400'}`}
                     />
-                    <Textarea
-                      value={activeCard.body}
-                      onChange={(event) => updateCard(activeCard.id, { body: event.target.value, subtext: event.target.value })}
-                      placeholder="Write the post body"
-                      className="min-h-28 resize-none px-0 text-sm leading-5 text-gray-600 shadow-none focus-visible:ring-0"
-                    />
-                    <div className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2">
-                      <Link2 className="h-4 w-4 shrink-0 text-gray-500" />
-                      <Input
-                        value={activeCard.actionUrl || activeCard.url}
-                        onChange={(event) => {
-                          setLinkDraft(event.target.value)
-                          updateCard(activeCard.id, { url: event.target.value, actionUrl: event.target.value })
-                        }}
-                        onPaste={(event) => {
-                          const pasted = event.clipboardData.getData('text')
-                          setLinkDraft(pasted)
-                          window.setTimeout(() => scrapeLink(activeCard.id, pasted), 0)
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter') scrapeLink(activeCard.id, activeCard.actionUrl || activeCard.url || linkDraft)
-                        }}
-                        placeholder="Optional source link for preview details"
-                        className="h-8 border-0 px-0 shadow-none focus-visible:ring-0"
-                      />
-                    </div>
-                    {isScraping ? (
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Searching for link details...
-                      </div>
-                    ) : null}
-                    {pendingPreview ? (
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
-                        <p className="text-gray-700">Use the details I found, or keep your existing text?</p>
-                        <div className="mt-3 flex gap-2">
-                          <Button type="button" size="sm" onClick={() => applyPreview(activeCard.id, pendingPreview, true)}>
-                            Accept
-                          </Button>
-                          <Button type="button" size="sm" variant="outline" onClick={() => applyPreview(activeCard.id, pendingPreview, false)}>
-                            Keep existing
-                          </Button>
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
+                  ))}
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={addCard}
-                  className="flex h-[200px] w-[min(82vw,360px)] flex-col items-center justify-center rounded-[28px] border border-dashed border-gray-300 text-gray-500 hover:border-gray-500 hover:text-gray-900"
-                >
-                  <Plus className="mb-2 h-6 w-6" />
-                  Add portfolio post
-                </button>
-              )}
+              ) : null}
             </div>
-
-            <div
-              className="scrollbar-hide flex items-center justify-center gap-2 overflow-x-auto px-2 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-              onPointerMove={(event) => {
-                const fromIndex = draggingThumbIndexRef.current
-                if (fromIndex === null) return
-                const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-featured-thumb-index]')
-                const targetIndex = Number((target as HTMLElement | null)?.dataset.featuredThumbIndex)
-                if (Number.isInteger(targetIndex) && targetIndex !== fromIndex) reorderThumb(fromIndex, targetIndex)
-              }}
-              onPointerUp={() => {
-                setDraggingThumbIndex(null)
-                draggingThumbIndexRef.current = null
-              }}
-              onPointerCancel={() => {
-                setDraggingThumbIndex(null)
-                draggingThumbIndexRef.current = null
-              }}
-              onPointerLeave={() => {
-                setDraggingThumbIndex(null)
-                draggingThumbIndexRef.current = null
-              }}
-            >
-              {cards.map((card, index) => (
-                <div
-                  key={card.id}
-                  data-featured-thumb-index={index}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Select portfolio post ${index + 1}`}
-                  onPointerDown={() => {
-                    setDraggingThumbIndex(index)
-                    draggingThumbIndexRef.current = index
-                    thumbDragMovedRef.current = false
-                  }}
-                  onClick={() => {
-                    if (thumbDragMovedRef.current) {
-                      thumbDragMovedRef.current = false
-                      return
-                    }
-                    setActiveIndex(index)
-                    setPendingPreview(null)
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault()
-                      setActiveIndex(index)
-                      setPendingPreview(null)
-                    }
-                  }}
-                  className={`h-14 w-14 shrink-0 cursor-grab touch-none overflow-hidden rounded-md border active:cursor-grabbing ${
-                    index === activeIndex ? 'border-gray-950 ring-2 ring-gray-950/10' : 'border-gray-200'
-                  }`}
-                  style={{
-                    backgroundImage: getCardImage(card) ? `url(${getCardImage(card)})` : undefined,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                  }}
-                >
-                  {!getCardImage(card) ? (
-                    <span className="flex h-full w-full items-center justify-center bg-gray-100 text-xs font-semibold text-gray-500">
-                      {index + 1}
-                    </span>
-                  ) : null}
-                </div>
-              ))}
-              <button
-                type="button"
-                aria-label="Add portfolio post"
-                onClick={addCard}
-                disabled={cards.length >= 10}
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-dashed border-gray-300 text-gray-500 hover:border-gray-500 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <Plus className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="relative flex flex-col items-center overflow-visible py-2">
+          ) : (
             <div
               ref={mobileScrollerRef}
               onScroll={handleMobileScroll}
-              className="scrollbar-hide -mx-4 flex w-screen snap-x snap-mandatory gap-4 overflow-x-auto px-[9vw] pb-4 sm:mx-0 sm:w-full sm:px-14 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              className="scrollbar-hide flex h-full min-h-0 w-full snap-x snap-mandatory gap-4 overflow-x-auto pb-4 sm:px-10 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
               {cards.map((card) => (
-                <div key={`mobile-${card.id}`} className="snap-center">
+                <div key={`portfolio-${card.id}`} className="h-full snap-center">
                   <FeaturedDisplayCard
                     card={card}
                     href={getPostHref(card)}
@@ -826,45 +591,32 @@ export function FeaturedCarousel({
                 </div>
               ))}
             </div>
-            {cards.length > 1 ? (
-              <>
-                {canScrollBack ? (
-                  <button
-                    type="button"
-                    aria-label="Previous portfolio post"
-                    onClick={() => scrollPortfolioPage(-1)}
-                    className="absolute left-1 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-white sm:flex"
-                  >
-                    <ChevronLeft className="h-5 w-5" />
-                  </button>
-                ) : null}
-                {canScrollForward ? (
-                  <button
-                    type="button"
-                    aria-label="Next portfolio post"
-                    onClick={() => scrollPortfolioPage(1)}
-                    className="absolute right-1 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-white sm:flex"
-                  >
-                    <ChevronRight className="h-5 w-5" />
-                  </button>
-                ) : null}
-              </>
-            ) : null}
-            {cards.length > 1 ? (
-              <div className="mt-3 flex items-center justify-center gap-2 sm:hidden">
-                {cards.map((card, index) => (
-                  <button
-                    key={card.id}
-                    type="button"
-                    aria-label={`Show portfolio post ${index + 1}`}
-                    onClick={() => moveTo(index)}
-                    className={`h-2.5 w-2.5 rounded-full transition-colors ${index === activeIndex ? 'bg-gray-950' : 'bg-gray-300'}`}
-                  />
-                ))}
-              </div>
-            ) : null}
-          </div>
-        )}
+          )}
+          {cards.length > 1 ? (
+            <>
+              {!isNarrow && canScrollBack ? (
+                <button
+                  type="button"
+                  aria-label="Previous portfolio post"
+                  onClick={() => scrollPortfolioPage(-1)}
+                  className="absolute left-1 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-white sm:flex"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+              ) : null}
+              {!isNarrow && canScrollForward ? (
+                <button
+                  type="button"
+                  aria-label="Next portfolio post"
+                  onClick={() => scrollPortfolioPage(1)}
+                  className="absolute right-1 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-white sm:flex"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              ) : null}
+            </>
+          ) : null}
+        </div>
       </div>
     </section>
   )

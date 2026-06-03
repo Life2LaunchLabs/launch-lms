@@ -63,7 +63,8 @@ function getDefaultCorrectVector(): ScoringVector {
 }
 
 function getActiveScoringVectors(details: any): ScoringVector[] {
-  const quizMode = details?.quiz_mode === 'graded' ? 'graded' : 'categories'
+  const quizMode = details?.quiz_mode === 'graded' ? 'graded' : details?.quiz_mode === 'ungraded' ? 'ungraded' : 'categories'
+  if (quizMode === 'ungraded') return []
   if (quizMode === 'graded') {
     const gradedVectors = details?.graded_scoring_vectors || details?.scoring_vectors || []
     return gradedVectors.length > 0 ? gradedVectors : [getDefaultCorrectVector()]
@@ -101,6 +102,9 @@ function QuizTextBlockComponent(props: any) {
   const [backgroundImageFileId, setBackgroundImageFileId] = useState<string | null>(attrs.background_image_file_id || null)
   const [backgroundImageBlockObject, setBackgroundImageBlockObject] = useState<any | null>(attrs.background_image_block_object || null)
   const [activeTab, setActiveTab] = useState<Tab>('question')
+  const [quizMode, setQuizMode] = useState<'categories' | 'graded' | 'ungraded'>(
+    activity?.details?.quiz_mode === 'graded' || activity?.details?.quiz_mode === 'ungraded' ? activity.details.quiz_mode : 'categories'
+  )
   const [vectors, setVectors] = useState<ScoringVector[]>(getActiveScoringVectors(activity?.details))
   const [textScores, setTextScores] = useState<Record<string, TextScoringRule>>(activity?.details?.text_scores || {})
   const scoringSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -115,10 +119,15 @@ function QuizTextBlockComponent(props: any) {
       const detail = (e as CustomEvent).detail
       if (detail?.vectors) setVectors(detail.vectors)
       if (detail?.textScores) setTextScores(detail.textScores)
+      if (detail?.quizMode === 'graded' || detail?.quizMode === 'categories' || detail?.quizMode === 'ungraded') setQuizMode(detail.quizMode)
     }
     window.addEventListener('lh:quiz-scoring-updated', handler)
     return () => window.removeEventListener('lh:quiz-scoring-updated', handler)
   }, [])
+
+  useEffect(() => {
+    if (quizMode === 'ungraded' && activeTab === 'scoring') setActiveTab('question')
+  }, [quizMode, activeTab])
 
   const persistAttrs = useCallback((next: Partial<{
     questionText: string; description: string; placeholder: string; inputSize: InputSize
@@ -237,10 +246,12 @@ function QuizTextBlockComponent(props: any) {
         </div>
 
         {/* ── Tab strip ── */}
-        <div style={{ display: 'flex', gap: 4, padding: '8px 12px 4px', background: '#fff', borderBottom: '1px solid #f3f4f6' }}>
-          <TabBtn active={activeTab === 'question'} onClick={() => setActiveTab('question')}>Question</TabBtn>
-          <TabBtn active={activeTab === 'scoring'} onClick={() => setActiveTab('scoring')}>Scoring</TabBtn>
-        </div>
+        {quizMode !== 'ungraded' && (
+          <div style={{ display: 'flex', gap: 4, padding: '8px 12px 4px', background: '#fff', borderBottom: '1px solid #f3f4f6' }}>
+            <TabBtn active={activeTab === 'question'} onClick={() => setActiveTab('question')}>Question</TabBtn>
+            <TabBtn active={activeTab === 'scoring'} onClick={() => setActiveTab('scoring')}>Scoring</TabBtn>
+          </div>
+        )}
 
         {/* ── Content area ── */}
         <div style={{ padding: '12px', background: '#fff' }}>
@@ -307,7 +318,7 @@ function QuizTextBlockComponent(props: any) {
             </div>
           )}
 
-          {activeTab === 'scoring' && (
+          {activeTab === 'scoring' && quizMode !== 'ungraded' && (
             <div className="rounded-xl border border-neutral-200 bg-white p-4 space-y-4 min-h-[420px]">
               <div>
                 <label className="text-xs text-neutral-400 font-medium block mb-1">Rule</label>

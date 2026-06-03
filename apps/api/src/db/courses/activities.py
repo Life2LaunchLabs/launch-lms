@@ -36,6 +36,8 @@ class ActivitySubTypeEnum(str, Enum):
 
 class ActivityBase(SQLModel):
     name: str
+    description: Optional[str] = None
+    icon: Optional[str] = None
     activity_type: ActivityTypeEnum 
     activity_sub_type: ActivitySubTypeEnum 
     content: dict = Field(default_factory=dict, sa_column=Column(JSON))
@@ -73,6 +75,8 @@ class ActivityCreate(ActivityBase):
 
 class ActivityUpdate(SQLModel):
     name: Optional[str] = None
+    description: Optional[str] = None
+    icon: Optional[str] = None
     content: Optional[dict] = None
     activity_type: Optional[ActivityTypeEnum] = None
     activity_sub_type: Optional[ActivitySubTypeEnum] = None
