@@ -143,7 +143,7 @@ function CourseThumbnail({ course, orgslug, customLink, isDashboard = false, isS
         <button
           onClick={handleSelectClick}
           aria-label={isSelected ? 'Deselect course' : 'Select course'}
-          className={`absolute top-2 left-2 z-20 p-1.5 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all shadow-md ${
+          className={`absolute top-2 left-2 z-40 p-1.5 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all shadow-md ${
             isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
           }`}
         >
@@ -285,12 +285,21 @@ const AdminEditOptions = ({ course, orgSlug, deleteCourse, cloneCourse, exportCo
       checkMethod="roles"
       orgId={course.org_id}
     >
-      <div className={`absolute top-2 right-2 z-20 transition-opacity ${
+      <div className={`absolute top-2 right-2 z-40 transition-opacity ${
         isDashboard && !isOpen ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'
       }`}>
         <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
           <DropdownMenuTrigger asChild>
-            <button aria-label="Course actions"className="p-1.5 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all shadow-md">
+            <button
+              aria-label="Course actions"
+              onPointerDown={(e) => {
+                e.stopPropagation()
+              }}
+              onClick={(e) => {
+                e.stopPropagation()
+              }}
+              className="p-1.5 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all shadow-md"
+            >
               <MoreVertical size={18} className="text-gray-700" />
             </button>
           </DropdownMenuTrigger>

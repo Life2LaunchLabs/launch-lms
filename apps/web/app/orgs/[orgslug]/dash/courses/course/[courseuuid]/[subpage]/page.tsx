@@ -42,8 +42,7 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
   const canConfigureCoreCourse = params.orgslug === getDefaultOrg()
 
   function getEntireCourseUUID(courseuuid: string) {
-    // add course_ to uuid
-    return `course_${courseuuid}`
+    return courseuuid.startsWith('course_') ? courseuuid : `course_${courseuuid}`
   }
 
   const courseuuid = getEntireCourseUUID(params.courseuuid)

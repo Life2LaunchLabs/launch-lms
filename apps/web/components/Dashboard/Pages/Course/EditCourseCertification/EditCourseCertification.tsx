@@ -25,6 +25,7 @@ import {
 } from "../EditCourseGeneral/CustomSelect";
 import useSWR from 'swr';
 import { getAPIUrl } from '@services/config/config';
+import { getCourseThumbnailMediaDirectory, normalizeMediaUrl } from '@services/media/media';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 
@@ -118,6 +119,13 @@ function EditCourseCertification(props: EditCourseCertificationProps) {
 
   const existingCertification = certifications?.data?.[0]; // Assuming one certification per course
   const hasExistingCertification = !!existingCertification;
+  const fallbackBadgeImageUrl = courseStructure?.thumbnail_image && org?.org_uuid && courseStructure?.course_uuid
+    ? getCourseThumbnailMediaDirectory(
+        org.org_uuid,
+        courseStructure.course_uuid,
+        courseStructure.thumbnail_image
+      )
+    : '/empty_thumbnail.png'
 
 
 
@@ -538,6 +546,7 @@ function EditCourseCertification(props: EditCourseCertificationProps) {
                         certificationDescription={formik.values.certification_description}
                         certificationType={formik.values.certification_type}
                         certificatePattern={formik.values.certificate_pattern}
+                        badgeImageUrl={normalizeMediaUrl(formik.values.badge_image_url) || fallbackBadgeImageUrl}
                       />
                     </div>
                   </div>

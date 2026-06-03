@@ -8,6 +8,7 @@ import CertificatePreview from '@components/Dashboard/Pages/Course/EditCourseCer
 import { ArrowLeft, Download } from 'lucide-react';
 import Link from 'next/link';
 import { getUriWithOrg, routePaths } from '@services/config/config';
+import { getCourseThumbnailMediaDirectory, normalizeMediaUrl } from '@services/media/media';
 
 interface CertificatePageProps {
   orgslug: string;
@@ -64,6 +65,22 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
   const getRecipientName = () => {
     const { first_name, last_name, username } = userCertificate?.user || {};
     return [first_name, last_name].filter(Boolean).join(' ') || username || '';
+  };
+
+  const getBadgeImageUrl = () => {
+    if (!userCertificate) return '';
+    const orgUuid = userCertificate.org?.org_uuid || org?.org_uuid;
+    const courseThumbnailUrl = userCertificate.course?.thumbnail_image && orgUuid
+      ? getCourseThumbnailMediaDirectory(
+          orgUuid,
+          userCertificate.course.course_uuid,
+          userCertificate.course.thumbnail_image
+        )
+      : '';
+    return normalizeMediaUrl(userCertificate.badge_class?.image)
+      || normalizeMediaUrl(userCertificate.certification?.config?.badge_image_url)
+      || courseThumbnailUrl
+      || '/empty_thumbnail.png';
   };
 
   // Generate PDF using canvas
@@ -124,6 +141,7 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
 
       const theme = getPatternTheme(userCertificate.certification.config.badge_theme || userCertificate.certification.config.certificate_pattern);
       const certificateId = userCertificate.certificate_user.user_certification_uuid;
+      const badgeImageUrl = getBadgeImageUrl();
       const qrCodeData = qrCodeLink ;
 
       // Generate QR code
@@ -187,13 +205,17 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
           height: 80px;
           background: linear-gradient(135deg, ${theme.icon}20 0%, ${theme.icon}40 100%);
           border-radius: 50%;
+          overflow: hidden;
           display: flex;
           align-items: center;
           justify-content: center;
           margin: 0 auto 30px;
-          font-size: 40px;
           line-height: 1;
-        ">🏆</div>
+          border: 4px solid white;
+          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+        ">
+          <img src="${badgeImageUrl}" alt="Badge image" style="width: 100%; height: 100%; object-fit: cover;" />
+        </div>
         
         <div style="
           font-size: 32px;
@@ -431,6 +453,7 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
               })}
               qrCodeLink={qrCodeLink}
               recipientName={[userCertificate.user?.first_name, userCertificate.user?.last_name].filter(Boolean).join(' ') || userCertificate.user?.username}
+              badgeImageUrl={getBadgeImageUrl()}
             />
           </div>
         </div>

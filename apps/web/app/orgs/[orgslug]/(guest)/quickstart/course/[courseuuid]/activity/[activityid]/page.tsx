@@ -25,6 +25,7 @@ export default async function QuickstartActivityPage({ params, searchParams }: P
   const accessToken = session?.tokens?.access_token || null
   const resolvedSearchParams = await searchParams
   const guestCompletedHint = resolvedSearchParams?.guest_completed === '1'
+  const isCourseEnd = activityid === 'end'
 
   const org = await getOrganizationContextInfo(orgslug, {
     revalidate: 0,
@@ -37,17 +38,17 @@ export default async function QuickstartActivityPage({ params, searchParams }: P
   }
 
   let courseMeta
-  let activity
+  let activity = null
 
   try {
-    [courseMeta, activity] = await Promise.all([
-      fetchCourseMetadata(courseuuid, accessToken),
-      getActivityWithAuthHeader(
+    courseMeta = await fetchCourseMetadata(courseuuid, accessToken)
+    if (!isCourseEnd) {
+      activity = await getActivityWithAuthHeader(
         activityid,
         { revalidate: 0, tags: ['activities'] },
         accessToken || null
-      ),
-    ])
+      )
+    }
   } catch (error: any) {
     if (!session && (error?.status === 401 || error?.status === 403)) {
       redirect('/welcome')
@@ -55,7 +56,7 @@ export default async function QuickstartActivityPage({ params, searchParams }: P
     notFound()
   }
 
-  if (!courseMeta || !activity) {
+  if (!courseMeta || (!isCourseEnd && !activity)) {
     notFound()
   }
 

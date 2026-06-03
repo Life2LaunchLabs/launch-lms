@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Award, CheckCircle, QrCode, Building, User, Calendar, Hash } from 'lucide-react';
+import { CheckCircle, QrCode, Building, User, Calendar, Hash } from 'lucide-react';
 import { useOrg } from '@components/Contexts/OrgContext';
 import { getOrgLogoMediaDirectory } from '@services/media/media';
 
@@ -13,6 +13,7 @@ interface CertificatePreviewProps {
   awardedDate?: string;
   qrCodeLink?: string;
   recipientName?: string;
+  badgeImageUrl?: string;
 }
 
 const CertificatePreview: React.FC<CertificatePreviewProps> = ({
@@ -25,9 +26,14 @@ const CertificatePreview: React.FC<CertificatePreviewProps> = ({
   awardedDate,
   qrCodeLink,
   recipientName,
+  badgeImageUrl,
 }) => {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  const [failedBadgeImageUrl, setFailedBadgeImageUrl] = useState<string | null>(null);
   const org = useOrg() as any;
+  const displayBadgeImageUrl = badgeImageUrl && failedBadgeImageUrl !== badgeImageUrl
+    ? badgeImageUrl
+    : '/empty_thumbnail.png';
 
   // Generate QR code
   useEffect(() => {
@@ -471,10 +477,19 @@ const CertificatePreview: React.FC<CertificatePreviewProps> = ({
             <div className={`w-6 sm:w-8 h-px bg-gradient-to-l from-transparent ${theme.secondary.replace('text-', 'to-')}`}></div>
           </div>
 
-          {/* Award Icon with decorative elements */}
+          {/* Badge image with decorative elements */}
           <div className="flex justify-center relative">
-            <div className={`w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br ${theme.icon.replace('text-', 'from-')}-100 ${theme.icon.replace('text-', 'to-')}-200 rounded-full flex items-center justify-center relative`}>
-              <Award className={`w-6 h-6 sm:w-8 sm:h-8 ${theme.icon}`} />
+            <div className={`w-14 h-14 sm:w-20 sm:h-20 bg-gradient-to-br ${theme.icon.replace('text-', 'from-')}-100 ${theme.icon.replace('text-', 'to-')}-200 rounded-full flex items-center justify-center relative overflow-hidden ring-4 ring-white/80 shadow-sm`}>
+              <img
+                src={displayBadgeImageUrl}
+                alt={certificationName || 'Badge image'}
+                className="h-full w-full object-cover"
+                onError={() => {
+                  if (displayBadgeImageUrl === badgeImageUrl) {
+                    setFailedBadgeImageUrl(displayBadgeImageUrl)
+                  }
+                }}
+              />
               {/* Decorative rays */}
               <div className="absolute inset-0 rounded-full">
                 <div className={`absolute top-0 left-1/2 w-px h-2 sm:h-3 ${theme.secondary.replace('text-', 'bg-')} transform -translate-x-1/2 -translate-y-1 opacity-60`}></div>

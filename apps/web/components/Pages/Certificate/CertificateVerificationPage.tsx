@@ -6,7 +6,7 @@ import CertificatePreview from '@components/Dashboard/Pages/Course/EditCourseCer
 import { Shield, CheckCircle, XCircle, AlertTriangle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { getUriWithOrg, routePaths } from '@services/config/config';
-import { getCourseThumbnailMediaDirectory } from '@services/media/media';
+import { getCourseThumbnailMediaDirectory, normalizeMediaUrl } from '@services/media/media';
 import { useOrg } from '@components/Contexts/OrgContext';
 
 interface CertificateVerificationPageProps {
@@ -153,6 +153,17 @@ const CertificateVerificationPage: React.FC<CertificateVerificationPageProps> = 
   }
 
   const qrCodeLink = getUriWithOrg(org?.org_slug || '', `/badges/${certificateData.certificate_user.user_certification_uuid}/verify`);
+  const certificateOrgUuid = certificateData.org?.org_uuid || org?.org_uuid
+  const courseThumbnailUrl = certificateData.course?.thumbnail_image && certificateOrgUuid
+    ? getCourseThumbnailMediaDirectory(
+        certificateOrgUuid,
+        certificateData.course.course_uuid,
+        certificateData.course.thumbnail_image
+      )
+    : ''
+  const badgeImageUrl = normalizeMediaUrl(certificateData.badge_class?.image)
+    || normalizeMediaUrl(certificateData.certification?.config?.badge_image_url)
+    || courseThumbnailUrl
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -198,6 +209,7 @@ const CertificateVerificationPage: React.FC<CertificateVerificationPageProps> = 
                     day: 'numeric'
                   })}
                   qrCodeLink={qrCodeLink}
+                  badgeImageUrl={badgeImageUrl}
                 />
               </div>
             </div>
@@ -208,10 +220,10 @@ const CertificateVerificationPage: React.FC<CertificateVerificationPageProps> = 
                 {/* Course Thumbnail */}
                 <div className="flex-shrink-0">
                   <div className="w-20 h-12 bg-gray-100 rounded-lg overflow-hidden ring-1 ring-inset ring-black/10">
-                    {certificateData.course.thumbnail_image ? (
+                    {certificateData.course.thumbnail_image && certificateOrgUuid ? (
                       <img
                         src={getCourseThumbnailMediaDirectory(
-                          org?.org_uuid,
+                          certificateOrgUuid,
                           certificateData.course.course_uuid,
                           certificateData.course.thumbnail_image
                         )}

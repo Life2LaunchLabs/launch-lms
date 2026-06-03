@@ -120,19 +120,20 @@ const ActivityPage = async (params: any) => {
   const orgslug = (await params.params).orgslug
   const searchParams = await params.searchParams
   const guestCompletedHint = searchParams?.guest_completed === '1'
+  const isCourseEnd = activityid === 'end'
 
   let course_meta
-  let activity
+  let activity = null
 
   try {
-    [course_meta, activity] = await Promise.all([
-      fetchCourseMetadata(courseuuid, access_token),
-      getActivityWithAuthHeader(
+    course_meta = await fetchCourseMetadata(courseuuid, access_token)
+    if (!isCourseEnd) {
+      activity = await getActivityWithAuthHeader(
         activityid,
         { revalidate: 0, tags: ['activities'] },
         access_token || null
       )
-    ])
+    }
   } catch (error: any) {
     // Unauthenticated user hitting a private course/activity → send to welcome
     if (!session && (error?.status === 401 || error?.status === 403)) {
@@ -142,7 +143,7 @@ const ActivityPage = async (params: any) => {
   }
 
   // If no course data returned, show not found
-  if (!course_meta || !activity) {
+  if (!course_meta || (!isCourseEnd && !activity)) {
     notFound()
   }
 
@@ -150,7 +151,10 @@ const ActivityPage = async (params: any) => {
     { name: 'Home', url: getCanonicalUrl(orgslug, '/') },
     { name: 'Courses', url: getCanonicalUrl(orgslug, '/courses') },
     { name: course_meta.name, url: getCanonicalUrl(orgslug, `/course/${courseuuid}`) },
-    { name: activity.name, url: getCanonicalUrl(orgslug, `/course/${courseuuid}/activity/${activityid}`) },
+    {
+      name: isCourseEnd ? 'Course Complete' : activity.name,
+      url: getCanonicalUrl(orgslug, `/course/${courseuuid}/activity/${activityid}`),
+    },
   ])
 
   return (

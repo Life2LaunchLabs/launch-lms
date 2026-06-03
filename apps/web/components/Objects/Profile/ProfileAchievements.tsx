@@ -45,6 +45,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@components/ui/switch'
 import { Textarea } from '@components/ui/textarea'
 import { getUriWithOrg, routePaths, getAPIUrl } from '@services/config/config'
+import { getCourseThumbnailMediaDirectory, normalizeMediaUrl } from '@services/media/media'
 import { updateProfile } from '@services/settings/profile'
 import { swrFetcher } from '@services/utils/ts/requests'
 
@@ -253,10 +254,19 @@ function getCredentialDescription(credential: any) {
 }
 
 function getCredentialImage(credential: any) {
-  return credential.badge_class?.image
-    || credential.certification?.config?.badge_image_url
-    || credential.issuer?.image
-    || '/logo-icon.svg'
+  const courseThumbnailUrl = credential.course?.thumbnail_image && credential.org?.org_uuid
+    ? getCourseThumbnailMediaDirectory(
+        credential.org.org_uuid,
+        credential.course.course_uuid,
+        credential.course.thumbnail_image
+      )
+    : ''
+
+  return normalizeMediaUrl(credential.badge_class?.image)
+    || normalizeMediaUrl(credential.certification?.config?.badge_image_url)
+    || courseThumbnailUrl
+    || normalizeMediaUrl(credential.issuer?.image)
+    || '/empty_thumbnail.png'
 }
 
 function normalizeCredentialAchievements(certificates: any[], orgslug: string): CredentialAchievement[] {
@@ -344,15 +354,24 @@ function AchievementSquare({
   title: string
 }) {
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null)
+  const displayImageUrl = imageUrl && failedImageUrl !== imageUrl
+    ? imageUrl
+    : imageUrl
+      ? '/empty_thumbnail.png'
+      : ''
 
-  if (imageUrl && failedImageUrl !== imageUrl) {
+  if (displayImageUrl) {
     return (
       <div className="aspect-square w-full overflow-hidden rounded-[18px] bg-gray-100">
         <img
-          src={imageUrl}
+          src={displayImageUrl}
           alt={title}
           className="h-full w-full object-cover"
-          onError={() => setFailedImageUrl(imageUrl)}
+          onError={() => {
+            if (displayImageUrl === imageUrl) {
+              setFailedImageUrl(displayImageUrl)
+            }
+          }}
         />
       </div>
     )

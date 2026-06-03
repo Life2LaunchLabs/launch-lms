@@ -5,7 +5,7 @@ import { Trophy, ArrowLeft, BookOpen, Target, Download, Shield, UserPlus } from 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { getUriWithOrg, routePaths } from '@services/config/config';
-import { getCourseThumbnailMediaDirectory } from '@services/media/media';
+import { getCourseThumbnailMediaDirectory, normalizeMediaUrl } from '@services/media/media';
 import { useWindowSize } from 'usehooks-ts';
 import { useOrg } from '@components/Contexts/OrgContext';
 import { useLHSession } from '@components/Contexts/LHSessionContext';
@@ -56,6 +56,9 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
   const courseRun = useMemo(() => {
     return findCourseRun(trailData, course);
   }, [trailData, course]);
+  const courseThumbnailUrl = thumbnailImage && org?.org_uuid
+    ? getCourseThumbnailMediaDirectory(org.org_uuid, courseUuid, thumbnailImage)
+    : '';
 
   // Check if course is actually completed
   const isCourseCompleted = useMemo(() => {
@@ -175,6 +178,7 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
       const theme = getPatternTheme(userCertificate.certification.config.certificate_pattern);
       const certificateId = userCertificate.certificate_user.user_certification_uuid;
       const qrCodeData = qrCodeLink;
+      const badgeImageUrl = normalizeMediaUrl(userCertificate.badge_class?.image) || normalizeMediaUrl(userCertificate.certification.config.badge_image_url) || courseThumbnailUrl || '/empty_thumbnail.png';
 
       // Generate QR code
       const qrCodeDataUrl = await QRCode.toDataURL(qrCodeData, {
@@ -237,13 +241,17 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
           height: 80px;
           background: linear-gradient(135deg, ${theme.icon}20 0%, ${theme.icon}40 100%);
           border-radius: 50%;
+          overflow: hidden;
           display: flex;
           align-items: center;
           justify-content: center;
           margin: 0 auto 30px;
-          font-size: 40px;
           line-height: 1;
-        ">🏆</div>
+          border: 4px solid white;
+          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+        ">
+          <img src="${badgeImageUrl}" alt="Badge image" style="width: 100%; height: 100%; object-fit: cover;" />
+        </div>
         
         <div style="
           font-size: 32px;
@@ -441,6 +449,7 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
                   certificationType="completion"
                   certificatePattern="professional"
                   recipientName="Your Name"
+                  badgeImageUrl={normalizeMediaUrl(guestBadgeClass.image) || courseThumbnailUrl}
                 />
               </div>
             </div>
@@ -591,6 +600,7 @@ const CourseEndView: React.FC<CourseEndViewProps> = ({
                       day: 'numeric'
                     })}
                     qrCodeLink={qrCodeLink}
+                    badgeImageUrl={normalizeMediaUrl(userCertificate.badge_class?.image) || normalizeMediaUrl(userCertificate.certification.config.badge_image_url) || courseThumbnailUrl}
                   />
                 </div>
               </div>

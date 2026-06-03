@@ -157,6 +157,7 @@ function ActivityActions({ activity, activityid, course, orgslug, assignment, sh
 function ActivityClient(props: ActivityClientProps) {
   const { t } = useTranslation()
   const activityid = props.activityid
+  const isCourseEnd = activityid === 'end'
   const guestMode = props.guestMode === true
   const unauthenticated = props.unauthenticated === true
   const guestCompletedHint = props.guestCompletedHint === true
@@ -365,11 +366,13 @@ function ActivityClient(props: ActivityClientProps) {
   }, [isFocusMode]);
 
   async function getAssignmentUI() {
+    if (!activity) return
     const assignment = await getAssignmentFromActivityUUID(activity.activity_uuid, access_token)
     setAssignment(assignment.data)
   }
 
   useEffect(() => {
+    if (!activity) return
     if (activity.activity_type == 'TYPE_DYNAMIC' || activity.activity_type == 'TYPE_SCORM' || activity.activity_type == 'TYPE_QUIZ') {
       setBgColor(isFocusMode ? 'bg-white' : 'bg-white nice-shadow');
     }
@@ -390,7 +393,7 @@ function ActivityClient(props: ActivityClientProps) {
           <AIChatBotProvider>
             <Suspense fallback={null}>
               <AISidePanelContentWrapper>
-            {isFocusMode ? (
+            {isFocusMode && !isCourseEnd ? (
               <AnimatePresence>
                 <motion.div
                   initial={isInitialRender.current ? false : { opacity: 0 }}

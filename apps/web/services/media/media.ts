@@ -21,6 +21,11 @@ function getApiUrl() {
   return getBackendUrl()
 }
 
+export function normalizeMediaUrl(url?: string | null) {
+  if (!url) return ''
+  return url.replace('/api/v1/content/', '/content/')
+}
+
 /**
  * Get the streaming URL for an activity video.
  * Uses the optimized streaming endpoint with proper Range request support.

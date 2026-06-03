@@ -344,7 +344,11 @@ async def delete_collection(
         request, db_session, current_user, collection.collection_uuid, AccessAction.DELETE
     )
 
-    # delete collection from database
+    statement = select(CollectionCourse).where(CollectionCourse.collection_id == collection.id)
+    collection_courses = db_session.exec(statement).all()
+    for collection_course in collection_courses:
+        db_session.delete(collection_course)
+
     db_session.delete(collection)
     db_session.commit()
 
