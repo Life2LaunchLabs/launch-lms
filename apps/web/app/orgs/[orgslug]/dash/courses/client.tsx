@@ -1,97 +1,79 @@
 'use client'
-import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
-import CreateCourseModal from '@components/Objects/Modals/Course/Create/CreateCourse'
-import CourseCreationTypeSelector from '@components/Objects/Modals/Course/Create/CourseCreationTypeSelector'
-import AICourseCreationModal from '@components/Objects/Modals/Course/Create/AICourse/AICourseCreationModal'
-import { BookCopy, Search, X, Trash2, ChevronLeft, ChevronRight, Users, Info, Library, Plus, Loader2, Download, Copy } from 'lucide-react'
-import CollectionThumbnail from '@components/Objects/Thumbnails/CollectionThumbnail'
-import { createCollection } from '@services/courses/collections'
-import { revalidateTags, swrFetcher } from '@services/utils/ts/requests'
-import { ImportTypeSelector, LaunchLMSCourseImport, TutorCourseImport } from '@components/Objects/Modals/Course/Import'
-import CourseThumbnail, { removeCoursePrefix } from '@components/Objects/Thumbnails/CourseThumbnail'
-import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
-import NewCourseButton from '@components/Objects/StyledElements/Buttons/NewCourseButton'
-import Modal from '@components/Objects/StyledElements/Modal/Modal'
-import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal'
-import { useSearchParams } from 'next/navigation'
-import React, { useState, useMemo } from 'react'
-import useAdminStatus from '@components/Hooks/useAdminStatus'
-import { getAPIUrl } from '@services/config/config'
-import { useOrg } from '@components/Contexts/OrgContext'
-import { useTranslation } from 'react-i18next'
-import { OrgUsageResponse, orgUsageFetcher } from '@services/orgs/usage'
-import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { deleteCourseFromBackend, cloneCourse } from '@services/courses/courses'
-import { exportCoursesBatch, downloadBlob, ExportStatus } from '@services/courses/transfer'
-import { exportToast } from '@components/Objects/StyledElements/Toast/ExportToast'
-import { getUserGroups, getUserGroupResources } from '@services/usergroups/usergroups'
+
+import React, { useEffect, useState } from 'react'
 import useSWR from 'swr'
 import toast from 'react-hot-toast'
+import { AlertTriangle, ChevronLeft, ChevronRight, Library, Loader2, Plus } from 'lucide-react'
+import CollectionThumbnail from '@components/Objects/Thumbnails/CollectionThumbnail'
+import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
+import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/FeatureDisabledView'
-import { usePlan } from '@components/Hooks/usePlan'
+import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { useOrg } from '@components/Contexts/OrgContext'
+import { createCollection, repairCourseCollection } from '@services/courses/collections'
+import { getAPIUrl } from '@services/config/config'
+import { revalidateTags, swrFetcher } from '@services/utils/ts/requests'
+
+type RepairItem = {
+  course: { course_uuid: string; name: string; description?: string }
+  collections: Array<{ collection_uuid: string; name: string }>
+}
 
 type CourseProps = {
   orgslug: string
-  courses: any
   org_id: string | number
   collections?: any[]
 }
 
-function CoursesHome(params: CourseProps) {
-  const { t } = useTranslation()
-  const searchParams = useSearchParams()
-  const isCreatingCourse = searchParams.get('new') ? true : false
-  const [newCourseModal, setNewCourseModal] = React.useState(isCreatingCourse)
-  const [importCourseModal, setImportCourseModal] = React.useState(false)
-  const [importType, setImportType] = React.useState<'select' | 'launch-lms' | 'tutor'>('select')
-  const [creationType, setCreationType] = React.useState<'select' | 'scratch' | 'ai'>('select')
-  const [aiCourseModalOpen, setAiCourseModalOpen] = React.useState(false)
-  const [newCollectionModal, setNewCollectionModal] = React.useState(false)
-  const [newCollectionName, setNewCollectionName] = React.useState('')
-  const [newCollectionDescription, setNewCollectionDescription] = React.useState('')
-  const [isCreatingCollection, setIsCreatingCollection] = React.useState(false)
-  const orgslug = params.orgslug
-  const isUserAdmin = useAdminStatus() as any
+function CoursesHome({ orgslug, org_id, collections = [] }: CourseProps) {
   const org = useOrg() as any
-  const currentPlan = usePlan()
   const session = useLHSession() as any
-  const access_token = session.data?.tokens?.access_token
+  const accessToken = session.data?.tokens?.access_token
+  const [newCollectionModal, setNewCollectionModal] = useState(false)
+  const [newCollectionName, setNewCollectionName] = useState('')
+  const [newCollectionDescription, setNewCollectionDescription] = useState('')
+  const [isCreatingCollection, setIsCreatingCollection] = useState(false)
+  const [repairModal, setRepairModal] = useState(false)
+  const [repairIndex, setRepairIndex] = useState(0)
+  const [selectedCollection, setSelectedCollection] = useState('')
+  const [isRepairing, setIsRepairing] = useState(false)
 
-  // Check if courses feature is enabled
-  const isCoursesEnabled = org?.config?.config?.resolved_features?.courses?.enabled ?? org?.config?.config?.features?.courses?.enabled !== false
-
-  // SWR for courses data - only fetch if feature is enabled
-  const { data: coursesData, mutate: mutateCourses } = useSWR(
-    isCoursesEnabled && access_token ? `${getAPIUrl()}courses/org_slug/${orgslug}/page/1/limit/500?include_unpublished=true` : null,
-    (url) => swrFetcher(url, access_token),
-    { fallbackData: params.courses, revalidateOnFocus: true }
-  )
-
-  const allCourses = coursesData || params.courses
-
-  // SWR for collections
   const { data: collectionsData, mutate: mutateCollections } = useSWR(
-    access_token && params.org_id
-      ? `${getAPIUrl()}collections/org/${params.org_id}/page/1/limit/100?include_shared=false`
+    accessToken && org_id
+      ? `${getAPIUrl()}collections/org/${org_id}/page/1/limit/100?include_shared=false`
       : null,
-    (url) => swrFetcher(url, access_token),
-    { fallbackData: params.collections || [], revalidateOnFocus: true }
+    (url) => swrFetcher(url, accessToken),
+    { fallbackData: collections, revalidateOnFocus: true }
   )
-  const allCollections = collectionsData || params.collections || []
+  const allCollections = collectionsData || collections
+
+  const { data: repairs = [], mutate: mutateRepairs } = useSWR<RepairItem[]>(
+    accessToken && org_id ? `${getAPIUrl()}collections/repair/org/${org_id}` : null,
+    (url) => swrFetcher(url, accessToken),
+    { revalidateOnFocus: true }
+  )
+  const currentRepair = repairs[repairIndex]
+
+  useEffect(() => {
+    setSelectedCollection('')
+  }, [repairIndex, currentRepair?.course.course_uuid])
 
   const handleCreateCollection = async () => {
-    if (!newCollectionName.trim()) {
-      toast.error('Collection name is required.')
-      return
-    }
+    if (!newCollectionName.trim()) return
     setIsCreatingCollection(true)
     try {
       await createCollection(
-        { name: newCollectionName.trim(), description: newCollectionDescription.trim(), public: true, courses: [], org_id: org.id },
-        access_token
+        {
+          name: newCollectionName.trim(),
+          description: newCollectionDescription.trim(),
+          public: true,
+          courses: [],
+          org_id: org.id,
+        },
+        accessToken
       )
       await revalidateTags(['collections'], orgslug)
-      mutateCollections()
+      await mutateCollections()
       setNewCollectionModal(false)
       setNewCollectionName('')
       setNewCollectionDescription('')
@@ -103,767 +85,187 @@ function CoursesHome(params: CourseProps) {
     }
   }
 
-  // Fetch usage limits from backend
-  const { data: usageData } = useSWR<OrgUsageResponse>(
-    access_token && params.org_id ? `${getAPIUrl()}orgs/${params.org_id}/usage` : null,
-    (url) => orgUsageFetcher(url, access_token),
-    { revalidateOnFocus: true }
-  )
-
-  // Check course creation limit from backend
-  const courseLimitReached = usageData?.features?.courses?.limit_reached ?? false
-  const courseLimit = usageData?.features?.courses?.limit ?? 0
-
-  // Usergroup filter follows the org's resolved feature availability.
-  const usergroupsAvailable = org?.config?.config?.resolved_features?.usergroups?.enabled === true
-  const [usergroups, setUsergroups] = useState<any[]>([])
-  const [selectedUsergroupId, setSelectedUsergroupId] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('lh_course_usergroup_filter') || ''
-    }
-    return ''
-  })
-  const [usergroupResourceUuids, setUsergroupResourceUuids] = useState<Set<string> | null>(null)
-  const [showUsergroupInfo, setShowUsergroupInfo] = useState(false)
-
-  // Fetch usergroups
-  React.useEffect(() => {
-    if (!usergroupsAvailable || !access_token || !params.org_id) return
-    getUserGroups(params.org_id, access_token)
-      .then((res: any) => {
-        const list = Array.isArray(res) ? res : res?.data || []
-        setUsergroups(list)
-        // Clear saved selection if the usergroup no longer exists
-        if (selectedUsergroupId && !list.some((ug: any) => String(ug.id) === selectedUsergroupId)) {
-          setSelectedUsergroupId('')
-          localStorage.removeItem('lh_course_usergroup_filter')
-        }
-      })
-      .catch(() => setUsergroups([]))
-  }, [usergroupsAvailable, access_token, params.org_id])
-
-  // Fetch resource UUIDs for selected usergroup
-  React.useEffect(() => {
-    if (!selectedUsergroupId || !access_token || !params.org_id) {
-      setUsergroupResourceUuids(null)
-      return
-    }
-    getUserGroupResources(selectedUsergroupId, params.org_id, access_token)
-      .then((res: any) => {
-        const uuids = Array.isArray(res) ? res : res?.data || []
-        setUsergroupResourceUuids(new Set(uuids))
-      })
-      .catch(() => setUsergroupResourceUuids(null))
-  }, [selectedUsergroupId, access_token, params.org_id])
-
-  const handleUsergroupChange = (value: string) => {
-    setSelectedUsergroupId(value)
-    if (value) {
-      localStorage.setItem('lh_course_usergroup_filter', value)
-    } else {
-      localStorage.removeItem('lh_course_usergroup_filter')
-    }
-  }
-
-  // Search state
-  const [searchQuery, setSearchQuery] = useState('')
-
-  // Filter courses based on search and usergroup (client-side)
-  const filteredCourses = useMemo(() => {
-    let courses = allCourses
-
-    // Usergroup filter
-    if (usergroupResourceUuids) {
-      courses = courses.filter((course: any) => usergroupResourceUuids.has(course.course_uuid))
-    }
-
-    // Search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase()
-      courses = courses.filter((course: any) =>
-        course.name?.toLowerCase().includes(query) ||
-        course.description?.toLowerCase().includes(query) ||
-        course.tags?.toLowerCase().includes(query)
-      )
-    }
-
-    return courses
-  }, [allCourses, searchQuery, usergroupResourceUuids])
-
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 12
-
-  // Reset to page 1 when search or filter changes
-  React.useEffect(() => {
-    setCurrentPage(1)
-  }, [searchQuery, selectedUsergroupId])
-
-  // Calculate pagination (client-side)
-  const totalPages = Math.ceil(filteredCourses.length / itemsPerPage)
-  const paginatedCourses = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage
-    return filteredCourses.slice(startIndex, startIndex + itemsPerPage)
-  }, [filteredCourses, currentPage, itemsPerPage])
-
-  // Selection state
-  const [selectedCourses, setSelectedCourses] = useState<Set<string>>(new Set())
-
-  async function closeNewCourseModal() {
-    setNewCourseModal(false)
-    setCreationType('select')
-    mutateCourses()
-  }
-
-  const handleCreationTypeSelect = (type: 'scratch' | 'ai') => {
-    if (type === 'ai') {
-      setNewCourseModal(false)
-      setAiCourseModalOpen(true)
-    } else {
-      setCreationType('scratch')
-    }
-  }
-
-  const closeAICourseModal = () => {
-    setAiCourseModalOpen(false)
-    setCreationType('select')
-    mutateCourses()
-  }
-
-  const getNewCourseModalContent = () => {
-    switch (creationType) {
-      case 'scratch':
-        return (
-          <CreateCourseModal
-            closeModal={closeNewCourseModal}
-            orgslug={orgslug}
-          />
-        )
-      default:
-        return <CourseCreationTypeSelector onSelectType={handleCreationTypeSelect} currentPlan={currentPlan} />
-    }
-  }
-
-  const getNewCourseModalTitle = () => {
-    switch (creationType) {
-      case 'scratch':
-        return t('dashboard.courses.create_course')
-      default:
-        return t('courses.create.choose_type')
-    }
-  }
-
-  const getNewCourseModalDescription = () => {
-    switch (creationType) {
-      case 'scratch':
-        return t('dashboard.courses.create_new_course')
-      default:
-        return t('courses.create.choose_type_description')
-    }
-  }
-
-  async function closeImportCourseModal() {
-    setImportCourseModal(false)
-    setImportType('select')
-    mutateCourses()
-  }
-
-  const handleImportTypeSelect = (type: 'launch-lms' | 'tutor') => {
-    setImportType(type)
-  }
-
-  const getImportModalContent = () => {
-    switch (importType) {
-      case 'launch-lms':
-        return (
-          <LaunchLMSCourseImport
-            orgId={Number(params.org_id)}
-            orgslug={orgslug}
-            closeModal={closeImportCourseModal}
-          />
-        )
-      case 'tutor':
-        return (
-          <TutorCourseImport
-            orgId={Number(params.org_id)}
-            orgslug={orgslug}
-            closeModal={closeImportCourseModal}
-          />
-        )
-      default:
-        return <ImportTypeSelector onSelectType={handleImportTypeSelect} currentPlan={currentPlan} />
-    }
-  }
-
-  const getImportModalTitle = () => {
-    switch (importType) {
-      case 'launch-lms':
-        return t('dashboard.courses.import_launch_lms')
-      case 'tutor':
-        return 'Import Tutor LMS'
-      default:
-        return t('dashboard.courses.import_course')
-    }
-  }
-
-  const getImportModalDescription = () => {
-    switch (importType) {
-      case 'launch-lms':
-        return t('dashboard.courses.import_launch_lms_description')
-      case 'tutor':
-        return 'Import Tutor LMS JSON course exports and convert them into Launch LMS courses'
-      default:
-        return t('dashboard.courses.import_select_type')
-    }
-  }
-
-  // Toggle course selection
-  const toggleCourseSelection = (courseUuid: string) => {
-    const newSelection = new Set(selectedCourses)
-    if (newSelection.has(courseUuid)) {
-      newSelection.delete(courseUuid)
-    } else {
-      newSelection.add(courseUuid)
-    }
-    setSelectedCourses(newSelection)
-  }
-
-  // Select all visible courses (on current page)
-  const selectAllCourses = () => {
-    const allCourseUuids = paginatedCourses.map((course: any) => course.course_uuid)
-    setSelectedCourses(new Set(allCourseUuids))
-  }
-
-  // Clear selection
-  const clearSelection = () => {
-    setSelectedCourses(new Set())
-  }
-
-  // Bulk delete courses
-  const bulkDeleteCourses = async () => {
-    const toastId = toast.loading(t('courses.deleting_courses', { count: selectedCourses.size }))
-    let successCount = 0
-    let errorCount = 0
-
-    for (const courseUuid of selectedCourses) {
-      try {
-        await deleteCourseFromBackend(courseUuid, access_token)
-        successCount++
-      } catch (error) {
-        errorCount++
-      }
-    }
-
-    toast.dismiss(toastId)
-    if (errorCount === 0) {
-      toast.success(t('courses.courses_deleted_success', { count: successCount }))
-    } else {
-      toast.error(t('courses.courses_deleted_partial', { success: successCount, error: errorCount }))
-    }
-
-    clearSelection()
-    mutateCourses()
-  }
-
-  // Bulk clone courses
-  const bulkCloneCourses = async () => {
-    const toastId = toast.loading(t('courses.cloning_courses', { count: selectedCourses.size }))
-    let successCount = 0
-    let errorCount = 0
-
-    for (const courseUuid of selectedCourses) {
-      try {
-        const result = await cloneCourse(courseUuid, access_token)
-        if (result.success) {
-          successCount++
-        } else {
-          errorCount++
-        }
-      } catch (error) {
-        errorCount++
-      }
-    }
-
-    toast.dismiss(toastId)
-    if (errorCount === 0) {
-      toast.success(t('courses.courses_cloned_success', { count: successCount }))
-    } else {
-      toast.error(t('courses.courses_cloned_partial', { success: successCount, error: errorCount }))
-    }
-
-    clearSelection()
-    mutateCourses()
-  }
-
-  // Bulk export courses
-  const bulkExportCourses = async () => {
-    const count = selectedCourses.size
-    const toastId = exportToast.start('batch', undefined, count)
-
+  const handleRepair = async () => {
+    if (!currentRepair || !selectedCollection) return
+    setIsRepairing(true)
     try {
-      const blob = await exportCoursesBatch(
-        Array.from(selectedCourses),
-        access_token,
-        (progress, status) => {
-          exportToast.update(toastId, status as ExportStatus, progress, undefined, count, 'batch')
-        }
+      await repairCourseCollection(
+        currentRepair.course.course_uuid,
+        selectedCollection,
+        accessToken
       )
-      const timestamp = new Date().toISOString().split('T')[0]
-      downloadBlob(blob, `launch-lms-courses-export-${timestamp}.zip`)
-      exportToast.complete(toastId, undefined, count, 'batch')
-    } catch (error: any) {
-      exportToast.error(toastId, error.message || t('courses.courses_exported_error'), undefined, count, 'batch')
-    }
-    clearSelection()
-  }
-
-  // Pagination handlers
-  const goToPage = (page: number) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page)
-      setSelectedCourses(new Set())
-    }
-  }
-
-  const getVisiblePageNumbers = () => {
-    const pages: (number | string)[] = []
-    const maxVisible = 5
-
-    if (totalPages <= maxVisible) {
-      for (let i = 1; i <= totalPages; i++) pages.push(i)
-    } else {
-      if (currentPage <= 3) {
-        for (let i = 1; i <= 4; i++) pages.push(i)
-        pages.push('...')
-        pages.push(totalPages)
-      } else if (currentPage >= totalPages - 2) {
-        pages.push(1)
-        pages.push('...')
-        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i)
-      } else {
-        pages.push(1)
-        pages.push('...')
-        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i)
-        pages.push('...')
-        pages.push(totalPages)
+      const remaining = await mutateRepairs()
+      await mutateCollections()
+      toast.success(`"${currentRepair.course.name}" moved into its collection.`)
+      if (!remaining?.length) {
+        setRepairModal(false)
+        setRepairIndex(0)
+      } else if (repairIndex >= remaining.length) {
+        setRepairIndex(remaining.length - 1)
       }
+    } catch {
+      toast.error('Failed to update the course collection.')
+    } finally {
+      setIsRepairing(false)
     }
-    return pages
   }
 
   return (
     <FeatureDisabledView featureName="courses" orgslug={orgslug} context="dashboard">
-    <div className="h-full w-full bg-[#f8f8f8] pl-10 pr-10">
-
-      {/* ── Collections section ── */}
-      <div className="pt-6 mb-8">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
-          <div className="flex items-center gap-2">
-            <Library size={20} className="text-gray-500" />
-            <h2 className="text-xl font-bold text-gray-800">Collections</h2>
-            <span className="text-xs font-semibold bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{allCollections.length}</span>
+      <div className="h-full w-full bg-[#f8f8f8] px-10 py-6">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Collections</h1>
+            <p className="mt-1 text-sm text-gray-500">Every course belongs to one collection.</p>
           </div>
-          <AuthenticatedClientElement checkMethod="roles" action="create" ressourceType="collections" orgId={params.org_id}>
-            <button
-              onClick={() => setNewCollectionModal(true)}
-              className="rounded-lg bg-black hover:scale-105 transition-all duration-100 ease-linear antialiased p-2 px-5 my-auto font text-xs font-bold text-white nice-shadow flex space-x-2 items-center"
-            >
-              <Plus className="w-4 h-4" />
-              <span>New Collection</span>
-            </button>
-          </AuthenticatedClientElement>
+          <div className="flex items-center gap-2">
+            {repairs.length > 0 && (
+              <button
+                onClick={() => {
+                  setRepairIndex(0)
+                  setRepairModal(true)
+                }}
+                className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-bold text-amber-800 transition-colors hover:bg-amber-100"
+              >
+                <AlertTriangle className="h-4 w-4" />
+                {repairs.length} {repairs.length === 1 ? 'course needs' : 'courses need'} fixing
+              </button>
+            )}
+            <AuthenticatedClientElement checkMethod="roles" action="create" ressourceType="collections" orgId={org_id}>
+              <button
+                onClick={() => setNewCollectionModal(true)}
+                className="flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white nice-shadow transition-transform hover:scale-105"
+              >
+                <Plus className="h-4 w-4" />
+                New Collection
+              </button>
+            </AuthenticatedClientElement>
+          </div>
         </div>
 
         {allCollections.length === 0 ? (
-          <div className="flex items-center justify-center py-8 border-2 border-dashed border-gray-200 rounded-xl">
-            <div className="text-center">
-              <Library size={32} className="mx-auto mb-2 text-gray-300" />
-              <p className="text-sm text-gray-500">No collections yet. Create one to group courses together.</p>
+          <div className="flex items-center justify-center rounded-xl border-2 border-dashed border-gray-200 py-16 text-center">
+            <div>
+              <Library size={36} className="mx-auto mb-3 text-gray-300" />
+              <p className="text-sm text-gray-500">Create a collection before adding courses.</p>
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {allCollections.map((collection: any) => (
               <CollectionThumbnail
                 key={collection.collection_uuid}
                 collection={collection}
                 orgslug={orgslug}
-                org_id={params.org_id}
-                isDashboard={true}
+                org_id={org_id}
+                isDashboard
               />
             ))}
           </div>
         )}
-      </div>
 
-      {/* ── New Collection Modal ── */}
-      <Modal
-        isDialogOpen={newCollectionModal}
-        onOpenChange={(open) => { setNewCollectionModal(open); if (!open) { setNewCollectionName(''); setNewCollectionDescription('') } }}
-        minHeight="no-min"
-        minWidth="md"
-        dialogTitle="New Collection"
-        dialogDescription="Create a new collection to group courses. You can add courses after creation."
-        dialogContent={
-          <div className="flex flex-col gap-4 p-2">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+        <Modal
+          isDialogOpen={newCollectionModal}
+          onOpenChange={setNewCollectionModal}
+          minHeight="no-min"
+          minWidth="md"
+          dialogTitle="New Collection"
+          dialogDescription="Create a collection that will own its courses."
+          dialogContent={
+            <div className="flex flex-col gap-4 p-2">
               <input
-                type="text"
                 value={newCollectionName}
-                onChange={(e) => setNewCollectionName(e.target.value)}
+                onChange={(event) => setNewCollectionName(event.target.value)}
                 placeholder="Collection name"
-                maxLength={100}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
               <textarea
                 value={newCollectionDescription}
-                onChange={(e) => setNewCollectionDescription(e.target.value)}
-                placeholder="Optional description…"
-                maxLength={500}
+                onChange={(event) => setNewCollectionDescription(event.target.value)}
+                placeholder="Optional description"
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black resize-none"
+                className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm"
               />
-            </div>
-            <div className="flex justify-end">
               <button
                 onClick={handleCreateCollection}
                 disabled={isCreatingCollection || !newCollectionName.trim()}
-                className="flex items-center gap-2 rounded-lg bg-black p-2 px-5 text-xs font-bold text-white nice-shadow hover:scale-105 transition-all duration-100 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                className="ml-auto flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white disabled:opacity-50"
               >
-                {isCreatingCollection && <Loader2 className="w-4 h-4 animate-spin" />}
-                {isCreatingCollection ? 'Creating…' : 'Create Collection'}
+                {isCreatingCollection && <Loader2 className="h-4 w-4 animate-spin" />}
+                Create Collection
               </button>
             </div>
-          </div>
-        }
-      />
+          }
+        />
 
-      <div className="mb-6">
-        <Breadcrumbs items={[
-          { label: t('courses.courses'), href: '/dash/courses', icon: <BookCopy size={14} /> }
-        ]} />
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-4">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-3xl font-bold mb-4 sm:mb-0">{t('dashboard.courses.title')}</h1>
-          </div>
-          <AuthenticatedClientElement
-            checkMethod="roles"
-            action="create"
-            ressourceType="courses"
-            orgId={params.org_id}
-          >
-            <div className="flex items-center space-x-2">
-              {courseLimitReached && (
-                <div className="text-xs text-gray-500 bg-gray-100 px-3 py-2 rounded-lg">
-                  {t('dashboard.courses.limit_reached', { limit: courseLimit })}
+        <Modal
+          isDialogOpen={repairModal}
+          onOpenChange={setRepairModal}
+          minHeight="no-min"
+          minWidth="md"
+          dialogTitle="Fix course collections"
+          dialogDescription="Choose the single collection that should own each course."
+          dialogContent={
+            currentRepair ? (
+              <div className="space-y-5 p-2">
+                <div className="rounded-lg bg-gray-50 p-4">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    Course {repairIndex + 1} of {repairs.length}
+                  </div>
+                  <h3 className="mt-1 text-lg font-bold">{currentRepair.course.name}</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {currentRepair.collections.length === 0
+                      ? 'This course is not in a collection.'
+                      : `Currently in: ${currentRepair.collections.map((collection) => collection.name).join(', ')}`}
+                  </p>
                 </div>
-              )}
-              <Modal
-                isDialogOpen={importCourseModal}
-                onOpenChange={(open) => {
-                  if (courseLimitReached) return
-                  setImportCourseModal(open)
-                  if (!open) setImportType('select')
-                }}
-                minHeight="no-min"
-                dialogTitle={getImportModalTitle()}
-                dialogDescription={getImportModalDescription()}
-                dialogContent={getImportModalContent()}
-                dialogTrigger={
-                  <button
-                    disabled={courseLimitReached}
-                    className={`rounded-lg bg-black transition-all duration-100 ease-linear antialiased p-2 px-5 my-auto font text-xs font-bold text-white nice-shadow flex space-x-2 items-center ${
-                      courseLimitReached ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'
-                    }`}
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>{t('dashboard.courses.import_course')}</span>
-                  </button>
-                }
-              />
-              <Modal
-                isDialogOpen={newCourseModal}
-                onOpenChange={(open) => {
-                  if (courseLimitReached) return
-                  setNewCourseModal(open)
-                  if (!open) setCreationType('select')
-                }}
-                minHeight={creationType === 'select' ? 'no-min' : 'md'}
-                minWidth={creationType === 'select' ? 'md' : 'lg'}
-                dialogContent={getNewCourseModalContent()}
-                dialogTitle={getNewCourseModalTitle()}
-                dialogDescription={getNewCourseModalDescription()}
-                dialogTrigger={
-                  <button disabled={courseLimitReached}>
-                    <NewCourseButton disabled={courseLimitReached} />
-                  </button>
-                }
-              />
-              <AICourseCreationModal
-                isOpen={aiCourseModalOpen}
-                onClose={closeAICourseModal}
-                orgId={Number(params.org_id)}
-                orgslug={orgslug}
-                accessToken={access_token}
-              />
-            </div>
-          </AuthenticatedClientElement>
-        </div>
-      </div>
-
-      {/* Search, Usergroup Filter, and Selection Controls */}
-      {allCourses.length > 0 && (
-        <div className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            {/* Search Input */}
-            <div className="relative w-full sm:w-80">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={t('courses.search_courses')}
-                className="w-full pl-10 pr-10 py-2.5 bg-white nice-shadow rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 border-0"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-
-            {/* Usergroup Filter */}
-            {usergroupsAvailable && usergroups.length > 0 && (
-              <div className="relative flex items-center gap-1.5">
-                <div className="relative">
-                  <Users className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 pointer-events-none" />
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Owning collection</label>
                   <select
-                    value={selectedUsergroupId}
-                    onChange={(e) => handleUsergroupChange(e.target.value)}
-                    className="pl-8 pr-8 py-2.5 bg-white nice-shadow rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 border-0 appearance-none cursor-pointer min-w-[160px]"
+                    value={selectedCollection}
+                    onChange={(event) => setSelectedCollection(event.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
                   >
-                    <option value="">{t('courses.usergroup_filter.all_courses')}</option>
-                    {usergroups.map((ug: any) => (
-                      <option key={ug.id} value={String(ug.id)}>
-                        {ug.name}
+                    <option value="">Select a collection</option>
+                    {allCollections.map((collection: any) => (
+                      <option key={collection.collection_uuid} value={collection.collection_uuid}>
+                        {collection.name}
                       </option>
                     ))}
                   </select>
                 </div>
-                <button
-                  onClick={() => setShowUsergroupInfo(!showUsergroupInfo)}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors rounded-md hover:bg-gray-100"
-                >
-                  <Info className="w-3.5 h-3.5" />
-                </button>
-                {showUsergroupInfo && (
-                  <div className="absolute top-full left-0 mt-2 z-50 w-72 bg-white nice-shadow rounded-lg p-3 border border-gray-100">
-                    <p className="text-xs font-semibold text-gray-700 mb-1">{t('courses.usergroup_filter.info_title')}</p>
-                    <p className="text-xs text-gray-500 leading-relaxed">{t('courses.usergroup_filter.info_description')}</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Bulk Actions - shown when items selected */}
-          {selectedCourses.size > 0 && (
-            <AuthenticatedClientElement
-              checkMethod="roles"
-              action="update"
-              ressourceType="courses"
-              orgId={params.org_id}
-            >
-              <div className="flex items-center gap-2 ml-auto">
-                <span className="text-sm font-medium text-gray-500 px-2">
-                  {t('courses.selected_count', { count: selectedCourses.size })}
-                </span>
-                <button
-                  onClick={selectAllCourses}
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 bg-white nice-shadow rounded-lg transition-colors"
-                >
-                  <span>{t('courses.select_all')}</span>
-                </button>
-                <button
-                  onClick={clearSelection}
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 bg-white nice-shadow rounded-lg transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                  <span>{t('courses.clear_selection')}</span>
-                </button>
-                <ConfirmationModal
-                  confirmationButtonText={t('courses.clone_selected')}
-                  confirmationMessage={t('courses.clone_selected_confirm', { count: selectedCourses.size })}
-                  dialogTitle={t('courses.clone_courses_title')}
-                  dialogTrigger={
-                    <button className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:text-gray-900 bg-white nice-shadow rounded-lg transition-colors">
-                      <Copy className="w-4 h-4" />
-                      <span>{t('courses.clone_selected')}</span>
-                    </button>
-                  }
-                  functionToExecute={bulkCloneCourses}
-                  status="info"
-                />
-                <button
-                  onClick={bulkExportCourses}
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:text-gray-900 bg-white nice-shadow rounded-lg transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>{t('courses.export_selected')}</span>
-                </button>
-                <ConfirmationModal
-                  confirmationButtonText={t('courses.delete_selected')}
-                  confirmationMessage={t('courses.delete_selected_confirm', { count: selectedCourses.size })}
-                  dialogTitle={t('courses.delete_courses_title')}
-                  dialogTrigger={
-                    <button className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:text-red-700 bg-white nice-shadow rounded-lg transition-colors">
-                      <Trash2 className="w-4 h-4" />
-                      <span>{t('courses.delete_selected')}</span>
-                    </button>
-                  }
-                  functionToExecute={bulkDeleteCourses}
-                  status="warning"
-                />
-              </div>
-            </AuthenticatedClientElement>
-          )}
-        </div>
-      )}
-
-      {/* Search Results Info */}
-      {searchQuery && (
-        <div className="mb-4 text-sm text-gray-500">
-          {t('courses.search_results', { count: filteredCourses.length, query: searchQuery })}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {paginatedCourses.map((course: any) => (
-          <CourseThumbnail
-            key={course.course_uuid}
-            customLink={`/dash/courses/course/${removeCoursePrefix(course.course_uuid)}/general`}
-            course={course}
-            orgslug={orgslug}
-            isDashboard={true}
-            isSelected={selectedCourses.has(course.course_uuid)}
-            onToggleSelect={toggleCourseSelection}
-          />
-        ))}
-        {filteredCourses.length === 0 && searchQuery && (
-          <div className="col-span-full flex justify-center items-center py-8">
-            <div className="text-center">
-              <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <h2 className="text-xl font-semibold text-gray-600 mb-2">
-                {t('courses.no_search_results')}
-              </h2>
-              <p className="text-gray-400">
-                {t('courses.try_different_search')}
-              </p>
-            </div>
-          </div>
-        )}
-        {allCourses.length === 0 && !searchQuery && (
-          <div className="col-span-full flex justify-center items-center py-8">
-            <div className="text-center">
-              <div className="mb-4">
-                <svg
-                  width="120"
-                  height="120"
-                  viewBox="0 0 295 295"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="mx-auto"
-                >
-                  {/* ... SVG content ... */}
-                </svg>
-              </div>
-              <h2 className="text-2xl font-bold text-gray-600 mb-2">
-                {t('dashboard.courses.no_courses')}
-              </h2>
-              <p className="text-lg text-gray-400">
-                {isUserAdmin ? (
-                  t('dashboard.courses.create_course_placeholder')
-                ) : (
-                  t('dashboard.courses.no_courses_available')
-                )}
-              </p>
-              {isUserAdmin && !courseLimitReached && (
-                <div className="mt-6">
-                  <AuthenticatedClientElement
-                    action="create"
-                    ressourceType="courses"
-                    checkMethod="roles"
-                    orgId={params.org_id}
-                  >
-                    <button onClick={() => setNewCourseModal(true)}>
-                      <NewCourseButton />
-                    </button>
-                  </AuthenticatedClientElement>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Pagination Controls */}
-      {totalPages > 1 && (
-        <div className="mt-8 mb-6 flex items-center justify-center gap-2">
-          <button
-            onClick={() => goToPage(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-600 bg-white nice-shadow rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">{t('pagination.previous')}</span>
-          </button>
-
-          <div className="flex items-center gap-1">
-            {getVisiblePageNumbers().map((page, index) => (
-              <React.Fragment key={index}>
-                {page === '...' ? (
-                  <span className="px-2 py-1 text-gray-400">...</span>
-                ) : (
+                <div className="flex items-center justify-between">
                   <button
-                    onClick={() => goToPage(page as number)}
-                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                      currentPage === page
-                        ? 'bg-black text-white'
-                        : 'bg-white text-gray-600 nice-shadow hover:bg-gray-50'
-                    }`}
+                    onClick={() => setRepairIndex((index) => Math.max(0, index - 1))}
+                    disabled={repairIndex === 0}
+                    className="flex items-center gap-1 text-sm text-gray-500 disabled:opacity-30"
                   >
-                    {page}
+                    <ChevronLeft className="h-4 w-4" /> Previous
                   </button>
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-
-          <button
-            onClick={() => goToPage(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-600 bg-white nice-shadow rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <span className="hidden sm:inline">{t('pagination.next')}</span>
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Pagination info */}
-      {totalPages > 1 && (
-        <div className="mb-6 text-center text-sm text-gray-500">
-          {t('pagination.showing_page', { current: currentPage, total: totalPages })}
-        </div>
-      )}
-    </div>
+                  <div className="flex items-center gap-3">
+                    {repairIndex < repairs.length - 1 && (
+                      <button
+                        onClick={() => setRepairIndex((index) => index + 1)}
+                        className="flex items-center gap-1 text-sm text-gray-500"
+                      >
+                        Skip <ChevronRight className="h-4 w-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={handleRepair}
+                      disabled={!selectedCollection || isRepairing}
+                      className="flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white disabled:opacity-50"
+                    >
+                      {isRepairing && <Loader2 className="h-4 w-4 animate-spin" />}
+                      Save collection
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null
+          }
+        />
+      </div>
     </FeatureDisabledView>
   )
 }

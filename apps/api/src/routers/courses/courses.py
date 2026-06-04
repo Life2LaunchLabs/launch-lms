@@ -65,6 +65,7 @@ from src.services.courses.transfer import (
     ImportResult,
     TutorImportProgressResponse,
 )
+from src.services.courses.collections import assign_course_to_collection
 
 
 # Request models for batch operations
@@ -333,6 +334,7 @@ async def api_create_course(
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
     thumbnail: UploadFile | None = None,
+    collection_uuid: str | None = Query(None),
 ) -> CourseRead:
     """
     Create new Course
@@ -350,9 +352,18 @@ async def api_create_course(
         tags=tags,
         open_to_contributors=False,
     )
-    return await create_course(
+    created_course = await create_course(
         request, org_id, course, current_user, db_session, thumbnail, thumbnail_type
     )
+    if collection_uuid:
+        await assign_course_to_collection(
+            request,
+            created_course.course_uuid,
+            collection_uuid,
+            current_user,
+            db_session,
+        )
+    return created_course
 
 
 @router.put("/{course_uuid}/thumbnail")

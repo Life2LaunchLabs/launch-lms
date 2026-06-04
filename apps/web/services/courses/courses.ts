@@ -118,7 +118,8 @@ export async function createNewCourse(
   org_id: string,
   course_body: any,
   thumbnail: any,
-  access_token: any
+  access_token: any,
+  collection_uuid?: string
 ) {
   // Send file thumbnail as form data
   const formData = new FormData()
@@ -134,7 +135,7 @@ export async function createNewCourse(
   }
 
   const result = await fetch(
-    `${getAPIUrl()}courses?org_id=${org_id}`,
+    `${getAPIUrl()}courses?org_id=${org_id}${collection_uuid ? `&collection_uuid=${encodeURIComponent(collection_uuid)}` : ''}`,
     RequestBodyFormWithAuthHeader('POST', formData, null, access_token)
   )
   const res = await getResponseMetadata(result)

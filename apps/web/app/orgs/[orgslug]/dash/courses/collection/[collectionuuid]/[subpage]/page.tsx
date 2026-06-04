@@ -61,7 +61,7 @@ const SUBPAGE_TITLES: Record<string, { h1: string; h2: string }> = {
   general: { h1: 'General Settings', h2: 'Update name, description, and visibility.' },
   thumbnail: { h1: 'Cover Photo', h2: 'Upload a custom cover photo for this collection.' },
   access: { h1: 'Access Control', h2: 'Control who can view this collection.' },
-  content: { h1: 'Courses', h2: 'Add or remove courses from this collection.' },
+  content: { h1: 'Courses', h2: 'Manage the courses owned by this collection.' },
 }
 
 function CollectionSettingsContent({ params }: { params: CollectionParams }) {

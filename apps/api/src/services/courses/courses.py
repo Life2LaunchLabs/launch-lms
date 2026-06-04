@@ -174,6 +174,7 @@ def _serialize_course_read(
     payload = {
         "id": course.id or 0,
         "org_id": course.org_id,
+        "collection_id": course.collection_id,
         "name": course.name,
         "description": course.description or "",
         "about": course.about or "",
@@ -1818,6 +1819,31 @@ async def clone_course(
     db_session.add(new_course)
     db_session.flush()  # Get new_course.id without committing
     db_session.refresh(new_course)
+
+    # A clone of a valid course remains owned by the same collection. Legacy
+    # courses with zero or multiple owners stay unassigned for the repair flow.
+    from src.db.collections_courses import CollectionCourse
+
+    original_collection_links = db_session.exec(
+        select(CollectionCourse).where(CollectionCourse.course_id == original_course.id)
+    ).all()
+    if (
+        len(original_collection_links) == 1
+        and original_course.collection_id == original_collection_links[0].collection_id
+    ):
+        original_link = original_collection_links[0]
+        new_course.collection_id = original_link.collection_id
+        db_session.add(new_course)
+        now = str(datetime.now())
+        db_session.add(
+            CollectionCourse(
+                collection_id=original_link.collection_id,
+                course_id=int(new_course.id),  # type: ignore
+                org_id=original_link.org_id,
+                creation_date=now,
+                update_date=now,
+            )
+        )
 
     # Make current user the creator
     if isinstance(current_user, APITokenUser):

@@ -69,6 +69,15 @@ class Course(CourseBase, table=True):
     org_id: int = Field(
         sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True)
     )
+    collection_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(
+            Integer,
+            ForeignKey("collection.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True,
+        ),
+    )
     course_uuid: str = Field(default="", index=True)
     creation_date: str = ""
     update_date: str = ""
@@ -106,6 +115,7 @@ class CourseUpdate(SQLModel):
 class CourseRead(CourseBase):
     id: int
     org_id: int = Field(default=None, foreign_key="organization.id")
+    collection_id: Optional[int] = None
     authors: List[AuthorWithRole]
     course_uuid: str
     owner_org_id: Optional[int] = None
