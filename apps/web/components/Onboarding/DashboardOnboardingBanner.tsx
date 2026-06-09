@@ -57,7 +57,7 @@ export default function DashboardOnboardingBanner({
     return null
   }
 
-  const coursesHref = getUriWithOrg(orgslug, routePaths.org.courses())
+  const coursesHref = getUriWithOrg(orgslug, routePaths.org.badges())
   const communitiesHref = getUriWithOrg(orgslug, routePaths.org.communities())
   const resourcesHref = getUriWithOrg(orgslug, routePaths.org.resources())
 
@@ -98,7 +98,7 @@ export default function DashboardOnboardingBanner({
               Everything you need for life launching in one place.
             </h1>
             <p className="mt-1.5 max-w-2xl text-xs leading-5 text-white/82 sm:text-[13px]">
-              Finding your target lifestyle starts with understanding yourself. Jump into the Life2launch CORE courses to start your journey!
+              Finding your target lifestyle starts with understanding yourself. Earn your first Life2launch CORE badge to start your journey!
             </p>
 
             <div className="mt-3 flex items-center gap-3">
@@ -132,7 +132,7 @@ export default function DashboardOnboardingBanner({
               <ActionCard
                 href={coursesHref}
                 icon={<ArrowRight size={16} />}
-                title="Explore Courses"
+                title="Explore Badges"
                 onClick={dismissDashboardBanner}
               />
               <ActionCard

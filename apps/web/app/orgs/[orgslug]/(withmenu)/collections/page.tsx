@@ -3,7 +3,7 @@ import { getUriWithOrg } from '@services/config/config'
 
 const CollectionsPage = async (params: any) => {
   const orgslug = (await params.params).orgslug
-  redirect(getUriWithOrg(orgslug, '/courses'))
+  redirect(getUriWithOrg(orgslug, '/badges'))
 }
 
 export default CollectionsPage

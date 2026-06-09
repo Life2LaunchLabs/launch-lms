@@ -2,7 +2,7 @@ import React from 'react'
 import {
   House,
   User,
-  Books,
+  SealCheck,
   ChatsCircle,
   FolderOpen,
   Question,
@@ -59,6 +59,7 @@ export function getPrimaryOrgMenuItems({
 }): OrgMenuNavItem[] {
   const isHome = !KNOWN_SUBPATHS.some((subpath) => pathname?.includes(subpath))
   const isOnCourses =
+    pathname?.includes('/badges') ||
     pathname?.includes('/courses') ||
     pathname?.includes('/course/') ||
     pathname?.includes('/collection/')
@@ -82,9 +83,9 @@ export function getPrimaryOrgMenuItems({
       show: true,
     },
     {
-      href: '/courses',
-      label: t('courses.courses'),
-      icon: <Books size={18} weight="fill" />,
+      href: '/badges',
+      label: 'Badges',
+      icon: <SealCheck size={18} weight="fill" />,
       active: Boolean(isOnCourses),
       show: isFeatureEnabled(resolvedFeatures, 'courses'),
       onboardingFeature: 'courses',

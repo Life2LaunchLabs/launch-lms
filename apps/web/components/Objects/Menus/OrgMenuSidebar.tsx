@@ -131,7 +131,7 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
           {session?.status === 'authenticated' && trail?.runs?.length > 0 && (
             <div className="px-3 py-3">
               <p className="px-3 text-[11px] text-gray-400 font-semibold uppercase tracking-wider mb-2">
-                Active Courses
+                Active Badges
               </p>
               <div className="flex flex-col gap-0.5">
                 {trail.runs.map((run: any) => {

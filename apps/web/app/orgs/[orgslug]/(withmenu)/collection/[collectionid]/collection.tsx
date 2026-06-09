@@ -11,7 +11,7 @@ import PageLoading from '@components/Objects/Loaders/PageLoading'
 import useSWR from 'swr'
 import { swrFetcher } from '@services/utils/ts/requests'
 import PublicCourseCard from '@components/Pages/Courses/PublicCourseCard'
-import { Books } from '@phosphor-icons/react'
+import { SealCheck } from '@phosphor-icons/react'
 import { getCollectionThumbnailMediaDirectory } from '@services/media/media'
 import { SafeImage } from '@components/Objects/SafeImage'
 
@@ -43,9 +43,9 @@ const CollectionClient = ({ orgslug, collectionid }: { orgslug: string; collecti
         <Breadcrumbs
           items={[
             {
-              label: t('courses.courses'),
-              href: getUriWithOrg(orgslug, '/courses'),
-              icon: <Books size={14} weight="fill" />,
+              label: 'Badges',
+              href: getUriWithOrg(orgslug, '/badges'),
+              icon: <SealCheck size={14} weight="fill" />,
             },
             { label: col.name },
           ]}

@@ -25,11 +25,11 @@ export const QUICKSTART_FEATURES: Record<
     href: routePaths.org.root(),
   },
   courses: {
-    label: 'Courses',
-    description: 'Browse all courses',
+    label: 'Badges',
+    description: 'Discover badges to earn',
     icon: ({ className }) =>
       createElement(Books, { size: 44, weight: 'fill', className }),
-    href: routePaths.org.courses(),
+    href: routePaths.org.badges(),
   },
   communities: {
     label: 'Communities',

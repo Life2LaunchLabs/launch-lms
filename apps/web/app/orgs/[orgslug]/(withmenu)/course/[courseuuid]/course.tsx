@@ -10,7 +10,7 @@ import {
   getCourseThumbnailMediaDirectory,
 } from '@services/media/media'
 import { CourseThumbnailImage } from '@components/Objects/Thumbnails/CourseThumbnailImage'
-import { ArrowRight, Check, Video, Image as ImageIcon, BookCopy, Play, Clock } from 'lucide-react'
+import { ArrowRight, BadgeCheck, Check, Video, Image as ImageIcon, Play, Clock } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -206,8 +206,8 @@ const CourseClient = (props: any) => {
               ? t('course.noPermission', 'You do not have permission to view this course.')
               : t('course.loadError', 'This course could not be found or there was an error loading it.')}
           </p>
-          <Link href={getUriWithOrg(orgslug, '/courses')} className="text-blue-600 hover:underline">
-            {t('course.backToCourses', 'Back to Courses')}
+          <Link href={getUriWithOrg(orgslug, '/badges')} className="text-blue-600 hover:underline">
+            Back to Badges
           </Link>
         </div>
       </GeneralWrapperStyled>
@@ -229,7 +229,7 @@ const CourseClient = (props: any) => {
           <GeneralWrapperStyled>
             <div className="pb-4">
               <Breadcrumbs items={[
-                { label: t('courses.courses'), href: getUriWithOrg(orgslug, '/courses'), icon: <BookCopy size={14} /> },
+                { label: 'Badges', href: getUriWithOrg(orgslug, '/badges'), icon: <BadgeCheck size={14} /> },
                 { label: course.name }
               ]} />
             </div>

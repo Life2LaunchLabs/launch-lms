@@ -124,6 +124,7 @@ export const OrgMenu = (props: { orgslug: string }) => {
       {
         feature: 'courses',
         matches:
+          pathname.includes('/badges') ||
           pathname.includes('/courses') ||
           pathname.includes('/course/') ||
           pathname.includes('/collection/'),

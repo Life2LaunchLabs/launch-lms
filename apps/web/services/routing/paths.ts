@@ -82,6 +82,7 @@ export const routePaths = {
     communities: () => '/communities',
     resources: () => '/resources',
     podcasts: () => '/podcasts',
+    badges: () => '/badges',
     courses: () => '/courses',
     collections: () => '/collections',
     collectionNew: () => '/collections/new',

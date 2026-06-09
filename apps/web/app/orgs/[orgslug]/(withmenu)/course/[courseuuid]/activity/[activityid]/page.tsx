@@ -149,7 +149,7 @@ const ActivityPage = async (params: any) => {
 
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
     { name: 'Home', url: getCanonicalUrl(orgslug, '/') },
-    { name: 'Courses', url: getCanonicalUrl(orgslug, '/courses') },
+    { name: 'Badges', url: getCanonicalUrl(orgslug, '/badges') },
     { name: course_meta.name, url: getCanonicalUrl(orgslug, `/course/${courseuuid}`) },
     {
       name: isCourseEnd ? 'Course Complete' : activity.name,

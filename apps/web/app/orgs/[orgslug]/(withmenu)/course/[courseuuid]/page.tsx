@@ -160,7 +160,7 @@ const CoursePage = async (params: any) => {
 
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
     { name: 'Home', url: getCanonicalUrl(orgslug, '/') },
-    { name: 'Courses', url: getCanonicalUrl(orgslug, '/courses') },
+    { name: 'Badges', url: getCanonicalUrl(orgslug, '/badges') },
     { name: course_meta?.name || 'Course', url: getCanonicalUrl(orgslug, `/course/${courseuuid}`) },
   ])
 

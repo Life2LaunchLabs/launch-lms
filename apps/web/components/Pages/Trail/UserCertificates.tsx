@@ -14,9 +14,10 @@ import { getCourseThumbnailMediaDirectory, normalizeMediaUrl } from '@services/m
 
 interface UserCertificatesProps {
   orgslug: string
+  showHeader?: boolean
 }
 
-const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug }) => {
+const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug, showHeader = true }) => {
   const { t, i18n } = useTranslation()
   const session = useLHSession() as any
   const access_token = session?.data?.tokens?.access_token
@@ -33,12 +34,14 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug }) => {
   if (isLoading) {
     return (
       <div className="flex flex-col space-y-2">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-yellow-50 rounded-lg">
-            <Award className="w-5 h-5 text-yellow-500" />
+        {showHeader && (
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-yellow-50 rounded-lg">
+              <Award className="w-5 h-5 text-yellow-500" />
+            </div>
+            <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
           </div>
-          <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
-        </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="bg-white rounded-xl nice-shadow overflow-hidden animate-pulse">
@@ -57,12 +60,14 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug }) => {
   if (error) {
     return (
       <div className="flex flex-col space-y-2">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-yellow-50 rounded-lg">
-            <Award className="w-5 h-5 text-yellow-500" />
+        {showHeader && (
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-yellow-50 rounded-lg">
+              <Award className="w-5 h-5 text-yellow-500" />
+            </div>
+            <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
           </div>
-          <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
-        </div>
+        )}
         <div className="col-span-full flex flex-col justify-center items-center py-12 px-4 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/30">
           <div className="p-4 bg-white rounded-full nice-shadow mb-4">
             <Award className="w-8 h-8 text-gray-300" strokeWidth={1.5} />
@@ -76,12 +81,14 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug }) => {
   if (!certificatesData || certificatesData.length === 0) {
     return (
       <div className="flex flex-col space-y-2">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-yellow-50 rounded-lg">
-            <Award className="w-5 h-5 text-yellow-500" />
+        {showHeader && (
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-yellow-50 rounded-lg">
+              <Award className="w-5 h-5 text-yellow-500" />
+            </div>
+            <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
           </div>
-          <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
-        </div>
+        )}
         <div className="col-span-full flex flex-col justify-center items-center py-12 px-4 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/30">
           <div className="p-4 bg-white rounded-full nice-shadow mb-4">
             <Award className="w-8 h-8 text-gray-300" strokeWidth={1.5} />
@@ -99,15 +106,17 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug }) => {
 
   return (
     <div className="flex flex-col space-y-2">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="p-2 bg-yellow-50 rounded-lg">
-          <Award className="w-5 h-5 text-yellow-500" />
+      {showHeader && (
+        <div className="flex items-center gap-3 mb-2">
+          <div className="p-2 bg-yellow-50 rounded-lg">
+            <Award className="w-5 h-5 text-yellow-500" />
+          </div>
+          <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
+          <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+            {certificatesData.length}
+          </span>
         </div>
-        <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
-        <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-          {certificatesData.length}
-        </span>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {certificatesData.map((certificate: any) => {
