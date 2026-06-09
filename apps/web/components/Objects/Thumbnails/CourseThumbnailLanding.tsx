@@ -82,7 +82,7 @@ const AdminEditOptions: React.FC<AdminEditOptionsProps> = ({ course, orgslug, de
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link prefetch href={getUriWithOrg(orgslug, routePaths.org.dash.courseSettings(removeCoursePrefix(course.course_uuid), 'general'))}>
+              <Link prefetch href={getUriWithOrg(orgslug, routePaths.org.dash.courseSettings(removeCoursePrefix(course.course_uuid), 'settings'))}>
                 <Settings2 className="mr-2 h-4 w-4" /> {t('common.settings')}
               </Link>
             </DropdownMenuItem>

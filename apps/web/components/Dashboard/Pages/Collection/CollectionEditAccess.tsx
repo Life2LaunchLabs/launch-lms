@@ -9,11 +9,12 @@ import { swrFetcher } from '@services/utils/ts/requests'
 import { mutate } from 'swr'
 import useSWR from 'swr'
 import { getAPIUrl } from '@services/config/config'
-import { Globe, Users, SquareUserRound, X } from 'lucide-react'
+import { Globe, SquareUserRound, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import LinkCollectionToUserGroup from '@components/Objects/Modals/Dash/EditCollectionAccess/LinkCollectionToUserGroup'
+import { Switch } from '@components/ui/switch'
 
 const CollectionEditAccess: React.FC = () => {
   const session = useLHSession() as any
@@ -96,74 +97,63 @@ const CollectionEditAccess: React.FC = () => {
   if (!collection) return null
 
   return (
-    <div>
-      <div className="h-6"></div>
-      <div className="mx-4 sm:mx-10 bg-white rounded-xl shadow-xs px-4 py-4">
-        <div className="flex flex-col bg-gray-50 -space-y-1 px-3 sm:px-5 py-3 rounded-md mb-3">
-          <h1 className="font-bold text-lg sm:text-xl text-gray-800">Access Control</h1>
-          <h2 className="text-gray-500 text-xs sm:text-sm">Control guest visibility and whether this collection is shared across org sites.</h2>
-        </div>
-        <div className={`flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0 mx-auto mb-3 ${isSaving ? 'opacity-50 pointer-events-none' : ''}`}>
-          <ConfirmationModal
-            confirmationButtonText="Make Public"
-            confirmationMessage="This will make the collection visible to everyone, including anonymous users."
-            dialogTitle="Make Collection Public?"
-            dialogTrigger={
-              <div className="w-full h-[200px] bg-slate-100 rounded-lg cursor-pointer hover:bg-slate-200 transition-all">
-                {isClientPublic && (
-                  <div className="bg-green-200 text-green-600 font-bold w-fit my-3 mx-3 absolute text-sm px-3 py-1 rounded-lg">Active</div>
-                )}
-                <div className="flex flex-col space-y-1 justify-center items-center h-full p-4">
-                  <Globe className="text-slate-400" size={32} />
-                  <div className="text-2xl text-slate-700 font-bold">Public</div>
-                  <div className="text-gray-400 text-sm text-center leading-5">Anyone can discover and view this collection.</div>
-                </div>
-              </div>
-            }
-            functionToExecute={() => handleSetPublic(true)}
-            status="info"
+    <div className="px-10 pb-10 pt-6">
+      <section className="rounded-xl bg-white p-6 shadow-xs">
+        <h2 className="text-lg font-bold text-gray-900">Settings</h2>
+        <div className={`mt-4 divide-y divide-gray-100 ${isSaving ? 'opacity-50 pointer-events-none' : ''}`}>
+          <SettingToggleRow
+            icon={<Globe className="h-4 w-4" />}
+            label="Public collection"
+            description="Public collections are discoverable by anyone. Restricted collections require explicit user-group access."
+            checked={isClientPublic === true}
+            valueLabel={isClientPublic ? 'Public' : 'Restricted'}
+            onCheckedChange={handleSetPublic}
           />
-          <ConfirmationModal
-            confirmationButtonText="Make Restricted"
-            confirmationMessage="Only users with explicit access via user groups will be able to view this collection."
-            dialogTitle="Make Collection Restricted?"
-            dialogTrigger={
-              <div className="w-full h-[200px] bg-slate-100 rounded-lg cursor-pointer hover:bg-slate-200 transition-all">
-                {!isClientPublic && (
-                  <div className="bg-green-200 text-green-600 font-bold w-fit my-3 mx-3 absolute text-sm px-3 py-1 rounded-lg">Active</div>
-                )}
-                <div className="flex flex-col space-y-1 justify-center items-center h-full p-4">
-                  <Users className="text-slate-400" size={32} />
-                  <div className="text-2xl text-slate-700 font-bold">Restricted</div>
-                  <div className="text-gray-400 text-sm text-center leading-5">Only users in linked user groups can access this collection.</div>
-                </div>
-              </div>
-            }
-            functionToExecute={() => handleSetPublic(false)}
-            status="info"
+          <SettingToggleRow
+            label="Shared across organizations"
+            description="Let signed-in users discover this collection from other org sites. Courses inside the collection still keep their own access rules."
+            checked={isSharedAcrossOrgs}
+            valueLabel={isSharedAcrossOrgs ? 'Enabled' : 'Disabled'}
+            onCheckedChange={handleSetShared}
           />
-        </div>
-        <div className={`mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 ${isSaving ? 'opacity-50 pointer-events-none' : ''}`}>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h3 className="text-base font-semibold text-slate-800">Shared across organizations</h3>
-              <p className="mt-1 text-sm text-slate-500">
-                Let signed-in users discover this collection from other org sites. Courses inside the collection still keep their own access rules.
-              </p>
-            </div>
-            <label className="inline-flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={isSharedAcrossOrgs}
-                onChange={(e) => handleSetShared(e.target.checked)}
-              />
-              <span className="text-sm font-medium text-slate-700">
-                {isSharedAcrossOrgs ? 'Enabled' : 'Disabled'}
-              </span>
-            </label>
-          </div>
         </div>
         {!isClientPublic && <UserGroupsSection usergroups={usergroups} />}
+      </section>
+    </div>
+  )
+}
+
+function SettingToggleRow({
+  icon,
+  label,
+  description,
+  checked,
+  valueLabel,
+  onCheckedChange,
+}: {
+  icon?: React.ReactNode
+  label: string
+  description: string
+  checked: boolean
+  valueLabel: string
+  onCheckedChange: (checked: boolean) => void
+}) {
+  return (
+    <div className="flex items-start justify-between gap-6 py-4 first:pt-0 last:pb-0">
+      <div className="flex min-w-0 gap-3">
+        {icon ? (
+          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500">
+            {icon}
+          </div>
+        ) : null}
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-gray-900">{label}</h3>
+          <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-500">{description}</p>
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-3">
+        <span className="text-xs font-semibold text-gray-500">{valueLabel}</span>
+        <Switch checked={checked} onCheckedChange={onCheckedChange} />
       </div>
     </div>
   )
@@ -194,11 +184,8 @@ function UserGroupsSection({ usergroups }: { usergroups: any[] }) {
 
   return (
     <>
-      <div className="flex flex-col bg-gray-50 -space-y-1 px-3 sm:px-5 py-3 rounded-md mb-3">
-        <h1 className="font-bold text-lg sm:text-xl text-gray-800">User Groups</h1>
-        <h2 className="text-gray-500 text-xs sm:text-sm">Link user groups to grant them access to this collection.</h2>
-      </div>
-      <div className="overflow-x-auto">
+      <h3 className="mt-6 border-t border-gray-100 pt-5 text-sm font-semibold text-gray-900">User Groups</h3>
+      <div className="mt-3 overflow-x-auto">
         <table className="table-auto w-full text-left whitespace-nowrap rounded-md overflow-hidden">
           <thead className="bg-gray-100 text-gray-500 rounded-xl uppercase">
             <tr className="font-bolder text-sm">

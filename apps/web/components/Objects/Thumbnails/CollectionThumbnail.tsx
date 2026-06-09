@@ -40,7 +40,7 @@ function CollectionThumbnail(props: PropsType) {
   const ownerOrgUuid = props.collection.owner_org_uuid || org?.org_uuid
 
   const userLink = getUriWithOrg(props.orgslug, routePaths.org.collection(collectionId))
-  const dashLink = getUriWithOrg(props.orgslug, routePaths.org.dash.collectionSettings(collectionId, 'general'))
+  const dashLink = getUriWithOrg(props.orgslug, routePaths.org.dash.collectionSettings(collectionId, 'courses'))
   const primaryLink = props.isDashboard ? dashLink : userLink
 
   const hasCoverPhoto = props.collection.thumbnail_image && ownerOrgUuid

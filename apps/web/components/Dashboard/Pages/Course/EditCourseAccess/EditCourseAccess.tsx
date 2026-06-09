@@ -12,6 +12,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react'
 import toast from 'react-hot-toast'
 import useSWR, { mutate } from 'swr'
 import { useTranslation } from 'react-i18next'
+import { Switch } from '@components/ui/switch'
 
 function EditCourseAccess(_props: { orgslug: string; course_uuid?: string }) {
     void _props
@@ -88,119 +89,77 @@ function EditCourseAccess(_props: { orgslug: string; course_uuid?: string }) {
     }, []);
 
     return (
-        <div>
-            {courseStructure && (
-                <div>
-                    <div className="h-6"></div>
-                    <div className="mx-4 sm:mx-10 bg-white rounded-xl shadow-xs px-4 py-4">
-                        <div className="flex flex-col bg-gray-50 -space-y-1 px-3 sm:px-5 py-3 rounded-md mb-3">
-                            <h1 className="font-bold text-lg sm:text-xl text-gray-800">{t('dashboard.courses.access.title')}</h1>
-                            <h2 className="text-gray-500 text-xs sm:text-sm">
-                                {t('dashboard.courses.access.subtitle')}
-                            </h2>
-                        </div>
-                        <div className={`flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0 mx-auto mb-3 ${isSaving ? 'opacity-50 pointer-events-none' : ''}`}>
-                            <ConfirmationModal
-                                confirmationButtonText={t('dashboard.courses.access.public.confirmation_button')}
-                                confirmationMessage={t('dashboard.courses.access.public.confirmation_message')}
-                                dialogTitle={t('dashboard.courses.access.public.confirmation_title')}
-                                dialogTrigger={
-                                    <div className="w-full h-[200px] bg-slate-100 rounded-lg cursor-pointer hover:bg-slate-200 transition-all">
-                                        {isClientPublic && (
-                                            <div className="bg-green-200 text-green-600 font-bold w-fit my-3 mx-3 absolute text-sm px-3 py-1 rounded-lg">
-                                                {t('dashboard.courses.access.public.active')}
-                                            </div>
-                                        )}
-                                        <div className="flex flex-col space-y-1 justify-center items-center h-full p-2 sm:p-4">
-                                            <Globe className="text-slate-400" size={32} />
-                                            <div className="text-xl sm:text-2xl text-slate-700 font-bold">
-                                                {t('dashboard.courses.access.public.title')}
-                                            </div>
-                                            <div className="text-gray-400 text-sm sm:text-md tracking-tight w-full sm:w-[500px] leading-5 text-center">
-                                                {t('dashboard.courses.access.public.description')}
-                                            </div>
-                                        </div>
-                                    </div>
-                                }
-                                functionToExecute={() => handleSetPublic(true)}
-                                status="info"
-                            />
-                            <ConfirmationModal
-                                confirmationButtonText={t('dashboard.courses.access.users_only.confirmation_button')}
-                                confirmationMessage={t('dashboard.courses.access.users_only.confirmation_message')}
-                                dialogTitle={t('dashboard.courses.access.users_only.confirmation_title')}
-                                dialogTrigger={
-                                    <div className="w-full h-[200px] bg-slate-100 rounded-lg cursor-pointer hover:bg-slate-200 transition-all">
-                                        {!isClientPublic && (
-                                            <div className="bg-green-200 text-green-600 font-bold w-fit my-3 mx-3 absolute text-sm px-3 py-1 rounded-lg">
-                                                {t('dashboard.courses.access.users_only.active')}
-                                            </div>
-                                        )}
-                                        <div className="flex flex-col space-y-1 justify-center items-center h-full p-2 sm:p-4">
-                                            <Users className="text-slate-400" size={32} />
-                                            <div className="text-xl sm:text-2xl text-slate-700 font-bold">
-                                                {t('dashboard.courses.access.users_only.title')}
-                                            </div>
-                                            <div className="text-gray-400 text-sm sm:text-md tracking-tight w-full sm:w-[500px] leading-5 text-center">
-                                                {t('dashboard.courses.access.users_only.description')}
-                                            </div>
-                                        </div>
-                                    </div>
-                                }
-                                functionToExecute={() => handleSetPublic(false)}
-                                status="info"
-                            />
-                        </div>
-                        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
-                            <div className="flex items-start justify-between gap-4">
-                                <div>
-                                    <h3 className="text-base font-semibold text-slate-800">Guest and signed-out access</h3>
-                                    <p className="mt-1 text-sm text-slate-500">
-                                        Let signed-out visitors open this published course directly and keep their progress until they create an account.
-                                    </p>
-                                </div>
-                                <label className="inline-flex items-center gap-3">
-                                    <input
-                                        type="checkbox"
-                                        checked={isGuestAccessEnabled}
-                                        onChange={(e) => {
-                                            const checked = e.target.checked
-                                            setIsGuestAccessEnabled(checked)
-                                            syncChanges({ guest_access: checked }, true)
-                                        }}
-                                    />
-                                    <span className="text-sm font-medium text-slate-700">
-                                        {isGuestAccessEnabled ? 'Enabled' : 'Disabled'}
-                                    </span>
-                                </label>
-                            </div>
-                        </div>
-                        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
-                            <div className="flex items-start justify-between gap-4">
-                                <div>
-                                    <h3 className="text-base font-semibold text-slate-800">Shared across organizations</h3>
-                                    <p className="mt-1 text-sm text-slate-500">
-                                        Make this course discoverable and usable by signed-in learners visiting through other org sites. Progress, submissions, and comments will still stay attached to this course&apos;s owning org.
-                                    </p>
-                                </div>
-                                <label className="inline-flex items-center gap-3">
-                                    <input
-                                        type="checkbox"
-                                        checked={isSharedAcrossOrgs}
-                                        onChange={(e) => setIsSharedAcrossOrgs(e.target.checked)}
-                                    />
-                                    <span className="text-sm font-medium text-slate-700">
-                                        {isSharedAcrossOrgs ? 'Enabled' : 'Disabled'}
-                                    </span>
-                                </label>
-                            </div>
-                        </div>
-                        {!isClientPublic && <UserGroupsSection usergroups={usergroups} />}
-                    </div>
+        courseStructure ? (
+            <section className="rounded-xl bg-white p-6 shadow-xs">
+                <h2 className="text-lg font-bold text-gray-900">{t('dashboard.courses.access.title')}</h2>
+                <div className={`mt-4 divide-y divide-gray-100 ${isSaving ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <SettingToggleRow
+                        icon={<Globe className="h-4 w-4" />}
+                        label="Public course"
+                        description="Public courses are discoverable by anyone. Restricted courses require explicit user-group access."
+                        checked={isClientPublic === true}
+                        valueLabel={isClientPublic ? 'Public' : 'Restricted'}
+                        onCheckedChange={handleSetPublic}
+                    />
+                    <SettingToggleRow
+                        icon={<Users className="h-4 w-4" />}
+                        label="Guest and signed-out access"
+                        description="Let signed-out visitors open this published course directly and keep their progress until they create an account."
+                        checked={isGuestAccessEnabled}
+                        valueLabel={isGuestAccessEnabled ? 'Enabled' : 'Disabled'}
+                        onCheckedChange={(checked) => {
+                            setIsGuestAccessEnabled(checked)
+                            syncChanges({ guest_access: checked }, true)
+                        }}
+                    />
+                    <SettingToggleRow
+                        label="Shared across organizations"
+                        description="Make this course discoverable and usable by signed-in learners visiting through other org sites."
+                        checked={isSharedAcrossOrgs}
+                        valueLabel={isSharedAcrossOrgs ? 'Enabled' : 'Disabled'}
+                        onCheckedChange={setIsSharedAcrossOrgs}
+                    />
                 </div>
-            )}
-        </div>
+                {!isClientPublic && <UserGroupsSection usergroups={usergroups} />}
+            </section>
+        ) : null
     );
+}
+
+function SettingToggleRow({
+    icon,
+    label,
+    description,
+    checked,
+    valueLabel,
+    onCheckedChange,
+}: {
+    icon?: React.ReactNode
+    label: string
+    description: string
+    checked: boolean
+    valueLabel: string
+    onCheckedChange: (checked: boolean) => void
+}) {
+    return (
+        <div className="flex items-start justify-between gap-6 py-4 first:pt-0 last:pb-0">
+            <div className="flex min-w-0 gap-3">
+                {icon ? (
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500">
+                        {icon}
+                    </div>
+                ) : null}
+                <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-gray-900">{label}</h3>
+                    <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-500">{description}</p>
+                </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-3">
+                <span className="text-xs font-semibold text-gray-500">{valueLabel}</span>
+                <Switch checked={checked} onCheckedChange={onCheckedChange} />
+            </div>
+        </div>
+    )
 }
 
 function UserGroupsSection({ usergroups }: { usergroups: any[] }) {
@@ -227,13 +186,8 @@ function UserGroupsSection({ usergroups }: { usergroups: any[] }) {
 
     return (
         <>
-            <div className="flex flex-col bg-gray-50 -space-y-1 px-3 sm:px-5 py-3 rounded-md mb-3">
-                <h1 className="font-bold text-lg sm:text-xl text-gray-800">{t('dashboard.courses.access.usergroups.title')}</h1>
-                <h2 className="text-gray-500 text-xs sm:text-sm">
-                    {t('dashboard.courses.access.usergroups.subtitle')}
-                </h2>
-            </div>
-            <div className="overflow-x-auto">
+            <h3 className="mt-6 border-t border-gray-100 pt-5 text-sm font-semibold text-gray-900">{t('dashboard.courses.access.usergroups.title')}</h3>
+            <div className="mt-3 overflow-x-auto">
                 <table className="table-auto w-full text-left whitespace-nowrap rounded-md overflow-hidden">
                     <thead className="bg-gray-100 text-gray-500 rounded-xl uppercase">
                         <tr className="font-bolder text-sm">

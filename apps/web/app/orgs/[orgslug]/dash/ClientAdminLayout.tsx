@@ -18,13 +18,13 @@ function ClientAdminLayout({
     return (
         <SessionProvider>
             <AdminAuthorization authorizationMode="page">
-                <div className="flex flex-col md:flex-row">
+                <div className="flex min-h-[100dvh] flex-col md:h-[100dvh] md:flex-row md:overflow-hidden">
                     {isMobile ? (
                         <DashMobileMenu />
                     ) : (
                         <DashLeftMenu />
                     )}
-                    <div className="flex w-full relative isolate">{children}</div>
+                    <div className="relative isolate flex min-w-0 w-full md:h-[100dvh] md:overflow-y-auto">{children}</div>
                 </div>
             </AdminAuthorization>
         </SessionProvider>

@@ -17,7 +17,6 @@ import {
   CaretDown,
   PencilSimple,
   ChatsCircle,
-  ChatCircleDots,
   Headphones,
   ChartBar,
 
@@ -61,6 +60,17 @@ import {
   HoverMenuLabel,
   HoverMenuSeparator,
 } from "@components/ui/hover-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from '@components/ui/dropdown-menu'
 import { FeedbackModal } from '@components/Objects/Modals/FeedbackModal'
 import { AVAILABLE_LANGUAGES } from '@/lib/languages'
 import { getOrgLogoMediaDirectory } from '@services/media/media'
@@ -148,6 +158,11 @@ function DashLeftMenu() {
     localStorage.setItem('dash-menu-collapsed', String(newState))
   }
 
+  const expandSidebar = () => {
+    setIsCollapsed(false)
+    localStorage.setItem('dash-menu-collapsed', 'false')
+  }
+
   const changeLanguage = (lng: string) => {
     i18n.changeLanguage(lng)
   }
@@ -188,7 +203,7 @@ function DashLeftMenu() {
     <nav
       aria-label="Dashboard sidebar navigation"
       className={cn(
-        "flex flex-col text-white h-screen sticky top-0 z-overlay border-r border-white/[0.08] bg-[#0f0f10] transition-all duration-300",
+        "group/sidebar flex h-[100dvh] max-h-[100dvh] min-h-0 flex-col text-white sticky top-0 z-overlay border-r border-white/[0.08] bg-[#0f0f10] transition-all duration-300",
         isCollapsed ? "w-[72px]" : "w-64"
       )}
     >
@@ -197,24 +212,60 @@ function DashLeftMenu() {
         "flex items-center h-16 border-b border-white/[0.08] px-4 shrink-0",
         isCollapsed ? "justify-center" : "justify-between"
       )}>
-        <Link
-          className={cn("flex items-center transition-opacity hover:opacity-70", isCollapsed ? "" : "space-x-3")}
-          href={routePaths.org.dash.root()}
-        >
-          {org?.logo_image ? (
-            <img
-              src={getOrgLogoMediaDirectory(org.org_uuid, org.logo_image)}
-              alt={org?.name}
-              className="h-9 w-9 object-contain rounded-lg"
-            />
-          ) : (
-            <img
-              src="/logo-icon.svg"
-              alt="Launch LMS logo"
-              className="h-8 w-8"
-            />
-          )}
-          {!isCollapsed && (
+        {isCollapsed ? (
+          <div className="relative h-10 w-10">
+            <Link
+              className="absolute inset-0 flex items-center justify-center rounded-xl transition-opacity hover:opacity-70 group-hover/sidebar:pointer-events-none group-hover/sidebar:opacity-0"
+              href={routePaths.org.dash.root()}
+              aria-label="Dashboard home"
+            >
+              {org?.logo_image ? (
+                <img
+                  src={getOrgLogoMediaDirectory(org.org_uuid, org.logo_image)}
+                  alt={org?.name}
+                  className="h-9 w-9 object-contain rounded-lg"
+                />
+              ) : (
+                <img
+                  src="/logo-icon.svg"
+                  alt="Launch LMS logo"
+                  className="h-8 w-8"
+                />
+              )}
+            </Link>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  aria-label="Expand sidebar"
+                  onClick={expandSidebar}
+                  className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/[0.08] text-white/50 opacity-0 transition-all hover:bg-white/[0.12] hover:text-white group-hover/sidebar:opacity-100"
+                >
+                  <SidebarSimple size={20} weight="fill" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="z-tooltip bg-[#1a1a1b] border-white/10 text-white text-xs px-2 py-1 shadow-lg shadow-black/20">
+                {t('common.expand')}
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        ) : (
+          <Link
+            className="flex items-center space-x-3 transition-opacity hover:opacity-70"
+            href={routePaths.org.dash.root()}
+          >
+            {org?.logo_image ? (
+              <img
+                src={getOrgLogoMediaDirectory(org.org_uuid, org.logo_image)}
+                alt={org?.name}
+                className="h-9 w-9 object-contain rounded-lg"
+              />
+            ) : (
+              <img
+                src="/logo-icon.svg"
+                alt="Launch LMS logo"
+                className="h-8 w-8"
+              />
+            )}
             <div className="flex flex-col min-w-0">
               <span className="font-semibold text-sm text-white truncate">
                 {org?.name}
@@ -228,8 +279,8 @@ function DashLeftMenu() {
                 {planLabel}
               </span>
             </div>
-          )}
-        </Link>
+          </Link>
+        )}
 
         {!isCollapsed && (
           <button
@@ -242,8 +293,8 @@ function DashLeftMenu() {
         )}
       </div>
 
-      {/* Main Navigation - Vertically Centered */}
-      <div className="flex-1 flex flex-col justify-center py-4 px-3">
+      {/* Main Navigation */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-3 py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <AdminAuthorization authorizationMode="component">
           <div className="space-y-1">
             <MenuLink
@@ -686,157 +737,116 @@ function DashLeftMenu() {
 
       {/* Bottom Section */}
       <div className="border-t border-white/[0.08] py-3 px-3 shrink-0">
-        <div className="space-y-1">
-          {/* Expand button when collapsed */}
-          {isCollapsed && (
+        <DropdownMenu modal={false}>
+          <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
-                  aria-label="Expand sidebar"
-                  onClick={toggleCollapse}
-                  className="flex items-center justify-center w-full h-10 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.08] transition-all"
-                >
-                  <SidebarSimple size={20} weight="fill" />
-                </button>
+                <DropdownMenuTrigger asChild>
+                  <button className={cn(
+                    "group/account flex items-center w-full rounded-lg text-white/50 hover:text-white hover:bg-white/[0.08] transition-all",
+                    isCollapsed ? "justify-center h-10" : "px-3 py-2 gap-3"
+                  )}>
+                    <UserAvatar width={24} rounded="rounded-full" shadow="shadow-none" />
+                    {!isCollapsed && (
+                      <>
+                        <div className="flex flex-col min-w-0 flex-1 text-left">
+                          <span className="text-sm font-medium truncate text-white/90">{session?.data?.user?.username}</span>
+                          <span className="text-xs text-white/40 truncate">{session?.data?.user?.email}</span>
+                        </div>
+                        <CaretDown size={16} weight="bold" className="shrink-0 text-white/30 transition-colors group-hover/account:text-white/60" />
+                      </>
+                    )}
+                  </button>
+                </DropdownMenuTrigger>
               </TooltipTrigger>
-              <TooltipContent side="right" className="z-tooltip bg-[#1a1a1b] border-white/10 text-white text-xs px-2 py-1 shadow-lg shadow-black/20">
-                {t('common.expand')}
-              </TooltipContent>
+              {isCollapsed && (
+                <TooltipContent side="right" className="z-tooltip bg-[#1a1a1b] border-white/10 text-white text-xs px-2 py-1 shadow-lg shadow-black/20">
+                  {session?.data?.user?.username || 'Account'}
+                </TooltipContent>
+              )}
             </Tooltip>
-          )}
-
-          {/* Language Switcher with hover menu */}
-          <MenuLink
-            href={getUriWithOrg(getDefaultOrg(), routePaths.owner.root())}
-            icon={<House size={20} weight="fill" />}
-            label="Return to User Experience"
-            isCollapsed={isCollapsed}
-          />
-
-          {/* Language Switcher with hover menu */}
-          <HoverMenu
-            align="end"
-            content={
-              <HoverMenuContent className="w-64 max-h-96 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                <HoverMenuLabel className="flex items-center gap-2 text-white/70 font-medium">
-                  <Globe size={16} weight="fill" />
-                  <span>{t('common.language')}</span>
-                </HoverMenuLabel>
-                <HoverMenuSeparator />
+          </TooltipProvider>
+          <DropdownMenuContent
+            side={isCollapsed ? 'right' : 'top'}
+            align={isCollapsed ? 'end' : 'start'}
+            sideOffset={isCollapsed ? 12 : 8}
+            className="w-64 border-white/10 bg-[#1a1a1b] p-1 text-white shadow-xl shadow-black/25"
+          >
+            <DropdownMenuLabel className="px-3 py-2">
+              <div className="flex items-center gap-2">
+                <UserAvatar border="border-2" rounded="rounded-full" width={24} shadow="" />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold capitalize text-white/90">{session?.data?.user?.username}</p>
+                  <p className="truncate text-xs font-normal text-white/40">{session?.data?.user?.email}</p>
+                </div>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-white/[0.08]" />
+            <DropdownMenuItem asChild>
+              <Link href={getUriWithOrg(getDefaultOrg(), routePaths.owner.root())} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
+                <House size={16} weight="fill" />
+                <span>Return to User Experience</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white data-[state=open]:bg-white/[0.08] data-[state=open]:text-white">
+                <Globe size={16} weight="fill" />
+                <span>{t('common.language')}</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="max-h-96 w-64 overflow-y-auto border-white/10 bg-[#1a1a1b] p-1 text-white shadow-xl shadow-black/25 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {AVAILABLE_LANGUAGES.map((language) => (
-                  <HoverMenuItem
+                  <DropdownMenuItem
                     key={language.code}
                     onClick={() => changeLanguage(language.code)}
-                    className="flex items-center justify-between px-3 py-2.5 cursor-pointer text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors"
+                    className="flex items-center justify-between rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white"
                   >
-                    <div className="flex flex-col">
-                      <span className="font-medium text-sm">{language.nativeName}</span>
-                      <span className="text-xs text-white/40">{t(language.translationKey)}</span>
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate text-sm font-medium">{language.nativeName}</span>
+                      <span className="truncate text-xs text-white/40">{t(language.translationKey)}</span>
                     </div>
                     {i18n.language === language.code && (
                       <Check size={16} weight="bold" className="text-green-500" />
                     )}
-                  </HoverMenuItem>
+                  </DropdownMenuItem>
                 ))}
-              </HoverMenuContent>
-            }
-          >
-            <button aria-label="Open language menu" className={cn(
-              "flex items-center w-full rounded-lg text-white/50 hover:text-white hover:bg-white/[0.08] transition-all group",
-              isCollapsed ? "justify-center h-10" : "px-3 py-2 gap-3"
-            )}>
-              <Globe size={20} weight="fill" />
-              {!isCollapsed && (
-                <span className="text-sm font-medium">{t('common.language')}</span>
-              )}
-            </button>
-          </HoverMenu>
-
-          {/* Help with hover menu */}
-          <HoverMenu
-            align="end"
-            content={
-              <HoverMenuContent className="w-56">
-                <HoverMenuLabel className="flex items-center gap-2 text-white/70 font-medium">
-                  <Question size={16} weight="fill" />
-                  <span>{t('common.help')}</span>
-                </HoverMenuLabel>
-                <HoverMenuSeparator />
-                <HoverMenuSeparator />
-                <HoverMenuItem
-                  onClick={() => setFeedbackModalOpen(true)}
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors"
-                >
-                  <ChatCircleDots size={16} weight="fill" />
-                  <span>{t('common.help_menu.report_feedback')}</span>
-                </HoverMenuItem>
-              </HoverMenuContent>
-            }
-          >
-            <button aria-label="Open help menu" className={cn(
-              "flex items-center w-full rounded-lg text-white/50 hover:text-white hover:bg-white/[0.08] transition-all group",
-              isCollapsed ? "justify-center h-10" : "px-3 py-2 gap-3"
-            )}>
-              <Question size={20} weight="fill" />
-              {!isCollapsed && (
-                <span className="text-sm font-medium">{t('common.help')}</span>
-              )}
-            </button>
-          </HoverMenu>
-
-          {/* User Menu with hover menu */}
-          <HoverMenu
-            align="end"
-            content={
-              <HoverMenuContent className="w-56">
-                <div className="px-3 py-2">
-                  <p className="text-sm font-semibold text-white/90">{session?.data?.user?.username}</p>
-                  <p className="text-xs text-white/40">{session?.data?.user?.email}</p>
-                </div>
-                <HoverMenuSeparator />
-                <HoverMenuItem asChild>
-                  <Link href={getUriWithOrg(getDefaultOrg(), routePaths.org.profile())} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                    <UserCircle size={16} weight="fill" />
-                    <span>Profile</span>
-                  </Link>
-                </HoverMenuItem>
-                <HoverMenuItem asChild>
-                  <Link href={getUriWithOrg(getDefaultOrg(), routePaths.owner.account.security())} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                    <Gear size={16} weight="fill" />
-                    <span>{t('common.settings')}</span>
-                  </Link>
-                </HoverMenuItem>
-                <HoverMenuItem asChild>
-                  <Link href={getUriWithOrg(getDefaultOrg(), routePaths.owner.account.purchases())} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                    <ShoppingBag size={16} weight="fill" />
-                    <span>{t('account.purchases')}</span>
-                  </Link>
-                </HoverMenuItem>
-                <HoverMenuSeparator />
-                <HoverMenuItem
-                  onClick={() => logOutUI()}
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:text-red-400 hover:bg-white/[0.08] cursor-pointer transition-colors"
-                >
-                  <SignOut size={16} weight="fill" />
-                  <span>{t('user.sign_out')}</span>
-                </HoverMenuItem>
-              </HoverMenuContent>
-            }
-          >
-            <button className={cn(
-              "flex items-center w-full rounded-lg text-white/50 hover:text-white hover:bg-white/[0.08] transition-all group",
-              isCollapsed ? "justify-center h-10" : "px-3 py-2 gap-3"
-            )}>
-              <UserAvatar width={24} rounded="rounded-full" shadow="shadow-none" />
-              {!isCollapsed && (
-                <div className="flex flex-col min-w-0 flex-1 text-left">
-                  <span className="text-sm font-medium truncate text-white/90">{session?.data?.user?.username}</span>
-                  <span className="text-xs text-white/40 truncate">{session?.data?.user?.email}</span>
-                </div>
-              )}
-            </button>
-          </HoverMenu>
-        </div>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuItem
+              onClick={() => setFeedbackModalOpen(true)}
+              className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white"
+            >
+              <Question size={16} weight="fill" />
+              <span>{t('common.help_menu.report_feedback')}</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-white/[0.08]" />
+            <DropdownMenuItem asChild>
+              <Link href={getUriWithOrg(getDefaultOrg(), routePaths.org.profile())} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
+                <UserCircle size={16} weight="fill" />
+                <span>Profile</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={getUriWithOrg(getDefaultOrg(), routePaths.owner.account.security())} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
+                <Gear size={16} weight="fill" />
+                <span>{t('common.settings')}</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={getUriWithOrg(getDefaultOrg(), routePaths.owner.account.purchases())} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
+                <ShoppingBag size={16} weight="fill" />
+                <span>{t('account.purchases')}</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-white/[0.08]" />
+            <DropdownMenuItem
+              onClick={() => logOutUI()}
+              className="flex items-center gap-2 rounded-md px-3 py-2 text-red-500 focus:bg-white/[0.08] focus:text-red-400"
+            >
+              <SignOut size={16} weight="fill" />
+              <span>{t('user.sign_out')}</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </nav>
 

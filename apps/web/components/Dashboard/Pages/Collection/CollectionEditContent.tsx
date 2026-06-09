@@ -97,7 +97,7 @@ const CollectionEditContent: React.FC = () => {
         {filteredCourses.map((course: any) => (
           <CourseThumbnail
             key={course.course_uuid}
-            customLink={`/dash/courses/course/${removeCoursePrefix(course.course_uuid)}/general`}
+            customLink={`/dash/courses/course/${removeCoursePrefix(course.course_uuid)}/content`}
             course={course}
             orgslug={org?.slug}
             isDashboard

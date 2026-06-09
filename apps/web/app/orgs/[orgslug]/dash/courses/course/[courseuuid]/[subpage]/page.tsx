@@ -2,28 +2,25 @@
 import React, { use, useEffect } from 'react';
 import { CourseProvider } from '../../../../../../../../components/Contexts/CourseContext'
 import Link from 'next/link'
-import { CourseOverviewTop } from '@components/Dashboard/Misc/CourseOverviewTop'
 import { motion } from 'motion/react'
-import { GalleryVerticalEnd, Globe, Info, UserPen, Award, Lock, Search, Sparkles } from 'lucide-react'
+import { GalleryVerticalEnd, Info, Award, Lock, Settings } from 'lucide-react'
 import { ChartBar } from '@phosphor-icons/react'
 import EditCourseStructure from '@components/Dashboard/Pages/Course/EditCourseStructure/EditCourseStructure'
-import EditCourseGeneral from '@components/Dashboard/Pages/Course/EditCourseGeneral/EditCourseGeneral'
-import EditCourseAccess from '@components/Dashboard/Pages/Course/EditCourseAccess/EditCourseAccess'
-import EditCourseContributors from '@components/Dashboard/Pages/Course/EditCourseContributors/EditCourseContributors'
 import EditCourseCertification from '@components/Dashboard/Pages/Course/EditCourseCertification/EditCourseCertification'
-import EditCourseCore from '@components/Dashboard/Pages/Course/EditCourseCore/EditCourseCore'
-import EditCourseSEO from '@components/Dashboard/Pages/Course/EditCourseSEO/EditCourseSEO'
 import { useCourseRights } from '@hooks/useCourseRights'
 import { useRouter } from 'next/navigation'
 import ToolTip from '@components/Objects/StyledElements/Tooltip/Tooltip'
 import { getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config';
 import { useTranslation } from 'react-i18next';
-import { useOrg } from '@components/Contexts/OrgContext';
-import { PlanLevel, isFeatureAvailable } from '@services/plans/plans';
+import { PlanLevel } from '@services/plans/plans';
 import PlanBadge from '@components/Dashboard/Shared/PlanRestricted/PlanBadge';
 import PlanRestrictedFeature from '@components/Dashboard/Shared/PlanRestricted/PlanRestrictedFeature';
 import CourseAnalyticsTab from '@components/Dashboard/Analytics/Course/CourseAnalyticsTab';
 import { usePlan } from '@components/Hooks/usePlan'
+import CourseEditorHeader from '@components/Dashboard/Pages/Course/CourseEditorHeader'
+import EditCourseAbout from '@components/Dashboard/Pages/Course/EditCourseAbout/EditCourseAbout'
+import CourseSettingsTab from '@components/Dashboard/Pages/Course/CourseSettingsTab'
+import CourseAutoSave from '@components/Dashboard/Pages/Course/CourseAutoSave'
 
 export type CourseOverviewParams = {
   orgslug: string
@@ -35,10 +32,7 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
   const { t } = useTranslation()
   const params = use(props.params);
   const router = useRouter();
-  const org = useOrg() as any;
   const currentPlan = usePlan();
-  const hasCertificationsAccess = isFeatureAvailable('certifications', currentPlan);
-  const hasSEOAccess = isFeatureAvailable('seo', currentPlan);
   const canConfigureCoreCourse = params.orgslug === getDefaultOrg()
 
   function getEntireCourseUUID(courseuuid: string) {
@@ -47,16 +41,10 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
 
   const courseuuid = getEntireCourseUUID(params.courseuuid)
   const { hasPermission, isLoading: rightsLoading } = useCourseRights(courseuuid)
+  const activeSubpage = getActiveSubpage(params.subpage)
 
   // Define tab configurations with their required permissions
   const tabs = [
-    {
-      key: 'general',
-      label: t('dashboard.courses.settings.tabs.general'),
-      icon: Info,
-      href: routePaths.org.dash.courseSettings(params.courseuuid, 'general'),
-      requiredPermission: 'update' as const
-    },
     {
       key: 'content',
       label: t('dashboard.courses.settings.tabs.content'),
@@ -65,34 +53,18 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
       requiredPermission: 'update_content' as const
     },
     {
-      key: 'core',
-      label: 'CORE',
-      icon: Sparkles,
-      href: routePaths.org.dash.courseSettings(params.courseuuid, 'core'),
-      requiredPermission: 'update' as const,
-      visible: canConfigureCoreCourse
+      key: 'about',
+      label: 'About',
+      icon: Info,
+      href: routePaths.org.dash.courseSettings(params.courseuuid, 'about'),
+      requiredPermission: 'update' as const
     },
     {
-      key: 'access',
-      label: t('dashboard.courses.settings.tabs.access'),
-      icon: Globe,
-      href: routePaths.org.dash.courseSettings(params.courseuuid, 'access'),
-      requiredPermission: 'manage_access' as const
-    },
-    {
-      key: 'contributors',
-      label: t('dashboard.courses.settings.tabs.contributors'),
-      icon: UserPen,
-      href: routePaths.org.dash.courseSettings(params.courseuuid, 'contributors'),
-      requiredPermission: 'manage_contributors' as const
-    },
-    {
-      key: 'seo',
-      label: t('dashboard.courses.settings.tabs.seo'),
-      icon: Search,
-      href: routePaths.org.dash.courseSettings(params.courseuuid, 'seo'),
-      requiredPermission: 'update' as const,
-      requiresPlan: 'full' as PlanLevel
+      key: 'settings',
+      label: 'Settings',
+      icon: Settings,
+      href: routePaths.org.dash.courseSettings(params.courseuuid, 'settings'),
+      requiredPermission: 'update' as const
     },
     {
       key: 'certification',
@@ -113,11 +85,18 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
   ]
 
   // Filter tabs based on permissions
-  const visibleTabs = tabs.filter(tab => tab.visible !== false && hasPermission(tab.requiredPermission))
+  const tabHasAccess = (tab: typeof tabs[number]) => {
+    if (tab.key === 'settings') {
+      return hasPermission('update') || hasPermission('manage_access') || hasPermission('manage_contributors')
+    }
+    return hasPermission(tab.requiredPermission)
+  }
+
+  const visibleTabs = tabs.filter(tab => tabHasAccess(tab))
 
   // Check if current subpage is accessible
-  const currentTab = tabs.find(tab => tab.key === params.subpage && tab.visible !== false)
-  const hasAccessToCurrentPage = currentTab ? hasPermission(currentTab.requiredPermission) : false
+  const currentTab = tabs.find(tab => tab.key === activeSubpage)
+  const hasAccessToCurrentPage = currentTab ? tabHasAccess(currentTab) : false
 
   // Redirect to first available tab if current page is not accessible
   useEffect(() => {
@@ -150,15 +129,16 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
   }
 
   return (
-    <div className="h-screen w-full bg-[#f8f8f8] grid grid-rows-[auto_1fr]">
+    <div className="min-h-full w-full bg-[#f8f8f8]">
       <CourseProvider courseuuid={courseuuid} withUnpublishedActivities={true}>
+        <CourseAutoSave orgslug={params.orgslug} />
         <div className="pl-10 pr-10 text-sm tracking-tight bg-[#fcfbfc] z-10 nice-shadow relative">
-          <CourseOverviewTop params={params} />
+          <CourseEditorHeader orgslug={params.orgslug} courseuuid={params.courseuuid} />
           <div className="flex space-x-3 font-black text-sm">
-            {tabs.filter(tab => tab.visible !== false).map((tab) => {
+            {tabs.map((tab) => {
               const IconComponent = tab.icon
-              const isActive = params.subpage.toString() === tab.key
-              const hasAccess = hasPermission(tab.requiredPermission)
+              const isActive = activeSubpage === tab.key
+              const hasAccess = tabHasAccess(tab)
               
               if (!hasAccess) {
                 // Show disabled tab with subtle visual cues and tooltip
@@ -188,6 +168,7 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
                 <Link
                   key={tab.key}
                   href={getUriWithOrg(params.orgslug, tab.href)}
+                  replace
                 >
                   <div
                     className={`flex space-x-4 py-2 w-fit text-center border-black transition-all ease-linear ${
@@ -212,42 +193,30 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.1, type: 'spring', stiffness: 80 }}
-          className="h-full overflow-y-auto overflow-x-hidden"
+          className="overflow-x-hidden"
         >
           <div>
-            {params.subpage == 'content' && hasPermission('update_content') ? (
+            {activeSubpage == 'content' && hasPermission('update_content') ? (
               <EditCourseStructure orgslug={params.orgslug} />
             ) : null}
-            {params.subpage == 'general' && hasPermission('update') ? (
-              <EditCourseGeneral orgslug={params.orgslug} />
+            {activeSubpage == 'about' && hasPermission('update') ? (
+              <EditCourseAbout />
             ) : null}
-            {params.subpage == 'access' && hasPermission('manage_access') ? (
-              <EditCourseAccess orgslug={params.orgslug} />
+            {activeSubpage == 'settings' && (hasPermission('update') || hasPermission('manage_access') || hasPermission('manage_contributors')) ? (
+              <CourseSettingsTab
+                orgslug={params.orgslug}
+                canConfigureCoreCourse={canConfigureCoreCourse}
+                permissions={{
+                  canManageAccess: hasPermission('manage_access'),
+                  canManageContributors: hasPermission('manage_contributors'),
+                  canUpdate: hasPermission('update'),
+                }}
+              />
             ) : null}
-            {params.subpage == 'core' && canConfigureCoreCourse && hasPermission('update') ? (
-              <EditCourseCore />
-            ) : null}
-            {params.subpage == 'contributors' && hasPermission('manage_contributors') ? (
-              <EditCourseContributors orgslug={params.orgslug} />
-            ) : null}
-            {params.subpage == 'seo' && hasPermission('update') ? (
-              <>
-                <div className="h-6" />
-                <PlanRestrictedFeature
-                  currentPlan={currentPlan}
-                  requiredPlan="full"
-                  icon={Search}
-                  titleKey="common.plans.feature_restricted.seo.title"
-                  descriptionKey="common.plans.feature_restricted.seo.description"
-                >
-                  <EditCourseSEO orgslug={params.orgslug} />
-                </PlanRestrictedFeature>
-              </>
-            ) : null}
-            {params.subpage == 'certification' && hasPermission('create_certifications') ? (
+            {activeSubpage == 'certification' && hasPermission('create_certifications') ? (
               <div className="h-6" />
             ) : null}
-            {params.subpage == 'certification' && hasPermission('create_certifications') ? (
+            {activeSubpage == 'certification' && hasPermission('create_certifications') ? (
               <PlanRestrictedFeature
                 currentPlan={currentPlan}
                 requiredPlan="enterprise"
@@ -258,7 +227,7 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
                 <EditCourseCertification orgslug={params.orgslug} />
               </PlanRestrictedFeature>
             ) : null}
-            {params.subpage == 'analytics' && hasPermission('update') ? (
+            {activeSubpage == 'analytics' && hasPermission('update') ? (
               <PlanRestrictedFeature
                 currentPlan={currentPlan}
                 requiredPlan="enterprise"
@@ -277,3 +246,9 @@ function CourseOverviewPage(props: { params: Promise<CourseOverviewParams> }) {
 }
 
 export default CourseOverviewPage
+
+function getActiveSubpage(subpage: string) {
+  if (subpage === 'general' || subpage === 'seo') return 'about'
+  if (subpage === 'access' || subpage === 'contributors' || subpage === 'core') return 'settings'
+  return subpage
+}
