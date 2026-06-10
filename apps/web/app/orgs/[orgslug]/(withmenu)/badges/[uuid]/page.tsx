@@ -1,5 +1,4 @@
 import React from 'react'
-import CourseClient from '../../course/[courseuuid]/course'
 import { getCourseMetadata } from '@services/courses/courses'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { Metadata } from 'next'
@@ -7,6 +6,7 @@ import { getCourseThumbnailMediaDirectory, getOrgOgImageMediaDirectory } from '@
 import { getServerSession } from '@/lib/auth/server'
 import { buildPageTitle, getCanonicalUrl, getOrgSeoConfig } from '@/lib/seo/utils'
 import { notFound, redirect } from 'next/navigation'
+import BadgeRouteDispatcher from './BadgeRouteDispatcher'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string; uuid: string }>
@@ -81,12 +81,10 @@ const BadgePage = async (props: MetadataProps) => {
   if (!course && !fetchError) notFound()
 
   return (
-    <CourseClient
+    <BadgeRouteDispatcher
       courseuuid={uuid}
       orgslug={orgslug}
       course={course}
-      access_token={session?.tokens?.access_token}
-      serverError={fetchError}
     />
   )
 }

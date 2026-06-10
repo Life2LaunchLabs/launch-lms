@@ -9,15 +9,17 @@ interface CourseShareProps {
   courseName: string
   courseUrl: string
   iconOnly?: boolean
+  label?: string
+  shareText?: string
 }
 
-function CourseShare({ courseName, courseUrl, iconOnly }: CourseShareProps) {
+function CourseShare({ courseName, courseUrl, iconOnly, label, shareText: customShareText }: CourseShareProps) {
   const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const shareText = `Check out this course: ${courseName}`
+  const shareText = customShareText || `Check out this course: ${courseName}`
   const encodedUrl = encodeURIComponent(courseUrl)
   const encodedText = encodeURIComponent(shareText)
 
@@ -83,7 +85,7 @@ function CourseShare({ courseName, courseUrl, iconOnly }: CourseShareProps) {
         className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white nice-shadow text-neutral-600 hover:text-neutral-800 transition-colors text-sm font-medium"
       >
         <Share2 size={14} />
-        {!iconOnly && <span>{t('courses.share_course')}</span>}
+        {!iconOnly && <span>{label || t('courses.share_course')}</span>}
       </button>
 
       {isOpen && (
