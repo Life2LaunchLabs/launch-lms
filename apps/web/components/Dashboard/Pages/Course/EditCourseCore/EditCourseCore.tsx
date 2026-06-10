@@ -175,14 +175,13 @@ export default function EditCourseCore() {
   const coreCourseEnabled = Boolean(courseStructure.core_course)
 
   return (
-    <div className="h-full">
-      <div className="h-6" />
-      <div className="px-10 pb-10">
-        <div className="bg-white rounded-xl shadow-xs p-6">
-          <div className="flex items-center justify-between gap-4">
+    <section className="rounded-xl bg-white p-6 shadow-xs">
+      <h2 className="text-lg font-bold text-gray-900">CORE</h2>
+      <div className="mt-4">
+          <div className="flex items-center justify-between gap-6">
             <div>
-              <h3 className="text-sm font-semibold text-gray-800">CORE course</h3>
-              <p className="mt-1 text-xs leading-5 text-gray-500">
+              <h3 className="text-sm font-semibold text-gray-900">CORE course</h3>
+              <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-500">
                 Show this course in the learner dashboard CORE section and make its profile widget available.
               </p>
             </div>
@@ -198,8 +197,8 @@ export default function EditCourseCore() {
               <div>
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-800">CORE order</h3>
-                    <p className="mt-1 text-xs leading-5 text-gray-500">
+                    <h3 className="text-sm font-semibold text-gray-900">CORE order</h3>
+                    <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-500">
                       Drag to set the order used by the learner dashboard and recommended action card.
                     </p>
                   </div>
@@ -266,7 +265,7 @@ export default function EditCourseCore() {
               <div>
               <div className="mb-3 flex items-center gap-2">
                 <ImageIcon className="h-4 w-4 text-gray-600" />
-                <h3 className="text-sm font-semibold text-gray-800">Background</h3>
+                <h3 className="text-sm font-semibold text-gray-900">Background</h3>
               </div>
               <div className="max-w-2xl">
                 {previewUrl ? (
@@ -303,8 +302,7 @@ export default function EditCourseCore() {
               </div>
             </div>
           ) : null}
-        </div>
       </div>
-    </div>
+    </section>
   )
 }

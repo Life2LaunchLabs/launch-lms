@@ -310,7 +310,7 @@ const AdminEditOptions = ({ course, orgSlug, deleteCourse, cloneCourse, exportCo
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link prefetch href={getUriWithOrg(orgSlug, routePaths.org.dash.courseSettings(removeCoursePrefix(course.course_uuid), 'general'))} className="flex items-center cursor-pointer">
+              <Link prefetch href={getUriWithOrg(orgSlug, routePaths.org.dash.courseSettings(removeCoursePrefix(course.course_uuid), 'settings'))} className="flex items-center cursor-pointer">
                 <Settings2 className="mr-2 h-4 w-4" /> {t('common.settings')}
               </Link>
             </DropdownMenuItem>

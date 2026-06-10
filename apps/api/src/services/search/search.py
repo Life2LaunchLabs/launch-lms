@@ -7,7 +7,6 @@ from src.db.organization_config import OrganizationConfig
 from src.db.users import PublicUser, AnonymousUser, UserRead, User, APITokenUser
 from src.db.courses.courses import Course, CourseRead
 from src.db.collections import Collection, CollectionRead
-from src.db.collections_courses import CollectionCourse
 from src.db.communities.communities import Community, CommunityRead
 from src.db.organizations import Organization, OrganizationDiscoverRead
 from src.db.resources import ResourceChannel, ResourceChannelRead
@@ -289,23 +288,15 @@ async def search_across_org(
     if collections:
         collection_ids = [c.id for c in collections]
         batch_statement = (
-            select(CollectionCourse, Course)
-            .join(Course, CollectionCourse.course_id == Course.id)  # type: ignore
-            .where(
-                CollectionCourse.collection_id.in_(collection_ids),  # type: ignore
-            )
-            .distinct()
+            select(Course).where(Course.collection_id.in_(collection_ids))  # type: ignore
         )
         batch_results = db_session.exec(batch_statement).all()
 
         # Group courses by collection_id
         collection_courses_map: dict[int, list[Course]] = {}
-        seen: set[tuple[int, int]] = set()
-        for cc, course in batch_results:
-            key = (cc.collection_id, course.id)
-            if key not in seen:
-                seen.add(key)
-                collection_courses_map.setdefault(cc.collection_id, []).append(course)
+        for course in batch_results:
+            if course.collection_id is not None:
+                collection_courses_map.setdefault(course.collection_id, []).append(course)
 
         for collection in collections:
             courses_list = collection_courses_map.get(collection.id, [])

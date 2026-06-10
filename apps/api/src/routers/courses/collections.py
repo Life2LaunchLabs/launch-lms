@@ -2,7 +2,14 @@ from typing import List
 from fastapi import APIRouter, Depends, Request, UploadFile, HTTPException
 from sqlmodel import select
 from src.core.events.database import get_db_session
-from src.db.collections import Collection, CollectionCreate, CollectionRead, CollectionUpdate
+from src.db.collections import (
+    Collection,
+    CollectionCreate,
+    CollectionRead,
+    CollectionUpdate,
+    CourseCollectionAssignment,
+    CourseCollectionRepairItem,
+)
 from src.db.organizations import Organization
 from src.security.auth import get_current_user
 from src.services.users.users import PublicUser
@@ -12,11 +19,53 @@ from src.services.courses.collections import (
     get_collections,
     update_collection,
     delete_collection,
+    assign_course_to_collection,
+    get_course_collection_repairs,
+    get_collection_courses_for_management,
 )
 from src.services.courses.collection_thumbnails import upload_collection_thumbnail
 
 
 router = APIRouter()
+
+
+@router.get("/repair/org/{org_id}")
+async def api_get_course_collection_repairs(
+    request: Request,
+    org_id: int,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> list[CourseCollectionRepairItem]:
+    return await get_course_collection_repairs(request, org_id, current_user, db_session)
+
+
+@router.put("/repair/course/{course_uuid}")
+async def api_repair_course_collection(
+    request: Request,
+    course_uuid: str,
+    assignment: CourseCollectionAssignment,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session=Depends(get_db_session),
+):
+    return await assign_course_to_collection(
+        request,
+        course_uuid,
+        assignment.collection_uuid,
+        current_user,
+        db_session,
+    )
+
+
+@router.get("/{collection_uuid}/manage-courses")
+async def api_get_collection_courses_for_management(
+    request: Request,
+    collection_uuid: str,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session=Depends(get_db_session),
+):
+    return await get_collection_courses_for_management(
+        request, collection_uuid, current_user, db_session
+    )
 
 
 @router.post("/")

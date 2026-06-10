@@ -63,6 +63,18 @@ export async function updateCollectionThumbnail(
   return res
 }
 
+export async function repairCourseCollection(
+  course_uuid: string,
+  collection_uuid: string,
+  access_token: string
+) {
+  const result: any = await fetch(
+    `${getAPIUrl()}collections/repair/course/${course_uuid}`,
+    RequestBodyWithAuthHeader('PUT', { collection_uuid }, null, access_token)
+  )
+  return errorHandling(result)
+}
+
 export async function getCollectionById(
   collection_uuid: any,
   access_token: string,

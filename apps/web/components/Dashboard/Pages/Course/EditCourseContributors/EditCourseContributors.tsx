@@ -1,12 +1,11 @@
 import { useCourse, useCourseDispatch } from '@components/Contexts/CourseContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
-import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal'
 import { getAPIUrl } from '@services/config/config'
 import { bulkAddContributors, bulkRemoveContributors, editContributor } from '@services/courses/courses'
 import { searchOrgContent } from '@services/search/search'
 import { swrFetcher } from '@services/utils/ts/requests'
-import { Check, ChevronDown, Search, UserPen, Users } from 'lucide-react'
+import { Check, ChevronDown, Search } from 'lucide-react'
 import React, { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import useSWR, { mutate } from 'swr'
@@ -28,6 +27,7 @@ import {
 import { Button } from "@/components/ui/button"
 import UserAvatar from '@components/Objects/UserAvatar'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import { useDebounce } from '@/hooks/useDebounce'
 import { getUserAvatarMediaDirectory } from '@services/media/media'
 
@@ -362,70 +362,29 @@ function EditCourseContributors(props: EditCourseContributorsProps) {
     };
 
     return (
-        <div>
-            {courseStructure && (
-                <div>
-                    <div className="h-6"></div>
-                    <div className="mx-4 sm:mx-10 bg-white rounded-xl shadow-xs px-4 py-4">
-                        <div className="flex flex-col bg-gray-50 -space-y-1 px-3 sm:px-5 py-3 rounded-md mb-3">
-                            <h1 className="font-bold text-lg sm:text-xl text-gray-800">{t('dashboard.courses.contributors.title')}</h1>
-                            <h2 className="text-gray-500 text-xs sm:text-sm">
-                                {t('dashboard.courses.contributors.subtitle')}
-                            </h2>
+        courseStructure ? (
+            <section className="rounded-xl bg-white p-6 shadow-xs">
+                <h2 className="text-lg font-bold text-gray-900">{t('dashboard.courses.contributors.title')}</h2>
+                <div className="mt-4 border-b border-gray-100 pb-4">
+                    <div className="flex items-start justify-between gap-6">
+                        <div>
+                            <h3 className="text-sm font-semibold text-gray-900">Open to contributors</h3>
+                            <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-500">
+                                Allow eligible users to apply or be managed as contributors on this course.
+                            </p>
                         </div>
-                        <div className="flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0 mx-auto mb-3">
-                            <ConfirmationModal
-                                confirmationButtonText={t('dashboard.courses.contributors.open_to_contributors.confirmation_button')}
-                                confirmationMessage={t('dashboard.courses.contributors.open_to_contributors.confirmation_message')}
-                                dialogTitle={t('dashboard.courses.contributors.open_to_contributors.confirmation_title')}
-                                dialogTrigger={
-                                    <div className="w-full h-[200px] bg-slate-100 rounded-lg cursor-pointer hover:bg-slate-200 transition-all">
-                                        {isOpenToContributors && (
-                                            <div className="bg-green-200 text-green-600 font-bold w-fit my-3 mx-3 absolute text-sm px-3 py-1 rounded-lg">
-                                                {t('dashboard.courses.contributors.open_to_contributors.active')}
-                                            </div>
-                                        )}
-                                        <div className="flex flex-col space-y-1 justify-center items-center h-full p-2 sm:p-4">
-                                            <UserPen className="text-slate-400" size={32} />
-                                            <div className="text-xl sm:text-2xl text-slate-700 font-bold">
-                                                {t('dashboard.courses.contributors.open_to_contributors.title')}
-                                            </div>
-                                            <div className="text-gray-400 text-sm sm:text-md tracking-tight w-full sm:w-[500px] leading-5 text-center">
-                                                {t('dashboard.courses.contributors.open_to_contributors.description')}
-                                            </div>
-                                        </div>
-                                    </div>
-                                }
-                                functionToExecute={() => setIsOpenToContributors(true)}
-                                status="info"
-                            />
-                            <ConfirmationModal
-                                confirmationButtonText={t('dashboard.courses.contributors.closed_to_contributors.confirmation_button')}
-                                confirmationMessage={t('dashboard.courses.contributors.closed_to_contributors.confirmation_message')}
-                                dialogTitle={t('dashboard.courses.contributors.closed_to_contributors.confirmation_title')}
-                                dialogTrigger={
-                                    <div className="w-full h-[200px] bg-slate-100 rounded-lg cursor-pointer hover:bg-slate-200 transition-all">
-                                        {!isOpenToContributors && (
-                                            <div className="bg-green-200 text-green-600 font-bold w-fit my-3 mx-3 absolute text-sm px-3 py-1 rounded-lg">
-                                                {t('dashboard.courses.contributors.closed_to_contributors.active')}
-                                            </div>
-                                        )}
-                                        <div className="flex flex-col space-y-1 justify-center items-center h-full p-2 sm:p-4">
-                                            <Users className="text-slate-400" size={32} />
-                                            <div className="text-xl sm:text-2xl text-slate-700 font-bold">
-                                                {t('dashboard.courses.contributors.closed_to_contributors.title')}
-                                            </div>
-                                            <div className="text-gray-400 text-sm sm:text-md tracking-tight w-full sm:w-[500px] leading-5 text-center">
-                                                {t('dashboard.courses.contributors.closed_to_contributors.description')}
-                                            </div>
-                                        </div>
-                                    </div>
-                                }
-                                functionToExecute={() => setIsOpenToContributors(false)}
-                                status="info"
+                        <div className="flex shrink-0 items-center gap-3">
+                            <span className="text-xs font-semibold text-gray-500">
+                                {isOpenToContributors ? 'Enabled' : 'Disabled'}
+                            </span>
+                            <Switch
+                                checked={isOpenToContributors === true}
+                                onCheckedChange={setIsOpenToContributors}
                             />
                         </div>
-                        <div className="space-y-4">
+                    </div>
+                </div>
+                        <div className="mt-5 space-y-4">
                             <div className="relative">
                                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
@@ -658,10 +617,8 @@ function EditCourseContributors(props: EditCourseContributorsProps) {
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            )}
-        </div>
+            </section>
+        ) : null
     );
 }
 

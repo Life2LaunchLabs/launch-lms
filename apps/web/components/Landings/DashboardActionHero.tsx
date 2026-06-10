@@ -63,7 +63,7 @@ function getCoreCourseActionCard(item: any): ActionCard {
     ? routePaths.org.courseActivity(cleanCourse, cleanActivity)
     : cleanCourse
       ? routePaths.org.course(cleanCourse)
-      : routePaths.org.courses()
+      : routePaths.org.badges()
   const courseName = course?.name || 'your next CORE course'
 
   return {
@@ -80,9 +80,9 @@ function getCoreCourseActionCard(item: any): ActionCard {
 
 const fallbackCoreCard: ActionCard = {
   id: 'explore-core-courses',
-  url: routePaths.org.courses(),
-  title: 'Explore CORE courses',
-  subtext: 'Start with the CORE courses below and build your foundation.',
+  url: routePaths.org.badges(),
+  title: 'Explore CORE badges',
+  subtext: 'Start with the CORE badges below and build your foundation.',
   ctaLabel: 'Explore',
   imageUrl: '/welcome_cards.png',
 }

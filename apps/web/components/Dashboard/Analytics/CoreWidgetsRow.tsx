@@ -322,7 +322,7 @@ export default function CoreWidgetsRow({ days = '30' }: { days?: string }) {
                 ? courseUuid.replace('course_', '')
                 : null
               const href = cleanUuid
-                ? `/dash/courses/course/${cleanUuid}/general`
+                ? `/dash/courses/course/${cleanUuid}/content`
                 : `/dash/courses`
 
               return (
@@ -468,7 +468,7 @@ function CourseRow({ row, org }: { row: any; org: any }) {
   const courseUuid = row.course_uuid
   const cleanUuid = courseUuid ? courseUuid.replace('course_', '') : null
   const href = cleanUuid
-    ? `/dash/courses/course/${cleanUuid}/general`
+    ? `/dash/courses/course/${cleanUuid}/content`
     : `/dash/courses`
 
   return (

@@ -3,21 +3,20 @@
 import React from 'react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getUriWithOrg } from '@services/config/config'
-import { Award, ExternalLink, Calendar, Building } from 'lucide-react'
+import { getUriWithOrg, routePaths } from '@services/config/config'
+import { Award } from 'lucide-react'
 import Link from 'next/link'
 import useSWR from 'swr'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { getAPIUrl } from '@services/config/config'
-import { useTranslation } from 'react-i18next'
 import { getCourseThumbnailMediaDirectory, normalizeMediaUrl } from '@services/media/media'
 
 interface UserCertificatesProps {
   orgslug: string
+  showHeader?: boolean
 }
 
-const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug }) => {
-  const { t, i18n } = useTranslation()
+const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug, showHeader = true }) => {
   const session = useLHSession() as any
   const access_token = session?.data?.tokens?.access_token
   const org = useOrg() as any
@@ -33,20 +32,19 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug }) => {
   if (isLoading) {
     return (
       <div className="flex flex-col space-y-2">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-yellow-50 rounded-lg">
-            <Award className="w-5 h-5 text-yellow-500" />
+        {showHeader && (
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-yellow-50 rounded-lg">
+              <Award className="w-5 h-5 text-yellow-500" />
+            </div>
+            <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
           </div>
-          <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        )}
+        <div className="grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 md:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white rounded-xl nice-shadow overflow-hidden animate-pulse">
-              <div className="aspect-video bg-gray-100" />
-              <div className="p-3 space-y-2">
-                <div className="h-4 bg-gray-100 rounded w-3/4" />
-                <div className="h-3 bg-gray-100 rounded w-1/2" />
-              </div>
+            <div key={i} className="animate-pulse">
+              <div className="aspect-square rounded-lg bg-gray-100" />
+              <div className="mx-auto mt-3 h-4 w-3/4 rounded bg-gray-100" />
             </div>
           ))}
         </div>
@@ -57,12 +55,14 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug }) => {
   if (error) {
     return (
       <div className="flex flex-col space-y-2">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-yellow-50 rounded-lg">
-            <Award className="w-5 h-5 text-yellow-500" />
+        {showHeader && (
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-yellow-50 rounded-lg">
+              <Award className="w-5 h-5 text-yellow-500" />
+            </div>
+            <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
           </div>
-          <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
-        </div>
+        )}
         <div className="col-span-full flex flex-col justify-center items-center py-12 px-4 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/30">
           <div className="p-4 bg-white rounded-full nice-shadow mb-4">
             <Award className="w-8 h-8 text-gray-300" strokeWidth={1.5} />
@@ -76,12 +76,14 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug }) => {
   if (!certificatesData || certificatesData.length === 0) {
     return (
       <div className="flex flex-col space-y-2">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2 bg-yellow-50 rounded-lg">
-            <Award className="w-5 h-5 text-yellow-500" />
+        {showHeader && (
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-yellow-50 rounded-lg">
+              <Award className="w-5 h-5 text-yellow-500" />
+            </div>
+            <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
           </div>
-          <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
-        </div>
+        )}
         <div className="col-span-full flex flex-col justify-center items-center py-12 px-4 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/30">
           <div className="p-4 bg-white rounded-full nice-shadow mb-4">
             <Award className="w-8 h-8 text-gray-300" strokeWidth={1.5} />
@@ -99,24 +101,24 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug }) => {
 
   return (
     <div className="flex flex-col space-y-2">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="p-2 bg-yellow-50 rounded-lg">
-          <Award className="w-5 h-5 text-yellow-500" />
+      {showHeader && (
+        <div className="flex items-center gap-3 mb-2">
+          <div className="p-2 bg-yellow-50 rounded-lg">
+            <Award className="w-5 h-5 text-yellow-500" />
+          </div>
+          <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
+          <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+            {certificatesData.length}
+          </span>
         </div>
-        <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
-        <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-          {certificatesData.length}
-        </span>
-      </div>
+      )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 md:grid-cols-4">
         {certificatesData.map((certificate: any) => {
-          const verificationLink = getUriWithOrg(orgslug, `/badges/${certificate.certificate_user.user_certification_uuid}/verify`)
-          const awardedDate = new Date(certificate.certificate_user.created_at).toLocaleDateString(i18n.language === 'fr' ? 'fr-FR' : 'en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          })
+          const badgeLink = getUriWithOrg(
+            orgslug,
+            routePaths.org.badgeStatus(certificate.course.course_uuid.replace('course_', ''))
+          )
           const courseThumbnailUrl = certificate.course?.thumbnail_image && org?.org_uuid
             ? getCourseThumbnailMediaDirectory(
                 org.org_uuid,
@@ -124,69 +126,32 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug }) => {
                 certificate.course.thumbnail_image
               )
             : ''
-          const badgeImageUrl = normalizeMediaUrl(certificate.badge_class?.image)
+          const badgeImageUrl = courseThumbnailUrl
+            || normalizeMediaUrl(certificate.badge_class?.image)
             || normalizeMediaUrl(certificate.certification?.config?.badge_image_url)
-            || courseThumbnailUrl
             || '/empty_thumbnail.png'
 
           return (
-            <div
+            <Link
               key={certificate.certificate_user.user_certification_uuid}
-              className="group relative flex flex-col bg-white rounded-xl nice-shadow overflow-hidden w-full transition-all duration-300 hover:scale-[1.01]"
+              href={badgeLink}
+              className="group block focus:outline-none"
             >
-              {/* Thumbnail */}
-              <Link
-                href={verificationLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block relative aspect-video overflow-hidden bg-gradient-to-br from-yellow-50 to-amber-100"
-              >
+              <div className="aspect-square w-full overflow-hidden rounded-lg bg-transparent">
                 <img
                   src={badgeImageUrl}
                   alt={certificate.badge_class?.name || certificate.certification.config.badge_name || certificate.course.name}
-                  className="w-full h-full object-cover"
+                  className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
                   onError={(event) => {
                     event.currentTarget.src = '/empty_thumbnail.png'
                   }}
                 />
-              </Link>
-
-              {/* Content */}
-              <div className="p-3 flex flex-col space-y-1.5">
-                <Link
-                  href={verificationLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-base font-bold text-gray-900 leading-tight hover:text-black transition-colors line-clamp-1"
-                >
-                  {certificate.badge_class?.name || certificate.certification.config.badge_name || certificate.certification.config.certification_name}
-                </Link>
-
-                <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                  <Building className="w-3 h-3" />
-                  <span className="truncate">{certificate.course.name}</span>
-                </div>
-
-                <div className="pt-1.5 flex items-center justify-between border-t border-gray-100">
-                  <div className="flex items-center gap-1.5 text-gray-500">
-                    <Calendar size={12} />
-                    <span className="text-[10px] font-bold uppercase tracking-wider">
-                      {awardedDate}
-                    </span>
-                  </div>
-
-                  <Link
-                    href={verificationLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-700 uppercase tracking-wider"
-                  >
-                    Verify badge
-                    <ExternalLink className="w-3 h-3" />
-                  </Link>
-                </div>
               </div>
-            </div>
+              <div className="h-1.5 w-full" />
+              <h2 className="mt-2 text-center text-sm font-semibold leading-snug text-gray-950 transition-colors group-hover:text-gray-600">
+                {certificate.badge_class?.name || certificate.certification.config.badge_name || certificate.certification.config.certification_name}
+              </h2>
+            </Link>
           )
         })}
       </div>

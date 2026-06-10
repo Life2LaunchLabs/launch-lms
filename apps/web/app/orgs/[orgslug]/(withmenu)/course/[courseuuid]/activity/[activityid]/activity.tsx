@@ -26,14 +26,12 @@ import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationMo
 import PaidCourseActivityDisclaimer from '@components/Objects/Courses/CourseActions/PaidCourseActivityDisclaimer'
 import ActivityShareDropdown from '@components/Pages/Activity/ActivityShareDropdown'
 import ActivityChapterDropdown from '@components/Pages/Activity/ActivityChapterDropdown'
-import ActivityCourseOutline from '@components/Pages/Activity/ActivityCourseOutline'
 import CourseEndView from '@components/Pages/Activity/CourseEndView'
 import ActivityHeader from '@components/Pages/Activity/ActivityHeader'
 import { motion, AnimatePresence } from 'motion/react'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import { useTranslation } from 'react-i18next'
 import { useAnalytics } from '@/hooks/useAnalytics'
-import { Dialog, DialogContent } from '@components/ui/dialog'
 import { defaultChapterIconName, getChannelIcon } from '@components/Resources/ResourceChannelStyle'
 
 // Lazy load heavy components
@@ -197,7 +195,6 @@ function ActivityClient(props: ActivityClientProps) {
   const [bgColor, setBgColor] = React.useState('bg-white')
   const [assignment, setAssignment] = React.useState(null) as any;
   const [isFocusMode, setIsFocusMode] = React.useState(false);
-  const [isOutlineOpen, setIsOutlineOpen] = React.useState(false);
   const isInitialRender = useRef(true);
   const hasAttemptedGuestCourseStart = useRef(false)
   const hasAttemptedCourseStart = useRef(false)
@@ -344,26 +341,6 @@ function ActivityClient(props: ActivityClientProps) {
     const activityPath = buildActivityPath(activity.cleanUuid)
     router.push(getUriWithOrg(orgslug, activityPath));
   };
-
-  // Initialize focus mode from localStorage
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('globalFocusMode');
-      setIsFocusMode(saved === 'true');
-    }
-  }, []);
-
-  // Save focus mode to localStorage
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('globalFocusMode', isFocusMode.toString());
-      // Dispatch custom event for focus mode change
-      window.dispatchEvent(new CustomEvent('focusModeChange', { 
-        detail: { isFocusMode } 
-      }));
-      isInitialRender.current = false;
-    }
-  }, [isFocusMode]);
 
   async function getAssignmentUI() {
     if (!activity) return
@@ -636,55 +613,14 @@ function ActivityClient(props: ActivityClientProps) {
                     guestCompletedHint={guestCompletedHint}
                   />
                 ) : (
-                  <div className="space-y-4 relative">
-                    <div className="lg:hidden">
+                  <div className="flex min-h-[calc(100dvh-8rem)] items-center">
+                    <div className="mx-auto flex max-h-[1100px] w-full max-w-5xl flex-col justify-center gap-6">
                       <ActivityHeader
-                        course={course}
                         courseuuid={courseuuid}
                         orgslug={orgslug}
-                        trailData={effectiveTrailData}
-                        onOpenOutline={() => setIsOutlineOpen(true)}
-                        disableOutlineAccess={quickstartMode}
                       />
-                    </div>
-                    {!quickstartMode ? (
-                      <Dialog open={isOutlineOpen} onOpenChange={setIsOutlineOpen}>
-                        <DialogContent className="left-0 right-0 bottom-0 top-auto mt-16 max-h-[calc(100dvh-4rem)] max-w-none translate-x-0 translate-y-0 rounded-t-[28px] rounded-b-none border-x-0 border-b-0 border-t border-gray-200 bg-white px-0 pb-0 pt-3 sm:rounded-t-[28px] lg:hidden">
-                          <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-gray-200" />
-                          <div className="min-h-0 overflow-hidden px-4 pb-5 sm:px-5">
-                            <ActivityCourseOutline
-                              course={course}
-                              currentActivityId={activityid}
-                              orgslug={orgslug}
-                              trailData={effectiveTrailData}
-                              courseHref={coursePath}
-                              getActivityHref={buildActivityPath}
-                              variant="sheet"
-                              autoScrollToHighlighted
-                              onNavigate={() => setIsOutlineOpen(false)}
-                              initialExpandedActivityId={activityid}
-                            />
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    ) : null}
 
-                    <div className={`grid gap-6 lg:items-start ${!quickstartMode ? 'lg:grid-cols-[260px_minmax(0,1fr)]' : ''}`}>
-                      <aside className={`${!quickstartMode ? 'hidden lg:block' : 'hidden'}`}>
-                        <div className="sticky top-6">
-                          <ActivityCourseOutline
-                            course={course}
-                            currentActivityId={activityid}
-                            orgslug={orgslug}
-                            trailData={effectiveTrailData}
-                            courseHref={coursePath}
-                            getActivityHref={buildActivityPath}
-                            variant="sidebar"
-                            initialExpandedActivityId={activityid}
-                          />
-                        </div>
-                      </aside>
-
+                      <div className="w-full">
                       <div className="min-w-0 space-y-4">
                         {activity && activity.published == false && (
                           <div className="p-7 drop-shadow-xs rounded-lg bg-gray-800">
@@ -704,9 +640,9 @@ function ActivityClient(props: ActivityClientProps) {
                               <div className="flex gap-6">
                                 <div className={`flex-1 min-w-0 relative isolate ${
                                   activity.activity_type === 'TYPE_SCORM'
-                                    ? '-mx-4 overflow-hidden rounded-none sm:mx-0 sm:rounded-xl'
-                                    : '-mx-4 rounded-none px-5 pb-6 pt-5 sm:mx-0 sm:rounded-lg sm:p-7 drop-shadow-xs'
-                                } ${bgColor}`} style={{ zIndex: 'var(--z-base)' }}>
+                                    ? 'overflow-hidden'
+                                    : ''
+                                } ${activity.activity_type === 'TYPE_VIDEO' || activity.activity_type === 'TYPE_DOCUMENT' ? 'bg-zinc-950' : 'bg-transparent'}`} style={{ zIndex: 'var(--z-base)' }}>
                                   {/*
                                   <button
                                     onClick={() => setIsFocusMode(true)}
@@ -757,7 +693,7 @@ function ActivityClient(props: ActivityClientProps) {
                         )}
 
                         {activity && activity.published == true && activity.content.paid_access != false && (
-                          <div className="mt-4 flex w-full flex-row items-stretch justify-between gap-2 sm:items-center">
+                          <div className="mt-6 flex w-full flex-row items-stretch justify-between gap-2 border-t border-gray-200 pt-5 sm:items-center">
                             <div className="min-w-0 flex-1 sm:flex-none">
                               <PreviousActivityButton
                                 course={course}
@@ -792,8 +728,8 @@ function ActivityClient(props: ActivityClientProps) {
                           </div>
                         )}
 
-                        <div style={{ height: '100px' }}></div>
                       </div>
+                    </div>
                     </div>
                   </div>
                 )}
@@ -878,32 +814,29 @@ function NextActivityButton({ course, currentActivityId, activity, orgslug, gues
   };
 
   if (!nextActivity) {
-    // Last activity — show Finish Course button
     return (
-      <div
+      <button
+        type="button"
         onClick={!isLoading ? handleNext : undefined}
-        className={`bg-teal-600 rounded-md px-3 sm:px-4 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] flex min-w-0 w-full sm:w-[220px] flex-col p-2 sm:p-2.5 text-white hover:cursor-pointer transition delay-150 duration-300 ease-in-out hover:bg-teal-700 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+        disabled={isLoading}
+        className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
       >
-        <span className="text-[10px] font-bold text-white/70 mb-1 uppercase">{t('common.complete')}</span>
-        <div className="flex items-center space-x-1">
-          <span className="text-xs sm:text-sm font-semibold truncate">{course.name}</span>
-          <ChevronRight size={17} className="shrink-0" />
-        </div>
-      </div>
+        {t('common.complete')}
+        <ChevronRight size={17} />
+      </button>
     );
   }
 
   return (
-    <div
+    <button
+      type="button"
       onClick={!isLoading ? handleNext : undefined}
-      className={`bg-primary rounded-md px-3 sm:px-4 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] flex min-w-0 w-full sm:w-[220px] flex-col p-2 sm:p-2.5 text-primary-foreground hover:cursor-pointer transition delay-150 duration-300 ease-in-out hover:bg-primary/90 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+      disabled={isLoading}
+      className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
     >
-      <span className="text-[10px] font-bold text-primary-foreground/70 mb-1 uppercase">{t('common.next')}</span>
-      <div className="flex items-center space-x-1">
-        <span className="text-xs sm:text-sm font-semibold truncate max-w-[120px] sm:max-w-[200px]">{nextActivity.name}</span>
-        <ChevronRight size={17} className="shrink-0" />
-      </div>
-    </div>
+      {t('common.next')}
+      <ChevronRight size={17} />
+    </button>
   );
 }
 
@@ -949,16 +882,14 @@ function PreviousActivityButton({ course, currentActivityId, orgslug, guestMode 
   };
 
   return (
-    <div
+    <button
+      type="button"
       onClick={navigateToActivity}
-      className="bg-white rounded-md px-3 sm:px-4 nice-shadow flex min-w-0 w-full sm:w-[220px] flex-col p-2 sm:p-2.5 text-gray-600 hover:cursor-pointer transition delay-150 duration-300 ease-in-out"
+      className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-gray-200 transition-colors hover:bg-gray-50 sm:w-auto"
     >
-      <span className="text-[10px] font-bold text-gray-500 mb-1 uppercase">{t('common.previous')}</span>
-      <div className="flex items-center space-x-1">
-        <ChevronLeft size={17} className="shrink-0" />
-        <span className="text-xs sm:text-sm font-semibold truncate max-w-[120px] sm:max-w-[200px]">{previousActivity.name}</span>
-      </div>
-    </div>
+      <ChevronLeft size={17} />
+      {t('common.back', 'Back')}
+    </button>
   );
 }
 

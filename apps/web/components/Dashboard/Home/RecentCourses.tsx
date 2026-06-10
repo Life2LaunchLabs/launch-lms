@@ -109,7 +109,7 @@ export default function RecentCourses() {
             return (
               <Link
                 key={course.course_uuid}
-                href={routePaths.org.dash.courseSettings(courseId, 'general')}
+                href={routePaths.org.dash.courseSettings(courseId, 'content')}
                 className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors group"
               >
                 <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">

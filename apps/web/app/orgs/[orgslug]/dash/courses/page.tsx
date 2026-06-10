@@ -3,7 +3,6 @@ import { Metadata } from 'next'
 import React from 'react'
 import CoursesHome from './client'
 import { getServerSession } from '@/lib/auth/server'
-import { getOrgCourses } from '@services/courses/courses'
 import { getOrgCollections } from '@services/courses/collections'
 
 type MetadataProps = {
@@ -51,22 +50,6 @@ async function CoursesPage(params: any) {
   const session = await getServerSession()
   const access_token = session?.tokens?.access_token
 
-  let courses: any[] = []
-  try {
-    courses = await getOrgCourses(
-      orgslug,
-      { revalidate: 0, tags: ['courses'] },
-      access_token ?? undefined,
-      true // include_unpublished for dashboard
-    )
-  } catch (error: any) {
-    if (error?.status === 403) {
-      courses = []
-    } else {
-      throw error
-    }
-  }
-
   let collections: any[] = []
   try {
     collections = await getOrgCollections(
@@ -80,7 +63,7 @@ async function CoursesPage(params: any) {
     collections = []
   }
 
-  return <CoursesHome org_id={org.id} orgslug={orgslug} courses={courses} collections={collections} />
+  return <CoursesHome org_id={org.id} orgslug={orgslug} collections={collections} />
 }
 
 export default CoursesPage

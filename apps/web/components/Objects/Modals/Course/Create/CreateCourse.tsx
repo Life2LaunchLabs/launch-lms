@@ -23,19 +23,7 @@ import UnsplashImagePicker from "@components/Dashboard/Pages/Course/EditCourseGe
 import FormTagInput from "@components/Objects/StyledElements/Form/TagInput"
 import { useTranslation } from "react-i18next"
 
-const validationSchema = Yup.object().shape({
-  name: Yup.string()
-    .required('Course name is required')
-    .max(100, 'Must be 100 characters or less'),
-  description: Yup.string()
-    .max(1000, 'Must be 1000 characters or less'),
-  learnings: Yup.string(),
-  tags: Yup.string(),
-  visibility: Yup.boolean(),
-  thumbnail: Yup.mixed().nullable()
-})
-
-function CreateCourseModal({ closeModal, orgslug }: any) {
+function CreateCourseModal({ closeModal, orgslug, collectionUuid }: any) {
   const { t } = useTranslation()
   const router = useRouter()
   const session = useLHSession() as any
@@ -86,7 +74,8 @@ function CreateCourseModal({ closeModal, orgslug }: any) {
             visibility: values.visibility
           },
           values.thumbnail,
-          session.data?.tokens?.access_token
+          session.data?.tokens?.access_token,
+          collectionUuid
         )
 
         if (res.success) {
@@ -97,7 +86,7 @@ function CreateCourseModal({ closeModal, orgslug }: any) {
           closeModal()
           void revalidateTags(['courses'], orgslug)
           void mutate((key) => typeof key === 'string' && key.includes('/courses/org_slug/'))
-          router.push(`/dash/courses/course/${courseId}/general`)
+          router.push(`/dash/courses/course/${courseId}/content`)
         } else {
           const errorMessage = typeof res.data?.detail === 'string'
             ? res.data.detail
@@ -106,7 +95,7 @@ function CreateCourseModal({ closeModal, orgslug }: any) {
               : t('courses.failed_to_create_course')
           toast.error(errorMessage)
         }
-      } catch (error) {
+      } catch {
         toast.error(t('courses.failed_to_create_course'))
       } finally {
         submitLockRef.current = false
@@ -143,7 +132,7 @@ function CreateCourseModal({ closeModal, orgslug }: any) {
       const blob = await response.blob()
       const file = new File([blob], 'unsplash_image.jpg', { type: 'image/jpeg' })
       formik.setFieldValue('thumbnail', file)
-    } catch (error) {
+    } catch {
       toast.error('Failed to load image from Unsplash')
     }
     setIsUploading(false)

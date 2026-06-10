@@ -82,11 +82,14 @@ export const routePaths = {
     communities: () => '/communities',
     resources: () => '/resources',
     podcasts: () => '/podcasts',
+    badges: () => '/badges',
     courses: () => '/courses',
     collections: () => '/collections',
     collectionNew: () => '/collections/new',
     collection: (collectionUuid: string) => `/collection/${collectionUuid}`,
-    course: (courseUuid: string) => `/course/${courseUuid}`,
+    course: (courseUuid: string) => `/badges/${courseUuid}`,
+    badgeStatus: (courseUuid: string) => `/badges/${courseUuid}/badge`,
+    badgePath: (courseUuid: string) => `/badges/${courseUuid}/path`,
     courseActivity: (courseUuid: string, activityId: string) =>
       `/course/${courseUuid}/activity/${activityId}`,
     courseActivityEnd: (courseUuid: string) =>

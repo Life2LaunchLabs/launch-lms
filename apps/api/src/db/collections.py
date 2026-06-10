@@ -49,3 +49,12 @@ class CollectionRead(CollectionBase):
     update_date: str
     thumbnail_image: Optional[str] = None
     pass
+
+
+class CourseCollectionAssignment(SQLModel):
+    collection_uuid: str
+
+
+class CourseCollectionRepairItem(SQLModel):
+    course: dict
+    collections: list[dict]

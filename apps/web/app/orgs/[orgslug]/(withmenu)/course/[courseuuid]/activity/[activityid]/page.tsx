@@ -8,6 +8,7 @@ import { getServerSession } from '@/lib/auth/server'
 import { getCanonicalUrl, getOrgSeoConfig, buildBreadcrumbJsonLd } from '@/lib/seo/utils'
 import { JsonLd } from '@components/SEO/JsonLd'
 import { notFound, redirect } from 'next/navigation'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string; courseuuid: string; activityid: string }>
@@ -122,6 +123,10 @@ const ActivityPage = async (params: any) => {
   const guestCompletedHint = searchParams?.guest_completed === '1'
   const isCourseEnd = activityid === 'end'
 
+  if (isCourseEnd) {
+    redirect(getUriWithOrg(orgslug, routePaths.org.course(courseuuid)))
+  }
+
   let course_meta
   let activity = null
 
@@ -149,7 +154,7 @@ const ActivityPage = async (params: any) => {
 
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
     { name: 'Home', url: getCanonicalUrl(orgslug, '/') },
-    { name: 'Courses', url: getCanonicalUrl(orgslug, '/courses') },
+    { name: 'Badges', url: getCanonicalUrl(orgslug, '/badges') },
     { name: course_meta.name, url: getCanonicalUrl(orgslug, `/course/${courseuuid}`) },
     {
       name: isCourseEnd ? 'Course Complete' : activity.name,
