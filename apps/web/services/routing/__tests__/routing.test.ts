@@ -40,6 +40,8 @@ test('route manifest builds auth, account, and public org paths used by navigati
   assert.equal(routePaths.org.profileEdit(), '/profile/edit')
   assert.equal(routePaths.org.profileResume(), '/profile/resume')
   assert.equal(routePaths.org.profileTimeline(), '/profile/timeline')
+  assert.equal(routePaths.org.plan(), '/plan')
+  assert.equal(routePaths.org.planArea('identity'), '/plan/identity')
   assert.equal(routePaths.org.organization('acme'), '/organization/acme')
   assert.equal(routePaths.org.user('jane'), '/user/jane')
   assert.equal(routePaths.org.userResume('jane'), '/user/jane/resume')
@@ -53,6 +55,7 @@ test('route manifest builds auth, account, and public org paths used by navigati
 test('navigation manifest smoke test keeps representative routes absolute and unique', () => {
   const navigationRoutes = [
     routePaths.org.profile(),
+    routePaths.org.plan(),
     routePaths.owner.account.security(),
     routePaths.owner.account.orgAdmin(),
     routePaths.org.root(),

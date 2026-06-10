@@ -3,6 +3,7 @@ import {
   House,
   User,
   SealCheck,
+  MapTrifold,
   ChatsCircle,
   FolderOpen,
   Question,
@@ -18,6 +19,7 @@ export const KNOWN_SUBPATHS = [
   '/certificate',
   '/badge',
   '/badges',
+  '/plan',
   '/podcasts',
   '/communities',
   '/community/',
@@ -64,6 +66,7 @@ export function getPrimaryOrgMenuItems({
     pathname?.includes('/course/') ||
     pathname?.includes('/collection/')
   const isOnProfile = pathname?.includes('/profile')
+  const isOnPlan = pathname?.includes('/plan')
   const isOnCommunities = pathname?.includes('/communities') || pathname?.includes('/community/')
   const isOnResources = pathname?.includes('/resources') || pathname?.includes('/resource/')
 
@@ -89,6 +92,13 @@ export function getPrimaryOrgMenuItems({
       active: Boolean(isOnCourses),
       show: isFeatureEnabled(resolvedFeatures, 'courses'),
       onboardingFeature: 'courses',
+    },
+    {
+      href: '/plan',
+      label: 'Plan',
+      icon: <MapTrifold size={18} weight="fill" />,
+      active: Boolean(isOnPlan),
+      show: true,
     },
     {
       href: '/communities',
