@@ -87,7 +87,7 @@ export const routePaths = {
     collections: () => '/collections',
     collectionNew: () => '/collections/new',
     collection: (collectionUuid: string) => `/collection/${collectionUuid}`,
-    course: (courseUuid: string) => `/course/${courseUuid}`,
+    course: (courseUuid: string) => `/badges/${courseUuid}`,
     courseActivity: (courseUuid: string, activityId: string) =>
       `/course/${courseUuid}/activity/${activityId}`,
     courseActivityEnd: (courseUuid: string) =>

@@ -10,9 +10,8 @@ import {
   getCourseThumbnailMediaDirectory,
 } from '@services/media/media'
 import { CourseThumbnailImage } from '@components/Objects/Thumbnails/CourseThumbnailImage'
-import { ArrowRight, BadgeCheck, Check, Video, Image as ImageIcon, Play, Clock } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Award, BookOpenCheck, Check, CircleHelp, Clock, FileText, Layers, Play, Video, Image as ImageIcon } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import useSWR from 'swr'
 import { useTranslation } from 'react-i18next'
@@ -142,6 +141,21 @@ const CourseClient = (props: any) => {
   }
 
   const nextActivity = getNextActivity()
+  const run = useMemo(() => {
+    const cleanCourseUuid = course?.course_uuid?.replace('course_', '')
+    return trailData?.runs?.find((trailRun: any) => (
+      trailRun.course?.course_uuid?.replace('course_', '') === cleanCourseUuid
+    ))
+  }, [course?.course_uuid, trailData])
+  const totalActivities = useMemo(
+    () => course?.chapters?.reduce(
+      (total: number, chapter: any) => total + (chapter.activities?.length || 0),
+      0
+    ) || 0,
+    [course?.chapters]
+  )
+  const completedActivities = run?.steps?.filter((step: any) => step.complete !== false).length || 0
+  const isCompleted = totalActivities > 0 && completedActivities >= totalActivities
   const coursePath = quickstartMode
     ? routePaths.org.quickstartCourse(courseuuid)
     : routePaths.org.course(courseuuid)
@@ -227,54 +241,330 @@ const CourseClient = (props: any) => {
       ) : (
         <>
           <GeneralWrapperStyled>
-            <div className="pb-4">
-              <Breadcrumbs items={[
-                { label: 'Badges', href: getUriWithOrg(orgslug, '/badges'), icon: <BadgeCheck size={14} /> },
-                { label: course.name }
-              ]} />
-            </div>
-            <div className="pb-2">
-              <h1 className="text-3xl font-bold">{course.name}</h1>
+            <div className="mb-10">
+              <Link
+                href={getUriWithOrg(orgslug, routePaths.org.badges())}
+                className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 transition-colors hover:text-gray-950"
+              >
+                <ArrowLeft size={16} />
+                Back
+              </Link>
             </div>
 
-            <ContainerBreakpointProvider
-              breakpoints={{
-                stacked: 0,
-                split: 980,
-                spacious: 1240,
-              }}
-              className="pt-2"
-            >
-              <CourseDetailResponsiveSection
+            {!quickstartMode && !run ? (
+              <BadgePreviewHero
                 course={course}
-                courseuuid={courseuuid}
-                orgslug={orgslug}
                 courseOwnerOrgUuid={courseOwnerOrgUuid}
-                activeThumbnailType={activeThumbnailType}
-                setActiveThumbnailType={setPreferredThumbnailType}
-                trailData={trailData}
                 nextActivityRoute={nextActivityRoute}
-                nextActivity={nextActivity}
                 learnings={learnings}
-                isDescriptionTall={isDescriptionTall}
-                descriptionExpanded={descriptionExpanded}
-                setDescriptionExpanded={setDescriptionExpanded}
-                descriptionRef={descriptionRef}
                 t={t}
-                quickstartMode={quickstartMode}
-                coursePath={coursePath}
-                getActivityPath={getActivityPath}
                 comingSoon={!!course.coming_soon}
               />
+            ) : !quickstartMode && !isCompleted ? (
+              <BadgePathView
+                course={course}
+                courseOwnerOrgUuid={courseOwnerOrgUuid}
+                orgslug={orgslug}
+                run={run}
+              />
+            ) : (
+              <>
+                <div className="pb-2">
+                  <h1 className="text-3xl font-bold">{course.name}</h1>
+                </div>
+                <ContainerBreakpointProvider
+                  breakpoints={{
+                    stacked: 0,
+                    split: 980,
+                    spacious: 1240,
+                  }}
+                  className="pt-2"
+                >
+                  <CourseDetailResponsiveSection
+                    course={course}
+                    courseuuid={courseuuid}
+                    orgslug={orgslug}
+                    courseOwnerOrgUuid={courseOwnerOrgUuid}
+                    activeThumbnailType={activeThumbnailType}
+                    setActiveThumbnailType={setPreferredThumbnailType}
+                    trailData={trailData}
+                    nextActivityRoute={nextActivityRoute}
+                    nextActivity={nextActivity}
+                    learnings={learnings}
+                    isDescriptionTall={isDescriptionTall}
+                    descriptionExpanded={descriptionExpanded}
+                    setDescriptionExpanded={setDescriptionExpanded}
+                    descriptionRef={descriptionRef}
+                    t={t}
+                    quickstartMode={quickstartMode}
+                    coursePath={coursePath}
+                    getActivityPath={getActivityPath}
+                    comingSoon={!!course.coming_soon}
+                  />
 
-              {/* Community Section */}
-              <CourseCommunitySection courseUuid={course.course_uuid} orgslug={orgslug} />
-            </ContainerBreakpointProvider>
+                  <CourseCommunitySection courseUuid={course.course_uuid} orgslug={orgslug} />
+                </ContainerBreakpointProvider>
+              </>
+            )}
           </GeneralWrapperStyled>
 
         </>
       )}
     </>
+  )
+}
+
+function getPathActivityIcon(activityType: string) {
+  switch (activityType) {
+    case 'TYPE_VIDEO':
+      return Video
+    case 'TYPE_DYNAMIC':
+      return Layers
+    case 'TYPE_ASSIGNMENT':
+      return BookOpenCheck
+    case 'TYPE_QUIZ':
+      return CircleHelp
+    default:
+      return FileText
+  }
+}
+
+function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run }: any) {
+  const activities = useMemo(
+    () => course.chapters?.flatMap((chapter: any) => chapter.activities || []) || [],
+    [course.chapters]
+  )
+  const completedIds = useMemo(
+    () => new Set(
+      (run?.steps || [])
+        .filter((step: any) => step.complete !== false)
+        .map((step: any) => step.activity_id)
+    ),
+    [run?.steps]
+  )
+  const nextActivityIndex = activities.findIndex((activity: any) => !completedIds.has(activity.id))
+  const [activeIndex, setActiveIndex] = useState(nextActivityIndex >= 0 ? nextActivityIndex : 0)
+  const completedCount = completedIds.size
+  const progressPercent = activities.length > 0 ? (completedCount / activities.length) * 100 : 0
+
+  return (
+    <section className="mx-auto grid w-full max-w-6xl gap-10 lg:grid-cols-2 lg:gap-14">
+      <aside className="lg:sticky lg:top-8 lg:self-start">
+        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex items-start gap-4">
+            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-gray-50">
+              {course.thumbnail_image && courseOwnerOrgUuid ? (
+                <img
+                  src={getCourseThumbnailMediaDirectory(
+                    courseOwnerOrgUuid,
+                    course.course_uuid,
+                    course.thumbnail_image
+                  )}
+                  alt={course.name}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-gray-300">
+                  <Award size={30} strokeWidth={1.4} />
+                </div>
+              )}
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xl font-semibold leading-tight text-gray-950">{course.name}</h1>
+              {(course.description || course.about) && (
+                <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-gray-500">
+                  {course.description || course.about}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="mt-6">
+            <div className="mb-2 flex items-center justify-between text-xs font-semibold text-gray-500">
+              <span>Progress</span>
+              <span className="tabular-nums">{completedCount}/{activities.length}</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+              <div
+                className="h-full rounded-full bg-green-500 transition-all"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div className="space-y-3">
+        {activities.map((activity: any, index: number) => {
+          const isCompletedActivity = completedIds.has(activity.id)
+          const isNext = index === nextActivityIndex
+          const isAvailable = isCompletedActivity || isNext
+          const isActive = index === activeIndex && isAvailable
+          const Icon = getPathActivityIcon(activity.activity_type)
+          const activityHref = getUriWithOrg(
+            orgslug,
+            routePaths.org.courseActivity(
+              course.course_uuid.replace('course_', ''),
+              activity.activity_uuid.replace('activity_', '')
+            )
+          )
+
+          return (
+            <div
+              key={activity.activity_uuid}
+              className={`rounded-lg bg-white transition-all ${
+                isNext
+                  ? `border-2 border-green-500 ${isActive ? '-translate-y-1 shadow-lg' : 'shadow-sm'}`
+                  : isCompletedActivity
+                    ? `border border-gray-200 ${isActive ? '-translate-y-0.5 shadow-md' : ''}`
+                    : 'border border-gray-100 bg-gray-50/60'
+              }`}
+            >
+              <button
+                type="button"
+                disabled={!isAvailable}
+                onClick={() => setActiveIndex(index)}
+                className="flex w-full items-center gap-4 px-4 py-4 text-left disabled:cursor-default"
+              >
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                  isAvailable ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-300'
+                }`}>
+                  <Icon size={20} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm font-semibold ${isAvailable ? 'text-gray-950' : 'text-gray-400'}`}>
+                    {activity.name}
+                  </p>
+                  <p className={`mt-0.5 text-xs font-medium ${
+                    isNext ? 'text-green-600' : isCompletedActivity ? 'text-gray-500' : 'text-gray-300'
+                  }`}>
+                    {isNext ? 'Next up' : isCompletedActivity ? 'Completed' : 'Not started'}
+                  </p>
+                </div>
+              </button>
+
+              {isActive && (
+                <div className="px-4 pb-4 pl-[4.5rem]">
+                  <Link
+                    href={activityHref}
+                    className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                      isNext
+                        ? 'bg-green-600 text-white hover:bg-green-700'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {isNext ? 'Get started' : 'Review'}
+                    <ArrowRight size={15} />
+                  </Link>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function BadgePreviewHero({
+  course,
+  courseOwnerOrgUuid,
+  nextActivityRoute,
+  learnings,
+  t,
+  comingSoon,
+}: any) {
+  const tags = typeof course.tags === 'string'
+    ? course.tags.split('|').map((tag: string) => tag.trim()).filter(Boolean)
+    : Array.isArray(course.tags)
+      ? course.tags.map((tag: any) => typeof tag === 'string' ? tag : tag.name).filter(Boolean)
+      : []
+
+  return (
+    <section className="mx-auto grid w-full max-w-6xl items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(320px,440px)] lg:gap-14">
+      <div className="order-1">
+        <h1 className="text-4xl font-semibold leading-tight text-gray-950 sm:text-5xl">
+          {course.name}
+        </h1>
+      </div>
+
+      <div className="order-2 row-span-2 w-full lg:col-start-2 lg:row-start-1 lg:row-end-3">
+        <div className="aspect-square w-full overflow-hidden rounded-lg bg-gray-50">
+          {course.thumbnail_image && courseOwnerOrgUuid ? (
+            <img
+              src={getCourseThumbnailMediaDirectory(
+                courseOwnerOrgUuid,
+                course.course_uuid,
+                course.thumbnail_image
+              )}
+              alt={course.name}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-gray-300">
+              <Award size={64} strokeWidth={1.25} />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="order-3 space-y-7 lg:col-start-1 lg:row-start-2">
+        {(course.about || course.description) && (
+          <div>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+              About
+            </h2>
+            <p className="whitespace-pre-line text-base leading-relaxed text-gray-600">
+              {course.about || course.description}
+            </p>
+          </div>
+        )}
+
+        {learnings.length > 0 && learnings[0]?.text !== 'null' && (
+          <div>
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+              {t('courses.what_you_will_learn')}
+            </h2>
+            <div className="space-y-2.5">
+              {learnings.map((learning: any) => {
+                const text = typeof learning === 'string' ? learning : learning.text
+                if (!text) return null
+                return (
+                  <div key={learning.id || text} className="flex items-start gap-3 text-sm font-medium text-gray-700">
+                    <Check className="mt-0.5 shrink-0 text-green-600" size={16} />
+                    <span>{text}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {tags.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {tags.map((tag: string) => (
+              <span key={tag} className="rounded-md bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {comingSoon ? (
+          <span className="inline-flex items-center gap-2 rounded-lg bg-orange-100 px-4 py-2.5 text-sm font-semibold text-orange-700">
+            <Clock size={15} />
+            {t('courses.coming_soon')}
+          </span>
+        ) : nextActivityRoute ? (
+          <Link
+            href={nextActivityRoute}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            <Play size={15} fill="currentColor" />
+            {t('courses.get_started')}
+          </Link>
+        ) : null}
+      </div>
+    </section>
   )
 }
 

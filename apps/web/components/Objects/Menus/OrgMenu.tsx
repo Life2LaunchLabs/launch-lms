@@ -54,7 +54,6 @@ export const OrgMenu = (props: { orgslug: string }) => {
   const org = useOrg() as any
   const pathname = usePathname()
   const { t } = useTranslation()
-  const [, setFocusModeTick] = useState(0)
   const [isDesktopExpanded, setIsDesktopExpanded] = useState(() => {
     if (typeof window === 'undefined') return true
     return window.localStorage.getItem(DESKTOP_NAV_STORAGE_KEY) !== 'true'
@@ -82,36 +81,6 @@ export const OrgMenu = (props: { orgslug: string }) => {
   const isActivityPage = pathname?.includes('/activity/')
   const isCoursePage = /^\/course\/[^/]+$/.test(pathname || '')
   const isPublicCourseExperience = isCoursePage || isActivityPage
-  const isFocusMode =
-    isActivityPage &&
-    typeof window !== 'undefined' &&
-    localStorage.getItem('globalFocusMode') === 'true'
-
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'globalFocusMode' && isActivityPage) {
-        setFocusModeTick((current) => current + 1)
-      }
-    }
-
-    const handleFocusModeChange = (event: Event) => {
-      if (isActivityPage) {
-        const customEvent = event as CustomEvent<{ isFocusMode?: boolean }>
-        if (typeof customEvent.detail?.isFocusMode === 'boolean') {
-          setFocusModeTick((current) => current + 1)
-        }
-      }
-    }
-
-    window.addEventListener('storage', handleStorageChange)
-    window.addEventListener('focusModeChange', handleFocusModeChange)
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange)
-      window.removeEventListener('focusModeChange', handleFocusModeChange)
-    }
-  }, [isActivityPage])
-
   useEffect(() => {
     if (session?.status !== 'authenticated' || !pathname) {
       return
@@ -148,10 +117,6 @@ export const OrgMenu = (props: { orgslug: string }) => {
     })
   }, [markFeatureVisited, onboardingState.visitedFeatures, pathname, session?.status])
 
-  if (isActivityPage && isFocusMode) {
-    return null
-  }
-
   if (session?.status === 'unauthenticated') {
     if (isPublicCourseExperience) {
       return null
@@ -186,8 +151,12 @@ export const OrgMenu = (props: { orgslug: string }) => {
     <>
       <aside
         className={cn(
-          'group/sidebar hidden md:flex md:self-start md:shrink-0 transition-[width] duration-200 ease-out',
-          isDesktopNavExpanded ? 'md:w-[264px]' : 'md:w-20'
+          'group/sidebar hidden overflow-hidden md:flex md:self-start md:shrink-0 transition-[width,opacity,transform] duration-300 ease-out',
+          isActivityPage
+            ? 'pointer-events-none md:w-0 -translate-x-4 opacity-0'
+            : isDesktopNavExpanded
+              ? 'md:w-[264px] translate-x-0 opacity-100'
+              : 'md:w-20 translate-x-0 opacity-100'
         )}
         style={{
           top: topOffset,
@@ -353,7 +322,12 @@ export const OrgMenu = (props: { orgslug: string }) => {
 
       <nav
         aria-label="Mobile navigation"
-        className="fixed inset-x-0 bottom-4 z-[var(--z-nav)] flex justify-center px-4 md:hidden"
+        className={cn(
+          'fixed inset-x-0 bottom-4 z-[var(--z-nav)] flex justify-center px-4 transition-[opacity,transform] duration-300 ease-out md:hidden',
+          isActivityPage
+            ? 'pointer-events-none translate-y-6 opacity-0'
+            : 'translate-y-0 opacity-100'
+        )}
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0px)' }}
       >
         <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-black/5 bg-white/95 p-2 shadow-[0_20px_45px_rgba(15,23,42,0.16)] backdrop-blur-xl">

@@ -136,7 +136,9 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
               <div className="flex flex-col gap-0.5">
                 {trail.runs.map((run: any) => {
                   const courseId = run.course.course_uuid.replace('course_', '')
-                  const isActiveCourse = pathname?.includes(`/course/${courseId}`)
+                  const isActiveCourse =
+                    pathname?.includes(`/badges/${courseId}`) ||
+                    pathname?.includes(`/course/${courseId}/activity/`)
                   const progress = run.course_total_steps > 0
                     ? Math.round((run.steps.length / run.course_total_steps) * 100)
                     : 0
