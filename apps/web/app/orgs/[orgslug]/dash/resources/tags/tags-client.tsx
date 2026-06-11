@@ -146,6 +146,7 @@ export default function ResourcesTagsClient({ orgslug }: { orgslug: string }) {
               <div className="space-y-2">
                 {resourceTags.map((tag) => {
                   const value = drafts[tag.tag_uuid] ?? tag.name
+                  const isManaged = tag.managed === true
                   return (
                     <div
                       key={tag.tag_uuid}
@@ -153,6 +154,7 @@ export default function ResourcesTagsClient({ orgslug }: { orgslug: string }) {
                     >
                       <Input
                         value={value}
+                        disabled={isManaged}
                         onChange={(e) =>
                           setDrafts((current) => ({
                             ...current,
@@ -162,17 +164,22 @@ export default function ResourcesTagsClient({ orgslug }: { orgslug: string }) {
                         className="bg-white sm:flex-1"
                       />
                       <div className="flex items-center gap-2">
+                        {isManaged && (
+                          <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                            Launch Plan
+                          </span>
+                        )}
                         <Button
                           variant="outline"
                           onClick={() => handleSaveTag(tag.tag_uuid)}
-                          disabled={!value.trim() || value.trim() === tag.name || savingTagUuid === tag.tag_uuid}
+                          disabled={isManaged || !value.trim() || value.trim() === tag.name || savingTagUuid === tag.tag_uuid}
                         >
                           {savingTagUuid === tag.tag_uuid ? 'Saving…' : 'Save'}
                         </Button>
                         <button
                           type="button"
                           onClick={() => handleDeleteTag(tag.tag_uuid)}
-                          disabled={deletingTagUuid === tag.tag_uuid}
+                          disabled={isManaged || deletingTagUuid === tag.tag_uuid}
                           className="flex h-9 w-9 items-center justify-center rounded-lg border border-red-200 bg-white text-red-600 transition-colors hover:border-red-300 hover:text-red-700 disabled:opacity-50"
                           aria-label={`Delete ${tag.name}`}
                         >

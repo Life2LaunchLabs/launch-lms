@@ -438,6 +438,8 @@ async def list_channels(request: Request, org_id: int, current_user, db_session:
 
 async def list_tags(request: Request, org_id: int, current_user, db_session: Session) -> list[dict]:
     _get_org_or_404(org_id, db_session)
+    from src.services.launch_plan import ensure_launch_plan_definitions
+    ensure_launch_plan_definitions(org_id, db_session)
     tags = db_session.exec(
         select(ResourceTag).where(ResourceTag.org_id == org_id).order_by(ResourceTag.name.asc())
     ).all()
@@ -479,6 +481,8 @@ async def update_tag(
     if not tag:
         raise HTTPException(status_code=404, detail="Tag not found")
     require_org_role_permission(current_user.id, tag.org_id, db_session, "resources", "action_update")
+    if tag.managed:
+        raise HTTPException(status_code=400, detail="Managed tags are updated from their source")
     updates = tag_data.model_dump(exclude_unset=True)
     if "name" in updates:
         tag_name = _normalize_tag_name(updates["name"] or "")
@@ -506,6 +510,8 @@ async def delete_tag(request: Request, tag_uuid: str, current_user: PublicUser, 
     if not tag:
         raise HTTPException(status_code=404, detail="Tag not found")
     require_org_role_permission(current_user.id, tag.org_id, db_session, "resources", "action_delete")
+    if tag.managed:
+        raise HTTPException(status_code=400, detail="Managed tags cannot be deleted")
     db_session.delete(tag)
     db_session.commit()
     return {"detail": "Tag deleted"}
@@ -558,6 +564,7 @@ async def list_resources(
     resource_type: Optional[str] = None,
     resource_types: Optional[str] = None,
     tags: Optional[str] = None,
+    tag_uuids: Optional[str] = None,
     provider: Optional[str] = None,
     query: Optional[str] = None,
     access: Optional[str] = None,
@@ -587,6 +594,19 @@ async def list_resources(
             ResourceTagLink.resource_id
         ).having(
             func.count(func.distinct(ResourceTag.id)) == len(normalized_requested_tags)
+        )
+        statement = statement.where(Resource.id.in_(matching_resource_ids))
+    requested_tag_uuids = list(dict.fromkeys(item.strip() for item in (tag_uuids or "").split(",") if item.strip()))
+    if requested_tag_uuids:
+        matching_resource_ids = select(ResourceTagLink.resource_id).join(
+            ResourceTag, ResourceTag.id == ResourceTagLink.tag_id
+        ).where(
+            ResourceTag.org_id == org_id,
+            ResourceTag.tag_uuid.in_(requested_tag_uuids),
+        ).group_by(
+            ResourceTagLink.resource_id
+        ).having(
+            func.count(func.distinct(ResourceTag.id)) == len(requested_tag_uuids)
         )
         statement = statement.where(Resource.id.in_(matching_resource_ids))
     if provider:

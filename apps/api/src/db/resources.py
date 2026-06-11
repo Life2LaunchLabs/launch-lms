@@ -51,6 +51,9 @@ class ResourceTag(ResourceTagBase, table=True):
     tag_uuid: str = Field(index=True, unique=True)
     creation_date: str = ""
     update_date: str = ""
+    managed: bool = False
+    managed_source: Optional[str] = None
+    managed_source_uuid: Optional[str] = None
 
 
 class ResourceTagCreate(ResourceTagBase):
@@ -67,6 +70,9 @@ class ResourceTagRead(ResourceTagBase):
     tag_uuid: str
     creation_date: str
     update_date: str
+    managed: bool = False
+    managed_source: Optional[str] = None
+    managed_source_uuid: Optional[str] = None
 
 
 class ResourceTagLink(SQLModel, table=True):

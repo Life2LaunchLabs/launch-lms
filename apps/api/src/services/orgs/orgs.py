@@ -189,6 +189,8 @@ async def create_org(
     db_session.add(org_settings)
     db_session.commit()
     db_session.refresh(org_settings)
+    from src.services.launch_plan import ensure_launch_plan_definitions
+    ensure_launch_plan_definitions(int(org.id or 0), db_session)
 
     # Get org config
     statement = select(OrganizationConfig).where(OrganizationConfig.org_id == org.id)
@@ -275,6 +277,8 @@ async def create_org_with_config(
     db_session.add(org_settings)
     db_session.commit()
     db_session.refresh(org_settings)
+    from src.services.launch_plan import ensure_launch_plan_definitions
+    ensure_launch_plan_definitions(int(org.id or 0), db_session)
 
     # Get org config
     statement = select(OrganizationConfig).where(OrganizationConfig.org_id == org.id)

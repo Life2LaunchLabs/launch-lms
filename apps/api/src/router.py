@@ -23,6 +23,7 @@ from src.routers.boards import boards as boards_router_module
 from src.routers.playgrounds import playgrounds as playgrounds_router_module
 from src.routers.playgrounds import playgrounds_generator as playgrounds_generator_router
 from src.routers import resources as resources_router_module
+from src.routers import launch_plan as launch_plan_router_module
 from src.routers import trending as trending_router_module
 from src.services.dev.dev import isDevModeEnabledOrRaise
 from src.routers.utils import router as utils_router
@@ -146,6 +147,12 @@ v1_router.include_router(
     prefix="/resources",
     tags=["resources"],
     dependencies=[Depends(require_plan_for_resources("full", "Resources"))]
+)
+v1_router.include_router(
+    launch_plan_router_module.router,
+    prefix="/launch-plan",
+    tags=["launch-plan"],
+    dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(
     discussions_router_module.router,

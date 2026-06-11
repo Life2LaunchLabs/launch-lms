@@ -110,6 +110,9 @@ export interface ResourceTag {
   name: string
   creation_date: string
   update_date: string
+  managed: boolean
+  managed_source: string | null
+  managed_source_uuid: string | null
 }
 
 export interface ResourceComment {
