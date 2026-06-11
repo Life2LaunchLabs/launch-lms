@@ -29,6 +29,13 @@ class CourseSEO(BaseModel):
     robots_noindex: bool = False
     robots_nofollow: bool = False
     enable_jsonld: bool = True
+    # Public badge invite landing page copy
+    badge_invite_eyebrow: Optional[str] = None
+    badge_invite_headline: Optional[str] = None
+    badge_invite_subheadline: Optional[str] = None
+    badge_invite_primary_stat: Optional[str] = None
+    badge_invite_secondary_stat: Optional[str] = None
+    badge_invite_testimonial: Optional[str] = None
 
 
 class ThumbnailType(str, Enum):

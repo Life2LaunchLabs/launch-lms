@@ -155,6 +155,25 @@ def test_build_badge_class_payload_contains_open_badges_fields():
     assert payload["extensions:supportUrl"] == "https://example.com/support"
 
 
+def test_build_badge_class_payload_contains_public_invite_extensions():
+    course = _course()
+    course.about = "A practical course about shipping useful work."
+    course.learnings = '[{"id":"1","text":"Plan better projects"}]'
+    course.tags = "planning|productivity"
+    course.seo = {
+        "badge_invite_headline": "Master useful project planning",
+        "badge_invite_primary_stat": "10,000+ learners",
+    }
+
+    payload = build_badge_class_payload(_request(), _org(), course, _certification(), _org_config())
+
+    assert payload["extensions:invite"]["badge_invite_headline"] == "Master useful project planning"
+    assert payload["extensions:invite"]["badge_invite_primary_stat"] == "10,000+ learners"
+    assert payload["extensions:courseAbout"] == "A practical course about shipping useful work."
+    assert payload["extensions:courseLearnings"] == '[{"id":"1","text":"Plan better projects"}]'
+    assert payload["extensions:courseTags"] == "planning|productivity"
+
+
 def test_build_assertion_payload_hashes_email_recipient():
     payload = build_assertion_payload(
         _request(),

@@ -90,6 +90,7 @@ export const routePaths = {
     course: (courseUuid: string) => `/badges/${courseUuid}`,
     badgeStatus: (courseUuid: string) => `/badges/${courseUuid}/badge`,
     badgePath: (courseUuid: string) => `/badges/${courseUuid}/path`,
+    badgeInvite: (courseUuid: string) => `/badges/${courseUuid}/invite`,
     courseActivity: (courseUuid: string, activityId: string) =>
       `/course/${courseUuid}/activity/${activityId}`,
     courseActivityEnd: (courseUuid: string) =>

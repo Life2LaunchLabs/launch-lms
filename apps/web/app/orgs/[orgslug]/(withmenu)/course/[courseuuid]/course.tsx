@@ -415,6 +415,10 @@ function BadgeStatusHero({
     ? Math.round((completedActivities / totalActivities) * 100)
     : 0
   const pathUrl = getUriWithOrg(orgslug, badgePath)
+  const inviteUrl = getUriWithOrg(
+    orgslug,
+    routePaths.org.course(course.course_uuid?.replace('course_', '') || course.course_uuid)
+  )
 
   return (
     <section className="mx-auto grid w-full max-w-6xl items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(320px,440px)] lg:gap-14">
@@ -519,6 +523,12 @@ function BadgeStatusHero({
               <Play size={15} fill="currentColor" />
               {isCompleted ? 'Review' : isInProgress ? 'Continue' : t('courses.get_started')}
             </Link>
+            <CourseShare
+              courseName={course.name}
+              courseUrl={inviteUrl}
+              label="Share invite"
+              shareText={`Claim an invite to earn the ${course.name} badge`}
+            />
             {isCompleted && verificationUrl && (
               <>
                 <Link
