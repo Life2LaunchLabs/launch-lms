@@ -27,9 +27,9 @@ import PaidCourseActivityDisclaimer from '@components/Objects/Courses/CourseActi
 import ActivityShareDropdown from '@components/Pages/Activity/ActivityShareDropdown'
 import ActivityChapterDropdown from '@components/Pages/Activity/ActivityChapterDropdown'
 import CourseEndView from '@components/Pages/Activity/CourseEndView'
-import ActivityHeader from '@components/Pages/Activity/ActivityHeader'
 import { motion, AnimatePresence } from 'motion/react'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
+import ContentPageHeader from '@components/Objects/StyledElements/Headers/ContentPageHeader'
 import { useTranslation } from 'react-i18next'
 import { useAnalytics } from '@/hooks/useAnalytics'
 import { defaultChapterIconName, getChannelIcon } from '@components/Resources/ResourceChannelStyle'
@@ -599,6 +599,14 @@ function ActivityClient(props: ActivityClientProps) {
               </AnimatePresence>
             ) : (
               <GeneralWrapperStyled>
+                <ContentPageHeader
+                  backIcon="x"
+                  backLabel={t('activities.close_activity_viewer', 'Close activity viewer')}
+                  orgslug={orgslug}
+                  progressLabel={`${completedCourseActivities}/${totalCourseActivities}`}
+                  progressValue={progressRatio * 100}
+                />
+
                 {/* Original non-focus mode UI */}
                 {activityid === 'end' ? (
                   <CourseEndView 
@@ -615,11 +623,6 @@ function ActivityClient(props: ActivityClientProps) {
                 ) : (
                   <div className="flex min-h-[calc(100dvh-8rem)] items-center">
                     <div className="mx-auto flex max-h-[1100px] w-full max-w-5xl flex-col justify-center gap-6">
-                      <ActivityHeader
-                        courseuuid={courseuuid}
-                        orgslug={orgslug}
-                      />
-
                       <div className="w-full">
                       <div className="min-w-0 space-y-4">
                         {activity && activity.published == false && (

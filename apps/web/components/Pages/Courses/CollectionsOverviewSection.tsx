@@ -5,7 +5,6 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { Award, Library } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -83,41 +82,12 @@ function BadgeThumbnailCard({
   )
 }
 
-function CollectionProgressGauge({
-  earned,
-  started,
-  total,
-}: {
-  earned: number
-  started: number
-  total: number
-}) {
-  const remaining = Math.max(total - earned - started, 0)
-  const earnedWidth = total > 0 ? (earned / total) * 100 : 0
-  const startedWidth = total > 0 ? (started / total) * 100 : 0
-
-  return (
-    <div className="w-full pt-5">
-      <div className="mb-3 grid grid-cols-3 gap-3 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-        <span>{earned} earned</span>
-        <span>{started} started</span>
-        <span>{remaining} remaining</span>
-      </div>
-      <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-gray-100" aria-label={`${earned} earned and ${started} started out of ${total} badges`}>
-        <div className="h-full bg-green-500" style={{ width: `${earnedWidth}%` }} />
-        <div className="h-full bg-gray-800" style={{ width: `${startedWidth}%` }} />
-      </div>
-    </div>
-  )
-}
-
 function CollectionsOverviewSection({
   collections,
   orgslug,
   trailRunsByCourseUuid,
 }: CollectionsOverviewSectionProps) {
   const { t } = useTranslation()
-  const router = useRouter()
 
   if (collections.length === 0) {
     return (
@@ -136,7 +106,7 @@ function CollectionsOverviewSection({
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-10">
       {collections.map((collection: any) => {
         const courses = collection.courses || []
         const collectionId = removeCollectionPrefix(collection.collection_uuid)
@@ -146,39 +116,27 @@ function CollectionsOverviewSection({
         return (
           <section
             key={collection.collection_uuid}
-            role="button"
-            tabIndex={0}
-            onClick={() => router.push(collectionLink)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault()
-                router.push(collectionLink)
-              }
-            }}
-            className="group grid h-[300px] cursor-pointer grid-cols-1 overflow-hidden rounded-lg border border-black/[0.04] bg-white shadow-[0_6px_22px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_14px_34px_rgba(15,23,42,0.10)] focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 lg:grid-cols-[minmax(360px,0.34fr)_minmax(0,1fr)]"
             aria-label={`View ${collection.name} collection`}
+            className="min-w-0"
           >
-            <div className="flex h-full flex-col items-center justify-center border-b border-gray-100/80 px-8 py-7 text-center lg:border-b-0 lg:border-r lg:border-gray-100 lg:px-10">
-              <Link
-                href={collectionLink}
-                onClick={(event) => event.stopPropagation()}
-                className="text-center text-[30px] font-semibold leading-none text-gray-950 transition-colors hover:text-gray-700 sm:text-[34px]"
-              >
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <h2 className="min-w-0 text-2xl font-bold leading-tight text-gray-950">
                 {collection.name}
-              </Link>
-              {collection.description && (
-                <p className="mt-3 max-w-sm text-center text-[15px] leading-relaxed text-gray-500 line-clamp-2">
-                  {collection.description}
-                </p>
-              )}
-              <CollectionProgressGauge
-                earned={progress.earned}
-                started={progress.started}
-                total={courses.length}
-              />
+              </h2>
+              <div className="shrink-0 text-right">
+                <Link
+                  href={collectionLink}
+                  className="text-sm font-semibold text-gray-400 transition-colors hover:text-gray-700"
+                >
+                  See all
+                </Link>
+                <div className="mt-1 text-xs font-semibold text-gray-300">
+                  {progress.earned} completed
+                </div>
+              </div>
             </div>
 
-            <div className="flex h-full items-center gap-7 overflow-x-auto px-8 pb-5 pt-11 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex gap-7 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {courses.length > 0 ? (
                 courses.map((course: any) => (
                   <BadgeThumbnailCard

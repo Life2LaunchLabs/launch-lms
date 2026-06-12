@@ -2,14 +2,16 @@
 
 import React, { useMemo } from 'react'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
+import ContentPageHeader from '@components/Objects/StyledElements/Headers/ContentPageHeader'
+import ContentHeroSection, { ContentHeroButton } from '@components/Objects/StyledElements/Headers/ContentHeroSection'
 import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/FeatureDisabledView'
 import CollectionsOverviewSection from '@components/Pages/Courses/CollectionsOverviewSection'
 import UserCertificates from '@components/Pages/Trail/UserCertificates'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl, getUriWithOrg } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
+import { getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { swrFetcher } from '@services/utils/ts/requests'
-import { BadgeCheck, Compass } from 'lucide-react'
-import Link from 'next/link'
+import { Award, BadgeCheck } from 'lucide-react'
 import useSWR from 'swr'
 
 interface CourseProps {
@@ -17,6 +19,24 @@ interface CourseProps {
   collections: any
   org_id: string | number
   view?: 'discover' | 'mine'
+}
+
+function isCourseEarned(run: any) {
+  const totalSteps = Number(run?.course_total_steps || 0)
+  const completedSteps = Array.isArray(run?.steps) ? run.steps.length : 0
+  return totalSteps > 0 && completedSteps >= totalSteps
+}
+
+function getRunTimestamp(run: any) {
+  const dateValue =
+    run?.update_date ||
+    run?.updated_at ||
+    run?.modified_at ||
+    run?.creation_date ||
+    run?.created_at
+
+  const timestamp = dateValue ? new Date(dateValue).getTime() : 0
+  return Number.isFinite(timestamp) ? timestamp : 0
 }
 
 function Courses(props: CourseProps) {
@@ -36,40 +56,33 @@ function Courses(props: CourseProps) {
       runs.map((run: any) => [run.course.course_uuid, run] as [string, any])
     )
   }, [trail])
+  const inProgressBadge = useMemo(() => {
+    const courses = (props.collections || []).flatMap((collection: any) =>
+      (collection.courses || []).map((course: any) => ({
+        ...course,
+        owner_org_uuid: course.owner_org_uuid || collection.owner_org_uuid,
+      }))
+    )
 
-  const discoverHref = getUriWithOrg(props.orgslug, '/badges')
-  const myBadgesHref = getUriWithOrg(props.orgslug, '/badges?view=mine')
+    return courses
+      .map((course: any) => ({
+        course,
+        run: trailRunsByCourseUuid.get(course.course_uuid),
+      }))
+      .filter(({ run }: any) => run && !isCourseEarned(run))
+      .sort((a: any, b: any) => getRunTimestamp(b.run) - getRunTimestamp(a.run))[0]
+  }, [props.collections, trailRunsByCourseUuid])
 
   return (
     <div className="w-full">
       <GeneralWrapperStyled>
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h3 className="text-4xl font-semibold tracking-normal text-gray-950">Badges</h3>
-          <div className="inline-flex w-fit rounded-lg border border-gray-200 bg-gray-50 p-1">
-            <Link
-              href={discoverHref}
-              className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
-                activeView === 'discover'
-                  ? 'bg-white text-gray-950 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-900'
-              }`}
-            >
-              <Compass size={15} />
-              Discover
-            </Link>
-            <Link
-              href={myBadgesHref}
-              className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
-                activeView === 'mine'
-                  ? 'bg-white text-gray-950 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-900'
-              }`}
-            >
-              <BadgeCheck size={15} />
-              My Badges
-            </Link>
-          </div>
-        </div>
+        <ContentPageHeader
+          orgslug={props.orgslug}
+          tabs={[
+            { href: '/badges', label: 'Discover', active: activeView === 'discover' },
+            { href: '/badges?view=mine', label: 'My Badges', active: activeView === 'mine' },
+          ]}
+        />
         <FeatureDisabledView
           featureName="collections"
           orgslug={props.orgslug}
@@ -77,12 +90,50 @@ function Courses(props: CourseProps) {
           context="public"
         >
           {activeView === 'discover' ? (
-            <CollectionsOverviewSection
-              collections={props.collections || []}
-              orgslug={props.orgslug}
-              org_id={props.org_id}
-              trailRunsByCourseUuid={trailRunsByCourseUuid}
-            />
+            <>
+              <ContentHeroSection
+                eyebrow={inProgressBadge ? 'In progress' : 'Start here'}
+                title={inProgressBadge ? inProgressBadge.course.name : 'Find a badge to get started'}
+                body={
+                  inProgressBadge
+                    ? (inProgressBadge.course.description || inProgressBadge.course.about)
+                    : 'Choose a badge path and complete the activities to earn your first badge.'
+                }
+                image={
+                  inProgressBadge?.course.thumbnail_image ? (
+                    <img
+                      src={getCourseThumbnailMediaDirectory(
+                        inProgressBadge.course.owner_org_uuid || '',
+                        inProgressBadge.course.course_uuid,
+                        inProgressBadge.course.thumbnail_image
+                      )}
+                      alt={inProgressBadge.course.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-white/65">
+                      <Award size={42} strokeWidth={1.4} />
+                    </div>
+                  )
+                }
+              >
+                {inProgressBadge && (
+                  <ContentHeroButton
+                    href={getUriWithOrg(
+                      props.orgslug,
+                      routePaths.org.badgePath(inProgressBadge.course.course_uuid.replace('course_', ''))
+                    )}
+                    label="Continue"
+                  />
+                )}
+              </ContentHeroSection>
+              <CollectionsOverviewSection
+                collections={props.collections || []}
+                orgslug={props.orgslug}
+                org_id={props.org_id}
+                trailRunsByCourseUuid={trailRunsByCourseUuid}
+              />
+            </>
           ) : (
             <UserCertificates orgslug={props.orgslug} showHeader={false} />
           )}

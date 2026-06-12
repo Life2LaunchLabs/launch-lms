@@ -6,11 +6,12 @@ import PageLoading from '@components/Objects/Loaders/PageLoading'
 import { swrFetcher } from '@services/utils/ts/requests'
 import ActivityIndicators from '@components/Pages/Courses/ActivityIndicators'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
+import ContentPageHeader from '@components/Objects/StyledElements/Headers/ContentPageHeader'
 import {
   getCourseThumbnailMediaDirectory,
 } from '@services/media/media'
 import { CourseThumbnailImage } from '@components/Objects/Thumbnails/CourseThumbnailImage'
-import { ArrowLeft, ArrowRight, Award, BookOpenCheck, Check, CircleHelp, Clock, ExternalLink, FileText, Layers, Play, Video, Image as ImageIcon } from 'lucide-react'
+import { ArrowRight, Award, BookOpenCheck, Check, CircleHelp, Clock, FileText, Layers, Play, Video, Image as ImageIcon } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import useSWR from 'swr'
@@ -70,25 +71,6 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
   );
 
   const activeError = serverError || courseError
-
-  const learnings = useMemo(() => {
-    if (!course?.learnings) return []
-
-    try {
-      const parsedLearnings = JSON.parse(course.learnings)
-      if (Array.isArray(parsedLearnings)) {
-        return parsedLearnings
-      }
-    } catch {
-      // Not valid JSON, continue to legacy format handling
-    }
-
-    return course.learnings.split(',').map((text: string, idx: number) => ({
-      id: `learning-${idx}-${text.trim().toLowerCase().replace(/\s+/g, '-')}`,
-      text: text.trim(),
-      emoji: '📝',
-    }))
-  }, [course])
 
   const run = useMemo(() => {
     const cleanCourseUuid = course?.course_uuid?.replace('course_', '')
@@ -150,7 +132,6 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
   }
 
   const jsonLd = generateJsonLd()
-
   if (!initialCourse && !serverError && courseLoading) {
     return <PageLoading />
   }
@@ -192,16 +173,9 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
       ) : (
         <>
           <GeneralWrapperStyled>
-            <div className="mb-10">
-              <button
-                type="button"
-                onClick={() => router.back()}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 transition-colors hover:text-gray-950"
-              >
-                <ArrowLeft size={16} />
-                Back
-              </button>
-            </div>
+            <ContentPageHeader
+              orgslug={orgslug}
+            />
 
             {showPath ? (
               <BadgePathView
@@ -217,7 +191,6 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
                 courseOwnerOrgUuid={courseOwnerOrgUuid}
                 orgslug={orgslug}
                 badgePath={badgePath}
-                learnings={learnings}
                 t={t}
                 comingSoon={!!course.coming_soon}
                 completedActivities={completedActivities}
@@ -225,6 +198,7 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
                 isInProgress={isInProgress}
                 isCompleted={isCompleted}
                 verificationUrl={verificationUrl}
+                awardedDate={userCertificate?.certificate_user?.created_at}
               />
             )}
           </GeneralWrapperStyled>
@@ -397,7 +371,6 @@ function BadgeStatusHero({
   courseOwnerOrgUuid,
   orgslug,
   badgePath,
-  learnings,
   t,
   comingSoon,
   completedActivities,
@@ -405,12 +378,8 @@ function BadgeStatusHero({
   isInProgress,
   isCompleted,
   verificationUrl,
+  awardedDate,
 }: any) {
-  const tags = typeof course.tags === 'string'
-    ? course.tags.split('|').map((tag: string) => tag.trim()).filter(Boolean)
-    : Array.isArray(course.tags)
-      ? course.tags.map((tag: any) => typeof tag === 'string' ? tag : tag.name).filter(Boolean)
-      : []
   const progressPercent = totalActivities > 0
     ? Math.round((completedActivities / totalActivities) * 100)
     : 0
@@ -419,139 +388,132 @@ function BadgeStatusHero({
     orgslug,
     routePaths.org.course(course.course_uuid?.replace('course_', '') || course.course_uuid)
   )
+  const earnedDateLabel = awardedDate
+    ? new Date(awardedDate).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : null
+  const chapters = Array.isArray(course.chapters) ? course.chapters : []
 
   return (
-    <section className="mx-auto grid w-full max-w-6xl items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(320px,440px)] lg:gap-14">
-      <div className="order-1">
-        <h1 className="text-4xl font-semibold leading-tight text-gray-950 sm:text-5xl">
-          {course.name}
-        </h1>
-      </div>
+    <div className="mx-auto w-full max-w-3xl">
+      <section className="text-center">
+        <div className="flex justify-center px-8 pt-5 sm:pt-6">
+          <div className="h-36 w-36 overflow-hidden rounded-lg sm:h-40 sm:w-40">
+            {course.thumbnail_image && courseOwnerOrgUuid ? (
+              <img
+                src={getCourseThumbnailMediaDirectory(
+                  courseOwnerOrgUuid,
+                  course.course_uuid,
+                  course.thumbnail_image
+                )}
+                alt={course.name}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-gray-300">
+                <Award size={64} strokeWidth={1.25} />
+              </div>
+            )}
+          </div>
+        </div>
 
-      <div className="order-2 row-span-2 w-full lg:col-start-2 lg:row-start-1 lg:row-end-3">
-        <div className="aspect-square w-full overflow-hidden rounded-lg bg-gray-50">
-          {course.thumbnail_image && courseOwnerOrgUuid ? (
-            <img
-              src={getCourseThumbnailMediaDirectory(
-                courseOwnerOrgUuid,
-                course.course_uuid,
-                course.thumbnail_image
-              )}
-              alt={course.name}
-              className={`h-full w-full object-cover ${
-                isCompleted ? '' : 'opacity-55 grayscale brightness-110'
-              }`}
-            />
+        <div className="mx-auto mt-4 max-w-2xl">
+          <h1 className="text-2xl font-semibold leading-tight text-gray-950 sm:text-3xl">
+            {course.name}
+          </h1>
+
+          {isCompleted ? (
+            earnedDateLabel && (
+              <div className="mt-4 inline-flex items-center rounded-full bg-green-50 px-3 py-1.5 text-sm font-semibold text-green-700 ring-1 ring-green-100">
+                Earned {earnedDateLabel}
+              </div>
+            )
           ) : (
-            <div className={`flex h-full w-full items-center justify-center text-gray-300 ${
-              isCompleted ? '' : 'opacity-60 grayscale'
-            }`}>
-              <Award size={64} strokeWidth={1.25} />
-            </div>
+            (course.about || course.description) && (
+              <p className="mx-auto mt-2 line-clamp-2 max-w-xl whitespace-pre-line text-sm leading-relaxed text-gray-500 sm:text-base">
+                {course.about || course.description}
+              </p>
+            )
           )}
         </div>
-      </div>
 
-      <div className="order-3 space-y-7 lg:col-start-1 lg:row-start-2">
-        {(course.about || course.description) && (
-          <div>
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-              About
-            </h2>
-            <p className="whitespace-pre-line text-base leading-relaxed text-gray-600">
-              {course.about || course.description}
-            </p>
-          </div>
-        )}
-
-        {learnings.length > 0 && learnings[0]?.text !== 'null' && (
-          <div>
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
-              {t('courses.what_you_will_learn')}
-            </h2>
-            <div className="space-y-2.5">
-              {learnings.map((learning: any) => {
-                const text = typeof learning === 'string' ? learning : learning.text
-                if (!text) return null
-                return (
-                  <div key={learning.id || text} className="flex items-start gap-3 text-sm font-medium text-gray-700">
-                    <Check className="mt-0.5 shrink-0 text-green-600" size={16} />
-                    <span>{text}</span>
-                  </div>
-                )
-              })}
+        <div className="mt-4 flex justify-center">
+          {comingSoon ? (
+            <span className="inline-flex items-center gap-2 rounded-lg bg-orange-100 px-4 py-2.5 text-sm font-semibold text-orange-700">
+              <Clock size={15} />
+              {t('courses.coming_soon')}
+            </span>
+          ) : isCompleted ? (
+            <CourseShare
+              courseName={course.name}
+              courseUrl={verificationUrl || inviteUrl}
+              label="Share"
+              shareText={`I earned the ${course.name} badge`}
+            />
+          ) : isInProgress ? (
+            <div className="w-full max-w-md">
+              <div className="mb-2 flex items-center justify-between text-xs font-semibold text-gray-500">
+                <span>Progress</span>
+                <span className="tabular-nums">{completedActivities}/{totalActivities}</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                <div
+                  className="h-full rounded-full bg-gray-800 transition-all"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <Link
+                href={pathUrl}
+                className="mx-auto mt-3 inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                <Play size={15} fill="currentColor" />
+                Continue
+              </Link>
             </div>
-          </div>
-        )}
-
-        {tags.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {tags.map((tag: string) => (
-              <span key={tag} className="rounded-md bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {isInProgress && (
-          <div className="max-w-md">
-            <div className="mb-2 flex items-center justify-between text-xs font-semibold text-gray-500">
-              <span>Progress</span>
-              <span className="tabular-nums">{completedActivities}/{totalActivities}</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-              <div
-                className="h-full rounded-full bg-gray-800 transition-all"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        {comingSoon ? (
-          <span className="inline-flex items-center gap-2 rounded-lg bg-orange-100 px-4 py-2.5 text-sm font-semibold text-orange-700">
-            <Clock size={15} />
-            {t('courses.coming_soon')}
-          </span>
-        ) : (
-          <div className="flex flex-wrap items-center gap-3">
+          ) : (
             <Link
               href={pathUrl}
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
             >
               <Play size={15} fill="currentColor" />
-              {isCompleted ? 'Review' : isInProgress ? 'Continue' : t('courses.get_started')}
+              {t('courses.get_started')}
             </Link>
-            <CourseShare
-              courseName={course.name}
-              courseUrl={inviteUrl}
-              label="Share invite"
-              shareText={`Claim an invite to earn the ${course.name} badge`}
-            />
-            {isCompleted && verificationUrl && (
-              <>
-                <Link
-                  href={verificationUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
-                >
-                  <ExternalLink size={15} />
-                  View certificate
-                </Link>
-                <CourseShare
-                  courseName={course.name}
-                  courseUrl={verificationUrl}
-                  label="Share certificate"
-                  shareText={`I earned the ${course.name} badge`}
-                />
-              </>
-            )}
-          </div>
-        )}
-      </div>
-    </section>
+          )}
+        </div>
+      </section>
+
+      {chapters.length > 0 && (
+        <section className="mt-5 space-y-3" aria-label="Badge content">
+          {chapters.map((chapter: any, index: number) => {
+            const firstActivity = chapter.activities?.[0]
+            const ChapterIcon = getPathActivityIcon(firstActivity?.activity_type)
+
+            return (
+              <Link
+                key={chapter.chapter_uuid || chapter.id || chapter.name || index}
+                href={pathUrl}
+                className="flex min-h-[112px] w-full items-center gap-4 rounded-lg bg-white p-3 text-left shadow-sm ring-1 ring-gray-200 transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900"
+              >
+                <div className="flex h-[88px] w-[88px] shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500 sm:h-24 sm:w-24">
+                  <ChapterIcon size={30} strokeWidth={1.8} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold uppercase text-gray-400">
+                    Chapter {index + 1}
+                  </p>
+                  <h2 className="mt-1 break-words text-xl font-semibold leading-snug text-gray-950">
+                    {chapter.name}
+                  </h2>
+                </div>
+              </Link>
+            )
+          })}
+        </section>
+      )}
+    </div>
   )
 }
 
