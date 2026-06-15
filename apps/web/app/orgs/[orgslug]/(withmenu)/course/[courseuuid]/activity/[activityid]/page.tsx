@@ -133,10 +133,6 @@ const ActivityPage = async (params: any) => {
   const guestCompletedHint = searchParams?.guest_completed === '1'
   const isCourseEnd = activityid === 'end'
 
-  if (isCourseEnd) {
-    redirect(getUriWithOrg(orgslug, routePaths.org.course(courseuuid)))
-  }
-
   let course_meta
   let activity = null
 

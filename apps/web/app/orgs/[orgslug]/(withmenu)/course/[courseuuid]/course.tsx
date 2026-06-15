@@ -13,6 +13,7 @@ import {
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { CourseThumbnailImage } from '@components/Objects/Thumbnails/CourseThumbnailImage'
 import { ArrowRight, Award, BookOpenCheck, Check, CircleHelp, Clock, FileText, Layers, Play, Video, Image as ImageIcon } from 'lucide-react'
+import { FeaturedBadgeButton } from '@components/Objects/Profile/ProfileAchievements'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import useSWR from 'swr'
@@ -27,6 +28,8 @@ import { getChapterCompletionSummary, getCourseChapterCompletionSummary } from '
 import { useRouter } from 'next/navigation'
 import { getMyQuizResult } from '@services/quiz/quiz'
 import QuizResultsModal from '@components/Objects/Activities/Quiz/Player/QuizResultsModal'
+import toast from 'react-hot-toast'
+import { devCompleteCourse } from '@services/courses/activity'
 
 const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => {
   const { t } = useTranslation()
@@ -68,7 +71,7 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
   }, [courseId, courseUuidForTracking, track])
 
   // Add SWR for trail data
-  const { data: trailData } = useSWR(
+  const { data: trailData, mutate: mutateTrailData } = useSWR(
     courseOwnerOrgId ? `${getAPIUrl()}trail/org/${courseOwnerOrgId}/trail` : null,
     (url) => swrFetcher(url, access_token)
   );
@@ -87,7 +90,7 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
   const badgeStatusPath = routePaths.org.badgeStatus(courseuuid)
   const badgePath = routePaths.org.badgePath(courseuuid)
 
-  const { data: userCertificates } = useSWR(
+  const { data: userCertificates, mutate: mutateUserCertificates } = useSWR(
     isCompleted && access_token && org?.id && course?.course_uuid
       ? `${getAPIUrl()}certifications/user/course/${course.course_uuid}?org_id=${org.id}`
       : null,
@@ -202,6 +205,13 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
                 isCompleted={isCompleted}
                 verificationUrl={verificationUrl}
                 awardedDate={userCertificate?.certificate_user?.created_at}
+                accessToken={access_token}
+                showDevComplete={process.env.NEXT_PUBLIC_LAUNCHLMS_DEVELOPMENT_MODE === 'true'}
+                onDevComplete={async () => {
+                  await mutateTrailData()
+                  await mutateUserCertificates()
+                }}
+                badgeId={userCertificate?.certificate_user?.user_certification_uuid}
               />
             )}
           </GeneralWrapperStyled>
@@ -457,15 +467,20 @@ function BadgeStatusHero({
   isCompleted,
   verificationUrl,
   awardedDate,
+  accessToken,
+  showDevComplete,
+  onDevComplete,
+  badgeId,
 }: any) {
+  const router = useRouter()
+  const [isDevCompleting, setIsDevCompleting] = useState(false)
   const progressPercent = totalChapters > 0
     ? Math.round((completedChapters / totalChapters) * 100)
     : 0
+  const badgeUuid = course.course_uuid?.replace('course_', '') || course.course_uuid
   const pathUrl = getUriWithOrg(orgslug, badgePath)
-  const inviteUrl = getUriWithOrg(
-    orgslug,
-    routePaths.org.course(course.course_uuid?.replace('course_', '') || course.course_uuid)
-  )
+  const badgeUrl = getUriWithOrg(orgslug, routePaths.org.badgeStatus(badgeUuid))
+  const inviteUrl = getUriWithOrg(orgslug, routePaths.org.badgeInvite(badgeUuid))
   const earnedDateLabel = awardedDate
     ? new Date(awardedDate).toLocaleDateString('en-US', {
         month: 'short',
@@ -474,6 +489,23 @@ function BadgeStatusHero({
       })
     : null
   const chapters = Array.isArray(course.chapters) ? course.chapters : []
+  const canDevComplete = showDevComplete && accessToken && !comingSoon && (!isCompleted || !verificationUrl)
+
+  const handleDevComplete = async () => {
+    if (!canDevComplete || isDevCompleting) return
+
+    setIsDevCompleting(true)
+    try {
+      await devCompleteCourse(badgeUuid, accessToken)
+      toast.success('Course completed')
+      await onDevComplete?.()
+      router.push(getUriWithOrg(orgslug, routePaths.org.courseActivityEnd(badgeUuid)))
+    } catch (error: any) {
+      toast.error(error?.message || 'Could not complete course')
+    } finally {
+      setIsDevCompleting(false)
+    }
+  }
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -524,12 +556,32 @@ function BadgeStatusHero({
               {t('courses.coming_soon')}
             </span>
           ) : isCompleted ? (
-            <CourseShare
-              courseName={course.name}
-              courseUrl={verificationUrl || inviteUrl}
-              label="Share"
-              shareText={`I earned the ${course.name} badge`}
-            />
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <CourseShare
+                courseName={course.name}
+                courseUrl={inviteUrl}
+                label="Share invite"
+                shareText={`Claim an invite to earn the ${course.name} badge`}
+              />
+              <CourseShare
+                courseName={course.name}
+                courseUrl={verificationUrl || badgeUrl}
+                label="Share badge"
+                shareText={`I earned the ${course.name} badge`}
+              />
+              <FeaturedBadgeButton badgeId={badgeId} />
+              {canDevComplete && (
+                <button
+                  type="button"
+                  onClick={handleDevComplete}
+                  disabled={isDevCompleting}
+                  className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Check size={15} />
+                  {isDevCompleting ? 'Issuing...' : 'Dev issue badge'}
+                </button>
+              )}
+            </div>
           ) : isInProgress ? (
             <div className="w-full max-w-md">
               <div className="mb-2 flex items-center justify-between text-xs font-semibold text-gray-500">
@@ -542,22 +594,60 @@ function BadgeStatusHero({
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
-              <Link
-                href={pathUrl}
-                className="mx-auto mt-3 inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                <Play size={15} fill="currentColor" />
-                Continue
-              </Link>
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                <Link
+                  href={pathUrl}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  <Play size={15} fill="currentColor" />
+                  Continue
+                </Link>
+                <CourseShare
+                  courseName={course.name}
+                  courseUrl={inviteUrl}
+                  label="Share invite"
+                  shareText={`Claim an invite to earn the ${course.name} badge`}
+                />
+                {canDevComplete && (
+                  <button
+                    type="button"
+                    onClick={handleDevComplete}
+                    disabled={isDevCompleting}
+                    className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Check size={15} />
+                    {isDevCompleting ? 'Completing...' : 'Dev complete'}
+                  </button>
+                )}
+              </div>
             </div>
           ) : (
-            <Link
-              href={pathUrl}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              <Play size={15} fill="currentColor" />
-              {t('courses.get_started')}
-            </Link>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Link
+                href={pathUrl}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                <Play size={15} fill="currentColor" />
+                {t('courses.get_started')}
+              </Link>
+              <CourseShare
+                courseName={course.name}
+                courseUrl={inviteUrl}
+                label="Share invite"
+                shareText={`Claim an invite to earn the ${course.name} badge`}
+              />
+              {canDevComplete && (
+                <button
+                  type="button"
+                  onClick={handleDevComplete}
+                  disabled={isDevCompleting}
+                  className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Check size={15} />
+                  {isDevCompleting ? 'Completing...' : 'Dev complete'}
+                </button>
+              )}
+            </div>
           )}
         </div>
       </section>

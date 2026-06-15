@@ -5,9 +5,10 @@ import { notFound, redirect } from 'next/navigation'
 import { Award, Check, Clock, Sparkles, Target, Trophy } from 'lucide-react'
 import { getServerSession } from '@/lib/auth/server'
 import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getCourseMetadata } from '@services/courses/courses'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getPublicCourseBadgeClass } from '@services/courses/certifications'
-import { normalizeMediaUrl } from '@services/media/media'
+import { getCourseThumbnailMediaDirectory, normalizeMediaUrl } from '@services/media/media'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 
 type BadgeInvitePageProps = {
@@ -33,9 +34,59 @@ type BadgeClass = {
 const normalizeCourseUuid = (uuid: string) =>
   uuid.startsWith('course_') ? uuid : `course_${uuid}`
 
+function getInviteFieldsFromCourseSeo(seo: any) {
+  if (!seo || typeof seo !== 'object') return {}
+
+  return [
+    'badge_invite_eyebrow',
+    'badge_invite_headline',
+    'badge_invite_subheadline',
+    'badge_invite_primary_stat',
+    'badge_invite_secondary_stat',
+    'badge_invite_testimonial',
+  ].reduce<Record<string, string>>((fields, key) => {
+    if (seo[key]) fields[key] = seo[key]
+    return fields
+  }, {})
+}
+
+async function getCourseInviteBadgeClass(uuid: string): Promise<BadgeClass | null> {
+  try {
+    const course = await getCourseMetadata(
+      uuid,
+      { revalidate: 0, tags: ['courses'] },
+      undefined
+    )
+    const courseUuid = course.course_uuid || normalizeCourseUuid(uuid)
+    const orgUuid = course.owner_org_uuid || course.org_uuid
+    const inviteFields = getInviteFieldsFromCourseSeo(course.seo)
+    const image = course.thumbnail_image && orgUuid
+      ? getCourseThumbnailMediaDirectory(orgUuid, courseUuid, course.thumbnail_image)
+      : undefined
+
+    return {
+      name: course.name,
+      description: course.description,
+      image,
+      criteria: {
+        narrative: 'Complete the required badge activities.',
+      },
+      issuer: {
+        name: course.owner_org_name,
+      },
+      ...(Object.keys(inviteFields).length > 0 && { 'extensions:invite': inviteFields }),
+      ...(course.about && { 'extensions:courseAbout': course.about }),
+      ...(course.learnings && { 'extensions:courseLearnings': course.learnings }),
+      ...(course.tags && { 'extensions:courseTags': course.tags }),
+    }
+  } catch {
+    return null
+  }
+}
+
 async function getBadgeClass(uuid: string): Promise<BadgeClass | null> {
   const response = await getPublicCourseBadgeClass(normalizeCourseUuid(uuid))
-  if (!response.success) return null
+  if (!response.success) return getCourseInviteBadgeClass(uuid)
   return response.data as BadgeClass
 }
 

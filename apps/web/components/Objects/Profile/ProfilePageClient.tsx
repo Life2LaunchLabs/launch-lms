@@ -32,6 +32,7 @@ import {
   Quote,
   RemoveFormatting,
   Share2,
+  Sparkles,
   Text,
   Trash2,
   Upload,
@@ -63,7 +64,7 @@ import ProfileTimeline, { normalizeTimeline, type TimelineEntry } from '@compone
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { getUserAvatarMediaDirectory, getUserProfileFeaturedMediaDirectory } from '@services/media/media'
-import { updateProfile } from '@services/settings/profile'
+import { devSeedProfile, updateProfile } from '@services/settings/profile'
 import { updateUserAvatar, uploadUserProfileFeaturedImage } from '@services/users/users'
 import CoreCoursesProgressSection from '@components/CoreCourses/CoreCoursesProgressSection'
 import { swrFetcher } from '@services/utils/ts/requests'
@@ -216,7 +217,7 @@ const PROFILE_WIDGET_CONFIG: Record<ProfileWidgetType, {
 }> = {
   timeline: { label: 'Timeline', icon: ChevronRight, unique: true },
   portfolio: { label: 'Portfolio', icon: FileText, unique: true },
-  achievements: { label: 'Achievements', icon: Award, unique: true },
+  achievements: { label: 'Badges', icon: Award, unique: true },
   coreCourse: { label: 'CORE Course', icon: BookOpen, unique: false },
   coreQuiz: { label: 'Quiz Result', icon: BookOpen, unique: false },
   instagramPreview: { label: 'Instagram', icon: Instagram, unique: true },
@@ -2702,6 +2703,7 @@ function ProfilePageClient({
   const isOwnerMode = mode === 'owner'
   const isPublicMode = mode === 'public'
   const canManageProfile = isOwnerMode
+  const canSeedDevProfile = canManageProfile && process.env.NODE_ENV === 'development'
   const effectiveEditMode = false
   const profile = normalizeProfile(user.profile)
   const headerProfile = canManageProfile ? draft.profile : profile
@@ -2891,6 +2893,33 @@ function ProfilePageClient({
       toast.success('Profile link copied')
     } catch {
       toast.error('Could not copy profile link')
+    }
+  }
+
+  const seedDevProfile = async () => {
+    if (!accessToken) return
+
+    setIsSaving(true)
+    const loadingToast = toast.loading('Populating profile')
+    try {
+      const res = await devSeedProfile(accessToken)
+      if (!res.success) throw new Error(res.HTTPmessage)
+      const seededUser = res.data?.user || res.data
+      setUser(seededUser)
+      setDraft((current) => ({
+        ...current,
+        first_name: seededUser.first_name || '',
+        last_name: seededUser.last_name || '',
+        username: seededUser.username || current.username,
+        bio: seededUser.bio || '',
+        profile: normalizeProfile(seededUser.profile),
+      }))
+      await session?.update?.(true)
+      toast.success('Profile populated', { id: loadingToast })
+    } catch {
+      toast.error('Could not populate profile', { id: loadingToast })
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -3613,6 +3642,12 @@ function ProfilePageClient({
               {(canManageProfile || isPublicMode) ? (
                 <div className="border-t border-gray-200 pt-3 sm:ml-auto sm:w-3/4">
                   <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    {canSeedDevProfile ? (
+                      <Button type="button" variant="outline" onClick={seedDevProfile} disabled={isSaving}>
+                        {isSaving ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Sparkles size={16} className="mr-2" />}
+                        Cheat Profile
+                      </Button>
+                    ) : null}
                     {canManageProfile ? (
                       <Button asChild variant="outline">
                         <Link href={resumeHref}>

@@ -772,6 +772,8 @@ export async function devCommand(opts: { ee?: boolean }) {
     NEXT_PUBLIC_LAUNCHLMS_DOMAIN: `${devPublicHost}:${DEV_WEB_PORT}`,
     NEXT_PUBLIC_LAUNCHLMS_TOP_DOMAIN: devPublicHost,
     NEXT_PUBLIC_LAUNCHLMS_HTTPS: hasCerts ? 'true' : 'false',
+    NEXT_PUBLIC_LAUNCHLMS_DEVELOPMENT_MODE: 'true',
+    LAUNCHLMS_DEVELOPMENT_MODE: 'true',
     NEXT_PUBLIC_COLLAB_URL: publicCollabUrl,
     LAUNCHLMS_DEV_PUBLIC_HOST: devPublicHost,
     LAUNCHLMS_INTERNAL_BACKEND_URL: internalApiBaseUrl,
@@ -813,7 +815,7 @@ export async function devCommand(opts: { ee?: boolean }) {
   }
 
   const startWeb = () => {
-    const args = ['dev']
+    const args = ['dev', '--webpack']
     if (hasCerts) args.push('--experimental-https', '--experimental-https-cert', certFile, '--experimental-https-key', keyFile)
     return spawnService('next', args, path.join(root, 'apps', 'web'), 'web', pc.cyan)
   }

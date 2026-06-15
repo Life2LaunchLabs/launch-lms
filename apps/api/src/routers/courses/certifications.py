@@ -7,7 +7,7 @@ from src.db.courses.certifications import (
     CertificationRead,
     CertificationUpdate,
 )
-from src.db.users import PublicUser
+from src.db.users import AnonymousUser, PublicUser
 from src.security.auth import get_current_user
 from src.services.courses.certifications import (
     create_certification,
@@ -121,7 +121,7 @@ async def api_get_user_certificates_for_course(
 async def api_get_certificate_by_user_certification_uuid(
     request: Request,
     user_certification_uuid: str,
-    current_user: PublicUser = Depends(get_current_user),
+    current_user: PublicUser | AnonymousUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ) -> dict:
     """
