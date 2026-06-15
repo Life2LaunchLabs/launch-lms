@@ -40,12 +40,14 @@ interface TutorCourseImportProps {
   orgId: number
   orgslug: string
   closeModal: () => void
+  collectionUuid?: string
 }
 
 function TutorCourseImport({
   orgId,
   orgslug,
   closeModal,
+  collectionUuid,
 }: TutorCourseImportProps) {
   const session = useLHSession() as any
   const access_token = session?.data?.tokens?.access_token
@@ -148,6 +150,7 @@ function TutorCourseImport({
           name_prefix: namePrefix || null,
           set_private: setPrivate,
           set_unpublished: setUnpublished,
+          collection_uuid: collectionUuid,
         },
         access_token
       )

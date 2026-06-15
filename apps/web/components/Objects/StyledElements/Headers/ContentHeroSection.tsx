@@ -10,6 +10,7 @@ function ContentHeroSection({
   image,
   children,
   backgroundClassName = '',
+  imageFrameClassName = 'overflow-hidden rounded-lg bg-white/15 ring-1 ring-white/20',
 }: {
   eyebrow?: React.ReactNode
   title: React.ReactNode
@@ -17,6 +18,7 @@ function ContentHeroSection({
   image?: React.ReactNode
   children?: React.ReactNode
   backgroundClassName?: string
+  imageFrameClassName?: string
 }) {
   return (
     <section
@@ -43,7 +45,7 @@ function ContentHeroSection({
           )}
         </div>
         {image && (
-          <div className="hidden aspect-square w-28 shrink-0 overflow-hidden rounded-lg bg-white/15 ring-1 ring-white/20 sm:block">
+          <div className={`hidden aspect-square w-28 shrink-0 sm:block ${imageFrameClassName}`}>
             {image}
           </div>
         )}

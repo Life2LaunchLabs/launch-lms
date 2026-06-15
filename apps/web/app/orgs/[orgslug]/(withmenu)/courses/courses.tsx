@@ -6,6 +6,7 @@ import ContentPageHeader from '@components/Objects/StyledElements/Headers/Conten
 import ContentHeroSection, { ContentHeroButton } from '@components/Objects/StyledElements/Headers/ContentHeroSection'
 import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/FeatureDisabledView'
 import CollectionsOverviewSection from '@components/Pages/Courses/CollectionsOverviewSection'
+import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import UserCertificates from '@components/Pages/Trail/UserCertificates'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
@@ -101,14 +102,13 @@ function Courses(props: CourseProps) {
                 }
                 image={
                   inProgressBadge?.course.thumbnail_image ? (
-                    <img
+                    <BadgeThumbnailImage
                       src={getCourseThumbnailMediaDirectory(
                         inProgressBadge.course.owner_org_uuid || '',
                         inProgressBadge.course.course_uuid,
                         inProgressBadge.course.thumbnail_image
                       )}
                       alt={inProgressBadge.course.name}
-                      className="h-full w-full object-cover"
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-white/65">
@@ -116,6 +116,7 @@ function Courses(props: CourseProps) {
                     </div>
                   )
                 }
+                imageFrameClassName="overflow-visible bg-transparent"
               >
                 {inProgressBadge && (
                   <ContentHeroButton

@@ -8,6 +8,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getPublicCourseBadgeClass } from '@services/courses/certifications'
 import { normalizeMediaUrl } from '@services/media/media'
+import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 
 type BadgeInvitePageProps = {
   params: Promise<{ orgslug: string; uuid: string }>
@@ -167,12 +168,11 @@ export default async function BadgeInvitePage({ params }: BadgeInvitePageProps) 
           </div>
 
           <div className="relative mx-auto w-full max-w-[520px]">
-            <div className="aspect-square w-full overflow-hidden rounded-sm bg-white shadow-[0_24px_80px_rgba(24,57,35,0.14)] ring-1 ring-black/5">
+            <div className="aspect-square w-full overflow-visible rounded-sm bg-white">
               {badgeImageUrl ? (
-                <img
+                <BadgeThumbnailImage
                   src={badgeImageUrl}
                   alt={badgeName}
-                  className="h-full w-full object-cover"
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center bg-white text-[#42c900]">

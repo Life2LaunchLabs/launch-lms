@@ -10,6 +10,7 @@ import useSWR from 'swr'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { getAPIUrl } from '@services/config/config'
 import { getCourseThumbnailMediaDirectory, normalizeMediaUrl } from '@services/media/media'
+import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 
 interface UserCertificatesProps {
   orgslug: string
@@ -137,11 +138,11 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug, showHeader
               href={badgeLink}
               className="group block focus:outline-none"
             >
-              <div className="aspect-square w-full overflow-hidden rounded-lg bg-transparent">
-                <img
+              <div className="aspect-square w-full overflow-visible rounded-lg bg-transparent">
+                <BadgeThumbnailImage
                   src={badgeImageUrl}
                   alt={certificate.badge_class?.name || certificate.certification.config.badge_name || certificate.course.name}
-                  className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+                  hoverScale
                   onError={(event) => {
                     event.currentTarget.src = '/empty_thumbnail.png'
                   }}

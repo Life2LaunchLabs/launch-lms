@@ -1,6 +1,7 @@
 'use client'
 
 import ContentPlaceHolderIfUserIsNotAdmin from '@components/Objects/ContentPlaceHolder'
+import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { Award, Library } from 'lucide-react'
@@ -62,12 +63,12 @@ function BadgeThumbnailCard({
       onClick={(event) => event.stopPropagation()}
       className="group/badge block w-[168px] shrink-0 focus:outline-none"
     >
-      <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100 shadow-sm ring-1 ring-black/5 transition-all duration-300 group-hover/badge:-translate-y-0.5 group-hover/badge:shadow-md group-focus-visible/badge:ring-2 group-focus-visible/badge:ring-gray-900">
+      <div className="relative aspect-square overflow-visible rounded-lg bg-transparent transition-all duration-300 group-hover/badge:-translate-y-0.5 group-focus-visible/badge:ring-2 group-focus-visible/badge:ring-gray-900">
         {course.thumbnail_image && ownerOrgUuid ? (
-          <img
+          <BadgeThumbnailImage
             src={getCourseThumbnailMediaDirectory(ownerOrgUuid, course.course_uuid, course.thumbnail_image)}
             alt={course.name}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover/badge:scale-105"
+            className="transition-transform duration-500 group-hover/badge:scale-105"
           />
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gray-50 text-gray-300">

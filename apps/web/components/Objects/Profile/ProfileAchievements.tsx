@@ -44,6 +44,7 @@ import { Input } from '@components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select'
 import { Switch } from '@components/ui/switch'
 import { Textarea } from '@components/ui/textarea'
+import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { getUriWithOrg, routePaths, getAPIUrl } from '@services/config/config'
 import { getCourseThumbnailMediaDirectory, normalizeMediaUrl } from '@services/media/media'
 import { updateProfile } from '@services/settings/profile'
@@ -362,11 +363,10 @@ function AchievementSquare({
 
   if (displayImageUrl) {
     return (
-      <div className="aspect-square w-full overflow-hidden rounded-[18px] bg-gray-100">
-        <img
+      <div className="aspect-square w-full overflow-visible rounded-[18px] bg-gray-100">
+        <BadgeThumbnailImage
           src={displayImageUrl}
           alt={title}
-          className="h-full w-full object-cover"
           onError={() => {
             if (displayImageUrl === imageUrl) {
               setFailedImageUrl(displayImageUrl)

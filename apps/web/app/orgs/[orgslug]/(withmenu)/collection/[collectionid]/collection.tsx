@@ -6,6 +6,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import PageLoading from '@components/Objects/Loaders/PageLoading'
 import ContentPageHeader from '@components/Objects/StyledElements/Headers/ContentPageHeader'
 import ContentHeroSection, { ContentHeroSegmentedProgress } from '@components/Objects/StyledElements/Headers/ContentHeroSection'
+import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import CollectionCoverFanThumbnail from '@components/Objects/Thumbnails/CollectionCoverFanThumbnail'
 import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { getCollectionThumbnailMediaDirectory, getCourseThumbnailMediaDirectory } from '@services/media/media'
@@ -66,12 +67,13 @@ function BadgeCourseTile({
 
   return (
     <Link href={courseLink} className="group block focus:outline-none">
-      <div className="aspect-square w-full overflow-hidden rounded-lg bg-transparent">
+      <div className="aspect-square w-full overflow-visible rounded-lg bg-transparent">
         {course.thumbnail_image && ownerOrgUuid ? (
-          <img
+          <BadgeThumbnailImage
             src={getCourseThumbnailMediaDirectory(ownerOrgUuid, course.course_uuid, course.thumbnail_image)}
             alt={course.name}
-            className={`h-full w-full object-cover transition duration-300 group-hover:scale-[1.03] ${
+            hoverScale
+            className={`${
               progress.isEarned ? '' : 'opacity-55 grayscale brightness-110'
             }`}
           />

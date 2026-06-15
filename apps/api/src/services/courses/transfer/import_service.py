@@ -22,6 +22,8 @@ from src.db.courses.chapter_activities import ChapterActivity
 from src.db.courses.chapters import Chapter
 from src.db.courses.course_chapters import CourseChapter
 from src.db.courses.courses import Course, ThumbnailType
+from src.db.collections import Collection
+from src.db.collections_courses import CollectionCourse
 from src.db.organizations import Organization
 from src.db.resource_authors import (
     ResourceAuthor,
@@ -273,6 +275,17 @@ async def import_courses(
     # RBAC check - user needs create permission for courses
     await check_resource_access(request, db_session, current_user, "course_x", AccessAction.CREATE)
 
+    target_collection = None
+    if options.collection_uuid:
+        target_collection = _get_target_collection(options.collection_uuid, org_id, db_session)
+        await check_resource_access(
+            request,
+            db_session,
+            current_user,
+            target_collection.collection_uuid,
+            AccessAction.UPDATE,
+        )
+
     # Verify temp package exists
     temp_dir = os.path.join(TEMP_IMPORT_DIR, temp_id)
     if not os.path.exists(temp_dir):
@@ -319,6 +332,7 @@ async def import_courses(
                 organization=organization,
                 current_user=current_user,
                 options=options,
+                target_collection=target_collection,
                 db_session=db_session,
             )
 
@@ -356,6 +370,7 @@ async def _import_single_course(
     organization: Organization,
     current_user: PublicUser | AnonymousUser | APITokenUser,
     options: ImportOptions,
+    target_collection: Collection | None,
     db_session: Session,
 ) -> Course:
     """
@@ -436,6 +451,9 @@ async def _import_single_course(
     db_session.commit()
     db_session.refresh(new_course)
 
+    if target_collection:
+        _assign_imported_course_to_collection(new_course, target_collection, db_session)
+
     # Create resource author
     if isinstance(current_user, APITokenUser):
         author_user_id = current_user.created_by_user_id
@@ -483,6 +501,45 @@ async def _import_single_course(
     increase_feature_usage("courses", organization.id, db_session)
 
     return new_course
+
+
+def _get_target_collection(
+    collection_uuid: str,
+    org_id: int,
+    db_session: Session,
+) -> Collection:
+    collection = db_session.exec(
+        select(Collection).where(Collection.collection_uuid == collection_uuid)
+    ).first()
+    if not collection:
+        raise HTTPException(status_code=404, detail="Collection not found")
+    if collection.org_id != org_id:
+        raise HTTPException(
+            status_code=409,
+            detail="Collection does not belong to this organization",
+        )
+    return collection
+
+
+def _assign_imported_course_to_collection(
+    course: Course,
+    collection: Collection,
+    db_session: Session,
+) -> None:
+    course.collection_id = collection.id
+    db_session.add(course)
+    now = str(datetime.now())
+    db_session.add(
+        CollectionCourse(
+            collection_id=int(collection.id),  # type: ignore
+            course_id=int(course.id),  # type: ignore
+            org_id=int(collection.org_id),
+            creation_date=now,
+            update_date=now,
+        )
+    )
+    db_session.commit()
+    db_session.refresh(course)
 
 
 async def _import_chapter(

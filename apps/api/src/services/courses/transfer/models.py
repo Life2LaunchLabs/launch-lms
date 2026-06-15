@@ -45,6 +45,7 @@ class ImportOptions(BaseModel):
     name_prefix: Optional[str] = None  # Prefix to add to course names
     set_private: bool = True  # Make imported courses private
     set_unpublished: bool = True  # Make imported courses unpublished
+    collection_uuid: Optional[str] = None  # Collection to assign imported courses to
 
 
 class ImportCourseResult(BaseModel):

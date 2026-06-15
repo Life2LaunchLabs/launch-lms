@@ -10,6 +10,7 @@ import ContentPageHeader from '@components/Objects/StyledElements/Headers/Conten
 import {
   getCourseThumbnailMediaDirectory,
 } from '@services/media/media'
+import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { CourseThumbnailImage } from '@components/Objects/Thumbnails/CourseThumbnailImage'
 import { ArrowRight, Award, BookOpenCheck, Check, CircleHelp, Clock, FileText, Layers, Play, Video, Image as ImageIcon } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
@@ -261,16 +262,16 @@ function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run, badgeStatusPa
           className="block rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 sm:p-6"
         >
           <div className="flex items-start gap-4">
-            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-gray-50">
+            <div className="h-20 w-20 shrink-0 overflow-visible rounded-lg bg-transparent">
               {course.thumbnail_image && courseOwnerOrgUuid ? (
-                <img
+                <BadgeThumbnailImage
                   src={getCourseThumbnailMediaDirectory(
                     courseOwnerOrgUuid,
                     course.course_uuid,
                     course.thumbnail_image
                   )}
                   alt={course.name}
-                  className={`h-full w-full object-cover ${
+                  className={`${
                     progressPercent >= 100 ? '' : 'opacity-55 grayscale brightness-110'
                   }`}
                 />
@@ -479,16 +480,15 @@ function BadgeStatusHero({
     <div className="mx-auto w-full max-w-3xl">
       <section className="text-center">
         <div className="flex justify-center px-8 pt-5 sm:pt-6">
-          <div className="h-36 w-36 overflow-hidden rounded-lg sm:h-40 sm:w-40">
+          <div className="h-36 w-36 overflow-visible rounded-lg sm:h-40 sm:w-40">
             {course.thumbnail_image && courseOwnerOrgUuid ? (
-              <img
+              <BadgeThumbnailImage
                 src={getCourseThumbnailMediaDirectory(
                   courseOwnerOrgUuid,
                   course.course_uuid,
                   course.thumbnail_image
                 )}
                 alt={course.name}
-                className="h-full w-full object-cover"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-gray-300">

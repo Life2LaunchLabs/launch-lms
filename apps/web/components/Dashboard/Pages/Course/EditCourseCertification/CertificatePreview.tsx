@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { CheckCircle, QrCode, Building, User, Calendar, Hash } from 'lucide-react';
 import { useOrg } from '@components/Contexts/OrgContext';
+import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage';
 import { getOrgLogoMediaDirectory } from '@services/media/media';
 
 interface CertificatePreviewProps {
@@ -479,11 +480,10 @@ const CertificatePreview: React.FC<CertificatePreviewProps> = ({
 
           {/* Badge image with decorative elements */}
           <div className="flex justify-center relative">
-            <div className={`w-14 h-14 sm:w-20 sm:h-20 bg-gradient-to-br ${theme.icon.replace('text-', 'from-')}-100 ${theme.icon.replace('text-', 'to-')}-200 rounded-full flex items-center justify-center relative overflow-hidden ring-4 ring-white/80 shadow-sm`}>
-              <img
+            <div className={`w-14 h-14 sm:w-20 sm:h-20 bg-gradient-to-br ${theme.icon.replace('text-', 'from-')}-100 ${theme.icon.replace('text-', 'to-')}-200 rounded-full flex items-center justify-center relative ring-4 ring-white/80 shadow-sm`}>
+              <BadgeThumbnailImage
                 src={displayBadgeImageUrl}
                 alt={certificationName || 'Badge image'}
-                className="h-full w-full object-cover"
                 onError={() => {
                   if (displayBadgeImageUrl === badgeImageUrl) {
                     setFailedBadgeImageUrl(displayBadgeImageUrl)
