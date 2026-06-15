@@ -166,7 +166,7 @@ const CertificationBadge = memo(({
     }
   >
     <Link
-      href={getUriWithOrg(orgslug, routePaths.org.courseActivityEnd(courseid))}
+      href={getUriWithOrg(orgslug, routePaths.org.badgeStatus(courseid))}
       prefetch={false}
       className={`shrink-0 flex items-center cursor-pointer focus:outline-none transition-all ${
         isCompleted ? 'opacity-100' : 'opacity-40 cursor-not-allowed'

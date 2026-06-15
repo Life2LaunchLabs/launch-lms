@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import React, { useEffect, useMemo, useState } from 'react'
 import { getUriWithOrg, getAPIUrl, routePaths } from '@services/config/config'
 import PageLoading from '@components/Objects/Loaders/PageLoading'
@@ -30,6 +31,9 @@ import { getMyQuizResult } from '@services/quiz/quiz'
 import QuizResultsModal from '@components/Objects/Activities/Quiz/Player/QuizResultsModal'
 import toast from 'react-hot-toast'
 import { devCompleteCourse } from '@services/courses/activity'
+import { useWindowSize } from 'usehooks-ts'
+
+const ReactConfetti = dynamic(() => import('react-confetti'), { ssr: false })
 
 const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => {
   const { t } = useTranslation()
@@ -473,13 +477,14 @@ function BadgeStatusHero({
   badgeId,
 }: any) {
   const router = useRouter()
+  const { width, height } = useWindowSize()
   const [isDevCompleting, setIsDevCompleting] = useState(false)
+  const [showCompletionReward, setShowCompletionReward] = useState(false)
   const progressPercent = totalChapters > 0
     ? Math.round((completedChapters / totalChapters) * 100)
     : 0
   const badgeUuid = course.course_uuid?.replace('course_', '') || course.course_uuid
   const pathUrl = getUriWithOrg(orgslug, badgePath)
-  const badgeUrl = getUriWithOrg(orgslug, routePaths.org.badgeStatus(badgeUuid))
   const inviteUrl = getUriWithOrg(orgslug, routePaths.org.badgeInvite(badgeUuid))
   const earnedDateLabel = awardedDate
     ? new Date(awardedDate).toLocaleDateString('en-US', {
@@ -490,6 +495,24 @@ function BadgeStatusHero({
     : null
   const chapters = Array.isArray(course.chapters) ? course.chapters : []
   const canDevComplete = showDevComplete && accessToken && !comingSoon && (!isCompleted || !verificationUrl)
+  const completionRewardKey = `launchlms:badge-completion-reward:${badgeUuid}`
+
+  useEffect(() => {
+    if (!isCompleted || !badgeUuid) {
+      setShowCompletionReward(false)
+      return
+    }
+
+    try {
+      const hasSeenReward = window.localStorage.getItem(completionRewardKey) === '1'
+      if (!hasSeenReward) {
+        setShowCompletionReward(true)
+        window.localStorage.setItem(completionRewardKey, '1')
+      }
+    } catch {
+      setShowCompletionReward(true)
+    }
+  }, [badgeUuid, completionRewardKey, isCompleted])
 
   const handleDevComplete = async () => {
     if (!canDevComplete || isDevCompleting) return
@@ -499,7 +522,7 @@ function BadgeStatusHero({
       await devCompleteCourse(badgeUuid, accessToken)
       toast.success('Course completed')
       await onDevComplete?.()
-      router.push(getUriWithOrg(orgslug, routePaths.org.courseActivityEnd(badgeUuid)))
+      router.push(getUriWithOrg(orgslug, routePaths.org.badgeStatus(badgeUuid)))
     } catch (error: any) {
       toast.error(error?.message || 'Could not complete course')
     } finally {
@@ -508,7 +531,18 @@ function BadgeStatusHero({
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
+    <div className="relative mx-auto w-full max-w-3xl">
+      {showCompletionReward && (
+        <div className="fixed inset-0 pointer-events-none z-50">
+          <ReactConfetti
+            width={width}
+            height={height}
+            numberOfPieces={200}
+            recycle={false}
+            colors={['#6366f1', '#10b981', '#3b82f6']}
+          />
+        </div>
+      )}
       <section className="text-center">
         <div className="flex justify-center px-8 pt-5 sm:pt-6">
           <div className="h-36 w-36 overflow-visible rounded-lg sm:h-40 sm:w-40">
@@ -530,6 +564,11 @@ function BadgeStatusHero({
         </div>
 
         <div className="mx-auto mt-4 max-w-2xl">
+          {showCompletionReward && (
+            <p className="mb-2 text-sm font-semibold uppercase tracking-[0.14em] text-green-600">
+              Congratulations! 🎉 you have mastered
+            </p>
+          )}
           <h1 className="text-2xl font-semibold leading-tight text-gray-950 sm:text-3xl">
             {course.name}
           </h1>
@@ -563,12 +602,15 @@ function BadgeStatusHero({
                 label="Share invite"
                 shareText={`Claim an invite to earn the ${course.name} badge`}
               />
-              <CourseShare
-                courseName={course.name}
-                courseUrl={verificationUrl || badgeUrl}
-                label="Share badge"
-                shareText={`I earned the ${course.name} badge`}
-              />
+              {verificationUrl && (
+                <Link
+                  href={verificationUrl}
+                  className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-neutral-600 nice-shadow transition-colors hover:text-neutral-800"
+                >
+                  <FileText size={14} />
+                  View certificate
+                </Link>
+              )}
               <FeaturedBadgeButton badgeId={badgeId} />
               {canDevComplete && (
                 <button

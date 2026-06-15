@@ -151,9 +151,13 @@ function getCanonicalInviteUrl(orgslug: string, uuid: string) {
 export default async function BadgeInvitePage({ params }: BadgeInvitePageProps) {
   const { orgslug, uuid } = await params
   const session = await getServerSession()
+  const cleanBadgeUuid = uuid.replace('course_', '')
 
   if (session) {
-    redirect(getUriWithOrg(orgslug, routePaths.org.course(uuid)))
+    redirect(
+      getUriWithOrg(orgslug, routePaths.org.badges()) +
+        `?inviteBadge=${encodeURIComponent(cleanBadgeUuid)}`
+    )
   }
 
   const [org, badgeClass] = await Promise.all([
@@ -175,8 +179,15 @@ export default async function BadgeInvitePage({ params }: BadgeInvitePageProps) 
   const learnings = parseLearnings(badgeClass['extensions:courseLearnings'])
   const tags = parseTags(badgeClass['extensions:courseTags'])
   const criteria = badgeClass.criteria?.narrative || 'Complete the required badge activities.'
-  const signupHref = getUriWithOrg(orgslug, routePaths.auth.signup({ next: routePaths.org.course(uuid) }))
-  const loginHref = getUriWithOrg(orgslug, routePaths.auth.login({ next: routePaths.org.course(uuid) }))
+  const invitedBadgesPath = routePaths.org.badges() + `?inviteBadge=${encodeURIComponent(cleanBadgeUuid)}`
+  const signupHref = getUriWithOrg(
+    orgslug,
+    routePaths.auth.signup({
+      next: invitedBadgesPath,
+      inviteBadge: cleanBadgeUuid,
+    })
+  )
+  const loginHref = getUriWithOrg(orgslug, routePaths.auth.login({ next: invitedBadgesPath }))
 
   const unlockItems = learnings.length > 0
     ? learnings.slice(0, 4)

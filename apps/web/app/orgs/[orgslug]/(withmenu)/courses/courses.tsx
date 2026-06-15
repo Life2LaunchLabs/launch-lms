@@ -20,6 +20,8 @@ interface CourseProps {
   collections: any
   org_id: string | number
   view?: 'discover' | 'mine'
+  inviteBadge?: string
+  invitedBadgeCourse?: any
 }
 
 function isCourseEarned(run: any) {
@@ -40,6 +42,10 @@ function getRunTimestamp(run: any) {
   return Number.isFinite(timestamp) ? timestamp : 0
 }
 
+function cleanCourseUuid(courseUuid?: string | null) {
+  return String(courseUuid || '').replace('course_', '')
+}
+
 function Courses(props: CourseProps) {
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
@@ -57,22 +63,40 @@ function Courses(props: CourseProps) {
       runs.map((run: any) => [run.course.course_uuid, run] as [string, any])
     )
   }, [trail])
-  const inProgressBadge = useMemo(() => {
-    const courses = (props.collections || []).flatMap((collection: any) =>
+  const collectionCourses = useMemo(() => {
+    return (props.collections || []).flatMap((collection: any) =>
       (collection.courses || []).map((course: any) => ({
         ...course,
         owner_org_uuid: course.owner_org_uuid || collection.owner_org_uuid,
       }))
     )
-
-    return courses
+  }, [props.collections])
+  const invitedBadge = useMemo(() => {
+    if (!props.inviteBadge) return null
+    const invitedBadgeUuid = cleanCourseUuid(props.inviteBadge)
+    const collectionCourse = collectionCourses.find(
+      (course: any) => cleanCourseUuid(course.course_uuid) === invitedBadgeUuid
+    )
+    if (collectionCourse) return collectionCourse
+    if (cleanCourseUuid(props.invitedBadgeCourse?.course_uuid) === invitedBadgeUuid) {
+      return props.invitedBadgeCourse
+    }
+    return null
+  }, [collectionCourses, props.inviteBadge, props.invitedBadgeCourse])
+  const inProgressBadge = useMemo(() => {
+    return collectionCourses
       .map((course: any) => ({
         course,
         run: trailRunsByCourseUuid.get(course.course_uuid),
       }))
       .filter(({ run }: any) => run && !isCourseEarned(run))
       .sort((a: any, b: any) => getRunTimestamp(b.run) - getRunTimestamp(a.run))[0]
-  }, [props.collections, trailRunsByCourseUuid])
+  }, [collectionCourses, trailRunsByCourseUuid])
+  const heroBadge = invitedBadge
+    ? { course: invitedBadge, trigger: 'invite' as const }
+    : inProgressBadge
+      ? { course: inProgressBadge.course, trigger: 'progress' as const }
+      : null
 
   return (
     <div className="w-full">
@@ -93,22 +117,40 @@ function Courses(props: CourseProps) {
           {activeView === 'discover' ? (
             <>
               <ContentHeroSection
-                eyebrow={inProgressBadge ? 'In progress' : 'Start here'}
-                title={inProgressBadge ? inProgressBadge.course.name : 'Find a badge to get started'}
+                eyebrow={
+                  heroBadge?.trigger === 'invite'
+                    ? 'Badge invite accepted'
+                    : heroBadge
+                      ? 'In progress'
+                      : 'Start here'
+                }
+                title={
+                  heroBadge?.trigger === 'invite'
+                    ? `Ready to start ${heroBadge.course.name}`
+                    : heroBadge
+                      ? heroBadge.course.name
+                      : 'Find a badge to get started'
+                }
                 body={
-                  inProgressBadge
-                    ? (inProgressBadge.course.description || inProgressBadge.course.about)
-                    : 'Choose a badge path and complete the activities to earn your first badge.'
+                  heroBadge?.trigger === 'invite'
+                    ? (
+                        heroBadge.course.description ||
+                        heroBadge.course.about ||
+                        'Review the badge path, then start when you are ready.'
+                      )
+                    : heroBadge
+                      ? (heroBadge.course.description || heroBadge.course.about)
+                      : 'Choose a badge path and complete the activities to earn your first badge.'
                 }
                 image={
-                  inProgressBadge?.course.thumbnail_image ? (
+                  heroBadge?.course.thumbnail_image ? (
                     <BadgeThumbnailImage
                       src={getCourseThumbnailMediaDirectory(
-                        inProgressBadge.course.owner_org_uuid || '',
-                        inProgressBadge.course.course_uuid,
-                        inProgressBadge.course.thumbnail_image
+                        heroBadge.course.owner_org_uuid || '',
+                        heroBadge.course.course_uuid,
+                        heroBadge.course.thumbnail_image
                       )}
-                      alt={inProgressBadge.course.name}
+                      alt={heroBadge.course.name}
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-white/65">
@@ -118,13 +160,15 @@ function Courses(props: CourseProps) {
                 }
                 imageFrameClassName="overflow-visible bg-transparent"
               >
-                {inProgressBadge && (
+                {heroBadge && (
                   <ContentHeroButton
                     href={getUriWithOrg(
                       props.orgslug,
-                      routePaths.org.badgePath(inProgressBadge.course.course_uuid.replace('course_', ''))
+                      heroBadge.trigger === 'invite'
+                        ? routePaths.org.course(cleanCourseUuid(heroBadge.course.course_uuid))
+                        : routePaths.org.badgePath(cleanCourseUuid(heroBadge.course.course_uuid))
                     )}
-                    label="Continue"
+                    label={heroBadge.trigger === 'invite' ? 'View badge' : 'Continue'}
                   />
                 )}
               </ContentHeroSection>

@@ -534,7 +534,7 @@ function ActivityClient(props: ActivityClientProps) {
 
     const endPath = quickstartMode
       ? routePaths.org.quickstartCourseActivityEnd(cleanCourseUuid)
-      : routePaths.org.badgePath(cleanCourseUuid)
+      : routePaths.org.badgeStatus(cleanCourseUuid)
     router.push(getUriWithOrg(orgslug, isGuestLearner ? `${endPath}?guest_completed=1` : endPath))
   }, [
     activity,
@@ -1164,7 +1164,7 @@ function NextActivityButton({ course, currentActivityId, activity, orgslug, gues
         : routePaths.org.courseActivity(cleanCourseUuid, nextActivity.cleanUuid))
       : (quickstartMode
         ? routePaths.org.quickstartCourseActivityEnd(cleanCourseUuid)
-        : routePaths.org.courseActivityEnd(cleanCourseUuid)));
+        : routePaths.org.badgeStatus(cleanCourseUuid)));
     const nextActivityPath =
       !chapterCompletePath && !nextActivity && isGuestLearner
         ? `${baseNextActivityPath}?guest_completed=1`

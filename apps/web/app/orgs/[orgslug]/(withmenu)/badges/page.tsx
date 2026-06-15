@@ -7,6 +7,7 @@ import { getOrgThumbnailMediaDirectory, getOrgOgImageMediaDirectory } from '@ser
 import { getCanonicalUrl, getOrgSeoConfig, buildPageTitle, buildBreadcrumbJsonLd } from '@/lib/seo/utils'
 import { JsonLd } from '@components/SEO/JsonLd'
 import { getOrgCollections } from '@services/courses/collections'
+import { getCourseMetadata } from '@services/courses/courses'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string }>
@@ -73,6 +74,7 @@ const BadgesPage = async (params: any) => {
   const orgslug = (await params.params).orgslug
   const searchParams = await params.searchParams
   const view = searchParams?.view === 'mine' ? 'mine' : 'discover'
+  const inviteBadge = typeof searchParams?.inviteBadge === 'string' ? searchParams.inviteBadge : undefined
   const org = await getOrganizationContextInfo(orgslug, {
     revalidate: 1800,
     tags: ['organizations'],
@@ -81,6 +83,7 @@ const BadgesPage = async (params: any) => {
   const access_token = session?.tokens?.access_token
 
   let collections: any[] = []
+  let invitedBadgeCourse: any = null
 
   try {
     collections = await getOrgCollections(
@@ -97,6 +100,24 @@ const BadgesPage = async (params: any) => {
     collections = []
   }
 
+  if (inviteBadge) {
+    try {
+      invitedBadgeCourse = await getCourseMetadata(
+        inviteBadge.startsWith('course_') ? inviteBadge : `course_${inviteBadge}`,
+        { revalidate: 0, tags: ['courses'] },
+        access_token ?? undefined
+      )
+    } catch (error: any) {
+      console.error('Failed to load invited badge for badges page hero', {
+        orgslug,
+        org_id: org.id,
+        inviteBadge,
+        error,
+      })
+      invitedBadgeCourse = null
+    }
+  }
+
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
     { name: 'Home', url: getCanonicalUrl(orgslug, '/') },
     { name: 'Badges', url: getCanonicalUrl(orgslug, '/badges') },
@@ -105,7 +126,14 @@ const BadgesPage = async (params: any) => {
   return (
     <div>
       <JsonLd data={breadcrumbJsonLd} />
-      <Courses org_id={org.id} orgslug={orgslug} collections={collections} view={view} />
+      <Courses
+        org_id={org.id}
+        orgslug={orgslug}
+        collections={collections}
+        view={view}
+        inviteBadge={inviteBadge}
+        invitedBadgeCourse={invitedBadgeCourse}
+      />
     </div>
   )
 }
