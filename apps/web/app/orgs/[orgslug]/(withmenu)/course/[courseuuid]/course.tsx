@@ -309,7 +309,6 @@ function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run, badgeStatusPa
         {chapters.map((chapter: any, index: number) => {
           const summary = chapterSummaries[index]
           const firstActivity = chapter.activities?.[0]
-          const targetActivity = firstActivity
           const isCompletedChapter = summary?.isCompleted
           const isInProgressChapter = summary?.isStarted && !summary?.isCompleted
           const isNext = index === nextChapterIndex
@@ -323,11 +322,11 @@ function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run, badgeStatusPa
               : isNext
                 ? 'Next up'
                 : 'Locked'
-          const activityHref = getUriWithOrg(
+          const chapterHref = getUriWithOrg(
             orgslug,
-            routePaths.org.courseActivity(
+            routePaths.org.badgeChapter(
               course.course_uuid.replace('course_', ''),
-              targetActivity?.activity_uuid?.replace('activity_', '')
+              (chapter.chapter_uuid || chapter.id || '').toString().replace('chapter_', '')
             )
           )
 
@@ -368,7 +367,7 @@ function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run, badgeStatusPa
               {isActive && (
                 <div className="space-y-3 px-4 pb-4 pl-[4.5rem]">
                   <Link
-                    href={activityHref}
+                    href={chapterHref}
                     className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
                       isNext || isInProgressChapter
                         ? 'bg-green-600 text-white hover:bg-green-700'

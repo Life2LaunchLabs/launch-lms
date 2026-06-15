@@ -7,10 +7,11 @@ import { getActivityWithAuthHeader } from '@services/courses/activities'
 import {
   findChapterForActivity,
   findCourseRun,
+  expandChapterPages,
   getChapterCompletionSummary,
   getCompletedCourseStepCount,
-  getQuizQuestionCount,
   isCourseActivityCompleted,
+  type ChapterPageLike,
 } from '@services/courses/progress'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
@@ -83,6 +84,7 @@ interface ActivityClientProps {
   unauthenticated?: boolean
   guestCompletedHint?: boolean
   quickstartMode?: boolean
+  chapterid?: string
 }
 
 interface ActivityActionsProps {
@@ -167,6 +169,7 @@ function ActivityClient(props: ActivityClientProps) {
   const initialActivityId = props.activityid
   const [activeActivityId, setActiveActivityId] = React.useState(initialActivityId)
   const [activeActivity, setActiveActivity] = React.useState(props.activity)
+  const [activeActivityPageIndex, setActiveActivityPageIndex] = React.useState(0)
   const [activityTransitionDirection, setActivityTransitionDirection] = React.useState<'next' | 'prev'>('next')
   const [chapterRewardVisible, setChapterRewardVisible] = React.useState(false)
   const activityCacheRef = useRef<Map<string, any>>(new Map())
@@ -176,6 +179,7 @@ function ActivityClient(props: ActivityClientProps) {
   const unauthenticated = props.unauthenticated === true
   const guestCompletedHint = props.guestCompletedHint === true
   const quickstartMode = props.quickstartMode === true
+  const chapterRouteMode = Boolean(props.chapterid)
   const publicGuestMode = unauthenticated && !guestMode
   const isGuestLearner = guestMode || publicGuestMode
 
@@ -227,6 +231,7 @@ function ActivityClient(props: ActivityClientProps) {
     activityCacheRef.current.set(cleanActivityId, props.activity)
     setActiveActivity(props.activity)
     setActiveActivityId(initialActivityId)
+    setActiveActivityPageIndex(0)
     setQuizState(null)
     setChapterRewardVisible(false)
   }, [initialActivityId, props.activity])
@@ -293,41 +298,21 @@ function ActivityClient(props: ActivityClientProps) {
     totalChapterActivities > 0
       ? Math.min(1, chapterCompletedActivities / totalChapterActivities)
       : progressRatio
-  const quizActivityPageIndex = activity?.activity_type === 'TYPE_QUIZ'
-    ? (quizState?.pageIndex ?? 0)
-    : 0
-  const chapterPages = useMemo(
-    () => {
-      const pages = currentChapter?.activities || []
-      let total = 0
-      let before = 0
-      for (const chapterActivity of pages) {
-        const count = chapterActivity.activity_type === 'TYPE_QUIZ'
-          ? Math.max(1, getQuizQuestionCount(chapterActivity.content)) + 1
-          : 1
-        if (chapterActivity.id === activity?.id) {
-          before = total
-        }
-        total += count
-      }
-      return {
-        totalPages: total || totalChapterActivities || 1,
-        completedPages: Math.min(
-          total || 1,
-          before + (
-            activity?.activity_type === 'TYPE_QUIZ'
-              ? quizActivityPageIndex
-              : isCurrentActivityCompleted
-                ? 1
-                : 0
-          )
-        ),
-      }
-    },
-    [currentChapter, activity?.id, activity?.activity_type, quizActivityPageIndex, totalChapterActivities, isCurrentActivityCompleted]
-  )
-  const visibleChapterProgressLabel = `${chapterPages.completedPages}/${chapterPages.totalPages}`
-  const visibleChapterProgressValue = (chapterPages.completedPages / chapterPages.totalPages) * 100
+  const chapterPageList = useMemo(() => expandChapterPages(currentChapter), [currentChapter])
+  const currentChapterPageIndex = useMemo(() => {
+    if (!activity?.id) return 0
+    const index = chapterPageList.findIndex((page) =>
+      page.activity.id === activity.id && page.pageIndex === activeActivityPageIndex
+    )
+    return index >= 0 ? index : 0
+  }, [chapterPageList, activity?.id, activeActivityPageIndex])
+  const currentChapterPage = chapterPageList[currentChapterPageIndex] || null
+  const previousChapterPage = currentChapterPageIndex > 0 ? chapterPageList[currentChapterPageIndex - 1] : null
+  const nextChapterPage = currentChapterPageIndex < chapterPageList.length - 1 ? chapterPageList[currentChapterPageIndex + 1] : null
+  const chapterPageTotal = chapterPageList.length || totalChapterActivities || 1
+  const chapterPageCompleted = Math.min(chapterPageTotal, currentChapterPageIndex)
+  const visibleChapterProgressLabel = `${chapterPageCompleted}/${chapterPageTotal}`
+  const visibleChapterProgressValue = (chapterPageCompleted / chapterPageTotal) * 100
   const showChapterCompleteReward =
     !quickstartMode &&
     (Boolean(searchParams.get('chapter_complete')) || chapterRewardVisible) &&
@@ -382,7 +367,9 @@ function ActivityClient(props: ActivityClientProps) {
 
   // Memoize activity position calculation
   const { allActivities, currentIndex } = useActivityPosition(course, activityid);
-  const coursePath = quickstartMode
+  const coursePath = chapterRouteMode
+    ? routePaths.org.badgePath(courseuuid)
+    : quickstartMode
     ? routePaths.org.quickstartCourse(courseuuid)
     : routePaths.org.course(courseuuid)
   const buildActivityPath = (activityUuid: string) =>
@@ -392,9 +379,10 @@ function ActivityClient(props: ActivityClientProps) {
 
   const setBrowserActivityUrl = React.useCallback((cleanActivityUuid: string) => {
     if (typeof window === 'undefined') return
+    if (chapterRouteMode) return
     const nextPath = getUriWithOrg(orgslug, buildActivityPath(cleanActivityUuid))
     window.history.pushState(null, '', nextPath)
-  }, [orgslug, buildActivityPath])
+  }, [chapterRouteMode, orgslug, buildActivityPath])
 
   const loadActivityPayload = React.useCallback(async (activityLike: any) => {
     const cleanActivityUuid = getCleanActivityUuid(activityLike)
@@ -408,7 +396,7 @@ function ActivityClient(props: ActivityClientProps) {
     return payload
   }, [access_token])
 
-  const activateChapterActivity = React.useCallback(async (activityLike: any, direction: 'next' | 'prev' = 'next') => {
+  const activateChapterActivity = React.useCallback(async (activityLike: any, direction: 'next' | 'prev' = 'next', pageIndex = 0) => {
     const cleanActivityUuid = getCleanActivityUuid(activityLike)
     if (!cleanActivityUuid) return
 
@@ -422,6 +410,7 @@ function ActivityClient(props: ActivityClientProps) {
       setChapterRewardVisible(false)
       setActiveActivity(payload)
       setActiveActivityId(cleanActivityUuid)
+      setActiveActivityPageIndex(pageIndex)
       setBrowserActivityUrl(cleanActivityUuid)
     } catch (_) {
       router.push(getUriWithOrg(orgslug, buildActivityPath(cleanActivityUuid)))
@@ -476,64 +465,53 @@ function ActivityClient(props: ActivityClientProps) {
   // Get previous and next activities
   const prevActivity = currentIndex > 0 ? allActivities[currentIndex - 1] : null;
   const nextActivity = currentIndex < allActivities.length - 1 ? allActivities[currentIndex + 1] : null;
-  const nextActivityIsInCurrentChapter =
-    nextActivity &&
-    currentChapter &&
-    nextActivity.chapterId === currentChapter.id
-  const handleQuizContinue = React.useCallback(() => {
-    if (!quizState?.isResultPage) {
-      quizPlayerRef.current?.next()
+  const navigateToChapterPage = React.useCallback((page: ChapterPageLike | null, direction: 'next' | 'prev') => {
+    if (!page) return
+    if (activity?.id === page.activity.id) {
+      setActivityTransitionDirection(direction)
+      setActiveActivityPageIndex(page.pageIndex)
       return
     }
-
-    const cleanCourseUuid = course.course_uuid?.replace('course_', '') || courseuuid
-    if (nextActivity && nextActivityIsInCurrentChapter) {
-      void activateChapterActivity(nextActivity, 'next')
-      return
-    }
-
-    if (!quickstartMode && currentChapter && quizState.passed !== false) {
-      setChapterRewardVisible(true)
-      return
-    }
-
-    if (nextActivity) {
-      if (nextActivityIsInCurrentChapter || quickstartMode) {
-        void activateChapterActivity(nextActivity, 'next')
-        return
-      }
-      router.push(getUriWithOrg(orgslug, buildActivityPath(nextActivity.cleanUuid)))
-      return
-    }
-
-    router.push(getUriWithOrg(orgslug, routePaths.org.badgePath(cleanCourseUuid)))
-  }, [quizState?.isResultPage, quizState?.passed, course.course_uuid, courseuuid, nextActivity, nextActivityIsInCurrentChapter, quickstartMode, currentChapter, orgslug, buildActivityPath, router, activateChapterActivity])
+    void activateChapterActivity(page.activity, direction, page.pageIndex)
+  }, [activity?.id, activateChapterActivity])
 
   const handleChapterBack = React.useCallback(() => {
-    if (activity?.activity_type === 'TYPE_QUIZ' && quizState?.canGoBack) {
-      quizPlayerRef.current?.back()
+    if (previousChapterPage) {
+      navigateToChapterPage(previousChapterPage, 'prev')
       return
     }
-
-    if (prevActivity) {
-      void activateChapterActivity(prevActivity, 'prev')
-      return
-    }
-
     router.push(getUriWithOrg(orgslug, coursePath))
-  }, [activity?.activity_type, quizState?.canGoBack, prevActivity, router, orgslug, coursePath, activateChapterActivity])
+  }, [previousChapterPage, navigateToChapterPage, router, orgslug, coursePath])
 
   const handleChapterNext = React.useCallback(async () => {
-    if (!activity) return
+    if (!activity || !currentChapterPage) return
 
     const cleanCourseUuid = course.course_uuid?.replace('course_', '') || courseuuid
     const shouldShowChapterComplete =
       !quickstartMode &&
       currentChapter &&
-      (!nextActivity || !nextActivityIsInCurrentChapter)
+      !nextChapterPage
 
-    try {
-      if (!(activity.activity_type === 'TYPE_QUIZ' && activity.details?.quiz_mode === 'graded')) {
+    if (currentChapterPage.type === 'quiz-slide') {
+      if (!quizState?.isAnswered || quizState?.isSubmitting) return
+      if (quizState.isShowingResponse) {
+        quizPlayerRef.current?.dismissResponse()
+      } else if (quizState.hasInlineResponse && quizPlayerRef.current?.showResponse()) {
+        return
+      }
+      if (nextChapterPage?.type === 'quiz-result') {
+        await quizPlayerRef.current?.submit()
+      }
+      if (nextChapterPage) navigateToChapterPage(nextChapterPage, 'next')
+      return
+    }
+
+    if (currentChapterPage.type === 'quiz-result' && quizState?.passed === false) {
+      return
+    }
+
+    if (currentChapterPage.type === 'activity') {
+      try {
         await markActivityAsComplete(
           orgslug,
           course.course_uuid,
@@ -541,21 +519,16 @@ function ActivityClient(props: ActivityClientProps) {
           access_token
         )
         await mutate(`${getAPIUrl()}trail/org/${org?.id}/trail`)
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
 
-    if (nextActivity && nextActivityIsInCurrentChapter) {
-      void activateChapterActivity(nextActivity, 'next')
+    if (nextChapterPage) {
+      navigateToChapterPage(nextChapterPage, 'next')
       return
     }
 
     if (shouldShowChapterComplete) {
       setChapterRewardVisible(true)
-      return
-    }
-
-    if (nextActivity && quickstartMode) {
-      void activateChapterActivity(nextActivity, 'next')
       return
     }
 
@@ -569,15 +542,38 @@ function ActivityClient(props: ActivityClientProps) {
     courseuuid,
     quickstartMode,
     currentChapter,
-    nextActivity,
-    nextActivityIsInCurrentChapter,
+    currentChapterPage,
+    nextChapterPage,
+    quizState?.isAnswered,
+    quizState?.isSubmitting,
+    quizState?.isShowingResponse,
+    quizState?.hasInlineResponse,
+    quizState?.passed,
     orgslug,
     access_token,
     org?.id,
-    activateChapterActivity,
+    navigateToChapterPage,
     router,
     isGuestLearner,
   ])
+
+  const retryCurrentQuiz = React.useCallback(() => {
+    quizPlayerRef.current?.retry()
+    setQuizState(null)
+    setActiveActivityPageIndex(0)
+  }, [])
+  const showQuizRetry =
+    currentChapterPage?.type === 'quiz-result' &&
+    activity?.activity_type === 'TYPE_QUIZ' &&
+    quizState?.passed === false
+  const chapterNextDisabled =
+    (currentChapterPage?.type === 'quiz-slide' && (!quizState?.isAnswered || quizState?.isSubmitting)) ||
+    (currentChapterPage?.type === 'quiz-result' && (!quizState?.result || quizState?.passed === false))
+  const chapterNextLabel = quizState?.isSubmitting
+    ? 'Submitting...'
+    : nextChapterPage
+      ? t('common.next')
+      : t('common.complete')
 
   // Memoize activity content
   const activityContent = useMemo(() => {
@@ -629,7 +625,8 @@ function ActivityClient(props: ActivityClientProps) {
               ref={quizPlayerRef}
               activity={activity}
               embedded
-              onStateChange={setQuizState}
+              currentPageIndex={activeActivityPageIndex}
+              onPageStateChange={setQuizState}
               onComplete={handleQuizComplete}
             />
           </Suspense>
@@ -637,7 +634,7 @@ function ActivityClient(props: ActivityClientProps) {
       default:
         return null;
     }
-  }, [activity, course, assignment, handleQuizComplete]);
+  }, [activity, course, assignment, activeActivityPageIndex, handleQuizComplete]);
 
   // Navigate to an activity
   const navigateToActivity = (activity: any) => {
@@ -1003,10 +1000,10 @@ function ActivityClient(props: ActivityClientProps) {
                       <div className="shrink-0 border-t border-gray-200 px-6 py-4">
                         <div className="mx-auto flex w-full max-w-5xl flex-row items-stretch justify-between gap-2 sm:items-center">
                           <div className="min-w-0 flex-1 sm:flex-none">
-                            {activity.activity_type === 'TYPE_QUIZ' && quizState?.isResultPage && quizState?.passed === false ? (
+                            {showQuizRetry ? (
                               <button
                                 type="button"
-                                onClick={() => quizPlayerRef.current?.retry()}
+                                onClick={retryCurrentQuiz}
                                 className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-gray-200 transition-colors hover:bg-gray-50 sm:w-auto"
                               >
                                 <ChevronLeft size={17} />
@@ -1024,39 +1021,28 @@ function ActivityClient(props: ActivityClientProps) {
                             )}
                           </div>
                           <div className="flex min-w-0 flex-1 items-stretch justify-end gap-2 sm:flex-none">
-                            {activity.activity_type === 'TYPE_QUIZ' ? (
-                              <button
-                                type="button"
-                                onClick={handleQuizContinue}
-                                disabled={!quizState?.isAnswered || quizState?.isSubmitting}
-                                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 sm:w-auto"
-                              >
-                                {quizState?.isSubmitting ? 'Submitting...' : quizState?.isResultPage ? 'Continue' : 'Next'}
-                                <ChevronRight size={17} />
-                              </button>
-                            ) : (
-                              <>
-                                <ActivityActions
-                                  activity={activity}
-                                  activityid={activityid}
-                                  course={course}
-                                  orgslug={orgslug}
-                                  assignment={assignment}
-                                  showNavigation={false}
-                                  guestMode={guestMode}
-                                  publicGuestMode={publicGuestMode}
-                                  quickstartMode={quickstartMode}
-                                />
-                                <button
-                                  type="button"
-                                  onClick={handleChapterNext}
-                                  className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:w-auto"
-                                >
-                                  {nextActivity && nextActivityIsInCurrentChapter ? t('common.next') : t('common.complete')}
-                                  <ChevronRight size={17} />
-                                </button>
-                              </>
+                            {activity.activity_type !== 'TYPE_QUIZ' && (
+                              <ActivityActions
+                                activity={activity}
+                                activityid={activityid}
+                                course={course}
+                                orgslug={orgslug}
+                                assignment={assignment}
+                                showNavigation={false}
+                                guestMode={guestMode}
+                                publicGuestMode={publicGuestMode}
+                                quickstartMode={quickstartMode}
+                              />
                             )}
+                            <button
+                              type="button"
+                              onClick={handleChapterNext}
+                              disabled={chapterNextDisabled}
+                              className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 sm:w-auto"
+                            >
+                              {chapterNextLabel}
+                              <ChevronRight size={17} />
+                            </button>
                           </div>
                         </div>
                       </div>

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import {
   expandChapterPages,
   getChapterPageProgress,
-  getQuizQuestionCount,
+  getQuizSlideCount,
 } from './progress.ts'
 
 const quizContent = {
@@ -16,11 +16,11 @@ const quizContent = {
   ],
 }
 
-test('counts only quiz question pages, excluding info slides', () => {
-  assert.equal(getQuizQuestionCount(quizContent), 2)
+test('counts quiz info and question slides as pages', () => {
+  assert.equal(getQuizSlideCount(quizContent), 3)
 })
 
-test('expands quiz activities into question pages plus a result page', () => {
+test('expands quiz activities into slide pages plus a result page', () => {
   const pages = expandChapterPages({
     activities: [
       { id: 1, activity_uuid: 'activity_intro', activity_type: 'TYPE_DYNAMIC' },
@@ -32,9 +32,32 @@ test('expands quiz activities into question pages plus a result page', () => {
     pages.map((page) => [page.type, page.activity.id, page.pageIndex]),
     [
       ['activity', 1, 0],
-      ['quiz-question', 2, 0],
-      ['quiz-question', 2, 1],
-      ['quiz-result', 2, 2],
+      ['quiz-slide', 2, 0],
+      ['quiz-slide', 2, 1],
+      ['quiz-slide', 2, 2],
+      ['quiz-result', 2, 3],
+    ]
+  )
+})
+
+test('keeps mixed chapter pages in chapter order', () => {
+  const pages = expandChapterPages({
+    activities: [
+      { id: 1, activity_uuid: 'activity_intro', activity_type: 'TYPE_DYNAMIC' },
+      { id: 2, activity_uuid: 'activity_quiz', activity_type: 'TYPE_QUIZ', content: quizContent },
+      { id: 3, activity_uuid: 'activity_outro', activity_type: 'TYPE_VIDEO' },
+    ],
+  })
+
+  assert.deepEqual(
+    pages.map((page) => [page.type, page.activity.id, page.pageIndex]),
+    [
+      ['activity', 1, 0],
+      ['quiz-slide', 2, 0],
+      ['quiz-slide', 2, 1],
+      ['quiz-slide', 2, 2],
+      ['quiz-result', 2, 3],
+      ['activity', 3, 0],
     ]
   )
 })
@@ -48,9 +71,9 @@ test('reports current chapter page progress for quiz result pages', () => {
       ],
     },
     2,
-    2
+    3
   )
 
-  assert.equal(progress.currentPageNumber, 4)
-  assert.equal(progress.totalPages, 4)
+  assert.equal(progress.currentPageNumber, 5)
+  assert.equal(progress.totalPages, 5)
 })

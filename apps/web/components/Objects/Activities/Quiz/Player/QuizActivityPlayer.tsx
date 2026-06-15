@@ -12,6 +12,7 @@ import QuizResultsModal from './QuizResultsModal'
 import QuizResultsView from './QuizResultsView'
 import { computeQuizScoresPreview, matchQuizResultPreview } from '../Results/quizResultsPreview'
 import Lottie from 'lottie-react'
+import { extractQuizSlides } from '@services/courses/progress'
 // To add a new animation: import its JSON here, add it to QUIZ_INFO_ANIMATIONS below,
 // add an <option> in QuizInfoBlockComponent.tsx, and add a branch in InfoSlideView.
 import confettiAnimationData from '../../../../../public/animations/quiz-info/Confetti.json'
@@ -334,25 +335,6 @@ function normalizeSortAnswer(slide: SortSlide, rawValue: any) {
     assignments: normalizedAssignments,
     stackOrder: [...providedStackOrder, ...originalOrder.filter(cardUuid => !assignedCardIds.has(cardUuid) && !providedStackOrder.includes(cardUuid))],
   }
-}
-
-function extractSlides(content: any): Slide[] {
-  const slides: Slide[] = []
-
-  const visit = (node: any) => {
-    if (!node || typeof node !== 'object') return
-
-    if (node.type === 'quizSelectBlock' || node.type === 'quizMultiSelectBlock' || node.type === 'quizTextBlock' || node.type === 'quizSliderBlock' || node.type === 'quizSortBlock' || node.type === 'quizInfoBlock') {
-      slides.push({ type: node.type, ...node.attrs })
-    }
-
-    if (Array.isArray(node.content)) {
-      node.content.forEach(visit)
-    }
-  }
-
-  visit(content)
-  return slides
 }
 
 function SortSlideView({
@@ -1284,6 +1266,8 @@ interface Props {
   onComplete?: React.Dispatch<any>
   embedded?: boolean
   onStateChange?: (state: QuizPlayerState) => void
+  currentPageIndex?: number
+  onPageStateChange?: (state: QuizPlayerState) => void
 }
 
 export type QuizPlayerState = {
@@ -1295,12 +1279,17 @@ export type QuizPlayerState = {
   result: any
   passed: boolean | null
   canGoBack: boolean
+  hasInlineResponse: boolean
+  isShowingResponse: boolean
 }
 
 export type QuizPlayerHandle = {
-  next: () => void
+  next: () => Promise<void>
   back: () => void
   retry: () => void
+  submit: () => Promise<void>
+  showResponse: () => boolean
+  dismissResponse: () => void
 }
 
 // Pill button for icon controls in the header
@@ -1327,7 +1316,7 @@ function IconPill({ onClick, children }: { onClick: () => void; children: React.
   )
 }
 
-function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, initialShowResults, onComplete, embedded = false, onStateChange }: Props, ref: React.Ref<QuizPlayerHandle>) {
+function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, initialShowResults, onComplete, embedded = false, onStateChange, currentPageIndex, onPageStateChange }: Props, ref: React.Ref<QuizPlayerHandle>) {
   useQuizStyles()
 
   const session = useLHSession() as any
@@ -1349,7 +1338,7 @@ function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, init
   }, [org, course, activity.activity_uuid])
 
   const content = editorPreviewContent || activity.content
-  const slides = useMemo(() => extractSlides(content), [content])
+  const slides = useMemo(() => extractQuizSlides(content) as Slide[], [content])
   const [textScoringRules, setTextScoringRules] = useState<Record<string, TextScoringRule>>(activity?.details?.text_scores || {})
 
   const [currentIdx, setCurrentIdx] = useState(0)
@@ -1363,6 +1352,7 @@ function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, init
   const [showResults, setShowResults] = useState(!!initialShowResults && !embedded)
   const [loadingExistingResult, setLoadingExistingResult] = useState(!embedded && !editorPreviewContent && !initialShowResults)
   const quizMode = activity?.details?.quiz_mode || 'categories'
+  const isControlled = typeof currentPageIndex === 'number'
   const activeVectors = quizMode === 'ungraded'
     ? []
     : quizMode === 'graded'
@@ -1392,6 +1382,23 @@ function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, init
     return () => window.removeEventListener('lh:quiz-scoring-updated', handler)
   }, [editorPreviewContent])
 
+  useEffect(() => {
+    if (!isControlled) return
+    const maxPageIndex = Math.max(0, slides.length)
+    const safePageIndex = Math.max(0, Math.min(currentPageIndex ?? 0, maxPageIndex))
+    setShowingResponse(false)
+    setResponseIn(false)
+
+    if (safePageIndex >= slides.length) {
+      setCurrentIdx(Math.max(0, slides.length - 1))
+      setShowResults(true)
+      return
+    }
+
+    setCurrentIdx(safePageIndex)
+    setShowResults(false)
+  }, [currentPageIndex, isControlled, slides.length])
+
   const currentSlide = slides[currentIdx]
   const isLastSlide = currentIdx === slides.length - 1
 
@@ -1403,6 +1410,13 @@ function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, init
     if (!selUuid) return null
     return sel.options.find(o => o.option_uuid === selUuid) ?? null
   }, [showingResponse, currentSlide, answers])
+  const currentResponseOption = useMemo<QuizOption | null>(() => {
+    if (!currentSlide || currentSlide.type !== 'quizSelectBlock') return null
+    const sel = currentSlide as SelectSlide
+    const selUuid = answers.get(sel.question_uuid)
+    if (!selUuid || sel.show_responses === false) return null
+    return sel.options.find(o => o.option_uuid === selUuid && (o.info_message || o.info_image_block_object)) ?? null
+  }, [currentSlide, answers])
 
   const isCurrentAnswered = useMemo(() => {
     if (showingResponse) return true
@@ -1444,9 +1458,11 @@ function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, init
 
   // Open response slide with slide-up animation
   const openResponse = useCallback(() => {
+    if (!currentResponseOption) return false
     setShowingResponse(true)
     requestAnimationFrame(() => requestAnimationFrame(() => setResponseIn(true)))
-  }, [])
+    return true
+  }, [currentResponseOption])
 
   // Close response slide (slide down then remove)
   const closeResponse = useCallback(() => {
@@ -1601,7 +1617,7 @@ function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, init
     } finally {
       setSubmitting(false)
     }
-  }, [slides, answers, activity, access_token, editorPreviewContent, activeVectors, quizMode, org?.id, onComplete, onClose])
+  }, [slides, answers, activity, access_token, editorPreviewContent, activeVectors, quizMode, org?.id, onComplete, onClose, embedded])
 
   const handleNext = useCallback(async () => {
     if (!isCurrentAnswered || submitting || showResults) return
@@ -1716,13 +1732,16 @@ function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, init
   }
 
   useImperativeHandle(ref, () => ({
-    next: () => { void handleNext() },
+    next: handleNext,
     back: handleBack,
     retry: handleRetake,
-  }), [handleNext, handleBack])
+    submit: doSubmit,
+    showResponse: openResponse,
+    dismissResponse: closeResponse,
+  }), [handleNext, handleBack, doSubmit, openResponse, closeResponse])
 
   useEffect(() => {
-    onStateChange?.({
+    const state = {
       pageIndex: showResults ? slides.length : currentIdx,
       pageCount: Math.max(1, slides.length) + 1,
       isAnswered: showResults || isCurrentAnswered,
@@ -1731,8 +1750,12 @@ function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, init
       result,
       passed: resultPassed,
       canGoBack: showResults || canGoBack,
-    })
-  }, [onStateChange, showResults, slides.length, currentIdx, isCurrentAnswered, submitting, result, resultPassed, canGoBack])
+      hasInlineResponse: Boolean(currentResponseOption),
+      isShowingResponse: showingResponse,
+    }
+    onStateChange?.(state)
+    onPageStateChange?.(state)
+  }, [onStateChange, onPageStateChange, showResults, slides.length, currentIdx, isCurrentAnswered, submitting, result, resultPassed, canGoBack, currentResponseOption, showingResponse])
 
   if (loadingExistingResult) {
     return (
@@ -1822,6 +1845,7 @@ function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, init
   const nextLabel = showingResponse
     ? (isLastSlide ? 'Done' : 'Next →')
     : (isLastSlide ? 'Done' : 'Next →')
+  const renderSinglePage = embedded && isControlled
 
   return (
     <div className={embedded ? "relative mx-auto min-h-[18rem] w-full max-w-3xl overflow-hidden bg-transparent" : "quiz-shell-outer"}><div className={embedded ? "relative h-full min-h-[18rem] overflow-hidden bg-transparent" : "quiz-shell-inner"}>
@@ -1858,35 +1882,54 @@ function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, init
         )}
       </div>}
 
-      {/* ── Slide stack ── */}
-      <div style={{
-        position: 'absolute', inset: 0,
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        transform: `translate3d(0, -${currentIdx * 100}%, 0)`,
-        transition: 'transform 520ms cubic-bezier(.2, .9, .2, 1)',
-        willChange: 'transform',
-      }}>
-        {slides.map((slide, idx) => (
-          <div key={idx} style={{ flex: '0 0 100%', height: '100%', minHeight: 0 }}>
-            <SlideFrame
-              slide={slide}
-              isActive={idx === currentIdx}
-              answers={answers}
-              textScoringRules={textScoringRules}
-              infoOverlay={null}
-              popUuid={idx === currentIdx ? popUuid : null}
-              onSelectOption={handleSelectOption}
-              onToggleMultiSelectOption={handleToggleMultiSelectOption}
-              onTextAnswerChange={handleTextAnswerChange}
-              onSliderAnswerChange={handleSliderAnswerChange}
-              buildImageUrl={buildImageUrl}
-              simpleMode={embedded}
-            />
-          </div>
-        ))}
-      </div>
+      {renderSinglePage ? (
+        <div style={{ position: 'relative', height: 'clamp(24rem, 70vh, 42rem)', minHeight: '24rem' }}>
+          <SlideFrame
+            key={currentSlide.type === 'quizInfoBlock' ? (currentSlide as InfoSlide).slide_uuid : (currentSlide as any).question_uuid || currentIdx}
+            slide={currentSlide}
+            isActive
+            answers={answers}
+            textScoringRules={textScoringRules}
+            infoOverlay={null}
+            popUuid={popUuid}
+            onSelectOption={handleSelectOption}
+            onToggleMultiSelectOption={handleToggleMultiSelectOption}
+            onTextAnswerChange={handleTextAnswerChange}
+            onSliderAnswerChange={handleSliderAnswerChange}
+            buildImageUrl={buildImageUrl}
+            simpleMode={embedded}
+          />
+        </div>
+      ) : (
+        <div style={{
+          position: 'absolute', inset: 0,
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          transform: `translate3d(0, -${currentIdx * 100}%, 0)`,
+          transition: 'transform 520ms cubic-bezier(.2, .9, .2, 1)',
+          willChange: 'transform',
+        }}>
+          {slides.map((slide, idx) => (
+            <div key={idx} style={{ flex: '0 0 100%', height: '100%', minHeight: 0 }}>
+              <SlideFrame
+                slide={slide}
+                isActive={idx === currentIdx}
+                answers={answers}
+                textScoringRules={textScoringRules}
+                infoOverlay={null}
+                popUuid={idx === currentIdx ? popUuid : null}
+                onSelectOption={handleSelectOption}
+                onToggleMultiSelectOption={handleToggleMultiSelectOption}
+                onTextAnswerChange={handleTextAnswerChange}
+                onSliderAnswerChange={handleSliderAnswerChange}
+                buildImageUrl={buildImageUrl}
+                simpleMode={embedded}
+              />
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── Response slide — slides up from bottom after Next ── */}
       {showingResponse && responseOption && (

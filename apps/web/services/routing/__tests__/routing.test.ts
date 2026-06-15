@@ -48,6 +48,7 @@ test('route manifest builds auth, account, and public org paths used by navigati
   assert.equal(routePaths.org.course('badge-slug'), '/badges/badge-slug')
   assert.equal(routePaths.org.badgeStatus('badge-slug'), '/badges/badge-slug/badge')
   assert.equal(routePaths.org.badgePath('badge-slug'), '/badges/badge-slug/path')
+  assert.equal(routePaths.org.badgeChapter('badge-slug', 'chapter-1'), '/badges/badge-slug/chapter/chapter-1')
   assert.equal(routePaths.org.badgeInvite('badge-slug'), '/badges/badge-slug/invite')
 })
 

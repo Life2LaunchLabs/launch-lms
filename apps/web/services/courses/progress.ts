@@ -22,7 +22,7 @@ type TrailRunLike = {
   steps?: TrailStepLike[] | null
 }
 
-type CourseChapterLike = {
+export type CourseChapterLike = {
   id?: number | null
   chapter_uuid?: string | null
   name?: string | null
@@ -199,34 +199,54 @@ export function findChapterForActivity(
 }
 
 export type ChapterPageLike = {
-  type: 'activity' | 'quiz-question' | 'quiz-result'
+  type: 'activity' | 'quiz-slide' | 'quiz-result'
   activity: NonNullable<CourseChapterLike['activities']>[number]
   pageIndex: number
   pageCount: number
 }
 
-export function getQuizQuestionCount(content: any) {
-  let count = 0
+export type QuizSlideLike = {
+  type:
+    | 'quizInfoBlock'
+    | 'quizSelectBlock'
+    | 'quizMultiSelectBlock'
+    | 'quizTextBlock'
+    | 'quizSliderBlock'
+    | 'quizSortBlock'
+  [key: string]: any
+}
+
+export function extractQuizSlides(content: any): QuizSlideLike[] {
+  const slides: QuizSlideLike[] = []
   const visit = (node: any) => {
     if (!node || typeof node !== 'object') return
     if (
+      node.type === 'quizInfoBlock' ||
       node.type === 'quizSelectBlock' ||
       node.type === 'quizMultiSelectBlock' ||
       node.type === 'quizTextBlock' ||
       node.type === 'quizSliderBlock' ||
       node.type === 'quizSortBlock'
     ) {
-      count += 1
+      slides.push({ type: node.type, ...(node.attrs || {}) })
     }
     if (Array.isArray(node.content)) node.content.forEach(visit)
   }
   visit(content)
-  return count
+  return slides
+}
+
+export function getQuizSlideCount(content: any) {
+  return extractQuizSlides(content).length
+}
+
+export function getQuizQuestionCount(content: any) {
+  return extractQuizSlides(content).filter((slide) => slide.type !== 'quizInfoBlock').length
 }
 
 export function getActivityPageCount(activity: NonNullable<CourseChapterLike['activities']>[number]) {
   if (activity?.activity_type !== 'TYPE_QUIZ') return 1
-  return Math.max(1, getQuizQuestionCount(activity.content)) + 1
+  return Math.max(1, getQuizSlideCount(activity.content)) + 1
 }
 
 export function expandChapterPages(chapter: CourseChapterLike | null | undefined): ChapterPageLike[] {
@@ -237,11 +257,11 @@ export function expandChapterPages(chapter: CourseChapterLike | null | undefined
       pages.push({ type: 'activity', activity, pageIndex: 0, pageCount })
       return
     }
-    const questionCount = Math.max(1, pageCount - 1)
-    for (let pageIndex = 0; pageIndex < questionCount; pageIndex += 1) {
-      pages.push({ type: 'quiz-question', activity, pageIndex, pageCount })
+    const slideCount = Math.max(1, pageCount - 1)
+    for (let pageIndex = 0; pageIndex < slideCount; pageIndex += 1) {
+      pages.push({ type: 'quiz-slide', activity, pageIndex, pageCount })
     }
-    pages.push({ type: 'quiz-result', activity, pageIndex: questionCount, pageCount })
+    pages.push({ type: 'quiz-result', activity, pageIndex: slideCount, pageCount })
   })
   return pages
 }
