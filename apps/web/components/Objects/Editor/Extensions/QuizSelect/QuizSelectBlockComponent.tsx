@@ -205,40 +205,15 @@ function QuestionImageGrid({
 }
 
 function QuestionTextStack({
-  options, backgroundUrl, backgroundSeed, isUploading, questionText,
-  onLabelChange, onUpload, onClear, onRerandomize, onTitleChange,
+  options, questionText,
+  onLabelChange, onTitleChange,
 }: {
-  options: QuizOption[]; backgroundUrl: string | null; backgroundSeed: string
-  isUploading: boolean; questionText: string
+  options: QuizOption[]; questionText: string
   onLabelChange: (uuid: string, label: string) => void
-  onUpload: (file: File, optionUuid: string, field: 'main' | 'info' | 'background') => void
-  onClear: (optionUuid: string | null, field: 'main' | 'info' | 'background') => void
-  onRerandomize: () => void
   onTitleChange: (text: string) => void
 }) {
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
   return (
-    <div style={{ position: 'relative', height: 420, borderRadius: 12, overflow: 'hidden', background: backgroundUrl ? '#000' : getGradient(backgroundSeed) }}>
-      {backgroundUrl && <img src={backgroundUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.28)', pointerEvents: 'none' }} />
-      {/* Corner buttons */}
-      <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {backgroundUrl ? (
-          <CornerBtn onClick={() => onClear(null, 'background')} title="Remove image"><X size={12} /></CornerBtn>
-        ) : (
-          <>
-            <CornerBtn onClick={() => !isUploading && fileInputRef.current?.click()} isLoading={isUploading} title="Upload background">
-              <Upload size={12} />
-            </CornerBtn>
-            <CornerBtn onClick={onRerandomize} title="Randomize gradient">
-              <Dice6 size={12} />
-            </CornerBtn>
-            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display: 'none' }}
-              onChange={e => { const f = e.target.files?.[0]; if (f) onUpload(f, '', 'background') }} />
-          </>
-        )}
-      </div>
+    <div style={{ position: 'relative', height: 420, borderRadius: 12, overflow: 'hidden', background: 'transparent' }}>
       {/* Content: title + options stack */}
       <div style={{ position: 'relative', zIndex: 1, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
         <div style={{ width: '100%', maxWidth: 320, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -372,7 +347,7 @@ function QuizSelectBlockComponent(props: any) {
   const activity = props.extension.options.activity
 
   const [questionText, setQuestionText] = useState<string>(attrs.question_text || '')
-  const [displayStyle, setDisplayStyle] = useState<DisplayStyle>(attrs.display_style === 'text' ? 'text' : 'image')
+  const [displayStyle, setDisplayStyle] = useState<DisplayStyle>('text')
   const [optionCount, setOptionCount] = useState<number>(attrs.option_count || 2)
   const [options, setOptions] = useState<QuizOption[]>(() => {
     const existing: QuizOption[] = attrs.options || []
@@ -472,20 +447,6 @@ function QuizSelectBlockComponent(props: any) {
     setOptionCount(count)
     setOptions(newOptions)
     persistAttrs({ options: newOptions, optionCount: count })
-  }
-
-  const handleDisplayStyleChange = (style: DisplayStyle) => {
-    if (style === 'image' && optionCount > 4) {
-      const nextCount = 4
-      const nextOptions = options.slice(0, nextCount)
-      setDisplayStyle(style)
-      setOptionCount(nextCount)
-      setOptions(nextOptions)
-      persistAttrs({ displayStyle: style, optionCount: nextCount, options: nextOptions })
-      return
-    }
-    setDisplayStyle(style)
-    persistAttrs({ displayStyle: style })
   }
 
   const handleLabelChange = (uuid: string, label: string) => {
@@ -648,11 +609,6 @@ function QuizSelectBlockComponent(props: any) {
             {displayStyle === 'text' && <option value="5">5 options</option>}
             {displayStyle === 'text' && <option value="6">6 options</option>}
           </select>
-          <select value={displayStyle} onChange={e => handleDisplayStyleChange(e.target.value as DisplayStyle)}
-            style={{ fontSize: 11, fontWeight: 600, border: '1px solid #ddd6fe', borderRadius: 6, padding: '2px 6px', background: '#fff', color: '#374151', outline: 'none', cursor: 'pointer' }}>
-            <option value="image">Image style</option>
-            <option value="text">Text style</option>
-          </select>
           <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', userSelect: 'none' }}>
             <input type="checkbox" checked={showResponses} onChange={e => handleToggleResponses(e.target.checked)}
               style={{ accentColor: ACCENT_COLOR, width: 13, height: 13 }} />
@@ -688,14 +644,8 @@ function QuizSelectBlockComponent(props: any) {
             displayStyle === 'text' ? (
               <QuestionTextStack
                 options={options}
-                backgroundUrl={getImageUrl(backgroundImageBlockObject)}
-                backgroundSeed={backgroundGradientSeed}
-                isUploading={!!uploadingMap.background}
                 questionText={questionText}
                 onLabelChange={handleLabelChange}
-                onUpload={handleImageUpload}
-                onClear={handleImageClear}
-                onRerandomize={handleRerandomizeBackground}
                 onTitleChange={handleQuestionTextChange}
               />
             ) : (

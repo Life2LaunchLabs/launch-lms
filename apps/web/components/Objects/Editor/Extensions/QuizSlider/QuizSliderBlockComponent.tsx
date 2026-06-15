@@ -254,8 +254,8 @@ function QuizSliderBlockComponent(props: any) {
 
   const [questionText, setQuestionText] = useState<string>(attrs.question_text || '')
   const [sliderCount, setSliderCount] = useState<number>(Math.max(1, Math.min(6, attrs.slider_count || 2)))
-  const [directionMode, setDirectionMode] = useState<DirectionMode>(normalizeDirectionMode(attrs.direction_mode))
-  const [labelMode, setLabelMode] = useState<LabelMode>(attrs.label_mode === 'numbers' || attrs.label_mode === 'labels' ? attrs.label_mode : 'none')
+  const [directionMode, setDirectionMode] = useState<DirectionMode>('stars')
+  const [labelMode, setLabelMode] = useState<LabelMode>('none')
   const [numberMax, setNumberMax] = useState<number>(Math.max(1, attrs.number_max || 5))
   const [leftAxisLabel, setLeftAxisLabel] = useState<string>(attrs.left_axis_label || '')
   const [rightAxisLabel, setRightAxisLabel] = useState<string>(attrs.right_axis_label || '')
@@ -492,24 +492,6 @@ function QuizSliderBlockComponent(props: any) {
             <option value="5">5 sliders</option>
             <option value="6">6 sliders</option>
           </select>
-          <select
-            value={directionMode}
-            onChange={e => {
-              const next = e.target.value as DirectionMode
-              setDirectionMode(next)
-              if (next === 'stars') {
-                setLabelMode('none')
-                persistAttrs({ directionMode: next, labelMode: 'none' })
-              } else {
-                persistAttrs({ directionMode: next })
-              }
-            }}
-            style={{ fontSize: 11, fontWeight: 600, border: '1px solid #fcd34d', borderRadius: 6, padding: '2px 6px', background: '#fff', color: '#374151', outline: 'none', cursor: 'pointer' }}
-          >
-            <option value="unidirectional">Uni</option>
-            <option value="bidirectional">Bi</option>
-            <option value="stars">Stars</option>
-          </select>
           {directionMode !== 'stars' && (
             <select
               value={labelMode}
@@ -553,48 +535,7 @@ function QuizSliderBlockComponent(props: any) {
 
         <div style={{ padding: '12px', background: '#fff' }}>
           {activeTab === 'question' && (
-            <div style={{ position: 'relative', height: 420, borderRadius: 12, overflow: 'hidden', background: backgroundUrl ? '#000' : getGradient(backgroundGradientSeed) }}>
-              {backgroundUrl && <img src={backgroundUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-              <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.28)', pointerEvents: 'none' }} />
-              <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {backgroundUrl ? (
-                  <button
-                    type="button"
-                    onClick={clearBackground}
-                    title="Remove image"
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: '50%', background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)', border: 'none', cursor: 'pointer', color: '#fff' }}
-                  >
-                    <X size={12} />
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => !uploadingBackground && backgroundInputRef.current?.click()}
-                      title="Upload background"
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: '50%', background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)', border: 'none', cursor: 'pointer', color: '#fff' }}
-                    >
-                      {uploadingBackground ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleRerandomizeGradient}
-                      title="Randomize gradient"
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: '50%', background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)', border: 'none', cursor: 'pointer', color: '#fff' }}
-                    >
-                      <Dice6 size={12} />
-                    </button>
-                    <input
-                      ref={backgroundInputRef}
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif"
-                      className="hidden"
-                      onChange={e => { const file = e.target.files?.[0]; if (file) handleBackgroundUpload(file) }}
-                    />
-                  </>
-                )}
-              </div>
-
+            <div style={{ position: 'relative', height: 420, borderRadius: 12, overflow: 'hidden', background: 'transparent' }}>
               <div style={{ position: 'relative', zIndex: 1, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
                 <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <input
@@ -623,7 +564,7 @@ function QuizSliderBlockComponent(props: any) {
                         }}
                         style={{ width: 84, background: 'rgba(255,255,255,0.95)', border: 'none', borderRadius: 999, padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#111827', outline: 'none' }}
                       />
-                      <span style={{ color: 'rgba(255,255,255,0.82)', fontSize: 12, fontWeight: 700 }}>
+                      <span style={{ color: '#6b7280', fontSize: 12, fontWeight: 700 }}>
                         Max value {directionMode === 'bidirectional' ? 'shown on both sides' : 'shown on the right'}
                       </span>
                     </div>
@@ -649,7 +590,7 @@ function QuizSliderBlockComponent(props: any) {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                     {directionMode !== 'stars' && labelMode === 'numbers' && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#fff', fontSize: 11, fontWeight: 700, textShadow: '0 2px 10px rgba(0,0,0,0.35)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280', fontSize: 11, fontWeight: 700, textShadow: 'none' }}>
                           <span>{directionMode === 'bidirectional' ? numberMax : 0}</span>
                           <span>{numberMax}</span>
                         </div>
@@ -657,7 +598,7 @@ function QuizSliderBlockComponent(props: any) {
                     )}
                     {directionMode !== 'stars' && labelMode === 'labels' && !hideOptionLabels && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#fff', fontSize: 11, fontWeight: 700, textShadow: '0 2px 10px rgba(0,0,0,0.35)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280', fontSize: 11, fontWeight: 700, textShadow: 'none' }}>
                           <span>{leftAxisLabel || '\u00A0'}</span>
                           <span>{rightAxisLabel || '\u00A0'}</span>
                         </div>
@@ -681,7 +622,7 @@ function QuizSliderBlockComponent(props: any) {
                                   key={`${slider.slider_uuid}_${starIdx}`}
                                   size={28}
                                   strokeWidth={2.2}
-                                  style={{ color: '#fff', fill: 'transparent', filter: 'drop-shadow(0 2px 10px rgba(0,0,0,0.3))' }}
+                                  style={{ color: '#f59e0b', fill: 'transparent', filter: 'none' }}
                                 />
                               ))}
                             </div>

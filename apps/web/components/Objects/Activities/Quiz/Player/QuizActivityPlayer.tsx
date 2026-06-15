@@ -1,5 +1,5 @@
 'use client'
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react'
 import { CheckCircle2, ChevronLeft, X, Star, Heart, Flame, Leaf, Zap, Sun, Flag, Triangle, Square, ThumbsDown, ThumbsUp } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
@@ -9,6 +9,7 @@ import { getMyQuizResult, submitQuizAttempt } from '@services/quiz/quiz'
 import { getAPIUrl } from '@services/config/config'
 import { mutate } from 'swr'
 import QuizResultsModal from './QuizResultsModal'
+import QuizResultsView from './QuizResultsView'
 import { computeQuizScoresPreview, matchQuizResultPreview } from '../Results/quizResultsPreview'
 import Lottie from 'lottie-react'
 // To add a new animation: import its JSON here, add it to QUIZ_INFO_ANIMATIONS below,
@@ -360,12 +361,14 @@ function SortSlideView({
   buildImageUrl,
   onSortCard,
   onReturnCard,
+  simpleMode = false,
 }: {
   slide: SortSlide
   value: { assignments: Record<string, string>; stackOrder: string[] }
   buildImageUrl: (blockObj: any) => string | null
   onSortCard: (slide: SortSlide, categoryUuid: string) => void
   onReturnCard: (slide: SortSlide, cardUuid: string) => void
+  simpleMode?: boolean
 }) {
   const [openTray, setOpenTray] = useState<'left' | 'right' | 'top' | null>(null)
   const [isMobileLayout, setIsMobileLayout] = useState(false)
@@ -375,7 +378,7 @@ function SortSlideView({
     to: 'center' | 'left' | 'right' | 'top'
     phase: 'start' | 'end'
   } | null>(null)
-  const backgroundUrl = buildImageUrl(slide.background_image_block_object)
+  const backgroundUrl = simpleMode ? null : buildImageUrl(slide.background_image_block_object)
   const background = getGradient(slide.background_gradient_seed || slide.question_uuid || 'sort-question')
   const currentCard = slide.cards.find(card => card.card_uuid === value.stackOrder[0]) || null
   const remainingCount = value.stackOrder.length
@@ -512,11 +515,11 @@ function SortSlideView({
   }
 
   return (
-    <div style={{ height: '100%', position: 'relative', overflow: 'hidden', background: backgroundUrl ? '#000' : background }}>
+    <div style={{ height: '100%', position: 'relative', overflow: 'hidden', background: simpleMode ? 'transparent' : (backgroundUrl ? '#000' : background) }}>
       {backgroundUrl && (
         <img src={backgroundUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
       )}
-      <div style={{ position: 'absolute', inset: 0, background: 'rgba(2,6,23,0.28)' }} />
+      {!simpleMode && <div style={{ position: 'absolute', inset: 0, background: 'rgba(2,6,23,0.28)' }} />}
       <div style={{ position: 'absolute', inset: 0, padding: isMobileLayout ? '120px 12px 94px' : '126px 18px 102px', boxSizing: 'border-box' }}>
         {slide.categories.map(category => {
           const trayCards = sortedByCategory[category.category_uuid] || []
@@ -532,7 +535,7 @@ function SortSlideView({
                 ...zoneStyle,
                 zIndex: 2,
                 border: 'none',
-                color: '#fff',
+                color: simpleMode ? '#111827' : '#fff',
                 padding: 0,
                 display: 'flex',
                 flexDirection: 'column',
@@ -544,12 +547,12 @@ function SortSlideView({
             >
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {renderMiniPile(trayCards.length, category)}
-                <span style={{ position: 'absolute', left: '50%', bottom: -16, transform: 'translateX(-50%)', minWidth: 24, height: 22, borderRadius: 999, background: 'rgba(15,23,42,0.58)', border: '1px solid rgba(255,255,255,0.28)', color: '#fff', fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 7px', boxShadow: '0 8px 20px rgba(15,23,42,0.18)' }}>
+                <span style={{ position: 'absolute', left: '50%', bottom: -16, transform: 'translateX(-50%)', minWidth: 24, height: 22, borderRadius: 999, background: simpleMode ? '#fff' : 'rgba(15,23,42,0.58)', border: '1px solid rgba(229,231,235,0.9)', color: simpleMode ? '#111827' : '#fff', fontSize: 11, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 7px', boxShadow: '0 8px 20px rgba(15,23,42,0.18)' }}>
                   {trayCards.length}
                 </span>
               </div>
               {category.label && (
-                <span style={{ marginTop: 22, fontSize: 12, fontWeight: 800, color: '#fff', textShadow: '0 2px 10px rgba(0,0,0,0.35)', textAlign: 'center' }}>
+                <span style={{ marginTop: 22, fontSize: 12, fontWeight: 800, color: simpleMode ? '#111827' : '#fff', textShadow: simpleMode ? 'none' : '0 2px 10px rgba(0,0,0,0.35)', textAlign: 'center' }}>
                   {category.label}
                 </span>
               )}
@@ -700,7 +703,7 @@ function SortSlideView({
 
 // ── Info slide view ────────────────────────────────────────────────────────────
 
-function InfoSlideView({ info, isActive, buildImageUrl }: { info: InfoSlide; isActive: boolean; buildImageUrl: (blockObj: any) => string | null }) {
+function InfoSlideView({ info, isActive, buildImageUrl, simpleMode = false }: { info: InfoSlide; isActive: boolean; buildImageUrl: (blockObj: any) => string | null; simpleMode?: boolean }) {
   const [animTriggered, setAnimTriggered] = useState(false)
   const [animDone, setAnimDone] = useState(false)
 
@@ -708,13 +711,13 @@ function InfoSlideView({ info, isActive, buildImageUrl }: { info: InfoSlide; isA
     if (isActive && !animTriggered) setAnimTriggered(true)
   }, [isActive])
 
-  const imgUrl = buildImageUrl(info.image_block_object)
+  const imgUrl = simpleMode ? null : buildImageUrl(info.image_block_object)
   const bg = getGradient(info.gradient_seed || info.slide_uuid || 'info')
   const animData = info.animation && info.animation !== 'none' ? QUIZ_INFO_ANIMATIONS[info.animation] : null
   const showAnim = animTriggered && !!animData && !animDone
 
   return (
-    <div style={{ height: '100%', position: 'relative', overflow: 'hidden', background: imgUrl ? '#000' : bg }}>
+    <div style={{ height: '100%', position: 'relative', overflow: 'hidden', background: simpleMode ? 'transparent' : (imgUrl ? '#000' : bg) }}>
       {showAnim && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 50, pointerEvents: 'none' }}>
           <Lottie
@@ -728,17 +731,17 @@ function InfoSlideView({ info, isActive, buildImageUrl }: { info: InfoSlide; isA
       {imgUrl && (
         <img src={imgUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
       )}
-      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)' }} />
+      {!simpleMode && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)' }} />}
       {(info.title || info.body) && (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', boxSizing: 'border-box' }}>
           <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 12 }}>
             {info.title && (
-              <p style={{ color: '#fff', fontSize: 24, fontWeight: 800, textAlign: 'center', textShadow: '0 2px 10px rgba(0,0,0,0.65)', lineHeight: 1.2, margin: 0 }}>
+              <p style={{ color: simpleMode ? '#111827' : '#fff', fontSize: 24, fontWeight: 800, textAlign: 'center', textShadow: simpleMode ? 'none' : '0 2px 10px rgba(0,0,0,0.65)', lineHeight: 1.2, margin: 0 }}>
                 {info.title}
               </p>
             )}
             {info.body && (
-              <p style={{ color: '#fff', fontSize: 17, fontWeight: 600, textAlign: 'center', textShadow: '0 2px 10px rgba(0,0,0,0.65)', lineHeight: 1.4, margin: 0 }}>
+              <p style={{ color: simpleMode ? '#4b5563' : '#fff', fontSize: 17, fontWeight: 600, textAlign: 'center', textShadow: simpleMode ? 'none' : '0 2px 10px rgba(0,0,0,0.65)', lineHeight: 1.4, margin: 0 }}>
                 {info.body}
               </p>
             )}
@@ -763,6 +766,7 @@ function SlideFrame({
   onTextAnswerChange,
   onSliderAnswerChange,
   buildImageUrl,
+  simpleMode = false,
 }: {
   slide: Slide
   isActive: boolean
@@ -775,10 +779,11 @@ function SlideFrame({
   onTextAnswerChange: (slide: TextSlide | SortSlide, value: string) => void
   onSliderAnswerChange: (slide: SliderSlide, sliderUuid: string, value: number) => void
   buildImageUrl: (blockObj: any) => string | null
+  simpleMode?: boolean
 }) {
   // ── Info slide ──
   if (slide.type === 'quizInfoBlock') {
-    return <InfoSlideView key={(slide as InfoSlide).slide_uuid} info={slide as InfoSlide} isActive={isActive} buildImageUrl={buildImageUrl} />
+    return <InfoSlideView key={(slide as InfoSlide).slide_uuid} info={slide as InfoSlide} isActive={isActive} buildImageUrl={buildImageUrl} simpleMode={simpleMode} />
   }
 
   if (slide.type === 'quizTextBlock') {
@@ -793,24 +798,24 @@ function SlideFrame({
     const hasMinLength = minChars > 0
     const progressPct = hasMinLength ? Math.min(100, Math.round((trimmedLength / minChars) * 100)) : 0
     const meetsMin = !hasMinLength || trimmedLength >= minChars
-    const backgroundUrl = buildImageUrl(textSlide.background_image_block_object)
+    const backgroundUrl = simpleMode ? null : buildImageUrl(textSlide.background_image_block_object)
     const background = getGradient(textSlide.background_gradient_seed || textSlide.question_uuid || 'text-question')
 
     return (
-      <div style={{ height: '100%', position: 'relative', overflow: 'hidden', background: backgroundUrl ? '#000' : background }}>
+      <div style={{ height: '100%', position: 'relative', overflow: 'hidden', background: simpleMode ? 'transparent' : (backgroundUrl ? '#000' : background) }}>
         {backgroundUrl && (
           <img src={backgroundUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         )}
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.28)' }} />
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '120px 24px 96px', boxSizing: 'border-box' }}>
+        {!simpleMode && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.28)' }} />}
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: simpleMode ? '24px' : '120px 24px 96px', boxSizing: 'border-box' }}>
           <div style={{ width: '100%', maxWidth: 340, display: 'flex', flexDirection: 'column', gap: 16 }}>
             {textSlide.question_text && (
-              <p style={{ margin: 0, textAlign: 'center', color: '#fff', fontSize: 24, fontWeight: 800, lineHeight: 1.2, textShadow: '0 2px 10px rgba(0,0,0,0.65)' }}>
+              <p style={{ margin: 0, textAlign: 'center', color: simpleMode ? '#111827' : '#fff', fontSize: 24, fontWeight: 800, lineHeight: 1.2, textShadow: simpleMode ? 'none' : '0 2px 10px rgba(0,0,0,0.65)' }}>
                 {textSlide.question_text}
               </p>
             )}
             {textSlide.description && (
-              <p style={{ margin: 0, textAlign: 'center', color: '#fff', fontSize: 14, lineHeight: 1.5, textShadow: '0 2px 10px rgba(0,0,0,0.35)' }}>
+              <p style={{ margin: 0, textAlign: 'center', color: simpleMode ? '#4b5563' : '#fff', fontSize: 14, lineHeight: 1.5, textShadow: simpleMode ? 'none' : '0 2px 10px rgba(0,0,0,0.35)' }}>
                 {textSlide.description}
               </p>
             )}
@@ -858,13 +863,13 @@ function SlideFrame({
   if (slide.type === 'quizSliderBlock') {
     const sliderSlide = slide as SliderSlide
     const sliderValues = (answers.get(sliderSlide.question_uuid) || {}) as Record<string, number>
-    const labelMode = sliderSlide.label_mode || 'none'
-    const directionMode = sliderSlide.direction_mode || 'unidirectional'
+    const labelMode = simpleMode ? 'none' : (sliderSlide.label_mode || 'none')
+    const directionMode = simpleMode ? 'stars' : (sliderSlide.direction_mode || 'unidirectional')
     const numberMax = Math.max(1, Number(sliderSlide.number_max || 5))
     const step = labelMode === 'numbers'
       ? (directionMode === 'bidirectional' ? 1 / (numberMax * 2) : 1 / numberMax)
       : 0.01
-    const backgroundUrl = buildImageUrl(sliderSlide.background_image_block_object)
+    const backgroundUrl = simpleMode ? null : buildImageUrl(sliderSlide.background_image_block_object)
     const background = getGradient(sliderSlide.background_gradient_seed || sliderSlide.question_uuid || 'slider-question')
     const tickCount = labelMode === 'numbers'
       ? (directionMode === 'bidirectional' ? Math.min(20, numberMax * 2) : Math.min(10, numberMax))
@@ -873,7 +878,7 @@ function SlideFrame({
     const hideOptionLabels = sliderSlide.slider_count === 1
 
     return (
-      <div style={{ height: '100%', position: 'relative', overflow: 'hidden', background: backgroundUrl ? '#000' : background }}>
+      <div style={{ height: '100%', position: 'relative', overflow: 'hidden', background: simpleMode ? 'transparent' : (backgroundUrl ? '#000' : background) }}>
         <style>{`
           .quiz-player-slider-range {
             appearance: none;
@@ -901,11 +906,11 @@ function SlideFrame({
         {backgroundUrl && (
           <img src={backgroundUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         )}
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.28)' }} />
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '120px 24px 96px', boxSizing: 'border-box' }}>
+        {!simpleMode && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.28)' }} />}
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: simpleMode ? '24px' : '120px 24px 96px', boxSizing: 'border-box' }}>
           <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 18 }}>
             {sliderSlide.question_text && (
-              <p style={{ margin: 0, textAlign: 'center', color: '#fff', fontSize: 24, fontWeight: 800, lineHeight: 1.2, textShadow: '0 2px 10px rgba(0,0,0,0.65)' }}>
+              <p style={{ margin: 0, textAlign: 'center', color: simpleMode ? '#111827' : '#fff', fontSize: 24, fontWeight: 800, lineHeight: 1.2, textShadow: simpleMode ? 'none' : '0 2px 10px rgba(0,0,0,0.65)' }}>
                 {sliderSlide.question_text}
               </p>
             )}
@@ -933,7 +938,7 @@ function SlideFrame({
               return (
                 <div key={row.slider_uuid} style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
                   {!hideOptionLabels && (
-                    <div style={{ color: '#fff', fontSize: 13, fontWeight: 700, textShadow: '0 2px 10px rgba(0,0,0,0.35)', lineHeight: 1.3, textAlign: 'center' }}>
+                    <div style={{ color: simpleMode ? '#4b5563' : '#fff', fontSize: 13, fontWeight: 700, textShadow: simpleMode ? 'none' : '0 2px 10px rgba(0,0,0,0.35)', lineHeight: 1.3, textAlign: 'center' }}>
                       {row.label || `Option ${idx + 1}`}
                     </div>
                   )}
@@ -952,7 +957,7 @@ function SlideFrame({
                               <Star
                                 size={30}
                                 strokeWidth={2.2}
-                                style={{ color: '#fff', fill: nextStars <= selectedStars ? '#fff' : 'transparent', filter: 'drop-shadow(0 2px 10px rgba(0,0,0,0.3))' }}
+                                style={{ color: simpleMode ? '#f59e0b' : '#fff', fill: nextStars <= selectedStars ? 'currentColor' : 'transparent', filter: simpleMode ? 'none' : 'drop-shadow(0 2px 10px rgba(0,0,0,0.3))' }}
                               />
                             </button>
                           )
@@ -999,6 +1004,7 @@ function SlideFrame({
         buildImageUrl={buildImageUrl}
         onSortCard={onSelectOption}
         onReturnCard={onTextAnswerChange}
+        simpleMode={simpleMode}
       />
     )
   }
@@ -1007,23 +1013,23 @@ function SlideFrame({
     const multi = slide as MultiSelectSlide
     const selectedUuids = (answers.get(multi.question_uuid) || []) as string[]
     const selectedSet = new Set(selectedUuids)
-    const backgroundUrl = buildImageUrl(multi.background_image_block_object)
+    const backgroundUrl = simpleMode ? null : buildImageUrl(multi.background_image_block_object)
     const background = getGradient(multi.background_gradient_seed || multi.question_uuid || 'multi-select-question')
 
     return (
-      <div style={{ height: '100%', position: 'relative', overflow: 'hidden', background: backgroundUrl ? '#000' : background }}>
+      <div style={{ height: '100%', position: 'relative', overflow: 'hidden', background: simpleMode ? 'transparent' : (backgroundUrl ? '#000' : background) }}>
         {backgroundUrl && (
           <img src={backgroundUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
         )}
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.28)' }} />
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'stretch', justifyContent: 'center', padding: '112px 44px 96px', boxSizing: 'border-box' }}>
+        {!simpleMode && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.28)' }} />}
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'stretch', justifyContent: 'center', padding: simpleMode ? '24px' : '112px 44px 96px', boxSizing: 'border-box' }}>
           <div style={{ width: 'min(860px, 100%)', display: 'flex', flexDirection: 'column', gap: 14, minHeight: 0 }}>
             {multi.question_text && (
-              <p style={{ margin: 0, textAlign: 'center', color: '#fff', fontSize: 24, fontWeight: 800, lineHeight: 1.2, textShadow: '0 2px 10px rgba(0,0,0,0.65)' }}>
+              <p style={{ margin: 0, textAlign: 'center', color: simpleMode ? '#111827' : '#fff', fontSize: 24, fontWeight: 800, lineHeight: 1.2, textShadow: simpleMode ? 'none' : '0 2px 10px rgba(0,0,0,0.65)' }}>
                 {multi.question_text}
               </p>
             )}
-            <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.82)', fontSize: 12, fontWeight: 800, textShadow: '0 2px 10px rgba(0,0,0,0.35)' }}>
+            <div style={{ textAlign: 'center', color: simpleMode ? '#6b7280' : 'rgba(255,255,255,0.82)', fontSize: 12, fontWeight: 800, textShadow: simpleMode ? 'none' : '0 2px 10px rgba(0,0,0,0.35)' }}>
               {selectedUuids.length} selected
             </div>
             <div
@@ -1041,7 +1047,7 @@ function SlideFrame({
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', columnGap: 28, rowGap: 20, alignItems: 'start' }}>
                 {multi.categories.map(category => (
                   <div key={category.category_uuid} style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
-                    <p style={{ margin: 0, paddingBottom: 8, width: '100%', borderBottom: '1px solid rgba(255,255,255,0.48)', textAlign: 'left', color: '#fff', fontSize: 17, fontWeight: 800, lineHeight: 1.2, textShadow: '0 2px 10px rgba(0,0,0,0.65)' }}>
+                    <p style={{ margin: 0, paddingBottom: 8, width: '100%', borderBottom: simpleMode ? '1px solid #e5e7eb' : '1px solid rgba(255,255,255,0.48)', textAlign: 'left', color: simpleMode ? '#111827' : '#fff', fontSize: 17, fontWeight: 800, lineHeight: 1.2, textShadow: simpleMode ? 'none' : '0 2px 10px rgba(0,0,0,0.65)' }}>
                       {category.title || 'Category'}
                     </p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -1085,16 +1091,16 @@ function SlideFrame({
   const selectedUuid = answers.get(sel.question_uuid) || null
   const hasSelection = !!selectedUuid
   const isGrid = sel.option_count === 4
-  const isTextStyle = sel.display_style === 'text'
-  const questionBgUrl = buildImageUrl(sel.background_image_block_object)
+  const isTextStyle = simpleMode || sel.display_style === 'text'
+  const questionBgUrl = simpleMode ? null : buildImageUrl(sel.background_image_block_object)
   const questionBg = getGradient(sel.background_gradient_seed || sel.question_uuid || 'question')
 
   return (
-    <div style={{ height: '100%', position: 'relative', overflow: 'hidden', background: isTextStyle ? (questionBgUrl ? '#000' : questionBg) : '#000' }}>
+    <div style={{ height: '100%', position: 'relative', overflow: 'hidden', background: simpleMode ? 'transparent' : (isTextStyle ? (questionBgUrl ? '#000' : questionBg) : '#000') }}>
       {isTextStyle && questionBgUrl && (
         <img src={questionBgUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
       )}
-      {isTextStyle && (
+      {isTextStyle && !simpleMode && (
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.28)' }} />
       )}
 
@@ -1107,13 +1113,13 @@ function SlideFrame({
         gap: isTextStyle ? 12 : 0,
         alignItems: isTextStyle ? 'center' : undefined,
         justifyContent: isTextStyle ? 'center' : undefined,
-        padding: isTextStyle ? '120px 24px 96px' : 0,
+        padding: isTextStyle ? (simpleMode ? '24px' : '120px 24px 96px') : 0,
         boxSizing: 'border-box',
       }}>
         {isTextStyle ? (
           <div style={{ width: '100%', maxWidth: 320, display: 'flex', flexDirection: 'column', gap: 12 }}>
             {sel.question_text && (
-              <p style={{ margin: 0, textAlign: 'center', color: '#fff', fontSize: 24, fontWeight: 800, lineHeight: 1.2, textShadow: '0 2px 10px rgba(0,0,0,0.65)' }}>
+              <p style={{ margin: 0, textAlign: 'center', color: simpleMode ? '#111827' : '#fff', fontSize: 24, fontWeight: 800, lineHeight: 1.2, textShadow: simpleMode ? 'none' : '0 2px 10px rgba(0,0,0,0.65)' }}>
                 {sel.question_text}
               </p>
             )}
@@ -1129,7 +1135,8 @@ function SlideFrame({
                   style={{
                     position: 'relative',
                     overflow: 'hidden',
-                    background: 'rgba(255,255,255,0.94)',
+                    background: simpleMode ? '#fff' : 'rgba(255,255,255,0.94)',
+                    border: isSelected ? '2px solid #111827' : '1px solid #e5e7eb',
                     cursor: 'pointer',
                     userSelect: 'none',
                     flex: '0 0 auto',
@@ -1142,12 +1149,12 @@ function SlideFrame({
                     justifyContent: 'center',
                     filter: hasSelection && !isSelected ? 'opacity(0.55)' : 'none',
                     transform: isPopping ? undefined : (isSelected ? 'scale(1.02)' : 'scale(1)'),
-                    boxShadow: isSelected ? '0 18px 40px rgba(0,0,0,0.3)' : 'none',
+                    boxShadow: isSelected ? (simpleMode ? '0 10px 22px rgba(15,23,42,0.12)' : '0 18px 40px rgba(0,0,0,0.3)') : 'none',
                     zIndex: isSelected ? 2 : 1,
                     transition: isPopping ? 'none' : 'filter 200ms ease, transform 180ms cubic-bezier(.2,.9,.2,1), box-shadow 200ms ease, opacity 200ms ease',
                   }}
                 >
-                  {isSelected && (
+                  {isSelected && !simpleMode && (
                     <div style={{ position: 'absolute', inset: 0, border: '3px solid rgba(17,24,39,0.9)', borderRadius: 999, boxSizing: 'border-box', zIndex: 3, pointerEvents: 'none' }} />
                   )}
                   <div style={{
@@ -1275,6 +1282,25 @@ interface Props {
   onClose?: () => void
   initialShowResults?: boolean
   onComplete?: React.Dispatch<any>
+  embedded?: boolean
+  onStateChange?: (state: QuizPlayerState) => void
+}
+
+export type QuizPlayerState = {
+  pageIndex: number
+  pageCount: number
+  isAnswered: boolean
+  isResultPage: boolean
+  isSubmitting: boolean
+  result: any
+  passed: boolean | null
+  canGoBack: boolean
+}
+
+export type QuizPlayerHandle = {
+  next: () => void
+  back: () => void
+  retry: () => void
 }
 
 // Pill button for icon controls in the header
@@ -1301,7 +1327,7 @@ function IconPill({ onClick, children }: { onClick: () => void; children: React.
   )
 }
 
-export default function QuizActivityPlayer({ activity, editorPreviewContent, onClose, initialShowResults, onComplete }: Props) {
+function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, initialShowResults, onComplete, embedded = false, onStateChange }: Props, ref: React.Ref<QuizPlayerHandle>) {
   useQuizStyles()
 
   const session = useLHSession() as any
@@ -1334,8 +1360,8 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
   const [responseIn, setResponseIn] = useState(false)             // drives slide-up transition
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<any>(null)
-  const [showResults, setShowResults] = useState(!!initialShowResults)
-  const [loadingExistingResult, setLoadingExistingResult] = useState(!editorPreviewContent && !initialShowResults)
+  const [showResults, setShowResults] = useState(!!initialShowResults && !embedded)
+  const [loadingExistingResult, setLoadingExistingResult] = useState(!embedded && !editorPreviewContent && !initialShowResults)
   const quizMode = activity?.details?.quiz_mode || 'categories'
   const activeVectors = quizMode === 'ungraded'
     ? []
@@ -1344,6 +1370,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
       : (activity?.details?.category_scoring_vectors || activity?.details?.scoring_vectors || [])
 
   useEffect(() => {
+    if (embedded) return
     if (editorPreviewContent) return
     let mounted = true
     getMyQuizResult(activity.activity_uuid, access_token)
@@ -1351,7 +1378,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
       .catch(() => {})
       .finally(() => { if (mounted) setLoadingExistingResult(false) })
     return () => { mounted = false }
-  }, [activity.activity_uuid, access_token, editorPreviewContent])
+  }, [activity.activity_uuid, access_token, editorPreviewContent, embedded])
 
   useEffect(() => {
     if (!editorPreviewContent) return
@@ -1409,6 +1436,11 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
 
   const canGoBack = showingResponse || currentIdx > 0
   const progress = slides.length <= 1 ? 100 : Math.round(((currentIdx + 1) / slides.length) * 100)
+  const resultPassed = result?.result_json?.graded_result
+    ? Boolean(result.result_json.graded_result.passed)
+    : result
+      ? true
+      : null
 
   // Open response slide with slide-up animation
   const openResponse = useCallback(() => {
@@ -1521,8 +1553,8 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
               pass_percent: passPercent,
               passed: correctScore * 100 >= passPercent,
               attempt_number: 1,
-              attempts_remaining: activity?.details?.grading_rules?.max_attempts ?? null,
-              max_attempts: activity?.details?.grading_rules?.max_attempts ?? null,
+              attempts_remaining: null,
+              max_attempts: null,
               best_score_percent: Number((correctScore * 100).toFixed(1)),
               correct_answers: Math.round(correctScore * gradedQuestionCount),
               question_count: gradedQuestionCount,
@@ -1553,6 +1585,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     try {
       const r = await submitQuizAttempt(activity.activity_uuid, { answers: answerPayload }, access_token)
       setResult(r)
+      setShowResults(true)
       if (org?.id) {
         void mutate(`${getAPIUrl()}trail/org/${org.id}/trail`)
       }
@@ -1562,7 +1595,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
           detail: { activity_uuid: activity.activity_uuid, result: r },
         }))
       }
-      onClose?.()
+      if (!embedded) onClose?.()
     } catch {
       setShowResults(true)
     } finally {
@@ -1571,6 +1604,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
   }, [slides, answers, activity, access_token, editorPreviewContent, activeVectors, quizMode, org?.id, onComplete, onClose])
 
   const handleNext = useCallback(async () => {
+    if (!isCurrentAnswered || submitting || showResults) return
     if (showingResponse) {
       // Dismiss response, then advance or submit
       closeResponse()
@@ -1598,9 +1632,15 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
       return
     }
     await doSubmit()
-  }, [showingResponse, isLastSlide, currentSlide, answers, openResponse, closeResponse, doSubmit, currentIdx])
+  }, [isCurrentAnswered, submitting, showResults, showingResponse, isLastSlide, currentSlide, answers, openResponse, closeResponse, doSubmit, currentIdx])
 
   const handleBack = () => {
+    if (showResults) {
+      setShowResults(false)
+      setResult(null)
+      setCurrentIdx(Math.max(0, slides.length - 1))
+      return
+    }
     if (showingResponse) { closeResponse(); return }
     if (currentIdx > 0) {
       setCurrentIdx(i => i - 1)
@@ -1675,6 +1715,25 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     setResponseIn(false)
   }
 
+  useImperativeHandle(ref, () => ({
+    next: () => { void handleNext() },
+    back: handleBack,
+    retry: handleRetake,
+  }), [handleNext, handleBack])
+
+  useEffect(() => {
+    onStateChange?.({
+      pageIndex: showResults ? slides.length : currentIdx,
+      pageCount: Math.max(1, slides.length) + 1,
+      isAnswered: showResults || isCurrentAnswered,
+      isResultPage: showResults,
+      isSubmitting: submitting,
+      result,
+      passed: resultPassed,
+      canGoBack: showResults || canGoBack,
+    })
+  }, [onStateChange, showResults, slides.length, currentIdx, isCurrentAnswered, submitting, result, resultPassed, canGoBack])
+
   if (loadingExistingResult) {
     return (
       <div className="quiz-shell-outer"><div className="quiz-shell-inner">
@@ -1686,6 +1745,20 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
   }
 
   if (showResults) {
+    if (embedded) {
+      return (
+        <div className="w-full bg-transparent">
+          <QuizResultsView
+            result={result}
+            activity={editorPreviewContent ? { ...activity, content: editorPreviewContent } : activity}
+            org={org}
+            course={course}
+            onRetake={handleRetake}
+            showRetakeButton={false}
+          />
+        </div>
+      )
+    }
     return (
       <QuizResultsModal
         result={result}
@@ -1699,6 +1772,13 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
   }
 
   if (slides.length === 0) {
+    if (embedded) {
+      return (
+        <div className="flex min-h-[20rem] flex-col items-center justify-center gap-3 p-8 text-center">
+          <p className="text-sm font-medium text-gray-500">This quiz has no questions yet.</p>
+        </div>
+      )
+    }
     return (
       <div className="quiz-shell-outer"><div className="quiz-shell-inner">
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12 }}>
@@ -1734,7 +1814,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
         : false
 
   // Background for the response slide
-  const responseBg = responseOption
+  const responseBg = !embedded && responseOption
     ? (buildImageUrl(responseOption.info_image_block_object) ?? null)
     : null
   const responseGradient = responseOption ? getGradient(responseOption.gradient_seed) : '#000'
@@ -1744,9 +1824,9 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
     : (isLastSlide ? 'Done' : 'Next →')
 
   return (
-    <div className="quiz-shell-outer"><div className="quiz-shell-inner">
+    <div className={embedded ? "relative mx-auto min-h-[18rem] w-full max-w-3xl overflow-hidden bg-transparent" : "quiz-shell-outer"}><div className={embedded ? "relative h-full min-h-[18rem] overflow-hidden bg-transparent" : "quiz-shell-inner"}>
       {/* ── Header overlay ── */}
-      <div style={{
+      {!embedded && <div style={{
         position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000,
         display: 'flex', flexDirection: 'column', gap: 10,
         padding: 12, pointerEvents: 'none',
@@ -1776,7 +1856,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
             {currentTitle}
           </div>
         )}
-      </div>
+      </div>}
 
       {/* ── Slide stack ── */}
       <div style={{
@@ -1802,6 +1882,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
               onTextAnswerChange={handleTextAnswerChange}
               onSliderAnswerChange={handleSliderAnswerChange}
               buildImageUrl={buildImageUrl}
+              simpleMode={embedded}
             />
           </div>
         ))}
@@ -1811,7 +1892,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
       {showingResponse && responseOption && (
         <div style={{
           position: 'absolute', inset: 0, zIndex: 800,
-          background: responseBg ? '#000' : responseGradient,
+          background: embedded ? 'transparent' : (responseBg ? '#000' : responseGradient),
           transform: responseIn ? 'translate3d(0, 0, 0)' : 'translate3d(0, 100%, 0)',
           transition: 'transform 420ms cubic-bezier(.2,.9,.2,1)',
           willChange: 'transform',
@@ -1821,11 +1902,11 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
             <img src={responseBg} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           )}
           {/* Scrim */}
-          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.38)', pointerEvents: 'none' }} />
+          {!embedded && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.38)', pointerEvents: 'none' }} />}
           {/* Option label + message centered */}
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px 80px', boxSizing: 'border-box', gap: 16 }}>
             {responseOption.info_message && (
-              <p style={{ color: '#fff', fontSize: 18, fontWeight: 700, textAlign: 'center', textShadow: '0 2px 10px rgba(0,0,0,0.65)', lineHeight: 1.4, margin: 0 }}>
+              <p style={{ color: embedded ? '#111827' : '#fff', fontSize: 18, fontWeight: 700, textAlign: 'center', textShadow: embedded ? 'none' : '0 2px 10px rgba(0,0,0,0.65)', lineHeight: 1.4, margin: 0 }}>
                 {responseOption.info_message}
               </p>
             )}
@@ -1834,7 +1915,7 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
       )}
 
       {/* ── Next / Done button ── */}
-      <button
+      {!embedded && <button
         onClick={handleNext}
         disabled={submitting}
         style={{
@@ -1856,7 +1937,12 @@ export default function QuizActivityPlayer({ activity, editorPreviewContent, onC
         {submitting ? (
           <div className="animate-spin" style={{ width: 18, height: 18, borderRadius: '50%', border: '2px solid rgba(0,0,0,0.2)', borderTopColor: '#000' }} />
         ) : nextLabel}
-      </button>
+      </button>}
     </div></div>
   )
 }
+
+const QuizActivityPlayer = forwardRef<QuizPlayerHandle, Props>(QuizActivityPlayerInner)
+QuizActivityPlayer.displayName = 'QuizActivityPlayer'
+
+export default QuizActivityPlayer

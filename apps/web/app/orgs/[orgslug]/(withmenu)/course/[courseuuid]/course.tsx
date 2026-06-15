@@ -22,8 +22,10 @@ import {
   useContainerBreakpoints,
 } from '@components/Contexts/ContainerBreakpointContext'
 import ActivityCourseOutline from '@components/Pages/Activity/ActivityCourseOutline'
-import { getCourseCompletionSummary } from '@services/courses/progress'
+import { getChapterCompletionSummary, getCourseChapterCompletionSummary } from '@services/courses/progress'
 import { useRouter } from 'next/navigation'
+import { getMyQuizResult } from '@services/quiz/quiz'
+import QuizResultsModal from '@components/Objects/Activities/Quiz/Player/QuizResultsModal'
 
 const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => {
   const { t } = useTranslation()
@@ -78,9 +80,9 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
       trailRun.course?.course_uuid?.replace('course_', '') === cleanCourseUuid
     ))
   }, [course?.course_uuid, trailData])
-  const completion = useMemo(() => getCourseCompletionSummary(course, run), [course, run])
-  const { totalActivities, completedActivities, isCompleted } = completion
-  const isInProgress = Boolean(run) && !isCompleted
+  const completion = useMemo(() => getCourseChapterCompletionSummary(course, run), [course, run])
+  const { totalChapters, completedChapters, isCompleted, isStarted } = completion
+  const isInProgress = isStarted && !isCompleted
   const badgeStatusPath = routePaths.org.badgeStatus(courseuuid)
   const badgePath = routePaths.org.badgePath(courseuuid)
 
@@ -193,8 +195,8 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
                 badgePath={badgePath}
                 t={t}
                 comingSoon={!!course.coming_soon}
-                completedActivities={completedActivities}
-                totalActivities={totalActivities}
+                completedChapters={completedChapters}
+                totalChapters={totalChapters}
                 isInProgress={isInProgress}
                 isCompleted={isCompleted}
                 verificationUrl={verificationUrl}
@@ -225,8 +227,8 @@ function getPathActivityIcon(activityType: string) {
 }
 
 function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run, badgeStatusPath }: any) {
-  const activities = useMemo(
-    () => course.chapters?.flatMap((chapter: any) => chapter.activities || []) || [],
+  const chapters = useMemo(
+    () => course.chapters?.filter((chapter: any) => (chapter.activities || []).length > 0) || [],
     [course.chapters]
   )
   const completedIds = useMemo(
@@ -237,10 +239,18 @@ function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run, badgeStatusPa
     ),
     [run?.steps]
   )
-  const nextActivityIndex = activities.findIndex((activity: any) => !completedIds.has(activity.id))
-  const [activeIndex, setActiveIndex] = useState(nextActivityIndex >= 0 ? nextActivityIndex : 0)
-  const completedCount = completedIds.size
-  const progressPercent = activities.length > 0 ? (completedCount / activities.length) * 100 : 0
+  const chapterSummaries = useMemo(
+    () => chapters.map((chapter: any) => getChapterCompletionSummary(chapter, run)),
+    [chapters, run]
+  )
+  const nextChapterIndex = chapterSummaries.findIndex((summary: any) => !summary.isCompleted)
+  const [activeIndex, setActiveIndex] = useState(nextChapterIndex >= 0 ? nextChapterIndex : 0)
+  useEffect(() => {
+    setActiveIndex(nextChapterIndex >= 0 ? nextChapterIndex : 0)
+  }, [nextChapterIndex])
+  const totalChapters = chapterSummaries.length
+  const completedChapterCount = chapterSummaries.filter((summary: any) => summary.isCompleted).length
+  const progressPercent = totalChapters > 0 ? (completedChapterCount / totalChapters) * 100 : 0
   const badgeHref = getUriWithOrg(orgslug, badgeStatusPath)
 
   return (
@@ -282,7 +292,7 @@ function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run, badgeStatusPa
           <div className="mt-6">
             <div className="mb-2 flex items-center justify-between text-xs font-semibold text-gray-500">
               <span>Progress</span>
-              <span className="tabular-nums">{completedCount}/{activities.length}</span>
+              <span className="tabular-nums">{completedChapterCount}/{totalChapters}</span>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-gray-100">
               <div
@@ -295,27 +305,38 @@ function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run, badgeStatusPa
       </aside>
 
       <div className="space-y-3">
-        {activities.map((activity: any, index: number) => {
-          const isCompletedActivity = completedIds.has(activity.id)
-          const isNext = index === nextActivityIndex
-          const isAvailable = isCompletedActivity || isNext
+        {chapters.map((chapter: any, index: number) => {
+          const summary = chapterSummaries[index]
+          const firstActivity = chapter.activities?.[0]
+          const targetActivity = firstActivity
+          const isCompletedChapter = summary?.isCompleted
+          const isInProgressChapter = summary?.isStarted && !summary?.isCompleted
+          const isNext = index === nextChapterIndex
+          const isAvailable = isCompletedChapter || isInProgressChapter || isNext
           const isActive = index === activeIndex && isAvailable
-          const Icon = getPathActivityIcon(activity.activity_type)
+          const Icon = getPathActivityIcon(firstActivity?.activity_type)
+          const stateLabel = isCompletedChapter
+            ? 'Complete'
+            : isInProgressChapter
+              ? 'In progress'
+              : isNext
+                ? 'Next up'
+                : 'Locked'
           const activityHref = getUriWithOrg(
             orgslug,
             routePaths.org.courseActivity(
               course.course_uuid.replace('course_', ''),
-              activity.activity_uuid.replace('activity_', '')
+              targetActivity?.activity_uuid?.replace('activity_', '')
             )
           )
 
           return (
             <div
-              key={activity.activity_uuid}
+              key={chapter.chapter_uuid || chapter.id || chapter.name || index}
               className={`rounded-lg bg-white transition-all ${
-                isNext
+                isNext || isInProgressChapter
                   ? `border-2 border-green-500 ${isActive ? '-translate-y-1 shadow-lg' : 'shadow-sm'}`
-                  : isCompletedActivity
+                  : isCompletedChapter
                     ? `border border-gray-200 ${isActive ? '-translate-y-0.5 shadow-md' : ''}`
                     : 'border border-gray-100 bg-gray-50/60'
               }`}
@@ -333,29 +354,41 @@ function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run, badgeStatusPa
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className={`text-sm font-semibold ${isAvailable ? 'text-gray-950' : 'text-gray-400'}`}>
-                    {activity.name}
+                    {chapter.name}
                   </p>
                   <p className={`mt-0.5 text-xs font-medium ${
-                    isNext ? 'text-green-600' : isCompletedActivity ? 'text-gray-500' : 'text-gray-300'
+                    isNext || isInProgressChapter ? 'text-green-600' : isCompletedChapter ? 'text-gray-500' : 'text-gray-300'
                   }`}>
-                    {isNext ? 'Next up' : isCompletedActivity ? 'Completed' : 'Not started'}
+                    {stateLabel}
                   </p>
                 </div>
               </button>
 
               {isActive && (
-                <div className="px-4 pb-4 pl-[4.5rem]">
+                <div className="space-y-3 px-4 pb-4 pl-[4.5rem]">
                   <Link
                     href={activityHref}
                     className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-                      isNext
+                      isNext || isInProgressChapter
                         ? 'bg-green-600 text-white hover:bg-green-700'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
-                    {isNext ? 'Get started' : 'Review'}
+                    {isCompletedChapter ? 'Review' : isInProgressChapter ? 'Continue' : 'Get started'}
                     <ArrowRight size={15} />
                   </Link>
+                  <div className="space-y-2">
+                    {(chapter.activities || [])
+                      .filter((chapterActivity: any) => chapterActivity.activity_type === 'TYPE_QUIZ')
+                      .map((quizActivity: any) => (
+                        <PathQuizResultAction
+                          key={quizActivity.activity_uuid || quizActivity.id}
+                          activity={quizActivity}
+                          course={course}
+                          orgslug={orgslug}
+                        />
+                      ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -366,6 +399,51 @@ function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run, badgeStatusPa
   )
 }
 
+function PathQuizResultAction({ activity, course, orgslug }: { activity: any; course: any; orgslug: string }) {
+  const session = useLHSession() as any
+  const org = useOrg() as any
+  const accessToken = session?.data?.tokens?.access_token
+  const [result, setResult] = useState<any>(undefined)
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    let mounted = true
+    getMyQuizResult(activity.activity_uuid, accessToken)
+      .then((nextResult) => {
+        if (mounted) setResult(nextResult || null)
+      })
+      .catch(() => {
+        if (mounted) setResult(null)
+      })
+    return () => { mounted = false }
+  }, [activity.activity_uuid, accessToken])
+
+  if (!result) return null
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-2 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-900"
+      >
+        View result for {activity.name || 'quiz'}
+      </button>
+      {open && (
+        <QuizResultsModal
+          result={result}
+          activity={activity}
+          org={org}
+          course={course}
+          onRetake={() => setOpen(false)}
+          onClose={() => setOpen(false)}
+          showRetakeButton={false}
+        />
+      )}
+    </>
+  )
+}
+
 function BadgeStatusHero({
   course,
   courseOwnerOrgUuid,
@@ -373,15 +451,15 @@ function BadgeStatusHero({
   badgePath,
   t,
   comingSoon,
-  completedActivities,
-  totalActivities,
+  completedChapters,
+  totalChapters,
   isInProgress,
   isCompleted,
   verificationUrl,
   awardedDate,
 }: any) {
-  const progressPercent = totalActivities > 0
-    ? Math.round((completedActivities / totalActivities) * 100)
+  const progressPercent = totalChapters > 0
+    ? Math.round((completedChapters / totalChapters) * 100)
     : 0
   const pathUrl = getUriWithOrg(orgslug, badgePath)
   const inviteUrl = getUriWithOrg(
@@ -457,7 +535,7 @@ function BadgeStatusHero({
             <div className="w-full max-w-md">
               <div className="mb-2 flex items-center justify-between text-xs font-semibold text-gray-500">
                 <span>Progress</span>
-                <span className="tabular-nums">{completedActivities}/{totalActivities}</span>
+                <span className="tabular-nums">{completedChapters}/{totalChapters}</span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-gray-100">
                 <div

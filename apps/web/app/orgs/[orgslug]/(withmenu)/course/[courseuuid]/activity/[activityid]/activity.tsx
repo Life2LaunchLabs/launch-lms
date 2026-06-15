@@ -1,13 +1,18 @@
 'use client'
 import Link from 'next/link'
 import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
-import { AlertTriangle, BookOpenCheck, CheckCircle, ChevronLeft, ChevronRight, UserRoundPen, Minimize2 } from 'lucide-react'
+import { AlertTriangle, Award, BookOpenCheck, CheckCircle, ChevronLeft, ChevronRight, UserRoundPen, Minimize2 } from 'lucide-react'
 import { markActivityAsComplete, startCourse } from '@services/courses/activity'
+import { getActivityWithAuthHeader } from '@services/courses/activities'
 import {
+  findChapterForActivity,
   findCourseRun,
+  getChapterCompletionSummary,
   getCompletedCourseStepCount,
+  getQuizQuestionCount,
+  isCourseActivityCompleted,
 } from '@services/courses/progress'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
 import { getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { useOrg, useOrgMembership } from '@components/Contexts/OrgContext'
@@ -33,6 +38,7 @@ import ContentPageHeader from '@components/Objects/StyledElements/Headers/Conten
 import { useTranslation } from 'react-i18next'
 import { useAnalytics } from '@/hooks/useAnalytics'
 import { defaultChapterIconName, getChannelIcon } from '@components/Resources/ResourceChannelStyle'
+import QuizActivityPlayer, { type QuizPlayerHandle, type QuizPlayerState } from '@components/Objects/Activities/Quiz/Player/QuizActivityPlayer'
 
 // Lazy load heavy components
 const Canva = lazy(() => import('@components/Objects/Activities/DynamicCanva/DynamicCanva'))
@@ -42,8 +48,6 @@ const AssignmentStudentActivity = lazy(() => import('@components/Objects/Activit
 const AISidePanelContentWrapper = lazy(() => import('@components/Objects/Activities/AI/AIActivityAsk').then(mod => ({ default: mod.AISidePanelContentWrapper })))
 const AISidePanelInline = lazy(() => import('@components/Objects/Activities/AI/AIActivityAsk').then(mod => ({ default: mod.AISidePanelInline })))
 const AIChatBotProvider = lazy(() => import('@components/Contexts/AI/AIChatBotContext'))
-const QuizLaunchButton = lazy(() => import('@components/Objects/Activities/Quiz/Player/QuizLaunchButton'))
-const QuizTitleActions = lazy(() => import('@components/Objects/Activities/Quiz/Player/QuizTitleActions'))
 
 // Loading fallback component
 const LoadingFallback = () => (
@@ -105,7 +109,9 @@ function useActivityPosition(course: any, activityId: string) {
         allActivities.push({
           ...activity,
           cleanUuid: cleanActivityUuid,
-          chapterName: chapter.name
+          chapterName: chapter.name,
+          chapterId: chapter.id,
+          chapterUuid: chapter.chapter_uuid
         });
         
         if (cleanActivityUuid === activityId.replace('activity_', '')) {
@@ -116,6 +122,10 @@ function useActivityPosition(course: any, activityId: string) {
     
     return { allActivities, currentIndex };
   }, [course, activityId]);
+}
+
+function getCleanActivityUuid(activityLike: any): string {
+  return String(activityLike?.cleanUuid || activityLike?.activity_uuid || activityLike || '').replace('activity_', '')
 }
 
 function ActivityActions({ activity, activityid, course, orgslug, assignment, showNavigation = true, guestMode = false, publicGuestMode = false, quickstartMode = false }: ActivityActionsProps) {
@@ -154,7 +164,13 @@ function ActivityActions({ activity, activityid, course, orgslug, assignment, sh
 
 function ActivityClient(props: ActivityClientProps) {
   const { t } = useTranslation()
-  const activityid = props.activityid
+  const initialActivityId = props.activityid
+  const [activeActivityId, setActiveActivityId] = React.useState(initialActivityId)
+  const [activeActivity, setActiveActivity] = React.useState(props.activity)
+  const [activityTransitionDirection, setActivityTransitionDirection] = React.useState<'next' | 'prev'>('next')
+  const [chapterRewardVisible, setChapterRewardVisible] = React.useState(false)
+  const activityCacheRef = useRef<Map<string, any>>(new Map())
+  const activityid = activeActivityId
   const isCourseEnd = activityid === 'end'
   const guestMode = props.guestMode === true
   const unauthenticated = props.unauthenticated === true
@@ -185,7 +201,7 @@ function ActivityClient(props: ActivityClientProps) {
 
   const courseuuid = props.courseuuid
   const orgslug = props.orgslug
-  const activity = props.activity
+  const activity = activeActivity
   const course = props.course
   const org = useOrg() as any
   const { isUserPartOfTheOrg } = useOrgMembership()
@@ -198,10 +214,22 @@ function ActivityClient(props: ActivityClientProps) {
   const isInitialRender = useRef(true);
   const hasAttemptedGuestCourseStart = useRef(false)
   const hasAttemptedCourseStart = useRef(false)
+  const quizPlayerRef = useRef<QuizPlayerHandle | null>(null)
+  const [quizState, setQuizState] = React.useState<QuizPlayerState | null>(null)
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const { track } = useAnalytics()
   const activityStartTime = useRef(Date.now())
+
+  useEffect(() => {
+    const cleanActivityId = getCleanActivityUuid(props.activity || initialActivityId)
+    activityCacheRef.current.set(cleanActivityId, props.activity)
+    setActiveActivity(props.activity)
+    setActiveActivityId(initialActivityId)
+    setQuizState(null)
+    setChapterRewardVisible(false)
+  }, [initialActivityId, props.activity])
 
   // Track activity view on mount, time_on_activity on unmount
   const activityUuidForTracking = activity?.activity_uuid
@@ -246,6 +274,91 @@ function ActivityClient(props: ActivityClientProps) {
   const completedCourseActivities = getCompletedCourseStepCount(courseRun)
   const progressRatio =
     totalCourseActivities > 0 ? completedCourseActivities / totalCourseActivities : 0
+  const currentChapter = useMemo(
+    () => findChapterForActivity(course, activity?.id || activityid),
+    [course, activity?.id, activityid]
+  )
+  const currentChapterSummary = useMemo(
+    () => getChapterCompletionSummary(currentChapter, courseRun),
+    [currentChapter, courseRun]
+  )
+  const isCurrentActivityCompleted = isCourseActivityCompleted(courseRun, activity?.id)
+  const chapterCompletedActivities = currentChapterSummary.completedActivities + (
+    activity?.id && !isCurrentActivityCompleted && (searchParams.get('chapter_complete') || chapterRewardVisible)
+      ? 1
+      : 0
+  )
+  const totalChapterActivities = currentChapterSummary.totalActivities || totalCourseActivities
+  const chapterProgressRatio =
+    totalChapterActivities > 0
+      ? Math.min(1, chapterCompletedActivities / totalChapterActivities)
+      : progressRatio
+  const quizActivityPageIndex = activity?.activity_type === 'TYPE_QUIZ'
+    ? (quizState?.pageIndex ?? 0)
+    : 0
+  const chapterPages = useMemo(
+    () => {
+      const pages = currentChapter?.activities || []
+      let total = 0
+      let before = 0
+      for (const chapterActivity of pages) {
+        const count = chapterActivity.activity_type === 'TYPE_QUIZ'
+          ? Math.max(1, getQuizQuestionCount(chapterActivity.content)) + 1
+          : 1
+        if (chapterActivity.id === activity?.id) {
+          before = total
+        }
+        total += count
+      }
+      return {
+        totalPages: total || totalChapterActivities || 1,
+        completedPages: Math.min(
+          total || 1,
+          before + (
+            activity?.activity_type === 'TYPE_QUIZ'
+              ? quizActivityPageIndex
+              : isCurrentActivityCompleted
+                ? 1
+                : 0
+          )
+        ),
+      }
+    },
+    [currentChapter, activity?.id, activity?.activity_type, quizActivityPageIndex, totalChapterActivities, isCurrentActivityCompleted]
+  )
+  const visibleChapterProgressLabel = `${chapterPages.completedPages}/${chapterPages.totalPages}`
+  const visibleChapterProgressValue = (chapterPages.completedPages / chapterPages.totalPages) * 100
+  const showChapterCompleteReward =
+    !quickstartMode &&
+    (Boolean(searchParams.get('chapter_complete')) || chapterRewardVisible) &&
+    Boolean(currentChapter)
+  const closeChapterReward = () => {
+    const cleanCourseUuid = course.course_uuid?.replace('course_', '') || courseuuid
+    router.push(getUriWithOrg(orgslug, routePaths.org.badgePath(cleanCourseUuid)))
+  }
+  const closeActivityViewer = React.useCallback(() => {
+    const cleanCourseUuid = course.course_uuid?.replace('course_', '') || courseuuid
+    const closePath = quickstartMode
+      ? routePaths.org.quickstartCourse(cleanCourseUuid)
+      : routePaths.org.badgePath(cleanCourseUuid)
+    router.push(getUriWithOrg(orgslug, closePath))
+  }, [course.course_uuid, courseuuid, orgslug, quickstartMode, router])
+
+  const handleQuizComplete = React.useCallback(async (result: any) => {
+    const passed = result?.result_json?.graded_result
+      ? Boolean(result.result_json.graded_result.passed)
+      : true
+    if (!passed || !activity?.activity_uuid) return
+    try {
+      await markActivityAsComplete(
+        orgslug,
+        course.course_uuid,
+        activity.activity_uuid,
+        access_token
+      )
+      await mutate(`${getAPIUrl()}trail/org/${org?.id}/trail`)
+    } catch (_) {}
+  }, [activity?.activity_uuid, course.course_uuid, orgslug, access_token, org?.id])
 
   useEffect(() => {
     if (!isGuestLearner || !org?.id || !course?.course_uuid) return
@@ -276,10 +389,195 @@ function ActivityClient(props: ActivityClientProps) {
     quickstartMode
       ? routePaths.org.quickstartCourseActivity(courseuuid, activityUuid)
       : routePaths.org.courseActivity(courseuuid, activityUuid)
+
+  const setBrowserActivityUrl = React.useCallback((cleanActivityUuid: string) => {
+    if (typeof window === 'undefined') return
+    const nextPath = getUriWithOrg(orgslug, buildActivityPath(cleanActivityUuid))
+    window.history.pushState(null, '', nextPath)
+  }, [orgslug, buildActivityPath])
+
+  const loadActivityPayload = React.useCallback(async (activityLike: any) => {
+    const cleanActivityUuid = getCleanActivityUuid(activityLike)
+    if (!cleanActivityUuid) return null
+
+    const cached = activityCacheRef.current.get(cleanActivityUuid)
+    if (cached) return cached
+
+    const payload = await getActivityWithAuthHeader(cleanActivityUuid, null, access_token || null)
+    activityCacheRef.current.set(cleanActivityUuid, payload)
+    return payload
+  }, [access_token])
+
+  const activateChapterActivity = React.useCallback(async (activityLike: any, direction: 'next' | 'prev' = 'next') => {
+    const cleanActivityUuid = getCleanActivityUuid(activityLike)
+    if (!cleanActivityUuid) return
+
+    try {
+      const payload = await loadActivityPayload(activityLike)
+      if (!payload) return
+
+      setActivityTransitionDirection(direction)
+      setQuizState(null)
+      setAssignment(null)
+      setChapterRewardVisible(false)
+      setActiveActivity(payload)
+      setActiveActivityId(cleanActivityUuid)
+      setBrowserActivityUrl(cleanActivityUuid)
+    } catch (_) {
+      router.push(getUriWithOrg(orgslug, buildActivityPath(cleanActivityUuid)))
+    }
+  }, [buildActivityPath, loadActivityPayload, orgslug, router, setBrowserActivityUrl])
+
+  useEffect(() => {
+    if (!currentChapter?.activities?.length) return
+    const chapterActivities = currentChapter.activities
+    const browserWindow = window as Window & typeof globalThis & {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number
+      cancelIdleCallback?: (handle: number) => void
+    }
+
+    const cleanCourseUuid = course.course_uuid?.replace('course_', '') || courseuuid
+    const routesToPrefetch = [
+      getUriWithOrg(
+        orgslug,
+        quickstartMode
+          ? routePaths.org.quickstartCourse(cleanCourseUuid)
+          : routePaths.org.badgePath(cleanCourseUuid)
+      ),
+    ]
+
+    chapterActivities.forEach((chapterActivity: any) => {
+      void loadActivityPayload(chapterActivity).catch(() => {})
+    })
+
+    const chapterActivityTypes = new Set(chapterActivities.map((chapterActivity: any) => chapterActivity.activity_type))
+    if (chapterActivityTypes.has('TYPE_DYNAMIC')) void import('@components/Objects/Activities/DynamicCanva/DynamicCanva')
+    if (chapterActivityTypes.has('TYPE_VIDEO')) void import('@components/Objects/Activities/Video/Video')
+    if (chapterActivityTypes.has('TYPE_DOCUMENT')) void import('@components/Objects/Activities/DocumentPdf/DocumentPdf')
+    if (chapterActivityTypes.has('TYPE_ASSIGNMENT')) void import('@components/Objects/Activities/Assignment/AssignmentStudentActivity')
+
+    const warmDeferredAssets = () => {
+      routesToPrefetch.forEach((href) => {
+        try {
+          router.prefetch(href)
+        } catch (_) {}
+      })
+    }
+
+    if (browserWindow.requestIdleCallback) {
+      const idleId = browserWindow.requestIdleCallback(warmDeferredAssets, { timeout: 1200 })
+      return () => browserWindow.cancelIdleCallback?.(idleId)
+    }
+
+    const timeoutId = browserWindow.setTimeout(warmDeferredAssets, 250)
+    return () => browserWindow.clearTimeout(timeoutId)
+  }, [currentChapter, course.course_uuid, courseuuid, orgslug, quickstartMode, router, loadActivityPayload])
   
   // Get previous and next activities
   const prevActivity = currentIndex > 0 ? allActivities[currentIndex - 1] : null;
   const nextActivity = currentIndex < allActivities.length - 1 ? allActivities[currentIndex + 1] : null;
+  const nextActivityIsInCurrentChapter =
+    nextActivity &&
+    currentChapter &&
+    nextActivity.chapterId === currentChapter.id
+  const handleQuizContinue = React.useCallback(() => {
+    if (!quizState?.isResultPage) {
+      quizPlayerRef.current?.next()
+      return
+    }
+
+    const cleanCourseUuid = course.course_uuid?.replace('course_', '') || courseuuid
+    if (nextActivity && nextActivityIsInCurrentChapter) {
+      void activateChapterActivity(nextActivity, 'next')
+      return
+    }
+
+    if (!quickstartMode && currentChapter && quizState.passed !== false) {
+      setChapterRewardVisible(true)
+      return
+    }
+
+    if (nextActivity) {
+      if (nextActivityIsInCurrentChapter || quickstartMode) {
+        void activateChapterActivity(nextActivity, 'next')
+        return
+      }
+      router.push(getUriWithOrg(orgslug, buildActivityPath(nextActivity.cleanUuid)))
+      return
+    }
+
+    router.push(getUriWithOrg(orgslug, routePaths.org.badgePath(cleanCourseUuid)))
+  }, [quizState?.isResultPage, quizState?.passed, course.course_uuid, courseuuid, nextActivity, nextActivityIsInCurrentChapter, quickstartMode, currentChapter, orgslug, buildActivityPath, router, activateChapterActivity])
+
+  const handleChapterBack = React.useCallback(() => {
+    if (activity?.activity_type === 'TYPE_QUIZ' && quizState?.canGoBack) {
+      quizPlayerRef.current?.back()
+      return
+    }
+
+    if (prevActivity) {
+      void activateChapterActivity(prevActivity, 'prev')
+      return
+    }
+
+    router.push(getUriWithOrg(orgslug, coursePath))
+  }, [activity?.activity_type, quizState?.canGoBack, prevActivity, router, orgslug, coursePath, activateChapterActivity])
+
+  const handleChapterNext = React.useCallback(async () => {
+    if (!activity) return
+
+    const cleanCourseUuid = course.course_uuid?.replace('course_', '') || courseuuid
+    const shouldShowChapterComplete =
+      !quickstartMode &&
+      currentChapter &&
+      (!nextActivity || !nextActivityIsInCurrentChapter)
+
+    try {
+      if (!(activity.activity_type === 'TYPE_QUIZ' && activity.details?.quiz_mode === 'graded')) {
+        await markActivityAsComplete(
+          orgslug,
+          course.course_uuid,
+          activity.activity_uuid,
+          access_token
+        )
+        await mutate(`${getAPIUrl()}trail/org/${org?.id}/trail`)
+      }
+    } catch (_) {}
+
+    if (nextActivity && nextActivityIsInCurrentChapter) {
+      void activateChapterActivity(nextActivity, 'next')
+      return
+    }
+
+    if (shouldShowChapterComplete) {
+      setChapterRewardVisible(true)
+      return
+    }
+
+    if (nextActivity && quickstartMode) {
+      void activateChapterActivity(nextActivity, 'next')
+      return
+    }
+
+    const endPath = quickstartMode
+      ? routePaths.org.quickstartCourseActivityEnd(cleanCourseUuid)
+      : routePaths.org.badgePath(cleanCourseUuid)
+    router.push(getUriWithOrg(orgslug, isGuestLearner ? `${endPath}?guest_completed=1` : endPath))
+  }, [
+    activity,
+    course.course_uuid,
+    courseuuid,
+    quickstartMode,
+    currentChapter,
+    nextActivity,
+    nextActivityIsInCurrentChapter,
+    orgslug,
+    access_token,
+    org?.id,
+    activateChapterActivity,
+    router,
+    isGuestLearner,
+  ])
 
   // Memoize activity content
   const activityContent = useMemo(() => {
@@ -327,19 +625,25 @@ function ActivityClient(props: ActivityClientProps) {
       case 'TYPE_QUIZ':
         return (
           <Suspense fallback={<LoadingFallback />}>
-            <QuizLaunchButton activity={activity} />
+            <QuizActivityPlayer
+              ref={quizPlayerRef}
+              activity={activity}
+              embedded
+              onStateChange={setQuizState}
+              onComplete={handleQuizComplete}
+            />
           </Suspense>
         );
       default:
         return null;
     }
-  }, [activity, course, assignment]);
+  }, [activity, course, assignment, handleQuizComplete]);
 
   // Navigate to an activity
   const navigateToActivity = (activity: any) => {
     if (!activity) return;
-    const activityPath = buildActivityPath(activity.cleanUuid)
-    router.push(getUriWithOrg(orgslug, activityPath));
+    const direction = allActivities.findIndex((candidate: any) => candidate.id === activity.id) < currentIndex ? 'prev' : 'next'
+    void activateChapterActivity(activity, direction);
   };
 
   async function getAssignmentUI() {
@@ -417,17 +721,17 @@ function ActivityClient(props: ActivityClientProps) {
                                 fill="none"
                                 strokeLinecap="round"
                                 strokeDasharray={2 * Math.PI * 14}
-                                strokeDashoffset={2 * Math.PI * 14 * (1 - progressRatio)}
+                                strokeDashoffset={2 * Math.PI * 14 * (1 - chapterProgressRatio)}
                               />
                             </svg>
                             <div className="absolute inset-0 flex items-center justify-center">
                               <span className="text-xs font-bold text-gray-800">
-                                {Math.round(progressRatio * 100)}%
+                                {Math.round(visibleChapterProgressValue)}%
                               </span>
                             </div>
                           </div>
                           <div className="text-xs text-gray-600">
-                            {completedCourseActivities} {t('common.of')} {totalCourseActivities}
+                            {visibleChapterProgressLabel}
                           </div>
                         </motion.div>
                         
@@ -599,143 +903,167 @@ function ActivityClient(props: ActivityClientProps) {
               </AnimatePresence>
             ) : (
               <GeneralWrapperStyled>
-                <ContentPageHeader
-                  backIcon="x"
-                  backLabel={t('activities.close_activity_viewer', 'Close activity viewer')}
-                  orgslug={orgslug}
-                  progressLabel={`${completedCourseActivities}/${totalCourseActivities}`}
-                  progressValue={progressRatio * 100}
-                />
-
-                {/* Original non-focus mode UI */}
-                {activityid === 'end' ? (
-                  <CourseEndView 
-                    courseName={course.name}
+                <div className="-m-6 flex h-dvh flex-col overflow-hidden">
+                  <ContentPageHeader
+                    backIcon="x"
+                    backLabel={t('activities.close_activity_viewer', 'Close activity viewer')}
                     orgslug={orgslug}
-                    courseUuid={course.course_uuid}
-                    thumbnailImage={course.thumbnail_image}
-                    course={course}
-                    trailData={effectiveTrailData}
-                    guestMode={guestMode}
-                    unauthenticated={unauthenticated}
-                    guestCompletedHint={guestCompletedHint}
+                    progressLabel={visibleChapterProgressLabel}
+                    progressValue={visibleChapterProgressValue}
+                    onBack={showChapterCompleteReward ? closeChapterReward : closeActivityViewer}
+                    noBottomMargin
+                    noHorizontalBleed
                   />
-                ) : (
-                  <div className="flex min-h-[calc(100dvh-8rem)] items-center">
-                    <div className="mx-auto flex max-h-[1100px] w-full max-w-5xl flex-col justify-center gap-6">
-                      <div className="w-full">
-                      <div className="min-w-0 space-y-4">
-                        {activity && activity.published == false && (
-                          <div className="p-7 drop-shadow-xs rounded-lg bg-gray-800">
-                            <div className="text-white">
-                              <h1 className="font-bold text-2xl">
-                                {t('activities.not_published_yet')}
-                              </h1>
-                            </div>
-                          </div>
-                        )}
 
-                        {activity && activity.published == true && (
-                          <>
-                            {activity.content.paid_access == false ? (
-                              <PaidCourseActivityDisclaimer course={course} />
-                            ) : (
-                              <div className="flex gap-6">
-                                <div className={`flex-1 min-w-0 relative isolate ${
-                                  activity.activity_type === 'TYPE_SCORM'
-                                    ? 'overflow-hidden'
-                                    : ''
-                                } ${activity.activity_type === 'TYPE_VIDEO' || activity.activity_type === 'TYPE_DOCUMENT' ? 'bg-zinc-950' : 'bg-transparent'}`} style={{ zIndex: 'var(--z-base)' }}>
-                                  {/*
-                                  <button
-                                    onClick={() => setIsFocusMode(true)}
-                                    className={`absolute ${activity.activity_type === 'TYPE_SCORM' ? 'top-2 right-2' : 'top-4 right-4'} hidden sm:flex bg-white/80 hover:bg-white nice-shadow p-2 rounded-full cursor-pointer transition-all duration-200 group overflow-hidden pointer-events-auto`}
-                                    style={{ zIndex: 'var(--z-interactive)' }}
-                                    title={t('activities.focus_mode')}
-                                  >
-                                    <div className="flex items-center">
-                                      <Maximize2 size={16} className="text-gray-700" />
-                                      <span className="text-xs font-bold text-gray-700 opacity-0 group-hover:opacity-100 transition-all duration-200 w-0 group-hover:w-auto group-hover:ml-2 whitespace-nowrap">
-                                        {t('activities.focus_mode')}
-                                      </span>
-                                    </div>
-                                  </button>
-                                  */}
-                                  <div className={`flex items-start justify-between gap-3 ${activity.activity_type === 'TYPE_SCORM' ? 'absolute left-4 top-4 z-10 sm:left-0 sm:top-0 sm:static sm:mb-5 sm:px-0 sm:pt-0' : 'p-0 pb-4 sm:pb-5'}`}>
-                                    <div className="flex min-w-0 items-start gap-3">
-                                      {activity.activity_type === 'TYPE_QUIZ' && (
-                                        <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-900">
-                                          {React.createElement(getChannelIcon(activity.icon || defaultChapterIconName), { size: 21 })}
-                                        </div>
-                                      )}
-                                      <div className="min-w-0">
-                                        <h1 className="min-w-0 font-bold text-gray-950 text-2xl first-letter:uppercase sm:text-3xl">
-                                          {activity.name}
-                                        </h1>
-                                        {activity.activity_type === 'TYPE_QUIZ' && activity.description ? (
-                                          <p className="mt-2 max-w-2xl text-sm leading-5 text-gray-600">
-                                            {activity.description}
-                                          </p>
-                                        ) : null}
-                                      </div>
-                                    </div>
-                                    {activity.activity_type === 'TYPE_QUIZ' && (
-                                      <Suspense fallback={null}>
-                                        <QuizTitleActions activity={activity} />
-                                      </Suspense>
-                                    )}
-                                  </div>
-                                  {activityContent}
-                                </div>
-                                <Suspense fallback={null}>
-                                  <AISidePanelInline activity={activity} />
-                                </Suspense>
+                  {showChapterCompleteReward ? (
+                    <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-6">
+                      <ChapterCompleteView
+                        chapter={currentChapter}
+                        course={course}
+                        completedActivities={chapterCompletedActivities}
+                        totalActivities={totalChapterActivities}
+                        onClose={closeChapterReward}
+                      />
+                    </div>
+                  ) : activityid === 'end' ? (
+                    <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-6">
+                      <CourseEndView
+                        courseName={course.name}
+                        orgslug={orgslug}
+                        courseUuid={course.course_uuid}
+                        thumbnailImage={course.thumbnail_image}
+                        course={course}
+                        trailData={effectiveTrailData}
+                        guestMode={guestMode}
+                        unauthenticated={unauthenticated}
+                        guestCompletedHint={guestCompletedHint}
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-6">
+                        <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col justify-center">
+                        <div className="min-w-0 space-y-4">
+                          {activity && activity.published == false && (
+                            <div className="p-7 drop-shadow-xs rounded-lg bg-gray-800">
+                              <div className="text-white">
+                                <h1 className="font-bold text-2xl">
+                                  {t('activities.not_published_yet')}
+                                </h1>
                               </div>
-                            )}
-                          </>
-                        )}
-
-                        {activity && activity.published == true && activity.content.paid_access != false && (
-                          <div className="mt-6 flex w-full flex-row items-stretch justify-between gap-2 border-t border-gray-200 pt-5 sm:items-center">
-                            <div className="min-w-0 flex-1 sm:flex-none">
-                              <PreviousActivityButton
-                                course={course}
-                                currentActivityId={activity.id}
-                                orgslug={orgslug}
-                                guestMode={guestMode}
-                                quickstartMode={quickstartMode}
-                              />
                             </div>
-                            <div className="flex min-w-0 flex-1 items-stretch justify-end gap-2 sm:flex-none">
-                              <ActivityActions
-                                activity={activity}
-                                activityid={activityid}
-                                course={course}
-                                orgslug={orgslug}
-                              assignment={assignment}
-                              showNavigation={false}
-                              guestMode={guestMode}
-                              publicGuestMode={publicGuestMode}
-                              quickstartMode={quickstartMode}
-                            />
-                              <NextActivityButton
-                                course={course}
-                                currentActivityId={activity.id}
-                                activity={activity}
-                                orgslug={orgslug}
-                                guestMode={guestMode}
-                                publicGuestMode={publicGuestMode}
-                                quickstartMode={quickstartMode}
-                              />
-                            </div>
-                          </div>
-                        )}
+                          )}
 
+                          {activity && activity.published == true && (
+                            <>
+                              {activity.content.paid_access == false ? (
+                                <PaidCourseActivityDisclaimer course={course} />
+                              ) : (
+                                <div className="flex gap-6">
+                                  <div className={`flex-1 min-w-0 relative isolate ${
+                                    activity.activity_type === 'TYPE_SCORM'
+                                      ? 'overflow-hidden'
+                                      : ''
+                                  } ${activity.activity_type === 'TYPE_VIDEO' || activity.activity_type === 'TYPE_DOCUMENT' ? 'bg-zinc-950' : 'bg-transparent'}`} style={{ zIndex: 'var(--z-base)' }}>
+                                    {activity.activity_type !== 'TYPE_QUIZ' && (
+                                      <div className={`flex items-start justify-between gap-3 ${activity.activity_type === 'TYPE_SCORM' ? 'absolute left-4 top-4 z-10 sm:left-0 sm:top-0 sm:static sm:mb-5 sm:px-0 sm:pt-0' : 'p-0 pb-4 sm:pb-5'}`}>
+                                        <div className="flex min-w-0 items-start gap-3">
+                                          <div className="min-w-0">
+                                            <h1 className="min-w-0 font-bold text-gray-950 text-2xl first-letter:uppercase sm:text-3xl">
+                                              {activity.name}
+                                            </h1>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                    <AnimatePresence mode="popLayout" initial={false}>
+                                      <motion.div
+                                        key={activity?.activity_uuid || activityid}
+                                        initial={{ opacity: 0, y: activityTransitionDirection === 'next' ? 28 : -28 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: activityTransitionDirection === 'next' ? -28 : 28 }}
+                                        transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+                                      >
+                                        {activityContent}
+                                      </motion.div>
+                                    </AnimatePresence>
+                                  </div>
+                                  <Suspense fallback={null}>
+                                    <AISidePanelInline activity={activity} />
+                                  </Suspense>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    </div>
-                  </div>
-                )}
+                      </div>
+
+                    {activity && activity.published == true && activity.content.paid_access != false && (
+                      <div className="shrink-0 border-t border-gray-200 px-6 py-4">
+                        <div className="mx-auto flex w-full max-w-5xl flex-row items-stretch justify-between gap-2 sm:items-center">
+                          <div className="min-w-0 flex-1 sm:flex-none">
+                            {activity.activity_type === 'TYPE_QUIZ' && quizState?.isResultPage && quizState?.passed === false ? (
+                              <button
+                                type="button"
+                                onClick={() => quizPlayerRef.current?.retry()}
+                                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-gray-200 transition-colors hover:bg-gray-50 sm:w-auto"
+                              >
+                                <ChevronLeft size={17} />
+                                Retry
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={handleChapterBack}
+                                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-gray-200 transition-colors hover:bg-gray-50 sm:w-auto"
+                              >
+                                <ChevronLeft size={17} />
+                                {t('common.back', 'Back')}
+                              </button>
+                            )}
+                          </div>
+                          <div className="flex min-w-0 flex-1 items-stretch justify-end gap-2 sm:flex-none">
+                            {activity.activity_type === 'TYPE_QUIZ' ? (
+                              <button
+                                type="button"
+                                onClick={handleQuizContinue}
+                                disabled={!quizState?.isAnswered || quizState?.isSubmitting}
+                                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 sm:w-auto"
+                              >
+                                {quizState?.isSubmitting ? 'Submitting...' : quizState?.isResultPage ? 'Continue' : 'Next'}
+                                <ChevronRight size={17} />
+                              </button>
+                            ) : (
+                              <>
+                                <ActivityActions
+                                  activity={activity}
+                                  activityid={activityid}
+                                  course={course}
+                                  orgslug={orgslug}
+                                  assignment={assignment}
+                                  showNavigation={false}
+                                  guestMode={guestMode}
+                                  publicGuestMode={publicGuestMode}
+                                  quickstartMode={quickstartMode}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleChapterNext}
+                                  className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:w-auto"
+                                >
+                                  {nextActivity && nextActivityIsInCurrentChapter ? t('common.next') : t('common.complete')}
+                                  <ChevronRight size={17} />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    </>
+                  )}
+                </div>
               </GeneralWrapperStyled>
             )}
               </AISidePanelContentWrapper>
@@ -744,6 +1072,47 @@ function ActivityClient(props: ActivityClientProps) {
         </Suspense>
       </CourseProvider>
     </>
+  )
+}
+
+function ChapterCompleteView({
+  chapter,
+  course,
+  completedActivities,
+  totalActivities,
+  onClose,
+}: {
+  chapter: any
+  course: any
+  completedActivities: number
+  totalActivities: number
+  onClose: () => void
+}) {
+  return (
+    <div className="flex min-h-full items-center justify-center px-4 py-10">
+      <div className="w-full max-w-xl text-center">
+        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-50 text-green-600 ring-1 ring-green-100">
+          <Award size={38} strokeWidth={1.7} />
+        </div>
+        <p className="mt-6 text-xs font-bold uppercase tracking-[0.16em] text-green-600">
+          Chapter complete
+        </p>
+        <h1 className="mt-2 text-3xl font-semibold leading-tight text-gray-950">
+          {chapter?.name || 'Nice work'}
+        </h1>
+        <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-gray-500">
+          You finished {completedActivities}/{totalActivities} activities in this chapter of {course.name}.
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-7 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-gray-950 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
+        >
+          Back to path
+          <ChevronRight size={17} />
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -766,7 +1135,9 @@ function NextActivityButton({ course, currentActivityId, activity, orgslug, gues
         allActivities.push({
           ...act,
           cleanUuid: cleanActivityUuid,
-          chapterName: chapter.name
+          chapterName: chapter.name,
+          chapterId: chapter.id,
+          chapterUuid: chapter.chapter_uuid
         });
 
         if (act.id === currentActivityId) {
@@ -779,6 +1150,15 @@ function NextActivityButton({ course, currentActivityId, activity, orgslug, gues
   };
 
   const nextActivity = findNextActivity();
+  const currentChapter = findChapterForActivity(course, currentActivityId)
+  const nextActivityIsInCurrentChapter =
+    nextActivity &&
+    currentChapter &&
+    nextActivity.chapterId === currentChapter.id
+  const shouldShowChapterComplete =
+    !quickstartMode &&
+    currentChapter &&
+    (!nextActivity || !nextActivityIsInCurrentChapter)
 
   // Only show for org members or guest mode
   if (!isGuestLearner && !isUserPartOfTheOrg) return null;
@@ -786,15 +1166,21 @@ function NextActivityButton({ course, currentActivityId, activity, orgslug, gues
   const handleNext = async () => {
     setIsLoading(true);
     const cleanCourseUuid = course.course_uuid?.replace('course_', '');
-    const baseNextActivityPath = nextActivity
+    const currentActivityPath = quickstartMode
+      ? routePaths.org.quickstartCourseActivity(cleanCourseUuid, activity.activity_uuid?.replace('activity_', '') || '')
+      : routePaths.org.courseActivity(cleanCourseUuid, activity.activity_uuid?.replace('activity_', '') || '')
+    const chapterCompletePath = shouldShowChapterComplete
+      ? `${currentActivityPath}?chapter_complete=${currentChapter.chapter_uuid || currentChapter.id}`
+      : null
+    const baseNextActivityPath = chapterCompletePath || (nextActivity
       ? (quickstartMode
         ? routePaths.org.quickstartCourseActivity(cleanCourseUuid, nextActivity.cleanUuid)
         : routePaths.org.courseActivity(cleanCourseUuid, nextActivity.cleanUuid))
       : (quickstartMode
         ? routePaths.org.quickstartCourseActivityEnd(cleanCourseUuid)
-        : routePaths.org.courseActivityEnd(cleanCourseUuid));
+        : routePaths.org.courseActivityEnd(cleanCourseUuid)));
     const nextActivityPath =
-      !nextActivity && isGuestLearner
+      !chapterCompletePath && !nextActivity && isGuestLearner
         ? `${baseNextActivityPath}?guest_completed=1`
         : baseNextActivityPath
 
@@ -816,7 +1202,7 @@ function NextActivityButton({ course, currentActivityId, activity, orgslug, gues
     setIsLoading(false);
   };
 
-  if (!nextActivity) {
+  if (!nextActivity || shouldShowChapterComplete) {
     return (
       <button
         type="button"

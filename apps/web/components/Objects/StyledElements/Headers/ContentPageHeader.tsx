@@ -14,6 +14,9 @@ function ContentPageHeader({
   title,
   progressLabel,
   progressValue,
+  onBack,
+  noBottomMargin = false,
+  noHorizontalBleed = false,
 }: {
   backIcon?: 'arrow' | 'x'
   backLabel?: string
@@ -26,6 +29,9 @@ function ContentPageHeader({
   title?: React.ReactNode
   progressLabel?: string
   progressValue?: number
+  onBack?: () => void
+  noBottomMargin?: boolean
+  noHorizontalBleed?: boolean
 }) {
   const router = useRouter()
   const BackIcon = backIcon === 'x' ? X : ArrowLeft
@@ -36,7 +42,7 @@ function ContentPageHeader({
 
   return (
     <div
-      className="sticky top-0 -mx-6 mb-10 border-b border-gray-300/80 px-6"
+      className={`sticky top-0 border-b border-gray-300/80 px-6 ${noHorizontalBleed ? '' : '-mx-6'} ${noBottomMargin ? '' : 'mb-10'}`}
       style={{
         backgroundColor: 'var(--org-page-background, #ffffff)',
         zIndex: 'var(--z-nav)',
@@ -46,7 +52,7 @@ function ContentPageHeader({
         {!hasTabs && (
           <button
             type="button"
-            onClick={() => router.back()}
+            onClick={onBack || (() => router.back())}
             className="inline-flex h-10 min-w-0 items-center gap-2 pr-3 text-sm font-semibold text-gray-500 transition-colors hover:text-gray-900"
             aria-label={backLabel}
           >

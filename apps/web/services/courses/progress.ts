@@ -22,14 +22,22 @@ type TrailRunLike = {
   steps?: TrailStepLike[] | null
 }
 
+type CourseChapterLike = {
+  id?: number | null
+  chapter_uuid?: string | null
+  name?: string | null
+  activities?: Array<{
+    id?: number | null
+    activity_uuid?: string | null
+    activity_type?: string | null
+    content?: any
+  }>
+}
+
 type CourseLike = {
   id?: number | null
   course_uuid?: string | null
-  chapters?: Array<{
-    activities?: Array<{
-      id?: number | null
-    }>
-  }>
+  chapters?: CourseChapterLike[]
 }
 
 function stripCoursePrefix(value?: string | null) {
@@ -122,5 +130,143 @@ export function getCourseCompletionSummary(
     completedActivities,
     isCompleted:
       totalActivities > 0 && completedActivities >= totalActivities,
+  }
+}
+
+export function getCourseChapterCompletionSummary(
+  course: CourseLike | null | undefined,
+  run: TrailRunLike | null | undefined
+) {
+  const chapters = course?.chapters?.filter((chapter) => (chapter.activities || []).length > 0) || []
+  const totalChapters = chapters.length
+  const completedChapters = chapters.filter((chapter) =>
+    getChapterCompletionSummary(chapter, run).isCompleted
+  ).length
+  const startedChapters = chapters.filter((chapter) =>
+    getChapterCompletionSummary(chapter, run).isStarted
+  ).length
+
+  return {
+    totalChapters,
+    completedChapters,
+    startedChapters,
+    isStarted: startedChapters > 0,
+    isCompleted:
+      totalChapters > 0 && completedChapters >= totalChapters,
+  }
+}
+
+export function getChapterCompletionSummary(
+  chapter: CourseChapterLike | null | undefined,
+  run: TrailRunLike | null | undefined
+) {
+  const activities = chapter?.activities || []
+  const totalActivities = activities.length
+  const completedActivities = activities.filter((activity) =>
+    isCourseActivityCompleted(run, activity.id)
+  ).length
+
+  return {
+    totalActivities,
+    completedActivities,
+    isStarted: completedActivities > 0,
+    isCompleted:
+      totalActivities > 0 && completedActivities >= totalActivities,
+  }
+}
+
+export function findChapterForActivity(
+  course: CourseLike | null | undefined,
+  activityId: number | string | null | undefined
+) {
+  if (!course?.chapters?.length || activityId === null || activityId === undefined) {
+    return null
+  }
+
+  const cleanActivityUuid =
+    typeof activityId === 'string'
+      ? activityId.replace('activity_', '')
+      : null
+
+  return (
+    course.chapters.find((chapter) =>
+      (chapter.activities || []).some((activity) => {
+        if (typeof activityId === 'number' && activity.id === activityId) return true
+        return activity.activity_uuid?.replace('activity_', '') === cleanActivityUuid
+      })
+    ) || null
+  )
+}
+
+export type ChapterPageLike = {
+  type: 'activity' | 'quiz-question' | 'quiz-result'
+  activity: NonNullable<CourseChapterLike['activities']>[number]
+  pageIndex: number
+  pageCount: number
+}
+
+export function getQuizQuestionCount(content: any) {
+  let count = 0
+  const visit = (node: any) => {
+    if (!node || typeof node !== 'object') return
+    if (
+      node.type === 'quizSelectBlock' ||
+      node.type === 'quizMultiSelectBlock' ||
+      node.type === 'quizTextBlock' ||
+      node.type === 'quizSliderBlock' ||
+      node.type === 'quizSortBlock'
+    ) {
+      count += 1
+    }
+    if (Array.isArray(node.content)) node.content.forEach(visit)
+  }
+  visit(content)
+  return count
+}
+
+export function getActivityPageCount(activity: NonNullable<CourseChapterLike['activities']>[number]) {
+  if (activity?.activity_type !== 'TYPE_QUIZ') return 1
+  return Math.max(1, getQuizQuestionCount(activity.content)) + 1
+}
+
+export function expandChapterPages(chapter: CourseChapterLike | null | undefined): ChapterPageLike[] {
+  const pages: ChapterPageLike[] = []
+  ;(chapter?.activities || []).forEach((activity) => {
+    const pageCount = getActivityPageCount(activity)
+    if (activity.activity_type !== 'TYPE_QUIZ') {
+      pages.push({ type: 'activity', activity, pageIndex: 0, pageCount })
+      return
+    }
+    const questionCount = Math.max(1, pageCount - 1)
+    for (let pageIndex = 0; pageIndex < questionCount; pageIndex += 1) {
+      pages.push({ type: 'quiz-question', activity, pageIndex, pageCount })
+    }
+    pages.push({ type: 'quiz-result', activity, pageIndex: questionCount, pageCount })
+  })
+  return pages
+}
+
+export function getChapterPageProgress(
+  chapter: CourseChapterLike | null | undefined,
+  activityId: number | string | null | undefined,
+  activityPageIndex = 0
+) {
+  const pages = expandChapterPages(chapter)
+  const cleanActivityUuid =
+    typeof activityId === 'string' ? activityId.replace('activity_', '') : null
+  const clampedActivityPageIndex = Math.max(0, activityPageIndex)
+  const currentIndex = pages.findIndex((page) => {
+    const matchesActivity =
+      typeof activityId === 'number'
+        ? page.activity.id === activityId
+        : page.activity.activity_uuid?.replace('activity_', '') === cleanActivityUuid
+    return matchesActivity && page.pageIndex === clampedActivityPageIndex
+  })
+
+  return {
+    pages,
+    currentIndex: currentIndex >= 0 ? currentIndex : 0,
+    totalPages: pages.length,
+    currentPageNumber: pages.length > 0 ? (currentIndex >= 0 ? currentIndex + 1 : 1) : 0,
   }
 }

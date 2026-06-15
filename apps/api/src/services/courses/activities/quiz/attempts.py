@@ -107,7 +107,6 @@ async def submit_quiz_attempt(
     details = activity.details or {}
     quiz_mode = details.get("quiz_mode", "categories")
     grading_rules: dict = details.get("grading_rules", {}) or {}
-    max_attempts = grading_rules.get("max_attempts")
     vectors = _get_active_scoring_vectors(details, quiz_mode)
     option_scores: dict = details.get("option_scores", {})
     text_scores: dict = details.get("text_scores", {})
@@ -122,9 +121,6 @@ async def submit_quiz_attempt(
     else:
         existing_attempts_statement = existing_attempts_statement.where(QuizAttempt.guest_session_id == actor.guest_session_id)
     existing_attempts = db_session.exec(existing_attempts_statement).one() or 0
-
-    if quiz_mode == "graded" and max_attempts is not None and existing_attempts >= max_attempts:
-        raise HTTPException(status_code=403, detail="No attempts remaining for this quiz")
 
     # Create attempt
     now = datetime.utcnow()
@@ -193,7 +189,7 @@ async def submit_quiz_attempt(
             if isinstance(graded_result, dict):
                 historical_scores.append(float(graded_result.get("score_percent", 0.0)))
         best_score_percent = max(historical_scores + [score_percent]) if historical_scores else score_percent
-        attempts_remaining = None if max_attempts is None else max(0, int(max_attempts) - attempt_number)
+        attempts_remaining = None
         passed = score_percent >= pass_percent
 
         result_json["quiz_mode"] = "graded"
@@ -228,7 +224,7 @@ async def submit_quiz_attempt(
             "passed": passed,
             "attempt_number": attempt_number,
             "attempts_remaining": attempts_remaining,
-            "max_attempts": max_attempts,
+            "max_attempts": None,
             "best_score_percent": best_score_percent,
             "correct_answers": int(round(correct_score * graded_question_count)),
             "question_count": graded_question_count,

@@ -10,9 +10,10 @@ interface Props {
   course: any
   onRetake: () => void
   onClose?: () => void
+  showRetakeButton?: boolean
 }
 
-export default function QuizResultsModal({ result, activity, org, course, onRetake, onClose }: Props) {
+export default function QuizResultsModal({ result, activity, org, course, onRetake, onClose, showRetakeButton = true }: Props) {
   useEffect(() => {
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -43,7 +44,7 @@ export default function QuizResultsModal({ result, activity, org, course, onReta
             org={org}
             course={course}
             onRetake={onRetake}
-            showRetakeButton
+            showRetakeButton={showRetakeButton}
           />
         </div>
       </div>
