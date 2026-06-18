@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/auth/server'
-import ProfileTimeline from '@components/Objects/Profile/ProfileTimeline'
+import ProfileTimeline from '@components/Objects/Portfolio/ProfileTimeline'
 import { getUserByUsername } from '@services/users/users'
 
 interface UserTimelinePageProps {

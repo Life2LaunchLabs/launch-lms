@@ -36,10 +36,12 @@ test('route manifest builds auth, account, and public org paths used by navigati
   assert.equal(routePaths.owner.account.purchases(), '/account/purchases')
   assert.equal(routePaths.owner.account.organizations(), '/account/organizations')
   assert.equal(routePaths.owner.account.badges(), '/account/badges')
-  assert.equal(routePaths.org.profile(), '/profile')
-  assert.equal(routePaths.org.profileEdit(), '/profile/edit')
-  assert.equal(routePaths.org.profileResume(), '/profile/resume')
-  assert.equal(routePaths.org.profileTimeline(), '/profile/timeline')
+  assert.equal(routePaths.org.portfolio(), '/portfolio')
+  assert.equal(routePaths.org.portfolioEdit(), '/portfolio/edit')
+  assert.equal(routePaths.org.portfolioResume(), '/portfolio/resume')
+  assert.equal(routePaths.org.portfolioTimeline(), '/portfolio/timeline')
+  assert.equal(routePaths.org.news(), '/news')
+  assert.equal(routePaths.org.newsArticle('release-notes'), '/news/release-notes')
   assert.equal(routePaths.org.organization('acme'), '/organization/acme')
   assert.equal(routePaths.org.user('jane'), '/user/jane')
   assert.equal(routePaths.org.userResume('jane'), '/user/jane/resume')
@@ -50,11 +52,13 @@ test('route manifest builds auth, account, and public org paths used by navigati
   assert.equal(routePaths.org.badgePath('badge-slug'), '/badges/badge-slug/path')
   assert.equal(routePaths.org.badgeChapter('badge-slug', 'chapter-1'), '/badges/badge-slug/chapter/chapter-1')
   assert.equal(routePaths.org.badgeInvite('badge-slug'), '/badges/badge-slug/invite')
+  assert.equal('profile' in routePaths.org, false)
 })
 
 test('navigation manifest smoke test keeps representative routes absolute and unique', () => {
   const navigationRoutes = [
-    routePaths.org.profile(),
+    routePaths.org.portfolio(),
+    routePaths.org.news(),
     routePaths.owner.account.security(),
     routePaths.owner.account.orgAdmin(),
     routePaths.org.root(),
@@ -73,6 +77,38 @@ test('navigation manifest smoke test keeps representative routes absolute and un
   })
 
   assert.equal(new Set(navigationRoutes).size, navigationRoutes.length)
+})
+
+test('request policy redirects authenticated org root to portfolio', () => {
+  const decision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/',
+    pathname: '/',
+    search: '',
+    host: 'acme.launchlms.test',
+    hasSession: true,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+
+  assert.equal(decision.action, 'redirect')
+  assert.equal(decision.destination, 'https://acme.launchlms.test/portfolio')
+})
+
+test('request policy redirects unauthenticated org root to welcome', () => {
+  const decision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/',
+    pathname: '/',
+    search: '',
+    host: 'acme.launchlms.test',
+    hasSession: false,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+
+  assert.equal(decision.action, 'redirect')
+  assert.equal(decision.destination, 'https://acme.launchlms.test/welcome')
 })
 
 test('request policy rewrites main-domain traffic into internal org routes', () => {
@@ -214,6 +250,34 @@ test('request policy allows unauthenticated badge entry pages', () => {
   assert.equal(canonicalDecision.destination, '/orgs/acme/badges/badge-slug')
   assert.equal(decision.action, 'rewrite')
   assert.equal(decision.destination, '/orgs/acme/badges/badge-slug/invite')
+})
+
+test('request policy allows unauthenticated news pages', () => {
+  const listDecision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/news',
+    pathname: '/news',
+    search: '',
+    host: 'acme.launchlms.test',
+    hasSession: false,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+  const articleDecision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/news/release-notes',
+    pathname: '/news/release-notes',
+    search: '',
+    host: 'acme.launchlms.test',
+    hasSession: false,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+
+  assert.equal(listDecision.action, 'rewrite')
+  assert.equal(listDecision.destination, '/orgs/acme/news')
+  assert.equal(articleDecision.action, 'rewrite')
+  assert.equal(articleDecision.destination, '/orgs/acme/news/release-notes')
 })
 
 test('request policy rewrites sitemap and annotates org slug header', () => {

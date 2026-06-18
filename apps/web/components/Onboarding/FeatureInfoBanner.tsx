@@ -13,16 +13,10 @@ const FEATURE_COPY: Record<
   }
 > = {
   courses: {
-    eyebrow: 'About Courses',
-    title: 'Dive into our curated collection of courses.',
+    eyebrow: 'About Badges',
+    title: 'Dive into our curated collection of badges.',
     description:
       'Gain skills, learn about yourself, and plan your target lifestyle.',
-  },
-  communities: {
-    eyebrow: 'About Communities',
-    title: 'Connect with other launchers.',
-    description:
-      'Got a question, resource to share, or just looking to chat? You\'re in the right place.',
   },
   resources: {
     eyebrow: 'About Resources',

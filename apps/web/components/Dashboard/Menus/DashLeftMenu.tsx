@@ -820,9 +820,9 @@ function DashLeftMenu() {
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-white/[0.08]" />
             <DropdownMenuItem asChild>
-              <Link href={getUriWithOrg(getDefaultOrg(), routePaths.org.profile())} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
+              <Link href={getUriWithOrg(getDefaultOrg(), routePaths.org.portfolio())} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
                 <UserCircle size={16} weight="fill" />
-                <span>Profile</span>
+                <span>Portfolio</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>

@@ -2,7 +2,7 @@ import React from 'react'
 import { getUserByUsername } from '@services/users/users'
 import { Metadata } from 'next'
 import { getServerSession } from '@/lib/auth/server'
-import { PublicProfilePageClient } from '@components/Objects/Profile/ProfilePageClient'
+import { PublicProfilePageClient } from '@components/Objects/Portfolio/ProfilePageClient'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -62,19 +62,19 @@ export async function generateMetadata({ params }: UserPageProps): Promise<Metad
     // If no session, return basic metadata (SEO will show generic title)
     if (!access_token) {
       return {
-        title: 'User Profile',
+        title: 'User Portfolio',
         description: 'View user profile',
       }
     }
 
     const userData = await getUserByUsername(resolvedParams.username, access_token)
     return {
-      title: `${userData.first_name} ${userData.last_name} | Profile`,
-      description: userData.bio || `Profile page of ${userData.first_name} ${userData.last_name}`,
+      title: `${userData.first_name} ${userData.last_name} | Portfolio`,
+      description: userData.bio || `Portfolio page of ${userData.first_name} ${userData.last_name}`,
     }
   } catch {
     return {
-      title: 'User Profile',
+      title: 'User Portfolio',
     }
   }
 }
@@ -120,7 +120,7 @@ async function UserPage({ params }: UserPageProps) {
               You are viewing your public profile.
             </p>
             <Link
-              href={getUriWithOrg(orgslug, routePaths.org.profile())}
+              href={getUriWithOrg(orgslug, routePaths.org.portfolio())}
               className="inline-flex h-9 items-center justify-center rounded-md border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:text-gray-950"
             >
               View full profile

@@ -5,7 +5,7 @@ from src.routers import health
 from src.routers import instance
 from src.routers import plans
 from src.routers import usergroups
-from src.routers import dev, trail, users, auth, orgs, roles, search
+from src.routers import dev, trail, users, auth, orgs, roles, search, news
 from src.routers import stream
 from src.routers import api_tokens
 from src.routers.ai import ai, magicblocks, courseplanning, rag
@@ -146,6 +146,11 @@ v1_router.include_router(
     prefix="/resources",
     tags=["resources"],
     dependencies=[Depends(require_plan_for_resources("full", "Resources"))]
+)
+v1_router.include_router(
+    news.router,
+    prefix="/news",
+    tags=["news"]
 )
 v1_router.include_router(
     discussions_router_module.router,

@@ -111,7 +111,7 @@ function UserProfileClient({ userData, profile }: UserProfileClientProps) {
         {/* Optional banner content */}
       </div>
       
-      {/* Profile Content */}
+      {/* Portfolio Content */}
       <div className="bg-white rounded-b-xl nice-shadow p-8 relative">
         {/* Avatar Positioned on the banner */}
         <div className="absolute -top-24 left-8">
@@ -145,7 +145,7 @@ function UserProfileClient({ userData, profile }: UserProfileClientProps) {
           ))}
         </div>
 
-        {/* Profile Content with right padding to avoid overlap */}
+        {/* Portfolio Content with right padding to avoid overlap */}
         <div className="mt-20 md:mt-14">
           <div className="flex flex-col md:flex-row gap-12">
             {/* Left column with details - aligned with avatar */}
@@ -179,7 +179,7 @@ function UserProfileClient({ userData, profile }: UserProfileClientProps) {
                 )}
               </div>
               
-              {/* Profile sections from profile builder */}
+              {/* Portfolio sections from profile builder */}
               {profile.sections && profile.sections.length > 0 && (
                 <div>
                   {profile.sections.map((section: any, index: number) => (

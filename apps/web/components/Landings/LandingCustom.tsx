@@ -10,7 +10,6 @@ import UserAvatar from '@components/Objects/UserAvatar'
 import { useTranslation } from 'react-i18next'
 import InProgressSection from '@components/Landings/InProgressSection'
 import { getOrgCollections } from '@services/courses/collections'
-import { getCommunities } from '@services/communities/communities'
 import { useOrg } from '@components/Contexts/OrgContext'
 import {
   getResourceChannels,
@@ -19,7 +18,6 @@ import {
 import QuickstartSection from '@components/Landings/QuickstartSection'
 import TrendingSection from '@components/Landings/TrendingSection'
 import DashboardOnboardingBanner from '@components/Onboarding/DashboardOnboardingBanner'
-import CoreCoursesProgressSection from '@components/CoreCourses/CoreCoursesProgressSection'
 
 interface LandingCustomProps {
   landing: {
@@ -51,12 +49,6 @@ function LandingCustom({
       ? ['landing-collections', org.id, access_token || 'anon']
       : null,
     () => getOrgCollections(org.id, access_token, null)
-  )
-  const { data: communities = [] } = useSWR(
-    org?.id && hasQuickstartSection
-      ? ['landing-communities', org.id, access_token || 'anon']
-      : null,
-    () => getCommunities(org.id, 1, 100, null, access_token)
   )
   const { data: resourceChannelData } = useSWR(
     org?.id && hasQuickstartSection
@@ -309,7 +301,7 @@ function LandingCustom({
               orgslug={orgslug}
               orgUUID={org?.org_uuid}
               collections={collections}
-              communities={communities}
+              communities={[]}
               resourceChannels={resourceChannels}
             />
           </div>
@@ -332,7 +324,6 @@ function LandingCustom({
   return (
     <div className="flex flex-col items-center justify-between w-full max-w-(--breakpoint-2xl) mx-auto px-4 sm:px-6 lg:px-16 py-8 md:py-10 h-full">
       <DashboardOnboardingBanner orgslug={orgslug} />
-      <CoreCoursesProgressSection orgslug={orgslug} className="w-full" />
       {landing.sections.map((section) => renderSection(section))}
     </div>
   )

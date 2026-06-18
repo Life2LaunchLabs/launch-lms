@@ -2,7 +2,6 @@ import { getOrgCourses, getCourseMetadata } from '@services/courses/courses'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getOrgCollections } from '@services/courses/collections'
 import { getOrgPodcasts } from '@services/podcasts/podcasts'
-import { getCommunities } from '@services/communities/communities'
 import { NextRequest, NextResponse } from 'next/server'
 
 function getBaseUrlFromRequest(request: NextRequest): string {
@@ -43,7 +42,7 @@ export async function GET(request: NextRequest) {
         { loc: `${baseUrl}courses`, priority: 0.9, changefreq: 'weekly' },
         { loc: `${baseUrl}collections`, priority: 0.9, changefreq: 'weekly' },
         { loc: `${baseUrl}podcasts`, priority: 0.9, changefreq: 'weekly' },
-        { loc: `${baseUrl}communities`, priority: 0.9, changefreq: 'weekly' },
+        { loc: `${baseUrl}news`, priority: 0.8, changefreq: 'weekly' },
       ]
       break
     }
@@ -115,18 +114,6 @@ export async function GET(request: NextRequest) {
       }
       break
     }
-    case 'communities': {
-      const communities = await getCommunities(orgInfo.id, 1, 1000, null).catch(() => [])
-      for (const community of communities) {
-        sitemapUrls.push({
-          loc: `${baseUrl}community/${community.community_uuid.replace('community_', '')}`,
-          priority: 0.6,
-          changefreq: 'weekly',
-          lastmod: community.update_date,
-        })
-      }
-      break
-    }
     default: {
       return NextResponse.json({ error: 'Invalid sitemap type' }, { status: 400 })
     }
@@ -145,7 +132,7 @@ interface SitemapUrl {
   lastmod?: string
 }
 
-const SITEMAP_TYPES = ['pages', 'courses', 'activities', 'collections', 'podcasts', 'communities']
+const SITEMAP_TYPES = ['pages', 'courses', 'activities', 'collections', 'podcasts']
 
 function generateSitemapIndex(baseUrl: string): string {
   const sitemaps = SITEMAP_TYPES.map(type => `

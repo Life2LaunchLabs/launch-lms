@@ -99,11 +99,6 @@ export const OrgMenu = (props: { orgslug: string }) => {
           pathname.includes('/collection/'),
       },
       {
-        feature: 'communities',
-        matches:
-          pathname.includes('/communities') || pathname.includes('/community/'),
-      },
-      {
         feature: 'resources',
         matches:
           pathname.includes('/resources') || pathname.includes('/resource/'),

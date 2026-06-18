@@ -13,6 +13,13 @@ interface AwarenessUser {
   color: string
 }
 
+type AwarenessState = {
+  user?: {
+    name?: string
+    color?: string
+  }
+}
+
 export default function PresenceAvatars({ provider }: PresenceAvatarsProps) {
   const [users, setUsers] = useState<AwarenessUser[]>([])
 
@@ -24,7 +31,7 @@ export default function PresenceAvatars({ provider }: PresenceAvatarsProps) {
       if (!states) return
 
       const connected: AwarenessUser[] = []
-      states.forEach((state, clientId) => {
+      states.forEach((state: AwarenessState, clientId: number) => {
         if (state.user) {
           connected.push({
             clientId,

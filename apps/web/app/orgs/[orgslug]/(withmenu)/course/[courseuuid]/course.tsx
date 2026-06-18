@@ -14,7 +14,7 @@ import {
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { CourseThumbnailImage } from '@components/Objects/Thumbnails/CourseThumbnailImage'
 import { ArrowRight, Award, BookOpenCheck, Check, CircleHelp, Clock, FileText, Layers, Play, Video, Image as ImageIcon } from 'lucide-react'
-import { FeaturedBadgeButton } from '@components/Objects/Profile/ProfileAchievements'
+import { FeaturedBadgeButton } from '@components/Objects/Portfolio/ProfileAchievements'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import useSWR from 'swr'

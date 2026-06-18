@@ -1,5 +1,5 @@
 'use client';
-import { updateProfile } from '@services/settings/profile'
+import { updateProfile } from '@services/settings/portfolio'
 import { getUser } from '@services/users/users'
 import React, { useEffect, useState, useCallback } from 'react'
 import { Formik, Form } from 'formik'
@@ -268,7 +268,7 @@ const UserEditForm = ({
         </div>
 
         <div className="flex flex-col lg:flex-row mt-0 mx-5 my-5 gap-8">
-          {/* Profile Information Section */}
+          {/* Portfolio Information Section */}
           <div className="flex-1 min-w-0 space-y-4">
             <div>
               <Label htmlFor="email">{t('user.settings.general.email')}</Label>
@@ -451,7 +451,7 @@ const UserEditForm = ({
             </div>
           </div>
 
-          {/* Profile Picture Section */}
+          {/* Portfolio Picture Section */}
           <div className="lg:w-80 w-full">
             <div className="bg-gray-50/50 p-6 rounded-lg nice-shadow h-full">
               <div className="flex flex-col items-center space-y-6">

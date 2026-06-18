@@ -238,9 +238,9 @@ function DashMobileMenu() {
 
             <div className="border-t border-white/[0.08] p-3">
               <MobileMenuLink
-                href={getUriWithOrg(getDefaultOrg(), routePaths.org.profile())}
+                href={getUriWithOrg(getDefaultOrg(), routePaths.org.portfolio())}
                 icon={UserRound}
-                label="Profile"
+                label="Portfolio"
                 onClick={closeMenu}
               />
               <MobileMenuLink

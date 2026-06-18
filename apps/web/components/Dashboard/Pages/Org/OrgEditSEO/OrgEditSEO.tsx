@@ -14,7 +14,6 @@ import { Input } from '@components/ui/input'
 import { Textarea } from '@components/ui/textarea'
 import { Button } from '@components/ui/button'
 import { Label } from '@components/ui/label'
-import { Switch } from '@components/ui/switch'
 import { mutate } from 'swr'
 import { getAPIUrl } from '@services/config/config'
 import { getOrgOgImageMediaDirectory } from '@services/media/media'
@@ -37,7 +36,7 @@ const OrgEditSEO: React.FC = () => {
     default_og_image: seoConfig.default_og_image || '',
     google_site_verification: seoConfig.google_site_verification || '',
     twitter_handle: seoConfig.twitter_handle || '',
-    noindex_communities: seoConfig.noindex_communities || false,
+    noindex_communities: true,
   }
 
   const sitemapUrl = getCanonicalUrl(org?.slug, '/sitemap.xml')
@@ -312,30 +311,6 @@ const OrgEditSEO: React.FC = () => {
                   <p className="text-gray-500 text-sm mt-1">
                     Verification code from Google Search Console
                   </p>
-                </div>
-              </div>
-
-              {/* Indexing Controls */}
-              <div className="flex flex-col bg-gray-50 -space-y-1 px-5 py-3 mx-3 mt-4 rounded-md">
-                <h1 className="font-bold text-xl text-gray-800">Indexing Controls</h1>
-                <h2 className="text-gray-500 text-md">
-                  Control which pages search engines can index
-                </h2>
-              </div>
-              <div className="mx-5 my-5 space-y-4">
-                <div className="flex items-center justify-between p-4 bg-gray-50/50 rounded-lg">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">Hide Communities</Label>
-                    <p className="text-sm text-gray-500">
-                      Hide community pages from search engines
-                    </p>
-                  </div>
-                  <Switch
-                    checked={values.noindex_communities}
-                    onCheckedChange={(checked) =>
-                      setFieldValue('noindex_communities', checked)
-                    }
-                  />
                 </div>
               </div>
 

@@ -156,12 +156,12 @@ export function getUserAvatarMediaDirectory(userUUID: string, fileId: string) {
 }
 
 export function getUserProfileCoverMediaDirectory(userUUID: string, fileId: string) {
-  let uri = `${getMediaUrl()}content/users/${userUUID}/profile_covers/${fileId}`
+  let uri = `${getMediaUrl()}content/users/${userUUID}/portfolio_covers/${fileId}`
   return uri
 }
 
 export function getUserProfileFeaturedMediaDirectory(userUUID: string, fileId: string) {
-  let uri = `${getMediaUrl()}content/users/${userUUID}/profile_featured/${fileId}`
+  let uri = `${getMediaUrl()}content/users/${userUUID}/portfolio_featured/${fileId}`
   return uri
 }
 

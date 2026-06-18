@@ -11,7 +11,7 @@ import { swrFetcher } from '@services/utils/ts/requests'
 import { getAPIUrl } from '@services/config/config'
 import { getCourseThumbnailMediaDirectory, normalizeMediaUrl } from '@services/media/media'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
-import { FeaturedBadgeButton } from '@components/Objects/Profile/ProfileAchievements'
+import { FeaturedBadgeButton } from '@components/Objects/Portfolio/ProfileAchievements'
 
 interface UserCertificatesProps {
   orgslug: string

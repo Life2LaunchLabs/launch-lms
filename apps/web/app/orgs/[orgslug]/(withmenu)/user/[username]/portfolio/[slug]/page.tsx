@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/auth/server'
-import { PortfolioPostPageClient } from '@components/Objects/Profile/ProfilePortfolio'
+import { PortfolioPostPageClient } from '@components/Objects/Portfolio/ProfilePortfolio'
 import { getUserByUsername } from '@services/users/users'
 
 const UserPortfolioPostPage = async (props: {

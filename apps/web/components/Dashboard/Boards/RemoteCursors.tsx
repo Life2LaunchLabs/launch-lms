@@ -20,6 +20,18 @@ interface RemoteCursorsProps {
   zoom: number
 }
 
+type AwarenessState = {
+  user?: {
+    name?: string
+    color?: string
+  }
+  cursor?: {
+    x: number
+    y: number
+  }
+  chatBubble?: { text: string; timestamp: number } | null
+}
+
 /** Throttle interval for broadcasting local cursor position (ms) */
 const CURSOR_BROADCAST_INTERVAL = 300
 /** Stale cursor timeout (ms) */
@@ -160,7 +172,7 @@ export default function RemoteCursors({ provider, canvasRef, pan, zoom }: Remote
       const states = provider.awareness!.getStates()
       const now = Date.now()
 
-      states.forEach((state, clientId) => {
+      states.forEach((state: AwarenessState, clientId: number) => {
         if (clientId === provider.awareness!.clientID) return
         if (state.user && state.cursor) {
           cursorsRef.current.set(clientId, {

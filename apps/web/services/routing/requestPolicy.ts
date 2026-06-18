@@ -36,7 +36,7 @@ export interface ResolveRequestRoutingInput {
   orgSubdomainAccess?: { user_site_enabled: boolean } | null
 }
 
-const STANDARD_PATHS = new Set(['/home'])
+const STANDARD_PATHS = new Set<string>()
 const AUTH_PATHS = new Set(['/login', '/signup', '/reset', '/forgot', '/verify-email'])
 const AUTH_CALLBACK_PREFIXES = ['/auth/sso/', '/auth/callback/', '/auth/token-exchange']
 const PUBLIC_COURSE_PATH_RE = /^\/course\/[^/]+(\/activity\/[^/]+)?$/
@@ -225,6 +225,8 @@ export function resolveRequestRouting(
     const isGuestPath =
       pathname === '/welcome' ||
       pathname.startsWith('/welcome/') ||
+      pathname === '/news' ||
+      pathname.startsWith('/news/') ||
       pathname === '/quickstart' ||
       pathname.startsWith('/quickstart/')
     const isPublicCoursePath = PUBLIC_COURSE_PATH_RE.test(pathname)
@@ -259,6 +261,13 @@ export function resolveRequestRouting(
       : context.hostMode === 'subdomain'
         ? context.resolvedOrgSlug
         : instanceInfo.default_org_slug
+
+  if (pathname === '/') {
+    return {
+      action: 'redirect',
+      destination: new URL('/portfolio', input.requestUrl).toString(),
+    }
+  }
 
   return {
     action: 'rewrite',

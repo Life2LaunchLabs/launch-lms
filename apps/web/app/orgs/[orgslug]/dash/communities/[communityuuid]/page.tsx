@@ -1,11 +1,5 @@
-import { redirect } from 'next/navigation'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { notFound } from 'next/navigation'
 
-export default async function CommunityPage({
-  params,
-}: {
-  params: Promise<{ orgslug: string; communityuuid: string }>
-}) {
-  const { orgslug, communityuuid } = await params
-  redirect(getUriWithOrg(orgslug, routePaths.org.dash.communitySettings(communityuuid, 'general')))
+export default function CommunityDashPage() {
+  notFound()
 }

@@ -133,7 +133,7 @@ export async function getUserInfo(token: string): Promise<any> {
     credentials: 'include',
   }
 
-  return fetch(`${getAPIUrl()}users/profile`, requestOptions)
+  return fetch(`${getAPIUrl()}users/portfolio`, requestOptions)
     .then((result) => result.json())
     .catch((error) => console.error('error', error))
 }

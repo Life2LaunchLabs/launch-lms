@@ -249,9 +249,9 @@ export const HeaderProfileBox = ({ primaryColor = '', compact = false }: { prima
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem asChild>
-                  <Link href={getUriWithOrg(ownerOrgSlug, routePaths.org.profile())} className="flex items-center space-x-2">
+                  <Link href={getUriWithOrg(ownerOrgSlug, routePaths.org.portfolio())} className="flex items-center space-x-2">
                     <User size={16} weight="fill" />
-                    <span>Profile</span>
+                    <span>Portfolio</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>

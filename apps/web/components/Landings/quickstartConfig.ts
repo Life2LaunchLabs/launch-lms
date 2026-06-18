@@ -1,7 +1,6 @@
 import { createElement, type ComponentType } from 'react'
 import {
   Books,
-  ChatsCircle,
   FolderOpen,
   House,
 } from '@phosphor-icons/react'
@@ -18,11 +17,11 @@ export const QUICKSTART_FEATURES: Record<
   }
 > = {
   home: {
-    label: 'Home',
-    description: 'Organization dashboard home',
+    label: 'Portfolio',
+    description: 'Open your portfolio',
     icon: ({ className }) =>
       createElement(House, { size: 44, weight: 'fill', className }),
-    href: routePaths.org.root(),
+    href: routePaths.org.portfolio(),
   },
   courses: {
     label: 'Badges',
@@ -30,13 +29,6 @@ export const QUICKSTART_FEATURES: Record<
     icon: ({ className }) =>
       createElement(Books, { size: 44, weight: 'fill', className }),
     href: routePaths.org.badges(),
-  },
-  communities: {
-    label: 'Communities',
-    description: 'Join community discussions',
-    icon: ({ className }) =>
-      createElement(ChatsCircle, { size: 44, weight: 'fill', className }),
-    href: routePaths.org.communities(),
   },
   resources: {
     label: 'Resources',

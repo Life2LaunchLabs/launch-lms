@@ -58,10 +58,10 @@ def _validate_content_path(file_path: str) -> Path | None:
 
 
 async def _check_content_access(
-    request: Request,
-    file_path: str,
-    current_user: PublicUser | AnonymousUser | APITokenUser,
-    db_session: Session,
+    request: Request | str | None,
+    file_path: str | PublicUser | AnonymousUser | APITokenUser,
+    current_user: PublicUser | AnonymousUser | APITokenUser | Session,
+    db_session: Session | None = None,
 ) -> None:
     """
     Check if the user has access to the requested content.
@@ -72,6 +72,15 @@ async def _check_content_access(
     - orgs/{uuid}/podcasts/{uuid}/episodes/{uuid}/...  → check podcast access
     - orgs/{uuid}/...                                  → org-level (public)
     """
+    if db_session is None:
+        db_session = current_user  # type: ignore[assignment]
+        current_user = file_path  # type: ignore[assignment]
+        file_path = request  # type: ignore[assignment]
+        request = None
+
+    if not isinstance(file_path, str):
+        raise HTTPException(status_code=400, detail="Invalid content path")
+
     parts = file_path.split('/')
 
     # Activity content: requires course to be public or user to be org member

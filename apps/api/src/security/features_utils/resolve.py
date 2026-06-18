@@ -22,6 +22,8 @@ ALL_FEATURES = [
     "roles", "scorm", "sso", "storage", "usergroups", "versioning",
 ]
 
+RELEASE_DISABLED_FEATURES = {"communities"}
+
 
 def _get_plan_from_config(config: dict) -> str:
     """Extract plan from config, supporting both v1 and v2 formats."""
@@ -96,6 +98,9 @@ def resolve_feature(feature: str, config: dict, org_id: int = 0) -> dict:
         {"enabled": bool, "limit": int, "required_plan": str|None}  (limit=0 means unlimited)
     """
     required_plan = FEATURE_PLAN_REQUIREMENTS.get(feature)
+
+    if feature in RELEASE_DISABLED_FEATURES:
+        return {"enabled": False, "limit": 0, "required_plan": required_plan}
 
     # Always-on features without limits: enabled in all modes, unlimited, no admin toggle
     if feature in ALWAYS_ON_FEATURES and feature not in ALWAYS_ON_WITH_LIMITS:

@@ -22,7 +22,6 @@ export function withQuery(
 }
 
 export const routePaths = {
-  home: () => '/home',
   auth: {
     login: (params?: { next?: string; redirect?: string }) =>
       withQuery('/login', params),
@@ -58,13 +57,15 @@ export const routePaths = {
   },
   org: {
     root: () => '/',
-    profile: () => '/profile',
-    profileEdit: () => '/profile/edit',
-    profilePortfolioPost: (slug: string) => `/profile/portfolio/${slug}`,
-    profileResume: () => '/profile/resume',
-    profileTimeline: () => '/profile/timeline',
-    profileAchievements: () => '/profile/achievements',
-    profileAchievementDetail: (achievementId: string) => `/profile/achievements/${achievementId}`,
+    portfolio: () => '/portfolio',
+    portfolioEdit: () => '/portfolio/edit',
+    portfolioPost: (slug: string) => `/portfolio/journal/${slug}`,
+    portfolioResume: () => '/portfolio/resume',
+    portfolioTimeline: () => '/portfolio/timeline',
+    portfolioAchievements: () => '/portfolio/achievements',
+    portfolioAchievementDetail: (achievementId: string) => `/portfolio/achievements/${achievementId}`,
+    news: () => '/news',
+    newsArticle: (slug: string) => `/news/${slug}`,
     welcome: () => '/welcome',
     quickstart: () => '/quickstart',
     quickstartCourse: (courseUuid: string) => `/quickstart/course/${courseUuid}`,

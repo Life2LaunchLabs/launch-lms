@@ -73,7 +73,7 @@ const AccountSubPage = async (props: { params: Promise<{ orgslug: string; subpag
   }
 
   if (PROFILE_SUBPAGES.includes(params.subpage)) {
-    redirect(getUriWithOrg(params.orgslug, routePaths.org.profileEdit()))
+    redirect(getUriWithOrg(params.orgslug, routePaths.org.portfolioEdit()))
   }
 
   // Redirect to general if invalid subpage

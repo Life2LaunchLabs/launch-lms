@@ -65,7 +65,6 @@ export interface LandingCourse {
 export type LandingQuickstartFeature =
   | 'home'
   | 'courses'
-  | 'communities'
   | 'resources';
 
 export interface LandingQuickstartItem {
