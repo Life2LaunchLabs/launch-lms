@@ -55,6 +55,9 @@ function OpenSignUpComponent({ createOrgMode = false }: { createOrgMode?: boolea
   const searchParams = useSearchParams()
   const [error, setError] = React.useState('')
   const nextUrl = searchParams.get('next')
+  const inviteBadge = searchParams.get('inviteBadge')
+  const postSignupUrl =
+    nextUrl || (inviteBadge ? `/badges?inviteBadge=${encodeURIComponent(inviteBadge)}` : '/')
   const createOrgRedirect = getUriWithOrg(org?.slug, '/signup?mode=create-org')
   const formik = useFormik({
     initialValues: {
@@ -81,7 +84,7 @@ function OpenSignUpComponent({ createOrgMode = false }: { createOrgMode?: boolea
           return
         }
 
-        const callbackUrl = `${window.location.origin}/`
+        const callbackUrl = postSignupUrl
         const signInRes = await signIn('credentials', {
           redirect: false,
           email: values.email,

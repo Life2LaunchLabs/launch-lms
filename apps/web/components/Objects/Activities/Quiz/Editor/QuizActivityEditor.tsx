@@ -45,7 +45,6 @@ type QuizMode = 'categories' | 'graded' | 'ungraded'
 
 interface GradingRules {
   pass_percent: number
-  max_attempts: number | null
 }
 
 interface QuizResultOption {
@@ -141,7 +140,6 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   )
   const [gradingRules, setGradingRules] = useState<GradingRules>({
     pass_percent: details.grading_rules?.pass_percent ?? 70,
-    max_attempts: details.grading_rules?.max_attempts ?? null,
   })
   const [isSavingSettings, setIsSavingSettings] = useState(false)
   const [categoryVectors, setCategoryVectors] = useState<ScoringVector[]>(
@@ -525,7 +523,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
       attrs: {
         question_uuid: questionUuid,
         question_text: '',
-        display_style: 'image',
+        display_style: 'text',
         option_count: optionCount,
         options,
         background_gradient_seed: backgroundSeed,
@@ -673,16 +671,6 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
 
   const handlePassPercentChange = async (value: number) => {
     const nextRules = { ...gradingRules, pass_percent: value }
-    setGradingRules(nextRules)
-    await saveSettings(quizMode, nextRules)
-  }
-
-  const handleRetakeLimitChange = async (value: string) => {
-    const trimmed = value.trim()
-    const nextRules = {
-      ...gradingRules,
-      max_attempts: trimmed === '' ? null : Math.max(1, parseInt(trimmed, 10) || 1),
-    }
     setGradingRules(nextRules)
     await saveSettings(quizMode, nextRules)
   }
@@ -994,7 +982,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                       <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Grading Rules</p>
                       <p className="text-xs text-emerald-700/80 mt-1">This quiz uses the built-in Correct vector and is configured entirely from this screen.</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3">
                       <div>
                         <label className="block text-xs font-medium text-emerald-800 mb-1">Pass percent</label>
                         <input
@@ -1007,21 +995,9 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                           className="w-full text-sm font-semibold border border-neutral-200 rounded-lg px-3 py-2 outline-none focus:border-emerald-400"
                         />
                       </div>
-                      <div>
-                        <label className="block text-xs font-medium text-emerald-800 mb-1">Retake limit</label>
-                        <input
-                          type="number"
-                          min={1}
-                          placeholder="Unlimited"
-                          value={gradingRules.max_attempts ?? ''}
-                          onChange={e => setGradingRules(prev => ({ ...prev, max_attempts: e.target.value === '' ? null : Math.max(1, parseInt(e.target.value, 10) || 1) }))}
-                          onBlur={e => void handleRetakeLimitChange(e.target.value)}
-                          className="w-full text-sm font-semibold border border-neutral-200 rounded-lg px-3 py-2 outline-none focus:border-emerald-400"
-                        />
-                      </div>
                     </div>
                     <p className="text-[11px] text-emerald-700/80">
-                      {isSavingSettings ? 'Saving settings…' : 'Leave retake limit blank for unlimited attempts.'}
+                      {isSavingSettings ? 'Saving settings…' : 'Learners can retry as many times as they want.'}
                     </p>
                   </div>
                 )}
@@ -1252,7 +1228,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                     <>
                       <div className="p-4 border-b border-neutral-100 space-y-1">
                         <p className="text-xs font-bold uppercase tracking-wider text-neutral-400">Scoring Rules</p>
-                        <p className="text-xs text-neutral-500">These settings drive pass/fail results and attempt limits.</p>
+                        <p className="text-xs text-neutral-500">These settings drive pass/fail results.</p>
                       </div>
                       <div className="flex-1 p-4 space-y-4">
                         <div>
@@ -1266,19 +1242,6 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                             onBlur={e => void handlePassPercentChange(Math.max(0, Math.min(100, parseInt(e.target.value || '0', 10) || 0)))}
                             className="w-full text-sm font-semibold border border-neutral-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400"
                           />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Retakes allowed</label>
-                          <input
-                            type="number"
-                            min={1}
-                            placeholder="Unlimited"
-                            value={gradingRules.max_attempts ?? ''}
-                            onChange={e => setGradingRules(prev => ({ ...prev, max_attempts: e.target.value === '' ? null : Math.max(1, parseInt(e.target.value, 10) || 1) }))}
-                            onBlur={e => void handleRetakeLimitChange(e.target.value)}
-                            className="w-full text-sm font-semibold border border-neutral-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400"
-                          />
-                          <p className="text-[11px] text-neutral-400 mt-1.5">Blank means learners can retry as many times as they want.</p>
                         </div>
                         <div className="rounded-xl bg-neutral-50 border border-neutral-100 p-3 space-y-2">
                           <p className="text-xs font-bold uppercase tracking-wider text-neutral-400">Locked Vector</p>

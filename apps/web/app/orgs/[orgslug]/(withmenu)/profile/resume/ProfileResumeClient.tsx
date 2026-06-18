@@ -23,6 +23,10 @@ import { Textarea } from '@components/ui/textarea'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { updateProfile } from '@services/settings/profile'
+import {
+  normalizeAchievements as normalizeBadgeAchievements,
+  useFeaturedBadges,
+} from '@components/Objects/Profile/ProfileAchievements'
 import ResumePrintButton from './ResumePrintButton'
 
 type ResumeTimelineEntry = {
@@ -35,14 +39,6 @@ type ResumeTimelineEntry = {
   isOngoing?: boolean
   employer?: string
   institution?: string
-}
-
-type ResumeAchievement = {
-  id: string
-  title: string
-  organization?: string
-  receivedDate?: string
-  description?: string
 }
 
 type ResumeFeaturedCard = {
@@ -67,6 +63,7 @@ type EditableTextProps = {
   className?: string
   placeholder?: string
   multiline?: boolean
+  // eslint-disable-next-line no-unused-vars
   onSave: (value: string) => void
 }
 
@@ -108,19 +105,6 @@ function normalizeTimeline(timeline: any): ResumeTimelineEntry[] {
     .sort((a, b) => b.startDate.localeCompare(a.startDate))
 }
 
-function normalizeAchievements(achievements: any): ResumeAchievement[] {
-  if (!Array.isArray(achievements?.custom)) return []
-  return achievements.custom
-    .map((item: any) => ({
-      id: item.id || `${item.title || 'achievement'}-${item.receivedDate || Math.random()}`,
-      title: item.title || '',
-      organization: item.organization || '',
-      receivedDate: item.receivedDate || '',
-      description: item.description || '',
-    }))
-    .filter((item: ResumeAchievement) => item.title)
-}
-
 function normalizeFeatured(featured: any): ResumeFeaturedCard[] {
   if (!Array.isArray(featured?.cards)) return []
   return featured.cards
@@ -150,7 +134,7 @@ function formatDateRange(entry: ResumeTimelineEntry) {
   return start || end
 }
 
-function formatAchievementDate(value?: string) {
+function formatCredentialDate(value?: string) {
   if (!value) return ''
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return value
@@ -244,7 +228,8 @@ export default function ProfileResumeClient({
   const work = timeline.filter((entry) => entry.category === 'work')
   const education = timeline.filter((entry) => entry.category === 'education')
   const life = timeline.filter((entry) => entry.category === 'life')
-  const achievements = normalizeAchievements(profile.achievements)
+  const badgeAchievements = useMemo(() => normalizeBadgeAchievements(profile.achievements), [profile.achievements])
+  const { badges: featuredBadges } = useFeaturedBadges(badgeAchievements, orgslug)
   const featured = normalizeFeatured(profile.featured)
 
   const persistUser = async (nextUser: any) => {
@@ -279,18 +264,6 @@ export default function ProfileResumeClient({
       timeline: (profile.timeline || []).map((entry: ResumeTimelineEntry) =>
         entry.id === entryId ? { ...entry, ...patch } : entry
       ),
-    })
-  }
-
-  const updateAchievement = (achievementId: string, patch: Partial<ResumeAchievement>) => {
-    updateProfileField({
-      ...profile,
-      achievements: {
-        ...(profile.achievements || {}),
-        custom: (profile.achievements?.custom || []).map((achievement: ResumeAchievement) =>
-          achievement.id === achievementId ? { ...achievement, ...patch } : achievement
-        ),
-      },
     })
   }
 
@@ -475,28 +448,31 @@ export default function ProfileResumeClient({
               })}
             </section>
 
-            {achievements.length ? (
-              <ResumeSection title="Highlights">
-                {achievements.slice(0, 5).map((achievement) => (
-                  <div key={achievement.id}>
-                    <EditableText
-                      value={achievement.title}
-                      canEdit={canEdit}
-                      className="font-medium text-gray-950"
-                      onSave={(value) => updateAchievement(achievement.id, { title: value })}
-                    />
-                    <div className="mt-1 text-sm text-gray-600">
-                      <EditableText
-                        value={achievement.organization || ''}
-                        canEdit={canEdit}
-                        placeholder="Organization"
-                        className="text-sm text-gray-600"
-                        onSave={(value) => updateAchievement(achievement.id, { organization: value })}
-                      />
-                      {achievement.receivedDate ? <span>{formatAchievementDate(achievement.receivedDate)}</span> : null}
+            {featuredBadges.length ? (
+              <ResumeSection title="Badges">
+                <div className="space-y-3">
+                  {featuredBadges.slice(0, 6).map((badge) => (
+                    <div key={badge.id} className="break-inside-avoid">
+                      <p className="font-medium leading-snug text-gray-950">{badge.title}</p>
+                      <div className="mt-0.5 space-y-0.5 text-xs leading-5 text-gray-600">
+                        <p>
+                          <span className="font-medium text-gray-700">Issuer:</span> {badge.organization}
+                        </p>
+                        {badge.receivedDate ? (
+                          <p>
+                            <span className="font-medium text-gray-700">Issued:</span> {formatCredentialDate(badge.receivedDate)}
+                          </p>
+                        ) : null}
+                        <p className="break-all">
+                          <span className="font-medium text-gray-700">Verify:</span>{' '}
+                          <Link href={badge.href} className="text-gray-700 underline decoration-gray-300 underline-offset-2">
+                            {badge.href}
+                          </Link>
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </ResumeSection>
             ) : null}
           </aside>

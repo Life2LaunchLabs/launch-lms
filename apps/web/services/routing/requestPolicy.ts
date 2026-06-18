@@ -40,6 +40,7 @@ const STANDARD_PATHS = new Set(['/home'])
 const AUTH_PATHS = new Set(['/login', '/signup', '/reset', '/forgot', '/verify-email'])
 const AUTH_CALLBACK_PREFIXES = ['/auth/sso/', '/auth/callback/', '/auth/token-exchange']
 const PUBLIC_COURSE_PATH_RE = /^\/course\/[^/]+(\/activity\/[^/]+)?$/
+const PUBLIC_BADGE_ENTRY_PATH_RE = /^\/badges\/[^/]+(\/invite)?$/
 const PODCAST_FEED_RE = /^\/podcast\/([^/]+)\/feed$/
 const EDITOR_ACTIVITY_RE = /^\/course\/[^/]+\/activity\/[^/]+\/edit$/
 
@@ -227,8 +228,9 @@ export function resolveRequestRouting(
       pathname === '/quickstart' ||
       pathname.startsWith('/quickstart/')
     const isPublicCoursePath = PUBLIC_COURSE_PATH_RE.test(pathname)
+    const isPublicBadgeEntryPath = PUBLIC_BADGE_ENTRY_PATH_RE.test(pathname)
 
-    if (!isGuestPath && !isPublicCoursePath) {
+    if (!isGuestPath && !isPublicCoursePath && !isPublicBadgeEntryPath) {
       return {
         action: 'redirect',
         destination: new URL('/welcome', input.requestUrl).toString(),

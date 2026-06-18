@@ -26,7 +26,7 @@ export const routePaths = {
   auth: {
     login: (params?: { next?: string; redirect?: string }) =>
       withQuery('/login', params),
-    signup: (params?: { next?: string; inviteCode?: string; mode?: string }) =>
+    signup: (params?: { next?: string; inviteCode?: string; mode?: string; inviteBadge?: string }) =>
       withQuery('/signup', params),
     forgot: () => '/forgot',
     reset: () => '/reset',
@@ -90,6 +90,9 @@ export const routePaths = {
     course: (courseUuid: string) => `/badges/${courseUuid}`,
     badgeStatus: (courseUuid: string) => `/badges/${courseUuid}/badge`,
     badgePath: (courseUuid: string) => `/badges/${courseUuid}/path`,
+    badgeChapter: (courseUuid: string, chapterId: string) =>
+      `/badges/${courseUuid}/chapter/${chapterId}`,
+    badgeInvite: (courseUuid: string) => `/badges/${courseUuid}/invite`,
     courseActivity: (courseUuid: string, activityId: string) =>
       `/course/${courseUuid}/activity/${activityId}`,
     courseActivityEnd: (courseUuid: string) =>

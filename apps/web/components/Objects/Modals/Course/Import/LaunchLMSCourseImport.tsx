@@ -42,12 +42,14 @@ interface LaunchLMSCourseImportProps {
   orgId: number
   orgslug: string
   closeModal: () => void
+  collectionUuid?: string
 }
 
 function LaunchLMSCourseImport({
   orgId,
   orgslug,
   closeModal,
+  collectionUuid,
 }: LaunchLMSCourseImportProps) {
   const { t } = useTranslation()
   const session = useLHSession() as any
@@ -178,6 +180,7 @@ function LaunchLMSCourseImport({
           name_prefix: namePrefix || null,
           set_private: setPrivate,
           set_unpublished: setUnpublished,
+          collection_uuid: collectionUuid,
         },
         access_token
       )

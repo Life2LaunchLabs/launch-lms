@@ -29,6 +29,7 @@ export interface ImportOptions {
   name_prefix?: string | null
   set_private: boolean
   set_unpublished: boolean
+  collection_uuid?: string | null
 }
 
 export interface ImportCourseResult {

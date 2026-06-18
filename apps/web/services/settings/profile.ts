@@ -21,3 +21,12 @@ export async function updateProfile(
   const res = await getResponseMetadata(result)
   return res
 }
+
+export async function devSeedProfile(access_token: string) {
+  const result: any = await fetch(
+    `${getAPIUrl()}dev/seed_profile`,
+    RequestBodyWithAuthHeader('POST', null, null, access_token)
+  )
+  const res = await getResponseMetadata(result)
+  return res
+}

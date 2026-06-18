@@ -48,6 +48,8 @@ test('route manifest builds auth, account, and public org paths used by navigati
   assert.equal(routePaths.org.course('badge-slug'), '/badges/badge-slug')
   assert.equal(routePaths.org.badgeStatus('badge-slug'), '/badges/badge-slug/badge')
   assert.equal(routePaths.org.badgePath('badge-slug'), '/badges/badge-slug/path')
+  assert.equal(routePaths.org.badgeChapter('badge-slug', 'chapter-1'), '/badges/badge-slug/chapter/chapter-1')
+  assert.equal(routePaths.org.badgeInvite('badge-slug'), '/badges/badge-slug/invite')
 })
 
 test('navigation manifest smoke test keeps representative routes absolute and unique', () => {
@@ -184,6 +186,34 @@ test('request policy redirects unauthenticated protected paths to welcome', () =
 
   assert.equal(decision.action, 'redirect')
   assert.equal(decision.destination, 'https://acme.launchlms.test/welcome')
+})
+
+test('request policy allows unauthenticated badge entry pages', () => {
+  const canonicalDecision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/badges/badge-slug',
+    pathname: '/badges/badge-slug',
+    search: '',
+    host: 'acme.launchlms.test',
+    hasSession: false,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+  const decision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/badges/badge-slug/invite',
+    pathname: '/badges/badge-slug/invite',
+    search: '',
+    host: 'acme.launchlms.test',
+    hasSession: false,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+
+  assert.equal(canonicalDecision.action, 'rewrite')
+  assert.equal(canonicalDecision.destination, '/orgs/acme/badges/badge-slug')
+  assert.equal(decision.action, 'rewrite')
+  assert.equal(decision.destination, '/orgs/acme/badges/badge-slug/invite')
 })
 
 test('request policy rewrites sitemap and annotates org slug header', () => {

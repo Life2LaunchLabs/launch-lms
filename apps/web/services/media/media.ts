@@ -150,6 +150,7 @@ export function getOrgLandingMediaDirectory(orgUUID: string, fileId: string) {
 }
 
 export function getUserAvatarMediaDirectory(userUUID: string, fileId: string) {
+  if (/^https?:\/\//i.test(fileId)) return fileId
   let uri = `${getMediaUrl()}content/users/${userUUID}/avatars/${fileId}`
   return uri
 }

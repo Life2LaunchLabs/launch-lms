@@ -24,6 +24,16 @@ async function fetchCourseMetadata(courseuuid: string, access_token: string | nu
   )
 }
 
+function findChapterForActivityId(course: any, activityId: string) {
+  const cleanActivityId = activityId.replace('activity_', '')
+  return (course?.chapters || []).find((chapter: any) =>
+    (chapter.activities || []).some((activity: any) =>
+      activity.activity_uuid?.replace('activity_', '') === cleanActivityId ||
+      String(activity.id || '') === activityId
+    )
+  )
+}
+
 export async function generateMetadata(props: MetadataProps): Promise<Metadata> {
   const params = await props.params;
   const session = await getServerSession()
@@ -123,22 +133,11 @@ const ActivityPage = async (params: any) => {
   const guestCompletedHint = searchParams?.guest_completed === '1'
   const isCourseEnd = activityid === 'end'
 
-  if (isCourseEnd) {
-    redirect(getUriWithOrg(orgslug, routePaths.org.course(courseuuid)))
-  }
-
   let course_meta
   let activity = null
 
   try {
     course_meta = await fetchCourseMetadata(courseuuid, access_token)
-    if (!isCourseEnd) {
-      activity = await getActivityWithAuthHeader(
-        activityid,
-        { revalidate: 0, tags: ['activities'] },
-        access_token || null
-      )
-    }
   } catch (error: any) {
     // Unauthenticated user hitting a private course/activity → send to welcome
     if (!session && (error?.status === 401 || error?.status === 403)) {
@@ -147,8 +146,32 @@ const ActivityPage = async (params: any) => {
     notFound()
   }
 
-  // If no course data returned, show not found
-  if (!course_meta || (!isCourseEnd && !activity)) {
+  if (!course_meta) {
+    notFound()
+  }
+
+  const activityChapter = findChapterForActivityId(course_meta, activityid)
+  if (activityChapter) {
+    const chapterId = (activityChapter.chapter_uuid || activityChapter.id || '').toString().replace('chapter_', '')
+    redirect(getUriWithOrg(orgslug, routePaths.org.badgeChapter(courseuuid, chapterId)))
+  }
+
+  try {
+    if (!isCourseEnd) {
+      activity = await getActivityWithAuthHeader(
+        activityid,
+        { revalidate: 0, tags: ['activities'] },
+        access_token || null
+      )
+    }
+  } catch (error: any) {
+    if (!session && (error?.status === 401 || error?.status === 403)) {
+      redirect('/welcome')
+    }
+    notFound()
+  }
+
+  if (!isCourseEnd && !activity) {
     notFound()
   }
 

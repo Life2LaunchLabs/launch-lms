@@ -14,7 +14,7 @@ import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { removeCourse } from '@services/courses/activity'
 import { getCourseThumbnailMediaDirectory, getUserAvatarMediaDirectory } from '@services/media/media'
 import { revalidateTags } from '@services/utils/ts/requests'
-import { CourseThumbnailImage } from '@components/Objects/Thumbnails/CourseThumbnailImage'
+import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { BookOpen, Building2, Check, MoreVertical, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -93,9 +93,9 @@ function PublicCourseCard({ course, orgslug, run = null, orgName }: PublicCourse
         </div>
       )}
 
-      <Link href={courseLink} className="block relative aspect-video overflow-hidden bg-black">
+      <Link href={courseLink} className="block relative aspect-video overflow-visible bg-transparent">
         {course.thumbnail_image && ownerOrgUuid ? (
-          <CourseThumbnailImage
+          <BadgeThumbnailImage
             src={getCourseThumbnailMediaDirectory(ownerOrgUuid, course.course_uuid, course.thumbnail_image)}
             alt={course.name}
             hoverScale

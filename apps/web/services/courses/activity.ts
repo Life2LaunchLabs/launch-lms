@@ -51,6 +51,15 @@ export async function unmarkActivityAsComplete(
   return res
 }
 
+export async function devCompleteCourse(course_uuid: string, access_token: any) {
+  const result: any = await fetch(
+    `${getAPIUrl()}dev/complete_course/${course_uuid}`,
+    RequestBodyWithAuthHeader('POST', null, null, access_token)
+  )
+  const res = await errorHandling(result)
+  return res
+}
+
 export async function updateActivityContent(
   activity_uuid: string,
   content: any,

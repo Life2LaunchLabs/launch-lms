@@ -4,10 +4,14 @@ import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/Ge
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import PageLoading from '@components/Objects/Loaders/PageLoading'
+import ContentPageHeader from '@components/Objects/StyledElements/Headers/ContentPageHeader'
+import ContentHeroSection, { ContentHeroSegmentedProgress } from '@components/Objects/StyledElements/Headers/ContentHeroSection'
+import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
+import CollectionCoverFanThumbnail from '@components/Objects/Thumbnails/CollectionCoverFanThumbnail'
 import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
-import { getCourseThumbnailMediaDirectory } from '@services/media/media'
+import { getCollectionThumbnailMediaDirectory, getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { swrFetcher } from '@services/utils/ts/requests'
-import { ArrowLeft, Award } from 'lucide-react'
+import { Award } from 'lucide-react'
 import Link from 'next/link'
 import React, { useMemo } from 'react'
 import useSWR from 'swr'
@@ -45,37 +49,6 @@ function getCollectionProgress(courses: any[], trailRunsByCourseUuid?: Map<strin
   )
 }
 
-function CollectionProgressGauge({
-  earned,
-  started,
-  total,
-}: {
-  earned: number
-  started: number
-  total: number
-}) {
-  const remaining = Math.max(total - earned - started, 0)
-  const earnedWidth = total > 0 ? (earned / total) * 100 : 0
-  const startedWidth = total > 0 ? (started / total) * 100 : 0
-
-  return (
-    <div className="mx-auto w-full max-w-md pt-6">
-      <div className="mb-3 grid grid-cols-3 gap-3 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-        <span>{earned} earned</span>
-        <span>{started} started</span>
-        <span>{remaining} remaining</span>
-      </div>
-      <div
-        className="flex h-1.5 w-full overflow-hidden rounded-full bg-gray-100"
-        aria-label={`${earned} earned and ${started} started out of ${total} badges`}
-      >
-        <div className="h-full bg-green-500" style={{ width: `${earnedWidth}%` }} />
-        <div className="h-full bg-gray-800" style={{ width: `${startedWidth}%` }} />
-      </div>
-    </div>
-  )
-}
-
 function BadgeCourseTile({
   course,
   orgslug,
@@ -94,12 +67,13 @@ function BadgeCourseTile({
 
   return (
     <Link href={courseLink} className="group block focus:outline-none">
-      <div className="aspect-square w-full overflow-hidden rounded-lg bg-transparent">
+      <div className="aspect-square w-full overflow-visible rounded-lg bg-transparent">
         {course.thumbnail_image && ownerOrgUuid ? (
-          <img
+          <BadgeThumbnailImage
             src={getCourseThumbnailMediaDirectory(ownerOrgUuid, course.course_uuid, course.thumbnail_image)}
             alt={course.name}
-            className={`h-full w-full object-cover transition duration-300 group-hover:scale-[1.03] ${
+            hoverScale
+            className={`${
               progress.isEarned ? '' : 'opacity-55 grayscale brightness-110'
             }`}
           />
@@ -153,39 +127,45 @@ const CollectionClient = ({ orgslug, collectionid }: { orgslug: string; collecti
   const courses = col.courses || []
   const progress = getCollectionProgress(courses, trailRunsByCourseUuid)
   const creatorName = col.owner_org_name || org?.name
+  const ownerOrgUuid = col.owner_org_uuid || org?.org_uuid
 
   return (
     <GeneralWrapperStyled>
-      <div className="mb-10">
-        <Link
-          href={getUriWithOrg(orgslug, routePaths.org.badges())}
-          className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 transition-colors hover:text-gray-950"
-        >
-          <ArrowLeft size={16} />
-          Back
-        </Link>
-      </div>
+      <ContentPageHeader
+        orgslug={orgslug}
+      />
 
-      <header className="mx-auto mb-12 flex max-w-3xl flex-col items-center text-center">
-        {creatorName && (
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
-            {creatorName}
-          </p>
-        )}
-        <h1 className="mt-3 text-4xl font-semibold leading-tight text-gray-950 sm:text-5xl">
-          {col.name}
-        </h1>
-        {col.description && (
-          <p className="mt-3 max-w-xl text-sm leading-relaxed text-gray-500">
-            {col.description}
-          </p>
-        )}
-        <CollectionProgressGauge
+      <ContentHeroSection
+        eyebrow={creatorName}
+        title={col.name}
+        body={col.description}
+        image={
+          col.thumbnail_image && ownerOrgUuid ? (
+            <img
+              src={getCollectionThumbnailMediaDirectory(ownerOrgUuid, col.collection_uuid, col.thumbnail_image)}
+              alt={col.name}
+              className="h-full w-full object-cover"
+            />
+          ) : courses.length > 0 ? (
+            <CollectionCoverFanThumbnail
+              courses={courses}
+              fallbackOrgUuid={ownerOrgUuid}
+              className="p-2"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-white/65">
+              <Award size={42} strokeWidth={1.4} />
+            </div>
+          )
+        }
+      >
+        <ContentHeroSegmentedProgress
+          directive={`Earn ${courses.length} badge${courses.length === 1 ? '' : 's'}`}
           earned={progress.earned}
-          started={progress.started}
+          inProgress={progress.started}
           total={courses.length}
         />
-      </header>
+      </ContentHeroSection>
 
       <div className="grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 md:grid-cols-4">
         {courses.map((course: any) => (

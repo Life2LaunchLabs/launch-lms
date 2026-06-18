@@ -100,6 +100,29 @@ def build_badge_class_payload(
     if support_url:
         badge_class["extensions:supportUrl"] = support_url
 
+    invite_fields = {}
+    if isinstance(course.seo, dict):
+        invite_fields = {
+            key: course.seo.get(key)
+            for key in [
+                "badge_invite_eyebrow",
+                "badge_invite_headline",
+                "badge_invite_subheadline",
+                "badge_invite_primary_stat",
+                "badge_invite_secondary_stat",
+                "badge_invite_testimonial",
+            ]
+            if course.seo.get(key)
+        }
+    if invite_fields:
+        badge_class["extensions:invite"] = invite_fields
+    if course.about:
+        badge_class["extensions:courseAbout"] = course.about
+    if course.learnings:
+        badge_class["extensions:courseLearnings"] = course.learnings
+    if course.tags:
+        badge_class["extensions:courseTags"] = course.tags
+
     return badge_class
 
 

@@ -1,6 +1,7 @@
 'use client'
 import { useFormik } from 'formik'
 import React, { useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import FormLayout, {
   FormField,
   FormLabelAndMessage,
@@ -55,6 +56,11 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
   const org = useOrg() as any
   const { signIn } = useAuth()
   const [error, setError] = React.useState('')
+  const searchParams = useSearchParams()
+  const nextUrl = searchParams.get('next')
+  const inviteBadge = searchParams.get('inviteBadge')
+  const postSignupUrl =
+    nextUrl || (inviteBadge ? `/badges?inviteBadge=${encodeURIComponent(inviteBadge)}` : '/')
   const formik = useFormik({
     initialValues: {
       org_slug: org?.slug,
@@ -80,7 +86,7 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
           return
         }
 
-        const callbackUrl = `${window.location.origin}/`
+        const callbackUrl = postSignupUrl
         const signInRes = await signIn('credentials', {
           redirect: false,
           email: values.email,

@@ -98,6 +98,7 @@ class ImportRequest(BaseModel):
     name_prefix: str | None = None
     set_private: bool = True
     set_unpublished: bool = True
+    collection_uuid: str | None = None
 
     @field_validator('course_uuids')
     @classmethod
@@ -259,6 +260,7 @@ async def api_import_courses(
         name_prefix=import_request.name_prefix,
         set_private=import_request.set_private,
         set_unpublished=import_request.set_unpublished,
+        collection_uuid=import_request.collection_uuid,
     )
 
     return await import_courses(
@@ -301,6 +303,7 @@ async def api_import_tutor_courses(
         name_prefix=import_request.name_prefix,
         set_private=import_request.set_private,
         set_unpublished=import_request.set_unpublished,
+        collection_uuid=import_request.collection_uuid,
     )
 
     return await import_tutor_courses(
