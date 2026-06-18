@@ -198,7 +198,7 @@ export default function CourseEditorHeader({
     <>
       <div className="pt-6 pb-4">
         <Breadcrumbs items={[
-          { label: 'Courses', href: '/dash/courses' },
+          { label: 'Courses', href: '/admin/courses' },
           { label: courseStructure.name },
         ]} />
       </div>

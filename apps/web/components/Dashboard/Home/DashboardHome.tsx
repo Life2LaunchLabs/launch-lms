@@ -3,7 +3,6 @@ import React from 'react'
 import Link from 'next/link'
 import {
   PlusCircle,
-  ChartBar,
   GearSix,
   Users,
 } from '@phosphor-icons/react'
@@ -14,7 +13,6 @@ import { getAPIUrl, routePaths } from '@services/config/config'
 import { OrgUsageResponse, orgUsageFetcher } from '@services/orgs/usage'
 import AdminAuthorization from '@components/Security/AdminAuthorization'
 import { usePlan } from '@components/Hooks/usePlan'
-import QuickStats from './QuickStats'
 import RecentCourses from './RecentCourses'
 import RecentMembers from './RecentMembers'
 import ContentOverview from './ContentOverview'
@@ -72,14 +70,7 @@ export default function DashboardHome() {
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
               >
                 <PlusCircle size={14} weight="bold" />
-                Create Course
-              </Link>
-              <Link
-                href={routePaths.org.dash.analytics()}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-gray-600 bg-white rounded-lg nice-shadow hover:bg-gray-50 transition-colors"
-              >
-                <ChartBar size={14} weight="bold" />
-                Analytics
+                Create Badge
               </Link>
               <Link
                 href={routePaths.org.dash.users.users()}
@@ -111,7 +102,6 @@ export default function DashboardHome() {
                 </div>
                 <div className="space-y-6">
                   <UsageOverview />
-                  <QuickStats />
                 </div>
               </div>
             </div>

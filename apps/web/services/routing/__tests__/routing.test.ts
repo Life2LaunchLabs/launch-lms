@@ -14,18 +14,18 @@ test('withQuery omits empty values and encodes query params', () => {
   assert.equal(
     withQuery('/signup', {
       mode: 'create-org',
-      next: '/dash/courses',
+      next: '/admin/courses',
       inviteCode: '',
       ignored: undefined,
     }),
-    '/signup?mode=create-org&next=%2Fdash%2Fcourses'
+    '/signup?mode=create-org&next=%2Fadmin%2Fcourses'
   )
 })
 
 test('route manifest builds key dashboard and owner routes', () => {
-  assert.equal(routePaths.org.dash.courseSettings('abc', 'general'), '/dash/courses/course/abc/general')
-  assert.equal(routePaths.org.dash.users.roles(), '/dash/users/settings/roles')
-  assert.equal(routePaths.owner.platform.organization(42), '/dash/org-management/42')
+  assert.equal(routePaths.org.dash.courseSettings('abc', 'general'), '/admin/courses/course/abc/general')
+  assert.equal(routePaths.org.dash.users.roles(), '/admin/users/settings/roles')
+  assert.equal(routePaths.owner.platform.organization(42), '/admin/org-management/42')
   assert.equal(routePaths.auth.login({ next: '/welcome' }), '/login?next=%2Fwelcome')
 })
 
@@ -145,8 +145,8 @@ test('request policy preserves query params when rewriting user profile routes',
 
 test('request policy keeps main-host dashboard traffic on the default org even if old org cookies existed', () => {
   const decision = resolveRequestRouting({
-    requestUrl: 'https://launchlms.test/dash',
-    pathname: '/dash',
+    requestUrl: 'https://launchlms.test/admin',
+    pathname: '/admin',
     search: '',
     host: 'launchlms.test',
     hasSession: true,
@@ -156,7 +156,7 @@ test('request policy keeps main-host dashboard traffic on the default org even i
   })
 
   assert.equal(decision.action, 'rewrite')
-  assert.equal(decision.destination, '/orgs/default/dash')
+  assert.equal(decision.destination, '/orgs/default/admin')
 })
 
 test('request policy rewrites custom-domain traffic into resolved org routes and keeps host-scoped cookies', () => {

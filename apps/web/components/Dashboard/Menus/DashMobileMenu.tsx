@@ -59,7 +59,7 @@ function DashMobileMenu() {
     {
       href: routePaths.org.dash.courses(),
       icon: BookCopy,
-      label: t('courses.courses'),
+      label: 'Badges',
     },
     {
       href: routePaths.org.dash.assignments(),

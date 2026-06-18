@@ -75,35 +75,24 @@ export default function ContentOverview() {
     { revalidateOnFocus: false }
   )
 
-  // Boards
-  const boardsEnabled = isEnabled('boards', true)
-  const { data: boardsData } = useSWR(
-    boardsEnabled && token && orgId
-      ? `${getAPIUrl()}boards/org/${orgId}`
-      : null,
-    (url) => swrFetcher(url, token),
-    { revalidateOnFocus: false }
-  )
-
   const courses: any[] = coursesData ?? []
   const totalMembers = membersData?.total ?? 0
   const communities: any[] = communitiesData ?? []
   const resources: any[] = resourcesData ?? []
   const podcasts: any[] = podcastsData ?? []
-  const boards: any[] = boardsData ?? []
 
   const publishedCourses = courses.filter((c: any) => c.published).length
   const draftCourses = courses.length - publishedCourses
 
   const cards = [
     {
-      label: 'Courses',
+      label: 'Badges',
       value: courses.length,
       sub: `${publishedCourses} published · ${draftCourses} draft`,
       icon: BookOpen,
       iconColor: 'text-blue-500',
       iconBg: 'bg-blue-50',
-      href: '/dash/courses',
+      href: '/admin/courses',
       show: true,
     },
     {
@@ -113,7 +102,7 @@ export default function ContentOverview() {
       icon: Users,
       iconColor: 'text-indigo-500',
       iconBg: 'bg-indigo-50',
-      href: '/dash/users/settings/users',
+      href: '/admin/users/settings/users',
       show: true,
     },
     {
@@ -123,7 +112,7 @@ export default function ContentOverview() {
       icon: ChatCircle,
       iconColor: 'text-violet-500',
       iconBg: 'bg-violet-50',
-      href: '/dash/communities',
+      href: '/admin/communities',
       show: communitiesEnabled,
     },
     {
@@ -133,7 +122,7 @@ export default function ContentOverview() {
       icon: Chalkboard,
       iconColor: 'text-emerald-500',
       iconBg: 'bg-emerald-50',
-      href: '/dash/resources',
+      href: '/admin/resources',
       show: resourcesEnabled,
     },
     {
@@ -143,18 +132,8 @@ export default function ContentOverview() {
       icon: Microphone,
       iconColor: 'text-amber-500',
       iconBg: 'bg-amber-50',
-      href: '/dash/podcasts',
+      href: '/admin/podcasts',
       show: podcastsEnabled,
-    },
-    {
-      label: 'Boards',
-      value: boards.length,
-      sub: `${boards.reduce((sum: number, b: any) => sum + (b.member_count || 0), 0)} participants`,
-      icon: Chalkboard,
-      iconColor: 'text-rose-500',
-      iconBg: 'bg-rose-50',
-      href: '/dash/boards',
-      show: boardsEnabled,
     },
   ]
 

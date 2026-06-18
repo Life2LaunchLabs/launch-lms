@@ -46,15 +46,15 @@ const EDITOR_ACTIVITY_RE = /^\/course\/[^/]+\/activity\/[^/]+\/edit$/
 
 function getAdminMigrationPath(pathname: string): string {
   if (pathname === '/login') return '/login'
-  if (pathname === '/' || pathname === '') return '/dash/org-management'
-  if (pathname === '/organizations') return '/dash/org-management'
+  if (pathname === '/' || pathname === '') return '/admin/org-management'
+  if (pathname === '/organizations') return '/admin/org-management'
   if (pathname.startsWith('/organizations/')) {
     const orgId = pathname.split('/')[2]
-    return `/dash/org-management/${orgId}`
+    return `/admin/org-management/${orgId}`
   }
-  if (pathname === '/users') return '/dash/org-management/users'
-  if (pathname === '/analytics') return '/dash/org-management/analytics'
-  return '/dash/org-management'
+  if (pathname === '/users') return '/admin/org-management/users'
+  if (pathname === '/analytics') return '/admin/org-management'
+  return '/admin/org-management'
 }
 
 export function resolveRequestRouting(
@@ -164,7 +164,7 @@ export function resolveRequestRouting(
     hostingMode === 'multi' &&
     context.subdomainOrgSlug &&
     context.subdomainOrgSlug !== instanceInfo.default_org_slug &&
-    !pathname.startsWith('/dash') &&
+    !pathname.startsWith('/admin') &&
     !context.subdomainAllowed
   ) {
     return {

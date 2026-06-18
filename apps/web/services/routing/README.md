@@ -90,7 +90,7 @@ Rules:
 If you find repeated patterns like:
 
 ```ts
-`/dash/resources/${id}/general`
+`/admin/resources/${id}/general`
 ```
 
 that is usually a sign a builder should exist.

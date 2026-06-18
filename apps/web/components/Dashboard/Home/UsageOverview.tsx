@@ -6,7 +6,6 @@ import {
   BookOpen,
   Users,
   ShieldCheck,
-  Chalkboard,
   ChatCircle,
   Microphone,
   ArrowRight,
@@ -90,31 +89,24 @@ export default function UsageOverview() {
   const enabledFeatures = [
     {
       key: 'courses',
-      label: 'Courses',
+      label: 'Badges',
       icon: BookOpen,
       enabled: orgFeatures?.courses?.enabled !== false,
-      href: '/dash/courses',
+      href: '/admin/courses',
     },
     {
       key: 'communities',
       label: 'Communities',
       icon: ChatCircle,
       enabled: orgFeatures?.communities?.enabled !== false,
-      href: '/dash/communities',
+      href: '/admin/communities',
     },
     {
       key: 'podcasts',
       label: 'Podcasts',
       icon: Microphone,
       enabled: orgFeatures?.podcasts?.enabled === true,
-      href: '/dash/podcasts',
-    },
-    {
-      key: 'boards',
-      label: 'Boards',
-      icon: Chalkboard,
-      enabled: orgFeatures?.boards?.enabled === true,
-      href: '/dash/boards',
+      href: '/admin/podcasts',
     },
   ]
 

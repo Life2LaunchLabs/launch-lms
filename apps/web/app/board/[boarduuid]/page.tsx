@@ -1,50 +1,5 @@
-import { Metadata } from 'next'
-import React from 'react'
-import { getServerSession } from '@/lib/auth/server'
 import { redirect } from 'next/navigation'
-import BoardCanvasClient from './client'
-import { getHostOrgSlug } from '@services/org/orgResolution'
 
-type MetadataProps = {
-  params: Promise<{ boarduuid: string }>
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+export default async function BoardEditorDisabledPage() {
+  redirect('/')
 }
-
-export async function generateMetadata(_props: MetadataProps): Promise<Metadata> {
-  return {
-    title: 'Board',
-    description: 'Collaborative board',
-    robots: {
-      index: false,
-      follow: false,
-    },
-  }
-}
-
-async function BoardEditorPage(props: any) {
-  const params = await props.params
-  const session = await getServerSession()
-  const access_token = session?.tokens?.access_token
-  const orgslug = await getHostOrgSlug()
-
-  // Require authentication to access board canvas
-  if (!access_token) {
-    redirect('/login')
-  }
-
-  // Ensure board_uuid has the board_ prefix for the API
-  const boardUuid = params.boarduuid.startsWith('board_')
-    ? params.boarduuid
-    : `board_${params.boarduuid}`
-
-  return (
-    <BoardCanvasClient
-      boardUuid={boardUuid}
-      accessToken={access_token}
-      orgslug={orgslug || ''}
-      username={session?.user?.username || session?.user?.email || 'Anonymous'}
-    />
-  )
-}
-
-export default BoardEditorPage

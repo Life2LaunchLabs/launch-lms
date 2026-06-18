@@ -2,7 +2,7 @@
 import { useCourse, useCourseDispatch, getCourseMetaCacheKey } from '@components/Contexts/CourseContext'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import SaveState from './SaveState'
-import { CourseOverviewParams } from 'app/orgs/[orgslug]/dash/courses/course/[courseuuid]/[subpage]/page'
+import { CourseOverviewParams } from 'app/orgs/[orgslug]/admin/courses/course/[courseuuid]/[subpage]/page'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getCourseThumbnailMediaDirectory } from '@services/media/media'
@@ -191,7 +191,7 @@ export function CourseOverviewTop({
     <>
       <div className="pt-6 pb-4">
         <Breadcrumbs items={[
-          { label: t('courses.courses'), href: '/dash/courses', icon: <BookCopy size={14} /> },
+          { label: 'Badges', href: '/admin/courses', icon: <BookCopy size={14} /> },
           { label: courseStructure.name }
         ]} />
       </div>

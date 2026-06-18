@@ -387,7 +387,7 @@ getUriWithOrg(orgslug, routePaths.org.courseActivity(courseUuid, activityId))
 
 Avoid:
 
-- raw `'/dash/...'` strings in components
+- raw `'/admin/...'` strings in components
 - raw `'/course/...'` string concatenation
 - rebuilding org-aware URLs by hand
 - duplicating route patterns across menus, cards, and redirect pages
@@ -475,7 +475,7 @@ Routing behavior should be verified in three ways:
    `./node_modules/.bin/tsc --noEmit`
 
 3. Grep-based regression checks
-   Search for raw `'/dash'`, `'/course/'`, `'/community/'`, and similar path
+   Search for raw `'/admin'`, `'/course/'`, `'/community/'`, and similar path
    literals in `app/` and `components/` when doing migration work
 
 The dedicated routing test command is:
