@@ -815,7 +815,7 @@ export async function devCommand(opts: { ee?: boolean }) {
   }
 
   const startWeb = () => {
-    const args = ['dev', '--webpack']
+    const args = ['dev']
     if (hasCerts) args.push('--experimental-https', '--experimental-https-cert', certFile, '--experimental-https-key', keyFile)
     return spawnService('next', args, path.join(root, 'apps', 'web'), 'web', pc.cyan)
   }

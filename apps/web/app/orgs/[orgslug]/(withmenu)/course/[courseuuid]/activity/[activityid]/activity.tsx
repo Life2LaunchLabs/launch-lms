@@ -319,15 +319,25 @@ function ActivityClient(props: ActivityClientProps) {
     Boolean(currentChapter)
   const closeChapterReward = () => {
     const cleanCourseUuid = course.course_uuid?.replace('course_', '') || courseuuid
-    router.push(getUriWithOrg(orgslug, routePaths.org.badgePath(cleanCourseUuid)))
+    const closeHref = getUriWithOrg(orgslug, routePaths.org.badgePath(cleanCourseUuid))
+    if (chapterRouteMode) {
+      router.replace(closeHref)
+      return
+    }
+    router.push(closeHref)
   }
   const closeActivityViewer = React.useCallback(() => {
     const cleanCourseUuid = course.course_uuid?.replace('course_', '') || courseuuid
     const closePath = quickstartMode
       ? routePaths.org.quickstartCourse(cleanCourseUuid)
       : routePaths.org.badgePath(cleanCourseUuid)
-    router.push(getUriWithOrg(orgslug, closePath))
-  }, [course.course_uuid, courseuuid, orgslug, quickstartMode, router])
+    const closeHref = getUriWithOrg(orgslug, closePath)
+    if (chapterRouteMode) {
+      router.replace(closeHref)
+      return
+    }
+    router.push(closeHref)
+  }, [chapterRouteMode, course.course_uuid, courseuuid, orgslug, quickstartMode, router])
 
   const handleQuizComplete = React.useCallback(async (result: any) => {
     const passed = result?.result_json?.graded_result
