@@ -1,6 +1,5 @@
 export const dynamic = 'force-dynamic'
 import type { Metadata } from 'next'
-import Image from 'next/image'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/auth/server'
@@ -28,87 +27,127 @@ const OrgHomePage = async ({ params }: PageProps) => {
 
   const quickstartHref = getUriWithOrg(orgslug, routePaths.org.quickstart())
   const loginHref = getUriWithOrg(orgslug, routePaths.auth.login())
+  const sections = [
+    {
+      title: 'learn by doing',
+      body: 'Build real skills through quick lessons, activities, and portfolio-ready milestones that keep momentum easy to see.',
+    },
+    {
+      title: 'guided from day one',
+      body: 'Every learner gets a clear path forward with structured courses, helpful resources, and progress that feels simple to follow.',
+    },
+    {
+      title: 'keep going together',
+      body: 'Communities, badges, and shared wins make learning feel social, encouraging, and connected beyond a single course.',
+    },
+  ]
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#1265c7] text-white">
-      <Image
-        src="/welcome_background.png"
-        alt=""
-        fill
-        priority
-        sizes="100vw"
-        className="pointer-events-none select-none object-cover"
-      />
-
-      <section className="relative z-10 flex min-h-screen items-center justify-center overflow-hidden px-6 py-10 text-center sm:px-8 sm:py-12 xl:px-10 xl:py-5">
-        <div className="pointer-events-none absolute inset-x-0 top-1/2 z-0 h-[310px] -translate-y-[42%] sm:h-[520px] xl:h-[600px] xl:-translate-y-1/2">
-          <Image
-            src="/welcome_cards.png"
-            alt=""
-            width={1920}
-            height={659}
-            priority
-            sizes="(max-width: 1023px) 175vw, 100vw"
-            className="absolute left-1/2 top-1/2 w-[175vw] max-w-none -translate-x-1/2 -translate-y-1/2 select-none sm:w-[150vw] xl:w-[max(100vw,1180px)]"
-          />
+    <main className="min-h-screen overflow-hidden bg-white text-[#3c3f43]">
+      <section className="mx-auto grid h-[calc(100dvh-60px)] w-full max-w-[1188px] place-items-center gap-5 overflow-hidden px-7 py-4 text-center sm:gap-7 sm:py-6 md:grid-cols-[1.04fr_0.96fr] md:gap-12 md:px-10 md:py-8 md:text-left">
+        <div className="w-full">
+          <StripedPlaceholder className="mx-auto h-[210px] w-[210px] sm:h-[280px] sm:w-[280px] md:h-[430px] md:w-[430px] lg:h-[500px] lg:w-[500px]" label="Hero art" />
         </div>
-
-        <div className="relative z-10 flex w-full max-w-[310px] flex-col items-center gap-7 sm:max-w-[560px] sm:gap-9 xl:block xl:h-[480px] xl:w-[1180px] xl:max-w-none xl:text-left">
-          <div className="w-full xl:absolute xl:left-[80px] xl:top-[42px] xl:w-[390px]">
-            <h1 className="text-[42px] font-black uppercase leading-[1.12] tracking-normal sm:text-[58px] md:text-[64px] xl:text-[48px]">
-              Welcome to
-              <br />
-              the journey
-              <br />
-              of a lifetime.
-            </h1>
-            <div className="mx-auto mt-3 h-[3px] w-[78%] rounded-full bg-white/90 sm:mt-4 xl:mx-0 xl:ml-[32%] xl:w-[50%]" />
-          </div>
-
-          <Image
-            src="/welcome_phone.png"
-            alt="LaunchPad app preview"
-            width={901}
-            height={1103}
-            priority
-            sizes="(max-width: 639px) 220px, (max-width: 1023px) 340px, 420px"
-            className="h-auto w-[220px] select-none translate-x-[-15%] translate-y-[10%] sm:w-[340px] xl:absolute xl:left-[45%] xl:top-[0px] xl:w-[455px] xl:translate-y-0 xl:-translate-x-1/2"
-          />
-
-          <div className="w-full xl:absolute xl:bottom-[20px] xl:right-0 xl:w-[360px]">
-            <p className="text-[23px] font-medium leading-[1.38] tracking-normal text-white sm:text-[32px] sm:leading-[1.42] xl:text-[26px] xl:leading-[1.42]">
-              The LaunchPad brings
-              <br className="hidden sm:block" />
-              <span className="bg-[#b96b5c]/80 px-1">resources</span>,{' '}
-              <span className="bg-[#059eab]/85 px-1">learning</span>, and
-              <br className="hidden sm:block" />
-              <span className="bg-[#9a6473]/85 px-1">connection</span> together into
-              <br className="hidden sm:block" />
-              one platform, so you can
-              <br className="hidden sm:block" />
-              launch your life in one place.
-            </p>
-          </div>
-
-          <div className="flex w-full flex-col items-center gap-3 sm:max-w-[520px] xl:absolute xl:bottom-[36px] xl:left-1/2 xl:w-[420px] xl:-translate-x-1/2">
+        <div className="flex w-full max-w-[540px] flex-col items-center md:items-stretch">
+          <h1 className="text-balance text-[30px] font-black leading-[1.16] tracking-normal text-[#4b4b4b] sm:text-[40px] lg:text-[50px]">
+            Learn, build, and grow with a path made for you.
+          </h1>
+          <div className="mt-5 flex w-full max-w-[420px] flex-col gap-3 sm:mt-7 sm:gap-4">
             <Link
               href={quickstartHref}
-              className="flex h-12 w-full items-center justify-center rounded-full bg-[#ff443c] px-8 text-center text-[20px] font-extrabold leading-none text-white shadow-[0_18px_42px_rgba(8,47,110,0.3)] ring-1 ring-white/60 transition-colors hover:bg-[#ff554e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white sm:h-14 sm:text-[24px] xl:h-14 xl:text-[24px]"
+              className="flex h-14 w-full items-center justify-center rounded-2xl bg-[var(--org-primary-color)] px-8 text-base font-black uppercase tracking-normal text-white shadow-[0_6px_0_rgba(0,0,0,0.18)] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--org-primary-color)]"
             >
               Get Started
             </Link>
-
             <Link
               href={loginHref}
-              className="flex h-8 w-[190px] items-center justify-center rounded-full border border-white bg-[#0d78d9]/40 px-6 text-xs font-bold text-white shadow-[0_10px_30px_rgba(8,47,110,0.25)] transition-colors hover:bg-white/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white xl:w-[220px]"
+              className="flex h-14 w-full items-center justify-center rounded-2xl border-2 border-[#e5e5e5] bg-white px-6 text-sm font-black uppercase tracking-normal text-[#1cb0f6] shadow-[0_4px_0_#e5e5e5] transition-colors hover:bg-[#f8fafc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1cb0f6] sm:px-8 sm:text-base"
             >
-              Log In
+              I Already Have an Account
             </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-[#e5e5e5]">
+        {sections.map((section, index) => {
+          const isReversed = index % 2 === 1
+          return (
+            <div
+              key={section.title}
+              className={`mx-auto grid min-h-[460px] w-full max-w-[1080px] place-items-center gap-10 overflow-visible px-7 py-16 text-center sm:py-20 md:max-h-[530px] md:grid-cols-2 md:px-10 md:text-left lg:min-h-0 lg:w-[988px] lg:max-w-[988px] lg:gap-[101px] lg:px-0 lg:py-0 ${isReversed ? 'lg:grid-cols-[473px_414px]' : 'lg:grid-cols-[414px_473px]'}`}
+            >
+              <div className={isReversed ? 'md:order-2 lg:w-[414px]' : 'lg:w-[414px]'}>
+                <StripedPlaceholder
+                  className={`mx-auto h-[260px] w-[260px] sm:h-[320px] sm:w-[320px] lg:h-[530px] lg:w-[530px] ${isReversed ? 'lg:mx-0' : 'lg:mx-0 lg:-ml-[116px]'}`}
+                  label={`Section ${index + 1} art`}
+                />
+              </div>
+              <div className={`mx-auto max-w-[500px] lg:w-[473px] lg:max-w-[473px] ${isReversed ? 'md:order-1' : ''}`}>
+                <h2 className="text-balance text-[40px] font-black leading-[1.12] tracking-normal text-[var(--org-primary-color)] sm:text-[48px]">
+                  {section.title}
+                </h2>
+                <p className="mt-5 text-pretty text-lg font-semibold leading-8 tracking-normal text-[#777]">
+                  {section.body}
+                </p>
+              </div>
+            </div>
+          )
+        })}
+      </section>
+
+      <section className="isolate min-h-[520px] overflow-y-visible overflow-x-clip bg-white px-7 py-20 text-center sm:min-h-[560px] sm:py-24">
+        <div className="mx-auto flex max-w-[1728px] flex-col items-center overflow-visible">
+          <div className="relative z-10 mx-auto flex max-w-[720px] flex-col items-center">
+            <h2 className="text-balance text-[42px] font-black leading-[1.15] tracking-normal text-[#27323d] sm:text-[64px]">
+              Start learning today
+            </h2>
+            <p className="mt-5 max-w-[560px] text-lg font-semibold leading-8 tracking-normal text-[#46637d]">
+              Join a guided learning space that keeps courses, resources, and progress in one simple place.
+            </p>
+            <div className="mt-8 flex w-full max-w-[420px] flex-col gap-4 sm:flex-row sm:justify-center">
+              <Link
+                href={quickstartHref}
+                className="flex h-14 items-center justify-center rounded-2xl bg-[var(--org-primary-color)] px-8 text-sm font-black uppercase tracking-normal text-white shadow-[0_6px_0_rgba(0,0,0,0.18)] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--org-primary-color)]"
+              >
+                Get Started
+              </Link>
+              <Link
+                href={loginHref}
+                className="flex h-14 items-center justify-center rounded-2xl border-2 border-[#d9e1e8] bg-white px-8 text-sm font-black uppercase tracking-normal text-[#4b4b4b] shadow-[0_4px_0_#d9e1e8] transition-colors hover:bg-[#f8fafc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1cb0f6]"
+              >
+                Log In
+              </Link>
+            </div>
+          </div>
+          <div className="pointer-events-none relative z-0 -ml-[120px] -mt-[90px] self-start opacity-45 lg:-ml-[220px] lg:-mt-[340px]">
+            <CtaBackgroundPlaceholder />
           </div>
         </div>
       </section>
     </main>
   )
 }
+
+const StripedPlaceholder = ({ className, label }: { className?: string; label: string }) => (
+  <div
+    aria-label={label}
+    role="img"
+    className={`relative overflow-hidden rounded-[28px] border-2 border-dashed border-[#cfd5dd] bg-[#f1f3f5] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.9)] ${className || ''}`}
+  >
+    <div className="absolute inset-0 bg-[repeating-linear-gradient(135deg,#e8ebef_0,#e8ebef_14px,#f9fafb_14px,#f9fafb_28px)]" />
+    <div className="absolute inset-5 rounded-[22px] border border-white/80" />
+  </div>
+)
+
+const CtaBackgroundPlaceholder = () => (
+  <div
+    aria-hidden="true"
+    className="relative aspect-[2/1] w-[1200px] max-w-none overflow-hidden rounded-[32px] border-2 border-dashed border-[#cfd5dd] bg-[#f1f3f5] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.9)] lg:w-[1948px]"
+  >
+    <div className="absolute inset-0 bg-[repeating-linear-gradient(135deg,#e8ebef_0,#e8ebef_14px,#f9fafb_14px,#f9fafb_28px)]" />
+    <div className="absolute inset-5 rounded-[24px] border border-white/80" />
+  </div>
+)
 
 export default OrgHomePage
