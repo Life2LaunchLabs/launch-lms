@@ -98,6 +98,7 @@ async def search_across_org(
     collections_query = (
         select(Collection)
         .where(or_(Collection.org_id == org.id, Collection.shared == sa_true()))
+        .where(Collection.hidden == False)
         .where(
             or_(
                 text('LOWER("collection".name) LIKE LOWER(:pattern)'),
@@ -288,7 +289,9 @@ async def search_across_org(
     if collections:
         collection_ids = [c.id for c in collections]
         batch_statement = (
-            select(Course).where(Course.collection_id.in_(collection_ids))  # type: ignore
+            select(Course)
+            .where(Course.collection_id.in_(collection_ids))  # type: ignore
+            .where(Course.hidden == False)
         )
         batch_results = db_session.exec(batch_statement).all()
 

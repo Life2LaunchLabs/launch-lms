@@ -1,7 +1,8 @@
 'use client'
 import { useFormik } from 'formik'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import React from 'react'
+import Image from 'next/image'
 import FormLayout, {
   FormField,
   FormLabelAndMessage,
@@ -9,7 +10,8 @@ import FormLayout, {
   Textarea,
 } from '@components/Objects/StyledElements/Form/Form'
 import * as Form from '@radix-ui/react-form'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, ArrowLeft } from 'lucide-react'
+import { SiGoogle } from '@icons-pack/react-simple-icons'
 import Link from 'next/link'
 import { signup } from '@services/auth/auth'
 import { useOrg } from '@components/Contexts/OrgContext'
@@ -17,6 +19,7 @@ import { useAuth } from '@components/Contexts/AuthContext'
 import { getUriWithOrg } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import { PasswordStrengthIndicator, validatePasswordStrength } from '@components/Auth/PasswordStrengthIndicator'
+import appIcon from 'public/app_icon.svg'
 
 const validate = (values: any, t: any) => {
   const errors: any = {}
@@ -50,8 +53,12 @@ const validate = (values: any, t: any) => {
 function OpenSignUpComponent({ createOrgMode = false }: { createOrgMode?: boolean }) {
   const { t } = useTranslation()
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [isGoogleLoading, setIsGoogleLoading] = React.useState(false)
+  const [step, setStep] = React.useState<'email' | 'details'>(createOrgMode ? 'details' : 'email')
+  const [emailError, setEmailError] = React.useState('')
   const org = useOrg() as any
   const { signIn } = useAuth()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const [error, setError] = React.useState('')
   const nextUrl = searchParams.get('next')
@@ -115,12 +122,184 @@ function OpenSignUpComponent({ createOrgMode = false }: { createOrgMode?: boolea
     },
   })
 
+  const handleEmailContinue = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setEmailError('')
+
+    const email = formik.values.email.trim()
+    if (!email) {
+      setEmailError(t('validation.required'))
+      return
+    }
+
+    if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email)) {
+      setEmailError(t('validation.invalid_email'))
+      return
+    }
+
+    formik.setFieldValue('email', email)
+    if (!createOrgMode) {
+      setIsSubmitting(true)
+      try {
+        const res = await fetch('/api/auth/signup/welcome/check-email', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email }),
+        })
+        const data = await res.json().catch(() => null)
+        if (!res.ok) {
+          setEmailError(data?.detail || 'Unable to start signup')
+          setIsSubmitting(false)
+          return
+        }
+      } catch (_) {
+        setEmailError(t('common.something_went_wrong'))
+        setIsSubmitting(false)
+        return
+      }
+      router.push(`/welcome?email=${encodeURIComponent(email)}`)
+      return
+    }
+    setStep('details')
+  }
+
+  const handleGoogleSignup = async () => {
+    setError('')
+    setIsGoogleLoading(true)
+
+    const callbackUrl = postSignupUrl
+    const res = await signIn('google', {
+      callbackUrl,
+      orgSlug: org?.slug,
+      orgId: org?.id,
+    } as any)
+
+    if (res && 'error' in res && res.error) {
+      setError(res.error)
+      setIsGoogleLoading(false)
+    }
+  }
+
+  if (step === 'email' && !createOrgMode) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6 py-12">
+        <div className="w-full flex-column max-w-[426px] text-center">
+          <div>
+            <Image
+              src={appIcon}
+              alt="Launch LMS"
+              width={52}
+              height={52}
+              className="mx-auto mb-4 rounded-xl"
+              priority
+            />
+          </div>
+
+          <h1 className="text-[32px] leading-tight font-bold tracking-[-0.02em] text-white">
+            Create your free account
+          </h1>
+
+          {error && (
+            <div className="mt-8 flex items-center gap-3 rounded-2xl bg-red-500/10 px-4 py-3 text-left text-sm font-semibold text-red-200 ring-1 ring-red-400/20">
+              <AlertTriangle size={18} className="shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div className="mt-12 space-y-7">
+            <button
+              type="button"
+              onClick={handleGoogleSignup}
+              disabled={isGoogleLoading}
+              className="flex h-[44px] w-full items-center justify-center gap-3 rounded-full border border-white/16 bg-transparent text-[16px] font-semibold text-white transition-colors hover:bg-white/5 disabled:opacity-60"
+            >
+              <SiGoogle size={20} color="#4285F4" />
+              {isGoogleLoading ? t('common.loading') : 'Continue with Google'}
+            </button>
+
+            <div className="flex items-center gap-4 text-sm font-semibold text-white/70">
+              <div className="h-px flex-1 bg-white/10" />
+              <span>or</span>
+              <div className="h-px flex-1 bg-white/10" />
+            </div>
+
+            <form onSubmit={handleEmailContinue} className="space-y-4">
+              <input
+                name="email"
+                onChange={(e) => {
+                  formik.handleChange(e)
+                  if (emailError) setEmailError('')
+                }}
+                onBlur={formik.handleBlur}
+                value={formik.values.email}
+                type="email"
+                placeholder="Enter email address"
+                autoComplete="email"
+                className="h-12 w-full rounded-2xl border-none bg-[#262626] px-4 text-[16px] text-white placeholder:text-[#787878] shadow-none outline-none transition-colors focus:bg-[#2b2b2b] focus:outline-none focus:ring-0"
+                required
+              />
+              {emailError && (
+                <p className="text-left text-sm font-medium text-red-200">{emailError}</p>
+              )}
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="h-[46px] w-full rounded-full bg-white text-[16px] font-semibold text-black transition-colors hover:bg-white/90 disabled:opacity-60"
+              >
+                {isSubmitting ? t('common.loading') : 'Continue'}
+              </button>
+            </form>
+          </div>
+
+          <p className="mt-5 text-[12px] leading-relaxed text-white/80">
+            By continuing, you agree to Launch LMS&apos;s{' '}
+            <span className="underline underline-offset-2">
+              Terms of Service
+            </span>{' '}
+            and{' '}
+            <span className="underline underline-offset-2">
+              Privacy Policy
+            </span>
+            .
+          </p>
+
+          <p className="mt-14 text-[15px] text-white/80">
+            {t('auth.already_have_account')}{' '}
+            <Link
+              href={nextUrl ? `/login?next=${encodeURIComponent(nextUrl)}` : '/login'}
+              className="font-semibold text-white hover:underline"
+            >
+              {t('auth.login')}
+            </Link>
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="m-auto w-full max-w-sm px-6 py-8 sm:py-0">
+    <div className={createOrgMode ? 'm-auto w-full max-w-sm px-6 py-8 sm:py-0' : 'min-h-screen flex items-center justify-center px-6 py-12'}>
+      <div className="w-full max-w-sm">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{t('auth.create_account')}</h1>
-        <p className="text-gray-500 mt-1">
+        {!createOrgMode && (
+          <button
+            type="button"
+            onClick={() => setStep('email')}
+            className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-white/60 transition-colors hover:text-white"
+          >
+            <ArrowLeft size={16} />
+            Back
+          </button>
+        )}
+        <h1 className={createOrgMode ? 'text-2xl font-bold text-gray-900' : 'text-2xl font-bold text-white'}>
+          {t('auth.create_account')}
+        </h1>
+        <p className={createOrgMode ? 'text-gray-500 mt-1' : 'text-white/60 mt-1'}>
           {createOrgMode ? 'Create your user account first, then we will walk you through setting up an organization.' : t('auth.fill_in_details')}
         </p>
       </div>
@@ -243,30 +422,16 @@ function OpenSignUpComponent({ createOrgMode = false }: { createOrgMode?: boolea
       </div>
 
       {/* Login Link */}
-      <p className="text-center text-gray-600 mt-6">
+      <p className={createOrgMode ? 'text-center text-gray-600 mt-6' : 'text-center text-white/70 mt-6'}>
         {t('auth.already_have_account')}{' '}
         <Link
           href={createOrgMode ? `/login?next=${encodeURIComponent(createOrgRedirect)}` : nextUrl ? `/login?next=${encodeURIComponent(nextUrl)}` : '/login'}
-          className="font-semibold text-gray-900 hover:underline"
+          className={createOrgMode ? 'font-semibold text-gray-900 hover:underline' : 'font-semibold text-white hover:underline'}
         >
           {t('auth.login')}
         </Link>
       </p>
-
-      {!createOrgMode && (
-        <div className="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-4 text-center">
-          <p className="text-sm font-semibold text-gray-900">Creating an organization?</p>
-          <p className="mt-1 text-sm text-gray-500">
-            Use a dedicated setup flow for admins, then we will take you into your new workspace.
-          </p>
-          <Link
-            href={getUriWithOrg(org?.slug, '/signup?mode=create-org')}
-            className="mt-4 inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-900 border border-gray-200 hover:bg-gray-100"
-          >
-            Create an organization
-          </Link>
-        </div>
-      )}
+      </div>
     </div>
   )
 }

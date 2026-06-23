@@ -25,7 +25,7 @@ const OrgHomePage = async ({ params }: PageProps) => {
     redirect(getUriWithOrg(orgslug, routePaths.org.portfolio()))
   }
 
-  const quickstartHref = getUriWithOrg(orgslug, routePaths.org.quickstart())
+  const signupHref = getUriWithOrg(orgslug, routePaths.auth.signup())
   const loginHref = getUriWithOrg(orgslug, routePaths.auth.login())
   const sections = [
     {
@@ -44,24 +44,24 @@ const OrgHomePage = async ({ params }: PageProps) => {
 
   return (
     <main className="min-h-screen overflow-hidden bg-white text-[#3c3f43]">
-      <section className="mx-auto grid h-[calc(100dvh-60px)] w-full max-w-[1188px] place-items-center gap-5 overflow-hidden px-7 py-4 text-center sm:gap-7 sm:py-6 md:grid-cols-[1.04fr_0.96fr] md:gap-12 md:px-10 md:py-8 md:text-left">
+      <section className="mx-auto grid h-[calc(100dvh-60px)] w-full max-w-[1188px] place-items-center gap-5 overflow-hidden px-7 py-4 text-center sm:gap-7 sm:py-6 md:grid-cols-[1.04fr_0.96fr] md:gap-12 md:px-10 md:py-8">
         <div className="w-full">
-          <StripedPlaceholder className="mx-auto h-[210px] w-[210px] sm:h-[280px] sm:w-[280px] md:h-[430px] md:w-[430px] lg:h-[500px] lg:w-[500px]" label="Hero art" />
+          <StripedPlaceholder className="mx-auto h-[210px] w-[210px] sm:h-[280px] sm:w-[280px] md:h-[424px] md:w-[424px]" label="Hero art" />
         </div>
-        <div className="flex w-full max-w-[540px] flex-col items-center md:items-stretch">
-          <h1 className="text-balance text-[30px] font-black leading-[1.16] tracking-normal text-[#4b4b4b] sm:text-[40px] lg:text-[50px]">
+        <div className="flex w-full max-w-[540px] flex-col items-center">
+          <h1 className="text-balance text-center text-[32px] font-black leading-[1.2] tracking-normal text-[#4b4b4b]">
             Learn, build, and grow with a path made for you.
           </h1>
           <div className="mt-5 flex w-full max-w-[420px] flex-col gap-3 sm:mt-7 sm:gap-4">
             <Link
-              href={quickstartHref}
-              className="flex h-14 w-full items-center justify-center rounded-2xl bg-[var(--org-primary-color)] px-8 text-base font-black uppercase tracking-normal text-white shadow-[0_6px_0_rgba(0,0,0,0.18)] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--org-primary-color)]"
+              href={signupHref}
+              className="flex h-14 w-full items-center justify-center rounded-2xl bg-[var(--org-primary-color)] px-8 text-[15px] font-black uppercase tracking-normal text-white shadow-[0_6px_0_rgba(0,0,0,0.18)] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--org-primary-color)]"
             >
               Get Started
             </Link>
             <Link
               href={loginHref}
-              className="flex h-14 w-full items-center justify-center rounded-2xl border-2 border-[#e5e5e5] bg-white px-6 text-sm font-black uppercase tracking-normal text-[#1cb0f6] shadow-[0_4px_0_#e5e5e5] transition-colors hover:bg-[#f8fafc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1cb0f6] sm:px-8 sm:text-base"
+              className="flex h-14 w-full items-center justify-center rounded-2xl border-2 border-[#e5e5e5] bg-white px-6 text-[15px] font-black uppercase tracking-normal text-[#1cb0f6] shadow-[0_4px_0_#e5e5e5] transition-colors hover:bg-[#f8fafc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1cb0f6] sm:px-8"
             >
               I Already Have an Account
             </Link>
@@ -107,7 +107,7 @@ const OrgHomePage = async ({ params }: PageProps) => {
             </p>
             <div className="mt-8 flex w-full max-w-[420px] flex-col gap-4 sm:flex-row sm:justify-center">
               <Link
-                href={quickstartHref}
+                href={signupHref}
                 className="flex h-14 items-center justify-center rounded-2xl bg-[var(--org-primary-color)] px-8 text-sm font-black uppercase tracking-normal text-white shadow-[0_6px_0_rgba(0,0,0,0.18)] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--org-primary-color)]"
               >
                 Get Started

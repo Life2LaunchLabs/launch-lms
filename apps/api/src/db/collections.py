@@ -7,6 +7,9 @@ class CollectionBase(SQLModel):
     name: str
     public: bool
     shared: bool = False
+    hidden: bool = False
+    protected: bool = False
+    system_type: Optional[str] = None
     description: Optional[str] = ""
     
 
@@ -33,6 +36,9 @@ class CollectionUpdate(SQLModel):
     name: Optional[str] = None
     public: Optional[bool] = None
     shared: Optional[bool] = None
+    hidden: Optional[bool] = None
+    protected: Optional[bool] = None
+    system_type: Optional[str] = None
     description: Optional[str] = None
 
 

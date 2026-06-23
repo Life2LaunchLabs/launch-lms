@@ -8,9 +8,21 @@ interface AuthLayoutProps {
   org: any
   welcomeText?: string
   children: React.ReactNode
+  minimal?: boolean
 }
 
-export default function AuthLayout({ org, welcomeText, children }: AuthLayoutProps) {
+export default function AuthLayout({ org, welcomeText, children, minimal = false }: AuthLayoutProps) {
+  if (minimal) {
+    return (
+      <div className="min-h-screen bg-[#101010] text-white relative overflow-auto">
+        <div className="absolute top-4 right-4 z-dropdown">
+          <LanguageSwitcher />
+        </div>
+        {children}
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col lg:grid lg:grid-cols-[1fr_600px] h-screen">
       <div className="absolute top-4 right-4 z-dropdown">

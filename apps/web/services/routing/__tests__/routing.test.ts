@@ -254,9 +254,24 @@ test('request policy redirects unauthenticated protected paths to root landing',
   assert.equal(decision.destination, 'https://acme.launchlms.test/')
 })
 
-test('route access no longer treats welcome as public', () => {
+test('route access treats welcome onboarding as public', () => {
   assert.equal(classifyRoute('/').kind, 'public')
-  assert.equal(classifyRoute('/welcome').kind, 'protected')
+  assert.equal(classifyRoute('/welcome').kind, 'public')
+})
+
+test('request policy serves welcome onboarding from the app route', () => {
+  const decision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/welcome?email=learner%40example.com',
+    pathname: '/welcome',
+    search: '?email=learner%40example.com',
+    host: 'acme.launchlms.test',
+    hasSession: false,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+
+  assert.equal(decision.action, 'next')
 })
 
 test('request policy allows unauthenticated badge entry pages', () => {

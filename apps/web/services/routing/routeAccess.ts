@@ -12,7 +12,7 @@ export interface RouteAccessClassification {
 
 const AUTH_PATHS = new Set(['/login', '/signup', '/reset', '/forgot', '/verify-email'])
 const AUTH_CALLBACK_PREFIXES = ['/auth/sso/', '/auth/callback/', '/auth/token-exchange']
-const PUBLIC_EXACT_PATHS = new Set(['/', '/news', '/quickstart'])
+const PUBLIC_EXACT_PATHS = new Set(['/', '/news', '/quickstart', '/welcome'])
 const PUBLIC_PREFIXES = ['/news/', '/quickstart/']
 const PUBLIC_COURSE_PATH_RE = /^\/course\/[^/]+(\/activity\/[^/]+)?$/
 const PUBLIC_BADGE_ENTRY_PATH_RE = /^\/badges\/[^/]+(\/invite)?$/

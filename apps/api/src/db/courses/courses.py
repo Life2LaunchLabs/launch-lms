@@ -68,6 +68,9 @@ class CourseBase(SQLModel):
     coming_soon: bool = Field(default=False)
     core_course: bool = Field(default=False)
     core_course_order: Optional[int] = Field(default=None)
+    hidden: bool = Field(default=False)
+    protected: bool = Field(default=False)
+    system_type: Optional[str] = Field(default=None)
     open_to_contributors: bool
 
 
@@ -115,6 +118,9 @@ class CourseUpdate(SQLModel):
     coming_soon: Optional[bool] = None
     core_course: Optional[bool] = None
     core_course_order: Optional[int] = None
+    hidden: Optional[bool] = None
+    protected: Optional[bool] = None
+    system_type: Optional[str] = None
     open_to_contributors: Optional[bool] = None
     seo: Optional[dict] = None
 

@@ -36,6 +36,12 @@ async def create_chapter(
 
     course = db_session.exec(statement).one()
 
+    if course.system_type == "onboarding":
+        raise HTTPException(
+            status_code=403,
+            detail="Onboarding badges cannot have additional chapters",
+        )
+
     # RBAC check
     await check_resource_access(request, db_session, current_user, course.course_uuid, AccessAction.CREATE)
 
@@ -150,6 +156,13 @@ async def update_chapter(
     if not chapter:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Chapter does not exist"
+        )
+
+    course = db_session.exec(select(Course).where(Course.id == chapter.course_id)).first()
+    if course and (course.protected or course.system_type == "onboarding"):
+        raise HTTPException(
+            status_code=403,
+            detail="System chapters cannot be deleted",
         )
 
     # RBAC check

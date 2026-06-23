@@ -173,6 +173,12 @@ export function resolveRequestRouting(
     }
   }
 
+  if (pathname === '/welcome') {
+    return {
+      action: 'next',
+    }
+  }
+
   if (isEditorActivityPath(pathname)) {
     return {
       action: 'rewrite',

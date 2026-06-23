@@ -233,6 +233,12 @@ async def update_activity(
             detail="Activity not found",
         )
 
+    if (activity.details or {}).get("onboarding_locked"):
+        raise HTTPException(
+            status_code=403,
+            detail="The onboarding quiz cannot be edited",
+        )
+
     # RBAC check
     statement = select(Course).where(Course.id == activity.course_id)
     course = db_session.exec(statement).first()
@@ -339,6 +345,12 @@ async def delete_activity(
         raise HTTPException(
             status_code=404,
             detail="Activity not found",
+        )
+
+    if (activity.details or {}).get("onboarding_locked"):
+        raise HTTPException(
+            status_code=403,
+            detail="The onboarding quiz cannot be deleted",
         )
 
     # RBAC check

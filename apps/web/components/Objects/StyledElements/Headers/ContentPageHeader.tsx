@@ -15,6 +15,7 @@ function ContentPageHeader({
   progressLabel,
   progressValue,
   onBack,
+  showBack = true,
   noBottomMargin = false,
   noHorizontalBleed = false,
 }: {
@@ -30,6 +31,7 @@ function ContentPageHeader({
   progressLabel?: string
   progressValue?: number
   onBack?: () => void
+  showBack?: boolean
   noBottomMargin?: boolean
   noHorizontalBleed?: boolean
 }) {
@@ -49,7 +51,7 @@ function ContentPageHeader({
       }}
     >
       <div className={`relative flex min-h-14 items-center ${hasTabs ? 'justify-center' : ''}`}>
-        {!hasTabs && (
+        {!hasTabs && showBack && (
           <button
             type="button"
             onClick={onBack || (() => router.back())}

@@ -85,6 +85,8 @@ interface ActivityClientProps {
   guestCompletedHint?: boolean
   quickstartMode?: boolean
   chapterid?: string
+  onboardingMode?: boolean
+  onOnboardingComplete?: (result: any) => Promise<void> | void
 }
 
 interface ActivityActionsProps {
@@ -179,6 +181,8 @@ function ActivityClient(props: ActivityClientProps) {
   const unauthenticated = props.unauthenticated === true
   const guestCompletedHint = props.guestCompletedHint === true
   const quickstartMode = props.quickstartMode === true
+  const onboardingMode = props.onboardingMode === true
+  const onOnboardingComplete = props.onOnboardingComplete
   const chapterRouteMode = Boolean(props.chapterid)
   const publicGuestMode = unauthenticated && !guestMode
   const isGuestLearner = guestMode || publicGuestMode
@@ -220,6 +224,7 @@ function ActivityClient(props: ActivityClientProps) {
   const hasAttemptedCourseStart = useRef(false)
   const quizPlayerRef = useRef<QuizPlayerHandle | null>(null)
   const [quizState, setQuizState] = React.useState<QuizPlayerState | null>(null)
+  const onboardingCompleteRef = useRef(false)
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -298,7 +303,10 @@ function ActivityClient(props: ActivityClientProps) {
     totalChapterActivities > 0
       ? Math.min(1, chapterCompletedActivities / totalChapterActivities)
       : progressRatio
-  const chapterPageList = useMemo(() => expandChapterPages(currentChapter), [currentChapter])
+  const chapterPageList = useMemo(() => {
+    const pages = expandChapterPages(currentChapter)
+    return onboardingMode ? pages.filter((page) => page.type !== 'quiz-result') : pages
+  }, [currentChapter, onboardingMode])
   const currentChapterPageIndex = useMemo(() => {
     if (!activity?.id) return 0
     const index = chapterPageList.findIndex((page) =>
@@ -314,6 +322,7 @@ function ActivityClient(props: ActivityClientProps) {
   const visibleChapterProgressLabel = `${chapterPageCompleted}/${chapterPageTotal}`
   const visibleChapterProgressValue = (chapterPageCompleted / chapterPageTotal) * 100
   const showChapterCompleteReward =
+    !onboardingMode &&
     !quickstartMode &&
     (Boolean(searchParams.get('chapter_complete')) || chapterRewardVisible) &&
     Boolean(currentChapter)
@@ -340,6 +349,7 @@ function ActivityClient(props: ActivityClientProps) {
   }, [chapterRouteMode, course.course_uuid, courseuuid, orgslug, quickstartMode, router])
 
   const handleQuizComplete = React.useCallback(async (result: any) => {
+    if (onboardingMode) return
     const passed = result?.result_json?.graded_result
       ? Boolean(result.result_json.graded_result.passed)
       : true
@@ -353,7 +363,7 @@ function ActivityClient(props: ActivityClientProps) {
       )
       await mutate(`${getAPIUrl()}trail/org/${org?.id}/trail`)
     } catch (_) {}
-  }, [activity?.activity_uuid, course.course_uuid, orgslug, access_token, org?.id])
+  }, [activity?.activity_uuid, course.course_uuid, orgslug, access_token, org?.id, onboardingMode])
 
   useEffect(() => {
     if (!isGuestLearner || !org?.id || !course?.course_uuid) return
@@ -498,6 +508,7 @@ function ActivityClient(props: ActivityClientProps) {
 
     const cleanCourseUuid = course.course_uuid?.replace('course_', '') || courseuuid
     const shouldShowChapterComplete =
+      !onboardingMode &&
       !quickstartMode &&
       currentChapter &&
       !nextChapterPage
@@ -509,6 +520,21 @@ function ActivityClient(props: ActivityClientProps) {
       } else if (quizState.hasInlineResponse && quizPlayerRef.current?.showResponse()) {
         return
       }
+      if (onboardingMode && (!nextChapterPage || nextChapterPage.type === 'quiz-result')) {
+        if (onboardingCompleteRef.current) return
+        onboardingCompleteRef.current = true
+        try {
+          const result = await quizPlayerRef.current?.submit()
+          if (!result) {
+            onboardingCompleteRef.current = false
+            return
+          }
+          await onOnboardingComplete?.(result)
+        } catch (_) {
+          onboardingCompleteRef.current = false
+        }
+        return
+      }
       if (nextChapterPage?.type === 'quiz-result') {
         await quizPlayerRef.current?.submit()
       }
@@ -517,6 +543,17 @@ function ActivityClient(props: ActivityClientProps) {
     }
 
     if (currentChapterPage.type === 'quiz-result' && quizState?.passed === false) {
+      return
+    }
+
+    if (onboardingMode && currentChapterPage.type === 'quiz-result' && quizState?.result) {
+      if (onboardingCompleteRef.current) return
+      onboardingCompleteRef.current = true
+      try {
+        await onOnboardingComplete?.(quizState.result)
+      } catch (_) {
+        onboardingCompleteRef.current = false
+      }
       return
     }
 
@@ -559,6 +596,9 @@ function ActivityClient(props: ActivityClientProps) {
     quizState?.isShowingResponse,
     quizState?.hasInlineResponse,
     quizState?.passed,
+    quizState?.result,
+    onboardingMode,
+    onOnboardingComplete,
     orgslug,
     access_token,
     org?.id,
@@ -635,6 +675,7 @@ function ActivityClient(props: ActivityClientProps) {
               ref={quizPlayerRef}
               activity={activity}
               embedded
+              suppressResultsOnSubmit={onboardingMode}
               currentPageIndex={activeActivityPageIndex}
               onPageStateChange={setQuizState}
               onComplete={handleQuizComplete}
@@ -918,6 +959,7 @@ function ActivityClient(props: ActivityClientProps) {
                     progressLabel={visibleChapterProgressLabel}
                     progressValue={visibleChapterProgressValue}
                     onBack={showChapterCompleteReward ? closeChapterReward : closeActivityViewer}
+                    showBack={!onboardingMode}
                     noBottomMargin
                     noHorizontalBleed
                   />
@@ -995,9 +1037,11 @@ function ActivityClient(props: ActivityClientProps) {
                                       </motion.div>
                                     </AnimatePresence>
                                   </div>
-                                  <Suspense fallback={null}>
-                                    <AISidePanelInline activity={activity} />
-                                  </Suspense>
+                                  {!onboardingMode && (
+                                    <Suspense fallback={null}>
+                                      <AISidePanelInline activity={activity} />
+                                    </Suspense>
+                                  )}
                                 </div>
                               )}
                             </>

@@ -1,13 +1,9 @@
 'use client'
-import FormLayout, {
-  FormField,
-  FormLabelAndMessage,
-  Input,
-} from '@components/Objects/StyledElements/Form/Form'
-import * as Form from '@radix-ui/react-form'
 import { useFormik } from 'formik'
+import Image from 'next/image'
 import React, { useState, useEffect } from 'react'
 import { AlertTriangle, Lock, Mail, Shield, X, Clock } from 'lucide-react'
+import { SiGoogle } from '@icons-pack/react-simple-icons'
 import { checkSSOEnabled, redirectToSSOLogin } from '@services/auth/sso'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -16,6 +12,7 @@ import { getCoreCapabilities } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import { resendVerificationEmail } from '@services/auth/auth'
 import AuthLayout from '@components/Auth/AuthLayout'
+import appIcon from 'public/app_icon.svg'
 
 interface LoginClientProps {
   org: any
@@ -25,6 +22,9 @@ const LoginClient = (props: LoginClientProps) => {
   const { t } = useTranslation()
   const { signIn } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const [step, setStep] = useState<'email' | 'password'>('email')
+  const [emailError, setEmailError] = useState('')
   const [ssoEnabled, setSsoEnabled] = useState(false)
   const [ssoLoading, setSsoLoading] = useState(false)
   const searchParams = useSearchParams()
@@ -67,6 +67,47 @@ const LoginClient = (props: LoginClientProps) => {
       setError(error.message || t('auth.sso_error'))
       setSsoLoading(false)
     }
+  }
+
+  const getCallbackUrl = () => nextUrl || `${window.location.origin}/redirect_from_auth`
+
+  const handleGoogleLogin = async () => {
+    setError('')
+    setShowErrorModal(false)
+    setIsGoogleLoading(true)
+
+    const res = await signIn('google', {
+      callbackUrl: getCallbackUrl(),
+      orgSlug: props.org?.slug,
+      orgId: props.org?.id,
+    } as any)
+
+    if (res && 'error' in res && res.error) {
+      setError(res.error)
+      setShowErrorModal(true)
+      setIsGoogleLoading(false)
+    }
+  }
+
+  const handleEmailContinue = (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setShowErrorModal(false)
+    setEmailError('')
+
+    const email = formik.values.email.trim()
+    if (!email) {
+      setEmailError(t('validation.required'))
+      return
+    }
+
+    if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email)) {
+      setEmailError(t('validation.invalid_email'))
+      return
+    }
+
+    formik.setFieldValue('email', email)
+    setStep('password')
   }
 
   const validate = (values: any) => {
@@ -131,7 +172,7 @@ const LoginClient = (props: LoginClientProps) => {
       }
 
       // Use absolute URL with current origin for custom domain support
-      const callbackUrl = nextUrl || `${window.location.origin}/redirect_from_auth`;
+      const callbackUrl = getCallbackUrl();
 
       const res = await signIn('credentials', {
         redirect: false,
@@ -183,167 +224,224 @@ const LoginClient = (props: LoginClientProps) => {
   })
 
   return (
-    <AuthLayout org={props.org} welcomeText={t('auth.login_to')}>
-        {/* Error Top Bar */}
-        {showErrorModal && (
-          <div className={`
-            w-full px-4 py-3 flex items-center justify-between gap-3 animate-in slide-in-from-top duration-200
-            ${errorType === 'EMAIL_NOT_VERIFIED' && !verificationResent ? 'bg-amber-500 text-white' : ''}
-            ${verificationResent ? 'bg-green-500 text-white' : ''}
-            ${errorType === 'ACCOUNT_LOCKED' ? 'bg-red-500 text-white' : ''}
-            ${errorType === 'RATE_LIMITED' ? 'bg-orange-500 text-white' : ''}
-            ${error && !verificationResent && errorType !== 'EMAIL_NOT_VERIFIED' && errorType !== 'ACCOUNT_LOCKED' && errorType !== 'RATE_LIMITED' ? 'bg-red-500 text-white' : ''}
-          `}>
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              {errorType === 'EMAIL_NOT_VERIFIED' && !verificationResent && <Mail size={18} className="shrink-0" />}
-              {verificationResent && <Mail size={18} className="shrink-0" />}
-              {errorType === 'ACCOUNT_LOCKED' && <Lock size={18} className="shrink-0" />}
-              {errorType === 'RATE_LIMITED' && <Clock size={18} className="shrink-0" />}
-              {error && !verificationResent && errorType !== 'EMAIL_NOT_VERIFIED' && errorType !== 'ACCOUNT_LOCKED' && errorType !== 'RATE_LIMITED' && <AlertTriangle size={18} className="shrink-0" />}
+    <AuthLayout org={props.org} welcomeText={t('auth.login_to')} minimal>
+      {showErrorModal && (
+        <div className={`
+          fixed left-0 right-0 top-0 z-50 w-full px-4 py-3 flex items-center justify-between gap-3 animate-in slide-in-from-top duration-200
+          ${errorType === 'EMAIL_NOT_VERIFIED' && !verificationResent ? 'bg-amber-500 text-white' : ''}
+          ${verificationResent ? 'bg-green-500 text-white' : ''}
+          ${errorType === 'ACCOUNT_LOCKED' ? 'bg-red-500 text-white' : ''}
+          ${errorType === 'RATE_LIMITED' ? 'bg-orange-500 text-white' : ''}
+          ${error && !verificationResent && errorType !== 'EMAIL_NOT_VERIFIED' && errorType !== 'ACCOUNT_LOCKED' && errorType !== 'RATE_LIMITED' ? 'bg-red-500 text-white' : ''}
+        `}>
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            {errorType === 'EMAIL_NOT_VERIFIED' && !verificationResent && <Mail size={18} className="shrink-0" />}
+            {verificationResent && <Mail size={18} className="shrink-0" />}
+            {errorType === 'ACCOUNT_LOCKED' && <Lock size={18} className="shrink-0" />}
+            {errorType === 'RATE_LIMITED' && <Clock size={18} className="shrink-0" />}
+            {error && !verificationResent && errorType !== 'EMAIL_NOT_VERIFIED' && errorType !== 'ACCOUNT_LOCKED' && errorType !== 'RATE_LIMITED' && <AlertTriangle size={18} className="shrink-0" />}
 
-              <div className="flex-1 min-w-0">
-                {errorType === 'EMAIL_NOT_VERIFIED' && !verificationResent && (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium">{t('auth.email_not_verified_message')}</span>
-                    <button
-                      type="button"
-                      onClick={handleResendVerification}
-                      disabled={isResendingVerification}
-                      className="text-sm underline hover:no-underline disabled:opacity-50"
-                    >
-                      {isResendingVerification ? t('common.loading') : t('auth.resend_verification_email')}
-                    </button>
-                  </div>
-                )}
-                {verificationResent && (
-                  <span className="text-sm font-medium">{t('auth.verification_email_resent')} - {t('auth.check_inbox_message')}</span>
-                )}
-                {errorType === 'ACCOUNT_LOCKED' && (
-                  <span className="text-sm font-medium">
-                    {t('auth.account_locked')}
-                    {retryAfter ? ` · ${t('auth.try_again_in', { minutes: Math.max(1, Math.ceil(retryAfter / 60)) })}` : ''}
-                  </span>
-                )}
-                {errorType === 'RATE_LIMITED' && (
-                  <span className="text-sm font-medium">
-                    {t('auth.rate_limited')}
-                    {retryAfter ? ` · ${t('auth.try_again_in', { minutes: Math.max(1, Math.ceil(retryAfter / 60)) })}` : ''}
-                  </span>
-                )}
-                {error && !verificationResent && errorType !== 'EMAIL_NOT_VERIFIED' && errorType !== 'ACCOUNT_LOCKED' && errorType !== 'RATE_LIMITED' && (
-                  <span className="text-sm font-medium">{error}</span>
-                )}
-              </div>
+            <div className="flex-1 min-w-0">
+              {errorType === 'EMAIL_NOT_VERIFIED' && !verificationResent && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-medium">{t('auth.email_not_verified_message')}</span>
+                  <button
+                    type="button"
+                    onClick={handleResendVerification}
+                    disabled={isResendingVerification}
+                    className="text-sm underline hover:no-underline disabled:opacity-50"
+                  >
+                    {isResendingVerification ? t('common.loading') : t('auth.resend_verification_email')}
+                  </button>
+                </div>
+              )}
+              {verificationResent && (
+                <span className="text-sm font-medium">{t('auth.verification_email_resent')} - {t('auth.check_inbox_message')}</span>
+              )}
+              {errorType === 'ACCOUNT_LOCKED' && (
+                <span className="text-sm font-medium">
+                  {t('auth.account_locked')}
+                  {retryAfter ? ` · ${t('auth.try_again_in', { minutes: Math.max(1, Math.ceil(retryAfter / 60)) })}` : ''}
+                </span>
+              )}
+              {errorType === 'RATE_LIMITED' && (
+                <span className="text-sm font-medium">
+                  {t('auth.rate_limited')}
+                  {retryAfter ? ` · ${t('auth.try_again_in', { minutes: Math.max(1, Math.ceil(retryAfter / 60)) })}` : ''}
+                </span>
+              )}
+              {error && !verificationResent && errorType !== 'EMAIL_NOT_VERIFIED' && errorType !== 'ACCOUNT_LOCKED' && errorType !== 'RATE_LIMITED' && (
+                <span className="text-sm font-medium">{error}</span>
+              )}
             </div>
-
-            <button
-              onClick={() => {
-                setShowErrorModal(false)
-                if (verificationResent) setVerificationResent(false)
-              }}
-              className="p-1 hover:bg-white/20 rounded transition-colors shrink-0"
-            >
-              <X size={18} />
-            </button>
-          </div>
-        )}
-
-        <div className="flex-1 flex flex-row">
-        <div className="m-auto w-full max-w-sm px-6 py-8 sm:py-0">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900">{t('auth.welcome_back')}</h1>
-            <p className="text-gray-500 mt-1">{t('auth.enter_credentials')}</p>
           </div>
 
-          {/* Login Form Card */}
-          <div className="bg-white rounded-xl p-6 nice-shadow">
-            <FormLayout onSubmit={formik.handleSubmit}>
-              <FormField name="email">
-                <FormLabelAndMessage
-                  label={t('auth.email')}
-                  message={formik.touched.email ? formik.errors.email : undefined}
-                />
-                <Form.Control asChild>
-                  <Input
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    value={formik.values.email}
-                    type="email"
-                  />
-                </Form.Control>
-              </FormField>
+          <button
+            onClick={() => {
+              setShowErrorModal(false)
+              if (verificationResent) setVerificationResent(false)
+            }}
+            className="p-1 hover:bg-white/20 rounded transition-colors shrink-0"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      )}
 
-              <FormField name="password">
-                <FormLabelAndMessage
-                  label={t('auth.password')}
-                  message={formik.touched.password ? formik.errors.password : undefined}
-                />
-                <Form.Control asChild>
-                  <Input
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    value={formik.values.password}
-                    type="password"
-                    autoComplete="current-password"
-                  />
-                </Form.Control>
-              </FormField>
+      <div className="min-h-screen flex items-center justify-center px-6 py-12">
+        <div className="w-full max-w-[426px] text-center">
+          <Image
+            src={appIcon}
+            alt="Launch LMS"
+            width={52}
+            height={52}
+            className="mx-auto mb-12 rounded-xl"
+            priority
+          />
 
-              <div className="flex justify-end">
-                <Link
-                  href="/forgot"
-                  className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+          <h1 className="text-[32px] leading-tight font-bold tracking-[-0.02em] text-white">
+            {t('auth.welcome_back')}
+          </h1>
+
+          {step === 'email' ? (
+            <div className="mt-12 space-y-4">
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={isGoogleLoading}
+                className="flex h-[44px] w-full items-center justify-center gap-3 rounded-full border border-white/16 bg-transparent text-[16px] font-semibold text-white transition-colors hover:bg-white/5 disabled:opacity-60"
+              >
+                <SiGoogle size={20} color="#4285F4" />
+                {isGoogleLoading ? t('common.loading') : 'Continue with Google'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStep('password')}
+                className="flex h-[44px] w-full items-center justify-center rounded-full border border-white/16 bg-transparent text-[16px] font-semibold text-white transition-colors hover:bg-white/5"
+              >
+                See other options
+              </button>
+
+              <div className="flex items-center gap-4 pt-5 text-sm font-semibold text-white/70">
+                <div className="h-px flex-1 bg-white/14" />
+                <span>or</span>
+                <div className="h-px flex-1 bg-white/14" />
+              </div>
+
+              <form onSubmit={handleEmailContinue} className="space-y-4 pt-1">
+                <input
+                  name="email"
+                  onChange={(e) => {
+                    formik.handleChange(e)
+                    if (emailError) setEmailError('')
+                  }}
+                  onBlur={formik.handleBlur}
+                  value={formik.values.email}
+                  type="email"
+                  placeholder="Enter email address"
+                  autoComplete="email"
+                  className="h-12 w-full rounded-2xl border border-white bg-[#262626] px-4 text-[16px] text-white placeholder:text-[#787878] shadow-none outline-none transition-colors focus:bg-[#2b2b2b] focus:outline-none focus:ring-0"
+                  required
+                />
+                {emailError && (
+                  <p className="text-left text-sm font-medium text-red-200">{emailError}</p>
+                )}
+                <button
+                  type="submit"
+                  className="h-[44px] w-full rounded-full bg-white text-[16px] font-semibold text-black transition-colors hover:bg-white/90"
                 >
+                  Continue
+                </button>
+              </form>
+            </div>
+          ) : (
+            <form onSubmit={formik.handleSubmit} className="mt-12 space-y-4 text-left">
+              <button
+                type="button"
+                onClick={() => setStep('email')}
+                className="mb-2 text-sm font-semibold text-white/60 transition-colors hover:text-white"
+              >
+                Back
+              </button>
+
+              <input
+                name="email"
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                value={formik.values.email}
+                type="email"
+                placeholder="Enter email address"
+                autoComplete="email"
+                className="h-12 w-full rounded-2xl border-none bg-[#262626] px-4 text-[16px] text-white placeholder:text-[#787878] shadow-none outline-none transition-colors focus:bg-[#2b2b2b] focus:outline-none focus:ring-0"
+                required
+              />
+              {formik.touched.email && formik.errors.email && (
+                <p className="text-sm font-medium text-red-200">{formik.errors.email}</p>
+              )}
+
+              <input
+                name="password"
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                value={formik.values.password}
+                type="password"
+                placeholder="Password"
+                autoComplete="current-password"
+                className="h-12 w-full rounded-2xl border-none bg-[#262626] px-4 text-[16px] text-white placeholder:text-[#787878] shadow-none outline-none transition-colors focus:bg-[#2b2b2b] focus:outline-none focus:ring-0"
+                required
+              />
+              {formik.touched.password && formik.errors.password && (
+                <p className="text-sm font-medium text-red-200">{formik.errors.password}</p>
+              )}
+
+              <div className="flex items-center justify-between">
+                <Link href="/forgot" className="text-xs text-white/60 transition-colors hover:text-white">
                   {t('auth.forgot_password')}
                 </Link>
-              </div>
-
-              <div className="pt-2">
-                <Form.Submit asChild>
-                  <button className="w-full bg-black text-white font-semibold text-center py-2.5 rounded-lg hover:bg-gray-800 transition-colors">
-                    {isSubmitting ? t('common.loading') : t('auth.login')}
-                  </button>
-                </Form.Submit>
-              </div>
-            </FormLayout>
-
-            {ssoEnabled && (
-              <>
-                {/* Divider */}
-                <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-200"></div>
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-3 bg-white text-gray-400">{t('common.or')}</span>
-                  </div>
-                </div>
-
-                {/* SSO Button */}
-                <div className="space-y-2.5">
+                {ssoEnabled && (
                   <button
+                    type="button"
                     onClick={handleSSOLogin}
                     disabled={ssoLoading}
-                    className="flex items-center justify-center gap-2 w-full py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/70 transition-colors hover:text-white disabled:opacity-60"
                   >
-                    <Shield size={16} />
-                    <span>{ssoLoading ? t('common.loading') : t('auth.sign_in_with_sso')}</span>
+                    <Shield size={14} />
+                    {ssoLoading ? t('common.loading') : t('auth.sign_in_with_sso')}
                   </button>
-                </div>
-              </>
-            )}
-          </div>
+                )}
+              </div>
 
-          {/* Sign Up Link */}
-          <p className="text-center text-gray-600 mt-6">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="h-[44px] w-full rounded-full bg-white text-center text-[16px] font-semibold text-black transition-colors hover:bg-white/90 disabled:opacity-60"
+              >
+                {isSubmitting ? t('common.loading') : t('auth.login')}
+              </button>
+            </form>
+          )}
+
+          <p className="mt-5 text-[12px] leading-relaxed text-white/80">
+            By continuing, you agree to Launch LMS&apos;s{' '}
+            <span className="underline underline-offset-2">
+              Terms of Service
+            </span>{' '}
+            and{' '}
+            <span className="underline underline-offset-2">
+              Privacy Policy
+            </span>
+            .
+          </p>
+
+          <p className="mt-14 text-[15px] text-white/80">
             {t('auth.no_account')}{' '}
-            <Link href="/signup" className="font-semibold text-gray-900 hover:underline">
+            <Link href="/signup" className="font-semibold text-white hover:underline">
               {t('auth.sign_up')}
             </Link>
           </p>
         </div>
-        </div>
+      </div>
     </AuthLayout>
   )
 }

@@ -12,6 +12,7 @@ import {
 import { ROUTING_COOKIES } from '@services/routing/cookies'
 
 const BACKEND_URL = (process.env.LAUNCHLMS_INTERNAL_BACKEND_URL || getConfig('NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL') || 'http://localhost:1338').replace(/\/+$/, '')
+const GUEST_SESSION_COOKIE = 'guest_session_cookie'
 
 // Paths that return tokens in response body (relative to /api/v1/auth/)
 const TOKEN_RESPONSE_PATHS = ['login', 'refresh', 'oauth', 'signup']
@@ -50,6 +51,7 @@ async function proxyRequest(
   // Forward cookies to backend
   const accessToken = cookieStore.get(ACCESS_TOKEN_COOKIE)
   const refreshToken = cookieStore.get(REFRESH_TOKEN_COOKIE)
+  const guestSession = cookieStore.get(GUEST_SESSION_COOKIE)
 
   // Short-circuit: no refresh token cookie means nothing to refresh
   if (pathSegments === 'refresh' && !refreshToken?.value) {
@@ -105,6 +107,9 @@ async function proxyRequest(
   }
   if (refreshToken?.value) {
     cookieParts.push(`${REFRESH_TOKEN_COOKIE}=${refreshToken.value}`)
+  }
+  if (guestSession?.value) {
+    cookieParts.push(`${GUEST_SESSION_COOKIE}=${guestSession.value}`)
   }
   if (cookieParts.length > 0) {
     headers['Cookie'] = cookieParts.join('; ')
@@ -188,6 +193,13 @@ async function proxyRequest(
         ...cookieOptions,
         httpOnly: false,
         maxAge: REFRESH_TOKEN_MAX_AGE,
+      })
+    }
+
+    if (pathSegments === 'signup/welcome') {
+      response.cookies.set(GUEST_SESSION_COOKIE, '', {
+        ...cookieOptions,
+        maxAge: 0,
       })
     }
   }

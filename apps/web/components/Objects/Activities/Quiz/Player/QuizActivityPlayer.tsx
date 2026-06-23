@@ -71,6 +71,12 @@ interface TextSlide {
   description?: string
   placeholder?: string
   input_size?: 'single_line' | 'short_answer' | 'open_ended'
+  fields?: Array<{
+    key: string
+    label?: string
+    placeholder?: string
+    required?: boolean
+  }>
   background_gradient_seed?: string
   background_image_block_object?: any
 }
@@ -758,7 +764,7 @@ function SlideFrame({
   popUuid: string | null      // option that just got the pop animation
   onSelectOption: (slide: SelectSlide | SortSlide, optUuid: string) => void
   onToggleMultiSelectOption: (slide: MultiSelectSlide, optUuid: string) => void
-  onTextAnswerChange: (slide: TextSlide | SortSlide, value: string) => void
+  onTextAnswerChange: (slide: TextSlide | SortSlide, value: string | Record<string, string>) => void
   onSliderAnswerChange: (slide: SliderSlide, sliderUuid: string, value: number) => void
   buildImageUrl: (blockObj: any) => string | null
   simpleMode?: boolean
@@ -770,7 +776,12 @@ function SlideFrame({
 
   if (slide.type === 'quizTextBlock') {
     const textSlide = slide as TextSlide
-    const value = answers.get(textSlide.question_uuid) || ''
+    const hasFields = Array.isArray(textSlide.fields) && textSlide.fields.length > 0
+    const rawValue = answers.get(textSlide.question_uuid)
+    const fieldValues = hasFields && rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)
+      ? rawValue as Record<string, string>
+      : {}
+    const value = hasFields ? '' : rawValue || ''
     const inputSize = textSlide.input_size || 'single_line'
     const isSingleLine = inputSize === 'single_line'
     const rows = inputSize === 'open_ended' ? 7 : 4
@@ -801,7 +812,32 @@ function SlideFrame({
                 {textSlide.description}
               </p>
             )}
-            <div style={{ background: 'rgba(255,255,255,0.96)', borderRadius: isSingleLine ? 999 : 28, boxShadow: '0 20px 60px rgba(16,24,40,0.16)', border: '1px solid rgba(16,24,40,0.06)', padding: 16 }}>
+            {hasFields ? (
+              <div style={{ display: 'grid', gap: 12 }}>
+                {textSlide.fields?.map((field) => (
+                  <label
+                    key={field.key}
+                    style={{
+                      display: 'grid',
+                      gap: 6,
+                      background: 'rgba(255,255,255,0.96)',
+                      borderRadius: 22,
+                      boxShadow: '0 20px 60px rgba(16,24,40,0.16)',
+                      border: '1px solid rgba(16,24,40,0.06)',
+                      padding: 16,
+                    }}
+                  >
+                    <input
+                      value={fieldValues[field.key] || ''}
+                      onChange={e => onTextAnswerChange(textSlide, { ...fieldValues, [field.key]: e.target.value } as any)}
+                      placeholder={field.placeholder || 'Type your answer...'}
+                      style={{ width: '100%', border: 'none', outline: 'none', fontSize: 16, color: '#111827', background: 'transparent', padding: '2px 0' }}
+                    />
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <div style={{ background: 'rgba(255,255,255,0.96)', borderRadius: isSingleLine ? 999 : 28, boxShadow: '0 20px 60px rgba(16,24,40,0.16)', border: '1px solid rgba(16,24,40,0.06)', padding: 16 }}>
               {isSingleLine ? (
                 <input
                   value={value}
@@ -836,6 +872,7 @@ function SlideFrame({
                 </div>
               )}
             </div>
+            )}
           </div>
         </div>
       </div>
@@ -1265,6 +1302,7 @@ interface Props {
   initialShowResults?: boolean
   onComplete?: React.Dispatch<any>
   embedded?: boolean
+  suppressResultsOnSubmit?: boolean
   onStateChange?: (state: QuizPlayerState) => void
   currentPageIndex?: number
   onPageStateChange?: (state: QuizPlayerState) => void
@@ -1287,7 +1325,7 @@ export type QuizPlayerHandle = {
   next: () => Promise<void>
   back: () => void
   retry: () => void
-  submit: () => Promise<void>
+  submit: () => Promise<any>
   showResponse: () => boolean
   dismissResponse: () => void
 }
@@ -1316,7 +1354,7 @@ function IconPill({ onClick, children }: { onClick: () => void; children: React.
   )
 }
 
-function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, initialShowResults, onComplete, embedded = false, onStateChange, currentPageIndex, onPageStateChange }: Props, ref: React.Ref<QuizPlayerHandle>) {
+function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, initialShowResults, onComplete, embedded = false, suppressResultsOnSubmit = false, onStateChange, currentPageIndex, onPageStateChange }: Props, ref: React.Ref<QuizPlayerHandle>) {
   useQuizStyles()
 
   const session = useLHSession() as any
@@ -1424,6 +1462,13 @@ function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, init
     if (currentSlide.type === 'quizInfoBlock') return true
     if (currentSlide.type === 'quizTextBlock') {
       const slide = currentSlide as TextSlide
+      if (Array.isArray(slide.fields) && slide.fields.length > 0) {
+        const values = (answers.get(slide.question_uuid) || {}) as Record<string, string>
+        return slide.fields.every(field => {
+          if (field.required === false) return true
+          return String(values[field.key] || '').trim().length > 0
+        })
+      }
       const rule = textScoringRules[slide.question_uuid] || {}
       const minChars = Math.max(0, Number(rule.min_chars || 0))
       if (minChars <= 0) return true
@@ -1477,6 +1522,12 @@ function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, init
       }
       if (slide.type === 'quizTextBlock') {
         const s = slide as TextSlide
+        if (Array.isArray(s.fields) && s.fields.length > 0) {
+          return {
+            question_uuid: s.question_uuid,
+            answer_json: { type: 'text_fields', fields: answers.get(s.question_uuid) || {} },
+          }
+        }
         return {
           question_uuid: s.question_uuid,
           answer_json: { type: 'text', text: answers.get(s.question_uuid) || '' },
@@ -1522,7 +1573,7 @@ function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, init
 
     if (editorPreviewContent) {
       if (quizMode === 'ungraded') {
-        setResult({
+        const previewResult = {
           id: 'preview',
           attempt_id: 'preview',
           attempt_uuid: 'preview',
@@ -1531,9 +1582,10 @@ function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, init
             quiz_mode: quizMode,
             answers: answerPayload,
           },
-        })
+        }
+        setResult(previewResult)
         setShowResults(true)
-        return
+        return previewResult
       }
       const previewScores = computeQuizScoresPreview(
         answerPayload,
@@ -1553,7 +1605,7 @@ function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, init
           if (answerJson.type === 'sort') gradedQuestionCount += Object.keys(answerJson.assignments || {}).length
           if (answerJson.type === 'multiselect') gradedQuestionCount += (answerJson.option_uuids || []).length
         })
-        setResult({
+        const previewResult = {
           id: 'preview',
           attempt_id: 'preview',
           attempt_uuid: 'preview',
@@ -1576,11 +1628,12 @@ function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, init
               question_count: gradedQuestionCount,
             },
           },
-        })
+        }
+        setResult(previewResult)
         setShowResults(true)
-        return
+        return previewResult
       }
-      setResult({
+      const previewResult = {
         id: 'preview',
         attempt_id: 'preview',
         attempt_uuid: 'preview',
@@ -1592,16 +1645,17 @@ function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, init
           category_sets: [],
           matched_result: matchQuizResultPreview(previewScores, activity?.details?.result_options || []),
         },
-      })
+      }
+      setResult(previewResult)
       setShowResults(true)
-      return
+      return previewResult
     }
 
     setSubmitting(true)
     try {
       const r = await submitQuizAttempt(activity.activity_uuid, { answers: answerPayload }, access_token)
       setResult(r)
-      setShowResults(true)
+      if (!suppressResultsOnSubmit) setShowResults(true)
       if (org?.id) {
         void mutate(`${getAPIUrl()}trail/org/${org.id}/trail`)
       }
@@ -1612,12 +1666,14 @@ function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, init
         }))
       }
       if (!embedded) onClose?.()
+      return r
     } catch {
-      setShowResults(true)
+      if (!suppressResultsOnSubmit) setShowResults(true)
+      return null
     } finally {
       setSubmitting(false)
     }
-  }, [slides, answers, activity, access_token, editorPreviewContent, activeVectors, quizMode, org?.id, onComplete, onClose, embedded])
+  }, [slides, answers, activity, access_token, editorPreviewContent, activeVectors, quizMode, org?.id, onComplete, onClose, embedded, suppressResultsOnSubmit])
 
   const handleNext = useCallback(async () => {
     if (!isCurrentAnswered || submitting || showResults) return
@@ -1686,13 +1742,14 @@ function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, init
     setTimeout(() => setPopUuid(null), 260)
   }
 
-  const handleTextAnswerChange = (slide: TextSlide | SortSlide, value: string) => {
+  const handleTextAnswerChange = (slide: TextSlide | SortSlide, value: string | Record<string, string>) => {
     if (slide.type === 'quizSortBlock') {
       const sortSlide = slide as SortSlide
       const currentState = normalizeSortAnswer(sortSlide, answers.get(sortSlide.question_uuid))
       const nextAssignments = { ...currentState.assignments }
-      delete nextAssignments[value]
-      const nextStackOrder = [value, ...currentState.stackOrder.filter(cardUuid => cardUuid !== value)]
+      const cardUuid = String(value)
+      delete nextAssignments[cardUuid]
+      const nextStackOrder = [cardUuid, ...currentState.stackOrder.filter(candidateUuid => candidateUuid !== cardUuid)]
       setAnswers(prev => new Map(prev).set(sortSlide.question_uuid, { assignments: nextAssignments, stackOrder: nextStackOrder }))
       return
     }
@@ -1935,7 +1992,9 @@ function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, init
       {showingResponse && responseOption && (
         <div style={{
           position: 'absolute', inset: 0, zIndex: 800,
-          background: embedded ? 'transparent' : (responseBg ? '#000' : responseGradient),
+          background: embedded ? '#fff' : (responseBg ? '#000' : responseGradient),
+          borderRadius: embedded ? 22 : undefined,
+          boxShadow: embedded ? '0 20px 60px rgba(16,24,40,0.12)' : undefined,
           transform: responseIn ? 'translate3d(0, 0, 0)' : 'translate3d(0, 100%, 0)',
           transition: 'transform 420ms cubic-bezier(.2,.9,.2,1)',
           willChange: 'transform',
