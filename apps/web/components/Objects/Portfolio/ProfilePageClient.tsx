@@ -11,6 +11,7 @@ import {
   Bold,
   Camera,
   Check,
+  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -39,6 +40,7 @@ import {
   Underline,
   Youtube,
   X,
+  Circle,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import GridLayout, { type Layout as ReactGridLayoutItems, verticalCompactor } from 'react-grid-layout'
@@ -132,6 +134,7 @@ type ProfilePageClientProps = {
   initialTab?: ProfileTab
   mode: 'owner' | 'public'
   isSelf?: boolean
+  orgConfig?: any
 }
 
 type OwnerProfilePageClientProps = Omit<ProfilePageClientProps, 'mode' | 'isSelf'>
@@ -216,7 +219,7 @@ const PROFILE_WIDGET_CONFIG: Record<ProfileWidgetType, {
   unique: boolean
 }> = {
   timeline: { label: 'Timeline', icon: ChevronRight, unique: true },
-  portfolio: { label: 'Portfolio', icon: FileText, unique: true },
+  portfolio: { label: 'Posts', icon: FileText, unique: true },
   achievements: { label: 'Badges', icon: Award, unique: true },
   coreCourse: { label: 'CORE Course', icon: BookOpen, unique: false },
   coreQuiz: { label: 'Quiz Result', icon: BookOpen, unique: false },
@@ -1186,6 +1189,187 @@ function getRecentTimelineEntries(timeline: TimelineEntry[]) {
       return getProfileTimelineMonthKey(b.startDate) - getProfileTimelineMonthKey(a.startDate)
     })
     .slice(0, 4)
+}
+
+function getOnboardingRecommendedBadgeUuids(orgConfig: any, profile: ProfileShape) {
+  const config = orgConfig?.config || orgConfig || {}
+  const onboarding = (profile as any)?.onboarding || {}
+  const goal = onboarding?.next_step || 'not_sure'
+  const storedRecommendations = Array.isArray(onboarding?.recommended_badges)
+    ? onboarding.recommended_badges
+    : []
+  const orgRecommendations =
+    config?.customization?.onboarding?.recommended_badges?.[goal] ||
+    config?.onboarding?.recommended_badges?.[goal] ||
+    []
+
+  return (storedRecommendations.length ? storedRecommendations : orgRecommendations)
+    .map((value: string) => {
+      const cleaned = String(value || '').replace('course_', '').trim()
+      return cleaned ? `course_${cleaned}` : ''
+    })
+    .filter(Boolean)
+    .slice(0, 3)
+}
+
+function getCourseRunCourseUuid(run: any) {
+  return run?.course?.course_uuid || run?.course_uuid || ''
+}
+
+function isCourseRunEarned(run: any) {
+  const totalSteps = Number(run?.course_total_steps || 0)
+  const completedSteps = Array.isArray(run?.steps) ? run.steps.length : 0
+  return totalSteps > 0 && completedSteps >= totalSteps
+}
+
+function hasFilledPost(featured: FeaturedSection) {
+  return (featured.cards || []).some((card) =>
+    Boolean((card.title || '').trim() || (card.body || '').trim() || card.imageUrl)
+  )
+}
+
+function hasFilledCustomSection(section: ProfileCustomSection | undefined, type?: ProfileWidgetType) {
+  if (!section) return false
+  if (type === 'title') return Boolean((section.title || '').trim())
+  return Boolean(
+    (section.body || '').trim() ||
+    (section.url || '').trim() ||
+    (section.mediaUrl || '').trim()
+  )
+}
+
+function PortfolioTodoPanel({
+  profile,
+  user,
+  orgslug,
+  orgConfig,
+  trail,
+}: {
+  profile: ProfileShape
+  user: any
+  orgslug: string
+  orgConfig?: any
+  trail: any
+}) {
+  const runs = Array.isArray(trail?.runs) ? trail.runs : []
+  const earnedRuns = runs.filter(isCourseRunEarned)
+  const startedRuns = runs.filter((run: any) => !isCourseRunEarned(run) && Array.isArray(run?.steps) && run.steps.length > 0)
+  const recommended = getOnboardingRecommendedBadgeUuids(orgConfig, profile)
+  const recommendedRemaining = recommended.filter((courseUuid: string) => {
+    const run = runs.find((candidate: any) => getCourseRunCourseUuid(candidate) === courseUuid)
+    return !isCourseRunEarned(run)
+  })
+  const featured = profile.featured || normalizeFeatured(null)
+  const layout = profile.layout || DEFAULT_PROFILE_LAYOUT
+  const sections = profile.sections || []
+  const visibleSocials = profile.header?.socials?.filter((social) => social.url) || []
+
+  const tasks = [
+    {
+      id: 'badges',
+      label: 'Earn your first 3 badges',
+      detail: `${Math.min(earnedRuns.length, 3)}/3 earned${startedRuns.length ? `, ${startedRuns.length} in progress` : ''}`,
+      complete: earnedRuns.length >= 3,
+      href: getUriWithOrg(orgslug, routePaths.org.badges()),
+    },
+    {
+      id: 'photo',
+      label: 'Add your profile photo',
+      detail: user.avatar_image ? 'Added' : 'Empty',
+      complete: Boolean(user.avatar_image),
+    },
+    {
+      id: 'bio',
+      label: 'Write a short bio',
+      detail: user.bio ? 'Added' : 'Empty',
+      complete: Boolean((user.bio || '').trim()),
+    },
+    ...layout.map((item) => {
+      if (item.type === 'portfolio') {
+        return {
+          id: 'portfolio-posts',
+          label: 'Add your first post',
+          detail: hasFilledPost(featured) ? 'Added' : 'Empty',
+          complete: hasFilledPost(featured),
+          href: getUriWithOrg(orgslug, routePaths.org.portfolio()),
+        }
+      }
+      if (item.type === 'timeline') {
+        return {
+          id: 'timeline',
+          label: 'Add a timeline moment',
+          detail: (profile.timeline || []).length ? `${(profile.timeline || []).length} added` : 'Empty',
+          complete: Boolean((profile.timeline || []).length),
+          href: getUriWithOrg(orgslug, routePaths.org.portfolioTimeline()),
+        }
+      }
+      if (item.type === 'instagramPreview' || item.type === 'youtubePreview') {
+        const type = item.type === 'instagramPreview' ? 'instagram' : 'youtube'
+        return {
+          id: item.type,
+          label: `Connect ${type === 'instagram' ? 'Instagram' : 'YouTube'}`,
+          detail: visibleSocials.some((social) => social.type === type) ? 'Connected' : 'Empty',
+          complete: visibleSocials.some((social) => social.type === type),
+        }
+      }
+      if (item.type === 'link' || item.type === 'text' || item.type === 'media' || item.type === 'title') {
+        const section = sections.find((candidate) => candidate.id === item.id)
+        return {
+          id: item.id,
+          label: `Fill ${PROFILE_WIDGET_CONFIG[item.type].label.toLowerCase()} section`,
+          detail: hasFilledCustomSection(section, item.type) ? 'Added' : 'Empty',
+          complete: hasFilledCustomSection(section, item.type),
+        }
+      }
+      return null
+    }).filter(Boolean),
+  ] as Array<{ id: string; label: string; detail: string; complete: boolean; href?: string }>
+
+  const uniqueTasks = tasks.filter((task, index, all) =>
+    all.findIndex((candidate) => candidate.id === task.id) === index
+  )
+  const completed = uniqueTasks.filter((task) => task.complete).length
+
+  return (
+    <aside className="rounded-lg border border-gray-200 bg-white p-4">
+      <div className="mb-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Setup</p>
+        <h2 className="mt-1 text-base font-semibold text-gray-950">Portfolio checklist</h2>
+        <p className="mt-1 text-sm text-gray-500">{completed}/{uniqueTasks.length} done</p>
+      </div>
+      {recommendedRemaining.length ? (
+        <div className="mb-4 rounded-md bg-gray-50 p-3">
+          <p className="text-xs font-semibold text-gray-600">Recommended badges left</p>
+          <p className="mt-1 text-sm text-gray-500">{recommendedRemaining.length} from onboarding</p>
+        </div>
+      ) : null}
+      <div className="space-y-3">
+        {uniqueTasks.map((task) => {
+          const icon = task.complete
+            ? <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            : <Circle className="h-4 w-4 text-gray-300" />
+          const content = (
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="mt-0.5 shrink-0">{icon}</span>
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-gray-800">{task.label}</span>
+                <span className="block text-xs text-gray-500">{task.detail}</span>
+              </span>
+            </div>
+          )
+          return task.href ? (
+            <Link key={task.id} href={task.href} className="block rounded-md p-1 transition-colors hover:bg-gray-50">
+              {content}
+            </Link>
+          ) : (
+            <div key={task.id} className="rounded-md p-1">
+              {content}
+            </div>
+          )
+        })}
+      </div>
+    </aside>
+  )
 }
 
 function getTimelineEntryDetail(entry: TimelineEntry) {
@@ -2589,6 +2773,7 @@ function ProfilePageClient({
   initialTab = 'overview',
   mode,
   isSelf = false,
+  orgConfig,
 }: ProfilePageClientProps) {
   const router = useRouter()
   const session = useLHSession() as any
@@ -2622,6 +2807,13 @@ function ProfilePageClient({
   const isOwnerMode = mode === 'owner'
   const isPublicMode = mode === 'public'
   const canManageProfile = isOwnerMode
+  const { data: trail } = useSWR(
+    canManageProfile && accessToken && initialTab === 'overview' && orgConfig?.org_id
+      ? `${getAPIUrl()}trail/org/${orgConfig.org_id}/trail`
+      : null,
+    (url) => swrFetcher(url, accessToken),
+    { revalidateOnFocus: false }
+  )
   const canSeedDevProfile = canManageProfile && process.env.NODE_ENV === 'development'
   const effectiveEditMode = false
   const profile = normalizeProfile(user.profile)
@@ -3400,7 +3592,7 @@ function ProfilePageClient({
 
   return (
     <main className="min-h-screen">
-      <div ref={profileContentRef} className="mx-auto w-full max-w-5xl px-0 pt-0 pb-6 sm:px-6 sm:py-6 lg:px-8">
+      <div ref={profileContentRef} className="mx-auto w-full max-w-7xl px-0 pt-0 pb-6 sm:px-6 sm:py-6 lg:px-8">
         {isPublicMode && isSelf ? (
           <div className="mx-4 mt-4 flex flex-col gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 sm:mx-0 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm font-medium text-gray-700">
@@ -3586,48 +3778,49 @@ function ProfilePageClient({
           </div>
         </section>
         {activeTab === 'overview' ? (
-          <div ref={profileGridRef} className="px-4 pb-10 sm:px-0">
-            {profileGridWidth > 0 ? (
-              <GridLayout
-                key={`profile-grid-${profileGridCols}-${gridDropResetKey}`}
-                width={profileGridWidth}
-                layout={gridLayout}
-                autoSize
-                gridConfig={{
-                  cols: profileGridCols,
-                  rowHeight: profileGridRowHeight,
-                  margin: PROFILE_GRID_MARGIN,
-                  containerPadding: [0, 0],
-                }}
-                dragConfig={{
-                  enabled: canManageProfile,
-                  bounded: true,
-                  cancel: 'input, textarea, button, a, select, label, [contenteditable="true"], [data-profile-grid-control="true"]',
-                  threshold: 6,
-                }}
-                resizeConfig={{ enabled: false }}
-                dropConfig={{
-                  enabled: canManageProfile && Boolean(trayDraftItem),
-                  defaultItem: getProfileGridDropSize(profileGridCols),
-                }}
-                droppingItem={trayDraftItem ? {
-                  i: trayDraftItem.id,
-                  x: 0,
-                  y: 0,
-                  ...getProfileGridDropSize(profileGridCols),
-                } : undefined}
-                onDropDragOver={() => (trayDraftItem ? getProfileGridDropSize(profileGridCols) : false)}
-                onDrop={(nextLayout, droppedGridItem) => {
-                  if (canManageProfile) finishTrayGridDrop(nextLayout, droppedGridItem)
-                }}
-                onLayoutChange={(nextLayout) => {
-                  if (canManageProfile) updateProfileGridDraft(nextLayout)
-                }}
-                onDragStop={(nextLayout) => {
-                  if (canManageProfile) persistProfileGridLayout(nextLayout)
-                }}
-                className="profile-grid-layout"
-              >
+          <div className="grid gap-6 px-4 pb-10 sm:px-0 lg:grid-cols-[minmax(0,1fr)_280px]">
+            <div ref={profileGridRef} className="min-w-0">
+              {profileGridWidth > 0 ? (
+                <GridLayout
+                  key={`profile-grid-${profileGridCols}-${gridDropResetKey}`}
+                  width={profileGridWidth}
+                  layout={gridLayout}
+                  autoSize
+                  gridConfig={{
+                    cols: profileGridCols,
+                    rowHeight: profileGridRowHeight,
+                    margin: PROFILE_GRID_MARGIN,
+                    containerPadding: [0, 0],
+                  }}
+                  dragConfig={{
+                    enabled: canManageProfile,
+                    bounded: true,
+                    cancel: 'input, textarea, button, a, select, label, [contenteditable="true"], [data-profile-grid-control="true"]',
+                    threshold: 6,
+                  }}
+                  resizeConfig={{ enabled: false }}
+                  dropConfig={{
+                    enabled: canManageProfile && Boolean(trayDraftItem),
+                    defaultItem: getProfileGridDropSize(profileGridCols),
+                  }}
+                  droppingItem={trayDraftItem ? {
+                    i: trayDraftItem.id,
+                    x: 0,
+                    y: 0,
+                    ...getProfileGridDropSize(profileGridCols),
+                  } : undefined}
+                  onDropDragOver={() => (trayDraftItem ? getProfileGridDropSize(profileGridCols) : false)}
+                  onDrop={(nextLayout, droppedGridItem) => {
+                    if (canManageProfile) finishTrayGridDrop(nextLayout, droppedGridItem)
+                  }}
+                  onLayoutChange={(nextLayout) => {
+                    if (canManageProfile) updateProfileGridDraft(nextLayout)
+                  }}
+                  onDragStop={(nextLayout) => {
+                    if (canManageProfile) persistProfileGridLayout(nextLayout)
+                  }}
+                  className="profile-grid-layout"
+                >
                 {layout.map((item) => {
                   const rendered = renderProfileLayoutSection(item)
                   if (!rendered) return null
@@ -3697,7 +3890,19 @@ function ProfilePageClient({
                     </div>
                   )
                 })}
-              </GridLayout>
+                </GridLayout>
+              ) : null}
+            </div>
+            {canManageProfile ? (
+              <div className="lg:sticky lg:top-6 lg:self-start">
+                <PortfolioTodoPanel
+                  profile={contentProfile}
+                  user={{ ...user, bio: draft.bio, avatar_image: user.avatar_image }}
+                  orgslug={orgslug}
+                  orgConfig={orgConfig}
+                  trail={trail}
+                />
+              </div>
             ) : null}
           </div>
         ) : null}

@@ -501,7 +501,7 @@ export function FeaturedCarousel({
     return (
       <section className="flex h-full min-w-0 min-h-0 items-center justify-between gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
         <div className="min-w-0">
-          <h2 className="truncate text-base font-semibold text-gray-950">Portfolio</h2>
+          <h2 className="truncate text-base font-semibold text-gray-950">Posts</h2>
           <p className="mt-1 truncate text-sm font-medium text-gray-500">
             {cards.length} {cards.length === 1 ? 'post' : 'posts'}
           </p>
@@ -519,7 +519,7 @@ export function FeaturedCarousel({
   return (
     <section className="flex h-full min-w-0 min-h-0 flex-col rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-4">
-        <h2 className={`${isNarrow ? 'text-xl' : 'text-2xl'} min-w-0 truncate font-semibold text-gray-950`}>Portfolio</h2>
+        <h2 className={`${isNarrow ? 'text-xl' : 'text-2xl'} min-w-0 truncate font-semibold text-gray-950`}>Posts</h2>
         {actions}
       </div>
 
@@ -527,7 +527,7 @@ export function FeaturedCarousel({
         <div className="relative flex h-full min-h-0 flex-col items-center overflow-visible">
           {cards.length === 0 ? (
             <div className="flex h-full w-full items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 p-5 text-center text-sm leading-6 text-gray-500">
-              No portfolio posts yet.
+              No posts yet.
             </div>
           ) : isNarrow && activeCard ? (
             <div className="flex h-full min-h-0 w-full flex-col">

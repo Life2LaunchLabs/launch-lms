@@ -22,6 +22,7 @@ interface CourseProps {
   view?: 'discover' | 'mine'
   inviteBadge?: string
   invitedBadgeCourse?: any
+  orgConfig?: any
 }
 
 function isCourseEarned(run: any) {
@@ -46,9 +47,33 @@ function cleanCourseUuid(courseUuid?: string | null) {
   return String(courseUuid || '').replace('course_', '')
 }
 
+function normalizeCourseUuid(courseUuid?: string | null) {
+  const cleaned = cleanCourseUuid(courseUuid)
+  return cleaned ? `course_${cleaned}` : ''
+}
+
+function getRecommendedBadgeUuids(orgConfig: any, user: any) {
+  const config = orgConfig?.config || orgConfig || {}
+  const onboarding = user?.profile?.onboarding || {}
+  const goal = onboarding?.next_step || 'not_sure'
+  const storedRecommendations = Array.isArray(onboarding?.recommended_badges)
+    ? onboarding.recommended_badges
+    : []
+  const orgRecommendations =
+    config?.customization?.onboarding?.recommended_badges?.[goal] ||
+    config?.onboarding?.recommended_badges?.[goal] ||
+    []
+
+  return (storedRecommendations.length ? storedRecommendations : orgRecommendations)
+    .map((value: string) => normalizeCourseUuid(value))
+    .filter(Boolean)
+    .slice(0, 3)
+}
+
 function Courses(props: CourseProps) {
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
+  const currentUser = session?.data?.user
   const activeView = props.view === 'mine' ? 'mine' : 'discover'
 
   const { data: trail } = useSWR(
@@ -92,11 +117,25 @@ function Courses(props: CourseProps) {
       .filter(({ run }: any) => run && !isCourseEarned(run))
       .sort((a: any, b: any) => getRunTimestamp(b.run) - getRunTimestamp(a.run))[0]
   }, [collectionCourses, trailRunsByCourseUuid])
+  const recommendedBadges = useMemo(() => {
+    const recommendedUuids = getRecommendedBadgeUuids(props.orgConfig, currentUser)
+    if (!recommendedUuids.length) return []
+    return recommendedUuids
+      .map((courseUuid: string) => collectionCourses.find(
+        (course: any) => normalizeCourseUuid(course.course_uuid) === courseUuid
+      ))
+      .filter(Boolean)
+      .filter((course: any) => {
+        const run = trailRunsByCourseUuid.get(course.course_uuid)
+        return !isCourseEarned(run)
+      })
+  }, [collectionCourses, currentUser, props.orgConfig, trailRunsByCourseUuid])
   const heroBadge = invitedBadge
     ? { course: invitedBadge, trigger: 'invite' as const }
     : inProgressBadge
       ? { course: inProgressBadge.course, trigger: 'progress' as const }
       : null
+  const showRecommendedHero = !heroBadge && recommendedBadges.length > 0
 
   return (
     <div className="w-full">
@@ -122,6 +161,8 @@ function Courses(props: CourseProps) {
                     ? 'Badge invite accepted'
                     : heroBadge
                       ? 'In progress'
+                      : showRecommendedHero
+                        ? 'Recommended next'
                       : 'Start here'
                 }
                 title={
@@ -129,6 +170,8 @@ function Courses(props: CourseProps) {
                     ? `Ready to start ${heroBadge.course.name}`
                     : heroBadge
                       ? heroBadge.course.name
+                      : showRecommendedHero
+                        ? 'Start with one of these badges'
                       : 'Find a badge to get started'
                 }
                 body={
@@ -140,6 +183,8 @@ function Courses(props: CourseProps) {
                       )
                     : heroBadge
                       ? (heroBadge.course.description || heroBadge.course.about)
+                      : showRecommendedHero
+                        ? 'Your onboarding goal matched these starting badges. Pick any one, or choose another badge below.'
                       : 'Choose a badge path and complete the activities to earn your first badge.'
                 }
                 image={
@@ -160,7 +205,36 @@ function Courses(props: CourseProps) {
                 }
                 imageFrameClassName="overflow-visible bg-transparent"
               >
-                {heroBadge && (
+                {showRecommendedHero ? (
+                  <div className="grid w-full gap-3 sm:grid-cols-3">
+                    {recommendedBadges.map((course: any) => (
+                      <a
+                        key={course.course_uuid}
+                        href={getUriWithOrg(props.orgslug, routePaths.org.course(cleanCourseUuid(course.course_uuid)))}
+                        className="flex min-w-0 items-center gap-3 rounded-lg bg-white/12 p-3 text-left text-white ring-1 ring-white/20 transition-colors hover:bg-white/18"
+                      >
+                        <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/10">
+                          {course.thumbnail_image ? (
+                            <BadgeThumbnailImage
+                              src={getCourseThumbnailMediaDirectory(
+                                course.owner_org_uuid || '',
+                                course.course_uuid,
+                                course.thumbnail_image
+                              )}
+                              alt={course.name}
+                            />
+                          ) : (
+                            <Award size={22} strokeWidth={1.6} />
+                          )}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-semibold">{course.name}</span>
+                          <span className="block text-xs text-white/65">View details</span>
+                        </span>
+                      </a>
+                    ))}
+                  </div>
+                ) : heroBadge && (
                   <ContentHeroButton
                     href={getUriWithOrg(
                       props.orgslug,

@@ -1,13 +1,14 @@
 'use client'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { TextIcon, LucideIcon, Palette, School } from 'lucide-react'
+import { TextIcon, LucideIcon, Palette, School, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import React, { useEffect, use } from 'react';
 import { motion } from 'motion/react'
 import { useRouter } from 'next/navigation'
 import OrgEditGeneral from '@components/Dashboard/Pages/Org/OrgEditGeneral/OrgEditGeneral'
 import OrgEditBranding from '@components/Dashboard/Pages/Org/OrgEditBranding/OrgEditBranding'
+import OrgEditOnboarding from '@components/Dashboard/Pages/Org/OrgEditOnboarding/OrgEditOnboarding'
 import { useTranslation } from 'react-i18next'
 
 export type OrgParams = {
@@ -24,6 +25,7 @@ interface TabItem {
 const getSettingTabs = (t: any): TabItem[] => [
   { id: 'general', label: t('dashboard.organization.settings.tabs.general'), icon: TextIcon },
   { id: 'branding', label: t('dashboard.organization.settings.tabs.branding'), icon: Palette },
+  { id: 'onboarding', label: 'Onboarding', icon: Sparkles },
 ]
 
 function TabLink({ tab, isActive, orgslug }: {
@@ -68,6 +70,9 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
     } else if (params.subpage == 'branding') {
       setH1Label(t('dashboard.organization.settings.pages.branding.title'))
       setH2Label(t('dashboard.organization.settings.pages.branding.subtitle'))
+    } else if (params.subpage == 'onboarding') {
+      setH1Label('Onboarding')
+      setH2Label('Set portfolio presets and recommended badges for new learners')
     }
   }
 
@@ -118,6 +123,7 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
       >
         {params.subpage == 'general' ? <OrgEditGeneral /> : ''}
         {params.subpage == 'branding' ? <OrgEditBranding /> : ''}
+        {params.subpage == 'onboarding' ? <OrgEditOnboarding /> : ''}
       </motion.div>
     </div>
   )

@@ -61,12 +61,13 @@ from src.services.orgs.orgs import (
     upload_org_landing_content_service,
     update_org_auth_branding_config,
     update_org_badge_issuer_config,
+    update_org_onboarding_config,
     upload_org_auth_background_service,
     update_org_seo_config,
     upload_org_og_image_service,
     update_org_favicon,
 )
-from src.db.organization_config import AuthBrandingConfig, SeoOrgConfig, BadgeIssuerConfig
+from src.db.organization_config import AuthBrandingConfig, SeoOrgConfig, BadgeIssuerConfig, OnboardingConfig
 
 
 router = APIRouter()
@@ -526,6 +527,22 @@ async def api_update_org_badge_issuer_config(
     """
     return await update_org_badge_issuer_config(
         request, badge_issuer, org_id, current_user, db_session
+    )
+
+
+@router.put("/{org_id}/config/onboarding")
+async def api_update_org_onboarding_config(
+    request: Request,
+    org_id: int,
+    onboarding: OnboardingConfig,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    """
+    Update organization onboarding defaults and recommended badges.
+    """
+    return await update_org_onboarding_config(
+        request, onboarding, org_id, current_user, db_session
     )
 
 

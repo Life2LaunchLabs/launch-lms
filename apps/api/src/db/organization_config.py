@@ -198,11 +198,23 @@ class BadgeIssuerConfig(BaseModel):
     image_url: str = ""
 
 
+class OnboardingGoalBadges(BaseModel):
+    higher_education: list[str] = Field(default_factory=list)
+    employment: list[str] = Field(default_factory=list)
+    self_starting: list[str] = Field(default_factory=list)
+    not_sure: list[str] = Field(default_factory=list)
+
+
+class OnboardingConfig(BaseModel):
+    recommended_badges: OnboardingGoalBadges = OnboardingGoalBadges()
+
+
 class CustomizationConfig(BaseModel):
     general: GeneralCustomization = GeneralCustomization()
     auth_branding: AuthBrandingConfig = AuthBrandingConfig()
     seo: SeoOrgConfig = SeoOrgConfig()
     badge_issuer: BadgeIssuerConfig = BadgeIssuerConfig()
+    onboarding: OnboardingConfig = OnboardingConfig()
     landing: dict = Field(default_factory=dict)
 
 

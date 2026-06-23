@@ -159,6 +159,7 @@ export const routePaths = {
       orgSettings: {
         general: () => '/admin/org/settings/general',
         branding: () => '/admin/org/settings/branding',
+        onboarding: () => '/admin/org/settings/onboarding',
         features: () => '/admin/org/settings/general',
         landing: () => '/admin/org/settings/general',
         seo: () => '/admin/org/settings/general',

@@ -12,6 +12,7 @@ from src.db.courses.chapters import Chapter
 from src.db.courses.course_chapters import CourseChapter
 from src.db.courses.courses import Course
 from src.db.organizations import Organization
+from src.db.organization_config import OrganizationConfig
 from src.db.users import AnonymousUser, User, UserCreate, UserRead
 from src.core.events.database import get_db_session
 from config.config import get_launchlms_config
@@ -67,6 +68,7 @@ ONBOARDING_COURSE_UUID = "course_system_onboarding_welcome"
 ONBOARDING_COLLECTION_UUID = "collection_system_onboarding"
 ONBOARDING_CHAPTER_UUID = "chapter_system_onboarding_welcome"
 ONBOARDING_ACTIVITY_UUID = "activity_system_onboarding_profile_quiz"
+ONBOARDING_GOALS = {"higher_education", "employment", "self_starting", "not_sure"}
 
 
 class WelcomeSignupRequest(BaseModel):
@@ -349,6 +351,106 @@ def _extract_onboarding_answers(quiz_result: Optional[dict]) -> dict:
     return parsed
 
 
+def _profile_grid(x: int, y: int, w: int, h: int) -> dict:
+    return {"x": x, "y": y, "w": w, "h": h}
+
+
+def _profile_layout_item(item_id: str, item_type: str, x: int, y: int, w: int, h: int) -> dict:
+    return {
+        "id": item_id,
+        "type": item_type,
+        "grid": _profile_grid(x, y, w, h),
+        "mobileGrid": _profile_grid(0 if x == 0 else 1, y, min(2, w), h),
+    }
+
+
+def _custom_profile_section(item_id: str, item_type: str, title: str = "") -> dict:
+    return {
+        "id": item_id,
+        "type": item_type,
+        "title": title,
+        "body": "",
+        "url": "",
+        "mediaUrl": "",
+    }
+
+
+def _build_onboarding_profile_preset(next_step: str, recommended_badges: list[str]) -> dict:
+    goal = next_step if next_step in ONBOARDING_GOALS else "not_sure"
+
+    if goal == "employment":
+        layout = [
+            _profile_layout_item("timeline", "timeline", 0, 0, 2, 3),
+            _profile_layout_item("portfolio", "portfolio", 2, 0, 1, 3),
+            _profile_layout_item("achievements", "achievements", 0, 3, 1, 2),
+            _profile_layout_item("employment-links", "link", 1, 3, 2, 1),
+        ]
+        sections = [_custom_profile_section("employment-links", "link", "Resume or work sample")]
+        timeline_enabled = True
+    elif goal == "higher_education":
+        layout = [
+            _profile_layout_item("achievements", "achievements", 0, 0, 1, 3),
+            _profile_layout_item("application-notes", "text", 1, 0, 2, 2),
+            _profile_layout_item("portfolio", "portfolio", 0, 3, 2, 3),
+            _profile_layout_item("timeline", "timeline", 2, 2, 1, 3),
+        ]
+        sections = [_custom_profile_section("application-notes", "text", "Application notes")]
+        timeline_enabled = True
+    elif goal == "self_starting":
+        layout = [
+            _profile_layout_item("portfolio", "portfolio", 0, 0, 2, 3),
+            _profile_layout_item("social-link", "link", 2, 0, 1, 1),
+            _profile_layout_item("instagramPreview", "instagramPreview", 0, 3, 1, 3),
+            _profile_layout_item("youtubePreview", "youtubePreview", 1, 3, 1, 3),
+            _profile_layout_item("achievements", "achievements", 2, 1, 1, 3),
+        ]
+        sections = [_custom_profile_section("social-link", "link", "Primary link")]
+        timeline_enabled = False
+    else:
+        layout = [
+            _profile_layout_item("portfolio", "portfolio", 0, 0, 2, 3),
+            _profile_layout_item("achievements", "achievements", 2, 0, 1, 3),
+            _profile_layout_item("timeline", "timeline", 0, 3, 2, 3),
+        ]
+        sections = []
+        timeline_enabled = True
+
+    return {
+        "header": {"socials": []},
+        "featured": {"cards": [], "publicVisible": True},
+        "achievements": {"featuredIds": [], "publicVisible": True},
+        "timelineEnabled": timeline_enabled,
+        "timelinePublicVisible": True,
+        "timeline": [],
+        "layout": layout,
+        "sections": sections,
+        "onboarding": {
+            "next_step": goal,
+            "recommended_badges": recommended_badges[:3],
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+        },
+    }
+
+
+def _get_onboarding_recommended_badges(owner_org: Organization, next_step: str, db_session: Session) -> list[str]:
+    org_config = db_session.exec(
+        select(OrganizationConfig).where(OrganizationConfig.org_id == owner_org.id)
+    ).first()
+    config = org_config.config if org_config else {}
+    customization = config.get("customization", {}) if isinstance(config, dict) else {}
+    onboarding_config = {}
+    if isinstance(config, dict):
+        onboarding_config = customization.get("onboarding") or config.get("onboarding", {})
+    recommended = onboarding_config.get("recommended_badges", {}) if isinstance(onboarding_config, dict) else {}
+    goal = next_step if next_step in ONBOARDING_GOALS else "not_sure"
+    badge_uuids = recommended.get(goal, []) if isinstance(recommended, dict) else []
+    return [
+        value if str(value).startswith("course_") else f"course_{value}"
+        for value in badge_uuids
+        if isinstance(value, str) and value.strip()
+    ][:3]
+
+
 def _generate_onboarding_username(email: str, db_session: Session) -> str:
     base = email.split("@", 1)[0].lower()
     base = "".join(ch if ch.isalnum() else "_" for ch in base).strip("_")[:24] or "learner"
@@ -450,6 +552,15 @@ async def complete_welcome_signup(
         raise HTTPException(status_code=409, detail="Email already exists")
 
     onboarding = _extract_onboarding_answers(body.quiz_result)
+    recommended_badges = _get_onboarding_recommended_badges(
+        owner_org,
+        onboarding["next_step"],
+        db_session,
+    )
+    profile_preset = _build_onboarding_profile_preset(
+        onboarding["next_step"],
+        recommended_badges,
+    )
     user_create = UserCreate(
         username=_generate_onboarding_username(body.email, db_session),
         email=body.email,
@@ -458,12 +569,7 @@ async def complete_welcome_signup(
         last_name=onboarding["last_name"],
         bio="",
         details={},
-        profile={
-            "onboarding": {
-                "next_step": onboarding["next_step"],
-                "completed_at": datetime.now(timezone.utc).isoformat(),
-            }
-        },
+        profile=profile_preset,
     )
 
     from src.services.users.users import create_user
@@ -483,10 +589,7 @@ async def complete_welcome_signup(
 
     user.profile = {
         **(user.profile or {}),
-        "onboarding": {
-            "next_step": onboarding["next_step"],
-            "completed_at": datetime.now(timezone.utc).isoformat(),
-        },
+        **profile_preset,
     }
     user.first_name = onboarding["first_name"]
     user.last_name = onboarding["last_name"]
