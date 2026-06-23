@@ -66,7 +66,6 @@ export const routePaths = {
     portfolioAchievementDetail: (achievementId: string) => `/portfolio/achievements/${achievementId}`,
     news: () => '/news',
     newsArticle: (slug: string) => `/news/${slug}`,
-    welcome: () => '/welcome',
     quickstart: () => '/quickstart',
     quickstartCourse: (courseUuid: string) => `/quickstart/course/${courseUuid}`,
     quickstartCourseActivity: (courseUuid: string, activityId: string) =>

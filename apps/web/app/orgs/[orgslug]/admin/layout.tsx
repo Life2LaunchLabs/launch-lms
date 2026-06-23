@@ -22,7 +22,7 @@ async function DashboardLayout(
   const session = await getServerSession()
 
   if (!session) {
-    redirect(routePaths.org.welcome())
+    redirect(routePaths.org.root())
   }
 
   const org = await getOrganizationContextInfo(params.orgslug, {

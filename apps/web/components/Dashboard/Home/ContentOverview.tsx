@@ -140,13 +140,7 @@ export default function ContentOverview() {
   const visibleCards = cards.filter((c) => c.show)
 
   return (
-    <div
-      className={`grid gap-4 ${
-        visibleCards.length <= 4
-          ? 'grid-cols-2 sm:grid-cols-4'
-          : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'
-      }`}
-    >
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-4">
       {visibleCards.map((card) => (
         <Link
           key={card.label}

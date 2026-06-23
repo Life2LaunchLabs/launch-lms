@@ -2,7 +2,6 @@
 import DashLeftMenu from '@components/Dashboard/Menus/DashLeftMenu';
 import DashMobileMenu from '@components/Dashboard/Menus/DashMobileMenu';
 import AdminAuthorization from '@components/Security/AdminAuthorization'
-import { SessionProvider } from '@components/Contexts/AuthContext'
 import React from 'react'
 import { useMediaQuery } from 'usehooks-ts';
 
@@ -16,18 +15,16 @@ function ClientAdminLayout({
     const isMobile = useMediaQuery('(max-width: 768px)')
 
     return (
-        <SessionProvider>
-            <AdminAuthorization authorizationMode="page">
-                <div className="flex min-h-[100dvh] flex-col md:h-[100dvh] md:flex-row md:overflow-hidden">
-                    {isMobile ? (
-                        <DashMobileMenu />
-                    ) : (
-                        <DashLeftMenu />
-                    )}
-                    <div className="relative isolate flex min-w-0 w-full md:h-[100dvh] md:overflow-y-auto">{children}</div>
-                </div>
-            </AdminAuthorization>
-        </SessionProvider>
+        <AdminAuthorization authorizationMode="page">
+            <div className="flex min-h-[100dvh] flex-col md:h-[100dvh] md:flex-row md:overflow-hidden">
+                {isMobile ? (
+                    <DashMobileMenu />
+                ) : (
+                    <DashLeftMenu />
+                )}
+                <div className="relative isolate flex min-w-0 w-full md:h-[100dvh] md:overflow-y-auto">{children}</div>
+            </div>
+        </AdminAuthorization>
     )
 }
 

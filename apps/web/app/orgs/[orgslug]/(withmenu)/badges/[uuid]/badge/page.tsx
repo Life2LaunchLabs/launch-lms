@@ -24,7 +24,7 @@ const BadgeStatusPage = async ({ params }: BadgeStatusPageProps) => {
     fetchError = { status: error?.status }
   }
 
-  if (!session && fetchError?.status === 401) redirect('/welcome')
+  if (!session && fetchError?.status === 401) redirect('/')
   if (!course && !fetchError) notFound()
 
   return (

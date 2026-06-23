@@ -426,7 +426,7 @@ Current baseline:
 - Auth pages are rewritten under `/auth/*`
 - Guest and onboarding paths are allowed without a session
 - Public course paths are allowed without a session
-- Other unauthenticated requests are redirected to `/welcome`
+- Other unauthenticated requests are redirected to `/`
 
 Auth/session rules:
 

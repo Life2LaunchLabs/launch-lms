@@ -52,7 +52,7 @@ export default async function QuickstartCoursePage({ params }: PageProps) {
   }
 
   if (!session && fetchError?.status === 401) {
-    redirect('/welcome')
+    redirect('/')
   }
 
   if (!courseMeta && !fetchError) {

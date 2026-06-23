@@ -1,7 +1,6 @@
 'use client';
 import React, { use } from "react";
 import '@styles/globals.css'
-import { SessionProvider } from '@components/Contexts/AuthContext'
 import { OrgMenu } from '@components/Objects/Menus/OrgMenu'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -44,6 +43,7 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
   const orgPrimaryColor = primaryColor || '#8b5cf6'
   const pageBackgroundColor = primaryColor ? hexToTintedWhite(primaryColor, 0.05) : '#ffffff'
   const pathname = usePathname()
+  const isLandingPage = session?.status === 'unauthenticated' && pathname === '/'
 
   const pathParts = pathname?.split('/').filter(Boolean) || []
 
@@ -55,6 +55,22 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
   const isPublicCourseExperience = isCoursePage || isActivityPage
   const showGuestHeader = session?.status === 'unauthenticated' && !isPublicCourseExperience
   const showOrgMenu = session?.status !== 'unauthenticated'
+
+  if (isLandingPage) {
+    return (
+      <div
+        className="min-h-screen"
+        style={{
+          '--org-page-background': pageBackgroundColor,
+          '--org-primary-color': orgPrimaryColor,
+        } as React.CSSProperties}
+      >
+        <PageViewTracker />
+        <OrgJoinBanner />
+        {children}
+      </div>
+    )
+  }
 
   return (
     <div
@@ -103,16 +119,14 @@ export default function RootLayout(
 
   return (
     <>
-      <SessionProvider>
-        <OrgJoinBannerProvider>
-          <PodcastPlayerProvider>
-            <LayoutContent orgslug={params?.orgslug}>
-              {children}
-            </LayoutContent>
-            <PodcastPlayer />
-          </PodcastPlayerProvider>
-        </OrgJoinBannerProvider>
-      </SessionProvider>
+      <OrgJoinBannerProvider>
+        <PodcastPlayerProvider>
+          <LayoutContent orgslug={params?.orgslug}>
+            {children}
+          </LayoutContent>
+          <PodcastPlayer />
+        </PodcastPlayerProvider>
+      </OrgJoinBannerProvider>
     </>
   )
 }

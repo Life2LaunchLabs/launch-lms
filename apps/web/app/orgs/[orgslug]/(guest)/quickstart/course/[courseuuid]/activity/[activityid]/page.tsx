@@ -51,7 +51,7 @@ export default async function QuickstartActivityPage({ params, searchParams }: P
     }
   } catch (error: any) {
     if (!session && (error?.status === 401 || error?.status === 403)) {
-      redirect('/welcome')
+      redirect('/')
     }
     notFound()
   }
