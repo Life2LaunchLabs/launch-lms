@@ -571,7 +571,7 @@ export function ProfileAchievementsSection({
               description="Feature earned badges to show them here."
               action={editMode && canEdit ? (
                 <Button asChild variant="outline" size="sm">
-                  <Link href={getUriWithOrg(orgslug, routePaths.org.badges()) + '?view=mine'}>Choose badges</Link>
+                  <Link href={getUriWithOrg(orgslug, routePaths.org.myBadges())}>Choose badges</Link>
                 </Button>
               ) : undefined}
             />
@@ -608,7 +608,7 @@ export function ProfileAchievementsManager({
 
             {canEdit ? (
               <Button asChild>
-                <Link href={getUriWithOrg(orgslug, routePaths.org.badges()) + '?view=mine'}>Choose badges</Link>
+                <Link href={getUriWithOrg(orgslug, routePaths.org.myBadges())}>Choose badges</Link>
               </Button>
             ) : null}
           </div>

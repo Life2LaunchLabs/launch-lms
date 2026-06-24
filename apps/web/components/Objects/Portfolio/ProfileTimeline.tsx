@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from '@components/ui/dialog'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
+import ContentPageHeader from '@components/Objects/StyledElements/Headers/ContentPageHeader'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { updateProfile } from '@services/settings/portfolio'
 
@@ -792,7 +793,16 @@ export default function ProfileTimeline({
     <>
       <div className={embedded ? 'px-4 py-6 sm:px-0' : 'mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8'}>
           {!embedded ? (
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex flex-col gap-4">
+              <ContentPageHeader
+                orgslug={orgslug}
+                tabs={[
+                  { href: profileUsername ? routePaths.org.user(profileUsername) : routePaths.org.portfolio(), label: 'Portfolio' },
+                  { href: profileUsername ? routePaths.org.userTimeline(profileUsername) : routePaths.org.portfolioTimeline(), label: 'Timeline', active: true },
+                  { href: profileUsername ? routePaths.org.userResume(profileUsername) : routePaths.org.portfolioResume(), label: 'Resume' },
+                ]}
+                noHorizontalBleed
+              />
             <div>
               <Link href={profileHref} className="text-sm font-medium text-gray-500 hover:text-gray-800">
                 Back to profile

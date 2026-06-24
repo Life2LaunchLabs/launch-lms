@@ -21,6 +21,7 @@ const ProfileTimelinePage = async (props: { params: Promise<{ orgslug: string }>
       initialUser={user}
       orgslug={params.orgslug}
       canEdit
+      editMode
     />
   )
 }

@@ -143,8 +143,8 @@ function Courses(props: CourseProps) {
         <ContentPageHeader
           orgslug={props.orgslug}
           tabs={[
-            { href: '/badges', label: 'Discover', active: activeView === 'discover' },
-            { href: '/badges?view=mine', label: 'My Badges', active: activeView === 'mine' },
+            { href: routePaths.org.badges(), label: 'Discover', active: activeView === 'discover' },
+            { href: routePaths.org.myBadges(), label: 'My Badges', active: activeView === 'mine' },
           ]}
         />
         <FeatureDisabledView

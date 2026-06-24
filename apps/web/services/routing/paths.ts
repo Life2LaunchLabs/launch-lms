@@ -83,6 +83,7 @@ export const routePaths = {
     resources: () => '/resources',
     podcasts: () => '/podcasts',
     badges: () => '/badges',
+    myBadges: () => '/mybadges',
     courses: () => '/courses',
     collections: () => '/collections',
     collectionNew: () => '/collections/new',

@@ -48,6 +48,8 @@ test('route manifest builds auth, account, and public org paths used by navigati
   assert.equal(routePaths.org.userResume('jane'), '/user/jane/resume')
   assert.equal(routePaths.org.userTimeline('jane'), '/user/jane/timeline')
   assert.equal(routePaths.org.search('ai prompts'), '/search?q=ai+prompts')
+  assert.equal(routePaths.org.badges(), '/badges')
+  assert.equal(routePaths.org.myBadges(), '/mybadges')
   assert.equal(routePaths.org.course('badge-slug'), '/badges/badge-slug')
   assert.equal(routePaths.org.badgeStatus('badge-slug'), '/badges/badge-slug/badge')
   assert.equal(routePaths.org.badgePath('badge-slug'), '/badges/badge-slug/path')

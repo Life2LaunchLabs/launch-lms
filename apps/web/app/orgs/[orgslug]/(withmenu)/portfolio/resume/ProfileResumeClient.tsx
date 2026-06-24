@@ -27,6 +27,7 @@ import {
   normalizeAchievements as normalizeBadgeAchievements,
   useFeaturedBadges,
 } from '@components/Objects/Portfolio/ProfileAchievements'
+import ContentPageHeader from '@components/Objects/StyledElements/Headers/ContentPageHeader'
 import ResumePrintButton from './ResumePrintButton'
 
 type ResumeTimelineEntry = {
@@ -365,16 +366,37 @@ export default function ProfileResumeClient({
         }
       `}</style>
       <main className="resume-print-root min-h-screen px-4 py-6 sm:px-6 lg:px-8 print:bg-white print:px-0 print:py-0">
-        <div className="resume-no-print mx-auto flex w-full max-w-5xl items-center justify-between gap-3">
-          <Button asChild variant="ghost">
-            <Link href={getUriWithOrg(orgslug, mode === 'owner' ? routePaths.org.portfolio() : routePaths.org.user(profileUsername || user.username))}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to profile
-            </Link>
-          </Button>
-          <div className="flex items-center gap-3">
-            {saving ? <span className="text-sm font-medium text-gray-500">Saving...</span> : null}
-            <ResumePrintButton />
+        <div className="resume-no-print mx-auto flex w-full max-w-5xl flex-col gap-4">
+          <ContentPageHeader
+            orgslug={orgslug}
+            tabs={[
+              {
+                href: mode === 'owner' ? routePaths.org.portfolio() : routePaths.org.user(profileUsername || user.username),
+                label: 'Portfolio',
+              },
+              {
+                href: mode === 'owner' ? routePaths.org.portfolioTimeline() : routePaths.org.userTimeline(profileUsername || user.username),
+                label: 'Timeline',
+              },
+              {
+                href: mode === 'owner' ? routePaths.org.portfolioResume() : routePaths.org.userResume(profileUsername || user.username),
+                label: 'Resume',
+                active: true,
+              },
+            ]}
+            noHorizontalBleed
+          />
+          <div className="flex items-center justify-between gap-3">
+            <Button asChild variant="ghost">
+              <Link href={getUriWithOrg(orgslug, mode === 'owner' ? routePaths.org.portfolio() : routePaths.org.user(profileUsername || user.username))}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to profile
+              </Link>
+            </Button>
+            <div className="flex items-center gap-3">
+              {saving ? <span className="text-sm font-medium text-gray-500">Saving...</span> : null}
+              <ResumePrintButton />
+            </div>
           </div>
         </div>
 

@@ -47,6 +47,14 @@ import GridLayout, { type Layout as ReactGridLayoutItems, verticalCompactor } fr
 import { toast } from 'react-hot-toast'
 import { Button } from '@components/ui/button'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@components/ui/dialog'
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -63,6 +71,7 @@ import {
   type FeaturedSection,
 } from '@components/Objects/Portfolio/ProfilePortfolio'
 import ProfileTimeline, { normalizeTimeline, type TimelineEntry } from '@components/Objects/Portfolio/ProfileTimeline'
+import ContentPageHeader from '@components/Objects/StyledElements/Headers/ContentPageHeader'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { getUserAvatarMediaDirectory, getUserProfileFeaturedMediaDirectory } from '@services/media/media'
@@ -205,12 +214,9 @@ const DEFAULT_PROFILE_LAYOUT: ProfileLayoutItem[] = [
   { id: 'portfolio', type: 'portfolio' },
   { id: 'achievements', type: 'achievements' },
 ]
-const PROFILE_GRID_DESKTOP_COLS = 3
-const PROFILE_GRID_MOBILE_COLS = 2
-const PROFILE_GRID_MOBILE_MAX_WIDTH = 720
+const PROFILE_GRID_COLS = 2
 const PROFILE_GRID_MARGIN: readonly [number, number] = [16, 16]
-const PROFILE_GRID_DESKTOP_ROW_HEIGHT = 131
-const PROFILE_GRID_MOBILE_ROW_HEIGHT = 131
+const PROFILE_GRID_ROW_HEIGHT = 131
 const PROFILE_GRID_DROP_SIZE: Pick<ProfileGridPosition, 'w' | 'h'> = { w: 1, h: 1 }
 
 const PROFILE_WIDGET_CONFIG: Record<ProfileWidgetType, {
@@ -289,7 +295,7 @@ function clampProfileGridPosition(
   grid: Partial<ProfileGridPosition> | undefined,
   type: ProfileWidgetType,
   index: number,
-  cols = PROFILE_GRID_DESKTOP_COLS
+  cols = PROFILE_GRID_COLS
 ): ProfileGridPosition {
   const defaults = getProfileGridDefaultSize(type)
   const w = Math.min(cols, Math.max(1, Number(grid?.w || defaults.w)))
@@ -299,8 +305,8 @@ function clampProfileGridPosition(
   return { x, y, w, h }
 }
 
-function getProfileGridKey(cols: number): ProfileGridKey {
-  return cols <= PROFILE_GRID_MOBILE_COLS ? 'mobileGrid' : 'grid'
+function getProfileGridKey(_cols: number): ProfileGridKey {
+  return 'mobileGrid'
 }
 
 function getProfileGridForItem(
@@ -318,7 +324,7 @@ function getProfileGridForItem(
 function profileLayoutToGridLayout(
   layout: ProfileLayoutItem[],
   canEdit: boolean,
-  cols = PROFILE_GRID_DESKTOP_COLS,
+  cols = PROFILE_GRID_COLS,
   gridKey = getProfileGridKey(cols)
 ): ReactGridLayoutItems {
   return layout.map((item, index) => {
@@ -340,7 +346,7 @@ function profileLayoutToGridLayout(
 function mergeGridIntoProfile(
   profile: ProfileShape,
   nextGridLayout: ReactGridLayoutItems,
-  cols = PROFILE_GRID_DESKTOP_COLS,
+  cols = PROFILE_GRID_COLS,
   gridKey = getProfileGridKey(cols)
 ): ProfileShape {
   const gridById = new Map(nextGridLayout.map((item) => [item.i, item]))
@@ -355,7 +361,7 @@ function mergeGridIntoProfile(
   return { ...profile, layout }
 }
 
-function compactProfileGridLayout(layout: ReactGridLayoutItems, cols = PROFILE_GRID_DESKTOP_COLS): ReactGridLayoutItems {
+function compactProfileGridLayout(layout: ReactGridLayoutItems, cols = PROFILE_GRID_COLS): ReactGridLayoutItems {
   return verticalCompactor.compact(layout, cols) as ReactGridLayoutItems
 }
 
@@ -375,7 +381,7 @@ function normalizeProfileLayout(layout: any): ProfileLayoutItem[] {
         type,
         courseUuid,
         grid,
-        mobileGrid: item?.mobileGrid ? clampProfileGridPosition(item.mobileGrid, type, items.length, PROFILE_GRID_MOBILE_COLS) : undefined,
+        mobileGrid: item?.mobileGrid ? clampProfileGridPosition(item.mobileGrid, type, items.length, PROFILE_GRID_COLS) : undefined,
       })
       return items
     }
@@ -395,7 +401,7 @@ function normalizeProfileLayout(layout: any): ProfileLayoutItem[] {
         questionUuid: questionUuid || undefined,
         hiddenQuestionUuids,
         grid,
-        mobileGrid: item?.mobileGrid ? clampProfileGridPosition(item.mobileGrid, type, items.length, PROFILE_GRID_MOBILE_COLS) : undefined,
+        mobileGrid: item?.mobileGrid ? clampProfileGridPosition(item.mobileGrid, type, items.length, PROFILE_GRID_COLS) : undefined,
       })
       return items
     }
@@ -406,7 +412,7 @@ function normalizeProfileLayout(layout: any): ProfileLayoutItem[] {
         id: type,
         type,
         grid,
-        mobileGrid: item?.mobileGrid ? clampProfileGridPosition(item.mobileGrid, type, items.length, PROFILE_GRID_MOBILE_COLS) : undefined,
+        mobileGrid: item?.mobileGrid ? clampProfileGridPosition(item.mobileGrid, type, items.length, PROFILE_GRID_COLS) : undefined,
       })
       return items
     }
@@ -414,14 +420,14 @@ function normalizeProfileLayout(layout: any): ProfileLayoutItem[] {
       id: item?.id || createProfileLayoutItem(type).id,
       type,
       grid,
-      mobileGrid: item?.mobileGrid ? clampProfileGridPosition(item.mobileGrid, type, items.length, PROFILE_GRID_MOBILE_COLS) : undefined,
+      mobileGrid: item?.mobileGrid ? clampProfileGridPosition(item.mobileGrid, type, items.length, PROFILE_GRID_COLS) : undefined,
     })
     return items
   }, [])
   return normalized.map((item, index) => ({
     ...item,
     grid: clampProfileGridPosition(item.grid, item.type, index),
-    mobileGrid: item.mobileGrid ? clampProfileGridPosition(item.mobileGrid, item.type, index, PROFILE_GRID_MOBILE_COLS) : undefined,
+    mobileGrid: item.mobileGrid ? clampProfileGridPosition(item.mobileGrid, item.type, index, PROFILE_GRID_COLS) : undefined,
   }))
 }
 
@@ -1235,6 +1241,366 @@ function hasFilledCustomSection(section: ProfileCustomSection | undefined, type?
     (section.body || '').trim() ||
     (section.url || '').trim() ||
     (section.mediaUrl || '').trim()
+  )
+}
+
+function getProfileDisplayName(firstName?: string, lastName?: string, username?: string) {
+  const name = [firstName, lastName].map((part) => part?.trim()).filter(Boolean).join(' ')
+  return name || username || 'Your portfolio'
+}
+
+function ProfileSocialCircle({
+  social,
+  type,
+  asButton = false,
+  onClick,
+}: {
+  social?: SocialLink
+  type: SocialType
+  asButton?: boolean
+  onClick?: () => void
+}) {
+  const config = SOCIAL_CONFIG[type]
+  const Icon = config.icon
+  const className = "flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white shadow-sm ring-2 ring-white transition-all hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+  const style = getSocialBubbleStyle(type)
+
+  if (asButton) {
+    return (
+      <button
+        type="button"
+        aria-label={`Add ${config.label}`}
+        title={`Add ${config.label}`}
+        onClick={onClick}
+        className={className}
+        style={style}
+      >
+        <Icon className="h-5 w-5" />
+      </button>
+    )
+  }
+
+  if (!social?.url) return null
+
+  return (
+    <a
+      href={getSocialHref(social)}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={config.label}
+      title={config.label}
+      onClick={(event) => event.stopPropagation()}
+      className={className}
+      style={style}
+    >
+      <Icon className="h-5 w-5" />
+    </a>
+  )
+}
+
+function SimpleProfileHeader({
+  orgslug,
+  user,
+  draft,
+  avatarUrl,
+  socials,
+  canManageProfile,
+  isSaving,
+  canSeedDevProfile,
+  onOpen,
+  onCopyProfileLink,
+  onSeedDevProfile,
+}: {
+  orgslug: string
+  user: any
+  draft: {
+    first_name: string
+    last_name: string
+    username: string
+    bio: string
+  }
+  avatarUrl: string
+  socials: SocialLink[]
+  canManageProfile: boolean
+  isSaving: boolean
+  canSeedDevProfile: boolean
+  onOpen: () => void
+  onCopyProfileLink: () => void
+  onSeedDevProfile: () => void
+}) {
+  const firstName = canManageProfile ? draft.first_name : user.first_name
+  const lastName = canManageProfile ? draft.last_name : user.last_name
+  const bio = canManageProfile ? draft.bio : user.bio
+  const username = user.username || draft.username
+  const visibleSocials = socials.filter((social) => social.url)
+
+  return (
+    <section className="py-6">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onOpen}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            onOpen()
+          }
+        }}
+        className="group grid cursor-pointer items-center gap-6 rounded-2xl border border-transparent p-5 transition-all duration-200 hover:-translate-y-1 hover:border-gray-200 hover:shadow-xl hover:shadow-gray-950/10 focus:outline-none focus:ring-2 focus:ring-gray-300 sm:grid-cols-[minmax(0,1fr)_160px] sm:p-6"
+        aria-label="Open profile header"
+      >
+        <div className="min-w-0 text-center sm:text-left">
+          <h1 className="text-4xl font-black leading-tight text-gray-950 sm:text-5xl">
+            {getProfileDisplayName(firstName, lastName, username)}
+          </h1>
+          <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-gray-600 line-clamp-2 sm:mx-0 sm:text-base">
+            {bio?.trim() ? bio : 'Add a short profile bio.'}
+          </p>
+
+          {visibleSocials.length > 0 ? (
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-3 sm:justify-start">
+              {visibleSocials.map((social) => (
+                <ProfileSocialCircle key={social.type} social={social} type={social.type} />
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="order-first flex justify-center sm:order-none sm:justify-end">
+          <div className="h-36 w-36 overflow-hidden rounded-full bg-gray-100 shadow-lg shadow-gray-950/10 ring-4 ring-white transition-transform duration-200 group-hover:scale-[1.02] sm:h-40 sm:w-40">
+            <img
+              src={avatarUrl || '/empty_avatar.png'}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center justify-start gap-2">
+        {canSeedDevProfile ? (
+          <Button type="button" variant="outline" onClick={onSeedDevProfile} disabled={isSaving}>
+            {isSaving ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Sparkles size={16} className="mr-2" />}
+            Cheat Portfolio
+          </Button>
+        ) : null}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="outline">
+              <Share2 size={16} className="mr-2" />
+              Share
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem onClick={onCopyProfileLink}>
+              <Copy className="h-4 w-4" />
+              <span>Copy link</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </section>
+  )
+}
+
+function ProfileHeaderModal({
+  open,
+  onOpenChange,
+  user,
+  draft,
+  avatarUrl,
+  socials,
+  missingSocialTypes,
+  canManageProfile,
+  isSaving,
+  uploadingAvatar,
+  onAvatarChange,
+  onDraftChange,
+  onAddSocial,
+  onUpdateSocial,
+  onRemoveSocial,
+  onSave,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  user: any
+  draft: {
+    first_name: string
+    last_name: string
+    username: string
+    bio: string
+  }
+  avatarUrl: string
+  socials: SocialLink[]
+  missingSocialTypes: SocialType[]
+  canManageProfile: boolean
+  isSaving: boolean
+  uploadingAvatar: boolean
+  onAvatarChange(event: React.ChangeEvent<HTMLInputElement>): void
+  onDraftChange(patch: Partial<typeof draft>): void
+  onAddSocial(type: SocialType): void
+  onUpdateSocial(type: SocialType, url: string): void
+  onRemoveSocial(type: SocialType): void
+  onSave(): Promise<boolean>
+}) {
+  const displayName = getProfileDisplayName(
+    canManageProfile ? draft.first_name : user.first_name,
+    canManageProfile ? draft.last_name : user.last_name,
+    user.username || draft.username
+  )
+  const visibleSocials = canManageProfile ? socials : socials.filter((social) => social.url)
+  const avatarInputId = `profile-header-modal-avatar-${user.id}`
+
+  const saveAndClose = async () => {
+    const saved = await onSave()
+    if (saved) onOpenChange(false)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[92vh] max-w-2xl overflow-y-auto p-0">
+        <DialogHeader className="px-6 pt-6">
+          <DialogTitle>{canManageProfile ? 'Edit profile header' : displayName}</DialogTitle>
+          <DialogDescription>
+            {canManageProfile ? 'Update the public profile details shown at the top of your portfolio.' : 'Full profile bio'}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-6 px-6 py-5">
+          <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
+            <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-full bg-gray-100 shadow-md ring-4 ring-white">
+              <img src={avatarUrl || '/empty_avatar.png'} alt="" className="h-full w-full object-cover" />
+              {canManageProfile ? (
+                <>
+                  <input
+                    id={avatarInputId}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    className="hidden"
+                    onChange={onAvatarChange}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById(avatarInputId)?.click()}
+                    className="absolute inset-x-0 bottom-0 flex h-10 items-center justify-center bg-black/55 text-white transition-colors hover:bg-black/70"
+                    aria-label="Upload profile photo"
+                  >
+                    {uploadingAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                  </button>
+                </>
+              ) : null}
+            </div>
+
+            <div className="min-w-0 flex-1 space-y-3">
+              {canManageProfile ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Input
+                    value={draft.first_name}
+                    onChange={(event) => onDraftChange({ first_name: event.target.value })}
+                    placeholder="First name"
+                    className="bg-white"
+                  />
+                  <Input
+                    value={draft.last_name}
+                    onChange={(event) => onDraftChange({ last_name: event.target.value })}
+                    placeholder="Last name"
+                    className="bg-white"
+                  />
+                </div>
+              ) : (
+                <h2 className="text-3xl font-black leading-tight text-gray-950">{displayName}</h2>
+              )}
+            </div>
+          </div>
+
+          {canManageProfile ? (
+            <Textarea
+              value={draft.bio}
+              onChange={(event) => onDraftChange({ bio: event.target.value })}
+              placeholder="Tell people who you are and what you are building."
+              rows={6}
+              maxLength={1200}
+              className="min-h-40 resize-y bg-white text-base leading-7"
+            />
+          ) : (
+            <p className="whitespace-pre-wrap text-base leading-7 text-gray-700">
+              {user.bio?.trim() || 'No bio yet.'}
+            </p>
+          )}
+
+          {canManageProfile ? (
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-3">
+                {visibleSocials.map((social) => {
+                  const config = SOCIAL_CONFIG[social.type]
+                  const Icon = config.icon
+                  return (
+                    <div
+                      key={social.type}
+                      className="flex min-h-11 min-w-[230px] flex-1 items-center gap-2 rounded-full px-3 text-white shadow-sm ring-2 ring-white sm:max-w-[300px]"
+                      style={getSocialBubbleStyle(social.type)}
+                    >
+                      <Icon className="h-5 w-5 shrink-0" />
+                      <span className="shrink-0 text-xs font-semibold text-white/80">{config.inputPrefix}</span>
+                      <Input
+                        value={getSocialInputValue(social.type, social.url)}
+                        onChange={(event) => onUpdateSocial(social.type, normalizeSocialInput(social.type, event.target.value))}
+                        onPaste={(event) => {
+                          event.preventDefault()
+                          onUpdateSocial(social.type, normalizeSocialInput(social.type, event.clipboardData.getData('text')))
+                        }}
+                        placeholder={config.inputPlaceholder}
+                        className="h-8 min-w-0 border-0 bg-transparent px-0 text-sm text-white shadow-none placeholder:text-white/70 focus-visible:ring-0"
+                        autoComplete="url"
+                      />
+                      <button
+                        type="button"
+                        aria-label={`Remove ${config.label}`}
+                        onClick={() => onRemoveSocial(social.type)}
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white/85 hover:bg-white/15 hover:text-white"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {missingSocialTypes.length > 0 ? (
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Links</p>
+                  <div className="flex flex-wrap gap-3">
+                    {missingSocialTypes.map((type) => (
+                      <ProfileSocialCircle
+                        key={type}
+                        type={type}
+                        asButton
+                        onClick={() => onAddSocial(type)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : visibleSocials.length > 0 ? (
+            <div className="flex flex-wrap gap-3">
+              {visibleSocials.map((social) => (
+                <ProfileSocialCircle key={social.type} social={social} type={social.type} />
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        {canManageProfile ? (
+          <DialogFooter className="border-t border-gray-100 px-6 py-4">
+            <Button type="button" onClick={saveAndClose} disabled={isSaving}>
+              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+              Save
+            </Button>
+          </DialogFooter>
+        ) : null}
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -2778,7 +3144,6 @@ function ProfilePageClient({
   const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
-  const bioTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const profileContentRef = useRef<HTMLDivElement | null>(null)
   const profileGridRef = useRef<HTMLDivElement | null>(null)
   const draftProfileRef = useRef<ProfileShape>(normalizeProfile(initialUser.profile))
@@ -2795,8 +3160,7 @@ function ProfilePageClient({
   }))
   const [isSaving, setIsSaving] = useState(false)
   const [uploading, setUploading] = useState<'avatar' | `media:${string}` | null>(null)
-  const [bioExpanded, setBioExpanded] = useState(false)
-  const [socialsExpanded, setSocialsExpanded] = useState(false)
+  const [headerModalOpen, setHeaderModalOpen] = useState(false)
   const [addTrayOpen, setAddTrayOpen] = useState(false)
   const [trayDraftItem, setTrayDraftItem] = useState<ProfileLayoutItem | null>(null)
   const [trayDropMode, setTrayDropMode] = useState(false)
@@ -2825,19 +3189,13 @@ function ProfilePageClient({
   const timelineEnabled = profile.timelineEnabled ?? false
   const timelinePublicVisible = profile.timelinePublicVisible !== false
   const layout = contentProfile.layout || DEFAULT_PROFILE_LAYOUT
-  const profileGridCols = profileGridWidth > 0 && profileGridWidth <= PROFILE_GRID_MOBILE_MAX_WIDTH
-    ? PROFILE_GRID_MOBILE_COLS
-    : PROFILE_GRID_DESKTOP_COLS
+  const profileGridCols = PROFILE_GRID_COLS
   const profileGridKey = getProfileGridKey(profileGridCols)
   const gridLayout = useMemo(
     () => profileLayoutToGridLayout(layout, canManageProfile, profileGridCols, profileGridKey),
     [layout, canManageProfile, profileGridCols, profileGridKey]
   )
-  const profileGridRowHeight = useMemo(() => {
-    return profileGridCols <= PROFILE_GRID_MOBILE_COLS
-      ? PROFILE_GRID_MOBILE_ROW_HEIGHT
-      : PROFILE_GRID_DESKTOP_ROW_HEIGHT
-  }, [profileGridCols])
+  const profileGridRowHeight = PROFILE_GRID_ROW_HEIGHT
   const coreCourses: any[] = []
   const usedUniqueTypes = useMemo(
     () => new Set(layout.filter((item) => UNIQUE_PROFILE_WIDGETS.includes(item.type)).map((item) => item.type)),
@@ -2854,7 +3212,6 @@ function ProfilePageClient({
     ? getUserAvatarMediaDirectory(user.user_uuid, user.avatar_image)
     : ''
   const publicProfileHref = getUriWithOrg(orgslug, routePaths.org.user(user.username))
-  const resumeHref = getUriWithOrg(orgslug, routePaths.org.portfolioResume())
   const timelineHref = getUriWithOrg(
     orgslug,
     isPublicMode
@@ -2868,24 +3225,6 @@ function ProfilePageClient({
     ),
     [socials]
   )
-
-  useEffect(() => {
-    if (!socialsExpanded) return
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as HTMLElement | null
-      if (target?.closest('[data-profile-socials="true"]')) return
-      setSocialsExpanded(false)
-    }
-    document.addEventListener('pointerdown', handlePointerDown)
-    return () => document.removeEventListener('pointerdown', handlePointerDown)
-  }, [socialsExpanded])
-
-  useEffect(() => {
-    const textarea = bioTextareaRef.current
-    if (!textarea || !canManageProfile) return
-    textarea.style.height = 'auto'
-    textarea.style.height = `${textarea.scrollHeight}px`
-  }, [draft.bio, canManageProfile])
 
   useEffect(() => {
     draftProfileRef.current = draft.profile
@@ -2961,15 +3300,13 @@ function ProfilePageClient({
   }
 
   const removeSocial = (type: SocialType) => {
-    const nextProfile = {
-      ...draft.profile,
+    updateDraftProfile((current) => ({
+      ...current,
       header: {
-        ...(draft.profile.header || {}),
-        socials: (draft.profile.header?.socials || []).filter((social) => social.type !== type),
+        ...(current.header || {}),
+        socials: (current.header?.socials || []).filter((social) => social.type !== type),
       },
-    }
-    updateDraftProfile(nextProfile)
-    void persistProfile({ profileOverride: nextProfile })
+    }))
   }
 
   const clearTrayDraft = () => {
@@ -3134,30 +3471,6 @@ function ProfilePageClient({
     return persistProfile()
   }
 
-  const saveNameField = async (field: 'first_name' | 'last_name') => {
-    const nextFirstName = field === 'first_name' ? draft.first_name.trim() : draft.first_name
-    const nextLastName = field === 'last_name' ? draft.last_name.trim() : draft.last_name
-    const currentFirstName = user.first_name || ''
-    const currentLastName = user.last_name || ''
-
-    if (nextFirstName === currentFirstName && nextLastName === currentLastName) return
-
-    setDraft((current) => ({
-      ...current,
-      first_name: nextFirstName,
-      last_name: nextLastName,
-    }))
-    await persistProfile({
-      firstNameOverride: nextFirstName,
-      lastNameOverride: nextLastName,
-    })
-  }
-
-  const saveBioField = async () => {
-    if ((draft.bio || '') === (user.bio || '')) return
-    await persistProfile({ bioOverride: draft.bio })
-  }
-
   const createPortfolioPost = async () => {
     if ((featured.cards || []).length >= 10) {
       toast.error('Portfolio is capped at 10 posts')
@@ -3279,8 +3592,7 @@ function ProfilePageClient({
     if (type === 'coreCourse' && !courseUuid) return
     if (PROFILE_WIDGET_CONFIG[type].unique && layout.some((item) => item.type === type)) return
     const item = createProfileLayoutItem(type, courseUuid, activityUuid, questionUuid)
-    item.grid = clampProfileGridPosition(PROFILE_GRID_DROP_SIZE, type, layout.length, PROFILE_GRID_DESKTOP_COLS)
-    item.mobileGrid = clampProfileGridPosition(PROFILE_GRID_DROP_SIZE, type, layout.length, PROFILE_GRID_MOBILE_COLS)
+    item.mobileGrid = clampProfileGridPosition(PROFILE_GRID_DROP_SIZE, type, layout.length, PROFILE_GRID_COLS)
     const section = createProfileSection(item)
     const nextProfile = {
       ...draft.profile,
@@ -3299,8 +3611,7 @@ function ProfilePageClient({
     if (PROFILE_WIDGET_CONFIG[type].unique && layout.some((item) => item.type === type)) return
     const item = createProfileLayoutItem(type, courseUuid, activityUuid, questionUuid)
     const itemIndex = (draftProfileRef.current.layout || DEFAULT_PROFILE_LAYOUT).length
-    item.grid = clampProfileGridPosition(PROFILE_GRID_DROP_SIZE, type, itemIndex, PROFILE_GRID_DESKTOP_COLS)
-    item.mobileGrid = clampProfileGridPosition(PROFILE_GRID_DROP_SIZE, type, itemIndex, PROFILE_GRID_MOBILE_COLS)
+    item.mobileGrid = clampProfileGridPosition(PROFILE_GRID_DROP_SIZE, type, itemIndex, PROFILE_GRID_COLS)
 
     event.dataTransfer.effectAllowed = 'copy'
     event.dataTransfer.dropEffect = 'copy'
@@ -3393,15 +3704,9 @@ function ProfilePageClient({
       (draftProfileRef.current.layout || DEFAULT_PROFILE_LAYOUT).length,
       profileGridCols
     )
-    const desktopGrid = profileGridKey === 'grid'
-      ? clampProfileGridPosition(droppedGrid, item.type, 0, PROFILE_GRID_DESKTOP_COLS)
-      : clampProfileGridPosition(item.grid, item.type, 0, PROFILE_GRID_DESKTOP_COLS)
-    const mobileGrid = profileGridKey === 'mobileGrid'
-      ? clampProfileGridPosition(droppedGrid, item.type, 0, PROFILE_GRID_MOBILE_COLS)
-      : clampProfileGridPosition(item.mobileGrid || item.grid, item.type, 0, PROFILE_GRID_MOBILE_COLS)
+    const mobileGrid = clampProfileGridPosition(droppedGrid, item.type, 0, PROFILE_GRID_COLS)
     const nextItem = {
       ...item,
-      grid: desktopGrid,
       mobileGrid,
     }
     const section = createProfileSection(nextItem)
@@ -3603,183 +3908,50 @@ function ProfilePageClient({
             </Button>
           </div>
         ) : null}
-        <section className="relative px-4 py-6 sm:px-0">
-          <div className="flex flex-col gap-5 sm:grid sm:grid-cols-2 sm:items-start sm:gap-8">
-            <div className="w-full shrink-0 sm:order-2">
-              <div className="relative w-full sm:hidden">
-                <ProfileHeaderAvatar
-                  size={198}
-                  avatarUrl={avatarUrl || getUriWithOrg(orgslug, '/empty_avatar.png')}
-                  socials={socials}
-                  userId={user.id}
-                  lastName={canManageProfile ? draft.last_name : user.last_name}
-                  showNameCutout={!canManageProfile}
-                  fullWidth
-                  canEditSocials={canManageProfile}
-                  socialsExpanded={socialsExpanded}
-                  uploading={uploading === 'avatar'}
-                  missingSocialTypes={missingSocialTypes}
-                  onAvatarChange={handleAvatarChange}
-                  onAddSocial={addSocial}
-                  onUpdateSocial={updateSocial}
-                  onRemoveSocial={removeSocial}
-                  onSocialsFocus={() => setSocialsExpanded(true)}
-                  onSocialsBlur={() => undefined}
-                  onSaveSocials={() => void persistProfile()}
-                />
-              </div>
-              <div className="hidden w-full sm:block">
-                <ProfileHeaderAvatar
-                  size={270}
-                  avatarUrl={avatarUrl || getUriWithOrg(orgslug, '/empty_avatar.png')}
-                  socials={socials}
-                  userId={user.id}
-                  firstName={canManageProfile ? draft.first_name : user.first_name}
-                  lastName={canManageProfile ? draft.last_name : user.last_name}
-                  fullWidth
-                  socialScale={AVATAR_SOCIAL_SCALE * 1.5}
-                  canEditSocials={canManageProfile}
-                  socialsExpanded={socialsExpanded}
-                  uploading={uploading === 'avatar'}
-                  missingSocialTypes={missingSocialTypes}
-                  onAvatarChange={handleAvatarChange}
-                  onAddSocial={addSocial}
-                  onUpdateSocial={updateSocial}
-                  onRemoveSocial={removeSocial}
-                  onSocialsFocus={() => setSocialsExpanded(true)}
-                  onSocialsBlur={() => undefined}
-                  onSaveSocials={() => void persistProfile()}
-                />
-              </div>
-            </div>
-
-            <div className="min-w-0 flex-1 space-y-4 sm:order-1 sm:text-right">
-              <div className="min-w-0">
-                <div className="flex min-w-0 items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    {canManageProfile ? (
-                      <>
-                        <EditableProfileNameStack
-                          firstName={draft.first_name}
-                          lastName={draft.last_name}
-                          maxRem={4.25}
-                          minRem={2.25}
-                          className="sm:hidden"
-                          onFirstNameChange={(value) => setDraft((current) => ({ ...current, first_name: value }))}
-                          onLastNameChange={(value) => setDraft((current) => ({ ...current, last_name: value }))}
-                          onFirstNameBlur={() => void saveNameField('first_name')}
-                          onLastNameBlur={() => void saveNameField('last_name')}
-                        />
-                        <EditableProfileNameStack
-                          firstName={draft.first_name}
-                          lastName={draft.last_name}
-                          maxRem={8.5}
-                          minRem={3.5}
-                          align="right"
-                          className="hidden sm:block"
-                          onFirstNameChange={(value) => setDraft((current) => ({ ...current, first_name: value }))}
-                          onLastNameChange={(value) => setDraft((current) => ({ ...current, last_name: value }))}
-                          onFirstNameBlur={() => void saveNameField('first_name')}
-                          onLastNameBlur={() => void saveNameField('last_name')}
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <ProfileNameStack
-                          firstName={user.first_name}
-                          lastName={user.last_name}
-                          maxRem={4.25}
-                          minRem={2.25}
-                          className="sm:hidden"
-                        />
-                        <ProfileNameStack
-                          firstName={user.first_name}
-                          lastName={user.last_name}
-                          maxRem={8.5}
-                          minRem={3.5}
-                          align="right"
-                          className="hidden sm:block"
-                        />
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="group relative max-w-2xl sm:ml-auto sm:w-3/4 sm:max-w-none">
-                {canManageProfile ? (
-                  <Textarea
-                    ref={bioTextareaRef}
-                    value={draft.bio}
-                    onChange={(event) => setDraft((current) => ({ ...current, bio: event.target.value }))}
-                    onFocus={() => setSocialsExpanded(false)}
-                    onBlur={() => void saveBioField()}
-                    placeholder="Write a short profile"
-                    rows={1}
-                    className="min-h-[1.75rem] resize-none overflow-hidden border-0 bg-transparent px-0 py-0 text-base leading-7 text-gray-700 shadow-none outline-none ring-0 transition-colors placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 sm:text-right"
-                    maxLength={400}
-                  />
-                ) : user.bio ? (
-                  <>
-                    <p className={`overflow-hidden pr-12 text-base leading-7 text-gray-700 transition-[max-height] duration-300 ${
-                      bioExpanded ? 'max-h-[640px]' : 'max-h-24'
-                    }`}>
-                      {user.bio}
-                    </p>
-                    {user.bio.length > 180 ? (
-                      <button
-                        type="button"
-                        onClick={() => setBioExpanded((current) => !current)}
-                        className="mt-1 text-sm font-medium text-gray-950 hover:underline"
-                      >
-                        {bioExpanded ? 'Show less' : 'Show more'}
-                      </button>
-                    ) : null}
-                  </>
-                ) : (
-                  <p className="pr-12 text-base leading-7 text-gray-400">Add a short profile bio.</p>
-                )}
-              </div>
-              {(canManageProfile || isPublicMode) ? (
-                <div className="border-t border-gray-200 pt-3 sm:ml-auto sm:w-3/4">
-                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                    {canSeedDevProfile ? (
-                      <Button type="button" variant="outline" onClick={seedDevProfile} disabled={isSaving}>
-                        {isSaving ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Sparkles size={16} className="mr-2" />}
-                        Cheat Portfolio
-                      </Button>
-                    ) : null}
-                    {canManageProfile ? (
-                      <Button asChild variant="outline">
-                        <Link href={resumeHref}>
-                          <FileText size={16} className="mr-2" />
-                          Resume
-                        </Link>
-                      </Button>
-                    ) : null}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button type="button" variant="outline">
-                          <Share2 size={16} className="mr-2" />
-                          Share
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44">
-                        <DropdownMenuItem onClick={copyProfileLink}>
-                          <Copy className="h-4 w-4" />
-                          <span>Copy link</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </section>
+        <ProfileHeaderModal
+          open={headerModalOpen}
+          onOpenChange={setHeaderModalOpen}
+          user={user}
+          draft={draft}
+          avatarUrl={avatarUrl || getUriWithOrg(orgslug, '/empty_avatar.png')}
+          socials={socials}
+          missingSocialTypes={missingSocialTypes}
+          canManageProfile={canManageProfile}
+          isSaving={isSaving}
+          uploadingAvatar={uploading === 'avatar'}
+          onAvatarChange={handleAvatarChange}
+          onDraftChange={(patch) => setDraft((current) => ({ ...current, ...patch }))}
+          onAddSocial={addSocial}
+          onUpdateSocial={updateSocial}
+          onRemoveSocial={removeSocial}
+          onSave={handleSave}
+        />
         {activeTab === 'overview' ? (
           <div className="grid gap-6 px-4 pb-10 sm:px-0 lg:grid-cols-[minmax(0,1fr)_280px]">
-            <div ref={profileGridRef} className="min-w-0">
+            <div className="min-w-0">
+              <ContentPageHeader
+                orgslug={orgslug}
+                tabs={[
+                  { href: routePaths.org.portfolio(), label: 'Portfolio', active: true },
+                  { href: routePaths.org.portfolioTimeline(), label: 'Timeline' },
+                  { href: routePaths.org.portfolioResume(), label: 'Resume' },
+                ]}
+                noHorizontalBleed
+              />
+              <SimpleProfileHeader
+                orgslug={orgslug}
+                user={user}
+                draft={draft}
+                avatarUrl={avatarUrl || getUriWithOrg(orgslug, '/empty_avatar.png')}
+                socials={socials}
+                canManageProfile={canManageProfile}
+                isSaving={isSaving}
+                canSeedDevProfile={canSeedDevProfile}
+                onOpen={() => setHeaderModalOpen(true)}
+                onCopyProfileLink={copyProfileLink}
+                onSeedDevProfile={seedDevProfile}
+              />
+              <div ref={profileGridRef} className="min-w-0">
               {profileGridWidth > 0 ? (
                 <GridLayout
                   key={`profile-grid-${profileGridCols}-${gridDropResetKey}`}
@@ -3892,6 +4064,7 @@ function ProfilePageClient({
                 })}
                 </GridLayout>
               ) : null}
+              </div>
             </div>
             {canManageProfile ? (
               <div className="lg:sticky lg:top-6 lg:self-start">

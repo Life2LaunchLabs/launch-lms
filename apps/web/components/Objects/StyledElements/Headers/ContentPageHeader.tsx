@@ -63,7 +63,11 @@ function ContentPageHeader({
           </button>
         )}
         {hasTabs ? (
-          <nav className="grid h-14 w-full max-w-md grid-cols-2" aria-label="Badge views">
+          <nav
+            className="grid h-14 w-full max-w-md"
+            style={{ gridTemplateColumns: `repeat(${tabs?.length || 1}, minmax(0, 1fr))` }}
+            aria-label="Page views"
+          >
             {tabs?.map((tab) => (
               <Link
                 key={tab.href}
