@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Briefcase, GraduationCap, Heart, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Briefcase, Flag, GraduationCap, Heart, Image as ImageIcon, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { Button } from '@components/ui/button'
 import { Input } from '@components/ui/input'
@@ -34,20 +34,10 @@ export type TimelineEntry = {
   isOngoing?: boolean
   employer?: string
   institution?: string
-}
-
-type TimelineModalState = {
-  open: boolean
-  mode: 'create' | 'edit'
-  category: TimelineCategory
-  entryId?: string
-}
-
-type MonthMarker = {
-  key: string
-  year: number
-  month: number
-  top: number
+  status?: string
+  quote?: string
+  quoteAuthor?: string
+  mediaUrls?: string[]
 }
 
 type ProfileTimelineProps = {
@@ -67,82 +57,59 @@ type ProfileTimelineProps = {
   onUserChange?: (user: any) => void
 }
 
-type ProfileTimelineSummaryProps = {
-  timeline: TimelineEntry[]
-  orgslug: string
-  profileUsername?: string
-  editMode?: boolean
-  canEdit?: boolean
-  enabled?: boolean
-  publicVisible?: boolean
-  // eslint-disable-next-line no-unused-vars
-  onEnabledChange?: (enabled: boolean) => void
-  // eslint-disable-next-line no-unused-vars
-  onPublicVisibleChange?: (visible: boolean) => void
+type TimelineDialogState = {
+  open: boolean
+  mode: 'create' | 'view'
 }
 
-type TimelineEntryModalProps = {
+type TimelineEntryDialogProps = {
   open: boolean
   entry: TimelineEntry
+  canEdit: boolean
   saving: boolean
+  mode: 'create' | 'view'
   // eslint-disable-next-line no-unused-vars
-  onOpenChange: (...args: [boolean]) => void
+  onOpenChange: (open: boolean) => void
   // eslint-disable-next-line no-unused-vars
-  onChange: (...args: [TimelineEntry]) => void
+  onChange: (entry: TimelineEntry) => void
   onSave: () => void
   onDelete: (() => void) | null
 }
 
+const MONTH_FORMATTER = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' })
+const CATEGORY_ORDER: TimelineCategory[] = ['work', 'life', 'education']
+
 const CATEGORY_CONFIG: Record<TimelineCategory, {
   label: string
-  singular: string
-  accent: string
-  softAccent: string
-  text: string
-  icon: React.ComponentType<{ className?: string }>
   detailLabel: string
+  icon: React.ComponentType<{ className?: string }>
+  accent: string
+  dot: string
 }> = {
   work: {
     label: 'Work',
-    singular: 'work entry',
-    accent: 'bg-sky-500',
-    softAccent: 'bg-sky-50',
-    text: 'text-sky-700',
-    icon: Briefcase,
     detailLabel: 'Employer',
-  },
-  education: {
-    label: 'Education',
-    singular: 'education entry',
-    accent: 'bg-emerald-500',
-    softAccent: 'bg-emerald-50',
-    text: 'text-emerald-700',
-    icon: GraduationCap,
-    detailLabel: 'Institution',
+    icon: Briefcase,
+    accent: '#39bf00',
+    dot: 'bg-[#39bf00]',
   },
   life: {
     label: 'Life',
-    singular: 'life entry',
-    accent: 'bg-rose-500',
-    softAccent: 'bg-rose-50',
-    text: 'text-rose-700',
-    icon: Heart,
     detailLabel: '',
+    icon: Heart,
+    accent: '#ef4444',
+    dot: 'bg-red-500',
+  },
+  education: {
+    label: 'Learning',
+    detailLabel: 'Institution',
+    icon: GraduationCap,
+    accent: '#0ea5e9',
+    dot: 'bg-sky-500',
   },
 }
 
-const COLUMN_ORDER: TimelineCategory[] = ['work', 'education', 'life']
-const TIMELINE_CARD_WIDTH = 220
-const TIMELINE_LANE_GAP = 12
-const TIMELINE_COLUMN_PADDING = 24
-const TIMELINE_LABEL_COLUMN_WIDTH = 48
-const TIMELINE_DEFAULT_MONTH_HEIGHT = 16
-const TIMELINE_ENDPOINT_MONTH_HEIGHT = 28
-const MIN_TIMELINE_CARD_HEIGHT = 136
-const MONTH_FORMATTER = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' })
-const MONTH_ONLY_FORMATTER = new Intl.DateTimeFormat('en-US', { month: 'short' })
-
-function createEmptyEntry(category: TimelineCategory): TimelineEntry {
+function createEmptyEntry(category: TimelineCategory = 'work'): TimelineEntry {
   return {
     id: `timeline-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     category,
@@ -153,6 +120,10 @@ function createEmptyEntry(category: TimelineCategory): TimelineEntry {
     isOngoing: false,
     employer: '',
     institution: '',
+    status: '',
+    quote: '',
+    quoteAuthor: '',
+    mediaUrls: [],
   }
 }
 
@@ -168,13 +139,20 @@ function parseProfileValue(profile: any) {
   return profile
 }
 
+function normalizeMediaUrls(value: any): string[] {
+  if (!Array.isArray(value)) return []
+  return value.map((url) => String(url || '').trim()).filter(Boolean).slice(0, 4)
+}
+
 export function normalizeTimeline(timeline: any): TimelineEntry[] {
   if (!Array.isArray(timeline)) return []
 
-  return timeline
-    .map((entry: any) => ({
+  return timeline.map((entry: any) => {
+    const category: TimelineCategory = entry.category === 'education' || entry.category === 'life' ? entry.category : 'work'
+
+    return {
       id: entry.id || `timeline-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      category: entry.category === 'education' || entry.category === 'life' ? entry.category : 'work',
+      category,
       title: entry.title || '',
       description: entry.description || '',
       startDate: typeof entry.startDate === 'string' ? entry.startDate : '',
@@ -182,500 +160,374 @@ export function normalizeTimeline(timeline: any): TimelineEntry[] {
       isOngoing: Boolean(entry.isOngoing),
       employer: entry.employer || '',
       institution: entry.institution || '',
-    }))
-    .filter((entry: TimelineEntry) => entry.startDate)
+      status: entry.status || '',
+      quote: entry.quote || '',
+      quoteAuthor: entry.quoteAuthor || '',
+      mediaUrls: normalizeMediaUrls(entry.mediaUrls),
+    }
+  })
 }
 
 function getTimelineProfile(profile: any): TimelineEntry[] {
   return normalizeTimeline(parseProfileValue(profile).timeline)
 }
 
+function getMonthKey(value?: string) {
+  const match = value ? /^(\d{4})-(\d{2})$/.exec(value) : null
+  if (!match) return Number.NEGATIVE_INFINITY
+  const month = Number(match[2])
+  if (month < 1 || month > 12) return Number.NEGATIVE_INFINITY
+  return Number(match[1]) * 12 + (month - 1)
+}
+
 function getEffectiveEndDate(entry: TimelineEntry) {
-  if (entry.isOngoing || !entry.endDate) {
+  if (entry.isOngoing) {
     const today = new Date()
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
   }
-  return entry.endDate
-}
-
-function getMonthIndex(value: string) {
-  const match = /^(\d{4})-(\d{2})$/.exec(value)
-  if (!match) return null
-  const year = Number(match[1])
-  const month = Number(match[2])
-  if (!Number.isFinite(year) || month < 1 || month > 12) return null
-  return { year, month }
-}
-
-function monthKey(value: string) {
-  const parsed = getMonthIndex(value)
-  if (!parsed) return Number.NaN
-  return parsed.year * 12 + (parsed.month - 1)
-}
-
-function formatMonth(value?: string) {
-  const parsed = value ? getMonthIndex(value) : null
-  if (!parsed) return ''
-  return MONTH_FORMATTER.format(new Date(parsed.year, parsed.month - 1, 1))
-}
-
-function formatMonthLabel(month: number) {
-  return MONTH_ONLY_FORMATTER.format(new Date(2024, month - 1, 1))
-}
-
-function getMonthTop(row: { top: number; height: number; monthHeights?: number[] }, month: number) {
-  if (row.monthHeights) {
-    let offset = 0
-    for (let currentMonth = 12; currentMonth > month; currentMonth -= 1) {
-      offset += row.monthHeights[currentMonth] ?? TIMELINE_DEFAULT_MONTH_HEIGHT
-    }
-    return row.top + offset
-  }
-  return row.top + ((12 - month) / 12) * row.height
-}
-
-function getMonthBottom(row: { top: number; height: number; monthHeights?: number[] }, month: number) {
-  if (row.monthHeights) {
-    return getMonthTop(row, month) + (row.monthHeights[month] ?? TIMELINE_DEFAULT_MONTH_HEIGHT)
-  }
-  return row.top + ((13 - month) / 12) * row.height
-}
-
-function formatEntryRange(entry: TimelineEntry) {
-  const start = formatMonth(entry.startDate)
-  const end = entry.isOngoing ? 'Present' : formatMonth(entry.endDate)
-  if (!start) return end
-  if (!end) return start
-  return `${start} - ${end}`
+  return entry.endDate || entry.startDate
 }
 
 function sortTimelineEntries(entries: TimelineEntry[]) {
   return [...entries].sort((a, b) => {
-    const endDiff = monthKey(getEffectiveEndDate(b)) - monthKey(getEffectiveEndDate(a))
+    const endDiff = getMonthKey(getEffectiveEndDate(b)) - getMonthKey(getEffectiveEndDate(a))
     if (endDiff !== 0) return endDiff
-    return monthKey(b.startDate) - monthKey(a.startDate)
+    return getMonthKey(b.startDate) - getMonthKey(a.startDate)
   })
 }
 
-function summarizeTimeline(entries: TimelineEntry[]) {
-  const sorted = sortTimelineEntries(entries)
-  const active = sorted.filter((entry) => entry.isOngoing)
-  return active.length > 0 ? active.slice(0, 3) : sorted.slice(0, 3)
+function formatMonth(value?: string) {
+  const match = value ? /^(\d{4})-(\d{2})$/.exec(value) : null
+  if (!match) return ''
+  return MONTH_FORMATTER.format(new Date(Number(match[1]), Number(match[2]) - 1, 1))
 }
 
-function getMonthsBetween(start: { year: number; month: number }, end: { year: number; month: number }) {
-  const startKey = start.year * 12 + (start.month - 1)
-  const endKey = end.year * 12 + (end.month - 1)
-  if (endKey < startKey) return []
-
-  const months: Array<{ year: number; month: number }> = []
-  for (let key = startKey; key <= endKey; key += 1) {
-    months.push({
-      year: Math.floor(key / 12),
-      month: (key % 12) + 1,
-    })
-  }
-  return months
+function formatEntryRange(entry: TimelineEntry) {
+  const start = formatMonth(entry.startDate)
+  const end = entry.isOngoing ? 'Current' : formatMonth(entry.endDate)
+  if (start && end) return `${start} - ${end}`
+  return end || start || 'No date yet'
 }
 
-function buildTimelineRows(entries: TimelineEntry[]) {
-  if (entries.length === 0) {
-    const currentYear = new Date().getFullYear()
-    return {
-      rows: [{ kind: 'year', year: currentYear, height: 220 }] as any[],
-      minYear: currentYear,
-      maxYear: currentYear,
-    }
-  }
-
-  const monthSpans = entries.flatMap((entry) => {
-    const start = getMonthIndex(entry.startDate)
-    const end = getMonthIndex(getEffectiveEndDate(entry))
-    if (!start || !end) return []
-    const months = getMonthsBetween(start, end)
-    if (months.length === 0) return []
-    return [{ entry, months, start, end }]
-  })
-  const years = monthSpans.flatMap(({ months }) => months.map((month) => month.year))
-  const eventYears = new Set<number>()
-  const monthHeightsByYear = new Map<number, number[]>()
-  const endpointMonthsByYear = new Map<number, Set<number>>()
-  const getMonthHeights = (year: number) => {
-    const existing = monthHeightsByYear.get(year)
-    if (existing) return existing
-    const monthHeights = Array(13).fill(TIMELINE_DEFAULT_MONTH_HEIGHT)
-    monthHeightsByYear.set(year, monthHeights)
-    return monthHeights
-  }
-  const addEndpointMonth = (year: number, month: number) => {
-    const existing = endpointMonthsByYear.get(year) ?? new Set<number>()
-    existing.add(month)
-    endpointMonthsByYear.set(year, existing)
-  }
-
-  monthSpans.forEach(({ entry, start, end }) => {
-    eventYears.add(start.year)
-    eventYears.add(end.year)
-    addEndpointMonth(start.year, start.month)
-    if (!entry.isOngoing) addEndpointMonth(end.year, end.month)
-  })
-
-  monthSpans.forEach(({ months }) => {
-    const requiredMonthHeight = MIN_TIMELINE_CARD_HEIGHT / Math.max(1, months.length)
-    months.filter((month) => eventYears.has(month.year)).forEach(({ year: monthYear, month }) => {
-      const monthHeights = getMonthHeights(monthYear)
-      monthHeights[month] = Math.max(monthHeights[month], requiredMonthHeight)
-    })
-  })
-
-  endpointMonthsByYear.forEach((months, year) => {
-    const monthHeights = getMonthHeights(year)
-    months.forEach((month) => {
-      monthHeights[month] = Math.max(monthHeights[month], TIMELINE_ENDPOINT_MONTH_HEIGHT)
-    })
-  })
-
-  const maxYear = Math.max(new Date().getFullYear(), ...years)
-  const minYear = Math.min(...years)
-  const rows: any[] = []
-  let year = maxYear
-
-  while (year >= minYear) {
-    if (eventYears.has(year)) {
-      const monthHeights = getMonthHeights(year)
-      const height = monthHeights.slice(1).reduce((sum, monthHeight) => sum + monthHeight, 0)
-      rows.push({
-        kind: 'year',
-        year,
-        height,
-        monthHeights,
-      })
-      year -= 1
-      continue
-    }
-
-    const gapStart = year
-    while (year >= minYear) {
-      if (eventYears.has(year)) break
-      year -= 1
-    }
-    const gapEnd = year + 1
-    rows.push({
-      kind: 'gap',
-      startYear: gapStart,
-      endYear: gapEnd,
-      height: 28 + Math.min(2, Math.max(0, gapStart - gapEnd)) * 10,
-    })
-  }
-
-  return { rows, minYear, maxYear }
+function getEntryDetail(entry: TimelineEntry) {
+  if (entry.category === 'work') return entry.employer
+  if (entry.category === 'education') return entry.institution
+  return ''
 }
 
-function buildLayout(entries: TimelineEntry[]) {
-  const validEntries = entries.filter((entry) => {
-    const start = getMonthIndex(entry.startDate)
-    const end = getMonthIndex(getEffectiveEndDate(entry))
-    return Boolean(start && end && monthKey(entry.startDate) <= monthKey(getEffectiveEndDate(entry)))
-  })
-  const { rows } = buildTimelineRows(validEntries)
-
-  let offset = 0
-  const yearMap = new Map<number, { top: number; height: number; monthHeights?: number[] }>()
-  const rowOffsets = rows.map((row) => {
-    const currentTop = offset
-    offset += row.height
-    if (row.kind === 'year') {
-      yearMap.set(row.year, { top: currentTop, height: row.height, monthHeights: row.monthHeights })
-    }
-    return { ...row, top: currentTop }
-  })
-
-  const totalHeight = Math.max(offset + 16, validEntries.length === 0 ? 320 : 520)
-  const monthMarkersByKey = new Map<string, MonthMarker>()
-  const events = sortTimelineEntries(validEntries).map((entry) => {
-    const start = getMonthIndex(entry.startDate)!
-    const end = getMonthIndex(getEffectiveEndDate(entry))!
-    const startRow = yearMap.get(start.year)!
-    const endRow = yearMap.get(end.year)!
-    const rawTop = entry.isOngoing ? 0 : getMonthTop(endRow, end.month)
-    const bottom = getMonthBottom(startRow, start.month)
-    const top = Math.max(0, rawTop)
-    const height = Math.min(Math.max(0, bottom - top), Math.max(0, totalHeight - top - 16))
-    return {
-      ...entry,
-      sortTop: top,
-      top,
-      height,
-      lane: 0,
-      laneCount: 1,
-    }
-  })
-
-  validEntries.forEach((entry) => {
-    const start = getMonthIndex(entry.startDate)
-    const end = getMonthIndex(getEffectiveEndDate(entry))
-    if (start) {
-      const startRow = yearMap.get(start.year)
-      if (startRow) {
-        monthMarkersByKey.set(`${start.year}-${start.month}`, {
-          key: `${start.year}-${start.month}`,
-          year: start.year,
-          month: start.month,
-          top: getMonthBottom(startRow, start.month),
-        })
-      }
-    }
-    if (end && !entry.isOngoing) {
-      const endRow = yearMap.get(end.year)
-      if (endRow) {
-        monthMarkersByKey.set(`${end.year}-${end.month}`, {
-          key: `${end.year}-${end.month}`,
-          year: end.year,
-          month: end.month,
-          top: getMonthTop(endRow, end.month),
-        })
-      }
-    }
-  })
-
-  events.sort((a, b) => a.sortTop - b.sortTop)
-
-  const lanes: number[] = []
-  events.forEach((entry) => {
-    let laneIndex = 0
-    while (laneIndex < lanes.length && lanes[laneIndex] > entry.top + 12) {
-      laneIndex += 1
-    }
-    lanes[laneIndex] = entry.top + entry.height
-    entry.lane = laneIndex
-  })
-  const laneCount = Math.max(1, lanes.length)
-  const columnWidth = TIMELINE_COLUMN_PADDING + (laneCount * TIMELINE_CARD_WIDTH) + ((laneCount - 1) * TIMELINE_LANE_GAP)
-
-  return {
-    rows: rowOffsets,
-    monthMarkers: [...monthMarkersByKey.values()].sort((a, b) => a.top - b.top),
-    totalHeight,
-    events: events.map((entry) => ({
-      ...entry,
-      laneCount,
-    })),
-    columnWidth,
-  }
+function getEntryAccent(entry: TimelineEntry) {
+  return CATEGORY_CONFIG[entry.category].accent
 }
 
-function TimelineSummaryCard({ entry }: { entry: TimelineEntry }) {
+function getMediaInputValue(entry: TimelineEntry) {
+  return (entry.mediaUrls || []).join(', ')
+}
+
+function parseMediaInputValue(value: string) {
+  return value.split(',').map((url) => url.trim()).filter(Boolean).slice(0, 4)
+}
+
+function TimelineCard({
+  entry,
+  canEdit,
+  onOpen,
+}: {
+  entry: TimelineEntry
+  canEdit: boolean
+  onOpen: () => void
+}) {
   const config = CATEGORY_CONFIG[entry.category]
-  const Icon = config.icon
-  const detail = entry.category === 'work' ? entry.employer : entry.category === 'education' ? entry.institution : ''
+  const accent = getEntryAccent(entry)
+  const detail = getEntryDetail(entry)
+  const visibleMedia = (entry.mediaUrls || []).slice(0, 3)
 
   return (
-    <div className={`rounded-2xl border border-gray-200 ${config.softAccent} p-4`}>
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
-        <Icon className={`h-4 w-4 ${config.text}`} />
-        {config.label}
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group w-full rounded-lg border-2 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-gray-900/20"
+      style={{ borderColor: accent }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-bold" style={{ color: accent }}>{config.label}</p>
+          {detail ? <p className="mt-1 truncate text-xs font-semibold text-gray-500">{detail}</p> : null}
+        </div>
+        <p className="shrink-0 text-sm font-medium text-gray-950">{formatEntryRange(entry)}</p>
       </div>
-      <p className="mt-3 text-base font-semibold text-gray-950">{entry.title}</p>
-      <p className="mt-1 text-sm text-gray-600">{formatEntryRange(entry)}</p>
-      {detail ? <p className="mt-2 text-sm font-medium text-gray-700">{detail}</p> : null}
-      {entry.description ? <p className="mt-2 line-clamp-3 text-sm leading-6 text-gray-600">{entry.description}</p> : null}
+
+      <h3 className="mt-2 text-xl font-bold leading-6 text-gray-950">{entry.title || 'Untitled timeline block'}</h3>
+
+      {entry.description ? (
+        <p className="mt-3 line-clamp-3 text-sm leading-6 text-gray-600">{entry.description}</p>
+      ) : null}
+
+      {visibleMedia.length > 0 ? (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {visibleMedia.slice(0, 2).map((url, index) => (
+            <div key={`${url}-${index}`} className="relative aspect-[16/9] overflow-hidden rounded-md bg-gray-100">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt="" className="h-full w-full object-cover" />
+              {index === 1 && visibleMedia.length > 2 ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-950/45 text-lg font-bold text-white">
+                  +{visibleMedia.length - 2}
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {entry.quote ? (
+        <blockquote className="mt-4 rounded-md border-l-4 bg-gray-100 px-4 py-3 text-sm italic leading-6 text-gray-700" style={{ borderColor: accent }}>
+          "{entry.quote}"
+          {entry.quoteAuthor ? <footer className="mt-2 text-right text-sm font-bold not-italic text-gray-800">- {entry.quoteAuthor}</footer> : null}
+        </blockquote>
+      ) : null}
+
+      <div className="mt-4 flex items-center justify-between gap-3">
+        {entry.status ? (
+          <span className="inline-flex min-w-0 items-center rounded-full px-3 py-1 text-xs font-bold uppercase text-white" style={{ backgroundColor: accent }}>
+            {entry.status}
+          </span>
+        ) : <span />}
+        {canEdit ? (
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm">
+            <Pencil className="h-3.5 w-3.5" />
+            Edit
+          </span>
+        ) : null}
+      </div>
+    </button>
+  )
+}
+
+function ReadOnlyEntryDetail({ entry }: { entry: TimelineEntry }) {
+  const accent = getEntryAccent(entry)
+  const detail = getEntryDetail(entry)
+
+  return (
+    <div className="space-y-5 px-6 py-5">
+      <div>
+        <p className="text-sm font-bold" style={{ color: accent }}>{CATEGORY_CONFIG[entry.category].label}</p>
+        <h3 className="mt-1 text-2xl font-bold text-gray-950">{entry.title || 'Untitled timeline block'}</h3>
+        <p className="mt-2 text-sm font-medium text-gray-600">{formatEntryRange(entry)}</p>
+        {detail ? <p className="mt-2 text-sm font-semibold text-gray-700">{detail}</p> : null}
+      </div>
+      {entry.description ? <p className="text-sm leading-6 text-gray-700">{entry.description}</p> : null}
+      {(entry.mediaUrls || []).length > 0 ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {(entry.mediaUrls || []).map((url, index) => (
+            <div key={`${url}-${index}`} className="aspect-[16/9] overflow-hidden rounded-lg bg-gray-100">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt="" className="h-full w-full object-cover" />
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {entry.quote ? (
+        <blockquote className="rounded-lg border-l-4 bg-gray-100 px-4 py-3 text-base italic leading-7 text-gray-700" style={{ borderColor: accent }}>
+          "{entry.quote}"
+          {entry.quoteAuthor ? <footer className="mt-2 text-right text-sm font-bold not-italic text-gray-800">- {entry.quoteAuthor}</footer> : null}
+        </blockquote>
+      ) : null}
     </div>
   )
 }
 
-export function ProfileTimelineSummary({
-  timeline,
-  editMode = false,
-  canEdit = false,
-  enabled = false,
-  publicVisible = true,
-  onEnabledChange,
-  onPublicVisibleChange,
-}: ProfileTimelineSummaryProps) {
-  const summaryEntries = summarizeTimeline(timeline)
-
-  if (!editMode && (!enabled || !publicVisible)) return null
-  if (!editMode && enabled && summaryEntries.length === 0) return null
-
-  return (
-    <section className="mt-6 px-4 sm:px-0">
-      <div className="mb-3 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-semibold text-gray-950">Timeline</h2>
-        </div>
-        {editMode && canEdit ? (
-          <div className="flex flex-col items-end gap-2">
-            <label className="flex items-center gap-3">
-              <span className="text-sm text-gray-500">{enabled ? 'On your profile' : 'Hidden from profile'}</span>
-              <Switch checked={enabled} onCheckedChange={onEnabledChange} />
-            </label>
-            <label className="flex items-center gap-3">
-              <span className="text-sm text-gray-500">{publicVisible ? 'Visible to others' : 'Hidden from others'}</span>
-              <Switch
-                checked={publicVisible}
-                onCheckedChange={onPublicVisibleChange}
-                disabled={!enabled}
-              />
-            </label>
-          </div>
-        ) : null}
-      </div>
-
-      {enabled ? (
-        summaryEntries.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-3">
-            {summaryEntries.map((entry) => (
-              <TimelineSummaryCard key={entry.id} entry={entry} />
-            ))}
-          </div>
-        ) : editMode ? (
-          <div className="rounded-[20px] border border-dashed border-gray-200 bg-gray-50 px-6 py-10 text-center">
-            <p className="text-base font-semibold text-gray-800">No timeline entries yet</p>
-            <p className="mt-2 text-sm text-gray-500">Add work, education, and life chapters from the timeline editor.</p>
-          </div>
-        ) : null
-      ) : null}
-    </section>
-  )
-}
-
-function TimelineEntryModal({
+function TimelineEntryDialog({
   open,
   entry,
+  canEdit,
   saving,
+  mode,
   onOpenChange,
   onChange,
   onSave,
   onDelete,
-}: TimelineEntryModalProps) {
+}: TimelineEntryDialogProps) {
+  const config = CATEGORY_CONFIG[entry.category]
+  const detailValue = entry.category === 'work' ? entry.employer || '' : entry.institution || ''
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-2xl flex-col overflow-hidden rounded-[24px] border-0 p-0">
+      <DialogContent className="flex max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-2xl flex-col overflow-hidden rounded-xl border-0 p-0">
         <DialogHeader className="border-b border-gray-100 px-6 py-5">
-          <DialogTitle>{onDelete ? 'Edit timeline entry' : 'Add timeline entry'}</DialogTitle>
+          <DialogTitle>{mode === 'create' ? 'Add timeline block' : canEdit ? 'Edit timeline block' : 'Timeline block'}</DialogTitle>
           <DialogDescription>
-            Capture a chapter of your story with dates, a title, and a little context.
+            {canEdit ? 'Set dates and details here. The card order updates automatically from the dates.' : formatEntryRange(entry)}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 overflow-y-auto px-6 py-5">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700" htmlFor="timeline-category">Activity type</label>
-            <Select
-              value={entry.category}
-              onValueChange={(value) => onChange({ ...entry, category: value as TimelineCategory })}
-            >
-              <SelectTrigger id="timeline-category">
-                <SelectValue placeholder="Choose an activity type" />
-              </SelectTrigger>
-              <SelectContent>
-                {COLUMN_ORDER.map((categoryOption) => {
-                  const optionConfig = CATEGORY_CONFIG[categoryOption]
-                  const Icon = optionConfig.icon
-                  return (
-                    <SelectItem key={categoryOption} value={categoryOption}>
-                      <span className="flex items-center gap-2">
-                        <Icon className={`h-4 w-4 ${optionConfig.text}`} />
-                        {optionConfig.label}
-                      </span>
-                    </SelectItem>
-                  )
-                })}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700" htmlFor="timeline-title">Title</label>
-            <Input
-              id="timeline-title"
-              value={entry.title}
-              onChange={(event) => onChange({ ...entry, title: event.target.value })}
-              placeholder={entry.category === 'work' ? 'Senior Product Designer' : entry.category === 'education' ? 'B.S. Computer Science' : 'Moved to Seattle'}
-            />
-          </div>
-
-          {entry.category === 'work' ? (
+        {canEdit ? (
+          <div className="space-y-5 overflow-y-auto px-6 py-5">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700" htmlFor="timeline-employer">Employer</label>
+              <label className="text-sm font-medium text-gray-700" htmlFor="timeline-category">Category</label>
+              <Select
+                value={entry.category}
+                onValueChange={(value) => onChange({ ...entry, category: value as TimelineCategory })}
+              >
+                <SelectTrigger id="timeline-category">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORY_ORDER.map((categoryOption) => {
+                    const optionConfig = CATEGORY_CONFIG[categoryOption]
+                    const Icon = optionConfig.icon
+                    return (
+                      <SelectItem key={categoryOption} value={categoryOption}>
+                        <span className="flex items-center gap-2">
+                          <span className={`h-3 w-3 rounded-full ${optionConfig.dot}`} />
+                          <Icon className="h-4 w-4" />
+                          {optionConfig.label}
+                        </span>
+                      </SelectItem>
+                    )
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700" htmlFor="timeline-title">Title</label>
               <Input
-                id="timeline-employer"
-                value={entry.employer || ''}
-                onChange={(event) => onChange({ ...entry, employer: event.target.value })}
-                placeholder="Company or organization"
+                id="timeline-title"
+                value={entry.title}
+                onChange={(event) => onChange({ ...entry, title: event.target.value })}
+                placeholder="Business Founder"
               />
             </div>
-          ) : null}
 
-          {entry.category === 'education' ? (
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700" htmlFor="timeline-institution">Institution</label>
-              <Input
-                id="timeline-institution"
-                value={entry.institution || ''}
-                onChange={(event) => onChange({ ...entry, institution: event.target.value })}
-                placeholder="School, program, or institution"
+            {config.detailLabel ? (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700" htmlFor="timeline-detail">{config.detailLabel}</label>
+                <Input
+                  id="timeline-detail"
+                  value={detailValue}
+                  onChange={(event) => onChange(
+                    entry.category === 'work'
+                      ? { ...entry, employer: event.target.value }
+                      : { ...entry, institution: event.target.value }
+                  )}
+                  placeholder={entry.category === 'work' ? 'Company or organization' : 'School, program, or institution'}
+                />
+              </div>
+            ) : null}
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700" htmlFor="timeline-start">Start date</label>
+                <Input
+                  id="timeline-start"
+                  type="month"
+                  value={entry.startDate}
+                  onChange={(event) => onChange({ ...entry, startDate: event.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700" htmlFor="timeline-end">End date</label>
+                <Input
+                  id="timeline-end"
+                  type="month"
+                  value={entry.endDate || ''}
+                  onChange={(event) => onChange({ ...entry, endDate: event.target.value })}
+                  disabled={entry.isOngoing}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-gray-800">Current block</p>
+                <p className="text-xs text-gray-500">Use this for work, school, or life chapters still happening.</p>
+              </div>
+              <Switch
+                checked={Boolean(entry.isOngoing)}
+                onCheckedChange={(checked) => onChange({ ...entry, isOngoing: checked, endDate: checked ? '' : entry.endDate })}
               />
             </div>
-          ) : null}
 
-          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700" htmlFor="timeline-start">Start date</label>
+              <label className="text-sm font-medium text-gray-700" htmlFor="timeline-status">Status label</label>
               <Input
-                id="timeline-start"
-                type="month"
-                value={entry.startDate}
-                onChange={(event) => onChange({ ...entry, startDate: event.target.value })}
+                id="timeline-status"
+                value={entry.status || ''}
+                onChange={(event) => onChange({ ...entry, status: event.target.value })}
+                placeholder="Completed"
               />
             </div>
+
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700" htmlFor="timeline-end">End date</label>
-              <Input
-                id="timeline-end"
-                type="month"
-                value={entry.endDate || ''}
-                onChange={(event) => onChange({ ...entry, endDate: event.target.value })}
-                disabled={entry.isOngoing}
+              <label className="text-sm font-medium text-gray-700" htmlFor="timeline-description">Description</label>
+              <Textarea
+                id="timeline-description"
+                value={entry.description || ''}
+                onChange={(event) => onChange({ ...entry, description: event.target.value })}
+                className="min-h-24"
+                placeholder="What happened in this chapter?"
               />
             </div>
-          </div>
 
-          <div className="flex items-center justify-between rounded-2xl border border-gray-200 px-4 py-3">
-            <div>
-              <p className="text-sm font-medium text-gray-800">Still going</p>
-              <p className="text-xs text-gray-500">Use this for current work, study, or life chapters.</p>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700" htmlFor="timeline-media">
+                Media URLs
+              </label>
+              <Input
+                id="timeline-media"
+                value={getMediaInputValue(entry)}
+                onChange={(event) => onChange({ ...entry, mediaUrls: parseMediaInputValue(event.target.value) })}
+                placeholder="https://example.com/photo.jpg, https://example.com/photo-2.jpg"
+              />
+              <p className="flex items-center gap-1.5 text-xs text-gray-500">
+                <ImageIcon className="h-3.5 w-3.5" />
+                Add up to four image URLs, separated by commas.
+              </p>
             </div>
-            <Switch
-              checked={Boolean(entry.isOngoing)}
-              onCheckedChange={(checked) => onChange({ ...entry, isOngoing: checked, endDate: checked ? '' : entry.endDate })}
-            />
-          </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700" htmlFor="timeline-description">Description</label>
-            <Textarea
-              id="timeline-description"
-              value={entry.description || ''}
-              onChange={(event) => onChange({ ...entry, description: event.target.value })}
-              className="min-h-28"
-              placeholder="What were you doing during this period?"
-            />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700" htmlFor="timeline-quote">Quote</label>
+                <Textarea
+                  id="timeline-quote"
+                  value={entry.quote || ''}
+                  onChange={(event) => onChange({ ...entry, quote: event.target.value })}
+                  className="min-h-24"
+                  placeholder="Incredible growth in the first 6 months."
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700" htmlFor="timeline-quote-author">Quote author</label>
+                <Input
+                  id="timeline-quote-author"
+                  value={entry.quoteAuthor || ''}
+                  onChange={(event) => onChange({ ...entry, quoteAuthor: event.target.value })}
+                  placeholder="Sarah V., Mentor"
+                />
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="overflow-y-auto">
+            <ReadOnlyEntryDetail entry={entry} />
+          </div>
+        )}
 
         <DialogFooter className="shrink-0 border-t border-gray-100 bg-white px-6 py-4">
-          {onDelete ? (
+          {canEdit && onDelete ? (
             <Button type="button" variant="ghost" onClick={onDelete} className="mr-auto text-red-600 hover:text-red-700">
               <Trash2 className="mr-2 h-4 w-4" />
               Delete
             </Button>
           ) : <div />}
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button type="button" onClick={onSave} disabled={saving}>
-            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Save
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            {canEdit ? 'Cancel' : 'Close'}
           </Button>
+          {canEdit ? (
+            <Button type="button" onClick={onSave} disabled={saving}>
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Save
+            </Button>
+          ) : null}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -700,14 +552,10 @@ export default function ProfileTimeline({
   const [user, setUser] = useState(initialUser)
   const [timeline, setTimeline] = useState<TimelineEntry[]>(() => getTimelineProfile(initialUser.profile))
   const [saving, setSaving] = useState(false)
-  const [modal, setModal] = useState<TimelineModalState>({ open: false, mode: 'create', category: 'work' })
-  const [draftEntry, setDraftEntry] = useState<TimelineEntry>(createEmptyEntry('work'))
+  const [dialog, setDialog] = useState<TimelineDialogState>({ open: false, mode: 'view' })
+  const [draftEntry, setDraftEntry] = useState<TimelineEntry>(createEmptyEntry())
 
-  const layout = useMemo(() => buildLayout(timeline), [timeline])
-  const timelineGridTemplate = useMemo(
-    () => `${TIMELINE_LABEL_COLUMN_WIDTH}px minmax(0, 1fr)`,
-    []
-  )
+  const sortedTimeline = useMemo(() => sortTimelineEntries(timeline), [timeline])
   const profileHref = profileUsername
     ? getUriWithOrg(orgslug, routePaths.org.user(profileUsername))
     : getUriWithOrg(orgslug, routePaths.org.portfolio())
@@ -736,7 +584,7 @@ export default function ProfileTimeline({
       setTimeline(getTimelineProfile(res.data.profile))
       onUserChange?.(res.data)
       toast.success(successMessage, { id: loadingToast })
-      setModal((current) => ({ ...current, open: false }))
+      setDialog((current) => ({ ...current, open: false }))
     } catch {
       toast.error('Could not save timeline', { id: loadingToast })
     } finally {
@@ -744,14 +592,14 @@ export default function ProfileTimeline({
     }
   }
 
-  const openCreateModal = (category: TimelineCategory = 'work') => {
-    setDraftEntry(createEmptyEntry(category))
-    setModal({ open: true, mode: 'create', category })
+  const openCreateDialog = () => {
+    setDraftEntry(createEmptyEntry())
+    setDialog({ open: true, mode: 'create' })
   }
 
-  const openEditModal = (entry: TimelineEntry) => {
-    setDraftEntry({ ...entry })
-    setModal({ open: true, mode: 'edit', category: entry.category, entryId: entry.id })
+  const openEntryDialog = (entry: TimelineEntry) => {
+    setDraftEntry({ ...entry, mediaUrls: [...(entry.mediaUrls || [])] })
+    setDialog({ open: true, mode: 'view' })
   }
 
   const handleSaveEntry = async () => {
@@ -759,31 +607,23 @@ export default function ProfileTimeline({
       toast.error('Title is required')
       return
     }
-    if (!draftEntry.startDate) {
-      toast.error('Start date is required')
-      return
-    }
-    if (!draftEntry.isOngoing && !draftEntry.endDate) {
-      toast.error('End date is required unless the entry is ongoing')
-      return
-    }
-    if (!draftEntry.isOngoing && monthKey(draftEntry.startDate) > monthKey(draftEntry.endDate || '')) {
+    if (!draftEntry.isOngoing && draftEntry.startDate && draftEntry.endDate && getMonthKey(draftEntry.startDate) > getMonthKey(draftEntry.endDate)) {
       toast.error('Start date must be earlier than or the same as end date')
       return
     }
 
-    const nextTimeline = modal.mode === 'edit'
-      ? timeline.map((entry) => (entry.id === draftEntry.id ? draftEntry : entry))
-      : [...timeline, draftEntry]
+    const nextTimeline = dialog.mode === 'create'
+      ? [...timeline, draftEntry]
+      : timeline.map((entry) => (entry.id === draftEntry.id ? draftEntry : entry))
 
-    await persistTimeline(nextTimeline, modal.mode === 'edit' ? 'Timeline entry updated' : 'Timeline entry added')
+    await persistTimeline(nextTimeline, dialog.mode === 'create' ? 'Timeline block added' : 'Timeline block updated')
   }
 
   const handleDeleteEntry = async () => {
-    if (modal.mode !== 'edit') return
+    if (dialog.mode === 'create') return
     await persistTimeline(
       timeline.filter((entry) => entry.id !== draftEntry.id),
-      'Timeline entry deleted'
+      'Timeline block deleted'
     )
   }
 
@@ -791,167 +631,103 @@ export default function ProfileTimeline({
 
   const content = (
     <>
-      <div className={embedded ? 'px-4 py-6 sm:px-0' : 'mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8'}>
-          {!embedded ? (
-            <div className="flex flex-col gap-4">
-              <ContentPageHeader
-                orgslug={orgslug}
-                tabs={[
-                  { href: profileUsername ? routePaths.org.user(profileUsername) : routePaths.org.portfolio(), label: 'Portfolio' },
-                  { href: profileUsername ? routePaths.org.userTimeline(profileUsername) : routePaths.org.portfolioTimeline(), label: 'Timeline', active: true },
-                  { href: profileUsername ? routePaths.org.userResume(profileUsername) : routePaths.org.portfolioResume(), label: 'Resume' },
-                ]}
-                noHorizontalBleed
-              />
-            <div>
-              <Link href={profileHref} className="text-sm font-medium text-gray-500 hover:text-gray-800">
-                Back to profile
-              </Link>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-950">Timeline</h1>
+      <div className={embedded ? 'px-4 py-6 sm:px-0' : 'mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 lg:px-8'}>
+        {!embedded ? (
+          <div className="flex flex-col gap-4">
+            <ContentPageHeader
+              orgslug={orgslug}
+              tabs={[
+                { href: profileUsername ? routePaths.org.user(profileUsername) : routePaths.org.portfolio(), label: 'Portfolio' },
+                { href: profileUsername ? routePaths.org.userTimeline(profileUsername) : routePaths.org.portfolioTimeline(), label: 'Timeline', active: true },
+                { href: profileUsername ? routePaths.org.userResume(profileUsername) : routePaths.org.portfolioResume(), label: 'Resume' },
+              ]}
+              noHorizontalBleed
+            />
+            
+          </div>
+        ) : editMode && canEdit ? (
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+            <h2 className="text-2xl font-semibold text-gray-950">Timeline</h2>
+            <div className="flex flex-col items-end gap-2">
+              <label className="flex items-center gap-3">
+                <span className="text-sm text-gray-500">{enabled ? 'On your profile' : 'Hidden from profile'}</span>
+                <Switch checked={enabled} onCheckedChange={onEnabledChange} />
+              </label>
+              <label className="flex items-center gap-3">
+                <span className="text-sm text-gray-500">{publicVisible ? 'Visible to others' : 'Hidden from others'}</span>
+                <Switch
+                  checked={publicVisible}
+                  onCheckedChange={onPublicVisibleChange}
+                  disabled={!enabled}
+                />
+              </label>
             </div>
           </div>
-          ) : editMode && canEdit ? (
-            <div className="mb-5 flex items-center justify-between gap-4">
-              <h2 className="text-2xl font-semibold text-gray-950">Timeline</h2>
-              <div className="flex flex-col items-end gap-2">
-                <label className="flex items-center gap-3">
-                  <span className="text-sm text-gray-500">{enabled ? 'On your profile' : 'Hidden from profile'}</span>
-                  <Switch checked={enabled} onCheckedChange={onEnabledChange} />
-                </label>
-                <label className="flex items-center gap-3">
-                  <span className="text-sm text-gray-500">{publicVisible ? 'Visible to others' : 'Hidden from others'}</span>
-                  <Switch
-                    checked={publicVisible}
-                    onCheckedChange={onPublicVisibleChange}
-                    disabled={!enabled}
-                  />
-                </label>
+        ) : null}
+
+        <div className={embedded ? '' : 'mt-8'}>
+          <div className="grid grid-cols-[44px_minmax(0,1fr)] gap-4 sm:grid-cols-[52px_minmax(0,1fr)]">
+            <div className="relative flex justify-center">
+              <div className="absolute bottom-0 top-0 w-1.5 rounded-full bg-[#cbd8c1]" />
+              <div className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full bg-[#39bf00] text-white shadow-sm sm:h-11 sm:w-11">
+                <Flag className="h-5 w-5" />
               </div>
             </div>
-          ) : null}
+            <div className="flex min-w-0 items-center justify-between gap-3 pb-5 pt-2">
+              <p className="text-sm font-bold uppercase tracking-wide text-green-700">Present day</p>
+              {canEdit ? (
+                <Button type="button" size="icon" onClick={openCreateDialog} aria-label="Add timeline block" title="Add timeline block">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              ) : null}
+            </div>
 
-          <div className={embedded ? '' : 'mt-8'}>
-            <div className="relative grid gap-2 sm:gap-3" style={{ gridTemplateColumns: timelineGridTemplate }}>
-                <div className="relative" style={{ height: layout.totalHeight }}>
-                  {layout.rows.map((row) => (
-                    row.kind === 'year' ? (
-                      <div key={`year-${row.year}`} className="absolute left-0 right-0" style={{ top: row.top, height: row.height }}>
-                        <div className="absolute right-0 flex h-5 -translate-y-1/2 items-center pr-1 text-right text-xs font-semibold text-gray-500 sm:pr-2 sm:text-sm" style={{ top: 0 }}>
-                          {row.year}
-                        </div>
-                      </div>
-                    ) : (
-                      <div key={`gap-${row.startYear}-${row.endYear}`} className="absolute left-0 right-0" style={{ top: row.top, height: row.height }}>
-                        <div className="absolute right-0 flex h-5 -translate-y-1/2 items-center pr-1 text-right text-xs font-semibold text-gray-500 sm:pr-2 sm:text-sm" style={{ top: 0 }}>
-                          {row.startYear}
-                        </div>
-                        <div className="flex h-full items-center justify-end pr-1 text-xs tracking-[0.25em] text-gray-300 sm:pr-2 sm:text-sm sm:tracking-[0.45em]">
-                          ...
-                        </div>
-                      </div>
-                    )
-                  ))}
-                  {layout.monthMarkers.map((marker) => (
-                    <div
-                      key={`month-${marker.key}`}
-                      className="absolute left-0 right-0 pr-1 text-right text-[10px] font-medium text-gray-400 sm:pr-2 sm:text-xs"
-                      style={{ top: marker.top - 8 }}
-                    >
-                      {formatMonthLabel(marker.month)}
+            {sortedTimeline.length > 0 ? (
+              sortedTimeline.map((entry) => {
+                const config = CATEGORY_CONFIG[entry.category]
+                return (
+                  <React.Fragment key={entry.id}>
+                    <div className="relative flex justify-center">
+                      <div className="absolute bottom-[-1.25rem] top-[-1.25rem] w-1.5 bg-[#cbd8c1]" />
+                      <div className={`relative z-10 mt-5 h-5 w-5 rounded-full border-[3px] border-white shadow-sm ${config.dot}`} />
                     </div>
-                  ))}
+                    <div className="pb-2">
+                      <TimelineCard entry={entry} canEdit={canEdit} onOpen={() => openEntryDialog(entry)} />
+                    </div>
+                  </React.Fragment>
+                )
+              })
+            ) : (
+              <>
+                <div className="relative flex justify-center">
+                  <div className="absolute bottom-0 top-[-1.25rem] w-1.5 bg-[#cbd8c1]" />
+                  <div className="relative z-10 mt-5 h-5 w-5 rounded-full border-[3px] border-white bg-gray-300 shadow-sm" />
                 </div>
-
-                <div className="min-w-0 overflow-x-auto pb-4">
-                  <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-gray-50" style={{ width: layout.columnWidth, height: layout.totalHeight }}>
-                    {layout.rows.map((row) => (
-                      <div
-                        key={`timeline-${row.kind === 'year' ? row.year : `${row.startYear}-${row.endYear}`}`}
-                        className="absolute left-0 right-0 border-b border-gray-100/80"
-                        style={{ top: row.top, height: row.height }}
-                      >
-                        <div className={`absolute inset-y-0 left-0 w-full bg-gray-900 ${row.kind === 'year' ? 'opacity-[0.025]' : 'opacity-[0.015]'}`} />
-                        <div className="absolute left-0 top-0 h-px w-full bg-current text-gray-300" />
-                        {row.kind === 'gap' ? (
-                          <div className="absolute left-0 top-1/2 w-full -translate-y-1/2 text-center text-xs tracking-[0.4em] text-gray-300">...</div>
-                        ) : null}
-                      </div>
-                    ))}
-
-                    {(() => {
-                      const events = [...layout.events].sort((a, b) => a.sortTop - b.sortTop)
-
-                      return (
-                        <>
-                          {events.map((entry) => {
-                            const config = CATEGORY_CONFIG[entry.category]
-                            const left = 12 + (entry.lane * (TIMELINE_CARD_WIDTH + TIMELINE_LANE_GAP))
-                            const detail = entry.category === 'work' ? entry.employer : entry.category === 'education' ? entry.institution : ''
-
-                            return (
-                              <button
-                                key={entry.id}
-                                type="button"
-                                onClick={canEdit ? () => openEditModal(entry) : undefined}
-                                tabIndex={canEdit ? 0 : -1}
-                                aria-label={canEdit ? `Edit ${entry.title}` : undefined}
-                                className={`absolute z-10 overflow-hidden rounded-xl border border-gray-200 bg-white p-3 text-left shadow-[0_18px_45px_-28px_rgba(15,23,42,0.45)] transition ${canEdit ? 'hover:-translate-y-0.5 hover:shadow-[0_20px_50px_-26px_rgba(15,23,42,0.45)]' : 'cursor-default'}`}
-                                style={{
-                                  top: entry.top,
-                                  left,
-                                  width: TIMELINE_CARD_WIDTH,
-                                  height: entry.height,
-                                }}
-                              >
-                                <div className={`absolute inset-x-0 top-0 h-1.5 ${config.accent}`} />
-                                <div className="flex h-full flex-col">
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">{config.label}</p>
-                                      <p className="mt-1 truncate text-sm font-semibold leading-5 text-gray-950 sm:text-base sm:leading-6">{entry.title}</p>
-                                    </div>
-                                    {canEdit ? <Pencil className="mt-1 h-4 w-4 text-gray-400" /> : null}
-                                  </div>
-                                  <p className="mt-2 truncate text-sm font-medium text-gray-600">{formatEntryRange(entry)}</p>
-                                  {detail ? <p className="mt-2 truncate text-sm font-semibold text-gray-800">{detail}</p> : null}
-                                  {entry.description && entry.height >= 176 ? <p className="mt-2 line-clamp-3 text-sm leading-6 text-gray-600">{entry.description}</p> : null}
-                                </div>
-                              </button>
-                            )
-                          })}
-                        </>
-                      )
-                    })()}
-                  </div>
+                <div className="rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 px-6 py-10 text-center">
+                  <p className="text-base font-semibold text-gray-800">No timeline blocks yet</p>
+                  {canEdit ? (
+                    <Button type="button" className="mt-4" onClick={openCreateDialog}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add block
+                    </Button>
+                  ) : null}
                 </div>
-              </div>
+              </>
+            )}
           </div>
+        </div>
       </div>
 
-      {canEdit ? (
-        <Button
-          type="button"
-          size="icon"
-          variant="outline"
-          className="fixed bottom-24 right-5 z-40 h-14 w-14 rounded-2xl border-gray-200 bg-white text-gray-900 shadow-[0_18px_45px_-20px_rgba(15,23,42,0.65)] hover:bg-gray-50 sm:bottom-8 sm:right-8"
-          onClick={() => openCreateModal()}
-          aria-label="Add timeline entry"
-          title="Add timeline entry"
-        >
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-300 bg-gray-50">
-            <Plus className="h-4 w-4" />
-          </span>
-        </Button>
-      ) : null}
-
-      <TimelineEntryModal
-        open={modal.open}
+      <TimelineEntryDialog
+        open={dialog.open}
         entry={draftEntry}
+        canEdit={canEdit}
         saving={saving}
-        onOpenChange={(open) => setModal((current) => ({ ...current, open }))}
+        mode={dialog.mode}
+        onOpenChange={(open) => setDialog((current) => ({ ...current, open }))}
         onChange={setDraftEntry}
         onSave={handleSaveEntry}
-        onDelete={modal.mode === 'edit' ? handleDeleteEntry : null}
+        onDelete={dialog.mode === 'view' ? handleDeleteEntry : null}
       />
     </>
   )

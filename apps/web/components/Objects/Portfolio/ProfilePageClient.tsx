@@ -1744,6 +1744,21 @@ function getTimelineEntryDetail(entry: TimelineEntry) {
   return ''
 }
 
+function getTimelineEntryLabel(entry: TimelineEntry) {
+  return entry.status || getTimelineEntryDetail(entry) || (entry.category === 'education' ? 'Learning' : entry.category === 'work' ? 'Work' : 'Life')
+}
+
+function formatProfileTimelinePointDate(entry: TimelineEntry) {
+  if (entry.isOngoing) return 'Present'
+  return formatProfileTimelineMonth(entry.endDate || entry.startDate)
+}
+
+function getTimelineEntryDotClass(entry: TimelineEntry) {
+  if (entry.category === 'education') return 'bg-sky-500'
+  if (entry.category === 'life') return 'bg-red-500'
+  return 'bg-[#39bf00]'
+}
+
 function TimelineOverviewSection({
   timeline,
   href,
@@ -1761,15 +1776,20 @@ function TimelineOverviewSection({
 
   const isCompact = grid.h === 1
   const isNarrow = grid.w === 1
+  const visibleEntries = recentEntries.slice(0, isCompact ? 2 : 4)
 
   if (isCompact) {
     return (
-      <section className="flex h-full min-w-0 min-h-0 items-center justify-between gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+      <section className="flex h-full min-h-0 min-w-0 items-center justify-between gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
         <div className="min-w-0">
-          <h2 className="truncate text-base font-semibold text-gray-950">Timeline</h2>
-          <p className="mt-1 truncate text-sm font-medium text-gray-500">
-            {recentEntries.length} recent {recentEntries.length === 1 ? 'entry' : 'entries'}
-          </p>
+          <h2 className="truncate text-base font-semibold text-gray-950">The Journey</h2>
+          {visibleEntries.length > 0 ? (
+            <p className="mt-1 truncate text-sm font-medium text-gray-500">
+              {visibleEntries[0].title || 'Untitled timeline block'}
+            </p>
+          ) : (
+            <p className="mt-1 truncate text-sm font-medium text-gray-500">No moments yet</p>
+          )}
         </div>
         <Link
           href={href}
@@ -1782,42 +1802,38 @@ function TimelineOverviewSection({
   }
 
   return (
-    <section className="flex h-full min-w-0 min-h-0 flex-col rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className={`${isNarrow ? 'text-xl' : 'text-2xl'} min-w-0 truncate font-semibold text-gray-950`}>Timeline</h2>
+    <section className="flex h-full min-h-0 min-w-0 flex-col rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <h2 className={`${isNarrow ? 'text-xl' : 'text-2xl'} min-w-0 truncate font-semibold text-gray-950`}>The Journey</h2>
         <Link
           href={href}
           className="flex items-center gap-1.5 text-sm font-semibold text-gray-600 transition-colors hover:text-gray-950"
         >
-          <span>See whole timeline</span>
+          <span>Open</span>
           <ChevronRight className="h-4 w-4" />
         </Link>
       </div>
-      {recentEntries.length > 0 ? (
-        <div className={`${isNarrow ? 'grid grid-cols-1 gap-3 overflow-y-auto pr-1' : 'flex gap-4 overflow-x-auto pb-1'} min-h-0 flex-1`}>
-          {recentEntries.map((entry) => {
-            const detail = getTimelineEntryDetail(entry)
-            return (
-              <article key={entry.id} className={`${isNarrow ? 'min-h-32' : 'w-56 min-w-56'} rounded-lg border border-gray-200 bg-white p-4 shadow-sm`}>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold capitalize text-gray-600">
-                    {entry.category}
-                  </span>
-                  {entry.isOngoing ? (
-                    <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                      Current
-                    </span>
-                  ) : null}
-                </div>
-                <p className="mt-4 line-clamp-2 text-base font-semibold leading-6 text-gray-950">{entry.title}</p>
-                <p className="mt-2 text-sm text-gray-500">{formatProfileTimelineRange(entry)}</p>
-                {detail ? <p className="mt-2 truncate text-sm font-medium text-gray-700">{detail}</p> : null}
-                {entry.description && !isNarrow ? (
-                  <p className="mt-3 line-clamp-2 text-sm leading-6 text-gray-600">{entry.description}</p>
-                ) : null}
-              </article>
-            )
-          })}
+      {visibleEntries.length > 0 ? (
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+          <div className="relative space-y-5 pl-5">
+            <div className="absolute bottom-2 left-[5px] top-2 w-1 rounded-full bg-gray-100" />
+            {visibleEntries.map((entry) => {
+              const label = getTimelineEntryLabel(entry)
+              const pointDate = formatProfileTimelinePointDate(entry)
+
+              return (
+                <Link key={entry.id} href={href} className="group relative block min-w-0">
+                  <span className={`absolute -left-5 top-1.5 h-3 w-3 rounded-full border-2 border-white ${getTimelineEntryDotClass(entry)}`} />
+                  <p className="line-clamp-1 text-sm font-semibold leading-5 text-gray-950 group-hover:text-gray-700">
+                    {entry.title || 'Untitled timeline block'}
+                  </p>
+                  <p className="mt-0.5 line-clamp-1 text-sm leading-5 text-gray-500">
+                    {pointDate}{label ? ` • ${label}` : ''}
+                  </p>
+                </Link>
+              )
+            })}
+          </div>
         </div>
       ) : (
         <div className="rounded-lg border-2 border-dotted border-emerald-400 bg-white p-5 shadow-sm">
@@ -3926,18 +3942,20 @@ function ProfilePageClient({
           onRemoveSocial={removeSocial}
           onSave={handleSave}
         />
+        <div className="px-4 sm:px-0">
+          <ContentPageHeader
+            orgslug={orgslug}
+            tabs={[
+              { href: routePaths.org.portfolio(), label: 'Portfolio', active: activeTab === 'overview' },
+              { href: routePaths.org.portfolioTimeline(), label: 'Timeline', active: activeTab === 'timeline' },
+              { href: routePaths.org.portfolioResume(), label: 'Resume' },
+            ]}
+            noHorizontalBleed
+          />
+        </div>
         {activeTab === 'overview' ? (
           <div className="grid gap-6 px-4 pb-10 sm:px-0 lg:grid-cols-[minmax(0,1fr)_280px]">
             <div className="min-w-0">
-              <ContentPageHeader
-                orgslug={orgslug}
-                tabs={[
-                  { href: routePaths.org.portfolio(), label: 'Portfolio', active: true },
-                  { href: routePaths.org.portfolioTimeline(), label: 'Timeline' },
-                  { href: routePaths.org.portfolioResume(), label: 'Resume' },
-                ]}
-                noHorizontalBleed
-              />
               <SimpleProfileHeader
                 orgslug={orgslug}
                 user={user}
@@ -4067,7 +4085,7 @@ function ProfilePageClient({
               </div>
             </div>
             {canManageProfile ? (
-              <div className="lg:sticky lg:top-6 lg:self-start">
+              <div className="lg:sticky lg:top-20 lg:self-start">
                 <PortfolioTodoPanel
                   profile={contentProfile}
                   user={{ ...user, bio: draft.bio, avatar_image: user.avatar_image }}
