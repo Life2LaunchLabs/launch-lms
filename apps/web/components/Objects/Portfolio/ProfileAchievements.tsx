@@ -4,7 +4,7 @@ import React, { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
-import { Calendar, Loader2, Star } from 'lucide-react'
+import { Award, Calendar, Loader2, Lock, Star } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -40,6 +40,13 @@ type BadgeCredential = {
   raw: any
 }
 
+type RecommendedBadge = {
+  id: string
+  title: string
+  imageUrl: string
+  href: string
+}
+
 type ProfileShape = {
   achievements?: any
 }
@@ -52,6 +59,10 @@ type ProfileAchievementsSectionProps = {
   editMode?: boolean
   canEdit?: boolean
   publicVisible?: boolean
+  orgConfig?: any
+  orgId?: string | number
+  collections?: any[]
+  profile?: any
   // eslint-disable-next-line no-unused-vars
   onChange?(next: AchievementsSection): void
   // eslint-disable-next-line no-unused-vars
@@ -123,6 +134,63 @@ function getBadgeRoutes(orgslug: string, profileUsername?: string) {
   }
 }
 
+function cleanCourseUuid(courseUuid?: string | null) {
+  return String(courseUuid || '').replace('course_', '')
+}
+
+function normalizeCourseUuid(courseUuid?: string | null) {
+  const cleaned = cleanCourseUuid(courseUuid)
+  return cleaned ? `course_${cleaned}` : ''
+}
+
+function getRecommendedBadgeUuids(orgConfig: any, profile: any) {
+  const config = orgConfig?.config || orgConfig || {}
+  const onboarding = profile?.onboarding || {}
+  const goal = onboarding?.next_step || 'not_sure'
+  const storedRecommendations = Array.isArray(onboarding?.recommended_badges)
+    ? onboarding.recommended_badges
+    : []
+  const orgRecommendations =
+    config?.customization?.onboarding?.recommended_badges?.[goal] ||
+    config?.onboarding?.recommended_badges?.[goal] ||
+    []
+
+  return (storedRecommendations.length ? storedRecommendations : orgRecommendations)
+    .map((value: string) => normalizeCourseUuid(value))
+    .filter(Boolean)
+    .slice(0, 3)
+}
+
+function getCollectionCourses(collections: any[]) {
+  return (collections || []).flatMap((collection: any) =>
+    (collection.courses || []).map((course: any) => ({
+      ...course,
+      owner_org_uuid: course.owner_org_uuid || collection.owner_org_uuid,
+    }))
+  )
+}
+
+function getRecommendedBadges(orgConfig: any, profile: any, collections: any[], orgslug: string): RecommendedBadge[] {
+  const recommendedUuids = getRecommendedBadgeUuids(orgConfig, profile)
+  const courses = getCollectionCourses(collections)
+
+  return recommendedUuids
+    .map((courseUuid: string) => courses.find((course: any) => normalizeCourseUuid(course.course_uuid) === courseUuid))
+    .filter(Boolean)
+    .map((course: any) => ({
+      id: normalizeCourseUuid(course.course_uuid),
+      title: course.name || 'Recommended badge',
+      imageUrl: course.thumbnail_image
+        ? getCourseThumbnailMediaDirectory(
+            course.owner_org_uuid || course.org_uuid || '',
+            course.course_uuid,
+            course.thumbnail_image
+          )
+        : '',
+      href: getUriWithOrg(orgslug, routePaths.org.course(cleanCourseUuid(course.course_uuid))),
+    }))
+}
+
 function formatDisplayDate(value: string) {
   if (!value) return ''
   const parsed = new Date(value)
@@ -162,6 +230,10 @@ function getCredentialImage(credential: any) {
     || normalizeMediaUrl(credential.certification?.config?.badge_image_url)
     || normalizeMediaUrl(credential.issuer?.image)
     || '/empty_thumbnail.png'
+}
+
+function getCredentialCourseUuid(credential: BadgeCredential) {
+  return normalizeCourseUuid(credential.raw?.course?.course_uuid)
 }
 
 export function normalizeBadgeCredential(credential: any, orgslug: string): BadgeCredential | null {
@@ -227,6 +299,29 @@ export function useFeaturedBadges(achievements: AchievementsSection, orgslug: st
 
   return {
     badges: data || [],
+    error,
+    isLoading,
+  }
+}
+
+function useEarnedBadges(orgId: string | number | undefined, orgslug: string, enabled: boolean) {
+  const session = useLHSession() as any
+  const accessToken = session?.data?.tokens?.access_token
+  const key = enabled && accessToken && orgId
+    ? `${getAPIUrl()}certifications/user/all?org_id=${orgId}`
+    : null
+
+  const { data, error, isLoading } = useSWR(
+    key,
+    (url) => swrFetcher(url, accessToken),
+    { revalidateOnFocus: false }
+  )
+  const certificates = Array.isArray(data) ? data : data?.data || []
+
+  return {
+    badges: certificates
+      .map((certificate: any) => normalizeBadgeCredential(certificate, orgslug))
+      .filter(Boolean) as BadgeCredential[],
     error,
     isLoading,
   }
@@ -459,6 +554,81 @@ function ShortBadgeCard({ badge }: { badge: BadgeCredential }) {
   )
 }
 
+function SuggestedBadgeIcon({ badge }: { badge: RecommendedBadge }) {
+  return (
+    <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 text-gray-500">
+      {badge.imageUrl ? (
+        <BadgeThumbnailImage
+          src={badge.imageUrl}
+          alt={badge.title}
+          onError={(event) => {
+            event.currentTarget.style.display = 'none'
+          }}
+        />
+      ) : (
+        <Award className="h-5 w-5" strokeWidth={1.8} />
+      )}
+    </span>
+  )
+}
+
+function SuggestedBadgeCard({
+  badge,
+  compact = false,
+}: {
+  badge: RecommendedBadge
+  compact?: boolean
+}) {
+  if (compact) {
+    return (
+      <Link
+        href={badge.href}
+        className="flex min-h-0 items-center gap-3 rounded-lg border border-dashed border-gray-200 bg-white px-3 py-3 transition hover:border-[#39bf00] hover:bg-[#39bf00]/5"
+      >
+        <SuggestedBadgeIcon badge={badge} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-base font-bold leading-5 text-gray-950">{badge.title}</span>
+          <span className="mt-0.5 flex items-center gap-1 text-sm font-medium text-gray-500">
+            <Lock className="h-3.5 w-3.5" />
+            Locked
+          </span>
+        </span>
+      </Link>
+    )
+  }
+
+  return (
+    <Link
+      href={badge.href}
+      className="flex min-h-0 flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 bg-white px-3 py-3 text-center transition hover:border-gray-300 hover:bg-gray-50"
+    >
+      <SuggestedBadgeIcon badge={badge} />
+      <span className="mt-2 line-clamp-1 text-xs font-bold text-gray-950">{badge.title}</span>
+      <span className="text-xs font-medium text-gray-500">Locked</span>
+      <span className="mt-3 w-full rounded-md bg-[#39bf00] px-3 py-1.5 text-xs font-medium text-gray-950 shadow-[0_4px_0_#2f8d0e] transition hover:translate-y-0.5 hover:shadow-[0_2px_0_#2f8d0e]">
+        Start
+      </span>
+    </Link>
+  )
+}
+
+function BadgeProgress({ earnedCount, spacious = false }: { earnedCount: number; spacious?: boolean }) {
+  const progress = Math.min(3, earnedCount)
+  const percentage = Math.round((progress / 3) * 100)
+
+  return (
+    <div className={cn('shrink-0', spacious && 'rounded-lg bg-gray-50 px-3 py-3')}>
+      <div className="mb-2 flex items-center justify-between text-[11px] font-bold text-gray-950">
+        <span>Goal: 3 Badges</span>
+        <span className="text-[#39bf00]">{percentage}%</span>
+      </div>
+      <div className={cn('overflow-hidden rounded-full bg-gray-100', spacious ? 'h-4' : 'h-3')}>
+        <div className="h-full rounded-full bg-[#39bf00] transition-all" style={{ width: `${percentage}%` }} />
+      </div>
+    </div>
+  )
+}
+
 export function ProfileAchievementsSection({
   achievements,
   orgslug,
@@ -469,16 +639,43 @@ export function ProfileAchievementsSection({
   publicVisible = true,
   onChange,
   onPublicVisibleChange,
+  orgConfig,
+  orgId,
+  collections = [],
+  profile,
 }: ProfileAchievementsSectionProps) {
   const routes = useMemo(() => getBadgeRoutes(orgslug, profileUsername), [orgslug, profileUsername])
-  const { badges, isLoading } = useFeaturedBadges(achievements, orgslug)
+  const { badges: featuredBadges, isLoading: isLoadingFeatured } = useFeaturedBadges(achievements, orgslug)
+  const { badges: earnedBadges, isLoading: isLoadingEarned } = useEarnedBadges(orgId, orgslug, canEdit && achievements.enabled)
+  const recommendedBadges = useMemo(
+    () => getRecommendedBadges(orgConfig, profile, collections, orgslug),
+    [collections, orgConfig, orgslug, profile]
+  )
+  const badges = useMemo(() => {
+    const byId = new Map<string, BadgeCredential>()
+    featuredBadges.forEach((badge) => byId.set(badge.id, badge))
+    earnedBadges
+      .sort((a, b) => new Date(b.receivedDate || '').getTime() - new Date(a.receivedDate || '').getTime())
+      .forEach((badge) => {
+        if (!byId.has(badge.id)) byId.set(badge.id, badge)
+      })
+    return Array.from(byId.values()).slice(0, 3)
+  }, [earnedBadges, featuredBadges])
+  const earnedCourseUuids = useMemo(
+    () => new Set(badges.map(getCredentialCourseUuid).filter(Boolean)),
+    [badges]
+  )
+  const suggestedBadges = recommendedBadges
+    .filter((badge) => !earnedCourseUuids.has(badge.id))
+    .slice(0, Math.max(0, 3 - badges.length))
+  const displaySlots = badges.length + suggestedBadges.length
+  const isLoading = isLoadingFeatured || isLoadingEarned
 
   if (!editMode && (!achievements.enabled || !publicVisible)) return null
-  if (!editMode && achievements.enabled && badges.length === 0 && !isLoading) return null
+  if (!editMode && !canEdit && achievements.enabled && badges.length === 0 && !isLoading) return null
 
   const isCompact = grid?.h === 1
   const isNarrow = grid?.w === 1
-  const isShortWide = !isNarrow && (grid?.h ?? 3) <= 2
 
   return (
     <section className={cn(
@@ -488,7 +685,7 @@ export function ProfileAchievementsSection({
       <div className={`${isCompact ? 'mb-2' : 'mb-3'} flex shrink-0 items-center justify-between gap-4`}>
         <div className="flex min-w-0 items-center gap-3">
           <h2 className={`${isCompact ? 'text-base' : isNarrow ? 'text-base uppercase text-blue-900' : 'text-2xl'} min-w-0 truncate font-semibold ${isNarrow ? '' : 'text-gray-950'}`}>
-            {isCompact ? badges[0]?.title || 'Badges' : 'Badges'}
+            {isCompact ? badges[0]?.title || 'Your Badges' : 'Your Badges'}
           </h2>
           {!isCompact && editMode && canEdit && achievements.enabled ? (
             <Button asChild variant="outline" size="sm">
@@ -533,35 +730,27 @@ export function ProfileAchievementsSection({
               <div key={item} className="aspect-square h-full max-h-full min-h-0 shrink-0 animate-pulse rounded-lg bg-gray-100" />
             ))}
           </div>
-        ) : badges.length > 0 ? (
+        ) : displaySlots > 0 ? (
           isCompact ? (
             <BadgeThumbnailStrip badges={badges} dense />
-          ) : isShortWide ? (
-            <div className="flex min-h-0 flex-1 justify-center gap-4 overflow-x-auto overflow-y-hidden">
-              {badges.map((badge) => (
-                <ShortBadgeCard key={badge.id} badge={badge} />
-              ))}
-            </div>
-          ) : isNarrow ? (
-            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-              {badges.map((badge) => (
-                <BadgeListRow key={badge.id} badge={badge} />
-              ))}
-            </div>
           ) : (
-            <div className="flex min-h-0 flex-1 justify-center gap-4 overflow-x-auto overflow-y-hidden pb-2">
-              {badges.map((badge) => (
-                <BadgeCard
-                  key={badge.id}
-                  badge={badge}
-                  widthClass="w-[176px] min-w-[176px]"
-                  showDate={false}
-                />
-              ))}
+            <div className={cn('flex min-h-0 flex-1 flex-col', isNarrow ? 'gap-3' : 'gap-4')}>
+              <p className={cn('shrink-0 text-gray-600', isNarrow ? 'text-left text-sm leading-5' : 'text-center text-sm')}>
+                Start your journey! Earn your first 3 badges to complete this section.
+              </p>
+              <div className={cn('min-h-0 flex-1 gap-3', isNarrow ? 'flex flex-col overflow-hidden' : 'grid grid-cols-3 overflow-hidden')}>
+                {badges.map((badge) => (
+                  isNarrow ? <BadgeListRow key={badge.id} badge={badge} /> : <ShortBadgeCard key={badge.id} badge={badge} />
+                ))}
+                {suggestedBadges.map((badge) => (
+                  <SuggestedBadgeCard key={badge.id} badge={badge} compact={isNarrow} />
+                ))}
+              </div>
+              <BadgeProgress earnedCount={badges.length} spacious />
             </div>
           )
         ) : (
-          isCompact || isShortWide ? (
+          isCompact ? (
             <div className="flex min-h-0 flex-1 items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 text-center text-xs font-medium text-gray-500">
               No featured badges
             </div>

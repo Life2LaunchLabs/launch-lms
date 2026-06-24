@@ -444,11 +444,34 @@ def _get_onboarding_recommended_badges(owner_org: Organization, next_step: str, 
     recommended = onboarding_config.get("recommended_badges", {}) if isinstance(onboarding_config, dict) else {}
     goal = next_step if next_step in ONBOARDING_GOALS else "not_sure"
     badge_uuids = recommended.get(goal, []) if isinstance(recommended, dict) else []
-    return [
+    configured_badges = [
         value if str(value).startswith("course_") else f"course_{value}"
         for value in badge_uuids
         if isinstance(value, str) and value.strip()
     ][:3]
+    if len(configured_badges) >= 3:
+        return configured_badges
+
+    configured_set = set(configured_badges)
+    fallback_courses = db_session.exec(
+        select(Course).where(
+            Course.org_id == owner_org.id,
+            Course.public == True,
+            Course.hidden == False,
+            Course.system_type == None,
+        )
+    ).all()
+    fallback_badges = [
+        course.course_uuid
+        for course in sorted(
+            fallback_courses,
+            key=lambda course: course.creation_date or course.update_date or "",
+            reverse=True,
+        )
+        if course.course_uuid and course.course_uuid not in configured_set
+    ]
+
+    return (configured_badges + fallback_badges)[:3]
 
 
 def _generate_onboarding_username(email: str, db_session: Session) -> str:

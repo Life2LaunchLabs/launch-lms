@@ -4,6 +4,7 @@ import { OwnerProfilePageClient } from '@components/Objects/Portfolio/ProfilePag
 import { getUser } from '@services/users/users'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
+import { getOrgCollections } from '@services/courses/collections'
 
 const ProfilePage = async (props: { params: Promise<{ orgslug: string }> }) => {
   const params = await props.params
@@ -20,8 +21,31 @@ const ProfilePage = async (props: { params: Promise<{ orgslug: string }> }) => {
     revalidate: 0,
     tags: ['organizations'],
   }, accessToken)
+  let collections: any[] = []
 
-  return <OwnerProfilePageClient initialUser={user} orgslug={params.orgslug} orgConfig={org.config} />
+  try {
+    collections = await getOrgCollections(
+      org.id,
+      accessToken,
+      { revalidate: 0, tags: ['collections'] }
+    )
+  } catch (error) {
+    console.error('Failed to load collections for portfolio badges widget', {
+      orgslug: params.orgslug,
+      org_id: org.id,
+      error,
+    })
+  }
+
+  return (
+    <OwnerProfilePageClient
+      initialUser={user}
+      orgslug={params.orgslug}
+      orgConfig={org.config}
+      orgId={org.id}
+      collections={collections}
+    />
+  )
 }
 
 export default ProfilePage

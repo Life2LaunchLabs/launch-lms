@@ -144,6 +144,8 @@ type ProfilePageClientProps = {
   mode: 'owner' | 'public'
   isSelf?: boolean
   orgConfig?: any
+  orgId?: string | number
+  collections?: any[]
 }
 
 type OwnerProfilePageClientProps = Omit<ProfilePageClientProps, 'mode' | 'isSelf'>
@@ -269,6 +271,7 @@ function createProfileSection(item: ProfileLayoutItem): ProfileCustomSection | n
 function getProfileGridDefaultSize(type: ProfileWidgetType): Pick<ProfileGridPosition, 'w' | 'h'> {
   if (type === 'title' || type === 'link') return { w: 2, h: 1 }
   if (type === 'text' || type === 'media') return { w: 1, h: 2 }
+  if (type === 'achievements') return { w: 2, h: 3 }
   if (type === 'instagramPreview' || type === 'youtubePreview') return { w: 2, h: 3 }
   if (type === 'coreQuiz' || type === 'coreCourse') return { w: 2, h: 3 }
   return { w: 2, h: 3 }
@@ -299,7 +302,9 @@ function clampProfileGridPosition(
 ): ProfileGridPosition {
   const defaults = getProfileGridDefaultSize(type)
   const w = Math.min(cols, Math.max(1, Number(grid?.w || defaults.w)))
-  const h = Math.min(3, Math.max(1, Number(grid?.h || defaults.h)))
+  const h = type === 'achievements'
+    ? defaults.h
+    : Math.min(3, Math.max(1, Number(grid?.h || defaults.h)))
   const x = Math.min(cols - w, Math.max(0, Number.isFinite(grid?.x) ? Number(grid?.x) : 0))
   const y = Math.max(0, Number.isFinite(grid?.y) ? Number(grid?.y) : index * defaults.h)
   return { x, y, w, h }
@@ -3156,6 +3161,8 @@ function ProfilePageClient({
   mode,
   isSelf = false,
   orgConfig,
+  orgId,
+  collections = [],
 }: ProfilePageClientProps) {
   const router = useRouter()
   const session = useLHSession() as any
@@ -3865,6 +3872,10 @@ function ProfilePageClient({
           editMode={effectiveEditMode}
           canEdit={canManageProfile}
           publicVisible={isPublicMode ? achievements.publicVisible : true}
+          orgConfig={orgConfig}
+          orgId={orgId}
+          collections={collections}
+          profile={profile}
           onChange={(nextAchievements) => updateDraftProfile((current) => ({
             ...current,
             achievements: nextAchievements,
@@ -4054,26 +4065,30 @@ function ProfilePageClient({
                             >
                               <span className="h-6 w-1 rounded-full bg-current" />
                             </button>
-                            <button
-                              type="button"
-                              data-profile-grid-control="true"
-                              onPointerDown={(event) => startProfileGridResize(item.id, 'top', event)}
-                              className="absolute -top-3 left-1/2 z-20 flex h-6 w-12 -translate-x-1/2 cursor-ns-resize items-center justify-center rounded-full bg-white text-gray-400 opacity-0 shadow-sm ring-1 ring-gray-200 transition-all hover:text-gray-900 group-hover/portfolio-grid-item:opacity-100"
-                              aria-label={`Resize section height from top, current height ${grid.h} rows`}
-                              title="Drag to resize height"
-                            >
-                              <span className="h-1 w-6 rounded-full bg-current" />
-                            </button>
-                            <button
-                              type="button"
-                              data-profile-grid-control="true"
-                              onPointerDown={(event) => startProfileGridResize(item.id, 'bottom', event)}
-                              className="absolute -bottom-3 left-1/2 z-20 flex h-6 w-12 -translate-x-1/2 cursor-ns-resize items-center justify-center rounded-full bg-white text-gray-400 opacity-0 shadow-sm ring-1 ring-gray-200 transition-all hover:text-gray-900 group-hover/portfolio-grid-item:opacity-100"
-                              aria-label={`Resize section height from bottom, current height ${grid.h} rows`}
-                              title="Drag to resize height"
-                            >
-                              <span className="h-1 w-6 rounded-full bg-current" />
-                            </button>
+                            {item.type !== 'achievements' ? (
+                              <>
+                                <button
+                                  type="button"
+                                  data-profile-grid-control="true"
+                                  onPointerDown={(event) => startProfileGridResize(item.id, 'top', event)}
+                                  className="absolute -top-3 left-1/2 z-20 flex h-6 w-12 -translate-x-1/2 cursor-ns-resize items-center justify-center rounded-full bg-white text-gray-400 opacity-0 shadow-sm ring-1 ring-gray-200 transition-all hover:text-gray-900 group-hover/portfolio-grid-item:opacity-100"
+                                  aria-label={`Resize section height from top, current height ${grid.h} rows`}
+                                  title="Drag to resize height"
+                                >
+                                  <span className="h-1 w-6 rounded-full bg-current" />
+                                </button>
+                                <button
+                                  type="button"
+                                  data-profile-grid-control="true"
+                                  onPointerDown={(event) => startProfileGridResize(item.id, 'bottom', event)}
+                                  className="absolute -bottom-3 left-1/2 z-20 flex h-6 w-12 -translate-x-1/2 cursor-ns-resize items-center justify-center rounded-full bg-white text-gray-400 opacity-0 shadow-sm ring-1 ring-gray-200 transition-all hover:text-gray-900 group-hover/portfolio-grid-item:opacity-100"
+                                  aria-label={`Resize section height from bottom, current height ${grid.h} rows`}
+                                  title="Drag to resize height"
+                                >
+                                  <span className="h-1 w-6 rounded-full bg-current" />
+                                </button>
+                              </>
+                            ) : null}
                           </>
                         ) : null}
                       </div>
