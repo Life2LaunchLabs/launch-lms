@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
@@ -20,6 +21,7 @@ import {
   Globe,
   Heading1,
   Heading2,
+  Heart,
   Image as ImageIcon,
   Instagram,
   Italic,
@@ -29,6 +31,7 @@ import {
   ListOrdered,
   Loader2,
   Lock,
+  Pencil,
   Plus,
   Quote,
   RemoveFormatting,
@@ -41,6 +44,7 @@ import {
   Youtube,
   X,
   Circle,
+  Zap,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import GridLayout, { type Layout as ReactGridLayoutItems, verticalCompactor } from 'react-grid-layout'
@@ -93,7 +97,7 @@ type ProfileHeader = {
   socials?: SocialLink[]
 }
 
-type ProfileWidgetType = 'timeline' | 'portfolio' | 'achievements' | 'coreCourse' | 'coreQuiz' | 'instagramPreview' | 'youtubePreview' | 'title' | 'text' | 'link' | 'media'
+type ProfileWidgetType = 'timeline' | 'portfolio' | 'achievements' | 'values' | 'strengths' | 'coreCourse' | 'coreQuiz' | 'instagramPreview' | 'youtubePreview' | 'title' | 'text' | 'link' | 'media'
 
 type ProfileLayoutItem = {
   id: string
@@ -128,6 +132,8 @@ type ProfileShape = {
   header?: ProfileHeader
   featured?: FeaturedSection
   achievements?: any
+  values?: string[]
+  strengths?: string[]
   timelineEnabled?: boolean
   timelinePublicVisible?: boolean
   timeline?: any[]
@@ -209,17 +215,41 @@ const SOCIAL_CONFIG: Record<SocialType, {
   },
 }
 
-const UNIQUE_PROFILE_WIDGETS: ProfileWidgetType[] = ['timeline', 'portfolio', 'achievements', 'instagramPreview', 'youtubePreview']
+const UNIQUE_PROFILE_WIDGETS: ProfileWidgetType[] = ['timeline', 'portfolio', 'achievements', 'values', 'strengths', 'instagramPreview', 'youtubePreview']
 const DISABLED_PROFILE_WIDGETS = new Set<ProfileWidgetType>(['coreCourse', 'coreQuiz'])
 const DEFAULT_PROFILE_LAYOUT: ProfileLayoutItem[] = [
   { id: 'timeline', type: 'timeline' },
   { id: 'portfolio', type: 'portfolio' },
   { id: 'achievements', type: 'achievements' },
+  { id: 'values', type: 'values' },
+  { id: 'strengths', type: 'strengths' },
 ]
 const PROFILE_GRID_COLS = 2
 const PROFILE_GRID_MARGIN: readonly [number, number] = [16, 16]
 const PROFILE_GRID_ROW_HEIGHT = 131
 const PROFILE_GRID_DROP_SIZE: Pick<ProfileGridPosition, 'w' | 'h'> = { w: 1, h: 1 }
+const PROFILE_TOP_FIVE_LIMIT = 5
+
+type ProfileTopFiveKind = 'values' | 'strengths'
+
+type ProfileTopFiveCategory = {
+  title: string
+  items: string[]
+}
+
+const PROFILE_VALUES_CATEGORIES: ProfileTopFiveCategory[] = [
+  { title: 'Personal Qualities', items: ['Authenticity', 'Creativity', 'Mindfulness', 'Responsibility', 'Self-discipline'] },
+  { title: 'Relationships', items: ['Kindness', 'Empathy', 'Loyalty', 'Respect', 'Trust'] },
+  { title: 'Growth', items: ['Curiosity', 'Learning', 'Courage', 'Resilience', 'Reflection'] },
+  { title: 'Impact', items: ['Service', 'Leadership', 'Justice', 'Community', 'Stewardship'] },
+]
+
+const PROFILE_STRENGTHS_CATEGORIES: ProfileTopFiveCategory[] = [
+  { title: 'Thinking', items: ['Analysis', 'Strategy', 'Problem solving', 'Systems thinking', 'Decision making'] },
+  { title: 'Creating', items: ['Storytelling', 'Design sense', 'Experimentation', 'Originality', 'Making ideas real'] },
+  { title: 'Working With Others', items: ['Collaboration', 'Facilitation', 'Mentoring', 'Listening', 'Conflict navigation'] },
+  { title: 'Execution', items: ['Focus', 'Follow-through', 'Organization', 'Adaptability', 'Initiative'] },
+]
 
 const PROFILE_WIDGET_CONFIG: Record<ProfileWidgetType, {
   label: string
@@ -229,6 +259,8 @@ const PROFILE_WIDGET_CONFIG: Record<ProfileWidgetType, {
   timeline: { label: 'Timeline', icon: ChevronRight, unique: true },
   portfolio: { label: 'Posts', icon: FileText, unique: true },
   achievements: { label: 'Badges', icon: Award, unique: true },
+  values: { label: 'My Values', icon: Heart, unique: true },
+  strengths: { label: 'My Strengths', icon: Zap, unique: true },
   coreCourse: { label: 'CORE Course', icon: BookOpen, unique: false },
   coreQuiz: { label: 'Quiz Result', icon: BookOpen, unique: false },
   instagramPreview: { label: 'Instagram', icon: Instagram, unique: true },
@@ -436,6 +468,18 @@ function normalizeProfileLayout(layout: any): ProfileLayoutItem[] {
   }))
 }
 
+function normalizeProfileTopFive(value: any): string[] {
+  if (!Array.isArray(value)) return []
+  const seen = new Set<string>()
+  return value.reduce<string[]>((items, item) => {
+    const label = String(item || '').trim()
+    if (!label || seen.has(label) || items.length >= PROFILE_TOP_FIVE_LIMIT) return items
+    seen.add(label)
+    items.push(label)
+    return items
+  }, [])
+}
+
 function moveProfileLayoutItem(layout: ProfileLayoutItem[], itemId: string, targetIndex: number) {
   const currentIndex = layout.findIndex((item) => item.id === itemId)
   if (currentIndex === -1) return layout
@@ -446,12 +490,12 @@ function moveProfileLayoutItem(layout: ProfileLayoutItem[], itemId: string, targ
 }
 
 function normalizeProfile(profile: any): ProfileShape {
-  if (!profile) return { header: { socials: [] }, featured: normalizeFeatured(null), achievements: normalizeAchievements(null), timelineEnabled: false, timeline: [], layout: DEFAULT_PROFILE_LAYOUT, sections: [] }
+  if (!profile) return { header: { socials: [] }, featured: normalizeFeatured(null), achievements: normalizeAchievements(null), values: [], strengths: [], timelineEnabled: false, timeline: [], layout: DEFAULT_PROFILE_LAYOUT, sections: [] }
   if (typeof profile === 'string') {
     try {
       return normalizeProfile(JSON.parse(profile))
     } catch {
-      return { header: { socials: [] }, featured: normalizeFeatured(null), achievements: normalizeAchievements(null), timelineEnabled: false, timeline: [], layout: DEFAULT_PROFILE_LAYOUT, sections: [] }
+      return { header: { socials: [] }, featured: normalizeFeatured(null), achievements: normalizeAchievements(null), values: [], strengths: [], timelineEnabled: false, timeline: [], layout: DEFAULT_PROFILE_LAYOUT, sections: [] }
     }
   }
   return {
@@ -462,6 +506,8 @@ function normalizeProfile(profile: any): ProfileShape {
     },
     featured: normalizeFeatured(profile.featured),
     achievements: normalizeAchievements(profile.achievements),
+    values: normalizeProfileTopFive(profile.values),
+    strengths: normalizeProfileTopFive(profile.strengths),
     timelineEnabled: Boolean(profile.timelineEnabled),
     timeline: normalizeTimeline(profile.timeline),
     layout: normalizeProfileLayout(profile.layout),
@@ -1683,6 +1729,15 @@ function PortfolioTodoPanel({
           complete: visibleSocials.some((social) => social.type === type),
         }
       }
+      if (item.type === 'values' || item.type === 'strengths') {
+        const selected = item.type === 'values' ? profile.values || [] : profile.strengths || []
+        return {
+          id: item.type,
+          label: `Pick your ${item.type === 'values' ? 'values' : 'strengths'}`,
+          detail: `${Math.min(selected.length, PROFILE_TOP_FIVE_LIMIT)}/${PROFILE_TOP_FIVE_LIMIT} selected`,
+          complete: selected.length >= PROFILE_TOP_FIVE_LIMIT,
+        }
+      }
       if (item.type === 'link' || item.type === 'text' || item.type === 'media' || item.type === 'title') {
         const section = sections.find((candidate) => candidate.id === item.id)
         return {
@@ -1861,6 +1916,234 @@ function TimelineOverviewSection({
       )}
     </section>
   )
+}
+
+function getProfileTopFiveConfig(kind: ProfileTopFiveKind) {
+  if (kind === 'values') {
+    return {
+      title: 'My Values',
+      prompt: 'Select the top 5 values that best describe you.',
+      empty: 'Choose the values you want people to remember.',
+      categories: PROFILE_VALUES_CATEGORIES,
+      icon: Heart,
+      accent: 'bg-rose-500',
+      softAccent: 'bg-rose-50 text-rose-700 border-rose-200',
+    }
+  }
+
+  return {
+    title: 'My Strengths',
+    prompt: 'Select the top 5 strengths that best describe you.',
+    empty: 'Choose the strengths you want to showcase.',
+    categories: PROFILE_STRENGTHS_CATEGORIES,
+    icon: Zap,
+    accent: 'bg-amber-500',
+    softAccent: 'bg-amber-50 text-amber-800 border-amber-200',
+  }
+}
+
+function ProfileTopFiveWidget({
+  kind,
+  selected,
+  grid,
+  canEdit,
+  onConfirm,
+}: {
+  kind: ProfileTopFiveKind
+  selected: string[]
+  grid: ProfileGridPosition
+  canEdit: boolean
+  onConfirm(values: string[]): void
+}) {
+  const config = getProfileTopFiveConfig(kind)
+  const Icon = config.icon
+  const [open, setOpen] = useState(false)
+  const [draftSelected, setDraftSelected] = useState<string[]>(selected)
+  const [showConfirm, setShowConfirm] = useState(selected.length >= PROFILE_TOP_FIVE_LIMIT)
+  const isCompact = grid.h === 1
+  const isNarrow = grid.w === 1
+  const selectedSet = useMemo(() => new Set(draftSelected), [draftSelected])
+  const progressPercent = (draftSelected.length / PROFILE_TOP_FIVE_LIMIT) * 100
+
+  useEffect(() => {
+    if (!open) return
+    setDraftSelected(selected)
+    setShowConfirm(selected.length >= PROFILE_TOP_FIVE_LIMIT)
+  }, [open, selected])
+
+  useEffect(() => {
+    if (draftSelected.length !== PROFILE_TOP_FIVE_LIMIT) {
+      setShowConfirm(false)
+      return
+    }
+
+    const timeout = window.setTimeout(() => setShowConfirm(true), 650)
+    return () => window.clearTimeout(timeout)
+  }, [draftSelected.length])
+
+  const addChip = (item: string) => {
+    if (!canEdit || selectedSet.has(item) || draftSelected.length >= PROFILE_TOP_FIVE_LIMIT) return
+    setDraftSelected((current) => [...current, item])
+  }
+
+  const removeChip = (item: string) => {
+    if (!canEdit) return
+    setDraftSelected((current) => current.filter((value) => value !== item))
+  }
+
+  const confirmSelection = () => {
+    if (draftSelected.length !== PROFILE_TOP_FIVE_LIMIT) return
+    onConfirm(draftSelected)
+    setOpen(false)
+  }
+
+  const cardContent = (
+    <section className={`flex h-full min-h-0 min-w-0 flex-col rounded-xl border border-gray-200 bg-white ${isCompact ? 'p-4' : 'p-5'} text-left shadow-sm transition-all ${canEdit ? 'hover:-translate-y-0.5 hover:shadow-md' : ''}`}>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white ${config.accent}`}>
+            <Icon className="h-5 w-5" />
+          </span>
+          <h2 className={`${isNarrow ? 'text-xl' : 'text-2xl'} min-w-0 truncate font-semibold text-gray-950`}>
+            {config.title}
+          </h2>
+        </div>
+        {canEdit ? <Pencil className="h-4 w-4 shrink-0 text-gray-400" /> : null}
+      </div>
+
+      {selected.length > 0 ? (
+        <div className="flex min-h-0 flex-1 content-start items-start gap-2 overflow-y-auto">
+          <div className="flex flex-wrap gap-2">
+            {selected.slice(0, isCompact ? 3 : PROFILE_TOP_FIVE_LIMIT).map((item) => (
+              <span key={item} className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${config.softAccent}`}>
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 items-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 p-4">
+          <p className="text-sm leading-6 text-gray-500">{config.empty}</p>
+        </div>
+      )}
+    </section>
+  )
+
+  return (
+    <>
+      {canEdit ? (
+        <div
+          role="button"
+          tabIndex={0}
+          className="h-full w-full text-left focus:outline-none focus:ring-2 focus:ring-gray-300"
+          onClick={() => setOpen(true)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              setOpen(true)
+            }
+          }}
+        >
+          {cardContent}
+        </div>
+      ) : selected.length > 0 ? cardContent : null}
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="flex max-h-[92vh] w-[calc(100vw-2rem)] max-w-2xl flex-col overflow-hidden rounded-2xl p-0">
+          <DialogHeader className="border-b border-gray-100 px-6 py-5 pr-14">
+            <DialogTitle>{config.title}</DialogTitle>
+            <DialogDescription>{config.prompt}</DialogDescription>
+          </DialogHeader>
+
+          <div className="flex min-h-0 flex-1 flex-col gap-5 px-6 py-5">
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto rounded-xl border border-gray-200 bg-white p-4">
+              {config.categories.map((category) => (
+                <section key={category.title} className="space-y-2">
+                  <h3 className="text-sm font-semibold text-gray-800">{category.title}</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {category.items.filter((item) => !selectedSet.has(item)).map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => addChip(item)}
+                        disabled={draftSelected.length >= PROFILE_TOP_FIVE_LIMIT}
+                        className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-semibold text-gray-700 transition-colors hover:border-gray-300 hover:bg-white disabled:cursor-not-allowed disabled:opacity-45"
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+
+            <div className="shrink-0 space-y-3">
+              <div className="flex min-h-11 flex-wrap items-center gap-2">
+                {draftSelected.length > 0 ? draftSelected.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => removeChip(item)}
+                    className={`rounded-full border px-3 py-1.5 text-sm font-semibold transition-transform hover:-translate-y-0.5 ${config.softAccent}`}
+                  >
+                    {item}
+                  </button>
+                )) : (
+                  <p className="text-sm text-gray-500">Your selected chips will appear here.</p>
+                )}
+              </div>
+
+              <div className="min-h-10">
+                <AnimatePresence mode="wait" initial={false}>
+                  {showConfirm ? (
+                    <motion.div
+                      key="confirm"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.18 }}
+                    >
+                      <Button type="button" className="w-full" onClick={confirmSelection}>
+                        Confirm
+                      </Button>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="progress"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.18 }}
+                      className="space-y-2"
+                    >
+                      <div className="flex items-center justify-between text-xs font-semibold text-gray-500">
+                        <span>Selected</span>
+                        <span>{draftSelected.length}/{PROFILE_TOP_FIVE_LIMIT}</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                        <div className={`h-full rounded-full transition-all duration-300 ${config.accent}`} style={{ width: `${progressPercent}%` }} />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+function LayoutRightSidebarPortal({ children }: { children: React.ReactNode }) {
+  const [target, setTarget] = useState<HTMLElement | null>(null)
+
+  useEffect(() => {
+    setTarget(document.getElementById('org-layout-right-sidebar'))
+  }, [])
+
+  if (!target) return null
+  return createPortal(children, target)
 }
 
 function SocialPreviewWidget({
@@ -2991,7 +3274,7 @@ function ProfileAddTray({
   const [contentFrame, setContentFrame] = useState({ left: 16, width: 0 })
   const basicSections: Array<{ title: string; types: ProfileWidgetType[] }> = [
     { title: 'Common', types: ['title', 'text', 'link', 'media'] },
-    { title: 'Features', types: ['portfolio', 'timeline', 'achievements'] },
+    { title: 'Features', types: ['portfolio', 'timeline', 'achievements', 'values', 'strengths'] },
     { title: 'Socials', types: ['instagramPreview', 'youtubePreview'] },
   ]
 
@@ -3241,6 +3524,7 @@ function ProfilePageClient({
       ? routePaths.org.userTimeline(profileUsername || user.username)
       : routePaths.org.portfolioTimeline()
   )
+  const showPortfolioChecklist = canManageProfile && activeTab === 'overview'
 
   const missingSocialTypes = useMemo(
     () => (Object.keys(SOCIAL_CONFIG) as SocialType[]).filter(
@@ -3352,6 +3636,16 @@ function ProfilePageClient({
       ...current,
       timelinePublicVisible: visible,
     }))
+  }
+
+  const updateProfileTopFive = (kind: ProfileTopFiveKind, values: string[]) => {
+    const nextProfile = {
+      ...draftProfileRef.current,
+      [kind]: normalizeProfileTopFive(values),
+    }
+    draftProfileRef.current = nextProfile
+    updateDraftProfile(nextProfile)
+    void persistProfile({ profileOverride: nextProfile })
   }
 
   const copyProfileLink = async () => {
@@ -3887,6 +4181,21 @@ function ProfilePageClient({
         />
       )
     }
+    if (item.type === 'values' || item.type === 'strengths') {
+      const selected = item.type === 'values'
+        ? contentProfile.values || []
+        : contentProfile.strengths || []
+      if (!canManageProfile && selected.length === 0) return null
+      return (
+        <ProfileTopFiveWidget
+          kind={item.type}
+          selected={selected}
+          grid={grid}
+          canEdit={canManageProfile}
+          onConfirm={(values) => updateProfileTopFive(item.type as ProfileTopFiveKind, values)}
+        />
+      )
+    }
     if (item.type === 'coreCourse') {
       return null
     }
@@ -3924,7 +4233,10 @@ function ProfilePageClient({
 
   return (
     <main className="min-h-screen">
-      <div ref={profileContentRef} className="mx-auto w-full max-w-7xl px-0 pt-0 pb-6 sm:px-6 sm:py-6 lg:px-8">
+      <div
+        ref={profileContentRef}
+        className="mx-auto w-full px-0 pt-0 pb-6 sm:px-6 sm:py-6 lg:px-8"
+      >
         {isPublicMode && isSelf ? (
           <div className="mx-4 mt-4 flex flex-col gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 sm:mx-0 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm font-medium text-gray-700">
@@ -3965,7 +4277,7 @@ function ProfilePageClient({
           />
         </div>
         {activeTab === 'overview' ? (
-          <div className="grid gap-6 px-4 pb-10 sm:px-0 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="grid gap-6 px-4 pb-10 sm:px-0">
             <div className="min-w-0">
               <SimpleProfileHeader
                 orgslug={orgslug}
@@ -4099,17 +4411,6 @@ function ProfilePageClient({
               ) : null}
               </div>
             </div>
-            {canManageProfile ? (
-              <div className="lg:sticky lg:top-20 lg:self-start">
-                <PortfolioTodoPanel
-                  profile={contentProfile}
-                  user={{ ...user, bio: draft.bio, avatar_image: user.avatar_image }}
-                  orgslug={orgslug}
-                  orgConfig={orgConfig}
-                  trail={trail}
-                />
-              </div>
-            ) : null}
           </div>
         ) : null}
         {activeTab === 'timeline' ? (
@@ -4131,6 +4432,19 @@ function ProfilePageClient({
           />
         ) : null}
       </div>
+      {showPortfolioChecklist ? (
+        <LayoutRightSidebarPortal>
+          <div className="lg:sticky lg:top-24 lg:self-start">
+            <PortfolioTodoPanel
+              profile={contentProfile}
+              user={{ ...user, bio: draft.bio, avatar_image: user.avatar_image }}
+              orgslug={orgslug}
+              orgConfig={orgConfig}
+              trail={trail}
+            />
+          </div>
+        </LayoutRightSidebarPortal>
+      ) : null}
       {canManageProfile && activeTab === 'overview' ? (
         <ProfileAddTray
           open={addTrayOpen}

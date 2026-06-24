@@ -44,7 +44,7 @@ import {
 import { cn } from '@/lib/utils'
 import { Z_INDEX } from '@/lib/z-index'
 
-const DESKTOP_NAV_COLLAPSED_WIDTH = '80px'
+const DESKTOP_NAV_COLLAPSED_WIDTH = '44px'
 const DESKTOP_NAV_EXPANDED_WIDTH = '264px'
 const DESKTOP_NAV_STORAGE_KEY = 'org-menu-collapsed'
 
@@ -151,7 +151,7 @@ export const OrgMenu = (props: { orgslug: string }) => {
             ? 'pointer-events-none md:w-0 -translate-x-4 opacity-0'
             : isDesktopNavExpanded
               ? 'md:w-[264px] translate-x-0 opacity-100'
-              : 'md:w-20 translate-x-0 opacity-100'
+              : 'md:w-11 translate-x-0 opacity-100'
         )}
         style={{
           top: topOffset,
@@ -167,7 +167,10 @@ export const OrgMenu = (props: { orgslug: string }) => {
           }}
         >
           <div
-            className="flex h-full min-h-0 flex-col overflow-hidden px-4 py-6 transition-[width] duration-200 ease-out"
+            className={cn(
+              'flex h-full min-h-0 flex-col overflow-hidden py-6 transition-[width] duration-200 ease-out',
+              isDesktopNavExpanded ? 'px-4' : 'px-0'
+            )}
             style={{
               width: desktopNavWidth,
             }}
