@@ -26,7 +26,7 @@ def main() -> int:
         return 1
 
     # Importing the database module loads all models.
-    from src.core.events import database as database_module  # noqa: WPS433
+    from src.core.events import database  # noqa: F401, WPS433
 
     engine = create_engine(database_url, pool_pre_ping=True)
 

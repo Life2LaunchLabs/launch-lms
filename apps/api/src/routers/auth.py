@@ -458,7 +458,7 @@ def _get_onboarding_recommended_badges(owner_org: Organization, next_step: str, 
             Course.org_id == owner_org.id,
             Course.public == True,
             Course.hidden == False,
-            Course.system_type == None,
+            Course.system_type.is_(None),
         )
     ).all()
     fallback_badges = [

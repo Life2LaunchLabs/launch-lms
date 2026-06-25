@@ -1,5 +1,5 @@
 import pytest
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel import Session, create_engine, select
 
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization

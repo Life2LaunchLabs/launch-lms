@@ -14,8 +14,8 @@ from src.db.organizations import Organization
 from src.db.plan_requests import PlanRequest, PlanRequestCreate, PlanRequestRead
 from src.db.users import AnonymousUser, PublicUser
 from src.security.auth import get_current_user
-from src.security.features_utils.packs import AVAILABLE_PACKAGES, is_valid_package
-from src.security.features_utils.plans import PLAN_HIERARCHY, plan_meets_requirement
+from src.security.features_utils.packs import is_valid_package
+from src.security.features_utils.plans import PLAN_HIERARCHY
 from src.security.rbac.constants import ADMIN_ROLE_ID
 from src.db.user_organizations import UserOrganization
 

@@ -3,7 +3,7 @@ import os
 import importlib
 from config.config import get_launchlms_config
 from fastapi import FastAPI
-from sqlmodel import SQLModel, Session, create_engine
+from sqlmodel import Session, create_engine
 from sqlalchemy import event
 
 def import_all_models():
