@@ -8,7 +8,8 @@ import { Award, Calendar, Loader2, Lock, Star } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { Button } from '@components/ui/button'
+import { Button, buttonVariants } from '@components/ui/button'
+import { Card } from '@components/ui/card'
 import { Switch } from '@components/ui/switch'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { getUriWithOrg, routePaths, getAPIUrl } from '@services/config/config'
@@ -506,15 +507,15 @@ function BadgeThumbnailStrip({
   dense?: boolean
 }) {
   return (
-    <div className="flex min-h-0 flex-1 justify-center gap-2 overflow-x-auto overflow-y-hidden">
+    <div className="flex min-h-0 flex-1 justify-center gap-2 overflow-hidden">
       {badges.map((badge) => (
         <Link
           key={badge.id}
           href={badge.href}
           aria-label={badge.title}
           className={cn(
-            'block aspect-square h-full max-h-full min-h-0 shrink-0 overflow-visible rounded-lg bg-transparent',
-            dense ? 'max-h-[58px]' : 'max-h-[112px]'
+            'block aspect-square h-full max-h-full min-h-0 min-w-0 flex-1 basis-0 overflow-visible rounded-lg bg-transparent',
+            dense ? 'max-h-[58px] max-w-[58px]' : 'max-h-[112px] max-w-[112px]'
           )}
         >
           <BadgeThumbnailImage
@@ -534,10 +535,10 @@ function ShortBadgeCard({ badge }: { badge: BadgeCredential }) {
   return (
     <Link
       href={badge.href}
-      className="flex h-full min-h-0 w-[132px] min-w-[112px] shrink-0 flex-col items-center"
+      className="flex min-h-0 w-full min-w-0 flex-col items-center justify-start justify-self-center"
     >
-      <div className="flex min-h-0 w-full flex-1 justify-center">
-        <div className="aspect-square h-full max-h-full overflow-visible rounded-lg bg-transparent">
+      <div className="flex min-h-0 w-full justify-center">
+        <div className="aspect-square w-full max-w-[180px] overflow-visible rounded-lg bg-transparent">
           <BadgeThumbnailImage
             src={badge.imageUrl}
             alt={badge.title}
@@ -583,7 +584,7 @@ function SuggestedBadgeCard({
     return (
       <Link
         href={badge.href}
-        className="flex min-h-0 items-center gap-3 rounded-lg border border-dashed border-gray-200 bg-white px-3 py-3 transition hover:border-[#39bf00] hover:bg-[#39bf00]/5"
+        className="flex min-h-0 items-center gap-3 rounded-lg border border-dashed border-gray-200 bg-white px-3 py-3 transition hover:border-[var(--org-primary-color)] hover:bg-gray-50"
       >
         <SuggestedBadgeIcon badge={badge} />
         <span className="min-w-0 flex-1">
@@ -605,7 +606,7 @@ function SuggestedBadgeCard({
       <SuggestedBadgeIcon badge={badge} />
       <span className="mt-2 line-clamp-1 text-xs font-bold text-gray-950">{badge.title}</span>
       <span className="text-xs font-medium text-gray-500">Locked</span>
-      <span className="mt-3 w-full rounded-md bg-[#39bf00] px-3 py-1.5 text-xs font-medium text-gray-950 shadow-[0_4px_0_#2f8d0e] transition hover:translate-y-0.5 hover:shadow-[0_2px_0_#2f8d0e]">
+      <span className={buttonVariants({ variant: 'brand', size: 'sm', className: 'mt-3 w-full pointer-events-none' })}>
         Start
       </span>
     </Link>
@@ -620,10 +621,10 @@ function BadgeProgress({ earnedCount, spacious = false }: { earnedCount: number;
     <div className={cn('shrink-0', spacious && 'rounded-lg bg-gray-50 px-3 py-3')}>
       <div className="mb-2 flex items-center justify-between text-[11px] font-bold text-gray-950">
         <span>Goal: 3 Badges</span>
-        <span className="text-[#39bf00]">{percentage}%</span>
+        <span className="text-[var(--org-primary-color)]">{percentage}%</span>
       </div>
       <div className={cn('overflow-hidden rounded-full bg-gray-100', spacious ? 'h-4' : 'h-3')}>
-        <div className="h-full rounded-full bg-[#39bf00] transition-all" style={{ width: `${percentage}%` }} />
+        <div className="h-full rounded-full bg-[var(--org-primary-color)] transition-all" style={{ width: `${percentage}%` }} />
       </div>
     </div>
   )
@@ -669,6 +670,7 @@ export function ProfileAchievementsSection({
     .filter((badge) => !earnedCourseUuids.has(badge.id))
     .slice(0, Math.max(0, 3 - badges.length))
   const displaySlots = badges.length + suggestedBadges.length
+  const hasCompletedBadgeGoal = badges.length >= 3
   const isLoading = isLoadingFeatured || isLoadingEarned
 
   if (!editMode && (!achievements.enabled || !publicVisible)) return null
@@ -678,17 +680,15 @@ export function ProfileAchievementsSection({
   const isNarrow = grid?.w === 1
 
   return (
-    <section className={cn(
-      'flex h-full min-h-0 min-w-0 flex-col rounded-xl border border-gray-100 bg-white shadow-sm',
-      isCompact ? 'p-3' : 'p-4'
-    )}>
+    <Card asChild variant="default" size={isCompact ? 'sm' : 'default'} className="flex h-full min-h-0 min-w-0 flex-col">
+      <section>
       <div className={`${isCompact ? 'mb-2' : 'mb-3'} flex shrink-0 items-center justify-between gap-4`}>
         <div className="flex min-w-0 items-center gap-3">
           <h2 className={`${isCompact ? 'text-base' : isNarrow ? 'text-base uppercase text-blue-900' : 'text-2xl'} min-w-0 truncate font-semibold ${isNarrow ? '' : 'text-gray-950'}`}>
-            {isCompact ? badges[0]?.title || 'Your Badges' : 'Your Badges'}
+            Badges
           </h2>
           {!isCompact && editMode && canEdit && achievements.enabled ? (
-            <Button asChild variant="outline" size="sm">
+            <Button asChild variant="surface" size="sm">
               <Link href={routes.badgesHref}>Edit</Link>
             </Button>
           ) : null}
@@ -734,11 +734,13 @@ export function ProfileAchievementsSection({
           isCompact ? (
             <BadgeThumbnailStrip badges={badges} dense />
           ) : (
-            <div className={cn('flex min-h-0 flex-1 flex-col', isNarrow ? 'gap-3' : 'gap-4')}>
-              <p className={cn('shrink-0 text-gray-600', isNarrow ? 'text-left text-sm leading-5' : 'text-center text-sm')}>
-                Start your journey! Earn your first 3 badges to complete this section.
-              </p>
-              <div className={cn('min-h-0 flex-1 gap-3', isNarrow ? 'flex flex-col overflow-hidden' : 'grid grid-cols-3 overflow-hidden')}>
+            <div className={cn('flex min-h-0 flex-1 flex-col', hasCompletedBadgeGoal && 'justify-center', isNarrow ? 'gap-3' : 'gap-4')}>
+              {!hasCompletedBadgeGoal ? (
+                <p className={cn('shrink-0 text-gray-600', isNarrow ? 'text-left text-sm leading-5' : 'text-center text-sm')}>
+                  Start your journey! Earn your first 3 badges to complete this section.
+                </p>
+              ) : null}
+              <div className={cn('min-h-0 gap-3', hasCompletedBadgeGoal ? 'shrink-0' : 'flex-1', isNarrow ? 'flex flex-col overflow-hidden' : 'grid grid-cols-3 items-start overflow-hidden')}>
                 {badges.map((badge) => (
                   isNarrow ? <BadgeListRow key={badge.id} badge={badge} /> : <ShortBadgeCard key={badge.id} badge={badge} />
                 ))}
@@ -746,7 +748,7 @@ export function ProfileAchievementsSection({
                   <SuggestedBadgeCard key={badge.id} badge={badge} compact={isNarrow} />
                 ))}
               </div>
-              <BadgeProgress earnedCount={badges.length} spacious />
+              {!hasCompletedBadgeGoal ? <BadgeProgress earnedCount={badges.length} spacious /> : null}
             </div>
           )
         ) : (
@@ -759,7 +761,7 @@ export function ProfileAchievementsSection({
               title="No featured badges yet"
               description="Feature earned badges to show them here."
               action={editMode && canEdit ? (
-                <Button asChild variant="outline" size="sm">
+                <Button asChild variant="surface" size="sm">
                   <Link href={getUriWithOrg(orgslug, routePaths.org.myBadges())}>Choose badges</Link>
                 </Button>
               ) : undefined}
@@ -767,7 +769,8 @@ export function ProfileAchievementsSection({
           )
         )
       ) : null}
-    </section>
+      </section>
+    </Card>
   )
 }
 export function ProfileAchievementsManager({
@@ -865,7 +868,7 @@ export function CustomAchievementDetail({
           title="Badge not found"
           description="Manual achievements are no longer used. Feature earned badges from your badges page instead."
           action={(
-            <Button asChild variant="outline">
+            <Button asChild variant="surface">
               <Link href={routes.badgesHref}>Back to badges</Link>
             </Button>
           )}

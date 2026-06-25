@@ -12,7 +12,6 @@ import {
   Bold,
   Camera,
   Check,
-  CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -49,7 +48,8 @@ import {
 import { AnimatePresence, motion } from 'motion/react'
 import GridLayout, { type Layout as ReactGridLayoutItems, verticalCompactor } from 'react-grid-layout'
 import { toast } from 'react-hot-toast'
-import { Button } from '@components/ui/button'
+import { Button, buttonVariants } from '@components/ui/button'
+import { Card } from '@components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -70,7 +70,6 @@ import { normalizeAchievements, ProfileAchievementsSection } from '@components/O
 import {
   createEmptyFeaturedCard,
   FeaturedCarousel,
-  getPortfolioAuthorName,
   normalizeFeatured,
   type FeaturedSection,
 } from '@components/Objects/Portfolio/ProfilePortfolio'
@@ -225,7 +224,7 @@ const DEFAULT_PROFILE_LAYOUT: ProfileLayoutItem[] = [
   { id: 'strengths', type: 'strengths' },
 ]
 const PROFILE_GRID_COLS = 2
-const PROFILE_GRID_MARGIN: readonly [number, number] = [16, 16]
+const PROFILE_GRID_MARGIN: readonly [number, number] = [24, 24]
 const PROFILE_GRID_ROW_HEIGHT = 131
 const PROFILE_GRID_DROP_SIZE: Pick<ProfileGridPosition, 'w' | 'h'> = { w: 1, h: 1 }
 const PROFILE_TOP_FIVE_LIMIT = 5
@@ -257,7 +256,7 @@ const PROFILE_WIDGET_CONFIG: Record<ProfileWidgetType, {
   unique: boolean
 }> = {
   timeline: { label: 'Timeline', icon: ChevronRight, unique: true },
-  portfolio: { label: 'Posts', icon: FileText, unique: true },
+  portfolio: { label: 'Portfolio', icon: FileText, unique: true },
   achievements: { label: 'Badges', icon: Award, unique: true },
   values: { label: 'My Values', icon: Heart, unique: true },
   strengths: { label: 'My Strengths', icon: Zap, unique: true },
@@ -303,7 +302,7 @@ function createProfileSection(item: ProfileLayoutItem): ProfileCustomSection | n
 function getProfileGridDefaultSize(type: ProfileWidgetType): Pick<ProfileGridPosition, 'w' | 'h'> {
   if (type === 'title' || type === 'link') return { w: 2, h: 1 }
   if (type === 'text' || type === 'media') return { w: 1, h: 2 }
-  if (type === 'achievements') return { w: 2, h: 3 }
+  if (type === 'achievements') return { w: 2, h: 2 }
   if (type === 'instagramPreview' || type === 'youtubePreview') return { w: 2, h: 3 }
   if (type === 'coreQuiz' || type === 'coreCourse') return { w: 2, h: 3 }
   return { w: 2, h: 3 }
@@ -728,7 +727,7 @@ function EditableProfileNameLine({
       onKeyDown={(event) => {
         if (event.key === 'Enter') event.currentTarget.blur()
       }}
-      className={`block w-full overflow-visible whitespace-nowrap border-0 bg-transparent p-0 ${alignClass} font-black leading-[0.82] text-gray-950 outline-none transition-colors placeholder:text-gray-300 focus:text-emerald-700 disabled:cursor-wait disabled:opacity-70 ${className}`}
+      className={`block w-full overflow-visible whitespace-nowrap border-0 bg-transparent p-0 ${alignClass} font-black leading-[0.82] text-gray-950 outline-none transition-colors placeholder:text-gray-300 focus:text-[var(--org-primary-color)] disabled:cursor-wait disabled:opacity-70 ${className}`}
       style={{
         fontSize: `min(${maxRem}rem, calc(100cqw / ${fitFactor}))`,
         letterSpacing: 0,
@@ -1248,31 +1247,6 @@ function getRecentTimelineEntries(timeline: TimelineEntry[]) {
     .slice(0, 4)
 }
 
-function getOnboardingRecommendedBadgeUuids(orgConfig: any, profile: ProfileShape) {
-  const config = orgConfig?.config || orgConfig || {}
-  const onboarding = (profile as any)?.onboarding || {}
-  const goal = onboarding?.next_step || 'not_sure'
-  const storedRecommendations = Array.isArray(onboarding?.recommended_badges)
-    ? onboarding.recommended_badges
-    : []
-  const orgRecommendations =
-    config?.customization?.onboarding?.recommended_badges?.[goal] ||
-    config?.onboarding?.recommended_badges?.[goal] ||
-    []
-
-  return (storedRecommendations.length ? storedRecommendations : orgRecommendations)
-    .map((value: string) => {
-      const cleaned = String(value || '').replace('course_', '').trim()
-      return cleaned ? `course_${cleaned}` : ''
-    })
-    .filter(Boolean)
-    .slice(0, 3)
-}
-
-function getCourseRunCourseUuid(run: any) {
-  return run?.course?.course_uuid || run?.course_uuid || ''
-}
-
 function isCourseRunEarned(run: any) {
   const totalSteps = Number(run?.course_total_steps || 0)
   const completedSteps = Array.isArray(run?.steps) ? run.steps.length : 0
@@ -1293,6 +1267,55 @@ function hasFilledCustomSection(section: ProfileCustomSection | undefined, type?
     (section.url || '').trim() ||
     (section.mediaUrl || '').trim()
   )
+}
+
+function shouldRenderProfileLayoutItem(
+  item: ProfileLayoutItem,
+  profile: ProfileShape,
+  canManageProfile: boolean
+) {
+  if (canManageProfile) return true
+
+  if (item.type === 'timeline') {
+    return Boolean(
+      profile.timelineEnabled &&
+      profile.timelinePublicVisible !== false &&
+      (profile.timeline || []).length > 0
+    )
+  }
+
+  if (item.type === 'portfolio') {
+    const featured = profile.featured || normalizeFeatured(null)
+    return Boolean(
+      featured.enabled &&
+      featured.publicVisible !== false &&
+      (featured.cards || []).length > 0
+    )
+  }
+
+  if (item.type === 'achievements') {
+    const achievements = normalizeAchievements(profile.achievements)
+    return Boolean(
+      achievements.enabled &&
+      achievements.publicVisible !== false &&
+      achievements.featured.length > 0
+    )
+  }
+
+  if (item.type === 'values' || item.type === 'strengths') {
+    const selected = item.type === 'values' ? profile.values || [] : profile.strengths || []
+    return selected.length > 0
+  }
+
+  if (item.type === 'instagramPreview' || item.type === 'youtubePreview') {
+    const type = item.type === 'instagramPreview' ? 'instagram' : 'youtube'
+    return Boolean((profile.header?.socials || []).find((social) => social.type === type)?.url)
+  }
+
+  if (item.type === 'coreCourse' || item.type === 'coreQuiz') return false
+
+  const section = profile.sections?.find((candidate) => candidate.id === item.id)
+  return hasFilledCustomSection(section, item.type)
 }
 
 function getProfileDisplayName(firstName?: string, lastName?: string, username?: string) {
@@ -1386,20 +1409,21 @@ function SimpleProfileHeader({
   const visibleSocials = socials.filter((social) => social.url)
 
   return (
-    <section className="py-6">
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={onOpen}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault()
-            onOpen()
-          }
-        }}
-        className="group grid cursor-pointer items-center gap-6 rounded-2xl border border-transparent p-5 transition-all duration-200 hover:-translate-y-1 hover:border-gray-200 hover:shadow-xl hover:shadow-gray-950/10 focus:outline-none focus:ring-2 focus:ring-gray-300 sm:grid-cols-[minmax(0,1fr)_160px] sm:p-6"
-        aria-label="Open profile header"
-      >
+    <section className="pb-6">
+      <Card asChild variant="interactive" size="default" className="grid cursor-pointer items-center gap-6 sm:grid-cols-[minmax(0,1fr)_160px]">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={onOpen}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              onOpen()
+            }
+          }}
+          className="group focus:outline-none focus:ring-2 focus:ring-gray-300"
+          aria-label="Open profile header"
+        >
         <div className="min-w-0 text-center sm:text-left">
           <h1 className="text-4xl font-black leading-tight text-gray-950 sm:text-5xl">
             {getProfileDisplayName(firstName, lastName, username)}
@@ -1426,18 +1450,19 @@ function SimpleProfileHeader({
             />
           </div>
         </div>
-      </div>
+        </div>
+      </Card>
 
       <div className="mt-4 flex flex-wrap items-center justify-start gap-2">
         {canSeedDevProfile ? (
-          <Button type="button" variant="outline" onClick={onSeedDevProfile} disabled={isSaving}>
+          <Button type="button" variant="surface" onClick={onSeedDevProfile} disabled={isSaving}>
             {isSaving ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Sparkles size={16} className="mr-2" />}
             Cheat Portfolio
           </Button>
         ) : null}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button type="button" variant="outline">
+            <Button type="button" variant="surface">
               <Share2 size={16} className="mr-2" />
               Share
             </Button>
@@ -1659,23 +1684,16 @@ function PortfolioTodoPanel({
   profile,
   user,
   orgslug,
-  orgConfig,
   trail,
 }: {
   profile: ProfileShape
   user: any
   orgslug: string
-  orgConfig?: any
   trail: any
 }) {
   const runs = Array.isArray(trail?.runs) ? trail.runs : []
   const earnedRuns = runs.filter(isCourseRunEarned)
   const startedRuns = runs.filter((run: any) => !isCourseRunEarned(run) && Array.isArray(run?.steps) && run.steps.length > 0)
-  const recommended = getOnboardingRecommendedBadgeUuids(orgConfig, profile)
-  const recommendedRemaining = recommended.filter((courseUuid: string) => {
-    const run = runs.find((candidate: any) => getCourseRunCourseUuid(candidate) === courseUuid)
-    return !isCourseRunEarned(run)
-  })
   const featured = profile.featured || normalizeFeatured(null)
   const layout = profile.layout || DEFAULT_PROFILE_LAYOUT
   const sections = profile.sections || []
@@ -1755,46 +1773,58 @@ function PortfolioTodoPanel({
     all.findIndex((candidate) => candidate.id === task.id) === index
   )
   const completed = uniqueTasks.filter((task) => task.complete).length
+  const progressPercent = uniqueTasks.length ? Math.round((completed / uniqueTasks.length) * 100) : 0
 
   return (
-    <aside className="rounded-lg border border-gray-200 bg-white p-4">
-      <div className="mb-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Setup</p>
-        <h2 className="mt-1 text-base font-semibold text-gray-950">Portfolio checklist</h2>
-        <p className="mt-1 text-sm text-gray-500">{completed}/{uniqueTasks.length} done</p>
-      </div>
-      {recommendedRemaining.length ? (
-        <div className="mb-4 rounded-md bg-gray-50 p-3">
-          <p className="text-xs font-semibold text-gray-600">Recommended badges left</p>
-          <p className="mt-1 text-sm text-gray-500">{recommendedRemaining.length} from onboarding</p>
+    <Card asChild variant="default" size="sm" className="overflow-hidden">
+      <aside className="space-y-4">
+      <div>
+        <p className="text-[11px] font-black uppercase tracking-[0.12em] text-gray-600">Setup</p>
+        <div className="mt-2 flex items-end justify-between gap-3">
+          <h2 className="min-w-0 text-base font-black leading-5 text-gray-950">Portfolio checklist</h2>
+          <p className="shrink-0 text-xs font-black text-[var(--org-primary-color)]">{completed}/{uniqueTasks.length} done</p>
         </div>
-      ) : null}
-      <div className="space-y-3">
+        <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-gray-100">
+          <div
+            className="h-full rounded-full bg-[var(--org-primary-color)] transition-all duration-300"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
         {uniqueTasks.map((task) => {
           const icon = task.complete
-            ? <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            : <Circle className="h-4 w-4 text-gray-300" />
+            ? (
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--org-primary-color)] text-white">
+                <Check className="h-2.5 w-2.5" strokeWidth={3} />
+              </span>
+            )
+            : <Circle className="h-4 w-4 text-gray-400" strokeWidth={2.2} />
           const content = (
             <div className="flex min-w-0 items-start gap-3">
-              <span className="mt-0.5 shrink-0">{icon}</span>
+              <span className="mt-1 shrink-0">{icon}</span>
               <span className="min-w-0">
-                <span className="block text-sm font-medium text-gray-800">{task.label}</span>
-                <span className="block text-xs text-gray-500">{task.detail}</span>
+                <span className={`block text-xs font-black leading-4 ${task.complete ? 'text-gray-500 line-through decoration-gray-400 decoration-2' : 'text-gray-950'}`}>
+                  {task.label}
+                </span>
+                <span className="block text-[11px] font-semibold leading-4 text-gray-500">{task.detail}</span>
               </span>
             </div>
           )
           return task.href ? (
-            <Link key={task.id} href={task.href} className="block rounded-md p-1 transition-colors hover:bg-gray-50">
+            <Link key={task.id} href={task.href} className="block rounded-lg px-1.5 py-1 transition-colors hover:bg-gray-50">
               {content}
             </Link>
           ) : (
-            <div key={task.id} className="rounded-md p-1">
+            <div key={task.id} className="rounded-lg px-1.5 py-1">
               {content}
             </div>
           )
         })}
       </div>
-    </aside>
+      </aside>
+    </Card>
   )
 }
 
@@ -1840,7 +1870,8 @@ function TimelineOverviewSection({
 
   if (isCompact) {
     return (
-      <section className="flex h-full min-h-0 min-w-0 items-center justify-between gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+      <Card asChild variant="default" size="sm" className="flex h-full min-h-0 min-w-0 items-center justify-between gap-4">
+        <section>
         <div className="min-w-0">
           <h2 className="truncate text-base font-semibold text-gray-950">The Journey</h2>
           {visibleEntries.length > 0 ? (
@@ -1853,16 +1884,18 @@ function TimelineOverviewSection({
         </div>
         <Link
           href={href}
-          className="inline-flex h-9 shrink-0 items-center rounded-full bg-gray-950 px-3 text-sm font-semibold text-white hover:bg-gray-800"
+          className={buttonVariants({ variant: 'surface', size: 'sm', className: 'shrink-0' })}
         >
           Open
         </Link>
-      </section>
+        </section>
+      </Card>
     )
   }
 
   return (
-    <section className="flex h-full min-h-0 min-w-0 flex-col rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm">
+    <Card asChild variant="default" className="flex h-full min-h-0 min-w-0 flex-col">
+      <section>
       <div className="mb-5 flex items-center justify-between gap-3">
         <h2 className={`${isNarrow ? 'text-xl' : 'text-2xl'} min-w-0 truncate font-semibold text-gray-950`}>The Journey</h2>
         <Link
@@ -1896,17 +1929,17 @@ function TimelineOverviewSection({
           </div>
         </div>
       ) : (
-        <div className="rounded-lg border-2 border-dotted border-emerald-400 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-4 rounded-lg bg-emerald-50/50 p-5">
+        <div className="rounded-lg border-2 border-dotted border-[var(--org-primary-color)] bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-4 rounded-lg bg-gray-50 p-5">
             <div>
-              <p className="text-sm font-semibold text-emerald-950">Add timeline events</p>
-              <p className="mt-1 text-sm leading-6 text-emerald-800">
+              <p className="text-sm font-semibold text-gray-950">Add timeline events</p>
+              <p className="mt-1 text-sm leading-6 text-gray-700">
                 Capture work, education, and life moments to show them here.
               </p>
             </div>
             <Link
               href={href}
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-sm transition-colors hover:bg-emerald-600"
+              className={buttonVariants({ variant: 'brand', size: 'icon', className: 'h-12 w-12 shrink-0' })}
               aria-label="Add timeline events"
             >
               <ChevronRight className="h-6 w-6" />
@@ -1914,7 +1947,8 @@ function TimelineOverviewSection({
           </div>
         </div>
       )}
-    </section>
+      </section>
+    </Card>
   )
 }
 
@@ -1998,7 +2032,8 @@ function ProfileTopFiveWidget({
   }
 
   const cardContent = (
-    <section className={`flex h-full min-h-0 min-w-0 flex-col rounded-xl border border-gray-200 bg-white ${isCompact ? 'p-4' : 'p-5'} text-left shadow-sm transition-all ${canEdit ? 'hover:-translate-y-0.5 hover:shadow-md' : ''}`}>
+    <Card asChild variant={canEdit ? 'interactive' : 'default'} size={isCompact ? 'sm' : 'default'} className="flex h-full min-h-0 min-w-0 flex-col text-left">
+      <section>
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white ${config.accent}`}>
@@ -2026,7 +2061,8 @@ function ProfileTopFiveWidget({
           <p className="text-sm leading-6 text-gray-500">{config.empty}</p>
         </div>
       )}
-    </section>
+      </section>
+    </Card>
   )
 
   return (
@@ -2293,7 +2329,8 @@ function SocialPreviewWidget({
   }
 
   return (
-    <section className="flex h-full min-w-0 min-h-0 flex-col rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+    <Card asChild variant="default" size="sm" className="flex h-full min-h-0 min-w-0 flex-col">
+      <section>
       <div className={`flex min-w-0 gap-3 ${isCompact ? 'h-full items-center' : 'mb-3 flex-col sm:flex-row sm:items-end sm:justify-between'}`}>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -2317,7 +2354,7 @@ function SocialPreviewWidget({
                 }}
                 onBlur={onBlur}
                 placeholder={config.inputPlaceholder}
-                className="min-w-0 flex-1 border-0 bg-transparent p-0 font-medium text-gray-700 outline-none placeholder:text-gray-300 focus:text-emerald-700"
+                className="min-w-0 flex-1 border-0 bg-transparent p-0 font-medium text-gray-700 outline-none placeholder:text-gray-300 focus:text-[var(--org-primary-color)]"
                 autoComplete="url"
               />
             ) : handle && href ? (
@@ -2337,7 +2374,7 @@ function SocialPreviewWidget({
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex h-9 items-center rounded-full bg-gray-950 px-3 text-sm font-semibold text-white hover:bg-gray-800"
+                className={buttonVariants({ variant: 'surface', size: 'sm' })}
               >
                 Open
               </a>
@@ -2419,7 +2456,8 @@ function SocialPreviewWidget({
           {emptyMessage}
         </div>
       ) : null}
-    </section>
+      </section>
+    </Card>
   )
 }
 
@@ -2555,22 +2593,25 @@ function ProfileCoreQuizWidget({
 
   if (isCompact) {
     return (
-      <section className="flex h-full min-w-0 items-center justify-between gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+      <Card asChild variant="default" size="sm" className="flex h-full min-w-0 items-center justify-between gap-4">
+        <section>
         <div className="min-w-0">
           <h3 className="truncate text-base font-semibold text-gray-950">{pageLabel}</h3>
         </div>
         <Link
           href={quizHref}
-          className="inline-flex h-9 shrink-0 items-center rounded-full bg-gray-950 px-3 text-sm font-semibold text-white hover:bg-gray-800"
+          className={buttonVariants({ variant: 'surface', size: 'sm', className: 'shrink-0' })}
         >
           Open
         </Link>
-      </section>
+        </section>
+      </Card>
     )
   }
 
   return (
-    <section className="flex h-full min-w-0 min-h-0 flex-col overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+    <Card asChild variant="default" size="none" className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+      <section>
       <div className={`${isNarrow ? 'p-2' : 'p-2.5'} border-b border-gray-100`}>
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
@@ -2580,7 +2621,7 @@ function ProfileCoreQuizWidget({
               </div>
               <Link
                 href={quizHref}
-                className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+                className={buttonVariants({ variant: 'surface', size: 'sm', className: 'w-fit shrink-0' })}
               >
                 Open
                 <ArrowRight className="h-4 w-4" />
@@ -2643,7 +2684,7 @@ function ProfileCoreQuizWidget({
             </p>
             <Link
               href={quizHref}
-              className="mt-4 inline-flex items-center gap-2 rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+              className={buttonVariants({ variant: 'brand', size: 'sm', className: 'mt-4' })}
             >
               Get started
               <ArrowRight className="h-4 w-4" />
@@ -2651,7 +2692,8 @@ function ProfileCoreQuizWidget({
           </div>
         )}
       </div>
-    </section>
+      </section>
+    </Card>
   )
 }
 
@@ -2997,7 +3039,8 @@ function ProfileMediaSection({
   }
 
   return (
-    <section className="group/portfolio-media relative h-full min-h-0 overflow-hidden rounded-xl bg-white">
+    <Card asChild variant="default" size="none" className="group/portfolio-media relative h-full min-h-0 overflow-hidden">
+      <section>
       <div className="absolute inset-0 bg-gray-100">
         {hasMedia ? <ProfileMediaDisplay url={mediaUrl} title={section.title} /> : <EmptyWidgetPreview type="media" />}
       </div>
@@ -3076,7 +3119,8 @@ function ProfileMediaSection({
           </AnimatePresence>
         </>
       ) : null}
-    </section>
+      </section>
+    </Card>
   )
 }
 
@@ -3101,7 +3145,8 @@ function CustomProfileSectionView({
   const compact = grid.h === 1
   if (section.type === 'title') {
     return (
-      <section className="flex h-full items-center rounded-xl bg-white px-4 py-3">
+      <Card asChild variant="default" size="sm" className="flex h-full items-center">
+        <section>
         {canEdit ? (
           <input
             value={section.title || ''}
@@ -3113,12 +3158,14 @@ function CustomProfileSectionView({
         ) : (
           <h2 className="select-none text-3xl font-black leading-tight text-gray-950">{section.title || 'Untitled section'}</h2>
         )}
-      </section>
+        </section>
+      </Card>
     )
   }
   if (section.type === 'text') {
     return (
-      <section className="flex h-full min-h-0 flex-col rounded-xl bg-white p-4">
+      <Card asChild variant="default" size="sm" className="flex h-full min-h-0 flex-col">
+        <section>
         <style jsx global>{`
           .profile-rich-text ul,
           .profile-rich-text ol,
@@ -3187,14 +3234,16 @@ function CustomProfileSectionView({
             />
           </>
         )}
-      </section>
+        </section>
+      </Card>
     )
   }
   if (section.type === 'link') {
     const href = normalizeSocialInput('website', section.url || '')
     return (
-      <section className="flex h-full items-center rounded-xl bg-white">
-        <div className="flex h-full w-full items-center justify-between gap-4 rounded-lg border border-gray-200 bg-white p-5 text-gray-950 shadow-sm">
+      <Card asChild variant="default" size="sm" className="flex h-full items-center">
+        <section>
+        <div className="flex h-full w-full items-center justify-between gap-4 text-gray-950">
           <div className="min-w-0">
             {canEdit ? (
               <>
@@ -3222,7 +3271,8 @@ function CustomProfileSectionView({
           </div>
           <Link2 className="h-5 w-5 text-gray-400" />
         </div>
-      </section>
+        </section>
+      </Card>
     )
   }
   if (section.type === 'media') {
@@ -3414,7 +3464,7 @@ function ProfileAddTray({
         <button
           type="button"
           onClick={onToggle}
-          className="pointer-events-auto absolute bottom-0 right-0 z-10 flex h-14 w-14 items-center justify-center rounded-full bg-gray-950 text-white shadow-xl transition-colors hover:bg-black"
+          className={buttonVariants({ variant: 'brand', size: 'icon', className: 'pointer-events-auto absolute bottom-0 right-0 z-10 h-14 w-14' })}
           aria-label="Close profile section tray"
           data-profile-add-tray-root="true"
         >
@@ -3426,7 +3476,7 @@ function ProfileAddTray({
           type="button"
           whileTap={{ scale: 0.94 }}
           onClick={onToggle}
-          className="pointer-events-auto absolute bottom-0 right-0 flex h-14 w-14 items-center justify-center rounded-full bg-gray-950 text-white shadow-xl transition-colors hover:bg-black"
+          className={buttonVariants({ variant: 'brand', size: 'icon', className: 'pointer-events-auto absolute bottom-0 right-0 h-14 w-14' })}
           aria-label="Add profile section"
         >
           <Plus className="h-6 w-6" />
@@ -3495,11 +3545,32 @@ function ProfilePageClient({
   const timelineEnabled = profile.timelineEnabled ?? false
   const timelinePublicVisible = profile.timelinePublicVisible !== false
   const layout = contentProfile.layout || DEFAULT_PROFILE_LAYOUT
+  const renderableLayout = useMemo(
+    () => layout.filter((item) => shouldRenderProfileLayoutItem(item, contentProfile, canManageProfile)),
+    [layout, contentProfile, canManageProfile]
+  )
   const profileGridCols = PROFILE_GRID_COLS
   const profileGridKey = getProfileGridKey(profileGridCols)
   const gridLayout = useMemo(
-    () => profileLayoutToGridLayout(layout, canManageProfile, profileGridCols, profileGridKey),
-    [layout, canManageProfile, profileGridCols, profileGridKey]
+    () => {
+      const nextGridLayout = profileLayoutToGridLayout(renderableLayout, canManageProfile, profileGridCols, profileGridKey)
+      if (canManageProfile) return nextGridLayout
+
+      return compactProfileGridLayout(
+        nextGridLayout.map((item) => ({
+          ...item,
+          static: false,
+          isDraggable: false,
+        })),
+        profileGridCols
+      ).map((item) => ({
+        ...item,
+        static: true,
+        isDraggable: false,
+        isResizable: false,
+      }))
+    },
+    [renderableLayout, canManageProfile, profileGridCols, profileGridKey]
   )
   const profileGridRowHeight = PROFILE_GRID_ROW_HEIGHT
   const coreCourses: any[] = []
@@ -4141,13 +4212,11 @@ function ProfilePageClient({
           userId={user.id}
           userUuid={user.user_uuid}
           orgslug={orgslug}
-          authorName={getPortfolioAuthorName(user)}
-          updatedAtFallback={user.update_date}
           profileUsername={profileUsername || user.username}
           ownerView={canManageProfile}
           publicVisible={isPublicMode ? featured.publicVisible : true}
           actions={canManageProfile ? (
-            <Button type="button" variant="outline" size="icon" onClick={createPortfolioPost} disabled={isSaving} aria-label="Add portfolio post">
+            <Button type="button" variant="surface" size="icon" onClick={createPortfolioPost} disabled={isSaving} aria-label="Add portfolio post">
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             </Button>
           ) : null}
@@ -4242,7 +4311,7 @@ function ProfilePageClient({
             <p className="text-sm font-medium text-gray-700">
               You are viewing your public profile.
             </p>
-            <Button asChild variant="outline" size="sm">
+            <Button asChild variant="surface" size="sm">
               <Link href={getUriWithOrg(orgslug, routePaths.org.portfolio())}>View full profile</Link>
             </Button>
           </div>
@@ -4274,10 +4343,11 @@ function ProfilePageClient({
               { href: routePaths.org.portfolioResume(), label: 'Resume' },
             ]}
             noHorizontalBleed
+            noBottomMargin
           />
         </div>
         {activeTab === 'overview' ? (
-          <div className="grid gap-6 px-4 pb-10 sm:px-0">
+          <div className="grid gap-8 px-4 pb-12 pt-6 sm:px-0">
             <div className="min-w-0">
               <SimpleProfileHeader
                 orgslug={orgslug}
@@ -4292,7 +4362,7 @@ function ProfilePageClient({
                 onCopyProfileLink={copyProfileLink}
                 onSeedDevProfile={seedDevProfile}
               />
-              <div ref={profileGridRef} className="min-w-0">
+              <div ref={profileGridRef} className="min-w-0 pb-4">
               {profileGridWidth > 0 ? (
                 <GridLayout
                   key={`profile-grid-${profileGridCols}-${gridDropResetKey}`}
@@ -4334,15 +4404,15 @@ function ProfilePageClient({
                   }}
                   className="profile-grid-layout"
                 >
-                {layout.map((item) => {
+                {renderableLayout.map((item) => {
                   const rendered = renderProfileLayoutSection(item)
                   if (!rendered) return null
                   const grid = getProfileGridForItem(item, 0, profileGridCols, profileGridKey)
                   return (
-                    <div key={item.id} className="group/portfolio-grid-item h-full w-full min-w-0">
+                    <div key={item.id} className="group/portfolio-grid-item h-full w-full min-w-0 overflow-visible">
                       <div className={`relative h-full w-full min-w-0 rounded-xl transition-shadow ${canManageProfile ? 'cursor-grab ring-1 ring-transparent hover:ring-gray-300 active:cursor-grabbing' : ''}`}>
-                        <div className="h-full w-full min-w-0 overflow-hidden rounded-xl">
-                          <div className="h-full w-full min-w-0 overflow-y-auto">
+                        <div className="h-full w-full min-w-0 overflow-visible rounded-3xl">
+                          <div className="h-full w-full min-w-0 overflow-visible">
                             {rendered}
                           </div>
                         </div>
@@ -4434,12 +4504,11 @@ function ProfilePageClient({
       </div>
       {showPortfolioChecklist ? (
         <LayoutRightSidebarPortal>
-          <div className="lg:sticky lg:top-24 lg:self-start">
+          <div className="lg:sticky lg:top-6 lg:mt-20 lg:self-start">
             <PortfolioTodoPanel
               profile={contentProfile}
               user={{ ...user, bio: draft.bio, avatar_image: user.avatar_image }}
               orgslug={orgslug}
-              orgConfig={orgConfig}
               trail={trail}
             />
           </div>

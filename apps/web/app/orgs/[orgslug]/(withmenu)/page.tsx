@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { buttonVariants } from '@/components/ui/button'
 import { getServerSession } from '@/lib/auth/server'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
@@ -55,13 +56,13 @@ const OrgHomePage = async ({ params }: PageProps) => {
           <div className="mt-5 flex w-full max-w-[420px] flex-col gap-3 sm:mt-7 sm:gap-4">
             <Link
               href={signupHref}
-              className="flex h-14 w-full items-center justify-center rounded-2xl bg-[var(--org-primary-color)] px-8 text-[15px] font-black uppercase tracking-normal text-white shadow-[0_6px_0_rgba(0,0,0,0.18)] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--org-primary-color)]"
+              className={buttonVariants({ variant: 'cta', size: 'cta', className: 'w-full text-[15px]' })}
             >
               Get Started
             </Link>
             <Link
               href={loginHref}
-              className="flex h-14 w-full items-center justify-center rounded-2xl border-2 border-[#e5e5e5] bg-white px-6 text-[15px] font-black uppercase tracking-normal text-[#1cb0f6] shadow-[0_4px_0_#e5e5e5] transition-colors hover:bg-[#f8fafc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1cb0f6] sm:px-8"
+              className={buttonVariants({ variant: 'ctaSecondary', size: 'cta', className: 'w-full px-6 text-[15px] sm:px-8' })}
             >
               I Already Have an Account
             </Link>
@@ -108,13 +109,13 @@ const OrgHomePage = async ({ params }: PageProps) => {
             <div className="mt-8 flex w-full max-w-[420px] flex-col gap-4 sm:flex-row sm:justify-center">
               <Link
                 href={signupHref}
-                className="flex h-14 items-center justify-center rounded-2xl bg-[var(--org-primary-color)] px-8 text-sm font-black uppercase tracking-normal text-white shadow-[0_6px_0_rgba(0,0,0,0.18)] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--org-primary-color)]"
+                className={buttonVariants({ variant: 'cta', size: 'cta' })}
               >
                 Get Started
               </Link>
               <Link
                 href={loginHref}
-                className="flex h-14 items-center justify-center rounded-2xl border-2 border-[#d9e1e8] bg-white px-8 text-sm font-black uppercase tracking-normal text-[#4b4b4b] shadow-[0_4px_0_#d9e1e8] transition-colors hover:bg-[#f8fafc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1cb0f6]"
+                className={buttonVariants({ variant: 'ctaSecondary', size: 'cta', className: 'border-[#d9e1e8] text-[#4b4b4b] shadow-[0_4px_0_#d9e1e8]' })}
               >
                 Log In
               </Link>

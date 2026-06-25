@@ -1,5 +1,4 @@
 from datetime import timedelta, datetime, timezone
-from secrets import token_urlsafe
 from typing import Literal, Optional
 from fastapi import Depends, APIRouter, HTTPException, Response, status, Request, Form
 from pydantic import BaseModel, EmailStr
@@ -73,6 +72,7 @@ ONBOARDING_GOALS = {"higher_education", "employment", "self_starting", "not_sure
 
 class WelcomeSignupRequest(BaseModel):
     email: EmailStr
+    password: str
     quiz_result: Optional[dict] = None
 
 
@@ -587,7 +587,7 @@ async def complete_welcome_signup(
     user_create = UserCreate(
         username=_generate_onboarding_username(body.email, db_session),
         email=body.email,
-        password=f"Aa1!{token_urlsafe(24)}",
+        password=body.password,
         first_name=onboarding["first_name"],
         last_name=onboarding["last_name"],
         bio="",

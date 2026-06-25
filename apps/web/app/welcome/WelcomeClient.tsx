@@ -14,6 +14,8 @@ type WelcomePayload = {
   course_uuid: string
 }
 
+const welcomeSignupPasswordKey = (email: string) => `launchlms_welcome_signup_password:${email}`
+
 function cleanId(value: string | null | undefined, prefix: string) {
   return String(value || '').replace(prefix, '')
 }
@@ -61,6 +63,13 @@ export default function WelcomeClient() {
   const completeOnboarding = React.useCallback(async (quizResult: any) => {
     setIsCompleting(true)
     setError('')
+    const password = window.sessionStorage.getItem(welcomeSignupPasswordKey(email))
+    if (!password) {
+      setIsCompleting(false)
+      const message = 'Your signup session expired. Please start signup again.'
+      setError(message)
+      throw new Error(message)
+    }
 
     const res = await fetch('/api/auth/signup/welcome', {
       method: 'POST',
@@ -70,6 +79,7 @@ export default function WelcomeClient() {
       },
       body: JSON.stringify({
         email,
+        password,
         quiz_result: quizResult,
       }),
     })
@@ -82,6 +92,7 @@ export default function WelcomeClient() {
       throw new Error(message)
     }
 
+    window.sessionStorage.removeItem(welcomeSignupPasswordKey(email))
     window.location.href = '/'
   }, [email])
 

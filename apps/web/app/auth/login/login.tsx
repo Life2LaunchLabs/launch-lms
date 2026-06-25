@@ -1,6 +1,5 @@
 'use client'
 import { useFormik } from 'formik'
-import Image from 'next/image'
 import React, { useState, useEffect } from 'react'
 import { AlertTriangle, Lock, Mail, Shield, X, Clock } from 'lucide-react'
 import { SiGoogle } from '@icons-pack/react-simple-icons'
@@ -12,7 +11,7 @@ import { getCoreCapabilities } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import { resendVerificationEmail } from '@services/auth/auth'
 import AuthLayout from '@components/Auth/AuthLayout'
-import appIcon from 'public/app_icon.svg'
+import { Button } from '@components/ui/button'
 
 interface LoginClientProps {
   org: any
@@ -224,7 +223,7 @@ const LoginClient = (props: LoginClientProps) => {
   })
 
   return (
-    <AuthLayout org={props.org} welcomeText={t('auth.login_to')} minimal>
+    <AuthLayout org={props.org} welcomeText={t('auth.login_to')}>
       {showErrorModal && (
         <div className={`
           fixed left-0 right-0 top-0 z-50 w-full px-4 py-3 flex items-center justify-between gap-3 animate-in slide-in-from-top duration-200
@@ -288,45 +287,30 @@ const LoginClient = (props: LoginClientProps) => {
         </div>
       )}
 
-      <div className="min-h-screen flex items-center justify-center px-6 py-12">
+      <div className="flex min-h-screen flex-1 items-center justify-center px-6 py-12 lg:px-10">
         <div className="w-full max-w-[426px] text-center">
-          <Image
-            src={appIcon}
-            alt="Launch LMS"
-            width={52}
-            height={52}
-            className="mx-auto mb-12 rounded-xl"
-            priority
-          />
-
-          <h1 className="text-[32px] leading-tight font-bold tracking-[-0.02em] text-white">
+          <h1 className="text-[32px] leading-tight font-bold tracking-[-0.02em] text-gray-950">
             {t('auth.welcome_back')}
           </h1>
 
           {step === 'email' ? (
             <div className="mt-12 space-y-4">
-              <button
+              <Button
                 type="button"
                 onClick={handleGoogleLogin}
                 disabled={isGoogleLoading}
-                className="flex h-[44px] w-full items-center justify-center gap-3 rounded-full border border-white/16 bg-transparent text-[16px] font-semibold text-white transition-colors hover:bg-white/5 disabled:opacity-60"
+                variant="ctaSecondary"
+                size="cta"
+                className="w-full text-[16px]"
               >
                 <SiGoogle size={20} color="#4285F4" />
                 {isGoogleLoading ? t('common.loading') : 'Continue with Google'}
-              </button>
+              </Button>
 
-              <button
-                type="button"
-                onClick={() => setStep('password')}
-                className="flex h-[44px] w-full items-center justify-center rounded-full border border-white/16 bg-transparent text-[16px] font-semibold text-white transition-colors hover:bg-white/5"
-              >
-                See other options
-              </button>
-
-              <div className="flex items-center gap-4 pt-5 text-sm font-semibold text-white/70">
-                <div className="h-px flex-1 bg-white/14" />
+              <div className="flex items-center gap-4 pt-5 text-sm font-semibold text-gray-400">
+                <div className="h-px flex-1 bg-gray-200" />
                 <span>or</span>
-                <div className="h-px flex-1 bg-white/14" />
+                <div className="h-px flex-1 bg-gray-200" />
               </div>
 
               <form onSubmit={handleEmailContinue} className="space-y-4 pt-1">
@@ -341,18 +325,19 @@ const LoginClient = (props: LoginClientProps) => {
                   type="email"
                   placeholder="Enter email address"
                   autoComplete="email"
-                  className="h-12 w-full rounded-2xl border border-white bg-[#262626] px-4 text-[16px] text-white placeholder:text-[#787878] shadow-none outline-none transition-colors focus:bg-[#2b2b2b] focus:outline-none focus:ring-0"
+                  className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-[16px] text-gray-950 shadow-sm outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300 focus:ring-2 focus:ring-gray-100"
                   required
                 />
                 {emailError && (
-                  <p className="text-left text-sm font-medium text-red-200">{emailError}</p>
+                  <p className="text-left text-sm font-medium text-red-600">{emailError}</p>
                 )}
-                <button
+                <Button
                   type="submit"
-                  className="h-[44px] w-full rounded-full bg-white text-[16px] font-semibold text-black transition-colors hover:bg-white/90"
+                  size="cta"
+                  className="w-full bg-gray-950 text-[16px] font-semibold text-white shadow-none hover:bg-gray-800"
                 >
                   Continue
-                </button>
+                </Button>
               </form>
             </div>
           ) : (
@@ -360,7 +345,7 @@ const LoginClient = (props: LoginClientProps) => {
               <button
                 type="button"
                 onClick={() => setStep('email')}
-                className="mb-2 text-sm font-semibold text-white/60 transition-colors hover:text-white"
+                className="mb-2 text-sm font-semibold text-gray-500 transition-colors hover:text-gray-950"
               >
                 Back
               </button>
@@ -373,11 +358,11 @@ const LoginClient = (props: LoginClientProps) => {
                 type="email"
                 placeholder="Enter email address"
                 autoComplete="email"
-                className="h-12 w-full rounded-2xl border-none bg-[#262626] px-4 text-[16px] text-white placeholder:text-[#787878] shadow-none outline-none transition-colors focus:bg-[#2b2b2b] focus:outline-none focus:ring-0"
+                className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-[16px] text-gray-950 shadow-sm outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300 focus:ring-2 focus:ring-gray-100"
                 required
               />
               {formik.touched.email && formik.errors.email && (
-                <p className="text-sm font-medium text-red-200">{formik.errors.email}</p>
+                <p className="text-sm font-medium text-red-600">{formik.errors.email}</p>
               )}
 
               <input
@@ -388,15 +373,15 @@ const LoginClient = (props: LoginClientProps) => {
                 type="password"
                 placeholder="Password"
                 autoComplete="current-password"
-                className="h-12 w-full rounded-2xl border-none bg-[#262626] px-4 text-[16px] text-white placeholder:text-[#787878] shadow-none outline-none transition-colors focus:bg-[#2b2b2b] focus:outline-none focus:ring-0"
+                className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-[16px] text-gray-950 shadow-sm outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300 focus:ring-2 focus:ring-gray-100"
                 required
               />
               {formik.touched.password && formik.errors.password && (
-                <p className="text-sm font-medium text-red-200">{formik.errors.password}</p>
+                <p className="text-sm font-medium text-red-600">{formik.errors.password}</p>
               )}
 
               <div className="flex items-center justify-between">
-                <Link href="/forgot" className="text-xs text-white/60 transition-colors hover:text-white">
+                <Link href="/forgot" className="text-xs text-gray-500 transition-colors hover:text-gray-950">
                   {t('auth.forgot_password')}
                 </Link>
                 {ssoEnabled && (
@@ -404,7 +389,7 @@ const LoginClient = (props: LoginClientProps) => {
                     type="button"
                     onClick={handleSSOLogin}
                     disabled={ssoLoading}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/70 transition-colors hover:text-white disabled:opacity-60"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-950 disabled:opacity-60"
                   >
                     <Shield size={14} />
                     {ssoLoading ? t('common.loading') : t('auth.sign_in_with_sso')}
@@ -412,17 +397,18 @@ const LoginClient = (props: LoginClientProps) => {
                 )}
               </div>
 
-              <button
+              <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="h-[44px] w-full rounded-full bg-white text-center text-[16px] font-semibold text-black transition-colors hover:bg-white/90 disabled:opacity-60"
+                size="cta"
+                className="w-full bg-gray-950 text-[16px] font-semibold text-white shadow-none hover:bg-gray-800"
               >
                 {isSubmitting ? t('common.loading') : t('auth.login')}
-              </button>
+              </Button>
             </form>
           )}
 
-          <p className="mt-5 text-[12px] leading-relaxed text-white/80">
+          <p className="mt-5 text-[12px] leading-relaxed text-gray-500">
             By continuing, you agree to Launch LMS&apos;s{' '}
             <span className="underline underline-offset-2">
               Terms of Service
@@ -434,9 +420,9 @@ const LoginClient = (props: LoginClientProps) => {
             .
           </p>
 
-          <p className="mt-14 text-[15px] text-white/80">
+          <p className="mt-14 text-[15px] text-gray-600">
             {t('auth.no_account')}{' '}
-            <Link href="/signup" className="font-semibold text-white hover:underline">
+            <Link href="/signup" className="font-semibold text-gray-950 hover:underline">
               {t('auth.sign_up')}
             </Link>
           </p>

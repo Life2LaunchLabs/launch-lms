@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Briefcase, Flag, GraduationCap, Heart, Image as ImageIcon, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { Button } from '@components/ui/button'
+import { cardVariants } from '@components/ui/card'
 import { Input } from '@components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select'
 import { Switch } from '@components/ui/switch'
@@ -245,7 +246,7 @@ function TimelineCard({
     <button
       type="button"
       onClick={onOpen}
-      className="group w-full rounded-lg border-2 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-gray-900/20"
+      className={cardVariants({ variant: 'interactive', size: 'sm', className: 'group w-full text-left focus:outline-none focus:ring-2 focus:ring-gray-900/20' })}
       style={{ borderColor: accent }}
     >
       <div className="flex items-start justify-between gap-3">
@@ -519,7 +520,7 @@ function TimelineEntryDialog({
               Delete
             </Button>
           ) : <div />}
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="surface" onClick={() => onOpenChange(false)}>
             {canEdit ? 'Cancel' : 'Close'}
           </Button>
           {canEdit ? (

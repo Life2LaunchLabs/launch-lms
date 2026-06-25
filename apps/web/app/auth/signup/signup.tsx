@@ -37,10 +37,8 @@ function SignUpClient(props: SignUpClientProps) {
     : config?.features?.members?.signup_mode || 'open'
   const inviteCode = inviteCodeParam || ''
 
-  const useMinimalLayout = !createOrgMode && session.status !== 'authenticated'
-
   return (
-    <AuthLayout org={props.org} welcomeText={t('auth.invited_to_join')} minimal={useMinimalLayout}>
+    <AuthLayout org={props.org} welcomeText={t('auth.invited_to_join')}>
       {createOrgMode ? (
         session.status === 'authenticated' ? (
           <div className="flex-1 flex flex-row">

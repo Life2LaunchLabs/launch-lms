@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { Button } from '@components/ui/button'
+import { Card, cardVariants } from '@components/ui/card'
 import { Input } from '@components/ui/input'
 import { Switch } from '@components/ui/switch'
 import { Textarea } from '@components/ui/textarea'
@@ -52,8 +53,6 @@ type FeaturedCarouselProps = {
   userId: number
   userUuid: string
   orgslug: string
-  authorName: string
-  updatedAtFallback?: string
   profileUsername?: string
   ownerView: boolean
   publicVisible?: boolean
@@ -365,23 +364,19 @@ function PortfolioCover({
 function FeaturedDisplayCard({
   card,
   href,
-  authorName,
-  updatedAtFallback,
   fill = false,
 }: {
   card: FeaturedCard
   href: string
-  authorName: string
-  updatedAtFallback?: string
   fill?: boolean
 }) {
   const image = getCardImage(card)
   return (
     <Link
       href={href}
-      className={`group flex h-full min-w-0 shrink-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+      className={cardVariants({ variant: 'interactive', size: 'none', className: `group flex h-full min-w-0 shrink-0 flex-col overflow-hidden ${
         fill ? 'w-full' : 'w-64 min-[420px]:w-[min(72vw,300px)] sm:w-72'
-      }`}
+      }` })}
     >
       <div
         className="h-1/2 min-h-0 w-full shrink-0 overflow-hidden bg-gray-100"
@@ -392,16 +387,11 @@ function FeaturedDisplayCard({
         ) : null}
       </div>
       <div className="flex min-h-0 flex-1 flex-col p-4">
-        <h3 className="truncate text-lg font-semibold leading-snug text-gray-950">
+        <h3 className="line-clamp-2 text-lg font-semibold leading-snug text-gray-950">
           {card.title || 'Untitled post'}
         </h3>
-        <div className="mt-2 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium uppercase tracking-wide text-gray-500">
-          <span>{authorName}</span>
-          <span aria-hidden="true">/</span>
-          <span>Updated {formatPortfolioDate(card.updatedAt || updatedAtFallback)}</span>
-        </div>
         {card.body ? (
-          <p className="mt-3 line-clamp-4 min-h-0 text-sm leading-5 text-gray-600">
+          <p className="mt-3 line-clamp-5 min-h-0 text-sm leading-5 text-gray-600">
             {card.body}
           </p>
         ) : null}
@@ -415,8 +405,6 @@ export function FeaturedCarousel({
   editMode,
   grid,
   orgslug,
-  authorName,
-  updatedAtFallback,
   profileUsername,
   ownerView,
   publicVisible = true,
@@ -499,27 +487,30 @@ export function FeaturedCarousel({
 
   if (isCompact) {
     return (
-      <section className="flex h-full min-w-0 min-h-0 items-center justify-between gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+      <Card asChild variant="default" size="sm" className="flex h-full min-h-0 min-w-0 items-center justify-between gap-4">
+        <section>
         <div className="min-w-0">
-          <h2 className="truncate text-base font-semibold text-gray-950">Posts</h2>
+          <h2 className="truncate text-base font-semibold text-gray-950">Portfolio</h2>
           <p className="mt-1 truncate text-sm font-medium text-gray-500">
             {cards.length} {cards.length === 1 ? 'post' : 'posts'}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {actions}
-          <Button asChild size="sm" className="bg-gray-950 text-white hover:bg-gray-800">
+          <Button asChild variant="surface" size="sm">
             <Link href={compactHref}>Open</Link>
           </Button>
         </div>
-      </section>
+        </section>
+      </Card>
     )
   }
 
   return (
-    <section className="flex h-full min-w-0 min-h-0 flex-col rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+    <Card asChild variant="default" size="sm" className="flex h-full min-h-0 min-w-0 flex-col">
+      <section>
       <div className="mb-3 flex items-center justify-between gap-4">
-        <h2 className={`${isNarrow ? 'text-xl' : 'text-2xl'} min-w-0 truncate font-semibold text-gray-950`}>Posts</h2>
+        <h2 className={`${isNarrow ? 'text-xl' : 'text-2xl'} min-w-0 truncate font-semibold text-gray-950`}>Portfolio</h2>
         {actions}
       </div>
 
@@ -535,8 +526,6 @@ export function FeaturedCarousel({
                 <FeaturedDisplayCard
                   card={activeCard}
                   href={getPostHref(activeCard)}
-                  authorName={authorName}
-                  updatedAtFallback={updatedAtFallback}
                   fill
                 />
                 {cards.length > 1 ? (
@@ -585,8 +574,6 @@ export function FeaturedCarousel({
                   <FeaturedDisplayCard
                     card={card}
                     href={getPostHref(card)}
-                    authorName={authorName}
-                    updatedAtFallback={updatedAtFallback}
                   />
                 </div>
               ))}
@@ -618,7 +605,8 @@ export function FeaturedCarousel({
           ) : null}
         </div>
       </div>
-    </section>
+      </section>
+    </Card>
   )
 }
 
@@ -930,7 +918,7 @@ export function PortfolioPostPageClient({
             </div>
           ) : post.includeButton && actionUrl ? (
             <div className="flex justify-center">
-              <Button asChild className="rounded-full bg-black px-5 text-white hover:bg-black/90">
+              <Button asChild variant="brand" className="px-5">
                 <a href={actionUrl} target="_blank" rel="noopener noreferrer">
                   {post.actionButtonText || 'Open link'}
                   <ExternalLink className="ml-2 h-4 w-4" />
