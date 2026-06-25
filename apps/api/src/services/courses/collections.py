@@ -144,6 +144,8 @@ async def _filter_collection_courses(
 ) -> list[Course]:
     visible_courses: list[Course] = []
     for course in courses:
+        if course.hidden:
+            continue
         if current_user.user_uuid == "user_anonymous":
             if course.public and course.published:
                 visible_courses.append(course)
@@ -219,6 +221,7 @@ async def get_collection(
         .where(
             Course.collection_id == collection.id,
             Course.org_id == collection.org_id,
+            Course.hidden == False,
         )
     )
 
@@ -228,6 +231,7 @@ async def get_collection(
             Course.collection_id == collection.id,
             Course.org_id == collection.org_id,
             Course.public == True,
+            Course.hidden == False,
         )
     )
 
@@ -287,6 +291,9 @@ async def create_collection(
     db_session: Session,
 ) -> CollectionRead:
     collection = Collection.model_validate(collection_object)
+    collection.hidden = False
+    collection.protected = False
+    collection.system_type = None
 
     # SECURITY: Check if user has permission to create collections in this organization
     await check_resource_access(request, db_session, current_user, "collection_x", AccessAction.CREATE)
@@ -394,6 +401,8 @@ async def update_collection(
 
     # Update only the fields that were passed in
     for var, value in vars(collection_object).items():
+        if var in {"hidden", "protected", "system_type"}:
+            continue
         if var != "courses" and value is not None:
             setattr(collection, var, value)
 
@@ -448,6 +457,12 @@ async def delete_collection(
             detail="Collection not found",
         )
 
+    if collection.protected or collection.system_type:
+        raise HTTPException(
+            status_code=403,
+            detail="System collections cannot be deleted",
+        )
+
     # RBAC check
     await check_resource_access(
         request, db_session, current_user, collection.collection_uuid, AccessAction.DELETE
@@ -492,12 +507,14 @@ async def get_collections(
                 Collection.shared == True,
             ),
             Collection.public == True,
+            Collection.hidden == False,
         )
         .distinct(Collection.id)  # type: ignore
         if include_shared
         else select(Collection).where(
             Collection.org_id == org_id,
             Collection.public == True,
+            Collection.hidden == False,
         )
     )
     statement_all = (
@@ -506,11 +523,12 @@ async def get_collections(
             or_(
                 Collection.org_id == org_id,
                 Collection.shared == True,
-            )
+            ),
+            Collection.hidden == False,
         )
         .distinct(Collection.id)  # type: ignore
         if include_shared
-        else select(Collection).where(Collection.org_id == org_id)
+        else select(Collection).where(Collection.org_id == org_id, Collection.hidden == False)
     )
 
     statement = statement_public if current_user.id == 0 else statement_all
@@ -524,7 +542,9 @@ async def get_collections(
 
     # Batch fetch all courses for all collections in a single query.
     batch_statement = (
-        select(Course).where(Course.collection_id.in_(collection_ids))  # type: ignore
+        select(Course)
+        .where(Course.collection_id.in_(collection_ids))  # type: ignore
+        .where(Course.hidden == False)
     )
 
     batch_results = db_session.exec(batch_statement).all()

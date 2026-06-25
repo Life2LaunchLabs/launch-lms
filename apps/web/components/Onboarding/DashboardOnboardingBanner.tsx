@@ -3,7 +3,7 @@
 import { ReactNode, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ArrowRight, FolderOpen, MessageCircle, X } from 'lucide-react'
+import { ArrowRight, FolderOpen, X } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { Button } from '@components/ui/button'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -58,7 +58,6 @@ export default function DashboardOnboardingBanner({
   }
 
   const coursesHref = getUriWithOrg(orgslug, routePaths.org.badges())
-  const communitiesHref = getUriWithOrg(orgslug, routePaths.org.communities())
   const resourcesHref = getUriWithOrg(orgslug, routePaths.org.resources())
 
   return (
@@ -98,7 +97,7 @@ export default function DashboardOnboardingBanner({
               Everything you need for life launching in one place.
             </h1>
             <p className="mt-1.5 max-w-2xl text-xs leading-5 text-white/82 sm:text-[13px]">
-              Finding your target lifestyle starts with understanding yourself. Earn your first Life2launch CORE badge to start your journey!
+              Finding your target lifestyle starts with understanding yourself. Earn your first badge to start shaping your portfolio.
             </p>
 
             <div className="mt-3 flex items-center gap-3">
@@ -128,17 +127,11 @@ export default function DashboardOnboardingBanner({
               need it.
             </p>
 
-            <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-4 grid gap-2 md:grid-cols-2">
               <ActionCard
                 href={coursesHref}
                 icon={<ArrowRight size={16} />}
                 title="Explore Badges"
-                onClick={dismissDashboardBanner}
-              />
-              <ActionCard
-                href={communitiesHref}
-                icon={<MessageCircle size={16} />}
-                title="Join Discussions"
                 onClick={dismissDashboardBanner}
               />
               <ActionCard

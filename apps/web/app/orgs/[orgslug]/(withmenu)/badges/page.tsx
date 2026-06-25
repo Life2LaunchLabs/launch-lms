@@ -133,6 +133,7 @@ const BadgesPage = async (params: any) => {
         view={view}
         inviteBadge={inviteBadge}
         invitedBadgeCourse={invitedBadgeCourse}
+        orgConfig={org.config}
       />
     </div>
   )

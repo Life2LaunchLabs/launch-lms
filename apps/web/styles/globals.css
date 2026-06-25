@@ -191,6 +191,10 @@
     opacity: 1 !important;
   }
 
+  .profile-grid-layout .react-grid-item {
+    overflow: visible !important;
+  }
+
   /* Hide scrollbar while maintaining scroll functionality */
   .scrollbar-hide {
     -ms-overflow-style: none;  /* Internet Explorer 10+ */

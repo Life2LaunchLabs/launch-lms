@@ -478,6 +478,7 @@ async def get_courses_orgslug(
     query = (
         select(Course)
         .join(Organization)
+        .where(Course.hidden == False)
     )
 
     if isinstance(current_user, AnonymousUser):
@@ -602,6 +603,7 @@ async def get_courses_count_orgslug(
     query = (
         select(func.count(Course.id.distinct()))
         .join(Organization)
+        .where(Course.hidden == False)
     )
 
     if isinstance(current_user, AnonymousUser):
@@ -685,6 +687,7 @@ async def search_courses(
     query = (
         select(Course)
         .join(Organization)
+        .where(Course.hidden == False)
         .where(
             or_(
                 Organization.slug == org_slug,
@@ -1141,6 +1144,9 @@ async def create_course(
     - Course creation is subject to organization limits and permissions
     """
     course = Course.model_validate(course_object)
+    course.hidden = False
+    course.protected = False
+    course.system_type = None
 
     # SECURITY: Check if user has permission to create courses in this organization
     # Since this is a new course, we need to check organization-level permissions
@@ -1487,6 +1493,8 @@ async def update_course(
 
     # Update only the fields that were passed in
     for var, value in vars(course_object).items():
+        if var in {"hidden", "protected", "system_type"}:
+            continue
         if value is not None:
             setattr(course, var, value)
 
@@ -1538,6 +1546,12 @@ async def delete_course(
         raise HTTPException(
             status_code=404,
             detail="Course not found",
+        )
+
+    if course.protected or course.system_type:
+        raise HTTPException(
+            status_code=403,
+            detail="System courses cannot be deleted",
         )
 
     # RBAC check

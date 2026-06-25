@@ -1,8 +1,15 @@
 import { ROUTING_COOKIES } from './cookies.ts'
 import {
+  buildOrgSubdomainUrl,
   buildMainDomainUrl,
   resolveOrgHostContext,
 } from './context.ts'
+import {
+  classifyRoute,
+  isAuthenticatedAuthRedirectPath,
+  isEditorActivityPath,
+  isPodcastFeedPath,
+} from './routeAccess.ts'
 
 export interface RequestInstanceInfo {
   multi_org_enabled: boolean
@@ -36,25 +43,66 @@ export interface ResolveRequestRoutingInput {
   orgSubdomainAccess?: { user_site_enabled: boolean } | null
 }
 
-const STANDARD_PATHS = new Set(['/home'])
-const AUTH_PATHS = new Set(['/login', '/signup', '/reset', '/forgot', '/verify-email'])
-const AUTH_CALLBACK_PREFIXES = ['/auth/sso/', '/auth/callback/', '/auth/token-exchange']
-const PUBLIC_COURSE_PATH_RE = /^\/course\/[^/]+(\/activity\/[^/]+)?$/
-const PUBLIC_BADGE_ENTRY_PATH_RE = /^\/badges\/[^/]+(\/invite)?$/
-const PODCAST_FEED_RE = /^\/podcast\/([^/]+)\/feed$/
-const EDITOR_ACTIVITY_RE = /^\/course\/[^/]+\/activity\/[^/]+\/edit$/
-
 function getAdminMigrationPath(pathname: string): string {
   if (pathname === '/login') return '/login'
-  if (pathname === '/' || pathname === '') return '/dash/org-management'
-  if (pathname === '/organizations') return '/dash/org-management'
+  if (pathname === '/' || pathname === '') return '/admin/org-management'
+  if (pathname === '/organizations') return '/admin/org-management'
   if (pathname.startsWith('/organizations/')) {
     const orgId = pathname.split('/')[2]
-    return `/dash/org-management/${orgId}`
+    return `/admin/org-management/${orgId}`
   }
-  if (pathname === '/users') return '/dash/org-management/users'
-  if (pathname === '/analytics') return '/dash/org-management/analytics'
-  return '/dash/org-management'
+  if (pathname === '/users') return '/admin/org-management/users'
+  if (pathname === '/analytics') return '/admin/org-management'
+  return '/admin/org-management'
+}
+
+function getPortfolioRedirectDestination(requestUrl: string): string {
+  return new URL('/portfolio', requestUrl).toString()
+}
+
+function parseInternalOrgPath(pathname: string): { orgSlug: string; externalPath: string } | null {
+  const match = pathname.match(/^\/orgs\/([^/]+)(\/.*)?$/)
+  if (!match) return null
+  return {
+    orgSlug: decodeURIComponent(match[1]),
+    externalPath: match[2] || '/',
+  }
+}
+
+function buildCanonicalOrgUrl(
+  input: ResolveRequestRoutingInput,
+  orgSlug: string,
+  externalPath: string,
+  hostingMode: 'multi' | 'single'
+): string {
+  const { instanceInfo, requestUrl, search } = input
+
+  if (
+    input.resolvedCustomDomainOrgSlug &&
+    input.resolvedCustomDomainOrgSlug === orgSlug
+  ) {
+    const url = new URL(requestUrl)
+    url.pathname = externalPath
+    url.search = search
+    return url.toString()
+  }
+
+  if (hostingMode === 'multi' && orgSlug !== instanceInfo.default_org_slug) {
+    return buildOrgSubdomainUrl(
+      requestUrl,
+      orgSlug,
+      externalPath,
+      search,
+      instanceInfo.frontend_domain
+    )
+  }
+
+  return buildMainDomainUrl(
+    requestUrl,
+    externalPath,
+    search,
+    instanceInfo.frontend_domain
+  )
 }
 
 export function resolveRequestRouting(
@@ -69,6 +117,7 @@ export function resolveRequestRouting(
     subdomainAllowed: input.orgSubdomainAccess?.user_site_enabled ?? true,
   })
   const hostingMode = instanceInfo.multi_org_enabled ? 'multi' : 'single'
+  const route = classifyRoute(pathname)
 
   const isAdminSubdomain =
     context.bareHost.startsWith('admin.') ||
@@ -89,14 +138,14 @@ export function resolveRequestRouting(
     }
   }
 
-  if (STANDARD_PATHS.has(pathname)) {
-    return {
-      action: 'rewrite',
-      destination: `${pathname}${search}`,
+  if (route.kind === 'auth') {
+    if (input.hasSession && isAuthenticatedAuthRedirectPath(pathname)) {
+      return {
+        action: 'redirect',
+        destination: getPortfolioRedirectDestination(input.requestUrl),
+      }
     }
-  }
 
-  if (AUTH_PATHS.has(pathname)) {
     const cookies: RequestRoutingCookie[] = []
     const headers: Record<string, string> = {}
 
@@ -117,14 +166,20 @@ export function resolveRequestRouting(
     }
   }
 
-  if (AUTH_CALLBACK_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+  if (route.kind === 'callback') {
     return {
       action: 'rewrite',
       destination: `${pathname}${search}`,
     }
   }
 
-  if (EDITOR_ACTIVITY_RE.test(pathname)) {
+  if (pathname === '/welcome') {
+    return {
+      action: 'next',
+    }
+  }
+
+  if (isEditorActivityPath(pathname)) {
     return {
       action: 'rewrite',
       destination: `/editor${pathname}`,
@@ -164,7 +219,7 @@ export function resolveRequestRouting(
     hostingMode === 'multi' &&
     context.subdomainOrgSlug &&
     context.subdomainOrgSlug !== instanceInfo.default_org_slug &&
-    !pathname.startsWith('/dash') &&
+    !pathname.startsWith('/admin') &&
     !context.subdomainAllowed
   ) {
     return {
@@ -178,9 +233,23 @@ export function resolveRequestRouting(
     }
   }
 
-  if (pathname.startsWith('/orgs/')) {
+  if (route.kind === 'internal') {
+    const internalPath = parseInternalOrgPath(pathname)
+    if (internalPath) {
+      return {
+        action: 'redirect',
+        destination: buildCanonicalOrgUrl(
+          input,
+          internalPath.orgSlug,
+          internalPath.externalPath,
+          hostingMode
+        ),
+      }
+    }
+
     return {
-      action: 'next',
+      action: 'redirect',
+      destination: new URL('/', input.requestUrl).toString(),
     }
   }
 
@@ -191,7 +260,7 @@ export function resolveRequestRouting(
     }
   }
 
-  if (PODCAST_FEED_RE.test(pathname)) {
+  if (isPodcastFeedPath(pathname)) {
     return {
       action: 'rewrite',
       destination: `/api${pathname}`,
@@ -221,20 +290,31 @@ export function resolveRequestRouting(
     }
   }
 
-  if (!input.hasSession) {
-    const isGuestPath =
-      pathname === '/welcome' ||
-      pathname.startsWith('/welcome/') ||
-      pathname === '/quickstart' ||
-      pathname.startsWith('/quickstart/')
-    const isPublicCoursePath = PUBLIC_COURSE_PATH_RE.test(pathname)
-    const isPublicBadgeEntryPath = PUBLIC_BADGE_ENTRY_PATH_RE.test(pathname)
+  if (!input.hasSession && route.kind === 'protected') {
+    return {
+      action: 'redirect',
+      destination: new URL('/', input.requestUrl).toString(),
+    }
+  }
 
-    if (!isGuestPath && !isPublicCoursePath && !isPublicBadgeEntryPath) {
+  const orgSlug =
+    hostingMode === 'single'
+      ? instanceInfo.default_org_slug
+      : context.hostMode === 'subdomain' || context.hostMode === 'custom'
+        ? context.resolvedOrgSlug
+        : instanceInfo.default_org_slug
+
+  if (pathname === '/') {
+    if (input.hasSession) {
       return {
         action: 'redirect',
-        destination: new URL('/welcome', input.requestUrl).toString(),
+        destination: getPortfolioRedirectDestination(input.requestUrl),
       }
+    }
+
+    return {
+      action: 'rewrite',
+      destination: `/orgs/${orgSlug}/${search}`,
     }
   }
 
@@ -252,13 +332,6 @@ export function resolveRequestRouting(
       headers: input.host ? { 'x-custom-domain': input.host } : {},
     }
   }
-
-  const orgSlug =
-    hostingMode === 'single'
-      ? instanceInfo.default_org_slug
-      : context.hostMode === 'subdomain'
-        ? context.resolvedOrgSlug
-        : instanceInfo.default_org_slug
 
   return {
     action: 'rewrite',

@@ -15,7 +15,6 @@ import { updateOrgLanding, uploadLandingContent } from '@services/organizations/
 import { getOrgLandingMediaDirectory } from '@services/media/media'
 import { getOrgCourses } from '@services/courses/courses'
 import { getOrgCollections } from '@services/courses/collections'
-import { getCommunities } from '@services/communities/communities'
 import { getResourceChannels, ResourceChannel } from '@services/resources/resources'
 import toast from 'react-hot-toast'
 import useSWR from 'swr'
@@ -1719,20 +1718,12 @@ const QUICKSTART_CARD_LIMIT = 3
 function getQuickstartTargetOptions(
   itemType: LandingQuickstartItem['type'],
   collections: any[],
-  communities: any[],
   resourceChannels: ResourceChannel[]
 ): QuickstartTargetOption[] {
   if (itemType === 'collection') {
     return collections.map((collection: any) => ({
       value: collection.collection_uuid,
       label: collection.name,
-    }))
-  }
-
-  if (itemType === 'community') {
-    return communities.map((community: any) => ({
-      value: community.community_uuid,
-      label: community.name,
     }))
   }
 
@@ -1757,10 +1748,6 @@ const QuickstartSectionEditor: React.FC<{
   const { data: collections = [] } = useSWR(
     org?.id ? ['quickstart-collections', org.id, access_token || 'anon'] : null,
     () => getOrgCollections(org.id, access_token, null)
-  )
-  const { data: communities = [] } = useSWR(
-    org?.id ? ['quickstart-communities', org.id, access_token || 'anon'] : null,
-    () => getCommunities(org.id, 1, 100, null, access_token)
   )
   const { data: resourceChannelData } = useSWR(
     org?.id ? ['quickstart-resource-channels', org.id, access_token || 'anon'] : null,
@@ -1808,7 +1795,7 @@ const QuickstartSectionEditor: React.FC<{
 
         <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
           Add up to three cards. Each one can open a primary learner area or a
-          specific collection, community, or resource channel.
+          specific collection or resource channel.
         </div>
 
         <div className="space-y-4">
@@ -1816,7 +1803,6 @@ const QuickstartSectionEditor: React.FC<{
             const targetOptions = getQuickstartTargetOptions(
               item.type,
               collections,
-              communities,
               resourceChannels
             )
 
@@ -1867,7 +1853,6 @@ const QuickstartSectionEditor: React.FC<{
                       <SelectContent>
                         <SelectItem value="feature">Primary feature</SelectItem>
                         <SelectItem value="collection">Collection</SelectItem>
-                        <SelectItem value="community">Community</SelectItem>
                         <SelectItem value="resource-channel">
                           Resource channel
                         </SelectItem>

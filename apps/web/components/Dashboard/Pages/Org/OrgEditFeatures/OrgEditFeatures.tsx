@@ -11,7 +11,7 @@ import { PlanLevel, planMeetsRequirement } from '@services/plans/plans'
 import PlanBadge from '@components/Dashboard/Shared/PlanRestricted/PlanBadge'
 import useAdminStatus from '@components/Hooks/useAdminStatus'
 import { Switch } from '@components/ui/switch'
-import { ShieldAlert, Users, CreditCard, FolderOpen, Lock } from 'lucide-react'
+import { ShieldAlert, CreditCard, FolderOpen, Lock } from 'lucide-react'
 import { ChalkboardSimple } from '@phosphor-icons/react'
 import { usePlan } from '@components/Hooks/usePlan'
 
@@ -93,7 +93,6 @@ const OrgEditFeatures: React.FC = () => {
 
   // Feature states
   const [collectionsEnabled, setCollectionsEnabled] = useState<boolean>(true)
-  const [communitiesEnabled, setCommunitiesEnabled] = useState<boolean>(true)
   const [resourcesEnabled, setResourcesEnabled] = useState<boolean>(false)
   const [boardsEnabled, setBoardsEnabled] = useState<boolean>(false)
 
@@ -104,7 +103,6 @@ const OrgEditFeatures: React.FC = () => {
   useEffect(() => {
     if (!rf) return
     setCollectionsEnabled(rf.collections?.enabled ?? true)
-    setCommunitiesEnabled(rf.communities?.enabled ?? false)
     setResourcesEnabled(rf.resources?.enabled ?? false)
     setBoardsEnabled(rf.boards?.enabled ?? false)
   }, [rf])
@@ -165,11 +163,6 @@ const OrgEditFeatures: React.FC = () => {
     if (success) setCollectionsEnabled(enabled)
   }
 
-  const handleCommunitiesToggle = async (enabled: boolean) => {
-    const success = await updateFeatureConfig('communities', enabled)
-    if (success) setCommunitiesEnabled(enabled)
-  }
-
   const handleResourcesToggle = async (enabled: boolean) => {
     const success = await updateFeatureConfig('resources', enabled)
     if (success) setResourcesEnabled(enabled)
@@ -219,20 +212,6 @@ const OrgEditFeatures: React.FC = () => {
             currentPlan={currentPlan}
             icon={<FolderOpen size={20} className="text-gray-600" />}
             onToggle={handleCollectionsToggle}
-          />
-
-          {/* Communities Toggle */}
-          <FeatureToggle
-            id="communities"
-            title={t('dashboard.organization.features.toggles.communities.title')}
-            description={t('dashboard.organization.features.toggles.communities.description')}
-            enabled={communitiesEnabled}
-            isUpdating={updatingFeature === 'communities'}
-            canEdit={canEditOrgSettings}
-            requiredPlan={rf?.communities?.required_plan}
-            currentPlan={currentPlan}
-            icon={<Users size={20} className="text-gray-600" />}
-            onToggle={handleCommunitiesToggle}
           />
 
           <FeatureToggle

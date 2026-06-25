@@ -139,9 +139,9 @@ const ActivityPage = async (params: any) => {
   try {
     course_meta = await fetchCourseMetadata(courseuuid, access_token)
   } catch (error: any) {
-    // Unauthenticated user hitting a private course/activity → send to welcome
+    // Unauthenticated user hitting a private course/activity goes to the public landing page.
     if (!session && (error?.status === 401 || error?.status === 403)) {
-      redirect('/welcome')
+      redirect('/')
     }
     notFound()
   }
@@ -166,7 +166,7 @@ const ActivityPage = async (params: any) => {
     }
   } catch (error: any) {
     if (!session && (error?.status === 401 || error?.status === 403)) {
-      redirect('/welcome')
+      redirect('/')
     }
     notFound()
   }

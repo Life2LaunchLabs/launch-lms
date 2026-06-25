@@ -1,13 +1,20 @@
 import 'dotenv/config';
+import https from 'https';
+import fs from 'fs';
 import { Server } from '@hocuspocus/server';
 import { Database } from '@hocuspocus/extension-database';
 import jwt from 'jsonwebtoken';
 import Redis from 'ioredis';
 const PORT = parseInt(process.env.COLLAB_PORT || '4000', 10);
 const API_URL = process.env.LAUNCHLMS_API_URL || 'http://localhost:8000';
+const TLS_CERT = process.env.COLLAB_TLS_CERT;
+const TLS_KEY = process.env.COLLAB_TLS_KEY;
+const PUBLIC_URL = process.env.COLLAB_PUBLIC_URL;
 const SECRET_KEY = process.env.LAUNCHLMS_AUTH_JWT_SECRET_KEY || '';
 const INTERNAL_KEY = process.env.COLLAB_INTERNAL_KEY || '';
-const REDIS_URL = process.env.LAUNCHLMS_REDIS_URL || 'redis://localhost:6379';
+const REDIS_URL = process.env.LAUNCHLMS_REDIS_URL ||
+    process.env.LAUNCHLMS_REDIS_CONNECTION_STRING ||
+    'redis://localhost:6379';
 // Timeout for all outbound HTTP requests (ms)
 const FETCH_TIMEOUT_MS = 10_000;
 // Debounce interval before flushing ydoc state to the database (ms)
@@ -294,6 +301,16 @@ async function gracefulShutdown() {
 }
 process.on('SIGINT', gracefulShutdown);
 process.on('SIGTERM', gracefulShutdown);
+// If TLS certs are configured, replace the default HTTP server with an HTTPS
+// server before listen() is called. Hocuspocus uses noServer: true for its
+// WebSocket server and routes upgrades through httpServer, so swapping it out
+// here is safe as long as we re-attach the upgrade handler.
+if (TLS_CERT && TLS_KEY) {
+    const tlsServer = https.createServer({ cert: fs.readFileSync(TLS_CERT), key: fs.readFileSync(TLS_KEY) }, server.requestHandler);
+    server.httpServer = tlsServer;
+    server.setupHttpUpgrade();
+}
 server.listen().then(() => {
-    console.log(`Hocuspocus collab server running on port ${PORT}`);
+    const proto = TLS_CERT ? 'wss' : 'ws';
+    console.log(`Hocuspocus collab server running on ${PUBLIC_URL || `${proto}://localhost:${PORT}`}`);
 });

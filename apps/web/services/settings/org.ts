@@ -169,6 +169,15 @@ export interface BadgeIssuerConfig {
   image_url: string
 }
 
+export interface OnboardingConfig {
+  recommended_badges: {
+    higher_education: string[]
+    employment: string[]
+    self_starting: string[]
+    not_sure: string[]
+  }
+}
+
 export async function updateOrgSeoConfig(
   org_id: string,
   seo_config: SeoOrgConfig,
@@ -190,6 +199,19 @@ export async function updateOrgBadgeIssuerConfig(
   const result: any = await fetch(
     `${getAPIUrl()}orgs/${org_id}/config/badge_issuer`,
     RequestBodyWithAuthHeader('PUT', badge_issuer, null, access_token)
+  )
+  const res = await errorHandling(result)
+  return res
+}
+
+export async function updateOrgOnboardingConfig(
+  org_id: string,
+  onboarding: OnboardingConfig,
+  access_token: string
+) {
+  const result: any = await fetch(
+    `${getAPIUrl()}orgs/${org_id}/config/onboarding`,
+    RequestBodyWithAuthHeader('PUT', onboarding, null, access_token)
   )
   const res = await errorHandling(result)
   return res

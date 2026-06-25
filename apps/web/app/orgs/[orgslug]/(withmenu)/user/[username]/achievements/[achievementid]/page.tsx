@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/auth/server'
-import { CustomAchievementDetail } from '@components/Objects/Profile/ProfileAchievements'
+import { CustomAchievementDetail } from '@components/Objects/Portfolio/ProfileAchievements'
 import { getUserByUsername } from '@services/users/users'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 

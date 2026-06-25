@@ -27,7 +27,7 @@ export function AccountSidebar({ orgslug, currentSubpage }: AccountSidebarProps)
     <div className="space-y-4">
       {/* User Info Card */}
       <div className="bg-white nice-shadow rounded-lg overflow-hidden">
-        {/* User Profile Header */}
+        {/* User Portfolio Header */}
         <div className="p-4 border-b border-gray-100">
           <div className="flex flex-col items-center text-center">
             <UserAvatar

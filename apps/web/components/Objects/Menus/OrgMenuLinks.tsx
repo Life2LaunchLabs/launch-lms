@@ -3,8 +3,8 @@ import {
   House,
   User,
   SealCheck,
-  ChatsCircle,
   FolderOpen,
+  Newspaper,
   Question,
 } from '@phosphor-icons/react'
 import type { TFunction } from 'i18next'
@@ -25,10 +25,11 @@ export const KNOWN_SUBPATHS = [
   '/organization/',
   '/resources',
   '/resource/',
+  '/news',
   '/activity/',
   '/assignment',
   '/editor',
-  '/profile',
+  '/portfolio',
   '/account',
   '/payments',
 ]
@@ -39,7 +40,7 @@ export interface OrgMenuNavItem {
   icon: React.ReactNode
   active: boolean
   show: boolean
-  onboardingFeature?: 'courses' | 'communities' | 'resources'
+  onboardingFeature?: 'courses' | 'resources'
   kind?: 'link' | 'action'
   actionKey?: 'help'
 }
@@ -63,23 +64,16 @@ export function getPrimaryOrgMenuItems({
     pathname?.includes('/courses') ||
     pathname?.includes('/course/') ||
     pathname?.includes('/collection/')
-  const isOnProfile = pathname?.includes('/profile')
-  const isOnCommunities = pathname?.includes('/communities') || pathname?.includes('/community/')
+  const isOnPortfolio = pathname?.includes('/portfolio')
   const isOnResources = pathname?.includes('/resources') || pathname?.includes('/resource/')
+  const isOnNews = pathname?.includes('/news')
 
   return [
     {
-      href: '/',
-      label: t('common.home') || 'Home',
-      icon: <House size={18} weight="fill" />,
-      active: isHome,
-      show: true,
-    },
-    {
-      href: '/profile',
-      label: 'Profile',
+      href: '/portfolio',
+      label: 'Portfolio',
       icon: <User size={18} weight="fill" />,
-      active: Boolean(isOnProfile),
+      active: Boolean(isOnPortfolio || isHome),
       show: true,
     },
     {
@@ -91,20 +85,19 @@ export function getPrimaryOrgMenuItems({
       onboardingFeature: 'courses',
     },
     {
-      href: '/communities',
-      label: t('communities.title'),
-      icon: <ChatsCircle size={18} weight="fill" />,
-      active: Boolean(isOnCommunities),
-      show: isFeatureEnabled(resolvedFeatures, 'communities'),
-      onboardingFeature: 'communities',
-    },
-    {
       href: '/resources',
       label: 'Resources',
       icon: <FolderOpen size={18} weight="fill" />,
       active: Boolean(isOnResources),
       show: isFeatureEnabled(resolvedFeatures, 'resources'),
       onboardingFeature: 'resources',
+    },
+    {
+      href: '/news',
+      label: 'News',
+      icon: <Newspaper size={18} weight="fill" />,
+      active: Boolean(isOnNews),
+      show: true,
     },
   ]
 }

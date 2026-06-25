@@ -20,12 +20,12 @@ class TestFeaturesUtils:
 
     @pytest.fixture
     def mock_org_config(self):
-        """Create a mock organization config with v2 format and standard plan."""
+        """Create a mock organization config with v2 format and enterprise plan."""
         config = Mock(spec=OrganizationConfig)
         config.org_id = 1
         config.config = {
             "config_version": "2.0",
-            "plan": "standard",
+            "plan": "enterprise",
             "admin_toggles": {},
             "overrides": {},
             "customization": {},
@@ -318,13 +318,13 @@ class TestFeaturesUtils:
             "admin_seats": False,
             "ai": True,
             "analytics": True,
-            "api": False,
+            "api": True,
             "assignments": True,
             "collaboration": True,
             "courses": True,
             "members": True,
             "payments": True,
-            "podcasts": True,
+            "podcasts": False,
             "storage": True,
             "usergroups": True,
         }

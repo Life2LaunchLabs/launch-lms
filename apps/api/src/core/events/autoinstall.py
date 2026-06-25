@@ -1,6 +1,6 @@
 import logging
 from sqlalchemy import create_engine, inspect
-from sqlmodel import SQLModel, Session, select
+from sqlmodel import Session, select
 
 from cli import install
 from config.config import get_launchlms_config

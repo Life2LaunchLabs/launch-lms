@@ -7,7 +7,7 @@ type MetadataProps = {
 
 const BadgePage = async (props: MetadataProps) => {
   const params = await props.params
-  redirect(getUriWithOrg(params.orgslug, routePaths.org.profile()))
+  redirect(getUriWithOrg(params.orgslug, routePaths.org.portfolio()))
 }
 
 export default BadgePage

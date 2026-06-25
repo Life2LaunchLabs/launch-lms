@@ -294,7 +294,7 @@ export function EnrollmentsDetail({ days }: { days: string }) {
         {rows.map((row: any, i: number) => {
           const user = users[row.user_id]
           const courseLink = row.course_uuid
-            ? `/dash/courses/course/${stripCoursePrefix(row.course_uuid)}/content`
+            ? `/admin/courses/course/${stripCoursePrefix(row.course_uuid)}/content`
             : null
           return (
             <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">
@@ -355,7 +355,7 @@ export function CompletionsDetail({ days }: { days: string }) {
         {rows.map((row: any, i: number) => {
           const user = users[row.user_id]
           const courseLink = row.course_uuid
-            ? `/dash/courses/course/${stripCoursePrefix(row.course_uuid)}/content`
+            ? `/admin/courses/course/${stripCoursePrefix(row.course_uuid)}/content`
             : null
           return (
             <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50">

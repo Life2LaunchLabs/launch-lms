@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/auth/server'
 import { getUserByUsername } from '@services/users/users'
-import ProfileResumeClient from '../../../profile/resume/ProfileResumeClient'
+import ProfileResumeClient from '../../../portfolio/resume/ProfileResumeClient'
 
 function normalizeProfileValue(profile: any) {
   if (!profile) return {}

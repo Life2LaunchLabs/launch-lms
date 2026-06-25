@@ -19,6 +19,9 @@ baseline, see [`apps/web/README.md`](../../README.md).
 - [`requestPolicy.ts`](./requestPolicy.ts)
   Pure request-routing policy returning `RoutingDecision`
 
+- [`routeAccess.ts`](./routeAccess.ts)
+  Public/protected/auth/internal route classification
+
 - [`__tests__/routing.test.ts`](./__tests__/routing.test.ts)
   Unit tests for routing behavior
 
@@ -90,7 +93,7 @@ Rules:
 If you find repeated patterns like:
 
 ```ts
-`/dash/resources/${id}/general`
+`/admin/resources/${id}/general`
 ```
 
 that is usually a sign a builder should exist.
@@ -102,6 +105,7 @@ that is usually a sign a builder should exist.
 - admin host migration
 - auth page rewriting
 - guest/public access exceptions
+- internal `/orgs/[orgslug]/...` canonicalization
 - editor rewrites
 - sitemap, robots, and feed rewrites
 - custom-domain rewriting to internal org routes
@@ -113,6 +117,7 @@ The current policy-specific tenant-first rules are:
 - Main-host requests do not redirect onto another org because of org cookies
 - Subdomain requests use the subdomain slug as tenant context
 - Custom-domain requests use the resolved domain mapping as tenant context
+- Unauthenticated protected requests redirect to `/`
 - Non-entitled org subdomains are redirected back to the main host for learner
   routes
 - Auth routes rewrite to `/auth/*`, but branding is resolved separately from

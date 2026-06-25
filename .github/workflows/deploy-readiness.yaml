@@ -1,0 +1,91 @@
+name: Deploy Readiness
+
+on:
+  pull_request:
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "docker/**"
+      - "apps/api/**"
+      - "apps/collab/**"
+      - "apps/web/**"
+      - ".github/workflows/deploy-readiness.yaml"
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - "docker/**"
+      - "apps/api/**"
+      - "apps/collab/**"
+      - "apps/web/**"
+      - ".github/workflows/deploy-readiness.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-image-smoke:
+    name: Release image smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build release image
+        run: |
+          docker build \
+            -f Dockerfile \
+            --build-arg LAUNCHLMS_PUBLIC=true \
+            --build-arg LAUNCHLMS_VERSION=ci \
+            --build-arg LAUNCHLMS_COMMIT_SHA="${GITHUB_SHA}" \
+            --build-arg LAUNCHLMS_IMAGE_REF="launch-lms:ci-${GITHUB_SHA}" \
+            --build-arg LAUNCHLMS_RELEASED_AT="${GITHUB_RUN_ID}" \
+            -t "launch-lms-ci:${GITHUB_SHA}" \
+            .
+
+      - name: Verify build metadata
+        run: |
+          docker run --rm --entrypoint sh "launch-lms-ci:${GITHUB_SHA}" -lc '
+            test -f /app/build-info.json
+            python -c "import json; from pathlib import Path; data=json.loads(Path(\"/app/build-info.json\").read_text()); assert data[\"version\"] == \"ci\", data; assert data[\"commit_sha\"] == \"'${GITHUB_SHA}'\", data; assert data[\"alembic_head\"], data; print(json.dumps(data, indent=2))"
+          '
+
+      - name: Start disposable database
+        run: |
+          docker network create launch-lms-ci
+          docker run -d \
+            --name launch-lms-ci-db \
+            --network launch-lms-ci \
+            -e POSTGRES_USER=launchlms \
+            -e POSTGRES_PASSWORD=launchlms \
+            -e POSTGRES_DB=launchlms \
+            pgvector/pgvector:pg16
+          for i in $(seq 1 60); do
+            if docker exec launch-lms-ci-db pg_isready -U launchlms >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs launch-lms-ci-db
+          exit 1
+
+      - name: Run release migrations
+        run: |
+          docker run --rm \
+            --network launch-lms-ci \
+            -e LAUNCHLMS_AUTH_JWT_SECRET_KEY=ci-release-smoke-secret-key-32chars \
+            -e COLLAB_INTERNAL_KEY=ci-release-smoke-internal-key \
+            -e LAUNCHLMS_SQL_CONNECTION_STRING=postgresql+psycopg2://launchlms:launchlms@launch-lms-ci-db:5432/launchlms \
+            --entrypoint sh \
+            "launch-lms-ci:${GITHUB_SHA}" \
+            -lc 'cd /app/api && ./scripts/run_alembic_migrations.sh && uv run alembic current'
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rm -f launch-lms-ci-db || true
+          docker network rm launch-lms-ci || true

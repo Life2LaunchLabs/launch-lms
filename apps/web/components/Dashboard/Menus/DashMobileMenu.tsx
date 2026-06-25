@@ -59,7 +59,7 @@ function DashMobileMenu() {
     {
       href: routePaths.org.dash.courses(),
       icon: BookCopy,
-      label: t('courses.courses'),
+      label: 'Badges',
     },
     {
       href: routePaths.org.dash.assignments(),
@@ -238,9 +238,9 @@ function DashMobileMenu() {
 
             <div className="border-t border-white/[0.08] p-3">
               <MobileMenuLink
-                href={getUriWithOrg(getDefaultOrg(), routePaths.org.profile())}
+                href={getUriWithOrg(getDefaultOrg(), routePaths.org.portfolio())}
                 icon={UserRound}
-                label="Profile"
+                label="Portfolio"
                 onClick={closeMenu}
               />
               <MobileMenuLink

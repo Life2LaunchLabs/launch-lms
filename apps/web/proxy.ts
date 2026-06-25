@@ -199,7 +199,7 @@ export default async function proxy(req: NextRequest) {
     instanceInfo.multi_org_enabled &&
     subdomainOrgSlug &&
     subdomainOrgSlug !== instanceInfo.default_org_slug &&
-    !pathname.startsWith('/dash')
+    !pathname.startsWith('/admin')
   ) {
     orgSubdomainAccess = await getOrgSubdomainAccess(subdomainOrgSlug)
   }

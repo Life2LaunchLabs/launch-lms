@@ -72,6 +72,27 @@ def _validate_badge_issuer_for_org(org: Organization, org_config: OrganizationCo
         raise HTTPException(status_code=422, detail="Badge issuer email is required")
 
 
+def _feature_certificate_on_profile(user: User, user_certification_uuid: str) -> None:
+    profile = dict(user.profile or {})
+    achievements = dict(profile.get("achievements") or {})
+    featured = [
+        item for item in achievements.get("featured", [])
+        if isinstance(item, dict) and item.get("id") and item.get("kind") == "credential"
+    ]
+
+    if any(item.get("id") == user_certification_uuid for item in featured):
+        return
+
+    achievements["enabled"] = achievements.get("enabled", True)
+    achievements["publicVisible"] = achievements.get("publicVisible", True)
+    achievements["custom"] = []
+    achievements["featured"] = (
+        featured + [{"id": user_certification_uuid, "kind": "credential"}]
+    )[:12]
+    profile["achievements"] = achievements
+    user.profile = profile
+
+
 def _build_badge_response(
     request: Request,
     db_session: Session,
@@ -434,6 +455,10 @@ async def create_certificate_user(
     db_session.add(certificate_user)
     db_session.commit()
     db_session.refresh(certificate_user)
+
+    _feature_certificate_on_profile(user, user_certification_uuid)
+    db_session.add(user)
+    db_session.commit()
 
     # Track certificate_claimed event for analytics
     try:

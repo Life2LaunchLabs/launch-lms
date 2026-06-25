@@ -86,7 +86,7 @@ function CreateCourseModal({ closeModal, orgslug, collectionUuid }: any) {
           closeModal()
           void revalidateTags(['courses'], orgslug)
           void mutate((key) => typeof key === 'string' && key.includes('/courses/org_slug/'))
-          router.push(`/dash/courses/course/${courseId}/content`)
+          router.push(`/admin/courses/course/${courseId}/content`)
         } else {
           const errorMessage = typeof res.data?.detail === 'string'
             ? res.data.detail

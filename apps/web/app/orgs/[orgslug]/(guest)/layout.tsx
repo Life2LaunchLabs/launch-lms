@@ -1,6 +1,4 @@
 'use client'
-import { use } from 'react'
-import { SessionProvider } from '@components/Contexts/AuthContext'
 
 function GuestLayoutContent({
   children,
@@ -18,10 +16,5 @@ export default function GuestLayout(props: {
   children: React.ReactNode
   params: Promise<{ orgslug: string }>
 }) {
-  const params = use(props.params)
-  return (
-    <SessionProvider>
-      <GuestLayoutContent>{props.children}</GuestLayoutContent>
-    </SessionProvider>
-  )
+  return <GuestLayoutContent>{props.children}</GuestLayoutContent>
 }

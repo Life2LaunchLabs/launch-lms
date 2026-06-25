@@ -8,11 +8,23 @@ interface AuthLayoutProps {
   org: any
   welcomeText?: string
   children: React.ReactNode
+  minimal?: boolean
 }
 
-export default function AuthLayout({ org, welcomeText, children }: AuthLayoutProps) {
+export default function AuthLayout({ org, welcomeText, children, minimal = false }: AuthLayoutProps) {
+  if (minimal) {
+    return (
+      <div className="min-h-screen bg-[#101010] text-white relative overflow-auto">
+        <div className="absolute top-4 right-4 z-dropdown">
+          <LanguageSwitcher />
+        </div>
+        {children}
+      </div>
+    )
+  }
+
   return (
-    <div className="flex flex-col lg:grid lg:grid-cols-[1fr_600px] h-screen">
+    <div className="flex min-h-screen flex-col bg-white lg:grid lg:grid-cols-2">
       <div className="absolute top-4 right-4 z-dropdown">
         <LanguageSwitcher />
       </div>
@@ -22,17 +34,17 @@ export default function AuthLayout({ org, welcomeText, children }: AuthLayoutPro
         <AuthMobileHeader org={org} />
       </div>
 
-      {/* Left Panel - Branding (hidden on mobile) */}
-      <div className="hidden lg:block h-full">
+      {/* Left Panel - Content */}
+      <div className="relative flex min-h-screen flex-1 flex-col overflow-auto bg-white lg:min-w-[480px]">
+        {children}
+      </div>
+
+      {/* Right Panel - Branding (hidden on mobile) */}
+      <div className="hidden min-h-screen lg:block">
         <AuthBrandingPanel
           org={org}
           welcomeText={welcomeText}
         />
-      </div>
-
-      {/* Right Panel - Content */}
-      <div className="bg-gray-50 flex flex-col relative flex-1 lg:h-full overflow-auto">
-        {children}
       </div>
     </div>
   )

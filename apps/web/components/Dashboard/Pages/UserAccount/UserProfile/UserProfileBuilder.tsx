@@ -7,7 +7,7 @@ import { Label } from "@components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@components/ui/select"
 import { Button } from "@components/ui/button"
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { updateProfile } from '@services/settings/profile'
+import { updateProfile } from '@services/settings/portfolio'
 import { getUser } from '@services/users/users'
 import { toast } from 'react-hot-toast'
 

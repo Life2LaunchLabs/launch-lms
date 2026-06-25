@@ -35,6 +35,13 @@ Schema-changing production releases are orchestrated by `launch-lms-infra`.
 
 Do not rely on app startup to apply migrations automatically. Migrations stay an explicit deploy step.
 
+Production Docker images set `LAUNCHLMS_ENV=prod` and
+`LAUNCHLMS_DEVELOPMENT_MODE=false`. Keep `config/config.yaml` development-first;
+do not change it to simulate production.
+
 ## Guardrail
 
 CI runs `./scripts/check_single_alembic_head.sh` on API changes and fails if Alembic reports more than one head.
+
+The deploy-readiness workflow also builds the root release image and runs
+`./scripts/run_alembic_migrations.sh` against a disposable pgvector database.

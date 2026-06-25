@@ -175,7 +175,7 @@ function AICourseCreationModal({
     if (!courseUuid) return
     onClose()
     const courseId = courseUuid.replace('course_', '')
-    router.push(`/dash/courses/course/${courseId}/content`)
+    router.push(`/admin/courses/course/${courseId}/content`)
   }
 
   if (typeof document === 'undefined') return null

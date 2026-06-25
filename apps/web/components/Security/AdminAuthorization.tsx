@@ -13,13 +13,13 @@ type AuthorizationProps = {
 };
 
 const ADMIN_PATHS = [
-  '/dash/org/*',
-  '/dash/org',
-  '/dash/users/*',
-  '/dash/users',
-  '/dash/courses/*',
-  '/dash/courses',
-  '/dash/org/settings/general',
+  '/admin/org/*',
+  '/admin/org',
+  '/admin/users/*',
+  '/admin/users',
+  '/admin/courses/*',
+  '/admin/courses',
+  '/admin/org/settings/general',
 ];
 
 const AdminAuthorization: React.FC<AuthorizationProps> = ({ children, authorizationMode }) => {

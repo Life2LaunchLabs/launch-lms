@@ -1,6 +1,6 @@
 'use client'
 import { useFormik } from 'formik'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import React from 'react'
 import FormLayout, {
   FormField,
@@ -9,14 +9,18 @@ import FormLayout, {
   Textarea,
 } from '@components/Objects/StyledElements/Form/Form'
 import * as Form from '@radix-ui/react-form'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, ArrowLeft } from 'lucide-react'
+import { SiGoogle } from '@icons-pack/react-simple-icons'
 import Link from 'next/link'
+import { Button } from '@components/ui/button'
 import { signup } from '@services/auth/auth'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useAuth } from '@components/Contexts/AuthContext'
 import { getUriWithOrg } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import { PasswordStrengthIndicator, validatePasswordStrength } from '@components/Auth/PasswordStrengthIndicator'
+
+const welcomeSignupPasswordKey = (email: string) => `launchlms_welcome_signup_password:${email}`
 
 const validate = (values: any, t: any) => {
   const errors: any = {}
@@ -50,8 +54,12 @@ const validate = (values: any, t: any) => {
 function OpenSignUpComponent({ createOrgMode = false }: { createOrgMode?: boolean }) {
   const { t } = useTranslation()
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [isGoogleLoading, setIsGoogleLoading] = React.useState(false)
+  const [step, setStep] = React.useState<'email' | 'details'>(createOrgMode ? 'details' : 'email')
+  const [emailError, setEmailError] = React.useState('')
   const org = useOrg() as any
   const { signIn } = useAuth()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const [error, setError] = React.useState('')
   const nextUrl = searchParams.get('next')
@@ -115,12 +123,204 @@ function OpenSignUpComponent({ createOrgMode = false }: { createOrgMode?: boolea
     },
   })
 
+  const handleEmailContinue = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setEmailError('')
+
+    const email = formik.values.email.trim()
+    if (!email) {
+      setEmailError(t('validation.required'))
+      return
+    }
+
+    if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email)) {
+      setEmailError(t('validation.invalid_email'))
+      return
+    }
+
+    const passwordValidation = validatePasswordStrength(formik.values.password)
+    if (!formik.values.password || !passwordValidation.isValid) {
+      formik.setFieldTouched('password', true, false)
+      formik.setFieldError(
+        'password',
+        !formik.values.password ? t('validation.required') : t('auth.password_requirements_not_met')
+      )
+      return
+    }
+
+    formik.setFieldValue('email', email)
+    if (!createOrgMode) {
+      setIsSubmitting(true)
+      try {
+        const res = await fetch('/api/auth/signup/welcome/check-email', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email }),
+        })
+        const data = await res.json().catch(() => null)
+        if (!res.ok) {
+          setEmailError(data?.detail || 'Unable to start signup')
+          setIsSubmitting(false)
+          return
+        }
+      } catch (_) {
+        setEmailError(t('common.something_went_wrong'))
+        setIsSubmitting(false)
+        return
+      }
+      window.sessionStorage.setItem(welcomeSignupPasswordKey(email), formik.values.password)
+      router.push(`/welcome?email=${encodeURIComponent(email)}`)
+      return
+    }
+    setStep('details')
+  }
+
+  const handleGoogleSignup = async () => {
+    setError('')
+    setIsGoogleLoading(true)
+
+    const callbackUrl = postSignupUrl
+    const res = await signIn('google', {
+      callbackUrl,
+      orgSlug: org?.slug,
+      orgId: org?.id,
+    } as any)
+
+    if (res && 'error' in res && res.error) {
+      setError(res.error)
+      setIsGoogleLoading(false)
+    }
+  }
+
+  if (step === 'email' && !createOrgMode) {
+    return (
+      <div className="flex min-h-screen flex-1 items-center justify-center px-6 py-12 lg:px-10">
+        <div className="w-full max-w-[426px] text-center">
+          <h1 className="text-[32px] leading-tight font-bold tracking-[-0.02em] text-gray-950">
+            Create your free account
+          </h1>
+
+          {error && (
+            <div className="mt-8 flex items-center gap-3 rounded-2xl bg-red-50 px-4 py-3 text-left text-sm font-semibold text-red-800 ring-1 ring-red-100">
+              <AlertTriangle size={18} className="shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div className="mt-12 space-y-7">
+            <Button
+              type="button"
+              onClick={handleGoogleSignup}
+              disabled={isGoogleLoading}
+              variant="ctaSecondary"
+              size="cta"
+              className="w-full text-[16px]"
+            >
+              <SiGoogle size={20} color="#4285F4" />
+              {isGoogleLoading ? t('common.loading') : 'Continue with Google'}
+            </Button>
+
+            <div className="flex items-center gap-4 text-sm font-semibold text-gray-400">
+              <div className="h-px flex-1 bg-gray-200" />
+              <span>or</span>
+              <div className="h-px flex-1 bg-gray-200" />
+            </div>
+
+            <form onSubmit={handleEmailContinue} className="space-y-4">
+              <input
+                name="email"
+                onChange={(e) => {
+                  formik.handleChange(e)
+                  if (emailError) setEmailError('')
+                }}
+                onBlur={formik.handleBlur}
+                value={formik.values.email}
+                type="email"
+                placeholder="Enter email address"
+                autoComplete="email"
+                className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-[16px] text-gray-950 shadow-sm outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300 focus:ring-2 focus:ring-gray-100"
+                required
+              />
+              {emailError && (
+                <p className="text-left text-sm font-medium text-red-600">{emailError}</p>
+              )}
+              <input
+                name="password"
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                value={formik.values.password}
+                type="password"
+                placeholder={t('auth.password')}
+                autoComplete="new-password"
+                className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-[16px] text-gray-950 shadow-sm outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300 focus:ring-2 focus:ring-gray-100"
+                required
+              />
+              {formik.touched.password && formik.errors.password && (
+                <p className="text-left text-sm font-medium text-red-600">{formik.errors.password}</p>
+              )}
+              <div className="text-left">
+                <PasswordStrengthIndicator password={formik.values.password} />
+              </div>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                size="cta"
+                className="w-full bg-gray-950 text-[16px] font-semibold text-white shadow-none hover:bg-gray-800"
+              >
+                {isSubmitting ? t('common.loading') : 'Continue'}
+              </Button>
+            </form>
+          </div>
+
+          <p className="mt-5 text-[12px] leading-relaxed text-gray-500">
+            By continuing, you agree to Launch LMS&apos;s{' '}
+            <span className="underline underline-offset-2">
+              Terms of Service
+            </span>{' '}
+            and{' '}
+            <span className="underline underline-offset-2">
+              Privacy Policy
+            </span>
+            .
+          </p>
+
+          <p className="mt-14 text-[15px] text-gray-600">
+            {t('auth.already_have_account')}{' '}
+            <Link
+              href={nextUrl ? `/login?next=${encodeURIComponent(nextUrl)}` : '/login'}
+              className="font-semibold text-gray-950 hover:underline"
+            >
+              {t('auth.login')}
+            </Link>
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="m-auto w-full max-w-sm px-6 py-8 sm:py-0">
+    <div className={createOrgMode ? 'm-auto w-full max-w-sm px-6 py-8 sm:py-0' : 'flex min-h-screen flex-1 items-center justify-center px-6 py-12 lg:px-10'}>
+      <div className="w-full max-w-sm">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{t('auth.create_account')}</h1>
-        <p className="text-gray-500 mt-1">
+        {!createOrgMode && (
+          <button
+            type="button"
+            onClick={() => setStep('email')}
+            className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-gray-500 transition-colors hover:text-gray-950"
+          >
+            <ArrowLeft size={16} />
+            Back
+          </button>
+        )}
+        <h1 className="text-2xl font-bold text-gray-900">
+          {t('auth.create_account')}
+        </h1>
+        <p className="mt-1 text-gray-500">
           {createOrgMode ? 'Create your user account first, then we will walk you through setting up an organization.' : t('auth.fill_in_details')}
         </p>
       </div>
@@ -234,16 +434,16 @@ function OpenSignUpComponent({ createOrgMode = false }: { createOrgMode?: boolea
 
           <div className="pt-2">
             <Form.Submit asChild>
-              <button className="w-full bg-black text-white font-semibold text-center py-2.5 rounded-lg hover:bg-gray-800 transition-colors">
+              <Button size="cta" className="w-full bg-gray-950 font-semibold text-white shadow-none hover:bg-gray-800">
                 {isSubmitting ? t('common.loading') : t('auth.create_account')}
-              </button>
+              </Button>
             </Form.Submit>
           </div>
         </FormLayout>
       </div>
 
       {/* Login Link */}
-      <p className="text-center text-gray-600 mt-6">
+      <p className="mt-6 text-center text-gray-600">
         {t('auth.already_have_account')}{' '}
         <Link
           href={createOrgMode ? `/login?next=${encodeURIComponent(createOrgRedirect)}` : nextUrl ? `/login?next=${encodeURIComponent(nextUrl)}` : '/login'}
@@ -252,21 +452,7 @@ function OpenSignUpComponent({ createOrgMode = false }: { createOrgMode?: boolea
           {t('auth.login')}
         </Link>
       </p>
-
-      {!createOrgMode && (
-        <div className="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-4 text-center">
-          <p className="text-sm font-semibold text-gray-900">Creating an organization?</p>
-          <p className="mt-1 text-sm text-gray-500">
-            Use a dedicated setup flow for admins, then we will take you into your new workspace.
-          </p>
-          <Link
-            href={getUriWithOrg(org?.slug, '/signup?mode=create-org')}
-            className="mt-4 inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-900 border border-gray-200 hover:bg-gray-100"
-          >
-            Create an organization
-          </Link>
-        </div>
-      )}
+      </div>
     </div>
   )
 }

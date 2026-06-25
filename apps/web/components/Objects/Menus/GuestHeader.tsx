@@ -20,7 +20,7 @@ export function GuestHeader({ orgslug }: { orgslug: string }) {
     >
       <div className="flex items-center justify-between w-full max-w-(--breakpoint-2xl) mx-auto px-4 sm:px-6 lg:px-8 h-full">
         {/* Logo */}
-        <Link href={getUriWithOrg(orgslug, '/welcome')}>
+        <Link href={getUriWithOrg(orgslug, '/')}>
           <div className="flex w-auto h-9 rounded-md items-center py-1 justify-center">
             {org?.logo_image ? (
               <img

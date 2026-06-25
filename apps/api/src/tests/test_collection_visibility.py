@@ -47,8 +47,9 @@ async def test_get_collections_for_authenticated_users_only_queries_current_org(
 
     assert result == []
     query_sql = str(session.statements[0])
+    where_sql = query_sql.split("WHERE", 1)[1]
     assert "collection.org_id = :org_id_1" in query_sql
-    assert "collection.shared" not in query_sql
+    assert "collection.shared" not in where_sql
 
 
 @pytest.mark.asyncio
@@ -67,9 +68,10 @@ async def test_get_collections_for_anonymous_users_only_queries_public_current_o
 
     assert result == []
     query_sql = str(session.statements[0])
+    where_sql = query_sql.split("WHERE", 1)[1]
     assert "collection.org_id = :org_id_1" in query_sql
     assert "collection.public = true" in query_sql.lower()
-    assert "collection.shared" not in query_sql
+    assert "collection.shared" not in where_sql
 
 
 @pytest.mark.asyncio

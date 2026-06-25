@@ -10,7 +10,6 @@ import { useCourse } from '@components/Contexts/CourseContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import EditCourseAccess from './EditCourseAccess/EditCourseAccess'
 import EditCourseContributors from './EditCourseContributors/EditCourseContributors'
-import EditCourseCore from './EditCourseCore/EditCourseCore'
 import { deleteCourseFromBackend } from '@services/courses/courses'
 import { exportCourse, downloadBlob, ExportStatus } from '@services/courses/transfer'
 import { exportToast } from '@components/Objects/StyledElements/Toast/ExportToast'
@@ -84,7 +83,6 @@ export default function CourseSettingsTab({
     <div className="space-y-6 px-10 pb-10 pt-6">
       {permissions.canManageAccess && <EditCourseAccess orgslug={orgslug} />}
       {permissions.canManageContributors && <EditCourseContributors orgslug={orgslug} />}
-      {canConfigureCoreCourse && permissions.canUpdate && <EditCourseCore />}
 
       {permissions.canUpdate && (
         <section className="rounded-xl bg-white p-6 shadow-xs">

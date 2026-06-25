@@ -93,7 +93,7 @@ const BadgeChapterPage = async (props: ChapterPageProps) => {
     course = await fetchCourseMetadata(params.uuid, accessToken)
   } catch (error: any) {
     if (!session && (error?.status === 401 || error?.status === 403)) {
-      redirect('/welcome')
+      redirect('/')
     }
     notFound()
   }
@@ -115,7 +115,7 @@ const BadgeChapterPage = async (props: ChapterPageProps) => {
     )
   } catch (error: any) {
     if (!session && (error?.status === 401 || error?.status === 403)) {
-      redirect('/welcome')
+      redirect('/')
     }
     notFound()
   }

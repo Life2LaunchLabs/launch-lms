@@ -387,7 +387,7 @@ getUriWithOrg(orgslug, routePaths.org.courseActivity(courseUuid, activityId))
 
 Avoid:
 
-- raw `'/dash/...'` strings in components
+- raw `'/admin/...'` strings in components
 - raw `'/course/...'` string concatenation
 - rebuilding org-aware URLs by hand
 - duplicating route patterns across menus, cards, and redirect pages
@@ -426,7 +426,7 @@ Current baseline:
 - Auth pages are rewritten under `/auth/*`
 - Guest and onboarding paths are allowed without a session
 - Public course paths are allowed without a session
-- Other unauthenticated requests are redirected to `/welcome`
+- Other unauthenticated requests are redirected to `/`
 
 Auth/session rules:
 
@@ -464,6 +464,22 @@ The important behavior is:
 This protects production HTTPS pages from mixed-content bugs and keeps browser
 requests aligned with the current host.
 
+## Production Build Baseline
+
+Production builds intentionally use webpack:
+
+```bash
+npm run build
+```
+
+The script runs `next build --webpack`. Next 16's Turbopack production build
+path has stalled during compile for this repository, so webpack is the release
+path until Turbopack is proven stable in CI.
+
+Docker release builds pass the source commit as Next's `BUILD_ID` through the
+root `Dockerfile`, which keeps standalone server assets tied to the release
+metadata in `/app/build-info.json`.
+
 ## Testing And Verification
 
 Routing behavior should be verified in three ways:
@@ -475,7 +491,7 @@ Routing behavior should be verified in three ways:
    `./node_modules/.bin/tsc --noEmit`
 
 3. Grep-based regression checks
-   Search for raw `'/dash'`, `'/course/'`, `'/community/'`, and similar path
+   Search for raw `'/admin'`, `'/course/'`, `'/community/'`, and similar path
    literals in `app/` and `components/` when doing migration work
 
 The dedicated routing test command is:

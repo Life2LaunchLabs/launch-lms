@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { routePaths, withQuery } from '../paths.ts'
 import { resolveRequestRouting, type RequestInstanceInfo } from '../requestPolicy.ts'
+import { classifyRoute } from '../routeAccess.ts'
 
 const instanceInfo: RequestInstanceInfo = {
   multi_org_enabled: true,
@@ -14,19 +15,19 @@ test('withQuery omits empty values and encodes query params', () => {
   assert.equal(
     withQuery('/signup', {
       mode: 'create-org',
-      next: '/dash/courses',
+      next: '/admin/courses',
       inviteCode: '',
       ignored: undefined,
     }),
-    '/signup?mode=create-org&next=%2Fdash%2Fcourses'
+    '/signup?mode=create-org&next=%2Fadmin%2Fcourses'
   )
 })
 
 test('route manifest builds key dashboard and owner routes', () => {
-  assert.equal(routePaths.org.dash.courseSettings('abc', 'general'), '/dash/courses/course/abc/general')
-  assert.equal(routePaths.org.dash.users.roles(), '/dash/users/settings/roles')
-  assert.equal(routePaths.owner.platform.organization(42), '/dash/org-management/42')
-  assert.equal(routePaths.auth.login({ next: '/welcome' }), '/login?next=%2Fwelcome')
+  assert.equal(routePaths.org.dash.courseSettings('abc', 'general'), '/admin/courses/course/abc/general')
+  assert.equal(routePaths.org.dash.users.roles(), '/admin/users/settings/roles')
+  assert.equal(routePaths.owner.platform.organization(42), '/admin/org-management/42')
+  assert.equal(routePaths.auth.login({ next: '/' }), '/login?next=%2F')
 })
 
 test('route manifest builds auth, account, and public org paths used by navigation surfaces', () => {
@@ -36,25 +37,32 @@ test('route manifest builds auth, account, and public org paths used by navigati
   assert.equal(routePaths.owner.account.purchases(), '/account/purchases')
   assert.equal(routePaths.owner.account.organizations(), '/account/organizations')
   assert.equal(routePaths.owner.account.badges(), '/account/badges')
-  assert.equal(routePaths.org.profile(), '/profile')
-  assert.equal(routePaths.org.profileEdit(), '/profile/edit')
-  assert.equal(routePaths.org.profileResume(), '/profile/resume')
-  assert.equal(routePaths.org.profileTimeline(), '/profile/timeline')
+  assert.equal(routePaths.org.portfolio(), '/portfolio')
+  assert.equal(routePaths.org.portfolioEdit(), '/portfolio/edit')
+  assert.equal(routePaths.org.portfolioResume(), '/portfolio/resume')
+  assert.equal(routePaths.org.portfolioTimeline(), '/portfolio/timeline')
+  assert.equal(routePaths.org.news(), '/news')
+  assert.equal(routePaths.org.newsArticle('release-notes'), '/news/release-notes')
   assert.equal(routePaths.org.organization('acme'), '/organization/acme')
   assert.equal(routePaths.org.user('jane'), '/user/jane')
   assert.equal(routePaths.org.userResume('jane'), '/user/jane/resume')
   assert.equal(routePaths.org.userTimeline('jane'), '/user/jane/timeline')
   assert.equal(routePaths.org.search('ai prompts'), '/search?q=ai+prompts')
+  assert.equal(routePaths.org.badges(), '/badges')
+  assert.equal(routePaths.org.myBadges(), '/mybadges')
   assert.equal(routePaths.org.course('badge-slug'), '/badges/badge-slug')
   assert.equal(routePaths.org.badgeStatus('badge-slug'), '/badges/badge-slug/badge')
   assert.equal(routePaths.org.badgePath('badge-slug'), '/badges/badge-slug/path')
   assert.equal(routePaths.org.badgeChapter('badge-slug', 'chapter-1'), '/badges/badge-slug/chapter/chapter-1')
   assert.equal(routePaths.org.badgeInvite('badge-slug'), '/badges/badge-slug/invite')
+  assert.equal('profile' in routePaths.org, false)
+  assert.equal('welcome' in routePaths.org, false)
 })
 
 test('navigation manifest smoke test keeps representative routes absolute and unique', () => {
   const navigationRoutes = [
-    routePaths.org.profile(),
+    routePaths.org.portfolio(),
+    routePaths.org.news(),
     routePaths.owner.account.security(),
     routePaths.owner.account.orgAdmin(),
     routePaths.org.root(),
@@ -73,6 +81,38 @@ test('navigation manifest smoke test keeps representative routes absolute and un
   })
 
   assert.equal(new Set(navigationRoutes).size, navigationRoutes.length)
+})
+
+test('request policy redirects authenticated org root to portfolio', () => {
+  const decision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/',
+    pathname: '/',
+    search: '',
+    host: 'acme.launchlms.test',
+    hasSession: true,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+
+  assert.equal(decision.action, 'redirect')
+  assert.equal(decision.destination, 'https://acme.launchlms.test/portfolio')
+})
+
+test('request policy rewrites unauthenticated org root to the landing page', () => {
+  const decision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/',
+    pathname: '/',
+    search: '',
+    host: 'acme.launchlms.test',
+    hasSession: false,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+
+  assert.equal(decision.action, 'rewrite')
+  assert.equal(decision.destination, '/orgs/acme/')
 })
 
 test('request policy rewrites main-domain traffic into internal org routes', () => {
@@ -109,8 +149,8 @@ test('request policy preserves query params when rewriting user profile routes',
 
 test('request policy keeps main-host dashboard traffic on the default org even if old org cookies existed', () => {
   const decision = resolveRequestRouting({
-    requestUrl: 'https://launchlms.test/dash',
-    pathname: '/dash',
+    requestUrl: 'https://launchlms.test/admin',
+    pathname: '/admin',
     search: '',
     host: 'launchlms.test',
     hasSession: true,
@@ -120,7 +160,7 @@ test('request policy keeps main-host dashboard traffic on the default org even i
   })
 
   assert.equal(decision.action, 'rewrite')
-  assert.equal(decision.destination, '/orgs/default/dash')
+  assert.equal(decision.destination, '/orgs/default/admin')
 })
 
 test('request policy rewrites custom-domain traffic into resolved org routes and keeps host-scoped cookies', () => {
@@ -172,7 +212,35 @@ test('request policy keeps auth query params when rewriting create-org signup fl
   assert.equal(decision.destination, '/auth/signup?mode=create-org')
 })
 
-test('request policy redirects unauthenticated protected paths to welcome', () => {
+test('request policy redirects authenticated login and signup pages to portfolio', () => {
+  const loginDecision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/login',
+    pathname: '/login',
+    search: '',
+    host: 'acme.launchlms.test',
+    hasSession: true,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+  const signupDecision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/signup',
+    pathname: '/signup',
+    search: '',
+    host: 'acme.launchlms.test',
+    hasSession: true,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+
+  assert.equal(loginDecision.action, 'redirect')
+  assert.equal(loginDecision.destination, 'https://acme.launchlms.test/portfolio')
+  assert.equal(signupDecision.action, 'redirect')
+  assert.equal(signupDecision.destination, 'https://acme.launchlms.test/portfolio')
+})
+
+test('request policy redirects unauthenticated protected paths to root landing', () => {
   const decision = resolveRequestRouting({
     requestUrl: 'https://acme.launchlms.test/resources',
     pathname: '/resources',
@@ -185,7 +253,27 @@ test('request policy redirects unauthenticated protected paths to welcome', () =
   })
 
   assert.equal(decision.action, 'redirect')
-  assert.equal(decision.destination, 'https://acme.launchlms.test/welcome')
+  assert.equal(decision.destination, 'https://acme.launchlms.test/')
+})
+
+test('route access treats welcome onboarding as public', () => {
+  assert.equal(classifyRoute('/').kind, 'public')
+  assert.equal(classifyRoute('/welcome').kind, 'public')
+})
+
+test('request policy serves welcome onboarding from the app route', () => {
+  const decision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/welcome?email=learner%40example.com',
+    pathname: '/welcome',
+    search: '?email=learner%40example.com',
+    host: 'acme.launchlms.test',
+    hasSession: false,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+
+  assert.equal(decision.action, 'next')
 })
 
 test('request policy allows unauthenticated badge entry pages', () => {
@@ -214,6 +302,90 @@ test('request policy allows unauthenticated badge entry pages', () => {
   assert.equal(canonicalDecision.destination, '/orgs/acme/badges/badge-slug')
   assert.equal(decision.action, 'rewrite')
   assert.equal(decision.destination, '/orgs/acme/badges/badge-slug/invite')
+})
+
+test('request policy allows unauthenticated news pages', () => {
+  const listDecision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/news',
+    pathname: '/news',
+    search: '',
+    host: 'acme.launchlms.test',
+    hasSession: false,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+  const articleDecision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/news/release-notes',
+    pathname: '/news/release-notes',
+    search: '',
+    host: 'acme.launchlms.test',
+    hasSession: false,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+
+  assert.equal(listDecision.action, 'rewrite')
+  assert.equal(listDecision.destination, '/orgs/acme/news')
+  assert.equal(articleDecision.action, 'rewrite')
+  assert.equal(articleDecision.destination, '/orgs/acme/news/release-notes')
+})
+
+test('request policy allows unauthenticated quickstart and public course pages', () => {
+  const quickstartDecision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/quickstart/course/course_abc',
+    pathname: '/quickstart/course/course_abc',
+    search: '',
+    host: 'acme.launchlms.test',
+    hasSession: false,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+  const publicCourseDecision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/course/badge-slug/activity/activity_abc',
+    pathname: '/course/badge-slug/activity/activity_abc',
+    search: '',
+    host: 'acme.launchlms.test',
+    hasSession: false,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+
+  assert.equal(quickstartDecision.action, 'rewrite')
+  assert.equal(quickstartDecision.destination, '/orgs/acme/quickstart/course/course_abc')
+  assert.equal(publicCourseDecision.action, 'rewrite')
+  assert.equal(publicCourseDecision.destination, '/orgs/acme/course/badge-slug/activity/activity_abc')
+})
+
+test('request policy redirects direct internal org paths to canonical org URLs', () => {
+  const subdomainDecision = resolveRequestRouting({
+    requestUrl: 'https://launchlms.test/orgs/acme/resources',
+    pathname: '/orgs/acme/resources',
+    search: '',
+    host: 'launchlms.test',
+    hasSession: true,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+  const defaultDecision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/orgs/default/resources?tab=all',
+    pathname: '/orgs/default/resources',
+    search: '?tab=all',
+    host: 'acme.launchlms.test',
+    hasSession: true,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+
+  assert.equal(subdomainDecision.action, 'redirect')
+  assert.equal(subdomainDecision.destination, 'https://acme.launchlms.test/resources')
+  assert.equal(defaultDecision.action, 'redirect')
+  assert.equal(defaultDecision.destination, 'https://launchlms.test/resources?tab=all')
 })
 
 test('request policy rewrites sitemap and annotates org slug header', () => {
