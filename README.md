@@ -69,6 +69,16 @@ This repo-local launcher installs the CLI dependencies in `apps/cli` if needed, 
 
 > See the full [CLI documentation](apps/cli/README.md) for all commands and options.
 
+### Release and deploy
+
+Production releases are built from the root `Dockerfile` as a single image that
+contains the web app, API, collab server, and internal Nginx. The companion
+`launch-lms-infra` repository pins that image by release lock, runs Alembic
+migrations before restart, and verifies the deployed image metadata.
+
+For the app-side release contract, see [Deployment](docs/deployment.md). For
+production environment variable names, see [Deploy Environment](docs/deploy-env.md).
+
 ### HTTPS `sslip.io` local dev
 
 The recommended multi-org local dev URL is `https://127.0.0.1.sslip.io:3000`.

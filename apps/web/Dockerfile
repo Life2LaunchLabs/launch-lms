@@ -15,6 +15,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
+ARG BUILD_ID=launch-lms-production
+ENV BUILD_ID=${BUILD_ID}
 
 RUN rm -f .env*
 

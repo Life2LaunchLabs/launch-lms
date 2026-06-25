@@ -14,7 +14,10 @@ const TLS_KEY = process.env.COLLAB_TLS_KEY
 const PUBLIC_URL = process.env.COLLAB_PUBLIC_URL
 const SECRET_KEY = process.env.LAUNCHLMS_AUTH_JWT_SECRET_KEY || ''
 const INTERNAL_KEY = process.env.COLLAB_INTERNAL_KEY || ''
-const REDIS_URL = process.env.LAUNCHLMS_REDIS_URL || 'redis://localhost:6379'
+const REDIS_URL =
+  process.env.LAUNCHLMS_REDIS_URL ||
+  process.env.LAUNCHLMS_REDIS_CONNECTION_STRING ||
+  'redis://localhost:6379'
 
 // Timeout for all outbound HTTP requests (ms)
 const FETCH_TIMEOUT_MS = 10_000

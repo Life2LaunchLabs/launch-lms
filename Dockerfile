@@ -18,6 +18,8 @@ COPY apps/web .
 
 # Disable telemetry during build
 ENV NEXT_TELEMETRY_DISABLED=1
+ARG LAUNCHLMS_COMMIT_SHA=unknown
+ENV BUILD_ID=${LAUNCHLMS_COMMIT_SHA}
 
 # Remove .env files to avoid leaking secrets into the build
 RUN rm -f .env*
@@ -132,7 +134,7 @@ COPY ./apps/api/docker-entrypoint.sh /app/api/docker-entrypoint.sh
 COPY ./docker/start.sh /app/start.sh
 RUN chmod +x /app/api/docker-entrypoint.sh /app/start.sh
 
-ENV PORT=8000 LAUNCHLMS_PORT=9000 COLLAB_PORT=4000 HOSTNAME=0.0.0.0 LAUNCHLMS_OSS=true NEXT_PUBLIC_LAUNCHLMS_OSS=true
+ENV PORT=8000 LAUNCHLMS_PORT=9000 COLLAB_PORT=4000 HOSTNAME=0.0.0.0 LAUNCHLMS_ENV=prod LAUNCHLMS_DEVELOPMENT_MODE=false LAUNCHLMS_OSS=true NEXT_PUBLIC_LAUNCHLMS_OSS=true
 
 LABEL org.opencontainers.image.version="${LAUNCHLMS_VERSION}" \
       org.opencontainers.image.revision="${LAUNCHLMS_COMMIT_SHA}" \

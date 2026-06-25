@@ -464,6 +464,22 @@ The important behavior is:
 This protects production HTTPS pages from mixed-content bugs and keeps browser
 requests aligned with the current host.
 
+## Production Build Baseline
+
+Production builds intentionally use webpack:
+
+```bash
+npm run build
+```
+
+The script runs `next build --webpack`. Next 16's Turbopack production build
+path has stalled during compile for this repository, so webpack is the release
+path until Turbopack is proven stable in CI.
+
+Docker release builds pass the source commit as Next's `BUILD_ID` through the
+root `Dockerfile`, which keeps standalone server assets tied to the release
+metadata in `/app/build-info.json`.
+
 ## Testing And Verification
 
 Routing behavior should be verified in three ways:
