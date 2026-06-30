@@ -2,7 +2,9 @@
 
 import Link from 'next/link'
 import React from 'react'
-import { Award, CheckCircle, ChevronRight, X } from 'lucide-react'
+import { Award, CheckCircle, ChevronRight, Pause, Play, X } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
+import YouTube from 'react-youtube'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg } from '@services/config/config'
 import {
@@ -116,12 +118,7 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
   React.useEffect(() => {
     setUnlocked(page?.page_type === 'info' || page?.page_type === 'question_response')
     setAnswer({})
-  }, [page?.page_uuid])
-
-  const latestAttemptByPage = React.useMemo(() => {
-    const attempts = run?.attempts || []
-    return attempts.reduce((acc: any, attempt: any) => ({ ...acc, [attempt.page_id]: attempt }), {})
-  }, [run])
+  }, [page?.page_type, page?.page_uuid])
 
   const completeAndNext = async () => {
     if (!run || !page) return
@@ -144,42 +141,102 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
   }
 
   return (
-    <main className="flex h-dvh flex-col overflow-hidden bg-zinc-950 text-white">
-      <div className="flex h-14 shrink-0 items-center gap-4 px-4">
-        <Link href={getUriWithOrg(orgslug, `/badges/${badge.badge_uuid.replace('badge_', '')}/path`)} className="rounded-full p-2 hover:bg-white/10"><X size={20} /></Link>
-        <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/15">
-          <div className="h-full rounded-full bg-lime-300 transition-all" style={{ width: `${((index + 1) / Math.max(1, pages.length)) * 100}%` }} />
+    <LearningActivitySurface
+      pages={pages}
+      page={page}
+      pageIndex={index}
+      backHref={getUriWithOrg(orgslug, `/badges/${badge.badge_uuid.replace('badge_', '')}/path`)}
+      actionLabel={index === pages.length - 1 ? 'Finish' : 'Continue'}
+      actionDisabled={!unlocked}
+      onAction={completeAndNext}
+      interactionState={answer}
+    >
+      <LearningPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} pages={pages} run={run} />
+    </LearningActivitySurface>
+  )
+}
+
+export function LearningActivitySurface({
+  pages,
+  page,
+  pageIndex,
+  children,
+  backHref,
+  onBack,
+  actionLabel = 'Continue',
+  actionDisabled,
+  onAction,
+  interactionState,
+  className = 'h-dvh',
+}: any) {
+  const progress = ((pageIndex + 1) / Math.max(1, pages.length)) * 100
+  const isVideoPage = page?.page_type === 'video'
+  const showVideoControls = isVideoPage && actionDisabled && interactionState?.videoStarted
+  const backControl = backHref ? (
+    <Link href={backHref} className={`rounded-full p-2 transition ${isVideoPage ? 'text-white hover:bg-white/10' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-950'}`}><X size={20} /></Link>
+  ) : (
+    <button onClick={onBack} className={`rounded-full p-2 transition ${isVideoPage ? 'text-white hover:bg-white/10' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-950'}`}><X size={20} /></button>
+  )
+
+  return (
+    <main className={`relative flex flex-col overflow-hidden ${isVideoPage ? 'bg-black' : 'bg-[var(--org-page-background)]'} text-gray-950 ${className}`}>
+      <div className="relative z-10 shrink-0 px-4">
+        <div className="mx-auto flex h-14 max-w-2xl items-center gap-4">
+          {backControl}
+          <div className={`h-2 flex-1 overflow-hidden rounded-full ${isVideoPage ? 'bg-white/25' : 'bg-gray-200'}`}>
+            <div className="h-full rounded-full bg-[var(--org-primary-color)] transition-all" style={{ width: `${progress}%` }} />
+          </div>
+          <span className={`text-sm font-medium ${isVideoPage ? 'text-white/80' : 'text-gray-500'}`}>{pageIndex + 1}/{Math.max(1, pages.length)}</span>
         </div>
-        <span className="text-sm text-white/70">{index + 1}/{pages.length}</span>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-8">
-        <div className="mx-auto max-w-2xl">
-          <PlayerPage page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} pages={pages} run={run} />
+      <div className={`${isVideoPage ? 'flex min-h-0 flex-1 items-center justify-center overflow-hidden p-0' : 'min-h-0 flex-1 overflow-y-auto px-5 py-8'}`}>
+        <div className={`${isVideoPage ? 'flex h-full w-full items-center justify-center overflow-hidden' : 'mx-auto max-w-2xl overflow-hidden'}`}>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={page?.page_uuid || pageIndex}
+              className={isVideoPage ? 'flex h-full w-full items-center justify-center' : undefined}
+              initial={{ x: 36, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -24, opacity: 0 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+            >
+              {page ? children : <div className="flex min-h-[420px] items-center justify-center text-gray-400">No page selected</div>}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
-      <div className="shrink-0 border-t border-white/10 p-4">
-        <div className="mx-auto flex max-w-2xl justify-end">
-          <button onClick={completeAndNext} disabled={!unlocked} className="inline-flex h-12 min-w-40 items-center justify-center gap-2 rounded-lg bg-purple-600 px-5 text-sm font-bold text-white disabled:opacity-40">
-            {index === pages.length - 1 ? 'Finish' : 'Continue'}
-            <ChevronRight size={18} />
-          </button>
+      <div className="relative z-10 shrink-0 px-5 py-4">
+        <div className="mx-auto flex max-w-2xl justify-center">
+          {showVideoControls ? (
+            <VideoPlaybackStatus interactionState={interactionState} pageUuid={page?.page_uuid} />
+          ) : (
+            <button onClick={onAction} disabled={actionDisabled} className="inline-flex h-12 w-full max-w-sm items-center justify-center gap-2 rounded-lg bg-[var(--org-primary-color)] px-5 text-sm font-bold text-white shadow-sm transition hover:brightness-95 disabled:opacity-40 sm:w-auto sm:min-w-40">
+              {actionLabel}
+              <ChevronRight size={18} />
+            </button>
+          )}
         </div>
       </div>
     </main>
   )
 }
 
-function PlayerPage({ page, answer, setAnswer, setUnlocked, pages, run }: any) {
+export function LearningPageContent({ page, answer, setAnswer, setUnlocked, pages, run, editable = false, onPagePatch }: any) {
   if (!page) return null
   if (page.page_type === 'video') {
-    return <div><div className="aspect-video rounded-xl bg-white/10" /><h1 className="mt-6 text-3xl font-bold">{page.title}</h1><button onClick={() => setUnlocked(true)} className="mt-5 text-sm text-lime-300">Mark video watched</button></div>
+    return <VideoPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} />
   }
   if (page.page_type === 'multiple_choice') {
     const options = page.content?.options || []
-    return <div><p className="text-xs font-bold uppercase text-purple-300">Check your knowledge</p><h1 className="mt-3 text-3xl font-bold">{page.content?.prompt || page.title}</h1><div className="mt-6 space-y-3">{options.map((option: any, index: number) => <button key={option.id || index} onClick={() => { setAnswer({ option_id: option.id || String(index) }); setUnlocked(true) }} className={`w-full rounded-xl border p-4 text-left ${answer.option_id === (option.id || String(index)) ? 'border-purple-400 bg-purple-500/20' : 'border-white/15'}`}>{option.text || `Option ${index + 1}`}</button>)}</div></div>
+    const updateOption = (optionIndex: number, text: string) => {
+      const nextOptions = options.length ? [...options] : [{ id: 'a', text: '' }, { id: 'b', text: '' }]
+      nextOptions[optionIndex] = { ...(nextOptions[optionIndex] || { id: String(optionIndex) }), text }
+      onPagePatch?.({ content: { ...(page.content || {}), options: nextOptions } })
+    }
+    return <div><p className="text-xs font-bold uppercase text-[var(--org-primary-color)]">Check your knowledge</p><EditableText as="h1" editable={editable} value={page.content?.prompt || ''} placeholder="Question prompt" onChange={(value: string) => onPagePatch?.({ content: { ...(page.content || {}), prompt: value } })} className="mt-3 text-3xl font-bold text-gray-950" /><div className="mt-6 space-y-3">{(options.length ? options : [{ id: 'a', text: '' }, { id: 'b', text: '' }]).map((option: any, index: number) => <button key={option.id || index} onClick={() => { if (!editable) { setAnswer({ option_id: option.id || String(index) }); setUnlocked(true) } }} className={`flex w-full items-center gap-4 rounded-xl border bg-white p-4 text-left shadow-sm transition ${answer?.option_id === (option.id || String(index)) ? 'border-[var(--org-primary-color)] ring-2 ring-[var(--org-primary-color)]' : 'border-gray-200 hover:border-gray-300'}`}><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${answer?.option_id === (option.id || String(index)) ? 'border-[var(--org-primary-color)] bg-[var(--org-primary-color)] text-white' : 'border-gray-200 text-gray-600'}`}>{String.fromCharCode(65 + index)}</span><EditableText editable={editable} value={option.text || ''} placeholder={`Option ${index + 1}`} onChange={(value: string) => updateOption(index, value)} className="min-w-0 flex-1 text-gray-900" /></button>)}</div></div>
   }
   if (page.page_type === 'text_input') {
-    return <div><p className="text-xs font-bold uppercase text-purple-300">Your turn</p><h1 className="mt-3 text-3xl font-bold">{page.content?.prompt || page.title}</h1><textarea onChange={(event) => { setAnswer({ text: event.target.value }); setUnlocked(event.target.value.trim().length > 0) }} className="mt-6 min-h-36 w-full resize-none rounded-xl border border-purple-400 bg-transparent p-4 outline-none" /></div>
+    return <div><p className="text-xs font-bold uppercase text-[var(--org-primary-color)]">Your turn</p><EditableText as="h1" editable={editable} value={page.content?.prompt || ''} placeholder="Prompt" onChange={(value: string) => onPagePatch?.({ content: { ...(page.content || {}), prompt: value } })} className="mt-3 text-3xl font-bold text-gray-950" /><textarea readOnly={editable} onChange={(event) => { setAnswer({ text: event.target.value }); setUnlocked(event.target.value.trim().length > 0) }} placeholder={editable ? 'Learners will write here' : undefined} className="mt-6 min-h-36 w-full resize-none rounded-xl border border-gray-200 bg-white p-4 text-gray-950 outline-none shadow-sm placeholder:text-gray-400 focus:border-[var(--org-primary-color)] focus:ring-2 focus:ring-[var(--org-primary-color)]" /></div>
   }
   if (page.page_type === 'question_response') {
     const linkedUuid = page.content?.linked_page_uuid
@@ -187,7 +244,249 @@ function PlayerPage({ page, answer, setAnswer, setUnlocked, pages, run }: any) {
     const linkedPage = pages.find((item: any) => item.page_uuid === linkedUuid)
     const attempt = (run?.attempts || []).filter((item: any) => item.result?.page_uuid === linkedPage?.page_uuid).at(-1)
     const variant = variants[attempt?.feedback_key] || variants[attempt?.is_correct ? 'correct' : 'incorrect'] || variants.default || {}
-    return <div><CheckCircle className="mb-6 h-14 w-14 text-lime-300" /><h1 className="text-3xl font-bold">{variant.title || page.title}</h1><p className="mt-4 whitespace-pre-wrap text-lg leading-8 text-white/75">{variant.body || page.content?.body}</p></div>
+    return <div><CheckCircle className="mb-6 h-14 w-14 text-[var(--org-primary-color)]" /><EditableText as="h1" editable={editable} value={variant.title || ''} placeholder="Response title" onChange={(value: string) => onPagePatch?.({ content: { ...(page.content || {}), variants: { ...(page.content?.variants || {}), default: { ...(page.content?.variants?.default || {}), title: value } } } })} className="text-3xl font-bold text-gray-950" /><EditableText editable={editable} multiline value={variant.body || page.content?.body || ''} placeholder="Feedback body" onChange={(value: string) => onPagePatch?.({ content: { ...(page.content || {}), body: value, variants: { ...(page.content?.variants || {}), default: { ...(page.content?.variants?.default || {}), body: value } } } })} className="mt-4 whitespace-pre-wrap text-lg leading-8 text-gray-600" /></div>
   }
-  return <div><h1 className="text-3xl font-bold">{page.title}</h1><p className="mt-5 whitespace-pre-wrap text-lg leading-8 text-white/75">{page.content?.body}</p></div>
+  return <div><EditableText as="h1" editable={editable} value={page.content?.heading || ''} placeholder="Page heading" onChange={(value: string) => onPagePatch?.({ content: { ...(page.content || {}), heading: value } })} className="text-3xl font-bold text-gray-950" /><EditableText editable={editable} multiline value={page.content?.body || ''} placeholder="Add page content..." onChange={(value: string) => onPagePatch?.({ content: { ...(page.content || {}), body: value } })} className="mt-5 whitespace-pre-wrap text-lg leading-8 text-gray-600" /></div>
+}
+
+function VideoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch }: any) {
+  const videoRef = React.useRef<HTMLVideoElement | null>(null)
+  const youtubePlayerRef = React.useRef<any>(null)
+  const videoUrl = page.content?.video_url || ''
+  const videoTitle = page.content?.heading || ''
+  const youtubeId = React.useMemo(() => getYouTubeId(videoUrl), [videoUrl])
+  const toggleEventName = `learning-video-toggle-${page.page_uuid}`
+
+  React.useEffect(() => {
+    if (editable) return
+    setUnlocked(false)
+    setAnswer?.({ videoStarted: Boolean(videoUrl), videoProgress: 0, videoCurrentTime: 0, videoDuration: 0, videoPlaying: true })
+  }, [editable, page.page_uuid, setAnswer, setUnlocked, videoUrl])
+
+  React.useEffect(() => {
+    if (editable) return
+
+    const togglePlayback = () => {
+      const video = videoRef.current
+      if (video) {
+        if (video.paused) void video.play()
+        else video.pause()
+        return
+      }
+
+      const youtubePlayer = youtubePlayerRef.current
+      if (!youtubePlayer) return
+      if (youtubePlayer.getPlayerState?.() === 1) youtubePlayer.pauseVideo?.()
+      else youtubePlayer.playVideo?.()
+    }
+
+    window.addEventListener(toggleEventName, togglePlayback)
+    return () => window.removeEventListener(toggleEventName, togglePlayback)
+  }, [editable, toggleEventName])
+
+  React.useEffect(() => {
+    if (editable || !youtubeId) return
+    const interval = window.setInterval(() => {
+      const player = youtubePlayerRef.current
+      if (!player) return
+      const duration = player.getDuration?.() || 0
+      const current = player.getCurrentTime?.() || 0
+      const playerState = player.getPlayerState?.()
+      setAnswer?.({
+        videoStarted: true,
+        videoProgress: duration > 0 ? current / duration : 0,
+        videoCurrentTime: current,
+        videoDuration: duration,
+        videoPlaying: playerState === 1,
+      })
+    }, 500)
+
+    return () => window.clearInterval(interval)
+  }, [editable, setAnswer, youtubeId])
+
+  if (editable) {
+    return (
+      <div className="relative flex h-full w-full items-center justify-center bg-black">
+        <div className="absolute left-5 right-5 top-5 z-10 mx-auto max-w-2xl">
+          <EditableText
+            as="h1"
+            editable
+            value={videoTitle}
+            placeholder="Optional video title"
+            onChange={(value: string) => onPagePatch?.({ content: { ...(page.content || {}), heading: value } })}
+            className="text-3xl font-bold text-white drop-shadow"
+          />
+        </div>
+        <div className="flex h-full w-full items-center justify-center overflow-hidden bg-black">
+          {videoUrl ? (
+            youtubeId ? (
+              <div className="flex aspect-video max-h-full w-full items-center justify-center bg-zinc-900 text-sm font-medium text-white/70">YouTube video preview</div>
+            ) : (
+              <video src={videoUrl} className="h-full w-full object-contain" muted preload="metadata" />
+            )
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-black text-sm font-medium text-white/60">
+              Add a video URL in the sidebar
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  const updateNativeProgress = () => {
+    const video = videoRef.current
+    if (!video) return
+    const duration = Number.isFinite(video.duration) ? video.duration : 0
+    const current = video.currentTime || 0
+    setAnswer?.({
+      videoStarted: true,
+      videoProgress: duration > 0 ? current / duration : 0,
+      videoCurrentTime: current,
+      videoDuration: duration,
+      videoPlaying: !video.paused,
+    })
+  }
+
+  return (
+    <div className="relative flex h-full w-full items-center justify-center bg-black">
+      {videoTitle && (
+        <h1 className="absolute left-5 right-5 top-5 z-10 mx-auto max-w-2xl text-3xl font-bold text-white drop-shadow">
+          {videoTitle}
+        </h1>
+      )}
+      <div className="flex h-full w-full items-center justify-center overflow-hidden bg-black">
+        {youtubeId ? (
+          <YouTube
+            className="aspect-video max-h-full w-full"
+            iframeClassName="h-full w-full"
+            videoId={youtubeId}
+          opts={{
+            width: '100%',
+            height: '100%',
+            playerVars: { autoplay: 1, controls: 0, modestbranding: 1, rel: 0 },
+          }}
+          onReady={(event) => {
+            youtubePlayerRef.current = event.target
+            event.target.playVideo?.()
+          }}
+          onPlay={() => setAnswer?.({ ...(answer || {}), videoStarted: true, videoPlaying: true })}
+          onPause={() => setAnswer?.({ ...(answer || {}), videoStarted: true, videoPlaying: false })}
+          onEnd={() => {
+            setUnlocked(true)
+            setAnswer?.({ ...(answer || {}), videoStarted: false, videoProgress: 1, videoPlaying: false })
+            }}
+          />
+        ) : videoUrl ? (
+          <video
+            ref={videoRef}
+            src={videoUrl}
+            autoPlay
+            playsInline
+            className="h-full w-full object-contain"
+            onPlay={updateNativeProgress}
+            onPause={updateNativeProgress}
+            onTimeUpdate={updateNativeProgress}
+            onLoadedMetadata={updateNativeProgress}
+            onEnded={() => {
+              setUnlocked(true)
+              setAnswer?.({
+                videoStarted: false,
+                videoProgress: 1,
+                videoCurrentTime: videoRef.current?.duration || 0,
+                videoDuration: videoRef.current?.duration || 0,
+                videoPlaying: false,
+              })
+            }}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-sm font-medium text-white/60">
+            No video added yet
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function VideoPlaybackStatus({ interactionState, pageUuid }: { interactionState: any; pageUuid?: string }) {
+  const progress = Math.max(0, Math.min(1, interactionState?.videoProgress || 0))
+  return (
+    <div className="w-full max-w-2xl text-white drop-shadow">
+      <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-white/30">
+        <div className="h-full rounded-full bg-white transition-all" style={{ width: `${progress * 100}%` }} />
+      </div>
+      <div className="flex items-center gap-4">
+        <button
+          onClick={() => pageUuid && window.dispatchEvent(new Event(`learning-video-toggle-${pageUuid}`))}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 transition hover:bg-white/25"
+        >
+          {interactionState?.videoPlaying ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}
+        </button>
+        <span className="text-sm font-bold">
+          {formatTime(interactionState?.videoCurrentTime || 0)} / {formatTime(interactionState?.videoDuration || 0)}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function getYouTubeId(url: string) {
+  if (!url) return ''
+  const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([^?&/]+)/)
+  return match?.[1] || ''
+}
+
+function formatTime(seconds: number) {
+  const safeSeconds = Number.isFinite(seconds) ? Math.max(0, seconds) : 0
+  const minutes = Math.floor(safeSeconds / 60)
+  const remaining = Math.floor(safeSeconds % 60)
+  return `${minutes}:${String(remaining).padStart(2, '0')}`
+}
+
+function EditableMediaPlaceholder({ editable, page, onPagePatch }: any) {
+  if (!editable) return <div className="aspect-video rounded-xl bg-gray-200" />
+  return (
+    <label className="block aspect-video rounded-xl border border-dashed border-gray-300 bg-white p-5">
+      <span className="text-xs font-bold uppercase text-gray-400">Media URL</span>
+      <input value={page.content?.video_url || ''} onChange={(event) => onPagePatch?.({ content: { ...(page.content || {}), video_url: event.target.value } })} placeholder="Paste a video URL" className="mt-3 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-950 outline-none placeholder:text-gray-400 focus:border-[var(--org-primary-color)] focus:ring-2 focus:ring-[var(--org-primary-color)]" />
+    </label>
+  )
+}
+
+function EditableText({ as = 'div', editable, value, placeholder, onChange, className, multiline = false }: any) {
+  const Element = as
+  const ref = React.useRef<HTMLElement | null>(null)
+  const valueRef = React.useRef(value || '')
+
+  React.useEffect(() => {
+    valueRef.current = value || ''
+    if (ref.current && document.activeElement !== ref.current && ref.current.innerText !== valueRef.current) {
+      ref.current.innerText = valueRef.current
+    }
+  }, [value])
+
+  if (!editable) return <Element className={className}>{value || placeholder}</Element>
+
+  return (
+    <Element
+      ref={ref}
+      contentEditable
+      suppressContentEditableWarning
+      role="textbox"
+      aria-label={placeholder}
+      data-placeholder={placeholder}
+      onInput={(event: React.FormEvent<HTMLElement>) => {
+        valueRef.current = event.currentTarget.innerText
+      }}
+      onBlur={() => onChange?.(valueRef.current.trim())}
+      onKeyDown={(event: React.KeyboardEvent<HTMLElement>) => {
+        if (!multiline && event.key === 'Enter') {
+          event.preventDefault()
+          event.currentTarget.blur()
+        }
+      }}
+      className={`${className || ''} rounded-md outline-none transition focus:bg-white focus:ring-2 focus:ring-[var(--org-primary-color)] empty:before:text-gray-400 empty:before:content-[attr(data-placeholder)]`}
+    />
+  )
 }
