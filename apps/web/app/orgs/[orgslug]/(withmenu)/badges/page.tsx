@@ -8,6 +8,8 @@ import { getCanonicalUrl, getOrgSeoConfig, buildPageTitle, buildBreadcrumbJsonLd
 import { JsonLd } from '@components/SEO/JsonLd'
 import { getOrgCollections } from '@services/courses/collections'
 import { getCourseMetadata } from '@services/courses/courses'
+import { getLearningBadgeCollections } from '@services/learning/learning'
+import { LearningCollectionsBand } from '@components/Learning/LearningBadgeViews'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string }>
@@ -83,6 +85,7 @@ const BadgesPage = async (params: any) => {
   const access_token = session?.tokens?.access_token
 
   let collections: any[] = []
+  let learningCollections: any[] = []
   let invitedBadgeCourse: any = null
 
   try {
@@ -98,6 +101,23 @@ const BadgesPage = async (params: any) => {
       error,
     })
     collections = []
+  }
+
+  try {
+    const response = await getLearningBadgeCollections(
+      org.id,
+      access_token ?? undefined,
+      false,
+      { revalidate: 0, tags: ['learning-badges'] }
+    )
+    learningCollections = response.success ? response.data : response
+  } catch (error: any) {
+    console.error('Failed to load Learning 2.0 badge collections', {
+      orgslug,
+      org_id: org.id,
+      error,
+    })
+    learningCollections = []
   }
 
   if (inviteBadge) {
@@ -126,6 +146,9 @@ const BadgesPage = async (params: any) => {
   return (
     <div>
       <JsonLd data={breadcrumbJsonLd} />
+      <div className="mx-auto max-w-7xl px-5 pt-8">
+        <LearningCollectionsBand orgslug={orgslug} collections={learningCollections} />
+      </div>
       <Courses
         org_id={org.id}
         orgslug={orgslug}

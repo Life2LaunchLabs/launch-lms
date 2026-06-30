@@ -9,6 +9,8 @@ import { getServerSession } from '@/lib/auth/server'
 import { buildBreadcrumbJsonLd, getCanonicalUrl, getOrgSeoConfig } from '@/lib/seo/utils'
 import { JsonLd } from '@components/SEO/JsonLd'
 import ActivityClient from '../../../../course/[courseuuid]/activity/[activityid]/activity'
+import { getLearningPath } from '@services/learning/learning'
+import { LearningActivityPlayer } from '@components/Learning/LearningBadgeViews'
 
 type ChapterPageProps = {
   params: Promise<{ orgslug: string; uuid: string; chapterid: string }>
@@ -87,6 +89,23 @@ const BadgeChapterPage = async (props: ChapterPageProps) => {
   const params = await props.params
   const session = await getServerSession()
   const accessToken = session?.tokens?.access_token || null
+
+  try {
+    const badgePath = await getLearningPath(
+      params.uuid,
+      accessToken || undefined,
+      true,
+      { revalidate: 0, tags: ['learning-badges'] }
+    )
+    const cleanActivityId = params.chapterid.replace('learning_activity_', '')
+    const activity = (badgePath.activities || []).find((item: any) => (
+      item.activity_uuid === params.chapterid ||
+      item.activity_uuid.replace('learning_activity_', '') === cleanActivityId
+    ))
+    if (activity) {
+      return <LearningActivityPlayer orgslug={params.orgslug} badgePath={badgePath} activity={activity} />
+    }
+  } catch {}
 
   let course
   try {

@@ -7,6 +7,7 @@ from src.routers import plans
 from src.routers import usergroups
 from src.routers import dev, trail, users, auth, orgs, roles, search, news
 from src.routers import stream
+from src.routers import learning as learning_router_module
 from src.routers import api_tokens
 from src.routers.ai import ai, magicblocks, courseplanning, rag
 from src.routers.boards import boards_playground
@@ -132,6 +133,12 @@ v1_router.include_router(
 )
 v1_router.include_router(chapters.router, prefix="/chapters", tags=["chapters"])
 v1_router.include_router(activities.router, prefix="/activities", tags=["activities"])
+v1_router.include_router(learning_router_module.badges_router, prefix="/badges", tags=["learning-badges"])
+v1_router.include_router(learning_router_module.collections_router, prefix="/badge-collections", tags=["learning-badge-collections"])
+v1_router.include_router(learning_router_module.activities_router, prefix="/learning-activities", tags=["learning-activities"])
+v1_router.include_router(learning_router_module.pages_router, prefix="/learning-pages", tags=["learning-pages"])
+v1_router.include_router(learning_router_module.runs_router, prefix="/learning-runs", tags=["learning-runs"])
+v1_router.include_router(learning_router_module.awards_router, prefix="/badge-awards", tags=["learning-badge-awards"])
 v1_router.include_router(
     collections.router, prefix="/collections", tags=["collections"]
 )

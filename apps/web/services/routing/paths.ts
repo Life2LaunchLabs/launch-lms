@@ -122,6 +122,7 @@ export const routePaths = {
       root: () => '/admin',
       analytics: () => '/admin',
       courses: () => '/admin/courses',
+      badges: () => '/admin/badges',
       assignments: () => '/admin/assignments',
       communities: () => '/admin/communities',
       resources: () => '/admin/resources',

@@ -9,6 +9,8 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { buildPageTitle, getCanonicalUrl, getOrgSeoConfig } from '@/lib/seo/utils'
 import { notFound, redirect } from 'next/navigation'
 import BadgeRouteDispatcher from './BadgeRouteDispatcher'
+import { getLearningBadge } from '@services/learning/learning'
+import { LearningBadgeDetail } from '@components/Learning/LearningBadgeViews'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string; uuid: string }>
@@ -94,6 +96,15 @@ export async function generateMetadata(props: MetadataProps): Promise<Metadata> 
 const BadgePage = async (props: MetadataProps) => {
   const { uuid, orgslug } = await props.params
   const session = await getServerSession()
+
+  try {
+    const badge = await getLearningBadge(
+      uuid,
+      session?.tokens?.access_token ?? undefined,
+      { revalidate: 0, tags: ['learning-badges'] }
+    )
+    return <LearningBadgeDetail orgslug={orgslug} badge={badge} />
+  } catch {}
 
   if (!session) {
     redirect(getUriWithOrg(orgslug, routePaths.org.badgeInvite(uuid)))

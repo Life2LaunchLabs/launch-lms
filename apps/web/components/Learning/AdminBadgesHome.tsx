@@ -1,0 +1,157 @@
+'use client'
+
+import Link from 'next/link'
+import React from 'react'
+import { BookCopy, Library, Loader2, Plus, Trash2 } from 'lucide-react'
+import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { getUriWithOrg } from '@services/config/config'
+import { createLearningBadgeCollection, deleteLearningBadgeCollection } from '@services/learning/learning'
+import toast from 'react-hot-toast'
+import Modal from '@components/Objects/StyledElements/Modal/Modal'
+
+export default function AdminBadgesHome({
+  orgslug,
+  orgId,
+  collections,
+}: {
+  orgslug: string
+  orgId: number
+  collections: any[]
+}) {
+  const session = useLHSession() as any
+  const accessToken = session.data?.tokens?.access_token
+  const [name, setName] = React.useState('')
+  const [description, setDescription] = React.useState('')
+  const [creating, setCreating] = React.useState(false)
+  const [modalOpen, setModalOpen] = React.useState(false)
+  const [deleting, setDeleting] = React.useState('')
+
+  const createCollection = async () => {
+    if (!name.trim()) return
+    setCreating(true)
+    try {
+      await createLearningBadgeCollection({
+        org_id: orgId,
+        name: name.trim(),
+        description: description.trim(),
+        public: true,
+      }, accessToken)
+      toast.success('Badge collection created')
+      setModalOpen(false)
+      window.location.reload()
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to create collection')
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const deleteCollection = async (event: React.MouseEvent, collection: any) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (deleting) return
+    if (!confirm(`Delete "${collection.name}" and its badges?`)) return
+    setDeleting(collection.collection_uuid)
+    try {
+      await deleteLearningBadgeCollection(collection.collection_uuid, accessToken)
+      toast.success('Badge collection deleted')
+      window.location.reload()
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to delete collection')
+    } finally {
+      setDeleting('')
+    }
+  }
+
+  return (
+    <div className="h-full min-h-screen w-full bg-[#f8f8f8] px-10 py-6">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-950">Badge Collections</h1>
+          <p className="mt-1 text-sm text-gray-500">Every Learning 2.0 badge belongs to one collection.</p>
+        </div>
+        <Modal
+          isDialogOpen={modalOpen}
+          onOpenChange={setModalOpen}
+          minHeight="no-min"
+          minWidth="md"
+          dialogTitle="New Badge Collection"
+          dialogDescription="Create a collection that will own its badges."
+          dialogContent={
+            <div className="flex flex-col gap-4 p-2">
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="Collection name"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              />
+              <textarea
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                placeholder="Optional description"
+                rows={3}
+                className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              />
+              <button
+                onClick={createCollection}
+                disabled={creating || !name.trim()}
+                className="ml-auto inline-flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white disabled:opacity-50"
+              >
+                {creating && <Loader2 className="h-4 w-4 animate-spin" />}
+                Create Collection
+              </button>
+            </div>
+          }
+          dialogTrigger={
+            <button className="flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white nice-shadow transition-transform hover:scale-105">
+              <Plus className="h-4 w-4" />
+              New Collection
+            </button>
+          }
+        />
+      </div>
+
+      {collections.length === 0 ? (
+        <div className="flex items-center justify-center rounded-xl border-2 border-dashed border-gray-200 py-16 text-center">
+          <div>
+            <Library size={36} className="mx-auto mb-3 text-gray-300" />
+            <p className="text-sm text-gray-500">Create a collection before adding badges.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {collections.map((collection) => (
+            <Link
+              key={collection.collection_uuid}
+              href={getUriWithOrg(orgslug, `/admin/badges/collection/${collection.collection_uuid}`)}
+              className="group relative flex w-full flex-col overflow-hidden rounded-xl bg-white nice-shadow transition-all duration-300 hover:scale-[1.01]"
+            >
+              <button
+                onClick={(event) => deleteCollection(event, collection)}
+                disabled={deleting === collection.collection_uuid}
+                className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-red-100 bg-white text-red-600 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 disabled:opacity-60"
+                title="Delete collection"
+              >
+                {deleting === collection.collection_uuid ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              </button>
+              <div className="relative flex aspect-video items-center justify-center overflow-hidden bg-gray-50 text-gray-300">
+                <Library size={32} strokeWidth={1.5} />
+              </div>
+              <div className="flex flex-col space-y-1.5 p-3">
+                <h2 className="line-clamp-1 text-base font-bold leading-tight text-gray-900">{collection.name}</h2>
+                {collection.description ? <p className="min-h-[1.5rem] line-clamp-2 text-[11px] text-gray-500">{collection.description}</p> : null}
+                <div className="flex items-center justify-between border-t border-gray-100 pt-1.5">
+                  <div className="flex items-center gap-1.5 text-gray-500">
+                    <BookCopy size={12} />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">{collection.badges?.length || 0} badges</span>
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Edit</span>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
