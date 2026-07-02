@@ -37,7 +37,7 @@ export default function ReorderableList<T>({
   droppableId,
 }: {
   items: T[]
-  getId(item: T): string
+  getId(item: T, index: number): string
   onReorder(items: T[]): void
   renderItem(props: ReorderableListRenderItem<T>): React.ReactNode
   className?: string
@@ -57,7 +57,7 @@ export default function ReorderableList<T>({
         {(droppableProvided) => (
           <div ref={droppableProvided.innerRef} {...droppableProvided.droppableProps} className={className}>
             {items.map((item, index) => {
-              const id = getId(item)
+              const id = getId(item, index)
               return (
                 <Draggable key={id} draggableId={id} index={index}>
                   {(draggableProvided, draggableSnapshot) => {

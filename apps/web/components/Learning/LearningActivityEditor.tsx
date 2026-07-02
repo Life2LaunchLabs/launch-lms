@@ -5,11 +5,14 @@ import React from 'react'
 import {
   ArrowLeft,
   Check,
+  CheckCircle2,
+  Circle,
   Copy,
   Eye,
   FileText,
   GripVertical,
   Hand,
+  Image as ImageIcon,
   ListChecks,
   Link as LinkIcon,
   Loader2,
@@ -19,6 +22,7 @@ import {
   MousePointer2,
   PencilLine,
   Plus,
+  ChevronDown,
   Smartphone,
   Trash2,
   Upload,
@@ -160,6 +164,21 @@ export default function LearningActivityEditor({
     setPan({ x: 0, y: 0 })
   }, [previewMode, selectedPageUuid])
 
+  React.useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const onNativeWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return
+      event.preventDefault()
+      event.stopPropagation()
+      setZoom((current) => clamp(Number((current + (event.deltaY > 0 ? -0.08 : 0.08)).toFixed(2)), 1, 2.5))
+    }
+
+    canvas.addEventListener('wheel', onNativeWheel, { passive: false })
+    return () => canvas.removeEventListener('wheel', onNativeWheel)
+  }, [])
+
   const flushPendingSaves = React.useCallback(async (options?: { rethrow?: boolean }) => {
     const entries = Object.entries(pendingSavesRef.current)
     if (!entries.length) return
@@ -277,15 +296,7 @@ export default function LearningActivityEditor({
         activity_uuid: activity.activity_uuid,
         page_type: 'question_response',
         title: `${page.title || 'Question'}: response`,
-        content: {
-          linked_page_uuid: page.page_uuid,
-          variants: {
-            default: {
-              title: 'Response',
-              body: '',
-            },
-          },
-        },
+        content: buildQuestionResponseContent(page.page_uuid),
         design: {},
         scoring: {},
         completion: { mode: 'manual' },
@@ -400,7 +411,6 @@ export default function LearningActivityEditor({
   const onWheelCanvas = (event: React.WheelEvent<HTMLDivElement>) => {
     if (event.ctrlKey || event.metaKey) {
       event.preventDefault()
-      setZoom((current) => clamp(Number((current + (event.deltaY > 0 ? -0.08 : 0.08)).toFixed(2)), 1, 2.5))
       return
     }
     if (zoom > 1) {
@@ -490,6 +500,7 @@ export default function LearningActivityEditor({
           >
             <div className="flex h-full w-full items-center justify-center px-12 pb-32 pt-8">
               <div
+                data-learning-preview-frame
                 style={{
                   width: frame.width,
                   height: frameShellHeight,
@@ -498,10 +509,12 @@ export default function LearningActivityEditor({
                   transform: `translate(${zoom > 1 ? pan.x : 0}px, ${zoom > 1 ? pan.y : 0}px) scale(${fitScale * zoom})`,
                   transformOrigin: 'center center',
                 }}
-                className={`${previewMode === 'mobile' ? 'rounded-[2rem] bg-[var(--org-page-background)]' : 'rounded-xl bg-white'} shrink-0 overflow-hidden shadow-2xl ring-1 ring-black/10`}
+                className={`${previewMode === 'mobile' ? 'rounded-[2rem] bg-[var(--org-page-background)]' : 'rounded-xl bg-white'} relative shrink-0 overflow-visible shadow-2xl ring-1 ring-black/10`}
               >
                 <div
-                  style={previewMode === 'mobile' ? { height: frame.height, marginTop: mobileFrameCap, marginBottom: mobileFrameCap } : { height: frame.height }}
+                  style={previewMode === 'mobile'
+                    ? { height: frame.height, marginTop: mobileFrameCap, marginBottom: mobileFrameCap, borderRadius: 'inherit' }
+                    : { height: frame.height, borderRadius: 'inherit' }}
                   className="overflow-hidden"
                 >
                   <LearningActivitySurface
@@ -827,13 +840,13 @@ function PageSettings({ page, pages, linkedResponse, patchPage, removePage, addQ
   const tabs = getPageSettingsTabs(page)
   const [activeTab, setActiveTab] = React.useState(tabs[0].key)
   const linkedQuestion = page.page_type === 'question_response'
-    ? pages.find((item: any) => item.page_uuid === page.content?.linked_page_uuid)
+    ? findQuestionForResponse(pages, page)
     : null
 
   React.useEffect(() => {
     const nextTabs = getPageSettingsTabs(page)
     if (!nextTabs.some((tab) => tab.key === activeTab)) setActiveTab(nextTabs[0].key)
-  }, [activeTab, page.page_type])
+  }, [activeTab, page])
 
   return (
     <div className="space-y-6">
@@ -849,6 +862,28 @@ function PageSettings({ page, pages, linkedResponse, patchPage, removePage, addQ
         </div>
         <button onClick={() => removePage(page)} className="rounded-lg border border-red-200 p-2 text-red-600 hover:bg-red-50"><Trash2 size={16} /></button>
       </div>
+
+      {isQuestionPage(page) && (
+        <label className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 p-4">
+          <span>
+            <span className="block text-sm font-bold">Question response</span>
+            <span className="mt-1 block text-xs leading-5 text-gray-500">Pair a response screen immediately after this question.</span>
+          </span>
+          <input
+            type="checkbox"
+            checked={!!linkedResponse}
+            onChange={(event) => {
+              if (event.target.checked) void addQuestionResponse(page)
+              else void removeQuestionResponse(page)
+            }}
+            className="h-5 w-5 accent-[var(--org-primary-color)]"
+          />
+        </label>
+      )}
+
+      {page.page_type === 'question_response' && linkedQuestion?.page_type === 'multiple_choice' && (
+        <ResponseSelector page={page} linkedQuestion={linkedQuestion} patchPage={patchPage} />
+      )}
 
       <div className="border-b border-gray-200">
         <div className="flex items-center gap-6">
@@ -869,20 +904,16 @@ function PageSettings({ page, pages, linkedResponse, patchPage, removePage, addQ
         <PageContentSettings
           page={page}
           pages={pages}
-          linkedQuestion={linkedQuestion}
-          linkedResponse={linkedResponse}
           patchPage={patchPage}
-          addQuestionResponse={addQuestionResponse}
-          removeQuestionResponse={removeQuestionResponse}
         />
       )}
-      {activeTab === 'design' && <PageDesignSettings page={page} patchPage={patchPage} />}
-      {activeTab === 'scoring' && <PageScoringSettings page={page} patchPage={patchPage} />}
+      {activeTab === 'design' && <PageDesignSettings />}
+      {activeTab === 'scoring' && <PageScoringSettings />}
     </div>
   )
 }
 
-function PageContentSettings({ page, linkedQuestion, linkedResponse, patchPage, addQuestionResponse, removeQuestionResponse }: any) {
+function PageContentSettings({ page, patchPage }: any) {
   if (page.page_type === 'video') {
     return (
       <div className="space-y-5">
@@ -912,31 +943,23 @@ function PageContentSettings({ page, linkedQuestion, linkedResponse, patchPage, 
     )
   }
 
-  if (isQuestionPage(page)) {
+  if (page.page_type === 'info' || isQuestionPage(page) || page.page_type === 'question_response') {
     return (
-      <label className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 p-4">
-        <span>
-          <span className="block text-sm font-bold">Question response</span>
-          <span className="mt-1 block text-xs leading-5 text-gray-500">Add a linked response page immediately after this question.</span>
-        </span>
-        <input
-          type="checkbox"
-          checked={!!linkedResponse}
-          onChange={(event) => {
-            if (event.target.checked) void addQuestionResponse(page)
-            else void removeQuestionResponse(page)
-          }}
-          className="h-5 w-5 accent-[var(--org-primary-color)]"
-        />
-      </label>
-    )
-  }
-
-  if (page.page_type === 'question_response') {
-    return (
-      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-        <p className="text-sm font-bold text-emerald-950">Linked question</p>
-        <p className="mt-1 text-sm text-emerald-900">{linkedQuestion?.title || 'No linked question'}</p>
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          onClick={() => window.dispatchEvent(new Event(`learning-content-add-image-${page.page_uuid}`))}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-bold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-950"
+        >
+          <ImageIcon size={16} />
+          Add image
+        </button>
+        <button
+          onClick={() => window.dispatchEvent(new Event(`learning-content-add-text-${page.page_uuid}`))}
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-bold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-950"
+        >
+          <FileText size={16} />
+          Add text
+        </button>
       </div>
     )
   }
@@ -949,7 +972,126 @@ function PageContentSettings({ page, linkedQuestion, linkedResponse, patchPage, 
   )
 }
 
-function PageDesignSettings({ page, patchPage }: any) {
+function ResponseSelector({ page, linkedQuestion, patchPage }: any) {
+  const [open, setOpen] = React.useState(false)
+  const content = page.content || {}
+  const activeKey = content.response_active_key || 'default'
+  const variants = content.response_variants || {}
+  const options = linkedQuestion.content?.options || []
+  const activeLabel = activeKey === 'default'
+    ? 'Default'
+    : options.find((option: any) => getResponseOptionKey(option, -1) === activeKey)?.text || 'Choice response'
+
+  const setActive = (key: string) => {
+    if (key === 'default') {
+      patchPage({ content: { ...content, response_active_key: 'default' } })
+      setOpen(false)
+      return
+    }
+
+    patchPage({
+      content: {
+        ...content,
+        response_active_key: key,
+        response_variants: {
+          ...variants,
+          [key]: {
+            ...(variants[key] || {}),
+            enabled: true,
+          },
+        },
+      },
+    })
+    setOpen(false)
+  }
+
+  const toggleEnabled = (key: string) => {
+    if (key === 'default') return
+    const current = variants[key] || {}
+    const nextEnabled = !current.enabled
+    patchPage({
+      content: {
+        ...content,
+        response_active_key: activeKey,
+        response_variants: {
+          ...variants,
+          [key]: {
+            ...current,
+            enabled: nextEnabled,
+          },
+        },
+      },
+    })
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-bold uppercase text-gray-400">Responses</p>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen((current) => !current)}
+          className="flex h-10 w-full items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-3 text-left text-sm font-bold text-gray-800 transition hover:border-gray-300 hover:bg-gray-50"
+        >
+          <span className="min-w-0 truncate">{activeLabel}</span>
+          <ChevronDown size={16} className={`shrink-0 text-gray-400 transition ${open ? 'rotate-180' : ''}`} />
+        </button>
+        {open && (
+          <div className="absolute left-0 right-0 top-11 z-30 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl">
+            <ResponseSelectorRow
+              label="Default"
+              active={activeKey === 'default'}
+              enabled
+              onSelect={() => setActive('default')}
+              onToggle={() => null}
+            />
+            {options.map((option: any, index: number) => {
+              const key = getResponseOptionKey(option, index)
+              const enabled = !!variants[key]?.enabled
+              return (
+                <ResponseSelectorRow
+                  key={key}
+                  label={option.text || `Option ${index + 1}`}
+                  active={activeKey === key}
+                  enabled={enabled}
+                  onSelect={() => setActive(key)}
+                  onToggle={() => toggleEnabled(key)}
+                />
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ResponseSelectorRow({ label, active, enabled, onSelect, onToggle }: any) {
+  return (
+    <div className={`flex items-center gap-2 border-b border-gray-100 last:border-b-0 ${active ? 'bg-gray-50' : 'bg-white'}`}>
+      <button
+        type="button"
+        onClick={onSelect}
+        className="min-w-0 flex-1 px-3 py-2.5 text-left text-sm font-semibold text-gray-800 hover:text-gray-950"
+      >
+        <span className="block truncate">{label}</span>
+      </button>
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation()
+          onToggle()
+        }}
+        className={`mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition ${enabled ? 'text-emerald-600 hover:bg-emerald-50' : 'text-gray-300 hover:bg-gray-50 hover:text-gray-500'}`}
+        title={enabled ? 'Enabled' : 'Disabled'}
+      >
+        {enabled ? <CheckCircle2 size={17} /> : <Circle size={17} />}
+      </button>
+    </div>
+  )
+}
+
+function PageDesignSettings() {
   return (
     <div className="rounded-lg border border-gray-200 p-4">
       <p className="text-sm font-bold">Design</p>
@@ -958,7 +1100,7 @@ function PageDesignSettings({ page, patchPage }: any) {
   )
 }
 
-function PageScoringSettings({ page, patchPage }: any) {
+function PageScoringSettings() {
   return (
     <div className="rounded-lg border border-gray-200 p-4">
       <p className="text-sm font-bold">Scoring</p>
@@ -1026,7 +1168,27 @@ function isQuestionPage(page: any) {
 }
 
 function findResponseForPage(pages: any[], pageUuid: string) {
-  return pages.find((page) => page.page_type === 'question_response' && page.content?.linked_page_uuid === pageUuid)
+  const linked = pages.find((page) => page.page_type === 'question_response' && page.content?.linked_page_uuid === pageUuid)
+  if (linked) return linked
+
+  const questionIndex = pages.findIndex((page) => page.page_uuid === pageUuid)
+  const nextPage = questionIndex >= 0 ? pages[questionIndex + 1] : null
+  return nextPage?.page_type === 'question_response' && !nextPage.content?.linked_page_uuid ? nextPage : null
+}
+
+function findQuestionForResponse(pages: any[], response: any) {
+  if (response.content?.linked_page_uuid) {
+    const linked = pages.find((page) => page.page_uuid === response.content.linked_page_uuid)
+    if (linked) return linked
+  }
+
+  const responseIndex = pages.findIndex((page) => page.page_uuid === response.page_uuid)
+  const previousPage = responseIndex > 0 ? pages[responseIndex - 1] : null
+  return isQuestionPage(previousPage) ? previousPage : null
+}
+
+function getResponseOptionKey(option: any, index: number) {
+  return option?.id || option?.option_id || String(Math.max(0, index))
 }
 
 function getPageSettingsTabs(page: any) {
@@ -1066,4 +1228,17 @@ function withSequentialOrder(pages: any[]) {
 
 function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value))
+}
+
+function buildQuestionResponseContent(linkedPageUuid: string) {
+  return {
+    linked_page_uuid: linkedPageUuid,
+    rich_text: {
+      type: 'doc',
+      content: [
+        { type: 'learningImage', attrs: { src: '', mode: 'url', height: 220 } },
+        { type: 'paragraph', attrs: { textAlign: 'center' } },
+      ],
+    },
+  }
 }
