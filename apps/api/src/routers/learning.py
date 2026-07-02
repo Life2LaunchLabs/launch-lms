@@ -17,6 +17,7 @@ from src.db.learning import (
     LearningPageRead,
     LearningPageUpdate,
     LearningPathRead,
+    LearningResponseGrade,
     LearningResponseSubmit,
     LearningRunRead,
 )
@@ -30,6 +31,7 @@ collections_router = APIRouter()
 activities_router = APIRouter()
 pages_router = APIRouter()
 runs_router = APIRouter()
+responses_router = APIRouter()
 awards_router = APIRouter()
 
 
@@ -246,6 +248,46 @@ async def api_submit_response(
 ) -> LearningRunRead:
     actor = resolve_learning_actor(request, response, current_user, db_session)
     return await learning_service.submit_response(request, payload, actor, db_session)
+
+
+@responses_router.get("/")
+async def api_list_learning_responses(
+    request: Request,
+    org_id: int = Query(...),
+    badge_uuid: str | None = Query(None),
+    activity_uuid: str | None = Query(None),
+    page_uuid: str | None = Query(None),
+    grading_status: str | None = Query("pending"),
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> list[dict]:
+    return await learning_service.list_learning_responses(
+        request,
+        current_user,
+        db_session,
+        org_id=org_id,
+        badge_uuid=badge_uuid,
+        activity_uuid=activity_uuid,
+        page_uuid=page_uuid,
+        grading_status=grading_status,
+    )
+
+
+@responses_router.post("/{attempt_uuid}/grade")
+async def api_grade_learning_response(
+    request: Request,
+    attempt_uuid: str,
+    payload: LearningResponseGrade,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    return await learning_service.grade_learning_response(
+        request,
+        attempt_uuid,
+        payload,
+        current_user,
+        db_session,
+    )
 
 
 @awards_router.post("/confer")

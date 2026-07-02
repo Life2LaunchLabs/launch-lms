@@ -4,13 +4,17 @@ import { getServerSession } from '@/lib/auth/server'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getLearningBadgeCollections } from '@services/learning/learning'
 
+function cleanCollectionId(value: string) {
+  return String(value || '').replace(/^badge_collection_/, '')
+}
+
 export default async function AdminBadgeCollectionPage({ params }: { params: Promise<{ orgslug: string; collectionuuid: string; subpage: string }> }) {
   const { orgslug, collectionuuid, subpage } = await params
   const org = await getOrganizationContextInfo(orgslug, { revalidate: 1800, tags: ['organizations'] })
   const session = await getServerSession()
   const response = await getLearningBadgeCollections(org.id, session?.tokens?.access_token, true, { revalidate: 0, tags: ['learning-badges'] })
   const collections = response.success ? response.data : response
-  const collection = collections.find((item: any) => item.collection_uuid === collectionuuid)
+  const collection = collections.find((item: any) => cleanCollectionId(item.collection_uuid) === cleanCollectionId(collectionuuid))
   if (!collection) notFound()
   return <AdminBadgeCollection orgslug={orgslug} orgId={org.id} collection={collection} subpage={subpage} />
 }

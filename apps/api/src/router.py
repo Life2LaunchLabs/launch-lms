@@ -138,6 +138,7 @@ v1_router.include_router(learning_router_module.collections_router, prefix="/bad
 v1_router.include_router(learning_router_module.activities_router, prefix="/learning-activities", tags=["learning-activities"])
 v1_router.include_router(learning_router_module.pages_router, prefix="/learning-pages", tags=["learning-pages"])
 v1_router.include_router(learning_router_module.runs_router, prefix="/learning-runs", tags=["learning-runs"])
+v1_router.include_router(learning_router_module.responses_router, prefix="/learning-responses", tags=["learning-responses"])
 v1_router.include_router(learning_router_module.awards_router, prefix="/badge-awards", tags=["learning-badge-awards"])
 v1_router.include_router(
     collections.router, prefix="/collections", tags=["collections"]

@@ -756,14 +756,14 @@
 
 .learning-info-frame-hover-zone-right {
   left: 100%;
-  width: 72px;
+  width: 112px;
 }
 
 .learning-info-frame-rule {
   pointer-events: none;
   position: absolute;
   left: -42px;
-  right: -64px;
+  right: -112px;
   top: 0;
   border-top: 1px solid rgba(17, 24, 39, 0.14);
   opacity: 0;
@@ -799,7 +799,7 @@
 }
 
 .learning-info-stack-actions {
-  right: -58px;
+  left: calc(100% + 12px);
   gap: 2px;
 }
 
@@ -917,6 +917,68 @@
 
 .learning-info-section-button:hover {
   color: rgba(17, 24, 39, 0.9);
+}
+
+.learning-info-section-button:disabled {
+  cursor: default;
+  opacity: 0.28;
+}
+
+.learning-info-section-button.is-correct {
+  color: rgb(5, 150, 105);
+}
+
+.learning-question-overlay {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+}
+
+.learning-question-overlay-actions {
+  pointer-events: auto;
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  height: 24px;
+  align-items: center;
+  gap: 2px;
+  color: rgba(107, 114, 128, 0.48);
+  opacity: 0;
+  transition: opacity 120ms, color 150ms;
+}
+
+.learning-question-overlay-resize {
+  pointer-events: auto;
+  position: absolute;
+  z-index: 5;
+  height: 14px;
+  cursor: row-resize;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+
+.learning-question-overlay-resize::before {
+  display: block;
+  height: 4px;
+  width: 44px;
+  margin: 5px auto 0;
+  border-radius: 999px;
+  background: rgba(107, 114, 128, 0.28);
+  content: "";
+}
+
+[data-learning-preview-frame]:hover .learning-question-overlay-actions,
+[data-learning-preview-frame]:hover .learning-question-overlay-resize {
+  opacity: 1;
+}
+
+.learning-question-overlay-actions:hover {
+  color: rgba(17, 24, 39, 0.78);
+}
+
+.learning-question-overlay-resize:hover::before {
+  background: rgba(17, 24, 39, 0.48);
 }
 
 .learning-info-section-button[data-tooltip]::after {

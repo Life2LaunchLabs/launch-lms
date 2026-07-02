@@ -187,6 +187,35 @@ export async function submitLearningResponse(runUuid: string, pageUuid: string, 
   return errorHandling(result)
 }
 
+export async function getLearningResponses(
+  params: {
+    org_id: string | number
+    badge_uuid?: string
+    activity_uuid?: string
+    page_uuid?: string
+    grading_status?: string
+  },
+  accessToken?: string
+) {
+  const search = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') search.set(key, String(value))
+  })
+  const result = await fetch(
+    `${getAPIUrl()}learning-responses/?${search.toString()}`,
+    RequestBodyWithAuthHeader('GET', null, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
+export async function gradeLearningResponse(attemptUuid: string, data: { score: number; feedback?: string }, accessToken?: string) {
+  const result = await fetch(
+    `${getAPIUrl()}learning-responses/${attemptUuid}/grade`,
+    RequestBodyWithAuthHeader('POST', data, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
 export async function conferLearningBadge(data: any, accessToken?: string) {
   const result = await fetch(
     `${getAPIUrl()}badge-awards/confer`,

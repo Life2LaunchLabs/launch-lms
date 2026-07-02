@@ -23,6 +23,14 @@ const tabs = [
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
 
+function cleanCollectionId(value: string) {
+  return String(value || '').replace(/^badge_collection_/, '')
+}
+
+function cleanBadgeId(value: string) {
+  return String(value || '').replace(/^badge_/, '')
+}
+
 export default function AdminBadgeCollection({
   orgslug,
   orgId,
@@ -52,7 +60,7 @@ export default function AdminBadgeCollection({
             const Icon = tab.icon
             const isActive = activeSubpage === tab.id
             return (
-              <Link key={tab.id} href={getUriWithOrg(orgslug, `/admin/badges/collection/${collection.collection_uuid}/${tab.id}`)} replace>
+              <Link key={tab.id} href={getUriWithOrg(orgslug, `/admin/badges/collection/${cleanCollectionId(collection.collection_uuid)}/${tab.id}`)} replace>
                 <div className={`w-fit cursor-pointer border-black py-2 text-center transition-all ease-linear ${isActive ? 'border-b-4' : 'opacity-50'}`}>
                   <div className="mx-2.5 flex items-center space-x-2.5">
                     <Icon size={16} />
@@ -194,7 +202,7 @@ function CollectionBadges({ orgslug, orgId, collection }: { orgslug: string; org
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {filteredBadges.map((badge: any) => (
-          <Link key={badge.badge_uuid} href={getUriWithOrg(orgslug, `/admin/badges/badge/${badge.badge_uuid}/learning-path`)} className="group relative flex w-full flex-col overflow-hidden rounded-xl bg-white nice-shadow transition-all duration-300 hover:scale-[1.01]">
+          <Link key={badge.badge_uuid} href={getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/learning-path`)} className="group relative flex w-full flex-col overflow-hidden rounded-xl bg-white nice-shadow transition-all duration-300 hover:scale-[1.01]">
             <button
               onClick={(event) => removeBadge(event, badge)}
               disabled={deletingBadge === badge.badge_uuid}

@@ -9,6 +9,10 @@ import { createLearningBadgeCollection, deleteLearningBadgeCollection } from '@s
 import toast from 'react-hot-toast'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 
+function cleanCollectionId(value: string) {
+  return String(value || '').replace(/^badge_collection_/, '')
+}
+
 export default function AdminBadgesHome({
   orgslug,
   orgId,
@@ -123,7 +127,7 @@ export default function AdminBadgesHome({
           {collections.map((collection) => (
             <Link
               key={collection.collection_uuid}
-              href={getUriWithOrg(orgslug, `/admin/badges/collection/${collection.collection_uuid}`)}
+              href={getUriWithOrg(orgslug, `/admin/badges/collection/${cleanCollectionId(collection.collection_uuid)}`)}
               className="group relative flex w-full flex-col overflow-hidden rounded-xl bg-white nice-shadow transition-all duration-300 hover:scale-[1.01]"
             >
               <button

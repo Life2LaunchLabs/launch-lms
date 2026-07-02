@@ -14,6 +14,14 @@ import {
 } from '@services/learning/learning'
 import toast from 'react-hot-toast'
 
+function cleanBadgeId(value: string) {
+  return String(value || '').replace(/^badge_/, '')
+}
+
+function cleanActivityId(value: string) {
+  return String(value || '').replace(/^learning_activity_/, '')
+}
+
 export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: string; badgePath: any }) {
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
@@ -116,7 +124,7 @@ export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: str
           <div key={activity.activity_uuid} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-xs">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-lime-100 text-sm font-black text-lime-700">{index + 1}</div>
             <Link
-              href={getUriWithOrg(orgslug, `/admin/badges/badge/${badge.badge_uuid}/learning-path/activity/${activity.activity_uuid}/editor`)}
+              href={getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/learning-path/activity/${cleanActivityId(activity.activity_uuid)}/editor`)}
               className="min-w-0 flex-1"
             >
               <h2 className="truncate text-base font-bold text-gray-950">{activity.title}</h2>

@@ -7,7 +7,7 @@ import { Extension } from '@tiptap/core'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
-import { AlignCenter, AlignLeft, AlignRight, Award, Bold, ChevronRight, Copy, GripVertical, Heading1, Heading2, Italic, Link as LinkIcon, List, ListOrdered, Loader2, Pause, Play, Quote, Trash2, Upload, X } from 'lucide-react'
+import { AlignCenter, AlignLeft, AlignRight, Award, Bold, Check, ChevronRight, Columns2, Copy, GripVertical, Heading1, Heading2, Italic, Link as LinkIcon, List, ListOrdered, Loader2, Pause, Play, Plus, Quote, Trash2, Upload, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import YouTube from 'react-youtube'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -18,6 +18,7 @@ import {
   submitLearningResponse,
 } from '@services/learning/learning'
 import toast from 'react-hot-toast'
+import ReorderableList from '@components/Objects/ReorderableList'
 
 export function LearningCollectionsBand({ orgslug, collections }: { orgslug: string; collections: any[] }) {
   if (!collections.length) return null
@@ -249,6 +250,7 @@ function InfoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPag
   const blockContent = React.useMemo(() => getResponseBlockContent(page.content || {}, activeResponseKey), [activeResponseKey, page.content])
   const richText = React.useMemo(() => getInfoRichTextContent(blockContent, {
     includeQuestionBlock: hasQuestionBlock,
+    questionPageType: page.page_type,
     responseTemplate: page.page_type === 'question_response',
   }), [blockContent, hasQuestionBlock, page.page_type])
   const externalBlocks = React.useMemo(() => normalizeInfoBlocks(richText.content || []), [richText])
@@ -356,7 +358,7 @@ function InfoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPag
   }, [showToolbar])
 
   const patchBlocks = React.useCallback((nextBlocks: any[], nextIds?: string[]) => {
-    const normalizedBlocks = hasQuestionBlock ? ensureQuestionBlock(nextBlocks) : nextBlocks
+    const normalizedBlocks = hasQuestionBlock ? ensureQuestionBlock(nextBlocks, { questionPageType: page.page_type }) : nextBlocks
     const content = normalizedBlocks.length ? normalizedBlocks.map(stripInfoBlockMeta) : [{ type: 'paragraph' }]
     const richTextPatch = { type: 'doc', content }
     const ids = nextIds
@@ -457,7 +459,7 @@ function InfoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPag
     if (!activeTextEditor || activeBlockIndex < 0) return false
     const split = getInfoListExitBlocks(activeTextEditor, allowNonEmpty)
     if (!split) return false
-    if (split.replaceCurrent) {
+    if ('replaceCurrent' in split && split.replaceCurrent) {
       setInfoEditorContent(activeTextEditor, split.nextBlock)
       updateBlock(activeBlockIndex, split.nextBlock)
       setFocusBlockId(blockIdsRef.current[activeBlockIndex] || null)
@@ -479,6 +481,7 @@ function InfoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPag
 
   const deleteBlock = React.useCallback((index: number) => {
     if (blocks[index]?.type === 'learningQuestion') return
+    if (isLearningTextBlock(blocks[index]) && countLearningTextBlocks(blocks) <= 1) return
     const nextBlocks = blocks.filter((_block, blockIndex) => blockIndex !== index)
     const nextIds = blockIds.filter((_id, blockIndex) => blockIndex !== index)
     patchBlocks(nextBlocks.length ? nextBlocks : [createInfoTextBlock('paragraph')], nextIds.length ? nextIds : [createBlockId()])
@@ -723,6 +726,7 @@ function InfoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPag
       onSplit={(currentBlock?: any, nextBlock?: any) => insertBlockAfter(index, nextBlock || createInfoTextBlock('paragraph'), currentBlock)}
       onDuplicate={() => duplicateBlock(index)}
       onDelete={() => deleteBlock(index)}
+      deleteDisabled={isLearningTextBlock(block) && countLearningTextBlocks(blocks) <= 1}
       onResizeImage={(event: React.PointerEvent<HTMLDivElement>) => resizeImage(index, event)}
       onStartReorder={(event: React.PointerEvent<HTMLButtonElement>) => startBlockReorder(index, event)}
       shouldFocus={Boolean(focusBlockId && blockIds[index] === focusBlockId)}
@@ -768,6 +772,7 @@ function InfoBlockSection({
   onSplit,
   onDuplicate,
   onDelete,
+  deleteDisabled,
   onResizeImage,
   onStartReorder,
   shouldFocus,
@@ -785,7 +790,7 @@ function InfoBlockSection({
       data-learning-info-block-id={blockId}
       className={`learning-info-stack-section ${editable ? 'is-editable' : ''} ${active ? 'is-active' : ''} ${dragging ? 'is-reordering' : ''}`}
     >
-      {editable && (
+      {editable && !isQuestion && (
         <InfoBlockChrome
           sectionRef={sectionRef}
           active={active}
@@ -796,6 +801,7 @@ function InfoBlockSection({
           onActivate={onActivate}
           onDuplicate={onDuplicate}
           onDelete={onDelete}
+          deleteDisabled={deleteDisabled}
           onResizeImage={onResizeImage}
           onStartReorder={onStartReorder}
           onHoverChange={onChromeHoverChange}
@@ -816,6 +822,8 @@ function InfoBlockSection({
           setUnlocked={setUnlocked}
           editable={editable}
           onPagePatch={onPagePatch}
+          showChrome={showChrome}
+          onChromeHoverChange={onChromeHoverChange}
           onActivate={() => onActivate()}
         />
       ) : (
@@ -841,9 +849,14 @@ function InfoBlockChrome({
   visible,
   isImage,
   locked,
+  actionContent,
+  dragHandleProps,
+  hideDrag,
+  resizeTitle,
   onActivate,
   onDuplicate,
   onDelete,
+  deleteDisabled,
   onResizeImage,
   onStartReorder,
   onHoverChange,
@@ -907,45 +920,48 @@ function InfoBlockChrome({
         onMouseLeave={() => onHoverChange?.(false)}
       />
       <div className="learning-info-frame-rule" />
-      <button
-        type="button"
-        className="learning-info-stack-drag"
-        title="Drag to reorder"
-        aria-label="Drag section"
-        onPointerDown={(event) => {
-          onHoverChange?.(true)
-          onStartReorder(event)
-        }}
-        onMouseEnter={() => onHoverChange?.(true)}
-        onMouseLeave={() => onHoverChange?.(false)}
-        onClick={(event) => {
-          event.preventDefault()
-          event.stopPropagation()
-          onActivate()
-        }}
-      >
-        <GripVertical size={16} strokeWidth={1.8} />
-      </button>
+      {!hideDrag && (
+        <button
+          type="button"
+          {...(dragHandleProps || {})}
+          className="learning-info-stack-drag"
+          title="Drag to reorder"
+          aria-label="Drag section"
+          onPointerDown={dragHandleProps ? undefined : (event) => {
+            onHoverChange?.(true)
+            onStartReorder(event)
+          }}
+          onMouseEnter={() => onHoverChange?.(true)}
+          onMouseLeave={() => onHoverChange?.(false)}
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            onActivate()
+          }}
+        >
+          <GripVertical size={16} strokeWidth={1.8} />
+        </button>
+      )}
       <div
         className="learning-info-stack-actions"
         onMouseEnter={() => onHoverChange?.(true)}
         onMouseLeave={() => onHoverChange?.(false)}
       >
-        {!locked && (
+        {actionContent ?? (!locked && (
           <>
             <button type="button" className="learning-info-section-button" aria-label="Duplicate section" data-tooltip="Duplicate" onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); onDuplicate() }}>
               <Copy size={14} strokeWidth={1.8} />
             </button>
-            <button type="button" className="learning-info-section-button" aria-label="Delete section" data-tooltip="Delete" onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); onDelete() }}>
+            <button type="button" className="learning-info-section-button" aria-label="Delete section" data-tooltip="Delete" disabled={deleteDisabled} onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); if (!deleteDisabled) onDelete() }}>
               <Trash2 size={14} strokeWidth={1.8} />
             </button>
           </>
-        )}
+        ))}
       </div>
-      {isImage && (
+      {(isImage || resizeTitle) && (
         <div
           className="learning-info-frame-image-resize"
-          title="Resize image"
+          title={resizeTitle || 'Resize image'}
           onPointerDown={onResizeImage}
           onMouseEnter={() => onHoverChange?.(true)}
           onMouseLeave={() => onHoverChange?.(false)}
@@ -956,77 +972,553 @@ function InfoBlockChrome({
   )
 }
 
-function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, onActivate }: any) {
+function QuestionTitleSection({ editable, visible, onActivate, onAddOption, onChromeHoverChange, children }: any) {
+  const sectionRef = React.useRef<HTMLElement | null>(null)
+  const [hovered, setHovered] = React.useState(false)
+  const [chromeHovered, setChromeHovered] = React.useState(false)
+
+  return (
+    <section
+      ref={sectionRef}
+      className={`learning-info-stack-section ${editable ? 'is-editable' : ''}`}
+      onMouseEnter={() => {
+        setHovered(true)
+        onChromeHoverChange?.(true)
+      }}
+      onMouseLeave={() => {
+        setHovered(false)
+        onChromeHoverChange?.(false)
+      }}
+      onMouseDown={() => editable && onActivate?.()}
+    >
+      {editable && (
+        <InfoBlockChrome
+          sectionRef={sectionRef}
+          visible={visible || hovered || chromeHovered}
+          active={hovered || chromeHovered}
+          dragging={false}
+          isImage={false}
+          locked={false}
+          hideDrag
+          actionContent={(
+            <button type="button" className="learning-info-section-button" data-tooltip="Add option" aria-label="Add option" onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); onAddOption() }}>
+              <Plus size={14} strokeWidth={1.8} />
+            </button>
+          )}
+          onActivate={onActivate}
+          onDuplicate={() => null}
+          onDelete={() => null}
+          onResizeImage={() => null}
+          onStartReorder={() => null}
+          onHoverChange={(next: boolean) => {
+            setChromeHovered(next)
+            onChromeHoverChange?.(next)
+          }}
+        />
+      )}
+      {children}
+    </section>
+  )
+}
+
+function QuestionOptionSection({
+  optionId,
+  index,
+  selected,
+  correct,
+  optionsLength,
+  editable,
+  isDragging,
+  dragHandleProps,
+  onActivate,
+  onToggleCorrect,
+  onDelete,
+  visible,
+  onChromeHoverChange,
+  children,
+}: any) {
+  const sectionRef = React.useRef<HTMLElement | null>(null)
+  const [hovered, setHovered] = React.useState(false)
+  const [chromeHovered, setChromeHovered] = React.useState(false)
+
+  return (
+    <section
+      ref={sectionRef}
+      data-learning-question-option-id={optionId}
+      className={`learning-info-stack-section ${editable ? 'is-editable' : ''} ${isDragging ? 'is-reordering' : ''}`}
+      onMouseEnter={() => {
+        setHovered(true)
+        onChromeHoverChange?.(true)
+      }}
+      onMouseLeave={() => {
+        setHovered(false)
+        onChromeHoverChange?.(false)
+      }}
+      onMouseDown={() => editable && onActivate?.()}
+    >
+      {editable && (
+        <InfoBlockChrome
+          sectionRef={sectionRef}
+          visible={visible || hovered || chromeHovered}
+          active={hovered || chromeHovered}
+          dragging={isDragging}
+          isImage={false}
+          locked={false}
+          dragHandleProps={dragHandleProps}
+          actionContent={(
+            <>
+              <button type="button" className={`learning-info-section-button ${correct ? 'is-correct' : ''}`} data-tooltip={correct ? 'Correct' : 'Mark correct'} aria-label="Toggle correct answer" onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); onToggleCorrect(optionId) }}>
+                <Check size={14} strokeWidth={1.8} />
+              </button>
+              <button type="button" className="learning-info-section-button" data-tooltip="Delete" aria-label="Delete option" disabled={optionsLength <= 2} onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); onDelete(optionId) }}>
+                <Trash2 size={14} strokeWidth={1.8} />
+              </button>
+            </>
+          )}
+          onActivate={onActivate}
+          onDuplicate={() => null}
+          onDelete={() => onDelete(optionId)}
+          onResizeImage={() => null}
+          onStartReorder={() => null}
+          onHoverChange={(next: boolean) => {
+            setChromeHovered(next)
+            onChromeHoverChange?.(next)
+          }}
+        />
+      )}
+      <div className={`flex w-full items-center gap-4 rounded-xl border bg-white p-4 text-left shadow-sm transition ${selected ? 'border-[var(--org-primary-color)] ring-2 ring-[var(--org-primary-color)]' : 'border-gray-200 hover:border-gray-300'}`}>
+        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${selected ? 'border-[var(--org-primary-color)] bg-[var(--org-primary-color)] text-white' : 'border-gray-200 text-gray-600'}`}>{String.fromCharCode(65 + index)}</span>
+        <div className="min-w-0 flex-1" onMouseDown={(event) => event.stopPropagation()}>
+          {children}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function QuestionTextInputSection({
+  section,
+  sectionCount,
+  editable,
+  isDragging,
+  dragHandleProps,
+  onActivate,
+  onDuplicate,
+  onToggleSideBySide,
+  onDelete,
+  onResize,
+  onActivateSection,
+  visible,
+  onChromeHoverChange,
+  children,
+}: any) {
+  const sectionRef = React.useRef<HTMLElement | null>(null)
+  const [hovered, setHovered] = React.useState(false)
+  const [chromeHovered, setChromeHovered] = React.useState(false)
+  const sideBySide = section.inputs.length > 1
+
+  const activateSection = () => {
+    onActivate?.()
+    onActivateSection?.(section)
+  }
+
+  return (
+    <section
+      ref={sectionRef}
+      data-learning-question-input-section-id={section.id}
+      className={`learning-info-stack-section ${editable ? 'is-editable' : ''} ${isDragging ? 'is-reordering' : ''}`}
+      onMouseEnter={() => {
+        setHovered(true)
+        onChromeHoverChange?.(true)
+      }}
+      onMouseLeave={() => {
+        setHovered(false)
+        onChromeHoverChange?.(false)
+      }}
+      onMouseDown={() => editable && activateSection()}
+    >
+      {editable && (
+        <InfoBlockChrome
+          sectionRef={sectionRef}
+          visible={visible || hovered || chromeHovered}
+          active={hovered || chromeHovered}
+          dragging={isDragging}
+          isImage={false}
+          locked={false}
+          dragHandleProps={dragHandleProps}
+          resizeTitle="Resize input"
+          actionContent={(
+            <>
+              <button type="button" className="learning-info-section-button" data-tooltip="Duplicate" aria-label="Duplicate input section" onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); onDuplicate(section) }}>
+                <Copy size={14} strokeWidth={1.8} />
+              </button>
+              <button type="button" className={`learning-info-section-button ${sideBySide ? 'is-correct' : ''}`} data-tooltip={sideBySide ? 'Single input' : 'Side by side'} aria-label="Toggle side by side inputs" onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); onToggleSideBySide(section) }}>
+                <Columns2 size={14} strokeWidth={1.8} />
+              </button>
+              <button type="button" className="learning-info-section-button" data-tooltip="Delete" aria-label="Delete input section" disabled={sectionCount <= 1} onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); onDelete(section) }}>
+                <Trash2 size={14} strokeWidth={1.8} />
+              </button>
+            </>
+          )}
+          onActivate={activateSection}
+          onDuplicate={() => onDuplicate(section)}
+          onDelete={() => onDelete(section)}
+          onResizeImage={(event: React.PointerEvent<HTMLDivElement>) => onResize(section, event)}
+          onStartReorder={() => null}
+          onHoverChange={(next: boolean) => {
+            setChromeHovered(next)
+            onChromeHoverChange?.(next)
+          }}
+        />
+      )}
+      {children}
+    </section>
+  )
+}
+
+function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, onActivate, showChrome, onChromeHoverChange }: any) {
   if (page.page_type === 'multiple_choice') {
+    const titleRef = React.useRef<HTMLElement | null>(null)
     const options = page.content?.options || []
     const visibleOptions = options.length ? options : [{ id: 'a', text: '' }, { id: 'b', text: '' }]
+    const completion = page.completion || {}
+    const scoring = page.scoring || {}
+    const correctOptionIds = new Set(scoring.correct_option_ids || scoring.correctOptionIds || [])
+    const minSelections = Math.max(1, Number(completion.min_selections ?? 1))
+    const maxSelections = Math.max(minSelections, Number(completion.max_selections ?? 1))
+    const selectedIds = Array.isArray(answer?.option_ids)
+      ? answer.option_ids
+      : answer?.option_id
+        ? [answer.option_id]
+        : []
+    const patchOptions = (nextOptions: any[]) => {
+      const ids = new Set(nextOptions.map((option: any, index: number) => option?.id || String(index)))
+      const variableBindings = completion.variable_bindings || completion.variableBindings || {}
+      const nextOptionBindings = { ...(variableBindings.options || {}) }
+      Object.keys(nextOptionBindings).forEach((id) => {
+        if (!ids.has(id)) nextOptionBindings[id] = null
+      })
+      onPagePatch?.({
+        content: { ...(page.content || {}), options: nextOptions },
+        scoring: {
+          ...scoring,
+          correct_option_ids: (scoring.correct_option_ids || []).filter((id: string) => ids.has(id)),
+        },
+        completion: {
+          ...completion,
+          min_selections: Math.min(minSelections, nextOptions.length),
+          max_selections: Math.min(maxSelections, nextOptions.length),
+          variable_bindings: { ...variableBindings, options: nextOptionBindings },
+        },
+      })
+    }
     const updateOption = (optionIndex: number, text: string) => {
       const nextOptions = visibleOptions.map((option: any, index: number) => ({
         ...(option || { id: String(index) }),
         id: option?.id || String(index),
       }))
       nextOptions[optionIndex] = { ...(nextOptions[optionIndex] || { id: String(optionIndex) }), text }
-      onPagePatch?.({ content: { ...(page.content || {}), options: nextOptions } })
+      patchOptions(nextOptions)
+    }
+    const addOption = () => {
+      const nextId = createLearningLocalId('option')
+      patchOptions([...visibleOptions, { id: nextId, text: `Option ${visibleOptions.length + 1}` }])
+    }
+    const deleteOption = (id: string) => {
+      if (visibleOptions.length <= 2) return
+      patchOptions(visibleOptions.filter((option: any, index: number) => (option.id || String(index)) !== id))
+    }
+    const toggleCorrect = (id: string) => {
+      const next = new Set(correctOptionIds)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      onPagePatch?.({ scoring: { ...scoring, mode: 'points', score_policy: 'exact_match', correct_option_ids: Array.from(next) } })
+    }
+    const toggleOption = (id: string) => {
+      if (editable) return
+      let next = selectedIds.includes(id)
+        ? selectedIds.filter((selectedId: string) => selectedId !== id)
+        : maxSelections <= 1
+          ? [id]
+          : [...selectedIds, id].slice(0, maxSelections)
+      next = next.filter(Boolean)
+      setAnswer({ option_ids: next, option_id: next[0] })
+      setUnlocked(next.length >= minSelections && next.length <= maxSelections)
     }
 
     return (
       <div className="learning-question-block" onMouseDown={() => editable && onActivate()}>
-        <p className="text-xs font-bold uppercase text-[var(--org-primary-color)]">Check your knowledge</p>
-        <EditableText
-          as="h1"
+        <QuestionTitleSection
           editable={editable}
-          value={page.content?.prompt || ''}
-          placeholder="Question prompt"
-          onChange={(value: string) => onPagePatch?.({ content: { ...(page.content || {}), prompt: value } })}
-          className="mt-3 text-3xl font-bold text-gray-950"
-        />
-        <div className="mt-6 space-y-3">
-          {visibleOptions.map((option: any, index: number) => (
-            <button
-              key={option.id || index}
-              onClick={() => {
-                if (!editable) {
-                  setAnswer({ option_id: option.id || String(index) })
-                  setUnlocked(true)
-                }
-              }}
-              className={`flex w-full items-center gap-4 rounded-xl border bg-white p-4 text-left shadow-sm transition ${answer?.option_id === (option.id || String(index)) ? 'border-[var(--org-primary-color)] ring-2 ring-[var(--org-primary-color)]' : 'border-gray-200 hover:border-gray-300'}`}
-            >
-              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${answer?.option_id === (option.id || String(index)) ? 'border-[var(--org-primary-color)] bg-[var(--org-primary-color)] text-white' : 'border-gray-200 text-gray-600'}`}>{String.fromCharCode(65 + index)}</span>
-              <EditableText
-                editable={editable}
-                value={option.text || ''}
-                placeholder={`Option ${index + 1}`}
-                onChange={(value: string) => updateOption(index, value)}
-                className="min-w-0 flex-1 text-gray-900"
-              />
-            </button>
-          ))}
-        </div>
+          visible={showChrome}
+          onActivate={onActivate}
+          onAddOption={addOption}
+          onChromeHoverChange={onChromeHoverChange}
+        >
+          <EditableText
+            as="h1"
+            editable={editable}
+            value={page.content?.prompt || ''}
+            placeholder="Question prompt"
+            onChange={(value: string) => onPagePatch?.({ content: { ...(page.content || {}), prompt: value } })}
+            className="text-3xl font-bold text-gray-950"
+            elementRef={titleRef}
+          />
+        </QuestionTitleSection>
+        {editable ? (
+          <ReorderableList
+            droppableId={`learning-mcq-options-${page.page_uuid}`}
+            items={visibleOptions}
+            getId={(option: any, index: number) => option.id || String(index)}
+            onReorder={(nextOptions: any[]) => patchOptions(nextOptions)}
+            className="mt-6 space-y-3"
+            itemClassName={(_option, _index, isDragging) => isDragging ? 'rounded-xl shadow-2xl shadow-gray-950/20' : 'rounded-xl'}
+            renderItem={({ item: option, index, dragHandleProps }) => {
+              const optionId = option.id || String(index)
+              return (
+                <QuestionOptionSection
+                  key={optionId}
+                  optionId={optionId}
+                  index={index}
+                  selected={selectedIds.includes(optionId)}
+                  correct={correctOptionIds.has(optionId)}
+                  optionsLength={visibleOptions.length}
+                  editable={editable}
+                  dragHandleProps={dragHandleProps}
+                  onActivate={onActivate}
+                  onToggleCorrect={toggleCorrect}
+                  onDelete={deleteOption}
+                  visible={showChrome}
+                  onChromeHoverChange={onChromeHoverChange}
+                >
+                  <EditableText
+                    editable
+                    value={option.text || ''}
+                    placeholder={`Option ${index + 1}`}
+                    onChange={(value: string) => updateOption(index, value)}
+                    className="min-w-0 text-gray-900 outline-none"
+                  />
+                </QuestionOptionSection>
+              )
+            }}
+          />
+        ) : (
+          <div className="mt-6 space-y-3">
+            {visibleOptions.map((option: any, index: number) => (
+              <button
+                key={option.id || index}
+                onClick={() => toggleOption(option.id || String(index))}
+                className={`flex w-full items-center gap-4 rounded-xl border bg-white p-4 text-left shadow-sm transition ${selectedIds.includes(option.id || String(index)) ? 'border-[var(--org-primary-color)] ring-2 ring-[var(--org-primary-color)]' : 'border-gray-200 hover:border-gray-300'}`}
+              >
+                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${selectedIds.includes(option.id || String(index)) ? 'border-[var(--org-primary-color)] bg-[var(--org-primary-color)] text-white' : 'border-gray-200 text-gray-600'}`}>{String.fromCharCode(65 + index)}</span>
+                <span className="min-w-0 flex-1 text-gray-900">{option.text || `Option ${index + 1}`}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+    )
+  }
+
+  const inputs = getQuestionTextInputs(page)
+  const inputSections = getQuestionTextInputSections(inputs)
+  const rules = page.completion?.inputs || {}
+  const answerInputs = answer?.inputs || {}
+  const completion = page.completion || {}
+  const patchInputs = (nextInputs: any[], nextRules = rules) => {
+    const inputIds = new Set(nextInputs.map((input: any) => input.id))
+    const variableBindings = completion.variable_bindings || completion.variableBindings || {}
+    const nextInputBindings = { ...(variableBindings.inputs || {}) }
+    Object.keys(nextInputBindings).forEach((id) => {
+      if (!inputIds.has(id)) nextInputBindings[id] = null
+    })
+    onPagePatch?.({
+      content: { ...(page.content || {}), inputs: nextInputs },
+      completion: {
+        ...completion,
+        inputs: nextRules,
+        variable_bindings: { ...variableBindings, inputs: nextInputBindings },
+      },
+    })
+  }
+  const updateInputConfig = (inputId: string, patch: any) => {
+    patchInputs(inputs.map((input: any) => input.id === inputId ? { ...input, ...patch } : input))
+  }
+  const duplicateInputSection = (section: any) => {
+    const sectionId = createLearningLocalId('input_section')
+    const nextRules = { ...rules }
+    const clonedInputs = section.inputs.map((input: any, index: number) => {
+      const id = createLearningLocalId('input')
+      nextRules[id] = { ...(rules[input.id] || { min_words: 1, max_words: 0 }) }
+      return {
+        ...input,
+        id,
+        section_id: section.inputs.length > 1 ? sectionId : id,
+        label: `${input.label || `Response ${index + 1}`} copy`,
+      }
+    })
+    const insertAt = inputs.findIndex((input: any) => input.id === section.inputs[section.inputs.length - 1]?.id)
+    const nextInputs = [...inputs]
+    nextInputs.splice(insertAt >= 0 ? insertAt + 1 : nextInputs.length, 0, ...clonedInputs)
+    patchInputs(nextInputs, nextRules)
+  }
+  const removeInputSection = (section: any) => {
+    if (inputSections.length <= 1) return
+    const removeIds = new Set<string>(section.inputs.map((input: any) => input.id))
+    const nextRules = { ...rules }
+    removeIds.forEach((inputId) => delete nextRules[inputId])
+    patchInputs(inputs.filter((input: any) => !removeIds.has(input.id)), nextRules)
+  }
+  const toggleSectionSideBySide = (section: any) => {
+    if (section.inputs.length > 1) {
+      const [keep, ...remove] = section.inputs
+      const removeIds = new Set<string>(remove.map((input: any) => input.id))
+      const nextRules = { ...rules }
+      removeIds.forEach((inputId) => delete nextRules[inputId])
+      patchInputs(inputs
+        .filter((input: any) => !removeIds.has(input.id))
+        .map((input: any) => input.id === keep.id ? { ...input, width: 'full', section_id: input.id } : input),
+        nextRules)
+      activateInputSection({ inputs: [keep] })
+      return
+    }
+
+    const source = section.inputs[0]
+    if (!source) return
+    const sectionId = source.section_id || createLearningLocalId('input_section')
+    const newId = createLearningLocalId('input')
+    const newInput = {
+      id: newId,
+      section_id: sectionId,
+      label: `Response ${inputs.length + 1}`,
+      placeholder: '',
+      variant: source.variant || 'short_answer',
+      width: 'half',
+      height: Number(source.height) || 160,
+    }
+    const sourceIndex = inputs.findIndex((input: any) => input.id === source.id)
+    const nextInputs = inputs.map((input: any) => input.id === source.id ? { ...input, section_id: sectionId, width: 'half' } : input)
+    nextInputs.splice(sourceIndex >= 0 ? sourceIndex + 1 : nextInputs.length, 0, newInput)
+    patchInputs(nextInputs, { ...rules, [newId]: { ...(rules[source.id] || { min_words: 1, max_words: 0 }) } })
+    activateInputSection({ inputs: [{ ...source, section_id: sectionId, width: 'half' }, newInput] })
+  }
+  const resizeTextInput = (section: any, startEvent: React.PointerEvent<HTMLDivElement>) => {
+    startEvent.preventDefault()
+    startEvent.stopPropagation()
+    const startY = startEvent.clientY
+    const sectionInputIds = new Set(section.inputs.map((input: any) => input.id))
+    const startHeight = Number(section.inputs[0]?.height) || 120
+    const onMove = (event: PointerEvent) => {
+      const nextHeight = Math.round(Math.max(48, Math.min(420, startHeight + event.clientY - startY)))
+      patchInputs(inputs.map((input: any) => sectionInputIds.has(input.id) ? { ...input, height: nextHeight, variant: nextHeight <= 56 ? 'single_line' : 'short_answer' } : input))
+    }
+    const onEnd = () => {
+      document.body.style.cursor = ''
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onEnd)
+    }
+    document.body.style.cursor = 'row-resize'
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onEnd)
+  }
+  const updateTextInput = (inputId: string, text: string) => {
+    const nextInputs = {
+      ...answerInputs,
+      [inputId]: { ...(answerInputs[inputId] || {}), text },
+    }
+    setAnswer({ inputs: nextInputs, text: Object.values(nextInputs).map((item: any) => item?.text || '').join('\n') })
+    setUnlocked(areTextInputsComplete(inputs, rules, nextInputs))
+  }
+  const activateInputSection = (section: any) => {
+    if (typeof window === 'undefined') return
+    window.dispatchEvent(new CustomEvent('learning-question-input-section-active', {
+      detail: { pageUuid: page.page_uuid, inputIds: section.inputs.map((input: any) => input.id) },
+    }))
+  }
+  const renderInputSection = (section: any, index: number, dragHandleProps?: any, isDragging = false) => {
+    const sideBySide = section.inputs.length > 1
+
+    return (
+      <QuestionTextInputSection
+        key={section.id}
+        section={section}
+        sectionCount={inputSections.length}
+        editable={editable}
+        isDragging={isDragging}
+        dragHandleProps={dragHandleProps}
+        onActivate={onActivate}
+        onDuplicate={duplicateInputSection}
+        onToggleSideBySide={toggleSectionSideBySide}
+        onDelete={removeInputSection}
+        onResize={resizeTextInput}
+        onActivateSection={activateInputSection}
+        visible={showChrome}
+        onChromeHoverChange={onChromeHoverChange}
+      >
+        <div className={`grid gap-3 ${sideBySide ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          {section.inputs.map((input: any, inputIndex: number) => {
+            const height = Math.max(48, Number(input.height) || 120)
+            const isSingleLine = height <= 56 || input.variant === 'single_line'
+            const value = answerInputs[input.id]?.text || ''
+            return (
+              <div key={input.id} className="relative min-w-0">
+                <div className="mb-1 flex items-center gap-2">
+                  {(editable || input.label) ? (
+                    <EditableText
+                      editable={editable}
+                      value={input.label || ''}
+                      placeholder={`Input ${index + inputIndex + 1}`}
+                      onChange={(value: string) => updateInputConfig(input.id, { label: value })}
+                      className="min-w-0 flex-1 text-sm font-bold text-gray-700"
+                    />
+                  ) : <span className="min-w-0 flex-1" />}
+                </div>
+                {isSingleLine ? (
+                  <input
+                    value={editable ? input.placeholder || '' : value}
+                    onChange={(event) => editable ? updateInputConfig(input.id, { placeholder: event.target.value }) : updateTextInput(input.id, event.target.value)}
+                    placeholder={editable ? 'Placeholder' : input.placeholder}
+                    style={{ height }}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-4 text-gray-950 outline-none shadow-sm placeholder:text-gray-400 focus:border-[var(--org-primary-color)] focus:ring-2 focus:ring-[var(--org-primary-color)]"
+                  />
+                ) : (
+                  <textarea
+                    readOnly={false}
+                    value={editable ? input.placeholder || '' : value}
+                    onChange={(event) => editable ? updateInputConfig(input.id, { placeholder: event.target.value }) : updateTextInput(input.id, event.target.value)}
+                    placeholder={editable ? 'Placeholder' : input.placeholder}
+                    style={{ height }}
+                    className="w-full resize-none rounded-xl border border-gray-200 bg-white p-4 text-gray-950 outline-none shadow-sm placeholder:text-gray-400 focus:border-[var(--org-primary-color)] focus:ring-2 focus:ring-[var(--org-primary-color)]"
+                  />
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </QuestionTextInputSection>
     )
   }
 
   return (
     <div className="learning-question-block" onMouseDown={() => editable && onActivate()}>
-      <p className="text-xs font-bold uppercase text-[var(--org-primary-color)]">Your turn</p>
-      <EditableText
-        as="h1"
-        editable={editable}
-        value={page.content?.prompt || ''}
-        placeholder="Prompt"
-        onChange={(value: string) => onPagePatch?.({ content: { ...(page.content || {}), prompt: value } })}
-        className="mt-3 text-3xl font-bold text-gray-950"
-      />
-      <textarea
-        readOnly={editable}
-        onChange={(event) => {
-          setAnswer({ text: event.target.value })
-          setUnlocked(event.target.value.trim().length > 0)
-        }}
-        placeholder={editable ? 'Learners will write here' : undefined}
-        className="mt-6 min-h-36 w-full resize-none rounded-xl border border-gray-200 bg-white p-4 text-gray-950 outline-none shadow-sm placeholder:text-gray-400 focus:border-[var(--org-primary-color)] focus:ring-2 focus:ring-[var(--org-primary-color)]"
-      />
+      {editable ? (
+        <ReorderableList
+          droppableId={`learning-text-inputs-${page.page_uuid}`}
+          items={inputSections}
+          getId={(section: any, index: number) => section.id || String(index)}
+          onReorder={(nextSections: any[]) => patchInputs(nextSections.flatMap((section: any) => section.inputs))}
+          className="mt-6 space-y-3"
+          itemClassName={(_section: any, _index, isDragging) => isDragging ? 'rounded-xl shadow-2xl shadow-gray-950/20' : 'rounded-xl'}
+          renderItem={({ item: section, index, isDragging, dragHandleProps }) => renderInputSection(section, index, dragHandleProps, isDragging)}
+        />
+      ) : (
+        <div className="mt-6 space-y-3">
+          {inputSections.map((section: any, index: number) => renderInputSection(section, index))}
+        </div>
+      )}
+      {page.scoring?.mode === 'manual' && !editable ? (
+        <p className="mt-3 text-xs font-semibold text-gray-500">Your response will be reviewed after you submit.</p>
+      ) : null}
     </div>
   )
 }
@@ -1382,10 +1874,28 @@ function isLearningQuestionPage(page: any) {
   return page?.page_type === 'multiple_choice' || page?.page_type === 'text_input'
 }
 
-function ensureQuestionBlock(blocks: any[]) {
+function isLearningTextBlock(block: any) {
+  return Boolean(block && block.type !== 'learningImage' && block.type !== 'learningQuestion')
+}
+
+function countLearningTextBlocks(blocks: any[]) {
+  return (blocks || []).filter(isLearningTextBlock).length
+}
+
+function ensureQuestionBlock(blocks: any[], options: { questionPageType?: string } = {}) {
   const nextBlocks = (blocks || []).filter((block: any) => block?.type !== 'learningQuestion')
   const firstQuestionIndex = (blocks || []).findIndex((block: any) => block?.type === 'learningQuestion')
-  const insertAt = firstQuestionIndex >= 0 ? Math.min(firstQuestionIndex, nextBlocks.length) : 0
+  const hadTextBlocks = countLearningTextBlocks(nextBlocks) > 0
+  if (options.questionPageType === 'text_input' && !hadTextBlocks) {
+    nextBlocks.unshift(createInfoTextBlock('paragraph'))
+  }
+  const insertAt = firstQuestionIndex >= 0
+    ? options.questionPageType === 'text_input' && !hadTextBlocks
+      ? nextBlocks.length
+      : Math.min(firstQuestionIndex, nextBlocks.length)
+    : options.questionPageType === 'text_input'
+      ? nextBlocks.length
+      : 0
   nextBlocks.splice(insertAt, 0, createQuestionBlock())
   return nextBlocks
 }
@@ -1426,6 +1936,80 @@ function getResponseBlockContent(content: any, responseKey: string) {
   return content?.response_variants?.[responseKey] || {}
 }
 
+function getQuestionTextInputs(page: any) {
+  const inputs = page.content?.inputs
+  if (Array.isArray(inputs) && inputs.length) {
+    return inputs.map((input: any, index: number) => ({
+      id: input.id || String(index),
+      section_id: input.section_id || input.sectionId || '',
+      label: input.label || `Response ${index + 1}`,
+      placeholder: input.placeholder || '',
+      variant: input.variant || 'short_answer',
+      width: input.width || 'full',
+      height: Number(input.height) || 160,
+    }))
+  }
+  return [{ id: 'response', section_id: 'response', label: '', placeholder: '', variant: 'short_answer', width: 'full', height: 160 }]
+}
+
+function getQuestionTextInputSections(inputs: any[]) {
+  const sections: Array<{ id: string; inputs: any[] }> = []
+  const consumed = new Set<string>()
+
+  inputs.forEach((input, index) => {
+    if (consumed.has(input.id)) return
+
+    if (input.section_id) {
+      const grouped = inputs.filter((item) => item.section_id === input.section_id).slice(0, 2)
+      grouped.forEach((item) => consumed.add(item.id))
+      sections.push({
+        id: input.section_id,
+        inputs: grouped.map((item) => ({ ...item, width: grouped.length > 1 ? 'half' : 'full', section_id: input.section_id })),
+      })
+      return
+    }
+
+    const next = inputs[index + 1]
+    if (input.width === 'half' && next && !next.section_id && next.width === 'half') {
+      const sectionId = `input_section_${input.id}_${next.id}`
+      consumed.add(input.id)
+      consumed.add(next.id)
+      sections.push({
+        id: sectionId,
+        inputs: [
+          { ...input, width: 'half', section_id: sectionId },
+          { ...next, width: 'half', section_id: sectionId },
+        ],
+      })
+      return
+    }
+
+    consumed.add(input.id)
+    sections.push({ id: input.id, inputs: [{ ...input, width: 'full', section_id: input.id }] })
+  })
+
+  return sections.length ? sections : [{ id: 'response', inputs: [{ id: 'response', section_id: 'response', label: '', placeholder: '', variant: 'short_answer', width: 'full', height: 160 }] }]
+}
+
+function areTextInputsComplete(inputs: any[], rules: any, answerInputs: any) {
+  return inputs.every((input) => {
+    const rule = rules?.[input.id] || { required: true, min_words: 1, max_words: 0 }
+    const text = String(answerInputs?.[input.id]?.text || '').trim()
+    const words = text ? text.split(/\s+/).filter(Boolean).length : 0
+    const minWords = Number(rule.min_words || 0)
+    const required = rule.required ?? minWords > 0
+    if (required && !text) return false
+    if (text && minWords > words) return false
+    if (text && Number(rule.max_words || 0) > 0 && words > Number(rule.max_words)) return false
+    return true
+  })
+}
+
+function createLearningLocalId(prefix: string) {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return `${prefix}_${crypto.randomUUID()}`
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+}
+
 function getRuntimeResponseKey(page: any, pages: any[], run: any) {
   const content = page.content || {}
   const linkedQuestion = findLinkedQuestionForResponse(page, pages)
@@ -1438,9 +2022,20 @@ function getRuntimeResponseKey(page: any, pages: any[], run: any) {
       return resultPageUuid === linkedQuestion.page_uuid || item.page_uuid === linkedQuestion.page_uuid
     })
     .at(-1)
-  const optionKey = attempt?.answer?.option_id || attempt?.result?.answer?.option_id || attempt?.result?.option_id || attempt?.result?.selected || attempt?.feedback_key
-  const variant = optionKey ? content.response_variants?.[optionKey] : null
-  return variant?.enabled ? optionKey : 'default'
+  if (!attempt || attempt.result?.grading_status === 'pending') return 'default'
+  const optionKeys = [
+    ...(Array.isArray(attempt?.answer?.option_ids) ? attempt.answer.option_ids : []),
+    ...(Array.isArray(attempt?.result?.option_ids) ? attempt.result.option_ids : []),
+    ...(Array.isArray(attempt?.result?.selected) ? attempt.result.selected : []),
+    attempt?.answer?.option_id,
+    attempt?.result?.answer?.option_id,
+    attempt?.result?.option_id,
+    typeof attempt?.result?.selected === 'string' ? attempt.result.selected : null,
+    attempt?.feedback_key,
+    attempt?.is_correct === true ? 'correct' : attempt?.is_correct === false ? 'incorrect' : null,
+  ].filter(Boolean)
+  const optionKey = optionKeys.find((key: string) => content.response_variants?.[key]?.enabled)
+  return optionKey || 'default'
 }
 
 function findLinkedQuestionForResponse(responsePage: any, pages: any[]) {
@@ -1457,7 +2052,7 @@ function findLinkedQuestionForResponse(responsePage: any, pages: any[]) {
 
 function getInfoRichTextContent(
   content: any,
-  options: { includeQuestionBlock?: boolean; responseTemplate?: boolean } = {}
+  options: { includeQuestionBlock?: boolean; questionPageType?: string; responseTemplate?: boolean } = {}
 ) {
   if (content?.rich_text?.type === 'doc') {
     if (options.responseTemplate && !content.rich_text.content?.length) {
@@ -1465,12 +2060,11 @@ function getInfoRichTextContent(
     }
     return {
       ...content.rich_text,
-      content: options.includeQuestionBlock ? ensureQuestionBlock(content.rich_text.content || []) : content.rich_text.content,
+      content: options.includeQuestionBlock ? ensureQuestionBlock(content.rich_text.content || [], { questionPageType: options.questionPageType }) : content.rich_text.content,
     }
   }
 
   const nodes: any[] = []
-  if (options.includeQuestionBlock) nodes.push(createQuestionBlock())
   if (options.responseTemplate) {
     return createResponseRichTextContent(content)
   }
@@ -1505,8 +2099,15 @@ function getInfoRichTextContent(
     })
   }
 
-  if (!nodes.length) {
+  if (!nodes.length && (!options.includeQuestionBlock || options.questionPageType === 'text_input')) {
     nodes.push({ type: 'heading', attrs: { level: 1 } }, { type: 'paragraph' })
+  }
+
+  if (options.includeQuestionBlock) {
+    return {
+      type: 'doc',
+      content: ensureQuestionBlock(nodes, { questionPageType: options.questionPageType }),
+    }
   }
 
   return { type: 'doc', content: nodes }
@@ -1721,7 +2322,7 @@ function formatTime(seconds: number) {
   return `${minutes}:${String(remaining).padStart(2, '0')}`
 }
 
-function EditableText({ as = 'div', editable, value, placeholder, onChange, className, multiline = false }: any) {
+function EditableText({ as = 'div', editable, value, placeholder, onChange, className, multiline = false, elementRef }: any) {
   const Element = as
   const ref = React.useRef<HTMLElement | null>(null)
   const valueRef = React.useRef(value || '')
@@ -1733,11 +2334,16 @@ function EditableText({ as = 'div', editable, value, placeholder, onChange, clas
     }
   }, [value])
 
-  if (!editable) return <Element className={className}>{value || placeholder}</Element>
+  const setRefs = (node: HTMLElement | null) => {
+    ref.current = node
+    if (elementRef) elementRef.current = node
+  }
+
+  if (!editable) return <Element ref={elementRef} className={className}>{value || placeholder}</Element>
 
   return (
     <Element
-      ref={ref}
+      ref={setRefs}
       contentEditable
       suppressContentEditableWarning
       role="textbox"

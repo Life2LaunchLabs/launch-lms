@@ -35,6 +35,8 @@ class LearningBadgeBase(SQLModel):
     thumbnail_image: Optional[str] = ""
     public: bool = True
     published: bool = False
+    protected: bool = False
+    system_type: Optional[str] = None
     direct_conferral_enabled: bool = True
     badge_metadata: dict = Field(default_factory=dict, sa_column=Column("metadata", JSON))
 
@@ -58,6 +60,8 @@ class LearningBadgeCreate(SQLModel):
     thumbnail_image: Optional[str] = ""
     public: bool = True
     published: bool = False
+    protected: bool = False
+    system_type: Optional[str] = None
     direct_conferral_enabled: bool = True
     badge_metadata: dict = Field(default_factory=dict)
 
@@ -71,6 +75,8 @@ class LearningBadgeUpdate(SQLModel):
     thumbnail_image: Optional[str] = None
     public: Optional[bool] = None
     published: Optional[bool] = None
+    protected: Optional[bool] = None
+    system_type: Optional[str] = None
     direct_conferral_enabled: Optional[bool] = None
     badge_metadata: Optional[dict] = None
 
@@ -89,6 +95,8 @@ class BadgeCollectionBase(SQLModel):
     thumbnail_image: Optional[str] = ""
     public: bool = True
     hidden: bool = False
+    protected: bool = False
+    system_type: Optional[str] = None
 
 
 class BadgeCollection(BadgeCollectionBase, table=True):
@@ -107,6 +115,8 @@ class BadgeCollectionCreate(SQLModel):
     thumbnail_image: Optional[str] = ""
     public: bool = True
     hidden: bool = False
+    protected: bool = False
+    system_type: Optional[str] = None
 
 
 class BadgeCollectionUpdate(SQLModel):
@@ -115,6 +125,8 @@ class BadgeCollectionUpdate(SQLModel):
     thumbnail_image: Optional[str] = None
     public: Optional[bool] = None
     hidden: Optional[bool] = None
+    protected: Optional[bool] = None
+    system_type: Optional[str] = None
 
 
 class BadgeCollectionRead(BadgeCollectionBase):
@@ -353,6 +365,11 @@ class LearningResponseSubmit(SQLModel):
     run_uuid: str
     page_uuid: str
     answer: dict = Field(default_factory=dict)
+
+
+class LearningResponseGrade(SQLModel):
+    score: float
+    feedback: Optional[str] = ""
 
 
 class LearningAwardCreate(SQLModel):

@@ -1,4 +1,5 @@
 import hashlib
+from copy import deepcopy
 from datetime import datetime
 from uuid import uuid4
 
@@ -27,6 +28,7 @@ from src.db.learning import (
     LearningPageCreate,
     LearningPageProgress,
     LearningPageRead,
+    LearningResponseGrade,
     LearningPageType,
     LearningPageUpdate,
     LearningPath,
@@ -51,6 +53,36 @@ from src.services.courses.openbadges import (
 )
 from src.services.guest_sessions import LearningActor
 
+LEARNING_SYSTEM_TYPE_ONBOARDING = "onboarding"
+ONBOARDING_COLLECTION_UUID = "badge_collection_system_onboarding"
+ONBOARDING_BADGE_UUID = "badge_system_onboarding"
+ONBOARDING_ACTIVITY_UUID = "learning_activity_system_onboarding_intro"
+ONBOARDING_NAME_PAGE_UUID = "learning_page_system_onboarding_name"
+ONBOARDING_GOAL_PAGE_UUID = "learning_page_system_onboarding_goal"
+
+_SYSTEM_FIELDS = {"protected", "system_type"}
+_SAFE_CORE_VARIABLE_TARGETS = {"user.first_name", "user.last_name", "user.bio"}
+_SAFE_VARIABLE_PREFIXES = (
+    "user.profile.onboarding.",
+    "user.details.variables.",
+    "user.details.onboarding.",
+)
+_BLOCKED_VARIABLE_SEGMENTS = {
+    "",
+    "id",
+    "user_id",
+    "user_uuid",
+    "uuid",
+    "password",
+    "hashed_password",
+    "roles",
+    "role",
+    "role_id",
+    "is_superadmin",
+    "superadmin",
+    "permissions",
+}
+
 
 def _now() -> str:
     return str(datetime.now())
@@ -71,6 +103,27 @@ def _get_org(db_session: Session, org_id: int) -> Organization:
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
     return org
+
+
+def _get_owner_org(db_session: Session) -> Organization:
+    org = db_session.exec(select(Organization).order_by(Organization.id).limit(1)).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Owner organization not found")
+    return org
+
+
+def _strip_system_fields(payload: dict) -> dict:
+    return {key: value for key, value in payload.items() if key not in _SYSTEM_FIELDS}
+
+
+def _is_system_object(value) -> bool:
+    return bool(getattr(value, "protected", False) or getattr(value, "system_type", None))
+
+
+def _ensure_onboarding_for_owner_org(db_session: Session, org_id: int) -> None:
+    owner_org = db_session.exec(select(Organization).order_by(Organization.id).limit(1)).first()
+    if owner_org and owner_org.id == org_id:
+        ensure_onboarding_learning_badge(db_session)
 
 
 def _get_org_config(db_session: Session, org_id: int) -> OrganizationConfig | None:
@@ -206,8 +259,8 @@ def _latest_attempts(db_session: Session, run_id: int) -> dict[int, LearningResp
 def _select_response_variant(page: LearningPage, latest_attempts_by_page_id: dict[int, LearningResponseAttempt]) -> dict:
     content = page.content or {}
     linked_page_uuid = content.get("linked_page_uuid") or content.get("linkedPageUuid")
-    variants = content.get("variants") or {}
-    default_variant = variants.get("default") or content.get("default") or {}
+    variants = content.get("response_variants") or content.get("variants") or {}
+    default_variant = variants.get("default") or content.get("rich_text") or content.get("default") or {}
     if not linked_page_uuid:
         return default_variant
 
@@ -219,9 +272,11 @@ def _select_response_variant(page: LearningPage, latest_attempts_by_page_id: dic
     if not linked_attempt:
         return default_variant
 
+    if linked_attempt.result.get("grading_status") == "pending":
+        return default_variant
     if linked_attempt.feedback_key and linked_attempt.feedback_key in variants:
         return variants[linked_attempt.feedback_key]
-    correctness_key = "correct" if linked_attempt.is_correct else "incorrect"
+    correctness_key = "correct" if linked_attempt.is_correct else "incorrect" if linked_attempt.is_correct is False else "default"
     return variants.get(correctness_key) or default_variant
 
 
@@ -257,20 +312,309 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
     )
 
 
+def _as_int(value, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _as_float(value, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _word_count(value: str) -> int:
+    return len([word for word in str(value or "").strip().split() if word])
+
+
+def _normalize_mcq_answer(answer: dict) -> list[str]:
+    raw_options = answer.get("option_ids") or answer.get("optionIds")
+    if raw_options is None:
+        single = answer.get("option_id") or answer.get("optionId") or answer.get("value")
+        raw_options = [single] if single else []
+    if not isinstance(raw_options, list):
+        raw_options = [raw_options]
+    selected: list[str] = []
+    for option_id in raw_options:
+        if option_id is None:
+            continue
+        normalized = str(option_id)
+        if normalized not in selected:
+            selected.append(normalized)
+    return selected
+
+
+def _normalize_text_answer(page: LearningPage, answer: dict) -> dict[str, dict]:
+    raw_inputs = answer.get("inputs")
+    if isinstance(raw_inputs, dict):
+        return {
+            str(input_id): value if isinstance(value, dict) else {"text": str(value or "")}
+            for input_id, value in raw_inputs.items()
+        }
+
+    inputs = (page.content or {}).get("inputs") or []
+    fallback_id = str(inputs[0].get("id") if inputs else "response")
+    return {
+        fallback_id: {
+            "text": str(answer.get("text") or answer.get("value") or ""),
+            **({"rich_text": answer.get("rich_text")} if answer.get("rich_text") is not None else {}),
+        }
+    }
+
+
+def _validate_mcq_answer(page: LearningPage, selected: list[str]) -> None:
+    options = (page.content or {}).get("options") or []
+    option_ids = {str(option.get("id")) for option in options if option.get("id") is not None}
+    completion = page.completion or {}
+    min_selections = max(0, _as_int(completion.get("min_selections") or completion.get("minSelections"), 1))
+    max_default = len(options) if options else max(1, len(selected))
+    max_selections = max(1, _as_int(completion.get("max_selections") or completion.get("maxSelections"), max_default))
+    if len(selected) < min_selections:
+        raise HTTPException(status_code=422, detail=f"Select at least {min_selections} option(s)")
+    if len(selected) > max_selections:
+        raise HTTPException(status_code=422, detail=f"Select no more than {max_selections} option(s)")
+    if option_ids:
+        invalid = [option_id for option_id in selected if option_id not in option_ids]
+        if invalid:
+            raise HTTPException(status_code=422, detail="Selected option is not available")
+
+
+def _validate_text_answer(page: LearningPage, inputs: dict[str, dict]) -> dict[str, dict]:
+    configured_inputs = (page.content or {}).get("inputs") or [{"id": "response"}]
+    completion_inputs = (page.completion or {}).get("inputs") or {}
+    results: dict[str, dict] = {}
+
+    for item in configured_inputs:
+        input_id = str(item.get("id") or "response")
+        rules = completion_inputs.get(input_id) or {}
+        value = inputs.get(input_id) or {}
+        text = str(value.get("text") or "").strip()
+        words = _word_count(text)
+        min_words = max(0, _as_int(rules.get("min_words") or rules.get("minWords"), 0))
+        max_words = max(0, _as_int(rules.get("max_words") or rules.get("maxWords"), 0))
+        required = rules.get("required", min_words > 0)
+
+        if required and not text:
+            raise HTTPException(status_code=422, detail="Required text response is missing")
+        if text and words < min_words:
+            raise HTTPException(status_code=422, detail=f"Response must be at least {min_words} word(s)")
+        if max_words and words > max_words:
+            raise HTTPException(status_code=422, detail=f"Response must be no more than {max_words} word(s)")
+
+        results[input_id] = {
+            "text": text,
+            "word_count": words,
+            **({"rich_text": value.get("rich_text")} if value.get("rich_text") is not None else {}),
+        }
+    return results
+
+
+def _normalize_bindings(value) -> list[dict]:
+    if not value:
+        return []
+    if isinstance(value, list):
+        items = value
+    else:
+        items = [value]
+    return [item for item in items if isinstance(item, dict) and item.get("target")]
+
+
+def _variable_bindings(page: LearningPage) -> dict:
+    completion = page.completion or {}
+    content = page.content or {}
+    bindings = completion.get("variable_bindings") or completion.get("variableBindings")
+    if not isinstance(bindings, dict):
+        bindings = content.get("variable_bindings") or content.get("variableBindings") or {}
+    return bindings if isinstance(bindings, dict) else {}
+
+
+def _extract_learning_variables(page: LearningPage, result: dict) -> list[dict]:
+    bindings = _variable_bindings(page)
+    variables: list[dict] = []
+
+    if page.page_type == LearningPageType.TEXT_INPUT:
+        input_bindings = bindings.get("inputs") or {}
+        if not isinstance(input_bindings, dict):
+            return []
+        inputs = result.get("inputs") or {}
+        for input_id, answer in inputs.items():
+            text = str((answer or {}).get("text") or "").strip()
+            for binding in _normalize_bindings(input_bindings.get(input_id)):
+                variables.append(
+                    {
+                        "target": str(binding.get("target") or ""),
+                        "value": text,
+                        "source": {"page_uuid": page.page_uuid, "input_id": input_id},
+                    }
+                )
+
+    if page.page_type == LearningPageType.MULTIPLE_CHOICE:
+        option_bindings = bindings.get("options") or {}
+        if not isinstance(option_bindings, dict):
+            return []
+        for option_id in result.get("option_ids") or result.get("selected") or []:
+            for binding in _normalize_bindings(option_bindings.get(option_id)):
+                variables.append(
+                    {
+                        "target": str(binding.get("target") or ""),
+                        "value": binding.get("value", option_id),
+                        "source": {"page_uuid": page.page_uuid, "option_id": option_id},
+                    }
+                )
+
+    return variables
+
+
+def _is_safe_variable_target(target: str, value, user: User, allow_email_write: bool = False) -> tuple[bool, str | None]:
+    if target in _SAFE_CORE_VARIABLE_TARGETS:
+        return True, None
+    if target == "user.email":
+        current_email = (user.email or "").strip().lower()
+        next_email = str(value or "").strip().lower()
+        if allow_email_write or (next_email and next_email == current_email):
+            return True, None
+        return False, "Email can only be confirmed, not overwritten here"
+    for prefix in _SAFE_VARIABLE_PREFIXES:
+        if target.startswith(prefix):
+            tail = target[len(prefix):]
+            segments = tail.split(".")
+            if any(segment in _BLOCKED_VARIABLE_SEGMENTS or segment.startswith("_") for segment in segments):
+                return False, "Variable target is not writable"
+            return True, None
+    return False, "Variable target is not writable"
+
+
+def _set_nested_value(root: dict, segments: list[str], value) -> dict:
+    next_root = deepcopy(root) if isinstance(root, dict) else {}
+    cursor = next_root
+    for segment in segments[:-1]:
+        existing = cursor.get(segment)
+        if not isinstance(existing, dict):
+            existing = {}
+            cursor[segment] = existing
+        cursor = existing
+    cursor[segments[-1]] = value
+    return next_root
+
+
+def _apply_learning_variables_to_user(
+    db_session: Session,
+    user: User,
+    variables: list[dict],
+    allow_email_write: bool = False,
+) -> tuple[list[dict], list[dict]]:
+    applied: list[dict] = []
+    skipped: list[dict] = []
+
+    for variable in variables:
+        target = str(variable.get("target") or "")
+        value = variable.get("value")
+        safe, reason = _is_safe_variable_target(target, value, user, allow_email_write=allow_email_write)
+        if not safe:
+            skipped.append({**variable, "reason": reason or "Target is not writable"})
+            continue
+
+        if target == "user.first_name":
+            user.first_name = str(value or "").strip()
+        elif target == "user.last_name":
+            user.last_name = str(value or "").strip()
+        elif target == "user.bio":
+            user.bio = str(value or "").strip()
+        elif target == "user.email":
+            user.email = str(value or "").strip()
+        elif target.startswith("user.profile."):
+            segments = target[len("user.profile."):].split(".")
+            user.profile = _set_nested_value(user.profile or {}, segments, value)
+        elif target.startswith("user.details."):
+            segments = target[len("user.details."):].split(".")
+            user.details = _set_nested_value(user.details or {}, segments, value)
+        else:
+            skipped.append({**variable, "reason": "Target is not writable"})
+            continue
+
+        applied.append(variable)
+
+    if applied:
+        user.update_date = _now()
+        db_session.add(user)
+    return applied, skipped
+
+
 def _grade_answer(page: LearningPage, answer: dict) -> tuple[bool | None, float | None, str | None, dict]:
     if page.page_type == LearningPageType.MULTIPLE_CHOICE:
-        selected = answer.get("option_id") or answer.get("optionId") or answer.get("value")
-        correct_options = set((page.scoring or {}).get("correct_option_ids") or (page.scoring or {}).get("correctOptionIds") or [])
-        is_correct = selected in correct_options if correct_options else None
-        score = 1.0 if is_correct else 0.0 if is_correct is not None else None
-        feedback_key = str(selected) if selected else ("correct" if is_correct else "incorrect")
-        return is_correct, score, feedback_key, {"selected": selected, "page_uuid": page.page_uuid}
+        selected = _normalize_mcq_answer(answer)
+        _validate_mcq_answer(page, selected)
+        scoring = page.scoring or {}
+        correct_options = {str(value) for value in scoring.get("correct_option_ids") or scoring.get("correctOptionIds") or []}
+        is_correct = set(selected) == correct_options if correct_options else None
+        points = _as_float(scoring.get("points"), 1.0)
+        score = points if is_correct else 0.0 if is_correct is not None else None
+        feedback_key = selected[0] if len(selected) == 1 else ("correct" if is_correct else "incorrect")
+        return is_correct, score, feedback_key, {
+            "selected": selected,
+            "option_ids": selected,
+            "correct_option_ids": sorted(correct_options),
+            "points": points,
+            "max_score": points,
+            "grading_status": "graded",
+            "page_uuid": page.page_uuid,
+        }
     if page.page_type == LearningPageType.TEXT_INPUT:
-        text = str(answer.get("text") or answer.get("value") or "").strip()
-        expected = [str(value).strip().lower() for value in (page.scoring or {}).get("accepted_answers", [])]
-        is_correct = text.lower() in expected if expected else None
-        score = 1.0 if is_correct else 0.0 if is_correct is not None else None
-        return is_correct, score, "correct" if is_correct else "incorrect", {"text": text, "page_uuid": page.page_uuid}
+        inputs = _validate_text_answer(page, _normalize_text_answer(page, answer))
+        scoring = page.scoring or {}
+        mode = scoring.get("mode") or ("accepted_answers" if scoring.get("accepted_answers") else "off")
+        completion_inputs = (page.completion or {}).get("inputs") or {}
+        per_input_points = [
+            _as_float((completion_inputs.get(input_id) or {}).get("points"), 0.0)
+            for input_id in inputs.keys()
+            if (completion_inputs.get(input_id) or {}).get("points") is not None
+        ]
+        points = sum(per_input_points) if per_input_points else _as_float(scoring.get("points"), 1.0)
+        first_text = next((item.get("text", "") for item in inputs.values()), "")
+
+        if mode == "manual":
+            return None, None, "pending", {
+                "inputs": inputs,
+                "text": first_text,
+                "points": points,
+                "max_score": points,
+                "grading_status": "pending",
+                "page_uuid": page.page_uuid,
+            }
+        if mode == "completion":
+            return True, points, "correct", {
+                "inputs": inputs,
+                "text": first_text,
+                "points": points,
+                "max_score": points,
+                "grading_status": "graded",
+                "page_uuid": page.page_uuid,
+            }
+
+        expected = [str(value).strip().lower() for value in scoring.get("accepted_answers", [])]
+        if mode == "accepted_answers" and expected:
+            is_correct = first_text.lower() in expected
+            score = points if is_correct else 0.0
+            return is_correct, score, "correct" if is_correct else "incorrect", {
+                "inputs": inputs,
+                "text": first_text,
+                "points": points,
+                "max_score": points,
+                "grading_status": "graded",
+                "page_uuid": page.page_uuid,
+            }
+
+        return None, None, "complete", {
+            "inputs": inputs,
+            "text": first_text,
+            "points": points,
+            "max_score": points,
+            "grading_status": "not_required",
+            "page_uuid": page.page_uuid,
+        }
     return None, None, None, {"page_uuid": page.page_uuid}
 
 
@@ -288,6 +632,35 @@ def _ensure_activity_run(db_session: Session, run: LearningRun, activity_id: int
     db_session.commit()
     db_session.refresh(activity_run)
     return activity_run
+
+
+def _has_pending_required_manual_grades(db_session: Session, run: LearningRun) -> bool:
+    manual_pages = db_session.exec(
+        select(LearningPage).where(
+            LearningPage.badge_id == run.badge_id,
+            LearningPage.required == True,
+            LearningPage.page_type == LearningPageType.TEXT_INPUT,
+        )
+    ).all()
+    manual_pages = [page for page in manual_pages if (page.scoring or {}).get("mode") == "manual"]
+    if not manual_pages:
+        return False
+
+    latest_attempts_by_page_id = _latest_attempts(db_session, run.id or 0)
+    for page in manual_pages:
+        progress = db_session.exec(
+            select(LearningPageProgress).where(
+                LearningPageProgress.run_id == run.id,
+                LearningPageProgress.page_id == page.id,
+                LearningPageProgress.complete == True,
+            )
+        ).first()
+        if not progress:
+            continue
+        attempt = latest_attempts_by_page_id.get(page.id or 0)
+        if not attempt or (attempt.result or {}).get("grading_status") != "graded":
+            return True
+    return False
 
 
 def _issue_award_if_complete(request: Request, db_session: Session, run: LearningRun) -> LearningBadgeAward | None:
@@ -311,6 +684,8 @@ def _issue_award_if_complete(request: Request, db_session: Session, run: Learnin
         ).all()
     }
     if not all((activity.id or 0) in completed_activity_ids for activity in required_activities):
+        return None
+    if _has_pending_required_manual_grades(db_session, run):
         return None
 
     award = db_session.exec(
@@ -345,10 +720,243 @@ def _issue_award_if_complete(request: Request, db_session: Session, run: Learnin
     return award
 
 
+def _merge_onboarding_variable_bindings(page: LearningPage, defaults: dict) -> None:
+    completion = deepcopy(page.completion or {})
+    existing = completion.get("variable_bindings") or {}
+    if not isinstance(existing, dict):
+        existing = {}
+
+    for section, values in defaults.items():
+        target_section = existing.get(section)
+        if not isinstance(target_section, dict):
+            target_section = {}
+        for key, binding in values.items():
+            if not target_section.get(key):
+                target_section[key] = binding
+        existing[section] = target_section
+
+    completion["variable_bindings"] = existing
+    page.completion = completion
+
+
+def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization, BadgeCollection, LearningBadge, LearningActivity]:
+    owner_org = _get_owner_org(db_session)
+    now = _now()
+
+    collection = db_session.exec(
+        select(BadgeCollection).where(BadgeCollection.collection_uuid == ONBOARDING_COLLECTION_UUID)
+    ).first()
+    if not collection:
+        collection = BadgeCollection(
+            org_id=owner_org.id or 0,
+            name="Onboarding",
+            description="System collection for the editable onboarding badge.",
+            public=True,
+            hidden=False,
+            protected=True,
+            system_type=LEARNING_SYSTEM_TYPE_ONBOARDING,
+            collection_uuid=ONBOARDING_COLLECTION_UUID,
+            creation_date=now,
+            update_date=now,
+        )
+        db_session.add(collection)
+        db_session.commit()
+        db_session.refresh(collection)
+    else:
+        collection.org_id = owner_org.id or collection.org_id
+        collection.protected = True
+        collection.system_type = LEARNING_SYSTEM_TYPE_ONBOARDING
+        collection.public = True
+        collection.hidden = False
+        collection.update_date = now
+        db_session.add(collection)
+
+    badge = db_session.exec(select(LearningBadge).where(LearningBadge.badge_uuid == ONBOARDING_BADGE_UUID)).first()
+    if not badge:
+        badge = LearningBadge(
+            org_id=owner_org.id or 0,
+            collection_id=collection.id,
+            name="Welcome Onboarding",
+            description="Set up your profile and goals.",
+            about="A short onboarding path that helps personalize Launch.",
+            criteria="Complete the onboarding activity.",
+            public=True,
+            published=True,
+            protected=True,
+            system_type=LEARNING_SYSTEM_TYPE_ONBOARDING,
+            direct_conferral_enabled=False,
+            badge_uuid=ONBOARDING_BADGE_UUID,
+            creation_date=now,
+            update_date=now,
+        )
+        db_session.add(badge)
+        db_session.commit()
+        db_session.refresh(badge)
+    else:
+        badge.org_id = owner_org.id or badge.org_id
+        badge.collection_id = collection.id
+        badge.public = True
+        badge.published = True
+        badge.protected = True
+        badge.system_type = LEARNING_SYSTEM_TYPE_ONBOARDING
+        badge.update_date = now
+        db_session.add(badge)
+
+    path = _get_path_for_badge(db_session, badge)
+    path.org_id = owner_org.id or path.org_id
+    path.update_date = now
+    db_session.add(path)
+
+    activity = db_session.exec(
+        select(LearningActivity).where(LearningActivity.activity_uuid == ONBOARDING_ACTIVITY_UUID)
+    ).first()
+    if not activity:
+        activity = LearningActivity(
+            path_id=path.id or 0,
+            badge_id=badge.id or 0,
+            org_id=owner_org.id or 0,
+            title="Welcome",
+            description="Tell us a little about yourself.",
+            icon="sparkles",
+            order=1,
+            required=True,
+            published=True,
+            settings={"system_required": True},
+            activity_uuid=ONBOARDING_ACTIVITY_UUID,
+            creation_date=now,
+            update_date=now,
+        )
+        db_session.add(activity)
+        db_session.commit()
+        db_session.refresh(activity)
+    else:
+        activity.path_id = path.id or activity.path_id
+        activity.badge_id = badge.id or activity.badge_id
+        activity.org_id = owner_org.id or activity.org_id
+        activity.order = 1
+        activity.required = True
+        activity.published = True
+        activity.settings = {**(activity.settings or {}), "system_required": True}
+        activity.update_date = now
+        db_session.add(activity)
+
+    name_bindings = {
+        "inputs": {
+            "first_name": {"target": "user.first_name"},
+            "last_name": {"target": "user.last_name"},
+        }
+    }
+    name_page = db_session.exec(select(LearningPage).where(LearningPage.page_uuid == ONBOARDING_NAME_PAGE_UUID)).first()
+    if not name_page:
+        name_page = LearningPage(
+            activity_id=activity.id or 0,
+            badge_id=badge.id or 0,
+            org_id=owner_org.id or 0,
+            page_type=LearningPageType.TEXT_INPUT,
+            title="What should we call you?",
+            order=1,
+            required=True,
+            content={
+                "body": "Tell us your first and last name.",
+                "rich_text": {
+                    "type": "doc",
+                    "content": [
+                        {
+                            "type": "paragraph",
+                            "content": [{"type": "text", "text": "Tell us your first and last name."}],
+                        },
+                        {"type": "learningQuestion", "attrs": {"locked": True}},
+                    ],
+                },
+                "inputs": [
+                    {"id": "first_name", "label": "First name", "placeholder": "First name", "variant": "single_line", "width": "half"},
+                    {"id": "last_name", "label": "Last name", "placeholder": "Last name", "variant": "single_line", "width": "half"},
+                ],
+            },
+            scoring={"mode": "off", "points": 0},
+            completion={
+                "inputs": {
+                    "first_name": {"required": True, "min_words": 1, "max_words": 3},
+                    "last_name": {"required": True, "min_words": 1, "max_words": 4},
+                },
+                "variable_bindings": name_bindings,
+            },
+            page_uuid=ONBOARDING_NAME_PAGE_UUID,
+            creation_date=now,
+            update_date=now,
+        )
+        db_session.add(name_page)
+    else:
+        name_page.activity_id = activity.id or name_page.activity_id
+        name_page.badge_id = badge.id or name_page.badge_id
+        name_page.org_id = owner_org.id or name_page.org_id
+        name_page.order = 1
+        name_page.required = True
+        _merge_onboarding_variable_bindings(name_page, name_bindings)
+        name_page.update_date = now
+        db_session.add(name_page)
+
+    goal_options = [
+        {"id": "higher_education", "text": "Higher education"},
+        {"id": "employment", "text": "Employment"},
+        {"id": "self_starting", "text": "Self Starting"},
+        {"id": "not_sure", "text": "Not sure"},
+    ]
+    goal_bindings = {
+        "options": {
+            option["id"]: [
+                {"target": "user.profile.onboarding.next_step", "value": option["id"]},
+                {"target": "user.details.onboarding.next_step", "value": option["id"]},
+            ]
+            for option in goal_options
+        }
+    }
+    goal_page = db_session.exec(select(LearningPage).where(LearningPage.page_uuid == ONBOARDING_GOAL_PAGE_UUID)).first()
+    if not goal_page:
+        goal_page = LearningPage(
+            activity_id=activity.id or 0,
+            badge_id=badge.id or 0,
+            org_id=owner_org.id or 0,
+            page_type=LearningPageType.MULTIPLE_CHOICE,
+            title="What next step are you working towards?",
+            order=2,
+            required=True,
+            content={
+                "prompt": "What next step are you working towards?",
+                "options": goal_options,
+            },
+            scoring={"mode": "off", "points": 0, "correct_option_ids": [], "score_policy": "exact_match"},
+            completion={
+                "min_selections": 1,
+                "max_selections": 1,
+                "variable_bindings": goal_bindings,
+            },
+            page_uuid=ONBOARDING_GOAL_PAGE_UUID,
+            creation_date=now,
+            update_date=now,
+        )
+        db_session.add(goal_page)
+    else:
+        goal_page.activity_id = activity.id or goal_page.activity_id
+        goal_page.badge_id = badge.id or goal_page.badge_id
+        goal_page.org_id = owner_org.id or goal_page.org_id
+        goal_page.order = 2
+        goal_page.required = True
+        _merge_onboarding_variable_bindings(goal_page, goal_bindings)
+        goal_page.update_date = now
+        db_session.add(goal_page)
+
+    db_session.commit()
+    db_session.refresh(collection)
+    db_session.refresh(badge)
+    db_session.refresh(activity)
+    return owner_org, collection, badge, activity
+
+
 async def create_badge(request: Request, data: LearningBadgeCreate, current_user: PublicUser | AnonymousUser, db_session: Session) -> LearningBadgeRead:
     _require_org_admin(db_session, current_user, data.org_id)
     now = _now()
-    badge = LearningBadge(**data.model_dump(), badge_uuid=f"badge_{uuid4()}", creation_date=now, update_date=now)
+    badge = LearningBadge(**_strip_system_fields(data.model_dump()), badge_uuid=f"badge_{uuid4()}", creation_date=now, update_date=now)
     db_session.add(badge)
     db_session.commit()
     db_session.refresh(badge)
@@ -359,7 +967,7 @@ async def create_badge(request: Request, data: LearningBadgeCreate, current_user
 async def update_badge(request: Request, badge_uuid: str, data: LearningBadgeUpdate, current_user: PublicUser | AnonymousUser, db_session: Session) -> LearningBadgeRead:
     badge = _get_badge(db_session, badge_uuid)
     _require_org_admin(db_session, current_user, badge.org_id)
-    for key, value in data.model_dump(exclude_unset=True).items():
+    for key, value in _strip_system_fields(data.model_dump(exclude_unset=True)).items():
         setattr(badge, key, value)
     badge.update_date = _now()
     db_session.add(badge)
@@ -375,6 +983,7 @@ async def get_badge(request: Request, badge_uuid: str, current_user: PublicUser 
 
 
 async def list_badges(request: Request, org_id: int, current_user: PublicUser | AnonymousUser, db_session: Session, admin: bool = False) -> list[LearningBadgeRead]:
+    _ensure_onboarding_for_owner_org(db_session, org_id)
     if admin:
         _require_org_admin(db_session, current_user, org_id)
         statement = select(LearningBadge).where(LearningBadge.org_id == org_id)
@@ -387,6 +996,8 @@ async def list_badges(request: Request, org_id: int, current_user: PublicUser | 
 async def delete_badge(request: Request, badge_uuid: str, current_user: PublicUser | AnonymousUser, db_session: Session) -> dict:
     badge = _get_badge(db_session, badge_uuid)
     _require_org_admin(db_session, current_user, badge.org_id)
+    if _is_system_object(badge):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="System badges cannot be deleted")
     db_session.delete(badge)
     db_session.commit()
     return {"detail": "Badge deleted"}
@@ -395,7 +1006,7 @@ async def delete_badge(request: Request, badge_uuid: str, current_user: PublicUs
 async def create_collection(request: Request, data: BadgeCollectionCreate, current_user: PublicUser | AnonymousUser, db_session: Session) -> BadgeCollectionRead:
     _require_org_admin(db_session, current_user, data.org_id)
     now = _now()
-    collection = BadgeCollection(**data.model_dump(), collection_uuid=f"badge_collection_{uuid4()}", creation_date=now, update_date=now)
+    collection = BadgeCollection(**_strip_system_fields(data.model_dump()), collection_uuid=f"badge_collection_{uuid4()}", creation_date=now, update_date=now)
     db_session.add(collection)
     db_session.commit()
     db_session.refresh(collection)
@@ -407,7 +1018,7 @@ async def update_collection(request: Request, collection_uuid: str, data: BadgeC
     if not collection:
         raise HTTPException(status_code=404, detail="Badge collection not found")
     _require_org_admin(db_session, current_user, collection.org_id)
-    for key, value in data.model_dump(exclude_unset=True).items():
+    for key, value in _strip_system_fields(data.model_dump(exclude_unset=True)).items():
         setattr(collection, key, value)
     collection.update_date = _now()
     db_session.add(collection)
@@ -422,6 +1033,8 @@ async def delete_collection(request: Request, collection_uuid: str, current_user
     if not collection:
         raise HTTPException(status_code=404, detail="Badge collection not found")
     _require_org_admin(db_session, current_user, collection.org_id)
+    if _is_system_object(collection):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="System badge collections cannot be deleted")
     badges = db_session.exec(select(LearningBadge).where(LearningBadge.collection_id == collection.id)).all()
     for badge in badges:
         db_session.delete(badge)
@@ -431,6 +1044,7 @@ async def delete_collection(request: Request, collection_uuid: str, current_user
 
 
 async def list_collections(request: Request, org_id: int, current_user: PublicUser | AnonymousUser, db_session: Session, admin: bool = False) -> list[BadgeCollectionRead]:
+    _ensure_onboarding_for_owner_org(db_session, org_id)
     if admin:
         _require_org_admin(db_session, current_user, org_id)
         collections = db_session.exec(select(BadgeCollection).where(BadgeCollection.org_id == org_id)).all()
@@ -532,6 +1146,9 @@ async def update_activity(request: Request, activity_uuid: str, data: LearningAc
 async def delete_activity(request: Request, activity_uuid: str, current_user: PublicUser | AnonymousUser, db_session: Session) -> dict:
     activity = _get_activity(db_session, activity_uuid)
     _require_org_admin(db_session, current_user, activity.org_id)
+    badge = db_session.get(LearningBadge, activity.badge_id)
+    if badge and _is_system_object(badge):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="System onboarding activities cannot be deleted")
     db_session.delete(activity)
     db_session.commit()
     return {"detail": "Learning activity deleted"}
@@ -625,6 +1242,9 @@ async def update_page(request: Request, page_uuid: str, data: LearningPageUpdate
 async def delete_page(request: Request, page_uuid: str, current_user: PublicUser | AnonymousUser, db_session: Session) -> dict:
     page = _get_page(db_session, page_uuid)
     _require_org_admin(db_session, current_user, page.org_id)
+    badge = db_session.get(LearningBadge, page.badge_id)
+    if badge and _is_system_object(badge) and page.required:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Required system onboarding pages cannot be deleted")
     db_session.delete(page)
     db_session.commit()
     return {"detail": "Learning page deleted"}
@@ -712,6 +1332,18 @@ async def submit_response(request: Request, data: LearningResponseSubmit, actor:
     if page.page_type not in (LearningPageType.MULTIPLE_CHOICE, LearningPageType.TEXT_INPUT):
         raise HTTPException(status_code=422, detail="Responses can only be submitted for input pages")
     is_correct, score, feedback_key, result = _grade_answer(page, data.answer)
+    variables = _extract_learning_variables(page, result)
+    if variables:
+        result = {**result, "variables": variables}
+        if actor.user_id is not None:
+            user = db_session.get(User, actor.user_id)
+            if user:
+                applied, skipped = _apply_learning_variables_to_user(db_session, user, variables)
+                result = {
+                    **result,
+                    "variables_applied": applied,
+                    "variables_skipped": skipped,
+                }
     now = datetime.utcnow()
     attempt = LearningResponseAttempt(
         attempt_uuid=f"learning_attempt_{uuid4()}",
@@ -724,7 +1356,7 @@ async def submit_response(request: Request, data: LearningResponseSubmit, actor:
         score=score,
         feedback_key=feedback_key,
         submitted_at=now,
-        graded_at=now,
+        graded_at=now if (result or {}).get("grading_status") != "pending" else None,
         result=result,
     )
     db_session.add(attempt)
@@ -732,6 +1364,115 @@ async def submit_response(request: Request, data: LearningResponseSubmit, actor:
     await complete_page(request, LearningPageComplete(run_uuid=run.run_uuid, page_uuid=page.page_uuid, data={"attempt_uuid": attempt.attempt_uuid}), actor, db_session)
     db_session.refresh(run)
     return _serialize_run(db_session, run)
+
+
+async def list_learning_responses(
+    request: Request,
+    current_user: PublicUser | AnonymousUser,
+    db_session: Session,
+    org_id: int,
+    badge_uuid: str | None = None,
+    activity_uuid: str | None = None,
+    page_uuid: str | None = None,
+    grading_status: str | None = "pending",
+) -> list[dict]:
+    _require_org_admin(db_session, current_user, org_id)
+    page_statement = select(LearningPage).where(LearningPage.org_id == org_id)
+    if badge_uuid:
+        badge = _get_badge(db_session, badge_uuid)
+        page_statement = page_statement.where(LearningPage.badge_id == badge.id)
+    if activity_uuid:
+        activity = _get_activity(db_session, activity_uuid)
+        page_statement = page_statement.where(LearningPage.activity_id == activity.id)
+    if page_uuid:
+        page_statement = page_statement.where(LearningPage.page_uuid == _clean_uuid(page_uuid, "learning_page_"))
+
+    pages = db_session.exec(page_statement).all()
+    page_by_id = {page.id or 0: page for page in pages}
+    if not page_by_id:
+        return []
+
+    attempts = db_session.exec(
+        select(LearningResponseAttempt)
+        .where(LearningResponseAttempt.page_id.in_(list(page_by_id.keys())))  # type: ignore
+        .order_by(LearningResponseAttempt.submitted_at.desc())  # type: ignore
+    ).all()
+    if grading_status and grading_status != "all":
+        attempts = [attempt for attempt in attempts if (attempt.result or {}).get("grading_status") == grading_status]
+
+    run_ids = {attempt.run_id for attempt in attempts}
+    user_ids = {attempt.user_id for attempt in attempts if attempt.user_id is not None}
+    runs = {
+        run.id or 0: run
+        for run in db_session.exec(select(LearningRun).where(LearningRun.id.in_(run_ids))).all()  # type: ignore
+    } if run_ids else {}
+    users = {
+        user.id or 0: user
+        for user in db_session.exec(select(User).where(User.id.in_(user_ids))).all()  # type: ignore
+    } if user_ids else {}
+
+    return [
+        {
+            **attempt.model_dump(),
+            "page": page_by_id.get(attempt.page_id).model_dump() if page_by_id.get(attempt.page_id) else None,
+            "run": runs.get(attempt.run_id).model_dump() if runs.get(attempt.run_id) else None,
+            "user": {
+                "id": users[attempt.user_id].id,
+                "username": users[attempt.user_id].username,
+                "email": users[attempt.user_id].email,
+                "first_name": users[attempt.user_id].first_name,
+                "last_name": users[attempt.user_id].last_name,
+            } if attempt.user_id in users else None,
+        }
+        for attempt in attempts
+    ]
+
+
+async def grade_learning_response(
+    request: Request,
+    attempt_uuid: str,
+    data: LearningResponseGrade,
+    current_user: PublicUser | AnonymousUser,
+    db_session: Session,
+) -> dict:
+    attempt = db_session.exec(
+        select(LearningResponseAttempt).where(
+            LearningResponseAttempt.attempt_uuid == _clean_uuid(attempt_uuid, "learning_attempt_")
+        )
+    ).first()
+    if not attempt:
+        raise HTTPException(status_code=404, detail="Learning response not found")
+    page = db_session.get(LearningPage, attempt.page_id)
+    if not page:
+        raise HTTPException(status_code=404, detail="Learning page not found")
+    admin = _require_org_admin(db_session, current_user, page.org_id)
+
+    max_score = _as_float((page.scoring or {}).get("points"), _as_float((attempt.result or {}).get("max_score"), 1.0))
+    score = max(0.0, min(max_score, float(data.score)))
+    now = datetime.utcnow()
+    attempt.score = score
+    attempt.graded_at = now
+    attempt.is_correct = score >= max_score if max_score > 0 else None
+    attempt.feedback_key = "correct" if attempt.is_correct else "incorrect" if attempt.is_correct is False else "graded"
+    attempt.result = {
+        **(attempt.result or {}),
+        "grading_status": "graded",
+        "score": score,
+        "max_score": max_score,
+        "feedback": data.feedback or "",
+        "graded_by_user_id": admin.id,
+        "graded_at": now.isoformat(),
+    }
+    db_session.add(attempt)
+    db_session.commit()
+    db_session.refresh(attempt)
+
+    run = db_session.get(LearningRun, attempt.run_id)
+    award = _issue_award_if_complete(request, db_session, run) if run else None
+    return {
+        **attempt.model_dump(),
+        "award": award.model_dump() if award else None,
+    }
 
 
 async def confer_award(request: Request, data: LearningAwardCreate, current_user: PublicUser | AnonymousUser, db_session: Session) -> dict:

@@ -128,6 +128,7 @@ export default function LearningActivityEditor({
   const [saveState, setSaveState] = React.useState<SaveState>('saved')
   const [publishing, setPublishing] = React.useState(false)
   const [lastSavedAt, setLastSavedAt] = React.useState<Date | null>(null)
+  const [activeInputSectionByPage, setActiveInputSectionByPage] = React.useState<Record<string, string[]>>({})
   const canvasRef = React.useRef<HTMLDivElement | null>(null)
   const saveTimerRef = React.useRef<NodeJS.Timeout | null>(null)
   const pendingSavesRef = React.useRef<Record<string, any>>({})
@@ -163,6 +164,16 @@ export default function LearningActivityEditor({
     setZoom(1)
     setPan({ x: 0, y: 0 })
   }, [previewMode, selectedPageUuid])
+
+  React.useEffect(() => {
+    const onActiveInputSection = (event: Event) => {
+      const detail = (event as CustomEvent).detail || {}
+      if (!detail.pageUuid || !Array.isArray(detail.inputIds)) return
+      setActiveInputSectionByPage((current) => ({ ...current, [detail.pageUuid]: detail.inputIds }))
+    }
+    window.addEventListener('learning-question-input-section-active', onActiveInputSection)
+    return () => window.removeEventListener('learning-question-input-section-active', onActiveInputSection)
+  }, [])
 
   React.useEffect(() => {
     const canvas = canvasRef.current
@@ -227,14 +238,12 @@ export default function LearningActivityEditor({
 
   const addPage = async (type: LearningPageType = 'info') => {
     try {
+      const defaults = buildDefaultPagePayload(type)
       const page = await createLearningPage({
         activity_uuid: activity.activity_uuid,
         page_type: type,
         title: `New ${type.replace('_', ' ')} page`,
-        content: {},
-        design: {},
-        scoring: {},
-        completion: { mode: 'manual' },
+        ...defaults,
       }, accessToken)
       setPages((current) => [...current, page])
       setSelectedPageUuid(page.page_uuid)
@@ -568,6 +577,7 @@ export default function LearningActivityEditor({
               removePage={removePage}
               addQuestionResponse={addQuestionResponse}
               removeQuestionResponse={removeQuestionResponse}
+              activeInputIds={selectedPage ? activeInputSectionByPage[selectedPage.page_uuid] : undefined}
             />
           ) : (
             <button onClick={() => addPage()} className="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-sm font-bold text-white">
@@ -835,7 +845,7 @@ function PageNavCard({ page, index, selected, paired, onSelect, onDuplicate, onD
   )
 }
 
-function PageSettings({ page, pages, linkedResponse, patchPage, removePage, addQuestionResponse, removeQuestionResponse }: any) {
+function PageSettings({ page, pages, linkedResponse, patchPage, removePage, addQuestionResponse, removeQuestionResponse, activeInputIds }: any) {
   const style = pageTypeStyles[page.page_type as LearningPageType] || pageTypeStyles.info
   const tabs = getPageSettingsTabs(page)
   const [activeTab, setActiveTab] = React.useState(tabs[0].key)
@@ -908,7 +918,7 @@ function PageSettings({ page, pages, linkedResponse, patchPage, removePage, addQ
         />
       )}
       {activeTab === 'design' && <PageDesignSettings />}
-      {activeTab === 'scoring' && <PageScoringSettings />}
+      {activeTab === 'scoring' && <PageScoringSettings page={page} patchPage={patchPage} activeInputIds={activeInputIds} />}
     </div>
   )
 }
@@ -944,6 +954,21 @@ function PageContentSettings({ page, patchPage }: any) {
   }
 
   if (page.page_type === 'info' || isQuestionPage(page) || page.page_type === 'question_response') {
+    const addInputSection = () => {
+      const inputs = ensureTextInputs(page.content?.inputs || [])
+      const inputRules = page.completion?.inputs || {}
+      const id = createLocalId('input')
+      patchPage({
+        content: {
+          ...(page.content || {}),
+          inputs: [...inputs, { id, section_id: id, label: `Response ${inputs.length + 1}`, placeholder: '', variant: 'short_answer', width: 'full', height: 120 }],
+        },
+        completion: {
+          ...(page.completion || {}),
+          inputs: { ...inputRules, [id]: { min_words: 1, max_words: 0 } },
+        },
+      })
+    }
     return (
       <div className="grid grid-cols-2 gap-3">
         <button
@@ -960,6 +985,15 @@ function PageContentSettings({ page, patchPage }: any) {
           <FileText size={16} />
           Add text
         </button>
+        {page.page_type === 'text_input' && (
+          <button
+            onClick={addInputSection}
+            className="col-span-2 inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-bold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-950"
+          >
+            <PencilLine size={16} />
+            Add input
+          </button>
+        )}
       </div>
     )
   }
@@ -1100,11 +1134,289 @@ function PageDesignSettings() {
   )
 }
 
-function PageScoringSettings() {
+function PageScoringSettings({ page, patchPage, activeInputIds }: any) {
+  if (page.page_type === 'multiple_choice') {
+    const options = ensureMcqOptions(page.content?.options || [])
+    const scoring = page.scoring || {}
+    const completion = page.completion || {}
+    const minSelections = Number(completion.min_selections ?? 1)
+    const maxSelections = Number(completion.max_selections ?? 1)
+    const mode = completion.question_mode || (scoring.mode === 'off' ? 'variable' : 'scored')
+
+    const setMode = (nextMode: 'scored' | 'variable') => {
+      patchPage({
+        completion: { ...completion, question_mode: nextMode },
+        scoring: nextMode === 'variable'
+          ? { ...scoring, mode: 'off', points: 0 }
+          : { ...scoring, mode: 'points', points: Number(scoring.points ?? 1), score_policy: 'exact_match' },
+      })
+    }
+
+    return (
+      <div className="space-y-5">
+        <div className="grid grid-cols-2 gap-3">
+          <NumberSetting label="Min selections" value={minSelections} min={1} max={options.length} onChange={(value) => patchPage({ completion: { ...completion, min_selections: value, max_selections: Math.max(value, maxSelections) } })} />
+          <NumberSetting label="Max selections" value={maxSelections} min={minSelections} max={options.length} onChange={(value) => patchPage({ completion: { ...completion, max_selections: value, min_selections: Math.min(minSelections, value) } })} />
+        </div>
+
+        <SegmentedSetting value={mode} options={[{ value: 'scored', label: 'Scored' }, { value: 'variable', label: 'Variable' }]} onChange={setMode} />
+
+        {mode === 'scored' ? (
+          <NumberSetting label="Points" value={Number(scoring.points ?? 1)} min={0} max={999} onChange={(value) => patchPage({ scoring: { ...scoring, mode: 'points', points: value, score_policy: 'exact_match' } })} />
+        ) : (
+          <McqVariableSettings page={page} options={options} patchPage={patchPage} />
+        )}
+      </div>
+    )
+  }
+
+  if (page.page_type === 'text_input') {
+    const inputs = ensureTextInputs(page.content?.inputs || [])
+    const inputSections = getTextInputSections(inputs)
+    const activeIds = Array.isArray(activeInputIds) && activeInputIds.some((id: string) => inputs.some((input: any) => input.id === id))
+      ? activeInputIds
+      : inputSections[0]?.inputs.map((input: any) => input.id) || []
+    const visibleInputs = inputs.filter((input: any) => activeIds.includes(input.id)).slice(0, 2)
+    const scoring = page.scoring || {}
+    const completion = page.completion || {}
+    const inputRules = completion.inputs || {}
+
+    const patchInputs = (nextInputs: any[], nextRules = inputRules) => {
+      patchPage({
+        content: { ...(page.content || {}), inputs: nextInputs },
+        completion: { ...completion, inputs: nextRules },
+      })
+    }
+
+    const updateRule = (id: string, patch: any) => {
+      patchInputs(inputs, { ...inputRules, [id]: { ...(inputRules[id] || { min_words: 1, max_words: 0 }), ...patch } })
+    }
+
+    const setInputMode = (inputId: string, mode: 'scored' | 'variable') => {
+      const nextRules = {
+        ...inputRules,
+        [inputId]: {
+          ...(inputRules[inputId] || { min_words: 1, max_words: 0 }),
+          question_mode: mode,
+        },
+      }
+      patchInputs(inputs, nextRules)
+    }
+
+    return (
+      <div className="space-y-5">
+        <div className="space-y-3">
+          {visibleInputs.map((input) => {
+            const rules = inputRules[input.id] || { min_words: 1, max_words: 0 }
+            const mode = rules.question_mode || (firstBinding((completion.variable_bindings || completion.variableBindings || {})?.inputs?.[input.id]) ? 'variable' : 'scored')
+            return (
+              <div key={input.id} className="space-y-3 rounded-lg border border-gray-200 p-3">
+                <p className="truncate text-sm font-bold text-gray-950">{input.label || 'Input title'}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <NumberSetting label="Min words" value={Number(rules.min_words ?? 0)} min={0} max={999} onChange={(value) => updateRule(input.id, { min_words: value })} />
+                  <NumberSetting label="Max words" value={Number(rules.max_words ?? 0)} min={0} max={9999} onChange={(value) => updateRule(input.id, { max_words: value })} />
+                </div>
+                <SegmentedSetting value={mode} options={[{ value: 'scored', label: 'Scored' }, { value: 'variable', label: 'Variable' }]} onChange={(value: 'scored' | 'variable') => setInputMode(input.id, value)} />
+                {mode === 'scored' ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="block text-xs font-bold uppercase text-gray-500">
+                      Type
+                      <select value={scoring.mode || 'completion'} onChange={(event) => patchPage({ scoring: { ...scoring, mode: event.target.value } })} className="mt-2 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm normal-case text-gray-900">
+                        <option value="off">Off</option>
+                        <option value="completion">Completion</option>
+                        <option value="manual">Manual</option>
+                      </select>
+                    </label>
+                    <NumberSetting label="Points" value={Number(rules.points ?? scoring.points ?? 1)} min={0} max={999} onChange={(value) => updateRule(input.id, { points: value })} />
+                  </div>
+                ) : (
+                  <TextVariableSettings page={page} inputs={[input]} patchPage={patchPage} />
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  return null
+}
+
+const variableTargetOptions = [
+  { value: '', label: 'None' },
+  { value: 'user.first_name', label: 'First name' },
+  { value: 'user.last_name', label: 'Last name' },
+  { value: 'user.bio', label: 'Bio' },
+  { value: 'user.email', label: 'Email' },
+  { value: 'onboarding_goal', label: 'Onboarding goal' },
+  { value: 'custom', label: 'Custom variable' },
+]
+
+function firstBinding(bindings: any) {
+  if (Array.isArray(bindings)) return bindings.find((item) => item?.target)
+  return bindings?.target ? bindings : null
+}
+
+function getBindingMode(binding: any) {
+  const target = binding?.target || ''
+  if (!target) return ''
+  if (target === 'user.profile.onboarding.next_step' || target === 'user.details.onboarding.next_step') return 'onboarding_goal'
+  if (target.startsWith('user.details.variables.')) return 'custom'
+  return target
+}
+
+function customKeyFromTarget(target: string) {
+  return target?.startsWith('user.details.variables.') ? target.replace('user.details.variables.', '') : ''
+}
+
+function customTarget(key: string) {
+  const safeKey = key.trim().replace(/[^a-zA-Z0-9_.-]/g, '_').replace(/^\.+|\.+$/g, '')
+  return safeKey ? `user.details.variables.${safeKey}` : ''
+}
+
+function makeMcqBinding(mode: string, optionId: string, value: string, customKey: string) {
+  if (!mode) return null
+  if (mode === 'onboarding_goal') {
+    return [
+      { target: 'user.profile.onboarding.next_step', value: value || optionId },
+      { target: 'user.details.onboarding.next_step', value: value || optionId },
+    ]
+  }
+  if (mode === 'custom') {
+    const target = customTarget(customKey)
+    return target ? { target, value: value || optionId } : null
+  }
+  return { target: mode, value: value || optionId }
+}
+
+function McqVariableSettings({ page, options, patchPage }: any) {
+  const completion = page.completion || {}
+  const variableBindings = completion.variable_bindings || completion.variableBindings || {}
+  const optionBindings = variableBindings.options || {}
+  const firstOption = options[0]
+  const currentBinding = firstBinding(optionBindings[firstOption?.id])
+  const mode = getBindingMode(currentBinding)
+  const customKey = customKeyFromTarget(currentBinding?.target || '')
+
+  const patchBindings = (nextMode = mode, nextCustomKey = customKey) => {
+    const nextOptions: Record<string, any> = {}
+    options.forEach((option: any) => {
+      nextOptions[option.id] = makeMcqBinding(nextMode, option.id, option.id, nextCustomKey)
+    })
+    patchPage({
+      completion: {
+        ...completion,
+        variable_bindings: { ...variableBindings, options: nextOptions },
+      },
+    })
+  }
+
   return (
-    <div className="rounded-lg border border-gray-200 p-4">
-      <p className="text-sm font-bold">Scoring</p>
-      <p className="mt-1 text-xs leading-5 text-gray-500">Scoring and feedback rules for this question will live here.</p>
+    <div className="space-y-3 rounded-lg border border-gray-200 p-3">
+      <p className="text-sm font-bold">Variable</p>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="block text-xs font-bold uppercase text-gray-500">
+          Target
+          <select value={mode} onChange={(event) => patchBindings(event.target.value)} className="mt-2 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm normal-case text-gray-900">
+            {variableTargetOptions.filter((option) => option.value !== 'user.email').map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
+        {mode === 'custom' && (
+          <label className="block text-xs font-bold uppercase text-gray-500">
+            Key
+            <input value={customKey} onChange={(event) => patchBindings('custom', event.target.value)} className="mt-2 h-10 w-full rounded-lg border border-gray-200 px-3 text-sm normal-case text-gray-900 outline-none" placeholder="goal" />
+          </label>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function TextVariableSettings({ page, inputs, patchPage }: any) {
+  const completion = page.completion || {}
+  const variableBindings = completion.variable_bindings || completion.variableBindings || {}
+  const inputBindings = variableBindings.inputs || {}
+
+  const patchInputBinding = (inputId: string, mode: string, customKey?: string) => {
+    const existing = firstBinding(inputBindings[inputId])
+    const key = customKey ?? customKeyFromTarget(existing?.target || '')
+    const target = mode === 'custom' ? customTarget(key) : mode
+    patchPage({
+      completion: {
+        ...completion,
+        variable_bindings: {
+          ...variableBindings,
+          inputs: {
+            ...inputBindings,
+            [inputId]: target ? { target } : null,
+          },
+        },
+      },
+    })
+  }
+
+  return (
+    <div className="space-y-3 rounded-lg border border-gray-200 p-3">
+      <p className="text-sm font-bold">Variables</p>
+      {inputs.map((input: any) => {
+        const binding = firstBinding(inputBindings[input.id])
+        const mode = getBindingMode(binding)
+        const customKey = customKeyFromTarget(binding?.target || '')
+        return (
+          <div key={input.id} className="grid grid-cols-2 gap-3">
+            <label className="block text-xs font-bold uppercase text-gray-500">
+              {input.label || input.id}
+              <select value={mode} onChange={(event) => patchInputBinding(input.id, event.target.value)} className="mt-2 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm normal-case text-gray-900">
+                {variableTargetOptions.filter((option) => option.value !== 'onboarding_goal').map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+            {mode === 'custom' && (
+              <label className="block text-xs font-bold uppercase text-gray-500">
+                Key
+                <input value={customKey} onChange={(event) => patchInputBinding(input.id, 'custom', event.target.value)} className="mt-2 h-10 w-full rounded-lg border border-gray-200 px-3 text-sm normal-case text-gray-900 outline-none" placeholder="favorite_subject" />
+              </label>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function NumberSetting({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (value: number) => void }) {
+  return (
+    <label className="block text-xs font-bold uppercase text-gray-500">
+      {label}
+      <input
+        type="number"
+        value={Number.isFinite(value) ? value : min}
+        min={min}
+        max={max}
+        onChange={(event) => onChange(clamp(Number(event.target.value), min, max))}
+        className="mt-2 h-10 w-full rounded-lg border border-gray-200 px-3 text-sm normal-case text-gray-900 outline-none focus:ring-2 focus:ring-[var(--org-primary-color)]"
+      />
+    </label>
+  )
+}
+
+function SegmentedSetting({ value, options, onChange }: { value: string; options: Array<{ value: string; label: string }>; onChange: (value: any) => void }) {
+  return (
+    <div className="grid grid-cols-2 rounded-lg bg-gray-100 p-1">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => onChange(option.value)}
+          className={`h-9 rounded-md text-xs font-bold transition ${value === option.value ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-500 hover:text-gray-950'}`}
+        >
+          {option.label}
+        </button>
+      ))}
     </div>
   )
 }
@@ -1241,4 +1553,103 @@ function buildQuestionResponseContent(linkedPageUuid: string) {
       ],
     },
   }
+}
+
+function buildDefaultPagePayload(type: LearningPageType) {
+  if (type === 'multiple_choice') {
+    const options = [
+      { id: createLocalId('option'), text: 'Option 1' },
+      { id: createLocalId('option'), text: 'Option 2' },
+    ]
+    return {
+      content: { options },
+      design: {},
+      scoring: { mode: 'points', points: 1, correct_option_ids: [], score_policy: 'exact_match' },
+      completion: { min_selections: 1, max_selections: 1 },
+    }
+  }
+  if (type === 'text_input') {
+    const id = createLocalId('input')
+    return {
+      content: {
+        rich_text: {
+          type: 'doc',
+          content: [
+            { type: 'heading', attrs: { level: 1 } },
+            { type: 'learningQuestion', attrs: { locked: true } },
+          ],
+        },
+        inputs: [{ id, section_id: id, label: 'Response', placeholder: '', variant: 'short_answer', width: 'full', height: 160 }],
+      },
+      design: {},
+      scoring: { mode: 'off', points: 1 },
+      completion: { inputs: { [id]: { required: true, min_words: 1, max_words: 0 } } },
+    }
+  }
+  return {
+    content: {},
+    design: {},
+    scoring: {},
+    completion: { mode: 'manual' },
+  }
+}
+
+function ensureMcqOptions(options: any[]) {
+  const normalized = (options || []).map((option, index) => ({
+    id: option?.id || option?.option_id || String(index),
+    text: option?.text || '',
+  }))
+  while (normalized.length < 2) {
+    normalized.push({ id: createLocalId('option'), text: `Option ${normalized.length + 1}` })
+  }
+  return normalized
+}
+
+function ensureTextInputs(inputs: any[]) {
+  if (inputs?.length) {
+    return inputs.map((input, index) => ({
+      id: input?.id || String(index),
+      section_id: input?.section_id || input?.sectionId || '',
+      label: input?.label || `Response ${index + 1}`,
+      placeholder: input?.placeholder || '',
+      variant: input?.variant || 'short_answer',
+      width: input?.width || 'full',
+      height: Number(input?.height) || 160,
+    }))
+  }
+  return [{ id: 'response', section_id: 'response', label: 'Response', placeholder: '', variant: 'short_answer', width: 'full', height: 160 }]
+}
+
+function getTextInputSections(inputs: any[]) {
+  const sections: Array<{ id: string; inputs: any[] }> = []
+  const consumed = new Set<string>()
+
+  inputs.forEach((input, index) => {
+    if (consumed.has(input.id)) return
+
+    if (input.section_id) {
+      const grouped = inputs.filter((item) => item.section_id === input.section_id).slice(0, 2)
+      grouped.forEach((item) => consumed.add(item.id))
+      sections.push({ id: input.section_id, inputs: grouped })
+      return
+    }
+
+    const next = inputs[index + 1]
+    if (input.width === 'half' && next && !next.section_id && next.width === 'half') {
+      consumed.add(input.id)
+      consumed.add(next.id)
+      sections.push({ id: input.id, inputs: [input, next] })
+      return
+    }
+
+    consumed.add(input.id)
+    sections.push({ id: input.id, inputs: [input] })
+  })
+
+  return sections
+}
+
+function createLocalId(prefix: string) {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return `${prefix}_${crypto.randomUUID()}`
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }

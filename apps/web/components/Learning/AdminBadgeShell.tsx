@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React from 'react'
-import { Award, Check, ChevronDown, Eye, GalleryVerticalEnd, Globe, GlobeLock, Info, Loader2, Pencil, Settings, Trash2 } from 'lucide-react'
+import { Award, Check, ChevronDown, ClipboardCheck, Eye, GalleryVerticalEnd, Globe, GlobeLock, Info, Loader2, Pencil, Settings, Trash2 } from 'lucide-react'
 import { motion } from 'motion/react'
 import toast from 'react-hot-toast'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
@@ -17,16 +17,21 @@ import {
 } from '@components/ui/dropdown-menu'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg } from '@services/config/config'
-import { deleteLearningBadge, updateLearningBadge } from '@services/learning/learning'
+import { deleteLearningBadge, getLearningResponses, gradeLearningResponse, updateLearningBadge } from '@services/learning/learning'
 
 type BadgeStatus = 'published' | 'unpublished'
 
 const tabs = [
   { key: 'learning-path', label: 'Learning Path', icon: GalleryVerticalEnd },
+  { key: 'grading', label: 'Grading', icon: ClipboardCheck },
   { key: 'about', label: 'About', icon: Info },
   { key: 'settings', label: 'Settings', icon: Settings },
   { key: 'certification', label: 'Certification', icon: Award },
 ]
+
+function cleanBadgeId(value: string) {
+  return String(value || '').replace(/^badge_/, '')
+}
 
 export default function AdminBadgeShell({
   orgslug,
@@ -88,7 +93,7 @@ export default function AdminBadgeShell({
     }
   }
 
-  const publicBadgeHref = getUriWithOrg(orgslug, `/badges/${badge.badge_uuid}`)
+  const publicBadgeHref = getUriWithOrg(orgslug, `/badges/${cleanBadgeId(badge.badge_uuid)}`)
   const currentStatus: BadgeStatus = badge.published ? 'published' : 'unpublished'
 
   return (
@@ -167,7 +172,7 @@ export default function AdminBadgeShell({
             const Icon = tab.icon
             const isActive = normalizedSubpage === tab.key
             return (
-              <Link key={tab.key} href={getUriWithOrg(orgslug, `/admin/badges/badge/${badge.badge_uuid}/${tab.key}`)} replace>
+              <Link key={tab.key} href={getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/${tab.key}`)} replace>
                 <div className={`flex w-fit cursor-pointer space-x-4 border-black py-2 text-center transition-all ease-linear ${isActive ? 'border-b-4' : 'opacity-50 hover:opacity-75'}`}>
                   <div className="mx-2 flex items-center space-x-2.5">
                     <Icon size={16} />
@@ -182,10 +187,147 @@ export default function AdminBadgeShell({
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }} className="overflow-x-hidden">
         {normalizedSubpage === 'learning-path' ? children : null}
+        {normalizedSubpage === 'grading' ? <BadgeGradingPanel badge={badge} /> : null}
         {normalizedSubpage === 'about' ? <BadgeAboutPanel badge={badge} onPatch={patchBadge} /> : null}
         {normalizedSubpage === 'settings' ? <BadgeSettingsPanel orgslug={orgslug} badge={badge} onPatch={patchBadge} /> : null}
         {normalizedSubpage === 'certification' ? <BadgeCertificationPanel badge={badge} onPatch={patchBadge} /> : null}
       </motion.div>
+    </div>
+  )
+}
+
+function BadgeGradingPanel({ badge }: { badge: any }) {
+  const session = useLHSession() as any
+  const accessToken = session.data?.tokens?.access_token
+  const [responses, setResponses] = React.useState<any[]>([])
+  const [loading, setLoading] = React.useState(true)
+  const [saving, setSaving] = React.useState('')
+  const [drafts, setDrafts] = React.useState<Record<string, { score: string; feedback: string }>>({})
+
+  const load = React.useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await getLearningResponses({
+        org_id: badge.org_id,
+        badge_uuid: badge.badge_uuid,
+        grading_status: 'pending',
+      }, accessToken)
+      setResponses(Array.isArray(data) ? data : [])
+      setDrafts((current) => {
+        const next = { ...current }
+        ;(Array.isArray(data) ? data : []).forEach((item: any) => {
+          if (!next[item.attempt_uuid]) next[item.attempt_uuid] = { score: '', feedback: '' }
+        })
+        return next
+      })
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to load responses.')
+    } finally {
+      setLoading(false)
+    }
+  }, [accessToken, badge.badge_uuid, badge.org_id])
+
+  React.useEffect(() => {
+    void load()
+  }, [load])
+
+  const saveGrade = async (response: any) => {
+    const draft = drafts[response.attempt_uuid] || { score: '', feedback: '' }
+    const maxScore = Number(response.result?.max_score ?? response.page?.scoring?.points ?? 1)
+    const score = Math.max(0, Math.min(maxScore, Number(draft.score || 0)))
+    setSaving(response.attempt_uuid)
+    try {
+      await gradeLearningResponse(response.attempt_uuid, { score, feedback: draft.feedback }, accessToken)
+      toast.success('Response graded.')
+      await load()
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to save grade.')
+    } finally {
+      setSaving('')
+    }
+  }
+
+  return (
+    <div className="px-10 pb-10 pt-6">
+      <section className="rounded-xl bg-white p-6 shadow-xs">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Manual grading</h2>
+            <p className="mt-1 text-sm text-gray-500">Pending text responses that block final badge award.</p>
+          </div>
+          <Button variant="outline" onClick={() => void load()} disabled={loading} className="gap-2 bg-white">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
+            Refresh
+          </Button>
+        </div>
+
+        <div className="mt-6 space-y-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-16 text-gray-400">
+              <Loader2 className="h-5 w-5 animate-spin" />
+            </div>
+          ) : responses.length ? responses.map((response) => {
+            const draft = drafts[response.attempt_uuid] || { score: '', feedback: '' }
+            const inputs = response.result?.inputs || response.answer?.inputs || {}
+            const maxScore = Number(response.result?.max_score ?? response.page?.scoring?.points ?? 1)
+            const learner = response.user
+              ? [response.user.first_name, response.user.last_name].filter(Boolean).join(' ') || response.user.username || response.user.email
+              : 'Guest learner'
+
+            return (
+              <article key={response.attempt_uuid} className="rounded-xl border border-gray-200 p-4">
+                <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-gray-950">{response.page?.title || 'Text response'}</p>
+                    <p className="mt-1 text-xs text-gray-500">{learner} · {new Date(response.submitted_at).toLocaleString()}</p>
+                  </div>
+                  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">Pending</span>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {Object.entries(inputs).map(([inputId, value]: any) => (
+                    <div key={inputId} className="rounded-lg bg-gray-50 p-3">
+                      <p className="text-xs font-bold uppercase text-gray-400">{inputId} · {value?.word_count ?? countWords(value?.text)} words</p>
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-gray-800">{value?.text || 'No response text.'}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-[160px_1fr_auto] md:items-end">
+                  <label className="block text-xs font-bold uppercase text-gray-500">
+                    Score / {maxScore}
+                    <input
+                      type="number"
+                      min={0}
+                      max={maxScore}
+                      value={draft.score}
+                      onChange={(event) => setDrafts((current) => ({ ...current, [response.attempt_uuid]: { ...draft, score: event.target.value } }))}
+                      className="mt-2 h-10 w-full rounded-lg border border-gray-200 px-3 text-sm normal-case text-gray-900 outline-none focus:ring-2 focus:ring-black"
+                    />
+                  </label>
+                  <label className="block text-xs font-bold uppercase text-gray-500">
+                    Feedback
+                    <input
+                      value={draft.feedback}
+                      onChange={(event) => setDrafts((current) => ({ ...current, [response.attempt_uuid]: { ...draft, feedback: event.target.value } }))}
+                      className="mt-2 h-10 w-full rounded-lg border border-gray-200 px-3 text-sm normal-case text-gray-900 outline-none focus:ring-2 focus:ring-black"
+                    />
+                  </label>
+                  <Button onClick={() => saveGrade(response)} disabled={saving === response.attempt_uuid || draft.score === ''} className="gap-2">
+                    {saving === response.attempt_uuid ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                    Save grade
+                  </Button>
+                </div>
+              </article>
+            )
+          }) : (
+            <div className="rounded-xl border border-dashed border-gray-200 py-16 text-center">
+              <p className="text-sm font-semibold text-gray-700">No pending responses</p>
+              <p className="mt-1 text-xs text-gray-500">Manual text submissions will appear here.</p>
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   )
 }
@@ -396,4 +538,8 @@ function getActiveSubpage(subpage: string) {
   if (subpage === 'general' || subpage === 'seo') return 'about'
   if (subpage === 'access' || subpage === 'contributors') return 'settings'
   return tabs.some((tab) => tab.key === subpage) ? subpage : 'learning-path'
+}
+
+function countWords(value: string) {
+  return String(value || '').trim().split(/\s+/).filter(Boolean).length
 }

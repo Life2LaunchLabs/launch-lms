@@ -2,99 +2,77 @@
 
 import React from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { OrgProvider } from '@components/Contexts/OrgContext'
-import ActivityClient from '../orgs/[orgslug]/(withmenu)/course/[courseuuid]/activity/[activityid]/activity'
 
 type WelcomePayload = {
   org: any
-  course: any
-  chapter: any
+  collection?: any
+  badge?: any
   activity: any
   activity_id: string
-  course_uuid: string
+  badge_uuid: string
+  redirect_url: string
 }
 
 const welcomeSignupPasswordKey = (email: string) => `launchlms_welcome_signup_password:${email}`
-
-function cleanId(value: string | null | undefined, prefix: string) {
-  return String(value || '').replace(prefix, '')
-}
 
 export default function WelcomeClient() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const email = React.useMemo(() => searchParams.get('email')?.trim() || '', [searchParams])
-  const [payload, setPayload] = React.useState<WelcomePayload | null>(null)
   const [error, setError] = React.useState('')
-  const [isCompleting, setIsCompleting] = React.useState(false)
 
   React.useEffect(() => {
-    if (!email) {
-      router.replace('/signup')
-      return
-    }
-
     let cancelled = false
     setError('')
 
-    fetch('/api/auth/onboarding/welcome', {
-      method: 'GET',
-      credentials: 'include',
-    })
-      .then(async (res) => {
-        const data = await res.json().catch(() => null)
+    async function startOnboarding() {
+      try {
+        if (email) {
+          const password = window.sessionStorage.getItem(welcomeSignupPasswordKey(email))
+          if (!password) {
+            throw new Error('Your signup session expired. Please start signup again.')
+          }
+
+          const res = await fetch('/api/auth/signup/welcome', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, password }),
+          })
+          const data = await res.json().catch(() => null)
+          if (!res.ok) {
+            throw new Error(data?.detail || 'Unable to complete signup')
+          }
+          window.sessionStorage.removeItem(welcomeSignupPasswordKey(email))
+          window.location.href = data?.onboarding?.redirect_url || '/'
+          return
+        }
+
+        const res = await fetch('/api/auth/onboarding/welcome', {
+          method: 'GET',
+          credentials: 'include',
+        })
+        const data: any = await res.json().catch(() => null) as WelcomePayload | null
         if (!res.ok) {
           throw new Error(data?.detail || 'Unable to load onboarding')
         }
-        return data as WelcomePayload
-      })
-      .then((data) => {
-        if (!cancelled) setPayload(data)
-      })
-      .catch((err) => {
+        if (!data?.redirect_url) {
+          throw new Error('Onboarding is not ready')
+        }
+        window.location.href = data.redirect_url
+      } catch (err: any) {
         if (!cancelled) setError(err?.message || 'Unable to load onboarding')
-      })
+      }
+    }
+
+    startOnboarding()
 
     return () => {
       cancelled = true
     }
   }, [email, router])
-
-  const completeOnboarding = React.useCallback(async (quizResult: any) => {
-    setIsCompleting(true)
-    setError('')
-    const password = window.sessionStorage.getItem(welcomeSignupPasswordKey(email))
-    if (!password) {
-      setIsCompleting(false)
-      const message = 'Your signup session expired. Please start signup again.'
-      setError(message)
-      throw new Error(message)
-    }
-
-    const res = await fetch('/api/auth/signup/welcome', {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email,
-        password,
-        quiz_result: quizResult,
-      }),
-    })
-    const data = await res.json().catch(() => null)
-
-    if (!res.ok) {
-      setIsCompleting(false)
-      const message = data?.detail || 'Unable to complete signup'
-      setError(message)
-      throw new Error(message)
-    }
-
-    window.sessionStorage.removeItem(welcomeSignupPasswordKey(email))
-    window.location.href = '/'
-  }, [email])
 
   if (error) {
     return (
@@ -114,55 +92,9 @@ export default function WelcomeClient() {
     )
   }
 
-  if (!payload) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-gray-950" />
-      </div>
-    )
-  }
-
-  const orgslug = payload.org?.slug
-  const courseuuid = cleanId(payload.course_uuid || payload.course?.course_uuid, 'course_')
-  const activityid = cleanId(payload.activity_id || payload.activity?.activity_uuid, 'activity_')
-  const chapterid = cleanId(payload.chapter?.chapter_uuid, 'chapter_')
-
-  if (!orgslug || !courseuuid || !activityid || !chapterid) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-white px-6">
-        <div className="w-full max-w-md text-center">
-          <h1 className="text-2xl font-semibold text-gray-950">Onboarding is not ready</h1>
-          <p className="mt-3 text-sm leading-6 text-gray-500">
-            The welcome activity is missing required setup details.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen bg-white">
-      {isCompleting && (
-        <div className="fixed inset-x-0 top-0 z-50 flex justify-center pt-4">
-          <div className="rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white shadow-lg">
-            Creating your account...
-          </div>
-        </div>
-      )}
-      <OrgProvider orgslug={orgslug}>
-        <ActivityClient
-          activityid={activityid}
-          courseuuid={courseuuid}
-          orgslug={orgslug}
-          activity={payload.activity}
-          course={payload.course}
-          unauthenticated
-          guestMode
-          onboardingMode
-          chapterid={chapterid}
-          onOnboardingComplete={completeOnboarding}
-        />
-      </OrgProvider>
+    <div className="flex min-h-screen items-center justify-center bg-white">
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-gray-950" />
     </div>
   )
 }
