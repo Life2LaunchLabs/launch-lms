@@ -57,12 +57,20 @@ class ImportCourseResult(BaseModel):
     error: Optional[str] = None
 
 
+class ImportMigrationCandidate(BaseModel):
+    """Imported legacy course that can be converted to a new learning badge."""
+    course_uuid: str
+    name: str
+    collection_uuid: Optional[str] = None
+
+
 class ImportResult(BaseModel):
     """Result of importing courses"""
     total_courses: int
     successful: int
     failed: int
     courses: list[ImportCourseResult]
+    migration_candidates: list[ImportMigrationCandidate] = []
 
 
 class TutorImportLogEntry(BaseModel):

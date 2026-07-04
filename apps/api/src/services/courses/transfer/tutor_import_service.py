@@ -47,6 +47,7 @@ from .models import (
     ImportAnalysisResponse,
     ImportCourseInfo,
     ImportCourseResult,
+    ImportMigrationCandidate,
     ImportOptions,
     ImportResult,
     TutorImportLogEntry,
@@ -1088,6 +1089,15 @@ async def import_tutor_courses(
         successful=successful,
         failed=failed,
         courses=results,
+        migration_candidates=[
+            ImportMigrationCandidate(
+                course_uuid=result.new_uuid,
+                name=result.name,
+                collection_uuid=target_collection.collection_uuid if target_collection else None,
+            )
+            for result in results
+            if result.success and result.new_uuid
+        ],
     )
 
 

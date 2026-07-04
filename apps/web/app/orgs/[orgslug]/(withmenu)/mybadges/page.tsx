@@ -2,8 +2,9 @@ import Courses from '../courses/courses'
 import { getServerSession } from '@/lib/auth/server'
 import { JsonLd } from '@components/SEO/JsonLd'
 import { buildBreadcrumbJsonLd, getCanonicalUrl } from '@/lib/seo/utils'
-import { getOrgCollections } from '@services/courses/collections'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
+import { getLearningBadgeCollections } from '@services/learning/learning'
+import { learningCollectionsToLegacyCollections } from '@services/learning/legacyAdapters'
 
 const MyBadgesPage = async (params: any) => {
   const orgslug = (await params.params).orgslug
@@ -17,18 +18,23 @@ const MyBadgesPage = async (params: any) => {
   let collections: any[] = []
 
   try {
-    collections = await getOrgCollections(
+    const response = await getLearningBadgeCollections(
       org.id,
       accessToken ?? undefined,
-      { revalidate: 0, tags: ['collections'] }
+      false,
+      { revalidate: 0, tags: ['learning-badges'] }
     )
+    const rawLearningCollections = response.success ? response.data : response
+    collections = [
+      ...learningCollectionsToLegacyCollections(rawLearningCollections, org),
+      ...collections,
+    ]
   } catch (error: any) {
-    console.error('Failed to load collections for my badges page', {
+    console.error('Failed to load badge collections for my badges page', {
       orgslug,
       org_id: org.id,
       error,
     })
-    collections = []
   }
 
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([

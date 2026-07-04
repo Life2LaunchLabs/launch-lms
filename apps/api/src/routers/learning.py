@@ -1,4 +1,8 @@
-from fastapi import APIRouter, Depends, Query, Request, Response
+import io
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile
+from fastapi.responses import StreamingResponse
 
 from src.core.events.database import get_db_session
 from src.db.learning import (
@@ -23,6 +27,8 @@ from src.db.learning import (
 )
 from src.security.auth import get_current_user
 from src.services import learning as learning_service
+from src.services import learning_migration as learning_migration_service
+from src.services import learning_transfer as learning_transfer_service
 from src.services.guest_sessions import resolve_learning_actor
 
 
@@ -33,6 +39,8 @@ pages_router = APIRouter()
 runs_router = APIRouter()
 responses_router = APIRouter()
 awards_router = APIRouter()
+migrations_router = APIRouter()
+imports_router = APIRouter()
 
 
 @badges_router.post("/")
@@ -140,6 +148,23 @@ async def api_delete_collection(
     db_session=Depends(get_db_session),
 ) -> dict:
     return await learning_service.delete_collection(request, collection_uuid, current_user, db_session)
+
+
+@collections_router.get("/{collection_uuid}/export")
+async def api_export_collection(
+    request: Request,
+    collection_uuid: str,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+):
+    zip_content = await learning_transfer_service.export_badge_collection(request, collection_uuid, current_user, db_session)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"launch-lms-badge-collection-{timestamp}.zip"
+    return StreamingResponse(
+        io.BytesIO(zip_content),
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 @activities_router.post("/")
@@ -345,3 +370,76 @@ async def api_get_award(
     db_session=Depends(get_db_session),
 ) -> dict:
     return await learning_service.get_award(request, award_uuid, db_session)
+
+
+@migrations_router.get("/course/{course_uuid}/preview")
+async def api_preview_course_migration(
+    request: Request,
+    course_uuid: str,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    return learning_migration_service.preview_course_migration(request, course_uuid, current_user, db_session)
+
+
+@migrations_router.post("/course/{course_uuid}/convert")
+async def api_convert_course_migration(
+    request: Request,
+    course_uuid: str,
+    target_collection_uuid: str | None = Query(None),
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    target_collection = None
+    if target_collection_uuid:
+        from sqlmodel import select
+        from src.db.learning import BadgeCollection
+
+        target_collection = db_session.exec(select(BadgeCollection).where(BadgeCollection.collection_uuid == target_collection_uuid)).first()
+        if not target_collection:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail="Target badge collection not found")
+        learning_service._require_org_admin(db_session, current_user, target_collection.org_id)
+    return learning_migration_service.convert_course_migration(request, course_uuid, current_user, db_session, target_collection=target_collection)
+
+
+@migrations_router.get("/collection/{collection_uuid}/preview")
+async def api_preview_collection_migration(
+    request: Request,
+    collection_uuid: str,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    return learning_migration_service.preview_collection_migration(request, collection_uuid, current_user, db_session)
+
+
+@migrations_router.post("/collection/{collection_uuid}/convert")
+async def api_convert_collection_migration(
+    request: Request,
+    collection_uuid: str,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    return learning_migration_service.convert_collection_migration(request, collection_uuid, current_user, db_session)
+
+
+@imports_router.post("/analyze")
+async def api_analyze_badge_import(
+    request: Request,
+    org_id: int = Query(...),
+    zip_file: UploadFile = File(...),
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    return await learning_transfer_service.analyze_badge_import_package(request, zip_file, org_id, current_user, db_session)
+
+
+@imports_router.post("/")
+async def api_import_badge_package(
+    request: Request,
+    payload: dict,
+    org_id: int = Query(...),
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    return await learning_transfer_service.import_badge_package(request, org_id, payload, current_user, db_session)

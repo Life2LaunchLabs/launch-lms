@@ -45,6 +45,11 @@ export interface ImportResult {
   successful: number
   failed: number
   courses: ImportCourseResult[]
+  migration_candidates?: Array<{
+    course_uuid: string
+    name: string
+    collection_uuid?: string | null
+  }>
 }
 
 export interface TutorImportLogEntry {

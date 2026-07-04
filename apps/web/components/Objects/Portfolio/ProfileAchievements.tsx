@@ -218,6 +218,12 @@ function getCredentialDescription(credential: any) {
 }
 
 function getCredentialImage(credential: any) {
+  if (credential?.award && credential?.badge) {
+    return normalizeMediaUrl(credential.badge_class?.image)
+      || normalizeMediaUrl(credential.badge?.thumbnail_image)
+      || normalizeMediaUrl(credential.issuer?.image)
+      || '/empty_thumbnail.png'
+  }
   const courseThumbnailUrl = credential.course?.thumbnail_image && credential.org?.org_uuid
     ? getCourseThumbnailMediaDirectory(
         credential.org.org_uuid,
@@ -234,21 +240,24 @@ function getCredentialImage(credential: any) {
 }
 
 function getCredentialCourseUuid(credential: BadgeCredential) {
-  return normalizeCourseUuid(credential.raw?.course?.course_uuid)
+  return normalizeCourseUuid(credential.raw?.course?.course_uuid || credential.raw?.badge?.badge_uuid)
 }
 
 export function normalizeBadgeCredential(credential: any, orgslug: string): BadgeCredential | null {
-  const id = credential?.certificate_user?.user_certification_uuid
+  const id = credential?.award?.award_uuid || credential?.certificate_user?.user_certification_uuid
   if (!id) return null
+  const isLearningAward = Boolean(credential?.award && credential?.badge)
 
   return {
     id,
     title: getCredentialTitle(credential),
     organization: credential.issuer?.name || credential.organization?.name || credential.org?.name || 'LaunchLMS',
-    receivedDate: credential.certificate_user?.created_at || '',
+    receivedDate: credential.award?.issued_at || credential.certificate_user?.created_at || '',
     description: getCredentialDescription(credential),
     imageUrl: getCredentialImage(credential),
-    href: getUriWithOrg(orgslug, routePaths.org.badgesVerify(id)),
+    href: isLearningAward
+      ? getUriWithOrg(orgslug, routePaths.org.badgesVerify(id))
+      : getUriWithOrg(orgslug, routePaths.org.badgesVerify(id)),
     raw: credential,
   }
 }
@@ -274,7 +283,7 @@ function toggleFeaturedBadge(achievements: AchievementsSection, badgeId: string)
 
 async function fetchFeaturedBadges(ids: string[], orgslug: string) {
   const settled = await Promise.allSettled(
-    ids.map((id) => swrFetcher(`${getAPIUrl()}certifications/certificate/${id}`))
+    ids.map((id) => swrFetcher(`${getAPIUrl()}badge-awards/${id}`))
   )
 
   const badges = settled
@@ -309,19 +318,22 @@ function useEarnedBadges(orgId: string | number | undefined, orgslug: string, en
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
   const key = enabled && accessToken && orgId
-    ? `${getAPIUrl()}certifications/user/all?org_id=${orgId}`
+    ? ['earned-badges', orgId]
     : null
 
   const { data, error, isLoading } = useSWR(
     key,
-    (url) => swrFetcher(url, accessToken),
+    async () => {
+      const awardsResponse = await swrFetcher(`${getAPIUrl()}badge-awards/?org_id=${orgId}`, accessToken).catch(() => [])
+      return Array.isArray(awardsResponse) ? awardsResponse : awardsResponse?.data || []
+    },
     { revalidateOnFocus: false }
   )
-  const certificates = Array.isArray(data) ? data : data?.data || []
+  const awards = data || []
 
   return {
-    badges: certificates
-      .map((certificate: any) => normalizeBadgeCredential(certificate, orgslug))
+    badges: awards
+      .map((credential: any) => normalizeBadgeCredential(credential, orgslug))
       .filter(Boolean) as BadgeCredential[],
     error,
     isLoading,

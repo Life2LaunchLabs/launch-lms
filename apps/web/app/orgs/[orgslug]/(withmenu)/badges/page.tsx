@@ -6,10 +6,8 @@ import { getServerSession } from '@/lib/auth/server'
 import { getOrgThumbnailMediaDirectory, getOrgOgImageMediaDirectory } from '@services/media/media'
 import { getCanonicalUrl, getOrgSeoConfig, buildPageTitle, buildBreadcrumbJsonLd } from '@/lib/seo/utils'
 import { JsonLd } from '@components/SEO/JsonLd'
-import { getOrgCollections } from '@services/courses/collections'
-import { getCourseMetadata } from '@services/courses/courses'
 import { getLearningBadgeCollections } from '@services/learning/learning'
-import { LearningCollectionsBand } from '@components/Learning/LearningBadgeViews'
+import { learningCollectionsToLegacyCollections } from '@services/learning/legacyAdapters'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string }>
@@ -85,23 +83,7 @@ const BadgesPage = async (params: any) => {
   const access_token = session?.tokens?.access_token
 
   let collections: any[] = []
-  let learningCollections: any[] = []
   let invitedBadgeCourse: any = null
-
-  try {
-    collections = await getOrgCollections(
-      org.id,
-      access_token ?? undefined,
-      { revalidate: 0, tags: ['collections'] }
-    )
-  } catch (error: any) {
-    console.error('Failed to load collections for badges page', {
-      orgslug,
-      org_id: org.id,
-      error,
-    })
-    collections = []
-  }
 
   try {
     const response = await getLearningBadgeCollections(
@@ -110,32 +92,23 @@ const BadgesPage = async (params: any) => {
       false,
       { revalidate: 0, tags: ['learning-badges'] }
     )
-    learningCollections = response.success ? response.data : response
+    const rawLearningCollections = response.success ? response.data : response
+    collections = [
+      ...learningCollectionsToLegacyCollections(rawLearningCollections, org),
+      ...collections,
+    ]
   } catch (error: any) {
-    console.error('Failed to load Learning 2.0 badge collections', {
+    console.error('Failed to load badge collections', {
       orgslug,
       org_id: org.id,
       error,
     })
-    learningCollections = []
   }
 
   if (inviteBadge) {
-    try {
-      invitedBadgeCourse = await getCourseMetadata(
-        inviteBadge.startsWith('course_') ? inviteBadge : `course_${inviteBadge}`,
-        { revalidate: 0, tags: ['courses'] },
-        access_token ?? undefined
-      )
-    } catch (error: any) {
-      console.error('Failed to load invited badge for badges page hero', {
-        orgslug,
-        org_id: org.id,
-        inviteBadge,
-        error,
-      })
-      invitedBadgeCourse = null
-    }
+    invitedBadgeCourse = collections
+      .flatMap((collection: any) => collection.courses || [])
+      .find((badge: any) => String(badge.course_uuid || '').replace(/^badge_/, '') === inviteBadge.replace(/^badge_/, '')) || null
   }
 
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
@@ -146,9 +119,6 @@ const BadgesPage = async (params: any) => {
   return (
     <div>
       <JsonLd data={breadcrumbJsonLd} />
-      <div className="mx-auto max-w-7xl px-5 pt-8">
-        <LearningCollectionsBand orgslug={orgslug} collections={learningCollections} />
-      </div>
       <Courses
         org_id={org.id}
         orgslug={orgslug}

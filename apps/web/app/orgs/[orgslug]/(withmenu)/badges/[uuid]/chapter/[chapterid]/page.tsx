@@ -1,40 +1,15 @@
 import { Metadata } from 'next'
-import { notFound, redirect } from 'next/navigation'
-import { getActivityWithAuthHeader } from '@services/courses/activities'
-import { getCourseMetadata } from '@services/courses/courses'
+import { notFound } from 'next/navigation'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
-import { getCourseThumbnailMediaDirectory, getOrgOgImageMediaDirectory } from '@services/media/media'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getOrgOgImageMediaDirectory, normalizeMediaUrl } from '@services/media/media'
 import { getServerSession } from '@/lib/auth/server'
-import { buildBreadcrumbJsonLd, getCanonicalUrl, getOrgSeoConfig } from '@/lib/seo/utils'
-import { JsonLd } from '@components/SEO/JsonLd'
-import ActivityClient from '../../../../course/[courseuuid]/activity/[activityid]/activity'
+import { getCanonicalUrl, getOrgSeoConfig } from '@/lib/seo/utils'
 import { getLearningPath } from '@services/learning/learning'
 import { LearningActivityPlayer } from '@components/Learning/LearningBadgeViews'
+import { learningPathToLegacyCourse } from '@services/learning/legacyAdapters'
 
 type ChapterPageProps = {
   params: Promise<{ orgslug: string; uuid: string; chapterid: string }>
-}
-
-async function fetchCourseMetadata(courseuuid: string, accessToken: string | null | undefined) {
-  return await getCourseMetadata(
-    courseuuid,
-    { revalidate: 60, tags: ['courses'] },
-    accessToken || null
-  )
-}
-
-function cleanPrefixedId(value: string | number | null | undefined, prefix: string) {
-  return String(value || '').replace(prefix, '')
-}
-
-function findChapter(course: any, chapterId: string) {
-  const cleanChapterId = cleanPrefixedId(chapterId, 'chapter_')
-  return (course?.chapters || []).find((chapter: any) => (
-    cleanPrefixedId(chapter.chapter_uuid, 'chapter_') === cleanChapterId ||
-    String(chapter.id || '') === chapterId ||
-    String(chapter.id || '') === cleanChapterId
-  ))
 }
 
 export async function generateMetadata(props: ChapterPageProps): Promise<Metadata> {
@@ -47,17 +22,20 @@ export async function generateMetadata(props: ChapterPageProps): Promise<Metadat
   })
 
   try {
-    const course = await fetchCourseMetadata(params.uuid, accessToken)
-    const chapter = findChapter(course, params.chapterid)
+    const badgePath = await getLearningPath(params.uuid, accessToken || undefined, true, { revalidate: 0, tags: ['learning-badges'] })
+    const course = learningPathToLegacyCourse(badgePath, org)
+    const cleanActivityId = params.chapterid.replace('learning_activity_', '')
+    const chapter = (course?.chapters || []).find((item: any) => (
+      item.chapter_uuid === params.chapterid ||
+      item.chapter_uuid.replace('learning_activity_', '') === cleanActivityId
+    ))
     const seoConfig = getOrgSeoConfig(org)
     const rawTitle = `${chapter?.name || 'Chapter'} — ${course.name} Badge`
     const pageTitle = seoConfig.default_meta_title_suffix ? `${rawTitle}${seoConfig.default_meta_title_suffix}` : rawTitle
     const orgOgImageUrl = seoConfig.default_og_image
       ? getOrgOgImageMediaDirectory(org?.org_uuid, seoConfig.default_og_image)
       : null
-    const imageUrl = course?.thumbnail_image
-      ? getCourseThumbnailMediaDirectory(org?.org_uuid, course.course_uuid, course.thumbnail_image)
-      : orgOgImageUrl || '/empty_thumbnail.png'
+    const imageUrl = normalizeMediaUrl(course?.thumbnail_image_url || course?.thumbnail_image) || orgOgImageUrl || '/empty_thumbnail.png'
 
     return {
       title: pageTitle,
@@ -106,63 +84,7 @@ const BadgeChapterPage = async (props: ChapterPageProps) => {
       return <LearningActivityPlayer orgslug={params.orgslug} badgePath={badgePath} activity={activity} />
     }
   } catch {}
-
-  let course
-  try {
-    course = await fetchCourseMetadata(params.uuid, accessToken)
-  } catch (error: any) {
-    if (!session && (error?.status === 401 || error?.status === 403)) {
-      redirect('/')
-    }
-    notFound()
-  }
-
-  const chapter = findChapter(course, params.chapterid)
-  const firstActivity = chapter?.activities?.[0]
-  const firstActivityId = firstActivity?.activity_uuid?.replace('activity_', '')
-
-  if (!course || !chapter || !firstActivityId) {
-    notFound()
-  }
-
-  let activity
-  try {
-    activity = await getActivityWithAuthHeader(
-      firstActivityId,
-      { revalidate: 0, tags: ['activities'] },
-      accessToken || null
-    )
-  } catch (error: any) {
-    if (!session && (error?.status === 401 || error?.status === 403)) {
-      redirect('/')
-    }
-    notFound()
-  }
-
-  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
-    { name: 'Home', url: getCanonicalUrl(params.orgslug, '/') },
-    { name: 'Badges', url: getCanonicalUrl(params.orgslug, '/badges') },
-    { name: course.name, url: getCanonicalUrl(params.orgslug, `/badges/${params.uuid}`) },
-    {
-      name: chapter.name || 'Chapter',
-      url: getCanonicalUrl(params.orgslug, `/badges/${params.uuid}/chapter/${params.chapterid}`),
-    },
-  ])
-
-  return (
-    <>
-      <JsonLd data={breadcrumbJsonLd} />
-      <ActivityClient
-        activityid={firstActivityId}
-        courseuuid={params.uuid}
-        orgslug={params.orgslug}
-        activity={activity}
-        course={course}
-        unauthenticated={!session}
-        chapterid={params.chapterid}
-      />
-    </>
-  )
+  notFound()
 }
 
 export default BadgeChapterPage

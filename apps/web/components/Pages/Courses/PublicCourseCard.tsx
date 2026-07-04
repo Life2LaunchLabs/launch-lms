@@ -31,6 +31,14 @@ type PublicCourseCardProps = {
 
 const removeCoursePrefix = (courseUuid: string) => courseUuid.replace('course_', '')
 
+function getBadgeThumbnailSrc(course: any, ownerOrgUuid?: string) {
+  if (course?.thumbnail_image_url) return course.thumbnail_image_url
+  if (course?.thumbnail_image && ownerOrgUuid) {
+    return getCourseThumbnailMediaDirectory(ownerOrgUuid, course.course_uuid, course.thumbnail_image)
+  }
+  return ''
+}
+
 function PublicCourseCard({ course, orgslug, run = null, orgName }: PublicCourseCardProps) {
   const { t } = useTranslation()
   const org = useOrg() as any
@@ -51,6 +59,7 @@ function PublicCourseCard({ course, orgslug, run = null, orgName }: PublicCourse
   const resolvedOrgName = orgName || org?.name
   const ownerOrgUuid = course.owner_org_uuid || org?.org_uuid
   const resolvedOrgNameWithOwner = course.owner_org_name || resolvedOrgName
+  const thumbnailSrc = getBadgeThumbnailSrc(course, ownerOrgUuid)
 
   const quitCourse = async () => {
     if (!access_token) return
@@ -94,9 +103,9 @@ function PublicCourseCard({ course, orgslug, run = null, orgName }: PublicCourse
       )}
 
       <Link href={courseLink} className="block relative aspect-video overflow-visible bg-transparent">
-        {course.thumbnail_image && ownerOrgUuid ? (
+        {thumbnailSrc ? (
           <BadgeThumbnailImage
-            src={getCourseThumbnailMediaDirectory(ownerOrgUuid, course.course_uuid, course.thumbnail_image)}
+            src={thumbnailSrc}
             alt={course.name}
             hoverScale
           />

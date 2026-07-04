@@ -37,11 +37,11 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
   // Pages that use a full-bleed layout (no footer)
   const noFooterPaths = ['copilot']
   const isFullBleedPage = noFooterPaths.some((p) => pathParts.includes(p))
-  const isActivityPage = pathname?.includes('/activity/')
+  const isActivityPage = pathname?.includes('/activity/') || /^\/badges\/[^/]+\/chapter\/[^/]+/.test(pathname || '')
   const isCoursePage = /^\/course\/[^/]+$/.test(pathname || '')
   const isPublicCourseExperience = isCoursePage || isActivityPage
   const showGuestHeader = session?.status === 'unauthenticated' && !isPublicCourseExperience
-  const showOrgMenu = session?.status !== 'unauthenticated'
+  const showOrgMenu = session?.status !== 'unauthenticated' && !isActivityPage
 
   if (isLandingPage) {
     return (
@@ -72,13 +72,13 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
         </div>
       )}
       <div className="flex-1 relative print:flex-none" style={{ zIndex: 'var(--z-content)' }}>
-        <div className="mx-auto w-full md:flex md:w-fit md:max-w-full md:items-start md:gap-4 md:px-4 lg:px-5 xl:px-6 2xl:px-8 print:block print:px-0">
+        <div className={`mx-auto w-full md:flex md:max-w-full md:items-start print:block print:px-0 ${isActivityPage ? 'md:w-full md:px-0' : 'md:w-fit md:gap-4 md:px-4 lg:px-5 xl:px-6 2xl:px-8'}`}>
           {showOrgMenu && (
             <div className="print:hidden md:contents">
               <OrgMenu orgslug={orgslug} />
             </div>
           )}
-          <div className="min-w-0 w-full pb-28 md:w-[66rem] md:max-w-full md:shrink md:pb-0 print:pb-0">
+          <div className={`min-w-0 w-full pb-28 md:max-w-full md:shrink md:pb-0 print:pb-0 ${isActivityPage ? 'md:w-full' : 'md:w-[66rem]'}`}>
             {children}
           </div>
           <div

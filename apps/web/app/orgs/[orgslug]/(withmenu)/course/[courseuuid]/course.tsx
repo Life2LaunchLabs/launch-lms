@@ -11,6 +11,7 @@ import ContentPageHeader from '@components/Objects/StyledElements/Headers/Conten
 import {
   getCourseThumbnailMediaDirectory,
 } from '@services/media/media'
+import { learningPathToLegacyRun } from '@services/learning/legacyAdapters'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { CourseThumbnailImage } from '@components/Objects/Thumbnails/CourseThumbnailImage'
 import { ArrowRight, Award, BookOpenCheck, Check, CircleHelp, Clock, FileText, Layers, Play, Video, Image as ImageIcon } from 'lucide-react'
@@ -34,6 +35,18 @@ import { devCompleteCourse } from '@services/courses/activity'
 import { useWindowSize } from 'usehooks-ts'
 
 const ReactConfetti = dynamic(() => import('react-confetti'), { ssr: false })
+
+function getBadgeThumbnailSrc(course: any, ownerOrgUuid?: string) {
+  if (course?.thumbnail_image_url) return course.thumbnail_image_url
+  if (course?.thumbnail_image && ownerOrgUuid) {
+    return getCourseThumbnailMediaDirectory(
+      ownerOrgUuid,
+      course.course_uuid,
+      course.thumbnail_image
+    )
+  }
+  return ''
+}
 
 const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => {
   const { t } = useTranslation()
@@ -76,18 +89,20 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
 
   // Add SWR for trail data
   const { data: trailData, mutate: mutateTrailData } = useSWR(
-    courseOwnerOrgId ? `${getAPIUrl()}trail/org/${courseOwnerOrgId}/trail` : null,
+    props.learningBadgePath ? null : courseOwnerOrgId ? `${getAPIUrl()}trail/org/${courseOwnerOrgId}/trail` : null,
     (url) => swrFetcher(url, access_token)
   );
+  const learningRun = useMemo(() => learningPathToLegacyRun(props.learningBadgePath), [props.learningBadgePath])
 
   const activeError = serverError || courseError
 
   const run = useMemo(() => {
+    if (learningRun) return learningRun
     const cleanCourseUuid = course?.course_uuid?.replace('course_', '')
     return trailData?.runs?.find((trailRun: any) => (
       trailRun.course?.course_uuid?.replace('course_', '') === cleanCourseUuid
     ))
-  }, [course?.course_uuid, trailData])
+  }, [course?.course_uuid, learningRun, trailData])
   const completion = useMemo(() => getCourseChapterCompletionSummary(course, run), [course, run])
   const { totalChapters, completedChapters, isCompleted, isStarted } = completion
   const isInProgress = isStarted && !isCompleted
@@ -95,15 +110,17 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
   const badgePath = routePaths.org.badgePath(courseuuid)
 
   const { data: userCertificates, mutate: mutateUserCertificates } = useSWR(
-    isCompleted && access_token && org?.id && course?.course_uuid
+    !props.learningBadgePath && isCompleted && access_token && org?.id && course?.course_uuid
       ? `${getAPIUrl()}certifications/user/course/${course.course_uuid}?org_id=${org.id}`
       : null,
     (url) => swrFetcher(url, access_token),
     { revalidateOnFocus: false }
   )
   const userCertificate = Array.isArray(userCertificates) ? userCertificates[0] : null
-  const verificationPath = userCertificate?.certificate_user?.user_certification_uuid
-    ? routePaths.org.badgesVerify(userCertificate.certificate_user.user_certification_uuid)
+  const learningAward = props.learningBadgePath?.run?.award
+  const awardedCredentialId = learningAward?.award_uuid || userCertificate?.certificate_user?.user_certification_uuid
+  const verificationPath = awardedCredentialId
+    ? routePaths.org.badgesVerify(awardedCredentialId)
     : null
   const verificationUrl = verificationPath
     ? getUriWithOrg(orgslug, verificationPath)
@@ -208,14 +225,15 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
                 isInProgress={isInProgress}
                 isCompleted={isCompleted}
                 verificationUrl={verificationUrl}
-                awardedDate={userCertificate?.certificate_user?.created_at}
+                awardedDate={learningAward?.issued_at || userCertificate?.certificate_user?.created_at}
                 accessToken={access_token}
                 showDevComplete={process.env.NEXT_PUBLIC_LAUNCHLMS_DEVELOPMENT_MODE === 'true'}
                 onDevComplete={async () => {
                   await mutateTrailData()
                   await mutateUserCertificates()
                 }}
-                badgeId={userCertificate?.certificate_user?.user_certification_uuid}
+                badgeId={awardedCredentialId}
+                learningBadgePath={props.learningBadgePath}
               />
             )}
           </GeneralWrapperStyled>
@@ -277,13 +295,9 @@ function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run, badgeStatusPa
         >
           <div className="flex items-start gap-4">
             <div className="h-20 w-20 shrink-0 overflow-visible rounded-lg bg-transparent">
-              {course.thumbnail_image && courseOwnerOrgUuid ? (
+              {getBadgeThumbnailSrc(course, courseOwnerOrgUuid) ? (
                 <BadgeThumbnailImage
-                  src={getCourseThumbnailMediaDirectory(
-                    courseOwnerOrgUuid,
-                    course.course_uuid,
-                    course.thumbnail_image
-                  )}
+                  src={getBadgeThumbnailSrc(course, courseOwnerOrgUuid)}
                   alt={course.name}
                   className={`${
                     progressPercent >= 100 ? '' : 'opacity-55 grayscale brightness-110'
@@ -475,6 +489,7 @@ function BadgeStatusHero({
   showDevComplete,
   onDevComplete,
   badgeId,
+  learningBadgePath,
 }: any) {
   const router = useRouter()
   const { width, height } = useWindowSize()
@@ -494,7 +509,7 @@ function BadgeStatusHero({
       })
     : null
   const chapters = Array.isArray(course.chapters) ? course.chapters : []
-  const canDevComplete = showDevComplete && accessToken && !comingSoon && (!isCompleted || !verificationUrl)
+  const canDevComplete = !learningBadgePath && showDevComplete && accessToken && !comingSoon && (!isCompleted || !verificationUrl)
   const completionRewardKey = `launchlms:badge-completion-reward:${badgeUuid}`
 
   useEffect(() => {
@@ -546,13 +561,9 @@ function BadgeStatusHero({
       <section className="text-center">
         <div className="flex justify-center px-8 pt-5 sm:pt-6">
           <div className="h-36 w-36 overflow-visible rounded-lg sm:h-40 sm:w-40">
-            {course.thumbnail_image && courseOwnerOrgUuid ? (
+            {getBadgeThumbnailSrc(course, courseOwnerOrgUuid) ? (
               <BadgeThumbnailImage
-                src={getCourseThumbnailMediaDirectory(
-                  courseOwnerOrgUuid,
-                  course.course_uuid,
-                  course.thumbnail_image
-                )}
+                src={getBadgeThumbnailSrc(course, courseOwnerOrgUuid)}
                 alt={course.name}
               />
             ) : (

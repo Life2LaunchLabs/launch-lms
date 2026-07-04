@@ -336,17 +336,8 @@ function ActivityClient(props: ActivityClientProps) {
     router.push(closeHref)
   }
   const closeActivityViewer = React.useCallback(() => {
-    const cleanCourseUuid = course.course_uuid?.replace('course_', '') || courseuuid
-    const closePath = quickstartMode
-      ? routePaths.org.quickstartCourse(cleanCourseUuid)
-      : routePaths.org.badgePath(cleanCourseUuid)
-    const closeHref = getUriWithOrg(orgslug, closePath)
-    if (chapterRouteMode) {
-      router.replace(closeHref)
-      return
-    }
-    router.push(closeHref)
-  }, [chapterRouteMode, course.course_uuid, courseuuid, orgslug, quickstartMode, router])
+    router.back()
+  }, [router])
 
   const handleQuizComplete = React.useCallback(async (result: any) => {
     if (onboardingMode) return

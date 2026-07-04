@@ -40,6 +40,7 @@ from .models import (
     ImportOptions,
     ImportResult,
     ImportCourseResult,
+    ImportMigrationCandidate,
 )
 from .storage_utils import upload_directory_to_s3, upload_to_s3, is_s3_enabled, delete_storage_file
 
@@ -362,6 +363,15 @@ async def import_courses(
         successful=successful,
         failed=failed,
         courses=results,
+        migration_candidates=[
+            ImportMigrationCandidate(
+                course_uuid=result.new_uuid,
+                name=result.name,
+                collection_uuid=target_collection.collection_uuid if target_collection else None,
+            )
+            for result in results
+            if result.success and result.new_uuid
+        ],
     )
 
 

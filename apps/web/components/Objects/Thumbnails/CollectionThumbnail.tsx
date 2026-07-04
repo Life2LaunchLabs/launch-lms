@@ -5,6 +5,7 @@ import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationMo
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { deleteCollection } from '@services/courses/collections'
 import { getCollectionThumbnailMediaDirectory } from '@services/media/media'
+import { cleanLearningCollectionId } from '@services/learning/legacyAdapters'
 import { revalidateTags } from '@services/utils/ts/requests'
 import { MoreVertical, Library, BookCopy, Trash2, Settings } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -28,14 +29,10 @@ type PropsType = {
   isDashboard?: boolean
 }
 
-const removeCollectionPrefix = (collectionid: string) => {
-  return collectionid.replace('collection_', '')
-}
-
 function CollectionThumbnail(props: PropsType) {
   const { t } = useTranslation()
   const org = useOrg() as any
-  const collectionId = removeCollectionPrefix(props.collection.collection_uuid)
+  const collectionId = cleanLearningCollectionId(props.collection.collection_uuid)
   const courses = props.collection.courses || []
   const ownerOrgUuid = props.collection.owner_org_uuid || org?.org_uuid
 

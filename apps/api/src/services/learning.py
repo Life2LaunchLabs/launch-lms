@@ -117,7 +117,8 @@ def _strip_system_fields(payload: dict) -> dict:
 
 
 def _is_system_object(value) -> bool:
-    return bool(getattr(value, "protected", False) or getattr(value, "system_type", None))
+    system_type = getattr(value, "system_type", None)
+    return bool(getattr(value, "protected", False) or (system_type and system_type != "legacy_badge_migration"))
 
 
 def _ensure_onboarding_for_owner_org(db_session: Session, org_id: int) -> None:

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { getCertificateByUuid } from '@services/courses/certifications';
+import { getLearningBadgeAward } from '@services/learning/learning';
 import CertificatePreview from '@components/Dashboard/Pages/Course/EditCourseCertification/CertificatePreview';
 import { Award, XCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -30,12 +31,17 @@ const CertificateVerificationPage: React.FC<CertificateVerificationPageProps> = 
       }
 
       try {
-        const result = await getCertificateByUuid(certificateUuid, org.id);
+        let result = await getCertificateByUuid(certificateUuid, org.id);
 
         if (result.success && result.data) {
           setCertificateData(result.data);
         } else {
-          setError('Badge not found');
+          const award = await getLearningBadgeAward(certificateUuid).catch(() => null);
+          if (award?.award && award?.badge) {
+            setCertificateData(normalizeLearningAwardForCertificate(award));
+          } else {
+            setError('Badge not found');
+          }
         }
       } catch (error) {
         console.error('Error fetching certificate:', error);
@@ -84,7 +90,7 @@ const CertificateVerificationPage: React.FC<CertificateVerificationPageProps> = 
   }
 
   const orgslug = org?.org_slug || ''
-  const cleanCourseUuid = certificateData.course.course_uuid.replace('course_', '')
+  const cleanCourseUuid = certificateData.course.course_uuid.replace('course_', '').replace('badge_', '')
   const qrCodeLink = getUriWithOrg(orgslug, `/badges/${certificateData.certificate_user.user_certification_uuid}/verify`);
   const badgeDetailsHref = getUriWithOrg(orgslug, routePaths.org.badgeStatus(cleanCourseUuid))
   const certificateOrgUuid = certificateData.org?.org_uuid || org?.org_uuid
@@ -142,3 +148,35 @@ const CertificateVerificationPage: React.FC<CertificateVerificationPageProps> = 
 };
 
 export default CertificateVerificationPage; 
+
+function normalizeLearningAwardForCertificate(award: any) {
+  const badgeUuid = award.badge?.badge_uuid || ''
+  return {
+    kind: 'learning',
+    org: award.org,
+    course: {
+      course_uuid: badgeUuid,
+      name: award.badge?.name || award.badge_class?.name || 'Badge',
+      description: award.badge?.description || award.badge_class?.description || '',
+      thumbnail_image: award.badge?.thumbnail_image || '',
+    },
+    certificate_user: {
+      user_certification_uuid: award.award?.award_uuid,
+      created_at: award.award?.issued_at,
+    },
+    certification: {
+      config: {
+        badge_name: award.badge_class?.name || award.badge?.name || 'Badge',
+        badge_description: award.badge_class?.description || award.badge?.description || '',
+        certification_name: award.badge_class?.name || award.badge?.name || 'Badge',
+        certification_description: award.badge_class?.description || award.badge?.description || '',
+        certification_type: 'completion',
+        badge_theme: award.badge?.badge_metadata?.badge_theme || 'default',
+        badge_image_url: award.badge_class?.image || award.badge?.thumbnail_image || '',
+      },
+    },
+    badge_class: award.badge_class,
+    badge_assertion: award.badge_assertion,
+    issuer: award.open_badges?.issuer,
+  }
+}

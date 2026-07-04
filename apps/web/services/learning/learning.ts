@@ -49,6 +49,40 @@ export async function deleteLearningBadgeCollection(collectionUuid: string, acce
   return errorHandling(result)
 }
 
+export async function exportLearningBadgeCollection(collectionUuid: string, accessToken?: string) {
+  const response = await fetch(
+    `${getAPIUrl()}badge-collections/${collectionUuid}/export`,
+    RequestBodyWithAuthHeader('GET', null, null, accessToken)
+  )
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Export failed' }))
+    throw new Error(error.detail || 'Export failed')
+  }
+  return response.blob()
+}
+
+export async function analyzeLearningBadgeImportPackage(file: File, orgId: string | number, accessToken?: string) {
+  const formData = new FormData()
+  formData.append('zip_file', file)
+  const response = await fetch(
+    `${getAPIUrl()}badge-import/analyze?org_id=${orgId}`,
+    RequestBodyWithAuthHeader('POST', formData, null, accessToken)
+  )
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Import analysis failed' }))
+    throw new Error(error.detail || 'Import analysis failed')
+  }
+  return response.json()
+}
+
+export async function importLearningBadgePackage(orgId: string | number, payload: any, accessToken?: string) {
+  const response = await fetch(
+    `${getAPIUrl()}badge-import/?org_id=${orgId}`,
+    RequestBodyWithAuthHeader('POST', payload, null, accessToken)
+  )
+  return errorHandling(response)
+}
+
 export async function getLearningBadges(
   orgId: string | number,
   accessToken?: string,
@@ -220,6 +254,56 @@ export async function conferLearningBadge(data: any, accessToken?: string) {
   const result = await fetch(
     `${getAPIUrl()}badge-awards/confer`,
     RequestBodyWithAuthHeader('POST', data, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
+export async function getLearningBadgeAwards(orgId?: string | number, accessToken?: string) {
+  const suffix = orgId ? `?org_id=${orgId}` : ''
+  const result = await fetch(
+    `${getAPIUrl()}badge-awards/${suffix}`,
+    RequestBodyWithAuthHeader('GET', null, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
+export async function getLearningBadgeAward(awardUuid: string, accessToken?: string) {
+  const result = await fetch(
+    `${getAPIUrl()}badge-awards/${awardUuid}`,
+    RequestBodyWithAuthHeader('GET', null, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
+export async function previewLearningBadgeCourseMigration(courseUuid: string, accessToken?: string) {
+  const result = await fetch(
+    `${getAPIUrl()}badge-migrations/course/${courseUuid}/preview`,
+    RequestBodyWithAuthHeader('GET', null, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
+export async function convertLearningBadgeCourseMigration(courseUuid: string, accessToken?: string, targetCollectionUuid?: string) {
+  const suffix = targetCollectionUuid ? `?target_collection_uuid=${encodeURIComponent(targetCollectionUuid)}` : ''
+  const result = await fetch(
+    `${getAPIUrl()}badge-migrations/course/${courseUuid}/convert${suffix}`,
+    RequestBodyWithAuthHeader('POST', null, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
+export async function previewLearningBadgeCollectionMigration(collectionUuid: string, accessToken?: string) {
+  const result = await fetch(
+    `${getAPIUrl()}badge-migrations/collection/${collectionUuid}/preview`,
+    RequestBodyWithAuthHeader('GET', null, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
+export async function convertLearningBadgeCollectionMigration(collectionUuid: string, accessToken?: string) {
+  const result = await fetch(
+    `${getAPIUrl()}badge-migrations/collection/${collectionUuid}/convert`,
+    RequestBodyWithAuthHeader('POST', null, null, accessToken)
   )
   return errorHandling(result)
 }

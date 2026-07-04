@@ -1,10 +1,10 @@
 import React from 'react'
 import { BadgePathClient } from '../../../course/[courseuuid]/course'
-import { getCourseMetadata } from '@services/courses/courses'
 import { getServerSession } from '@/lib/auth/server'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { getLearningPath } from '@services/learning/learning'
-import { LearningPathView } from '@components/Learning/LearningBadgeViews'
+import { getOrganizationContextInfo } from '@services/organizations/orgs'
+import { learningPathToLegacyCourse } from '@services/learning/legacyAdapters'
 
 type BadgePathPageProps = {
   params: Promise<{ orgslug: string; uuid: string }>
@@ -21,34 +21,22 @@ const BadgePathPage = async ({ params }: BadgePathPageProps) => {
       true,
       { revalidate: 0, tags: ['learning-badges'] }
     )
-    return <LearningPathView orgslug={orgslug} badgePath={badgePath} />
-  } catch {}
-
-  let course = null
-  let fetchError: { status?: number } | null = null
-
-  try {
-    course = await getCourseMetadata(
-      uuid,
-      { revalidate: 0, tags: ['courses'] },
-      session?.tokens?.access_token ?? undefined
+    const org = await getOrganizationContextInfo(orgslug, {
+      revalidate: 1800,
+      tags: ['organizations'],
+    })
+    return (
+      <BadgePathClient
+        courseuuid={uuid}
+        orgslug={orgslug}
+        course={learningPathToLegacyCourse(badgePath, org)}
+        access_token={session?.tokens?.access_token}
+        learningBadgePath={badgePath}
+      />
     )
-  } catch (error: any) {
-    fetchError = { status: error?.status }
+  } catch {
+    notFound()
   }
-
-  if (!session && fetchError?.status === 401) redirect('/')
-  if (!course && !fetchError) notFound()
-
-  return (
-    <BadgePathClient
-      courseuuid={uuid}
-      orgslug={orgslug}
-      course={course}
-      access_token={session?.tokens?.access_token}
-      serverError={fetchError}
-    />
-  )
 }
 
 export default BadgePathPage

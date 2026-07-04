@@ -9,7 +9,7 @@ import Link from 'next/link'
 import useSWR from 'swr'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { getAPIUrl } from '@services/config/config'
-import { getCourseThumbnailMediaDirectory, normalizeMediaUrl } from '@services/media/media'
+import { normalizeMediaUrl } from '@services/media/media'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { FeaturedBadgeButton } from '@components/Objects/Portfolio/ProfileAchievements'
 
@@ -23,13 +23,13 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug, showHeader
   const access_token = session?.data?.tokens?.access_token
   const org = useOrg() as any
 
-  const { data: certificates, error, isLoading } = useSWR(
-    access_token && org?.id ? `${getAPIUrl()}certifications/user/all?org_id=${org.id}` : null,
+  const { data: learningAwards, error, isLoading } = useSWR(
+    access_token && org?.id ? `${getAPIUrl()}badge-awards/?org_id=${org.id}` : null,
     (url) => swrFetcher(url, access_token)
   )
 
-  // Handle the actual API response structure - badges are returned as an array directly
-  const certificatesData = Array.isArray(certificates) ? certificates : certificates?.data || []
+  const learningAwardsData = Array.isArray(learningAwards) ? learningAwards : learningAwards?.data || []
+  const badgesData = learningAwardsData.map((award: any) => ({ kind: 'learning', award }))
 
   if (isLoading) {
     return (
@@ -75,7 +75,7 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug, showHeader
     )
   }
 
-  if (!certificatesData || certificatesData.length === 0) {
+  if (!badgesData || badgesData.length === 0) {
     return (
       <div className="flex flex-col space-y-2">
         {showHeader && (
@@ -94,7 +94,7 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug, showHeader
             No badges earned yet
           </h1>
           <p className="text-md text-gray-400 mb-6 text-center max-w-xs">
-            Complete courses to earn Open Badges
+            Complete badges to earn Open Badges
           </p>
         </div>
       </div>
@@ -110,52 +110,45 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug, showHeader
           </div>
           <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
           <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-            {certificatesData.length}
+            {badgesData.length}
           </span>
         </div>
       )}
 
       <div className="grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 md:grid-cols-4">
-        {certificatesData.map((certificate: any) => {
-          const badgeLink = getUriWithOrg(
-            orgslug,
-            routePaths.org.badgeStatus(certificate.course.course_uuid.replace('course_', ''))
-          )
-          const courseThumbnailUrl = certificate.course?.thumbnail_image && org?.org_uuid
-            ? getCourseThumbnailMediaDirectory(
-                org.org_uuid,
-                certificate.course.course_uuid,
-                certificate.course.thumbnail_image
-              )
-            : ''
-          const badgeImageUrl = courseThumbnailUrl
-            || normalizeMediaUrl(certificate.badge_class?.image)
-            || normalizeMediaUrl(certificate.certification?.config?.badge_image_url)
-            || '/empty_thumbnail.png'
+        {badgesData.map((item: any) => {
+          const award = item.award
+          const badgeUuid = award?.badge?.badge_uuid?.replace('badge_', '')
+          const badgeLink = getUriWithOrg(orgslug, routePaths.org.badgeStatus(badgeUuid))
+          const badgeImageUrl = normalizeMediaUrl(award.badge_class?.image) || normalizeMediaUrl(award.badge?.thumbnail_image) || '/empty_thumbnail.png'
+          const badgeId = award?.award?.award_uuid
+          const badgeTitle = award.badge_class?.name || award.badge?.name
+
+          if (!badgeUuid || !badgeId || !badgeTitle) return null
 
           return (
             <Link
-              key={certificate.certificate_user.user_certification_uuid}
+              key={`${item.kind}-${badgeId}`}
               href={badgeLink}
               className="group block focus:outline-none"
             >
               <div className="relative aspect-square w-full overflow-visible rounded-lg bg-transparent">
                 <BadgeThumbnailImage
                   src={badgeImageUrl}
-                  alt={certificate.badge_class?.name || certificate.certification.config.badge_name || certificate.course.name}
+                  alt={badgeTitle}
                   hoverScale
                   onError={(event) => {
                     event.currentTarget.src = '/empty_thumbnail.png'
                   }}
                 />
                 <FeaturedBadgeButton
-                  badgeId={certificate.certificate_user.user_certification_uuid}
+                  badgeId={badgeId}
                   className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 focus:opacity-100 data-[featured=true]:opacity-100"
                 />
               </div>
               <div className="h-1.5 w-full" />
               <h2 className="mt-2 text-center text-sm font-semibold leading-snug text-gray-950 transition-colors group-hover:text-gray-600">
-                {certificate.badge_class?.name || certificate.certification.config.badge_name || certificate.certification.config.certification_name}
+                {badgeTitle}
               </h2>
             </Link>
           )

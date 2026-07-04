@@ -1,17 +1,17 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import React from 'react'
 import { createPortal } from 'react-dom'
 import { Extension } from '@tiptap/core'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
-import { AlignCenter, AlignLeft, AlignRight, Award, Bold, Check, ChevronRight, Columns2, Copy, GripVertical, Heading1, Heading2, Italic, Link as LinkIcon, List, ListOrdered, Loader2, Pause, Play, Plus, Quote, Trash2, Upload, X } from 'lucide-react'
+import { AlignCenter, AlignLeft, AlignRight, Bold, Check, ChevronRight, Columns2, Copy, GripVertical, Heading1, Heading2, Italic, Link as LinkIcon, List, ListOrdered, Loader2, Pause, Play, Plus, Quote, Trash2, Upload, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import YouTube from 'react-youtube'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getUriWithOrg } from '@services/config/config'
 import {
   completeLearningPage,
   startLearningRun,
@@ -20,91 +20,8 @@ import {
 import toast from 'react-hot-toast'
 import ReorderableList from '@components/Objects/ReorderableList'
 
-export function LearningCollectionsBand({ orgslug, collections }: { orgslug: string; collections: any[] }) {
-  if (!collections.length) return null
-  return (
-    <section className="mb-10">
-      <div className="mb-4 flex items-end justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase text-lime-600">Learning 2.0</p>
-          <h2 className="text-2xl font-black text-gray-950">New badges</h2>
-        </div>
-      </div>
-      <div className="space-y-8">
-        {collections.map((collection) => (
-          <div key={collection.collection_uuid}>
-            <h3 className="mb-3 text-lg font-bold text-gray-900">{collection.name}</h3>
-            <div className="flex gap-4 overflow-x-auto pb-3">
-              {(collection.badges || []).map((badge: any) => (
-                <Link key={badge.badge_uuid} href={getUriWithOrg(orgslug, `/badges/${badge.badge_uuid.replace('badge_', '')}`)} className="block w-44 shrink-0">
-                  <div className="flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-black/5">
-                    {badge.thumbnail_image ? <img src={badge.thumbnail_image} alt="" className="h-full w-full object-cover" /> : <Award className="h-16 w-16 text-lime-500" />}
-                  </div>
-                  <p className="mt-3 line-clamp-2 text-sm font-bold text-gray-950">{badge.name}</p>
-                  <p className="mt-1 line-clamp-2 text-xs text-gray-500">{badge.description}</p>
-                </Link>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-export function LearningBadgeDetail({ orgslug, badge }: { orgslug: string; badge: any }) {
-  return (
-    <main className="min-h-screen bg-[#f7faf6] px-5 py-10">
-      <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[1fr_420px]">
-        <div>
-          <p className="text-xs font-bold uppercase text-lime-600">Badge</p>
-          <h1 className="mt-3 text-5xl font-black leading-tight text-gray-950">{badge.name}</h1>
-          <p className="mt-5 max-w-2xl text-lg leading-8 text-gray-700">{badge.description || badge.about}</p>
-          <div className="mt-8 flex gap-3">
-            <Link href={getUriWithOrg(orgslug, `/badges/${badge.badge_uuid.replace('badge_', '')}/path`)} className="inline-flex h-12 items-center gap-2 rounded-lg bg-lime-300 px-6 text-sm font-black text-black hover:bg-lime-400">
-              Get started
-              <ChevronRight size={18} />
-            </Link>
-          </div>
-          <section className="mt-12">
-            <h2 className="text-xl font-bold">Criteria</h2>
-            <p className="mt-2 text-gray-600">{badge.criteria || 'Complete the required learning path.'}</p>
-          </section>
-        </div>
-        <div className="flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-black/5">
-          {badge.thumbnail_image ? <img src={badge.thumbnail_image} alt="" className="h-full w-full object-cover" /> : <Award className="h-32 w-32 text-lime-500" />}
-        </div>
-      </div>
-    </main>
-  )
-}
-
-export function LearningPathView({ orgslug, badgePath }: { orgslug: string; badgePath: any }) {
-  const badge = badgePath.badge
-  return (
-    <main className="min-h-screen bg-[#f8f8f8] px-5 py-10">
-      <div className="mx-auto max-w-4xl">
-        <Link href={getUriWithOrg(orgslug, `/badges/${badge.badge_uuid.replace('badge_', '')}`)} className="text-sm font-medium text-gray-500">Badge details</Link>
-        <h1 className="mt-3 text-4xl font-black text-gray-950">{badge.name} Path</h1>
-        <p className="mt-2 text-gray-600">{badge.description}</p>
-        <div className="mt-8 space-y-3">
-          {(badgePath.activities || []).map((activity: any, index: number) => (
-            <Link key={activity.activity_uuid} href={getUriWithOrg(orgslug, `/badges/${badge.badge_uuid.replace('badge_', '')}/chapter/${activity.activity_uuid.replace('learning_activity_', '')}`)} className="flex items-center gap-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-lime-100 font-black text-lime-700">{index + 1}</div>
-              <div className="min-w-0 flex-1">
-                <h2 className="truncate text-lg font-bold text-gray-950">{activity.title}</h2>
-                <p className="text-sm text-gray-500">{activity.pages?.length || 0} pages</p>
-              </div>
-              <ChevronRight size={20} />
-            </Link>
-          ))}
-        </div>
-      </div>
-    </main>
-  )
-}
-
 export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgslug: string; badgePath: any; activity: any }) {
+  const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
   const badge = badgePath.badge
@@ -139,7 +56,7 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
       if (index < pages.length - 1) {
         setIndex(index + 1)
       } else {
-        window.location.href = getUriWithOrg(orgslug, `/badges/${badge.badge_uuid.replace('badge_', '')}/badge`)
+        router.back()
       }
     } catch (error: any) {
       toast.error(error?.message || 'Could not complete page')
@@ -151,7 +68,7 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
       pages={pages}
       page={page}
       pageIndex={index}
-      backHref={getUriWithOrg(orgslug, `/badges/${badge.badge_uuid.replace('badge_', '')}/path`)}
+      onBack={() => router.back()}
       actionLabel={index === pages.length - 1 ? 'Finish' : 'Continue'}
       actionDisabled={!unlocked}
       onAction={completeAndNext}
@@ -178,6 +95,12 @@ export function LearningActivitySurface({
   const progress = ((pageIndex + 1) / Math.max(1, pages.length)) * 100
   const isVideoPage = page?.page_type === 'video'
   const showVideoControls = isVideoPage && actionDisabled && interactionState?.videoStarted
+  const surfaceClassName = isVideoPage
+    ? `relative flex w-full min-w-0 flex-col overflow-hidden bg-black text-gray-950 ${className}`
+    : `relative flex w-full min-w-0 overflow-hidden bg-[var(--org-page-background)] text-gray-950 ${className} items-center justify-center px-4 py-4 sm:py-6`
+  const frameClassName = isVideoPage
+    ? 'relative flex h-full min-h-0 w-full flex-col'
+    : 'relative flex h-full max-h-[min(900px,calc(100dvh-2rem))] min-h-0 w-full min-w-0 max-w-3xl flex-none flex-col overflow-hidden sm:max-h-[min(900px,calc(100dvh-3rem))]'
   const backControl = backHref ? (
     <Link href={backHref} className={`rounded-full p-2 transition ${isVideoPage ? 'text-white hover:bg-white/10' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-950'}`}><X size={20} /></Link>
   ) : (
@@ -185,42 +108,44 @@ export function LearningActivitySurface({
   )
 
   return (
-    <main data-learning-activity-surface className={`relative flex flex-col overflow-hidden ${isVideoPage ? 'bg-black' : 'bg-[var(--org-page-background)]'} text-gray-950 ${className}`}>
-      <div className="relative z-10 shrink-0 px-4">
-        <div className="mx-auto flex h-14 max-w-2xl items-center gap-4">
-          {backControl}
-          <div className={`h-2 flex-1 overflow-hidden rounded-full ${isVideoPage ? 'bg-white/25' : 'bg-gray-200'}`}>
-            <div className="h-full rounded-full bg-[var(--org-primary-color)] transition-all" style={{ width: `${progress}%` }} />
+    <main data-learning-activity-surface className={surfaceClassName}>
+      <div className={frameClassName}>
+        <div className="relative z-10 shrink-0 px-4">
+          <div className="mx-auto flex h-14 w-full items-center gap-4">
+            {backControl}
+            <div className={`h-2 flex-1 overflow-hidden rounded-full ${isVideoPage ? 'bg-white/25' : 'bg-gray-200'}`}>
+              <div className="h-full rounded-full bg-[var(--org-primary-color)] transition-all" style={{ width: `${progress}%` }} />
+            </div>
+            <span className={`text-sm font-medium ${isVideoPage ? 'text-white/80' : 'text-gray-500'}`}>{pageIndex + 1}/{Math.max(1, pages.length)}</span>
           </div>
-          <span className={`text-sm font-medium ${isVideoPage ? 'text-white/80' : 'text-gray-500'}`}>{pageIndex + 1}/{Math.max(1, pages.length)}</span>
         </div>
-      </div>
-      <div className={`${isVideoPage ? 'flex min-h-0 flex-1 items-center justify-center overflow-hidden p-0' : 'min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-5 py-8'}`}>
-        <div className={`${isVideoPage ? 'flex h-full w-full items-center justify-center overflow-hidden' : 'mx-auto flex min-h-full w-full max-w-2xl items-center overflow-visible'}`}>
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={page?.page_uuid || pageIndex}
-              className={isVideoPage ? 'flex h-full w-full items-center justify-center' : 'w-full'}
-              initial={{ x: 36, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -24, opacity: 0 }}
-              transition={{ duration: 0.18, ease: 'easeOut' }}
-            >
-              {page ? children : <div className="flex min-h-[420px] items-center justify-center text-gray-400">No page selected</div>}
-            </motion.div>
-          </AnimatePresence>
+        <div className={`${isVideoPage ? 'flex min-h-0 flex-1 items-center justify-center overflow-hidden p-0' : 'min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-5 py-8'}`}>
+          <div className={`${isVideoPage ? 'flex h-full w-full items-center justify-center overflow-hidden' : 'mx-auto flex min-h-full w-full max-w-2xl items-center overflow-visible'}`}>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={page?.page_uuid || pageIndex}
+                className={isVideoPage ? 'flex h-full w-full items-center justify-center' : 'w-full'}
+                initial={{ x: 36, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: -24, opacity: 0 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
+              >
+                {page ? children : <div className="flex min-h-[420px] items-center justify-center text-gray-400">No page selected</div>}
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </div>
-      </div>
-      <div className="relative z-10 shrink-0 px-5 py-4">
-        <div className="mx-auto flex max-w-2xl justify-center">
-          {showVideoControls ? (
-            <VideoPlaybackStatus interactionState={interactionState} pageUuid={page?.page_uuid} />
-          ) : (
-            <button onClick={onAction} disabled={actionDisabled} className="inline-flex h-12 w-full max-w-sm items-center justify-center gap-2 rounded-lg bg-[var(--org-primary-color)] px-5 text-sm font-bold text-white shadow-sm transition hover:brightness-95 disabled:opacity-40 sm:w-auto sm:min-w-40">
-              {actionLabel}
-              <ChevronRight size={18} />
-            </button>
-          )}
+        <div className="relative z-10 shrink-0 px-5 py-4">
+          <div className="mx-auto flex w-full max-w-2xl justify-center">
+            {showVideoControls ? (
+              <VideoPlaybackStatus interactionState={interactionState} pageUuid={page?.page_uuid} />
+            ) : (
+              <button onClick={onAction} disabled={actionDisabled} className="inline-flex h-12 w-full max-w-sm items-center justify-center gap-2 rounded-lg bg-[var(--org-primary-color)] px-5 text-sm font-bold text-white shadow-sm transition hover:brightness-95 disabled:opacity-40 sm:w-auto sm:min-w-40">
+                {actionLabel}
+                <ChevronRight size={18} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </main>

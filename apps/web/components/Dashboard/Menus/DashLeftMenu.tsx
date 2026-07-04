@@ -294,7 +294,7 @@ function DashLeftMenu() {
                   <HoverMenuItem asChild>
                     <Link href={routePaths.org.dash.badges()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                       <BookOpen size={16} weight="fill" />
-                      <span>Learning 2.0 badges</span>
+                      <span>Badges</span>
                     </Link>
                   </HoverMenuItem>
                   <HoverMenuItem asChild>

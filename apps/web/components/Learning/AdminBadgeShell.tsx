@@ -419,7 +419,7 @@ function BadgeSettingsPanel({ orgslug, badge, onPatch }: { orgslug: string; badg
         <div className="mt-4 flex items-start justify-between gap-6">
           <div>
             <h3 className="text-sm font-semibold text-gray-900">Delete badge</h3>
-            <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-500">This permanently deletes the badge, learning path, activities, pages, learner runs, and awards for this Learning 2.0 badge.</p>
+            <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-500">This permanently deletes the badge, learning path, activities, pages, learner runs, and awards for this badge.</p>
           </div>
           <button onClick={removeBadge} disabled={deleting} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-xs font-bold text-red-700 disabled:opacity-50">
             {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
