@@ -177,6 +177,9 @@ function normalizeLearningAwardForCertificate(award: any) {
     },
     badge_class: award.badge_class,
     badge_assertion: award.badge_assertion,
-    issuer: award.open_badges?.issuer,
+    issuer: {
+      ...(award.open_badges?.issuer || {}),
+      name: award.badge?.badge_metadata?.issuer_name || award.open_badges?.issuer?.name,
+    },
   }
 }

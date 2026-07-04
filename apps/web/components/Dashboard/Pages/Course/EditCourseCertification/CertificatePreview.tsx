@@ -31,10 +31,32 @@ const CertificatePreview: React.FC<CertificatePreviewProps> = ({
 }) => {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [failedBadgeImageUrl, setFailedBadgeImageUrl] = useState<string | null>(null);
+  const frameRef = React.useRef<HTMLDivElement | null>(null);
+  const [frameWidth, setFrameWidth] = useState(0);
   const org = useOrg() as any;
+  const pageWidth = 1100;
+  const pageHeight = 850;
+  const pageScale = frameWidth > 0 ? frameWidth / pageWidth : 1;
   const displayBadgeImageUrl = badgeImageUrl && failedBadgeImageUrl !== badgeImageUrl
     ? badgeImageUrl
     : '/empty_thumbnail.png';
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+
+    const updateFrameWidth = () => setFrameWidth(frame.getBoundingClientRect().width);
+    updateFrameWidth();
+
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', updateFrameWidth);
+      return () => window.removeEventListener('resize', updateFrameWidth);
+    }
+
+    const observer = new ResizeObserver(updateFrameWidth);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, []);
 
   // Generate QR code
   useEffect(() => {
@@ -439,22 +461,34 @@ const CertificatePreview: React.FC<CertificatePreviewProps> = ({
   const theme = getPatternTheme(certificatePattern);
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 w-full h-full">
-      <div className="bg-white rounded-lg shadow-sm p-6 relative overflow-hidden w-full h-full flex flex-col">
+    <div
+      ref={frameRef}
+      className="relative w-full overflow-hidden rounded-xl border border-blue-200 bg-blue-50 shadow-sm"
+      style={{ aspectRatio: `${pageWidth} / ${pageHeight}` }}
+    >
+      <div
+        className="absolute left-0 top-0 origin-top-left bg-gradient-to-br from-blue-50 to-indigo-50 p-[28px]"
+        style={{
+          width: pageWidth,
+          height: pageHeight,
+          transform: `scale(${pageScale})`,
+        }}
+      >
+        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-lg bg-white p-[64px] shadow-sm">
         {/* Dynamic badge pattern */}
         {renderCertificatePattern(certificatePattern)}
 
         {/* Badge ID - Top Left */}
-        <div className="absolute top-4 left-4 sm:top-6 sm:left-6 z-20">
-          <div className="flex items-center space-x-1">
-            <Hash className={`w-3 h-3 sm:w-4 sm:h-4 ${theme.icon}`} />
-            <span className={`text-xs sm:text-sm ${theme.secondary} font-medium`}>ID: {certificateId || 'LH-2024-001'}</span>
+        <div className="absolute left-[64px] top-[56px] z-20">
+          <div className="flex items-center space-x-2">
+            <Hash className={`h-5 w-5 ${theme.icon}`} />
+            <span className={`text-[18px] ${theme.secondary} font-medium`}>ID: {certificateId || 'LH-2024-001'}</span>
           </div>
         </div>
 
         {/* QR Code Box - Top Right */}
-        <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20">
-          <div className={`w-16 h-16 sm:w-24 sm:h-24 border-2 ${theme.secondary.replace('text-', 'border-')} rounded-md bg-white/90 backdrop-blur-sm p-1`}>
+        <div className="absolute right-[64px] top-[56px] z-20">
+          <div className={`h-[132px] w-[132px] rounded-md border-2 ${theme.secondary.replace('text-', 'border-')} bg-white/90 p-2 backdrop-blur-sm`}>
             {qrCodeUrl ? (
               <img
                 src={qrCodeUrl}
@@ -463,24 +497,24 @@ const CertificatePreview: React.FC<CertificatePreviewProps> = ({
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <QrCode className={`w-8 h-8 sm:w-12 sm:h-12 ${theme.icon}`} />
+                <QrCode className={`h-16 w-16 ${theme.icon}`} />
               </div>
             )}
           </div>
         </div>
 
         {/* Main Content */}
-        <div className="relative z-10 flex-1 flex flex-col items-center justify-center text-center space-y-3 px-6 py-6">
+        <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-[150px] py-[72px] text-center">
           {/* Header with decorative line */}
-          <div className="flex items-center justify-center space-x-2 mb-2">
-            <div className={`w-6 sm:w-8 h-px bg-gradient-to-r from-transparent ${theme.secondary.replace('text-', 'to-')}`}></div>
-            <div className={`text-xs sm:text-sm ${theme.secondary} font-medium uppercase tracking-wider`}>Open Badge</div>
-            <div className={`w-6 sm:w-8 h-px bg-gradient-to-l from-transparent ${theme.secondary.replace('text-', 'to-')}`}></div>
+          <div className="mb-7 flex items-center justify-center space-x-3">
+            <div className={`h-px w-14 bg-gradient-to-r from-transparent ${theme.secondary.replace('text-', 'to-')}`}></div>
+            <div className={`text-[18px] ${theme.secondary} font-medium uppercase`}>Open Badge</div>
+            <div className={`h-px w-14 bg-gradient-to-l from-transparent ${theme.secondary.replace('text-', 'to-')}`}></div>
           </div>
 
           {/* Badge image with decorative elements */}
           <div className="flex justify-center relative">
-            <div className={`w-14 h-14 sm:w-20 sm:h-20 bg-gradient-to-br ${theme.icon.replace('text-', 'from-')}-100 ${theme.icon.replace('text-', 'to-')}-200 rounded-full flex items-center justify-center relative ring-4 ring-white/80 shadow-sm`}>
+            <div className={`relative flex h-[120px] w-[120px] items-center justify-center rounded-full bg-gradient-to-br ${theme.icon.replace('text-', 'from-')}-100 ${theme.icon.replace('text-', 'to-')}-200 shadow-sm ring-4 ring-white/80`}>
               <BadgeThumbnailImage
                 src={displayBadgeImageUrl}
                 alt={certificationName || 'Badge image'}
@@ -492,20 +526,20 @@ const CertificatePreview: React.FC<CertificatePreviewProps> = ({
               />
               {/* Decorative rays */}
               <div className="absolute inset-0 rounded-full">
-                <div className={`absolute top-0 left-1/2 w-px h-2 sm:h-3 ${theme.secondary.replace('text-', 'bg-')} transform -translate-x-1/2 -translate-y-1 opacity-60`}></div>
-                <div className={`absolute bottom-0 left-1/2 w-px h-2 sm:h-3 ${theme.secondary.replace('text-', 'bg-')} transform -translate-x-1/2 translate-y-1 opacity-60`}></div>
-                <div className={`absolute left-0 top-1/2 w-2 sm:w-3 h-px ${theme.secondary.replace('text-', 'bg-')} transform -translate-y-1/2 -translate-x-1 opacity-60`}></div>
-                <div className={`absolute right-0 top-1/2 w-2 sm:w-3 h-px ${theme.secondary.replace('text-', 'bg-')} transform -translate-y-1/2 translate-x-1 opacity-60`}></div>
+                <div className={`absolute left-1/2 top-0 h-5 w-px ${theme.secondary.replace('text-', 'bg-')} -translate-x-1/2 -translate-y-2 opacity-60`}></div>
+                <div className={`absolute bottom-0 left-1/2 h-5 w-px ${theme.secondary.replace('text-', 'bg-')} -translate-x-1/2 translate-y-2 opacity-60`}></div>
+                <div className={`absolute left-0 top-1/2 h-px w-5 ${theme.secondary.replace('text-', 'bg-')} -translate-x-2 -translate-y-1/2 opacity-60`}></div>
+                <div className={`absolute right-0 top-1/2 h-px w-5 ${theme.secondary.replace('text-', 'bg-')} -translate-y-1/2 translate-x-2 opacity-60`}></div>
               </div>
             </div>
           </div>
 
           {/* Badge content */}
-          <div className="flex flex-col justify-center items-center flex-1 max-w-full">
-            <h4 className={`font-bold text-sm sm:text-base ${theme.primary} mb-2 text-center`}>
+          <div className="flex max-w-[560px] flex-1 flex-col items-center justify-center">
+            <h4 className={`mb-4 text-center text-[28px] font-bold leading-tight ${theme.primary}`}>
               {certificationName || 'Certification Name'}
             </h4>
-            <p className={`text-xs sm:text-sm ${theme.secondary} text-center leading-relaxed max-w-xs sm:max-w-sm`}>
+            <p className={`max-w-[560px] text-center text-[19px] leading-relaxed ${theme.secondary}`}>
               {certificationDescription || 'Certification description will appear here...'}
             </p>
           </div>
@@ -513,21 +547,21 @@ const CertificatePreview: React.FC<CertificatePreviewProps> = ({
           {/* Recipient Name */}
           {recipientName && (
             <div className="flex flex-col items-center space-y-0.5">
-              <span className={`text-xs ${theme.secondary} uppercase tracking-wider`}>Awarded to</span>
-              <span className={`text-sm sm:text-base font-bold ${theme.primary}`}>{recipientName}</span>
+              <span className={`text-[15px] ${theme.secondary} uppercase`}>Awarded to</span>
+              <span className={`text-[26px] font-bold ${theme.primary}`}>{recipientName}</span>
             </div>
           )}
 
           {/* Decorative divider */}
-          <div className="flex items-center justify-center space-x-1 py-1">
-            <div className={`w-2 h-px ${theme.secondary.replace('text-', 'bg-')} opacity-50`}></div>
-            <div className={`w-1 h-1 ${theme.primary.replace('text-', 'bg-')} rounded-full opacity-60`}></div>
-            <div className={`w-2 h-px ${theme.secondary.replace('text-', 'bg-')} opacity-50`}></div>
+          <div className="flex items-center justify-center space-x-2 py-4">
+            <div className={`h-px w-8 ${theme.secondary.replace('text-', 'bg-')} opacity-50`}></div>
+            <div className={`h-2 w-2 rounded-full ${theme.primary.replace('text-', 'bg-')} opacity-60`}></div>
+            <div className={`h-px w-8 ${theme.secondary.replace('text-', 'bg-')} opacity-50`}></div>
           </div>
 
           {/* Certification Type Badge */}
-          <div className={`inline-flex items-center space-x-1 text-xs sm:text-sm ${theme.badge} px-3 py-1 rounded-full border`}>
-            <CheckCircle size={12} />
+          <div className={`inline-flex items-center space-x-2 rounded-full border px-5 py-2 text-[18px] ${theme.badge}`}>
+            <CheckCircle size={18} />
             <span className="font-medium">
               {certificationType === 'completion' ? 'Course Completion' :
                certificationType === 'achievement' ? 'Achievement Based' :
@@ -543,23 +577,23 @@ const CertificatePreview: React.FC<CertificatePreviewProps> = ({
         </div>
 
         {/* Bottom Section */}
-        <div className="relative z-10 mt-auto p-6 pt-8">
+        <div className="relative z-10 mt-auto px-[96px] pb-[58px] pt-8">
           <div className="flex items-end justify-between w-full">
             {/* Left: Issuer metadata */}
-            <div className="flex flex-col items-start space-y-1 flex-1">
-              <div className="flex items-center space-x-1">
-                <User className={`w-2.5 h-2.5 sm:w-3 sm:h-3 ${theme.icon}`} />
-                <span className={`text-xs ${theme.secondary} font-medium`}>Issuer</span>
+            <div className="flex flex-1 flex-col items-start space-y-2">
+              <div className="flex items-center space-x-2">
+                <User className={`h-5 w-5 ${theme.icon}`} />
+                <span className={`text-[16px] ${theme.secondary} font-medium`}>Issuer</span>
               </div>
-              <div className={`text-xs ${theme.primary} font-semibold`}>
+              <div className={`text-[18px] ${theme.primary} font-semibold`}>
                 {certificateInstructor || org?.name || 'Launch LMS'}
               </div>
-              <div className={`h-px w-10 sm:w-12 ${theme.secondary.replace('text-', 'bg-')} opacity-50`}></div>
+              <div className={`h-px w-20 ${theme.secondary.replace('text-', 'bg-')} opacity-50`}></div>
             </div>
 
             {/* Center: Logo */}
-            <div className="flex flex-col items-center space-y-1 flex-1">
-              <div className={`w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center`}>
+            <div className="flex flex-1 flex-col items-center space-y-2">
+              <div className="flex h-[64px] w-[64px] items-center justify-center">
                 {org?.logo_image ? (
                   <img
                     src={`${getOrgLogoMediaDirectory(org.org_uuid, org?.logo_image)}`}
@@ -567,27 +601,28 @@ const CertificatePreview: React.FC<CertificatePreviewProps> = ({
                     className="w-full h-full object-contain"
                   />
                 ) : (
-                  <div className={`w-full h-full ${theme.icon.replace('text-', 'bg-')}-100 rounded-full flex items-center justify-center`}>
-                    <Building className={`w-4 h-4 sm:w-5 sm:h-5 ${theme.icon}`} />
+                  <div className={`flex h-full w-full items-center justify-center rounded-full ${theme.icon.replace('text-', 'bg-')}-100`}>
+                    <Building className={`h-8 w-8 ${theme.icon}`} />
                   </div>
                 )}
               </div>
-              <div className={`text-xs ${theme.secondary} font-medium`}>
+              <div className={`text-[16px] ${theme.secondary} font-medium`}>
                 {org?.name || 'Launch LMS'}
               </div>
             </div>
 
             {/* Right: Award Date */}
-            <div className="flex flex-col items-end space-y-1 flex-1">
-              <div className="flex items-center space-x-1">
-                <Calendar className={`w-2.5 h-2.5 sm:w-3 sm:h-3 ${theme.icon}`} />
-                <span className={`text-xs ${theme.secondary} font-medium`}>Awarded</span>
+            <div className="flex flex-1 flex-col items-end space-y-2">
+              <div className="flex items-center space-x-2">
+                <Calendar className={`h-5 w-5 ${theme.icon}`} />
+                <span className={`text-[16px] ${theme.secondary} font-medium`}>Awarded</span>
               </div>
-              <div className={`text-xs ${theme.primary} font-semibold`}>
+              <div className={`text-[18px] ${theme.primary} font-semibold`}>
                 {awardedDate || 'Dec 15, 2024'}
               </div>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </div>

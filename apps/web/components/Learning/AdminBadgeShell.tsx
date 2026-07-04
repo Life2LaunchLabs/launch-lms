@@ -18,6 +18,7 @@ import {
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg } from '@services/config/config'
 import { deleteLearningBadge, getLearningResponses, gradeLearningResponse, updateLearningBadge } from '@services/learning/learning'
+import CertificatePreview from '@components/Dashboard/Pages/Course/EditCourseCertification/CertificatePreview'
 
 type BadgeStatus = 'published' | 'unpublished'
 
@@ -431,19 +432,100 @@ function BadgeSettingsPanel({ orgslug, badge, onPatch }: { orgslug: string; badg
   )
 }
 
+const certificationTypes = [
+  { value: 'completion', label: 'Course Completion' },
+  { value: 'achievement', label: 'Achievement Based' },
+  { value: 'assessment', label: 'Assessment Based' },
+  { value: 'participation', label: 'Participation' },
+  { value: 'mastery', label: 'Skill Mastery' },
+  { value: 'professional', label: 'Professional Development' },
+  { value: 'continuing', label: 'Continuing Education' },
+  { value: 'workshop', label: 'Workshop Attendance' },
+  { value: 'specialization', label: 'Specialization' },
+]
+
+const certificatePatterns = [
+  { value: 'royal', label: 'Royal' },
+  { value: 'tech', label: 'Tech' },
+  { value: 'nature', label: 'Nature' },
+  { value: 'geometric', label: 'Geometric' },
+  { value: 'vintage', label: 'Vintage' },
+  { value: 'waves', label: 'Waves' },
+  { value: 'minimal', label: 'Minimal' },
+  { value: 'professional', label: 'Professional' },
+  { value: 'academic', label: 'Academic' },
+  { value: 'modern', label: 'Modern' },
+]
+
 function BadgeCertificationPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Record<string, any>, successMessage?: string) => Promise<any> }) {
-  const [issuerName, setIssuerName] = React.useState(badge.badge_metadata?.issuer_name || '')
-  const [evidenceLabel, setEvidenceLabel] = React.useState(badge.badge_metadata?.evidence_label || '')
+  const metadata = badge.badge_metadata || {}
+  const [values, setValues] = React.useState({
+    badge_name: metadata.badge_name || metadata.certification_name || badge.name || '',
+    badge_description: metadata.badge_description || metadata.certification_description || badge.description || '',
+    certification_type: metadata.certification_type || 'completion',
+    badge_theme: metadata.badge_theme || metadata.certificate_pattern || 'professional',
+    badge_criteria_text: metadata.badge_criteria_text || badge.criteria || 'Complete all required activities in this badge learning path.',
+    criteria_url: metadata.criteria_url || metadata.badge_criteria_url || '',
+    badge_image_url: metadata.badge_image_url || badge.thumbnail_image || '',
+    badge_support_url: metadata.badge_support_url || '',
+    issuer_name: metadata.issuer_name || '',
+    evidence_label: metadata.evidence_label || 'Learning path completion',
+  })
   const [saving, setSaving] = React.useState(false)
 
+  React.useEffect(() => {
+    const nextMetadata = badge.badge_metadata || {}
+    setValues({
+      badge_name: nextMetadata.badge_name || nextMetadata.certification_name || badge.name || '',
+      badge_description: nextMetadata.badge_description || nextMetadata.certification_description || badge.description || '',
+      certification_type: nextMetadata.certification_type || 'completion',
+      badge_theme: nextMetadata.badge_theme || nextMetadata.certificate_pattern || 'professional',
+      badge_criteria_text: nextMetadata.badge_criteria_text || badge.criteria || 'Complete all required activities in this badge learning path.',
+      criteria_url: nextMetadata.criteria_url || nextMetadata.badge_criteria_url || '',
+      badge_image_url: nextMetadata.badge_image_url || badge.thumbnail_image || '',
+      badge_support_url: nextMetadata.badge_support_url || '',
+      issuer_name: nextMetadata.issuer_name || '',
+      evidence_label: nextMetadata.evidence_label || 'Learning path completion',
+    })
+  }, [badge])
+
+  const updateValue = (key: keyof typeof values, value: string) => {
+    setValues((current) => ({ ...current, [key]: value }))
+  }
+
   const save = async () => {
+    if (!values.badge_name.trim()) {
+      toast.error('Badge name is required.')
+      return
+    }
+    if (!values.badge_description.trim()) {
+      toast.error('Badge description is required.')
+      return
+    }
+    if (!values.badge_criteria_text.trim() && !values.criteria_url.trim()) {
+      toast.error('Criteria text or criteria URL is required.')
+      return
+    }
     setSaving(true)
     try {
       await onPatch({
+        criteria: values.badge_criteria_text,
         badge_metadata: {
           ...(badge.badge_metadata || {}),
-          issuer_name: issuerName,
-          evidence_label: evidenceLabel,
+          badge_name: values.badge_name,
+          badge_description: values.badge_description,
+          certification_name: values.badge_name,
+          certification_description: values.badge_description,
+          certification_type: values.certification_type,
+          badge_theme: values.badge_theme,
+          certificate_pattern: values.badge_theme,
+          badge_criteria_text: values.badge_criteria_text,
+          criteria_url: values.criteria_url,
+          badge_criteria_url: values.criteria_url,
+          badge_image_url: values.badge_image_url,
+          badge_support_url: values.badge_support_url,
+          issuer_name: values.issuer_name,
+          evidence_label: values.evidence_label,
         },
       }, 'Certification settings updated.')
     } catch (error: any) {
@@ -455,24 +537,145 @@ function BadgeCertificationPanel({ badge, onPatch }: { badge: any; onPatch: (pat
 
   return (
     <div className="px-10 pb-10 pt-6">
-      <section className="max-w-4xl rounded-xl bg-white p-6 shadow-xs">
-        <h2 className="text-lg font-bold text-gray-900">Certification</h2>
-        <div className="mt-5 grid gap-5 md:grid-cols-2">
-          <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Issuer display name</span>
-            <input value={issuerName} onChange={(event) => setIssuerName(event.target.value)} className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black" />
-          </label>
-          <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Evidence label</span>
-            <input value={evidenceLabel} onChange={(event) => setEvidenceLabel(event.target.value)} placeholder="Learning path completion" className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black" />
-          </label>
-        </div>
-        <Button onClick={save} disabled={saving} className="mt-5 gap-2">
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-          Save
-        </Button>
-      </section>
+      <div className="max-w-6xl space-y-6">
+        <section className="rounded-xl bg-white p-6 shadow-xs">
+          <h2 className="text-lg font-bold text-gray-900">Preview</h2>
+          <div className="mt-5">
+            <CertificatePreview
+              certificationName={values.badge_name}
+              certificationDescription={values.badge_description}
+              certificationType={values.certification_type}
+              certificatePattern={values.badge_theme}
+              certificateInstructor={values.issuer_name}
+              certificateId="award_preview"
+              awardedDate={new Date().toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })}
+              badgeImageUrl={values.badge_image_url || badge.thumbnail_image}
+            />
+          </div>
+        </section>
+
+        <section className="rounded-xl bg-white p-6 shadow-xs">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-lg font-bold text-gray-900">Certificate Setup</h2>
+            <p className="text-sm text-gray-500">Configure the certificate and Open Badge metadata issued when a learner completes this path.</p>
+          </div>
+
+          <div className="mt-6 space-y-6">
+            <div className="grid gap-5 md:grid-cols-2">
+              <TextInput label="Badge name" value={values.badge_name} onChange={(value) => updateValue('badge_name', value)} maxLength={100} />
+              <SelectInput label="Badge type" value={values.certification_type} onChange={(value) => updateValue('certification_type', value)} options={certificationTypes} />
+            </div>
+
+            <TextAreaInput label="Badge description" value={values.badge_description} onChange={(value) => updateValue('badge_description', value)} rows={4} maxLength={500} />
+
+            <div className="grid gap-5 md:grid-cols-2">
+              <TextAreaInput label="Criteria text" value={values.badge_criteria_text} onChange={(value) => updateValue('badge_criteria_text', value)} rows={5} />
+              <div className="space-y-5">
+                <SelectInput label="Certificate presentation" value={values.badge_theme} onChange={(value) => updateValue('badge_theme', value)} options={certificatePatterns} />
+                <TextInput label="Criteria URL" value={values.criteria_url} onChange={(value) => updateValue('criteria_url', value)} placeholder="https://example.com/badge-criteria" />
+                <TextInput label="Badge image URL" value={values.badge_image_url} onChange={(value) => updateValue('badge_image_url', value)} placeholder="Optional override for the badge image" />
+                <TextInput label="Support URL" value={values.badge_support_url} onChange={(value) => updateValue('badge_support_url', value)} placeholder="Optional issuer support or help page" />
+              </div>
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-2">
+              <TextInput label="Issuer display name" value={values.issuer_name} onChange={(value) => updateValue('issuer_name', value)} placeholder="Defaults to the organization issuer" />
+              <TextInput label="Evidence label" value={values.evidence_label} onChange={(value) => updateValue('evidence_label', value)} placeholder="Learning path completion" />
+            </div>
+
+            <Button onClick={save} disabled={saving} className="gap-2">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              Save certification
+            </Button>
+          </div>
+        </section>
+      </div>
     </div>
+  )
+}
+
+function TextInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+  maxLength,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  maxLength?: number
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs font-bold uppercase text-gray-500">{label}</span>
+      <input
+        value={value}
+        maxLength={maxLength}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black"
+      />
+    </label>
+  )
+}
+
+function TextAreaInput({
+  label,
+  value,
+  onChange,
+  rows,
+  maxLength,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  rows: number
+  maxLength?: number
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs font-bold uppercase text-gray-500">{label}</span>
+      <textarea
+        value={value}
+        rows={rows}
+        maxLength={maxLength}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-2 w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black"
+      />
+    </label>
+  )
+}
+
+function SelectInput({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: Array<{ value: string; label: string }>
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs font-bold uppercase text-gray-500">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-2 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-black"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+    </label>
   )
 }
 

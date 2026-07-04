@@ -498,11 +498,18 @@ function ActivityClient(props: ActivityClientProps) {
     if (!activity || !currentChapterPage) return
 
     const cleanCourseUuid = course.course_uuid?.replace('course_', '') || courseuuid
+    const chapterIndex = currentChapter
+      ? (course.chapters || []).findIndex((chapter: any) =>
+          chapter.id === currentChapter.id || chapter.chapter_uuid === currentChapter.chapter_uuid
+        )
+      : -1
+    const isFinalChapter = chapterIndex >= 0 && chapterIndex === (course.chapters || []).length - 1
     const shouldShowChapterComplete =
       !onboardingMode &&
       !quickstartMode &&
       currentChapter &&
-      !nextChapterPage
+      !nextChapterPage &&
+      !isFinalChapter
 
     if (currentChapterPage.type === 'quiz-slide') {
       if (!quizState?.isAnswered || quizState?.isSubmitting) return
@@ -1189,7 +1196,8 @@ function NextActivityButton({ course, currentActivityId, activity, orgslug, gues
   const shouldShowChapterComplete =
     !quickstartMode &&
     currentChapter &&
-    (!nextActivity || !nextActivityIsInCurrentChapter)
+    nextActivity &&
+    !nextActivityIsInCurrentChapter
 
   // Only show for org members or guest mode
   if (!isGuestLearner && !isUserPartOfTheOrg) return null;
