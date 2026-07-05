@@ -63,6 +63,8 @@ const deviceFrames = {
 const mobileFrameCap = 32
 
 type SaveState = 'saved' | 'saving' | 'dirty' | 'error'
+type EditorViewMode = 'editor' | 'settings'
+type ActivityGradingMode = 'completion' | 'pass_fail'
 
 type PageGroup = {
   id: string
@@ -115,6 +117,7 @@ export default function LearningActivityEditor({
   const accessToken = session.data?.tokens?.access_token
   const badge = badgePath.badge
   const [activityState, setActivityState] = React.useState(activity)
+  const [viewMode, setViewMode] = React.useState<EditorViewMode>('editor')
   const [pages, setPages] = React.useState<any[]>(activity.pages || [])
   const [selectedPageUuid, setSelectedPageUuid] = React.useState(pages[0]?.page_uuid)
   const [previewOpen, setPreviewOpen] = React.useState(false)
@@ -131,12 +134,15 @@ export default function LearningActivityEditor({
   const [activeInputSectionByPage, setActiveInputSectionByPage] = React.useState<Record<string, string[]>>({})
   const canvasRef = React.useRef<HTMLDivElement | null>(null)
   const saveTimerRef = React.useRef<NodeJS.Timeout | null>(null)
+  const activitySaveTimerRef = React.useRef<NodeJS.Timeout | null>(null)
   const pendingSavesRef = React.useRef<Record<string, any>>({})
+  const pendingActivityPatchRef = React.useRef<Record<string, any>>({})
   const selectedPage = pages.find((page) => page.page_uuid === selectedPageUuid) || pages[0]
   const selectedIndex = Math.max(0, pages.findIndex((page) => page.page_uuid === selectedPage?.page_uuid))
   const selectedLinkedResponse = selectedPage ? findResponseForPage(pages, selectedPage.page_uuid) : null
   const frame = deviceFrames[previewMode]
   const frameShellHeight = previewMode === 'mobile' ? frame.height + mobileFrameCap * 2 : frame.height
+  const gradingSettings = getActivityGradingSettings(activityState)
 
   React.useEffect(() => {
     const canvas = canvasRef.current
@@ -155,15 +161,19 @@ export default function LearningActivityEditor({
     }
 
     syncFit()
+    const frameId = window.requestAnimationFrame(syncFit)
     const observer = new ResizeObserver(syncFit)
     observer.observe(canvas)
-    return () => observer.disconnect()
-  }, [frame.height, frame.width, frameShellHeight, leftWidth, rightWidth, previewMode])
+    return () => {
+      window.cancelAnimationFrame(frameId)
+      observer.disconnect()
+    }
+  }, [frame.height, frame.width, frameShellHeight, leftWidth, rightWidth, previewMode, viewMode])
 
   React.useEffect(() => {
     setZoom(1)
     setPan({ x: 0, y: 0 })
-  }, [previewMode, selectedPageUuid])
+  }, [previewMode, selectedPageUuid, viewMode])
 
   React.useEffect(() => {
     const onActiveInputSection = (event: Event) => {
@@ -208,6 +218,24 @@ export default function LearningActivityEditor({
     }
   }, [accessToken])
 
+  const flushPendingActivitySave = React.useCallback(async (options?: { rethrow?: boolean }) => {
+    const patch = pendingActivityPatchRef.current
+    if (!Object.keys(patch).length) return
+    pendingActivityPatchRef.current = {}
+    setSaveState('saving')
+    try {
+      const savedActivity = await updateLearningActivity(activityState.activity_uuid, patch, accessToken)
+      setActivityState((current: any) => ({ ...current, ...(savedActivity || {}), ...patch }))
+      setLastSavedAt(new Date())
+      setSaveState('saved')
+    } catch (error: any) {
+      pendingActivityPatchRef.current = mergePatch(pendingActivityPatchRef.current, patch)
+      setSaveState('error')
+      toast.error(error?.message || 'Autosave failed')
+      if (options?.rethrow) throw error
+    }
+  }, [accessToken, activityState.activity_uuid])
+
   React.useEffect(() => {
     const flush = () => {
       if (!Object.keys(pendingSavesRef.current).length) return
@@ -217,9 +245,11 @@ export default function LearningActivityEditor({
     return () => {
       window.removeEventListener('beforeunload', flush)
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+      if (activitySaveTimerRef.current) clearTimeout(activitySaveTimerRef.current)
       flush()
+      void flushPendingActivitySave()
     }
-  }, [flushPendingSaves])
+  }, [flushPendingActivitySave, flushPendingSaves])
 
   const schedulePageSave = React.useCallback((pageUuid: string, patch: any) => {
     pendingSavesRef.current[pageUuid] = mergePatch(pendingSavesRef.current[pageUuid] || {}, patch)
@@ -229,6 +259,15 @@ export default function LearningActivityEditor({
       void flushPendingSaves()
     }, 800)
   }, [flushPendingSaves])
+
+  const scheduleActivitySave = React.useCallback((patch: Record<string, any>) => {
+    pendingActivityPatchRef.current = mergePatch(pendingActivityPatchRef.current, patch)
+    setSaveState('dirty')
+    if (activitySaveTimerRef.current) clearTimeout(activitySaveTimerRef.current)
+    activitySaveTimerRef.current = setTimeout(() => {
+      void flushPendingActivitySave()
+    }, 800)
+  }, [flushPendingActivitySave])
 
   const patchSelectedPage = (patch: any) => {
     if (!selectedPage) return
@@ -358,7 +397,12 @@ export default function LearningActivityEditor({
       clearTimeout(saveTimerRef.current)
       saveTimerRef.current = null
     }
+    if (activitySaveTimerRef.current) {
+      clearTimeout(activitySaveTimerRef.current)
+      activitySaveTimerRef.current = null
+    }
     await flushPendingSaves({ rethrow: true })
+    await flushPendingActivitySave({ rethrow: true })
   }
 
   const goBack = async () => {
@@ -392,6 +436,23 @@ export default function LearningActivityEditor({
     } finally {
       setPublishing(false)
     }
+  }
+
+  const patchActivityBasics = (patch: Record<string, any>) => {
+    setActivityState((current: any) => ({ ...current, ...patch }))
+    scheduleActivitySave(patch)
+  }
+
+  const patchGradingSettings = (patch: Record<string, any>) => {
+    const nextSettings = {
+      ...(activityState.settings || {}),
+      grading: {
+        ...gradingSettings,
+        ...patch,
+      },
+    }
+    setActivityState((current: any) => ({ ...current, settings: nextSettings }))
+    scheduleActivitySave({ settings: nextSettings })
   }
 
   const resizePanel = (side: 'left' | 'right', event: React.PointerEvent<HTMLDivElement>) => {
@@ -460,6 +521,10 @@ export default function LearningActivityEditor({
             <p className="text-xs text-gray-500">{badge.name}</p>
           </div>
         </div>
+        <div className="flex h-full items-center gap-6">
+          <TopModeButton active={viewMode === 'editor'} onClick={() => setViewMode('editor')} label="Editor" />
+          <TopModeButton active={viewMode === 'settings'} onClick={() => setViewMode('settings')} label="Settings" />
+        </div>
         <div className="flex items-center gap-3">
           <SaveStateLabel state={saveState} lastSavedAt={lastSavedAt} />
           <button onClick={openPreview} className="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-bold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-950">
@@ -481,6 +546,7 @@ export default function LearningActivityEditor({
         </div>
       </div>
 
+      {viewMode === 'editor' ? (
       <div className="flex min-h-0 w-full flex-1">
         <aside style={{ width: leftWidth }} className="relative min-h-0 shrink-0 overflow-hidden border-r border-gray-200 bg-white">
           <PageList
@@ -587,6 +653,15 @@ export default function LearningActivityEditor({
           )}
         </aside>
       </div>
+      ) : (
+        <ActivitySettingsView
+          activity={activityState}
+          pages={pages}
+          gradingSettings={gradingSettings}
+          onPatchBasics={patchActivityBasics}
+          onPatchGrading={patchGradingSettings}
+        />
+      )}
       {previewOpen && (
         <LearningActivityPreviewOverlay
           pages={pages}
@@ -704,6 +779,124 @@ function LearningActivityPreviewOverlay({ pages, onClose, initialMode }: { pages
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function ActivitySettingsView({ activity, pages, gradingSettings, onPatchBasics, onPatchGrading }: any) {
+  const summary = getActivityScoringSummary(pages)
+  const gradingMode = gradingSettings.mode as ActivityGradingMode
+
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto bg-[#f6f7f8]">
+      <div className="mx-auto grid w-full max-w-5xl grid-cols-[minmax(0,1fr)_320px] gap-6 px-6 py-6">
+        <section className="space-y-6">
+          <div className="rounded-lg border border-gray-200 bg-white p-5">
+            <div className="mb-5">
+              <p className="text-sm font-black text-gray-950">Activity details</p>
+              <p className="mt-1 text-xs leading-5 text-gray-500">These appear anywhere this activity is listed.</p>
+            </div>
+            <div className="space-y-5">
+              <label className="block text-xs font-bold uppercase text-gray-500">
+                Name
+                <input
+                  value={activity.title || ''}
+                  onChange={(event) => onPatchBasics({ title: event.target.value })}
+                  className="mt-2 h-11 w-full rounded-lg border border-gray-200 px-3 text-sm normal-case text-gray-900 outline-none focus:ring-2 focus:ring-[var(--org-primary-color)]"
+                  placeholder="Activity name"
+                />
+              </label>
+              <label className="block text-xs font-bold uppercase text-gray-500">
+                Description
+                <textarea
+                  value={activity.description || ''}
+                  onChange={(event) => onPatchBasics({ description: event.target.value })}
+                  className="mt-2 min-h-28 w-full resize-y rounded-lg border border-gray-200 px-3 py-2 text-sm normal-case leading-6 text-gray-900 outline-none focus:ring-2 focus:ring-[var(--org-primary-color)]"
+                  placeholder="What learners will do in this activity"
+                />
+              </label>
+              <label className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 p-4">
+                <span>
+                  <span className="block text-sm font-bold">Required for badge</span>
+                  <span className="mt-1 block text-xs leading-5 text-gray-500">Learners must complete this activity before the badge can be awarded.</span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={activity.required !== false}
+                  onChange={(event) => onPatchBasics({ required: event.target.checked })}
+                  className="h-5 w-5 accent-[var(--org-primary-color)]"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-gray-200 bg-white p-5">
+            <div className="mb-5">
+              <p className="text-sm font-black text-gray-950">Grading</p>
+              <p className="mt-1 text-xs leading-5 text-gray-500">Choose whether page completion is enough, or whether scored pages must meet a minimum result.</p>
+            </div>
+            <div className="space-y-5">
+              <SegmentedSetting
+                value={gradingMode}
+                options={[{ value: 'completion', label: 'Completion' }, { value: 'pass_fail', label: 'Pass / Fail' }]}
+                onChange={(value: ActivityGradingMode) => onPatchGrading({ mode: value })}
+              />
+              {gradingMode === 'pass_fail' && (
+                <>
+                  <NumberSetting
+                    label="Minimum score (%)"
+                    value={Number(gradingSettings.minimum_score_percent ?? 70)}
+                    min={0}
+                    max={100}
+                    onChange={(value) => onPatchGrading({ minimum_score_percent: value })}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <label className="block text-xs font-bold uppercase text-gray-500">
+                      Success message
+                      <textarea
+                        value={gradingSettings.success_message || ''}
+                        onChange={(event) => onPatchGrading({ success_message: event.target.value })}
+                        className="mt-2 min-h-24 w-full resize-y rounded-lg border border-gray-200 px-3 py-2 text-sm normal-case leading-5 text-gray-900 outline-none focus:ring-2 focus:ring-[var(--org-primary-color)]"
+                      />
+                    </label>
+                    <label className="block text-xs font-bold uppercase text-gray-500">
+                      Failure message
+                      <textarea
+                        value={gradingSettings.failure_message || ''}
+                        onChange={(event) => onPatchGrading({ failure_message: event.target.value })}
+                        className="mt-2 min-h-24 w-full resize-y rounded-lg border border-gray-200 px-3 py-2 text-sm normal-case leading-5 text-gray-900 outline-none focus:ring-2 focus:ring-[var(--org-primary-color)]"
+                      />
+                    </label>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <aside className="space-y-4">
+          <div className="rounded-lg border border-gray-200 bg-white p-5">
+            <p className="text-xs font-bold uppercase text-gray-400">Scoring summary</p>
+            <dl className="mt-4 space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <dt className="text-gray-500">Scored pages</dt>
+                <dd className="font-bold text-gray-950">{summary.scoredPages}</dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-gray-500">Manual pages</dt>
+                <dd className="font-bold text-gray-950">{summary.manualPages}</dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-gray-500">Total points</dt>
+                <dd className="font-bold text-gray-950">{summary.totalPoints}</dd>
+              </div>
+            </dl>
+            {gradingMode === 'pass_fail' && summary.totalPoints <= 0 && (
+              <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs font-medium leading-5 text-amber-800">Add points to at least one question page before pass/fail grading can produce a meaningful score.</p>
+            )}
+          </div>
+        </aside>
+      </div>
     </div>
   )
 }
@@ -1464,6 +1657,15 @@ function DeviceModeButton({ active, onClick, icon, label }: any) {
   )
 }
 
+function TopModeButton({ active, onClick, label }: any) {
+  return (
+    <button onClick={onClick} className={`relative h-14 px-1 text-sm font-bold transition ${active ? 'text-[var(--org-primary-color)]' : 'text-gray-400 hover:text-gray-700'}`}>
+      {label}
+      {active && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-[var(--org-primary-color)]" />}
+    </button>
+  )
+}
+
 function ResizeHandle({ side, onPointerDown }: { side: 'left' | 'right'; onPointerDown: React.PointerEventHandler<HTMLDivElement> }) {
   return (
     <div onPointerDown={onPointerDown} className={`group absolute top-0 z-10 flex h-full w-3 cursor-col-resize items-center justify-center ${side === 'left' ? '-left-1.5' : '-right-1.5'}`}>
@@ -1613,6 +1815,45 @@ function buildDefaultPagePayload(type: LearningPageType) {
     scoring: {},
     completion: { mode: 'manual' },
   }
+}
+
+function getActivityGradingSettings(activity: any) {
+  const grading = activity?.settings?.grading || {}
+  const mode = grading.mode === 'pass_fail' ? 'pass_fail' : 'completion'
+  return {
+    mode,
+    minimum_score_percent: Number.isFinite(Number(grading.minimum_score_percent)) ? Number(grading.minimum_score_percent) : 70,
+    success_message: grading.success_message || 'Nice work. You passed this activity.',
+    failure_message: grading.failure_message || 'You need a higher score to complete this activity. Review the activity and try again.',
+  }
+}
+
+function getActivityScoringSummary(pages: any[]) {
+  return pages.reduce((summary, page) => {
+    if (!isQuestionPage(page)) return summary
+    const scoring = page.scoring || {}
+    const mode = scoring.mode || 'off'
+    if (mode === 'off') return summary
+    const points = getPagePointValue(page)
+    return {
+      scoredPages: summary.scoredPages + (points > 0 ? 1 : 0),
+      manualPages: summary.manualPages + (mode === 'manual' ? 1 : 0),
+      totalPoints: Number((summary.totalPoints + points).toFixed(2)),
+    }
+  }, { scoredPages: 0, manualPages: 0, totalPoints: 0 })
+}
+
+function getPagePointValue(page: any) {
+  const scoring = page.scoring || {}
+  if (page.page_type === 'text_input') {
+    const inputRules = page.completion?.inputs || {}
+    const inputPoints = Object.values(inputRules)
+      .map((rules: any) => Number(rules?.points))
+      .filter((value) => Number.isFinite(value))
+    if (inputPoints.length) return inputPoints.reduce((total, value) => total + Math.max(0, value), 0)
+  }
+  const points = Number(scoring.points)
+  return Number.isFinite(points) ? Math.max(0, points) : 0
 }
 
 function ensureMcqOptions(options: any[]) {

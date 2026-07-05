@@ -636,6 +636,79 @@ def _ensure_activity_run(db_session: Session, run: LearningRun, activity_id: int
     return activity_run
 
 
+def _activity_grading_settings(activity: LearningActivity) -> dict:
+    settings = activity.settings or {}
+    grading = settings.get("grading") or {}
+    if not isinstance(grading, dict):
+        grading = {}
+    mode = grading.get("mode") or settings.get("grading_mode") or "completion"
+    return {
+        "mode": mode if mode in ("completion", "pass_fail") else "completion",
+        "minimum_score_percent": max(0.0, min(100.0, _as_float(grading.get("minimum_score_percent"), 70.0))),
+        "success_message": str(grading.get("success_message") or "Activity passed."),
+        "failure_message": str(grading.get("failure_message") or "You need a higher score to complete this activity."),
+    }
+
+
+def _activity_score_summary(db_session: Session, run: LearningRun, activity: LearningActivity) -> dict:
+    pages = db_session.exec(
+        select(LearningPage).where(
+            LearningPage.activity_id == activity.id,
+            LearningPage.required == True,
+        )
+    ).all()
+    latest_attempts = _latest_attempts(db_session, run.id or 0)
+    earned = 0.0
+    possible = 0.0
+    pending_manual_grades = 0
+
+    for page in pages:
+        if page.page_type not in (LearningPageType.MULTIPLE_CHOICE, LearningPageType.TEXT_INPUT):
+            continue
+        attempt = latest_attempts.get(page.id or 0)
+        scoring = page.scoring or {}
+        configured_points = _as_float(scoring.get("points"), 1.0)
+        if page.page_type == LearningPageType.TEXT_INPUT:
+            completion_inputs = (page.completion or {}).get("inputs") or {}
+            input_points = [
+                _as_float((rules or {}).get("points"), 0.0)
+                for rules in completion_inputs.values()
+                if isinstance(rules, dict) and (rules or {}).get("points") is not None
+            ]
+            if input_points:
+                configured_points = sum(input_points)
+        if configured_points <= 0:
+            continue
+        possible += configured_points
+        if not attempt:
+            continue
+        if (attempt.result or {}).get("grading_status") == "pending":
+            pending_manual_grades += 1
+            continue
+        earned += _as_float(attempt.score, 0.0)
+
+    percent = round((earned / possible) * 100, 1) if possible > 0 else 100.0
+    return {
+        "score": earned,
+        "max_score": possible,
+        "score_percent": percent,
+        "pending_manual_grades": pending_manual_grades,
+    }
+
+
+def _activity_meets_completion_rules(db_session: Session, run: LearningRun, activity: LearningActivity) -> tuple[bool, dict]:
+    grading = _activity_grading_settings(activity)
+    summary = _activity_score_summary(db_session, run, activity)
+    if summary["pending_manual_grades"] > 0:
+        return False, {**summary, "grading": grading, "passed": False, "reason": "pending_manual_grades"}
+    if grading["mode"] != "pass_fail":
+        return True, {**summary, "grading": grading, "passed": True}
+    if summary["max_score"] <= 0:
+        return False, {**summary, "grading": grading, "passed": False, "reason": "no_scored_pages"}
+    passed = summary["score_percent"] >= grading["minimum_score_percent"]
+    return passed, {**summary, "grading": grading, "passed": passed}
+
+
 def _has_pending_required_manual_grades(db_session: Session, run: LearningRun) -> bool:
     manual_pages = db_session.exec(
         select(LearningPage).where(
@@ -1313,6 +1386,9 @@ async def start_or_resume_run(request: Request, badge_uuid: str, actor: Learning
 async def complete_page(request: Request, data: LearningPageComplete, actor: LearningActor, db_session: Session) -> LearningRunRead:
     run = _get_run(db_session, data.run_uuid, actor)
     page = _get_page(db_session, data.page_uuid)
+    activity = db_session.get(LearningActivity, page.activity_id)
+    if not activity:
+        raise HTTPException(status_code=404, detail="Learning activity not found")
     activity_run = _ensure_activity_run(db_session, run, page.activity_id)
 
     progress = db_session.exec(
@@ -1347,14 +1423,32 @@ async def complete_page(request: Request, data: LearningPageComplete, actor: Lea
         ).all()
     } | {page.id or 0}
     if required_pages and all((required_page.id or 0) in completed_page_ids for required_page in required_pages):
-        activity_run.status = LearningRunStatus.COMPLETED
-        activity_run.completed_at = now
+        can_complete, completion_result = _activity_meets_completion_rules(db_session, run, activity)
+        activity_run.data = {
+            **(activity_run.data or {}),
+            "completion_result": completion_result,
+            "last_checked_at": now.isoformat(),
+        }
+        if can_complete:
+            activity_run.status = LearningRunStatus.COMPLETED
+            activity_run.completed_at = now
+        else:
+            activity_run.status = LearningRunStatus.IN_PROGRESS
+            activity_run.completed_at = None
         db_session.add(activity_run)
     run.update_date = str(now)
     db_session.add(run)
     db_session.commit()
     db_session.refresh(run)
     _issue_award_if_complete(request, db_session, run)
+    if required_pages and all((required_page.id or 0) in completed_page_ids for required_page in required_pages):
+        result = (activity_run.data or {}).get("completion_result") or {}
+        if not result.get("passed", True):
+            grading = result.get("grading") or {}
+            detail = grading.get("failure_message") or "You need a higher score to complete this activity."
+            if result.get("reason") == "pending_manual_grades":
+                detail = "This activity is waiting for manual grading."
+            raise HTTPException(status_code=422, detail=detail)
     db_session.refresh(run)
     return _serialize_run(db_session, run)
 
@@ -1501,6 +1595,41 @@ async def grade_learning_response(
     db_session.refresh(attempt)
 
     run = db_session.get(LearningRun, attempt.run_id)
+    activity = db_session.get(LearningActivity, page.activity_id)
+    if run and activity:
+        activity_run = _ensure_activity_run(db_session, run, page.activity_id)
+        required_pages = db_session.exec(
+            select(LearningPage).where(
+                LearningPage.activity_id == page.activity_id,
+                LearningPage.required == True,
+            )
+        ).all()
+        completed_page_ids = {
+            item.page_id
+            for item in db_session.exec(
+                select(LearningPageProgress).where(
+                    LearningPageProgress.run_id == run.id,
+                    LearningPageProgress.complete == True,
+                )
+            ).all()
+        }
+        if required_pages and all((required_page.id or 0) in completed_page_ids for required_page in required_pages):
+            can_complete, completion_result = _activity_meets_completion_rules(db_session, run, activity)
+            activity_run.data = {
+                **(activity_run.data or {}),
+                "completion_result": completion_result,
+                "last_checked_at": now.isoformat(),
+            }
+            if can_complete:
+                activity_run.status = LearningRunStatus.COMPLETED
+                activity_run.completed_at = now
+            else:
+                activity_run.status = LearningRunStatus.IN_PROGRESS
+                activity_run.completed_at = None
+            db_session.add(activity_run)
+            db_session.commit()
+            if run:
+                db_session.refresh(run)
     award = _issue_award_if_complete(request, db_session, run) if run else None
     return {
         **attempt.model_dump(),

@@ -61,6 +61,10 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
       if (index < pages.length - 1) {
         setIndex(index + 1)
       } else {
+        const grading = activity.settings?.grading || {}
+        if (grading.mode === 'pass_fail' && grading.success_message) {
+          toast.success(grading.success_message)
+        }
         const cleanBadgeUuid = String(badge.badge_uuid || '').replace(/^badge_/, '')
         if (isFinalActivity && cleanBadgeUuid) {
           router.push(getUriWithOrg(orgslug, routePaths.org.badgeStatus(cleanBadgeUuid)))
