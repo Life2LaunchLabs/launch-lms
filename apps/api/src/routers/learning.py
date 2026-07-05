@@ -85,6 +85,17 @@ async def api_update_badge(
     return await learning_service.update_badge(request, badge_uuid, badge, current_user, db_session)
 
 
+@badges_router.put("/{badge_uuid}/thumbnail")
+async def api_update_badge_thumbnail(
+    request: Request,
+    badge_uuid: str,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+    thumbnail: UploadFile = File(...),
+) -> LearningBadgeRead:
+    return await learning_service.update_badge_thumbnail(request, badge_uuid, current_user, db_session, thumbnail)
+
+
 @badges_router.delete("/{badge_uuid}")
 async def api_delete_badge(
     request: Request,

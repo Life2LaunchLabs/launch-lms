@@ -3,10 +3,11 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React from 'react'
-import { Award, Check, ChevronDown, ClipboardCheck, Eye, GalleryVerticalEnd, Globe, GlobeLock, Info, Loader2, Pencil, Settings, Trash2 } from 'lucide-react'
+import { Award, Check, ChevronDown, ClipboardCheck, Eye, GalleryVerticalEnd, Globe, GlobeLock, Image as ImageIcon, Info, Loader2, Pencil, Settings, Trash2, UploadCloud } from 'lucide-react'
 import { motion } from 'motion/react'
 import toast from 'react-hot-toast'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
+import { SafeImage } from '@components/Objects/SafeImage'
 import { Button } from '@components/ui/button'
 import { Switch } from '@components/ui/switch'
 import {
@@ -17,10 +18,13 @@ import {
 } from '@components/ui/dropdown-menu'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg } from '@services/config/config'
-import { deleteLearningBadge, getLearningResponses, gradeLearningResponse, updateLearningBadge } from '@services/learning/learning'
+import { deleteLearningBadge, getLearningResponses, gradeLearningResponse, updateLearningBadge, updateLearningBadgeThumbnail } from '@services/learning/learning'
 import CertificatePreview from '@components/Dashboard/Pages/Course/EditCourseCertification/CertificatePreview'
 
 type BadgeStatus = 'published' | 'unpublished'
+
+const MAX_FILE_SIZE = 8_000_000
+const VALID_IMAGE_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png'] as const
 
 const tabs = [
   { key: 'learning-path', label: 'Learning Path', icon: GalleryVerticalEnd },
@@ -45,15 +49,25 @@ export default function AdminBadgeShell({
   activeSubpage: string
   children?: React.ReactNode
 }) {
+  const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
+  const imageInputRef = React.useRef<HTMLInputElement>(null)
   const [badge, setBadge] = React.useState(initialBadge)
   const [editingField, setEditingField] = React.useState<'name' | 'description' | null>(null)
   const [draftName, setDraftName] = React.useState(initialBadge.name || '')
   const [draftDescription, setDraftDescription] = React.useState(initialBadge.description || '')
   const [savingField, setSavingField] = React.useState<'name' | 'description' | null>(null)
+  const [isUploading, setIsUploading] = React.useState(false)
+  const [uploadPreview, setUploadPreview] = React.useState<string | null>(null)
   const [updatingStatus, setUpdatingStatus] = React.useState(false)
   const normalizedSubpage = getActiveSubpage(activeSubpage)
+
+  React.useEffect(() => {
+    return () => {
+      if (uploadPreview) URL.revokeObjectURL(uploadPreview)
+    }
+  }, [uploadPreview])
 
   const patchBadge = async (patch: Record<string, any>, successMessage?: string) => {
     const nextBadge = await updateLearningBadge(badge.badge_uuid, patch, accessToken)
@@ -94,8 +108,54 @@ export default function AdminBadgeShell({
     }
   }
 
+  const validateImageFile = (file: File) => {
+    if (!VALID_IMAGE_MIME_TYPES.includes(file.type as any)) {
+      toast.error('Only JPG and PNG images are allowed.')
+      return false
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error('Image must be under 8MB.')
+      return false
+    }
+    return true
+  }
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    if (!accessToken) {
+      toast.error('Please sign in to upload a badge image.')
+      event.target.value = ''
+      return
+    }
+    if (!validateImageFile(file)) {
+      event.target.value = ''
+      return
+    }
+
+    const previewUrl = URL.createObjectURL(file)
+    setUploadPreview(previewUrl)
+    setIsUploading(true)
+
+    try {
+      const formData = new FormData()
+      formData.append('thumbnail', file)
+      const nextBadge = await updateLearningBadgeThumbnail(badge.badge_uuid, formData, accessToken)
+      setBadge(nextBadge)
+      toast.success('Thumbnail image updated.')
+      router.refresh()
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to upload image.')
+    } finally {
+      setUploadPreview(null)
+      setIsUploading(false)
+      event.target.value = ''
+    }
+  }
+
   const publicBadgeHref = getUriWithOrg(orgslug, `/badges/${cleanBadgeId(badge.badge_uuid)}`)
   const currentStatus: BadgeStatus = badge.published ? 'published' : 'unpublished'
+  const imageUrl = uploadPreview || badge.thumbnail_image
 
   return (
     <div className="min-h-full w-full bg-[#f8f8f8]">
@@ -109,13 +169,35 @@ export default function AdminBadgeShell({
 
         <div className="my-2 flex flex-col gap-5 py-2 md:flex-row md:items-center">
           <div className="group relative aspect-video w-full max-w-[240px] shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
-            {badge.thumbnail_image ? (
-              <img src={badge.thumbnail_image} alt="" className="h-full w-full object-cover" />
+            {imageUrl ? (
+              <SafeImage src={imageUrl} alt="Badge thumbnail" className={`h-full w-full object-cover ${isUploading ? 'animate-pulse' : ''}`} />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-lime-500">
                 <Award size={42} strokeWidth={1.5} />
               </div>
             )}
+
+            <input ref={imageInputRef} type="file" className="hidden" accept=".jpg,.jpeg,.png" onChange={handleFileChange} />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="secondary"
+                  disabled={isUploading}
+                  className="absolute right-2 top-2 z-20 h-8 w-8 opacity-0 shadow-md transition-opacity group-hover:opacity-100"
+                  title="Upload thumbnail media"
+                >
+                  {isUploading ? <Loader2 className="animate-spin" /> : <UploadCloud />}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => imageInputRef.current?.click()}>
+                  <ImageIcon className="h-4 w-4" />
+                  Upload image
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <div className="min-w-0 flex-1">

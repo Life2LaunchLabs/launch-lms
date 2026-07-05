@@ -3,7 +3,7 @@ from copy import deepcopy
 from datetime import datetime
 from uuid import uuid4
 
-from fastapi import HTTPException, Request, status
+from fastapi import HTTPException, Request, UploadFile, status
 from sqlmodel import Session, select
 
 from src.db.learning import (
@@ -52,6 +52,7 @@ from src.services.courses.openbadges import (
     get_public_base_url,
 )
 from src.services.guest_sessions import LearningActor
+from src.services.utils.upload_content import upload_file
 
 LEARNING_SYSTEM_TYPE_ONBOARDING = "onboarding"
 ONBOARDING_COLLECTION_UUID = "badge_collection_system_onboarding"
@@ -971,6 +972,37 @@ async def update_badge(request: Request, badge_uuid: str, data: LearningBadgeUpd
     for key, value in _strip_system_fields(data.model_dump(exclude_unset=True)).items():
         setattr(badge, key, value)
     badge.update_date = _now()
+    db_session.add(badge)
+    db_session.commit()
+    db_session.refresh(badge)
+    return LearningBadgeRead(**badge.model_dump())
+
+
+async def update_badge_thumbnail(
+    request: Request,
+    badge_uuid: str,
+    current_user: PublicUser | AnonymousUser,
+    db_session: Session,
+    thumbnail_file: UploadFile | None = None,
+) -> LearningBadgeRead:
+    badge = _get_badge(db_session, badge_uuid)
+    _require_org_admin(db_session, current_user, badge.org_id)
+    org = _get_org(db_session, badge.org_id)
+
+    if not thumbnail_file or not thumbnail_file.filename:
+        raise HTTPException(status_code=400, detail="Thumbnail file is required")
+
+    filename = await upload_file(
+        file=thumbnail_file,
+        directory=f"badges/{badge.badge_uuid}/thumbnails",
+        type_of_dir="orgs",
+        uuid=org.org_uuid,
+        allowed_types=["image"],
+        filename_prefix="thumbnail",
+    )
+    badge.thumbnail_image = f"/content/orgs/{org.org_uuid}/badges/{badge.badge_uuid}/thumbnails/{filename}"
+    badge.update_date = _now()
+
     db_session.add(badge)
     db_session.commit()
     db_session.refresh(badge)

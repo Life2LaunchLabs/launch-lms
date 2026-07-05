@@ -213,6 +213,8 @@ def test_supported_quiz_blocks_convert_to_learning_question_pages():
 
     assert warnings == []
     assert [page["page_type"] for page in pages] == ["multiple_choice", "text_input"]
+    assert pages[0]["content"]["prompt"] == "Pick one"
+    assert "heading" not in pages[0]["content"]
     assert pages[0]["scoring"]["correct_option_ids"] == ["b"]
     assert pages[1]["completion"]["inputs"]["q_text"]["min_words"] == 3
 

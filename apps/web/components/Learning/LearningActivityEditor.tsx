@@ -925,6 +925,7 @@ function PageSettings({ page, pages, linkedResponse, patchPage, removePage, addQ
 
 function PageContentSettings({ page, patchPage }: any) {
   if (page.page_type === 'video') {
+    const allowScrubbing = page.content?.allow_scrubbing !== false
     return (
       <div className="space-y-5">
         <label className="block text-sm font-medium">
@@ -938,6 +939,18 @@ function PageContentSettings({ page, patchPage }: any) {
               placeholder="Paste a YouTube or direct video URL"
             />
           </div>
+        </label>
+        <label className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white p-3 text-sm">
+          <input
+            type="checkbox"
+            checked={allowScrubbing}
+            onChange={(event) => patchPage({ content: { ...(page.content || {}), allow_scrubbing: event.target.checked } })}
+            className="mt-0.5 h-5 w-5 accent-[var(--org-primary-color)]"
+          />
+          <span>
+            <span className="block font-bold text-gray-900">Allow video scrubbing</span>
+            <span className="mt-1 block text-xs leading-5 text-gray-500">Let learners drag or click the progress thumb. Turn this off when they should watch the full video in order.</span>
+          </span>
         </label>
         <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
           <div className="flex items-center gap-2 font-bold text-gray-700">
@@ -1584,6 +1597,14 @@ function buildDefaultPagePayload(type: LearningPageType) {
       design: {},
       scoring: { mode: 'off', points: 1 },
       completion: { inputs: { [id]: { required: true, min_words: 1, max_words: 0 } } },
+    }
+  }
+  if (type === 'video') {
+    return {
+      content: { allow_scrubbing: true },
+      design: {},
+      scoring: {},
+      completion: { mode: 'manual' },
     }
   }
   return {

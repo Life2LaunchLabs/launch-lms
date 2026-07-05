@@ -12,6 +12,7 @@ import {
   getCourseThumbnailMediaDirectory,
 } from '@services/media/media'
 import { learningPathToLegacyRun } from '@services/learning/legacyAdapters'
+import { getLearningPath } from '@services/learning/learning'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { CourseThumbnailImage } from '@components/Objects/Thumbnails/CourseThumbnailImage'
 import { ArrowRight, Award, BookOpenCheck, Check, CircleHelp, Clock, FileText, Layers, Play, Video, Image as ImageIcon } from 'lucide-react'
@@ -107,7 +108,19 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
     props.learningBadgePath ? null : courseOwnerOrgId ? `${getAPIUrl()}trail/org/${courseOwnerOrgId}/trail` : null,
     (url) => swrFetcher(url, access_token)
   );
-  const learningRun = useMemo(() => learningPathToLegacyRun(props.learningBadgePath), [props.learningBadgePath])
+  const { data: clientLearningBadgePath } = useSWR(
+    props.learningBadgePath && access_token
+      ? ['learning-path', courseuuid, access_token]
+      : null,
+    () => getLearningPath(courseuuid, access_token, true),
+    {
+      fallbackData: props.learningBadgePath,
+      revalidateOnFocus: true,
+      revalidateOnMount: true,
+    }
+  )
+  const learningBadgePath = clientLearningBadgePath || props.learningBadgePath
+  const learningRun = useMemo(() => learningPathToLegacyRun(learningBadgePath), [learningBadgePath])
 
   const activeError = serverError || courseError
 
@@ -125,7 +138,7 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
   const cleanCourseBadgeUuid = cleanCredentialBadgeUuid(course?.course_uuid || courseuuid)
 
   const { data: userBadgeAwards, mutate: mutateUserBadgeAwards } = useSWR(
-    props.learningBadgePath && access_token && org?.id
+    learningBadgePath && access_token && org?.id
       ? `${getAPIUrl()}badge-awards/?org_id=${org.id}`
       : null,
     (url) => swrFetcher(url, access_token),
@@ -144,7 +157,7 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
     { revalidateOnFocus: false }
   )
   const userCertificate = Array.isArray(userCertificates) ? userCertificates[0] : null
-  const learningAward = earnedBadgeAward?.award || props.learningBadgePath?.run?.award
+  const learningAward = earnedBadgeAward?.award || learningBadgePath?.run?.award
   const hasEarnedCredential = Boolean(learningAward || userCertificate)
   const badgeIsCompleted = isCompleted || hasEarnedCredential
   const badgeIsInProgress = isStarted && !badgeIsCompleted
@@ -264,7 +277,7 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
                   await mutateUserBadgeAwards()
                 }}
                 badgeId={awardedCredentialId}
-                learningBadgePath={props.learningBadgePath}
+                learningBadgePath={learningBadgePath}
                 userCertificate={userCertificate}
                 learningAward={earnedBadgeAward}
               />

@@ -6,12 +6,36 @@ import { getServerSession } from '@/lib/auth/server'
 import { getOrgThumbnailMediaDirectory, getOrgOgImageMediaDirectory } from '@services/media/media'
 import { getCanonicalUrl, getOrgSeoConfig, buildPageTitle, buildBreadcrumbJsonLd } from '@/lib/seo/utils'
 import { JsonLd } from '@components/SEO/JsonLd'
-import { getLearningBadgeCollections } from '@services/learning/learning'
+import { getLearningBadgeAwards, getLearningBadgeCollections } from '@services/learning/learning'
 import { learningCollectionsToLegacyCollections } from '@services/learning/legacyAdapters'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string }>
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}
+
+function cleanBadgeUuid(value?: string | null) {
+  return String(value || '').replace(/^badge_/, '')
+}
+
+function getAwardedBadgeUuid(award: any) {
+  return (
+    award?.badge?.badge_uuid ||
+    award?.award?.badge_uuid ||
+    award?.badge_class?.id ||
+    ''
+  )
+}
+
+function filterAvailableCollections(collections: any[], earnedBadgeUuids: Set<string>) {
+  return (collections || [])
+    .map((collection: any) => ({
+      ...collection,
+      courses: (collection.courses || []).filter((course: any) => (
+        !earnedBadgeUuids.has(cleanBadgeUuid(course.course_uuid || course.badge_uuid))
+      )),
+    }))
+    .filter((collection: any) => (collection.courses || []).length > 0)
 }
 
 export async function generateMetadata(props: MetadataProps): Promise<Metadata> {
@@ -84,6 +108,7 @@ const BadgesPage = async (params: any) => {
 
   let collections: any[] = []
   let invitedBadgeCourse: any = null
+  let earnedBadgeUuids = new Set<string>()
 
   try {
     const response = await getLearningBadgeCollections(
@@ -104,6 +129,21 @@ const BadgesPage = async (params: any) => {
       error,
     })
   }
+
+  if (access_token) {
+    try {
+      const awards = await getLearningBadgeAwards(org.id, access_token)
+      earnedBadgeUuids = new Set((awards || []).map(getAwardedBadgeUuid).map(cleanBadgeUuid).filter(Boolean))
+    } catch (error: any) {
+      console.error('Failed to load earned badges for catalog filtering', {
+        orgslug,
+        org_id: org.id,
+        error,
+      })
+    }
+  }
+
+  collections = filterAvailableCollections(collections, earnedBadgeUuids)
 
   if (inviteBadge) {
     invitedBadgeCourse = collections

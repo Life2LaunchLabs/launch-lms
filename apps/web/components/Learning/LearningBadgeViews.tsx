@@ -64,6 +64,8 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
         const cleanBadgeUuid = String(badge.badge_uuid || '').replace(/^badge_/, '')
         if (isFinalActivity && cleanBadgeUuid) {
           router.push(getUriWithOrg(orgslug, routePaths.org.badgeStatus(cleanBadgeUuid)))
+        } else if (cleanBadgeUuid) {
+          router.push(getUriWithOrg(orgslug, routePaths.org.badgePath(cleanBadgeUuid)))
         } else {
           router.back()
         }
@@ -106,11 +108,17 @@ export function LearningActivitySurface({
   const isVideoPage = page?.page_type === 'video'
   const showVideoControls = isVideoPage && actionDisabled && interactionState?.videoStarted
   const surfaceClassName = isVideoPage
-    ? `relative flex w-full min-w-0 flex-col overflow-hidden bg-black text-gray-950 ${className}`
+    ? `relative flex w-full min-w-0 items-center justify-center overflow-hidden bg-black px-4 py-4 text-gray-950 sm:py-6 ${className}`
     : `relative flex w-full min-w-0 overflow-hidden bg-[var(--org-page-background)] text-gray-950 ${className} items-center justify-center px-4 py-4 sm:py-6`
   const frameClassName = isVideoPage
-    ? 'relative flex h-full min-h-0 w-full flex-col'
+    ? 'relative flex h-full max-h-[min(900px,calc(100dvh-2rem))] min-h-0 w-full min-w-0 flex-none flex-col overflow-hidden sm:max-h-[min(900px,calc(100dvh-3rem))]'
     : 'relative flex h-full max-h-[min(900px,calc(100dvh-2rem))] min-h-0 w-full min-w-0 max-w-3xl flex-none flex-col overflow-hidden sm:max-h-[min(900px,calc(100dvh-3rem))]'
+  const chromeInnerClassName = isVideoPage
+    ? 'mx-auto flex h-14 w-full max-w-3xl items-center gap-4'
+    : 'mx-auto flex h-14 w-full items-center gap-4'
+  const footerInnerClassName = isVideoPage
+    ? 'mx-auto flex w-full max-w-3xl justify-center'
+    : 'mx-auto flex w-full max-w-2xl justify-center'
   const backControl = backHref ? (
     <Link href={backHref} className={`rounded-full p-2 transition ${isVideoPage ? 'text-white hover:bg-white/10' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-950'}`}><X size={20} /></Link>
   ) : (
@@ -121,7 +129,7 @@ export function LearningActivitySurface({
     <main data-learning-activity-surface className={surfaceClassName}>
       <div className={frameClassName}>
         <div className="relative z-10 shrink-0 px-4">
-          <div className="mx-auto flex h-14 w-full items-center gap-4">
+          <div className={chromeInnerClassName}>
             {backControl}
             <div className={`h-2 flex-1 overflow-hidden rounded-full ${isVideoPage ? 'bg-white/25' : 'bg-gray-200'}`}>
               <div className="h-full rounded-full bg-[var(--org-primary-color)] transition-all" style={{ width: `${progress}%` }} />
@@ -146,9 +154,13 @@ export function LearningActivitySurface({
           </div>
         </div>
         <div className="relative z-10 shrink-0 px-5 py-4">
-          <div className="mx-auto flex w-full max-w-2xl justify-center">
+          <div className={footerInnerClassName}>
             {showVideoControls ? (
-              <VideoPlaybackStatus interactionState={interactionState} pageUuid={page?.page_uuid} />
+              <VideoPlaybackStatus
+                interactionState={interactionState}
+                pageUuid={page?.page_uuid}
+                allowScrubbing={page?.content?.allow_scrubbing !== false}
+              />
             ) : (
               <button onClick={onAction} disabled={actionDisabled} className="inline-flex h-12 w-full max-w-sm items-center justify-center gap-2 rounded-lg bg-[var(--org-primary-color)] px-5 text-sm font-bold text-white shadow-sm transition hover:brightness-95 disabled:opacity-40 sm:w-auto sm:min-w-40">
                 {actionLabel}
@@ -2069,6 +2081,8 @@ function VideoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPa
   const videoTitle = page.content?.heading || ''
   const youtubeId = React.useMemo(() => getYouTubeId(videoUrl), [videoUrl])
   const toggleEventName = `learning-video-toggle-${page.page_uuid}`
+  const seekEventName = `learning-video-seek-${page.page_uuid}`
+  const allowScrubbing = page.content?.allow_scrubbing !== false
 
   React.useEffect(() => {
     if (editable) return
@@ -2096,6 +2110,30 @@ function VideoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPa
     window.addEventListener(toggleEventName, togglePlayback)
     return () => window.removeEventListener(toggleEventName, togglePlayback)
   }, [editable, toggleEventName])
+
+  React.useEffect(() => {
+    if (editable || !allowScrubbing) return
+
+    const seekPlayback = (event: Event) => {
+      const detail = (event as CustomEvent).detail || {}
+      const progress = Number(detail.progress)
+      if (!Number.isFinite(progress)) return
+
+      const video = videoRef.current
+      if (video) {
+        const duration = Number.isFinite(video.duration) ? video.duration : 0
+        if (duration > 0) video.currentTime = Math.max(0, Math.min(duration, progress * duration))
+        return
+      }
+
+      const youtubePlayer = youtubePlayerRef.current
+      const duration = youtubePlayer?.getDuration?.() || 0
+      if (duration > 0) youtubePlayer.seekTo?.(Math.max(0, Math.min(duration, progress * duration)), true)
+    }
+
+    window.addEventListener(seekEventName, seekPlayback)
+    return () => window.removeEventListener(seekEventName, seekPlayback)
+  }, [allowScrubbing, editable, seekEventName])
 
   React.useEffect(() => {
     if (editable || !youtubeId) return
@@ -2171,7 +2209,7 @@ function VideoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPa
       <div className="flex h-full w-full items-center justify-center overflow-hidden bg-black">
         {youtubeId ? (
           <YouTube
-            className="aspect-video max-h-full w-full"
+            className="aspect-video max-h-full w-full max-w-[min(100%,calc((100dvh-9rem)*16/9))]"
             iframeClassName="h-full w-full"
             videoId={youtubeId}
           opts={{
@@ -2222,12 +2260,42 @@ function VideoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPa
   )
 }
 
-function VideoPlaybackStatus({ interactionState, pageUuid }: { interactionState: any; pageUuid?: string }) {
+function VideoPlaybackStatus({ interactionState, pageUuid, allowScrubbing = true }: { interactionState: any; pageUuid?: string; allowScrubbing?: boolean }) {
   const progress = Math.max(0, Math.min(1, interactionState?.videoProgress || 0))
+  const seekFromPointer = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!allowScrubbing || !pageUuid) return
+    const rect = event.currentTarget.getBoundingClientRect()
+    const nextProgress = Math.max(0, Math.min(1, (event.clientX - rect.left) / Math.max(1, rect.width)))
+    window.dispatchEvent(new CustomEvent(`learning-video-seek-${pageUuid}`, { detail: { progress: nextProgress } }))
+  }
+
+  const startScrub = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!allowScrubbing || !pageUuid) return
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    seekFromPointer(event)
+  }
+
   return (
     <div className="w-full max-w-2xl text-white drop-shadow">
-      <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-white/30">
-        <div className="h-full rounded-full bg-white transition-all" style={{ width: `${progress * 100}%` }} />
+      <div
+        className={`relative mb-4 h-4 rounded-full ${allowScrubbing ? 'cursor-pointer touch-none' : ''}`}
+        onPointerDown={startScrub}
+        onPointerMove={(event) => {
+          if (event.buttons !== 1) return
+          seekFromPointer(event)
+        }}
+        title={allowScrubbing ? 'Seek video' : 'Seeking disabled'}
+      >
+        <div className="absolute left-0 right-0 top-1/2 h-1.5 -translate-y-1/2 overflow-hidden rounded-full bg-white/30">
+          <div className="h-full rounded-full bg-white transition-all" style={{ width: `${progress * 100}%` }} />
+        </div>
+        {allowScrubbing && (
+          <div
+            className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow"
+            style={{ left: `${progress * 100}%` }}
+          />
+        )}
       </div>
       <div className="flex items-center gap-4">
         <button

@@ -297,6 +297,7 @@ def _correct_option_ids(activity: Activity, option_ids: list[str]) -> list[str]:
 
 def _convert_select_block(course: Course, activity: Activity, block: dict, index: int) -> dict:
     attrs = block.get("attrs") or {}
+    prompt = attrs.get("question_text") or activity.name or "Question"
     options = [
         {"id": option.get("option_uuid") or f"option_{idx + 1}", "text": option.get("label") or f"Option {idx + 1}"}
         for idx, option in enumerate(attrs.get("options") or [])
@@ -305,9 +306,9 @@ def _convert_select_block(course: Course, activity: Activity, block: dict, index
     return {
         "page_uuid": _deterministic_page_uuid(activity, index),
         "page_type": LearningPageType.MULTIPLE_CHOICE,
-        "title": attrs.get("question_text") or activity.name or "Question",
+        "title": prompt,
         "content": {
-            "heading": attrs.get("question_text") or "",
+            "prompt": prompt,
             "options": options,
             "legacy_quiz_block": block,
             "legacy_source": _legacy_source(course, activity),
@@ -319,6 +320,7 @@ def _convert_select_block(course: Course, activity: Activity, block: dict, index
 
 def _convert_multi_select_block(course: Course, activity: Activity, block: dict, index: int) -> dict:
     attrs = block.get("attrs") or {}
+    prompt = attrs.get("question_text") or activity.name or "Select all that apply"
     raw_options = [
         option
         for category in attrs.get("categories") or []
@@ -333,9 +335,9 @@ def _convert_multi_select_block(course: Course, activity: Activity, block: dict,
     return {
         "page_uuid": _deterministic_page_uuid(activity, index),
         "page_type": LearningPageType.MULTIPLE_CHOICE,
-        "title": attrs.get("question_text") or activity.name or "Select all that apply",
+        "title": prompt,
         "content": {
-            "heading": attrs.get("question_text") or "",
+            "prompt": prompt,
             "options": options,
             "legacy_quiz_block": block,
             "legacy_source": _legacy_source(course, activity),

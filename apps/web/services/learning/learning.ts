@@ -1,5 +1,6 @@
 import { getAPIUrl } from '@services/config/config'
 import {
+  RequestBodyFormWithAuthHeader,
   RequestBodyWithAuthHeader,
   errorHandling,
   getResponseMetadata,
@@ -124,6 +125,14 @@ export async function updateLearningBadge(badgeUuid: string, data: any, accessTo
   const result = await fetch(
     `${getAPIUrl()}badges/${badgeUuid}`,
     RequestBodyWithAuthHeader('PUT', data, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
+export async function updateLearningBadgeThumbnail(badgeUuid: string, formData: FormData, accessToken: string) {
+  const result = await fetch(
+    `${getAPIUrl()}badges/${badgeUuid}/thumbnail`,
+    RequestBodyFormWithAuthHeader('PUT', formData, null, accessToken)
   )
   return errorHandling(result)
 }
