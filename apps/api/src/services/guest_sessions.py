@@ -11,6 +11,12 @@ from src.db.trail_runs import TrailRun
 from src.db.trail_steps import TrailStep
 from src.db.trails import Trail
 from src.db.users import AnonymousUser, PublicUser
+from src.db.learning import (
+    LearningActivityRun,
+    LearningPageProgress,
+    LearningResponseAttempt,
+    LearningRun,
+)
 from src.security.cookies import get_cookie_domain_for_request, is_request_secure
 
 
@@ -122,6 +128,88 @@ def transfer_guest_session_data_to_user(
     guest_session = get_guest_session_from_cookie(request, db_session)
     if not guest_session or guest_session.id is None:
         return
+
+    guest_learning_runs = db_session.exec(
+        select(LearningRun).where(LearningRun.guest_session_id == guest_session.id)
+    ).all()
+    for guest_run in guest_learning_runs:
+        existing_user_run = db_session.exec(
+            select(LearningRun).where(
+                LearningRun.path_id == guest_run.path_id,
+                LearningRun.user_id == user.id,
+                LearningRun.guest_session_id.is_(None),  # type: ignore
+            )
+        ).first()
+
+        if not existing_user_run:
+            guest_run.user_id = user.id
+            guest_run.guest_session_id = None
+            guest_run.update_date = str(datetime.utcnow())
+            db_session.add(guest_run)
+
+            attempts = db_session.exec(
+                select(LearningResponseAttempt).where(LearningResponseAttempt.run_id == guest_run.id)
+            ).all()
+            for attempt in attempts:
+                attempt.user_id = user.id
+                attempt.guest_session_id = None
+                db_session.add(attempt)
+            continue
+
+        guest_activity_runs = db_session.exec(
+            select(LearningActivityRun).where(LearningActivityRun.run_id == guest_run.id)
+        ).all()
+        activity_run_id_map: dict[int, int] = {}
+        for guest_activity_run in guest_activity_runs:
+            existing_activity_run = db_session.exec(
+                select(LearningActivityRun).where(
+                    LearningActivityRun.run_id == existing_user_run.id,
+                    LearningActivityRun.activity_id == guest_activity_run.activity_id,
+                )
+            ).first()
+            if existing_activity_run:
+                activity_run_id_map[guest_activity_run.id or 0] = existing_activity_run.id or 0
+                db_session.delete(guest_activity_run)
+                continue
+            guest_activity_run.run_id = existing_user_run.id or 0
+            db_session.add(guest_activity_run)
+            db_session.flush()
+            activity_run_id_map[guest_activity_run.id or 0] = guest_activity_run.id or 0
+
+        guest_progress = db_session.exec(
+            select(LearningPageProgress).where(LearningPageProgress.run_id == guest_run.id)
+        ).all()
+        for progress in guest_progress:
+            existing_progress = db_session.exec(
+                select(LearningPageProgress).where(
+                    LearningPageProgress.run_id == existing_user_run.id,
+                    LearningPageProgress.page_id == progress.page_id,
+                )
+            ).first()
+            if existing_progress:
+                if progress.complete and not existing_progress.complete:
+                    existing_progress.complete = True
+                    existing_progress.completed_at = progress.completed_at
+                    existing_progress.data = progress.data
+                    existing_progress.update_date = str(datetime.utcnow())
+                    db_session.add(existing_progress)
+                db_session.delete(progress)
+                continue
+            progress.run_id = existing_user_run.id or 0
+            if progress.activity_run_id:
+                progress.activity_run_id = activity_run_id_map.get(progress.activity_run_id, progress.activity_run_id)
+            db_session.add(progress)
+
+        attempts = db_session.exec(
+            select(LearningResponseAttempt).where(LearningResponseAttempt.run_id == guest_run.id)
+        ).all()
+        for attempt in attempts:
+            attempt.run_id = existing_user_run.id or 0
+            attempt.user_id = user.id
+            attempt.guest_session_id = None
+            db_session.add(attempt)
+
+        db_session.delete(guest_run)
 
     guest_trails = db_session.exec(
         select(Trail).where(Trail.guest_session_id == guest_session.id)

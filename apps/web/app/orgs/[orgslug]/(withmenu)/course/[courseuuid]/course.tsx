@@ -11,6 +11,8 @@ import ContentPageHeader from '@components/Objects/StyledElements/Headers/Conten
 import {
   getCourseThumbnailMediaDirectory,
 } from '@services/media/media'
+import { learningPathToLegacyRun } from '@services/learning/legacyAdapters'
+import { getLearningPath } from '@services/learning/learning'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { CourseThumbnailImage } from '@components/Objects/Thumbnails/CourseThumbnailImage'
 import { ArrowRight, Award, BookOpenCheck, Check, CircleHelp, Clock, FileText, Layers, Play, Video, Image as ImageIcon } from 'lucide-react'
@@ -32,8 +34,35 @@ import QuizResultsModal from '@components/Objects/Activities/Quiz/Player/QuizRes
 import toast from 'react-hot-toast'
 import { devCompleteCourse } from '@services/courses/activity'
 import { useWindowSize } from 'usehooks-ts'
+import CertificatePreview from '@components/Dashboard/Pages/Course/EditCourseCertification/CertificatePreview'
 
 const ReactConfetti = dynamic(() => import('react-confetti'), { ssr: false })
+
+function getBadgeThumbnailSrc(course: any, ownerOrgUuid?: string) {
+  if (course?.thumbnail_image_url) return course.thumbnail_image_url
+  if (course?.thumbnail_image && ownerOrgUuid) {
+    return getCourseThumbnailMediaDirectory(
+      ownerOrgUuid,
+      course.course_uuid,
+      course.thumbnail_image
+    )
+  }
+  return ''
+}
+
+function cleanCredentialBadgeUuid(value?: string | null) {
+  return String(value || '').replace(/^badge_/, '')
+}
+
+function findAwardForBadge(awards: any, badgeUuid?: string | null) {
+  const cleanBadgeUuid = cleanCredentialBadgeUuid(badgeUuid)
+  const awardList = Array.isArray(awards) ? awards : awards?.data || []
+  if (!cleanBadgeUuid) return null
+  return awardList.find((item: any) => (
+    cleanCredentialBadgeUuid(item?.badge?.badge_uuid) === cleanBadgeUuid ||
+    cleanCredentialBadgeUuid(item?.award?.badge_uuid) === cleanBadgeUuid
+  )) || null
+}
 
 const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => {
   const { t } = useTranslation()
@@ -76,34 +105,65 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
 
   // Add SWR for trail data
   const { data: trailData, mutate: mutateTrailData } = useSWR(
-    courseOwnerOrgId ? `${getAPIUrl()}trail/org/${courseOwnerOrgId}/trail` : null,
+    props.learningBadgePath ? null : courseOwnerOrgId ? `${getAPIUrl()}trail/org/${courseOwnerOrgId}/trail` : null,
     (url) => swrFetcher(url, access_token)
   );
+  const { data: clientLearningBadgePath } = useSWR(
+    props.learningBadgePath && access_token
+      ? ['learning-path', courseuuid, access_token]
+      : null,
+    () => getLearningPath(courseuuid, access_token, true),
+    {
+      fallbackData: props.learningBadgePath,
+      revalidateOnFocus: true,
+      revalidateOnMount: true,
+    }
+  )
+  const learningBadgePath = clientLearningBadgePath || props.learningBadgePath
+  const learningRun = useMemo(() => learningPathToLegacyRun(learningBadgePath), [learningBadgePath])
 
   const activeError = serverError || courseError
 
   const run = useMemo(() => {
+    if (learningRun) return learningRun
     const cleanCourseUuid = course?.course_uuid?.replace('course_', '')
     return trailData?.runs?.find((trailRun: any) => (
       trailRun.course?.course_uuid?.replace('course_', '') === cleanCourseUuid
     ))
-  }, [course?.course_uuid, trailData])
+  }, [course?.course_uuid, learningRun, trailData])
   const completion = useMemo(() => getCourseChapterCompletionSummary(course, run), [course, run])
   const { totalChapters, completedChapters, isCompleted, isStarted } = completion
-  const isInProgress = isStarted && !isCompleted
   const badgeStatusPath = routePaths.org.badgeStatus(courseuuid)
   const badgePath = routePaths.org.badgePath(courseuuid)
+  const cleanCourseBadgeUuid = cleanCredentialBadgeUuid(course?.course_uuid || courseuuid)
+
+  const { data: userBadgeAwards, mutate: mutateUserBadgeAwards } = useSWR(
+    learningBadgePath && access_token && org?.id
+      ? `${getAPIUrl()}badge-awards/?org_id=${org.id}`
+      : null,
+    (url) => swrFetcher(url, access_token),
+    { revalidateOnFocus: false }
+  )
+  const earnedBadgeAward = useMemo(
+    () => findAwardForBadge(userBadgeAwards, cleanCourseBadgeUuid),
+    [userBadgeAwards, cleanCourseBadgeUuid]
+  )
 
   const { data: userCertificates, mutate: mutateUserCertificates } = useSWR(
-    isCompleted && access_token && org?.id && course?.course_uuid
+    !props.learningBadgePath && access_token && org?.id && course?.course_uuid
       ? `${getAPIUrl()}certifications/user/course/${course.course_uuid}?org_id=${org.id}`
       : null,
     (url) => swrFetcher(url, access_token),
     { revalidateOnFocus: false }
   )
   const userCertificate = Array.isArray(userCertificates) ? userCertificates[0] : null
-  const verificationPath = userCertificate?.certificate_user?.user_certification_uuid
-    ? routePaths.org.badgesVerify(userCertificate.certificate_user.user_certification_uuid)
+  const learningAward = earnedBadgeAward?.award || learningBadgePath?.run?.award
+  const hasEarnedCredential = Boolean(learningAward || userCertificate)
+  const badgeIsCompleted = isCompleted || hasEarnedCredential
+  const badgeIsInProgress = isStarted && !badgeIsCompleted
+  const awardedCredentialId = learningAward?.award_uuid || userCertificate?.certificate_user?.user_certification_uuid
+  const verificationPath = awardedCredentialId
+    ? routePaths.org.badgesVerify(awardedCredentialId)
     : null
   const verificationUrl = verificationPath
     ? getUriWithOrg(orgslug, verificationPath)
@@ -205,17 +265,21 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
                 comingSoon={!!course.coming_soon}
                 completedChapters={completedChapters}
                 totalChapters={totalChapters}
-                isInProgress={isInProgress}
-                isCompleted={isCompleted}
+                isInProgress={badgeIsInProgress}
+                isCompleted={badgeIsCompleted}
                 verificationUrl={verificationUrl}
-                awardedDate={userCertificate?.certificate_user?.created_at}
+                awardedDate={learningAward?.issued_at || userCertificate?.certificate_user?.created_at}
                 accessToken={access_token}
                 showDevComplete={process.env.NEXT_PUBLIC_LAUNCHLMS_DEVELOPMENT_MODE === 'true'}
                 onDevComplete={async () => {
                   await mutateTrailData()
                   await mutateUserCertificates()
+                  await mutateUserBadgeAwards()
                 }}
-                badgeId={userCertificate?.certificate_user?.user_certification_uuid}
+                badgeId={awardedCredentialId}
+                learningBadgePath={learningBadgePath}
+                userCertificate={userCertificate}
+                learningAward={earnedBadgeAward}
               />
             )}
           </GeneralWrapperStyled>
@@ -277,13 +341,9 @@ function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run, badgeStatusPa
         >
           <div className="flex items-start gap-4">
             <div className="h-20 w-20 shrink-0 overflow-visible rounded-lg bg-transparent">
-              {course.thumbnail_image && courseOwnerOrgUuid ? (
+              {getBadgeThumbnailSrc(course, courseOwnerOrgUuid) ? (
                 <BadgeThumbnailImage
-                  src={getCourseThumbnailMediaDirectory(
-                    courseOwnerOrgUuid,
-                    course.course_uuid,
-                    course.thumbnail_image
-                  )}
+                  src={getBadgeThumbnailSrc(course, courseOwnerOrgUuid)}
                   alt={course.name}
                   className={`${
                     progressPercent >= 100 ? '' : 'opacity-55 grayscale brightness-110'
@@ -475,6 +535,9 @@ function BadgeStatusHero({
   showDevComplete,
   onDevComplete,
   badgeId,
+  learningBadgePath,
+  userCertificate,
+  learningAward,
 }: any) {
   const router = useRouter()
   const { width, height } = useWindowSize()
@@ -494,8 +557,47 @@ function BadgeStatusHero({
       })
     : null
   const chapters = Array.isArray(course.chapters) ? course.chapters : []
-  const canDevComplete = showDevComplete && accessToken && !comingSoon && (!isCompleted || !verificationUrl)
+  const canDevComplete = !learningBadgePath && showDevComplete && accessToken && !comingSoon && (!isCompleted || !verificationUrl)
   const completionRewardKey = `launchlms:badge-completion-reward:${badgeUuid}`
+  const badgeMetadata = course.badge_metadata || {}
+  const certificateConfig = userCertificate?.certification?.config || {}
+  const awardBadgeClass = learningAward?.badge_class || {}
+  const awardIssuer = learningAward?.issuer || learningAward?.open_badges?.issuer || {}
+  const certificateName =
+    awardBadgeClass.name ||
+    certificateConfig.badge_name ||
+    certificateConfig.certification_name ||
+    badgeMetadata.badge_name ||
+    course.name
+  const certificateDescription =
+    awardBadgeClass.description ||
+    certificateConfig.badge_description ||
+    certificateConfig.certification_description ||
+    badgeMetadata.badge_description ||
+    course.description ||
+    course.about ||
+    'This badge certifies completion of the required learning path.'
+  const certificatePattern =
+    certificateConfig.badge_theme ||
+    certificateConfig.certificate_pattern ||
+    badgeMetadata.badge_theme ||
+    badgeMetadata.certificate_pattern ||
+    'professional'
+  const certificateType =
+    certificateConfig.certification_type ||
+    badgeMetadata.certification_type ||
+    'completion'
+  const certificateInstructor =
+    awardIssuer.name ||
+    userCertificate?.issuer?.name ||
+    badgeMetadata.issuer_name ||
+    course.owner_org_name ||
+    ''
+  const certificateBadgeImage =
+    awardBadgeClass.image ||
+    certificateConfig.badge_image_url ||
+    badgeMetadata.badge_image_url ||
+    getBadgeThumbnailSrc(course, courseOwnerOrgUuid)
 
   useEffect(() => {
     if (!isCompleted || !badgeUuid) {
@@ -546,13 +648,9 @@ function BadgeStatusHero({
       <section className="text-center">
         <div className="flex justify-center px-8 pt-5 sm:pt-6">
           <div className="h-36 w-36 overflow-visible rounded-lg sm:h-40 sm:w-40">
-            {course.thumbnail_image && courseOwnerOrgUuid ? (
+            {getBadgeThumbnailSrc(course, courseOwnerOrgUuid) ? (
               <BadgeThumbnailImage
-                src={getCourseThumbnailMediaDirectory(
-                  courseOwnerOrgUuid,
-                  course.course_uuid,
-                  course.thumbnail_image
-                )}
+                src={getBadgeThumbnailSrc(course, courseOwnerOrgUuid)}
                 alt={course.name}
               />
             ) : (
@@ -693,6 +791,39 @@ function BadgeStatusHero({
           )}
         </div>
       </section>
+
+      {isCompleted && badgeId && verificationUrl && (
+        <section className="mt-6 space-y-4" aria-label="Certificate">
+          <div className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-gray-200 sm:p-5">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-950">Certificate</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Your verifiable Open Badge certificate is ready to share.
+                </p>
+              </div>
+              <Link
+                href={verificationUrl}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
+              >
+                <FileText size={15} />
+                Open certificate
+              </Link>
+            </div>
+            <CertificatePreview
+              certificationName={certificateName}
+              certificationDescription={certificateDescription}
+              certificationType={certificateType}
+              certificatePattern={certificatePattern}
+              certificateInstructor={certificateInstructor}
+              certificateId={badgeId}
+              awardedDate={earnedDateLabel || undefined}
+              qrCodeLink={verificationUrl}
+              badgeImageUrl={certificateBadgeImage}
+            />
+          </div>
+        </section>
+      )}
 
       {chapters.length > 0 && (
         <section className="mt-5 space-y-3" aria-label="Badge content">

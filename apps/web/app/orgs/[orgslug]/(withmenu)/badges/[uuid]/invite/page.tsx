@@ -5,11 +5,10 @@ import { notFound, redirect } from 'next/navigation'
 import { Award, Check, Clock, Sparkles, Target, Trophy } from 'lucide-react'
 import { getServerSession } from '@/lib/auth/server'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { getCourseMetadata } from '@services/courses/courses'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
-import { getPublicCourseBadgeClass } from '@services/courses/certifications'
-import { getCourseThumbnailMediaDirectory, normalizeMediaUrl } from '@services/media/media'
+import { normalizeMediaUrl } from '@services/media/media'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
+import { getLearningPath } from '@services/learning/learning'
 
 type BadgeInvitePageProps = {
   params: Promise<{ orgslug: string; uuid: string }>
@@ -31,63 +30,36 @@ type BadgeClass = {
   'extensions:courseTags'?: string
 }
 
-const normalizeCourseUuid = (uuid: string) =>
-  uuid.startsWith('course_') ? uuid : `course_${uuid}`
-
-function getInviteFieldsFromCourseSeo(seo: any) {
-  if (!seo || typeof seo !== 'object') return {}
-
-  return [
-    'badge_invite_eyebrow',
-    'badge_invite_headline',
-    'badge_invite_subheadline',
-    'badge_invite_primary_stat',
-    'badge_invite_secondary_stat',
-    'badge_invite_testimonial',
-  ].reduce<Record<string, string>>((fields, key) => {
-    if (seo[key]) fields[key] = seo[key]
-    return fields
-  }, {})
-}
-
-async function getCourseInviteBadgeClass(uuid: string): Promise<BadgeClass | null> {
+async function getBadgeClass(uuid: string): Promise<BadgeClass | null> {
   try {
-    const course = await getCourseMetadata(
+    const badgePath = await getLearningPath(
       uuid,
-      { revalidate: 0, tags: ['courses'] },
-      undefined
+      undefined,
+      false,
+      { revalidate: 0, tags: ['learning-badges'] }
     )
-    const courseUuid = course.course_uuid || normalizeCourseUuid(uuid)
-    const orgUuid = course.owner_org_uuid || course.org_uuid
-    const inviteFields = getInviteFieldsFromCourseSeo(course.seo)
-    const image = course.thumbnail_image && orgUuid
-      ? getCourseThumbnailMediaDirectory(orgUuid, courseUuid, course.thumbnail_image)
-      : undefined
+    const badge = badgePath.badge || {}
+    const metadata = badge.badge_metadata || {}
+    const inviteFields = metadata.invite || {}
 
     return {
-      name: course.name,
-      description: course.description,
-      image,
+      name: metadata.badge_name || badge.name,
+      description: metadata.badge_description || badge.description,
+      image: metadata.badge_image_url || badge.thumbnail_image,
       criteria: {
-        narrative: 'Complete the required badge activities.',
+        narrative: badge.criteria || 'Complete the required badge activities.',
       },
       issuer: {
-        name: course.owner_org_name,
+        name: badgePath.org?.name,
       },
       ...(Object.keys(inviteFields).length > 0 && { 'extensions:invite': inviteFields }),
-      ...(course.about && { 'extensions:courseAbout': course.about }),
-      ...(course.learnings && { 'extensions:courseLearnings': course.learnings }),
-      ...(course.tags && { 'extensions:courseTags': course.tags }),
+      ...(badge.about && { 'extensions:courseAbout': badge.about }),
+      ...(metadata.learnings && { 'extensions:courseLearnings': metadata.learnings }),
+      ...(metadata.tags && { 'extensions:courseTags': metadata.tags }),
     }
   } catch {
     return null
   }
-}
-
-async function getBadgeClass(uuid: string): Promise<BadgeClass | null> {
-  const response = await getPublicCourseBadgeClass(normalizeCourseUuid(uuid))
-  if (!response.success) return getCourseInviteBadgeClass(uuid)
-  return response.data as BadgeClass
 }
 
 function parseLearnings(learnings?: string) {
@@ -151,7 +123,7 @@ function getCanonicalInviteUrl(orgslug: string, uuid: string) {
 export default async function BadgeInvitePage({ params }: BadgeInvitePageProps) {
   const { orgslug, uuid } = await params
   const session = await getServerSession()
-  const cleanBadgeUuid = uuid.replace('course_', '')
+  const cleanBadgeUuid = uuid.replace(/^badge_/, '')
 
   if (session) {
     redirect(

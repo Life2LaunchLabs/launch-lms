@@ -336,17 +336,8 @@ function ActivityClient(props: ActivityClientProps) {
     router.push(closeHref)
   }
   const closeActivityViewer = React.useCallback(() => {
-    const cleanCourseUuid = course.course_uuid?.replace('course_', '') || courseuuid
-    const closePath = quickstartMode
-      ? routePaths.org.quickstartCourse(cleanCourseUuid)
-      : routePaths.org.badgePath(cleanCourseUuid)
-    const closeHref = getUriWithOrg(orgslug, closePath)
-    if (chapterRouteMode) {
-      router.replace(closeHref)
-      return
-    }
-    router.push(closeHref)
-  }, [chapterRouteMode, course.course_uuid, courseuuid, orgslug, quickstartMode, router])
+    router.back()
+  }, [router])
 
   const handleQuizComplete = React.useCallback(async (result: any) => {
     if (onboardingMode) return
@@ -507,11 +498,18 @@ function ActivityClient(props: ActivityClientProps) {
     if (!activity || !currentChapterPage) return
 
     const cleanCourseUuid = course.course_uuid?.replace('course_', '') || courseuuid
+    const chapterIndex = currentChapter
+      ? (course.chapters || []).findIndex((chapter: any) =>
+          chapter.id === currentChapter.id || chapter.chapter_uuid === currentChapter.chapter_uuid
+        )
+      : -1
+    const isFinalChapter = chapterIndex >= 0 && chapterIndex === (course.chapters || []).length - 1
     const shouldShowChapterComplete =
       !onboardingMode &&
       !quickstartMode &&
       currentChapter &&
-      !nextChapterPage
+      !nextChapterPage &&
+      !isFinalChapter
 
     if (currentChapterPage.type === 'quiz-slide') {
       if (!quizState?.isAnswered || quizState?.isSubmitting) return
@@ -1198,7 +1196,8 @@ function NextActivityButton({ course, currentActivityId, activity, orgslug, gues
   const shouldShowChapterComplete =
     !quickstartMode &&
     currentChapter &&
-    (!nextActivity || !nextActivityIsInCurrentChapter)
+    nextActivity &&
+    !nextActivityIsInCurrentChapter
 
   // Only show for org members or guest mode
   if (!isGuestLearner && !isUserPartOfTheOrg) return null;

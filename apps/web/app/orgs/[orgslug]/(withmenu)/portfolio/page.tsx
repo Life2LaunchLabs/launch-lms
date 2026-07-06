@@ -4,7 +4,8 @@ import { OwnerProfilePageClient } from '@components/Objects/Portfolio/ProfilePag
 import { getUser } from '@services/users/users'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
-import { getOrgCollections } from '@services/courses/collections'
+import { getLearningBadgeCollections } from '@services/learning/learning'
+import { learningCollectionsToLegacyCollections } from '@services/learning/legacyAdapters'
 
 const ProfilePage = async (props: { params: Promise<{ orgslug: string }> }) => {
   const params = await props.params
@@ -24,11 +25,14 @@ const ProfilePage = async (props: { params: Promise<{ orgslug: string }> }) => {
   let collections: any[] = []
 
   try {
-    collections = await getOrgCollections(
+    const response = await getLearningBadgeCollections(
       org.id,
       accessToken,
+      false,
       { revalidate: 0, tags: ['collections'] }
     )
+    const rawLearningCollections = response.success ? response.data : response
+    collections = learningCollectionsToLegacyCollections(rawLearningCollections, org)
   } catch (error) {
     console.error('Failed to load collections for portfolio badges widget', {
       orgslug: params.orgslug,

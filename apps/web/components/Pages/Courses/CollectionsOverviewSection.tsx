@@ -4,6 +4,7 @@ import ContentPlaceHolderIfUserIsNotAdmin from '@components/Objects/ContentPlace
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getCourseThumbnailMediaDirectory } from '@services/media/media'
+import { cleanLearningCollectionId } from '@services/learning/legacyAdapters'
 import { Award, Library } from 'lucide-react'
 import Link from 'next/link'
 import React from 'react'
@@ -16,7 +17,6 @@ interface CollectionsOverviewSectionProps {
   trailRunsByCourseUuid?: Map<string, any>
 }
 
-const removeCollectionPrefix = (collectionUuid: string) => collectionUuid.replace('collection_', '')
 const removeCoursePrefix = (courseUuid: string) => courseUuid.replace('course_', '')
 
 function isCourseEarned(run: any) {
@@ -45,6 +45,15 @@ function getCollectionProgress(collection: any, trailRunsByCourseUuid?: Map<stri
   )
 }
 
+function getBadgeThumbnailSrc(course: any, fallbackOrgUuid?: string) {
+  if (course?.thumbnail_image_url) return course.thumbnail_image_url
+  const ownerOrgUuid = course?.owner_org_uuid || fallbackOrgUuid
+  if (course?.thumbnail_image && ownerOrgUuid) {
+    return getCourseThumbnailMediaDirectory(ownerOrgUuid, course.course_uuid, course.thumbnail_image)
+  }
+  return ''
+}
+
 function BadgeThumbnailCard({
   course,
   orgslug,
@@ -55,7 +64,7 @@ function BadgeThumbnailCard({
   fallbackOrgUuid?: string
 }) {
   const courseLink = getUriWithOrg(orgslug, routePaths.org.course(removeCoursePrefix(course.course_uuid)))
-  const ownerOrgUuid = course.owner_org_uuid || fallbackOrgUuid
+  const thumbnailSrc = getBadgeThumbnailSrc(course, fallbackOrgUuid)
 
   return (
     <Link
@@ -64,9 +73,9 @@ function BadgeThumbnailCard({
       className="group/badge block w-[168px] shrink-0 focus:outline-none"
     >
       <div className="relative aspect-square overflow-visible rounded-lg bg-transparent transition-all duration-300 group-hover/badge:-translate-y-0.5 group-focus-visible/badge:ring-2 group-focus-visible/badge:ring-gray-900">
-        {course.thumbnail_image && ownerOrgUuid ? (
+        {thumbnailSrc ? (
           <BadgeThumbnailImage
-            src={getCourseThumbnailMediaDirectory(ownerOrgUuid, course.course_uuid, course.thumbnail_image)}
+            src={thumbnailSrc}
             alt={course.name}
             className="transition-transform duration-500 group-hover/badge:scale-105"
           />
@@ -110,7 +119,7 @@ function CollectionsOverviewSection({
     <div className="flex flex-col gap-10">
       {collections.map((collection: any) => {
         const courses = collection.courses || []
-        const collectionId = removeCollectionPrefix(collection.collection_uuid)
+        const collectionId = cleanLearningCollectionId(collection.collection_uuid)
         const collectionLink = getUriWithOrg(orgslug, routePaths.org.collection(collectionId))
         const progress = getCollectionProgress(collection, trailRunsByCourseUuid)
 

@@ -6,9 +6,28 @@ import { getServerSession } from '@/lib/auth/server'
 import { getCanonicalUrl, getOrgSeoConfig, buildPageTitle, buildBreadcrumbJsonLd } from '@/lib/seo/utils'
 import { JsonLd } from '@components/SEO/JsonLd'
 import CollectionClient from './collection'
+import { getLearningBadgeCollections } from '@services/learning/learning'
+import { cleanLearningCollectionId, learningCollectionsToLegacyCollections } from '@services/learning/legacyAdapters'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string; collectionid: string }>
+}
+
+async function getLearningCollectionByRouteId(org: any, collectionid: string, accessToken?: string | null) {
+  try {
+    const response = await getLearningBadgeCollections(
+      org.id,
+      accessToken || undefined,
+      false,
+      { revalidate: 0, tags: ['learning-badges'] }
+    )
+    const rawCollections = response.success ? response.data : response
+    const collections = learningCollectionsToLegacyCollections(rawCollections, org)
+    const cleanRouteId = cleanLearningCollectionId(collectionid)
+    return collections.find((collection: any) => cleanLearningCollectionId(collection.collection_uuid) === cleanRouteId) || null
+  } catch {
+    return null
+  }
 }
 
 export async function generateMetadata(props: MetadataProps): Promise<Metadata> {
@@ -24,12 +43,15 @@ export async function generateMetadata(props: MetadataProps): Promise<Metadata> 
   const seoConfig = getOrgSeoConfig(org)
 
   let collection: any = null
+  collection = await getLearningCollectionByRouteId(org, params.collectionid, access_token)
   try {
-    collection = await getCollectionById(
-      params.collectionid,
-      access_token || '',
-      { revalidate: 0, tags: ['collections'] }
-    )
+    if (!collection) {
+      collection = await getCollectionById(
+        params.collectionid,
+        access_token || '',
+        { revalidate: 0, tags: ['collections'] }
+      )
+    }
   } catch {
     // Collection might not exist or user doesn't have access
   }
@@ -85,14 +107,21 @@ const CollectionPage = async (props: { params: MetadataProps['params'] }) => {
   const params = await props.params
   const session = await getServerSession()
   const access_token = session?.tokens?.access_token
+  const org = await getOrganizationContextInfo(params.orgslug, {
+    revalidate: 1800,
+    tags: ['organizations'],
+  })
 
   let collection: any = null
+  collection = await getLearningCollectionByRouteId(org, params.collectionid, access_token)
   try {
-    collection = await getCollectionById(
-      params.collectionid,
-      access_token || '',
-      { revalidate: 0, tags: ['collections'] }
-    )
+    if (!collection) {
+      collection = await getCollectionById(
+        params.collectionid,
+        access_token || '',
+        { revalidate: 0, tags: ['collections'] }
+      )
+    }
   } catch {
     // Collection might not exist or user doesn't have access
   }
@@ -109,6 +138,7 @@ const CollectionPage = async (props: { params: MetadataProps['params'] }) => {
       <CollectionClient
         orgslug={params.orgslug}
         collectionid={params.collectionid}
+        initialCollection={collection}
       />
     </>
   )

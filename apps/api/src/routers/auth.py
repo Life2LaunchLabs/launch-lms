@@ -29,8 +29,7 @@ from src.security.auth import (
 from src.security.cookies import get_cookie_domain_for_request, is_request_secure
 from src.services.guest_sessions import transfer_guest_session_data_to_user
 from src.services.shared_content import owner_org_payload
-from src.services.courses.courses import get_course_meta
-from src.services.courses.activities.activities import get_activity
+from src.services.learning import ensure_onboarding_learning_badge
 from src.services.auth.utils import signWithGoogle
 from src.services.dev.dev import isDevModeEnabled
 from src.services.security.rate_limiting import (
@@ -85,6 +84,12 @@ def _get_owner_org(db_session: Session) -> Organization:
     if not owner_org:
         raise HTTPException(status_code=404, detail="Owner organization not found")
     return owner_org
+
+
+def _learning_onboarding_redirect_url(owner_org: Organization, badge_uuid: str, activity_uuid: str) -> str:
+    badge_id = badge_uuid.replace("badge_", "")
+    activity_id = activity_uuid.replace("learning_activity_", "")
+    return f"/orgs/{owner_org.slug}/badges/{badge_id}/chapter/{activity_id}"
 
 
 def _onboarding_quiz_content() -> dict:
@@ -523,30 +528,18 @@ async def get_welcome_onboarding(
     request: Request,
     db_session: Session = Depends(get_db_session),
 ):
-    owner_org, course, chapter, activity = _ensure_onboarding_content(db_session)
-    course_payload = await get_course_meta(
-        request,
-        course.course_uuid,
-        with_unpublished_activities=False,
-        current_user=AnonymousUser(),
-        db_session=db_session,
-    )
-    activity_payload = await get_activity(
-        request,
-        activity.activity_uuid,
-        AnonymousUser(),
-        db_session,
-    )
+    owner_org, collection, badge, activity = ensure_onboarding_learning_badge(db_session)
     org_payload = owner_org.model_dump()
     org_payload.update(owner_org_payload(owner_org, owner_org.id))
 
     return {
         "org": org_payload,
-        "course": course_payload,
-        "chapter": chapter.model_dump(),
-        "activity": activity_payload,
-        "activity_id": activity.activity_uuid.replace("activity_", ""),
-        "course_uuid": course.course_uuid.replace("course_", ""),
+        "collection": collection.model_dump(),
+        "badge": badge.model_dump(),
+        "activity": activity.model_dump(),
+        "activity_id": activity.activity_uuid.replace("learning_activity_", ""),
+        "badge_uuid": badge.badge_uuid.replace("badge_", ""),
+        "redirect_url": _learning_onboarding_redirect_url(owner_org, badge.badge_uuid, activity.activity_uuid),
     }
 
 
@@ -568,30 +561,35 @@ async def complete_welcome_signup(
     body: WelcomeSignupRequest,
     db_session: Session = Depends(get_db_session),
 ):
-    owner_org, _, _, _ = _ensure_onboarding_content(db_session)
+    owner_org, _, badge, activity = ensure_onboarding_learning_badge(db_session)
 
     existing = db_session.exec(select(User).where(User.email == body.email)).first()
     if existing:
         raise HTTPException(status_code=409, detail="Email already exists")
 
-    onboarding = _extract_onboarding_answers(body.quiz_result)
-    recommended_badges = _get_onboarding_recommended_badges(
-        owner_org,
-        onboarding["next_step"],
-        db_session,
-    )
-    profile_preset = _build_onboarding_profile_preset(
-        onboarding["next_step"],
-        recommended_badges,
-    )
+    started_at = datetime.now(timezone.utc).isoformat()
+    profile_preset = {
+        "header": {"socials": []},
+        "featured": {"cards": [], "publicVisible": True},
+        "achievements": {"featuredIds": [], "publicVisible": True},
+        "timelineEnabled": True,
+        "timelinePublicVisible": True,
+        "timeline": [],
+        "layout": [],
+        "sections": [],
+        "onboarding": {
+            "started_at": started_at,
+            "badge_uuid": badge.badge_uuid,
+        },
+    }
     user_create = UserCreate(
         username=_generate_onboarding_username(body.email, db_session),
         email=body.email,
         password=body.password,
-        first_name=onboarding["first_name"],
-        last_name=onboarding["last_name"],
+        first_name="",
+        last_name="",
         bio="",
-        details={},
+        details={"onboarding": {"started_at": started_at, "badge_uuid": badge.badge_uuid}},
         profile=profile_preset,
     )
 
@@ -614,8 +612,6 @@ async def complete_welcome_signup(
         **(user.profile or {}),
         **profile_preset,
     }
-    user.first_name = onboarding["first_name"]
-    user.last_name = onboarding["last_name"]
     user.update_date = str(datetime.now())
     db_session.add(user)
     db_session.commit()
@@ -640,6 +636,12 @@ async def complete_welcome_signup(
             "access_token": access_token,
             "refresh_token": refresh_token,
             "expiry": get_token_expiry_ms(),
+        },
+        "onboarding": {
+            "badge_uuid": badge.badge_uuid,
+            "activity_uuid": activity.activity_uuid,
+            "org_slug": owner_org.slug,
+            "redirect_url": _learning_onboarding_redirect_url(owner_org, badge.badge_uuid, activity.activity_uuid),
         },
     }
 

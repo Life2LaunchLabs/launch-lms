@@ -52,6 +52,18 @@ function normalizeCourseUuid(courseUuid?: string | null) {
   return cleaned ? `course_${cleaned}` : ''
 }
 
+function getBadgeThumbnailSrc(course: any) {
+  if (course?.thumbnail_image_url) return course.thumbnail_image_url
+  if (course?.thumbnail_image) {
+    return getCourseThumbnailMediaDirectory(
+      course.owner_org_uuid || '',
+      course.course_uuid,
+      course.thumbnail_image
+    )
+  }
+  return ''
+}
+
 function getRecommendedBadgeUuids(orgConfig: any, user: any) {
   const config = orgConfig?.config || orgConfig || {}
   const onboarding = user?.profile?.onboarding || {}
@@ -188,13 +200,9 @@ function Courses(props: CourseProps) {
                       : 'Choose a badge path and complete the activities to earn your first badge.'
                 }
                 image={
-                  heroBadge?.course.thumbnail_image ? (
+                  heroBadge && getBadgeThumbnailSrc(heroBadge.course) ? (
                     <BadgeThumbnailImage
-                      src={getCourseThumbnailMediaDirectory(
-                        heroBadge.course.owner_org_uuid || '',
-                        heroBadge.course.course_uuid,
-                        heroBadge.course.thumbnail_image
-                      )}
+                      src={getBadgeThumbnailSrc(heroBadge.course)}
                       alt={heroBadge.course.name}
                     />
                   ) : (
@@ -214,13 +222,9 @@ function Courses(props: CourseProps) {
                         className="flex min-w-0 items-center gap-3 rounded-lg bg-white/12 p-3 text-left text-white ring-1 ring-white/20 transition-colors hover:bg-white/18"
                       >
                         <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/10">
-                          {course.thumbnail_image ? (
+                          {getBadgeThumbnailSrc(course) ? (
                             <BadgeThumbnailImage
-                              src={getCourseThumbnailMediaDirectory(
-                                course.owner_org_uuid || '',
-                                course.course_uuid,
-                                course.thumbnail_image
-                              )}
+                              src={getBadgeThumbnailSrc(course)}
                               alt={course.name}
                             />
                           ) : (

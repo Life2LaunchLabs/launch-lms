@@ -1,21 +1,16 @@
 import React from 'react'
-import { getCourseMetadata } from '@services/courses/courses'
-import { getPublicCourseBadgeClass } from '@services/courses/certifications'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { Metadata } from 'next'
-import { getCourseThumbnailMediaDirectory, getOrgOgImageMediaDirectory, normalizeMediaUrl } from '@services/media/media'
+import { getOrgOgImageMediaDirectory, normalizeMediaUrl } from '@services/media/media'
 import { getServerSession } from '@/lib/auth/server'
-import { getUriWithOrg, routePaths } from '@services/config/config'
 import { buildPageTitle, getCanonicalUrl, getOrgSeoConfig } from '@/lib/seo/utils'
-import { notFound, redirect } from 'next/navigation'
-import BadgeRouteDispatcher from './BadgeRouteDispatcher'
+import { notFound } from 'next/navigation'
+import CourseClient from '../../course/[courseuuid]/course'
+import { getLearningPath } from '@services/learning/learning'
+import { learningPathToLegacyCourse } from '@services/learning/legacyAdapters'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string; uuid: string }>
-}
-
-function normalizeCourseUuid(uuid: string) {
-  return uuid.startsWith('course_') ? uuid : `course_${uuid}`
 }
 
 export async function generateMetadata(props: MetadataProps): Promise<Metadata> {
@@ -26,49 +21,21 @@ export async function generateMetadata(props: MetadataProps): Promise<Metadata> 
     tags: ['organizations'],
   })
 
-  if (!session) {
-    const badgeClass = await getPublicCourseBadgeClass(normalizeCourseUuid(uuid))
-    if (badgeClass.success) {
-      const badge = badgeClass.data || {}
-      const title = badge.name || `Badge - ${org?.name || 'Launch LMS'}`
-      const description = badge.description || 'View this badge on Launch LMS'
-      const image = normalizeMediaUrl(badge.image)
-
-      return {
-        title,
-        description,
-        alternates: {
-          canonical: getCanonicalUrl(orgslug, `/badges/${uuid}`),
-        },
-        openGraph: {
-          title,
-          description,
-          images: image ? [{ url: image, alt: title }] : undefined,
-          type: 'website',
-        },
-      }
-    }
-  }
-
   try {
-    const course = await getCourseMetadata(
+    const badgePath = await getLearningPath(
       uuid,
+      session?.tokens?.access_token ?? undefined,
+      true,
       { revalidate: 0, tags: ['courses'] },
-      session?.tokens?.access_token ?? undefined
     )
+    const course = learningPathToLegacyCourse(badgePath, org)
     const seoConfig = getOrgSeoConfig(org)
     const seo = course.seo || {}
     const defaultTitle = buildPageTitle(course.name, org.name, seoConfig)
     const orgOgImageUrl = seoConfig.default_og_image
       ? getOrgOgImageMediaDirectory(org?.org_uuid, seoConfig.default_og_image)
       : null
-    const defaultImage = course.thumbnail_image
-      ? getCourseThumbnailMediaDirectory(
-          course.owner_org_uuid || org?.org_uuid,
-          course.course_uuid,
-          course.thumbnail_image
-        )
-      : orgOgImageUrl || '/empty_thumbnail.png'
+    const defaultImage = normalizeMediaUrl(course.thumbnail_image_url || course.thumbnail_image) || orgOgImageUrl || '/empty_thumbnail.png'
 
     return {
       title: seo.title || defaultTitle,
@@ -95,32 +62,28 @@ const BadgePage = async (props: MetadataProps) => {
   const { uuid, orgslug } = await props.params
   const session = await getServerSession()
 
-  if (!session) {
-    redirect(getUriWithOrg(orgslug, routePaths.org.badgeInvite(uuid)))
-  }
-
-  let course = null
-  let fetchError: { status?: number } | null = null
-
   try {
-    course = await getCourseMetadata(
+    const badgePath = await getLearningPath(
       uuid,
-      { revalidate: 0, tags: ['courses'] },
-      session?.tokens?.access_token ?? undefined
+      session?.tokens?.access_token ?? undefined,
+      true,
+      { revalidate: 0, tags: ['learning-badges'] }
     )
-  } catch (error: any) {
-    fetchError = { status: error?.status }
-  }
-
-  if (!course && !fetchError) notFound()
-
-  return (
-    <BadgeRouteDispatcher
-      courseuuid={uuid}
-      orgslug={orgslug}
-      course={course}
-    />
-  )
+    const org = await getOrganizationContextInfo(orgslug, {
+      revalidate: 1800,
+      tags: ['organizations'],
+    })
+    return (
+      <CourseClient
+        courseuuid={uuid}
+        orgslug={orgslug}
+        course={learningPathToLegacyCourse(badgePath, org)}
+        access_token={session?.tokens?.access_token}
+        learningBadgePath={badgePath}
+      />
+    )
+  } catch {}
+  notFound()
 }
 
 export default BadgePage

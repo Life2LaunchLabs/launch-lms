@@ -62,15 +62,20 @@ function BadgeCourseTile({
 }) {
   const courseLink = getUriWithOrg(orgslug, routePaths.org.course(removeCoursePrefix(course.course_uuid)))
   const ownerOrgUuid = course.owner_org_uuid || fallbackOrgUuid
+  const thumbnailSrc = course.thumbnail_image_url || (
+    course.thumbnail_image && ownerOrgUuid
+      ? getCourseThumbnailMediaDirectory(ownerOrgUuid, course.course_uuid, course.thumbnail_image)
+      : ''
+  )
   const progress = getCourseProgress(run)
   const showProgress = progress.isStarted && !progress.isEarned
 
   return (
     <Link href={courseLink} className="group block focus:outline-none">
       <div className="aspect-square w-full overflow-visible rounded-lg bg-transparent">
-        {course.thumbnail_image && ownerOrgUuid ? (
+        {thumbnailSrc ? (
           <BadgeThumbnailImage
-            src={getCourseThumbnailMediaDirectory(ownerOrgUuid, course.course_uuid, course.thumbnail_image)}
+            src={thumbnailSrc}
             alt={course.name}
             hoverScale
             className={`${
@@ -101,13 +106,13 @@ function BadgeCourseTile({
   )
 }
 
-const CollectionClient = ({ orgslug, collectionid }: { orgslug: string; collectionid: string }) => {
+const CollectionClient = ({ orgslug, collectionid, initialCollection }: { orgslug: string; collectionid: string; initialCollection?: any }) => {
   const session = useLHSession() as any
   const access_token = session?.data?.tokens?.access_token
   const org = useOrg() as any
 
   const { data: col } = useSWR(
-    collectionid && access_token ? [`collections/collection_${collectionid}`, access_token] : null,
+    !initialCollection && collectionid && access_token ? [`collections/collection_${collectionid}`, access_token] : null,
     ([, token]) => swrFetcher(`${getAPIUrl()}collections/collection_${collectionid}`, token)
   )
   const { data: trail } = useSWR(
@@ -122,12 +127,14 @@ const CollectionClient = ({ orgslug, collectionid }: { orgslug: string; collecti
     )
   }, [trail])
 
-  if (!col) return <PageLoading />
+  const collection = initialCollection || col
 
-  const courses = col.courses || []
+  if (!collection) return <PageLoading />
+
+  const courses = collection.courses || []
   const progress = getCollectionProgress(courses, trailRunsByCourseUuid)
-  const creatorName = col.owner_org_name || org?.name
-  const ownerOrgUuid = col.owner_org_uuid || org?.org_uuid
+  const creatorName = collection.owner_org_name || org?.name
+  const ownerOrgUuid = collection.owner_org_uuid || org?.org_uuid
 
   return (
     <GeneralWrapperStyled>
@@ -137,13 +144,13 @@ const CollectionClient = ({ orgslug, collectionid }: { orgslug: string; collecti
 
       <ContentHeroSection
         eyebrow={creatorName}
-        title={col.name}
-        body={col.description}
+        title={collection.name}
+        body={collection.description}
         image={
-          col.thumbnail_image && ownerOrgUuid ? (
+          collection.thumbnail_image && ownerOrgUuid ? (
             <img
-              src={getCollectionThumbnailMediaDirectory(ownerOrgUuid, col.collection_uuid, col.thumbnail_image)}
-              alt={col.name}
+              src={getCollectionThumbnailMediaDirectory(ownerOrgUuid, collection.collection_uuid, collection.thumbnail_image)}
+              alt={collection.name}
               className="h-full w-full object-cover"
             />
           ) : courses.length > 0 ? (
@@ -174,7 +181,7 @@ const CollectionClient = ({ orgslug, collectionid }: { orgslug: string; collecti
             course={course}
             orgslug={orgslug}
             run={trailRunsByCourseUuid.get(course.course_uuid)}
-            fallbackOrgUuid={col.owner_org_uuid || org?.org_uuid}
+            fallbackOrgUuid={collection.owner_org_uuid || org?.org_uuid}
           />
         ))}
         {courses.length === 0 && (
