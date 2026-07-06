@@ -5,6 +5,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from fastapi import HTTPException, Request, UploadFile, status
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from src.db.learning import (
@@ -1388,7 +1389,11 @@ async def delete_activity(request: Request, activity_uuid: str, current_user: Pu
     _require_org_admin(db_session, current_user, activity.org_id)
     badge = db_session.get(LearningBadge, activity.badge_id)
     if badge and _is_system_object(badge):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="System onboarding activities cannot be deleted")
+        sibling_count = db_session.exec(
+            select(func.count(LearningActivity.id)).where(LearningActivity.badge_id == badge.id)
+        ).one()
+        if sibling_count <= 1:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Badges must keep at least one activity")
     db_session.delete(activity)
     db_session.commit()
     return {"detail": "Learning activity deleted"}
@@ -1517,8 +1522,12 @@ async def delete_page(request: Request, page_uuid: str, current_user: PublicUser
     page = _get_page(db_session, page_uuid)
     _require_org_admin(db_session, current_user, page.org_id)
     badge = db_session.get(LearningBadge, page.badge_id)
-    if badge and _is_system_object(badge) and page.required:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Required system onboarding pages cannot be deleted")
+    if badge and _is_system_object(badge):
+        sibling_count = db_session.exec(
+            select(func.count(LearningPage.id)).where(LearningPage.activity_id == page.activity_id)
+        ).one()
+        if sibling_count <= 1:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Activities must keep at least one page")
     db_session.delete(page)
     db_session.commit()
     return {"detail": "Learning page deleted"}

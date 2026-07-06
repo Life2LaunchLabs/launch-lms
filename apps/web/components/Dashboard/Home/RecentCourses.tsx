@@ -6,7 +6,6 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getAPIUrl, routePaths } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
-import { getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { SafeImage } from '@components/Objects/SafeImage'
 import { BookOpen, PlusCircle, Clock } from '@phosphor-icons/react'
 
@@ -14,28 +13,27 @@ export default function RecentCourses() {
   const org = useOrg() as any
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token
-  const orgslug = org?.slug
 
-  const { data: coursesData, isLoading } = useSWR(
-    token && orgslug
-      ? `${getAPIUrl()}courses/org_slug/${orgslug}/page/1/limit/8?include_unpublished=true`
+  const { data: badgesData, isLoading } = useSWR(
+    token && org?.id
+      ? `${getAPIUrl()}badges/?org_id=${org.id}&admin=true`
       : null,
     (url) => swrFetcher(url, token),
     { revalidateOnFocus: false }
   )
 
-  const courses: any[] = coursesData ?? []
-  const publishedCount = courses.filter((c: any) => c.published).length
-  const draftCount = courses.filter((c: any) => !c.published).length
+  const badges: any[] = (badgesData ?? []).slice(0, 8)
+  const publishedCount = badges.filter((badge: any) => badge.published).length
+  const draftCount = badges.filter((badge: any) => !badge.published).length
 
   return (
     <div className="bg-white rounded-xl nice-shadow overflow-hidden">
       <div className="flex items-center justify-between px-5 pt-4 pb-3">
         <div className="flex items-center gap-3">
           <h3 className="text-sm font-semibold text-gray-700">
-            Recent Courses
+            Recent Badges
           </h3>
-          {courses.length > 0 && (
+          {badges.length > 0 && (
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-green-50 text-green-600">
                 {publishedCount} published
@@ -49,7 +47,7 @@ export default function RecentCourses() {
           )}
         </div>
         <Link
-          href={routePaths.org.dash.courses()}
+          href={routePaths.org.dash.badges()}
           className="text-[11px] font-medium text-gray-400 hover:text-gray-600 transition-colors"
         >
           View All &rarr;
@@ -68,7 +66,7 @@ export default function RecentCourses() {
             </div>
           ))}
         </div>
-      ) : courses.length === 0 ? (
+      ) : badges.length === 0 ? (
         <div className="px-5 pb-5">
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <div className="p-3 rounded-full bg-gray-100 mb-3">
@@ -78,29 +76,22 @@ export default function RecentCourses() {
                 className="text-gray-400"
               />
             </div>
-            <p className="text-xs text-gray-400 mb-3">No courses yet</p>
+            <p className="text-xs text-gray-400 mb-3">No badges yet</p>
             <Link
-              href={routePaths.org.dash.courses() + '?new=true'}
+              href={routePaths.org.dash.badges()}
               className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700"
             >
               <PlusCircle size={14} weight="bold" />
-              Create your first course
+              Create your first badge
             </Link>
           </div>
         </div>
       ) : (
         <div className="divide-y divide-gray-50">
-          {courses.slice(0, 8).map((course: any) => {
-            const courseId = course.course_uuid?.replace('course_', '')
-            const thumbnail = course.thumbnail_image
-              ? getCourseThumbnailMediaDirectory(
-                  org.org_uuid,
-                  course.course_uuid,
-                  course.thumbnail_image
-                )
-              : null
-            const updatedAt = course.update_date
-              ? new Date(course.update_date).toLocaleDateString('en-US', {
+          {badges.map((badge: any) => {
+            const badgeId = badge.badge_uuid?.replace('badge_', '')
+            const updatedAt = badge.update_date
+              ? new Date(badge.update_date).toLocaleDateString('en-US', {
                   month: 'short',
                   day: 'numeric',
                 })
@@ -108,15 +99,15 @@ export default function RecentCourses() {
 
             return (
               <Link
-                key={course.course_uuid}
-                href={routePaths.org.dash.courseSettings(courseId, 'content')}
+                key={badge.badge_uuid}
+                href={`${routePaths.org.dash.badges()}/badge/${badgeId}/learning-path`}
                 className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors group"
               >
                 <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
-                  {thumbnail ? (
+                  {badge.thumbnail_image ? (
                     <SafeImage
-                      src={thumbnail}
-                      alt={course.name}
+                      src={badge.thumbnail_image}
+                      alt={badge.name}
                       width={40}
                       height={40}
                       className="w-full h-full object-contain bg-gray-100"
@@ -131,7 +122,7 @@ export default function RecentCourses() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-700 truncate group-hover:text-gray-900">
-                    {course.name}
+                    {badge.name}
                   </p>
                   <div className="flex items-center gap-3 mt-0.5">
                     {updatedAt && (
@@ -140,22 +131,21 @@ export default function RecentCourses() {
                         {updatedAt}
                       </span>
                     )}
-                    {course.chapters_count !== undefined && (
+                    {badge.collection_id !== undefined && (
                       <span className="text-[10px] text-gray-400">
-                        {course.chapters_count} chapter
-                        {course.chapters_count !== 1 ? 's' : ''}
+                        Badge
                       </span>
                     )}
                   </div>
                 </div>
                 <span
                   className={`text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 ${
-                    course.published
+                    badge.published
                       ? 'bg-green-50 text-green-600'
                       : 'bg-gray-100 text-gray-500'
                   }`}
                 >
-                  {course.published ? 'Published' : 'Draft'}
+                  {badge.published ? 'Published' : 'Draft'}
                 </span>
               </Link>
             )

@@ -124,8 +124,8 @@ export function LearningActivitySurface({
     ? `relative flex w-full min-w-0 items-center justify-center overflow-hidden bg-black px-4 py-4 text-gray-950 sm:py-6 ${className}`
     : `relative flex w-full min-w-0 overflow-hidden bg-[var(--org-page-background)] text-gray-950 ${className} items-center justify-center px-4 py-4 sm:py-6`
   const frameClassName = isVideoPage
-    ? 'relative flex h-full max-h-[min(900px,calc(100dvh-2rem))] min-h-0 w-full min-w-0 flex-none flex-col overflow-hidden sm:max-h-[min(900px,calc(100dvh-3rem))]'
-    : 'relative flex h-full max-h-[min(900px,calc(100dvh-2rem))] min-h-0 w-full min-w-0 max-w-3xl flex-none flex-col overflow-hidden sm:max-h-[min(900px,calc(100dvh-3rem))]'
+    ? 'relative flex h-full min-h-0 w-full min-w-0 flex-none flex-col overflow-hidden'
+    : 'relative flex h-full min-h-0 w-full min-w-0 max-w-3xl flex-none flex-col overflow-hidden'
   const chromeInnerClassName = isVideoPage
     ? 'mx-auto flex h-14 w-full max-w-3xl items-center gap-4'
     : 'mx-auto flex h-14 w-full items-center gap-4'

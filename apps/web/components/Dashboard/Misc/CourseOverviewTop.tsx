@@ -2,7 +2,6 @@
 import { useCourse, useCourseDispatch, getCourseMetaCacheKey } from '@components/Contexts/CourseContext'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import SaveState from './SaveState'
-import { CourseOverviewParams } from 'app/orgs/[orgslug]/admin/courses/course/[courseuuid]/[subpage]/page'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getCourseThumbnailMediaDirectory } from '@services/media/media'
@@ -19,6 +18,12 @@ import { revalidateTags } from '@services/utils/ts/requests'
 import { mutate } from 'swr'
 import toast from 'react-hot-toast'
 import { useState, useCallback } from 'react'
+
+type CourseOverviewParams = {
+  orgslug: string
+  courseuuid: string
+  subpage: string
+}
 
 export function CourseOverviewTop({
   params,
