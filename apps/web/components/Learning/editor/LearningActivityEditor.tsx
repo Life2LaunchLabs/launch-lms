@@ -1419,11 +1419,12 @@ function McqBlockCanvas({ block, page, selected, readOnly, onPatch }: any) {
       {readOnly ? (
         content.label ? <p className="text-lg font-bold text-gray-900">{content.label}</p> : null
       ) : (
-        <input
+        <textarea
           value={content.label || ''}
           onChange={(event) => onPatch({ content: { ...content, label: event.target.value } })}
           placeholder="Question label"
-          className="w-full bg-transparent text-lg font-bold text-gray-900 outline-none placeholder:text-gray-300"
+          rows={2}
+          className="min-h-[3.25rem] w-full resize-none overflow-hidden bg-transparent text-lg font-bold leading-7 text-gray-900 outline-none placeholder:text-gray-300"
         />
       )}
       {options.map((option: any, index: number) => {
@@ -1439,11 +1440,12 @@ function McqBlockCanvas({ block, page, selected, readOnly, onPatch }: any) {
             {readOnly ? (
               <span className="min-w-0 flex-1 text-gray-900">{option.text || `Option ${index + 1}`}</span>
             ) : (
-              <input
+              <textarea
                 value={option.text || ''}
                 onChange={(event) => updateOption(option.id, event.target.value)}
                 placeholder={`Option ${index + 1}`}
-                className="min-w-0 flex-1 bg-transparent text-gray-900 outline-none placeholder:text-gray-400"
+                rows={1}
+                className="min-h-6 min-w-0 flex-1 resize-none overflow-hidden bg-transparent text-gray-900 outline-none placeholder:text-gray-400"
               />
             )}
             {!readOnly && (

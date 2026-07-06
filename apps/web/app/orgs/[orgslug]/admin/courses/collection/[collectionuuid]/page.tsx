@@ -6,6 +6,6 @@ export default async function CollectionPage({
 }: {
   params: Promise<{ orgslug: string; collectionuuid: string }>
 }) {
-  const { orgslug, collectionuuid } = await params
-  redirect(getUriWithOrg(orgslug, routePaths.org.dash.collectionSettings(collectionuuid, 'courses')))
+  const { orgslug } = await params
+  redirect(getUriWithOrg(orgslug, routePaths.org.dash.badges()))
 }

@@ -87,6 +87,7 @@ function DashLeftMenu() {
 
   // SWR key for courses
   const coursesKey = org?.slug ? `${getAPIUrl()}courses/org_slug/${org.slug}/page/1/limit/8?include_unpublished=true` : null
+  const badgesKey = org?.id ? `${getAPIUrl()}badges/?org_id=${org.id}&admin=true` : null
 
   // Fetch recent courses
   const { data: coursesData } = useSWR(
@@ -97,7 +98,15 @@ function DashLeftMenu() {
       revalidateOnReconnect: true,
     }
   )
-  const recentCourses = coursesData?.slice(0, 8) || []
+  const { data: badgesData } = useSWR(
+    badgesKey,
+    (url) => swrFetcher(url, access_token),
+    {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    }
+  )
+  const recentBadges = badgesData?.slice(0, 8) || []
 
   // Fetch assignments from courses
   const [assignmentsRefreshKey, setAssignmentsRefreshKey] = useState(0)
@@ -298,24 +307,18 @@ function DashLeftMenu() {
                       <span>Badges</span>
                     </Link>
                   </HoverMenuItem>
-                  <HoverMenuItem asChild>
-                    <Link href={routePaths.org.dash.courses()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                      <BookOpen size={16} weight="fill" />
-                      <span>Legacy badges</span>
-                    </Link>
-                  </HoverMenuItem>
-                  {recentCourses.length > 0 && (
+                  {recentBadges.length > 0 && (
                     <>
                       <HoverMenuSeparator />
                       <HoverMenuLabel className="text-white/40">{t('common.recent')}</HoverMenuLabel>
-                      {recentCourses.map((course: any) => (
-                        <HoverMenuItem key={course.course_uuid} asChild>
+                      {recentBadges.map((badge: any) => (
+                        <HoverMenuItem key={badge.badge_uuid} asChild>
                           <Link
-                            href={routePaths.org.dash.courseSettings(course.course_uuid.replace('course_', ''), 'settings')}
+                            href={`${routePaths.org.dash.badges()}/badge/${String(badge.badge_uuid || '').replace(/^badge_/, '')}/learning-path`}
                             className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors"
                           >
                             <PencilSimple size={14} className="text-white/40" />
-                            <span className="truncate">{course.name}</span>
+                            <span className="truncate">{badge.name}</span>
                           </Link>
                         </HoverMenuItem>
                       ))}
