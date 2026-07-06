@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Optional
 
-from sqlalchemy import Column, ForeignKey, Integer, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, Text, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -16,6 +16,7 @@ class NewsArticleBase(SQLModel):
     summary: Optional[str] = Field(default=None, sa_column=Column(Text))
     body: Optional[str] = Field(default=None, sa_column=Column(Text))
     external_url: Optional[str] = None
+    featured: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, server_default="false"))
     status: NewsArticleStatus = NewsArticleStatus.draft
     published_at: Optional[str] = None
 
@@ -49,6 +50,7 @@ class NewsArticleUpdate(SQLModel):
     summary: Optional[str] = None
     body: Optional[str] = None
     external_url: Optional[str] = None
+    featured: Optional[bool] = None
     status: Optional[NewsArticleStatus] = None
     published_at: Optional[str] = None
 

@@ -1,11 +1,11 @@
 'use client'
 import React from 'react'
 import Link from 'next/link'
-import { Buildings, Users } from '@phosphor-icons/react'
+import { Buildings, Newspaper, Users } from '@phosphor-icons/react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getDefaultOrg, getUriWithOrg } from '@services/config/config'
 
-type PlatformSection = 'organizations' | 'users'
+type PlatformSection = 'organizations' | 'users' | 'news'
 
 const SECTIONS: {
   id: PlatformSection
@@ -24,6 +24,12 @@ const SECTIONS: {
     label: 'Users',
     icon: <Users size={14} />,
     href: '/admin/org-management/users',
+  },
+  {
+    id: 'news',
+    label: 'News',
+    icon: <Newspaper size={14} />,
+    href: '/admin/news',
   },
 ]
 

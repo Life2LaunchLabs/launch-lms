@@ -16,6 +16,7 @@ export interface NewsArticle {
   summary: string | null
   body: string | null
   external_url: string | null
+  featured: boolean
   status: NewsArticleStatus
   published_at: string | null
   creation_date: string
@@ -28,6 +29,7 @@ export type NewsArticleInput = {
   summary?: string | null
   body?: string | null
   external_url?: string | null
+  featured?: boolean
   status?: NewsArticleStatus
   published_at?: string | null
 }
