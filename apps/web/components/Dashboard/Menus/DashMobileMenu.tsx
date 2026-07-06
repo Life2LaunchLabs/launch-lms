@@ -14,6 +14,7 @@ import {
   Home,
   Menu,
   MessagesSquare,
+  Newspaper,
   School,
   UserRound,
   Users,
@@ -121,6 +122,11 @@ function DashMobileMenu() {
           href: getUriWithOrg(org.slug, routePaths.owner.platform.users()),
           icon: Users,
           label: 'Users',
+        },
+        {
+          href: getUriWithOrg(org.slug, routePaths.owner.platform.news()),
+          icon: Newspaper,
+          label: 'News',
         },
       ]
     : []

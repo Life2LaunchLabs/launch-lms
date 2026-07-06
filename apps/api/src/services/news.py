@@ -145,6 +145,7 @@ async def create_article(
         summary=article_data.summary,
         body=article_data.body,
         external_url=article_data.external_url,
+        featured=article_data.featured,
         status=article_data.status,
         published_at=published_at,
         creation_date=now,

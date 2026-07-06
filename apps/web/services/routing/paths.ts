@@ -51,6 +51,7 @@ export const routePaths = {
     platform: {
       organizations: () => '/admin/org-management',
       users: () => '/admin/org-management/users',
+      news: () => '/admin/news',
       analytics: () => '/admin/org-management',
       organization: (orgId: string | number) => `/admin/org-management/${orgId}`,
     },
@@ -124,6 +125,9 @@ export const routePaths = {
       courses: () => '/admin/courses',
       badges: () => '/admin/badges',
       assignments: () => '/admin/assignments',
+      news: () => '/admin/news',
+      newsNewPost: () => '/admin/news/new-post',
+      newsPost: (articleUuid: string) => `/admin/news/${articleUuid}`,
       communities: () => '/admin/communities',
       resources: () => '/admin/resources',
       resourceTags: () => '/admin/resources/tags',
@@ -176,6 +180,7 @@ export const routePaths = {
       platform: {
         organizations: () => '/admin/org-management',
         users: () => '/admin/org-management/users',
+        news: () => '/admin/news',
         analytics: () => '/admin/org-management',
         organization: (orgId: string | number) => `/admin/org-management/${orgId}`,
       },

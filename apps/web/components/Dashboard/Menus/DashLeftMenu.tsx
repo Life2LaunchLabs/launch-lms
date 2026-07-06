@@ -25,6 +25,7 @@ import {
   Palette,
   Cube,
   FolderOpen,
+  Newspaper,
   ShoppingBag,
   UserCircle,
 } from '@phosphor-icons/react'
@@ -572,6 +573,11 @@ function DashLeftMenu() {
               href: routePaths.owner.platform.users(),
               icon: <UsersThree size={20} weight="fill" />,
               label: 'Users',
+            },
+            {
+              href: routePaths.owner.platform.news(),
+              icon: <Newspaper size={20} weight="fill" />,
+              label: 'News',
             },
           ].map((item) => {
             const isActive =
