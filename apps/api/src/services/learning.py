@@ -1,4 +1,5 @@
 import hashlib
+import re
 from copy import deepcopy
 from datetime import datetime
 from uuid import uuid4
@@ -38,6 +39,10 @@ from src.db.learning import (
     LearningRun,
     LearningRunRead,
     LearningRunStatus,
+    LearningVariable,
+    LearningVariableCreate,
+    LearningVariableRead,
+    LearningVariableUpdate,
 )
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
@@ -52,6 +57,15 @@ from src.services.courses.openbadges import (
     get_public_base_url,
 )
 from src.services.guest_sessions import LearningActor
+from src.services.learning_page_convert import (
+    STANDARD_CONTENT_VERSION,
+    find_question_block,
+    heading_node,
+    iter_block_stacks,
+    paragraph_node,
+    question_block,
+    text_block,
+)
 from src.services.utils.upload_content import upload_file
 
 LEARNING_SYSTEM_TYPE_ONBOARDING = "onboarding"
@@ -258,28 +272,8 @@ def _latest_attempts(db_session: Session, run_id: int) -> dict[int, LearningResp
     return latest
 
 
-def _select_response_variant(page: LearningPage, latest_attempts_by_page_id: dict[int, LearningResponseAttempt]) -> dict:
-    content = page.content or {}
-    linked_page_uuid = content.get("linked_page_uuid") or content.get("linkedPageUuid")
-    variants = content.get("response_variants") or content.get("variants") or {}
-    default_variant = variants.get("default") or content.get("rich_text") or content.get("default") or {}
-    if not linked_page_uuid:
-        return default_variant
-
-    linked_attempt = None
-    for attempt in latest_attempts_by_page_id.values():
-        if attempt.result.get("page_uuid") == _clean_uuid(str(linked_page_uuid), "learning_page_"):
-            linked_attempt = attempt
-            break
-    if not linked_attempt:
-        return default_variant
-
-    if linked_attempt.result.get("grading_status") == "pending":
-        return default_variant
-    if linked_attempt.feedback_key and linked_attempt.feedback_key in variants:
-        return variants[linked_attempt.feedback_key]
-    correctness_key = "correct" if linked_attempt.is_correct else "incorrect" if linked_attempt.is_correct is False else "default"
-    return variants.get(correctness_key) or default_variant
+def _question_block(page: LearningPage) -> dict | None:
+    return find_question_block(page.content)
 
 
 def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
@@ -349,7 +343,7 @@ def _normalize_mcq_answer(answer: dict) -> list[str]:
     return selected
 
 
-def _normalize_text_answer(page: LearningPage, answer: dict) -> dict[str, dict]:
+def _normalize_text_answer(question_content: dict, answer: dict) -> dict[str, dict]:
     raw_inputs = answer.get("inputs")
     if isinstance(raw_inputs, dict):
         return {
@@ -357,7 +351,7 @@ def _normalize_text_answer(page: LearningPage, answer: dict) -> dict[str, dict]:
             for input_id, value in raw_inputs.items()
         }
 
-    inputs = (page.content or {}).get("inputs") or []
+    inputs = question_content.get("inputs") or []
     fallback_id = str(inputs[0].get("id") if inputs else "response")
     return {
         fallback_id: {
@@ -367,10 +361,10 @@ def _normalize_text_answer(page: LearningPage, answer: dict) -> dict[str, dict]:
     }
 
 
-def _validate_mcq_answer(page: LearningPage, selected: list[str]) -> None:
-    options = (page.content or {}).get("options") or []
+def _validate_mcq_answer(question_content: dict, completion: dict, selected: list[str]) -> None:
+    options = question_content.get("options") or []
     option_ids = {str(option.get("id")) for option in options if option.get("id") is not None}
-    completion = page.completion or {}
+    completion = completion or {}
     min_selections = max(0, _as_int(completion.get("min_selections") or completion.get("minSelections"), 1))
     max_default = len(options) if options else max(1, len(selected))
     max_selections = max(1, _as_int(completion.get("max_selections") or completion.get("maxSelections"), max_default))
@@ -384,9 +378,9 @@ def _validate_mcq_answer(page: LearningPage, selected: list[str]) -> None:
             raise HTTPException(status_code=422, detail="Selected option is not available")
 
 
-def _validate_text_answer(page: LearningPage, inputs: dict[str, dict]) -> dict[str, dict]:
-    configured_inputs = (page.content or {}).get("inputs") or [{"id": "response"}]
-    completion_inputs = (page.completion or {}).get("inputs") or {}
+def _validate_text_answer(question_content: dict, completion: dict, inputs: dict[str, dict]) -> dict[str, dict]:
+    configured_inputs = question_content.get("inputs") or [{"id": "response"}]
+    completion_inputs = (completion or {}).get("inputs") or {}
     results: dict[str, dict] = {}
 
     for item in configured_inputs:
@@ -436,8 +430,10 @@ def _variable_bindings(page: LearningPage) -> dict:
 def _extract_learning_variables(page: LearningPage, result: dict) -> list[dict]:
     bindings = _variable_bindings(page)
     variables: list[dict] = []
+    question = _question_block(page)
+    kind = (question or {}).get("kind")
 
-    if page.page_type == LearningPageType.TEXT_INPUT:
+    if kind == "text_input":
         input_bindings = bindings.get("inputs") or {}
         if not isinstance(input_bindings, dict):
             return []
@@ -453,7 +449,7 @@ def _extract_learning_variables(page: LearningPage, result: dict) -> list[dict]:
                     }
                 )
 
-    if page.page_type == LearningPageType.MULTIPLE_CHOICE:
+    if kind == "multiple_choice":
         option_bindings = bindings.get("options") or {}
         if not isinstance(option_bindings, dict):
             return []
@@ -546,9 +542,15 @@ def _apply_learning_variables_to_user(
 
 
 def _grade_answer(page: LearningPage, answer: dict) -> tuple[bool | None, float | None, str | None, dict]:
-    if page.page_type == LearningPageType.MULTIPLE_CHOICE:
+    question = _question_block(page)
+    if not question:
+        return None, None, None, {"page_uuid": page.page_uuid}
+    question_content = question.get("content") or {}
+    kind = question.get("kind")
+
+    if kind == "multiple_choice":
         selected = _normalize_mcq_answer(answer)
-        _validate_mcq_answer(page, selected)
+        _validate_mcq_answer(question_content, page.completion or {}, selected)
         scoring = page.scoring or {}
         correct_options = {str(value) for value in scoring.get("correct_option_ids") or scoring.get("correctOptionIds") or []}
         is_correct = set(selected) == correct_options if correct_options else None
@@ -564,8 +566,8 @@ def _grade_answer(page: LearningPage, answer: dict) -> tuple[bool | None, float 
             "grading_status": "graded",
             "page_uuid": page.page_uuid,
         }
-    if page.page_type == LearningPageType.TEXT_INPUT:
-        inputs = _validate_text_answer(page, _normalize_text_answer(page, answer))
+    if kind == "text_input":
+        inputs = _validate_text_answer(question_content, page.completion or {}, _normalize_text_answer(question_content, answer))
         scoring = page.scoring or {}
         mode = scoring.get("mode") or ("accepted_answers" if scoring.get("accepted_answers") else "off")
         completion_inputs = (page.completion or {}).get("inputs") or {}
@@ -663,12 +665,13 @@ def _activity_score_summary(db_session: Session, run: LearningRun, activity: Lea
     pending_manual_grades = 0
 
     for page in pages:
-        if page.page_type not in (LearningPageType.MULTIPLE_CHOICE, LearningPageType.TEXT_INPUT):
+        question = _question_block(page)
+        if not question:
             continue
         attempt = latest_attempts.get(page.id or 0)
         scoring = page.scoring or {}
         configured_points = _as_float(scoring.get("points"), 1.0)
-        if page.page_type == LearningPageType.TEXT_INPUT:
+        if question.get("kind") == "text_input":
             completion_inputs = (page.completion or {}).get("inputs") or {}
             input_points = [
                 _as_float((rules or {}).get("points"), 0.0)
@@ -710,14 +713,17 @@ def _activity_meets_completion_rules(db_session: Session, run: LearningRun, acti
 
 
 def _has_pending_required_manual_grades(db_session: Session, run: LearningRun) -> bool:
-    manual_pages = db_session.exec(
+    required_pages = db_session.exec(
         select(LearningPage).where(
             LearningPage.badge_id == run.badge_id,
             LearningPage.required == True,
-            LearningPage.page_type == LearningPageType.TEXT_INPUT,
         )
     ).all()
-    manual_pages = [page for page in manual_pages if (page.scoring or {}).get("mode") == "manual"]
+    manual_pages = [
+        page
+        for page in required_pages
+        if (_question_block(page) or {}).get("kind") == "text_input" and (page.scoring or {}).get("mode") == "manual"
+    ]
     if not manual_pages:
         return False
 
@@ -927,25 +933,24 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
             activity_id=activity.id or 0,
             badge_id=badge.id or 0,
             org_id=owner_org.id or 0,
-            page_type=LearningPageType.TEXT_INPUT,
+            page_type=LearningPageType.STANDARD,
             title="What should we call you?",
             order=1,
             required=True,
             content={
-                "body": "Tell us your first and last name.",
-                "rich_text": {
-                    "type": "doc",
-                    "content": [
+                "version": STANDARD_CONTENT_VERSION,
+                "blocks": [
+                    text_block(paragraph_node("Tell us your first and last name."), block_id="blk_onboarding_name_intro"),
+                    question_block(
+                        "text_input",
                         {
-                            "type": "paragraph",
-                            "content": [{"type": "text", "text": "Tell us your first and last name."}],
+                            "inputs": [
+                                {"id": "first_name", "label": "First name", "placeholder": "First name", "variant": "single_line", "width": "half"},
+                                {"id": "last_name", "label": "Last name", "placeholder": "Last name", "variant": "single_line", "width": "half"},
+                            ]
                         },
-                        {"type": "learningQuestion", "attrs": {"locked": True}},
-                    ],
-                },
-                "inputs": [
-                    {"id": "first_name", "label": "First name", "placeholder": "First name", "variant": "single_line", "width": "half"},
-                    {"id": "last_name", "label": "Last name", "placeholder": "Last name", "variant": "single_line", "width": "half"},
+                        block_id="blk_onboarding_name_question",
+                    ),
                 ],
             },
             scoring={"mode": "off", "points": 0},
@@ -992,13 +997,16 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
             activity_id=activity.id or 0,
             badge_id=badge.id or 0,
             org_id=owner_org.id or 0,
-            page_type=LearningPageType.MULTIPLE_CHOICE,
+            page_type=LearningPageType.STANDARD,
             title="What next step are you working towards?",
             order=2,
             required=True,
             content={
-                "prompt": "What next step are you working towards?",
-                "options": goal_options,
+                "version": STANDARD_CONTENT_VERSION,
+                "blocks": [
+                    text_block(heading_node("What next step are you working towards?"), block_id="blk_onboarding_goal_heading"),
+                    question_block("multiple_choice", {"options": goal_options}, block_id="blk_onboarding_goal_question"),
+                ],
             },
             scoring={"mode": "off", "points": 0, "correct_option_ids": [], "score_policy": "exact_match"},
             completion={
@@ -1221,10 +1229,10 @@ async def create_activity(request: Request, data: LearningActivityCreate, curren
             activity_id=activity.id or 0,
             badge_id=badge.id or 0,
             org_id=badge.org_id,
-            page_type=LearningPageType.INFO,
+            page_type=LearningPageType.STANDARD,
             title="Untitled page",
             order=1,
-            content={"body": ""},
+            content={"version": STANDARD_CONTENT_VERSION, "blocks": [text_block(paragraph_node(""))]},
             page_uuid=f"learning_page_{uuid4()}",
             creation_date=now,
             update_date=now,
@@ -1311,9 +1319,42 @@ async def duplicate_activity(request: Request, activity_uuid: str, current_user:
     return _serialize_activity(clone, cloned_pages)
 
 
+def _validate_page_payload(page_type: LearningPageType, content: dict | None) -> None:
+    if page_type != LearningPageType.STANDARD or not isinstance(content, dict):
+        return
+
+    stacks = list(iter_block_stacks(content))
+    question_count = 0
+    seen_ids: set[str] = set()
+    for stack in stacks:
+        for block in stack:
+            if not isinstance(block, dict):
+                raise HTTPException(status_code=422, detail="Page blocks must be objects")
+            block_id = str(block.get("id") or "")
+            if not block_id:
+                raise HTTPException(status_code=422, detail="Every block needs an id")
+            if block_id in seen_ids:
+                raise HTTPException(status_code=422, detail="Block ids must be unique within a page")
+            seen_ids.add(block_id)
+            if block.get("type") == "question":
+                question_count += 1
+
+    variants = content.get("variants")
+    if isinstance(variants, dict):
+        if question_count:
+            raise HTTPException(status_code=422, detail="Pages with variants cannot contain a question block")
+        overrides = variants.get("overrides") or {}
+        source_uuid = (variants.get("source") or {}).get("page_uuid")
+        if overrides and not source_uuid:
+            raise HTTPException(status_code=422, detail="Variants need a source question page")
+    elif question_count > 1:
+        raise HTTPException(status_code=422, detail="A page can only contain one question block")
+
+
 async def create_page(request: Request, data: LearningPageCreate, current_user: PublicUser | AnonymousUser, db_session: Session) -> LearningPageRead:
     activity = _get_activity(db_session, data.activity_uuid)
     _require_org_admin(db_session, current_user, activity.org_id)
+    _validate_page_payload(data.page_type, data.content)
     pages = db_session.exec(select(LearningPage).where(LearningPage.activity_id == activity.id).order_by(LearningPage.order.asc())).all()  # type: ignore
     now = _now()
     payload = data.model_dump(exclude={"activity_uuid"})
@@ -1336,6 +1377,9 @@ async def create_page(request: Request, data: LearningPageCreate, current_user: 
 async def update_page(request: Request, page_uuid: str, data: LearningPageUpdate, current_user: PublicUser | AnonymousUser, db_session: Session) -> LearningPageRead:
     page = _get_page(db_session, page_uuid)
     _require_org_admin(db_session, current_user, page.org_id)
+    patch = data.model_dump(exclude_unset=True)
+    if "content" in patch or "page_type" in patch:
+        _validate_page_payload(patch.get("page_type") or page.page_type, patch.get("content", page.content))
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(page, key, value)
     page.update_date = _now()
@@ -1354,6 +1398,106 @@ async def delete_page(request: Request, page_uuid: str, current_user: PublicUser
     db_session.delete(page)
     db_session.commit()
     return {"detail": "Learning page deleted"}
+
+
+async def upload_page_media(
+    request: Request,
+    page_uuid: str,
+    current_user: PublicUser | AnonymousUser,
+    db_session: Session,
+    media_file: UploadFile | None = None,
+) -> dict:
+    page = _get_page(db_session, page_uuid)
+    _require_org_admin(db_session, current_user, page.org_id)
+    org = _get_org(db_session, page.org_id)
+
+    if not media_file or not media_file.filename:
+        raise HTTPException(status_code=400, detail="Media file is required")
+
+    filename = await upload_file(
+        file=media_file,
+        directory=f"learning_pages/{page.page_uuid}/media",
+        type_of_dir="orgs",
+        uuid=org.org_uuid,
+        allowed_types=["image"],
+        filename_prefix="media",
+    )
+    return {"url": f"/content/orgs/{org.org_uuid}/learning_pages/{page.page_uuid}/media/{filename}"}
+
+
+_VARIABLE_SEGMENT_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
+
+
+def _validate_variable_key(key: str) -> str:
+    normalized = str(key or "").strip().lower()
+    segments = normalized.split(".")
+    if not normalized or any(
+        not _VARIABLE_SEGMENT_PATTERN.fullmatch(segment) or segment in _BLOCKED_VARIABLE_SEGMENTS
+        for segment in segments
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="Variable keys must be dot-separated segments of lowercase letters, digits and underscores",
+        )
+    return normalized
+
+
+def _get_variable(db_session: Session, variable_uuid: str) -> LearningVariable:
+    variable = db_session.exec(
+        select(LearningVariable).where(LearningVariable.variable_uuid == _clean_uuid(variable_uuid, "learning_variable_"))
+    ).first()
+    if not variable:
+        raise HTTPException(status_code=404, detail="Learning variable not found")
+    return variable
+
+
+async def list_learning_variables(request: Request, org_id: int, current_user: PublicUser | AnonymousUser, db_session: Session) -> list[LearningVariableRead]:
+    _require_org_admin(db_session, current_user, org_id)
+    variables = db_session.exec(
+        select(LearningVariable).where(LearningVariable.org_id == org_id).order_by(LearningVariable.key.asc())  # type: ignore
+    ).all()
+    return [LearningVariableRead(**variable.model_dump()) for variable in variables]
+
+
+async def create_learning_variable(request: Request, data: LearningVariableCreate, current_user: PublicUser | AnonymousUser, db_session: Session) -> LearningVariableRead:
+    _require_org_admin(db_session, current_user, data.org_id)
+    key = _validate_variable_key(data.key)
+    existing = db_session.exec(
+        select(LearningVariable).where(LearningVariable.org_id == data.org_id, LearningVariable.key == key)
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="A variable with this key already exists")
+    now = _now()
+    variable = LearningVariable(
+        **{**data.model_dump(), "key": key},
+        variable_uuid=f"learning_variable_{uuid4()}",
+        creation_date=now,
+        update_date=now,
+    )
+    db_session.add(variable)
+    db_session.commit()
+    db_session.refresh(variable)
+    return LearningVariableRead(**variable.model_dump())
+
+
+async def update_learning_variable(request: Request, variable_uuid: str, data: LearningVariableUpdate, current_user: PublicUser | AnonymousUser, db_session: Session) -> LearningVariableRead:
+    variable = _get_variable(db_session, variable_uuid)
+    _require_org_admin(db_session, current_user, variable.org_id)
+    for key, value in data.model_dump(exclude_unset=True).items():
+        setattr(variable, key, value)
+    variable.update_date = _now()
+    db_session.add(variable)
+    db_session.commit()
+    db_session.refresh(variable)
+    return LearningVariableRead(**variable.model_dump())
+
+
+async def delete_learning_variable(request: Request, variable_uuid: str, current_user: PublicUser | AnonymousUser, db_session: Session) -> dict:
+    variable = _get_variable(db_session, variable_uuid)
+    _require_org_admin(db_session, current_user, variable.org_id)
+    db_session.delete(variable)
+    db_session.commit()
+    return {"detail": "Learning variable deleted"}
 
 
 async def start_or_resume_run(request: Request, badge_uuid: str, actor: LearningActor, db_session: Session) -> LearningRunRead:
@@ -1456,8 +1600,8 @@ async def complete_page(request: Request, data: LearningPageComplete, actor: Lea
 async def submit_response(request: Request, data: LearningResponseSubmit, actor: LearningActor, db_session: Session) -> LearningRunRead:
     run = _get_run(db_session, data.run_uuid, actor)
     page = _get_page(db_session, data.page_uuid)
-    if page.page_type not in (LearningPageType.MULTIPLE_CHOICE, LearningPageType.TEXT_INPUT):
-        raise HTTPException(status_code=422, detail="Responses can only be submitted for input pages")
+    if _question_block(page) is None:
+        raise HTTPException(status_code=422, detail="Responses can only be submitted for pages with a question")
     is_correct, score, feedback_key, result = _grade_answer(page, data.answer)
     variables = _extract_learning_variables(page, result)
     if variables:

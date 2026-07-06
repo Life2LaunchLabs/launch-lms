@@ -17,6 +17,11 @@ import {
   startLearningRun,
   submitLearningResponse,
 } from '@services/learning/learning'
+import {
+  findQuestionBlock,
+  resolveVariantBlocks,
+  type LearningBlock,
+} from '@components/Learning/schema'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import toast from 'react-hot-toast'
 import ReorderableList from '@components/Objects/ReorderableList'
@@ -44,15 +49,15 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
   }, [badge.badge_uuid, accessToken])
 
   React.useEffect(() => {
-    setUnlocked(page?.page_type === 'info' || page?.page_type === 'question_response')
+    setUnlocked(Boolean(page) && !isQuestionResponseRequired(page))
     setAnswer({})
-  }, [page?.page_type, page?.page_uuid])
+  }, [page?.content, page?.page_type, page?.page_uuid])
 
   const completeAndNext = async () => {
     if (!run || !page) return
     try {
       let nextRun
-      if (page.page_type === 'multiple_choice' || page.page_type === 'text_input') {
+      if (isQuestionResponseRequired(page)) {
         nextRun = await submitLearningResponse(run.run_uuid, page.page_uuid, answer, accessToken)
       } else {
         nextRun = await completeLearningPage(run.run_uuid, page.page_uuid, {}, accessToken)
@@ -183,6 +188,9 @@ export function LearningPageContent({ page, answer, setAnswer, setUnlocked, page
   if (page.page_type === 'video') {
     return <VideoPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} />
   }
+  if (page.page_type === 'standard') {
+    return <StandardPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} run={run} />
+  }
   if (page.page_type === 'multiple_choice' || page.page_type === 'text_input') {
     return <InfoPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} />
   }
@@ -193,6 +201,112 @@ export function LearningPageContent({ page, answer, setAnswer, setUnlocked, page
     return <InfoPageContent page={page} editable={editable} onPagePatch={onPagePatch} responseKey={responseKey} />
   }
   return <InfoPageContent page={page} editable={editable} onPagePatch={onPagePatch} />
+}
+
+function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, run }: any) {
+  const blocks = React.useMemo(
+    () => editable ? (page.content?.blocks || []) : resolveVariantBlocks(page, run),
+    [editable, page, run]
+  )
+
+  const patchBlock = (blockId: string, patch: any) => {
+    const nextBlocks = (page.content?.blocks || []).map((block: LearningBlock) =>
+      block.id === blockId ? { ...block, ...patch } : block
+    )
+    onPagePatch?.({ content: { ...(page.content || {}), version: page.content?.version || 2, blocks: nextBlocks } })
+  }
+
+  return (
+    <div className="learning-info-block-stack">
+      <div className="learning-info-reorder-list">
+        {blocks.map((block: LearningBlock) => (
+          <StandardBlockView
+            key={block.id}
+            block={block}
+            page={page}
+            answer={answer}
+            setAnswer={setAnswer}
+            setUnlocked={setUnlocked}
+            editable={editable}
+            onPatch={(patch: any) => patchBlock(block.id, patch)}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editable, onPatch }: any) {
+  const blockStyle = getStandardBlockStyle(block)
+
+  if (block.type === 'text') {
+    const node = block.content?.node || { type: 'paragraph' }
+    return (
+      <section className="learning-info-stack-section" style={blockStyle}>
+        <InfoTextBlock
+          block={node}
+          blockId={block.id}
+          editable={false}
+          onActivate={() => null}
+          onUpdate={() => null}
+        />
+      </section>
+    )
+  }
+
+  if (block.type === 'image') {
+    return (
+      <section className="learning-info-stack-section" style={blockStyle}>
+        <InfoImageBlock
+          block={{ attrs: { src: block.content?.src || '', alt: block.content?.alt || '', height: block.design?.height || 220 } }}
+          editable={false}
+          active={false}
+          onActivate={() => null}
+        />
+      </section>
+    )
+  }
+
+  if (block.type === 'question') {
+    const virtualPage = {
+      ...page,
+      page_type: block.kind,
+      content: { ...(block.content || {}), hide_prompt: true },
+    }
+    return (
+      <section className="learning-info-stack-section" style={blockStyle}>
+        <QuestionBlockContent
+          page={virtualPage}
+          answer={answer}
+          setAnswer={setAnswer}
+          setUnlocked={setUnlocked}
+          editable={editable}
+          onPagePatch={(patch: any) => {
+            if (patch.content) {
+              const { hide_prompt: _hidePrompt, ...content } = patch.content
+              onPatch({ content: { ...(block.content || {}), ...content } })
+            }
+          }}
+          onActivate={() => null}
+          showChrome={false}
+          onChromeHoverChange={() => null}
+        />
+      </section>
+    )
+  }
+
+  return null
+}
+
+function getStandardBlockStyle(block: LearningBlock): React.CSSProperties {
+  const design = block.design || {}
+  const width = Math.max(25, Math.min(100, Number(design.width) || 100))
+  const align = design.align || 'left'
+  return {
+    width: `${width}%`,
+    marginLeft: align === 'right' ? 'auto' : align === 'center' ? 'auto' : undefined,
+    marginRight: align === 'left' ? 'auto' : align === 'center' ? 'auto' : undefined,
+  }
 }
 
 function InfoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, responseKey = 'default' }: any) {
@@ -1199,23 +1313,25 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
 
     return (
       <div className="learning-question-block" onMouseDown={() => editable && onActivate()}>
-        <QuestionTitleSection
-          editable={editable}
-          visible={showChrome}
-          onActivate={onActivate}
-          onAddOption={addOption}
-          onChromeHoverChange={onChromeHoverChange}
-        >
-          <EditableText
-            as="h1"
+        {!page.content?.hide_prompt && (
+          <QuestionTitleSection
             editable={editable}
-            value={page.content?.prompt || ''}
-            placeholder="Question prompt"
-            onChange={(value: string) => onPagePatch?.({ content: { ...(page.content || {}), prompt: value } })}
-            className="text-3xl font-bold text-gray-950"
-            elementRef={titleRef}
-          />
-        </QuestionTitleSection>
+            visible={showChrome}
+            onActivate={onActivate}
+            onAddOption={addOption}
+            onChromeHoverChange={onChromeHoverChange}
+          >
+            <EditableText
+              as="h1"
+              editable={editable}
+              value={page.content?.prompt || ''}
+              placeholder="Question prompt"
+              onChange={(value: string) => onPagePatch?.({ content: { ...(page.content || {}), prompt: value } })}
+              className="text-3xl font-bold text-gray-950"
+              elementRef={titleRef}
+            />
+          </QuestionTitleSection>
+        )}
         {editable ? (
           <ReorderableList
             droppableId={`learning-mcq-options-${page.page_uuid}`}
@@ -1823,6 +1939,12 @@ function createQuestionBlock() {
 
 function isLearningQuestionPage(page: any) {
   return page?.page_type === 'multiple_choice' || page?.page_type === 'text_input'
+}
+
+function isQuestionResponseRequired(page: any) {
+  if (!page) return false
+  if (page.page_type === 'standard') return Boolean(findQuestionBlock(page))
+  return isLearningQuestionPage(page)
 }
 
 function isLearningTextBlock(block: any) {

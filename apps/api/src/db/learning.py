@@ -3,16 +3,20 @@ from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel
-from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, UniqueConstraint
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
 class LearningPageType(str, Enum):
     VIDEO = "video"
-    INFO = "info"
-    MULTIPLE_CHOICE = "multiple_choice"
-    TEXT_INPUT = "text_input"
-    QUESTION_RESPONSE = "question_response"
+    STANDARD = "standard"
+
+
+class LearningVariableValueType(str, Enum):
+    TEXT = "text"
+    NUMBER = "number"
+    BOOLEAN = "boolean"
+    OPTION = "option"
 
 
 class LearningRunStatus(str, Enum):
@@ -207,7 +211,7 @@ class LearningPageBase(SQLModel):
     activity_id: int = Field(sa_column=Column(Integer, ForeignKey("learningactivity.id", ondelete="CASCADE"), index=True))
     badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
-    page_type: LearningPageType
+    page_type: LearningPageType = Field(sa_column=Column(String, nullable=False))
     title: str
     order: int = 1
     required: bool = True
@@ -251,6 +255,47 @@ class LearningPageUpdate(SQLModel):
 class LearningPageRead(LearningPageBase):
     id: int
     page_uuid: str
+    creation_date: str
+    update_date: str
+
+
+class LearningVariableBase(SQLModel):
+    org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
+    key: str
+    label: str
+    description: Optional[str] = ""
+    value_type: LearningVariableValueType = LearningVariableValueType.TEXT
+    options: list = Field(default_factory=list, sa_column=Column(JSON))
+
+
+class LearningVariable(LearningVariableBase, table=True):
+    __table_args__ = (UniqueConstraint("variable_uuid"), UniqueConstraint("org_id", "key"))
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    variable_uuid: str = Field(default="", index=True)
+    creation_date: str = ""
+    update_date: str = ""
+
+
+class LearningVariableCreate(SQLModel):
+    org_id: int
+    key: str
+    label: str
+    description: Optional[str] = ""
+    value_type: LearningVariableValueType = LearningVariableValueType.TEXT
+    options: list = Field(default_factory=list)
+
+
+class LearningVariableUpdate(SQLModel):
+    label: Optional[str] = None
+    description: Optional[str] = None
+    value_type: Optional[LearningVariableValueType] = None
+    options: Optional[list] = None
+
+
+class LearningVariableRead(LearningVariableBase):
+    id: int
+    variable_uuid: str
     creation_date: str
     update_date: str
 

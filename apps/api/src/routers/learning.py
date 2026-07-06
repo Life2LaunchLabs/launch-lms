@@ -24,6 +24,9 @@ from src.db.learning import (
     LearningResponseGrade,
     LearningResponseSubmit,
     LearningRunRead,
+    LearningVariableCreate,
+    LearningVariableRead,
+    LearningVariableUpdate,
 )
 from src.security.auth import get_current_user
 from src.services import learning as learning_service
@@ -41,6 +44,7 @@ responses_router = APIRouter()
 awards_router = APIRouter()
 migrations_router = APIRouter()
 imports_router = APIRouter()
+variables_router = APIRouter()
 
 
 @badges_router.post("/")
@@ -248,6 +252,58 @@ async def api_delete_page(
     db_session=Depends(get_db_session),
 ) -> dict:
     return await learning_service.delete_page(request, page_uuid, current_user, db_session)
+
+
+@pages_router.post("/{page_uuid}/media")
+async def api_upload_page_media(
+    request: Request,
+    page_uuid: str,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+    media: UploadFile = File(...),
+) -> dict:
+    return await learning_service.upload_page_media(request, page_uuid, current_user, db_session, media)
+
+
+@variables_router.get("/")
+async def api_list_learning_variables(
+    request: Request,
+    org_id: int = Query(...),
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> list[LearningVariableRead]:
+    return await learning_service.list_learning_variables(request, org_id, current_user, db_session)
+
+
+@variables_router.post("/")
+async def api_create_learning_variable(
+    request: Request,
+    variable: LearningVariableCreate,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> LearningVariableRead:
+    return await learning_service.create_learning_variable(request, variable, current_user, db_session)
+
+
+@variables_router.put("/{variable_uuid}")
+async def api_update_learning_variable(
+    request: Request,
+    variable_uuid: str,
+    variable: LearningVariableUpdate,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> LearningVariableRead:
+    return await learning_service.update_learning_variable(request, variable_uuid, variable, current_user, db_session)
+
+
+@variables_router.delete("/{variable_uuid}")
+async def api_delete_learning_variable(
+    request: Request,
+    variable_uuid: str,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    return await learning_service.delete_learning_variable(request, variable_uuid, current_user, db_session)
 
 
 @runs_router.post("/start/{badge_uuid}")

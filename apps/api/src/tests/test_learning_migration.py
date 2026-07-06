@@ -88,13 +88,15 @@ def _activity(activity_type: ActivityTypeEnum, content: dict, details: dict | No
     )
 
 
-def test_dynamic_activity_converts_to_info_page_with_rich_text():
+def test_dynamic_activity_converts_to_standard_page_with_text_blocks():
     content = {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Hello"}]}]}
     pages, warnings = convert_activity_to_page_specs(_course(), _activity(ActivityTypeEnum.TYPE_DYNAMIC, content), _org())
 
     assert warnings == []
-    assert pages[0]["page_type"] == "info"
-    assert pages[0]["content"]["rich_text"] == content
+    assert pages[0]["page_type"] == "standard"
+    blocks = pages[0]["content"]["blocks"]
+    assert [block["type"] for block in blocks] == ["text"]
+    assert blocks[0]["content"]["node"] == content["content"][0]
 
 
 def test_dynamic_activity_splits_imported_video_block_before_info_page():
@@ -122,11 +124,11 @@ def test_dynamic_activity_splits_imported_video_block_before_info_page():
     pages, warnings = convert_activity_to_page_specs(_course(), _activity(ActivityTypeEnum.TYPE_DYNAMIC, content), _org())
 
     assert warnings == []
-    assert [page["page_type"] for page in pages] == ["video", "info"]
+    assert [page["page_type"] for page in pages] == ["video", "standard"]
     assert pages[0]["content"]["video_url"] == "/api/v1/stream/block/org_abc/course_abc/activity_xyz/block_123/intro.mp4"
-    assert pages[1]["content"]["rich_text"] == {
-        "type": "doc",
-        "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Read this after the video."}]}],
+    assert pages[1]["content"]["blocks"][0]["content"]["node"] == {
+        "type": "paragraph",
+        "content": [{"type": "text", "text": "Read this after the video."}],
     }
 
 
@@ -148,9 +150,9 @@ def test_dynamic_activity_splits_video_embed_before_info_page():
     pages, warnings = convert_activity_to_page_specs(_course(), _activity(ActivityTypeEnum.TYPE_DYNAMIC, content), _org())
 
     assert warnings == []
-    assert [page["page_type"] for page in pages] == ["video", "info"]
+    assert [page["page_type"] for page in pages] == ["video", "standard"]
     assert pages[0]["content"]["video_url"] == "https://www.youtube.com/watch?v=abc123"
-    assert pages[1]["content"]["rich_text"]["content"][0]["content"][0]["text"] == "Notes"
+    assert pages[1]["content"]["blocks"][0]["content"]["node"]["content"][0]["text"] == "Notes"
 
 
 def test_dynamic_activity_with_only_video_does_not_create_empty_info_page():
@@ -212,10 +214,18 @@ def test_supported_quiz_blocks_convert_to_learning_question_pages():
     pages, warnings = convert_activity_to_page_specs(_course(), _activity(ActivityTypeEnum.TYPE_QUIZ, content, details), _org())
 
     assert warnings == []
-    assert [page["page_type"] for page in pages] == ["multiple_choice", "text_input"]
-    assert pages[0]["content"]["prompt"] == "Pick one"
-    assert "heading" not in pages[0]["content"]
+    assert [page["page_type"] for page in pages] == ["standard", "standard"]
+
+    mcq_blocks = pages[0]["content"]["blocks"]
+    assert [block["type"] for block in mcq_blocks] == ["text", "question"]
+    assert mcq_blocks[0]["content"]["node"]["content"][0]["text"] == "Pick one"
+    assert mcq_blocks[1]["kind"] == "multiple_choice"
+    assert [option["id"] for option in mcq_blocks[1]["content"]["options"]] == ["a", "b"]
     assert pages[0]["scoring"]["correct_option_ids"] == ["b"]
+
+    text_blocks = pages[1]["content"]["blocks"]
+    assert text_blocks[-1]["kind"] == "text_input"
+    assert text_blocks[-1]["content"]["inputs"][0]["id"] == "q_text"
     assert pages[1]["completion"]["inputs"]["q_text"]["min_words"] == 3
 
 
@@ -223,7 +233,7 @@ def test_unsupported_quiz_blocks_warn_without_blocking_conversion():
     content = {"type": "doc", "content": [{"type": "quizSliderBlock", "attrs": {"question_text": "Rate it"}}]}
     pages, warnings = convert_activity_to_page_specs(_course(), _activity(ActivityTypeEnum.TYPE_QUIZ, content), _org())
 
-    assert pages[0]["page_type"] == "info"
+    assert pages[0]["page_type"] == "standard"
     assert warnings[0].code == "unsupported_quiz_block"
     assert any(warning.code == "quiz_empty_or_unsupported" for warning in warnings)
 
@@ -231,7 +241,7 @@ def test_unsupported_quiz_blocks_warn_without_blocking_conversion():
 def test_unsupported_activity_type_creates_placeholder_warning():
     pages, warnings = convert_activity_to_page_specs(_course(), _activity(ActivityTypeEnum.TYPE_SCORM, {}), _org())
 
-    assert pages[0]["page_type"] == "info"
+    assert pages[0]["page_type"] == "standard"
     assert warnings[0].code == "unsupported_activity_type"
 
 

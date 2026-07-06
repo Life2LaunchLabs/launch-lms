@@ -21,6 +21,14 @@ from src.db.learning import BadgeCollection, LearningActivity, LearningAwardSour
 from src.db.organizations import Organization
 from src.db.users import AnonymousUser, PublicUser
 from src.services.learning import _get_path_for_badge, _require_org_admin
+from src.services.learning_page_convert import (
+    STANDARD_CONTENT_VERSION,
+    heading_node,
+    paragraph_node,
+    question_block,
+    rich_text_nodes_to_blocks,
+    text_block,
+)
 
 
 MIGRATION_SYSTEM_TYPE = "legacy_badge_migration"
@@ -305,11 +313,14 @@ def _convert_select_block(course: Course, activity: Activity, block: dict, index
     option_ids = [option["id"] for option in options]
     return {
         "page_uuid": _deterministic_page_uuid(activity, index),
-        "page_type": LearningPageType.MULTIPLE_CHOICE,
+        "page_type": LearningPageType.STANDARD,
         "title": prompt,
         "content": {
-            "prompt": prompt,
-            "options": options,
+            "version": STANDARD_CONTENT_VERSION,
+            "blocks": [
+                text_block(heading_node(prompt)),
+                question_block("multiple_choice", {"options": options}),
+            ],
             "legacy_quiz_block": block,
             "legacy_source": _legacy_source(course, activity),
         },
@@ -334,11 +345,14 @@ def _convert_multi_select_block(course: Course, activity: Activity, block: dict,
     correct_option_ids = _correct_option_ids(activity, option_ids)
     return {
         "page_uuid": _deterministic_page_uuid(activity, index),
-        "page_type": LearningPageType.MULTIPLE_CHOICE,
+        "page_type": LearningPageType.STANDARD,
         "title": prompt,
         "content": {
-            "prompt": prompt,
-            "options": options,
+            "version": STANDARD_CONTENT_VERSION,
+            "blocks": [
+                text_block(heading_node(prompt)),
+                question_block("multiple_choice", {"options": options}),
+            ],
             "legacy_quiz_block": block,
             "legacy_source": _legacy_source(course, activity),
         },
@@ -355,21 +369,30 @@ def _convert_text_block(course: Course, activity: Activity, block: dict, index: 
     mode = "completion"
     if scoring_rule.get("mode") in {"manual", "min_length"}:
         mode = "manual" if scoring_rule.get("mode") == "manual" else "completion"
+    heading = attrs.get("question_text") or ""
+    body = attrs.get("description") or ""
+    blocks = []
+    if heading:
+        blocks.append(text_block(heading_node(heading)))
+    if body:
+        blocks.append(text_block(paragraph_node(body)))
+    blocks.append(question_block("text_input", {
+        "inputs": [{
+            "id": question_uuid,
+            "label": attrs.get("question_text") or "Response",
+            "placeholder": attrs.get("placeholder") or "",
+            "variant": "long_answer" if attrs.get("input_size") != "single_line" else "short_answer",
+            "width": "full",
+            "height": 180,
+        }],
+    }))
     return {
         "page_uuid": _deterministic_page_uuid(activity, index),
-        "page_type": LearningPageType.TEXT_INPUT,
+        "page_type": LearningPageType.STANDARD,
         "title": attrs.get("question_text") or activity.name or "Response",
         "content": {
-            "heading": attrs.get("question_text") or "",
-            "body": attrs.get("description") or "",
-            "inputs": [{
-                "id": question_uuid,
-                "label": attrs.get("question_text") or "Response",
-                "placeholder": attrs.get("placeholder") or "",
-                "variant": "long_answer" if attrs.get("input_size") != "single_line" else "short_answer",
-                "width": "full",
-                "height": 180,
-            }],
+            "version": STANDARD_CONTENT_VERSION,
+            "blocks": blocks,
             "legacy_quiz_block": block,
             "legacy_source": _legacy_source(course, activity),
         },
@@ -390,9 +413,13 @@ def convert_activity_to_page_specs(course: Course, activity: Activity, org: Orga
             info_index = len(page_specs) + 1
             page_specs.append({
                 "page_uuid": _deterministic_page_uuid(activity, info_index),
-                "page_type": LearningPageType.INFO,
+                "page_type": LearningPageType.STANDARD,
                 "title": activity.name or "Info",
-                "content": {"rich_text": _legacy_rich_text(residual_content or activity.content), "legacy_source": _legacy_source(course, activity)},
+                "content": {
+                    "version": STANDARD_CONTENT_VERSION,
+                    "blocks": rich_text_nodes_to_blocks(_legacy_rich_text(residual_content or activity.content).get("content") or []),
+                    "legacy_source": _legacy_source(course, activity),
+                },
                 "scoring": {},
                 "completion": {},
             })
@@ -411,11 +438,21 @@ def convert_activity_to_page_specs(course: Course, activity: Activity, org: Orga
             block_type = block.get("type")
             if block_type == "quizInfoBlock":
                 attrs = block.get("attrs") or {}
+                info_blocks = []
+                if attrs.get("title"):
+                    info_blocks.append(text_block(heading_node(attrs.get("title"))))
+                if attrs.get("body"):
+                    info_blocks.append(text_block(paragraph_node(attrs.get("body"))))
                 page_specs.append({
                     "page_uuid": _deterministic_page_uuid(activity, index),
-                    "page_type": LearningPageType.INFO,
+                    "page_type": LearningPageType.STANDARD,
                     "title": attrs.get("title") or activity.name or "Info",
-                    "content": {"heading": attrs.get("title") or "", "body": attrs.get("body") or "", "legacy_quiz_block": block, "legacy_source": _legacy_source(course, activity)},
+                    "content": {
+                        "version": STANDARD_CONTENT_VERSION,
+                        "blocks": info_blocks,
+                        "legacy_quiz_block": block,
+                        "legacy_source": _legacy_source(course, activity),
+                    },
                     "scoring": {},
                     "completion": {},
                 })
@@ -446,11 +483,14 @@ def convert_activity_to_page_specs(course: Course, activity: Activity, org: Orga
 def _placeholder_page_spec(course: Course, activity: Activity, index: int) -> dict:
     return {
         "page_uuid": _deterministic_page_uuid(activity, index),
-        "page_type": LearningPageType.INFO,
+        "page_type": LearningPageType.STANDARD,
         "title": activity.name or "Unsupported activity",
         "content": {
-            "heading": activity.name or "Unsupported activity",
-            "body": "This legacy activity could not be converted automatically. Please rebuild it in the new learning path editor.",
+            "version": STANDARD_CONTENT_VERSION,
+            "blocks": [
+                text_block(heading_node(activity.name or "Unsupported activity")),
+                text_block(paragraph_node("This legacy activity could not be converted automatically. Please rebuild it in the new learning path editor.")),
+            ],
             "legacy_source": _legacy_source(course, activity),
             "legacy_content": activity.content or {},
         },

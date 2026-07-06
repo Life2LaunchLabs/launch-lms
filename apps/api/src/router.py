@@ -142,6 +142,7 @@ v1_router.include_router(learning_router_module.responses_router, prefix="/learn
 v1_router.include_router(learning_router_module.awards_router, prefix="/badge-awards", tags=["learning-badge-awards"])
 v1_router.include_router(learning_router_module.migrations_router, prefix="/badge-migrations", tags=["learning-badge-migrations"])
 v1_router.include_router(learning_router_module.imports_router, prefix="/badge-import", tags=["learning-badge-import"])
+v1_router.include_router(learning_router_module.variables_router, prefix="/learning-variables", tags=["learning-variables"])
 v1_router.include_router(
     collections.router, prefix="/collections", tags=["collections"]
 )

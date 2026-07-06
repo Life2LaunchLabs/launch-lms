@@ -8,6 +8,7 @@ import {
 
 export type LearningPageType =
   | 'video'
+  | 'standard'
   | 'info'
   | 'multiple_choice'
   | 'text_input'
@@ -201,6 +202,46 @@ export async function updateLearningPage(pageUuid: string, data: any, accessToke
 export async function deleteLearningPage(pageUuid: string, accessToken?: string) {
   const result = await fetch(
     `${getAPIUrl()}learning-pages/${pageUuid}`,
+    RequestBodyWithAuthHeader('DELETE', null, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
+export async function uploadLearningPageMedia(pageUuid: string, formData: FormData, accessToken: string) {
+  const result = await fetch(
+    `${getAPIUrl()}learning-pages/${pageUuid}/media`,
+    RequestBodyFormWithAuthHeader('POST', formData, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
+export async function getLearningVariables(orgId: string | number, accessToken?: string) {
+  const result = await fetch(
+    `${getAPIUrl()}learning-variables/?org_id=${orgId}`,
+    RequestBodyWithAuthHeader('GET', null, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
+export async function createLearningVariable(data: any, accessToken?: string) {
+  const result = await fetch(
+    `${getAPIUrl()}learning-variables/`,
+    RequestBodyWithAuthHeader('POST', data, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
+export async function updateLearningVariable(variableUuid: string, data: any, accessToken?: string) {
+  const result = await fetch(
+    `${getAPIUrl()}learning-variables/${variableUuid}`,
+    RequestBodyWithAuthHeader('PUT', data, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
+export async function deleteLearningVariable(variableUuid: string, accessToken?: string) {
+  const result = await fetch(
+    `${getAPIUrl()}learning-variables/${variableUuid}`,
     RequestBodyWithAuthHeader('DELETE', null, null, accessToken)
   )
   return errorHandling(result)

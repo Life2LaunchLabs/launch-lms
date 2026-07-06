@@ -16,8 +16,18 @@ from src.services.learning import (
     _apply_learning_variables_to_user,
     _extract_learning_variables,
     _grade_answer,
+    _validate_page_payload,
+    _validate_variable_key,
     build_learning_assertion_payload,
     build_learning_badge_class_payload,
+)
+from src.services.learning_page_convert import (
+    convert_legacy_page,
+    find_question_block,
+    link_variant_sources_to_question_blocks,
+    question_block,
+    text_block,
+    paragraph_node,
 )
 
 
@@ -129,18 +139,38 @@ def _award() -> LearningBadgeAward:
     )
 
 
-def test_multiple_choice_grading_uses_correct_option_ids():
-    page = LearningPage(
-        id=1,
+def _standard_page(page_uuid: str, question: dict | None = None, **overrides) -> LearningPage:
+    blocks = list(overrides.pop("blocks", []))
+    if question:
+        blocks.append(question)
+    return LearningPage(
+        id=overrides.pop("id", 1),
         activity_id=1,
         badge_id=10,
         org_id=1,
-        page_uuid="learning_page_123",
-        page_type=LearningPageType.MULTIPLE_CHOICE,
-        title="Check it",
-        scoring={"correct_option_ids": ["b"]},
+        page_uuid=page_uuid,
+        page_type=LearningPageType.STANDARD,
+        title=overrides.pop("title", "Page"),
+        content={"version": 2, "blocks": blocks},
         creation_date="2026-01-01T00:00:00",
         update_date="2026-01-01T00:00:00",
+        **overrides,
+    )
+
+
+def _mcq(options: list[dict] | None = None, block_id: str = "blk_q") -> dict:
+    return question_block("multiple_choice", {"options": options or []}, block_id=block_id)
+
+
+def _text_question(inputs: list[dict] | None = None, block_id: str = "blk_q") -> dict:
+    return question_block("text_input", {"inputs": inputs or []}, block_id=block_id)
+
+
+def test_multiple_choice_grading_uses_correct_option_ids():
+    page = _standard_page(
+        "learning_page_123",
+        question=_mcq(),
+        scoring={"correct_option_ids": ["b"]},
     )
 
     is_correct, score, feedback_key, result = _grade_answer(page, {"option_id": "b"})
@@ -152,19 +182,11 @@ def test_multiple_choice_grading_uses_correct_option_ids():
 
 
 def test_multiple_choice_grading_requires_exact_multi_select_match():
-    page = LearningPage(
-        id=1,
-        activity_id=1,
-        badge_id=10,
-        org_id=1,
-        page_uuid="learning_page_multi",
-        page_type=LearningPageType.MULTIPLE_CHOICE,
-        title="Check it",
-        content={"options": [{"id": "a", "text": "A"}, {"id": "b", "text": "B"}, {"id": "c", "text": "C"}]},
+    page = _standard_page(
+        "learning_page_multi",
+        question=_mcq([{"id": "a", "text": "A"}, {"id": "b", "text": "B"}, {"id": "c", "text": "C"}]),
         completion={"min_selections": 2, "max_selections": 2},
         scoring={"mode": "points", "points": 5, "correct_option_ids": ["a", "c"], "score_policy": "exact_match"},
-        creation_date="2026-01-01T00:00:00",
-        update_date="2026-01-01T00:00:00",
     )
 
     is_correct, score, feedback_key, result = _grade_answer(page, {"option_ids": ["c", "a"]})
@@ -176,19 +198,11 @@ def test_multiple_choice_grading_requires_exact_multi_select_match():
 
 
 def test_multiple_choice_grading_rejects_too_few_selections():
-    page = LearningPage(
-        id=1,
-        activity_id=1,
-        badge_id=10,
-        org_id=1,
-        page_uuid="learning_page_multi",
-        page_type=LearningPageType.MULTIPLE_CHOICE,
-        title="Check it",
-        content={"options": [{"id": "a", "text": "A"}, {"id": "b", "text": "B"}]},
+    page = _standard_page(
+        "learning_page_multi",
+        question=_mcq([{"id": "a", "text": "A"}, {"id": "b", "text": "B"}]),
         completion={"min_selections": 2, "max_selections": 2},
         scoring={"mode": "points", "points": 1, "correct_option_ids": ["a", "b"]},
-        creation_date="2026-01-01T00:00:00",
-        update_date="2026-01-01T00:00:00",
     )
 
     try:
@@ -199,18 +213,22 @@ def test_multiple_choice_grading_rejects_too_few_selections():
         raise AssertionError("Expected invalid selection count")
 
 
+def test_grading_page_without_question_block_returns_neutral_result():
+    page = _standard_page("learning_page_plain", blocks=[text_block(paragraph_node("Just info"))])
+
+    is_correct, score, feedback_key, result = _grade_answer(page, {"option_id": "a"})
+
+    assert is_correct is None
+    assert score is None
+    assert feedback_key is None
+    assert result == {"page_uuid": "learning_page_plain"}
+
+
 def test_text_input_grading_keeps_history_ready_result_payload():
-    page = LearningPage(
-        id=1,
-        activity_id=1,
-        badge_id=10,
-        org_id=1,
-        page_uuid="learning_page_456",
-        page_type=LearningPageType.TEXT_INPUT,
-        title="Apply it",
+    page = _standard_page(
+        "learning_page_456",
+        question=_text_question(),
         scoring={"accepted_answers": ["empathy"]},
-        creation_date="2026-01-01T00:00:00",
-        update_date="2026-01-01T00:00:00",
     )
 
     is_correct, score, feedback_key, result = _grade_answer(page, {"text": " Empathy "})
@@ -222,19 +240,11 @@ def test_text_input_grading_keeps_history_ready_result_payload():
 
 
 def test_text_input_completion_mode_awards_points_when_limits_pass():
-    page = LearningPage(
-        id=1,
-        activity_id=1,
-        badge_id=10,
-        org_id=1,
-        page_uuid="learning_page_text",
-        page_type=LearningPageType.TEXT_INPUT,
-        title="Apply it",
-        content={"inputs": [{"id": "summary", "label": "Summary"}]},
+    page = _standard_page(
+        "learning_page_text",
+        question=_text_question([{"id": "summary", "label": "Summary"}]),
         completion={"inputs": {"summary": {"required": True, "min_words": 2, "max_words": 4}}},
         scoring={"mode": "completion", "points": 3},
-        creation_date="2026-01-01T00:00:00",
-        update_date="2026-01-01T00:00:00",
     )
 
     is_correct, score, feedback_key, result = _grade_answer(page, {"inputs": {"summary": {"text": "Good response"}}})
@@ -246,19 +256,11 @@ def test_text_input_completion_mode_awards_points_when_limits_pass():
 
 
 def test_text_input_manual_mode_returns_pending_without_score():
-    page = LearningPage(
-        id=1,
-        activity_id=1,
-        badge_id=10,
-        org_id=1,
-        page_uuid="learning_page_manual",
-        page_type=LearningPageType.TEXT_INPUT,
-        title="Apply it",
-        content={"inputs": [{"id": "reflection", "label": "Reflection"}]},
+    page = _standard_page(
+        "learning_page_manual",
+        question=_text_question([{"id": "reflection", "label": "Reflection"}]),
         completion={"inputs": {"reflection": {"required": True, "min_words": 1}}},
         scoring={"mode": "manual", "points": 10},
-        creation_date="2026-01-01T00:00:00",
-        update_date="2026-01-01T00:00:00",
     )
 
     is_correct, score, feedback_key, result = _grade_answer(page, {"inputs": {"reflection": {"text": "Thoughtful"}}})
@@ -270,19 +272,11 @@ def test_text_input_manual_mode_returns_pending_without_score():
 
 
 def test_text_input_rejects_word_limit_violation():
-    page = LearningPage(
-        id=1,
-        activity_id=1,
-        badge_id=10,
-        org_id=1,
-        page_uuid="learning_page_text",
-        page_type=LearningPageType.TEXT_INPUT,
-        title="Apply it",
-        content={"inputs": [{"id": "summary", "label": "Summary"}]},
+    page = _standard_page(
+        "learning_page_text",
+        question=_text_question([{"id": "summary", "label": "Summary"}]),
         completion={"inputs": {"summary": {"required": True, "min_words": 3}}},
         scoring={"mode": "completion", "points": 1},
-        creation_date="2026-01-01T00:00:00",
-        update_date="2026-01-01T00:00:00",
     )
 
     try:
@@ -294,14 +288,9 @@ def test_text_input_rejects_word_limit_violation():
 
 
 def test_text_input_variables_extract_from_configured_inputs():
-    page = LearningPage(
-        id=1,
-        activity_id=1,
-        badge_id=10,
-        org_id=1,
-        page_uuid="learning_page_variables",
-        page_type=LearningPageType.TEXT_INPUT,
-        title="Your name",
+    page = _standard_page(
+        "learning_page_variables",
+        question=_text_question([{"id": "first_name"}, {"id": "goal"}]),
         completion={
             "variable_bindings": {
                 "inputs": {
@@ -310,8 +299,6 @@ def test_text_input_variables_extract_from_configured_inputs():
                 }
             }
         },
-        creation_date="2026-01-01T00:00:00",
-        update_date="2026-01-01T00:00:00",
     )
 
     variables = _extract_learning_variables(
@@ -331,14 +318,9 @@ def test_text_input_variables_extract_from_configured_inputs():
 
 
 def test_mcq_variables_extract_configured_option_values():
-    page = LearningPage(
-        id=1,
-        activity_id=1,
-        badge_id=10,
-        org_id=1,
-        page_uuid="learning_page_goal",
-        page_type=LearningPageType.MULTIPLE_CHOICE,
-        title="Goal",
+    page = _standard_page(
+        "learning_page_goal",
+        question=_mcq([{"id": "employment", "text": "Employment"}]),
         completion={
             "variable_bindings": {
                 "options": {
@@ -349,8 +331,6 @@ def test_mcq_variables_extract_configured_option_values():
                 }
             }
         },
-        creation_date="2026-01-01T00:00:00",
-        update_date="2026-01-01T00:00:00",
     )
 
     variables = _extract_learning_variables(page, {"option_ids": ["employment"]})
@@ -386,6 +366,176 @@ def test_learning_variables_apply_only_safe_targets():
     assert len(applied) == 3
     assert len(skipped) == 2
     assert session.added == [user]
+
+
+def test_page_validation_rejects_two_question_blocks():
+    content = {"version": 2, "blocks": [_mcq(block_id="blk_1"), _text_question(block_id="blk_2")]}
+
+    try:
+        _validate_page_payload(LearningPageType.STANDARD, content)
+    except HTTPException as error:
+        assert error.status_code == 422
+    else:
+        raise AssertionError("Expected one-question-per-page validation")
+
+
+def test_page_validation_rejects_variants_with_question_block():
+    content = {
+        "version": 2,
+        "blocks": [_mcq()],
+        "variants": {
+            "source": {"page_uuid": "learning_page_src"},
+            "overrides": {"option_a": {"blocks": []}},
+        },
+    }
+
+    try:
+        _validate_page_payload(LearningPageType.STANDARD, content)
+    except HTTPException as error:
+        assert error.status_code == 422
+    else:
+        raise AssertionError("Expected variants/question mutual exclusion")
+
+
+def test_page_validation_rejects_variants_without_source():
+    content = {
+        "version": 2,
+        "blocks": [text_block(paragraph_node("Default"))],
+        "variants": {"overrides": {"option_a": {"blocks": []}}},
+    }
+
+    try:
+        _validate_page_payload(LearningPageType.STANDARD, content)
+    except HTTPException as error:
+        assert error.status_code == 422
+    else:
+        raise AssertionError("Expected variants source requirement")
+
+
+def test_page_validation_rejects_duplicate_block_ids():
+    content = {"version": 2, "blocks": [text_block(paragraph_node("a"), block_id="blk_dup"), text_block(paragraph_node("b"), block_id="blk_dup")]}
+
+    try:
+        _validate_page_payload(LearningPageType.STANDARD, content)
+    except HTTPException as error:
+        assert error.status_code == 422
+    else:
+        raise AssertionError("Expected unique block id validation")
+
+
+def test_page_validation_rejects_duplicate_block_ids_across_variants():
+    content = {
+        "version": 2,
+        "blocks": [text_block(paragraph_node("Default"), block_id="blk_dup")],
+        "variants": {
+            "source": {"page_uuid": "learning_page_src", "block_id": "blk_q"},
+            "overrides": {
+                "option_a": {"blocks": [text_block(paragraph_node("Variant"), block_id="blk_dup")]},
+            },
+        },
+    }
+
+    try:
+        _validate_page_payload(LearningPageType.STANDARD, content)
+    except HTTPException as error:
+        assert error.status_code == 422
+    else:
+        raise AssertionError("Expected page-wide unique block id validation")
+
+
+def test_page_validation_accepts_valid_variants_page():
+    content = {
+        "version": 2,
+        "blocks": [text_block(paragraph_node("Default"))],
+        "variants": {
+            "source": {"page_uuid": "learning_page_src", "block_id": "blk_q"},
+            "overrides": {
+                "option_a": {"blocks": [text_block(paragraph_node("A path"))]},
+                "correct": {"blocks": [text_block(paragraph_node("Nice!"))]},
+            },
+        },
+    }
+
+    _validate_page_payload(LearningPageType.STANDARD, content)
+
+
+def test_variable_key_validation_normalizes_and_rejects_bad_segments():
+    assert _validate_variable_key("Personality.Traits.Learning_Style") == "personality.traits.learning_style"
+
+    for bad_key in ["", "personality..traits", "user.password", "1leading", "has-dash"]:
+        try:
+            _validate_variable_key(bad_key)
+        except HTTPException as error:
+            assert error.status_code == 422
+        else:
+            raise AssertionError(f"Expected key rejection for {bad_key!r}")
+
+
+def test_convert_legacy_mcq_page_builds_question_block():
+    page_type, content = convert_legacy_page(
+        "multiple_choice",
+        {
+            "rich_text": {
+                "type": "doc",
+                "content": [
+                    {"type": "heading", "attrs": {"level": 1}, "content": [{"type": "text", "text": "Which fruit?"}]},
+                    {"type": "learningQuestion", "attrs": {"locked": True}},
+                ],
+            },
+            "options": [{"id": "a", "text": "Apples"}, {"id": "b", "text": "Bananas"}],
+        },
+    )
+
+    assert page_type == "standard"
+    assert content["version"] == 2
+    assert [block["type"] for block in content["blocks"]] == ["text", "question"]
+    question = find_question_block(content)
+    assert question["kind"] == "multiple_choice"
+    assert [option["id"] for option in question["content"]["options"]] == ["a", "b"]
+
+
+def test_convert_legacy_uppercase_sqlalchemy_enum_name():
+    page_type, content = convert_legacy_page(
+        "INFO",
+        {"heading": "Hello", "body": "Legacy enum storage"},
+    )
+
+    assert page_type == "standard"
+    assert content["version"] == 2
+    assert [block["type"] for block in content["blocks"]] == ["text", "text"]
+
+
+def test_convert_legacy_question_response_builds_variants():
+    page_type, content = convert_legacy_page(
+        "question_response",
+        {
+            "linked_page_uuid": "learning_page_src",
+            "rich_text": {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Default response"}]}]},
+            "response_variants": {
+                "option_a": {"enabled": True, "rich_text": {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Chose A"}]}]}},
+                "option_b": {"enabled": False, "rich_text": {"type": "doc", "content": [{"type": "paragraph"}]}},
+                "correct": {"enabled": True, "rich_text": {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Well done"}]}]}},
+            },
+        },
+    )
+
+    assert page_type == "standard"
+    assert content["variants"]["source"]["page_uuid"] == "learning_page_src"
+    assert set(content["variants"]["overrides"].keys()) == {"option_a", "correct"}
+
+    pages = [
+        {"page_uuid": "learning_page_src", "content": {"version": 2, "blocks": [_mcq(block_id="blk_src_q")]}},
+        {"page_uuid": "learning_page_resp", "content": content},
+    ]
+    link_variant_sources_to_question_blocks(pages)
+    assert content["variants"]["source"]["block_id"] == "blk_src_q"
+
+
+def test_convert_video_page_passes_through():
+    page_type, content = convert_legacy_page("video", {"video_url": "https://youtu.be/x", "allow_scrubbing": True})
+
+    assert page_type == "video"
+    assert content == {"video_url": "https://youtu.be/x", "allow_scrubbing": True}
 
 
 def test_learning_badge_class_payload_uses_new_badge_metadata():

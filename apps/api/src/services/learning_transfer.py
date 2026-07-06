@@ -23,6 +23,7 @@ from src.services.courses.transfer.import_service import (
     validate_zip,
 )
 from src.services.courses.transfer.models import ImportOptions
+from src.services.learning_page_convert import convert_legacy_page, link_variant_sources_to_question_blocks
 
 
 LEARNING_EXPORT_FORMAT = "launch-lms-badge-export"
@@ -420,21 +421,41 @@ def _import_activity(activity_dir: str, activity_data: dict, org_id: int, badge:
     pages_dir = os.path.join(activity_dir, "pages")
     if os.path.exists(pages_dir):
         page_files = sorted([name for name in os.listdir(pages_dir) if name.endswith(".json")])
+        page_specs: list[dict] = []
+        uuid_map: dict[str, str] = {}
         for index, page_file in enumerate(page_files, start=1):
             page_data = _read_json(os.path.join(pages_dir, page_file))
+            new_uuid = f"learning_page_{uuid4()}"
+            old_uuid = str(page_data.get("page_uuid") or "")
+            if old_uuid:
+                uuid_map[old_uuid] = new_uuid
+            page_type, content = convert_legacy_page(str(page_data.get("page_type") or "info"), page_data.get("content") or {})
+            page_specs.append({
+                "page_uuid": new_uuid,
+                "page_type": page_type,
+                "title": page_data.get("title") or "Untitled Page",
+                "order": page_data.get("order") or index,
+                "required": page_data.get("required", True),
+                "content": content,
+                "design": page_data.get("design") or {},
+                "scoring": page_data.get("scoring") or {},
+                "completion": page_data.get("completion") or {},
+            })
+
+        # Remap variant sources from package uuids to the freshly assigned ones,
+        # then resolve source block ids against the converted question pages.
+        for spec in page_specs:
+            source = ((spec["content"].get("variants") or {}).get("source")) or {}
+            if source.get("page_uuid") in uuid_map:
+                source["page_uuid"] = uuid_map[source["page_uuid"]]
+        link_variant_sources_to_question_blocks(page_specs)
+
+        for spec in page_specs:
             page = LearningPage(
-                page_uuid=f"learning_page_{uuid4()}",
+                **spec,
                 activity_id=activity.id or 0,
                 badge_id=badge.id or 0,
                 org_id=org_id,
-                page_type=page_data.get("page_type") or "info",
-                title=page_data.get("title") or "Untitled Page",
-                order=page_data.get("order") or index,
-                required=page_data.get("required", True),
-                content=page_data.get("content") or {},
-                design=page_data.get("design") or {},
-                scoring=page_data.get("scoring") or {},
-                completion=page_data.get("completion") or {},
                 creation_date=now,
                 update_date=now,
             )
