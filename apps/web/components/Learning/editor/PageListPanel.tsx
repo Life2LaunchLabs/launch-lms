@@ -1,5 +1,5 @@
 import React from 'react'
-import { ChevronDown, Copy, FileText, GripVertical, ListChecks, Plus, Trash2, Video } from 'lucide-react'
+import { AlertTriangle, ChevronDown, Copy, FileText, GripVertical, ListChecks, Plus, Trash2, Video } from 'lucide-react'
 import ReorderableList from '@components/Objects/ReorderableList'
 import {
   DropdownMenu,
@@ -61,48 +61,59 @@ export function PageListPanel({
           onReorder={onReorderPages}
           className="space-y-2"
           itemClassName={(_page: any, _index: number, isDragging: boolean) => isDragging ? 'rounded-lg shadow-xl' : 'rounded-lg'}
-          renderItem={({ item: page, index, dragHandleProps }) => (
-            <button
-              type="button"
-              onClick={() => onSelectPage(page.page_uuid)}
-              className={`group flex w-full items-center gap-3 rounded-lg border p-2 text-left transition ${
-                selectedPage?.page_uuid === page.page_uuid
-                  ? 'border-[var(--org-primary-color)] bg-[color-mix(in_srgb,var(--org-primary-color)_8%,white)]'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gray-100 text-sm font-bold text-gray-700">{index + 1}</span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-bold">{page.title || 'Untitled page'}</span>
-                <span className="mt-0.5 flex items-center gap-1 text-xs text-gray-500">
-                  {page.page_type === 'video' ? <Video size={12} /> : findQuestionBlock(page) ? <ListChecks size={12} /> : <FileText size={12} />}
-                  {page.page_type === 'video' ? 'Video' : findQuestionBlock(page) ? 'Question page' : 'Standard'}
+          renderItem={({ item: page, index, dragHandleProps }) => {
+            const question = findQuestionBlock(page)
+            const variantIssue = getVariantIssue(page, pages)
+            return (
+              <button
+                type="button"
+                onClick={() => onSelectPage(page.page_uuid)}
+                className={`group flex w-full items-center gap-3 rounded-lg border p-2 text-left transition ${
+                  selectedPage?.page_uuid === page.page_uuid
+                    ? 'border-[var(--org-primary-color)] bg-[color-mix(in_srgb,var(--org-primary-color)_8%,white)]'
+                    : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gray-100 text-sm font-bold text-gray-700">{index + 1}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <span className="block min-w-0 flex-1 truncate text-sm font-bold">{page.title || 'Untitled page'}</span>
+                    {variantIssue && (
+                      <span title={variantIssue} className="shrink-0 text-amber-600">
+                        <AlertTriangle size={14} />
+                      </span>
+                    )}
+                  </span>
+                  <span className="mt-0.5 flex items-center gap-1 text-xs text-gray-500">
+                    {page.page_type === 'video' ? <Video size={12} /> : question ? <ListChecks size={12} /> : <FileText size={12} />}
+                    {page.page_type === 'video' ? 'Video' : question ? 'Question page' : page.content?.variants ? 'Variant page' : 'Standard'}
+                  </span>
                 </span>
-              </span>
-              <span className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
-                <span {...dragHandleProps} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-gray-100">
-                  <GripVertical size={15} />
+                <span className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
+                  <span {...dragHandleProps} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-gray-100">
+                    <GripVertical size={15} />
+                  </span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <span className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-gray-100">
+                        <ChevronDown size={15} />
+                      </span>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={(event) => { event.stopPropagation(); onDuplicatePage(page) }}>
+                        <Copy size={16} className="mr-2" />
+                        Duplicate
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(event) => { event.stopPropagation(); onRemovePage(page) }} className="text-red-600">
+                        <Trash2 size={16} className="mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </span>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <span className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-gray-100">
-                      <ChevronDown size={15} />
-                    </span>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={(event) => { event.stopPropagation(); onDuplicatePage(page) }}>
-                      <Copy size={16} className="mr-2" />
-                      Duplicate
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(event) => { event.stopPropagation(); onRemovePage(page) }} className="text-red-600">
-                      <Trash2 size={16} className="mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </span>
-            </button>
-          )}
+              </button>
+            )
+          }}
         />
       </div>
       <div className="border-t border-gray-100 p-3">
@@ -113,4 +124,14 @@ export function PageListPanel({
       </div>
     </aside>
   )
+}
+
+function getVariantIssue(page: any, pages: any[]) {
+  const sourceUuid = page?.content?.variants?.source?.page_uuid
+  if (!page?.content?.variants) return ''
+  if (!sourceUuid) return 'Variant page needs a source question'
+  const sourcePage = pages.find((item) => item.page_uuid === sourceUuid)
+  if (!sourcePage || !findQuestionBlock(sourcePage)) return 'Variant source question is missing'
+  if (Number(sourcePage.order) >= Number(page.order)) return 'Variant source must come before this page'
+  return ''
 }

@@ -165,6 +165,21 @@ export function getPageBlocks(page: any): LearningBlock[] {
   return Array.isArray(page?.content?.blocks) ? page.content.blocks : []
 }
 
+export function getEditorBlocks(page: any, variantKey = 'default'): LearningBlock[] {
+  if (variantKey !== 'default') {
+    const blocks = page?.content?.variants?.overrides?.[variantKey]?.blocks
+    if (Array.isArray(blocks)) return blocks
+  }
+  return getPageBlocks(page)
+}
+
+export function cloneBlocksWithFreshIds(blocks: LearningBlock[]): LearningBlock[] {
+  return cloneJson(blocks).map((block: LearningBlock) => ({
+    ...block,
+    id: createBlockId(),
+  }))
+}
+
 export function normalizeInitialPages(pages: any[]) {
   return pages.map((page) => {
     if (page.page_type !== 'standard') return page

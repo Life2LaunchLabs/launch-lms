@@ -48,7 +48,11 @@ import {
 } from '@components/ui/dropdown-menu'
 import {
   createLearningPage,
+  createLearningVariable,
+  deleteLearningVariable,
   deleteLearningPage,
+  getLearningVariables,
+  updateLearningVariable,
   updateLearningActivity,
   updateLearningPage,
   uploadLearningPageMedia,
@@ -65,6 +69,7 @@ import type { ActivityGradingMode, DeviceMode, EditorViewMode, SaveState, Select
 import {
   EMPTY_PARAGRAPH,
   blockLabel,
+  cloneBlocksWithFreshIds,
   cloneJson,
   createBlockId,
   createImageBlock,
@@ -76,6 +81,7 @@ import {
   getActivityGradingSettings,
   getBlockStyle,
   getDefaultQuestionPagePatch,
+  getEditorBlocks,
   getPageBlocks,
   mergePatch,
   normalizeInitialPages,
@@ -116,6 +122,9 @@ export default function LearningActivityEditor({
     pageUuid: (activity.pages || [])[0]?.page_uuid,
     blockId: null,
   }))
+  const [variantKey, setVariantKey] = React.useState('default')
+  const [learningVariables, setLearningVariables] = React.useState<any[]>([])
+  const [variableDraftKey, setVariableDraftKey] = React.useState('')
   const [device, setDevice] = React.useState<DeviceMode>('mobile')
   const [zoom, setZoom] = React.useState(1)
   const [pan, setPan] = React.useState({ x: 0, y: 0 })
@@ -135,10 +144,21 @@ export default function LearningActivityEditor({
 
   const selectedPage = pages.find((page) => page.page_uuid === selection.pageUuid) || pages[0]
   const selectedIndex = Math.max(0, pages.findIndex((page) => page.page_uuid === selectedPage?.page_uuid))
-  const selectedBlock = selectedPage ? getPageBlocks(selectedPage).find((block) => block.id === selection.blockId) || null : null
+  const selectedBlock = selectedPage ? getEditorBlocks(selectedPage, variantKey).find((block) => block.id === selection.blockId) || null : null
   const frame = DEVICE_FRAMES[device]
   const frameShellHeight = device === 'mobile' ? frame.height + MOBILE_FRAME_CAP * 2 : frame.height
   const gradingSettings = getActivityGradingSettings(activityState)
+
+  React.useEffect(() => {
+    setVariantKey('default')
+  }, [selection.pageUuid])
+
+  React.useEffect(() => {
+    if (!badge?.org_id || !accessToken) return
+    getLearningVariables(badge.org_id, accessToken)
+      .then((items) => setLearningVariables(Array.isArray(items) ? items : []))
+      .catch(() => setLearningVariables([]))
+  }, [accessToken, badge?.org_id])
 
   React.useEffect(() => {
     const canvas = canvasRef.current
@@ -242,6 +262,21 @@ export default function LearningActivityEditor({
   const setBlocks = React.useCallback((pageUuid: string, blocks: LearningBlock[]) => {
     const page = pages.find((item) => item.page_uuid === pageUuid)
     if (!page) return
+    if (page.content?.variants && variantKey !== 'default') {
+      patchPage(pageUuid, {
+        content: {
+          ...(page.content || {}),
+          variants: {
+            ...(page.content?.variants || {}),
+            overrides: {
+              ...(page.content?.variants?.overrides || {}),
+              [variantKey]: { blocks },
+            },
+          },
+        },
+      })
+      return
+    }
     patchPage(pageUuid, {
       content: {
         ...(page.content || {}),
@@ -249,7 +284,7 @@ export default function LearningActivityEditor({
         blocks,
       },
     })
-  }, [pages, patchPage])
+  }, [pages, patchPage, variantKey])
 
   const insertBlock = (type: 'text' | 'image' | 'multiple_choice' | 'text_input', afterBlockId?: string | null) => {
     if (!selectedPage || selectedPage.page_type !== 'standard') return
@@ -261,7 +296,7 @@ export default function LearningActivityEditor({
       toast.error('Variant pages cannot contain question blocks')
       return
     }
-    const blocks = getPageBlocks(selectedPage)
+    const blocks = getEditorBlocks(selectedPage, variantKey)
     const block = type === 'text'
       ? createTextBlock()
       : type === 'image'
@@ -287,13 +322,13 @@ export default function LearningActivityEditor({
 
   const patchBlock = React.useCallback((blockId: string, patch: Partial<LearningBlock>) => {
     if (!selectedPage || selectedPage.page_type !== 'standard') return
-    setBlocks(selectedPage.page_uuid, getPageBlocks(selectedPage).map((block) => block.id === blockId ? ({ ...block, ...patch } as LearningBlock) : block))
-  }, [selectedPage, setBlocks])
+    setBlocks(selectedPage.page_uuid, getEditorBlocks(selectedPage, variantKey).map((block) => block.id === blockId ? ({ ...block, ...patch } as LearningBlock) : block))
+  }, [selectedPage, setBlocks, variantKey])
 
   const removeBlock = (blockId: string) => {
     if (!selectedPage) return
-    const removed = getPageBlocks(selectedPage).find((block) => block.id === blockId)
-    const blocks = getPageBlocks(selectedPage).filter((block) => block.id !== blockId)
+    const removed = getEditorBlocks(selectedPage, variantKey).find((block) => block.id === blockId)
+    const blocks = getEditorBlocks(selectedPage, variantKey).filter((block) => block.id !== blockId)
     if (removed?.type === 'question') {
       patchPage(selectedPage.page_uuid, {
         content: { ...(selectedPage.content || {}), version: 2, blocks },
@@ -308,7 +343,7 @@ export default function LearningActivityEditor({
 
   const duplicateBlock = (blockId: string) => {
     if (!selectedPage) return
-    const blocks = getPageBlocks(selectedPage)
+    const blocks = getEditorBlocks(selectedPage, variantKey)
     const index = blocks.findIndex((block) => block.id === blockId)
     if (index < 0) return
     if (blocks[index]?.type === 'question') {
@@ -324,7 +359,7 @@ export default function LearningActivityEditor({
 
   const moveBlock = (blockId: string, direction: -1 | 1) => {
     if (!selectedPage) return
-    const blocks = getPageBlocks(selectedPage)
+    const blocks = getEditorBlocks(selectedPage, variantKey)
     const index = blocks.findIndex((block) => block.id === blockId)
     const nextIndex = index + direction
     if (index < 0 || nextIndex < 0 || nextIndex >= blocks.length) return
@@ -495,6 +530,55 @@ export default function LearningActivityEditor({
     mediaInputRef.current?.click()
   }
 
+  const createVariable = async () => {
+    const key = variableDraftKey.trim()
+    if (!key || !badge?.org_id || !accessToken) return
+    if (learningVariables.some((variable) => String(variable.key) === key)) {
+      toast.error('Variable key already exists')
+      return
+    }
+    try {
+      const variable = await createLearningVariable({
+        org_id: badge.org_id,
+        key,
+        label: key.split('.').at(-1) || key,
+        value_type: 'text',
+        options: [],
+      }, accessToken)
+      setLearningVariables((current) => [...current, variable].sort((a, b) => String(a.key).localeCompare(String(b.key))))
+      setVariableDraftKey('')
+    } catch (error: any) {
+      toast.error(error?.message || 'Could not create variable')
+    }
+  }
+
+  const patchVariable = async (variable: any, patch: Record<string, any>) => {
+    const variableUuid = variable?.variable_uuid || variable?.uuid
+    if (!variableUuid) return
+    const optimistic = { ...variable, ...patch }
+    setLearningVariables((current) => current.map((item) => (item.variable_uuid || item.uuid) === variableUuid ? optimistic : item))
+    try {
+      const saved = await updateLearningVariable(variableUuid, patch, accessToken)
+      setLearningVariables((current) => current.map((item) => (item.variable_uuid || item.uuid) === variableUuid ? saved : item))
+    } catch (error: any) {
+      setLearningVariables((current) => current.map((item) => (item.variable_uuid || item.uuid) === variableUuid ? variable : item))
+      toast.error(error?.message || 'Could not update variable')
+    }
+  }
+
+  const removeVariable = async (variable: any) => {
+    const variableUuid = variable?.variable_uuid || variable?.uuid
+    if (!variableUuid || !confirm(`Delete variable "${variable.key}"?`)) return
+    const previous = learningVariables
+    setLearningVariables((current) => current.filter((item) => (item.variable_uuid || item.uuid) !== variableUuid))
+    try {
+      await deleteLearningVariable(variableUuid, accessToken)
+    } catch (error: any) {
+      setLearningVariables(previous)
+      toast.error(error?.message || 'Could not delete variable')
+    }
+  }
+
   const startPan = (event: React.PointerEvent<HTMLDivElement>) => {
     if (zoom === 1 || (!handMode && event.button !== 1)) return
     event.preventDefault()
@@ -533,8 +617,14 @@ export default function LearningActivityEditor({
         <ActivitySettingsView
           activity={activityState}
           gradingSettings={gradingSettings}
+          learningVariables={learningVariables}
+          variableDraftKey={variableDraftKey}
+          setVariableDraftKey={setVariableDraftKey}
           onPatchActivity={patchActivityBasics}
           onPatchGrading={patchGradingSettings}
+          onCreateVariable={createVariable}
+          onPatchVariable={patchVariable}
+          onDeleteVariable={removeVariable}
         />
       ) : (
         <div className="flex min-h-0 flex-1">
@@ -584,6 +674,7 @@ export default function LearningActivityEditor({
                   onSelectBlock={(blockId: string) => selectedPage && setSelection({ pageUuid: selectedPage.page_uuid, blockId })}
                   onPatchPage={patchSelectedPage}
                   onPatchBlock={patchBlock}
+                  variantKey={variantKey}
                   onInsertAfter={(blockId: string) => insertBlock('text', blockId)}
                   onDuplicateBlock={duplicateBlock}
                   onRemoveBlock={removeBlock}
@@ -600,11 +691,17 @@ export default function LearningActivityEditor({
               setHandMode={setHandMode}
             />
           </main>
-            <InspectorPanel
-              page={selectedPage}
-              block={selectedBlock}
-              pages={pages}
-              onPatchPage={patchSelectedPage}
+          <InspectorPanel
+            page={selectedPage}
+            block={selectedBlock}
+            pages={pages}
+            variantKey={variantKey}
+            setVariantKey={setVariantKey}
+            learningVariables={learningVariables}
+            variableDraftKey={variableDraftKey}
+            setVariableDraftKey={setVariableDraftKey}
+            onCreateVariable={createVariable}
+            onPatchPage={patchSelectedPage}
             onPatchBlock={patchBlock}
             onRequestImageUpload={requestImageUpload}
           />
@@ -706,6 +803,7 @@ function CanvasFrame({
   page,
   pages,
   selectedBlockId,
+  variantKey,
   device,
   frame,
   frameShellHeight,
@@ -755,6 +853,7 @@ function CanvasFrame({
             page={page}
             pages={pages}
             selectedBlockId={selectedBlockId}
+            variantKey={variantKey}
             onSelectPage={onSelectPage}
             onSelectBlock={onSelectBlock}
             onPatchPage={onPatchPage}
@@ -770,8 +869,8 @@ function CanvasFrame({
   )
 }
 
-function StandardCanvasPage({ page, selectedBlockId, onSelectPage, onSelectBlock, onPatchPage, onPatchBlock, onInsertAfter, onDuplicateBlock, onRemoveBlock, onRequestImageUpload }: any) {
-  const blocks = getPageBlocks(page)
+function StandardCanvasPage({ page, selectedBlockId, variantKey = 'default', onSelectPage, onSelectBlock, onPatchPage, onPatchBlock, onInsertAfter, onDuplicateBlock, onRemoveBlock, onRequestImageUpload }: any) {
+  const blocks = getEditorBlocks(page, variantKey)
   return (
     <div className="h-full overflow-y-auto px-7 py-10" onMouseDown={(event) => {
       if (event.target === event.currentTarget) onSelectPage()
@@ -977,6 +1076,9 @@ function QuestionBlockEditor({ block, page, onPatch, onPatchPage }: { block: Lea
       const correctIds = new Set<string>(page.scoring?.correct_option_ids || page.scoring?.correctOptionIds || [])
       const minSelections = Math.max(1, Number(page.completion?.min_selections ?? 1))
       const maxSelections = Math.max(minSelections, Number(page.completion?.max_selections ?? 1))
+      const variableBindings = page.completion?.variable_bindings || page.completion?.variableBindings || {}
+      const nextOptionBindings = { ...(variableBindings.options || {}) }
+      delete nextOptionBindings[id]
       patchContent({ options: nextOptions })
       onPatchPage({
         scoring: {
@@ -987,6 +1089,7 @@ function QuestionBlockEditor({ block, page, onPatch, onPatchPage }: { block: Lea
           ...(page.completion || {}),
           min_selections: Math.min(minSelections, nextOptions.length),
           max_selections: Math.min(maxSelections, nextOptions.length),
+          variable_bindings: { ...variableBindings, options: nextOptionBindings },
         },
       })
     }
@@ -1179,7 +1282,20 @@ function CanvasControls({ device, setDevice, zoom, setZoom, handMode, setHandMod
   )
 }
 
-function InspectorPanel({ page, block, pages, onPatchPage, onPatchBlock, onRequestImageUpload }: any) {
+function InspectorPanel({
+  page,
+  block,
+  pages,
+  variantKey,
+  setVariantKey,
+  learningVariables,
+  variableDraftKey,
+  setVariableDraftKey,
+  onCreateVariable,
+  onPatchPage,
+  onPatchBlock,
+  onRequestImageUpload,
+}: any) {
   return (
     <aside className="w-80 shrink-0 overflow-y-auto border-l border-gray-200 bg-white">
       <div className="border-b border-gray-100 px-5 py-4">
@@ -1187,15 +1303,25 @@ function InspectorPanel({ page, block, pages, onPatchPage, onPatchBlock, onReque
         <p className="mt-1 truncate text-base font-bold">{block ? blockLabel(block) : page?.title || 'Untitled page'}</p>
       </div>
       {block ? (
-        <BlockInspector block={block} page={page} onPatchBlock={onPatchBlock} onPatchPage={onPatchPage} onRequestImageUpload={onRequestImageUpload} />
+        <BlockInspector
+          block={block}
+          page={page}
+          learningVariables={learningVariables}
+          variableDraftKey={variableDraftKey}
+          setVariableDraftKey={setVariableDraftKey}
+          onCreateVariable={onCreateVariable}
+          onPatchBlock={onPatchBlock}
+          onPatchPage={onPatchPage}
+          onRequestImageUpload={onRequestImageUpload}
+        />
       ) : (
-        <PageInspector page={page} pages={pages} onPatchPage={onPatchPage} />
+        <PageInspector page={page} pages={pages} variantKey={variantKey} setVariantKey={setVariantKey} onPatchPage={onPatchPage} />
       )}
     </aside>
   )
 }
 
-function PageInspector({ page, pages, onPatchPage }: any) {
+function PageInspector({ page, pages, variantKey, setVariantKey, onPatchPage }: any) {
   if (!page) return null
   const hasVariants = Boolean(page.content?.variants)
   return (
@@ -1245,27 +1371,13 @@ function PageInspector({ page, pages, onPatchPage }: any) {
           </label>
           {findQuestionBlock(page) && <p className="text-xs font-medium text-amber-700">Pages with question blocks cannot also have variants.</p>}
           {hasVariants && (
-            <select
-              value={page.content?.variants?.source?.page_uuid || ''}
-              onChange={(event) => {
-                const source = pages.find((item: any) => item.page_uuid === event.target.value)
-                onPatchPage({
-                  content: {
-                    ...(page.content || {}),
-                    variants: {
-                      ...(page.content?.variants || {}),
-                      source: source ? { page_uuid: source.page_uuid, block_id: findQuestionBlock(source)?.id } : {},
-                    },
-                  },
-                })
-              }}
-              className="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm outline-none focus:border-[var(--org-primary-color)]"
-            >
-              <option value="">Choose source</option>
-              {pages.filter((item: any) => item.order < page.order && findQuestionBlock(item)?.kind === 'multiple_choice').map((item: any) => (
-                <option key={item.page_uuid} value={item.page_uuid}>{item.title || 'Untitled question'}</option>
-              ))}
-            </select>
+            <VariantControls
+              page={page}
+              pages={pages}
+              variantKey={variantKey}
+              setVariantKey={setVariantKey}
+              onPatchPage={onPatchPage}
+            />
           )}
         </InspectorSection>
       )}
@@ -1273,7 +1385,96 @@ function PageInspector({ page, pages, onPatchPage }: any) {
   )
 }
 
-function BlockInspector({ block, page, onPatchBlock, onPatchPage, onRequestImageUpload }: any) {
+function VariantControls({ page, pages, variantKey, setVariantKey, onPatchPage }: any) {
+  const variants = page.content?.variants || {}
+  const sourceUuid = variants.source?.page_uuid || ''
+  const sourcePage = pages.find((item: any) => item.page_uuid === sourceUuid)
+  const sourceQuestion = sourcePage ? findQuestionBlock(sourcePage) : null
+  const sourceOptions = sourceQuestion?.kind === 'multiple_choice' ? normalizeQuestionOptions(sourceQuestion.content?.options) : []
+  const sourceIsPrior = !sourcePage || Number(sourcePage.order) < Number(page.order)
+  const availableSources = pages.filter((item: any) => item.page_uuid !== page.page_uuid && findQuestionBlock(item)?.kind === 'multiple_choice')
+  const keys = [
+    { key: 'default', label: 'Default' },
+    ...sourceOptions.map((option, index) => ({ key: option.id, label: option.text || `Option ${index + 1}` })),
+    { key: 'correct', label: 'Correct' },
+    { key: 'incorrect', label: 'Incorrect' },
+  ]
+  const setSource = (pageUuid: string) => {
+    const source = pages.find((item: any) => item.page_uuid === pageUuid)
+    onPatchPage({
+      content: {
+        ...(page.content || {}),
+        variants: {
+          ...(variants || {}),
+          source: source ? { page_uuid: source.page_uuid, block_id: findQuestionBlock(source)?.id } : {},
+          overrides: variants.overrides || {},
+        },
+      },
+    })
+  }
+  const selectVariant = (key: string) => {
+    if (key !== 'default' && !variants.overrides?.[key]) {
+      onPatchPage({
+        content: {
+          ...(page.content || {}),
+          variants: {
+            ...(variants || {}),
+            overrides: {
+              ...(variants.overrides || {}),
+              [key]: { blocks: cloneBlocksWithFreshIds(getPageBlocks(page)) },
+            },
+          },
+        },
+      })
+    }
+    setVariantKey(key)
+  }
+  return (
+    <div className="space-y-3">
+      <select
+        value={sourceUuid}
+        onChange={(event) => setSource(event.target.value)}
+        className="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm outline-none focus:border-[var(--org-primary-color)]"
+      >
+        <option value="">Choose source</option>
+        {availableSources.map((item: any) => (
+          <option key={item.page_uuid} value={item.page_uuid}>{item.title || 'Untitled question'}</option>
+        ))}
+      </select>
+      {!sourceIsPrior && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+          Source question is after this page. Move it earlier for learner variants to resolve.
+        </p>
+      )}
+      <div className="flex flex-wrap gap-1">
+        {keys.map((item) => (
+          <button
+            key={item.key}
+            onClick={() => selectVariant(item.key)}
+            className={`h-8 rounded-lg px-2 text-xs font-bold ${variantKey === item.key ? 'bg-gray-950 text-white' : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+      {variantKey !== 'default' && (
+        <button
+          onClick={() => {
+            const overrides = { ...(variants.overrides || {}) }
+            delete overrides[variantKey]
+            onPatchPage({ content: { ...(page.content || {}), variants: { ...(variants || {}), overrides } } })
+            setVariantKey('default')
+          }}
+          className="h-8 w-full rounded-lg border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50"
+        >
+          Reset selected variant
+        </button>
+      )}
+    </div>
+  )
+}
+
+function BlockInspector({ block, page, learningVariables, variableDraftKey, setVariableDraftKey, onCreateVariable, onPatchBlock, onPatchPage, onRequestImageUpload }: any) {
   const design = block.design || {}
   const patchDesign = (patch: any) => onPatchBlock(block.id, { design: { ...design, ...patch } })
   return (
@@ -1321,19 +1522,30 @@ function BlockInspector({ block, page, onPatchBlock, onPatchPage, onRequestImage
         </InspectorSection>
       )}
       {block.type === 'question' && (
-        <QuestionInspector block={block} page={page} onPatchBlock={onPatchBlock} onPatchPage={onPatchPage} />
+        <QuestionInspector
+          block={block}
+          page={page}
+          learningVariables={learningVariables}
+          variableDraftKey={variableDraftKey}
+          setVariableDraftKey={setVariableDraftKey}
+          onCreateVariable={onCreateVariable}
+          onPatchBlock={onPatchBlock}
+          onPatchPage={onPatchPage}
+        />
       )}
     </div>
   )
 }
 
-function QuestionInspector({ block, page, onPatchBlock, onPatchPage }: any) {
+function QuestionInspector({ block, page, learningVariables = [], variableDraftKey, setVariableDraftKey, onCreateVariable, onPatchBlock, onPatchPage }: any) {
   const content = block.content || {}
   const scoring = page.scoring || {}
   const completion = page.completion || {}
+  const variableBindings = completion.variable_bindings || completion.variableBindings || {}
   const patchContent = (patch: any) => onPatchBlock(block.id, { content: { ...content, ...patch } })
   const patchScoring = (patch: any) => onPatchPage({ scoring: { ...scoring, ...patch } })
   const patchCompletion = (patch: any) => onPatchPage({ completion: { ...completion, ...patch } })
+  const patchVariableBindings = (patch: any) => patchCompletion({ variable_bindings: { ...variableBindings, ...patch } })
 
   if (block.kind === 'multiple_choice') {
     const options = normalizeQuestionOptions(content.options)
@@ -1345,11 +1557,14 @@ function QuestionInspector({ block, page, onPatchBlock, onPatchPage }: any) {
     const removeOption = (id: string) => {
       if (options.length <= 2) return
       const nextOptions = options.filter((option) => option.id !== id)
+      const nextOptionBindings = { ...(variableBindings.options || {}) }
+      delete nextOptionBindings[id]
       patchContent({ options: nextOptions })
       patchScoring({ correct_option_ids: Array.from(correctIds).filter((item) => item !== id) })
       patchCompletion({
         min_selections: Math.min(minSelections, nextOptions.length),
         max_selections: Math.min(maxSelections, nextOptions.length),
+        variable_bindings: { ...variableBindings, options: nextOptionBindings },
       })
     }
     const toggleCorrect = (id: string) => {
@@ -1397,6 +1612,41 @@ function QuestionInspector({ block, page, onPatchBlock, onPatchPage }: any) {
           <div className="grid grid-cols-2 gap-2">
             <TextField label="Min" type="number" value={String(minSelections)} onChange={(value) => patchCompletion({ min_selections: Math.max(1, Number(value)) })} />
             <TextField label="Max" type="number" value={String(maxSelections)} onChange={(value) => patchCompletion({ max_selections: Math.max(1, Number(value)) })} />
+          </div>
+        </InspectorSection>
+        <InspectorSection label="Variables">
+          <VariableCreateInline value={variableDraftKey} onChange={setVariableDraftKey} onCreate={onCreateVariable} />
+          <div className="space-y-2">
+            {options.map((option, index) => {
+              const binding = normalizeBinding(variableBindings.options?.[option.id])
+              return (
+                <div key={option.id} className="space-y-2 rounded-lg border border-gray-200 p-3">
+                  <p className="text-xs font-bold text-gray-600">{option.text || `Option ${index + 1}`}</p>
+                  <VariableTargetSelect
+                    value={stripVariableTarget(binding?.target || '')}
+                    variables={learningVariables}
+                    onChange={(key: string) => {
+                      const nextOptions = { ...(variableBindings.options || {}) }
+                      if (!key) delete nextOptions[option.id]
+                      else nextOptions[option.id] = [{ target: variableTarget(key), value: option.id }]
+                      patchVariableBindings({ options: nextOptions })
+                    }}
+                  />
+                  {binding?.target && (
+                    <input
+                      value={binding.value ?? option.id}
+                      onChange={(event) => {
+                        const nextOptions = { ...(variableBindings.options || {}) }
+                        nextOptions[option.id] = [{ target: binding.target, value: event.target.value }]
+                        patchVariableBindings({ options: nextOptions })
+                      }}
+                      className="h-8 w-full rounded-lg border border-gray-200 px-2 text-xs outline-none focus:border-[var(--org-primary-color)]"
+                      placeholder="Stored value"
+                    />
+                  )}
+                </div>
+              )
+            })}
           </div>
         </InspectorSection>
       </>
@@ -1483,11 +1733,94 @@ function QuestionInspector({ block, page, onPatchBlock, onPatchPage }: any) {
         />
         <TextField label="Points" type="number" value={String(scoring.points ?? 1)} onChange={(value) => patchScoring({ points: Number(value) })} />
       </InspectorSection>
+      <InspectorSection label="Variables">
+        <VariableCreateInline value={variableDraftKey} onChange={setVariableDraftKey} onCreate={onCreateVariable} />
+        <div className="space-y-2">
+          {inputs.map((input) => {
+            const binding = normalizeBinding(variableBindings.inputs?.[input.id])
+            return (
+              <div key={input.id} className="space-y-2 rounded-lg border border-gray-200 p-3">
+                <p className="text-xs font-bold text-gray-600">{input.label || 'Response'}</p>
+                <VariableTargetSelect
+                  value={stripVariableTarget(binding?.target || '')}
+                  variables={learningVariables}
+                  onChange={(key: string) => {
+                    const nextInputs = { ...(variableBindings.inputs || {}) }
+                    if (!key) delete nextInputs[input.id]
+                    else nextInputs[input.id] = [{ target: variableTarget(key) }]
+                    patchVariableBindings({ inputs: nextInputs })
+                  }}
+                />
+              </div>
+            )
+          })}
+        </div>
+      </InspectorSection>
     </>
   )
 }
 
-function ActivitySettingsView({ activity, gradingSettings, onPatchActivity, onPatchGrading }: any) {
+function VariableCreateInline({ value, onChange, onCreate }: any) {
+  return (
+    <div className="flex gap-2">
+      <input
+        value={value || ''}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="personality.traits.style"
+        className="h-9 min-w-0 flex-1 rounded-lg border border-gray-200 px-2 text-xs outline-none focus:border-[var(--org-primary-color)]"
+      />
+      <button onClick={onCreate} className="h-9 rounded-lg border border-gray-200 px-3 text-xs font-bold text-gray-700 hover:bg-gray-50">Create</button>
+    </div>
+  )
+}
+
+function VariableTargetSelect({ value, variables, onChange }: any) {
+  return (
+    <select
+      value={value || ''}
+      onChange={(event) => onChange(event.target.value)}
+      className="h-9 w-full rounded-lg border border-gray-200 px-2 text-xs outline-none focus:border-[var(--org-primary-color)]"
+    >
+      <option value="">No binding</option>
+      {variables.map((variable: any) => (
+        <option key={variable.variable_uuid || variable.key} value={variable.key}>{formatVariableOptionLabel(variable.key)}</option>
+      ))}
+    </select>
+  )
+}
+
+function normalizeBinding(value: any) {
+  if (Array.isArray(value)) return value[0] || null
+  if (value && typeof value === 'object') return value
+  return null
+}
+
+function variableTarget(key: string) {
+  return `user.details.variables.${key}`
+}
+
+function stripVariableTarget(target: string) {
+  return String(target || '').replace(/^user\.details\.variables\./, '')
+}
+
+function formatVariableOptionLabel(key: string) {
+  const parts = String(key || '').split('.').filter(Boolean)
+  if (parts.length <= 1) return key
+  return `${'  '.repeat(parts.length - 1)}${parts.at(-1)} (${key})`
+}
+
+function ActivitySettingsView({
+  activity,
+  gradingSettings,
+  learningVariables,
+  variableDraftKey,
+  setVariableDraftKey,
+  onPatchActivity,
+  onPatchGrading,
+  onCreateVariable,
+  onPatchVariable,
+  onDeleteVariable,
+}: any) {
   return (
     <main className="min-h-0 flex-1 overflow-y-auto bg-white">
       <div className="mx-auto max-w-3xl space-y-8 px-8 py-8">
@@ -1532,8 +1865,59 @@ function ActivitySettingsView({ activity, gradingSettings, onPatchActivity, onPa
             )}
           </div>
         </section>
+        <section>
+          <h2 className="text-lg font-bold">Variables</h2>
+          <div className="mt-5 space-y-4">
+            <VariableCreateInline value={variableDraftKey} onChange={setVariableDraftKey} onCreate={onCreateVariable} />
+            <VariableRegistry variables={learningVariables} onPatchVariable={onPatchVariable} onDeleteVariable={onDeleteVariable} />
+          </div>
+        </section>
       </div>
     </main>
+  )
+}
+
+function VariableRegistry({ variables = [], onPatchVariable, onDeleteVariable }: any) {
+  const sorted = [...variables].sort((a: any, b: any) => String(a.key).localeCompare(String(b.key)))
+  if (!sorted.length) {
+    return (
+      <div className="rounded-lg border border-dashed border-gray-300 p-4 text-sm font-medium text-gray-500">
+        No custom variables yet.
+      </div>
+    )
+  }
+  return (
+    <div className="overflow-hidden rounded-lg border border-gray-200">
+      {sorted.map((variable: any) => {
+        const key = String(variable.key || '')
+        const depth = Math.max(0, key.split('.').length - 1)
+        return (
+          <div key={variable.variable_uuid || key} className="grid grid-cols-[1fr_10rem_2.5rem] items-center gap-2 border-b border-gray-100 p-3 last:border-b-0">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-gray-800" style={{ paddingLeft: depth * 14 }}>{key}</p>
+              <input
+                value={variable.label || ''}
+                onChange={(event) => onPatchVariable(variable, { label: event.target.value })}
+                placeholder="Label"
+                className="mt-1 h-8 w-full rounded-lg border border-gray-200 px-2 text-xs outline-none focus:border-[var(--org-primary-color)]"
+              />
+            </div>
+            <select
+              value={variable.value_type || variable.valueType || 'text'}
+              onChange={(event) => onPatchVariable(variable, { value_type: event.target.value })}
+              className="h-9 rounded-lg border border-gray-200 px-2 text-xs font-bold outline-none focus:border-[var(--org-primary-color)]"
+            >
+              <option value="text">Text</option>
+              <option value="number">Number</option>
+              <option value="boolean">Boolean</option>
+              <option value="choice">Choice</option>
+              <option value="json">JSON</option>
+            </select>
+            <IconButton title="Delete variable" onClick={() => onDeleteVariable(variable)}><Trash2 size={15} /></IconButton>
+          </div>
+        )
+      })}
+    </div>
   )
 }
 
