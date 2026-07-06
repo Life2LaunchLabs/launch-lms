@@ -19,7 +19,11 @@ import {
 } from '@services/learning/learning'
 import {
   findQuestionBlock,
+  getBlockCompletion,
+  getBlockScoring,
+  getQuestionAnswer,
   resolveVariantBlocks,
+  setQuestionAnswer,
   type LearningBlock,
 } from '@components/Learning/schema'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -208,6 +212,24 @@ function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, o
     () => editable ? (page.content?.blocks || []) : resolveVariantBlocks(page, run),
     [editable, page, run]
   )
+  const questionIds = React.useMemo(
+    () => blocks.filter((block: LearningBlock) => block.type === 'question').map((block: LearningBlock) => block.id),
+    [blocks]
+  )
+  const unlockedByBlockRef = React.useRef<Record<string, boolean>>({})
+
+  React.useEffect(() => {
+    unlockedByBlockRef.current = {}
+  }, [page?.page_uuid])
+
+  const setBlockUnlocked = (blockId: string, value: boolean) => {
+    unlockedByBlockRef.current[blockId] = value
+    setUnlocked?.(questionIds.every((id: string) => unlockedByBlockRef.current[id]))
+  }
+
+  const setBlockAnswer = (blockId: string, value: any) => {
+    setAnswer?.((current: any) => setQuestionAnswer(current, blockId, value))
+  }
 
   const patchBlock = (blockId: string, patch: any) => {
     const nextBlocks = (page.content?.blocks || []).map((block: LearningBlock) =>
@@ -224,9 +246,9 @@ function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, o
             key={block.id}
             block={block}
             page={page}
-            answer={answer}
-            setAnswer={setAnswer}
-            setUnlocked={setUnlocked}
+            answer={getQuestionAnswer(answer, block.id)}
+            setAnswer={(value: any) => setBlockAnswer(block.id, value)}
+            setUnlocked={(value: boolean) => setBlockUnlocked(block.id, value)}
             editable={editable}
             onPatch={(patch: any) => patchBlock(block.id, patch)}
           />
@@ -234,6 +256,28 @@ function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, o
       </div>
     </div>
   )
+}
+
+export function buildQuestionVirtualPage(page: any, block: any) {
+  return {
+    ...page,
+    page_type: block.kind,
+    content: { ...(block.content || {}), hide_prompt: true },
+    scoring: getBlockScoring(page, block),
+    completion: getBlockCompletion(page, block),
+  }
+}
+
+export function mapQuestionPagePatchToBlock(block: any, patch: any) {
+  const next: any = {}
+  if (patch.content) {
+    const content = { ...(block.content || {}), ...patch.content }
+    delete content.hide_prompt
+    next.content = content
+  }
+  if (patch.scoring) next.scoring = patch.scoring
+  if (patch.completion) next.completion = patch.completion
+  return next
 }
 
 function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editable, onPatch }: any) {
@@ -255,38 +299,31 @@ function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editab
   }
 
   if (block.type === 'image') {
+    const height = Math.max(80, Number(block.design?.height) || 220)
+    const fit = block.design?.fit === 'cover' ? 'object-cover' : 'object-contain'
     return (
       <section className="learning-info-stack-section" style={blockStyle}>
-        <InfoImageBlock
-          block={{ attrs: { src: block.content?.src || '', alt: block.content?.alt || '', height: block.design?.height || 220 } }}
-          editable={false}
-          active={false}
-          onActivate={() => null}
-        />
+        <figure className="w-full max-w-full overflow-hidden rounded-lg" style={{ height }}>
+          {block.content?.src ? (
+            <img src={block.content.src} alt={block.content?.alt || ''} className={`h-full w-full max-w-full ${fit}`} />
+          ) : null}
+        </figure>
       </section>
     )
   }
 
   if (block.type === 'question') {
-    const virtualPage = {
-      ...page,
-      page_type: block.kind,
-      content: { ...(block.content || {}), hide_prompt: true },
-    }
+    const label = String(block.content?.label || '').trim()
     return (
       <section className="learning-info-stack-section" style={blockStyle}>
+        {label && <p className="text-lg font-bold text-gray-900">{label}</p>}
         <QuestionBlockContent
-          page={virtualPage}
+          page={buildQuestionVirtualPage(page, block)}
           answer={answer}
           setAnswer={setAnswer}
           setUnlocked={setUnlocked}
           editable={editable}
-          onPagePatch={(patch: any) => {
-            if (patch.content) {
-              const { hide_prompt: _hidePrompt, ...content } = patch.content
-              onPatch({ content: { ...(block.content || {}), ...content } })
-            }
-          }}
+          onPagePatch={(patch: any) => onPatch(mapQuestionPagePatchToBlock(block, patch))}
           onActivate={() => null}
           showChrome={false}
           onChromeHoverChange={() => null}
@@ -1242,8 +1279,8 @@ function QuestionTextInputSection({
 }
 
 function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, onActivate, showChrome, onChromeHoverChange }: any) {
+  const titleRef = React.useRef<HTMLElement | null>(null)
   if (page.page_type === 'multiple_choice') {
-    const titleRef = React.useRef<HTMLElement | null>(null)
     const options = page.content?.options || []
     const visibleOptions = options.length ? options : [{ id: 'a', text: '' }, { id: 'b', text: '' }]
     const completion = page.completion || {}

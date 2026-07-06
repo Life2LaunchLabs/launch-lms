@@ -56,14 +56,25 @@ def image_block(src: str = "", alt: str = "", height: int | None = None, design:
     }
 
 
-def question_block(kind: str, content: dict, block_id: str | None = None) -> dict:
-    return {
+def question_block(
+    kind: str,
+    content: dict,
+    block_id: str | None = None,
+    scoring: dict | None = None,
+    completion: dict | None = None,
+) -> dict:
+    block = {
         "id": block_id or make_block_id(),
         "type": "question",
         "kind": kind,
         "design": {},
         "content": content or {},
     }
+    if scoring is not None:
+        block["scoring"] = scoring
+    if completion is not None:
+        block["completion"] = completion
+    return block
 
 
 def paragraph_node(text: str) -> dict:
@@ -80,10 +91,16 @@ def heading_node(text: str, level: int = 1) -> dict:
 
 
 def find_question_block(content: dict | None) -> dict | None:
-    for block in (content or {}).get("blocks") or []:
-        if isinstance(block, dict) and block.get("type") == "question":
-            return block
-    return None
+    blocks = find_question_blocks(content)
+    return blocks[0] if blocks else None
+
+
+def find_question_blocks(content: dict | None) -> list[dict]:
+    return [
+        block
+        for block in (content or {}).get("blocks") or []
+        if isinstance(block, dict) and block.get("type") == "question"
+    ]
 
 
 def iter_block_stacks(content: dict | None):

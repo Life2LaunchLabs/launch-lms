@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@components/ui/dropdown-menu'
-import { findQuestionBlock, type LearningPageType } from '@components/Learning/schema'
+import { findQuestionBlock, findQuestionBlocks, type LearningPageType } from '@components/Learning/schema'
 
 type PageListPanelProps = {
   pages: any[]
@@ -29,7 +29,7 @@ export function PageListPanel({
   onReorderPages,
 }: PageListPanelProps) {
   return (
-    <aside className="flex w-72 shrink-0 flex-col border-r border-gray-200 bg-white">
+    <aside className="flex h-full w-full flex-col border-r border-gray-200 bg-white">
       <div className="flex h-12 shrink-0 items-center justify-between border-b border-gray-100 px-4">
         <div>
           <p className="text-[11px] font-bold uppercase text-gray-500">Pages</p>
@@ -62,7 +62,8 @@ export function PageListPanel({
           className="space-y-2"
           itemClassName={(_page: any, _index: number, isDragging: boolean) => isDragging ? 'rounded-lg shadow-xl' : 'rounded-lg'}
           renderItem={({ item: page, index, dragHandleProps }) => {
-            const question = findQuestionBlock(page)
+            const questionCount = findQuestionBlocks(page).length
+            const question = questionCount > 0
             const variantIssue = getVariantIssue(page, pages)
             return (
               <button
@@ -86,7 +87,11 @@ export function PageListPanel({
                   </span>
                   <span className="mt-0.5 flex items-center gap-1 text-xs text-gray-500">
                     {page.page_type === 'video' ? <Video size={12} /> : question ? <ListChecks size={12} /> : <FileText size={12} />}
-                    {page.page_type === 'video' ? 'Video' : question ? 'Question page' : page.content?.variants ? 'Variant page' : 'Standard'}
+                    {page.page_type === 'video'
+                      ? 'Video'
+                      : question
+                        ? questionCount > 1 ? `${questionCount} questions` : 'Question page'
+                        : page.content?.variants ? 'Variant page' : 'Standard'}
                   </span>
                 </span>
                 <span className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">

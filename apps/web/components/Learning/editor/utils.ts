@@ -1,5 +1,12 @@
 import type { CSSProperties } from 'react'
-import { findQuestionBlock, type LearningBlock, type LearningImageBlock, type LearningQuestionBlock, type LearningTextBlock } from '@components/Learning/schema'
+import {
+  findQuestionBlocks,
+  getBlockCompletion,
+  type LearningBlock,
+  type LearningImageBlock,
+  type LearningQuestionBlock,
+  type LearningTextBlock,
+} from '@components/Learning/schema'
 import type { ActivityGradingMode } from './types'
 
 export const EMPTY_PARAGRAPH = { type: 'paragraph' }
@@ -24,16 +31,25 @@ export function createImageBlock(): LearningImageBlock {
 
 export function createQuestionBlock(kind: 'multiple_choice' | 'text_input'): LearningQuestionBlock {
   if (kind === 'multiple_choice') {
+    const options = [
+      { id: createOptionId(), text: 'Option 1' },
+      { id: createOptionId(), text: 'Option 2' },
+    ]
     return {
       id: createBlockId(),
       type: 'question',
       kind,
       design: { width: 100, align: 'left' },
-      content: {
-        options: [
-          { id: createOptionId(), text: 'Option 1' },
-          { id: createOptionId(), text: 'Option 2' },
-        ],
+      content: { options },
+      scoring: {
+        mode: 'points',
+        points: 1,
+        score_policy: 'exact_match',
+        correct_option_ids: [options[0].id],
+      },
+      completion: {
+        min_selections: 1,
+        max_selections: 1,
       },
     }
   }
@@ -57,37 +73,14 @@ export function createQuestionBlock(kind: 'multiple_choice' | 'text_input'): Lea
         },
       ],
     },
-  }
-}
-
-export function getDefaultQuestionPagePatch(block: LearningQuestionBlock) {
-  if (block.kind === 'multiple_choice') {
-    const options = normalizeQuestionOptions(block.content?.options)
-    return {
-      scoring: {
-        mode: 'points',
-        points: 1,
-        score_policy: 'exact_match',
-        correct_option_ids: options[0]?.id ? [options[0].id] : [],
-      },
-      completion: {
-        min_selections: 1,
-        max_selections: 1,
-      },
-    }
-  }
-
-  const inputs = normalizeQuestionInputs(block.content?.inputs)
-  return {
     scoring: {
       mode: 'completion',
       points: 1,
     },
     completion: {
-      inputs: inputs.reduce((acc: Record<string, any>, input) => ({
-        ...acc,
-        [input.id]: { required: true, min_words: 1, max_words: 0, points: 1 },
-      }), {}),
+      inputs: {
+        [inputId]: { required: true, min_words: 1, max_words: 0, points: 1 },
+      },
     },
   }
 }
@@ -183,15 +176,92 @@ export function cloneBlocksWithFreshIds(blocks: LearningBlock[]): LearningBlock[
 export function normalizeInitialPages(pages: any[]) {
   return pages.map((page) => {
     if (page.page_type !== 'standard') return page
+    let blocks: LearningBlock[] = Array.isArray(page.content?.blocks) ? page.content.blocks : []
+
+    // Legacy pages kept the single question's scoring/completion at page level —
+    // relocate into the block so the editor always works block-level.
+    const questions = blocks.filter((block: any) => block?.type === 'question')
+    const pageScoring = page.scoring && Object.keys(page.scoring).length ? page.scoring : null
+    const pageCompletion = page.completion && Object.keys(page.completion).length ? page.completion : null
+    if (questions.length === 1 && (pageScoring || pageCompletion)) {
+      blocks = blocks.map((block: any) => {
+        if (block?.type !== 'question') return block
+        return {
+          ...block,
+          scoring: block.scoring && Object.keys(block.scoring).length ? block.scoring : (pageScoring || {}),
+          completion: block.completion && Object.keys(block.completion).length ? block.completion : (pageCompletion || {}),
+        }
+      })
+    }
+
+    blocks = blocks.flatMap((block: any) => splitTextInputBlock(block))
+
     return {
       ...page,
       content: {
         ...(page.content || {}),
         version: page.content?.version || 2,
-        blocks: Array.isArray(page.content?.blocks) ? page.content.blocks : [],
+        blocks,
       },
     }
   })
+}
+
+// One row is one block: legacy text_input blocks could hold many inputs grouped
+// into sections — split them so each block is a single row (1 input, or 2 side
+// by side), carrying its own completion rules and variable bindings.
+export function splitTextInputBlock(block: any): any[] {
+  if (block?.type !== 'question' || block?.kind !== 'text_input') return [block]
+  const inputs = Array.isArray(block.content?.inputs) ? block.content.inputs : []
+  const sections = groupInputRows(inputs)
+  if (sections.length <= 1) return [block]
+
+  const completion = block.completion || {}
+  const rules = completion.inputs || {}
+  const bindings = (completion.variable_bindings || completion.variableBindings || {}).inputs || {}
+
+  return sections.map((sectionInputs, index) => {
+    const ids = sectionInputs.map((input: any) => String(input.id))
+    return {
+      ...block,
+      id: index === 0 ? block.id : createBlockId(),
+      content: { ...(block.content || {}), inputs: sectionInputs },
+      completion: {
+        ...completion,
+        inputs: Object.fromEntries(Object.entries(rules).filter(([id]) => ids.includes(id))),
+        variable_bindings: {
+          ...(completion.variable_bindings || {}),
+          inputs: Object.fromEntries(Object.entries(bindings).filter(([id]) => ids.includes(id))),
+        },
+      },
+    }
+  })
+}
+
+function groupInputRows(inputs: any[]): any[][] {
+  const sections: any[][] = []
+  const consumed = new Set<string>()
+  inputs.forEach((input, index) => {
+    const id = String(input?.id ?? index)
+    if (consumed.has(id)) return
+    const sectionId = input?.section_id || input?.sectionId
+    if (sectionId) {
+      const grouped = inputs.filter((item) => (item?.section_id || item?.sectionId) === sectionId).slice(0, 2)
+      grouped.forEach((item, itemIndex) => consumed.add(String(item?.id ?? `${index}_${itemIndex}`)))
+      sections.push(grouped)
+      return
+    }
+    const next = inputs[index + 1]
+    if (input?.width === 'half' && next && !(next.section_id || next.sectionId) && next.width === 'half') {
+      consumed.add(id)
+      consumed.add(String(next.id))
+      sections.push([input, next])
+      return
+    }
+    consumed.add(id)
+    sections.push([input])
+  })
+  return sections
 }
 
 export function getBlockStyle(block: LearningBlock): CSSProperties {
@@ -235,14 +305,74 @@ export function getActivityGradingSettings(activity: any) {
   const grading = activity.settings?.grading || {}
   return {
     mode: (grading.mode || 'completion') as ActivityGradingMode,
-    passing_score: Number(grading.passing_score ?? 1),
+    minimum_score_percent: Number(grading.minimum_score_percent ?? 70),
     success_message: grading.success_message || '',
+    failure_message: grading.failure_message || '',
   }
 }
 
-export function findPriorQuestionPage(pages: any[], page: any) {
-  return pages
-    .filter((item) => item.order < page.order)
-    .reverse()
-    .find((item) => findQuestionBlock(item)?.kind === 'multiple_choice')
+export type VariantSourceOption = {
+  pageUuid: string
+  blockId: string
+  label: string
+  options: Array<{ id: string; text: string }>
+  isPrior: boolean
+}
+
+// Every single-select MCQ block on other pages can drive this page's variants;
+// sources that come after this page are flagged instead of hidden. Question
+// labels disambiguate pages that hold more than one MCQ.
+export function getVariantSourceOptions(pages: any[], page: any): VariantSourceOption[] {
+  const pageIndex = pages.findIndex((item) => item.page_uuid === page.page_uuid)
+  const sources: VariantSourceOption[] = []
+  pages.forEach((item, index) => {
+    if (item.page_uuid === page.page_uuid) return
+    const questions = findQuestionBlocks(item).filter((question) => question.kind === 'multiple_choice')
+    questions.forEach((question, questionIndex) => {
+      const completion = getBlockCompletion(item, question)
+      if (Math.max(1, Number(completion?.max_selections ?? 1)) > 1) return
+      const options = normalizeQuestionOptions(question.content?.options)
+      const questionLabel = String(question.content?.label || '').trim()
+      const fallback = `${item.title || 'Untitled page'}${questions.length > 1 ? ` · question ${questionIndex + 1}` : ''}`
+      sources.push({
+        pageUuid: item.page_uuid,
+        blockId: question.id,
+        label: `${index + 1}. ${questionLabel || fallback}`,
+        options,
+        isPrior: index < pageIndex,
+      })
+    })
+  })
+  return sources
+}
+
+// Canonical variant key order for a page: default, source options, correctness.
+export function getVariantKeyList(source: VariantSourceOption | null): Array<{ key: string; label: string }> {
+  return [
+    { key: 'default', label: 'Default' },
+    ...(source?.options || []).map((option, index) => ({ key: option.id, label: option.text || `Option ${index + 1}` })),
+    { key: 'correct', label: 'Correct' },
+    { key: 'incorrect', label: 'Incorrect' },
+  ]
+}
+
+// Only variants with an override are "live"; default always is. Stale override
+// keys (e.g. a deleted option) are kept visible so they can be removed.
+export function getEnabledVariantKeys(page: any, source: VariantSourceOption | null): Array<{ key: string; label: string }> {
+  const overrides = page?.content?.variants?.overrides || {}
+  const canonical = getVariantKeyList(source)
+  const enabled = canonical.filter((item) => item.key === 'default' || overrides[item.key])
+  Object.keys(overrides).forEach((key) => {
+    if (!canonical.some((item) => item.key === key)) enabled.push({ key, label: key })
+  })
+  return enabled
+}
+
+export function getVariantSource(pages: any[], page: any): VariantSourceOption | null {
+  const source = page?.content?.variants?.source || {}
+  if (!source.page_uuid) return null
+  const all = getVariantSourceOptions(pages, page)
+  return all.find((item) => item.pageUuid === source.page_uuid && (!source.block_id || item.blockId === source.block_id))
+    || all.find((item) => item.pageUuid === source.page_uuid)
+    || null
 }

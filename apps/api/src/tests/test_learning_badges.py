@@ -312,8 +312,8 @@ def test_text_input_variables_extract_from_configured_inputs():
     )
 
     assert variables == [
-        {"target": "user.first_name", "value": "Ada", "source": {"page_uuid": "learning_page_variables", "input_id": "first_name"}},
-        {"target": "user.details.variables.goal", "value": "Build a portfolio", "source": {"page_uuid": "learning_page_variables", "input_id": "goal"}},
+        {"target": "user.first_name", "value": "Ada", "source": {"page_uuid": "learning_page_variables", "block_id": "blk_q", "input_id": "first_name"}},
+        {"target": "user.details.variables.goal", "value": "Build a portfolio", "source": {"page_uuid": "learning_page_variables", "block_id": "blk_q", "input_id": "goal"}},
     ]
 
 
@@ -342,6 +342,37 @@ def test_mcq_variables_extract_configured_option_values():
     assert all(item["value"] == "employment" for item in variables)
 
 
+def test_mcq_variables_extract_selected_option_text_as_list():
+    page = _standard_page(
+        "learning_page_interests",
+        question=_mcq([
+            {"id": "design", "text": "Design"},
+            {"id": "code", "text": "Code"},
+            {"id": "sales", "text": "Sales"},
+        ]),
+        completion={
+            "variable_bindings": {
+                "options_value_mode": "selected_text_list",
+                "options": {
+                    "design": [{"target": "user.details.variables.interests"}],
+                    "code": [{"target": "user.details.variables.interests"}],
+                    "sales": [{"target": "user.details.variables.interests"}],
+                },
+            }
+        },
+    )
+
+    variables = _extract_learning_variables(page, {"option_ids": ["design", "code"]})
+
+    assert variables == [
+        {
+            "target": "user.details.variables.interests",
+            "value": ["Design", "Code"],
+            "source": {"page_uuid": "learning_page_interests", "block_id": "blk_q", "option_ids": ["design", "code"]},
+        }
+    ]
+
+
 def test_learning_variables_apply_only_safe_targets():
     user = _user()
     user.profile = {}
@@ -368,15 +399,85 @@ def test_learning_variables_apply_only_safe_targets():
     assert session.added == [user]
 
 
-def test_page_validation_rejects_two_question_blocks():
+def test_page_validation_accepts_multiple_question_blocks():
     content = {"version": 2, "blocks": [_mcq(block_id="blk_1"), _text_question(block_id="blk_2")]}
 
-    try:
-        _validate_page_payload(LearningPageType.STANDARD, content)
-    except HTTPException as error:
-        assert error.status_code == 422
-    else:
-        raise AssertionError("Expected one-question-per-page validation")
+    _validate_page_payload(LearningPageType.STANDARD, content)
+
+
+def test_multi_question_page_grades_each_block():
+    mcq = _mcq([{"id": "a", "text": "A"}, {"id": "b", "text": "B"}], block_id="blk_mcq")
+    mcq["scoring"] = {"mode": "points", "points": 2, "correct_option_ids": ["b"]}
+    mcq["completion"] = {"min_selections": 1, "max_selections": 1}
+    text = _text_question([{"id": "summary", "label": "Summary"}], block_id="blk_text")
+    text["scoring"] = {"mode": "completion", "points": 3}
+    text["completion"] = {"inputs": {"summary": {"required": True, "min_words": 1}}}
+    page = _standard_page("learning_page_multi_q", blocks=[mcq, text])
+
+    is_correct, score, feedback_key, result = _grade_answer(page, {
+        "questions": {
+            "blk_mcq": {"option_ids": ["b"]},
+            "blk_text": {"inputs": {"summary": {"text": "Looks good"}}},
+        },
+    })
+
+    assert is_correct is True
+    assert score == 5
+    assert feedback_key == "correct"
+    assert result["max_score"] == 5
+    assert result["questions"]["blk_mcq"]["is_correct"] is True
+    assert result["questions"]["blk_text"]["inputs"]["summary"]["text"] == "Looks good"
+
+
+def test_multi_question_page_pends_when_any_block_is_manual():
+    mcq = _mcq([{"id": "a", "text": "A"}, {"id": "b", "text": "B"}], block_id="blk_mcq")
+    mcq["scoring"] = {"mode": "points", "points": 2, "correct_option_ids": ["b"]}
+    mcq["completion"] = {"min_selections": 1, "max_selections": 1}
+    text = _text_question([{"id": "reflection", "label": "Reflection"}], block_id="blk_text")
+    text["scoring"] = {"mode": "manual", "points": 10}
+    text["completion"] = {"inputs": {"reflection": {"required": True, "min_words": 1}}}
+    page = _standard_page("learning_page_multi_manual", blocks=[mcq, text])
+
+    is_correct, score, feedback_key, result = _grade_answer(page, {
+        "questions": {
+            "blk_mcq": {"option_ids": ["b"]},
+            "blk_text": {"inputs": {"reflection": {"text": "Thoughtful"}}},
+        },
+    })
+
+    assert is_correct is None
+    assert score is None
+    assert feedback_key == "pending"
+    assert result["grading_status"] == "pending"
+
+
+def test_multi_question_variables_extract_per_block_bindings():
+    mcq = _mcq([{"id": "visual", "text": "Visual"}], block_id="blk_mcq")
+    mcq["completion"] = {
+        "min_selections": 1,
+        "max_selections": 1,
+        "variable_bindings": {"options": {"visual": [{"target": "user.details.variables.learning_style", "value": "visual"}]}},
+    }
+    text = _text_question([{"id": "goal"}], block_id="blk_text")
+    text["scoring"] = {"mode": "completion", "points": 1}
+    text["completion"] = {
+        "inputs": {"goal": {"required": True, "min_words": 1}},
+        "variable_bindings": {"inputs": {"goal": {"target": "user.details.variables.goal"}}},
+    }
+    page = _standard_page("learning_page_multi_vars", blocks=[mcq, text])
+
+    _is_correct, _score, _feedback, result = _grade_answer(page, {
+        "questions": {
+            "blk_mcq": {"option_ids": ["visual"]},
+            "blk_text": {"inputs": {"goal": {"text": "Build things"}}},
+        },
+    })
+    variables = _extract_learning_variables(page, result)
+
+    assert {item["target"]: item["value"] for item in variables} == {
+        "user.details.variables.learning_style": "visual",
+        "user.details.variables.goal": "Build things",
+    }
 
 
 def test_page_validation_rejects_variants_with_question_block():

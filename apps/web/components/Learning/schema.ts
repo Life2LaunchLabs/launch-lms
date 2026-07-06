@@ -9,6 +9,7 @@ export interface LearningBlockBase {
     width?: number
     align?: LearningBlockAlign
     height?: number
+    fit?: 'contain' | 'cover'
   }
 }
 
@@ -31,6 +32,8 @@ export interface LearningQuestionBlock extends LearningBlockBase {
   type: 'question'
   kind: 'multiple_choice' | 'text_input' | string
   content?: any
+  scoring?: any
+  completion?: any
 }
 
 export type LearningBlock = LearningTextBlock | LearningImageBlock | LearningQuestionBlock
@@ -47,7 +50,37 @@ export function getDefaultBlocks(pageOrContent: LearningPageLike | any): Learnin
 }
 
 export function findQuestionBlock(pageOrContent: LearningPageLike | any): LearningQuestionBlock | null {
-  return getDefaultBlocks(pageOrContent).find((block: any) => block?.type === 'question') as LearningQuestionBlock || null
+  return findQuestionBlocks(pageOrContent)[0] || null
+}
+
+export function findQuestionBlocks(pageOrContent: LearningPageLike | any): LearningQuestionBlock[] {
+  return getDefaultBlocks(pageOrContent).filter((block: any) => block?.type === 'question') as LearningQuestionBlock[]
+}
+
+// Question config lives on the block; legacy pages kept it at page level for
+// their single question, so fall back there when the block carries none.
+export function getBlockScoring(page: any, block: LearningQuestionBlock): any {
+  if (block?.scoring && typeof block.scoring === 'object' && Object.keys(block.scoring).length) return block.scoring
+  return page?.scoring || {}
+}
+
+export function getBlockCompletion(page: any, block: LearningQuestionBlock): any {
+  if (block?.completion && typeof block.completion === 'object' && Object.keys(block.completion).length) return block.completion
+  return page?.completion || {}
+}
+
+export function getQuestionAnswer(answer: any, blockId: string): any {
+  return answer?.questions?.[blockId] || {}
+}
+
+export function setQuestionAnswer(answer: any, blockId: string, value: any): any {
+  return {
+    ...(answer || {}),
+    questions: {
+      ...(answer?.questions || {}),
+      [blockId]: value,
+    },
+  }
 }
 
 export function pageHasVariants(pageOrContent: LearningPageLike | any) {
@@ -66,12 +99,16 @@ export function resolveVariantBlocks(page: LearningPageLike, run: any): Learning
   const attempt = getLatestAttemptForPage(run, sourcePageUuid)
   if (!attempt || attempt.result?.grading_status === 'pending') return getDefaultBlocks(content)
 
-  const exactKey = getAttemptOptionKeys(attempt).find((key) => overrides[key]?.blocks)
+  const sourceBlockId = variants.source?.block_id
+  const questionResult = sourceBlockId ? attempt.result?.questions?.[sourceBlockId] : null
+
+  const exactKey = getAttemptOptionKeys(attempt, questionResult).find((key) => overrides[key]?.blocks)
   if (exactKey) return overrides[exactKey].blocks
 
-  const correctnessKey = attempt.is_correct === true
+  const isCorrect = questionResult ? questionResult.is_correct : attempt.is_correct
+  const correctnessKey = isCorrect === true
     ? 'correct'
-    : attempt.is_correct === false
+    : isCorrect === false
       ? 'incorrect'
       : null
   if (correctnessKey && overrides[correctnessKey]?.blocks) return overrides[correctnessKey].blocks
@@ -94,8 +131,10 @@ function getLatestAttemptForPage(run: any, pageUuid: string) {
     .at(-1)
 }
 
-function getAttemptOptionKeys(attempt: any): string[] {
+function getAttemptOptionKeys(attempt: any, questionResult?: any): string[] {
   const keys = [
+    ...(Array.isArray(questionResult?.option_ids) ? questionResult.option_ids : []),
+    ...(Array.isArray(questionResult?.selected) ? questionResult.selected : []),
     ...(Array.isArray(attempt?.answer?.option_ids) ? attempt.answer.option_ids : []),
     ...(Array.isArray(attempt?.result?.option_ids) ? attempt.result.option_ids : []),
     ...(Array.isArray(attempt?.result?.selected) ? attempt.result.selected : []),

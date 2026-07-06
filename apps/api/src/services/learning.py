@@ -60,6 +60,7 @@ from src.services.guest_sessions import LearningActor
 from src.services.learning_page_convert import (
     STANDARD_CONTENT_VERSION,
     find_question_block,
+    find_question_blocks,
     heading_node,
     iter_block_stacks,
     paragraph_node,
@@ -276,6 +277,24 @@ def _question_block(page: LearningPage) -> dict | None:
     return find_question_block(page.content)
 
 
+def _question_blocks(page: LearningPage) -> list[dict]:
+    return find_question_blocks(page.content)
+
+
+def _block_scoring(page: LearningPage, question: dict) -> dict:
+    scoring = question.get("scoring")
+    if isinstance(scoring, dict) and scoring:
+        return scoring
+    return page.scoring or {}
+
+
+def _block_completion(page: LearningPage, question: dict) -> dict:
+    completion = question.get("completion")
+    if isinstance(completion, dict) and completion:
+        return completion
+    return page.completion or {}
+
+
 def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
     progress = db_session.exec(select(LearningPage).where(LearningPage.badge_id == run.badge_id)).all()
     progress_by_page = {
@@ -428,42 +447,79 @@ def _variable_bindings(page: LearningPage) -> dict:
 
 
 def _extract_learning_variables(page: LearningPage, result: dict) -> list[dict]:
-    bindings = _variable_bindings(page)
     variables: list[dict] = []
-    question = _question_block(page)
-    kind = (question or {}).get("kind")
+    questions = _question_blocks(page)
+    question_results = result.get("questions") if isinstance(result.get("questions"), dict) else {}
 
-    if kind == "text_input":
-        input_bindings = bindings.get("inputs") or {}
-        if not isinstance(input_bindings, dict):
-            return []
-        inputs = result.get("inputs") or {}
-        for input_id, answer in inputs.items():
-            text = str((answer or {}).get("text") or "").strip()
-            for binding in _normalize_bindings(input_bindings.get(input_id)):
-                variables.append(
-                    {
-                        "target": str(binding.get("target") or ""),
-                        "value": text,
-                        "source": {"page_uuid": page.page_uuid, "input_id": input_id},
-                    }
-                )
+    for question in questions:
+        block_id = str(question.get("id") or "")
+        bindings = _question_variable_bindings(page, question)
+        sub_result = question_results.get(block_id) or (result if len(questions) == 1 else {})
+        kind = question.get("kind")
 
-    if kind == "multiple_choice":
-        option_bindings = bindings.get("options") or {}
-        if not isinstance(option_bindings, dict):
-            return []
-        for option_id in result.get("option_ids") or result.get("selected") or []:
-            for binding in _normalize_bindings(option_bindings.get(option_id)):
-                variables.append(
-                    {
-                        "target": str(binding.get("target") or ""),
-                        "value": binding.get("value", option_id),
-                        "source": {"page_uuid": page.page_uuid, "option_id": option_id},
-                    }
-                )
+        if kind == "text_input":
+            input_bindings = bindings.get("inputs") or {}
+            if not isinstance(input_bindings, dict):
+                continue
+            inputs = sub_result.get("inputs") or {}
+            for input_id, answer in inputs.items():
+                text = str((answer or {}).get("text") or "").strip()
+                for binding in _normalize_bindings(input_bindings.get(input_id)):
+                    variables.append(
+                        {
+                            "target": str(binding.get("target") or ""),
+                            "value": text,
+                            "source": {"page_uuid": page.page_uuid, "block_id": block_id, "input_id": input_id},
+                        }
+                    )
+
+        if kind == "multiple_choice":
+            option_bindings = bindings.get("options") or {}
+            if not isinstance(option_bindings, dict):
+                continue
+            selected_options = [str(option_id) for option_id in sub_result.get("option_ids") or sub_result.get("selected") or []]
+            if bindings.get("options_value_mode") == "selected_text_list":
+                options = (question.get("content") or {}).get("options") or []
+                option_labels = {
+                    str(option.get("id")): str(option.get("text") or option.get("id") or "")
+                    for option in options
+                    if isinstance(option, dict) and option.get("id") is not None
+                }
+                values_by_target: dict[str, list] = {}
+                for option_id in selected_options:
+                    for binding in _normalize_bindings(option_bindings.get(option_id)):
+                        target = str(binding.get("target") or "")
+                        values_by_target.setdefault(target, []).append(option_labels.get(option_id, option_id))
+                for target, values in values_by_target.items():
+                    variables.append(
+                        {
+                            "target": target,
+                            "value": values,
+                            "source": {"page_uuid": page.page_uuid, "block_id": block_id, "option_ids": selected_options},
+                        }
+                    )
+                continue
+
+            for option_id in selected_options:
+                for binding in _normalize_bindings(option_bindings.get(option_id)):
+                    variables.append(
+                        {
+                            "target": str(binding.get("target") or ""),
+                            "value": binding.get("value", option_id),
+                            "source": {"page_uuid": page.page_uuid, "block_id": block_id, "option_id": option_id},
+                        }
+                    )
 
     return variables
+
+
+def _question_variable_bindings(page: LearningPage, question: dict) -> dict:
+    completion = question.get("completion")
+    if isinstance(completion, dict):
+        bindings = completion.get("variable_bindings") or completion.get("variableBindings")
+        if isinstance(bindings, dict) and bindings:
+            return bindings
+    return _variable_bindings(page)
 
 
 def _is_safe_variable_target(target: str, value, user: User, allow_email_write: bool = False) -> tuple[bool, str | None]:
@@ -541,85 +597,131 @@ def _apply_learning_variables_to_user(
     return applied, skipped
 
 
+def _normalize_question_answers(questions: list[dict], answer: dict) -> dict[str, dict]:
+    """Split a page answer into per-question-block answers.
+
+    New payloads carry `answer.questions[block_id]`; legacy payloads are the
+    single question's answer at the top level.
+    """
+    raw = (answer or {}).get("questions")
+    if isinstance(raw, dict):
+        return {str(block_id): value if isinstance(value, dict) else {} for block_id, value in raw.items()}
+    if len(questions) == 1:
+        return {str(questions[0].get("id") or ""): answer or {}}
+    return {}
+
+
+def _grade_mcq_block(page: LearningPage, question: dict, answer: dict) -> dict:
+    content = question.get("content") or {}
+    selected = _normalize_mcq_answer(answer or {})
+    _validate_mcq_answer(content, _block_completion(page, question), selected)
+    scoring = _block_scoring(page, question)
+    correct_options = {str(value) for value in scoring.get("correct_option_ids") or scoring.get("correctOptionIds") or []}
+    is_correct = set(selected) == correct_options if correct_options else None
+    points = _as_float(scoring.get("points"), 1.0)
+    score = points if is_correct else 0.0 if is_correct is not None else None
+    return {
+        "kind": "multiple_choice",
+        "selected": selected,
+        "option_ids": selected,
+        "correct_option_ids": sorted(correct_options),
+        "is_correct": is_correct,
+        "score": score,
+        "points": points,
+        "max_score": points,
+        "grading_status": "graded",
+    }
+
+
+def _grade_text_block(page: LearningPage, question: dict, answer: dict) -> dict:
+    content = question.get("content") or {}
+    completion = _block_completion(page, question)
+    inputs = _validate_text_answer(content, completion, _normalize_text_answer(content, answer or {}))
+    scoring = _block_scoring(page, question)
+    mode = scoring.get("mode") or ("accepted_answers" if scoring.get("accepted_answers") else "off")
+    completion_inputs = completion.get("inputs") or {}
+    per_input_points = [
+        _as_float((completion_inputs.get(input_id) or {}).get("points"), 0.0)
+        for input_id in inputs.keys()
+        if (completion_inputs.get(input_id) or {}).get("points") is not None
+    ]
+    points = sum(per_input_points) if per_input_points else _as_float(scoring.get("points"), 1.0)
+    first_text = next((item.get("text", "") for item in inputs.values()), "")
+    base = {
+        "kind": "text_input",
+        "inputs": inputs,
+        "text": first_text,
+        "points": points,
+        "max_score": points,
+    }
+
+    if mode == "manual":
+        return {**base, "is_correct": None, "score": None, "grading_status": "pending"}
+    if mode == "completion":
+        return {**base, "is_correct": True, "score": points, "grading_status": "graded"}
+
+    expected = [str(value).strip().lower() for value in scoring.get("accepted_answers", [])]
+    if mode == "accepted_answers" and expected:
+        is_correct = first_text.lower() in expected
+        return {**base, "is_correct": is_correct, "score": points if is_correct else 0.0, "grading_status": "graded"}
+
+    return {**base, "is_correct": None, "score": None, "grading_status": "not_required"}
+
+
 def _grade_answer(page: LearningPage, answer: dict) -> tuple[bool | None, float | None, str | None, dict]:
-    question = _question_block(page)
-    if not question:
+    questions = _question_blocks(page)
+    if not questions:
         return None, None, None, {"page_uuid": page.page_uuid}
-    question_content = question.get("content") or {}
-    kind = question.get("kind")
 
-    if kind == "multiple_choice":
-        selected = _normalize_mcq_answer(answer)
-        _validate_mcq_answer(question_content, page.completion or {}, selected)
-        scoring = page.scoring or {}
-        correct_options = {str(value) for value in scoring.get("correct_option_ids") or scoring.get("correctOptionIds") or []}
-        is_correct = set(selected) == correct_options if correct_options else None
-        points = _as_float(scoring.get("points"), 1.0)
-        score = points if is_correct else 0.0 if is_correct is not None else None
-        feedback_key = selected[0] if len(selected) == 1 else ("correct" if is_correct else "incorrect")
-        return is_correct, score, feedback_key, {
-            "selected": selected,
-            "option_ids": selected,
-            "correct_option_ids": sorted(correct_options),
-            "points": points,
-            "max_score": points,
-            "grading_status": "graded",
-            "page_uuid": page.page_uuid,
+    answers = _normalize_question_answers(questions, answer)
+    sub_results: dict[str, dict] = {}
+    for question in questions:
+        block_id = str(question.get("id") or "")
+        sub_answer = answers.get(block_id) or {}
+        if question.get("kind") == "multiple_choice":
+            sub_results[block_id] = _grade_mcq_block(page, question, sub_answer)
+        elif question.get("kind") == "text_input":
+            sub_results[block_id] = _grade_text_block(page, question, sub_answer)
+
+    subs = list(sub_results.values())
+    if not subs:
+        return None, None, None, {"page_uuid": page.page_uuid}
+
+    total_points = sum(_as_float(sub.get("points"), 0.0) for sub in subs)
+    pending = any(sub.get("grading_status") == "pending" for sub in subs)
+    correctness = [sub.get("is_correct") for sub in subs if sub.get("is_correct") is not None]
+    is_correct = None if pending or not correctness else all(correctness)
+    scores = [sub.get("score") for sub in subs]
+    score = None if pending or all(value is None for value in scores) else sum(_as_float(value, 0.0) for value in scores if value is not None)
+    grading_status = "pending" if pending else (
+        "graded" if any(sub.get("grading_status") == "graded" for sub in subs) else "not_required"
+    )
+
+    result: dict = {
+        "page_uuid": page.page_uuid,
+        "questions": sub_results,
+        "points": total_points,
+        "max_score": total_points,
+        "grading_status": grading_status,
+    }
+
+    if len(subs) == 1:
+        only = subs[0]
+        result = {
+            **{key: value for key, value in only.items() if key not in ("kind", "is_correct", "score")},
+            **result,
         }
-    if kind == "text_input":
-        inputs = _validate_text_answer(question_content, page.completion or {}, _normalize_text_answer(question_content, answer))
-        scoring = page.scoring or {}
-        mode = scoring.get("mode") or ("accepted_answers" if scoring.get("accepted_answers") else "off")
-        completion_inputs = (page.completion or {}).get("inputs") or {}
-        per_input_points = [
-            _as_float((completion_inputs.get(input_id) or {}).get("points"), 0.0)
-            for input_id in inputs.keys()
-            if (completion_inputs.get(input_id) or {}).get("points") is not None
-        ]
-        points = sum(per_input_points) if per_input_points else _as_float(scoring.get("points"), 1.0)
-        first_text = next((item.get("text", "") for item in inputs.values()), "")
+        if pending:
+            feedback_key = "pending"
+        elif only.get("kind") == "multiple_choice":
+            selected = only.get("option_ids") or []
+            feedback_key = selected[0] if len(selected) == 1 else ("correct" if is_correct else "incorrect")
+        else:
+            feedback_key = "correct" if is_correct is True else "incorrect" if is_correct is False else "complete"
+        return is_correct, score, feedback_key, result
 
-        if mode == "manual":
-            return None, None, "pending", {
-                "inputs": inputs,
-                "text": first_text,
-                "points": points,
-                "max_score": points,
-                "grading_status": "pending",
-                "page_uuid": page.page_uuid,
-            }
-        if mode == "completion":
-            return True, points, "correct", {
-                "inputs": inputs,
-                "text": first_text,
-                "points": points,
-                "max_score": points,
-                "grading_status": "graded",
-                "page_uuid": page.page_uuid,
-            }
-
-        expected = [str(value).strip().lower() for value in scoring.get("accepted_answers", [])]
-        if mode == "accepted_answers" and expected:
-            is_correct = first_text.lower() in expected
-            score = points if is_correct else 0.0
-            return is_correct, score, "correct" if is_correct else "incorrect", {
-                "inputs": inputs,
-                "text": first_text,
-                "points": points,
-                "max_score": points,
-                "grading_status": "graded",
-                "page_uuid": page.page_uuid,
-            }
-
-        return None, None, "complete", {
-            "inputs": inputs,
-            "text": first_text,
-            "points": points,
-            "max_score": points,
-            "grading_status": "not_required",
-            "page_uuid": page.page_uuid,
-        }
-    return None, None, None, {"page_uuid": page.page_uuid}
+    feedback_key = "pending" if pending else "correct" if is_correct is True else "incorrect" if is_correct is False else "complete"
+    return is_correct, score, feedback_key, result
 
 
 def _ensure_activity_run(db_session: Session, run: LearningRun, activity_id: int) -> LearningActivityRun:
@@ -665,21 +767,11 @@ def _activity_score_summary(db_session: Session, run: LearningRun, activity: Lea
     pending_manual_grades = 0
 
     for page in pages:
-        question = _question_block(page)
-        if not question:
+        questions = _question_blocks(page)
+        if not questions:
             continue
         attempt = latest_attempts.get(page.id or 0)
-        scoring = page.scoring or {}
-        configured_points = _as_float(scoring.get("points"), 1.0)
-        if question.get("kind") == "text_input":
-            completion_inputs = (page.completion or {}).get("inputs") or {}
-            input_points = [
-                _as_float((rules or {}).get("points"), 0.0)
-                for rules in completion_inputs.values()
-                if isinstance(rules, dict) and (rules or {}).get("points") is not None
-            ]
-            if input_points:
-                configured_points = sum(input_points)
+        configured_points = sum(_question_block_points(page, question) for question in questions)
         if configured_points <= 0:
             continue
         possible += configured_points
@@ -697,6 +789,21 @@ def _activity_score_summary(db_session: Session, run: LearningRun, activity: Lea
         "score_percent": percent,
         "pending_manual_grades": pending_manual_grades,
     }
+
+
+def _question_block_points(page: LearningPage, question: dict) -> float:
+    scoring = _block_scoring(page, question)
+    points = _as_float(scoring.get("points"), 1.0)
+    if question.get("kind") == "text_input":
+        completion_inputs = _block_completion(page, question).get("inputs") or {}
+        input_points = [
+            _as_float((rules or {}).get("points"), 0.0)
+            for rules in completion_inputs.values()
+            if isinstance(rules, dict) and (rules or {}).get("points") is not None
+        ]
+        if input_points:
+            points = sum(input_points)
+    return max(0.0, points)
 
 
 def _activity_meets_completion_rules(db_session: Session, run: LearningRun, activity: LearningActivity) -> tuple[bool, dict]:
@@ -722,7 +829,10 @@ def _has_pending_required_manual_grades(db_session: Session, run: LearningRun) -
     manual_pages = [
         page
         for page in required_pages
-        if (_question_block(page) or {}).get("kind") == "text_input" and (page.scoring or {}).get("mode") == "manual"
+        if any(
+            question.get("kind") == "text_input" and _block_scoring(page, question).get("mode") == "manual"
+            for question in _question_blocks(page)
+        )
     ]
     if not manual_pages:
         return False
@@ -802,21 +912,33 @@ def _issue_award_if_complete(request: Request, db_session: Session, run: Learnin
 
 
 def _merge_onboarding_variable_bindings(page: LearningPage, defaults: dict) -> None:
+    def merged_bindings(completion: dict) -> dict:
+        existing = completion.get("variable_bindings") or {}
+        if not isinstance(existing, dict):
+            existing = {}
+        for section, values in defaults.items():
+            target_section = existing.get(section)
+            if not isinstance(target_section, dict):
+                target_section = {}
+            for key, binding in values.items():
+                if not target_section.get(key):
+                    target_section[key] = binding
+            existing[section] = target_section
+        return existing
+
+    question = _question_block(page)
+    if question and isinstance(question.get("completion"), dict) and question.get("completion"):
+        content = deepcopy(page.content or {})
+        block = find_question_block(content)
+        if block:
+            completion = block.get("completion") or {}
+            completion["variable_bindings"] = merged_bindings(completion)
+            block["completion"] = completion
+            page.content = content
+            return
+
     completion = deepcopy(page.completion or {})
-    existing = completion.get("variable_bindings") or {}
-    if not isinstance(existing, dict):
-        existing = {}
-
-    for section, values in defaults.items():
-        target_section = existing.get(section)
-        if not isinstance(target_section, dict):
-            target_section = {}
-        for key, binding in values.items():
-            if not target_section.get(key):
-                target_section[key] = binding
-        existing[section] = target_section
-
-    completion["variable_bindings"] = existing
+    completion["variable_bindings"] = merged_bindings(completion)
     page.completion = completion
 
 
@@ -945,21 +1067,21 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
                         "text_input",
                         {
                             "inputs": [
-                                {"id": "first_name", "label": "First name", "placeholder": "First name", "variant": "single_line", "width": "half"},
-                                {"id": "last_name", "label": "Last name", "placeholder": "Last name", "variant": "single_line", "width": "half"},
+                                {"id": "first_name", "section_id": "onboarding_name", "label": "First name", "placeholder": "First name", "variant": "single_line", "width": "half"},
+                                {"id": "last_name", "section_id": "onboarding_name", "label": "Last name", "placeholder": "Last name", "variant": "single_line", "width": "half"},
                             ]
                         },
                         block_id="blk_onboarding_name_question",
+                        scoring={"mode": "off", "points": 0},
+                        completion={
+                            "inputs": {
+                                "first_name": {"required": True, "min_words": 1, "max_words": 3},
+                                "last_name": {"required": True, "min_words": 1, "max_words": 4},
+                            },
+                            "variable_bindings": name_bindings,
+                        },
                     ),
                 ],
-            },
-            scoring={"mode": "off", "points": 0},
-            completion={
-                "inputs": {
-                    "first_name": {"required": True, "min_words": 1, "max_words": 3},
-                    "last_name": {"required": True, "min_words": 1, "max_words": 4},
-                },
-                "variable_bindings": name_bindings,
             },
             page_uuid=ONBOARDING_NAME_PAGE_UUID,
             creation_date=now,
@@ -1005,14 +1127,18 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
                 "version": STANDARD_CONTENT_VERSION,
                 "blocks": [
                     text_block(heading_node("What next step are you working towards?"), block_id="blk_onboarding_goal_heading"),
-                    question_block("multiple_choice", {"options": goal_options}, block_id="blk_onboarding_goal_question"),
+                    question_block(
+                        "multiple_choice",
+                        {"options": goal_options},
+                        block_id="blk_onboarding_goal_question",
+                        scoring={"mode": "off", "points": 0, "correct_option_ids": [], "score_policy": "exact_match"},
+                        completion={
+                            "min_selections": 1,
+                            "max_selections": 1,
+                            "variable_bindings": goal_bindings,
+                        },
+                    ),
                 ],
-            },
-            scoring={"mode": "off", "points": 0, "correct_option_ids": [], "score_policy": "exact_match"},
-            completion={
-                "min_selections": 1,
-                "max_selections": 1,
-                "variable_bindings": goal_bindings,
             },
             page_uuid=ONBOARDING_GOAL_PAGE_UUID,
             creation_date=now,
@@ -1347,8 +1473,6 @@ def _validate_page_payload(page_type: LearningPageType, content: dict | None) ->
         source_uuid = (variants.get("source") or {}).get("page_uuid")
         if overrides and not source_uuid:
             raise HTTPException(status_code=422, detail="Variants need a source question page")
-    elif question_count > 1:
-        raise HTTPException(status_code=422, detail="A page can only contain one question block")
 
 
 async def create_page(request: Request, data: LearningPageCreate, current_user: PublicUser | AnonymousUser, db_session: Session) -> LearningPageRead:
@@ -1718,7 +1842,9 @@ async def grade_learning_response(
         raise HTTPException(status_code=404, detail="Learning page not found")
     admin = _require_org_admin(db_session, current_user, page.org_id)
 
-    max_score = _as_float((page.scoring or {}).get("points"), _as_float((attempt.result or {}).get("max_score"), 1.0))
+    max_score = _as_float((attempt.result or {}).get("max_score"), 0.0) \
+        or sum(_question_block_points(page, question) for question in _question_blocks(page)) \
+        or _as_float((page.scoring or {}).get("points"), 1.0)
     score = max(0.0, min(max_score, float(data.score)))
     now = datetime.utcnow()
     attempt.score = score

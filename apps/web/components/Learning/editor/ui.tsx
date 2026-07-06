@@ -4,9 +4,9 @@ import type { SaveState } from './types'
 
 export function TopModeButton({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
   return (
-    <button onClick={onClick} className={`relative h-full px-2 text-sm font-bold ${active ? 'text-[var(--org-primary-color)]' : 'text-gray-500 hover:text-gray-950'}`}>
+    <button onClick={onClick} className={`relative h-full min-w-36 px-8 text-sm font-bold transition ${active ? 'text-[var(--org-primary-color)]' : 'text-gray-500 hover:text-gray-950'}`}>
       {label}
-      {active && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-t-full bg-[var(--org-primary-color)]" />}
+      {active && <span className="absolute inset-x-4 bottom-0 h-0.5 rounded-t-full bg-[var(--org-primary-color)]" />}
     </button>
   )
 }
