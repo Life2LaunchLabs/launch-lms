@@ -365,13 +365,6 @@ class TestEERouterProtection:
             await require_non_api_token_user(mock_api_token_user)
         assert exc_info.value.status_code == 403
 
-    @pytest.mark.asyncio
-    async def test_scorm_router_protection(self, mock_api_token_user):
-        """Test that /scorm router is protected from API tokens"""
-        with pytest.raises(HTTPException) as exc_info:
-            await require_non_api_token_user(mock_api_token_user)
-        assert exc_info.value.status_code == 403
-
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -21,7 +21,7 @@ from src.security.auth import (
 )
 from src.services.orgs.orgs import rbac_check
 
-from ee.db.sso import (
+from src.db.sso import (
     SSOConnectionCreate,
     SSOConnectionUpdate,
     SSOConnectionRead,
@@ -29,7 +29,7 @@ from ee.db.sso import (
     SSOProviderInfo,
     SSOLoginCheckResponse,
 )
-from ee.services.sso import (
+from src.services.sso import (
     get_sso_connection,
     create_sso_connection,
     update_sso_connection,

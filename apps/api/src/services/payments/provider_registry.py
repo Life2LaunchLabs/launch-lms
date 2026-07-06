@@ -2,7 +2,7 @@
 Payment provider registry / factory.
 
 Usage:
-    from ee.services.payments.provider_registry import get_provider
+    from src.services.payments.provider_registry import get_provider
     provider = get_provider(config.provider)
     result = await provider.create_checkout_session(...)
 
@@ -13,13 +13,13 @@ To register a new provider:
 """
 from functools import lru_cache
 
-from ee.db.payments.payments import PaymentProviderEnum
-from ee.services.payments.provider_interface import IPaymentProvider
+from src.db.payments.payments import PaymentProviderEnum
+from src.services.payments.provider_interface import IPaymentProvider
 
 
 @lru_cache(maxsize=None)
 def _stripe_provider() -> IPaymentProvider:
-    from ee.services.payments.payments_stripe import StripePaymentProvider
+    from src.services.payments.payments_stripe import StripePaymentProvider
     return StripePaymentProvider()
 
 

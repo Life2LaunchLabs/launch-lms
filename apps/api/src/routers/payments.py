@@ -2,15 +2,15 @@ from typing import Literal, Union
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlmodel import Session, select
 from src.core.events.database import get_db_session
-from ee.db.payments.payments import PaymentsConfig, PaymentsConfigRead
+from src.db.payments.payments import PaymentsConfig, PaymentsConfigRead
 from src.db.users import PublicUser, APITokenUser
 from src.security.auth import get_current_user
-from ee.services.payments.payments_config import (
+from src.services.payments.payments_config import (
     init_payments_config,
     get_payments_config,
     delete_payments_config,
 )
-from ee.services.payments.payments_stripe import (
+from src.services.payments.payments_stripe import (
     create_offer_checkout_session,
     handle_stripe_oauth_callback,
     generate_stripe_connect_link,
@@ -18,25 +18,25 @@ from ee.services.payments.payments_stripe import (
     refresh_stripe_express_onboarding_link,
     get_stripe_express_dashboard_link,
 )
-from ee.services.payments.payments_customers import get_customers
-from ee.services.payments.webhooks.payments_webhooks import handle_stripe_webhook
+from src.services.payments.payments_customers import get_customers
+from src.services.payments.webhooks.payments_webhooks import handle_stripe_webhook
 # New offer/enrollment imports
-from ee.db.payments.payments_offers import PaymentsOfferCreate, PaymentsOfferRead, PaymentsOfferUpdate
-from ee.db.payments.payments_groups import (
+from src.db.payments.payments_offers import PaymentsOfferCreate, PaymentsOfferRead, PaymentsOfferUpdate
+from src.db.payments.payments_groups import (
     PaymentsGroupCreate, PaymentsGroupRead, PaymentsGroupUpdate,
     PaymentsOfferResource, PaymentsGroupResource,
 )
-from ee.services.payments.payments_offers import (
+from src.services.payments.payments_offers import (
     create_payments_offer,
     delete_payments_offer,
     get_payments_offer,
     list_payments_offers,
     update_payments_offer,
 )
-from ee.services.payments.payments_enrollments import (
+from src.services.payments.payments_enrollments import (
     get_user_enrollments,
 )
-from ee.services.payments.payments_groups import (
+from src.services.payments.payments_groups import (
     create_payments_group,
     list_payments_groups,
     get_payments_group,
@@ -282,7 +282,7 @@ async def api_list_public_offers(
     db_session: Session = Depends(get_db_session),
 ):
     """Public endpoint — lists all publicly listed offers for an org, enriched with resource metadata."""
-    from ee.db.payments.payments_offers import PaymentsOffer
+    from src.db.payments.payments_offers import PaymentsOffer
     from src.db.courses.courses import Course
     from src.db.organizations import Organization
 
@@ -363,7 +363,7 @@ async def api_get_offers_by_resource(
     Public endpoint — returns offers that grant access to the given resource_uuid.
     Checks both direct offer resources and group resources.
     """
-    from ee.db.payments.payments_offers import PaymentsOffer
+    from src.db.payments.payments_offers import PaymentsOffer
 
     offer_ids: set[int] = set()
 
@@ -429,7 +429,7 @@ async def api_get_public_offer(
 ):
     """Public endpoint — offer metadata + included resources enriched with course details."""
     from fastapi import HTTPException
-    from ee.db.payments.payments_offers import PaymentsOffer
+    from src.db.payments.payments_offers import PaymentsOffer
     from src.db.courses.courses import Course
     from src.db.organizations import Organization
 
@@ -548,7 +548,7 @@ async def api_create_offer_checkout_session(
     current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    from ee.db.payments.payments_offers import PaymentsOffer
+    from src.db.payments.payments_offers import PaymentsOffer
     offer = db_session.exec(
         select(PaymentsOffer).where(PaymentsOffer.offer_uuid == offer_uuid, PaymentsOffer.org_id == org_id)
     ).first()
@@ -581,7 +581,7 @@ async def api_create_billing_portal_session(
     Create a provider billing portal session so the user can manage
     subscriptions, cancel, and view invoices / receipts.
     """
-    from ee.services.payments.provider_registry import get_provider
+    from src.services.payments.provider_registry import get_provider
 
     config = db_session.exec(
         select(PaymentsConfig).where(PaymentsConfig.org_id == org_id)
@@ -635,7 +635,7 @@ async def api_stripe_overview(
     current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    from ee.services.payments.payments_stripe_dashboard import get_stripe_overview
+    from src.services.payments.payments_stripe_dashboard import get_stripe_overview
     return await get_stripe_overview(org_id, db_session)
 
 
@@ -647,7 +647,7 @@ async def api_stripe_charges(
     current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    from ee.services.payments.payments_stripe_dashboard import get_stripe_charges
+    from src.services.payments.payments_stripe_dashboard import get_stripe_charges
     return await get_stripe_charges(org_id, limit, starting_after, db_session)
 
 
@@ -658,7 +658,7 @@ async def api_stripe_subscriptions(
     current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    from ee.services.payments.payments_stripe_dashboard import get_stripe_subscriptions
+    from src.services.payments.payments_stripe_dashboard import get_stripe_subscriptions
     return await get_stripe_subscriptions(org_id, status, db_session)
 
 # ---------------------------------------------------------------------------

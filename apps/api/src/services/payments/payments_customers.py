@@ -4,9 +4,9 @@ from fastapi import HTTPException, Request
 from sqlmodel import Session, select
 from src.db.organizations import Organization
 from src.db.users import PublicUser, AnonymousUser, APITokenUser
-from ee.db.payments.payments import PaymentsConfig
-from ee.db.payments.payments_enrollments import PaymentsEnrollment
-from ee.db.payments.payments_offers import PaymentsOffer, OfferTypeEnum
+from src.db.payments.payments import PaymentsConfig
+from src.db.payments.payments_enrollments import PaymentsEnrollment
+from src.db.payments.payments_offers import PaymentsOffer, OfferTypeEnum
 from src.services.orgs.orgs import rbac_check
 from src.services.users.users import read_user_by_id
 

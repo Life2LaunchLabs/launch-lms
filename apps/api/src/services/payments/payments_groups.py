@@ -2,7 +2,7 @@ from fastapi import HTTPException, Request
 from sqlmodel import Session, select
 from datetime import datetime
 
-from ee.db.payments.payments_groups import (
+from src.db.payments.payments_groups import (
     PaymentsGroup,
     PaymentsGroupCreate,
     PaymentsGroupRead,
@@ -304,8 +304,8 @@ async def add_offer_resource(
     current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
 ) -> dict:
-    from ee.db.payments.payments_offers import PaymentsOffer
-    from ee.db.payments.payments_groups import PaymentsOfferResource
+    from src.db.payments.payments_offers import PaymentsOffer
+    from src.db.payments.payments_groups import PaymentsOfferResource
 
     org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
     if not org:
@@ -346,7 +346,7 @@ async def remove_offer_resource(
     current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
 ) -> None:
-    from ee.db.payments.payments_groups import PaymentsOfferResource
+    from src.db.payments.payments_groups import PaymentsOfferResource
 
     org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
     if not org:
@@ -371,7 +371,7 @@ async def list_offer_resources(
     current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
 ) -> list[str]:
-    from ee.db.payments.payments_groups import PaymentsOfferResource
+    from src.db.payments.payments_groups import PaymentsOfferResource
 
     org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
     if not org:

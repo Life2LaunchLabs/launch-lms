@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
-from ee.db.payments.payments import PaymentsConfig
+from src.db.payments.payments import PaymentsConfig
 
 logger = logging.getLogger(__name__)
 

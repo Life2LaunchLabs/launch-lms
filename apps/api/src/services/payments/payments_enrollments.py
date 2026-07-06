@@ -2,13 +2,13 @@ from fastapi import HTTPException, Request
 from sqlmodel import Session, select
 from datetime import datetime
 
-from ee.db.payments.payments_enrollments import (
+from src.db.payments.payments_enrollments import (
     EnrollmentStatusEnum,
     PaymentsEnrollment,
     PaymentsEnrollmentRead,
 )
-from ee.db.payments.payments_offers import PaymentsOffer
-from ee.db.payments.payments_groups import PaymentsGroupSync
+from src.db.payments.payments_offers import PaymentsOffer
+from src.db.payments.payments_groups import PaymentsGroupSync
 from src.db.organizations import Organization
 from src.db.users import AnonymousUser, APITokenUser, InternalUser, PublicUser
 from src.services.orgs.orgs import rbac_check

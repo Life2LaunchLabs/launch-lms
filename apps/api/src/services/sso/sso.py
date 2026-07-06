@@ -22,7 +22,7 @@ from src.security.features_utils.usage import check_limits_with_usage, increase_
 from src.security.security import security_hash_password
 from src.services.users.emails import send_account_creation_email
 
-from ee.db.sso import (
+from src.db.sso import (
     SSOConnection,
     SSOConnectionCreate,
     SSOConnectionUpdate,

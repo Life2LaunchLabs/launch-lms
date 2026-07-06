@@ -81,12 +81,17 @@ launch-lms/
 1. CORS (origin regex configurable)
 2. GZip (≥ 1000 bytes)
 3. Sentry (conditional)
-4. Enterprise Edition hooks (conditional)
+4. Audit logging
 
 ### Router Map (30+ routers under `apps/api/src/routers/`)
 | Prefix | Domain |
 |---|---|
 | `/auth` | Login, logout, refresh, OAuth (Google), email verification |
+| `/auth/sso` | SSO (WorkOS/OIDC): org config + login check/authorize/callback |
+| `/superadmin` | Platform controls (orgs, global users, global analytics) |
+| `/payments` | Stripe payments, offers, enrollments |
+| `/audit_logs` | Audit log queries |
+| `/news` | Platform news articles |
 | `/users` | User profile, settings |
 | `/orgs` | Organization CRUD, custom domains, packs |
 | `/roles` | RBAC role definitions |
@@ -158,7 +163,7 @@ launch-lms/
 **Directory**: `apps/web/`
 
 ### App Router Layout
-- `app/admin/` — admin dashboard
+- `app/orgs/[orgslug]/admin/` — org admin dashboard (superadmins additionally see platform controls: org management, users, news)
 - `app/auth/` — login, register, email verification
 - `app/editor/` — course editor
 - `app/board/` — board player/editor

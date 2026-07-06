@@ -1,9 +1,9 @@
 from sqlmodel import Session, select
 from src.security.rbac.rbac import authorization_verify_if_user_is_author
 from src.db.users import PublicUser, AnonymousUser
-from ee.db.payments.payments_groups import PaymentsGroupResource, PaymentsOfferResource
-from ee.db.payments.payments_enrollments import PaymentsEnrollment, EnrollmentStatusEnum
-from ee.db.payments.payments_offers import PaymentsOffer
+from src.db.payments.payments_groups import PaymentsGroupResource, PaymentsOfferResource
+from src.db.payments.payments_enrollments import PaymentsEnrollment, EnrollmentStatusEnum
+from src.db.payments.payments_offers import PaymentsOffer
 from src.db.courses.activities import Activity
 from src.db.courses.courses import Course
 from fastapi import HTTPException, Request

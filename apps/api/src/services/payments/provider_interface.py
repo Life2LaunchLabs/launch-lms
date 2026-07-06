@@ -11,8 +11,8 @@ All other call-sites (offers service, webhooks, router billing portal) use
 get_provider() from provider_registry.py and this interface only.
 
 To add a new provider:
-  1. Uncomment (or add) its value in PaymentProviderEnum in ee/db/payments/payments.py
-  2. Create ee/services/payments/payments_<name>.py implementing IPaymentProvider
+  1. Uncomment (or add) its value in PaymentProviderEnum in src/db/payments/payments.py
+  2. Create src/services/payments/payments_<name>.py implementing IPaymentProvider
   3. Add a branch in provider_registry.get_provider()
   — no other files need to change.
 """

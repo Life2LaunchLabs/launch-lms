@@ -1,7 +1,7 @@
 from typing import Literal
 from fastapi import HTTPException, Request
 from sqlmodel import Session, select, func
-from ee.db.payments.payments import (
+from src.db.payments.payments import (
     PaymentProviderEnum,
     PaymentsConfig,
     PaymentsConfigUpdate,
@@ -141,8 +141,8 @@ async def delete_payments_config(
 
     # Guard: block disconnect when active subscriptions exist
     try:
-        from ee.db.payments.payments_offers import PaymentsOffer, OfferTypeEnum
-        from ee.db.payments.payments_enrollments import PaymentsEnrollment, EnrollmentStatusEnum
+        from src.db.payments.payments_offers import PaymentsOffer, OfferTypeEnum
+        from src.db.payments.payments_enrollments import PaymentsEnrollment, EnrollmentStatusEnum
 
         active_sub_count = db_session.exec(
             select(func.count(PaymentsEnrollment.id))

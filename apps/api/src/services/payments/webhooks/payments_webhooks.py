@@ -13,8 +13,8 @@ from typing import Literal
 from fastapi import Request
 from sqlmodel import Session
 
-from ee.db.payments.payments import PaymentProviderEnum
-from ee.services.payments.provider_registry import get_provider
+from src.db.payments.payments import PaymentProviderEnum
+from src.services.payments.provider_registry import get_provider
 
 
 async def handle_stripe_webhook(

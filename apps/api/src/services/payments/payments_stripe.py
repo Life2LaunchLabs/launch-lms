@@ -5,11 +5,11 @@ from sqlmodel import Session, select
 import stripe
 
 from config.config import get_launchlms_config
-from ee.db.payments.payments import PaymentsConfig, PaymentsConfigUpdate, PaymentsModeEnum
-from ee.db.payments.payments_enrollments import EnrollmentStatusEnum
-from ee.db.payments.payments_offers import OfferPriceTypeEnum, OfferTypeEnum, PaymentsOffer
-from ee.services.payments.payments_config import get_payments_config, update_payments_config
-from ee.services.payments.provider_interface import IPaymentProvider
+from src.db.payments.payments import PaymentsConfig, PaymentsConfigUpdate, PaymentsModeEnum
+from src.db.payments.payments_enrollments import EnrollmentStatusEnum
+from src.db.payments.payments_offers import OfferPriceTypeEnum, OfferTypeEnum, PaymentsOffer
+from src.services.payments.payments_config import get_payments_config, update_payments_config
+from src.services.payments.provider_interface import IPaymentProvider
 from src.db.users import AnonymousUser, APITokenUser, InternalUser, PublicUser
 
 logger = logging.getLogger(__name__)
@@ -188,7 +188,7 @@ class StripePaymentProvider(IPaymentProvider):
         db_session: Session,
     ) -> dict[str, str]:
         """Create a Stripe checkout session for a PaymentsOffer."""
-        from ee.services.payments.payments_enrollments import create_enrollment, delete_enrollment
+        from src.services.payments.payments_enrollments import create_enrollment, delete_enrollment
 
         creds = await self._get_credentials()
         stripe.api_key = creds["stripe_secret_key"]
@@ -326,7 +326,7 @@ class StripePaymentProvider(IPaymentProvider):
         webhook_type: str,
         db_session: Session,
     ) -> dict[str, Any]:
-        from ee.services.payments.utils.stripe_utils import get_org_id_from_stripe_account
+        from src.services.payments.utils.stripe_utils import get_org_id_from_stripe_account
 
         creds = await self._get_credentials()
         webhook_secret = creds.get(f"stripe_webhook_{webhook_type}_secret")
@@ -420,7 +420,7 @@ class StripePaymentProvider(IPaymentProvider):
                 enrollment_id_str = metadata.get("enrollment_id")
 
                 if enrollment_id_str:
-                    from ee.services.payments.payments_enrollments import update_enrollment_status
+                    from src.services.payments.payments_enrollments import update_enrollment_status
                     enrollment_id = int(enrollment_id_str)
                     if session.get("mode") == "subscription":
                         if session.get("subscription"):
@@ -443,7 +443,7 @@ class StripePaymentProvider(IPaymentProvider):
                 metadata = event_data.get("metadata", {})
                 enrollment_id_str = metadata.get("enrollment_id")
                 if enrollment_id_str:
-                    from ee.services.payments.payments_enrollments import update_enrollment_status
+                    from src.services.payments.payments_enrollments import update_enrollment_status
                     await update_enrollment_status(
                         request=request, org_id=org_id,
                         enrollment_id=int(enrollment_id_str),
@@ -455,7 +455,7 @@ class StripePaymentProvider(IPaymentProvider):
                 metadata = event_data.get("metadata", {})
                 enrollment_id_str = metadata.get("enrollment_id")
                 if enrollment_id_str:
-                    from ee.services.payments.payments_enrollments import update_enrollment_status
+                    from src.services.payments.payments_enrollments import update_enrollment_status
                     await update_enrollment_status(
                         request=request, org_id=org_id,
                         enrollment_id=int(enrollment_id_str),
