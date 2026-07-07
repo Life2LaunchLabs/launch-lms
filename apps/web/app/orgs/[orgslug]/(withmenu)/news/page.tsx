@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import type React from 'react'
-import { ArrowUpRight } from 'lucide-react'
-import { SealCheck, User } from '@phosphor-icons/react'
+import { ArrowUpRight, BadgeCheck, User } from 'lucide-react'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getPublishedNewsArticles, NewsArticle } from '@services/news/news'
@@ -128,14 +127,14 @@ export default async function NewsPage(props: {
       <section className="mb-8 grid gap-4 md:grid-cols-2">
         <FeatureCard
           href={getUriWithOrg(orgslug, routePaths.org.portfolio())}
-          icon={<User size={20} weight="fill" />}
+          icon={<User size={20} fill="currentColor" />}
           title="Portfolio"
           description="Build a public home for projects, reflections, links, and proof of learning."
           className="bg-gradient-to-br from-sky-600 via-cyan-600 to-teal-500"
         />
         <FeatureCard
           href={getUriWithOrg(orgslug, routePaths.org.badges())}
-          icon={<SealCheck size={20} weight="fill" />}
+          icon={<BadgeCheck size={20} fill="currentColor" />}
           title="Badges"
           description="Explore credential paths and earn shareable proof of completed skills."
           className="bg-gradient-to-br from-fuchsia-600 via-rose-500 to-orange-400"

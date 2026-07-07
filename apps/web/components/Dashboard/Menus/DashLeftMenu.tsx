@@ -28,6 +28,8 @@ import {
   Newspaper,
   ShoppingBag,
   UserCircle,
+  ChartPieSlice,
+  Tray,
 } from '@phosphor-icons/react'
 import Link from 'next/link'
 import React, { useEffect, useState } from 'react'
@@ -568,6 +570,12 @@ function DashLeftMenu() {
           )}
           {[
             {
+              href: routePaths.owner.platform.overview(),
+              icon: <ChartPieSlice size={20} weight="fill" />,
+              label: 'Overview',
+              exact: true,
+            },
+            {
               href: routePaths.owner.platform.organizations(),
               icon: <Buildings size={20} weight="fill" />,
               label: 'Organizations',
@@ -578,14 +586,21 @@ function DashLeftMenu() {
               label: 'Users',
             },
             {
+              href: routePaths.owner.platform.requests(),
+              icon: <Tray size={20} weight="fill" />,
+              label: 'Requests',
+            },
+            {
               href: routePaths.owner.platform.news(),
               icon: <Newspaper size={20} weight="fill" />,
               label: 'News',
             },
-          ].map((item) => {
-            const isActive =
-              pathname?.startsWith(`/orgs/${org.slug}${item.href}`) ||
-              pathname?.startsWith(item.href)
+          ].map((item: any) => {
+            const isActive = item.exact
+              ? pathname === `/orgs/${org.slug}${item.href}` ||
+                pathname === item.href
+              : pathname?.startsWith(`/orgs/${org.slug}${item.href}`) ||
+                pathname?.startsWith(item.href)
 
             return (
               <Link

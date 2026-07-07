@@ -128,7 +128,7 @@ async def _check_content_access(
             # Optional paid-access gating for public courses.
             if not isinstance(current_user, APITokenUser):
                 try:
-                    from ee.services.payments.payments_access import check_course_paid_access
+                    from src.services.payments.payments_access import check_course_paid_access
                 except ModuleNotFoundError:
                     return
                 try:

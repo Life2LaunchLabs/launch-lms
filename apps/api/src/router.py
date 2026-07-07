@@ -23,6 +23,8 @@ from src.routers.podcasts import episodes as episodes_router_module
 from src.routers.boards import boards as boards_router_module
 from src.routers.playgrounds import playgrounds as playgrounds_router_module
 from src.routers.playgrounds import playgrounds_generator as playgrounds_generator_router
+from src.routers import payments as payments_router_module
+from src.routers import sso as sso_router_module
 from src.routers import resources as resources_router_module
 from src.routers import trending as trending_router_module
 from src.services.dev.dev import isDevModeEnabledOrRaise
@@ -317,16 +319,16 @@ v1_router.include_router(
     dependencies=[Depends(get_non_api_token_user)]
 )
 
-# Optional payments router is registered when the EE package is present.
-try:
-    from ee.routers import payments as ee_payments_router_module
-except ModuleNotFoundError:
-    ee_payments_router_module = None
+v1_router.include_router(
+    payments_router_module.router,
+    prefix="/payments",
+    tags=["payments"],
+    dependencies=[Depends(require_plan("full", "payments"))],
+)
 
-if ee_payments_router_module is not None:
-    v1_router.include_router(
-        ee_payments_router_module.router,
-        prefix="/payments",
-        tags=["payments"],
-        dependencies=[Depends(require_plan("full", "payments"))],
-    )
+# SSO - admin endpoints require authentication, auth endpoints are public
+v1_router.include_router(
+    sso_router_module.router,
+    prefix="/auth/sso",
+    tags=["sso", "auth"],
+)

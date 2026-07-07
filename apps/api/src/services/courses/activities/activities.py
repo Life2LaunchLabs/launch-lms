@@ -19,15 +19,12 @@ logger = logging.getLogger(__name__)
 
 async def check_core_activity_paid_access(**_: object) -> bool:
     """
-    Delegate to the optional EE payments hook when it is available.
+    Delegate to the payments access check, defaulting to open access on failure.
     """
-    try:
-        from ee.hooks import check_activity_paid_access as ee_check_activity_paid_access
-    except Exception:
-        return True
+    from src.services.payments.payments_access import check_activity_paid_access
 
     try:
-        return await ee_check_activity_paid_access(**_)
+        return await check_activity_paid_access(**_)
     except Exception:
         return True
 

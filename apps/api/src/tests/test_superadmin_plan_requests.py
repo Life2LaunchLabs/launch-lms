@@ -4,7 +4,7 @@ from sqlmodel import Session, create_engine, select
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.plan_requests import PlanRequest, PlanRequestUpdate
-from src.routers.superadmin import _get_single_org_config, update_plan_request
+from src.services.superadmin.orgs import _get_single_org_config, update_plan_request
 
 
 @pytest.fixture
@@ -56,10 +56,10 @@ async def test_update_plan_request_approval_persists_org_plan(db_session: Sessio
     )
     db_session.commit()
 
-    result = await update_plan_request(
+    result = update_plan_request(
+        db_session,
         "req_1",
         PlanRequestUpdate(status="approved"),
-        db_session=db_session,
     )
 
     org_config = db_session.exec(
