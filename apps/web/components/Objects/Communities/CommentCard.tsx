@@ -121,7 +121,7 @@ export function CommentCard({ comment, onDeleted, onUpdated }: CommentCardProps)
 
   return (
     <div
-      className="group flex items-center gap-4 py-3 px-4 transition-colors border-b border-gray-100 last:border-b-0 hover:bg-gray-50/50"
+      className="group flex items-center gap-4 py-3 px-4 transition-colors border-b border-border last:border-b-0 hover:bg-muted/50"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -170,7 +170,7 @@ export function CommentCard({ comment, onDeleted, onUpdated }: CommentCardProps)
                   rows={2}
                   autoFocus
                   className={`w-full px-3 py-2 text-sm border rounded-lg outline-none transition-all resize-none ${
-                    error ? 'border-red-300' : 'border-gray-200 focus:border-gray-300'
+                    error ? 'border-red-300' : 'border-border focus:border-border'
                   }`}
                 />
                 <div className="flex items-center gap-2">
@@ -184,7 +184,7 @@ export function CommentCard({ comment, onDeleted, onUpdated }: CommentCardProps)
                   <button
                     onClick={cancelEdit}
                     disabled={isSubmitting}
-                    className="px-3 py-1 text-xs text-gray-600 hover:text-gray-900 transition-colors"
+                    className="px-3 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {t('communities.comments.cancel')}
                   </button>
@@ -193,10 +193,10 @@ export function CommentCard({ comment, onDeleted, onUpdated }: CommentCardProps)
             ) : (
               <>
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span className="font-medium text-gray-900 text-sm">{authorName}</span>
-                  <span className="text-gray-400 text-xs">{timeAgo}</span>
+                  <span className="font-medium text-foreground text-sm">{authorName}</span>
+                  <span className="text-muted-foreground text-xs">{timeAgo}</span>
                 </div>
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                   {comment.content}
                 </p>
               </>
@@ -210,8 +210,8 @@ export function CommentCard({ comment, onDeleted, onUpdated }: CommentCardProps)
         <div className={`flex-shrink-0 transition-opacity ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button aria-label="Comment actions" className="p-1 hover:bg-gray-100 rounded transition-colors">
-                <MoreHorizontal size={16} className="text-gray-400" />
+              <button aria-label="Comment actions" className="p-1 hover:bg-muted rounded transition-colors">
+                <MoreHorizontal size={16} className="text-muted-foreground" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-36">

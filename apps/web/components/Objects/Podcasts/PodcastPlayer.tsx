@@ -193,7 +193,7 @@ export default function PodcastPlayer() {
 
       {/* Player UI */}
       <div
-        className={`fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg transition-all duration-300 z-50 ${
+        className={`fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-lg transition-all duration-300 z-50 ${
           isMinimized ? 'h-16' : 'h-24'
         }`}
       >
@@ -201,7 +201,7 @@ export default function PodcastPlayer() {
           {/* Thumbnail */}
           <div className="flex-shrink-0">
             <div
-              className={`bg-gray-200 rounded-lg overflow-hidden ${
+              className={`bg-muted rounded-lg overflow-hidden ${
                 isMinimized ? 'w-10 h-10' : 'w-16 h-16'
               }`}
             >
@@ -215,11 +215,11 @@ export default function PodcastPlayer() {
 
           {/* Episode info */}
           <div className={`flex-shrink-0 min-w-0 ${isMinimized ? 'max-w-[120px]' : 'w-48'}`}>
-            <h4 className="text-sm font-semibold text-gray-900 truncate">
+            <h4 className="text-sm font-semibold text-foreground truncate">
               {currentEpisode.title}
             </h4>
             {!isMinimized && (
-              <p className="text-xs text-gray-500 truncate">{podcast.name}</p>
+              <p className="text-xs text-muted-foreground truncate">{podcast.name}</p>
             )}
           </div>
 
@@ -228,10 +228,10 @@ export default function PodcastPlayer() {
             {!isMinimized && (
               <button
                 onClick={skipBackward}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                className="p-2 rounded-full hover:bg-muted transition-colors"
                 title="Skip back 15s"
               >
-                <SkipBack size={18} className="text-gray-600" />
+                <SkipBack size={18} className="text-muted-foreground" />
               </button>
             )}
 
@@ -251,10 +251,10 @@ export default function PodcastPlayer() {
             {!isMinimized && (
               <button
                 onClick={skipForward}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                className="p-2 rounded-full hover:bg-muted transition-colors"
                 title="Skip forward 15s"
               >
-                <SkipForward size={18} className="text-gray-600" />
+                <SkipForward size={18} className="text-muted-foreground" />
               </button>
             )}
           </div>
@@ -263,17 +263,17 @@ export default function PodcastPlayer() {
           {isMinimized ? (
             <div className="flex-1 flex items-center gap-2 min-w-0">
               <div ref={miniWaveformRef} className="flex-1 cursor-pointer min-w-[100px]" />
-              <span className="text-xs text-gray-500 flex-shrink-0 tabular-nums">
+              <span className="text-xs text-muted-foreground flex-shrink-0 tabular-nums">
                 {formatDuration(Math.floor(currentTime))}
               </span>
             </div>
           ) : (
             <div className="flex-1 flex items-center gap-3">
-              <span className="text-xs text-gray-500 w-12 text-right tabular-nums">
+              <span className="text-xs text-muted-foreground w-12 text-right tabular-nums">
                 {formatDuration(Math.floor(currentTime))}
               </span>
               <div ref={waveformRef} className="flex-1 cursor-pointer" />
-              <span className="text-xs text-gray-500 w-12 tabular-nums">
+              <span className="text-xs text-muted-foreground w-12 tabular-nums">
                 {formatDuration(Math.floor(duration))}
               </span>
             </div>
@@ -284,12 +284,12 @@ export default function PodcastPlayer() {
             <div className="flex items-center gap-2">
               <button
                 onClick={toggleMute}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+                className="p-2 rounded-full hover:bg-muted transition-colors"
               >
                 {isMuted || volume === 0 ? (
-                  <VolumeX size={18} className="text-gray-600" />
+                  <VolumeX size={18} className="text-muted-foreground" />
                 ) : (
-                  <Volume2 size={18} className="text-gray-600" />
+                  <Volume2 size={18} className="text-muted-foreground" />
                 )}
               </button>
               <input
@@ -303,7 +303,7 @@ export default function PodcastPlayer() {
                   setVolume(newVolume)
                   setIsMuted(newVolume === 0)
                 }}
-                className="w-20 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-900"
+                className="w-20 h-1 bg-muted rounded-lg appearance-none cursor-pointer accent-gray-900"
               />
             </div>
           )}
@@ -312,21 +312,21 @@ export default function PodcastPlayer() {
           <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={toggleMinimize}
-              className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-full hover:bg-muted transition-colors"
               title={isMinimized ? 'Expand' : 'Minimize'}
             >
               {isMinimized ? (
-                <Maximize2 size={16} className="text-gray-600" />
+                <Maximize2 size={16} className="text-muted-foreground" />
               ) : (
-                <Minimize2 size={18} className="text-gray-600" />
+                <Minimize2 size={18} className="text-muted-foreground" />
               )}
             </button>
             <button
               onClick={closePlayer}
-              className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-full hover:bg-muted transition-colors"
               title="Close"
             >
-              <X size={isMinimized ? 16 : 18} className="text-gray-600" />
+              <X size={isMinimized ? 16 : 18} className="text-muted-foreground" />
             </button>
           </div>
         </div>

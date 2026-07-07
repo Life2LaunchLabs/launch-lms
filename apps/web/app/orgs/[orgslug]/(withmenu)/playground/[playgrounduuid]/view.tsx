@@ -110,7 +110,7 @@ export default function PlaygroundViewClient({
 
             {/* Thumbnail */}
             {thumbnailUrl && (
-              <div className="bg-white nice-shadow rounded-lg overflow-hidden">
+              <div className="bg-card nice-shadow rounded-lg overflow-hidden">
                 <img
                   src={thumbnailUrl}
                   alt={playground.name}
@@ -120,14 +120,14 @@ export default function PlaygroundViewClient({
             )}
 
             {/* Info card */}
-            <div className="bg-white nice-shadow rounded-lg overflow-hidden">
-              <div className="p-3 border-b border-gray-100">
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">About</p>
-                <h1 className="text-sm font-bold text-gray-900 leading-snug">
+            <div className="bg-card nice-shadow rounded-lg overflow-hidden">
+              <div className="p-3 border-b border-border">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">About</p>
+                <h1 className="text-sm font-bold text-foreground leading-snug">
                   {playground.name}
                 </h1>
                 {playground.description && (
-                  <p className="text-xs text-gray-500 mt-1 leading-relaxed line-clamp-4">
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-4">
                     {playground.description}
                   </p>
                 )}
@@ -136,37 +136,37 @@ export default function PlaygroundViewClient({
               <div className="px-3 py-2.5 space-y-2">
                 {authorName && (
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-gray-500">Author</span>
-                    <span className="flex items-center gap-1.5 text-xs text-gray-700 font-medium">
+                    <span className="text-xs text-muted-foreground">Author</span>
+                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
                       <UserAvatar
                         width={16}
                         rounded="rounded-full"
                         avatar_url={authorAvatarUrl ?? undefined}
                         shadow=""
-                        backgroundColor="bg-gray-100"
+                        backgroundColor="bg-muted"
                       />
                       {authorName}
                     </span>
                   </div>
                 )}
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-gray-500">Access</span>
+                  <span className="text-xs text-muted-foreground">Access</span>
                   <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold ${accessBadge.className}`}>
                     <AccessIcon size={9} />
                     {accessBadge.label}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-gray-500">Created</span>
-                  <span className="flex items-center gap-1 text-xs text-gray-700">
-                    <CalendarBlank size={10} className="text-gray-400" />
+                  <span className="text-xs text-muted-foreground">Created</span>
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <CalendarBlank size={10} className="text-muted-foreground" />
                     {createdDate}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-gray-500">Status</span>
+                  <span className="text-xs text-muted-foreground">Status</span>
                   <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                    playground.published ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'
+                    playground.published ? 'bg-green-50 text-green-700' : 'bg-muted text-muted-foreground'
                   }`}>
                     {playground.published ? 'Published' : 'Draft'}
                   </span>
@@ -177,7 +177,7 @@ export default function PlaygroundViewClient({
                 {canEdit && (
                   <Link
                     href={`/editor/playground/${playground.playground_uuid}/edit`}
-                    className="flex items-center justify-center gap-1.5 w-full py-1.5 rounded-lg text-xs font-bold bg-neutral-100 hover:bg-neutral-200 text-neutral-600 transition-colors"
+                    className="flex items-center justify-center gap-1.5 w-full py-1.5 rounded-lg text-xs font-bold bg-muted hover:bg-muted text-muted-foreground transition-colors"
                   >
                     <PencilSimple size={11} weight="bold" />
                     Edit in Editor
@@ -185,7 +185,7 @@ export default function PlaygroundViewClient({
                 )}
                 <button
                   onClick={handleDownload}
-                  className="flex items-center justify-center gap-1.5 w-full py-1.5 rounded-lg text-xs font-bold bg-neutral-100 hover:bg-neutral-200 text-neutral-600 transition-colors"
+                  className="flex items-center justify-center gap-1.5 w-full py-1.5 rounded-lg text-xs font-bold bg-muted hover:bg-muted text-muted-foreground transition-colors"
                 >
                   <DownloadSimple size={11} weight="bold" />
                   Download
@@ -194,8 +194,8 @@ export default function PlaygroundViewClient({
             </div>
 
             {/* Reactions card */}
-            <div className="bg-white nice-shadow rounded-lg p-3">
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2.5">
+            <div className="bg-card nice-shadow rounded-lg p-3">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">
                 Reactions
               </p>
               <PlaygroundReactionButton playgroundUuid={playground.playground_uuid} />
@@ -207,21 +207,21 @@ export default function PlaygroundViewClient({
         <div className="flex-1 min-w-0">
           <div
             ref={iframeContainerRef}
-            className="relative bg-white nice-shadow rounded-lg overflow-hidden"
+            className="relative bg-card nice-shadow rounded-lg overflow-hidden"
             style={{ height: 'calc(100vh - 200px)', minHeight: 480 }}
           >
             {/* Toolbar — top right of preview */}
             <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
               <button
                 onClick={handleDownload}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white/80 backdrop-blur-sm nice-shadow text-neutral-500 hover:text-neutral-800 transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-card/80 backdrop-blur-sm nice-shadow text-muted-foreground hover:text-foreground transition-colors"
               >
                 <DownloadSimple size={13} weight="bold" />
                 Download
               </button>
               <button
                 onClick={toggleFullscreen}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white/80 backdrop-blur-sm nice-shadow text-neutral-500 hover:text-neutral-800 transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-card/80 backdrop-blur-sm nice-shadow text-muted-foreground hover:text-foreground transition-colors"
               >
                 {isFullscreen
                   ? <><ArrowsInSimple size={13} weight="bold" />Exit</>
@@ -240,11 +240,11 @@ export default function PlaygroundViewClient({
               />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center text-center px-6">
-                <div className="w-14 h-14 rounded-2xl bg-white nice-shadow flex items-center justify-center mb-4">
+                <div className="w-14 h-14 rounded-2xl bg-card nice-shadow flex items-center justify-center mb-4">
                   <Sparkle size={24} weight="fill" className="text-gray-300" />
                 </div>
-                <p className="text-base font-semibold text-gray-500">No content yet</p>
-                <p className="text-sm text-gray-400 mt-1">
+                <p className="text-base font-semibold text-muted-foreground">No content yet</p>
+                <p className="text-sm text-muted-foreground mt-1">
                   {canEdit ? 'Open the editor to generate content.' : 'Check back later.'}
                 </p>
                 {canEdit && (

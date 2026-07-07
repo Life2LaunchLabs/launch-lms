@@ -80,12 +80,12 @@ function BadgeThumbnailCard({
             className="transition-transform duration-500 group-hover/badge:scale-105"
           />
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gray-50 text-gray-300">
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-muted text-gray-300">
             <Award size={34} strokeWidth={1.5} />
           </div>
         )}
       </div>
-      <div className="mt-3 min-h-[2.15rem] text-center text-[13px] font-semibold leading-snug text-gray-950 line-clamp-2">
+      <div className="mt-3 min-h-[2.15rem] text-center text-[13px] font-semibold leading-snug text-foreground line-clamp-2">
         {course.name}
       </div>
     </Link>
@@ -101,12 +101,12 @@ function CollectionsOverviewSection({
 
   if (collections.length === 0) {
     return (
-      <div className="flex flex-col justify-center items-center py-12 px-4 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/30">
-        <div className="p-4 bg-white rounded-full nice-shadow mb-4">
+      <div className="flex flex-col justify-center items-center py-12 px-4 border-2 border-dashed border-border rounded-2xl bg-muted/30">
+        <div className="p-4 bg-card rounded-full nice-shadow mb-4">
           <Library className="w-8 h-8 text-gray-300" strokeWidth={1.5} />
         </div>
-        <h1 className="text-xl font-bold text-gray-600 mb-2">No badge collections yet</h1>
-        <p className="text-md text-gray-400 mb-6 text-center max-w-xs">
+        <h1 className="text-xl font-bold text-muted-foreground mb-2">No badge collections yet</h1>
+        <p className="text-md text-muted-foreground mb-6 text-center max-w-xs">
           <ContentPlaceHolderIfUserIsNotAdmin
             text={t('collections.create_collections_placeholder')}
           />
@@ -130,13 +130,13 @@ function CollectionsOverviewSection({
             className="min-w-0"
           >
             <div className="mb-4 flex items-start justify-between gap-4">
-              <h2 className="min-w-0 text-2xl font-bold leading-tight text-gray-950">
+              <h2 className="min-w-0 text-2xl font-bold leading-tight text-foreground">
                 {collection.name}
               </h2>
               <div className="shrink-0 text-right">
                 <Link
                   href={collectionLink}
-                  className="text-sm font-semibold text-gray-400 transition-colors hover:text-gray-700"
+                  className="text-sm font-semibold text-muted-foreground transition-colors hover:text-muted-foreground"
                 >
                   See all
                 </Link>
@@ -157,7 +157,7 @@ function CollectionsOverviewSection({
                   />
                 ))
               ) : (
-                <div className="flex min-h-[140px] w-full items-center justify-center rounded-lg border border-dashed border-gray-100 text-sm font-medium text-gray-400">
+                <div className="flex min-h-[140px] w-full items-center justify-center rounded-lg border border-dashed border-border text-sm font-medium text-muted-foreground">
                   No badges in this collection
                 </div>
               )}

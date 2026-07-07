@@ -33,69 +33,69 @@ export default function OrganizationDetailClient({
       <div className="space-y-6">
         <Link
           href={getUriWithOrg(currentOrgslug, '/organizations')}
-          className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-800"
+          className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to organizations
         </Link>
 
-        <div className="overflow-hidden rounded-[28px] border border-black/5 bg-white nice-shadow">
-          <div className="relative h-56 bg-gradient-to-br from-slate-100 via-white to-slate-200 md:h-72">
+        <div className="overflow-hidden rounded-[28px] border border-border bg-card nice-shadow">
+          <div className="relative h-56 bg-gradient-to-br from-muted via-card to-slate-200 md:h-72">
             {heroImage ? (
               <img src={heroImage} alt={organization.name} className="h-full w-full object-cover" />
             ) : (
               <div className="flex h-full w-full items-center justify-center">
-                <div className="rounded-3xl bg-white/80 p-6 shadow-sm">
-                  <Building2 className="h-12 w-12 text-slate-400" />
+                <div className="rounded-3xl bg-card/80 p-6 shadow-sm">
+                  <Building2 className="h-12 w-12 text-muted-foreground" />
                 </div>
               </div>
             )}
           </div>
 
           <div className="relative px-6 pb-6 pt-0 md:px-8">
-            <div className="-mt-12 mb-5 flex h-24 w-24 items-center justify-center overflow-hidden rounded-3xl border-4 border-white bg-white shadow-sm md:h-28 md:w-28">
+            <div className="-mt-12 mb-5 flex h-24 w-24 items-center justify-center overflow-hidden rounded-3xl border-4 border-white bg-card shadow-sm md:h-28 md:w-28">
               {logoImage ? (
                 <img src={logoImage} alt={`${organization.name} logo`} className="h-full w-full object-cover" />
               ) : (
-                <Building2 className="h-10 w-10 text-slate-400" />
+                <Building2 className="h-10 w-10 text-muted-foreground" />
               )}
             </div>
 
             <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
               <div className="max-w-3xl space-y-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                  <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     {organization.is_member ? 'Member' : 'Explore'}
                   </span>
                   <span className="rounded-full bg-black px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
                     {organization.signup_mode === 'open' ? 'Open enrollment' : 'Invite only'}
                   </span>
                   {organization.label && (
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                    <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
                       {organization.label}
                     </span>
                   )}
                 </div>
 
                 <div>
-                  <h1 className="text-3xl font-semibold tracking-tight text-slate-950 md:text-4xl">
+                  <h1 className="text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
                     {organization.name}
                   </h1>
-                  <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">
+                  <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
                     {organization.description || organization.about || 'No description yet.'}
                   </p>
                 </div>
 
-                <div className="flex flex-wrap gap-3 text-sm text-slate-500">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-2">
+                <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-2">
                     <Users className="h-4 w-4" />
                     <span>{organization.member_count} members</span>
                   </div>
-                  <div className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-2">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-2">
                     <Globe2 className="h-4 w-4" />
                     <span>@{organization.slug}</span>
                   </div>
-                  <div className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-2">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-2">
                     <Mail className="h-4 w-4" />
                     <span>{organization.email}</span>
                   </div>
@@ -103,9 +103,9 @@ export default function OrganizationDetailClient({
               </div>
 
               <div className="w-full md:w-auto md:min-w-[260px]">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-                  <p className="mb-3 text-sm font-medium text-slate-700">Membership</p>
-                  <p className="mb-4 text-sm text-slate-500">
+                <div className="rounded-2xl border border-border bg-muted/80 p-4">
+                  <p className="mb-3 text-sm font-medium text-muted-foreground">Membership</p>
+                  <p className="mb-4 text-sm text-muted-foreground">
                     {organization.is_member
                       ? 'You are enrolled in this organization.'
                       : organization.signup_mode === 'open'
@@ -122,11 +122,11 @@ export default function OrganizationDetailClient({
             </div>
 
             {organization.about && organization.about !== organization.description && (
-              <div className="mt-8 rounded-2xl border border-slate-100 bg-slate-50/70 p-5">
-                <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+              <div className="mt-8 rounded-2xl border border-border bg-muted/70 p-5">
+                <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                   About
                 </h2>
-                <p className="text-sm leading-7 text-slate-600">{organization.about}</p>
+                <p className="text-sm leading-7 text-muted-foreground">{organization.about}</p>
               </div>
             )}
           </div>

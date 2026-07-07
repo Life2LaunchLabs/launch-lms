@@ -21,17 +21,17 @@ export function CommunityActionsMobile({
 
   return (
     <nav aria-label="Community mobile actions" className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
-      <div className="mx-3 mb-4 bg-white/95 backdrop-blur-sm rounded-xl nice-shadow p-3">
+      <div className="mx-3 mb-4 bg-card/95 backdrop-blur-sm rounded-xl nice-shadow p-3">
         <div className="flex items-center gap-3">
           {/* Community Icon */}
-          <div className="flex-shrink-0 w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center">
-            <MessageCircle size={18} className="text-gray-500" />
+          <div className="flex-shrink-0 w-9 h-9 bg-muted rounded-lg flex items-center justify-center">
+            <MessageCircle size={18} className="text-muted-foreground" />
           </div>
 
           {/* Community Name */}
           <div className="flex-1 min-w-0">
-            <p className="font-medium text-gray-900 truncate text-sm">{community.name}</p>
-            <p className="text-xs text-gray-400">
+            <p className="font-medium text-foreground truncate text-sm">{community.name}</p>
+            <p className="text-xs text-muted-foreground">
               {community.public ? 'Public' : 'Private'}
             </p>
           </div>
@@ -41,10 +41,10 @@ export function CommunityActionsMobile({
             {canManageCommunity && (
               <Link
                 href={getUriWithOrg(orgslug, routePaths.org.dash.communities())}
-                className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                className="p-2 bg-muted hover:bg-muted rounded-lg transition-colors"
                 aria-label="Manage community"
               >
-                <Settings size={16} className="text-gray-600" />
+                <Settings size={16} className="text-muted-foreground" />
               </Link>
             )}
             {canCreateDiscussion && onCreateDiscussion && (

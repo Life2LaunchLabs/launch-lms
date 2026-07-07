@@ -63,7 +63,7 @@ function AIActivityAsk(props: AIActivityAskProps) {
             {' '}
             <i>
               <Image
-                className="outline outline-1 outline-neutral-200/20 rounded-md"
+                className="outline outline-1 outline-border/20 rounded-md"
                 width={20}
                 src={aiIcon}
                 alt=""
@@ -329,7 +329,7 @@ function ActivityChatMessageBox(props: ActivityChatMessageBoxProps) {
                     }`}
                 >
                   <Image
-                    className={`outline outline-1 outline-neutral-200/20 rounded-lg ${isInputDisabled ? 'animate-pulse' : ''
+                    className={`outline outline-1 outline-border/20 rounded-lg ${isInputDisabled ? 'animate-pulse' : ''
                       }`}
                     width={24}
                     src={aiIcon}
@@ -690,7 +690,7 @@ const AIChatPredefinedQuestion = (props: {
   return (
     <div
       onClick={() => props.sendMessage(getQuestion(props.label))}
-      className="flex space-x-1.5 items-center bg-white/5 cursor-pointer px-4 py-1.5 rounded-xl outline outline-1 outline-neutral-100/10 text-xs font-semibold text-white/40 hover:text-white/60 hover:bg-white/10 hover:outline-neutral-200/40 delay-75 ease-linear transition-all"
+      className="flex space-x-1.5 items-center bg-white/5 cursor-pointer px-4 py-1.5 rounded-xl outline outline-1 outline-border/10 text-xs font-semibold text-white/40 hover:text-white/60 hover:bg-white/10 hover:outline-border/40 delay-75 ease-linear transition-all"
     >
       {props.label === 'about' && <BadgeInfo size={15} />}
       {props.label === 'flashcards' && <NotebookTabs size={15} />}
@@ -930,7 +930,7 @@ function AISidePanelInline(props: AISidePanelProps) {
               className={`flex space-x-2 items-center ${isInputDisabled ? 'animate-pulse' : ''}`}
             >
               <Image
-                className={`outline outline-1 outline-neutral-200/20 rounded-lg ${isInputDisabled ? 'animate-pulse' : ''}`}
+                className={`outline outline-1 outline-border/20 rounded-lg ${isInputDisabled ? 'animate-pulse' : ''}`}
                 width={24}
                 src={aiIcon}
                 alt=""

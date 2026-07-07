@@ -649,7 +649,7 @@ function ProfileNameLine({
 
   return (
     <span
-      className={`block w-full overflow-visible whitespace-nowrap ${alignClass} font-black leading-[0.82] text-gray-950 ${className}`}
+      className={`block w-full overflow-visible whitespace-nowrap ${alignClass} font-black leading-[0.82] text-foreground ${className}`}
       style={{
         fontSize: `min(${maxRem}rem, calc(100cqw / ${fitFactor}))`,
         letterSpacing: 0,
@@ -727,7 +727,7 @@ function EditableProfileNameLine({
       onKeyDown={(event) => {
         if (event.key === 'Enter') event.currentTarget.blur()
       }}
-      className={`block w-full overflow-visible whitespace-nowrap border-0 bg-transparent p-0 ${alignClass} font-black leading-[0.82] text-gray-950 outline-none transition-colors placeholder:text-gray-300 focus:text-[var(--org-primary-color)] disabled:cursor-wait disabled:opacity-70 ${className}`}
+      className={`block w-full overflow-visible whitespace-nowrap border-0 bg-transparent p-0 ${alignClass} font-black leading-[0.82] text-foreground outline-none transition-colors placeholder:text-gray-300 focus:text-[var(--org-primary-color)] disabled:cursor-wait disabled:opacity-70 ${className}`}
       style={{
         fontSize: `min(${maxRem}rem, calc(100cqw / ${fitFactor}))`,
         letterSpacing: 0,
@@ -983,7 +983,7 @@ function ProfileHeaderAvatar({
 
       {nameGeometry ? (
         <div
-          className="absolute left-0 top-0 flex flex-col items-start justify-center text-left font-black leading-none text-gray-950"
+          className="absolute left-0 top-0 flex flex-col items-start justify-center text-left font-black leading-none text-foreground"
           style={{
             width: nameGeometry.width,
             height: nameGeometry.height,
@@ -1184,7 +1184,7 @@ function ProfileHeaderAvatar({
             type="button"
             aria-label="Upload profile photo"
             onClick={() => document.getElementById(`profile-avatar-upload-${userId}-${size}`)?.click()}
-            className="absolute flex items-center justify-center rounded-full bg-white text-gray-800 shadow-md ring-1 ring-gray-200 hover:text-gray-950"
+            className="absolute flex items-center justify-center rounded-full bg-card text-foreground shadow-md ring-1 ring-border hover:text-foreground"
             style={{
               right: padding,
               top: padding,
@@ -1421,14 +1421,14 @@ function SimpleProfileHeader({
               onOpen()
             }
           }}
-          className="group focus:outline-none focus:ring-2 focus:ring-gray-300"
+          className="group focus:outline-none focus:ring-2 focus:ring-border"
           aria-label="Open profile header"
         >
         <div className="min-w-0 text-center sm:text-left">
-          <h1 className="text-4xl font-black leading-tight text-gray-950 sm:text-5xl">
+          <h1 className="text-4xl font-black leading-tight text-foreground sm:text-5xl">
             {getProfileDisplayName(firstName, lastName, username)}
           </h1>
-          <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-gray-600 line-clamp-2 sm:mx-0 sm:text-base">
+          <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-muted-foreground line-clamp-2 sm:mx-0 sm:text-base">
             {bio?.trim() ? bio : 'Add a short profile bio.'}
           </p>
 
@@ -1442,7 +1442,7 @@ function SimpleProfileHeader({
         </div>
 
         <div className="order-first flex justify-center sm:order-none sm:justify-end">
-          <div className="h-36 w-36 overflow-hidden rounded-full bg-gray-100 shadow-lg shadow-gray-950/10 ring-4 ring-white transition-transform duration-200 group-hover:scale-[1.02] sm:h-40 sm:w-40">
+          <div className="h-36 w-36 overflow-hidden rounded-full bg-muted shadow-lg shadow-gray-950/10 ring-4 ring-white transition-transform duration-200 group-hover:scale-[1.02] sm:h-40 sm:w-40">
             <img
               src={avatarUrl || '/empty_avatar.png'}
               alt=""
@@ -1544,7 +1544,7 @@ function ProfileHeaderModal({
 
         <div className="space-y-6 px-6 py-5">
           <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
-            <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-full bg-gray-100 shadow-md ring-4 ring-white">
+            <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-full bg-muted shadow-md ring-4 ring-white">
               <img src={avatarUrl || '/empty_avatar.png'} alt="" className="h-full w-full object-cover" />
               {canManageProfile ? (
                 <>
@@ -1574,17 +1574,17 @@ function ProfileHeaderModal({
                     value={draft.first_name}
                     onChange={(event) => onDraftChange({ first_name: event.target.value })}
                     placeholder="First name"
-                    className="bg-white"
+                    className="bg-card"
                   />
                   <Input
                     value={draft.last_name}
                     onChange={(event) => onDraftChange({ last_name: event.target.value })}
                     placeholder="Last name"
-                    className="bg-white"
+                    className="bg-card"
                   />
                 </div>
               ) : (
-                <h2 className="text-3xl font-black leading-tight text-gray-950">{displayName}</h2>
+                <h2 className="text-3xl font-black leading-tight text-foreground">{displayName}</h2>
               )}
             </div>
           </div>
@@ -1596,10 +1596,10 @@ function ProfileHeaderModal({
               placeholder="Tell people who you are and what you are building."
               rows={6}
               maxLength={1200}
-              className="min-h-40 resize-y bg-white text-base leading-7"
+              className="min-h-40 resize-y bg-card text-base leading-7"
             />
           ) : (
-            <p className="whitespace-pre-wrap text-base leading-7 text-gray-700">
+            <p className="whitespace-pre-wrap text-base leading-7 text-muted-foreground">
               {user.bio?.trim() || 'No bio yet.'}
             </p>
           )}
@@ -1644,7 +1644,7 @@ function ProfileHeaderModal({
 
               {missingSocialTypes.length > 0 ? (
                 <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Links</p>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Links</p>
                   <div className="flex flex-wrap gap-3">
                     {missingSocialTypes.map((type) => (
                       <ProfileSocialCircle
@@ -1668,7 +1668,7 @@ function ProfileHeaderModal({
         </div>
 
         {canManageProfile ? (
-          <DialogFooter className="border-t border-gray-100 px-6 py-4">
+          <DialogFooter className="border-t border-border px-6 py-4">
             <Button type="button" onClick={saveAndClose} disabled={isSaving}>
               {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
               Save
@@ -1779,12 +1779,12 @@ function PortfolioTodoPanel({
     <Card asChild variant="default" size="sm" className="overflow-hidden">
       <aside className="space-y-4">
       <div>
-        <p className="text-[11px] font-black uppercase tracking-[0.12em] text-gray-600">Setup</p>
+        <p className="text-[11px] font-black uppercase tracking-[0.12em] text-muted-foreground">Setup</p>
         <div className="mt-2 flex items-end justify-between gap-3">
-          <h2 className="min-w-0 text-base font-black leading-5 text-gray-950">Portfolio checklist</h2>
+          <h2 className="min-w-0 text-base font-black leading-5 text-foreground">Portfolio checklist</h2>
           <p className="shrink-0 text-xs font-black text-[var(--org-primary-color)]">{completed}/{uniqueTasks.length} done</p>
         </div>
-        <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-gray-100">
+        <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-muted">
           <div
             className="h-full rounded-full bg-[var(--org-primary-color)] transition-all duration-300"
             style={{ width: `${progressPercent}%` }}
@@ -1800,20 +1800,20 @@ function PortfolioTodoPanel({
                 <Check className="h-2.5 w-2.5" strokeWidth={3} />
               </span>
             )
-            : <Circle className="h-4 w-4 text-gray-400" strokeWidth={2.2} />
+            : <Circle className="h-4 w-4 text-muted-foreground" strokeWidth={2.2} />
           const content = (
             <div className="flex min-w-0 items-start gap-3">
               <span className="mt-1 shrink-0">{icon}</span>
               <span className="min-w-0">
-                <span className={`block text-xs font-black leading-4 ${task.complete ? 'text-gray-500 line-through decoration-gray-400 decoration-2' : 'text-gray-950'}`}>
+                <span className={`block text-xs font-black leading-4 ${task.complete ? 'text-muted-foreground line-through decoration-gray-400 decoration-2' : 'text-foreground'}`}>
                   {task.label}
                 </span>
-                <span className="block text-[11px] font-semibold leading-4 text-gray-500">{task.detail}</span>
+                <span className="block text-[11px] font-semibold leading-4 text-muted-foreground">{task.detail}</span>
               </span>
             </div>
           )
           return task.href ? (
-            <Link key={task.id} href={task.href} className="block rounded-lg px-1.5 py-1 transition-colors hover:bg-gray-50">
+            <Link key={task.id} href={task.href} className="block rounded-lg px-1.5 py-1 transition-colors hover:bg-muted">
               {content}
             </Link>
           ) : (
@@ -1873,13 +1873,13 @@ function TimelineOverviewSection({
       <Card asChild variant="default" size="sm" className="flex h-full min-h-0 min-w-0 items-center justify-between gap-4">
         <section>
         <div className="min-w-0">
-          <h2 className="truncate text-base font-semibold text-gray-950">The Journey</h2>
+          <h2 className="truncate text-base font-semibold text-foreground">The Journey</h2>
           {visibleEntries.length > 0 ? (
-            <p className="mt-1 truncate text-sm font-medium text-gray-500">
+            <p className="mt-1 truncate text-sm font-medium text-muted-foreground">
               {visibleEntries[0].title || 'Untitled timeline block'}
             </p>
           ) : (
-            <p className="mt-1 truncate text-sm font-medium text-gray-500">No moments yet</p>
+            <p className="mt-1 truncate text-sm font-medium text-muted-foreground">No moments yet</p>
           )}
         </div>
         <Link
@@ -1897,10 +1897,10 @@ function TimelineOverviewSection({
     <Card asChild variant="default" className="flex h-full min-h-0 min-w-0 flex-col">
       <section>
       <div className="mb-5 flex items-center justify-between gap-3">
-        <h2 className={`${isNarrow ? 'text-xl' : 'text-2xl'} min-w-0 truncate font-semibold text-gray-950`}>The Journey</h2>
+        <h2 className={`${isNarrow ? 'text-xl' : 'text-2xl'} min-w-0 truncate font-semibold text-foreground`}>The Journey</h2>
         <Link
           href={href}
-          className="flex items-center gap-1.5 text-sm font-semibold text-gray-600 transition-colors hover:text-gray-950"
+          className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
         >
           <span>Open</span>
           <ChevronRight className="h-4 w-4" />
@@ -1909,7 +1909,7 @@ function TimelineOverviewSection({
       {visibleEntries.length > 0 ? (
         <div className="min-h-0 flex-1 overflow-y-auto pr-1">
           <div className="relative space-y-5 pl-5">
-            <div className="absolute bottom-2 left-[5px] top-2 w-1 rounded-full bg-gray-100" />
+            <div className="absolute bottom-2 left-[5px] top-2 w-1 rounded-full bg-muted" />
             {visibleEntries.map((entry) => {
               const label = getTimelineEntryLabel(entry)
               const pointDate = formatProfileTimelinePointDate(entry)
@@ -1917,10 +1917,10 @@ function TimelineOverviewSection({
               return (
                 <Link key={entry.id} href={href} className="group relative block min-w-0">
                   <span className={`absolute -left-5 top-1.5 h-3 w-3 rounded-full border-2 border-white ${getTimelineEntryDotClass(entry)}`} />
-                  <p className="line-clamp-1 text-sm font-semibold leading-5 text-gray-950 group-hover:text-gray-700">
+                  <p className="line-clamp-1 text-sm font-semibold leading-5 text-foreground group-hover:text-muted-foreground">
                     {entry.title || 'Untitled timeline block'}
                   </p>
-                  <p className="mt-0.5 line-clamp-1 text-sm leading-5 text-gray-500">
+                  <p className="mt-0.5 line-clamp-1 text-sm leading-5 text-muted-foreground">
                     {pointDate}{label ? ` • ${label}` : ''}
                   </p>
                 </Link>
@@ -1929,11 +1929,11 @@ function TimelineOverviewSection({
           </div>
         </div>
       ) : (
-        <div className="rounded-lg border-2 border-dotted border-[var(--org-primary-color)] bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-4 rounded-lg bg-gray-50 p-5">
+        <div className="rounded-lg border-2 border-dotted border-[var(--org-primary-color)] bg-card p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-4 rounded-lg bg-muted p-5">
             <div>
-              <p className="text-sm font-semibold text-gray-950">Add timeline events</p>
-              <p className="mt-1 text-sm leading-6 text-gray-700">
+              <p className="text-sm font-semibold text-foreground">Add timeline events</p>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 Capture work, education, and life moments to show them here.
               </p>
             </div>
@@ -2039,11 +2039,11 @@ function ProfileTopFiveWidget({
           <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white ${config.accent}`}>
             <Icon className="h-5 w-5" />
           </span>
-          <h2 className={`${isNarrow ? 'text-xl' : 'text-2xl'} min-w-0 truncate font-semibold text-gray-950`}>
+          <h2 className={`${isNarrow ? 'text-xl' : 'text-2xl'} min-w-0 truncate font-semibold text-foreground`}>
             {config.title}
           </h2>
         </div>
-        {canEdit ? <Pencil className="h-4 w-4 shrink-0 text-gray-400" /> : null}
+        {canEdit ? <Pencil className="h-4 w-4 shrink-0 text-muted-foreground" /> : null}
       </div>
 
       {selected.length > 0 ? (
@@ -2057,8 +2057,8 @@ function ProfileTopFiveWidget({
           </div>
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 items-center rounded-lg border-2 border-dashed border-gray-200 bg-gray-50 p-4">
-          <p className="text-sm leading-6 text-gray-500">{config.empty}</p>
+        <div className="flex min-h-0 flex-1 items-center rounded-lg border-2 border-dashed border-border bg-muted p-4">
+          <p className="text-sm leading-6 text-muted-foreground">{config.empty}</p>
         </div>
       )}
       </section>
@@ -2071,7 +2071,7 @@ function ProfileTopFiveWidget({
         <div
           role="button"
           tabIndex={0}
-          className="h-full w-full text-left focus:outline-none focus:ring-2 focus:ring-gray-300"
+          className="h-full w-full text-left focus:outline-none focus:ring-2 focus:ring-border"
           onClick={() => setOpen(true)}
           onKeyDown={(event) => {
             if (event.key === 'Enter' || event.key === ' ') {
@@ -2086,16 +2086,16 @@ function ProfileTopFiveWidget({
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="flex max-h-[92vh] w-[calc(100vw-2rem)] max-w-2xl flex-col overflow-hidden rounded-2xl p-0">
-          <DialogHeader className="border-b border-gray-100 px-6 py-5 pr-14">
+          <DialogHeader className="border-b border-border px-6 py-5 pr-14">
             <DialogTitle>{config.title}</DialogTitle>
             <DialogDescription>{config.prompt}</DialogDescription>
           </DialogHeader>
 
           <div className="flex min-h-0 flex-1 flex-col gap-5 px-6 py-5">
-            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto rounded-xl border border-gray-200 bg-white p-4">
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto rounded-xl border border-border bg-card p-4">
               {config.categories.map((category) => (
                 <section key={category.title} className="space-y-2">
-                  <h3 className="text-sm font-semibold text-gray-800">{category.title}</h3>
+                  <h3 className="text-sm font-semibold text-foreground">{category.title}</h3>
                   <div className="flex flex-wrap gap-2">
                     {category.items.filter((item) => !selectedSet.has(item)).map((item) => (
                       <button
@@ -2103,7 +2103,7 @@ function ProfileTopFiveWidget({
                         type="button"
                         onClick={() => addChip(item)}
                         disabled={draftSelected.length >= PROFILE_TOP_FIVE_LIMIT}
-                        className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-semibold text-gray-700 transition-colors hover:border-gray-300 hover:bg-white disabled:cursor-not-allowed disabled:opacity-45"
+                        className="rounded-full border border-border bg-muted px-3 py-1.5 text-sm font-semibold text-muted-foreground transition-colors hover:border-border hover:bg-card disabled:cursor-not-allowed disabled:opacity-45"
                       >
                         {item}
                       </button>
@@ -2125,7 +2125,7 @@ function ProfileTopFiveWidget({
                     {item}
                   </button>
                 )) : (
-                  <p className="text-sm text-gray-500">Your selected chips will appear here.</p>
+                  <p className="text-sm text-muted-foreground">Your selected chips will appear here.</p>
                 )}
               </div>
 
@@ -2152,11 +2152,11 @@ function ProfileTopFiveWidget({
                       transition={{ duration: 0.18 }}
                       className="space-y-2"
                     >
-                      <div className="flex items-center justify-between text-xs font-semibold text-gray-500">
+                      <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
                         <span>Selected</span>
                         <span>{draftSelected.length}/{PROFILE_TOP_FIVE_LIMIT}</span>
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                      <div className="h-2 overflow-hidden rounded-full bg-muted">
                         <div className={`h-full rounded-full transition-all duration-300 ${config.accent}`} style={{ width: `${progressPercent}%` }} />
                       </div>
                     </motion.div>
@@ -2276,22 +2276,22 @@ function SocialPreviewWidget({
           }`}
           aria-label={item.title || `${config.label} preview`}
         >
-          <span className="relative block min-h-0 flex-1 overflow-hidden rounded-lg bg-gray-100 ring-1 ring-gray-200">
+          <span className="relative block min-h-0 flex-1 overflow-hidden rounded-lg bg-muted ring-1 ring-border">
             {item.thumbnailUrl ? (
               <img src={item.thumbnailUrl} alt="" className="h-full w-full object-cover object-center" loading="lazy" />
             ) : (
-              <span className="flex h-full w-full items-center justify-center text-gray-400">
+              <span className="flex h-full w-full items-center justify-center text-muted-foreground">
                 <Icon className="h-8 w-8" />
               </span>
             )}
-            <span className="absolute inset-0 flex items-center justify-center bg-black/10 text-white opacity-95">
+            <span className="absolute inset-0 flex items-center justify-center bg-foreground/10 text-white opacity-95">
               <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70">
                 <Youtube className="h-5 w-5" />
               </span>
             </span>
           </span>
           {item.title ? (
-            <span className="mt-2 block line-clamp-2 overflow-hidden text-sm font-semibold leading-5 text-gray-950 group-hover/card:text-gray-700">
+            <span className="mt-2 block line-clamp-2 overflow-hidden text-sm font-semibold leading-5 text-foreground group-hover/card:text-muted-foreground">
               {item.title}
             </span>
           ) : null}
@@ -2305,7 +2305,7 @@ function SocialPreviewWidget({
         href={item.url}
         target="_blank"
           rel="noopener noreferrer"
-        className={`group/card relative ${cardClassName} min-w-0 shrink-0 overflow-hidden rounded-lg bg-gray-100 ring-1 ring-gray-200 transition-transform hover:-translate-y-0.5 ${
+        className={`group/card relative ${cardClassName} min-w-0 shrink-0 overflow-hidden rounded-lg bg-muted ring-1 ring-border transition-transform hover:-translate-y-0.5 ${
           mode === 'single' ? 'w-full' : 'w-32 min-[420px]:w-[10.5rem] sm:w-48'
         }`}
         aria-label={item.title || `${config.label} preview`}
@@ -2313,7 +2313,7 @@ function SocialPreviewWidget({
         {item.thumbnailUrl ? (
           <img src={item.thumbnailUrl} alt="" className="h-full w-full object-cover object-center" loading="lazy" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-gray-400">
+          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
             <Icon className="h-8 w-8" />
           </div>
         )}
@@ -2340,9 +2340,9 @@ function SocialPreviewWidget({
             >
               <Icon className="h-4 w-4" />
             </span>
-            <h2 className={`${isCompact ? 'text-base' : isNarrow ? 'text-xl' : 'text-2xl'} min-w-0 truncate font-semibold text-gray-950`}>{config.label}</h2>
+            <h2 className={`${isCompact ? 'text-base' : isNarrow ? 'text-xl' : 'text-2xl'} min-w-0 truncate font-semibold text-foreground`}>{config.label}</h2>
           </div>
-          <div className={`${isCompact ? 'mt-1' : 'mt-2'} flex min-w-0 items-center gap-1.5 text-sm text-gray-500`}>
+          <div className={`${isCompact ? 'mt-1' : 'mt-2'} flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground`}>
             <span className="shrink-0">{config.inputPrefix}</span>
             {canEdit ? (
               <input
@@ -2354,21 +2354,21 @@ function SocialPreviewWidget({
                 }}
                 onBlur={onBlur}
                 placeholder={config.inputPlaceholder}
-                className="min-w-0 flex-1 border-0 bg-transparent p-0 font-medium text-gray-700 outline-none placeholder:text-gray-300 focus:text-[var(--org-primary-color)]"
+                className="min-w-0 flex-1 border-0 bg-transparent p-0 font-medium text-muted-foreground outline-none placeholder:text-gray-300 focus:text-[var(--org-primary-color)]"
                 autoComplete="url"
               />
             ) : handle && href ? (
-              <a href={href} target="_blank" rel="noopener noreferrer" className="min-w-0 truncate font-medium text-gray-700 hover:text-gray-950 hover:underline">
+              <a href={href} target="_blank" rel="noopener noreferrer" className="min-w-0 truncate font-medium text-muted-foreground hover:text-foreground hover:underline">
                 {handle}
               </a>
             ) : (
-              <span className="font-medium text-gray-400">No handle yet</span>
+              <span className="font-medium text-muted-foreground">No handle yet</span>
             )}
           </div>
         </div>
         {isCompact ? (
           <div className="ml-auto flex shrink-0 items-center gap-2">
-            <span className="hidden text-sm font-semibold text-gray-500 sm:inline">{itemCountLabel}</span>
+            <span className="hidden text-sm font-semibold text-muted-foreground sm:inline">{itemCountLabel}</span>
             {href ? (
               <a
                 href={href}
@@ -2385,7 +2385,7 @@ function SocialPreviewWidget({
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="shrink-0 text-sm font-semibold text-gray-500 transition-colors hover:text-gray-950"
+            className="shrink-0 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
           >
             {isNarrow ? 'Open' : `Open ${config.label}`}
           </a>
@@ -2399,7 +2399,7 @@ function SocialPreviewWidget({
               Array.from({ length: 3 }).map((_, index) => (
                 <div key={index} className={`${
                   isSingleCardCarousel ? 'h-full w-full' : type === 'youtube' ? 'h-full w-44 sm:w-56 md:w-64' : 'h-full w-32 min-[420px]:w-[10.5rem] sm:w-48'
-                } shrink-0 animate-pulse rounded-lg bg-gray-100`} />
+                } shrink-0 animate-pulse rounded-lg bg-muted`} />
               ))
             ) : items.length > 0 ? (
               isSingleCardCarousel && activeItem ? (
@@ -2411,7 +2411,7 @@ function SocialPreviewWidget({
                         <button
                           type="button"
                           onClick={() => setActiveIndex((current) => (current - 1 + items.length) % items.length)}
-                          className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-white"
+                          className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-card/95 text-foreground shadow-sm ring-1 ring-border hover:bg-card"
                           aria-label={`Previous ${config.label} preview`}
                         >
                           <ChevronLeft className="h-4 w-4" />
@@ -2419,7 +2419,7 @@ function SocialPreviewWidget({
                         <button
                           type="button"
                           onClick={() => setActiveIndex((current) => (current + 1) % items.length)}
-                          className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-white"
+                          className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-card/95 text-foreground shadow-sm ring-1 ring-border hover:bg-card"
                           aria-label={`Next ${config.label} preview`}
                         >
                           <ChevronRight className="h-4 w-4" />
@@ -2445,14 +2445,14 @@ function SocialPreviewWidget({
                 items.map((item) => renderPreviewCard(item, 'strip'))
               )
             ) : (
-              <div className="flex h-full min-h-24 flex-1 items-center rounded-lg border border-dashed border-gray-300 bg-white p-5 text-sm leading-6 text-gray-500">
+              <div className="flex h-full min-h-24 flex-1 items-center rounded-lg border border-dashed border-border bg-card p-5 text-sm leading-6 text-muted-foreground">
                 {emptyMessage}
               </div>
             )}
           </div>
         </div>
       ) : !isCompact ? (
-        <div className="flex min-h-0 flex-1 items-center rounded-lg border border-dashed border-gray-300 bg-white p-5 text-sm leading-6 text-gray-500">
+        <div className="flex min-h-0 flex-1 items-center rounded-lg border border-dashed border-border bg-card p-5 text-sm leading-6 text-muted-foreground">
           {emptyMessage}
         </div>
       ) : null}
@@ -2465,20 +2465,20 @@ function EmptyWidgetPreview({ type }: { type: ProfileWidgetType }) {
   const config = PROFILE_WIDGET_CONFIG[type]
   const Icon = config.icon
   return (
-    <div className="rounded-lg border border-dashed border-gray-300 bg-white p-5">
+    <div className="rounded-lg border border-dashed border-border bg-card p-5">
       <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-md bg-gray-100 text-gray-500">
+        <span className="flex h-10 w-10 items-center justify-center rounded-md bg-muted text-muted-foreground">
           <Icon className="h-5 w-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-gray-500">{config.label}</p>
-          <div className="mt-2 h-3 w-1/2 rounded-full bg-gray-100" />
+          <p className="text-sm font-semibold text-muted-foreground">{config.label}</p>
+          <div className="mt-2 h-3 w-1/2 rounded-full bg-muted" />
         </div>
       </div>
       <div className="mt-5 grid gap-2">
-        <div className="h-4 w-3/4 rounded-full bg-gray-100" />
-        <div className="h-4 w-full rounded-full bg-gray-100" />
-        <div className="h-4 w-2/3 rounded-full bg-gray-100" />
+        <div className="h-4 w-3/4 rounded-full bg-muted" />
+        <div className="h-4 w-full rounded-full bg-muted" />
+        <div className="h-4 w-2/3 rounded-full bg-muted" />
       </div>
     </div>
   )
@@ -2596,7 +2596,7 @@ function ProfileCoreQuizWidget({
       <Card asChild variant="default" size="sm" className="flex h-full min-w-0 items-center justify-between gap-4">
         <section>
         <div className="min-w-0">
-          <h3 className="truncate text-base font-semibold text-gray-950">{pageLabel}</h3>
+          <h3 className="truncate text-base font-semibold text-foreground">{pageLabel}</h3>
         </div>
         <Link
           href={quizHref}
@@ -2612,12 +2612,12 @@ function ProfileCoreQuizWidget({
   return (
     <Card asChild variant="default" size="none" className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
       <section>
-      <div className={`${isNarrow ? 'p-2' : 'p-2.5'} border-b border-gray-100`}>
+      <div className={`${isNarrow ? 'p-2' : 'p-2.5'} border-b border-border`}>
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
-                <h3 className={`${isNarrow ? 'text-base' : 'text-lg'} truncate font-bold text-gray-950`}>{pageLabel}</h3>
+                <h3 className={`${isNarrow ? 'text-base' : 'text-lg'} truncate font-bold text-foreground`}>{pageLabel}</h3>
               </div>
               <Link
                 href={quizHref}
@@ -2631,7 +2631,7 @@ function ProfileCoreQuizWidget({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 bg-white px-2 pb-0 pt-2 sm:px-2.5 sm:pt-2.5">
+      <div className="min-h-0 flex-1 bg-card px-2 pb-0 pt-2 sm:px-2.5 sm:pt-2.5">
         {result ? (
           <div className="profile-quiz-result-scroll h-full overflow-y-auto">
             <style jsx global>{`
@@ -2674,12 +2674,12 @@ function ProfileCoreQuizWidget({
             />
           </div>
         ) : (
-          <div className="flex h-full min-h-0 flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-gray-400 shadow-xs">
+          <div className="flex h-full min-h-0 flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted p-6 text-center">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-card text-muted-foreground shadow-xs">
               <Lock className="h-5 w-5" />
             </div>
-            <p className="mt-3 text-sm font-semibold text-gray-800">{quiz.name || 'Result locked'}</p>
-            <p className="mt-1 max-w-md text-sm text-gray-500">
+            <p className="mt-3 text-sm font-semibold text-foreground">{quiz.name || 'Result locked'}</p>
+            <p className="mt-1 max-w-md text-sm text-muted-foreground">
               Complete this quiz activity to unlock its response card here.
             </p>
             <Link
@@ -2764,7 +2764,7 @@ function RichTextFormatButton({
         event.preventDefault()
         onCommand()
       }}
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-950"
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
     >
       {children}
     </button>
@@ -2837,7 +2837,7 @@ function ProfileRichTextEditor({
     <div ref={containerRef} className="flex min-h-0 flex-1 flex-col">
       <div className="relative min-h-0 flex-1">
         {empty ? (
-          <div className="pointer-events-none absolute inset-0 select-none text-base leading-7 text-gray-400">
+          <div className="pointer-events-none absolute inset-0 select-none text-base leading-7 text-muted-foreground">
             {placeholder}
           </div>
         ) : null}
@@ -2848,12 +2848,12 @@ function ProfileRichTextEditor({
           onFocus={() => setActive(true)}
           onBlur={handleBlur}
           onInput={syncValue}
-          className={`${compact ? 'leading-6' : 'leading-7'} profile-rich-text min-h-0 h-full overflow-y-auto break-words text-base text-gray-800 outline-none`}
+          className={`${compact ? 'leading-6' : 'leading-7'} profile-rich-text min-h-0 h-full overflow-y-auto break-words text-base text-foreground outline-none`}
         />
       </div>
 
       {active ? (
-        <div className="mt-2 flex w-full shrink-0 items-center gap-1 rounded-lg border border-gray-200 bg-white p-1 shadow-sm">
+        <div className="mt-2 flex w-full shrink-0 items-center gap-1 rounded-lg border border-border bg-card p-1 shadow-sm">
           <RichTextFormatButton label="Bold" onCommand={() => runCommand('bold')}>
             <Bold className="h-4 w-4" />
           </RichTextFormatButton>
@@ -2873,7 +2873,7 @@ function ProfileRichTextEditor({
                 aria-label="More formatting"
                 title="More formatting"
                 onMouseDown={(event) => event.preventDefault()}
-                className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-950"
+                className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 <ChevronDown className="h-4 w-4" />
               </button>
@@ -3041,7 +3041,7 @@ function ProfileMediaSection({
   return (
     <Card asChild variant="default" size="none" className="group/portfolio-media relative h-full min-h-0 overflow-hidden">
       <section>
-      <div className="absolute inset-0 bg-gray-100">
+      <div className="absolute inset-0 bg-muted">
         {hasMedia ? <ProfileMediaDisplay url={mediaUrl} title={section.title} /> : <EmptyWidgetPreview type="media" />}
       </div>
 
@@ -3076,7 +3076,7 @@ function ProfileMediaSection({
             data-profile-grid-control="true"
             onClick={() => editing ? commitMedia() : setEditing(true)}
             disabled={uploading}
-            className={`absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-white text-gray-800 shadow-sm ring-1 ring-gray-200 transition-all hover:text-gray-950 disabled:cursor-wait disabled:opacity-80 ${
+            className={`absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-card text-foreground shadow-sm ring-1 ring-border transition-all hover:text-foreground disabled:cursor-wait disabled:opacity-80 ${
               editing ? 'opacity-100' : 'opacity-0 group-hover/portfolio-media:opacity-100'
             }`}
             aria-label={editing ? 'Save media' : 'Add media'}
@@ -3094,10 +3094,10 @@ function ProfileMediaSection({
                 className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 p-4"
                 data-profile-grid-control="true"
               >
-                <div className="w-full max-w-sm rounded-lg border border-white/20 bg-white p-3 shadow-xl">
+                <div className="w-full max-w-sm rounded-lg border border-white/20 bg-card p-3 shadow-xl">
                   <label
                     htmlFor={fileInputId}
-                    className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-gray-300 px-3 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-border px-3 py-3 text-sm font-semibold text-muted-foreground hover:bg-muted"
                   >
                     <Upload className="h-4 w-4" />
                     Upload image
@@ -3153,10 +3153,10 @@ function CustomProfileSectionView({
             onChange={(event) => onChange?.({ title: event.target.value })}
             onBlur={onBlur}
             placeholder="Untitled section"
-            className="w-full select-none border-0 bg-transparent p-0 text-3xl font-black leading-tight text-gray-950 outline-none placeholder:text-gray-300 focus:select-text"
+            className="w-full select-none border-0 bg-transparent p-0 text-3xl font-black leading-tight text-foreground outline-none placeholder:text-gray-300 focus:select-text"
           />
         ) : (
-          <h2 className="select-none text-3xl font-black leading-tight text-gray-950">{section.title || 'Untitled section'}</h2>
+          <h2 className="select-none text-3xl font-black leading-tight text-foreground">{section.title || 'Untitled section'}</h2>
         )}
         </section>
       </Card>
@@ -3215,7 +3215,7 @@ function CustomProfileSectionView({
               onChange={(event) => onChange?.({ title: event.target.value })}
               onBlur={onBlur}
               placeholder="Section title"
-              className={`${compact ? 'mb-2 text-lg' : 'mb-3 text-2xl'} w-full select-none border-0 bg-transparent p-0 font-semibold text-gray-950 outline-none placeholder:text-gray-300 focus:select-text`}
+              className={`${compact ? 'mb-2 text-lg' : 'mb-3 text-2xl'} w-full select-none border-0 bg-transparent p-0 font-semibold text-foreground outline-none placeholder:text-gray-300 focus:select-text`}
             />
             <ProfileRichTextEditor
               value={section.body || ''}
@@ -3227,9 +3227,9 @@ function CustomProfileSectionView({
           </>
         ) : (
           <>
-            {section.title ? <h2 className={`${compact ? 'mb-2 text-lg' : 'mb-3 text-2xl'} select-none font-semibold text-gray-950`}>{section.title}</h2> : null}
+            {section.title ? <h2 className={`${compact ? 'mb-2 text-lg' : 'mb-3 text-2xl'} select-none font-semibold text-foreground`}>{section.title}</h2> : null}
             <div
-              className={`${compact ? 'line-clamp-2' : 'overflow-y-auto'} profile-rich-text-rendered min-h-0 flex-1 select-none text-base leading-7 text-gray-800`}
+              className={`${compact ? 'line-clamp-2' : 'overflow-y-auto'} profile-rich-text-rendered min-h-0 flex-1 select-none text-base leading-7 text-foreground`}
               dangerouslySetInnerHTML={{ __html: sanitizeProfileRichText(section.body || 'Empty text section') }}
             />
           </>
@@ -3243,7 +3243,7 @@ function CustomProfileSectionView({
     return (
       <Card asChild variant="default" size="sm" className="flex h-full items-center">
         <section>
-        <div className="flex h-full w-full items-center justify-between gap-4 text-gray-950">
+        <div className="flex h-full w-full items-center justify-between gap-4 text-foreground">
           <div className="min-w-0">
             {canEdit ? (
               <>
@@ -3252,24 +3252,24 @@ function CustomProfileSectionView({
                   onChange={(event) => onChange?.({ title: event.target.value })}
                   onBlur={onBlur}
                   placeholder="Untitled link"
-                  className="w-full select-none truncate border-0 bg-transparent p-0 text-lg font-semibold text-gray-950 outline-none placeholder:text-gray-300 focus:select-text"
+                  className="w-full select-none truncate border-0 bg-transparent p-0 text-lg font-semibold text-foreground outline-none placeholder:text-gray-300 focus:select-text"
                 />
                 <input
                   value={section.url || ''}
                   onChange={(event) => onChange?.({ url: event.target.value })}
                   onBlur={onBlur}
                   placeholder="No URL yet"
-                  className="mt-1 w-full select-none truncate border-0 bg-transparent p-0 text-sm text-gray-500 outline-none placeholder:text-gray-300 focus:select-text"
+                  className="mt-1 w-full select-none truncate border-0 bg-transparent p-0 text-sm text-muted-foreground outline-none placeholder:text-gray-300 focus:select-text"
                 />
               </>
             ) : (
               <a href={href || '#'} target="_blank" rel="noopener noreferrer" className="block min-w-0">
                 <p className="truncate select-none text-lg font-semibold">{section.title || 'Untitled link'}</p>
-                <p className="mt-1 truncate select-none text-sm text-gray-500">{section.url || 'No URL yet'}</p>
+                <p className="mt-1 truncate select-none text-sm text-muted-foreground">{section.url || 'No URL yet'}</p>
               </a>
             )}
           </div>
-          <Link2 className="h-5 w-5 text-gray-400" />
+          <Link2 className="h-5 w-5 text-muted-foreground" />
         </div>
         </section>
       </Card>
@@ -3380,13 +3380,13 @@ function ProfileAddTray({
             exit={{ opacity: 0, y: 18, scaleX: 0.08, scaleY: 0.16, borderRadius: 999 }}
             transition={{ type: 'spring', stiffness: 430, damping: 34 }}
             style={{ transformOrigin: 'bottom right' }}
-            className="pointer-events-auto absolute inset-x-0 bottom-0 overflow-hidden border border-gray-200 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.24)]"
+            className="pointer-events-auto absolute inset-x-0 bottom-0 overflow-hidden border border-border bg-card shadow-[0_24px_80px_rgba(15,23,42,0.24)]"
             data-profile-add-tray-root="true"
             data-profile-add-tray="true"
           >
             {dragging ? (
               <div
-                className="flex h-16 items-center justify-center border border-dashed border-gray-300 bg-gray-50 px-4 text-sm font-semibold text-gray-600"
+                className="flex h-16 items-center justify-center border border-dashed border-border bg-muted px-4 text-sm font-semibold text-muted-foreground"
                 onDragOver={(event) => {
                   event.preventDefault()
                   event.dataTransfer.dropEffect = 'copy'
@@ -3400,16 +3400,16 @@ function ProfileAddTray({
               </div>
             ) : (
             <div className="relative flex h-96 flex-col">
-              <div className="flex items-center justify-center border-b border-gray-100 px-4 py-3">
-                <div className="inline-flex rounded-full bg-gray-100 p-1">
+              <div className="flex items-center justify-center border-b border-border px-4 py-3">
+                <div className="inline-flex rounded-full bg-muted p-1">
                   {(['basic'] as const).map((picker) => (
                     <button
                       key={picker}
                       type="button"
                       className={`rounded-full px-4 py-2 text-sm font-semibold capitalize transition-colors ${
                         activePicker === picker
-                          ? 'bg-white text-gray-950 shadow-sm'
-                          : 'text-gray-500 hover:text-gray-900'
+                          ? 'bg-card text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
                       {picker}
@@ -3423,7 +3423,7 @@ function ProfileAddTray({
                   <div className="space-y-5">
                     {basicSections.map((section) => (
                       <section key={section.title} className="space-y-2">
-                        <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{section.title}</p>
+                        <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{section.title}</p>
                         <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 md:grid-cols-6">
                           {section.types.map((type) => {
                             const config = PROFILE_WIDGET_CONFIG[type]
@@ -3440,7 +3440,7 @@ function ProfileAddTray({
                                 onDragStart={(event) => onDragStart(type, event)}
                                 onDrag={onDragging}
                                 onDragEnd={onDragEnd}
-                                className="flex aspect-square flex-col items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white p-2 text-center text-gray-800 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                                className="flex aspect-square flex-col items-center justify-center gap-2 rounded-lg border border-border bg-card p-2 text-center text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
                               >
                                 <Icon className="h-5 w-5" />
                                 <span className="text-xs font-semibold leading-tight">{config.label}</span>
@@ -4307,8 +4307,8 @@ function ProfilePageClient({
         className="mx-auto w-full px-0 pt-0 pb-6 sm:px-6 sm:py-6 lg:px-8"
       >
         {isPublicMode && isSelf ? (
-          <div className="mx-4 mt-4 flex flex-col gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 sm:mx-0 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm font-medium text-gray-700">
+          <div className="mx-4 mt-4 flex flex-col gap-3 rounded-2xl border border-border bg-muted px-4 py-3 sm:mx-0 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-medium text-muted-foreground">
               You are viewing your public profile.
             </p>
             <Button asChild variant="surface" size="sm">
@@ -4410,7 +4410,7 @@ function ProfilePageClient({
                   const grid = getProfileGridForItem(item, 0, profileGridCols, profileGridKey)
                   return (
                     <div key={item.id} className="group/portfolio-grid-item h-full w-full min-w-0 overflow-visible">
-                      <div className={`relative h-full w-full min-w-0 rounded-xl transition-shadow ${canManageProfile ? 'cursor-grab ring-1 ring-transparent hover:ring-gray-300 active:cursor-grabbing' : ''}`}>
+                      <div className={`relative h-full w-full min-w-0 rounded-xl transition-shadow ${canManageProfile ? 'cursor-grab ring-1 ring-transparent hover:ring-border active:cursor-grabbing' : ''}`}>
                         <div className="h-full w-full min-w-0 overflow-visible rounded-3xl">
                           <div className="h-full w-full min-w-0 overflow-visible">
                             {rendered}
@@ -4422,7 +4422,7 @@ function ProfilePageClient({
                               type="button"
                               data-profile-grid-control="true"
                               onClick={() => removeProfileLayoutItem(item)}
-                              className="absolute -right-3 -top-3 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-500 opacity-0 shadow-sm ring-1 ring-gray-200 transition-all hover:text-red-500 group-hover/portfolio-grid-item:opacity-100"
+                              className="absolute -right-3 -top-3 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-card text-muted-foreground opacity-0 shadow-sm ring-1 ring-border transition-all hover:text-red-500 group-hover/portfolio-grid-item:opacity-100"
                               aria-label="Delete section"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -4431,7 +4431,7 @@ function ProfilePageClient({
                               type="button"
                               data-profile-grid-control="true"
                               onPointerDown={(event) => startProfileGridResize(item.id, 'left', event)}
-                              className="absolute -left-3 top-1/2 z-20 flex h-12 w-6 -translate-y-1/2 cursor-ew-resize items-center justify-center rounded-full bg-white text-gray-400 opacity-0 shadow-sm ring-1 ring-gray-200 transition-all hover:text-gray-900 group-hover/portfolio-grid-item:opacity-100"
+                              className="absolute -left-3 top-1/2 z-20 flex h-12 w-6 -translate-y-1/2 cursor-ew-resize items-center justify-center rounded-full bg-card text-muted-foreground opacity-0 shadow-sm ring-1 ring-border transition-all hover:text-foreground group-hover/portfolio-grid-item:opacity-100"
                               aria-label={`Resize section width from left, current width ${grid.w} columns`}
                               title="Drag to resize width"
                             >
@@ -4441,7 +4441,7 @@ function ProfilePageClient({
                               type="button"
                               data-profile-grid-control="true"
                               onPointerDown={(event) => startProfileGridResize(item.id, 'right', event)}
-                              className="absolute -right-3 top-1/2 z-20 flex h-12 w-6 -translate-y-1/2 cursor-ew-resize items-center justify-center rounded-full bg-white text-gray-400 opacity-0 shadow-sm ring-1 ring-gray-200 transition-all hover:text-gray-900 group-hover/portfolio-grid-item:opacity-100"
+                              className="absolute -right-3 top-1/2 z-20 flex h-12 w-6 -translate-y-1/2 cursor-ew-resize items-center justify-center rounded-full bg-card text-muted-foreground opacity-0 shadow-sm ring-1 ring-border transition-all hover:text-foreground group-hover/portfolio-grid-item:opacity-100"
                               aria-label={`Resize section width from right, current width ${grid.w} columns`}
                               title="Drag to resize width"
                             >
@@ -4453,7 +4453,7 @@ function ProfilePageClient({
                                   type="button"
                                   data-profile-grid-control="true"
                                   onPointerDown={(event) => startProfileGridResize(item.id, 'top', event)}
-                                  className="absolute -top-3 left-1/2 z-20 flex h-6 w-12 -translate-x-1/2 cursor-ns-resize items-center justify-center rounded-full bg-white text-gray-400 opacity-0 shadow-sm ring-1 ring-gray-200 transition-all hover:text-gray-900 group-hover/portfolio-grid-item:opacity-100"
+                                  className="absolute -top-3 left-1/2 z-20 flex h-6 w-12 -translate-x-1/2 cursor-ns-resize items-center justify-center rounded-full bg-card text-muted-foreground opacity-0 shadow-sm ring-1 ring-border transition-all hover:text-foreground group-hover/portfolio-grid-item:opacity-100"
                                   aria-label={`Resize section height from top, current height ${grid.h} rows`}
                                   title="Drag to resize height"
                                 >
@@ -4463,7 +4463,7 @@ function ProfilePageClient({
                                   type="button"
                                   data-profile-grid-control="true"
                                   onPointerDown={(event) => startProfileGridResize(item.id, 'bottom', event)}
-                                  className="absolute -bottom-3 left-1/2 z-20 flex h-6 w-12 -translate-x-1/2 cursor-ns-resize items-center justify-center rounded-full bg-white text-gray-400 opacity-0 shadow-sm ring-1 ring-gray-200 transition-all hover:text-gray-900 group-hover/portfolio-grid-item:opacity-100"
+                                  className="absolute -bottom-3 left-1/2 z-20 flex h-6 w-12 -translate-x-1/2 cursor-ns-resize items-center justify-center rounded-full bg-card text-muted-foreground opacity-0 shadow-sm ring-1 ring-border transition-all hover:text-foreground group-hover/portfolio-grid-item:opacity-100"
                                   aria-label={`Resize section height from bottom, current height ${grid.h} rows`}
                                   title="Drag to resize height"
                                 >

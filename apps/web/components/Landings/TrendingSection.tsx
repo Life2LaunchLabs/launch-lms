@@ -97,7 +97,7 @@ function TrendingItemRow({
   return (
     <Link
       href={href}
-      className="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors group"
+      className="flex items-start gap-3 p-3 rounded-xl hover:bg-muted transition-colors group"
     >
       {thumbUrl ? (
         <img
@@ -106,13 +106,13 @@ function TrendingItemRow({
           className="w-10 h-10 rounded-lg object-cover shrink-0 mt-0.5"
         />
       ) : (
-        <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 mt-0.5">
+        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
           {item.item_type === 'discussion' ? (
-            <MessageSquare className="w-4 h-4 text-gray-400" />
+            <MessageSquare className="w-4 h-4 text-muted-foreground" />
           ) : item.item_type === 'resource' ? (
-            <FileText className="w-4 h-4 text-gray-400" />
+            <FileText className="w-4 h-4 text-muted-foreground" />
           ) : (
-            <BookOpen className="w-4 h-4 text-gray-400" />
+            <BookOpen className="w-4 h-4 text-muted-foreground" />
           )}
         </div>
       )}
@@ -121,15 +121,15 @@ function TrendingItemRow({
         <div className="flex items-center gap-2 mb-1">
           <TypeBadge type={item.item_type} />
           {item.community_name && (
-            <span className="text-xs text-gray-400 truncate">{item.community_name}</span>
+            <span className="text-xs text-muted-foreground truncate">{item.community_name}</span>
           )}
         </div>
-        <p className="text-sm font-medium text-gray-900 truncate group-hover:text-gray-700">
+        <p className="text-sm font-medium text-foreground truncate group-hover:text-muted-foreground">
           {item.title}
         </p>
       </div>
 
-      <span className="text-xs text-gray-400 shrink-0 mt-1">{timeAgo(item.last_event_date)}</span>
+      <span className="text-xs text-muted-foreground shrink-0 mt-1">{timeAgo(item.last_event_date)}</span>
     </Link>
   )
 }
@@ -149,16 +149,16 @@ function TrendingSection({ orgslug, title }: TrendingSectionProps) {
   if (isLoading) {
     return (
       <div className="flex flex-col space-y-2 mb-6">
-        <h2 className="my-2 text-lg font-bold tracking-tight text-gray-900">
+        <h2 className="my-2 text-lg font-bold tracking-tight text-foreground">
           {title || t('landing.trending.title')}
         </h2>
         <div className="space-y-1">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="flex items-start gap-3 p-3">
-              <div className="w-10 h-10 rounded-lg bg-gray-100 animate-pulse shrink-0" />
+              <div className="w-10 h-10 rounded-lg bg-muted animate-pulse shrink-0" />
               <div className="flex-1 space-y-2 pt-1">
-                <div className="h-3 bg-gray-100 rounded animate-pulse w-1/4" />
-                <div className="h-3 bg-gray-100 rounded animate-pulse w-3/4" />
+                <div className="h-3 bg-muted rounded animate-pulse w-1/4" />
+                <div className="h-3 bg-muted rounded animate-pulse w-3/4" />
               </div>
             </div>
           ))}
@@ -170,14 +170,14 @@ function TrendingSection({ orgslug, title }: TrendingSectionProps) {
   if (!items || items.length === 0) {
     return (
       <div className="flex flex-col space-y-2 mb-6">
-        <h2 className="my-2 text-lg font-bold tracking-tight text-gray-900">
+        <h2 className="my-2 text-lg font-bold tracking-tight text-foreground">
           {title || t('landing.trending.title')}
         </h2>
-        <div className="flex flex-col justify-center items-center py-12 px-4 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/30">
-          <div className="p-4 bg-white rounded-full nice-shadow mb-4">
+        <div className="flex flex-col justify-center items-center py-12 px-4 border-2 border-dashed border-border rounded-2xl bg-muted/30">
+          <div className="p-4 bg-card rounded-full nice-shadow mb-4">
             <Activity className="w-8 h-8 text-gray-300" strokeWidth={1.5} />
           </div>
-          <p className="text-sm text-gray-400 text-center">{t('landing.trending.empty')}</p>
+          <p className="text-sm text-muted-foreground text-center">{t('landing.trending.empty')}</p>
         </div>
       </div>
     )
@@ -185,10 +185,10 @@ function TrendingSection({ orgslug, title }: TrendingSectionProps) {
 
   return (
     <div className="flex flex-col space-y-1 mb-6">
-      <h2 className="my-2 text-lg font-bold tracking-tight text-gray-900">
+      <h2 className="my-2 text-lg font-bold tracking-tight text-foreground">
         {title || t('landing.trending.title')}
       </h2>
-      <div className="divide-y divide-gray-50">
+      <div className="divide-y divide-border">
         {items.map((item) => (
           <TrendingItemRow key={`${item.item_type}-${item.item_uuid}`} item={item} orgslug={orgslug} orgUUID={orgUUID} />
         ))}

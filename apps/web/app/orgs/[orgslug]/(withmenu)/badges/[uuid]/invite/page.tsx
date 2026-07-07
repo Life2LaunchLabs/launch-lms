@@ -170,8 +170,8 @@ export default async function BadgeInvitePage({ params }: BadgeInvitePageProps) 
       ]
 
   return (
-    <main className="min-h-screen bg-[#f7faf6] text-gray-950">
-      <section className="relative overflow-hidden border-b border-black/5 bg-[#eef5ef]">
+    <main className="min-h-screen bg-[#f7faf6] text-foreground">
+      <section className="relative overflow-hidden border-b border-border bg-[#eef5ef] dark:bg-green-950/30">
         <div className="mx-auto grid min-h-[620px] w-full max-w-7xl items-center gap-10 px-5 py-14 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(360px,520px)] lg:px-10">
           <div className="max-w-xl">
             <div className="inline-flex items-center gap-2 rounded-full bg-[#f9dc76] px-3 py-1 text-xs font-bold uppercase tracking-normal text-[#3f3a15]">
@@ -181,20 +181,20 @@ export default async function BadgeInvitePage({ params }: BadgeInvitePageProps) 
             <h1 className="mt-5 text-4xl font-black leading-[1.02] tracking-normal sm:text-5xl lg:text-6xl">
               {headline}
             </h1>
-            <p className="mt-5 max-w-lg text-base leading-7 text-gray-700 sm:text-lg">
+            <p className="mt-5 max-w-lg text-base leading-7 text-muted-foreground sm:text-lg">
               {subheadline}
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
                 href={signupHref}
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-[#42c900] px-7 text-sm font-bold text-black shadow-sm transition-colors hover:bg-[#39b300]"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-[#42c900] px-7 text-sm font-bold text-foreground shadow-sm transition-colors hover:bg-[#39b300]"
               >
                 Claim your invite
                 <Check size={17} />
               </Link>
               <Link
                 href={loginHref}
-                className="inline-flex h-12 items-center justify-center rounded-lg border border-black/10 bg-white px-7 text-sm font-bold text-gray-800 transition-colors hover:bg-gray-50"
+                className="inline-flex h-12 items-center justify-center rounded-lg border border-border bg-card px-7 text-sm font-bold text-foreground transition-colors hover:bg-muted"
               >
                 Log in
               </Link>
@@ -202,26 +202,26 @@ export default async function BadgeInvitePage({ params }: BadgeInvitePageProps) 
           </div>
 
           <div className="relative mx-auto w-full max-w-[520px]">
-            <div className="aspect-square w-full overflow-visible rounded-sm bg-white">
+            <div className="aspect-square w-full overflow-visible rounded-sm bg-card">
               {badgeImageUrl ? (
                 <BadgeThumbnailImage
                   src={badgeImageUrl}
                   alt={badgeName}
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center bg-white text-[#42c900]">
+                <div className="flex h-full w-full items-center justify-center bg-card text-[#42c900]">
                   <Award size={120} strokeWidth={1.25} />
                 </div>
               )}
             </div>
-            <div className="absolute -bottom-4 left-4 rounded-xl bg-white px-4 py-3 shadow-[0_16px_36px_rgba(15,23,42,0.16)] ring-1 ring-black/5 sm:left-[-18px]">
+            <div className="absolute -bottom-4 left-4 rounded-xl bg-card px-4 py-3 shadow-[0_16px_36px_rgba(15,23,42,0.16)] ring-1 ring-black/5 sm:left-[-18px]">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-100 text-sky-700">
                   <Clock size={18} />
                 </div>
                 <div>
                   <p className="text-sm font-bold">{badgeName}</p>
-                  <p className="text-xs text-gray-500">Ready to unlock</p>
+                  <p className="text-xs text-muted-foreground">Ready to unlock</p>
                 </div>
               </div>
             </div>
@@ -229,7 +229,7 @@ export default async function BadgeInvitePage({ params }: BadgeInvitePageProps) 
         </div>
       </section>
 
-      <section className="border-b border-black/5 bg-white">
+      <section className="border-b border-border bg-card">
         <div className="mx-auto grid max-w-4xl grid-cols-1 gap-5 px-5 py-8 text-center sm:grid-cols-3 sm:px-8">
           <Stat value={primaryStat} label="Credential value" />
           <Stat value={secondaryStat} label="Learning path" />
@@ -237,10 +237,10 @@ export default async function BadgeInvitePage({ params }: BadgeInvitePageProps) 
         </div>
       </section>
 
-      <section className="bg-white px-5 py-16 sm:px-8">
+      <section className="bg-card px-5 py-16 sm:px-8">
         <div className="mx-auto max-w-5xl text-center">
           <h2 className="text-2xl font-black tracking-normal sm:text-3xl">Why this badge matters</h2>
-          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-gray-600">
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
             A badge is more than a completion mark. It is a focused signal of practice, evidence, and momentum.
           </p>
           <div className="mt-10 grid gap-5 md:grid-cols-3">
@@ -251,24 +251,24 @@ export default async function BadgeInvitePage({ params }: BadgeInvitePageProps) 
         </div>
       </section>
 
-      <section className="border-y border-black/5 bg-[#fbfaf9] px-5 py-16 sm:px-8">
+      <section className="border-y border-border bg-[#fbfaf9] px-5 py-16 sm:px-8">
         <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(320px,460px)]">
           <div>
             <h2 className="text-2xl font-black tracking-normal">What you will unlock</h2>
             <div className="mt-6 space-y-4">
               {unlockItems.map((item) => (
                 <div key={item} className="flex items-start gap-3">
-                  <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#42c900] text-black">
+                  <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#42c900] text-foreground">
                     <Check size={13} />
                   </div>
-                  <p className="text-sm leading-6 text-gray-700">{item}</p>
+                  <p className="text-sm leading-6 text-muted-foreground">{item}</p>
                 </div>
               ))}
             </div>
             {tags.length > 0 && (
               <div className="mt-7 flex flex-wrap gap-2">
                 {tags.map((tag) => (
-                  <span key={tag} className="rounded-full bg-white px-3 py-1 text-xs font-bold text-gray-600 ring-1 ring-black/10">
+                  <span key={tag} className="rounded-full bg-card px-3 py-1 text-xs font-bold text-muted-foreground ring-1 ring-black/10">
                     {tag}
                   </span>
                 ))}
@@ -276,16 +276,16 @@ export default async function BadgeInvitePage({ params }: BadgeInvitePageProps) 
             )}
           </div>
 
-          <div className="rounded-2xl bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.12)] ring-1 ring-black/5">
-            <div className="rounded-lg bg-[#42c900] px-4 py-3 text-sm font-bold text-black">
+          <div className="rounded-2xl bg-card p-5 shadow-[0_18px_55px_rgba(15,23,42,0.12)] ring-1 ring-black/5">
+            <div className="rounded-lg bg-[#42c900] px-4 py-3 text-sm font-bold text-foreground">
               Badge path: {badgeName}
             </div>
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-gray-100">
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
               <div className="h-full w-[68%] rounded-full bg-[#1e7610]" />
             </div>
             <div className="mt-5 space-y-3">
               {unlockItems.slice(0, 3).map((item, index) => (
-                <div key={`${item}-${index}`} className="rounded-lg border border-black/5 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                <div key={`${item}-${index}`} className="rounded-lg border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
                   {item}
                 </div>
               ))}
@@ -294,8 +294,8 @@ export default async function BadgeInvitePage({ params }: BadgeInvitePageProps) 
         </div>
       </section>
 
-      <section className="bg-white px-5 py-14 text-center sm:px-8">
-        <p className="mx-auto max-w-2xl text-sm italic leading-6 text-gray-600">
+      <section className="bg-card px-5 py-14 text-center sm:px-8">
+        <p className="mx-auto max-w-2xl text-sm italic leading-6 text-muted-foreground">
           "{testimonial}"
         </p>
       </section>
@@ -308,7 +308,7 @@ export default async function BadgeInvitePage({ params }: BadgeInvitePageProps) 
           </p>
           <Link
             href={signupHref}
-            className="mt-8 inline-flex h-12 min-w-[260px] items-center justify-center rounded-lg bg-white px-7 text-sm font-bold text-[#1f7200] shadow-sm transition-colors hover:bg-gray-50"
+            className="mt-8 inline-flex h-12 min-w-[260px] items-center justify-center rounded-lg bg-card px-7 text-sm font-bold text-[#1f7200] dark:text-green-400 shadow-sm transition-colors hover:bg-muted"
           >
             Get started for free
           </Link>
@@ -322,20 +322,20 @@ export default async function BadgeInvitePage({ params }: BadgeInvitePageProps) 
 function Stat({ value, label }: { value: string; label: string }) {
   return (
     <div>
-      <p className="text-2xl font-black text-[#1f7200]">{value}</p>
-      <p className="mt-1 text-xs font-semibold text-gray-500">{label}</p>
+      <p className="text-2xl font-black text-[#1f7200] dark:text-green-400">{value}</p>
+      <p className="mt-1 text-xs font-semibold text-muted-foreground">{label}</p>
     </div>
   )
 }
 
 function FeatureCard({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
   return (
-    <div className="rounded-lg border border-black/10 bg-white p-5 text-left">
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#eef5ef] text-[#1f7200]">
+    <div className="rounded-lg border border-border bg-card p-5 text-left">
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#eef5ef] dark:bg-green-950/30 text-[#1f7200] dark:text-green-400">
         {icon}
       </div>
       <h3 className="mt-5 text-base font-black">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-gray-600">{text}</p>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">{text}</p>
     </div>
   )
 }

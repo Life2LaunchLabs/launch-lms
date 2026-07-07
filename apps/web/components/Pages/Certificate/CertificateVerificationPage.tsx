@@ -61,7 +61,7 @@ const CertificateVerificationPage: React.FC<CertificateVerificationPageProps> = 
         <div className="flex min-h-[50vh] flex-col items-center justify-center px-4 text-center">
           <div className="space-y-4">
             <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-gray-900" />
-            <p className="text-sm font-medium text-gray-500">Loading certificate...</p>
+            <p className="text-sm font-medium text-muted-foreground">Loading certificate...</p>
           </div>
         </div>
       </GeneralWrapperStyled>
@@ -77,8 +77,8 @@ const CertificateVerificationPage: React.FC<CertificateVerificationPageProps> = 
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-red-600">
               <XCircle className="h-8 w-8" />
             </div>
-            <h1 className="text-2xl font-semibold text-gray-950">Badge not found</h1>
-            <p className="text-sm leading-6 text-gray-500">{error}</p>
+            <h1 className="text-2xl font-semibold text-foreground">Badge not found</h1>
+            <p className="text-sm leading-6 text-muted-foreground">{error}</p>
           </div>
         </div>
       </GeneralWrapperStyled>
@@ -136,7 +136,7 @@ const CertificateVerificationPage: React.FC<CertificateVerificationPageProps> = 
           />
           <Link
             href={badgeDetailsHref}
-            className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-neutral-600 nice-shadow transition-colors hover:text-neutral-800"
+            className="inline-flex items-center gap-2 rounded-lg bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground nice-shadow transition-colors hover:text-foreground"
           >
             <Award size={14} />
             Badge details

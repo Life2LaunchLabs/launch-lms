@@ -314,11 +314,11 @@ function PermissionSection({
     const someSelected = permissions.some(perm => sectionRights[perm]) && !allSelected
 
     return (
-        <div className="border border-gray-200 rounded-lg p-4 mb-4 bg-white shadow-sm">
+        <div className="border border-border rounded-lg p-4 mb-4 bg-card shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 gap-2">
                 <div className="flex items-center space-x-2">
-                    <Icon className="w-4 h-4 text-gray-500" />
-                    <h3 className="font-semibold text-gray-800 text-sm sm:text-base">{title}</h3>
+                    <Icon className="w-4 h-4 text-muted-foreground" />
+                    <h3 className="font-semibold text-foreground text-sm sm:text-base">{title}</h3>
                 </div>
                 <button
                     type="button"
@@ -332,14 +332,14 @@ function PermissionSection({
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {permissions.map((permission) => (
-                    <label key={permission} className="flex items-center space-x-2 cursor-pointer p-2 rounded-md hover:bg-gray-50 transition-colors">
+                    <label key={permission} className="flex items-center space-x-2 cursor-pointer p-2 rounded-md hover:bg-muted transition-colors">
                         <input
                             type="checkbox"
                             checked={rights[section]?.[permission as keyof typeof rights[typeof section]] || false}
                             onChange={(e) => onRightChange(section, permission, e.target.checked)}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                            className="rounded border-border text-blue-600 focus:ring-blue-500 focus:ring-2"
                         />
-                        <span className="text-sm text-gray-700 capitalize">
+                        <span className="text-sm text-muted-foreground capitalize">
                             {t(`dashboard.users.roles.modals.create.permissions.actions.${permission.replace('action_', '').replace(/_/g, '_')}`)}
                         </span>
                     </label>
@@ -507,17 +507,17 @@ function AddRole(props: AddRoleProps) {
                         </FormField>
 
                         <div className="mt-6">
-                            <h3 className="text-lg font-semibold text-gray-800 mb-4">{t('dashboard.users.roles.modals.create.presets.title')}</h3>
+                            <h3 className="text-lg font-semibold text-foreground mb-4">{t('dashboard.users.roles.modals.create.presets.title')}</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                 {Object.keys(predefinedRoles).map((roleKey) => (
                                     <button
                                         key={roleKey}
                                         type="button"
                                         onClick={() => handlePredefinedRole(roleKey)}
-                                        className="p-3 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 text-left bg-white shadow-sm hover:shadow-md"
+                                        className="p-3 border border-border rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 text-left bg-card shadow-sm hover:shadow-md"
                                     >
-                                        <div className="font-medium text-gray-900 text-sm sm:text-base">{t(`dashboard.users.roles.modals.create.presets.${roleKey === 'Course Manager' ? 'maintainer' : roleKey === 'Content Creator' ? 'content_creator' : roleKey === 'User Manager' ? 'user_manager' : roleKey.toLowerCase()}.name`)}</div>
-                                        <div className="text-xs sm:text-sm text-gray-500 mt-1">{t(`dashboard.users.roles.modals.create.presets.${roleKey === 'Course Manager' ? 'maintainer' : roleKey === 'Content Creator' ? 'content_creator' : roleKey === 'User Manager' ? 'user_manager' : roleKey.toLowerCase()}.description`)}</div>
+                                        <div className="font-medium text-foreground text-sm sm:text-base">{t(`dashboard.users.roles.modals.create.presets.${roleKey === 'Course Manager' ? 'maintainer' : roleKey === 'Content Creator' ? 'content_creator' : roleKey === 'User Manager' ? 'user_manager' : roleKey.toLowerCase()}.name`)}</div>
+                                        <div className="text-xs sm:text-sm text-muted-foreground mt-1">{t(`dashboard.users.roles.modals.create.presets.${roleKey === 'Course Manager' ? 'maintainer' : roleKey === 'Content Creator' ? 'content_creator' : roleKey === 'User Manager' ? 'user_manager' : roleKey.toLowerCase()}.description`)}</div>
                                     </button>
                                 ))}
                             </div>
@@ -525,7 +525,7 @@ function AddRole(props: AddRoleProps) {
                     </div>
 
                     <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-4">{t('dashboard.users.roles.modals.create.permissions.title')}</h3>
+                        <h3 className="text-lg font-semibold text-foreground mb-4">{t('dashboard.users.roles.modals.create.permissions.title')}</h3>
                         
                         <PermissionSection
                             title={t('dashboard.users.roles.modals.create.permissions.sections.courses')}
@@ -619,11 +619,11 @@ function AddRole(props: AddRoleProps) {
                     </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 mt-6 pt-6 border-t border-gray-200">
+                <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 mt-6 pt-6 border-t border-border">
                     <button
                         type="button"
                         onClick={() => props.setCreateRoleModal(false)}
-                        className="px-4 py-2 text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors w-full sm:w-auto font-medium"
+                        className="px-4 py-2 text-muted-foreground bg-muted rounded-md hover:bg-muted transition-colors w-full sm:w-auto font-medium"
                     >
                         {t('common.cancel')}
                     </button>

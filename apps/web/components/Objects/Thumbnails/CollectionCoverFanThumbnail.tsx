@@ -21,7 +21,7 @@ export default function CollectionCoverFanThumbnail({
 }: CollectionCoverFanThumbnailProps) {
   return (
     <div
-      className={`flex items-center justify-center h-full w-full bg-gray-100/50 relative p-4 ${className}`.trim()}
+      className={`flex items-center justify-center h-full w-full bg-muted/50 relative p-4 ${className}`.trim()}
     >
       <div className="flex -space-x-10 items-center justify-center w-full">
         {courses.slice(0, 3).map((course, index) => (

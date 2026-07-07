@@ -103,7 +103,7 @@ export default function OrganizationMembershipActions({
       {showOpen && (
         <Link
           href={getUriWithOrg(organization.slug, '/')}
-          className={`${buttonClass} border border-black/10 bg-white text-black/70 hover:bg-black/[0.03]`}
+          className={`${buttonClass} border border-border bg-card text-foreground/70 hover:bg-foreground/[0.03]`}
         >
           <ArrowUpRight className="mr-2 h-4 w-4" />
           Open

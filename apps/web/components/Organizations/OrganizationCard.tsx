@@ -28,9 +28,9 @@ export default function OrganizationCard({
   return (
     <Link
       href={getUriWithOrg(currentOrgslug, `/organization/${organization.slug}`)}
-      className="group block overflow-hidden rounded-2xl border border-black/5 bg-white nice-shadow transition-all hover:-translate-y-0.5 hover:shadow-md"
+      className="group block overflow-hidden rounded-2xl border border-border bg-card nice-shadow transition-all hover:-translate-y-0.5 hover:shadow-md"
     >
-      <div className="relative h-44 overflow-hidden bg-gradient-to-br from-slate-100 via-white to-slate-200">
+      <div className="relative h-44 overflow-hidden bg-gradient-to-br from-muted via-card to-slate-200">
         {imageSrc ? (
           <img
             src={imageSrc}
@@ -39,14 +39,14 @@ export default function OrganizationCard({
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/90 shadow-sm">
-              <Building2 className="h-8 w-8 text-slate-400" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-card/90 shadow-sm">
+              <Building2 className="h-8 w-8 text-muted-foreground" />
             </div>
           </div>
         )}
 
         <div className="absolute left-4 top-4 flex gap-2">
-          <span className="rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600">
+          <span className="rounded-full bg-card/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             {organization.is_member ? 'Member' : 'Organization'}
           </span>
           <span className="rounded-full bg-black/70 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
@@ -58,26 +58,26 @@ export default function OrganizationCard({
       <div className="space-y-3 p-5">
         <div>
           <div className="mb-1 flex items-start justify-between gap-3">
-            <h3 className="line-clamp-1 text-lg font-semibold text-slate-900">
+            <h3 className="line-clamp-1 text-lg font-semibold text-foreground">
               {organization.name}
             </h3>
             {organization.label && (
-              <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-600">
+              <span className="rounded-full bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
                 {organization.label}
               </span>
             )}
           </div>
-          <p className="line-clamp-2 text-sm text-slate-600">
+          <p className="line-clamp-2 text-sm text-muted-foreground">
             {organization.description || organization.about || 'Explore this organization and manage your membership.'}
           </p>
         </div>
 
-        <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-sm text-slate-500">
+        <div className="flex items-center justify-between border-t border-border pt-3 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             <span>{organization.member_count} members</span>
           </div>
-          <span className="font-medium text-slate-700 transition-colors group-hover:text-black">
+          <span className="font-medium text-muted-foreground transition-colors group-hover:text-foreground">
             View details
           </span>
         </div>

@@ -55,7 +55,7 @@ function VideoActivity({ activity, course, orgUuid }: VideoActivityProps) {
         <>
           {activity.activity_sub_type === 'SUBTYPE_VIDEO_HOSTED' && (
             <div className="my-0 sm:my-3 md:my-5 w-full">
-              <div className="relative w-full aspect-video sm:rounded-lg overflow-hidden ring-0 sm:ring-1 sm:ring-gray-200/10 sm:dark:ring-gray-700/20 shadow-none">
+              <div className="relative w-full aspect-video sm:rounded-lg overflow-hidden ring-0 sm:ring-1 sm:ring-border/10 sm:dark:ring-gray-700/20 shadow-none">
                 {(() => {
                   const src = getVideoSrc()
                   return src ? (
@@ -71,7 +71,7 @@ function VideoActivity({ activity, course, orgUuid }: VideoActivityProps) {
           )}
           {activity.activity_sub_type === 'SUBTYPE_VIDEO_YOUTUBE' && (
             <div className="my-0 sm:my-3 md:my-5 w-full">
-              <div className="relative w-full aspect-video sm:rounded-lg overflow-hidden ring-0 sm:ring-1 sm:ring-gray-200/10 sm:dark:ring-gray-700/20 shadow-none">
+              <div className="relative w-full aspect-video sm:rounded-lg overflow-hidden ring-0 sm:ring-1 sm:ring-border/10 sm:dark:ring-gray-700/20 shadow-none">
                 <YouTube
                   className="w-full h-full"
                   opts={{

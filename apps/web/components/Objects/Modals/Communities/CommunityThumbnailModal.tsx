@@ -172,7 +172,7 @@ export function CommunityThumbnailModal({
 
           <div className="space-y-6 py-4">
             {/* Preview */}
-            <div className="aspect-video w-full bg-gray-100 rounded-xl overflow-hidden border border-gray-200">
+            <div className="aspect-video w-full bg-muted rounded-xl overflow-hidden border border-border">
               {thumbnailUrl ? (
                 <SafeImage
                   src={thumbnailUrl}
@@ -180,7 +180,7 @@ export function CommunityThumbnailModal({
                   className={`w-full h-full object-cover ${isLoading ? 'animate-pulse' : ''}`}
                 />
               ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
+                <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground">
                   <ImageIcon size={48} strokeWidth={1} />
                   <p className="text-sm mt-2">No thumbnail set</p>
                 </div>
@@ -209,7 +209,7 @@ export function CommunityThumbnailModal({
                 />
                 <button
                   type="button"
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-muted-foreground bg-card border border-border rounded-lg hover:bg-muted transition-colors"
                   onClick={() => imageInputRef.current?.click()}
                 >
                   <UploadCloud size={16} />
@@ -217,7 +217,7 @@ export function CommunityThumbnailModal({
                 </button>
                 <button
                   type="button"
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-muted-foreground bg-card border border-border rounded-lg hover:bg-muted transition-colors"
                   onClick={() => setShowUnsplashPicker(true)}
                 >
                   <ImageIcon size={16} />
@@ -226,18 +226,18 @@ export function CommunityThumbnailModal({
               </div>
             )}
 
-            <p className="text-xs text-gray-500 text-center">
+            <p className="text-xs text-muted-foreground text-center">
               Supported formats: JPG, JPEG, PNG. Max file size: 8MB
             </p>
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end pt-4 border-t border-gray-100">
+          <div className="flex justify-end pt-4 border-t border-border">
             <button
               type="button"
               onClick={onClose}
               disabled={isLoading}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted rounded-lg transition-colors disabled:opacity-50"
             >
               Close
             </button>

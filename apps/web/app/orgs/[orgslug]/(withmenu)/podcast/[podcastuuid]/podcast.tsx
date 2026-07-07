@@ -61,7 +61,7 @@ export default function PodcastClient({
     return (
       <GeneralWrapperStyled>
         <div className="flex items-center justify-center min-h-[50vh]">
-          <p className="text-gray-500">Failed to load podcast</p>
+          <p className="text-muted-foreground">Failed to load podcast</p>
         </div>
       </GeneralWrapperStyled>
     )
@@ -101,13 +101,13 @@ export default function PodcastClient({
           <div className="flex-1 min-w-0">
             {/* Mobile header */}
             <div className="md:hidden mb-4">
-              <h1 className="text-xl font-bold text-gray-900">{podcast.name}</h1>
+              <h1 className="text-xl font-bold text-foreground">{podcast.name}</h1>
               {podcast.description && (
-                <p className="mt-1 text-sm text-gray-500 line-clamp-2">
+                <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
                   {podcast.description}
                 </p>
               )}
-              <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
+              <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
                 <Headphones size={16} />
                 <span>
                   {episodes.length}{' '}
@@ -117,24 +117,24 @@ export default function PodcastClient({
             </div>
 
             {/* Episodes List */}
-            <div className="bg-white nice-shadow rounded-lg overflow-hidden">
+            <div className="bg-card nice-shadow rounded-lg overflow-hidden">
               {/* Header */}
-              <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+              <div className="px-4 py-3 border-b border-border flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <ListMusic size={18} className="text-gray-500" />
-                  <h2 className="font-semibold text-gray-900">{t('podcasts.episodes')}</h2>
-                  <span className="text-sm text-gray-400">
+                  <ListMusic size={18} className="text-muted-foreground" />
+                  <h2 className="font-semibold text-foreground">{t('podcasts.episodes')}</h2>
+                  <span className="text-sm text-muted-foreground">
                     ({episodes.length})
                   </span>
                 </div>
                 {isLoading && (
-                  <Loader2 size={16} className="animate-spin text-gray-400" />
+                  <Loader2 size={16} className="animate-spin text-muted-foreground" />
                 )}
               </div>
 
               {/* Episode list */}
               {episodes.length > 0 ? (
-                <div className="divide-y divide-gray-100">
+                <div className="divide-y divide-border">
                   {episodes.map((episode) => (
                     <EpisodeCard
                       key={episode.episode_uuid}
@@ -146,7 +146,7 @@ export default function PodcastClient({
               ) : (
                 <div className="text-center py-12">
                   <Headphones size={40} className="mx-auto text-gray-300 mb-3" />
-                  <p className="text-gray-500">{t('podcasts.no_episodes')}</p>
+                  <p className="text-muted-foreground">{t('podcasts.no_episodes')}</p>
                 </div>
               )}
             </div>

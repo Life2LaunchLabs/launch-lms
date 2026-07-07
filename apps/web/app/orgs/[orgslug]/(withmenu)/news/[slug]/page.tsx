@@ -23,22 +23,22 @@ export default async function NewsArticlePage(props: {
     <main className="mx-auto flex w-full max-w-3xl flex-col px-4 py-8 sm:px-6 lg:px-8">
       <Link
         href={getUriWithOrg(orgslug, routePaths.org.news())}
-        className="mb-6 text-sm font-medium text-gray-500 hover:text-gray-900"
+        className="mb-6 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
         Back to News
       </Link>
 
-      <article className="rounded-[6px] border border-gray-200 bg-white p-6">
+      <article className="rounded-[6px] border border-border bg-card p-6">
         {article.published_at && (
-          <time className="text-xs font-medium uppercase tracking-wide text-gray-400">
+          <time className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {new Date(article.published_at).toLocaleDateString()}
           </time>
         )}
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-950">
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
           {article.title}
         </h1>
         {article.summary && (
-          <p className="mt-3 text-base leading-7 text-gray-600">
+          <p className="mt-3 text-base leading-7 text-muted-foreground">
             {article.summary}
           </p>
         )}
@@ -56,7 +56,7 @@ export default async function NewsArticlePage(props: {
         )}
 
         {article.body && (
-          <div className="mt-6 whitespace-pre-wrap text-sm leading-7 text-gray-700">
+          <div className="mt-6 whitespace-pre-wrap text-sm leading-7 text-muted-foreground">
             {article.body}
           </div>
         )}

@@ -178,21 +178,21 @@ function InProgressSection({ orgslug }: InProgressSectionProps) {
 
   return (
     <div className="flex flex-col space-y-2">
-      <h2 className="my-2 text-lg font-bold tracking-tight text-gray-900">
+      <h2 className="my-2 text-lg font-bold tracking-tight text-foreground">
         In Progress
       </h2>
 
       {!trail ? (
         <PageLoading />
       ) : trail.runs.length === 0 ? (
-        <div className="col-span-full flex flex-col justify-center items-center py-12 px-4 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/30">
-          <div className="p-4 bg-white rounded-full nice-shadow mb-4">
+        <div className="col-span-full flex flex-col justify-center items-center py-12 px-4 border-2 border-dashed border-border rounded-2xl bg-muted/30">
+          <div className="p-4 bg-card rounded-full nice-shadow mb-4">
             <BookOpen className="w-8 h-8 text-gray-300" strokeWidth={1.5} />
           </div>
-          <h1 className="text-xl font-bold text-gray-600 mb-2">
+          <h1 className="text-xl font-bold text-muted-foreground mb-2">
             {t('user.no_courses_in_progress')}
           </h1>
-          <p className="text-md text-gray-400 mb-6 text-center max-w-xs">
+          <p className="text-md text-muted-foreground mb-6 text-center max-w-xs">
             {t('user.start_course_to_see_progress')}
           </p>
         </div>
@@ -203,7 +203,7 @@ function InProgressSection({ orgslug }: InProgressSectionProps) {
               type="button"
               onClick={scrollLeft}
               aria-label="Scroll left"
-              className="absolute left-3 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow-lg ring-1 ring-black/8 transition-colors hover:bg-white"
+              className="absolute left-3 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-card/95 text-muted-foreground shadow-lg ring-1 ring-black/8 transition-colors hover:bg-card"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
@@ -214,7 +214,7 @@ function InProgressSection({ orgslug }: InProgressSectionProps) {
               type="button"
               onClick={scrollRight}
               aria-label="Scroll right"
-              className="absolute right-3 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow-lg ring-1 ring-black/8 transition-colors hover:bg-white"
+              className="absolute right-3 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-card/95 text-muted-foreground shadow-lg ring-1 ring-black/8 transition-colors hover:bg-card"
             >
               <ChevronRight className="h-5 w-5" />
             </button>

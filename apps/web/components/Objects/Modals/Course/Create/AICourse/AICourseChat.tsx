@@ -168,7 +168,7 @@ function AICourseChat({
           <div className="space-y-4 pt-8">
             <div className="flex justify-center">
               <Image
-                className="outline outline-1 outline-neutral-200/20 rounded-lg"
+                className="outline outline-1 outline-border/20 rounded-lg"
                 width={28}
                 src={lrnaiIcon}
                 alt="AI"
@@ -182,7 +182,7 @@ function AICourseChat({
                 <button
                   key={chip.label}
                   onClick={() => handleSuggestionClick(chip.prompt)}
-                  className="px-4 py-1.5 text-xs font-semibold bg-white/5 text-white/40 rounded-xl hover:text-white/60 hover:bg-white/10 transition-all outline outline-1 outline-neutral-100/10 hover:outline-neutral-200/40 delay-75 ease-linear"
+                  className="px-4 py-1.5 text-xs font-semibold bg-white/5 text-white/40 rounded-xl hover:text-white/60 hover:bg-white/10 transition-all outline outline-1 outline-border/10 hover:outline-border/40 delay-75 ease-linear"
                 >
                   {chip.label}
                 </button>

@@ -279,7 +279,7 @@ function BubbleInner({ orgslug, open, onOpenChange, sessionToLoad }: CopilotBubb
       {/* Floating panel */}
       {panelMounted && (
         <div
-          className="fixed bottom-[72px] right-4 z-[9998] flex flex-col bg-white dark:bg-neutral-900 rounded-2xl overflow-hidden nice-shadow"
+          className="fixed bottom-[72px] right-4 z-[9998] flex flex-col bg-card dark:bg-neutral-900 rounded-2xl overflow-hidden nice-shadow"
           style={{
             width: 'min(340px, calc(100vw - 24px))',
             height: 'min(480px, calc(100vh - 110px))',
@@ -291,17 +291,17 @@ function BubbleInner({ orgslug, open, onOpenChange, sessionToLoad }: CopilotBubb
           }}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-3 h-11 border-b border-neutral-100 dark:border-neutral-800/60 flex-shrink-0">
+          <div className="flex items-center justify-between px-3 h-11 border-b border-border dark:border-neutral-800/60 flex-shrink-0">
             <div className="flex items-center gap-1.5">
               <button
                 aria-label="Toggle conversations list"
                 onClick={() => setShowSessions(!showSessions)}
-                className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-muted-foreground dark:hover:text-neutral-300 hover:bg-muted dark:hover:bg-neutral-800 transition-all"
                 title="Conversations"
               >
                 <List size={14} />
               </button>
-              <span className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">
+              <span className="text-xs font-semibold text-muted-foreground dark:text-neutral-300">
                 Course Copilot
               </span>
             </div>
@@ -309,7 +309,7 @@ function BubbleInner({ orgslug, open, onOpenChange, sessionToLoad }: CopilotBubb
               <button
                 aria-label="New chat"
                 onClick={handleNewChat}
-                className="p-1.5 rounded-lg text-neutral-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-500/10 transition-all"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-500/10 transition-all"
                 title="New chat"
               >
                 <Plus size={14} />
@@ -317,7 +317,7 @@ function BubbleInner({ orgslug, open, onOpenChange, sessionToLoad }: CopilotBubb
               <button
                 aria-label="Close copilot"
                 onClick={() => onOpenChange(false)}
-                className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-muted-foreground dark:hover:text-neutral-300 hover:bg-muted dark:hover:bg-neutral-800 transition-all"
               >
                 <X size={14} />
               </button>
@@ -336,13 +336,13 @@ function BubbleInner({ orgslug, open, onOpenChange, sessionToLoad }: CopilotBubb
               </button>
               {sessions.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-32 text-center px-4">
-                  <ChatCircleDots size={20} className="text-neutral-300 dark:text-neutral-600 mb-2" />
-                  <p className="text-xs text-neutral-400 dark:text-neutral-500">No conversations yet</p>
+                  <ChatCircleDots size={20} className="text-neutral-300 dark:text-muted-foreground mb-2" />
+                  <p className="text-xs text-muted-foreground dark:text-muted-foreground">No conversations yet</p>
                 </div>
               ) : (
                 groupSessionsByDate(sessions).map((group) => (
                   <div key={group.label} className="mb-3">
-                    <p className="text-[10px] font-semibold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider px-2 py-1">
+                    <p className="text-[10px] font-semibold text-muted-foreground dark:text-muted-foreground uppercase tracking-wider px-2 py-1">
                       {group.label}
                     </p>
                     {group.sessions.map((s) => (
@@ -365,7 +365,7 @@ function BubbleInner({ orgslug, open, onOpenChange, sessionToLoad }: CopilotBubb
                 {isLoadingSession && (
                   <div className="flex flex-col items-center justify-center h-full">
                     <SpinnerGap size={18} className="animate-spin text-violet-400 mb-2" />
-                    <span className="text-xs text-neutral-400">Loading...</span>
+                    <span className="text-xs text-muted-foreground">Loading...</span>
                   </div>
                 )}
 
@@ -384,8 +384,8 @@ function BubbleInner({ orgslug, open, onOpenChange, sessionToLoad }: CopilotBubb
                       </svg>
                     </div>
                     <div>
-                      <p className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">Course Copilot</p>
-                      <p className="text-[11px] text-neutral-400 dark:text-neutral-500 mt-1 leading-relaxed max-w-[230px]">
+                      <p className="text-xs font-semibold text-muted-foreground dark:text-neutral-300">Course Copilot</p>
+                      <p className="text-[11px] text-muted-foreground dark:text-muted-foreground mt-1 leading-relaxed max-w-[230px]">
                         Ask questions about your courses.
                       </p>
                     </div>
@@ -421,9 +421,9 @@ function BubbleInner({ orgslug, open, onOpenChange, sessionToLoad }: CopilotBubb
                       <button
                         key={i}
                         onClick={() => sendMessage(s)}
-                        className="group flex items-center gap-1.5 w-fit max-w-full text-left px-2.5 py-1.5 text-[11px] rounded-xl text-neutral-600 dark:text-neutral-300 bg-neutral-50 dark:bg-neutral-800/50 hover:bg-violet-50 dark:hover:bg-violet-500/10 hover:text-violet-700 transition-all"
+                        className="group flex items-center gap-1.5 w-fit max-w-full text-left px-2.5 py-1.5 text-[11px] rounded-xl text-muted-foreground dark:text-neutral-300 bg-muted dark:bg-neutral-800/50 hover:bg-violet-50 dark:hover:bg-violet-500/10 hover:text-violet-700 transition-all"
                       >
-                        <ArrowRight size={10} weight="bold" className="flex-shrink-0 text-neutral-400 group-hover:text-violet-500" />
+                        <ArrowRight size={10} weight="bold" className="flex-shrink-0 text-muted-foreground group-hover:text-violet-500" />
                         <span className="truncate">{s}</span>
                       </button>
                     ))}
@@ -438,14 +438,14 @@ function BubbleInner({ orgslug, open, onOpenChange, sessionToLoad }: CopilotBubb
               </div>
 
               {/* Input bar */}
-              <div className="flex items-center gap-1 px-2.5 py-2 border-t border-neutral-100 dark:border-neutral-800/60 flex-shrink-0">
+              <div className="flex items-center gap-1 px-2.5 py-2 border-t border-border dark:border-neutral-800/60 flex-shrink-0">
                 <button
                   aria-label="Select chat mode"
                   onClick={() => setChatMode(chatMode === 'course_only' ? 'general' : 'course_only')}
                   className={`flex items-center gap-1 px-1.5 py-1.5 text-xs rounded-lg transition-all flex-shrink-0 ${
                     chatMode === 'general'
                       ? 'bg-violet-50 dark:bg-violet-500/10 text-violet-600'
-                      : 'text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800'
+                      : 'text-muted-foreground hover:bg-muted dark:hover:bg-neutral-800'
                   }`}
                   title={chatMode === 'general' ? 'General mode' : 'Course only'}
                 >
@@ -457,10 +457,10 @@ function BubbleInner({ orgslug, open, onOpenChange, sessionToLoad }: CopilotBubb
                     <button
                       aria-label="Select course"
                       onClick={() => setCourseDropdownOpen(!courseDropdownOpen)}
-                      className="flex items-center gap-0.5 px-1.5 py-1.5 text-xs rounded-lg text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-all"
+                      className="flex items-center gap-0.5 px-1.5 py-1.5 text-xs rounded-lg text-muted-foreground hover:bg-muted dark:hover:bg-neutral-800 transition-all"
                     >
                       {selectedCourse ? <Books size={13} weight="duotone" className="text-violet-500" /> : <Sparkle size={13} weight="duotone" className="text-violet-500" />}
-                      <CaretDown aria-hidden="true" size={8} className={`text-neutral-400 transition-transform ${courseDropdownOpen ? 'rotate-180' : ''}`} />
+                      <CaretDown aria-hidden="true" size={8} className={`text-muted-foreground transition-transform ${courseDropdownOpen ? 'rotate-180' : ''}`} />
                     </button>
                     {courseDropdownOpen && (
                       <CourseDropdown
@@ -483,13 +483,13 @@ function BubbleInner({ orgslug, open, onOpenChange, sessionToLoad }: CopilotBubb
                   aria-label="Ask about your courses"
                   placeholder={isLoadingSession ? 'Loading...' : isWaiting ? 'Thinking...' : 'Ask about your courses...'}
                   disabled={isInputDisabled}
-                  className="flex-1 min-w-0 bg-transparent outline-none text-xs text-neutral-900 dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-500 disabled:opacity-40"
+                  className="flex-1 min-w-0 bg-transparent outline-none text-xs text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-muted-foreground disabled:opacity-40"
                 />
                 <button
                   aria-label="Send message"
                   onClick={() => sendMessage(input)}
                   disabled={isInputDisabled || !input.trim()}
-                  className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-lg bg-violet-600 hover:bg-violet-700 disabled:bg-neutral-200 dark:disabled:bg-neutral-700 disabled:cursor-not-allowed text-white transition-colors"
+                  className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-lg bg-violet-600 hover:bg-violet-700 disabled:bg-muted dark:disabled:bg-neutral-700 disabled:cursor-not-allowed text-white transition-colors"
                 >
                   <PaperPlaneRight size={12} weight="fill" />
                 </button>

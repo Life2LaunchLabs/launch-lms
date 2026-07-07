@@ -52,25 +52,25 @@ function Chapter(props: any) {
           {...provided.dragHandleProps}
           {...provided.draggableProps}
           ref={provided.innerRef}
-          className="max-w-(--breakpoint-2xl) mx-auto bg-white px-5 mb-5 p-3 text-[15px] block rounded-[9px] border border-white/20 shadow-md transition-all duration-200"
+          className="max-w-(--breakpoint-2xl) mx-auto bg-card px-5 mb-5 p-3 text-[15px] block rounded-[9px] border border-white/20 shadow-md transition-all duration-200"
           key={props.info.list.chapter.id}
         >
           <div className="flex pt-3 pr-3 font-bold text-md items-center space-x-2">
             <div className="flex grow text-lg space-x-3 items-center rounded-md px-3 py-1">
-              <div className="bg-neutral-100 rounded-md p-2">
+              <div className="bg-muted rounded-md p-2">
                 <Hexagon
                   strokeWidth={3}
                   size={16}
-                  className="text-neutral-600 "
+                  className="text-muted-foreground "
                 />
               </div>
 
               <div className="flex space-x-2 items-center">
                 {selectedChapter === props.info.list.chapter.id ? (
-                  <div className="chapter-modification-zone bg-neutral-100 py-1 px-4 rounded-lg space-x-3">
+                  <div className="chapter-modification-zone bg-muted py-1 px-4 rounded-lg space-x-3">
                     <input
                       type="text"
-                      className="bg-transparent outline-hidden text-sm text-neutral-700"
+                      className="bg-transparent outline-hidden text-sm text-muted-foreground"
                       placeholder="Chapter name"
                       value={
                         modifiedChapter
@@ -88,7 +88,7 @@ function Chapter(props: any) {
                       onClick={() =>
                         updateChapterName(props.info.list.chapter.id)
                       }
-                      className="bg-transparent text-neutral-700 hover:cursor-pointer hover:text-neutral-900"
+                      className="bg-transparent text-muted-foreground hover:cursor-pointer hover:text-foreground"
                     >
                       <Save
                         size={15}
@@ -99,13 +99,13 @@ function Chapter(props: any) {
                     </button>
                   </div>
                 ) : (
-                  <p className="text-neutral-700 first-letter:uppercase">
+                  <p className="text-muted-foreground first-letter:uppercase">
                     {props.info.list.chapter.name}
                   </p>
                 )}
                 <Pencil
                   size={15}
-                  className="text-neutral-600 hover:cursor-pointer"
+                  className="text-muted-foreground hover:cursor-pointer"
                   onClick={() => setSelectedChapter(props.info.list.chapter.id)}
                 />
               </div>

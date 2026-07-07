@@ -18,15 +18,15 @@ function ImportTypeSelector({ onSelectType, currentPlan }: ImportTypeSelectorPro
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <button
           onClick={() => onSelectType('tutor')}
-          className="group flex flex-col items-center p-6 rounded-xl border-2 border-gray-200 bg-white hover:border-black hover:shadow-lg transition-all duration-200"
+          className="group flex flex-col items-center p-6 rounded-xl border-2 border-border bg-card hover:border-black hover:shadow-lg transition-all duration-200"
         >
           <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mb-4 group-hover:bg-emerald-100 transition-colors">
             <FileJson size={28} className="text-emerald-600" />
           </div>
-          <h3 className="font-semibold text-gray-900 mb-1">
+          <h3 className="font-semibold text-foreground mb-1">
             Tutor LMS JSON
           </h3>
-          <p className="text-sm text-gray-500 text-center">
+          <p className="text-sm text-muted-foreground text-center">
             Import Tutor LMS course export files directly into Launch LMS
           </p>
         </button>
@@ -34,15 +34,15 @@ function ImportTypeSelector({ onSelectType, currentPlan }: ImportTypeSelectorPro
         {/* Launch LMS Import Option */}
         <button
           onClick={() => onSelectType('launch-lms')}
-          className="group flex flex-col items-center p-6 rounded-xl border-2 border-gray-200 bg-white hover:border-black hover:shadow-lg transition-all duration-200"
+          className="group flex flex-col items-center p-6 rounded-xl border-2 border-border bg-card hover:border-black hover:shadow-lg transition-all duration-200"
         >
           <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center mb-4 group-hover:bg-blue-100 transition-colors">
             <FileArchive size={28} className="text-blue-600" />
           </div>
-          <h3 className="font-semibold text-gray-900 mb-1">
+          <h3 className="font-semibold text-foreground mb-1">
             {t('courses.import.launch-lms_courses')}
           </h3>
-          <p className="text-sm text-gray-500 text-center">
+          <p className="text-sm text-muted-foreground text-center">
             {t('courses.import.launch-lms_description')}
           </p>
         </button>

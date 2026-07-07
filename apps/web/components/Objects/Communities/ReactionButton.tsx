@@ -86,7 +86,7 @@ export function ReactionButton({ discussionUuid, compact = false }: ReactionButt
                 className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-all ${
                   reaction.has_reacted
                     ? 'bg-indigo-100 border border-indigo-300 text-indigo-700'
-                    : 'bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200'
+                    : 'bg-muted border border-border text-muted-foreground hover:bg-muted'
                 } ${!isAuthenticated ? 'cursor-default' : 'cursor-pointer'}`}
               >
                 <span className="text-sm">{reaction.emoji}</span>
@@ -105,7 +105,7 @@ export function ReactionButton({ discussionUuid, compact = false }: ReactionButt
         <Popover open={isPickerOpen} onOpenChange={setIsPickerOpen}>
           <PopoverTrigger asChild>
             <button
-              className={`inline-flex items-center justify-center rounded-full border border-dashed border-gray-300 text-gray-400 hover:border-gray-400 hover:text-gray-500 hover:bg-gray-50 transition-colors ${
+              className={`inline-flex items-center justify-center rounded-full border border-dashed border-border text-muted-foreground hover:border-gray-400 hover:text-muted-foreground hover:bg-muted transition-colors ${
                 compact ? 'w-7 h-7' : 'w-8 h-8'
               }`}
               title="Add reaction"
@@ -129,7 +129,7 @@ export function ReactionButton({ discussionUuid, compact = false }: ReactionButt
                     className={`w-9 h-9 flex items-center justify-center text-xl rounded-lg transition-colors ${
                       existing?.has_reacted
                         ? 'bg-indigo-100'
-                        : 'hover:bg-gray-100'
+                        : 'hover:bg-muted'
                     }`}
                   >
                     {emoji}

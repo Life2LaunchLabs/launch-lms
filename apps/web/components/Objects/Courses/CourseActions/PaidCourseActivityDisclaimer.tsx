@@ -42,7 +42,7 @@ function PaidCourseActivityDisclaimer({ course }: PaidCourseActivityProps) {
       {!isLoading && offers.length > 0 && (
         <>
           {offers.length > 1 && (
-            <p className="text-xs text-gray-400 font-medium px-1">
+            <p className="text-xs text-muted-foreground font-medium px-1">
               {offers.length} options available
             </p>
           )}

@@ -102,13 +102,13 @@ export default function DashboardOnboardingBanner({
 
             <div className="mt-3 flex items-center gap-3">
               <div className="flex gap-1.5">
-                <span className="h-1.5 w-5 rounded-full bg-white" />
+                <span className="h-1.5 w-5 rounded-full bg-card" />
                 <span className="h-1.5 w-1.5 rounded-full bg-white/40" />
               </div>
               <Button
                 type="button"
                 onClick={() => setSlide(1)}
-                className="h-8 rounded-[6px] bg-white px-3 text-xs font-semibold text-blue-900 hover:bg-white/90"
+                className="h-8 rounded-[6px] bg-card px-3 text-xs font-semibold text-blue-900 hover:bg-card/90"
               >
                 Get Started
               </Button>

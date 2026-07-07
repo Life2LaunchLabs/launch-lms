@@ -163,14 +163,14 @@ export function DiscussionCard({
   return (
     <div
       onClick={isSelectMode ? handleClick : undefined}
-      className={`flex items-center gap-4 py-3 px-4 transition-colors border-b border-gray-100 last:border-b-0 ${
+      className={`flex items-center gap-4 py-3 px-4 transition-colors border-b border-border last:border-b-0 ${
         isSelectMode ? 'cursor-pointer' : ''
       } ${
         isSelected
           ? 'bg-indigo-50/50'
           : discussion.is_pinned
           ? 'bg-amber-50/30'
-          : 'hover:bg-gray-50/50'
+          : 'hover:bg-muted/50'
       }`}
     >
       {/* Checkbox for Select Mode */}
@@ -180,7 +180,7 @@ export function DiscussionCard({
             className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
               isSelected
                 ? 'bg-indigo-600 border-indigo-600'
-                : 'border-gray-300 bg-white'
+                : 'border-border bg-card'
             }`}
           >
             {isSelected && <Check size={12} className="text-white" />}
@@ -226,11 +226,11 @@ export function DiscussionCard({
               )}
               {/* Locked indicator */}
               {discussion.is_locked && (
-                <Lock size={12} className="text-gray-400 flex-shrink-0" />
+                <Lock size={12} className="text-muted-foreground flex-shrink-0" />
               )}
 
               {isSelectMode ? (
-                <h3 className="text-sm font-medium text-gray-900 line-clamp-1">
+                <h3 className="text-sm font-medium text-foreground line-clamp-1">
                   {discussion.title}
                 </h3>
               ) : (
@@ -239,14 +239,14 @@ export function DiscussionCard({
                   onClick={onClick}
                   className="block group flex-1 min-w-0"
                 >
-                  <h3 className="text-sm font-medium text-gray-900 group-hover:text-indigo-600 transition-colors line-clamp-1">
+                  <h3 className="text-sm font-medium text-foreground group-hover:text-indigo-600 transition-colors line-clamp-1">
                     {discussion.title}
                   </h3>
                 </Link>
               )}
             </div>
 
-            <div className="mt-1 flex items-center flex-wrap gap-x-2 gap-y-1 text-xs text-gray-500">
+            <div className="mt-1 flex items-center flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground">
               {/* Label badge */}
               <span
                 className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
@@ -260,7 +260,7 @@ export function DiscussionCard({
               {isSelectMode ? (
                 <span>{authorName}</span>
               ) : (
-                <Link href={discussionLink} className="hover:text-gray-700 hover:underline">
+                <Link href={discussionLink} className="hover:text-muted-foreground hover:underline">
                   {authorName}
                 </Link>
               )}
@@ -290,7 +290,7 @@ export function DiscussionCard({
           </div>
 
           {/* Comment Count */}
-          <div className="flex items-center gap-1 text-gray-400 min-w-[40px] justify-end">
+          <div className="flex items-center gap-1 text-muted-foreground min-w-[40px] justify-end">
             <MessageSquare size={14} />
             <span className="text-xs">{commentCount}</span>
           </div>
@@ -300,10 +300,10 @@ export function DiscussionCard({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="p-1 hover:bg-gray-100 rounded transition-colors"
+                  className="p-1 hover:bg-muted rounded transition-colors"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <MoreVertical size={16} className="text-gray-400" />
+                  <MoreVertical size={16} className="text-muted-foreground" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-44">
@@ -341,7 +341,7 @@ export function DiscussionCard({
 
       {/* Show upvote count in select mode */}
       {isSelectMode && (
-        <div className="flex items-center gap-1 text-gray-400 flex-shrink-0">
+        <div className="flex items-center gap-1 text-muted-foreground flex-shrink-0">
           <span className="text-xs">{discussion.upvote_count} {t('communities.discussion_card.votes')}</span>
         </div>
       )}

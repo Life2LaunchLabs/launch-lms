@@ -101,18 +101,18 @@ function UserProfileClient({ userData, profile }: UserProfileClientProps) {
   const IconComponent = ({ iconName }: { iconName: string }) => {
     const IconElement = ICON_MAP[iconName as keyof typeof ICON_MAP]
     if (!IconElement) return null
-    return <IconElement className="w-4 h-4 text-gray-600" />
+    return <IconElement className="w-4 h-4 text-muted-foreground" />
   }
 
   return (
     <div className="container mx-auto py-8">
       {/* Banner */}
-      <div className="h-48 w-full bg-gray-100 rounded-t-xl mb-0 relative overflow-hidden">
+      <div className="h-48 w-full bg-muted rounded-t-xl mb-0 relative overflow-hidden">
         {/* Optional banner content */}
       </div>
       
       {/* Portfolio Content */}
-      <div className="bg-white rounded-b-xl nice-shadow p-8 relative">
+      <div className="bg-card rounded-b-xl nice-shadow p-8 relative">
         {/* Avatar Positioned on the banner */}
         <div className="absolute -top-24 left-8">
           <div className="rounded-xl overflow-hidden shadow-lg border-4 border-white">
@@ -132,7 +132,7 @@ function UserProfileClient({ userData, profile }: UserProfileClientProps) {
           {profile.sections?.map((section: any) => (
             section.type === 'affiliation' && section.affiliations?.map((affiliation: any, index: number) => (
               affiliation.logoUrl && (
-                <div key={index} className="bg-white rounded-lg p-2 shadow-lg border-2 border-white">
+                <div key={index} className="bg-card rounded-lg p-2 shadow-lg border-2 border-white">
                   <img 
                     src={affiliation.logoUrl} 
                     alt={affiliation.name}
@@ -162,7 +162,7 @@ function UserProfileClient({ userData, profile }: UserProfileClientProps) {
                     <div className="flex-shrink-0">
                       <IconComponent iconName={detail.icon} />
                     </div>
-                    <span className="text-gray-700 text-[15px] font-medium">{detail.text}</span>
+                    <span className="text-muted-foreground text-[15px] font-medium">{detail.text}</span>
                   </div>
                 ))}
               </div>
@@ -173,9 +173,9 @@ function UserProfileClient({ userData, profile }: UserProfileClientProps) {
               <div className="mb-8">
                 <h2 className="text-xl font-semibold mb-4">{t('common.about')}</h2>
                 {userData.bio ? (
-                  <p className="text-gray-700">{userData.bio}</p>
+                  <p className="text-muted-foreground">{userData.bio}</p>
                 ) : (
-                  <p className="text-gray-500 italic">{t('user.no_biography')}</p>
+                  <p className="text-muted-foreground italic">{t('user.no_biography')}</p>
                 )}
               </div>
               
@@ -236,7 +236,7 @@ function UserProfileClient({ userData, profile }: UserProfileClientProps) {
                           {section.skills.map((skill: any, skillIndex: number) => (
                             <span
                               key={skillIndex}
-                              className="px-3 py-1 bg-gray-100 rounded-full text-sm"
+                              className="px-3 py-1 bg-muted rounded-full text-sm"
                             >
                               {skill.name}
                               {skill.level && ` • ${skill.level}`}
@@ -248,14 +248,14 @@ function UserProfileClient({ userData, profile }: UserProfileClientProps) {
                       {section.type === 'experience' && (
                         <div className="space-y-4">
                           {section.experiences.map((exp: any, expIndex: number) => (
-                            <div key={expIndex} className="border-l-2 border-gray-200 pl-4">
+                            <div key={expIndex} className="border-l-2 border-border pl-4">
                               <h3 className="font-medium">{exp.title}</h3>
-                              <p className="text-gray-600">{exp.organization}</p>
-                              <p className="text-sm text-gray-500">
+                              <p className="text-muted-foreground">{exp.organization}</p>
+                              <p className="text-sm text-muted-foreground">
                                 {exp.startDate} - {exp.current ? t('common.present') : exp.endDate}
                               </p>
                               {exp.description && (
-                                <p className="mt-2 text-gray-700">{exp.description}</p>
+                                <p className="mt-2 text-muted-foreground">{exp.description}</p>
                               )}
                             </div>
                           ))}
@@ -265,14 +265,14 @@ function UserProfileClient({ userData, profile }: UserProfileClientProps) {
                       {section.type === 'education' && (
                         <div className="space-y-4">
                           {section.education.map((edu: any, eduIndex: number) => (
-                            <div key={eduIndex} className="border-l-2 border-gray-200 pl-4">
+                            <div key={eduIndex} className="border-l-2 border-border pl-4">
                               <h3 className="font-medium">{edu.institution}</h3>
-                              <p className="text-gray-600">{edu.degree} in {edu.field}</p>
-                              <p className="text-sm text-gray-500">
+                              <p className="text-muted-foreground">{edu.degree} in {edu.field}</p>
+                              <p className="text-sm text-muted-foreground">
                                 {edu.startDate} - {edu.current ? t('common.present') : edu.endDate}
                               </p>
                               {edu.description && (
-                                <p className="mt-2 text-gray-700">{edu.description}</p>
+                                <p className="mt-2 text-muted-foreground">{edu.description}</p>
                               )}
                             </div>
                           ))}
@@ -282,7 +282,7 @@ function UserProfileClient({ userData, profile }: UserProfileClientProps) {
                       {section.type === 'affiliation' && (
                         <div className="space-y-4">
                           {section.affiliations.map((affiliation: any, affIndex: number) => (
-                            <div key={affIndex} className="border-l-2 border-gray-200 pl-4">
+                            <div key={affIndex} className="border-l-2 border-border pl-4">
                               <div className="flex items-start gap-4">
                                 {affiliation.logoUrl && (
                                   <img 
@@ -294,7 +294,7 @@ function UserProfileClient({ userData, profile }: UserProfileClientProps) {
                                 <div>
                                   <h3 className="font-medium">{affiliation.name}</h3>
                                   {affiliation.description && (
-                                    <p className="mt-2 text-gray-700">{affiliation.description}</p>
+                                    <p className="mt-2 text-muted-foreground">{affiliation.description}</p>
                                   )}
                                 </div>
                               </div>
@@ -321,7 +321,7 @@ function UserProfileClient({ userData, profile }: UserProfileClientProps) {
                               ))}
                             </div>
                           ) : (
-                            <div className="text-center py-8 text-gray-500">
+                            <div className="text-center py-8 text-muted-foreground">
                               {t('courses.no_courses_found')}
                             </div>
                           )}

@@ -58,16 +58,16 @@ const CommunityClient = ({
           <div className="flex-1 min-w-0">
             {/* Mobile only shows community name */}
             <div className="md:hidden mb-4">
-              <h1 className="text-xl font-bold text-gray-900">{community.name}</h1>
+              <h1 className="text-xl font-bold text-foreground">{community.name}</h1>
               {community.description && (
-                <p className="mt-1 text-sm text-gray-500 line-clamp-2">
+                <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
                   {community.description}
                 </p>
               )}
             </div>
 
             {/* Discussions List */}
-            <div className="bg-white nice-shadow rounded-lg overflow-hidden">
+            <div className="bg-card nice-shadow rounded-lg overflow-hidden">
               <DiscussionList
                 communityUuid={community.community_uuid}
                 orgslug={orgslug}

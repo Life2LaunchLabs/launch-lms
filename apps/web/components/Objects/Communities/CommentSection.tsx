@@ -102,11 +102,11 @@ export function CommentSection({ discussionUuid, isLocked = false }: CommentSect
       {/* Replies List */}
       {isLoading ? (
         <div className="flex items-center justify-center py-8">
-          <Loader2 size={18} className="animate-spin text-gray-400" />
+          <Loader2 size={18} className="animate-spin text-muted-foreground" />
         </div>
       ) : comments.length === 0 ? (
         <div className="py-8 text-center">
-          <p className="text-gray-400 text-sm">{t('communities.comments.no_replies')}</p>
+          <p className="text-muted-foreground text-sm">{t('communities.comments.no_replies')}</p>
         </div>
       ) : (
         <>
@@ -122,7 +122,7 @@ export function CommentSection({ discussionUuid, isLocked = false }: CommentSect
       )}
 
       {/* Reply Input */}
-      <div className="p-4 border-t border-gray-100">
+      <div className="p-4 border-t border-border">
         {isLocked ? (
           <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-md">
             <Lock size={14} className="text-amber-600" />
@@ -142,8 +142,8 @@ export function CommentSection({ discussionUuid, isLocked = false }: CommentSect
                 error
                   ? 'border-red-300'
                   : isFocused
-                    ? 'border-gray-300'
-                    : 'border-gray-200'
+                    ? 'border-border'
+                    : 'border-border'
               }`}>
                 <textarea
                   ref={textareaRef}
@@ -158,11 +158,11 @@ export function CommentSection({ discussionUuid, isLocked = false }: CommentSect
                   aria-label={t('communities.comments.write_reply')}
                   placeholder={t('communities.comments.write_reply')}
                   rows={isFocused || newComment ? 2 : 1}
-                  className="w-full px-3 py-2 text-sm bg-transparent outline-none resize-none placeholder:text-gray-400"
+                  className="w-full px-3 py-2 text-sm bg-transparent outline-none resize-none placeholder:text-muted-foreground"
                 />
 
                 {(isFocused || newComment) && (
-                  <div className="flex items-center justify-end px-2 py-2 border-t border-gray-100">
+                  <div className="flex items-center justify-end px-2 py-2 border-t border-border">
                     <button
                       type="submit"
                       disabled={!newComment.trim() || isSubmitting}
@@ -187,10 +187,10 @@ export function CommentSection({ discussionUuid, isLocked = false }: CommentSect
             </p>
           </div>
         ) : (
-          <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-md">
-            <User size={14} className="text-gray-400" />
-            <p className="text-sm text-gray-500">
-              <span className="font-medium text-gray-700">{t('communities.comments.sign_in_to_reply')}</span> {t('communities.comments.to_reply')}
+          <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-md">
+            <User size={14} className="text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-muted-foreground">{t('communities.comments.sign_in_to_reply')}</span> {t('communities.comments.to_reply')}
             </p>
           </div>
         )}

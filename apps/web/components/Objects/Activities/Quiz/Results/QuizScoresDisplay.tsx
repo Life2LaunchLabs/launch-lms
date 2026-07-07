@@ -42,7 +42,7 @@ export default function QuizScoresDisplay({
   className = '',
 }: QuizScoresDisplayProps) {
   if (vectors.length === 0) {
-    return <p className="m-0 text-xs text-neutral-400">{emptyMessage}</p>
+    return <p className="m-0 text-xs text-muted-foreground">{emptyMessage}</p>
   }
 
   const items = vectors.map((vector: any, index: number) => {
@@ -73,7 +73,7 @@ export default function QuizScoresDisplay({
     >
       {sortedItems.map((item) => (
         <React.Fragment key={item.vector.key}>
-          <span className="max-w-[180px] truncate text-right text-sm font-medium leading-5 text-neutral-700">
+          <span className="max-w-[180px] truncate text-right text-sm font-medium leading-5 text-muted-foreground">
             {item.label}
           </span>
           <div

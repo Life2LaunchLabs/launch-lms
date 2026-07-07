@@ -73,13 +73,13 @@ function PublicCourseCard({ course, orgslug, run = null, orgName }: PublicCourse
   }
 
   return (
-    <div className="group relative flex flex-col bg-white rounded-xl nice-shadow overflow-hidden w-full transition-all duration-300 hover:scale-[1.01]">
+    <div className="group relative flex flex-col bg-card rounded-xl nice-shadow overflow-hidden w-full transition-all duration-300 hover:scale-[1.01]">
       {isEnrolled && (
         <div className="absolute top-2 right-2 z-20">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button aria-label="Course actions" className="p-1.5 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all shadow-md">
-                <MoreVertical size={18} className="text-gray-700" />
+              <button aria-label="Course actions" className="p-1.5 bg-card/90 backdrop-blur-sm rounded-full hover:bg-card transition-all shadow-md">
+                <MoreVertical size={18} className="text-muted-foreground" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
@@ -110,12 +110,12 @@ function PublicCourseCard({ course, orgslug, run = null, orgName }: PublicCourse
             hoverScale
           />
         ) : (
-          <div className="flex flex-col items-center justify-center h-full w-full text-gray-400 gap-2">
+          <div className="flex flex-col items-center justify-center h-full w-full text-muted-foreground gap-2">
             <BookOpen size={40} strokeWidth={1.5} />
           </div>
         )}
         {isEnrolled && (
-          <div className="absolute bottom-0 left-0 right-0 z-20 h-1.5 bg-gray-200/80">
+          <div className="absolute bottom-0 left-0 right-0 z-20 h-1.5 bg-muted/80">
             <div
               className={`h-full ${courseProgress === 100 ? 'bg-green-500' : 'bg-teal-500'}`}
               style={{ width: `${courseProgress}%` }}
@@ -127,18 +127,18 @@ function PublicCourseCard({ course, orgslug, run = null, orgName }: PublicCourse
       <div className="p-3 flex flex-col space-y-1.5">
         <Link
           href={courseLink}
-          className="text-base font-bold text-gray-900 leading-tight hover:text-black transition-colors line-clamp-1"
+          className="text-base font-bold text-foreground leading-tight hover:text-foreground transition-colors line-clamp-1"
         >
           {course.name}
         </Link>
 
         {course.description && (
-          <p className="text-[11px] text-gray-500 line-clamp-2 min-h-[1.5rem]">
+          <p className="text-[11px] text-muted-foreground line-clamp-2 min-h-[1.5rem]">
             {course.description}
           </p>
         )}
 
-        <div className="pt-1.5 flex items-center justify-between border-t border-gray-100 gap-3">
+        <div className="pt-1.5 flex items-center justify-between border-t border-border gap-3">
           <div className="flex items-center gap-2 min-w-0">
             {displayedAuthors.length > 0 ? (
               <div className="flex -space-x-2 items-center shrink-0">
@@ -161,18 +161,18 @@ function PublicCourseCard({ course, orgslug, run = null, orgName }: PublicCourse
                 ))}
                 {hasMoreAuthors && (
                   <div className="relative z-0">
-                    <div className="flex items-center justify-center w-[20px] h-[20px] text-[8px] font-bold text-gray-600 bg-gray-100 border-2 border-white rounded-full">
+                    <div className="flex items-center justify-center w-[20px] h-[20px] text-[8px] font-bold text-muted-foreground bg-muted border-2 border-white rounded-full">
                       +{remainingAuthorsCount}
                     </div>
                   </div>
                 )}
               </div>
             ) : (
-              <Building2 size={14} className="text-gray-400 shrink-0" />
+              <Building2 size={14} className="text-muted-foreground shrink-0" />
             )}
 
             {resolvedOrgNameWithOwner && (
-              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest truncate">
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest truncate">
                 {resolvedOrgNameWithOwner}
               </span>
             )}
@@ -186,7 +186,7 @@ function PublicCourseCard({ course, orgslug, run = null, orgName }: PublicCourse
           ) : (
             <Link
               href={courseLink}
-              className="text-[10px] font-bold text-gray-400 hover:text-gray-900 transition-colors uppercase tracking-wider shrink-0"
+              className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider shrink-0"
             >
               {t('courses.start_learning')}
             </Link>

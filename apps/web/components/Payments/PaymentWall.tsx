@@ -53,30 +53,30 @@ function PaymentWall({ offer, resourceName, resourceThumbnail, orgslug }: Paymen
             className="w-full rounded-xl object-cover opacity-40 blur-sm"
           />
           <div className="absolute inset-0 flex items-center justify-center">
-            <Lock className="w-12 h-12 text-gray-700" />
+            <Lock className="w-12 h-12 text-muted-foreground" />
           </div>
         </div>
       )}
 
       {!resourceThumbnail && (
-        <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center">
-          <Lock className="w-8 h-8 text-gray-500" />
+        <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+          <Lock className="w-8 h-8 text-muted-foreground" />
         </div>
       )}
 
       <div className="space-y-2 max-w-md">
         {resourceName && (
-          <h2 className="text-xl font-bold text-gray-900">{resourceName}</h2>
+          <h2 className="text-xl font-bold text-foreground">{resourceName}</h2>
         )}
-        <p className="text-gray-500 text-sm">
+        <p className="text-muted-foreground text-sm">
           This content is part of <strong>{offer.offer_name}</strong> and requires a purchase to access.
         </p>
       </div>
 
-      <div className="bg-white border rounded-xl p-6 space-y-4 max-w-xs w-full nice-shadow">
+      <div className="bg-card border rounded-xl p-6 space-y-4 max-w-xs w-full nice-shadow">
         <div className="text-center">
-          <p className="text-3xl font-bold text-gray-900">{formattedPrice}</p>
-          <p className="text-sm text-gray-500">{offer.offer_name}</p>
+          <p className="text-3xl font-bold text-foreground">{formattedPrice}</p>
+          <p className="text-sm text-muted-foreground">{offer.offer_name}</p>
         </div>
 
         <Link href={storeHref}>

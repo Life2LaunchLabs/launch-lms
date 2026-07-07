@@ -54,7 +54,7 @@ const AIChatBotProvider = lazy(() => import('@components/Contexts/AI/AIChatBotCo
 const LoadingFallback = () => (
   <div className="flex items-center justify-center h-64">
     <div className="relative w-6 h-6">
-      <div className="absolute top-0 left-0 w-full h-full border-2 border-gray-100 rounded-full"></div>
+      <div className="absolute top-0 left-0 w-full h-full border-2 border-border rounded-full"></div>
       <div className="absolute top-0 left-0 w-full h-full border-2 border-gray-400 rounded-full animate-spin border-t-transparent"></div>
     </div>
   </div>
@@ -63,7 +63,7 @@ const LoadingFallback = () => (
 const ScormDisabledActivity = () => (
   <div className="flex items-center justify-center min-h-[24rem] p-6">
     <div className="max-w-md rounded-2xl border border-amber-200 bg-amber-50 px-6 py-8 text-center">
-      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm">
+      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-card shadow-sm">
         <AlertTriangle className="h-6 w-6 text-amber-600" />
       </div>
       <h2 className="text-lg font-semibold text-amber-950">SCORM is disabled</h2>
@@ -216,7 +216,7 @@ function ActivityClient(props: ActivityClientProps) {
   const session = useLHSession() as any;
   const pathname = usePathname()
   const access_token = session?.data?.tokens?.access_token;
-  const [bgColor, setBgColor] = React.useState('bg-white')
+  const [bgColor, setBgColor] = React.useState('bg-card')
   const [assignment, setAssignment] = React.useState(null) as any;
   const [isFocusMode, setIsFocusMode] = React.useState(false);
   const isInitialRender = useRef(true);
@@ -701,10 +701,10 @@ function ActivityClient(props: ActivityClientProps) {
   useEffect(() => {
     if (!activity) return
     if (activity.activity_type == 'TYPE_DYNAMIC' || activity.activity_type == 'TYPE_SCORM' || activity.activity_type == 'TYPE_QUIZ') {
-      setBgColor(isFocusMode ? 'bg-white' : 'bg-white nice-shadow');
+      setBgColor(isFocusMode ? 'bg-card' : 'bg-card nice-shadow');
     }
     else if (activity.activity_type == 'TYPE_ASSIGNMENT') {
-      setBgColor(isFocusMode ? 'bg-white' : 'bg-white nice-shadow');
+      setBgColor(isFocusMode ? 'bg-card' : 'bg-card nice-shadow');
       getAssignmentUI();
     }
     else {
@@ -727,7 +727,7 @@ function ActivityClient(props: ActivityClientProps) {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.3 }}
-                  className="fixed inset-0 bg-white"
+                  className="fixed inset-0 bg-card"
                   style={{ zIndex: 'var(--z-overlay)' }}
                 >
                   {/* Focus Mode Top Bar */}
@@ -736,7 +736,7 @@ function ActivityClient(props: ActivityClientProps) {
                     animate={{ y: 0 }}
                     exit={{ y: -100 }}
                     transition={{ duration: 0.3 }}
-                    className="fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-b border-gray-100"
+                    className="fixed top-0 left-0 right-0 bg-card/90 backdrop-blur-xl border-b border-border"
                     style={{ zIndex: 'var(--z-modal-content)' }}
                   >
                     <div className="container mx-auto px-4 py-2">
@@ -771,12 +771,12 @@ function ActivityClient(props: ActivityClientProps) {
                               />
                             </svg>
                             <div className="absolute inset-0 flex items-center justify-center">
-                              <span className="text-xs font-bold text-gray-800">
+                              <span className="text-xs font-bold text-foreground">
                                 {Math.round(visibleChapterProgressValue)}%
                               </span>
                             </div>
                           </div>
-                          <div className="text-xs text-gray-600">
+                          <div className="text-xs text-muted-foreground">
                             {visibleChapterProgressLabel}
                           </div>
                         </motion.div>
@@ -807,8 +807,8 @@ function ActivityClient(props: ActivityClientProps) {
                             </Link>
                           </div>
                           <div className="flex flex-col -space-y-1">
-                            <p className="font-bold text-gray-700 text-sm">{t('search.course')} </p>
-                            <h1 className="font-bold text-gray-950 text-lg first-letter:uppercase">
+                            <p className="font-bold text-muted-foreground text-sm">{t('search.course')} </p>
+                            <h1 className="font-bold text-foreground text-lg first-letter:uppercase">
                               {course.name}
                             </h1>
                           </div>
@@ -843,10 +843,10 @@ function ActivityClient(props: ActivityClientProps) {
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={() => setIsFocusMode(false)}
-                            className="bg-white nice-shadow p-2 rounded-full cursor-pointer hover:bg-gray-50"
+                            className="bg-card nice-shadow p-2 rounded-full cursor-pointer hover:bg-muted"
                             title={t('activities.exit_focus_mode')}
                           >
-                            <Minimize2 size={16} className="text-gray-700" />
+                            <Minimize2 size={16} className="text-muted-foreground" />
                           </motion.button>
                         </motion.div>
                       </div>
@@ -885,7 +885,7 @@ function ActivityClient(props: ActivityClientProps) {
                       animate={{ y: 0 }}
                       exit={{ y: 100 }}
                       transition={{ duration: 0.3 }}
-                      className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-gray-100"
+                      className="fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur-xl border-t border-border"
                       style={{ zIndex: 'var(--z-modal-content)' }}
                     >
                       <div className="container mx-auto px-4">
@@ -895,15 +895,15 @@ function ActivityClient(props: ActivityClientProps) {
                               onClick={() => navigateToActivity(prevActivity)}
                               className={`flex items-center space-x-1.5 p-2 rounded-md transition-all duration-200 cursor-pointer ${
                                 prevActivity
-                                  ? 'text-gray-700'
-                                  : 'opacity-50 text-gray-400 cursor-not-allowed'
+                                  ? 'text-muted-foreground'
+                                  : 'opacity-50 text-muted-foreground cursor-not-allowed'
                               }`}
                               disabled={!prevActivity}
                               title={prevActivity ? `${t('common.previous')}: ${prevActivity.name}` : t('activities.no_previous_activity')}
                             >
-                              <ChevronLeft size={20} className="text-gray-800 shrink-0" />
+                              <ChevronLeft size={20} className="text-foreground shrink-0" />
                               <div className="flex flex-col items-start">
-                                <span className="text-xs text-gray-500">{t('common.previous')}</span>
+                                <span className="text-xs text-muted-foreground">{t('common.previous')}</span>
                                 <span className="text-sm capitalize font-semibold text-left">
                                   {prevActivity ? prevActivity.name : t('activities.no_previous_activity')}
                                 </span>
@@ -926,19 +926,19 @@ function ActivityClient(props: ActivityClientProps) {
                               onClick={() => navigateToActivity(nextActivity)}
                               className={`flex items-center space-x-1.5 p-2 rounded-md transition-all duration-200 cursor-pointer ${
                                 nextActivity
-                                  ? 'text-gray-700'
-                                  : 'opacity-50 text-gray-400 cursor-not-allowed'
+                                  ? 'text-muted-foreground'
+                                  : 'opacity-50 text-muted-foreground cursor-not-allowed'
                               }`}
                               disabled={!nextActivity}
                               title={nextActivity ? `${t('common.next')}: ${nextActivity.name}` : t('activities.no_next_activity')}
                             >
                               <div className="flex flex-col items-end">
-                                <span className="text-xs text-gray-500">{t('common.next')}</span>
+                                <span className="text-xs text-muted-foreground">{t('common.next')}</span>
                                 <span className="text-sm capitalize font-semibold text-right">
                                   {nextActivity ? nextActivity.name : t('activities.no_next_activity')}
                                 </span>
                               </div>
-                              <ChevronRight size={20} className="text-gray-800 shrink-0" />
+                              <ChevronRight size={20} className="text-foreground shrink-0" />
                             </button>
                           </div>
                         </div>
@@ -1016,7 +1016,7 @@ function ActivityClient(props: ActivityClientProps) {
                                       <div className={`flex items-start justify-between gap-3 ${activity.activity_type === 'TYPE_SCORM' ? 'absolute left-4 top-4 z-10 sm:left-0 sm:top-0 sm:static sm:mb-5 sm:px-0 sm:pt-0' : 'p-0 pb-4 sm:pb-5'}`}>
                                         <div className="flex min-w-0 items-start gap-3">
                                           <div className="min-w-0">
-                                            <h1 className="min-w-0 font-bold text-gray-950 text-2xl first-letter:uppercase sm:text-3xl">
+                                            <h1 className="min-w-0 font-bold text-foreground text-2xl first-letter:uppercase sm:text-3xl">
                                               {activity.name}
                                             </h1>
                                           </div>
@@ -1049,14 +1049,14 @@ function ActivityClient(props: ActivityClientProps) {
                       </div>
 
                     {activity && activity.published == true && activity.content.paid_access != false && (
-                      <div className="shrink-0 border-t border-gray-200 px-6 py-4">
+                      <div className="shrink-0 border-t border-border px-6 py-4">
                         <div className="mx-auto flex w-full max-w-5xl flex-row items-stretch justify-between gap-2 sm:items-center">
                           <div className="min-w-0 flex-1 sm:flex-none">
                             {showQuizRetry ? (
                               <button
                                 type="button"
                                 onClick={retryCurrentQuiz}
-                                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-gray-200 transition-colors hover:bg-gray-50 sm:w-auto"
+                                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-card px-4 py-2 text-sm font-semibold text-muted-foreground shadow-sm ring-1 ring-border transition-colors hover:bg-muted sm:w-auto"
                               >
                                 <ChevronLeft size={17} />
                                 Retry
@@ -1065,7 +1065,7 @@ function ActivityClient(props: ActivityClientProps) {
                               <button
                                 type="button"
                                 onClick={handleChapterBack}
-                                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-gray-200 transition-colors hover:bg-gray-50 sm:w-auto"
+                                className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-card px-4 py-2 text-sm font-semibold text-muted-foreground shadow-sm ring-1 ring-border transition-colors hover:bg-muted sm:w-auto"
                               >
                                 <ChevronLeft size={17} />
                                 {t('common.back', 'Back')}
@@ -1090,7 +1090,7 @@ function ActivityClient(props: ActivityClientProps) {
                               type="button"
                               onClick={handleChapterNext}
                               disabled={chapterNextDisabled}
-                              className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 sm:w-auto"
+                              className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground sm:w-auto"
                             >
                               {chapterNextLabel}
                               <ChevronRight size={17} />
@@ -1135,10 +1135,10 @@ function ChapterCompleteView({
         <p className="mt-6 text-xs font-bold uppercase tracking-[0.16em] text-green-600">
           Chapter complete
         </p>
-        <h1 className="mt-2 text-3xl font-semibold leading-tight text-gray-950">
+        <h1 className="mt-2 text-3xl font-semibold leading-tight text-foreground">
           {chapter?.name || 'Nice work'}
         </h1>
-        <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-gray-500">
+        <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">
           You finished {completedActivities}/{totalActivities} activities in this chapter of {course.name}.
         </p>
         <button
@@ -1313,7 +1313,7 @@ function PreviousActivityButton({ course, currentActivityId, orgslug, guestMode 
     <button
       type="button"
       onClick={navigateToActivity}
-      className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-gray-200 transition-colors hover:bg-gray-50 sm:w-auto"
+      className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-card px-4 py-2 text-sm font-semibold text-muted-foreground shadow-sm ring-1 ring-border transition-colors hover:bg-muted sm:w-auto"
     >
       <ChevronLeft size={17} />
       {t('common.back', 'Back')}
@@ -1439,7 +1439,7 @@ function AssignmentTools(props: {
           <CheckCircle size={17} />
           <span className="text-xs flex space-x-2 font-bold items-center">
             <span>{t('assignments.graded')} </span>
-            <span className='bg-white text-teal-800 px-1 py-0.5 rounded-md'>{finalGrade}</span>
+            <span className='bg-card text-teal-800 px-1 py-0.5 rounded-md'>{finalGrade}</span>
           </span>
         </div>
       </div>

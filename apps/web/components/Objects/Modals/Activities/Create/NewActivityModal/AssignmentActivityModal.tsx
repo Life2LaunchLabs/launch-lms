@@ -138,7 +138,7 @@ function NewAssignment({ submitActivity, chapterId, course, closeModal }: any) {
                     </FormMessage>
                 </Flex>
                 <Form.Control asChild>
-                    <select className='bg-gray-100/40 rounded-lg px-1 py-2 outline outline-1 outline-gray-100' onChange={handleGradingTypeChange} required>
+                    <select className='bg-muted/40 rounded-lg px-1 py-2 outline outline-1 outline-border' onChange={handleGradingTypeChange} required>
                         <option value="ALPHABET">{t('dashboard.assignments.modals.create.form.grading_types.alphabet')}</option>
                         <option value="NUMERIC">{t('dashboard.assignments.modals.create.form.grading_types.numeric')}</option>
                         <option value="PERCENTAGE">{t('dashboard.assignments.modals.create.form.grading_types.percentage')}</option>

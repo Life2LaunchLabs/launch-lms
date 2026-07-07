@@ -54,14 +54,14 @@ function OrgInviteCodeGenerate(props: OrgInviteCodeGenerateProps) {
                     className={`flex flex-col items-center justify-center w-full h-[120px] rounded-xl cursor-pointer transition-all
                         ${mode === 'normal'
                             ? 'bg-green-50 ring-2 ring-green-600'
-                            : 'bg-slate-100 hover:bg-slate-200'
+                            : 'bg-muted hover:bg-muted'
                         }`}
                 >
-                    <Users className={`w-7 h-7 mb-2 ${mode === 'normal' ? 'text-green-700' : 'text-slate-400'}`} />
-                    <span className={`text-sm font-bold ${mode === 'normal' ? 'text-green-800' : 'text-slate-600'}`}>
+                    <Users className={`w-7 h-7 mb-2 ${mode === 'normal' ? 'text-green-700' : 'text-muted-foreground'}`} />
+                    <span className={`text-sm font-bold ${mode === 'normal' ? 'text-green-800' : 'text-muted-foreground'}`}>
                         {t('dashboard.users.signups.generate_modal.normal_title')}
                     </span>
-                    <span className={`text-xs mt-0.5 ${mode === 'normal' ? 'text-green-600' : 'text-slate-400'}`}>
+                    <span className={`text-xs mt-0.5 ${mode === 'normal' ? 'text-green-600' : 'text-muted-foreground'}`}>
                         {t('dashboard.users.signups.generate_modal.normal_description')}
                     </span>
                 </div>
@@ -73,17 +73,17 @@ function OrgInviteCodeGenerate(props: OrgInviteCodeGenerateProps) {
                     }}
                     className={`flex flex-col items-center justify-center w-full h-[120px] rounded-xl cursor-pointer transition-all
                         ${!usergroups || usergroups.length === 0
-                            ? 'opacity-50 cursor-not-allowed bg-slate-100'
+                            ? 'opacity-50 cursor-not-allowed bg-muted'
                             : mode === 'usergroup'
                                 ? 'bg-blue-50 ring-2 ring-blue-600'
-                                : 'bg-slate-100 hover:bg-slate-200'
+                                : 'bg-muted hover:bg-muted'
                         }`}
                 >
-                    <UserSquare className={`w-7 h-7 mb-2 ${mode === 'usergroup' ? 'text-blue-700' : 'text-slate-400'}`} />
-                    <span className={`text-sm font-bold ${mode === 'usergroup' ? 'text-blue-800' : 'text-slate-600'}`}>
+                    <UserSquare className={`w-7 h-7 mb-2 ${mode === 'usergroup' ? 'text-blue-700' : 'text-muted-foreground'}`} />
+                    <span className={`text-sm font-bold ${mode === 'usergroup' ? 'text-blue-800' : 'text-muted-foreground'}`}>
                         {t('dashboard.users.signups.generate_modal.linked_title')}
                     </span>
-                    <span className={`text-xs mt-0.5 ${mode === 'usergroup' ? 'text-blue-600' : 'text-slate-400'}`}>
+                    <span className={`text-xs mt-0.5 ${mode === 'usergroup' ? 'text-blue-600' : 'text-muted-foreground'}`}>
                         {t('dashboard.users.signups.generate_modal.linked_description')}
                     </span>
                 </div>
@@ -96,7 +96,7 @@ function OrgInviteCodeGenerate(props: OrgInviteCodeGenerateProps) {
                     <select
                         value={usergroup_id}
                         onChange={(e) => setUsergroup_id(Number(e.target.value))}
-                        className='w-full p-2 rounded-md text-sm bg-white border border-blue-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none'
+                        className='w-full p-2 rounded-md text-sm bg-card border border-blue-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none'
                     >
                         {usergroups.map((usergroup: any) => (
                             <option key={usergroup.id} value={usergroup.id}>

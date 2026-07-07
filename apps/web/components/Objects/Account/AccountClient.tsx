@@ -14,6 +14,7 @@ import AccountSecurity from '@components/Objects/Account/subpages/AccountSecurit
 import AccountPurchases from '@components/Objects/Account/subpages/AccountPurchases'
 import AccountOrgAdmin from '@components/Objects/Account/subpages/AccountOrgAdmin'
 import AccountOrganizations from '@components/Objects/Account/subpages/AccountOrganizations'
+import AccountPreferences from '@components/Objects/Account/subpages/AccountPreferences'
 
 interface AccountClientProps {
   orgslug: string
@@ -27,6 +28,7 @@ const getSubpageTitle = (subpage: string, t: any): string => {
     'purchases': t('account.purchases'),
     'organizations': 'Organizations',
     'org-admin': 'Org Admin',
+    'preferences': 'Appearance',
   }
   return titles[subpage] || t('account.title')
 }
@@ -47,6 +49,8 @@ const AccountClient = ({ orgslug, org_id, subpage }: AccountClientProps) => {
         return <AccountOrganizations orgslug={orgslug} />
       case 'org-admin':
         return <AccountOrgAdmin />
+      case 'preferences':
+        return <AccountPreferences />
       default:
         return <AccountSecurity />
     }
@@ -82,10 +86,10 @@ const AccountClient = ({ orgslug, org_id, subpage }: AccountClientProps) => {
           <div className="flex-1 min-w-0">
             {/* Mobile only shows user name */}
             <div className="md:hidden mb-4">
-              <h1 className="text-xl font-bold text-gray-900">
+              <h1 className="text-xl font-bold text-foreground">
                 {user?.first_name} {user?.last_name}
               </h1>
-              <p className="mt-1 text-sm text-gray-500">@{user?.username}</p>
+              <p className="mt-1 text-sm text-muted-foreground">@{user?.username}</p>
             </div>
 
             {isMobile && (

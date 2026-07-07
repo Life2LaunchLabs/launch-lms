@@ -113,7 +113,7 @@ function CoursesActions({ courseuuid, orgslug, course, trailData }: CourseAction
         <button
           onClick={() => router.push(getUriWithOrg(orgslug, '/signup'))}
           aria-label={t('auth.sign_up_to_contribute')}
-          className="w-full bg-white text-neutral-700 border border-neutral-200 py-3 rounded-lg nice-shadow font-semibold hover:bg-neutral-50 transition-colors flex items-center justify-center gap-2 mt-3 cursor-pointer"
+          className="w-full bg-card text-muted-foreground border border-border py-3 rounded-lg nice-shadow font-semibold hover:bg-muted transition-colors flex items-center justify-center gap-2 mt-3 cursor-pointer"
         >
           <UserPen className="w-5 h-5" />
           {t('auth.authenticate_to_contribute')}
@@ -144,7 +144,7 @@ function CoursesActions({ courseuuid, orgslug, course, trailData }: CourseAction
         onClick={handleApplyToContribute}
         disabled={isContributeLoading}
         aria-label={t('courses.apply_to_contribute')}
-        className="w-full bg-white text-neutral-700 py-3 rounded-lg nice-shadow font-semibold hover:bg-neutral-50 transition-colors flex items-center justify-center gap-2 mt-3 cursor-pointer disabled:cursor-not-allowed"
+        className="w-full bg-card text-muted-foreground py-3 rounded-lg nice-shadow font-semibold hover:bg-muted transition-colors flex items-center justify-center gap-2 mt-3 cursor-pointer disabled:cursor-not-allowed"
       >
         {isContributeLoading ? (
           <div className="w-5 h-5 border-2 border-neutral-700 border-t-transparent rounded-full animate-spin" />
@@ -174,7 +174,7 @@ function CoursesActions({ courseuuid, orgslug, course, trailData }: CourseAction
 
     if (!isStarted) {
       return (
-        <div className="relative bg-white nice-shadow rounded-lg overflow-hidden">
+        <div className="relative bg-card nice-shadow rounded-lg overflow-hidden">
           <div
             className="absolute inset-0 opacity-[0.05]"
             style={{
@@ -198,12 +198,12 @@ function CoursesActions({ courseuuid, orgslug, course, trailData }: CourseAction
                       />
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <BookOpen className="w-6 h-6 text-neutral-400" />
+                      <BookOpen className="w-6 h-6 text-muted-foreground" />
                     </div>
                   </div>
                   <div className="flex-1">
-                    <div className="text-sm font-medium text-gray-900">{t('courses.ready_to_begin')}</div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm font-medium text-foreground">{t('courses.ready_to_begin')}</div>
+                    <div className="text-sm text-muted-foreground">
                       {t('courses.start_learning_journey', { count: totalActivities })}
                     </div>
                   </div>
@@ -216,7 +216,7 @@ function CoursesActions({ courseuuid, orgslug, course, trailData }: CourseAction
     }
 
     return (
-        <div className="relative bg-white nice-shadow rounded-lg overflow-hidden">
+        <div className="relative bg-card nice-shadow rounded-lg overflow-hidden">
           <div
           className="absolute inset-0 opacity-[0.05]"
           style={{
@@ -252,7 +252,7 @@ function CoursesActions({ courseuuid, orgslug, course, trailData }: CourseAction
                     />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-lg font-bold text-gray-800">
+                    <span className="text-lg font-bold text-foreground">
                       {progressPercentage}%
                     </span>
                   </div>
@@ -260,10 +260,10 @@ function CoursesActions({ courseuuid, orgslug, course, trailData }: CourseAction
                 <button
                   onClick={() => setIsProgressOpen(true)}
                   aria-label={t('courses.view_course_progress', { completed: completedActivities, total: totalActivities })}
-                  className="flex-1 text-left hover:bg-neutral-50/50 p-2 rounded-lg transition-colors"
+                  className="flex-1 text-left hover:bg-muted/50 p-2 rounded-lg transition-colors"
                 >
-                  <div className="text-sm font-medium text-gray-900">{t('courses.course_progress')}</div>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm font-medium text-foreground">{t('courses.course_progress')}</div>
+                  <div className="text-sm text-muted-foreground">
                     {t('courses.completed_of', { completed: completedActivities, total: totalActivities })}
                   </div>
                 </button>
@@ -276,13 +276,13 @@ function CoursesActions({ courseuuid, orgslug, course, trailData }: CourseAction
   };
 
   if (isLoading) {
-    return <div className="animate-pulse h-20 bg-gray-100 rounded-lg nice-shadow" />
+    return <div className="animate-pulse h-20 bg-muted rounded-lg nice-shadow" />
   }
 
   // Show join organization prompt for authenticated users who are not part of the org
   if (session.data?.user && !isUserPartOfTheOrg) {
     return (
-      <div className="bg-white shadow-md shadow-gray-300/25 outline outline-1 outline-neutral-200/40 rounded-lg overflow-hidden p-4">
+      <div className="bg-card shadow-md shadow-gray-300/25 outline outline-1 outline-border/40 rounded-lg overflow-hidden p-4">
         <div className="space-y-4">
           <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg nice-shadow">
             <div className="flex items-center gap-3">
@@ -309,7 +309,7 @@ function CoursesActions({ courseuuid, orgslug, course, trailData }: CourseAction
     // User already enrolled / started — show "you own this" notice + leave button
     if (isStarted) {
       return (
-        <div className="bg-white nice-shadow rounded-lg overflow-hidden p-4">
+        <div className="bg-card nice-shadow rounded-lg overflow-hidden p-4">
           <div className="space-y-4">
             <div className="p-4 bg-green-50 rounded-lg">
               <div className="flex items-center gap-3">
@@ -330,7 +330,7 @@ function CoursesActions({ courseuuid, orgslug, course, trailData }: CourseAction
     return (
       <div className="space-y-3">
         {linkedOffers.length > 1 && (
-          <p className="text-xs text-gray-400 font-medium px-1">
+          <p className="text-xs text-muted-foreground font-medium px-1">
             {linkedOffers.length} options available
           </p>
         )}
@@ -343,7 +343,7 @@ function CoursesActions({ courseuuid, orgslug, course, trailData }: CourseAction
   }
 
   return (
-    <div className="bg-white shadow-md shadow-gray-300/25 outline outline-1 outline-neutral-200/40 rounded-lg overflow-hidden p-4">
+    <div className="bg-card shadow-md shadow-gray-300/25 outline outline-1 outline-border/40 rounded-lg overflow-hidden p-4">
       <div className="space-y-4">
         {/* Progress Section */}
         {renderProgressSection()}

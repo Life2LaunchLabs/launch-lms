@@ -23,7 +23,7 @@ export function CommunityActions({
 
   const renderStatsSection = () => {
     return (
-      <div className="relative bg-white nice-shadow rounded-lg overflow-hidden">
+      <div className="relative bg-card nice-shadow rounded-lg overflow-hidden">
         <div
           className="absolute inset-0 opacity-[0.05]"
           style={{
@@ -63,8 +63,8 @@ export function CommunityActions({
                   </div>
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm font-medium text-gray-900">Community Activity</div>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm font-medium text-foreground">Community Activity</div>
+                  <div className="text-sm text-muted-foreground">
                     {discussionCount} {discussionCount === 1 ? 'discussion' : 'discussions'}
                   </div>
                 </div>
@@ -77,7 +77,7 @@ export function CommunityActions({
   }
 
   return (
-    <div className="bg-white shadow-md shadow-gray-300/25 outline outline-1 outline-neutral-200/40 rounded-lg overflow-hidden p-4">
+    <div className="bg-card shadow-md shadow-gray-300/25 outline outline-1 outline-border/40 rounded-lg overflow-hidden p-4">
       <div className="space-y-4">
         {/* Stats Section */}
         {renderStatsSection()}
@@ -86,7 +86,7 @@ export function CommunityActions({
         <div className={`p-3 rounded-lg nice-shadow flex items-center gap-3 ${
           community.public
             ? 'bg-green-50 border border-green-200'
-            : 'bg-gray-50 border border-gray-200'
+            : 'bg-muted border border-border'
         }`}>
           {community.public ? (
             <>
@@ -100,8 +100,8 @@ export function CommunityActions({
             <>
               <div className="w-2 h-2 bg-gray-400 rounded-full" />
               <div className="flex items-center gap-2">
-                <Lock size={16} className="text-gray-600" />
-                <span className="text-gray-700 font-medium text-sm">Private Community</span>
+                <Lock size={16} className="text-muted-foreground" />
+                <span className="text-muted-foreground font-medium text-sm">Private Community</span>
               </div>
             </>
           )}
@@ -122,7 +122,7 @@ export function CommunityActions({
         {canManageCommunity && onEdit && (
           <button
             onClick={onEdit}
-            className="w-full bg-white text-neutral-700 border border-neutral-200 py-3 rounded-lg nice-shadow font-semibold hover:bg-neutral-50 transition-colors flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full bg-card text-muted-foreground border border-border py-3 rounded-lg nice-shadow font-semibold hover:bg-muted transition-colors flex items-center justify-center gap-2 cursor-pointer"
           >
             <Settings className="w-5 h-5" />
             Manage Community

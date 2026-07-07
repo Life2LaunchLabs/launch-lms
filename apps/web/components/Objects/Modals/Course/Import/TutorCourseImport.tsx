@@ -216,17 +216,17 @@ function TutorCourseImport({
   const progressLogs = importProgress?.logs || []
 
   const renderLogs = () => (
-    <div className="rounded-lg border border-gray-200 bg-white">
-      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-        <div className="inline-flex items-center gap-2 text-sm font-medium text-gray-800">
+    <div className="rounded-lg border border-border bg-card">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <div className="inline-flex items-center gap-2 text-sm font-medium text-foreground">
           <ScrollText size={16} />
           Import log
         </div>
-        <div className="text-xs text-gray-500">{progressLogs.length} entries</div>
+        <div className="text-xs text-muted-foreground">{progressLogs.length} entries</div>
       </div>
       <div className="max-h-72 space-y-2 overflow-y-auto p-3">
         {progressLogs.length === 0 ? (
-          <div className="text-sm text-gray-500">No log entries yet.</div>
+          <div className="text-sm text-muted-foreground">No log entries yet.</div>
         ) : (
           progressLogs.map((entry, index) => (
             <div
@@ -236,17 +236,17 @@ function TutorCourseImport({
                   ? 'border-red-200 bg-red-50'
                   : entry.level === 'warning'
                     ? 'border-amber-200 bg-amber-50'
-                    : 'border-gray-200 bg-gray-50'
+                    : 'border-border bg-muted'
               }`}
             >
               <div className="flex items-center justify-between gap-3">
-                <div className="font-medium text-gray-800">{entry.message}</div>
-                <div className="shrink-0 text-xs text-gray-500">
+                <div className="font-medium text-foreground">{entry.message}</div>
+                <div className="shrink-0 text-xs text-muted-foreground">
                   {new Date(entry.timestamp).toLocaleTimeString()}
                 </div>
               </div>
               {(entry.course_name || entry.activity_name) && (
-                <div className="mt-1 text-xs text-gray-600">
+                <div className="mt-1 text-xs text-muted-foreground">
                   {entry.course_name && <span>Course: {entry.course_name}</span>}
                   {entry.course_name && entry.activity_name && <span> · </span>}
                   {entry.activity_name && <span>Activity: {entry.activity_name}</span>}
@@ -278,7 +278,7 @@ function TutorCourseImport({
               setFiles(e.dataTransfer.files)
             }}
             className={`rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
-              isDragging ? 'border-emerald-400 bg-emerald-50' : 'border-gray-200 bg-gray-50'
+              isDragging ? 'border-emerald-400 bg-emerald-50' : 'border-border bg-muted'
             }`}
           >
             <Input
@@ -293,18 +293,18 @@ function TutorCourseImport({
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
                 <FileJson className="text-emerald-700" size={28} />
               </div>
-              <p className="font-medium text-gray-900">Choose Tutor LMS course JSON files</p>
-              <p className="mt-1 text-sm text-gray-500">Select one or more exported Tutor course `.json` files from your folder.</p>
+              <p className="font-medium text-foreground">Choose Tutor LMS course JSON files</p>
+              <p className="mt-1 text-sm text-muted-foreground">Select one or more exported Tutor course `.json` files from your folder.</p>
             </label>
           </div>
 
           {importFiles.length > 0 && (
-            <div className="rounded-lg border border-gray-200 bg-white p-4">
-              <div className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-800">
+            <div className="rounded-lg border border-border bg-card p-4">
+              <div className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
                 <CheckCircle2 size={16} className="text-green-600" />
                 {importFiles.length} file{importFiles.length === 1 ? '' : 's'} selected
               </div>
-              <div className="max-h-40 space-y-1 overflow-y-auto text-sm text-gray-500">
+              <div className="max-h-40 space-y-1 overflow-y-auto text-sm text-muted-foreground">
                 {importFiles.map((file) => (
                   <div key={`${file.name}-${file.size}`}>{file.name}</div>
                 ))}
@@ -332,16 +332,16 @@ function TutorCourseImport({
       {step === 'configure' && analysisResult && (
         <div className="space-y-5">
           <div className="flex items-center justify-between">
-            <button onClick={resetToUpload} className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800">
+            <button onClick={resetToUpload} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
               <ArrowLeft size={16} />
               Choose different files
             </button>
-            <div className="text-sm text-gray-500">{selectedCount} of {courseSelections.length} selected</div>
+            <div className="text-sm text-muted-foreground">{selectedCount} of {courseSelections.length} selected</div>
           </div>
 
           <div className="space-y-3">
             {courseSelections.map((course) => (
-              <label key={course.course_uuid} className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-4">
+              <label key={course.course_uuid} className="flex cursor-pointer items-start gap-3 rounded-lg border border-border p-4">
                 <input
                   type="checkbox"
                   checked={course.include}
@@ -354,9 +354,9 @@ function TutorCourseImport({
                   className="mt-1"
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="font-medium text-gray-900">{course.name}</div>
-                  {course.description && <div className="mt-1 text-sm text-gray-500">{course.description}</div>}
-                  <div className="mt-2 flex gap-4 text-xs text-gray-500">
+                  <div className="font-medium text-foreground">{course.name}</div>
+                  {course.description && <div className="mt-1 text-sm text-muted-foreground">{course.description}</div>}
+                  <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
                     <span className="inline-flex items-center gap-1"><BookOpen size={12} /> {course.chapters_count} chapters</span>
                     <span className="inline-flex items-center gap-1"><Layers size={12} /> {course.activities_count} activities</span>
                     {!!course.media_count && <span>{course.media_count} media downloads</span>}
@@ -376,12 +376,12 @@ function TutorCourseImport({
                 placeholder="Imported"
               />
             </div>
-            <div className="space-y-3 rounded-lg border border-gray-200 p-4">
-              <label className="flex items-center gap-2 text-sm text-gray-700">
+            <div className="space-y-3 rounded-lg border border-border p-4">
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
                 <input type="checkbox" checked={setPrivate} onChange={(e) => setSetPrivate(e.target.checked)} />
                 Import courses as private
               </label>
-              <label className="flex items-center gap-2 text-sm text-gray-700">
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
                 <input type="checkbox" checked={setUnpublished} onChange={(e) => setSetUnpublished(e.target.checked)} />
                 Keep imported course content unpublished
               </label>
@@ -410,10 +410,10 @@ function TutorCourseImport({
         <div className="space-y-4 py-4">
           <div className="space-y-4 text-center">
             <BarLoader width="100%" color="#111827" />
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-muted-foreground">
               {importProgress?.message || 'Downloading media and creating Launch LMS courses from Tutor LMS content...'}
             </p>
-            <div className="space-y-1 text-sm text-gray-600">
+            <div className="space-y-1 text-sm text-muted-foreground">
               <div>
                 Media progress: {importProgress?.completed_media ?? 0} / {importProgress?.total_media ?? 0}
               </div>
@@ -429,7 +429,7 @@ function TutorCourseImport({
             <button
               type="button"
               onClick={() => setShowLogs((prev) => !prev)}
-              className="text-sm text-gray-600 hover:text-gray-900"
+              className="text-sm text-muted-foreground hover:text-foreground"
             >
               {showLogs ? 'Hide import log' : 'Show import log'}
             </button>
@@ -442,8 +442,8 @@ function TutorCourseImport({
         <div className="space-y-5">
           <div className="rounded-xl border border-green-200 bg-green-50 p-5 text-center">
             <CheckCircle2 className="mx-auto mb-3 text-green-600" size={36} />
-            <div className="text-lg font-semibold text-gray-900">Tutor import finished</div>
-            <div className="mt-1 text-sm text-gray-600">
+            <div className="text-lg font-semibold text-foreground">Tutor import finished</div>
+            <div className="mt-1 text-sm text-muted-foreground">
               {importResult.successful} successful, {importResult.failed} failed
             </div>
           </div>
@@ -451,7 +451,7 @@ function TutorCourseImport({
           <div className="max-h-56 space-y-2 overflow-y-auto">
             {importResult.courses.map((course, index) => (
               <div key={`${course.uuid}-${index}`} className={`rounded-lg border p-3 text-sm ${course.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
-                <div className="font-medium text-gray-900">{course.name}</div>
+                <div className="font-medium text-foreground">{course.name}</div>
                 {!course.success && course.error && <div className="mt-1 text-red-700">{course.error}</div>}
               </div>
             ))}

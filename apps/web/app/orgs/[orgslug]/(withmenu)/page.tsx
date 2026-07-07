@@ -55,13 +55,13 @@ const OrgHomePage = async ({ params }: PageProps) => {
   ]
 
   return (
-    <main className="min-h-screen overflow-hidden bg-white text-[#3c3f43]">
+    <main className="min-h-screen overflow-hidden bg-card text-[#3c3f43]">
       <section className="mx-auto grid h-[calc(100dvh-60px)] w-full max-w-[1188px] place-items-center gap-5 overflow-hidden px-7 py-4 text-center sm:gap-7 sm:py-6 md:grid-cols-[1.04fr_0.96fr] md:gap-12 md:px-10 md:py-8">
         <div className="w-full">
           <LandingImage className="mx-auto h-[210px] w-[210px] sm:h-[280px] sm:w-[280px] md:h-[424px] md:w-[424px]" src={heroImage.src} alt="Hero art" />
         </div>
         <div className="flex w-full max-w-[540px] flex-col items-center">
-          <h1 className="text-balance text-center text-[32px] font-black leading-[1.2] tracking-normal text-[#4b4b4b]">
+          <h1 className="text-balance text-center text-[32px] font-black leading-[1.2] tracking-normal text-foreground/80">
             Showcase your skills and build your brand - for free!
           </h1>
           <div className="mt-5 flex w-full max-w-[420px] flex-col gap-3 sm:mt-7 sm:gap-4">
@@ -109,7 +109,7 @@ const OrgHomePage = async ({ params }: PageProps) => {
         })}
       </section>
 
-      <section className="isolate min-h-[520px] overflow-y-visible overflow-x-clip bg-white px-7 py-20 text-center sm:min-h-[560px] sm:py-24">
+      <section className="isolate min-h-[520px] overflow-y-visible overflow-x-clip bg-card px-7 py-20 text-center sm:min-h-[560px] sm:py-24">
         <div className="mx-auto flex max-w-[1728px] flex-col items-center overflow-visible">
           <div className="relative z-10 mx-auto flex max-w-[720px] flex-col items-center">
             <h2 className="text-balance text-[42px] font-black leading-[1.15] tracking-normal text-[#27323d] sm:text-[64px]">
@@ -124,7 +124,7 @@ const OrgHomePage = async ({ params }: PageProps) => {
               </Link>
               <Link
                 href={loginHref}
-                className={buttonVariants({ variant: 'ctaSecondary', size: 'cta', className: 'border-[#d9e1e8] text-[#4b4b4b] shadow-[0_4px_0_#d9e1e8]' })}
+                className={buttonVariants({ variant: 'ctaSecondary', size: 'cta', className: 'border-border text-foreground/80 shadow-[0_4px_0_hsl(var(--border))]' })}
               >
                 login
               </Link>

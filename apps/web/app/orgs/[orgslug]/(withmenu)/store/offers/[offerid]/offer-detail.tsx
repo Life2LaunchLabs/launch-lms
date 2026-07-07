@@ -34,7 +34,7 @@ function resourceIcon(type: string, size = 14) {
   switch (type) {
     case 'course': return <BookOpen size={size} className="text-indigo-500" />
     case 'podcast': return <Mic size={size} className="text-pink-400" />
-    default: return <Puzzle size={size} className="text-gray-400" />
+    default: return <Puzzle size={size} className="text-muted-foreground" />
   }
 }
 
@@ -59,10 +59,10 @@ function ResourceCard({ resource, orgslug }: { resource: Resource; orgslug: stri
 
   const url = getResourceUrl(orgslug, resource)
   const card = (
-    <div className={`bg-white rounded-xl nice-shadow overflow-hidden flex flex-col ${url ? 'cursor-pointer hover:scale-[1.01] transition-transform duration-150' : ''}`}>
+    <div className={`bg-card rounded-xl nice-shadow overflow-hidden flex flex-col ${url ? 'cursor-pointer hover:scale-[1.01] transition-transform duration-150' : ''}`}>
       {/* Thumbnail */}
       <div
-        className="w-full aspect-video overflow-hidden bg-gray-100"
+        className="w-full aspect-video overflow-hidden bg-muted"
         style={{
           backgroundImage: src ? `url(${src})` : undefined,
           backgroundSize: 'cover',
@@ -70,7 +70,7 @@ function ResourceCard({ resource, orgslug }: { resource: Resource; orgslug: stri
         }}
       >
         {!src && (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-slate-100">
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted">
             {resourceIcon(resource.resource_type, 28)}
           </div>
         )}
@@ -83,9 +83,9 @@ function ResourceCard({ resource, orgslug }: { resource: Resource; orgslug: stri
       </div>
       {/* Details */}
       <div className="p-3 flex flex-col gap-1">
-        <p className="font-semibold text-sm text-gray-900 leading-snug">{resource.name}</p>
+        <p className="font-semibold text-sm text-foreground leading-snug">{resource.name}</p>
         {resource.description && (
-          <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{resource.description}</p>
+          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{resource.description}</p>
         )}
       </div>
     </div>
@@ -105,7 +105,7 @@ export default function OfferDetailClient({ orgslug, orgId, offerUuid, offer, ac
       <GeneralWrapperStyled>
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <AlertCircle size={32} className="text-gray-300 mb-3" />
-          <h2 className="font-bold text-gray-600 text-lg">Offer not found</h2>
+          <h2 className="font-bold text-muted-foreground text-lg">Offer not found</h2>
           <Link href={getUriWithOrg(orgslug, routePaths.org.store.root())} className="mt-4 text-sm text-indigo-600 hover:underline">
             ← Back to store
           </Link>
@@ -152,7 +152,7 @@ export default function OfferDetailClient({ orgslug, orgId, offerUuid, offer, ac
       <GeneralWrapperStyled>
         <Link
           href={getUriWithOrg(orgslug, routePaths.org.store.root())}
-          className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors mb-7"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-muted-foreground transition-colors mb-7"
         >
           <ArrowLeft size={14} /> Back to store
         </Link>
@@ -168,19 +168,19 @@ export default function OfferDetailClient({ orgslug, orgId, offerUuid, offer, ac
                     <RefreshCcw size={11} /> Subscription
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 bg-gray-100 rounded-full px-3 py-1">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground bg-muted rounded-full px-3 py-1">
                     <SquareCheck size={11} /> One-time payment
                   </span>
                 )}
               </div>
-              <h1 className="text-3xl font-black text-gray-900 tracking-tight">{offer.name}</h1>
-              <p className="mt-3 text-gray-600 leading-relaxed text-base">{offer.description}</p>
+              <h1 className="text-3xl font-black text-foreground tracking-tight">{offer.name}</h1>
+              <p className="mt-3 text-muted-foreground leading-relaxed text-base">{offer.description}</p>
             </div>
 
             {/* Included courses/resources */}
             {resources.length > 0 && (
               <div>
-                <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-4">
+                <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-4">
                   What&apos;s included · {resources.length} {resources.length === 1 ? 'resource' : 'resources'}
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -193,11 +193,11 @@ export default function OfferDetailClient({ orgslug, orgId, offerUuid, offer, ac
 
             {/* Benefits */}
             {benefits.length > 0 && (
-              <div className="bg-white rounded-xl nice-shadow p-5">
-                <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">Benefits</h2>
+              <div className="bg-card rounded-xl nice-shadow p-5">
+                <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wide mb-3">Benefits</h2>
                 <ul className="space-y-2.5">
                   {benefits.map((b, i) => (
-                    <li key={i} className="flex items-start gap-2.5 text-sm text-gray-700">
+                    <li key={i} className="flex items-start gap-2.5 text-sm text-muted-foreground">
                       <Sparkles size={14} className="text-indigo-400 mt-0.5 shrink-0" />
                       <span>{b}</span>
                     </li>
@@ -209,13 +209,13 @@ export default function OfferDetailClient({ orgslug, orgId, offerUuid, offer, ac
 
           {/* Right col — sticky pricing card */}
           <div className="lg:col-span-1">
-            <div className="rounded-2xl nice-shadow bg-white p-6 sticky top-24">
+            <div className="rounded-2xl nice-shadow bg-card p-6 sticky top-24">
               {/* Price */}
               <div className="mb-5">
-                <p className="text-xs text-gray-400 font-medium mb-1">
+                <p className="text-xs text-muted-foreground font-medium mb-1">
                   {offer.price_type === 'customer_choice' ? 'Pay what you want (min.)' : isSubscription ? 'Subscription price' : 'One-time price'}
                 </p>
-                <div className={`text-4xl font-black ${isSubscription ? 'text-indigo-700' : 'text-gray-900'}`}>
+                <div className={`text-4xl font-black ${isSubscription ? 'text-indigo-700' : 'text-foreground'}`}>
                   {new Intl.NumberFormat('en-US', {
                     style: 'currency',
                     currency: offer.currency,
@@ -244,15 +244,15 @@ export default function OfferDetailClient({ orgslug, orgId, offerUuid, offer, ac
               </button>
 
               {!token && (
-                <p className="text-xs text-center text-gray-400 mt-3">
+                <p className="text-xs text-center text-muted-foreground mt-3">
                   You&apos;ll be asked to sign in before checkout.
                 </p>
               )}
 
               {/* Resource summary */}
               {resources.length > 0 && (
-                <div className="mt-5 pt-4 border-t border-gray-100">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Included</p>
+                <div className="mt-5 pt-4 border-t border-border">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Included</p>
                   <div className="space-y-2">
                     {resources.map((r) => {
                       const src = r.thumbnail_image && r.resource_type === 'course'
@@ -261,7 +261,7 @@ export default function OfferDetailClient({ orgslug, orgId, offerUuid, offer, ac
                       return (
                         <div key={r.resource_uuid} className="flex items-center gap-2.5">
                           <div
-                            className="w-8 h-8 rounded-md overflow-hidden bg-gray-100 shrink-0 flex items-center justify-center nice-shadow"
+                            className="w-8 h-8 rounded-md overflow-hidden bg-muted shrink-0 flex items-center justify-center nice-shadow"
                             style={{
                               backgroundImage: src ? `url(${src})` : undefined,
                               backgroundSize: 'cover',
@@ -270,7 +270,7 @@ export default function OfferDetailClient({ orgslug, orgId, offerUuid, offer, ac
                           >
                             {!src && resourceIcon(r.resource_type, 13)}
                           </div>
-                          <p className="text-xs font-medium text-gray-700 truncate">{r.name}</p>
+                          <p className="text-xs font-medium text-muted-foreground truncate">{r.name}</p>
                         </div>
                       )
                     })}
@@ -279,10 +279,10 @@ export default function OfferDetailClient({ orgslug, orgId, offerUuid, offer, ac
               )}
 
               {/* Trust signals */}
-              <div className="mt-5 pt-4 border-t border-gray-100 space-y-1.5">
-                <p className="text-xs text-gray-400 flex items-center gap-1.5"><ShoppingBag size={11} /> Secure checkout via Stripe</p>
-                {isSubscription && <p className="text-xs text-gray-400">✓ Cancel anytime</p>}
-                <p className="text-xs text-gray-400">✓ Instant access after payment</p>
+              <div className="mt-5 pt-4 border-t border-border space-y-1.5">
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5"><ShoppingBag size={11} /> Secure checkout via Stripe</p>
+                {isSubscription && <p className="text-xs text-muted-foreground">✓ Cancel anytime</p>}
+                <p className="text-xs text-muted-foreground">✓ Instant access after payment</p>
               </div>
             </div>
           </div>

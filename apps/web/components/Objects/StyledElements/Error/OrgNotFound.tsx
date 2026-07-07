@@ -24,32 +24,32 @@ function OrgNotFound() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100">
-      <div className="max-w-md w-full mx-4 p-8 bg-white rounded-2xl shadow-lg">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-muted to-muted">
+      <div className="max-w-md w-full mx-4 p-8 bg-card rounded-2xl shadow-lg">
         <div className="text-center">
-          <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-            <Building2 className="h-8 w-8 text-gray-600" />
+          <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center">
+            <Building2 className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h1 className="mt-6 text-2xl font-bold text-gray-900">
+          <h1 className="mt-6 text-2xl font-bold text-foreground">
             Enter Your Organization
           </h1>
-          <p className="mt-3 text-sm text-gray-600">
+          <p className="mt-3 text-sm text-muted-foreground">
             Enter your organization name to continue to the login page.
           </p>
         </div>
 
         <form onSubmit={handleNavigate} className="mt-8">
           <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-2 bg-gray-50 rounded-xl p-3 border border-gray-200 focus-within:border-gray-400 focus-within:ring-1 focus-within:ring-gray-400">
+            <div className="flex items-center gap-2 bg-muted rounded-xl p-3 border border-border focus-within:border-gray-400 focus-within:ring-1 focus-within:ring-gray-400">
               <input
                 type="text"
                 value={orgSlug}
                 onChange={(e) => setOrgSlug(e.target.value)}
                 placeholder="your-organization"
-                className="flex-1 bg-transparent outline-none text-gray-900 placeholder-gray-400"
+                className="flex-1 bg-transparent outline-none text-foreground placeholder-gray-400"
                 autoFocus
               />
-              <span className="text-gray-400 text-sm">.{stripPort(getLAUNCHLMS_DOMAIN_VAL())}</span>
+              <span className="text-muted-foreground text-sm">.{stripPort(getLAUNCHLMS_DOMAIN_VAL())}</span>
             </div>
 
             <button
@@ -69,7 +69,7 @@ function OrgNotFound() {
           </div>
         </form>
 
-        <p className="mt-6 text-center text-xs text-gray-500">
+        <p className="mt-6 text-center text-xs text-muted-foreground">
           Don't know your organization name? Contact your administrator.
         </p>
       </div>

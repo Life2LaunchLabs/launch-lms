@@ -210,10 +210,10 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
     return (
       <GeneralWrapperStyled>
         <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4">
-          <h2 className="text-xl font-semibold text-gray-700 mb-2">
+          <h2 className="text-xl font-semibold text-muted-foreground mb-2">
             {t('course.accessDenied', 'Unable to access this course')}
           </h2>
-          <p className="text-gray-500 mb-4">
+          <p className="text-muted-foreground mb-4">
             {activeError?.status === 403
               ? t('course.noPermission', 'You do not have permission to view this course.')
               : t('course.loadError', 'This course could not be found or there was an error loading it.')}
@@ -337,7 +337,7 @@ function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run, badgeStatusPa
       <aside className="lg:sticky lg:top-8 lg:self-start">
         <Link
           href={badgeHref}
-          className="block rounded-lg border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 sm:p-6"
+          className="block rounded-lg border border-border bg-card p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 sm:p-6"
         >
           <div className="flex items-start gap-4">
             <div className="h-20 w-20 shrink-0 overflow-visible rounded-lg bg-transparent">
@@ -356,20 +356,20 @@ function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run, badgeStatusPa
               )}
             </div>
             <div className="min-w-0">
-              <h1 className="text-xl font-semibold leading-tight text-gray-950">{course.name}</h1>
+              <h1 className="text-xl font-semibold leading-tight text-foreground">{course.name}</h1>
               {(course.description || course.about) && (
-                <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-gray-500">
+                <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
                   {course.description || course.about}
                 </p>
               )}
             </div>
           </div>
           <div className="mt-6">
-            <div className="mb-2 flex items-center justify-between text-xs font-semibold text-gray-500">
+            <div className="mb-2 flex items-center justify-between text-xs font-semibold text-muted-foreground">
               <span>Progress</span>
               <span className="tabular-nums">{completedChapterCount}/{totalChapters}</span>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+            <div className="h-2 overflow-hidden rounded-full bg-muted">
               <div
                 className="h-full rounded-full bg-green-500 transition-all"
                 style={{ width: `${progressPercent}%` }}
@@ -407,12 +407,12 @@ function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run, badgeStatusPa
           return (
             <div
               key={chapter.chapter_uuid || chapter.id || chapter.name || index}
-              className={`rounded-lg bg-white transition-all ${
+              className={`rounded-lg bg-card transition-all ${
                 isNext || isInProgressChapter
                   ? `border-2 border-green-500 ${isActive ? '-translate-y-1 shadow-lg' : 'shadow-sm'}`
                   : isCompletedChapter
-                    ? `border border-gray-200 ${isActive ? '-translate-y-0.5 shadow-md' : ''}`
-                    : 'border border-gray-100 bg-gray-50/60'
+                    ? `border border-border ${isActive ? '-translate-y-0.5 shadow-md' : ''}`
+                    : 'border border-border bg-muted/60'
               }`}
             >
               <button
@@ -422,16 +422,16 @@ function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run, badgeStatusPa
                 className="flex w-full items-center gap-4 px-4 py-4 text-left disabled:cursor-default"
               >
                 <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                  isAvailable ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-300'
+                  isAvailable ? 'bg-green-50 text-green-600' : 'bg-muted text-gray-300'
                 }`}>
                   <Icon size={20} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className={`text-sm font-semibold ${isAvailable ? 'text-gray-950' : 'text-gray-400'}`}>
+                  <p className={`text-sm font-semibold ${isAvailable ? 'text-foreground' : 'text-muted-foreground'}`}>
                     {chapter.name}
                   </p>
                   <p className={`mt-0.5 text-xs font-medium ${
-                    isNext || isInProgressChapter ? 'text-green-600' : isCompletedChapter ? 'text-gray-500' : 'text-gray-300'
+                    isNext || isInProgressChapter ? 'text-green-600' : isCompletedChapter ? 'text-muted-foreground' : 'text-gray-300'
                   }`}>
                     {stateLabel}
                   </p>
@@ -445,7 +445,7 @@ function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run, badgeStatusPa
                     className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
                       isNext || isInProgressChapter
                         ? 'bg-green-600 text-white hover:bg-green-700'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        : 'bg-muted text-muted-foreground hover:bg-muted'
                     }`}
                   >
                     {isCompletedChapter ? 'Review' : isInProgressChapter ? 'Continue' : 'Get started'}
@@ -499,7 +499,7 @@ function PathQuizResultAction({ activity, course, orgslug }: { activity: any; co
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 text-xs font-semibold text-gray-500 transition-colors hover:text-gray-900"
+        className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
       >
         View result for {activity.name || 'quiz'}
       </button>
@@ -667,7 +667,7 @@ function BadgeStatusHero({
               Congratulations! 🎉 you have mastered
             </p>
           )}
-          <h1 className="text-2xl font-semibold leading-tight text-gray-950 sm:text-3xl">
+          <h1 className="text-2xl font-semibold leading-tight text-foreground sm:text-3xl">
             {course.name}
           </h1>
 
@@ -679,7 +679,7 @@ function BadgeStatusHero({
             )
           ) : (
             (course.about || course.description) && (
-              <p className="mx-auto mt-2 line-clamp-2 max-w-xl whitespace-pre-line text-sm leading-relaxed text-gray-500 sm:text-base">
+              <p className="mx-auto mt-2 line-clamp-2 max-w-xl whitespace-pre-line text-sm leading-relaxed text-muted-foreground sm:text-base">
                 {course.about || course.description}
               </p>
             )
@@ -703,7 +703,7 @@ function BadgeStatusHero({
               {verificationUrl && (
                 <Link
                   href={verificationUrl}
-                  className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-neutral-600 nice-shadow transition-colors hover:text-neutral-800"
+                  className="inline-flex items-center gap-2 rounded-lg bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground nice-shadow transition-colors hover:text-foreground"
                 >
                   <FileText size={14} />
                   View certificate
@@ -724,11 +724,11 @@ function BadgeStatusHero({
             </div>
           ) : isInProgress ? (
             <div className="w-full max-w-md">
-              <div className="mb-2 flex items-center justify-between text-xs font-semibold text-gray-500">
+              <div className="mb-2 flex items-center justify-between text-xs font-semibold text-muted-foreground">
                 <span>Progress</span>
                 <span className="tabular-nums">{completedChapters}/{totalChapters}</span>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+              <div className="h-2 overflow-hidden rounded-full bg-muted">
                 <div
                   className="h-full rounded-full bg-gray-800 transition-all"
                   style={{ width: `${progressPercent}%` }}
@@ -794,11 +794,11 @@ function BadgeStatusHero({
 
       {isCompleted && badgeId && verificationUrl && (
         <section className="mt-6 space-y-4" aria-label="Certificate">
-          <div className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-gray-200 sm:p-5">
+          <div className="rounded-lg bg-card p-4 shadow-sm ring-1 ring-border sm:p-5">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-gray-950">Certificate</h2>
-                <p className="mt-1 text-sm text-gray-500">
+                <h2 className="text-lg font-semibold text-foreground">Certificate</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
                   Your verifiable Open Badge certificate is ready to share.
                 </p>
               </div>
@@ -835,16 +835,16 @@ function BadgeStatusHero({
               <Link
                 key={chapter.chapter_uuid || chapter.id || chapter.name || index}
                 href={pathUrl}
-                className="flex min-h-[112px] w-full items-center gap-4 rounded-lg bg-white p-3 text-left shadow-sm ring-1 ring-gray-200 transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900"
+                className="flex min-h-[112px] w-full items-center gap-4 rounded-lg bg-card p-3 text-left shadow-sm ring-1 ring-border transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900"
               >
-                <div className="flex h-[88px] w-[88px] shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500 sm:h-24 sm:w-24">
+                <div className="flex h-[88px] w-[88px] shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground sm:h-24 sm:w-24">
                   <ChapterIcon size={30} strokeWidth={1.8} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-bold uppercase text-gray-400">
+                  <p className="text-xs font-bold uppercase text-muted-foreground">
                     Chapter {index + 1}
                   </p>
-                  <h2 className="mt-1 break-words text-xl font-semibold leading-snug text-gray-950">
+                  <h2 className="mt-1 break-words text-xl font-semibold leading-snug text-foreground">
                     {chapter.name}
                   </h2>
                 </div>
@@ -938,7 +938,7 @@ function CourseDetailResponsiveSection(props: any) {
                           onClick={() => setActiveThumbnailType('image')}
                           className={`flex items-center px-2 py-1 rounded-md text-xs font-medium transition-colors ${
                             activeThumbnailType === 'image'
-                              ? 'bg-white/90 text-gray-900 shadow-sm'
+                              ? 'bg-card/90 text-foreground shadow-sm'
                               : 'text-white/80 hover:text-white hover:bg-white/10'
                           }`}
                         >
@@ -949,7 +949,7 @@ function CourseDetailResponsiveSection(props: any) {
                           onClick={() => setActiveThumbnailType('video')}
                           className={`flex items-center px-2 py-1 rounded-md text-xs font-medium transition-colors ${
                             activeThumbnailType === 'video'
-                              ? 'bg-white/90 text-gray-900 shadow-sm'
+                              ? 'bg-card/90 text-foreground shadow-sm'
                               : 'text-white/80 hover:text-white hover:bg-white/10'
                           }`}
                         >
@@ -994,7 +994,7 @@ function CourseDetailResponsiveSection(props: any) {
                           onClick={() => setActiveThumbnailType('image')}
                           className={`flex items-center px-2 py-1 rounded-md text-xs font-medium transition-colors ${
                             activeThumbnailType === 'image'
-                              ? 'bg-white/90 text-gray-900 shadow-sm'
+                              ? 'bg-card/90 text-foreground shadow-sm'
                               : 'text-white/80 hover:text-white hover:bg-white/10'
                           }`}
                         >
@@ -1005,7 +1005,7 @@ function CourseDetailResponsiveSection(props: any) {
                           onClick={() => setActiveThumbnailType('video')}
                           className={`flex items-center px-2 py-1 rounded-md text-xs font-medium transition-colors ${
                             activeThumbnailType === 'video'
-                              ? 'bg-white/90 text-gray-900 shadow-sm'
+                              ? 'bg-card/90 text-foreground shadow-sm'
                               : 'text-white/80 hover:text-white hover:bg-white/10'
                           }`}
                         >
@@ -1081,7 +1081,7 @@ function CourseDetailResponsiveSection(props: any) {
             {isDescriptionTall && (
               <button
                 onClick={() => setDescriptionExpanded((v: boolean) => !v)}
-                className="mt-1 text-sm font-medium text-neutral-500 hover:text-neutral-800 transition-colors"
+                className="mt-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 {descriptionExpanded ? t('common.show_less') : t('common.show_more')}
               </button>
@@ -1092,7 +1092,7 @@ function CourseDetailResponsiveSection(props: any) {
         {learnings.length > 0 && learnings[0]?.text !== 'null' && (
           <div className="w-full">
             <h2 className="py-5 text-xl font-bold">{t('courses.what_you_will_learn')}</h2>
-            <div className="bg-white shadow-md shadow-gray-300/25 outline outline-1 outline-neutral-200/40 rounded-lg overflow-hidden px-5 py-5 space-y-2">
+            <div className="bg-card shadow-md shadow-gray-300/25 outline outline-1 outline-border/40 rounded-lg overflow-hidden px-5 py-5 space-y-2">
               {learnings.map((learning: any) => {
                 const learningText = typeof learning === 'string' ? learning : learning.text
                 const learningEmoji = typeof learning === 'string' ? null : learning.emoji
@@ -1101,13 +1101,13 @@ function CourseDetailResponsiveSection(props: any) {
                 return (
                   <div
                     key={learningId}
-                    className="flex space-x-2 items-center font-semibold text-gray-500"
+                    className="flex space-x-2 items-center font-semibold text-muted-foreground"
                   >
                     <div className="px-2 py-2 rounded-full">
                       {learningEmoji ? (
                         <span>{learningEmoji}</span>
                       ) : (
-                        <Check className="text-gray-400" size={15} />
+                        <Check className="text-muted-foreground" size={15} />
                       )}
                     </div>
                     <p>{learningText}</p>

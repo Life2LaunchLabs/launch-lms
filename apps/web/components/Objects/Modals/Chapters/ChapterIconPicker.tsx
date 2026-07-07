@@ -62,19 +62,19 @@ export default function ChapterIconPicker({
       className="fixed inset-0 z-[210] flex items-center justify-center bg-black/40 p-4"
       onPointerDown={(event) => event.stopPropagation()}
     >
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-6 nice-shadow">
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl bg-card p-6 nice-shadow">
         <div className="mb-5 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Edit chapter icon</h3>
+          <h3 className="text-lg font-semibold text-foreground">Edit chapter icon</h3>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-gray-100"
+            className="flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-muted"
           >
             <X size={18} />
           </button>
         </div>
         <div className="mb-5 flex h-36 items-center justify-center">
-          <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-gray-100 text-gray-900 shadow-sm ring-1 ring-black/5">
+          <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-muted text-foreground shadow-sm ring-1 ring-black/5">
             <SelectedIcon size={46} />
           </div>
         </div>
@@ -87,8 +87,8 @@ export default function ChapterIconPicker({
               title={optionName}
               className={`flex aspect-square items-center justify-center rounded-lg border transition-colors ${
                 selectedIcon === optionName
-                  ? 'border-black bg-white text-gray-900'
-                  : 'border-gray-200 bg-white/70 text-gray-500 hover:bg-white'
+                  ? 'border-black bg-card text-foreground'
+                  : 'border-border bg-card/70 text-muted-foreground hover:bg-card'
               }`}
             >
               <Icon size={17} />
@@ -99,7 +99,7 @@ export default function ChapterIconPicker({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-gray-200 px-4 py-2 text-sm transition-colors hover:bg-gray-50"
+            className="rounded-xl border border-border px-4 py-2 text-sm transition-colors hover:bg-muted"
           >
             Cancel
           </button>

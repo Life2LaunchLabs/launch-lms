@@ -69,7 +69,7 @@ function CourseBoxes({ resources, orgUuid }: { resources: Resource[]; orgUuid: s
         return (
           <div
             key={r.resource_uuid}
-            className="relative h-20 w-32 overflow-hidden rounded-lg border-2 border-white shadow-lg shrink-0 bg-gray-200"
+            className="relative h-20 w-32 overflow-hidden rounded-lg border-2 border-white shadow-lg shrink-0 bg-muted"
             style={{
               backgroundImage: src ? `url(${src})` : undefined,
               backgroundSize: 'cover',
@@ -78,7 +78,7 @@ function CourseBoxes({ resources, orgUuid }: { resources: Resource[]; orgUuid: s
             }}
           >
             {!src && (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-gray-200">
                 {resourceIcon(r.resource_type)}
               </div>
             )}
@@ -96,11 +96,11 @@ function OfferCard({ offer, orgslug, orgUuid }: { offer: Offer; orgslug: string;
 
   return (
     <Link href={getUriWithOrg(orgslug, routePaths.org.store.offer(offer.offer_uuid))}>
-      <div className="group bg-white rounded-xl nice-shadow overflow-hidden flex flex-col h-full cursor-pointer transition-all duration-200 hover:scale-[1.01]">
+      <div className="group bg-card rounded-xl nice-shadow overflow-hidden flex flex-col h-full cursor-pointer transition-all duration-200 hover:scale-[1.01]">
 
         {/* Thumbnail area */}
         <div className={`relative aspect-video overflow-hidden flex items-center justify-center ${
-          isSubscription ? 'bg-gradient-to-br from-indigo-50 to-purple-50' : 'bg-gray-50'
+          isSubscription ? 'bg-gradient-to-br from-indigo-50 to-purple-50' : 'bg-muted'
         }`}>
           {resources.length > 0 ? (
             <div className="p-4 w-full">
@@ -117,7 +117,7 @@ function OfferCard({ offer, orgslug, orgUuid }: { offer: Offer; orgslug: string;
                 <RefreshCcw size={10} /> Subscription
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700 bg-white/90 backdrop-blur-sm rounded-full px-2.5 py-0.5">
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground bg-card/90 backdrop-blur-sm rounded-full px-2.5 py-0.5">
                 <SquareCheck size={10} /> One-time
               </span>
             )}
@@ -126,10 +126,10 @@ function OfferCard({ offer, orgslug, orgUuid }: { offer: Offer; orgslug: string;
 
         {/* Body */}
         <div className="p-4 flex flex-col flex-1 gap-2">
-          <h2 className="font-bold text-base text-gray-900 leading-snug group-hover:text-indigo-700 transition-colors">
+          <h2 className="font-bold text-base text-foreground leading-snug group-hover:text-indigo-700 transition-colors">
             {offer.name}
           </h2>
-          <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed">{offer.description}</p>
+          <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">{offer.description}</p>
 
           {/* Included resources list */}
           {resources.length > 0 && (
@@ -147,18 +147,18 @@ function OfferCard({ offer, orgslug, orgUuid }: { offer: Offer; orgslug: string;
                     key={r.resource_uuid}
                     href={url}
                     onClick={e => e.stopPropagation()}
-                    className="flex items-center gap-2 text-xs text-gray-500 hover:text-indigo-600 transition-colors"
+                    className="flex items-center gap-2 text-xs text-muted-foreground hover:text-indigo-600 transition-colors"
                   >
                     {inner}
                   </a>
                 ) : (
-                  <div key={r.resource_uuid} className="flex items-center gap-2 text-xs text-gray-500">
+                  <div key={r.resource_uuid} className="flex items-center gap-2 text-xs text-muted-foreground">
                     {inner}
                   </div>
                 )
               })}
               {resources.length > 2 && (
-                <p className="text-xs text-gray-400">+{resources.length - 2} more included</p>
+                <p className="text-xs text-muted-foreground">+{resources.length - 2} more included</p>
               )}
             </div>
           )}
@@ -166,7 +166,7 @@ function OfferCard({ offer, orgslug, orgUuid }: { offer: Offer; orgslug: string;
           {benefits.length > 0 && (
             <div className="space-y-1">
               {benefits.slice(0, 2).map((b, i) => (
-                <div key={i} className="flex items-start gap-1.5 text-xs text-gray-400">
+                <div key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground">
                   <Sparkles size={10} className="text-indigo-300 mt-0.5 shrink-0" />
                   <span className="truncate">{b}</span>
                 </div>
@@ -175,13 +175,13 @@ function OfferCard({ offer, orgslug, orgUuid }: { offer: Offer; orgslug: string;
           )}
 
           {/* Price + CTA */}
-          <div className="mt-auto pt-3 border-t border-gray-100 flex items-center justify-between">
+          <div className="mt-auto pt-3 border-t border-border flex items-center justify-between">
             <div>
-              <div className={`text-xl font-black ${isSubscription ? 'text-indigo-700' : 'text-gray-900'}`}>
+              <div className={`text-xl font-black ${isSubscription ? 'text-indigo-700' : 'text-foreground'}`}>
                 {new Intl.NumberFormat('en-US', { style: 'currency', currency: offer.currency }).format(offer.amount)}
               </div>
               {offer.price_type === 'customer_choice' && (
-                <p className="text-xs text-gray-400 leading-none">min.</p>
+                <p className="text-xs text-muted-foreground leading-none">min.</p>
               )}
               {isSubscription && (
                 <p className="text-xs text-indigo-400 leading-none font-medium">recurring</p>
@@ -209,30 +209,30 @@ function Store({ orgslug, offers }: StoreProps) {
     <div className="w-full">
       <GeneralWrapperStyled>
         <div className="flex items-center gap-3 my-6">
-          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-white nice-shadow">
-            <ShoppingBag size={18} className="text-gray-800" />
+          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-card nice-shadow">
+            <ShoppingBag size={18} className="text-foreground" />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight">Store</h1>
+            <h1 className="text-2xl font-black text-foreground tracking-tight">Store</h1>
             {org?.name && (
-              <p className="text-sm text-gray-400 mt-0.5">Unlock premium content from {org.name}</p>
+              <p className="text-sm text-muted-foreground mt-0.5">Unlock premium content from {org.name}</p>
             )}
           </div>
         </div>
 
         {offers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center mb-4 nice-shadow">
+            <div className="w-16 h-16 rounded-2xl bg-card flex items-center justify-center mb-4 nice-shadow">
               <ShoppingBag size={28} className="text-gray-300" strokeWidth={1.5} />
             </div>
-            <h2 className="text-xl font-bold text-gray-600 mb-2">No offers available yet</h2>
-            <p className="text-gray-400 text-sm max-w-sm">
+            <h2 className="text-xl font-bold text-muted-foreground mb-2">No offers available yet</h2>
+            <p className="text-muted-foreground text-sm max-w-sm">
               Check back soon — offers and subscriptions will appear here when they become available.
             </p>
           </div>
         ) : (
           <>
-            <p className="text-sm text-gray-400 mb-5">
+            <p className="text-sm text-muted-foreground mb-5">
               {offers.length} {offers.length === 1 ? 'offer' : 'offers'} available
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">

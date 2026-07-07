@@ -43,10 +43,10 @@ const LanguageSwitcher = ({ primaryColor = '' }: { primaryColor?: string }) => {
             onClick={() => changeLanguage(language.code)}
           >
             <span className="flex items-center space-x-2">
-              <span className="text-xs font-mono text-gray-400 w-5">{language.code.toUpperCase()}</span>
+              <span className="text-xs font-mono text-muted-foreground w-5">{language.code.toUpperCase()}</span>
               <span>{language.nativeName}</span>
             </span>
-            {i18n.language === language.code && <Check size={14} className="text-black" />}
+            {i18n.language === language.code && <Check size={14} className="text-foreground" />}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

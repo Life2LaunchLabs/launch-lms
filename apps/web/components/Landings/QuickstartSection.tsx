@@ -193,12 +193,12 @@ export default function QuickstartSection({
   return (
     <section className="w-full">
       {title && (
-        <h2 className="my-2 text-lg font-bold tracking-tight text-gray-900">
+        <h2 className="my-2 text-lg font-bold tracking-tight text-foreground">
           {title}
         </h2>
       )}
       {description && (
-        <p className="mb-3 text-sm text-gray-400 line-clamp-2">{description}</p>
+        <p className="mb-3 text-sm text-muted-foreground line-clamp-2">{description}</p>
       )}
       <div className="mt-3 flex gap-4">
         {cards.map((card) => (
@@ -221,12 +221,12 @@ export default function QuickstartSection({
                 />
               ) : card.Icon ? (
                 <div className="flex h-full w-full items-center justify-center">
-                  <card.Icon className="text-black/55" />
+                  <card.Icon className="text-foreground/55" />
                 </div>
               ) : null}
             </div>
             <div className="pt-1.5">
-              <p className="text-sm font-semibold text-black/80 transition-colors group-hover:text-black">
+              <p className="text-sm font-semibold text-foreground/80 transition-colors group-hover:text-foreground">
                 {card.title}
               </p>
             </div>
