@@ -10,6 +10,7 @@ export interface LearningBlockBase {
     align?: LearningBlockAlign
     height?: number
     fit?: 'contain' | 'cover'
+    text_color?: string
   }
 }
 
@@ -17,6 +18,7 @@ export interface LearningTextBlock extends LearningBlockBase {
   type: 'text'
   content?: {
     node?: any
+    nodes?: any[]
   }
 }
 

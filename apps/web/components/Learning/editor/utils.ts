@@ -16,8 +16,14 @@ export function createTextBlock(node: any = EMPTY_PARAGRAPH): LearningTextBlock 
     id: createBlockId(),
     type: 'text',
     design: { width: 100, align: 'left' },
-    content: { node },
+    content: { node, nodes: [node] },
   }
+}
+
+export function getTextBlockNodes(block: LearningTextBlock | any): any[] {
+  const nodes = block?.content?.nodes
+  if (Array.isArray(nodes) && nodes.length) return nodes
+  return [block?.content?.node || EMPTY_PARAGRAPH]
 }
 
 export function createImageBlock(): LearningImageBlock {
@@ -195,6 +201,18 @@ export function normalizeInitialPages(pages: any[]) {
     }
 
     blocks = blocks.flatMap((block: any) => splitTextInputBlock(block))
+    blocks = blocks.map((block: any) => {
+      if (block?.type !== 'text') return block
+      const nodes = getTextBlockNodes(block)
+      return {
+        ...block,
+        content: {
+          ...(block.content || {}),
+          node: nodes[0] || EMPTY_PARAGRAPH,
+          nodes,
+        },
+      }
+    })
 
     return {
       ...page,
@@ -268,11 +286,16 @@ export function getBlockStyle(block: LearningBlock): CSSProperties {
   const design = block.design || {}
   const width = Math.max(25, Math.min(100, Number(design.width) || 100))
   const align = design.align || 'left'
-  return {
+  const style: CSSProperties = {
     width: `${width}%`,
     marginLeft: align === 'right' ? 'auto' : align === 'center' ? 'auto' : undefined,
     marginRight: align === 'left' ? 'auto' : align === 'center' ? 'auto' : undefined,
   }
+  if (block.type === 'text' && design.text_color) {
+    style.color = design.text_color
+    ;(style as any)['--learning-text-color'] = design.text_color
+  }
+  return style
 }
 
 export function blockLabel(block: LearningBlock) {
