@@ -1358,26 +1358,25 @@ async def create_activity(request: Request, data: LearningActivityCreate, curren
         update_date=now,
     )
     db_session.add(activity)
+    db_session.flush()
+
+    page = LearningPage(
+        activity_id=activity.id or 0,
+        badge_id=badge.id or 0,
+        org_id=badge.org_id,
+        page_type=LearningPageType.STANDARD,
+        title="Untitled page",
+        order=1,
+        content={"version": STANDARD_CONTENT_VERSION, "blocks": [text_block(paragraph_node(""))]},
+        page_uuid=f"learning_page_{uuid4()}",
+        creation_date=now,
+        update_date=now,
+    )
+    db_session.add(page)
     db_session.commit()
     db_session.refresh(activity)
-    if not db_session.exec(select(LearningPage).where(LearningPage.activity_id == activity.id)).first():
-        page = LearningPage(
-            activity_id=activity.id or 0,
-            badge_id=badge.id or 0,
-            org_id=badge.org_id,
-            page_type=LearningPageType.STANDARD,
-            title="Untitled page",
-            order=1,
-            content={"version": STANDARD_CONTENT_VERSION, "blocks": [text_block(paragraph_node(""))]},
-            page_uuid=f"learning_page_{uuid4()}",
-            creation_date=now,
-            update_date=now,
-        )
-        db_session.add(page)
-        db_session.commit()
-        db_session.refresh(page)
-        return _serialize_activity(activity, [page])
-    return _serialize_activity(activity, [])
+    db_session.refresh(page)
+    return _serialize_activity(activity, [page])
 
 
 async def update_activity(request: Request, activity_uuid: str, data: LearningActivityUpdate, current_user: PublicUser | AnonymousUser, db_session: Session) -> LearningActivityRead:
@@ -1431,8 +1430,7 @@ async def duplicate_activity(request: Request, activity_uuid: str, current_user:
         update_date=now,
     )
     db_session.add(clone)
-    db_session.commit()
-    db_session.refresh(clone)
+    db_session.flush()
     cloned_pages = []
     for page in pages:
         cloned_page = LearningPage(
@@ -1454,6 +1452,7 @@ async def duplicate_activity(request: Request, activity_uuid: str, current_user:
         db_session.add(cloned_page)
         cloned_pages.append(cloned_page)
     db_session.commit()
+    db_session.refresh(clone)
     for page in cloned_pages:
         db_session.refresh(page)
     return _serialize_activity(clone, cloned_pages)
