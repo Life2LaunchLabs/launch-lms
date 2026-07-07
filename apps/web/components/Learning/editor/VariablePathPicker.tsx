@@ -9,11 +9,12 @@ import { AlertCircle, Check, ChevronRight, CornerDownLeft, FolderPlus, Plus, Var
 // folder" only extends the path being typed — it materialises once a variable
 // is created beneath it.
 
-const PROFILE_LEAVES: Array<{ name: string; label: string; target: string }> = [
-  { name: 'first_name', label: 'First name', target: 'user.first_name' },
-  { name: 'last_name', label: 'Last name', target: 'user.last_name' },
-  { name: 'bio', label: 'Bio', target: 'user.bio' },
-  { name: 'onboarding_goal', label: 'Onboarding goal', target: 'user.details.onboarding.next_step' },
+const PROFILE_LEAVES: Array<{ name: string; label: string; target: string; value_type: string }> = [
+  { name: 'first_name', label: 'First name', target: 'user.first_name', value_type: 'text' },
+  { name: 'last_name', label: 'Last name', target: 'user.last_name', value_type: 'text' },
+  { name: 'bio', label: 'Bio', target: 'user.bio', value_type: 'text' },
+  { name: 'avatar_image', label: 'Profile photo', target: 'user.avatar_image', value_type: 'image' },
+  { name: 'onboarding_goal', label: 'Onboarding goal', target: 'user.details.onboarding.next_step', value_type: 'text' },
 ]
 
 const SEGMENT_PATTERN = /^[a-z][a-z0-9_]*$/
@@ -22,6 +23,7 @@ type PathNode = {
   name: string
   path: string
   target?: string
+  value_type?: string
   builtin?: boolean
   isLeaf: boolean
   children: Map<string, PathNode>
@@ -51,6 +53,7 @@ function buildTree(variables: any[], sessionFolders: Set<string>): PathNode {
       name: leaf.name,
       path: `profile.${leaf.name}`,
       target: leaf.target,
+      value_type: leaf.value_type,
       builtin: true,
       isLeaf: true,
       children: new Map(),
@@ -74,6 +77,7 @@ function buildTree(variables: any[], sessionFolders: Set<string>): PathNode {
     }
     leaf.isLeaf = true
     leaf.target = `user.details.variables.${variable.key}`
+    leaf.value_type = String(variable.value_type || variable.valueType || 'text')
     parent.children.set(name, leaf)
   })
 
@@ -104,11 +108,13 @@ export function targetToDisplayPath(target: string): string {
   return String(target).replace(/^user\.details\.variables\./, '')
 }
 
-export function VariablePathPicker({ value, variables = [], onBind, onCreateVariableKey }: {
+export function VariablePathPicker({ value, variables = [], onBind, onCreateVariableKey, acceptedTypes, createValueType }: {
   value: string
   variables: any[]
   onBind: (target: string) => void
-  onCreateVariableKey: (key: string) => Promise<any>
+  onCreateVariableKey: (key: string, valueType?: string) => Promise<any>
+  acceptedTypes?: string[]
+  createValueType?: string
 }) {
   const [open, setOpen] = React.useState(false)
   const [text, setText] = React.useState(() => targetToDisplayPath(value))
@@ -146,6 +152,7 @@ export function VariablePathPicker({ value, variables = [], onBind, onCreateVari
     return () => document.removeEventListener('mousedown', onDocDown, true)
   }, [open])
 
+  const accepted = React.useMemo(() => new Set(acceptedTypes?.length ? acceptedTypes : ['text', 'number', 'boolean', 'option', 'image']), [acceptedTypes])
   const root = React.useMemo(() => buildTree(variables, sessionFolders), [variables, sessionFolders])
 
   const lastDot = text.lastIndexOf('.')
@@ -157,9 +164,11 @@ export function VariablePathPicker({ value, variables = [], onBind, onCreateVari
   const nodes = folder
     ? Array.from(folder.children.values())
       .filter((node) => node.name.toLowerCase().startsWith(term.toLowerCase()))
+      .filter((node) => !node.isLeaf || node.children.size > 0 || accepted.has(String(node.value_type || 'text')))
       .sort((a, b) => Number(a.isLeaf) - Number(b.isLeaf) || a.name.localeCompare(b.name))
     : []
-  const exactNode = folder?.children.get(term) || null
+  const rawExactNode = folder?.children.get(term) || null
+  const exactNode = rawExactNode && (!rawExactNode.isLeaf || rawExactNode.children.size > 0 || accepted.has(String(rawExactNode.value_type || 'text'))) ? rawExactNode : null
   const termIsValidSegment = SEGMENT_PATTERN.test(term)
   const canCreateHere = Boolean(folder) && !folder?.builtin && !exactNode && termIsValidSegment && term.length > 0
   const boundDisplay = targetToDisplayPath(value)
@@ -199,7 +208,7 @@ export function VariablePathPicker({ value, variables = [], onBind, onCreateVari
     const key = prefixSegments.concat(term).join('.')
     setCreating(true)
     try {
-      const variable = await onCreateVariableKey(key)
+      const variable = await onCreateVariableKey(key, createValueType || acceptedTypes?.[0] || 'text')
       if (variable) {
         onBind(`user.details.variables.${key}`)
         setOpen(false)

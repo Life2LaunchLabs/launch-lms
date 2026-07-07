@@ -219,6 +219,14 @@ export async function uploadLearningPageMedia(pageUuid: string, formData: FormDa
   return errorHandling(result)
 }
 
+export async function uploadLearningResponseMedia(pageUuid: string, formData: FormData, accessToken: string) {
+  const result = await fetch(
+    `${getAPIUrl()}learning-pages/${pageUuid}/response-media`,
+    RequestBodyFormWithAuthHeader('POST', formData, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
 export async function getLearningVariables(orgId: string | number, accessToken?: string) {
   const result = await fetch(
     `${getAPIUrl()}learning-variables/?org_id=${orgId}`,

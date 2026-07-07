@@ -166,6 +166,10 @@ def _text_question(inputs: list[dict] | None = None, block_id: str = "blk_q") ->
     return question_block("text_input", {"inputs": inputs or []}, block_id=block_id)
 
 
+def _image_question(block_id: str = "blk_q") -> dict:
+    return question_block("image_upload", {"label": "Upload image"}, block_id=block_id)
+
+
 def test_multiple_choice_grading_uses_correct_option_ids():
     page = _standard_page(
         "learning_page_123",
@@ -317,6 +321,36 @@ def test_text_input_variables_extract_from_configured_inputs():
     ]
 
 
+def test_image_input_variables_extract_as_image_values():
+    page = _standard_page(
+        "learning_page_image_variables",
+        question=_image_question(),
+        completion={
+            "required": True,
+            "variable_bindings": {
+                "image": {"target": "user.details.variables.portfolio_photo"},
+            },
+        },
+    )
+
+    variables = _extract_learning_variables(
+        page,
+        {
+            "url": "/content/orgs/org_123/learning_responses/page/user/photo.png",
+            "value_type": "image",
+        },
+    )
+
+    assert variables == [
+        {
+            "target": "user.details.variables.portfolio_photo",
+            "value": "/content/orgs/org_123/learning_responses/page/user/photo.png",
+            "value_type": "image",
+            "source": {"page_uuid": "learning_page_image_variables", "block_id": "blk_q"},
+        }
+    ]
+
+
 def test_mcq_variables_extract_configured_option_values():
     page = _standard_page(
         "learning_page_goal",
@@ -397,6 +431,27 @@ def test_learning_variables_apply_only_safe_targets():
     assert len(applied) == 3
     assert len(skipped) == 2
     assert session.added == [user]
+
+
+def test_learning_variables_do_not_cross_image_and_text_targets():
+    user = _user()
+    user.details = {}
+    session = _FakeSession()
+
+    applied, skipped = _apply_learning_variables_to_user(
+        session,
+        user,
+        [
+            {"target": "user.avatar_image", "value": "/content/orgs/org_123/photo.png", "value_type": "image"},
+            {"target": "user.first_name", "value": "/content/orgs/org_123/not_text.png", "value_type": "image"},
+            {"target": "user.avatar_image", "value": "Grace", "value_type": "text"},
+        ],
+    )
+
+    assert user.avatar_image == "/content/orgs/org_123/photo.png"
+    assert user.first_name == "Ada"
+    assert len(applied) == 1
+    assert len(skipped) == 2
 
 
 def test_page_validation_accepts_multiple_question_blocks():
