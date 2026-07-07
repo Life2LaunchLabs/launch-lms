@@ -61,6 +61,7 @@ export default function AdminBadgeShell({
   const [isUploading, setIsUploading] = React.useState(false)
   const [uploadPreview, setUploadPreview] = React.useState<string | null>(null)
   const [updatingStatus, setUpdatingStatus] = React.useState(false)
+  const [updatingVisibility, setUpdatingVisibility] = React.useState(false)
   const normalizedSubpage = getActiveSubpage(activeSubpage)
 
   React.useEffect(() => {
@@ -105,6 +106,18 @@ export default function AdminBadgeShell({
       toast.error(error?.message || 'Failed to update status.')
     } finally {
       setUpdatingStatus(false)
+    }
+  }
+
+  const updateVisibility = async (isPublic: boolean) => {
+    if (updatingVisibility || badge.public === isPublic) return
+    setUpdatingVisibility(true)
+    try {
+      await patchBadge({ public: isPublic }, 'Access updated.')
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to update visibility.')
+    } finally {
+      setUpdatingVisibility(false)
     }
   }
 
@@ -242,6 +255,30 @@ export default function AdminBadgeShell({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <div className="inline-flex overflow-hidden rounded-md border border-gray-200 bg-white">
+            <Button
+              type="button"
+              variant={badge.public === true ? 'default' : 'ghost'}
+              className={`h-10 rounded-none gap-2 px-3 ${badge.public === true ? '' : 'text-gray-500'}`}
+              disabled={updatingVisibility}
+              onClick={() => updateVisibility(true)}
+              title="Public badges appear in learner badge lists."
+            >
+              {updatingVisibility && badge.public !== true ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
+              Public
+            </Button>
+            <Button
+              type="button"
+              variant={badge.public === false ? 'default' : 'ghost'}
+              className={`h-10 rounded-none gap-2 px-3 ${badge.public === false ? '' : 'text-gray-500'}`}
+              disabled={updatingVisibility}
+              onClick={() => updateVisibility(false)}
+              title="Private badges are visible only within this org."
+            >
+              {updatingVisibility && badge.public !== false ? <Loader2 className="h-4 w-4 animate-spin" /> : <GlobeLock className="h-4 w-4" />}
+              Private
+            </Button>
+          </div>
           <Button asChild variant="outline" className="gap-2 bg-white">
             <Link href={publicBadgeHref} target="_blank">
               <Eye className="h-4 w-4" />
@@ -493,7 +530,6 @@ function BadgeSettingsPanel({ orgslug, badge, onPatch }: { orgslug: string; badg
       <section className="max-w-4xl rounded-xl bg-white p-6 shadow-xs">
         <h2 className="text-lg font-bold text-gray-900">Settings</h2>
         <div className="mt-4 divide-y divide-gray-100">
-          <SettingRow title="Public badge" description="Public badges are visible in learner badge lists." disabled={savingKey === 'public'} checked={badge.public === true} onChange={(value) => toggle('public', value, 'Access updated.')} />
           <SettingRow title="Direct conferral" description="Allow authorized admins to issue this badge without path completion." disabled={savingKey === 'direct_conferral_enabled'} checked={badge.direct_conferral_enabled === true} onChange={(value) => toggle('direct_conferral_enabled', value, 'Conferral setting updated.')} />
         </div>
       </section>

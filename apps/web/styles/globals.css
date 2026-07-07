@@ -824,7 +824,7 @@
 
 .learning-info-text-block .ProseMirror {
   outline: none;
-  color: #111827;
+  color: var(--learning-text-color, #111827);
 }
 
 .learning-info-text-block .ProseMirror > * {
@@ -1011,6 +1011,7 @@
   font-size: 1.875rem;
   line-height: 1.15;
   font-weight: 800;
+  color: var(--learning-text-color, #111827);
 }
 
 .learning-info-text-block h2,
@@ -1019,6 +1020,7 @@
   font-size: 1.35rem;
   line-height: 1.25;
   font-weight: 750;
+  color: var(--learning-text-color, #111827);
 }
 
 .learning-info-text-block p,
@@ -1026,16 +1028,21 @@
   margin: 0.75rem 0;
   font-size: 1.125rem;
   line-height: 1.75;
-  color: #4b5563;
+  color: var(--learning-text-color, #4b5563);
 }
 
 .learning-info-text-block ul,
 .learning-info-text-block ol,
 .learning-info-text-block .ProseMirror ul,
 .learning-info-text-block .ProseMirror ol {
-  margin: 0.9rem 0;
+  margin: 0.35rem 0 0.6rem;
   padding-left: 1.35rem;
-  color: #4b5563;
+  color: var(--learning-text-color, #4b5563);
+}
+
+.learning-info-text-block .ProseMirror > ul,
+.learning-info-text-block .ProseMirror > ol {
+  padding-top: 0.15rem;
 }
 
 .learning-info-text-block ul,
@@ -1061,7 +1068,7 @@
   margin: 1rem 0;
   border-left: 3px solid var(--org-primary-color);
   padding-left: 1rem;
-  color: #374151;
+  color: var(--learning-text-color, #374151);
 }
 
 .learning-info-text-block .ProseMirror p.is-editor-empty:first-child::before,

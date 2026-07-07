@@ -1223,9 +1223,12 @@ async def get_badge(request: Request, badge_uuid: str, current_user: PublicUser 
     return LearningBadgeRead(**badge.model_dump())
 
 
-async def list_badges(request: Request, org_id: int, current_user: PublicUser | AnonymousUser, db_session: Session, admin: bool = False) -> list[LearningBadgeRead]:
-    _ensure_onboarding_for_owner_org(db_session, org_id)
+async def list_badges(request: Request, org_id: int | None, current_user: PublicUser | AnonymousUser, db_session: Session, admin: bool = False) -> list[LearningBadgeRead]:
+    if org_id is not None:
+        _ensure_onboarding_for_owner_org(db_session, org_id)
     if admin:
+        if org_id is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="org_id is required for admin badge listing")
         _require_org_admin(db_session, current_user, org_id)
         statement = select(LearningBadge).where(LearningBadge.org_id == org_id)
     else:
@@ -1284,14 +1287,20 @@ async def delete_collection(request: Request, collection_uuid: str, current_user
     return {"detail": "Badge collection deleted"}
 
 
-async def list_collections(request: Request, org_id: int, current_user: PublicUser | AnonymousUser, db_session: Session, admin: bool = False) -> list[BadgeCollectionRead]:
-    _ensure_onboarding_for_owner_org(db_session, org_id)
+async def list_collections(request: Request, org_id: int | None, current_user: PublicUser | AnonymousUser, db_session: Session, admin: bool = False) -> list[BadgeCollectionRead]:
+    if org_id is not None:
+        _ensure_onboarding_for_owner_org(db_session, org_id)
     if admin:
+        if org_id is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="org_id is required for admin badge collection listing")
         _require_org_admin(db_session, current_user, org_id)
         collections = db_session.exec(select(BadgeCollection).where(BadgeCollection.org_id == org_id)).all()
         badges = db_session.exec(select(LearningBadge).where(LearningBadge.org_id == org_id)).all()
     else:
-        collections = db_session.exec(select(BadgeCollection).where(BadgeCollection.org_id == org_id, BadgeCollection.public == True, BadgeCollection.hidden == False)).all()
+        collection_statement = select(BadgeCollection).where(BadgeCollection.public == True, BadgeCollection.hidden == False)
+        if org_id is not None:
+            collection_statement = collection_statement.where(BadgeCollection.org_id == org_id)
+        collections = db_session.exec(collection_statement).all()
         badges = db_session.exec(_public_badge_query(org_id)).all()
     badges_by_collection: dict[int, list[LearningBadge]] = {}
     for badge in badges:
@@ -1349,26 +1358,25 @@ async def create_activity(request: Request, data: LearningActivityCreate, curren
         update_date=now,
     )
     db_session.add(activity)
+    db_session.flush()
+
+    page = LearningPage(
+        activity_id=activity.id or 0,
+        badge_id=badge.id or 0,
+        org_id=badge.org_id,
+        page_type=LearningPageType.STANDARD,
+        title="Untitled page",
+        order=1,
+        content={"version": STANDARD_CONTENT_VERSION, "blocks": [text_block(paragraph_node(""))]},
+        page_uuid=f"learning_page_{uuid4()}",
+        creation_date=now,
+        update_date=now,
+    )
+    db_session.add(page)
     db_session.commit()
     db_session.refresh(activity)
-    if not db_session.exec(select(LearningPage).where(LearningPage.activity_id == activity.id)).first():
-        page = LearningPage(
-            activity_id=activity.id or 0,
-            badge_id=badge.id or 0,
-            org_id=badge.org_id,
-            page_type=LearningPageType.STANDARD,
-            title="Untitled page",
-            order=1,
-            content={"version": STANDARD_CONTENT_VERSION, "blocks": [text_block(paragraph_node(""))]},
-            page_uuid=f"learning_page_{uuid4()}",
-            creation_date=now,
-            update_date=now,
-        )
-        db_session.add(page)
-        db_session.commit()
-        db_session.refresh(page)
-        return _serialize_activity(activity, [page])
-    return _serialize_activity(activity, [])
+    db_session.refresh(page)
+    return _serialize_activity(activity, [page])
 
 
 async def update_activity(request: Request, activity_uuid: str, data: LearningActivityUpdate, current_user: PublicUser | AnonymousUser, db_session: Session) -> LearningActivityRead:
@@ -1422,8 +1430,7 @@ async def duplicate_activity(request: Request, activity_uuid: str, current_user:
         update_date=now,
     )
     db_session.add(clone)
-    db_session.commit()
-    db_session.refresh(clone)
+    db_session.flush()
     cloned_pages = []
     for page in pages:
         cloned_page = LearningPage(
@@ -1445,6 +1452,7 @@ async def duplicate_activity(request: Request, activity_uuid: str, current_user:
         db_session.add(cloned_page)
         cloned_pages.append(cloned_page)
     db_session.commit()
+    db_session.refresh(clone)
     for page in cloned_pages:
         db_session.refresh(page)
     return _serialize_activity(clone, cloned_pages)

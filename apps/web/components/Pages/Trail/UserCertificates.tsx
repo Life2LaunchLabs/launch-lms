@@ -2,7 +2,6 @@
 
 import React from 'react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { Award } from 'lucide-react'
 import Link from 'next/link'
@@ -21,10 +20,9 @@ interface UserCertificatesProps {
 const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug, showHeader = true }) => {
   const session = useLHSession() as any
   const access_token = session?.data?.tokens?.access_token
-  const org = useOrg() as any
 
   const { data: learningAwards, error, isLoading } = useSWR(
-    access_token && org?.id ? `${getAPIUrl()}badge-awards/?org_id=${org.id}` : null,
+    access_token ? `${getAPIUrl()}badge-awards/` : null,
     (url) => swrFetcher(url, access_token)
   )
 

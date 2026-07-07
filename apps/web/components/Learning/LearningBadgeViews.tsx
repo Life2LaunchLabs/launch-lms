@@ -22,10 +22,12 @@ import {
   getBlockCompletion,
   getBlockScoring,
   getQuestionAnswer,
+  type LearningTextBlock,
   resolveVariantBlocks,
   setQuestionAnswer,
   type LearningBlock,
 } from '@components/Learning/schema'
+import { EMPTY_PARAGRAPH, getTextBlockNodes } from './editor/utils'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import toast from 'react-hot-toast'
 import ReorderableList from '@components/Objects/ReorderableList'
@@ -120,6 +122,9 @@ export function LearningActivitySurface({
   const progress = ((pageIndex + 1) / Math.max(1, pages.length)) * 100
   const isVideoPage = page?.page_type === 'video'
   const showVideoControls = isVideoPage && actionDisabled && interactionState?.videoStarted
+  const pageBackground = !isVideoPage && page?.design?.background_accent_color
+    ? String(page.design.background_accent_color)
+    : undefined
   const surfaceClassName = isVideoPage
     ? `relative flex w-full min-w-0 items-center justify-center overflow-hidden bg-black px-4 py-4 text-gray-950 sm:py-6 ${className}`
     : `relative flex w-full min-w-0 overflow-hidden bg-[var(--org-page-background)] text-gray-950 ${className} items-center justify-center px-4 py-4 sm:py-6`
@@ -139,7 +144,7 @@ export function LearningActivitySurface({
   )
 
   return (
-    <main data-learning-activity-surface className={surfaceClassName}>
+    <main data-learning-activity-surface className={surfaceClassName} style={pageBackground ? { backgroundColor: pageBackground } : undefined}>
       <div className={frameClassName}>
         <div className="relative z-10 shrink-0 px-4">
           <div className={chromeInnerClassName}>
@@ -284,11 +289,11 @@ function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editab
   const blockStyle = getStandardBlockStyle(block)
 
   if (block.type === 'text') {
-    const node = block.content?.node || { type: 'paragraph' }
+    const nodes = getTextBlockNodes(block as LearningTextBlock)
     return (
       <section className="learning-info-stack-section" style={blockStyle}>
         <InfoTextBlock
-          block={node}
+          block={nodes}
           blockId={block.id}
           editable={false}
           onActivate={() => null}
@@ -339,11 +344,16 @@ function getStandardBlockStyle(block: LearningBlock): React.CSSProperties {
   const design = block.design || {}
   const width = Math.max(25, Math.min(100, Number(design.width) || 100))
   const align = design.align || 'left'
-  return {
+  const style: React.CSSProperties = {
     width: `${width}%`,
     marginLeft: align === 'right' ? 'auto' : align === 'center' ? 'auto' : undefined,
     marginRight: align === 'left' ? 'auto' : align === 'center' ? 'auto' : undefined,
   }
+  if (block.type === 'text' && design.text_color) {
+    style.color = design.text_color
+    ;(style as any)['--learning-text-color'] = design.text_color
+  }
+  return style
 }
 
 function InfoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, responseKey = 'default' }: any) {
@@ -1573,7 +1583,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
                       value={input.label || ''}
                       placeholder={`Input ${index + inputIndex + 1}`}
                       onChange={(value: string) => updateInputConfig(input.id, { label: value })}
-                      className="min-w-0 flex-1 text-sm font-bold text-gray-700"
+                      className="min-w-0 flex-1 text-lg font-bold leading-7 text-gray-900"
                     />
                   ) : <span className="min-w-0 flex-1" />}
                 </div>
@@ -1649,7 +1659,12 @@ const InfoTextAlign = Extension.create({
 })
 
 function InfoTextBlock({ block, blockId, editable, onActivate, onUpdate, onSplit, shouldFocus, onFocusComplete }: any) {
-  const content = React.useMemo(() => ({ type: 'doc', content: [stripInfoBlockMeta(block)] }), [block])
+  const content = React.useMemo(() => ({
+    type: 'doc',
+    content: Array.isArray(block)
+      ? (block.length ? block : [EMPTY_PARAGRAPH]).map(stripInfoBlockMeta)
+      : [stripInfoBlockMeta(block)],
+  }), [block])
   const onSplitRef = React.useRef(onSplit)
   const editorRef = React.useRef<any>(null)
 

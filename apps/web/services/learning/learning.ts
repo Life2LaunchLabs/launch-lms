@@ -15,13 +15,15 @@ export type LearningPageType =
   | 'question_response'
 
 export async function getLearningBadgeCollections(
-  orgId: string | number,
+  orgId?: string | number,
   accessToken?: string,
   admin = false,
   next?: any
 ) {
+  const search = new URLSearchParams({ admin: String(admin) })
+  if (orgId !== undefined && orgId !== null && orgId !== '') search.set('org_id', String(orgId))
   const result = await fetch(
-    `${getAPIUrl()}badge-collections/?org_id=${orgId}&admin=${admin}`,
+    `${getAPIUrl()}badge-collections/?${search.toString()}`,
     RequestBodyWithAuthHeader('GET', null, next, accessToken)
   )
   return getResponseMetadata(result)
@@ -86,13 +88,15 @@ export async function importLearningBadgePackage(orgId: string | number, payload
 }
 
 export async function getLearningBadges(
-  orgId: string | number,
+  orgId?: string | number,
   accessToken?: string,
   admin = false,
   next?: any
 ) {
+  const search = new URLSearchParams({ admin: String(admin) })
+  if (orgId !== undefined && orgId !== null && orgId !== '') search.set('org_id', String(orgId))
   const result = await fetch(
-    `${getAPIUrl()}badges/?org_id=${orgId}&admin=${admin}`,
+    `${getAPIUrl()}badges/?${search.toString()}`,
     RequestBodyWithAuthHeader('GET', null, next, accessToken)
   )
   return getResponseMetadata(result)

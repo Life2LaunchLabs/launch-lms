@@ -89,6 +89,7 @@ import {
   getBlockStyle,
   getEditorBlocks,
   getPageBlocks,
+  getTextBlockNodes,
   getEnabledVariantKeys,
   getVariantKeyList,
   getVariantSource,
@@ -1419,12 +1420,12 @@ function McqBlockCanvas({ block, page, selected, readOnly, onPatch }: any) {
       {readOnly ? (
         content.label ? <p className="text-lg font-bold text-gray-900">{content.label}</p> : null
       ) : (
-        <textarea
+        <AutoGrowTextarea
           value={content.label || ''}
           onChange={(event) => onPatch({ content: { ...content, label: event.target.value } })}
           placeholder="Question label"
-          rows={2}
-          className="min-h-[3.25rem] w-full resize-none overflow-hidden bg-transparent text-lg font-bold leading-7 text-gray-900 outline-none placeholder:text-gray-300"
+          minRows={1}
+          className="w-full resize-none overflow-hidden bg-transparent text-lg font-bold leading-7 text-gray-900 outline-none placeholder:text-gray-300"
         />
       )}
       {options.map((option: any, index: number) => {
@@ -1438,13 +1439,13 @@ function McqBlockCanvas({ block, page, selected, readOnly, onPatch }: any) {
               {String.fromCharCode(65 + index)}
             </span>
             {readOnly ? (
-              <span className="min-w-0 flex-1 text-gray-900">{option.text || `Option ${index + 1}`}</span>
+              <span className="min-w-0 flex-1 whitespace-pre-wrap text-gray-900">{option.text || `Option ${index + 1}`}</span>
             ) : (
-              <textarea
+              <AutoGrowTextarea
                 value={option.text || ''}
                 onChange={(event) => updateOption(option.id, event.target.value)}
                 placeholder={`Option ${index + 1}`}
-                rows={1}
+                minRows={1}
                 className="min-h-6 min-w-0 flex-1 resize-none overflow-hidden bg-transparent text-gray-900 outline-none placeholder:text-gray-400"
               />
             )}
@@ -1530,6 +1531,17 @@ function TextInputBlockCanvas({ block, page, selected: _selected, readOnly, onPa
 
   return (
     <div className="group/inputs relative py-1">
+      {readOnly ? (
+        content.label ? <p className="mb-2 text-lg font-bold leading-7 text-gray-900">{content.label}</p> : null
+      ) : (
+        <AutoGrowTextarea
+          value={content.label || ''}
+          onChange={(event) => onPatch({ content: { ...content, label: event.target.value } })}
+          placeholder="Question label"
+          minRows={1}
+          className="mb-2 w-full resize-none overflow-hidden bg-transparent text-lg font-bold leading-7 text-gray-900 outline-none placeholder:text-gray-300"
+        />
+      )}
       <div className={`grid gap-3 ${sideBySide ? 'grid-cols-2' : 'grid-cols-1'}`}>
         {inputs.map((input: any, index: number) => {
           const height = Math.max(48, Number(input.height) || 160)
@@ -1538,13 +1550,14 @@ function TextInputBlockCanvas({ block, page, selected: _selected, readOnly, onPa
           return (
             <div key={input.id} className="min-w-0">
               {readOnly ? (
-                input.label ? <p className="mb-1 text-sm font-bold text-gray-700">{input.label}</p> : null
+                input.label ? <p className="mb-2 text-lg font-bold leading-7 text-gray-900">{input.label}</p> : null
               ) : (
-                <input
+                <AutoGrowTextarea
                   value={input.label || ''}
                   onChange={(event) => patchInput(input.id, { label: event.target.value })}
                   placeholder={`Input label ${sideBySide ? index + 1 : ''}`.trim()}
-                  className="mb-1 w-full bg-transparent text-sm font-bold text-gray-700 outline-none placeholder:text-gray-300"
+                  minRows={1}
+                  className="mb-2 w-full resize-none overflow-hidden bg-transparent text-lg font-bold leading-7 text-gray-900 outline-none placeholder:text-gray-300"
                 />
               )}
               {singleLine ? (
@@ -1586,7 +1599,34 @@ function TextInputBlockCanvas({ block, page, selected: _selected, readOnly, onPa
   )
 }
 
+function AutoGrowTextarea({
+  value,
+  minRows = 1,
+  style,
+  ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { minRows?: number }) {
+  const ref = React.useRef<HTMLTextAreaElement | null>(null)
+
+  React.useLayoutEffect(() => {
+    const textarea = ref.current
+    if (!textarea) return
+    textarea.style.height = 'auto'
+    textarea.style.height = `${textarea.scrollHeight}px`
+  }, [value])
+
+  return (
+    <textarea
+      {...props}
+      ref={ref}
+      value={value}
+      rows={minRows}
+      style={{ ...style, minHeight: `${minRows * 1.75}rem` }}
+    />
+  )
+}
+
 function TextBlockEditor({ block, selected, readOnly = false, onEditorReady, onPatch }: { block: LearningTextBlock; selected: boolean; readOnly?: boolean; onEditorReady?: (editor: any) => void; onPatch: (patch: Partial<LearningTextBlock>) => void }) {
+  const nodes = React.useMemo(() => getTextBlockNodes(block), [block])
   const editor = useEditor({
     immediatelyRender: false,
     editable: !readOnly,
@@ -1602,7 +1642,7 @@ function TextBlockEditor({ block, selected, readOnly = false, onEditorReady, onP
       }),
       LearningTextAlign,
     ],
-    content: { type: 'doc', content: [block.content?.node || EMPTY_PARAGRAPH] },
+    content: { type: 'doc', content: nodes },
     editorProps: {
       attributes: {
         class: 'focus:outline-none',
@@ -1610,18 +1650,18 @@ function TextBlockEditor({ block, selected, readOnly = false, onEditorReady, onP
     },
     onFocus: () => null,
     onUpdate: ({ editor }) => {
-      const node = editor.getJSON().content?.[0] || EMPTY_PARAGRAPH
-      onPatch({ content: { ...(block.content || {}), node } })
+      const nextNodes = editor.getJSON().content || [EMPTY_PARAGRAPH]
+      onPatch({ content: { ...(block.content || {}), node: nextNodes[0] || EMPTY_PARAGRAPH, nodes: nextNodes } })
     },
   }, [block.id])
 
   React.useEffect(() => {
     if (!editor || editor.isFocused) return
-    const next = { type: 'doc', content: [block.content?.node || EMPTY_PARAGRAPH] }
+    const next = { type: 'doc', content: nodes }
     if (JSON.stringify(editor.getJSON()) !== JSON.stringify(next)) {
       editor.commands.setContent(next)
     }
-  }, [block.content?.node, editor])
+  }, [editor, nodes])
 
   // Surface the tiptap instance to the screen-space overlay's format toolbar.
   React.useEffect(() => {
@@ -1818,6 +1858,8 @@ function InspectorPanel({
 function PageInspector({ page, pages, variantKey, setVariantKey, onSelectVariant, onDisableVariant, onPatchPage }: any) {
   if (!page) return null
   const hasVariants = Boolean(page.content?.variants)
+  const design = page.design || {}
+  const patchDesign = (patch: any) => onPatchPage({ design: { ...design, ...patch } })
   return (
     <div className="space-y-6 p-5">
       <InspectorSection label="Page">
@@ -1827,6 +1869,16 @@ function PageInspector({ page, pages, variantKey, setVariantKey, onSelectVariant
           <input type="checkbox" checked={page.required !== false} onChange={(event) => onPatchPage({ required: event.target.checked })} />
         </label>
       </InspectorSection>
+      {page.page_type !== 'video' && (
+        <InspectorSection label="Appearance">
+          <ColorField
+            label="Background accent"
+            value={design.background_accent_color || ''}
+            fallback="#f8fafc"
+            onChange={(value) => patchDesign({ background_accent_color: value })}
+          />
+        </InspectorSection>
+      )}
       {page.page_type === 'video' && (
         <InspectorSection label="Video">
           <TextField label="URL" value={page.content?.video_url || ''} onChange={(value) => onPatchPage({ content: { ...(page.content || {}), video_url: value } })} />
@@ -2015,6 +2067,16 @@ function BlockInspector({ block, page, learningVariables, onCreateVariableKey, o
           </div>
         </InspectorSection>
       )}
+      {block.type === 'text' && (
+        <InspectorSection label="Appearance">
+          <ColorField
+            label="Text color"
+            value={design.text_color || ''}
+            fallback="#4b5563"
+            onChange={(value) => patchDesign({ text_color: value })}
+          />
+        </InspectorSection>
+      )}
       {block.type === 'question' && (
         <QuestionInspector
           block={block}
@@ -2044,6 +2106,17 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
   const patchScoring = (patch: any) => patchQuestion({ scoring: { ...scoring, ...patch } })
   const patchCompletion = (patch: any) => patchQuestion({ completion: { ...completion, ...patch } })
   const patchVariableBindings = (patch: any) => patchCompletion({ variable_bindings: { ...variableBindings, ...patch } })
+  const labelSection = (
+    <InspectorSection label="Question">
+      <TextAreaField
+        label="Label"
+        value={content.label || ''}
+        onChange={(value) => patchContent({ label: value })}
+        placeholder="Question label"
+        rows={2}
+      />
+    </InspectorSection>
+  )
 
   // Scored questions grade answers and award points; variable questions just
   // store what the learner chose/typed. Switching modes clears the other side.
@@ -2115,6 +2188,7 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
 
     return (
       <>
+        {labelSection}
         <InspectorSection label="Answers">
           <div className="space-y-2">
             {options.map((option, index) => (
@@ -2188,6 +2262,7 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
 
   return (
     <>
+      {labelSection}
       <InspectorSection label={sideBySide ? 'Inputs (side by side)' : 'Input'}>
         <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm">
           <span className="font-bold text-gray-700">Two inputs side by side</span>
@@ -2288,6 +2363,53 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
       </InspectorSection>
     </>
   )
+}
+
+function TextAreaField({ label, value, onChange, placeholder, rows = 3 }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; rows?: number }) {
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <textarea
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        className="min-h-20 w-full resize-y rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none placeholder:text-gray-400 focus:border-[var(--org-primary-color)]"
+      />
+    </div>
+  )
+}
+
+function ColorField({ label, value, fallback, onChange }: { label: string; value: string; fallback: string; onChange: (value: string) => void }) {
+  const color = isHexColor(value) ? value : fallback
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={color}
+          onChange={(event) => onChange(event.target.value)}
+          className="h-10 w-12 rounded-lg border border-gray-200 bg-white p-1"
+        />
+        <input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={fallback}
+          className="h-10 min-w-0 flex-1 rounded-lg border border-gray-200 px-3 text-sm outline-none focus:border-[var(--org-primary-color)]"
+        />
+        {value && (
+          <button type="button" onClick={() => onChange('')} className="h-10 rounded-lg border border-gray-200 px-3 text-xs font-bold text-gray-600 hover:bg-gray-50">
+            Reset
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function isHexColor(value: string) {
+  return /^#[0-9a-f]{6}$/i.test(String(value || ''))
 }
 
 function VariableCreateInline({ value, onChange, onCreate }: any) {
