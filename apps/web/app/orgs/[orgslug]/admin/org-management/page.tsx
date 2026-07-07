@@ -1,16 +1,7 @@
-'use client'
-import React from 'react'
-import OrganizationList from '@components/Admin/OrganizationList'
-import PlatformPageFrame from '@components/Admin/PlatformPageFrame'
+import { redirect } from 'next/navigation'
 
-export default function OrgManagementPage() {
-  return (
-    <PlatformPageFrame
-      title="Org Management"
-      description="Create and manage all organizations on this platform"
-      activeSection="organizations"
-    >
-      <OrganizationList basePath="/admin/org-management" lightTheme />
-    </PlatformPageFrame>
-  )
+// Host-relative path: the proxy rewrites external paths per-host, and building
+// an absolute URL server-side falls back to 'localhost' when no env is set.
+export default function LegacyOrgManagementPage() {
+  redirect('/admin/platform/orgs')
 }

@@ -1,185 +1,123 @@
 import logging
-from datetime import datetime, timezone
-from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
-from sqlmodel import Session, select, func
-from sqlalchemy.orm.attributes import flag_modified
+from fastapi import APIRouter, Depends, Request, status
+from sqlmodel import Session
 
 from src.core.capabilities import CORE_CAPABILITIES
 from src.core.events.database import get_db_session
-from src.db.custom_domains import CustomDomain
-from src.db.organization_config import OrganizationConfig, OrganizationConfigV2Base
-from src.db.organizations import Organization, OrganizationCreate
-from src.db.plan_requests import PlanRequest, PlanRequestRead, PlanRequestUpdate
-from src.db.roles import Role
-from src.db.user_organizations import UserOrganization
-from src.db.users import PublicUser, User
-from src.db.courses.courses import Course
+from src.db.organizations import OrganizationCreate
+from src.db.plan_requests import PlanRequestRead, PlanRequestUpdate
+from src.db.roles import Role, RoleTypeEnum
+from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.security.superadmin import require_superadmin
+from src.services.email.utils import get_base_url_from_request
 from src.services.orgs.usage import get_org_usage_and_limits
+from src.services.superadmin import orgs as orgs_service
+from src.services.superadmin import users as users_service
+from src.services.superadmin.orgs import (
+    OrgConfigUpdateRequest,
+    OrgPackagesUpdateRequest,
+    OrgPlanUpdateRequest,
+    OrgSettingsUpdateRequest,
+)
+from src.services.superadmin.users import (
+    BatchUserAction,
+    GlobalUserCreate,
+    GlobalUserUpdate,
+    MembershipUpdate,
+    ResetLinkPayload,
+    SetPasswordPayload,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(dependencies=[Depends(require_superadmin)])
 
 
-class SuperadminUserUpdate(BaseModel):
-    is_superadmin: bool
+@router.get("/status")
+async def superadmin_status(current_user: PublicUser = Depends(get_current_user)):
+    return {"is_superadmin": True, "capabilities": CORE_CAPABILITIES}
 
 
-class OrgConfigUpdateRequest(BaseModel):
-    config: dict
+@router.get("/roles")
+async def list_global_roles(db_session: Session = Depends(get_db_session)):
+    """Global roles available for org membership assignment."""
+    from sqlmodel import select
 
-
-class OrgPlanUpdateRequest(BaseModel):
-    plan: str
-
-
-def _parse_datetime(value: str | None) -> datetime:
-    if not value:
-        return datetime.min.replace(tzinfo=timezone.utc)
-    try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        return datetime.min.replace(tzinfo=timezone.utc)
-
-
-def _org_plan(org_config: OrganizationConfig | None) -> str:
-    if not org_config:
-        return "free"
-    config = org_config.config or {}
-    if str(config.get("config_version", "1.0")).startswith("2"):
-        return config.get("plan", "free")
-    return config.get("cloud", {}).get("plan", "free")
-
-
-def _get_org_config_rows(org_id: int, db_session: Session) -> list[OrganizationConfig]:
-    return db_session.exec(
-        select(OrganizationConfig)
-        .where(OrganizationConfig.org_id == org_id)
-        .order_by(OrganizationConfig.id)
+    roles = db_session.exec(
+        select(Role).where(Role.role_type == RoleTypeEnum.TYPE_GLOBAL).order_by(Role.id)
     ).all()
+    return [
+        {
+            "id": role.id,
+            "role_uuid": role.role_uuid,
+            "name": role.name,
+            "description": role.description,
+        }
+        for role in roles
+    ]
 
 
-def _get_single_org_config(org_id: int, db_session: Session) -> OrganizationConfig:
-    rows = _get_org_config_rows(org_id, db_session)
-    if not rows:
-        raise HTTPException(status_code=404, detail="Organization config not found")
-    if len(rows) > 1:
-        row_ids = [row.id for row in rows]
-        logger.error(
-            "Duplicate organization_config rows found for org_id=%s: ids=%s",
-            org_id,
-            row_ids,
-        )
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "Duplicate organization configs found for this organization. "
-                f"org_id={org_id}, config_ids={row_ids}"
-            ),
-        )
-    return rows[0]
+# ============================================================================
+# Overview
+# ============================================================================
 
 
-def _verify_persisted_org_plan(
-    org_config: OrganizationConfig,
-    expected_plan: str,
-    db_session: Session,
-) -> None:
-    db_session.refresh(org_config)
-    persisted_plan = _org_plan(org_config)
-    if persisted_plan != expected_plan:
-        logger.error(
-            "Organization plan write verification failed for org_id=%s: expected=%s actual=%s config_id=%s",
-            org_config.org_id,
-            expected_plan,
-            persisted_plan,
-            org_config.id,
-        )
-        raise HTTPException(
-            status_code=500,
-            detail=(
-                "Organization plan update could not be verified after commit. "
-                f"expected={expected_plan}, actual={persisted_plan}"
-            ),
-        )
+@router.get("/overview")
+async def platform_overview(db_session: Session = Depends(get_db_session)):
+    from sqlmodel import func, select
 
+    from src.db.courses.courses import Course
+    from src.db.organizations import Organization
+    from src.db.plan_requests import PlanRequest
+    from src.db.users import User
 
-def _admin_users_for_org(org_id: int, db_session: Session) -> list[dict]:
-    rows = db_session.exec(
-        select(User, Role)
-        .join(UserOrganization, UserOrganization.user_id == User.id)
-        .join(Role, Role.id == UserOrganization.role_id)
-        .where(UserOrganization.org_id == org_id)
+    org_count = db_session.exec(select(func.count()).select_from(Organization)).one()
+    user_count = db_session.exec(select(func.count()).select_from(User)).one()
+    course_count = db_session.exec(select(func.count()).select_from(Course)).one()
+    pending_requests = db_session.exec(
+        select(func.count()).where(PlanRequest.status == "pending")
+    ).one()
+    recent_users = db_session.exec(
+        select(User).order_by(User.id.desc()).limit(5)  # type: ignore[union-attr]
     ).all()
-    admins = []
-    for user, role in rows:
-        rights = role.rights or {}
-        dashboard = rights.get("dashboard", {}) if isinstance(rights, dict) else {}
-        is_admin = role.id in (1, 2) or dashboard.get("action_access", False)
-        if is_admin:
-            admins.append({
+    recent_orgs = db_session.exec(
+        select(Organization).order_by(Organization.id.desc()).limit(5)  # type: ignore[union-attr]
+    ).all()
+    return {
+        "org_count": org_count,
+        "user_count": user_count,
+        "course_count": course_count,
+        "pending_request_count": pending_requests,
+        "recent_users": [
+            {
+                "id": user.id,
                 "username": user.username,
                 "email": user.email,
                 "avatar_image": user.avatar_image,
                 "user_uuid": user.user_uuid,
-            })
-    return admins
-
-
-def _serialize_global_user(user: User, orgs: list[dict]) -> dict:
-    return {
-        "id": user.id,
-        "user_uuid": user.user_uuid,
-        "username": user.username,
-        "email": user.email,
-        "first_name": user.first_name,
-        "last_name": user.last_name,
-        "avatar_image": user.avatar_image,
-        "is_superadmin": user.is_superadmin,
-        "org_count": len(orgs),
-        "orgs": orgs,
-        "creation_date": user.creation_date,
-        "update_date": user.update_date,
+                "creation_date": user.creation_date,
+            }
+            for user in recent_users
+        ],
+        "recent_orgs": [
+            {
+                "id": org.id,
+                "name": org.name,
+                "slug": org.slug,
+                "logo_image": org.logo_image,
+                "org_uuid": org.org_uuid,
+                "creation_date": org.creation_date,
+            }
+            for org in recent_orgs
+        ],
     }
 
 
-def _sort_org_items(items: list[dict], sort: str) -> list[dict]:
-    sort_map: dict[str, tuple] = {
-        "id": (lambda item: item["id"], False),
-        "newest": (lambda item: _parse_datetime(item.get("creation_date")), True),
-        "oldest": (lambda item: _parse_datetime(item.get("creation_date")), False),
-        "users_desc": (lambda item: (item["user_count"], item["id"]), True),
-        "users_asc": (lambda item: (item["user_count"], item["id"]), False),
-        "courses_desc": (lambda item: (item["course_count"], item["id"]), True),
-        "most_admins": (lambda item: (len(item["admin_users"]), item["id"]), True),
-        "recently_updated": (lambda item: _parse_datetime(item.get("update_date")), True),
-    }
-    key_func, reverse = sort_map.get(sort, sort_map["id"])
-    return sorted(items, key=key_func, reverse=reverse)
-
-
-def _sort_user_items(items: list[dict], sort: str) -> list[dict]:
-    sort_map: dict[str, tuple] = {
-        "id": (lambda item: item["id"], False),
-        "newest": (lambda item: _parse_datetime(item.get("creation_date")), True),
-        "oldest": (lambda item: _parse_datetime(item.get("creation_date")), False),
-        "orgs_desc": (lambda item: (item["org_count"], item["id"]), True),
-        "orgs_asc": (lambda item: (item["org_count"], item["id"]), False),
-        "username": (lambda item: (item["username"] or "").lower(), False),
-        "recently_updated": (lambda item: _parse_datetime(item.get("update_date")), True),
-    }
-    key_func, reverse = sort_map.get(sort, sort_map["id"])
-    return sorted(items, key=key_func, reverse=reverse)
-
-
-@router.get("/status")
-async def superadmin_status(current_user: PublicUser = Depends(get_current_user)):
-    return {"is_superadmin": True, "capabilities": CORE_CAPABILITIES}
+# ============================================================================
+# Organizations
+# ============================================================================
 
 
 @router.get("/organizations")
@@ -191,38 +129,9 @@ async def list_organizations(
     plan: str = "all",
     db_session: Session = Depends(get_db_session),
 ):
-    statement = select(Organization).order_by(getattr(Organization, sort, Organization.id))
-    orgs = db_session.exec(statement).all()
-    org_configs = {
-        cfg.org_id: cfg
-        for cfg in db_session.exec(select(OrganizationConfig)).all()
-    }
-    items = []
-    for org in orgs:
-        org_plan = _org_plan(org_configs.get(org.id))
-        if plan != "all" and org_plan != plan:
-            continue
-        if search and search.lower() not in f"{org.name} {org.slug} {org.email}".lower():
-            continue
-        user_count = db_session.exec(select(func.count()).where(UserOrganization.org_id == org.id)).one()
-        course_count = db_session.exec(select(func.count()).where(Course.org_id == org.id)).one()
-        pending_request_count = db_session.exec(
-            select(func.count()).where(PlanRequest.org_id == org.id, PlanRequest.status == "pending")
-        ).one()
-        domains = db_session.exec(select(CustomDomain).where(CustomDomain.org_id == org.id)).all()
-        items.append({
-            **org.model_dump(),
-            "user_count": user_count,
-            "course_count": course_count,
-            "pending_request_count": pending_request_count,
-            "plan": org_plan,
-            "custom_domains": [domain.domain for domain in domains],
-            "admin_users": _admin_users_for_org(org.id, db_session),
-        })
-    items = _sort_org_items(items, sort)
-    total = len(items)
-    start = max(page - 1, 0) * limit
-    return {"items": items[start:start + limit], "total": total, "page": page, "limit": limit}
+    return orgs_service.list_organizations(
+        db_session, page=page, limit=limit, sort=sort, search=search, plan=plan
+    )
 
 
 @router.post("/organizations", status_code=status.HTTP_201_CREATED)
@@ -231,44 +140,7 @@ async def create_organization(
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    existing = db_session.exec(select(Organization).where(Organization.slug == payload.slug)).first()
-    if existing:
-        raise HTTPException(status_code=409, detail="Organization already exists")
-
-    now = str(datetime.now())
-    organization = Organization.model_validate(payload)
-    organization.org_uuid = f"org_{uuid4()}"
-    organization.creation_date = now
-    organization.update_date = now
-
-    db_session.add(organization)
-    db_session.commit()
-    db_session.refresh(organization)
-
-    membership = UserOrganization(
-        user_id=int(current_user.id),
-        org_id=int(organization.id or 0),
-        role_id=1,
-        creation_date=now,
-        update_date=now,
-    )
-    db_session.add(membership)
-
-    org_config = OrganizationConfigV2Base(config_version="2.0", plan="free")
-    db_session.add(
-        OrganizationConfig(
-            org_id=int(organization.id or 0),
-            config=org_config.model_dump(),
-            creation_date=now,
-            update_date=now,
-        )
-    )
-    db_session.commit()
-
-    from src.routers.users import _invalidate_session_cache
-    _invalidate_session_cache(int(current_user.id))
-
-    return await get_organization(int(organization.id or 0), db_session)
+    return orgs_service.create_organization(db_session, current_user, payload)
 
 
 @router.get("/organizations/visits")
@@ -300,166 +172,62 @@ async def organizations_visits():
         return {"data": [], "rows": 0, "meta": []}
 
 
-@router.get("/users")
-async def list_global_users(
-    page: int = 1,
-    limit: int = 20,
-    sort: str = "id",
-    search: str = "",
-    superadmin: str = "all",
-    min_orgs: int = 0,
-    db_session: Session = Depends(get_db_session),
-):
-    users = db_session.exec(select(User).order_by(getattr(User, sort, User.id))).all()
-    items = []
-    memberships = db_session.exec(select(UserOrganization, Organization, Role).join(Organization, Organization.id == UserOrganization.org_id).join(Role, Role.id == UserOrganization.role_id)).all()
-    by_user: dict[int, list[dict]] = {}
-    for membership, org, role in memberships:
-        by_user.setdefault(membership.user_id, []).append({
-            "id": org.id,
-            "name": org.name,
-            "slug": org.slug,
-            "role_name": role.name,
-        })
-    for user in users:
-        orgs = by_user.get(user.id, [])
-        if search and search.lower() not in f"{user.username} {user.email} {user.first_name} {user.last_name}".lower():
-            continue
-        if superadmin == "yes" and not user.is_superadmin:
-            continue
-        if superadmin == "no" and user.is_superadmin:
-            continue
-        if len(orgs) < min_orgs:
-            continue
-        items.append({
-            "id": user.id,
-            "user_uuid": user.user_uuid,
-            "username": user.username,
-            "email": user.email,
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "avatar_image": user.avatar_image,
-            "is_superadmin": user.is_superadmin,
-            "org_count": len(orgs),
-            "orgs": orgs,
-            "creation_date": user.creation_date,
-            "update_date": user.update_date,
-        })
-    items = _sort_user_items(items, sort)
-    total = len(items)
-    start = max(page - 1, 0) * limit
-    return {"items": items[start:start + limit], "total": total, "page": page, "limit": limit}
-
-
-@router.patch("/users/{user_id}")
-async def update_global_user(
-    user_id: int,
-    payload: SuperadminUserUpdate,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    user = db_session.exec(select(User).where(User.id == user_id)).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    if current_user.id == user.id and payload.is_superadmin is False:
-        raise HTTPException(
-            status_code=400,
-            detail="You cannot remove your own superadmin access from the admin dashboard",
-        )
-
-    user.is_superadmin = payload.is_superadmin
-    user.update_date = str(datetime.now())
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-
-    memberships = db_session.exec(
-        select(UserOrganization, Organization, Role)
-        .join(Organization, Organization.id == UserOrganization.org_id)
-        .join(Role, Role.id == UserOrganization.role_id)
-        .where(UserOrganization.user_id == user.id)
-    ).all()
-    orgs = [{
-        "id": org.id,
-        "name": org.name,
-        "slug": org.slug,
-        "role_name": role.name,
-    } for user_org, org, role in memberships]
-
-    from src.routers.users import _invalidate_session_cache
-    _invalidate_session_cache(int(user.id))
-
-    return _serialize_global_user(user, orgs)
-
-
 @router.get("/organizations/{org_id}")
 async def get_organization(org_id: int, db_session: Session = Depends(get_db_session)):
-    org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
-    if not org:
-        raise HTTPException(status_code=404, detail="Organization not found")
-    org_config_rows = _get_org_config_rows(org_id, db_session)
-    org_config = org_config_rows[0] if len(org_config_rows) == 1 else None
-    user_count = db_session.exec(select(func.count()).where(UserOrganization.org_id == org.id)).one()
-    course_count = db_session.exec(select(func.count()).where(Course.org_id == org.id)).one()
-    pending_request_count = db_session.exec(
-        select(func.count()).where(PlanRequest.org_id == org.id, PlanRequest.status == "pending")
-    ).one()
-    domains = db_session.exec(select(CustomDomain).where(CustomDomain.org_id == org.id)).all()
-    return {
-        **org.model_dump(),
-        "config": org_config.config if org_config else {},
-        "plan": _org_plan(org_config),
-        "user_count": user_count,
-        "course_count": course_count,
-        "pending_request_count": pending_request_count,
-        "custom_domains": [domain.domain for domain in domains],
-        "admin_users": _admin_users_for_org(org.id, db_session),
-        "config_row_count": len(org_config_rows),
-        "config_row_ids": [cfg.id for cfg in org_config_rows],
-    }
+    return orgs_service.get_organization(db_session, org_id)
+
+
+@router.delete("/organizations/{org_id}")
+async def delete_organization(
+    org_id: int, db_session: Session = Depends(get_db_session)
+):
+    return orgs_service.delete_organization(db_session, org_id)
 
 
 @router.get("/organizations/{org_id}/usage")
-async def get_org_usage(org_id: int, current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
+async def get_org_usage(
+    org_id: int,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
     return await get_org_usage_and_limits(None, org_id, current_user, db_session)
 
 
 @router.get("/organizations/{org_id}/courses")
-async def get_org_courses(org_id: int, page: int = 1, limit: int = 20, db_session: Session = Depends(get_db_session)):
-    statement = select(Course).where(Course.org_id == org_id).order_by(Course.creation_date.desc())
+async def get_org_courses(
+    org_id: int,
+    page: int = 1,
+    limit: int = 20,
+    db_session: Session = Depends(get_db_session),
+):
+    from sqlmodel import func, select
+
+    from src.db.courses.courses import Course
+
+    statement = (
+        select(Course).where(Course.org_id == org_id).order_by(Course.creation_date.desc())  # type: ignore[union-attr]
+    )
     total = db_session.exec(select(func.count()).select_from(statement.subquery())).one()
     items = db_session.exec(statement.offset((page - 1) * limit).limit(limit)).all()
-    return {"items": [item.model_dump() for item in items], "total": total, "page": page, "limit": limit}
+    return {
+        "items": [item.model_dump() for item in items],
+        "total": total,
+        "page": page,
+        "limit": limit,
+    }
 
 
 @router.get("/organizations/{org_id}/users")
-async def get_org_users(org_id: int, page: int = 1, limit: int = 20, search: str = "", db_session: Session = Depends(get_db_session)):
-    rows = db_session.exec(
-        select(User, UserOrganization, Role)
-        .join(UserOrganization, UserOrganization.user_id == User.id)
-        .join(Role, Role.id == UserOrganization.role_id)
-        .where(UserOrganization.org_id == org_id)
-        .order_by(UserOrganization.creation_date.desc())
-    ).all()
-    items = []
-    for user, user_org, role in rows:
-        if search and search.lower() not in f"{user.username} {user.email} {user.first_name} {user.last_name}".lower():
-            continue
-        items.append({
-            "id": user.id,
-            "user_uuid": user.user_uuid,
-            "username": user.username,
-            "email": user.email,
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "avatar_image": user.avatar_image,
-            "role_name": role.name,
-            "creation_date": user_org.creation_date,
-        })
-    total = len(items)
-    start = max(page - 1, 0) * limit
-    return {"items": items[start:start + limit], "total": total, "page": page, "limit": limit}
+async def get_org_users(
+    org_id: int,
+    page: int = 1,
+    limit: int = 20,
+    search: str = "",
+    db_session: Session = Depends(get_db_session),
+):
+    return users_service.list_global_users(
+        db_session, page=page, limit=limit, search=search, org_id=org_id
+    )
 
 
 @router.get("/organizations/{org_id}/analytics")
@@ -471,9 +239,7 @@ async def get_org_analytics(
     from src.routers.analytics import _execute_tinybird_query
     from src.services.analytics.queries import CORE_QUERIES
 
-    org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
-    if not org:
-        raise HTTPException(status_code=404, detail="Organization not found")
+    orgs_service._get_org_or_404(db_session, org_id)
 
     results = {}
     for query_name, (sql_template, default_days) in CORE_QUERIES.items():
@@ -517,35 +283,21 @@ async def get_global_analytics(days: int = 30):
 
 
 @router.put("/organizations/{org_id}/plan")
-async def update_org_plan(org_id: int, body: OrgPlanUpdateRequest, db_session: Session = Depends(get_db_session)):
-    org_config = _get_single_org_config(org_id, db_session)
-    config = dict(org_config.config or {})
-    if str(config.get("config_version", "1.0")).startswith("2"):
-        config["plan"] = body.plan
-    else:
-        config.setdefault("cloud", {})
-        config["cloud"]["plan"] = body.plan
-    org_config.config = config
-    org_config.update_date = datetime.now(timezone.utc).isoformat()
-    flag_modified(org_config, "config")
-    db_session.add(org_config)
-    db_session.commit()
-    _verify_persisted_org_plan(org_config, body.plan, db_session)
-    return {"success": True}
+async def update_org_plan(
+    org_id: int,
+    body: OrgPlanUpdateRequest,
+    db_session: Session = Depends(get_db_session),
+):
+    return orgs_service.update_org_plan(db_session, org_id, body)
 
 
 @router.put("/organizations/{org_id}/settings")
-async def update_org_settings(org_id: int, payload: dict, db_session: Session = Depends(get_db_session)):
-    org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
-    if not org:
-        raise HTTPException(status_code=404, detail="Organization not found")
-    for field in ("name", "slug", "email", "description"):
-        if field in payload:
-            setattr(org, field, payload[field])
-    org.update_date = datetime.now(timezone.utc).isoformat()
-    db_session.add(org)
-    db_session.commit()
-    return {"success": True}
+async def update_org_settings(
+    org_id: int,
+    payload: OrgSettingsUpdateRequest,
+    db_session: Session = Depends(get_db_session),
+):
+    return orgs_service.update_org_settings(db_session, org_id, payload)
 
 
 @router.put("/organizations/{org_id}/config")
@@ -554,46 +306,39 @@ async def update_org_config(
     body: OrgConfigUpdateRequest,
     db_session: Session = Depends(get_db_session),
 ):
-    org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
-    if not org:
-        raise HTTPException(status_code=404, detail="Organization not found")
+    return orgs_service.update_org_config(db_session, org_id, body)
 
-    org_config = _get_single_org_config(org_id, db_session)
 
-    org_config.config = body.config
-    org_config.update_date = datetime.now().isoformat()
-    flag_modified(org_config, "config")
-    db_session.add(org_config)
-    db_session.commit()
-
-    return {"success": True}
+@router.put("/organizations/{org_id}/packages")
+async def update_org_packages(
+    org_id: int,
+    payload: OrgPackagesUpdateRequest,
+    db_session: Session = Depends(get_db_session),
+):
+    return orgs_service.update_org_packages(db_session, org_id, payload)
 
 
 # ============================================================================
-# Plan request management (superadmin)
+# Plan requests
 # ============================================================================
 
-@router.get("/plan-requests", response_model=list[PlanRequestRead])
+
+@router.get("/plan-requests")
 async def list_all_plan_requests(
     status: str | None = None,
     db_session: Session = Depends(get_db_session),
 ):
-    """List all plan/package requests across all orgs, optionally filtered by status."""
-    query = select(PlanRequest)
-    if status:
-        query = query.where(PlanRequest.status == status)
-    query = query.order_by(PlanRequest.creation_date.desc())
-    return db_session.exec(query).all()
+    """List all plan/package requests across all orgs, with org info attached."""
+    return orgs_service.list_all_plan_requests(db_session, status)
 
 
-@router.get("/organizations/{org_id}/plan-requests", response_model=list[PlanRequestRead])
-async def list_org_plan_requests(org_id: int, db_session: Session = Depends(get_db_session)):
-    """List all plan/package requests for a specific organization."""
-    return db_session.exec(
-        select(PlanRequest)
-        .where(PlanRequest.org_id == org_id)
-        .order_by(PlanRequest.creation_date.desc())
-    ).all()
+@router.get(
+    "/organizations/{org_id}/plan-requests", response_model=list[PlanRequestRead]
+)
+async def list_org_plan_requests(
+    org_id: int, db_session: Session = Depends(get_db_session)
+):
+    return orgs_service.list_org_plan_requests(db_session, org_id)
 
 
 @router.put("/plan-requests/{request_uuid}", response_model=PlanRequestRead)
@@ -602,58 +347,131 @@ async def update_plan_request(
     body: PlanRequestUpdate,
     db_session: Session = Depends(get_db_session),
 ):
-    """Approve or deny a plan/package request. Approval applies the change immediately."""
-    req = db_session.exec(
-        select(PlanRequest).where(PlanRequest.request_uuid == request_uuid)
-    ).first()
-    if not req:
-        raise HTTPException(status_code=404, detail="Plan request not found")
-
-    if body.status == "approved":
-        org_config = _get_single_org_config(req.org_id, db_session)
-        config = dict(org_config.config or {})
-        if req.request_type == "plan_upgrade":
-            if str(config.get("config_version", "1.0")).startswith("2"):
-                config["plan"] = req.requested_value
-            else:
-                config.setdefault("cloud", {})
-                config["cloud"]["plan"] = req.requested_value
-        elif req.request_type == "package_add":
-            packages = list(config.get("packages") or [])
-            if req.requested_value not in packages:
-                packages.append(req.requested_value)
-            config["packages"] = packages
-        org_config.config = config
-        org_config.update_date = datetime.now(timezone.utc).isoformat()
-        flag_modified(org_config, "config")
-        db_session.add(org_config)
-
-    req.status = body.status
-    if body.message is not None:
-        req.message = body.message
-    req.update_date = datetime.now(timezone.utc).isoformat()
-    db_session.add(req)
-    db_session.commit()
-    if body.status == "approved" and req.request_type == "plan_upgrade":
-        _verify_persisted_org_plan(org_config, req.requested_value, db_session)
-    db_session.refresh(req)
-    return req
+    return orgs_service.update_plan_request(db_session, request_uuid, body)
 
 
-@router.put("/organizations/{org_id}/packages")
-async def update_org_packages(
-    org_id: int,
-    payload: dict,
+# ============================================================================
+# Users
+# ============================================================================
+
+
+@router.get("/users")
+async def list_global_users(
+    page: int = 1,
+    limit: int = 20,
+    sort: str = "id",
+    search: str = "",
+    superadmin: str = "all",
+    min_orgs: int = 0,
     db_session: Session = Depends(get_db_session),
 ):
-    """Set the active packages for an organization (superadmin only)."""
-    org_config = _get_single_org_config(org_id, db_session)
+    return users_service.list_global_users(
+        db_session,
+        page=page,
+        limit=limit,
+        sort=sort,
+        search=search,
+        superadmin=superadmin,
+        min_orgs=min_orgs,
+    )
 
-    config = dict(org_config.config or {})
-    config["packages"] = payload.get("packages", [])
-    org_config.config = config
-    org_config.update_date = datetime.now(timezone.utc).isoformat()
-    flag_modified(org_config, "config")
-    db_session.add(org_config)
-    db_session.commit()
-    return {"success": True}
+
+@router.post("/users", status_code=status.HTTP_201_CREATED)
+async def create_global_user(
+    payload: GlobalUserCreate,
+    db_session: Session = Depends(get_db_session),
+):
+    return users_service.create_global_user(db_session, payload)
+
+
+@router.post("/users/batch")
+async def batch_user_action(
+    payload: BatchUserAction,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return users_service.batch_user_action(db_session, current_user, payload)
+
+
+@router.get("/users/{user_id}")
+async def get_global_user(user_id: int, db_session: Session = Depends(get_db_session)):
+    return users_service.get_global_user(db_session, user_id)
+
+
+@router.patch("/users/{user_id}")
+async def update_global_user(
+    user_id: int,
+    payload: GlobalUserUpdate,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return users_service.update_global_user(db_session, current_user, user_id, payload)
+
+
+@router.delete("/users/{user_id}")
+async def delete_global_user(
+    user_id: int,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return users_service.delete_global_user(db_session, current_user, user_id)
+
+
+@router.get("/users/{user_id}/audit-logs")
+async def get_user_audit_logs(
+    user_id: int,
+    offset: int = 0,
+    limit: int = 20,
+    db_session: Session = Depends(get_db_session),
+):
+    return users_service.get_user_audit_logs(
+        db_session, user_id, offset=offset, limit=limit
+    )
+
+
+@router.post("/users/{user_id}/password-reset-link")
+async def generate_password_reset_link(
+    user_id: int,
+    payload: ResetLinkPayload,
+    request: Request,
+    db_session: Session = Depends(get_db_session),
+):
+    base_url = get_base_url_from_request(request)
+    return users_service.generate_password_reset_link(
+        db_session, user_id, payload, base_url
+    )
+
+
+@router.post("/users/{user_id}/password")
+async def set_user_password(
+    user_id: int,
+    payload: SetPasswordPayload,
+    db_session: Session = Depends(get_db_session),
+):
+    return users_service.set_user_password(db_session, user_id, payload)
+
+
+@router.post("/users/{user_id}/unlock")
+async def unlock_user_account(
+    user_id: int, db_session: Session = Depends(get_db_session)
+):
+    return users_service.unlock_user_account(db_session, user_id)
+
+
+@router.put("/users/{user_id}/orgs/{org_id}")
+async def set_user_membership(
+    user_id: int,
+    org_id: int,
+    payload: MembershipUpdate,
+    db_session: Session = Depends(get_db_session),
+):
+    return users_service.set_user_membership(db_session, user_id, org_id, payload)
+
+
+@router.delete("/users/{user_id}/orgs/{org_id}")
+async def remove_user_membership(
+    user_id: int,
+    org_id: int,
+    db_session: Session = Depends(get_db_session),
+):
+    return users_service.remove_user_membership(db_session, user_id, org_id)

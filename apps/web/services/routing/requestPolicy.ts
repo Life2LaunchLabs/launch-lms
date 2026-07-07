@@ -45,15 +45,15 @@ export interface ResolveRequestRoutingInput {
 
 function getAdminMigrationPath(pathname: string): string {
   if (pathname === '/login') return '/login'
-  if (pathname === '/' || pathname === '') return '/admin/org-management'
-  if (pathname === '/organizations') return '/admin/org-management'
+  if (pathname === '/' || pathname === '') return '/admin/platform'
+  if (pathname === '/organizations') return '/admin/platform/orgs'
   if (pathname.startsWith('/organizations/')) {
     const orgId = pathname.split('/')[2]
-    return `/admin/org-management/${orgId}`
+    return `/admin/platform/orgs/${orgId}`
   }
-  if (pathname === '/users') return '/admin/org-management/users'
-  if (pathname === '/analytics') return '/admin/org-management'
-  return '/admin/org-management'
+  if (pathname === '/users') return '/admin/platform/users'
+  if (pathname === '/analytics') return '/admin/platform'
+  return '/admin/platform'
 }
 
 function getPortfolioRedirectDestination(requestUrl: string): string {

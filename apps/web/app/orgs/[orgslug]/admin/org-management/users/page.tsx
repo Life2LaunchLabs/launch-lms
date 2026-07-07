@@ -1,16 +1,5 @@
-'use client'
-import React from 'react'
-import UserList from '@components/Admin/UserList'
-import PlatformPageFrame from '@components/Admin/PlatformPageFrame'
+import { redirect } from 'next/navigation'
 
-export default function OrgManagementUsersPage() {
-  return (
-    <PlatformPageFrame
-      title="Platform Users"
-      description="Manage users with cross-organization access and platform-level permissions"
-      activeSection="users"
-    >
-      <UserList lightTheme />
-    </PlatformPageFrame>
-  )
+export default function LegacyOrgManagementUsersPage() {
+  redirect('/admin/platform/users')
 }
