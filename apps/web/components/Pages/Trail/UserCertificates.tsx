@@ -37,14 +37,14 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug, showHeader
             <div className="p-2 bg-yellow-50 rounded-lg">
               <Award className="w-5 h-5 text-yellow-500" />
             </div>
-            <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
+            <h2 className="text-lg font-bold text-foreground">My Badges</h2>
           </div>
         )}
         <div className="grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 md:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="animate-pulse">
-              <div className="aspect-square rounded-lg bg-gray-100" />
-              <div className="mx-auto mt-3 h-4 w-3/4 rounded bg-gray-100" />
+              <div className="aspect-square rounded-lg bg-muted" />
+              <div className="mx-auto mt-3 h-4 w-3/4 rounded bg-muted" />
             </div>
           ))}
         </div>
@@ -60,14 +60,14 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug, showHeader
             <div className="p-2 bg-yellow-50 rounded-lg">
               <Award className="w-5 h-5 text-yellow-500" />
             </div>
-            <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
+            <h2 className="text-lg font-bold text-foreground">My Badges</h2>
           </div>
         )}
-        <div className="col-span-full flex flex-col justify-center items-center py-12 px-4 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/30">
-          <div className="p-4 bg-white rounded-full nice-shadow mb-4">
+        <div className="col-span-full flex flex-col justify-center items-center py-12 px-4 border-2 border-dashed border-border rounded-2xl bg-muted/30">
+          <div className="p-4 bg-card rounded-full nice-shadow mb-4">
             <Award className="w-8 h-8 text-gray-300" strokeWidth={1.5} />
           </div>
-          <p className="text-gray-500">Failed to load badges</p>
+          <p className="text-muted-foreground">Failed to load badges</p>
         </div>
       </div>
     )
@@ -81,17 +81,17 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug, showHeader
             <div className="p-2 bg-yellow-50 rounded-lg">
               <Award className="w-5 h-5 text-yellow-500" />
             </div>
-            <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
+            <h2 className="text-lg font-bold text-foreground">My Badges</h2>
           </div>
         )}
-        <div className="col-span-full flex flex-col justify-center items-center py-12 px-4 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/30">
-          <div className="p-4 bg-white rounded-full nice-shadow mb-4">
+        <div className="col-span-full flex flex-col justify-center items-center py-12 px-4 border-2 border-dashed border-border rounded-2xl bg-muted/30">
+          <div className="p-4 bg-card rounded-full nice-shadow mb-4">
             <Award className="w-8 h-8 text-gray-300" strokeWidth={1.5} />
           </div>
-          <h1 className="text-xl font-bold text-gray-600 mb-2">
+          <h1 className="text-xl font-bold text-muted-foreground mb-2">
             No badges earned yet
           </h1>
-          <p className="text-md text-gray-400 mb-6 text-center max-w-xs">
+          <p className="text-md text-muted-foreground mb-6 text-center max-w-xs">
             Complete badges to earn Open Badges
           </p>
         </div>
@@ -106,7 +106,7 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug, showHeader
           <div className="p-2 bg-yellow-50 rounded-lg">
             <Award className="w-5 h-5 text-yellow-500" />
           </div>
-          <h2 className="text-lg font-bold text-gray-900">My Badges</h2>
+          <h2 className="text-lg font-bold text-foreground">My Badges</h2>
           <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
             {badgesData.length}
           </span>
@@ -145,7 +145,7 @@ const UserCertificates: React.FC<UserCertificatesProps> = ({ orgslug, showHeader
                 />
               </div>
               <div className="h-1.5 w-full" />
-              <h2 className="mt-2 text-center text-sm font-semibold leading-snug text-gray-950 transition-colors group-hover:text-gray-600">
+              <h2 className="mt-2 text-center text-sm font-semibold leading-snug text-foreground transition-colors group-hover:text-muted-foreground">
                 {badgeTitle}
               </h2>
             </Link>

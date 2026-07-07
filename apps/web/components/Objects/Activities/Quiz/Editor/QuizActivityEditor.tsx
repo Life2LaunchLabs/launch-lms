@@ -841,18 +841,18 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
     <OrgProvider orgslug={org?.slug || ''}>
     <CourseProvider courseuuid={course?.course_uuid}>
       <EditorOptionsProvider options={{ isEditable: !previewMode }}>
-        <div className="flex flex-col h-screen bg-gray-50">
+        <div className="flex flex-col h-screen bg-muted">
 
           {/* ── Top bar ── */}
-          <div className="flex items-center gap-2 px-4 py-2 border-b border-neutral-100 bg-white/95 backdrop-blur sticky top-0 z-30 nice-shadow">
-            <Link href={backUrl} className="p-1.5 rounded-lg hover:bg-neutral-100 transition-colors text-neutral-500 outline-none" title="Back to course">
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-card/95 backdrop-blur sticky top-0 z-30 nice-shadow">
+            <Link href={backUrl} className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground outline-none" title="Back to course">
               <ArrowLeft size={16} />
             </Link>
-            <div className="w-px h-5 bg-neutral-200 mx-1" />
-            <span className="text-sm font-semibold text-neutral-700 truncate max-w-48">{quizName || activity.name}</span>
+            <div className="w-px h-5 bg-muted mx-1" />
+            <span className="text-sm font-semibold text-muted-foreground truncate max-w-48">{quizName || activity.name}</span>
             <div className="flex-1" />
             <button type="button" onClick={() => setPreviewMode(p => !p)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium outline-none transition-colors ${previewMode ? 'bg-emerald-100 text-emerald-700' : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-600'}`}>
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium outline-none transition-colors ${previewMode ? 'bg-emerald-100 text-emerald-700' : 'bg-muted hover:bg-muted text-muted-foreground'}`}>
               {previewMode ? <EyeOff size={13} /> : <Eye size={13} />}
               {previewMode ? 'Exit preview' : 'Preview'}
             </button>
@@ -865,7 +865,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
 
           {/* ── Tab strip ── */}
           {!previewMode && (
-            <div className="flex space-x-2 px-6 border-b border-neutral-100 bg-white/95 backdrop-blur sticky top-[41px] z-20 shadow-md shadow-gray-300/20">
+            <div className="flex space-x-2 px-6 border-b border-border bg-card/95 backdrop-blur sticky top-[41px] z-20 shadow-md shadow-gray-300/20">
               <TabBtn active={activeTab === 'general'} onClick={() => handleTabChange('general')} icon={<InfoIcon size={16} />} label="General" />
               <TabBtn active={activeTab === 'content'} onClick={() => handleTabChange('content')} icon={<ListChecks size={16} />} label="Content" />
               {quizMode === 'categories' && (
@@ -911,29 +911,29 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
             {!previewMode && activeTab === 'general' && (
               <div className="max-w-xl mx-auto py-10 px-6 space-y-6">
                 <div>
-                  <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Quiz name</label>
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Quiz name</label>
                   <input value={quizName} onChange={e => setQuizName(e.target.value)} onBlur={() => save(false)} placeholder="Enter quiz name…"
-                    className="w-full text-neutral-800 bg-white border border-neutral-200 rounded-lg px-3 py-2.5 text-sm font-semibold outline-none focus:border-violet-400 transition-colors" />
+                    className="w-full text-foreground bg-card border border-border rounded-lg px-3 py-2.5 text-sm font-semibold outline-none focus:border-violet-400 transition-colors" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Description</label>
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Description</label>
                   <textarea
                     value={quizDescription}
                     onChange={e => setQuizDescription(e.target.value)}
                     onBlur={() => save(false)}
                     placeholder="Optional quiz description..."
                     rows={3}
-                    className="w-full resize-none text-neutral-800 bg-white border border-neutral-200 rounded-lg px-3 py-2.5 text-sm font-medium outline-none focus:border-violet-400 transition-colors"
+                    className="w-full resize-none text-foreground bg-card border border-border rounded-lg px-3 py-2.5 text-sm font-medium outline-none focus:border-violet-400 transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Icon</label>
-                  <div className="rounded-xl border border-neutral-200 bg-white p-3">
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Icon</label>
+                  <div className="rounded-xl border border-border bg-card p-3">
                     <div className="mb-3 flex items-center gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-neutral-100 text-neutral-900">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-foreground">
                         {React.createElement(getChannelIcon(quizIcon), { size: 22 })}
                       </div>
-                      <span className="text-sm font-semibold text-neutral-700">{quizIcon || defaultChapterIconName}</span>
+                      <span className="text-sm font-semibold text-muted-foreground">{quizIcon || defaultChapterIconName}</span>
                     </div>
                     <div className="grid max-h-36 grid-cols-8 gap-1.5 overflow-y-auto pr-1">
                       {channelIconOptions.map(({ name, Icon }) => (
@@ -947,8 +947,8 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                           }}
                           className={`flex aspect-square items-center justify-center rounded-lg border transition-colors ${
                             quizIcon === name
-                              ? 'border-black bg-white text-neutral-900'
-                              : 'border-neutral-200 bg-white text-neutral-500 hover:bg-neutral-50'
+                              ? 'border-black bg-card text-foreground'
+                              : 'border-border bg-card text-muted-foreground hover:bg-muted'
                           }`}
                         >
                           <Icon size={15} />
@@ -958,17 +958,17 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Type</label>
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Type</label>
                   <select
                     value={quizMode}
                     onChange={e => void handleQuizModeChange(e.target.value as QuizMode)}
-                    className="w-full text-neutral-800 bg-white border border-neutral-200 rounded-lg px-3 py-2.5 text-sm font-semibold outline-none focus:border-violet-400 transition-colors"
+                    className="w-full text-foreground bg-card border border-border rounded-lg px-3 py-2.5 text-sm font-semibold outline-none focus:border-violet-400 transition-colors"
                   >
                     <option value="categories">Categories</option>
                     <option value="graded">Graded</option>
                     <option value="ungraded">Un graded</option>
                   </select>
-                  <p className="text-xs text-neutral-400 mt-1.5">
+                  <p className="text-xs text-muted-foreground mt-1.5">
                     {quizMode === 'graded'
                       ? 'Graded quizzes lock scoring to the Correct binary vector and use pass/fail results.'
                       : quizMode === 'ungraded'
@@ -992,7 +992,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                           value={gradingRules.pass_percent}
                           onChange={e => setGradingRules(prev => ({ ...prev, pass_percent: Math.max(0, Math.min(100, parseInt(e.target.value || '0', 10) || 0)) }))}
                           onBlur={e => void handlePassPercentChange(Math.max(0, Math.min(100, parseInt(e.target.value || '0', 10) || 0)))}
-                          className="w-full text-sm font-semibold border border-neutral-200 rounded-lg px-3 py-2 outline-none focus:border-emerald-400"
+                          className="w-full text-sm font-semibold border border-border rounded-lg px-3 py-2 outline-none focus:border-emerald-400"
                         />
                       </div>
                     </div>
@@ -1007,10 +1007,10 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
             {/* ── Content ── */}
             {!previewMode && activeTab === 'content' && (
               <div className="min-h-full">
-                <div className="sticky top-0 z-20 border-b border-neutral-200/80 bg-white/92 backdrop-blur-xl shadow-md shadow-gray-300/20">
+                <div className="sticky top-0 z-20 border-b border-border/80 bg-card/92 backdrop-blur-xl shadow-md shadow-gray-300/20">
                   <div className="px-4 sm:px-6 py-3">
                     <div className="flex w-full flex-wrap items-center gap-2">
-                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-400 mr-1">Add question</span>
+                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground mr-1">Add question</span>
                       <button type="button" onClick={() => insertSelectBlock(2)} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-medium outline-none transition-colors"><ListChecks size={13} /> Multiple choice</button>
                       <button type="button" onClick={insertTextBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-medium outline-none transition-colors"><Type size={13} /> Text question</button>
                       <button type="button" onClick={insertSliderBlock} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-medium outline-none transition-colors"><SlidersHorizontal size={13} /> Rating</button>
@@ -1025,11 +1025,11 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
 
                   {/* ── Left sidebar ── */}
                   <div
-                    className="hidden lg:block w-[224px] shrink-0 sticky top-[84px] self-start rounded-2xl border border-neutral-200/70 bg-white/92 backdrop-blur p-3 nice-shadow overflow-y-auto"
+                    className="hidden lg:block w-[224px] shrink-0 sticky top-[84px] self-start rounded-2xl border border-border/70 bg-card/92 backdrop-blur p-3 nice-shadow overflow-y-auto"
                     style={{ maxHeight: 'calc(100dvh - 108px)', boxSizing: 'border-box' }}
                   >
                     <div className="px-1 pb-2">
-                      <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400">Blocks</p>
+                      <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Blocks</p>
                     </div>
                     {editorBlocks.length === 0 ? (
                       <div style={{ padding: '24px 12px', textAlign: 'center', color: '#d1d5db', fontSize: 12 }}>
@@ -1129,46 +1129,46 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
               <div className="max-w-2xl mx-auto py-8 px-6 space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Scoring Dimensions</h3>
-                    <p className="text-xs text-neutral-400 mt-0.5">Define the axes each answer contributes to.</p>
+                    <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Scoring Dimensions</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Define the axes each answer contributes to.</p>
                   </div>
                   <button type="button" onClick={addVector} className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 outline-none">
                     <Plus size={13} /> Add dimension
                   </button>
                 </div>
-                {vectors.length === 0 && <p className="text-xs text-neutral-400 italic">No dimensions yet.</p>}
+                {vectors.length === 0 && <p className="text-xs text-muted-foreground italic">No dimensions yet.</p>}
                 <div className="space-y-2">
                   {vectors.map((vec, idx) => (
-                    <div key={idx} className="bg-neutral-50 rounded-xl p-4 border border-neutral-100 space-y-3">
+                    <div key={idx} className="bg-muted rounded-xl p-4 border border-border space-y-3">
                       <div className="flex items-center gap-2 rounded-lg px-2 py-2" style={{ backgroundColor: `${vec.color}14` }}>
                         <input
                           type="color"
                           value={vec.color}
                           onChange={e => updateVector(idx, 'color', e.target.value)}
-                          className="h-10 w-10 rounded-lg border border-neutral-200 bg-white p-1"
+                          className="h-10 w-10 rounded-lg border border-border bg-card p-1"
                           title="Vector color"
                         />
                         <input value={vec.label} placeholder="Dimension label (e.g. Extraversion)" onChange={e => updateVector(idx, 'label', e.target.value)}
-                          className="flex-1 text-sm font-semibold border border-neutral-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400" />
+                          className="flex-1 text-sm font-semibold border border-border rounded-lg px-3 py-2 outline-none focus:border-violet-400" />
                         <button type="button" onClick={() => removeVector(idx)} className="p-1.5 hover:bg-red-50 rounded-lg outline-none">
                           <Trash2 size={14} className="text-red-400" />
                         </button>
                       </div>
                       <div className="flex gap-2">
                         <div className="flex-1">
-                          <label className="text-xs text-neutral-400 font-medium block mb-1">Low end label</label>
+                          <label className="text-xs text-muted-foreground font-medium block mb-1">Low end label</label>
                           <input value={vec.low_label} placeholder="e.g. Introvert" onChange={e => updateVector(idx, 'low_label', e.target.value)}
-                            className="w-full text-xs border border-neutral-200 rounded-lg px-2 py-1.5 outline-none focus:border-violet-400" />
+                            className="w-full text-xs border border-border rounded-lg px-2 py-1.5 outline-none focus:border-violet-400" />
                         </div>
                         <div className="flex-1">
-                          <label className="text-xs text-neutral-400 font-medium block mb-1">High end label</label>
+                          <label className="text-xs text-muted-foreground font-medium block mb-1">High end label</label>
                           <input value={vec.high_label} placeholder="e.g. Extravert" onChange={e => updateVector(idx, 'high_label', e.target.value)}
-                            className="w-full text-xs border border-neutral-200 rounded-lg px-2 py-1.5 outline-none focus:border-violet-400" />
+                            className="w-full text-xs border border-border rounded-lg px-2 py-1.5 outline-none focus:border-violet-400" />
                         </div>
                         <div className="flex-shrink-0">
-                          <label className="text-xs text-neutral-400 font-medium block mb-1">Type</label>
+                          <label className="text-xs text-muted-foreground font-medium block mb-1">Type</label>
                           <select value={vec.type} onChange={e => updateVector(idx, 'type', e.target.value as any)}
-                            className="text-xs border border-neutral-200 rounded-lg px-2 py-1.5 outline-none bg-white">
+                            className="text-xs border border-border rounded-lg px-2 py-1.5 outline-none bg-card">
                             <option value="unidirectional">0 → 1</option>
                             <option value="bidirectional">−1 → 1</option>
                             <option value="binary">True / False</option>
@@ -1191,10 +1191,10 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
               quizMode === 'ungraded' ? (
                 <div className="min-h-full bg-[#eceef2] px-4 py-8 sm:px-6">
                   <div className="mx-auto flex min-h-[calc(100vh-150px)] w-full max-w-5xl items-center justify-center">
-                    <div className="w-full max-w-3xl rounded-[28px] border border-neutral-200 bg-white p-4 shadow-[0_24px_80px_rgba(15,23,42,0.12)] sm:p-5">
+                    <div className="w-full max-w-3xl rounded-[28px] border border-border bg-card p-4 shadow-[0_24px_80px_rgba(15,23,42,0.12)] sm:p-5">
                       {ungradedQuestionBlocks.length === 0 ? (
-                        <div className="flex min-h-[320px] items-center justify-center rounded-2xl bg-neutral-50 text-center">
-                          <p className="text-sm font-medium text-neutral-400">Add questions to customize result tabs.</p>
+                        <div className="flex min-h-[320px] items-center justify-center rounded-2xl bg-muted text-center">
+                          <p className="text-sm font-medium text-muted-foreground">Add questions to customize result tabs.</p>
                         </div>
                       ) : (
                         <QuizResultsView
@@ -1223,16 +1223,16 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
               <div className="flex h-full" style={{ minHeight: 'calc(100vh - 90px)' }}>
 
                 {/* Left: sticky selector panel */}
-                <div className="w-64 flex-shrink-0 border-r border-neutral-100 flex flex-col" style={{ position: 'sticky', top: 0, height: 'calc(100vh - 90px)', overflowY: 'auto' }}>
+                <div className="w-64 flex-shrink-0 border-r border-border flex flex-col" style={{ position: 'sticky', top: 0, height: 'calc(100vh - 90px)', overflowY: 'auto' }}>
                   {quizMode === 'graded' ? (
                     <>
-                      <div className="p-4 border-b border-neutral-100 space-y-1">
-                        <p className="text-xs font-bold uppercase tracking-wider text-neutral-400">Scoring Rules</p>
-                        <p className="text-xs text-neutral-500">These settings drive pass/fail results.</p>
+                      <div className="p-4 border-b border-border space-y-1">
+                        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Scoring Rules</p>
+                        <p className="text-xs text-muted-foreground">These settings drive pass/fail results.</p>
                       </div>
                       <div className="flex-1 p-4 space-y-4">
                         <div>
-                          <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Min percent to pass</label>
+                          <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Min percent to pass</label>
                           <input
                             type="number"
                             min={0}
@@ -1240,22 +1240,22 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                             value={gradingRules.pass_percent}
                             onChange={e => setGradingRules(prev => ({ ...prev, pass_percent: Math.max(0, Math.min(100, parseInt(e.target.value || '0', 10) || 0)) }))}
                             onBlur={e => void handlePassPercentChange(Math.max(0, Math.min(100, parseInt(e.target.value || '0', 10) || 0)))}
-                            className="w-full text-sm font-semibold border border-neutral-200 rounded-lg px-3 py-2 outline-none focus:border-violet-400"
+                            className="w-full text-sm font-semibold border border-border rounded-lg px-3 py-2 outline-none focus:border-violet-400"
                           />
                         </div>
-                        <div className="rounded-xl bg-neutral-50 border border-neutral-100 p-3 space-y-2">
-                          <p className="text-xs font-bold uppercase tracking-wider text-neutral-400">Locked Vector</p>
+                        <div className="rounded-xl bg-muted border border-border p-3 space-y-2">
+                          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Locked Vector</p>
                           <div className="flex items-center justify-between">
-                            <span className="text-sm font-semibold text-neutral-700">Correct</span>
+                            <span className="text-sm font-semibold text-muted-foreground">Correct</span>
                             <span className="px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-bold">Binary</span>
                           </div>
                         </div>
-                        <p className="text-xs text-neutral-400">{isSavingSettings ? 'Saving rules…' : 'Learners complete this activity by passing the quiz, not by clicking next.'}</p>
+                        <p className="text-xs text-muted-foreground">{isSavingSettings ? 'Saving rules…' : 'Learners complete this activity by passing the quiz, not by clicking next.'}</p>
                       </div>
                     </>
                   ) : (
                     <>
-                      <div className="p-4 border-b border-neutral-100">
+                      <div className="p-4 border-b border-border">
                         <button type="button" onClick={addResultOption}
                           className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold outline-none transition-colors">
                           <Plus size={13} /> Add option
@@ -1263,28 +1263,28 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                       </div>
                       <div className="flex-1 p-2 space-y-1">
                         {resultOptions.length === 0 && (
-                          <p className="text-xs text-neutral-400 italic px-2 py-3">No results yet. Add one above.</p>
+                          <p className="text-xs text-muted-foreground italic px-2 py-3">No results yet. Add one above.</p>
                         )}
                         {resultOptions.map(opt => (
                           <button key={opt.uuid} type="button" onClick={() => void handleSelectResultOption(opt.uuid)}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors outline-none ${selectedResultUuid === opt.uuid ? 'bg-violet-50 text-violet-700' : 'text-neutral-600 hover:bg-neutral-50'}`}>
+                            className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors outline-none ${selectedResultUuid === opt.uuid ? 'bg-violet-50 text-violet-700' : 'text-muted-foreground hover:bg-muted'}`}>
                             {opt.label || 'Untitled result'}
                           </button>
                         ))}
                       </div>
                       {vectors.length > 0 && selectedResult && (
-                        <div className="border-t border-neutral-100 p-3 space-y-2">
-                          <p className="text-xs font-bold text-neutral-400 uppercase tracking-wider">Scoring</p>
+                        <div className="border-t border-border p-3 space-y-2">
+                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Scoring</p>
                           {vectors.map(vec => {
                             const val = selectedResult.scores?.[vec.key] ?? 0
                             return (
                               <div key={vec.key} className="space-y-1">
                                 <div className="flex justify-between items-baseline">
-                                  <span className="text-xs font-semibold text-neutral-600 truncate max-w-[60%]">{vec.label || vec.key}</span>
-                                  <span className="text-xs text-neutral-400">{vec.type === 'binary' ? (val >= 0.5 ? 'True' : 'False') : val.toFixed(2)}</span>
+                                  <span className="text-xs font-semibold text-muted-foreground truncate max-w-[60%]">{vec.label || vec.key}</span>
+                                  <span className="text-xs text-muted-foreground">{vec.type === 'binary' ? (val >= 0.5 ? 'True' : 'False') : val.toFixed(2)}</span>
                                 </div>
                                 {vec.type === 'binary' ? (
-                                  <label className="flex items-center gap-2 text-xs text-neutral-600">
+                                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
                                     <input
                                       type="checkbox"
                                       checked={val >= 0.5}
@@ -1324,7 +1324,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                       )}
 
                       {resultsDirty && (
-                        <div className="p-3 border-t border-neutral-100">
+                        <div className="p-3 border-t border-border">
                           <button type="button" onClick={saveResults} disabled={isSavingResults}
                             className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-neutral-900 hover:bg-neutral-700 text-white text-xs font-medium outline-none transition-colors disabled:opacity-60">
                             <Save size={12} />
@@ -1341,7 +1341,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                   {quizMode === 'graded' ? (
                     <div className="flex items-center justify-center h-full text-neutral-300 select-none">
                       <div className="text-center space-y-2">
-                        <p className="text-sm font-medium text-neutral-400">Graded results layout coming next.</p>
+                        <p className="text-sm font-medium text-muted-foreground">Graded results layout coming next.</p>
                         <p className="text-xs text-neutral-300">This space is reserved for future pass/fail messaging content.</p>
                       </div>
                     </div>
@@ -1354,12 +1354,12 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                           {/* Label + delete row */}
                           <div className="flex items-center gap-3">
                             <div className="flex-1">
-                              <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Result label</label>
+                              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Result label</label>
                               <input
                                 value={selectedResult.label}
                                 placeholder="Short label shown in selector…"
                                 onChange={e => updateResult(selectedResult.uuid, 'label', e.target.value)}
-                                className="w-full text-neutral-800 bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm font-semibold outline-none focus:border-violet-400 transition-colors"
+                                className="w-full text-foreground bg-card border border-border rounded-lg px-3 py-2 text-sm font-semibold outline-none focus:border-violet-400 transition-colors"
                               />
                             </div>
                             <button type="button" onClick={() => removeResult(selectedResult.uuid)}
@@ -1370,7 +1370,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
 
                           {/* Cover image */}
                           <div>
-                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Cover image</label>
+                            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Cover image</label>
                             {(() => {
                               const coverUrl = getCoverUrl(selectedResult.cover_image_block_object)
                               return coverUrl ? (
@@ -1383,11 +1383,11 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                                 </div>
                               ) : (
                                 <div onClick={() => !coverUploading && coverInputRef.current?.click()}
-                                  className="w-full h-52 border-2 border-dashed border-neutral-200 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-neutral-300 hover:bg-neutral-50 transition-colors">
-                                  {coverUploading ? <Loader2 size={20} className="animate-spin text-neutral-400" /> : (
+                                  className="w-full h-52 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-border hover:bg-muted transition-colors">
+                                  {coverUploading ? <Loader2 size={20} className="animate-spin text-muted-foreground" /> : (
                                     <>
                                       <Upload size={18} className="text-neutral-300 mb-2" />
-                                      <span className="text-xs text-neutral-400">Upload cover image</span>
+                                      <span className="text-xs text-muted-foreground">Upload cover image</span>
                                     </>
                                   )}
                                   <input ref={coverInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden"
@@ -1399,38 +1399,38 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
 
                           {/* Subtitle */}
                           <div>
-                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Subtitle</label>
+                            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Subtitle</label>
                             <input
                               value={selectedResult.subtitle ?? ''}
                               placeholder="Short line above the title…"
                               onChange={e => updateResult(selectedResult.uuid, 'subtitle', e.target.value)}
-                              className="w-full text-neutral-700 bg-white border border-neutral-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-violet-400 transition-colors"
+                              className="w-full text-muted-foreground bg-card border border-border rounded-lg px-3 py-2.5 text-sm outline-none focus:border-violet-400 transition-colors"
                             />
                           </div>
 
                           {/* Title */}
                           <div>
-                            <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Title</label>
+                            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Title</label>
                             <input
                               value={selectedResult.title}
                               placeholder="Result title shown to learner…"
                               onChange={e => updateResult(selectedResult.uuid, 'title', e.target.value)}
-                              className="w-full text-neutral-800 bg-white border border-neutral-200 rounded-lg px-3 py-2.5 text-base font-bold outline-none focus:border-violet-400 transition-colors"
+                              className="w-full text-foreground bg-card border border-border rounded-lg px-3 py-2.5 text-base font-bold outline-none focus:border-violet-400 transition-colors"
                             />
                           </div>
                         </>
                       ) : (
-                        <p className="text-xs text-neutral-400 italic">Select a result option on the left to edit its cover, title, and per-result content.</p>
+                        <p className="text-xs text-muted-foreground italic">Select a result option on the left to edit its cover, title, and per-result content.</p>
                       )}
 
                       {/* Content editor — always visible */}
                       <div>
-                        <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-2">Content</label>
-                        <p className="text-[11px] text-neutral-400 mb-3">
-                          <span className="font-semibold text-neutral-500">Fixed</span> blocks (lock icon) are shared across all results.{' '}
-                          <span className="font-semibold text-neutral-500">Variable</span> blocks change per result.
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Content</label>
+                        <p className="text-[11px] text-muted-foreground mb-3">
+                          <span className="font-semibold text-muted-foreground">Fixed</span> blocks (lock icon) are shared across all results.{' '}
+                          <span className="font-semibold text-muted-foreground">Variable</span> blocks change per result.
                         </p>
-                        <div className="border border-neutral-200 rounded-xl p-4 bg-white">
+                        <div className="border border-border rounded-xl p-4 bg-card">
                           <QuizResultContentEditor
                             key={`${selectedResultUuid || 'none'}:${JSON.stringify(selectedResult?.scores || {})}:${vectors.map(v => v.key).join(',')}`}
                             resultUuid={selectedResultUuid}

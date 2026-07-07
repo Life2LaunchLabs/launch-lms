@@ -261,13 +261,13 @@ function SearchPage() {
       }}
       className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
         selectedType === type
-          ? 'bg-black/10 text-black/80 font-medium'
-          : 'hover:bg-black/5 text-black/60'
+          ? 'bg-foreground/10 text-foreground/80 font-medium'
+          : 'hover:bg-foreground/10 text-foreground/60'
       }`}
     >
       <Icon size={16} />
       <span>{filterLabels[type]}</span>
-      <span className="text-black/40">({count})</span>
+      <span className="text-foreground/40">({count})</span>
     </button>
   );
 
@@ -282,8 +282,8 @@ function SearchPage() {
             onClick={() => updateSearchParams({ page: pageNum.toString() })}
             className={`w-8 h-8 rounded-lg text-sm transition-colors ${
               page === pageNum
-                ? 'bg-black/10 text-black/80 font-medium'
-                : 'hover:bg-black/5 text-black/60'
+                ? 'bg-foreground/10 text-foreground/80 font-medium'
+                : 'hover:bg-foreground/10 text-foreground/60'
             }`}
           >
             {pageNum}
@@ -296,11 +296,11 @@ function SearchPage() {
   const LoadingState = () => (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
       {[1, 2, 3, 4, 5, 6].map((i) => (
-        <div key={i} className="bg-white rounded-xl nice-shadow p-4 animate-pulse">
-          <div className="w-full h-32 bg-black/5 rounded-lg mb-4" />
+        <div key={i} className="bg-card rounded-xl nice-shadow p-4 animate-pulse">
+          <div className="w-full h-32 bg-foreground/10 rounded-lg mb-4" />
           <div className="space-y-2">
-            <div className="w-3/4 h-4 bg-black/5 rounded" />
-            <div className="w-1/2 h-3 bg-black/5 rounded" />
+            <div className="w-3/4 h-4 bg-foreground/10 rounded" />
+            <div className="w-1/2 h-3 bg-foreground/10 rounded" />
           </div>
         </div>
       ))}
@@ -309,23 +309,23 @@ function SearchPage() {
 
   const EmptyState = () => (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="mb-4 p-4 bg-black/5 rounded-full">
-        <Search className="w-8 h-8 text-black/40" />
+      <div className="mb-4 p-4 bg-foreground/10 rounded-full">
+        <Search className="w-8 h-8 text-foreground/40" />
       </div>
-      <h3 className="text-lg font-medium text-black/80 mb-2">{t('search.no_results_found')}</h3>
-      <p className="text-sm text-black/50 max-w-md">
+      <h3 className="text-lg font-medium text-foreground/80 mb-2">{t('search.no_results_found')}</h3>
+      <p className="text-sm text-foreground/50 max-w-md">
         {t('search.no_results_description', { query })}
       </p>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-muted">
       {/* Search Header */}
-      <div className="bg-white border-b border-black/5">
+      <div className="bg-card border-b border-border">
         <div className="container mx-auto px-4 py-6">
           <div className="max-w-2xl mx-auto">
-            <h1 className="text-2xl font-semibold  text-black/80 mb-6">{t('common.search')}</h1>
+            <h1 className="text-2xl font-semibold  text-foreground/80 mb-6">{t('common.search')}</h1>
             
             {/* Search Input */}
             <form onSubmit={handleSearch} className="relative group mb-6">
@@ -335,16 +335,16 @@ function SearchPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 aria-label={t('search.search_placeholder')}
                 placeholder={t('search.search_placeholder')}
-                className="w-full h-12 pl-12 pr-4 rounded-xl nice-shadow bg-white 
+                className="w-full h-12 pl-12 pr-4 rounded-xl nice-shadow bg-card 
                          focus:outline-none focus:ring-1 focus:ring-black/5 focus:border-black/20 
-                         text-sm placeholder:text-black/40 transition-all"
+                         text-sm placeholder:text-foreground/40 transition-all"
               />
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search className="text-black/40 group-focus-within:text-black/60 transition-colors" size={20} />
+                <Search className="text-foreground/40 group-focus-within:text-foreground/60 transition-colors" size={20} />
               </div>
               <button
                 type="submit"
-                className="absolute inset-y-0 right-0 px-4 flex items-center text-sm text-black/60 hover:text-black/80"
+                className="absolute inset-y-0 right-0 px-4 flex items-center text-sm text-foreground/60 hover:text-foreground/80"
               >
                 {t('common.search')}
               </button>
@@ -368,7 +368,7 @@ function SearchPage() {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto">
           {query && (
-            <div className="text-sm text-black/60 mb-6">
+            <div className="text-sm text-foreground/60 mb-6">
               {t('search.found_results', { count: totalResults, query })}
             </div>
           )}
@@ -382,8 +382,8 @@ function SearchPage() {
               {/* Courses Grid */}
               {(selectedType === 'all' || selectedType === 'courses') && searchResults.courses.length > 0 && (
                 <div>
-                  <h2 className="text-lg font-medium text-black/80 mb-4 flex items-center gap-2">
-                    <BookCopy size={20} className="text-black/60" />
+                  <h2 className="text-lg font-medium text-foreground/80 mb-4 flex items-center gap-2">
+                    <BookCopy size={20} className="text-foreground/60" />
                     {t('courses.courses')} ({searchResults.courses.length})
                   </h2>
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -391,7 +391,7 @@ function SearchPage() {
                       <Link
                         key={course.course_uuid}
                         href={getUriWithOrg(org?.slug, routePaths.org.course(removeCoursePrefix(course.course_uuid)))}
-                        className="bg-white rounded-xl nice-shadow hover:shadow-md transition-all overflow-hidden group"
+                        className="bg-card rounded-xl nice-shadow hover:shadow-md transition-all overflow-hidden group"
                       >
                         <div className="relative h-48">
                           {course.thumbnail_image ? (
@@ -401,16 +401,16 @@ function SearchPage() {
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             />
                           ) : (
-                            <div className="w-full h-full bg-black/5 flex items-center justify-center">
-                              <BookCopy size={32} className="text-black/40" />
+                            <div className="w-full h-full bg-foreground/10 flex items-center justify-center">
+                              <BookCopy size={32} className="text-foreground/40" />
                             </div>
                           )}
                         </div>
                         <div className="p-4">
-                          <h3 className="text-sm font-medium text-black/80 mb-1">{course.name}</h3>
-                          <p className="text-xs text-black/50 line-clamp-2">{course.description}</p>
+                          <h3 className="text-sm font-medium text-foreground/80 mb-1">{course.name}</h3>
+                          <p className="text-xs text-foreground/50 line-clamp-2">{course.description}</p>
                           {course.owner_org_name && (
-                            <p className="mt-2 text-xs text-black/40">
+                            <p className="mt-2 text-xs text-foreground/40">
                               {course.is_shared_from_other_org ? `Shared from ${course.owner_org_name}` : course.owner_org_name}
                             </p>
                           )}
@@ -423,9 +423,9 @@ function SearchPage() {
                                 userId={course.authors[0].user.id.toString()}
                                 showProfilePopup={false}
                                 rounded="rounded-full"
-                                backgroundColor="bg-gray-100"
+                                backgroundColor="bg-muted"
                               />
-                              <span className="text-xs text-black/40">
+                              <span className="text-xs text-foreground/40">
                                 {course.authors[0].user.first_name} {course.authors[0].user.last_name}
                               </span>
                             </div>
@@ -440,8 +440,8 @@ function SearchPage() {
               {/* Collections Grid */}
               {(selectedType === 'all' || selectedType === 'collections') && searchResults.collections.length > 0 && (
                 <div>
-                  <h2 className="text-lg font-medium text-black/80 mb-4 flex items-center gap-2">
-                    <SquareLibrary size={20} className="text-black/60" />
+                  <h2 className="text-lg font-medium text-foreground/80 mb-4 flex items-center gap-2">
+                    <SquareLibrary size={20} className="text-foreground/60" />
                     {t('collections.collections')} ({searchResults.collections.length})
                   </h2>
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -449,9 +449,9 @@ function SearchPage() {
                       <Link
                         key={collection.collection_uuid}
                         href={getUriWithOrg(org?.slug, routePaths.org.collection(collection.collection_uuid.replace('collection_', '')))}
-                        className="flex items-start gap-4 p-4 bg-white rounded-xl nice-shadow hover:shadow-md transition-all"
+                        className="flex items-start gap-4 p-4 bg-card rounded-xl nice-shadow hover:shadow-md transition-all"
                       >
-                        <div className="w-12 h-12 bg-black/5 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        <div className="w-12 h-12 bg-foreground/10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
                           {collection.thumbnail_image && (collection.owner_org_uuid || org?.org_uuid) ? (
                             <img
                               src={getCollectionThumbnailMediaDirectory(collection.owner_org_uuid || org?.org_uuid, collection.collection_uuid, collection.thumbnail_image)}
@@ -459,14 +459,14 @@ function SearchPage() {
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <SquareLibrary size={24} className="text-black/40" />
+                            <SquareLibrary size={24} className="text-foreground/40" />
                           )}
                         </div>
                         <div>
-                          <h3 className="text-sm font-medium text-black/80 mb-1">{collection.name}</h3>
-                          <p className="text-xs text-black/50 line-clamp-2">{collection.description}</p>
+                          <h3 className="text-sm font-medium text-foreground/80 mb-1">{collection.name}</h3>
+                          <p className="text-xs text-foreground/50 line-clamp-2">{collection.description}</p>
                           {collection.owner_org_name && (
-                            <p className="mt-2 text-xs text-black/40">
+                            <p className="mt-2 text-xs text-foreground/40">
                               {collection.is_shared_from_other_org ? `Shared from ${collection.owner_org_name}` : collection.owner_org_name}
                             </p>
                           )}
@@ -479,8 +479,8 @@ function SearchPage() {
 
               {(selectedType === 'all' || selectedType === 'communities') && searchResults.communities.length > 0 && (
                 <div>
-                  <h2 className="text-lg font-medium text-black/80 mb-4 flex items-center gap-2">
-                    <MessageCircle size={20} className="text-black/60" />
+                  <h2 className="text-lg font-medium text-foreground/80 mb-4 flex items-center gap-2">
+                    <MessageCircle size={20} className="text-foreground/60" />
                     Communities ({searchResults.communities.length})
                   </h2>
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -488,7 +488,7 @@ function SearchPage() {
                       <Link
                         key={community.community_uuid}
                         href={getUriWithOrg(org?.slug, routePaths.org.community(community.community_uuid.replace('community_', '')))}
-                        className="bg-white rounded-xl nice-shadow hover:shadow-md transition-all overflow-hidden group"
+                        className="bg-card rounded-xl nice-shadow hover:shadow-md transition-all overflow-hidden group"
                       >
                         <div className="relative h-48">
                           {community.thumbnail_image && (community.owner_org_uuid || org?.org_uuid) ? (
@@ -498,16 +498,16 @@ function SearchPage() {
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             />
                           ) : (
-                            <div className="w-full h-full bg-black/5 flex items-center justify-center">
-                              <MessageCircle size={32} className="text-black/40" />
+                            <div className="w-full h-full bg-foreground/10 flex items-center justify-center">
+                              <MessageCircle size={32} className="text-foreground/40" />
                             </div>
                           )}
                         </div>
                         <div className="p-4">
-                          <h3 className="text-sm font-medium text-black/80 mb-1">{community.name}</h3>
-                          <p className="text-xs text-black/50 line-clamp-2">{community.description}</p>
+                          <h3 className="text-sm font-medium text-foreground/80 mb-1">{community.name}</h3>
+                          <p className="text-xs text-foreground/50 line-clamp-2">{community.description}</p>
                           {community.owner_org_name && (
-                            <p className="mt-2 text-xs text-black/40">
+                            <p className="mt-2 text-xs text-foreground/40">
                               {community.is_shared_from_other_org ? `Shared from ${community.owner_org_name}` : community.owner_org_name}
                             </p>
                           )}
@@ -520,8 +520,8 @@ function SearchPage() {
 
               {(selectedType === 'all' || selectedType === 'organizations') && searchResults.organizations.length > 0 && (
                 <div>
-                  <h2 className="text-lg font-medium text-black/80 mb-4 flex items-center gap-2">
-                    <Building2 size={20} className="text-black/60" />
+                  <h2 className="text-lg font-medium text-foreground/80 mb-4 flex items-center gap-2">
+                    <Building2 size={20} className="text-foreground/60" />
                     Organizations ({searchResults.organizations.length})
                   </h2>
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -536,7 +536,7 @@ function SearchPage() {
                         <Link
                           key={organization.org_uuid}
                         href={getUriWithOrg(org?.slug, routePaths.org.organization(organization.slug))}
-                          className="bg-white rounded-xl nice-shadow hover:shadow-md transition-all overflow-hidden group"
+                          className="bg-card rounded-xl nice-shadow hover:shadow-md transition-all overflow-hidden group"
                         >
                           <div className="relative h-48">
                             {imageSrc ? (
@@ -546,22 +546,22 @@ function SearchPage() {
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                               />
                             ) : (
-                              <div className="w-full h-full bg-black/5 flex items-center justify-center">
-                                <Building2 size={32} className="text-black/40" />
+                              <div className="w-full h-full bg-foreground/10 flex items-center justify-center">
+                                <Building2 size={32} className="text-foreground/40" />
                               </div>
                             )}
                           </div>
                           <div className="p-4">
                             <div className="flex items-center gap-2 mb-2">
-                              <h3 className="text-sm font-medium text-black/80">{organization.name}</h3>
-                              <span className="rounded-full bg-black/5 px-2 py-1 text-[10px] uppercase tracking-wide text-black/50">
+                              <h3 className="text-sm font-medium text-foreground/80">{organization.name}</h3>
+                              <span className="rounded-full bg-foreground/10 px-2 py-1 text-[10px] uppercase tracking-wide text-foreground/50">
                                 {organization.is_member ? 'Member' : organization.signup_mode === 'open' ? 'Open' : 'Invite only'}
                               </span>
                             </div>
-                            <p className="text-xs text-black/50 line-clamp-2">
+                            <p className="text-xs text-foreground/50 line-clamp-2">
                               {organization.description || organization.about || `@${organization.slug}`}
                             </p>
-                            <p className="mt-3 text-xs text-black/40">
+                            <p className="mt-3 text-xs text-foreground/40">
                               {organization.member_count} members
                             </p>
                           </div>
@@ -574,8 +574,8 @@ function SearchPage() {
 
               {(selectedType === 'all' || selectedType === 'resources') && searchResults.resources.length > 0 && (
                 <div>
-                  <h2 className="text-lg font-medium text-black/80 mb-4 flex items-center gap-2">
-                    <LibraryBig size={20} className="text-black/60" />
+                  <h2 className="text-lg font-medium text-foreground/80 mb-4 flex items-center gap-2">
+                    <LibraryBig size={20} className="text-foreground/60" />
                     Resources ({searchResults.resources.length})
                   </h2>
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -583,7 +583,7 @@ function SearchPage() {
                       <Link
                         key={resource.resource_uuid}
                         href={getUriWithOrg(org?.slug, routePaths.org.resource(resource.resource_uuid.replace('resource_', '')))}
-                        className="bg-white rounded-xl nice-shadow hover:shadow-md transition-all overflow-hidden group"
+                        className="bg-card rounded-xl nice-shadow hover:shadow-md transition-all overflow-hidden group"
                       >
                         <div className="relative h-48">
                           {resource.thumbnail_image && (resource.owner_org_uuid || org?.org_uuid) ? (
@@ -599,16 +599,16 @@ function SearchPage() {
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             />
                           ) : (
-                            <div className="w-full h-full bg-black/5 flex items-center justify-center">
-                              <LibraryBig size={32} className="text-black/40" />
+                            <div className="w-full h-full bg-foreground/10 flex items-center justify-center">
+                              <LibraryBig size={32} className="text-foreground/40" />
                             </div>
                           )}
                         </div>
                         <div className="p-4">
-                          <h3 className="text-sm font-medium text-black/80 mb-1">{resource.title}</h3>
-                          <p className="text-xs text-black/50 line-clamp-2">{resource.description}</p>
+                          <h3 className="text-sm font-medium text-foreground/80 mb-1">{resource.title}</h3>
+                          <p className="text-xs text-foreground/50 line-clamp-2">{resource.description}</p>
                           {resource.owner_org_name && (
-                            <p className="mt-2 text-xs text-black/40">
+                            <p className="mt-2 text-xs text-foreground/40">
                               {resource.is_shared_from_other_org ? `Shared from ${resource.owner_org_name}` : resource.owner_org_name}
                             </p>
                           )}
@@ -622,8 +622,8 @@ function SearchPage() {
               {/* Users Grid */}
               {(selectedType === 'all' || selectedType === 'users') && searchResults.users.length > 0 && (
                 <div>
-                  <h2 className="text-lg font-medium text-black/80 mb-4 flex items-center gap-2">
-                    <Users size={20} className="text-black/60" />
+                  <h2 className="text-lg font-medium text-foreground/80 mb-4 flex items-center gap-2">
+                    <Users size={20} className="text-foreground/60" />
                     {t('common.users')} ({searchResults.users.length})
                   </h2>
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -631,7 +631,7 @@ function SearchPage() {
                       <Link
                         key={user.user_uuid}
                         href={getUriWithOrg(org?.slug, routePaths.org.user(user.username))}
-                        className="flex items-center gap-4 p-4 bg-white rounded-xl nice-shadow hover:shadow-md transition-all"
+                        className="flex items-center gap-4 p-4 bg-card rounded-xl nice-shadow hover:shadow-md transition-all"
                       >
                         <UserAvatar
                           width={48}
@@ -640,15 +640,15 @@ function SearchPage() {
                           userId={user.id.toString()}
                           showProfilePopup
                           rounded="rounded-full"
-                          backgroundColor="bg-gray-100"
+                          backgroundColor="bg-muted"
                         />
                         <div>
-                          <h3 className="text-sm font-medium text-black/80">
+                          <h3 className="text-sm font-medium text-foreground/80">
                             {user.first_name} {user.last_name}
                           </h3>
-                          <p className="text-xs text-black/50">@{user.username}</p>
+                          <p className="text-xs text-foreground/50">@{user.username}</p>
                           {user.details?.title?.text && (
-                            <p className="text-xs text-black/40 mt-1">{user.details.title.text}</p>
+                            <p className="text-xs text-foreground/40 mt-1">{user.details.title.text}</p>
                           )}
                         </div>
                       </Link>

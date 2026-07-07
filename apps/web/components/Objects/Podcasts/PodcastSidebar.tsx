@@ -29,9 +29,9 @@ export function PodcastSidebar({ podcast, episodeCount, orgslug }: PodcastSideba
   const activeAuthors = podcast.authors?.filter(author => author.authorship_status === 'ACTIVE') || []
 
   return (
-    <div className="bg-white rounded-lg nice-shadow overflow-hidden">
+    <div className="bg-card rounded-lg nice-shadow overflow-hidden">
       {/* Thumbnail */}
-      <div className="aspect-square w-full overflow-hidden bg-gray-100">
+      <div className="aspect-square w-full overflow-hidden bg-muted">
         <img
           src={thumbnailUrl}
           alt={podcast.name}
@@ -43,7 +43,7 @@ export function PodcastSidebar({ podcast, episodeCount, orgslug }: PodcastSideba
       <div className="p-4 space-y-4">
         {/* Name and badges */}
         <div>
-          <h1 className="text-xl font-bold text-gray-900">{podcast.name}</h1>
+          <h1 className="text-xl font-bold text-foreground">{podcast.name}</h1>
           <div className="flex items-center gap-2 mt-2">
             {podcast.public ? (
               <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
@@ -51,7 +51,7 @@ export function PodcastSidebar({ podcast, episodeCount, orgslug }: PodcastSideba
                 {t('podcasts.public')}
               </span>
             ) : (
-              <span className="flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+              <span className="flex items-center gap-1 px-2 py-0.5 bg-muted text-muted-foreground rounded-full text-xs font-medium">
                 <Lock size={12} />
                 {t('podcasts.private')}
               </span>
@@ -66,14 +66,14 @@ export function PodcastSidebar({ podcast, episodeCount, orgslug }: PodcastSideba
 
         {/* Description */}
         {podcast.description && (
-          <p className="text-sm text-gray-600 leading-relaxed">
+          <p className="text-sm text-muted-foreground leading-relaxed">
             {podcast.description}
           </p>
         )}
 
         {/* Stats */}
-        <div className="flex items-center gap-4 py-3 border-y border-gray-100">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
+        <div className="flex items-center gap-4 py-3 border-y border-border">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Headphones size={16} />
             <span>
               {episodeCount} {episodeCount === 1 ? 'episode' : 'episodes'}
@@ -84,7 +84,7 @@ export function PodcastSidebar({ podcast, episodeCount, orgslug }: PodcastSideba
         {/* Authors */}
         {activeAuthors.length > 0 && (
           <div>
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
               {t('podcasts.hosted_by')}
             </h3>
             <div className="space-y-2">
@@ -104,10 +104,10 @@ export function PodcastSidebar({ podcast, episodeCount, orgslug }: PodcastSideba
                     userId={author.user.id}
                   />
                   <div>
-                    <span className="text-sm font-medium text-gray-900">
+                    <span className="text-sm font-medium text-foreground">
                       {author.user.first_name} {author.user.last_name}
                     </span>
-                    <span className="text-xs text-gray-500 block">
+                    <span className="text-xs text-muted-foreground block">
                       @{author.user.username}
                     </span>
                   </div>
@@ -120,14 +120,14 @@ export function PodcastSidebar({ podcast, episodeCount, orgslug }: PodcastSideba
         {/* Tags */}
         {podcast.tags && (
           <div>
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
               {t('podcasts.tags')}
             </h3>
             <div className="flex flex-wrap gap-1">
               {podcast.tags.split(',').map((tag, index) => (
                 <span
                   key={index}
-                  className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs"
+                  className="px-2 py-0.5 bg-muted text-muted-foreground rounded text-xs"
                 >
                   {tag.trim()}
                 </span>
@@ -146,7 +146,7 @@ export function PodcastSidebar({ podcast, episodeCount, orgslug }: PodcastSideba
           <div className="pt-2">
             <Link
               href={getUriWithOrg(orgslug, routePaths.org.dash.podcastSettings(removePodcastPrefix(podcast.podcast_uuid), 'general'))}
-              className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
+              className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-muted hover:bg-muted text-muted-foreground rounded-lg text-sm font-medium transition-colors"
             >
               <Settings size={16} />
               {t('podcasts.manage_podcast')}

@@ -16,7 +16,7 @@ export function DiscussionContent({ content }: DiscussionContentProps) {
   // Handle plain text content (legacy)
   if (typeof content === 'string') {
     return (
-      <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+      <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
         {content}
       </p>
     )

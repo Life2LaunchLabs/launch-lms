@@ -164,7 +164,7 @@ function CreatePodcastModal({ closeModal, orgslug }: any) {
           label={t('podcasts.podcast_thumbnail')}
           message={formik.errors.thumbnail}
         />
-        <div className="w-auto bg-gray-50 rounded-xl outline outline-1 outline-gray-200 h-[200px] shadow-sm">
+        <div className="w-auto bg-muted rounded-xl outline outline-1 outline-border h-[200px] shadow-sm">
           <div className="flex flex-col justify-center items-center h-full">
             <div className="flex flex-col justify-center items-center">
               {formik.values.thumbnail ? (
@@ -175,7 +175,7 @@ function CreatePodcastModal({ closeModal, orgslug }: any) {
               ) : (
                 <img
                   src="/empty_thumbnail.png"
-                  className="shadow-sm w-[200px] h-[100px] rounded-md bg-gray-200"
+                  className="shadow-sm w-[200px] h-[100px] rounded-md bg-muted"
                 />
               )}
               <div className="flex justify-center items-center space-x-2">

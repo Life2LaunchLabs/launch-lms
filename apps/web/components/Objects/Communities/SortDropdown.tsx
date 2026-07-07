@@ -30,10 +30,10 @@ export function SortDropdown({ value, onChange }: SortDropdownProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-1.5 px-3 py-2 h-8 text-xs bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 transition-colors">
-          <span className="text-gray-500">{t('communities.discussion_list.sort_by')}</span>
-          <span className="font-medium text-gray-700">{currentOption.label}</span>
-          <ChevronDown size={12} className="text-gray-400" />
+        <button className="flex items-center gap-1.5 px-3 py-2 h-8 text-xs bg-muted border border-border rounded-md hover:bg-muted transition-colors">
+          <span className="text-muted-foreground">{t('communities.discussion_list.sort_by')}</span>
+          <span className="font-medium text-muted-foreground">{currentOption.label}</span>
+          <ChevronDown size={12} className="text-muted-foreground" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-40">
@@ -43,7 +43,7 @@ export function SortDropdown({ value, onChange }: SortDropdownProps) {
             <DropdownMenuItem
               key={option.value}
               onClick={() => onChange(option.value)}
-              className={`flex items-center gap-2 text-sm ${value === option.value ? 'bg-gray-100 text-gray-900' : 'text-gray-600'}`}
+              className={`flex items-center gap-2 text-sm ${value === option.value ? 'bg-muted text-foreground' : 'text-muted-foreground'}`}
             >
               <Icon size={14} />
               <span>{option.label}</span>

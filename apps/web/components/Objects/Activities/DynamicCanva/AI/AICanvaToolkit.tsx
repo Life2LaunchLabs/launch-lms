@@ -146,7 +146,7 @@ function AICanvaToolkit(props: AICanvaToolkitProps) {
       >
         <div className="flex w-full space-x-2 font-bold text-white/80">
           <Image
-            className="outline-1 outline-neutral-200/10 rounded-lg"
+            className="outline-1 outline-border/10 rounded-lg"
             width={24}
             src={aiIcon}
             alt=""
@@ -304,7 +304,7 @@ function AIActionButton(props: {
       <ToolTip sideOffset={10} slateBlack content={tooltipLabel}>
         <button
           onClick={() => handleAction(props.label)}
-          className="flex space-x-1.5 items-center bg-white/10 px-2 py-0.5 rounded-md outline-1 outline-neutral-200/20 text-sm font-semibold text-white/70 hover:bg-white/20 hover:outline-neutral-200/40 delay-75 ease-linear transition-all"
+          className="flex space-x-1.5 items-center bg-white/10 px-2 py-0.5 rounded-md outline-1 outline-border/20 text-sm font-semibold text-white/70 hover:bg-white/20 hover:outline-border/40 delay-75 ease-linear transition-all"
         >
           {props.label === 'Explain' && <BookOpen size={16} />}
           {props.label === 'Summarize' && <FormInput size={16} />}

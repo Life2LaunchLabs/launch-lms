@@ -50,15 +50,15 @@ const CourseProgress: React.FC<CourseProgressProps> = ({ course, orgslug, isOpen
   const getActivityTypeIcon = (activityType: string) => {
     switch (activityType) {
       case 'TYPE_VIDEO':
-        return <Video size={16} className="text-gray-400" />
+        return <Video size={16} className="text-muted-foreground" />
       case 'TYPE_DOCUMENT':
-        return <FileText size={16} className="text-gray-400" />
+        return <FileText size={16} className="text-muted-foreground" />
       case 'TYPE_DYNAMIC':
-        return <Layers size={16} className="text-gray-400" />
+        return <Layers size={16} className="text-muted-foreground" />
       case 'TYPE_ASSIGNMENT':
-        return <BookOpenCheck size={16} className="text-gray-400" />
+        return <BookOpenCheck size={16} className="text-muted-foreground" />
       default:
-        return <FileText size={16} className="text-gray-400" />
+        return <FileText size={16} className="text-muted-foreground" />
     }
   }
 
@@ -70,12 +70,12 @@ const CourseProgress: React.FC<CourseProgressProps> = ({ course, orgslug, isOpen
   const dialogContent = (
     <div className="space-y-4">
       {course.chapters.map((chapter: any) => (
-        <div key={chapter.chapter_uuid} className="bg-gray-50 rounded-lg overflow-hidden">
-          <div className="px-4 py-3 bg-gray-100 font-semibold text-gray-700 flex items-center space-x-2">
-            <Folder size={16} className="text-gray-400" />
+        <div key={chapter.chapter_uuid} className="bg-muted rounded-lg overflow-hidden">
+          <div className="px-4 py-3 bg-muted font-semibold text-muted-foreground flex items-center space-x-2">
+            <Folder size={16} className="text-muted-foreground" />
             <span>{chapter.name}</span>
           </div>
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-border">
             {chapter.activities.map((activity: any) => {
               const activityId = activity.activity_uuid.replace('activity_', '')
               const courseId = course.course_uuid.replace('course_', '')
@@ -84,7 +84,7 @@ const CourseProgress: React.FC<CourseProgressProps> = ({ course, orgslug, isOpen
                   key={activity.activity_uuid}
                   href={getUriWithOrg(orgslug, routePaths.org.courseActivity(courseId, activityId))}
                 >
-                  <div className="px-4 py-3 hover:bg-gray-100 transition-colors flex items-center group">
+                  <div className="px-4 py-3 hover:bg-muted transition-colors flex items-center group">
                     <div className="flex items-center space-x-3 flex-1">
                       {isActivityDone(activity) ? (
                         <div className="relative">
@@ -96,12 +96,12 @@ const CourseProgress: React.FC<CourseProgressProps> = ({ course, orgslug, isOpen
                       )}
                       <div className="flex items-center space-x-2">
                         {getActivityTypeIcon(activity.activity_type)}
-                        <span className="text-gray-700 group-hover:text-gray-900">
+                        <span className="text-muted-foreground group-hover:text-foreground">
                           {activity.name}
                         </span>
                       </div>
                     </div>
-                    <ArrowRight size={16} className="text-gray-400 group-hover:text-gray-600" />
+                    <ArrowRight size={16} className="text-muted-foreground group-hover:text-muted-foreground" />
                   </div>
                 </Link>
               )

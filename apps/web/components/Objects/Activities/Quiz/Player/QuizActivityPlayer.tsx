@@ -1855,7 +1855,7 @@ function QuizActivityPlayerInner({ activity, editorPreviewContent, onClose, init
     if (embedded) {
       return (
         <div className="flex min-h-[20rem] flex-col items-center justify-center gap-3 p-8 text-center">
-          <p className="text-sm font-medium text-gray-500">This quiz has no questions yet.</p>
+          <p className="text-sm font-medium text-muted-foreground">This quiz has no questions yet.</p>
         </div>
       )
     }

@@ -92,7 +92,7 @@ function TextResponseQuote({ response, sectionedContent }: { response: string; s
       <div className="pointer-events-none absolute left-3 top-0 text-7xl font-serif leading-none text-sky-200/90" aria-hidden="true">
         &ldquo;
       </div>
-      <blockquote className="relative pl-7 text-xl font-medium italic leading-relaxed text-neutral-900 sm:text-2xl">
+      <blockquote className="relative pl-7 text-xl font-medium italic leading-relaxed text-foreground sm:text-2xl">
         <p className="whitespace-pre-line">{response}</p>
       </blockquote>
     </figure>
@@ -109,7 +109,7 @@ function UngradedResponseCard({ children, embedded = false }: { children: React.
   }
 
   return (
-    <section className="w-full min-h-[210px] rounded-2xl border border-neutral-100 bg-white p-4 shadow-sm sm:p-5">
+    <section className="w-full min-h-[210px] rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
       {children}
     </section>
   )
@@ -143,7 +143,7 @@ function SliderIndicator({ value, directionMode }: { value: number; directionMod
     const isLeft = pct < 50
     const fillWidth = `${Math.abs(pct - 50)}%`
     return (
-      <div className="relative h-3 w-full overflow-hidden rounded-full bg-neutral-200">
+      <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
         <div className="absolute left-1/2 top-0 z-10 h-full w-px bg-neutral-500/70" />
         <div
           className="absolute top-0 h-full"
@@ -159,7 +159,7 @@ function SliderIndicator({ value, directionMode }: { value: number; directionMod
   }
 
   return (
-    <div className="h-3 w-full overflow-hidden rounded-full bg-neutral-200">
+    <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
       <div
         className="h-full rounded-r-full"
         style={{ width: `${normalized * 100}%`, background: SLIDER_BLUE }}
@@ -207,7 +207,7 @@ function RatingResponseCard({
               <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-700 text-white">
                 <Star className="h-3 w-3 fill-current" strokeWidth={2.4} />
               </span>
-              <span className="min-w-0 truncate text-sm font-medium leading-snug text-neutral-900">
+              <span className="min-w-0 truncate text-sm font-medium leading-snug text-foreground">
                 {row.label}
               </span>
             </div>
@@ -217,7 +217,7 @@ function RatingResponseCard({
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(120px,1fr)] gap-x-5 gap-y-3 sm:grid-cols-[minmax(0,1fr)_minmax(180px,1fr)]">
           {visibleRows.map((row: any) => (
             <React.Fragment key={row.uuid}>
-              <div className="min-w-0 self-center text-left text-sm font-medium leading-snug text-neutral-700">
+              <div className="min-w-0 self-center text-left text-sm font-medium leading-snug text-muted-foreground">
                 {row.label}
               </div>
               <div className="flex min-w-0 items-center justify-start">
@@ -231,7 +231,7 @@ function RatingResponseCard({
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          className="mt-4 rounded-full px-3 py-1.5 text-xs font-semibold text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-800"
+          className="mt-4 rounded-full px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           See {hiddenCount} more
         </button>
@@ -240,7 +240,7 @@ function RatingResponseCard({
         <button
           type="button"
           onClick={() => setExpanded(false)}
-          className="mt-4 rounded-full px-3 py-1.5 text-xs font-semibold text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-800"
+          className="mt-4 rounded-full px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           Show top 3
         </button>
@@ -271,7 +271,7 @@ function SortResponseCard({ question, answer, node, embedded = false }: { questi
   return (
     <UngradedResponseCard embedded={embedded}>
       {categoryGroups.length === 0 ? (
-        <p className="text-sm text-neutral-500">No response</p>
+        <p className="text-sm text-muted-foreground">No response</p>
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -282,26 +282,26 @@ function SortResponseCard({ question, answer, node, embedded = false }: { questi
               return (
                 <section
                   key={category.category_uuid}
-                  className="rounded-xl border bg-white p-3"
+                  className="rounded-xl border bg-card p-3"
                   style={{ borderColor: color, backgroundColor: `${color}0F` }}
                 >
                   <div className="mb-3 flex items-center gap-2">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-card shadow-sm">
                       {renderSortIcon(category.icon, color, 15)}
                     </div>
-                    <h4 className="min-w-0 text-sm font-semibold text-neutral-900">
+                    <h4 className="min-w-0 text-sm font-semibold text-foreground">
                       {getCategoryDisplayLabel(category)}
                     </h4>
                   </div>
                   <div className="space-y-2">
                     {visibleCards.map((card: any) => (
-                      <div key={card.card_uuid} className="rounded-lg border border-white/80 bg-white px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm">
+                      <div key={card.card_uuid} className="rounded-lg border border-white/80 bg-card px-3 py-2 text-sm font-medium text-muted-foreground shadow-sm">
                         {card.title}
                       </div>
                     ))}
                   </div>
                   {!expanded && hiddenCount > 0 && (
-                    <div className="mt-3 text-xs font-semibold text-neutral-500">
+                    <div className="mt-3 text-xs font-semibold text-muted-foreground">
                       See {hiddenCount} more
                     </div>
                   )}
@@ -313,7 +313,7 @@ function SortResponseCard({ question, answer, node, embedded = false }: { questi
             <button
               type="button"
               onClick={() => setExpanded(true)}
-              className="mt-4 rounded-full px-3 py-1.5 text-xs font-semibold text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-800"
+              className="mt-4 rounded-full px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               See {totalHidden} more
             </button>
@@ -322,7 +322,7 @@ function SortResponseCard({ question, answer, node, embedded = false }: { questi
             <button
               type="button"
               onClick={() => setExpanded(false)}
-              className="mt-4 rounded-full px-3 py-1.5 text-xs font-semibold text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-800"
+              className="mt-4 rounded-full px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               Show top 3
             </button>
@@ -344,7 +344,7 @@ function MultiSelectResponseCard({ question, answer, node, embedded = false }: {
   return (
     <UngradedResponseCard embedded={embedded}>
       {options.length === 0 ? (
-        <p className="text-sm text-neutral-500">No response</p>
+        <p className="text-sm text-muted-foreground">No response</p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {options.map((option: any) => (
@@ -401,9 +401,9 @@ function UngradedAnswerResponse({
   return (
     <div
       key={`${answer.question_uuid}-${index}`}
-      className={sectionedContent ? 'py-4 first:pt-0 last:pb-0' : 'rounded-2xl border border-neutral-100 bg-neutral-50 p-4'}
+      className={sectionedContent ? 'py-4 first:pt-0 last:pb-0' : 'rounded-2xl border border-border bg-muted p-4'}
     >
-      <p className="whitespace-pre-line text-sm text-neutral-600">{response}</p>
+      <p className="whitespace-pre-line text-sm text-muted-foreground">{response}</p>
     </div>
   )
 }
@@ -469,7 +469,7 @@ function UngradedResultsTabs({
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       {(visibleAnswers.length > 1 || removedAnswers.length > 0) && (
-        <div className="quiz-result-tab-scroll flex shrink-0 overflow-x-auto border-b border-neutral-200 bg-white px-1 pb-1">
+        <div className="quiz-result-tab-scroll flex shrink-0 overflow-x-auto border-b border-border bg-card px-1 pb-1">
           <style jsx global>{`
             .quiz-result-tab-scroll {
               scrollbar-width: thin;
@@ -497,7 +497,7 @@ function UngradedResultsTabs({
               <div
                 key={`${answer.question_uuid}-${index}`}
                 className={`group flex min-w-fit flex-1 items-center justify-center gap-2 border-b-2 px-4 text-center text-xs font-bold transition-colors ${
-                  active ? 'border-emerald-600 text-neutral-950' : 'border-transparent text-neutral-500 hover:text-neutral-900'
+                  active ? 'border-emerald-600 text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {isEditing ? (
@@ -511,7 +511,7 @@ function UngradedResultsTabs({
                         setEditingLabel('')
                       }
                     }}
-                    className="my-2 min-w-0 flex-1 rounded-md border border-emerald-200 bg-white px-2 py-1.5 text-center text-xs font-bold text-neutral-900 outline-none focus:border-emerald-500"
+                    className="my-2 min-w-0 flex-1 rounded-md border border-emerald-200 bg-card px-2 py-1.5 text-center text-xs font-bold text-foreground outline-none focus:border-emerald-500"
                     autoFocus
                   />
                 ) : (
@@ -541,7 +541,7 @@ function UngradedResultsTabs({
                       aria-label="Edit display name"
                       title="Edit display name"
                       onClick={() => startEditingLabel(answer.question_uuid, question)}
-                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 ${
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-muted-foreground ${
                         active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                       }`}
                     >
@@ -559,7 +559,7 @@ function UngradedResultsTabs({
                     }}
                     className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition ${
                       active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                    } text-neutral-400 hover:bg-neutral-100 hover:text-red-600`}
+                    } text-muted-foreground hover:bg-muted hover:text-red-600`}
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -574,7 +574,7 @@ function UngradedResultsTabs({
                   type="button"
                   aria-label="Restore removed response tabs"
                   title="Restore removed response tabs"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
                 >
                   <Plus className="h-4 w-4" />
                 </button>
@@ -614,7 +614,7 @@ function UngradedResultsTabs({
             profileGrid={profileGrid}
           />
         ) : (
-          <div className="flex h-full min-h-0 items-center justify-center rounded-xl border border-dashed border-neutral-200 bg-neutral-50 p-4 text-center text-sm text-neutral-500">
+          <div className="flex h-full min-h-0 items-center justify-center rounded-xl border border-dashed border-border bg-muted p-4 text-center text-sm text-muted-foreground">
             Use the plus button to restore a removed response.
           </div>
         )}
@@ -726,9 +726,9 @@ export default function QuizResultsView({
 
     return (
       <div className={sectionedContent ? 'h-full min-h-0 w-full' : 'w-full max-w-3xl mx-auto p-4 sm:p-5'}>
-        <div className="h-full min-h-0 bg-white">
+        <div className="h-full min-h-0 bg-card">
           {answers.length === 0 ? (
-            <p className="text-sm text-neutral-500">{publicMode ? 'No public responses are visible.' : 'No responses were recorded.'}</p>
+            <p className="text-sm text-muted-foreground">{publicMode ? 'No public responses are visible.' : 'No responses were recorded.'}</p>
           ) : selectedQuestionUuid ? (
             <div className="h-full min-h-0">
               <UngradedAnswerResponse
@@ -793,26 +793,26 @@ export default function QuizResultsView({
           </div>
 
           <div className="space-y-5">
-            <div className="bg-white rounded-3xl border border-neutral-100 p-5">
+            <div className="bg-card rounded-3xl border border-border p-5">
               <div className="flex items-center gap-2 mb-4">
-                <Trophy size={18} className="text-neutral-700" />
-                <h2 className="text-xl font-bold text-neutral-900">Quiz Results</h2>
+                <Trophy size={18} className="text-muted-foreground" />
+                <h2 className="text-xl font-bold text-foreground">Quiz Results</h2>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <div className="rounded-2xl bg-neutral-50 border border-neutral-100 p-4">
-                  <div className="flex items-center gap-2 text-neutral-500 text-xs uppercase tracking-wider font-bold">
+                <div className="rounded-2xl bg-muted border border-border p-4">
+                  <div className="flex items-center gap-2 text-muted-foreground text-xs uppercase tracking-wider font-bold">
                     <BarChart3 size={13} />
                     Best Score
                   </div>
-                  <p className="mt-3 text-2xl font-bold text-neutral-900">{graded.best_score_percent.toFixed(1)}%</p>
+                  <p className="mt-3 text-2xl font-bold text-foreground">{graded.best_score_percent.toFixed(1)}%</p>
                 </div>
-                <div className="rounded-2xl bg-neutral-50 border border-neutral-100 p-4">
-                  <div className="text-neutral-500 text-xs uppercase tracking-wider font-bold">Attempt</div>
-                  <p className="mt-3 text-2xl font-bold text-neutral-900">#{graded.attempt_number}</p>
+                <div className="rounded-2xl bg-muted border border-border p-4">
+                  <div className="text-muted-foreground text-xs uppercase tracking-wider font-bold">Attempt</div>
+                  <p className="mt-3 text-2xl font-bold text-foreground">#{graded.attempt_number}</p>
                 </div>
-                <div className="rounded-2xl bg-neutral-50 border border-neutral-100 p-4">
-                  <div className="text-neutral-500 text-xs uppercase tracking-wider font-bold">Remaining</div>
-                  <p className="mt-3 text-2xl font-bold text-neutral-900">{attemptsRemaining === null ? '∞' : attemptsRemaining}</p>
+                <div className="rounded-2xl bg-muted border border-border p-4">
+                  <div className="text-muted-foreground text-xs uppercase tracking-wider font-bold">Remaining</div>
+                  <p className="mt-3 text-2xl font-bold text-foreground">{attemptsRemaining === null ? '∞' : attemptsRemaining}</p>
                 </div>
               </div>
             </div>
@@ -822,14 +822,14 @@ export default function QuizResultsView({
                 {canRetake && (
                   <button
                     onClick={onRetake}
-                    className="flex items-center justify-center gap-2 py-3 px-5 rounded-2xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-sm font-semibold transition-colors outline-none"
+                    className="flex items-center justify-center gap-2 py-3 px-5 rounded-2xl bg-muted hover:bg-muted text-muted-foreground text-sm font-semibold transition-colors outline-none"
                   >
                     <RotateCcw size={15} />
                     Retake quiz
                   </button>
                 )}
                 {!canRetake && (
-                  <div className="py-3 px-5 rounded-2xl bg-neutral-100 text-neutral-500 text-sm font-semibold">
+                  <div className="py-3 px-5 rounded-2xl bg-muted text-muted-foreground text-sm font-semibold">
                     No retakes remaining
                   </div>
                 )}
@@ -906,7 +906,7 @@ export default function QuizResultsView({
         )}
 
         {!matched && (
-          <p className="text-neutral-500 text-sm text-center py-4">Quiz completed!</p>
+          <p className="text-muted-foreground text-sm text-center py-4">Quiz completed!</p>
         )}
       </div>
     </div>

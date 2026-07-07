@@ -66,7 +66,7 @@ export default function QuizTitleActions({ activity }: Props) {
         <button
           type="button"
           aria-label="Quiz actions"
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <MoreVertical size={18} />
         </button>

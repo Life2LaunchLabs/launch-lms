@@ -8,7 +8,7 @@ import { getOrgLogoMediaDirectory, getOrgPreviewMediaDirectory, getOrgThumbnailM
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/ui/tabs"
 import { toast } from 'react-hot-toast'
 import { constructAcceptValue } from '@/lib/constants'
-import { uploadOrganizationLogo, uploadOrganizationThumbnail, uploadOrganizationPreview, updateOrganization, updateOrgColorConfig, uploadOrganizationFavicon, updateOrgBadgeIssuerConfig, updateOrgHideOrgNameConfig } from '@services/settings/org'
+import { uploadOrganizationLogo, uploadOrganizationThumbnail, uploadOrganizationPreview, updateOrganization, updateOrgColorConfig, updateOrgDarkColorConfig, uploadOrganizationFavicon, updateOrgBadgeIssuerConfig, updateOrgHideOrgNameConfig } from '@services/settings/org'
 import { Switch } from '@components/ui/switch'
 import { cn } from '@/lib/utils'
 import { Input } from "@components/ui/input"
@@ -134,6 +134,7 @@ export default function OrgEditBranding() {
 
   // Theme state
   const [primaryColor, setPrimaryColor] = useState<string>(org?.config?.config?.customization?.general?.color || org?.config?.config?.general?.color || '')
+  const [darkColor, setDarkColor] = useState<string>(org?.config?.config?.customization?.general?.dark_color || org?.config?.config?.general?.dark_color || '')
   const [isThemeSaving, setIsThemeSaving] = useState(false)
   const [issuerName, setIssuerName] = useState<string>(org?.config?.config?.customization?.badge_issuer?.name || org?.name || '')
   const [issuerUrl, setIssuerUrl] = useState<string>(org?.config?.config?.customization?.badge_issuer?.url || '')
@@ -422,6 +423,7 @@ export default function OrgEditBranding() {
     const loadingToast = toast.loading(t('dashboard.organization.settings.updating'))
     try {
       await updateOrgColorConfig(org.id, primaryColor, access_token)
+      await updateOrgDarkColorConfig(org.id, darkColor, access_token)
       await updateOrgBadgeIssuerConfig(org.id, {
         name: issuerName,
         url: issuerUrl,
@@ -459,6 +461,10 @@ export default function OrgEditBranding() {
 
   const handleClearColor = () => {
     setPrimaryColor('')
+  }
+
+  const handleClearDarkColor = () => {
+    setDarkColor('')
   }
 
   // Helper to convert hex to rgba
@@ -1027,6 +1033,56 @@ export default function OrgEditBranding() {
               </div>
 
               <p className="text-xs text-gray-400 mt-3">{t('dashboard.organization.theme.primary_color_desc')}</p>
+            </div>
+
+            {/* Dark Mode Accent Picker */}
+            <div className="flex-1 bg-gray-50/50 rounded-xl p-5">
+              <Label className="text-sm font-medium text-gray-700 mb-3 block">Dark mode accent</Label>
+
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <input
+                    type="color"
+                    value={darkColor || primaryColor || '#8b5cf6'}
+                    onChange={(e) => setDarkColor(e.target.value)}
+                    className="w-12 h-12 rounded-lg cursor-pointer border border-gray-200 hover:border-gray-300 transition-colors"
+                    style={{ padding: 0 }}
+                  />
+                </div>
+                <Input
+                  type="text"
+                  value={darkColor}
+                  onChange={(e) => setDarkColor(e.target.value)}
+                  placeholder="No color"
+                  className="w-28 h-10 font-mono text-sm uppercase bg-white"
+                  maxLength={7}
+                />
+                {darkColor && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleClearDarkColor}
+                    disabled={isThemeSaving}
+                    className="text-gray-400 hover:text-gray-600 h-10 px-2"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+
+              {/* Dark surface preview */}
+              <div className="mt-3 rounded-lg bg-[#0a0a0a] border border-gray-200 p-3 flex items-center gap-2">
+                <div
+                  className="h-6 w-16 rounded-full"
+                  style={{ backgroundColor: darkColor || primaryColor || '#8b5cf6' }}
+                />
+                <span className="text-xs text-white/60">Accent on dark surfaces</span>
+              </div>
+
+              <p className="text-xs text-gray-400 mt-3">
+                Used instead of the primary color when learners view the site in dark mode. Leave blank to reuse the primary color.
+              </p>
             </div>
 
             {/* Preview */}

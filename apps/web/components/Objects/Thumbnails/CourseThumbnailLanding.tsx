@@ -71,8 +71,8 @@ const AdminEditOptions: React.FC<AdminEditOptionsProps> = ({ course, orgslug, de
       <div className="absolute top-2 right-2 z-20">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="p-1 bg-white rounded-full hover:bg-gray-100 transition-colors shadow-md">
-              <MoreVertical size={20} className="text-gray-700" />
+            <button className="p-1 bg-card rounded-full hover:bg-muted transition-colors shadow-md">
+              <MoreVertical size={20} className="text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
@@ -138,31 +138,31 @@ const CourseThumbnailLanding: React.FC<PropsType> = ({ course, orgslug, customLi
     : '/empty_thumbnail.png'
 
   return (
-    <div className="relative flex flex-col bg-white rounded-xl nice-shadow overflow-hidden min-w-[280px] w-full max-w-sm shrink-0 m-2">
+    <div className="relative flex flex-col bg-card rounded-xl nice-shadow overflow-hidden min-w-[280px] w-full max-w-sm shrink-0 m-2">
       <AdminEditOptions
         course={course}
         orgslug={orgslug}
         deleteCourse={deleteCourse}
       />
       <Link prefetch href={customLink ? customLink : getUriWithOrg(orgslug, routePaths.org.course(removeCoursePrefix(course.course_uuid)))}>
-        <div className="inset-0 ring-1 ring-inset ring-black/10 rounded-t-xl w-full aspect-video overflow-hidden bg-gray-100">
+        <div className="inset-0 ring-1 ring-inset ring-black/10 rounded-t-xl w-full aspect-video overflow-hidden bg-muted">
           <img
             src={thumbnailImage}
             alt={course.name}
-            className="w-full h-full object-contain bg-gray-100"
+            className="w-full h-full object-contain bg-muted"
           />
         </div>
       </Link>
       <div className='flex flex-col w-full p-4 space-y-3'>
         <div className="space-y-2">
-          <h2 className="font-bold text-gray-800 leading-tight text-base min-h-[2.75rem] line-clamp-2">{course.name}</h2>
-          <p className='text-xs text-gray-700 leading-normal min-h-[3.75rem] line-clamp-3'>{course.description}</p>
+          <h2 className="font-bold text-foreground leading-tight text-base min-h-[2.75rem] line-clamp-2">{course.name}</h2>
+          <p className='text-xs text-muted-foreground leading-normal min-h-[3.75rem] line-clamp-3'>{course.description}</p>
         </div>
         
         <div className="flex flex-wrap items-center justify-between gap-2">
           {course.update_date && (
-            <div className="inline-flex h-5 min-w-[140px] items-center justify-center px-2 rounded-md bg-gray-100/80 border border-gray-200">
-              <span className="text-[10px] font-medium text-gray-600 truncate">
+            <div className="inline-flex h-5 min-w-[140px] items-center justify-center px-2 rounded-md bg-muted/80 border border-border">
+              <span className="text-[10px] font-medium text-muted-foreground truncate">
                 {t('common.updated')} {new Date(course.update_date).toLocaleDateString(i18n.language === 'fr' ? 'fr-FR' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </span>
             </div>
@@ -192,7 +192,7 @@ const CourseThumbnailLanding: React.FC<PropsType> = ({ course, orgslug, customLi
                   className="relative -ml-1"
                   style={{ zIndex: 0 }}
                 >
-                  <div className="flex items-center justify-center w-[32px] h-[32px] text-[11px] font-medium text-gray-600 bg-gray-100 border-2 border-white rounded-full">
+                  <div className="flex items-center justify-center w-[32px] h-[32px] text-[11px] font-medium text-muted-foreground bg-muted border-2 border-white rounded-full">
                     +{remainingAuthorsCount}
                   </div>
                 </div>

@@ -40,7 +40,7 @@ function CourseUpdates() {
   // if user clicks outside the model, close the model
   React.useLayoutEffect(() => {
     function handleClickOutside(event: any) {
-      if (event.target.closest('.bg-white') || event.target.id === 'delete-update-button') return;
+      if (event.target.closest('.bg-card') || event.target.id === 'delete-update-button') return;
       setIsModelOpen(false);
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -49,8 +49,8 @@ function CourseUpdates() {
 
 
   return (
-    <div style={{ position: 'relative' }} className='bg-white hover:bg-neutral-50 transition-all ease-linear nice-shadow rounded-full z-20 px-5 py-1'>
-      <div onClick={handleModelOpen} className='flex items-center space-x-2 font-normal hover:cursor-pointer text-gray-600'>
+    <div style={{ position: 'relative' }} className='bg-card hover:bg-muted transition-all ease-linear nice-shadow rounded-full z-20 px-5 py-1'>
+      <div onClick={handleModelOpen} className='flex items-center space-x-2 font-normal hover:cursor-pointer text-muted-foreground'>
         <div><Rss size={16} /> </div>
         <div className='flex space-x-2 items-center'>
           <span>{t('courses.updates')}</span>
@@ -78,16 +78,16 @@ const UpdatesSection = () => {
   const [selectedView, setSelectedView] = React.useState('list')
   const adminStatus = useAdminStatus() ;
   return (
-    <div className='bg-white/95 backdrop-blur-md nice-shadow rounded-lg w-[700px] overflow-hidden'>
-      <div className='bg-gray-50/70 flex justify-between outline outline-1 rounded-lg outline-neutral-200/40'>
-        <div className='py-2 px-4 font-bold text-gray-500 flex space-x-2 items-center'>
+    <div className='bg-card/95 backdrop-blur-md nice-shadow rounded-lg w-[700px] overflow-hidden'>
+      <div className='bg-muted/70 flex justify-between outline outline-1 rounded-lg outline-border/40'>
+        <div className='py-2 px-4 font-bold text-muted-foreground flex space-x-2 items-center'>
           <Rss size={16} />
           <span>{t('courses.updates')}</span>
 
         </div>
         {adminStatus.isAdmin && <div
           onClick={() => setSelectedView('new')}
-          className='py-2 px-4 space-x-2 items-center flex cursor-pointer text-xs font-medium hover:bg-gray-200 bg-gray-100 outline outline-1  outline-neutral-200/40'>
+          className='py-2 px-4 space-x-2 items-center flex cursor-pointer text-xs font-medium hover:bg-muted bg-muted outline outline-1  outline-border/40'>
           <PencilLine size={14} />
           <span>{t('courses.new_update')}</span>
         </div>}
@@ -151,10 +151,10 @@ const NewUpdateForm = ({ setSelectedView }: any) => {
 
 
   return (
-    <div className='bg-white/95 backdrop-blur-md nice-shadow rounded-lg w-[700px] overflow-hidden flex flex-col -space-y-2'>
+    <div className='bg-card/95 backdrop-blur-md nice-shadow rounded-lg w-[700px] overflow-hidden flex flex-col -space-y-2'>
       <div className='flex flex-col -space-y-2 px-4 pt-4'>
-        <div className='text-gray-500 px-3 py-0.5 rounded-full font-semibold text-xs'>{course?.courseStructure.name} </div>
-        <div className='text-black px-3 py-0.5 rounded-full text-lg font-bold'>{t('courses.add_new_course_update')}</div>
+        <div className='text-muted-foreground px-3 py-0.5 rounded-full font-semibold text-xs'>{course?.courseStructure.name} </div>
+        <div className='text-foreground px-3 py-0.5 rounded-full text-lg font-bold'>{t('courses.add_new_course_update')}</div>
       </div>
       <div className='px-5 -py-2'>
         <FormLayout onSubmit={formik.handleSubmit}>
@@ -188,7 +188,7 @@ const NewUpdateForm = ({ setSelectedView }: any) => {
             </Form.Control>
           </FormField>
           <div className='flex justify-end py-2'>
-            <button onClick={() => setSelectedView('list')} className='text-gray-500 px-4 py-2 rounded-md text-sm font-bold antialiased'>{t('common.cancel')}</button>
+            <button onClick={() => setSelectedView('list')} className='text-muted-foreground px-4 py-2 rounded-md text-sm font-bold antialiased'>{t('common.cancel')}</button>
             <button className='bg-black  text-white px-4 py-2 rounded-md text-sm font-bold antialiased'>{t('courses.add_update')}</button>
           </div>
         </FormLayout>
@@ -206,10 +206,10 @@ const UpdatesListView = () => {
   const { data: updates } = useSWR(`${getAPIUrl()}courses/${course?.courseStructure?.course_uuid}/updates`, (url) => swrFetcher(url, access_token))
 
   return (
-    <div className='px-5 bg-white overflow-y-auto' style={{ maxHeight: '400px' }}>
+    <div className='px-5 bg-card overflow-y-auto' style={{ maxHeight: '400px' }}>
       {updates && !adminStatus.loading && updates.map((update: any) => (
-        <div key={update.id} className='py-2 border-b border-neutral-200 antialiased'>
-          <div className='font-bold text-gray-500 flex space-x-2 items-center justify-between '>
+        <div key={update.id} className='py-2 border-b border-border antialiased'>
+          <div className='font-bold text-muted-foreground flex space-x-2 items-center justify-between '>
             <div className='flex space-x-2 items-center'>
               <span> {update.title}</span>
               <span
@@ -219,11 +219,11 @@ const UpdatesListView = () => {
               </span>
             </div>
             {adminStatus.isAdmin &&  !adminStatus.loading && <DeleteUpdateButton update={update} />}</div>
-          <div className='text-gray-600'>{update.content}</div>
+          <div className='text-muted-foreground'>{update.content}</div>
         </div>
       ))}
       {(!updates || updates.length === 0) &&
-        <div className='text-gray-500 text-center my-10 py-2 flex flex-col space-y-2'>
+        <div className='text-muted-foreground text-center my-10 py-2 flex flex-col space-y-2'>
           <TentTree className='mx-auto' size={40} />
           <p>{t('courses.no_updates_yet')}</p>
         </div>

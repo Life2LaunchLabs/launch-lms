@@ -44,13 +44,13 @@ export default function EpisodeCard({ episode, podcast, showThumbnail = true }: 
   return (
     <div
       className={`group flex items-center gap-4 p-4 rounded-lg transition-colors cursor-pointer ${
-        isCurrentEpisode ? 'bg-gray-100' : 'hover:bg-gray-50'
+        isCurrentEpisode ? 'bg-muted' : 'hover:bg-muted'
       }`}
       onClick={handlePlay}
     >
       {/* Episode number */}
       <div className="flex-shrink-0 w-8 text-center">
-        <span className="text-sm font-bold text-gray-400">
+        <span className="text-sm font-bold text-muted-foreground">
           {episode.episode_number}
         </span>
       </div>
@@ -58,7 +58,7 @@ export default function EpisodeCard({ episode, podcast, showThumbnail = true }: 
       {/* Thumbnail */}
       {showThumbnail && (
         <div className="flex-shrink-0 relative">
-          <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-200">
+          <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted">
             <img
               src={thumbnailUrl}
               alt={episode.title}
@@ -69,11 +69,11 @@ export default function EpisodeCard({ episode, podcast, showThumbnail = true }: 
           <div className={`absolute inset-0 flex items-center justify-center rounded-lg bg-black/40 transition-opacity ${
             isCurrentEpisode ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
           }`}>
-            <div className="bg-white rounded-full p-2">
+            <div className="bg-card rounded-full p-2">
               {isPlaying ? (
-                <Pause size={16} className="text-gray-900" fill="currentColor" />
+                <Pause size={16} className="text-foreground" fill="currentColor" />
               ) : (
-                <Play size={16} className="text-gray-900" fill="currentColor" />
+                <Play size={16} className="text-foreground" fill="currentColor" />
               )}
             </div>
           </div>
@@ -82,15 +82,15 @@ export default function EpisodeCard({ episode, podcast, showThumbnail = true }: 
 
       {/* Episode info */}
       <div className="flex-1 min-w-0">
-        <h4 className={`font-semibold truncate ${isCurrentEpisode ? 'text-gray-900' : 'text-gray-800'}`}>
+        <h4 className={`font-semibold truncate ${isCurrentEpisode ? 'text-foreground' : 'text-foreground'}`}>
           {episode.title}
         </h4>
         {episode.description && (
-          <p className="text-sm text-gray-500 line-clamp-2 mt-0.5">
+          <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">
             {episode.description}
           </p>
         )}
-        <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
+        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <Clock size={12} />
             {formatDuration(episode.duration_seconds || 0)}
@@ -113,7 +113,7 @@ export default function EpisodeCard({ episode, podcast, showThumbnail = true }: 
           className={`flex-shrink-0 p-3 rounded-full transition-colors ${
             isCurrentEpisode
               ? 'bg-gray-900 text-white'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              : 'bg-muted text-muted-foreground hover:bg-muted'
           }`}
         >
           {isPlaying ? (

@@ -109,6 +109,7 @@ program
   .command('dev')
   .description('Start development environment (DB + Redis in Docker, API + Web locally)')
   .option('--ee', 'Enable Enterprise Edition features (keeps ee/ folder)')
+  .option('--fresh', 'Clear the web build cache (apps/web/.next) before starting')
   .action(devCommand)
 
 // Non-blocking update check — runs in background, prints warning if outdated

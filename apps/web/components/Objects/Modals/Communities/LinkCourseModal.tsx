@@ -109,13 +109,13 @@ export function LinkCourseModal({
       dialogContent={
         <div className="space-y-6">
           {community.course_id && (
-            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <div className="p-4 bg-muted border border-border rounded-lg">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-medium text-foreground">
                     Currently linked to a course
                   </p>
-                  <p className="text-xs text-gray-600 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     Unlink to connect to a different course
                   </p>
                 </div>
@@ -139,43 +139,43 @@ export function LinkCourseModal({
             <>
               {/* Search */}
               <div className="relative">
-                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search courses..."
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black/20 focus:border-transparent outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 border border-border rounded-lg focus:ring-2 focus:ring-black/20 focus:border-transparent outline-none transition-all"
                 />
               </div>
 
               {/* Course List */}
-              <div className="max-h-64 overflow-y-auto border border-gray-100 rounded-lg">
+              <div className="max-h-64 overflow-y-auto border border-border rounded-lg">
                 {isLoadingCourses ? (
                   <div className="flex items-center justify-center py-8">
-                    <Loader2 size={24} className="animate-spin text-gray-400" />
+                    <Loader2 size={24} className="animate-spin text-muted-foreground" />
                   </div>
                 ) : filteredCourses.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500 text-sm">
+                  <div className="text-center py-8 text-muted-foreground text-sm">
                     No courses found
                   </div>
                 ) : (
-                  <div className="divide-y divide-gray-100">
+                  <div className="divide-y divide-border">
                     {filteredCourses.map((course) => (
                       <button
                         key={course.course_uuid}
                         onClick={() => setSelectedCourse(course.course_uuid)}
-                        className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors ${
+                        className={`w-full text-left px-4 py-3 hover:bg-muted transition-colors ${
                           selectedCourse === course.course_uuid
-                            ? 'bg-gray-100 border-l-2 border-black'
+                            ? 'bg-muted border-l-2 border-black'
                             : ''
                         }`}
                       >
-                        <p className="font-medium text-gray-900 text-sm">
+                        <p className="font-medium text-foreground text-sm">
                           {course.name}
                         </p>
                         {course.description && (
-                          <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
                             {course.description}
                           </p>
                         )}
@@ -186,11 +186,11 @@ export function LinkCourseModal({
               </div>
 
               {/* Actions */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+              <div className="flex justify-end gap-3 pt-4 border-t border-border">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted rounded-lg transition-colors"
                 >
                   Cancel
                 </button>

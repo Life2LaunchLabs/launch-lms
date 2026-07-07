@@ -24,12 +24,12 @@ function EmptyState({
   icon: any
 }) {
   return (
-    <div className="col-span-full flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/70 px-4 py-12 text-center">
-      <div className="mb-4 rounded-full bg-white p-4 shadow-sm">
+    <div className="col-span-full flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-muted/70 px-4 py-12 text-center">
+      <div className="mb-4 rounded-full bg-card p-4 shadow-sm">
         <Icon className="h-8 w-8 text-slate-300" strokeWidth={1.5} />
       </div>
-      <h3 className="mb-2 text-xl font-bold text-slate-700">{title}</h3>
-      <p className="max-w-sm text-sm text-slate-500">{description}</p>
+      <h3 className="mb-2 text-xl font-bold text-muted-foreground">{title}</h3>
+      <p className="max-w-sm text-sm text-muted-foreground">{description}</p>
     </div>
   )
 }
@@ -67,7 +67,7 @@ export default function OrganizationsPageClient({
     <GeneralWrapperStyled>
       <div className="mb-6 flex flex-col space-y-4">
         <TypeOfContentTitle title="Organizations" type="col" />
-        <p className="max-w-2xl text-sm text-slate-600">
+        <p className="max-w-2xl text-sm text-muted-foreground">
           Browse organizations across the platform, keep your memberships in one place, and jump into the ones you belong to.
         </p>
 
@@ -78,9 +78,9 @@ export default function OrganizationsPageClient({
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="Search organizations"
             aria-label="Search organizations"
-            className="h-12 w-full rounded-2xl border border-black/5 bg-white pl-12 pr-24 text-sm shadow-sm outline-none transition focus:border-black/10 focus:ring-2 focus:ring-black/5"
+            className="h-12 w-full rounded-2xl border border-border bg-card pl-12 pr-24 text-sm shadow-sm outline-none transition focus:border-border focus:ring-2 focus:ring-black/5"
           />
-          <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+          <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           <button
             type="submit"
             className="absolute right-2 top-2 inline-flex h-8 items-center rounded-xl bg-black px-4 text-sm font-medium text-white transition hover:bg-black/85"
@@ -93,12 +93,12 @@ export default function OrganizationsPageClient({
       <div className="space-y-10">
         <section className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="rounded-full bg-slate-100 p-2">
-              <Users className="h-4 w-4 text-slate-600" />
+            <div className="rounded-full bg-muted p-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">My Organizations</h2>
-              <p className="text-sm text-slate-500">Organizations you're currently enrolled in.</p>
+              <h2 className="text-lg font-semibold text-foreground">My Organizations</h2>
+              <p className="text-sm text-muted-foreground">Organizations you're currently enrolled in.</p>
             </div>
           </div>
 
@@ -122,12 +122,12 @@ export default function OrganizationsPageClient({
 
         <section className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="rounded-full bg-slate-100 p-2">
-              <Building2 className="h-4 w-4 text-slate-600" />
+            <div className="rounded-full bg-muted p-2">
+              <Building2 className="h-4 w-4 text-muted-foreground" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">All Organizations</h2>
-              <p className="text-sm text-slate-500">
+              <h2 className="text-lg font-semibold text-foreground">All Organizations</h2>
+              <p className="text-sm text-muted-foreground">
                 {query ? `Showing results for "${query}".` : 'Discover open organizations across the platform.'}
               </p>
             </div>

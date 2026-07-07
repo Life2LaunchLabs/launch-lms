@@ -25,15 +25,15 @@ function CourseCreationTypeSelector({ onSelectType, currentPlan }: CourseCreatio
         {/* Start from scratch option */}
         <button
           onClick={() => onSelectType('scratch')}
-          className="group flex flex-col items-center p-6 rounded-xl border-2 border-gray-200 bg-white hover:border-black hover:shadow-lg transition-all duration-200"
+          className="group flex flex-col items-center p-6 rounded-xl border-2 border-border bg-card hover:border-black hover:shadow-lg transition-all duration-200"
         >
-          <div className="w-14 h-14 rounded-full bg-gray-50 flex items-center justify-center mb-4 group-hover:bg-gray-100 transition-colors">
-            <PenLine size={28} className="text-gray-600" />
+          <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-4 group-hover:bg-muted transition-colors">
+            <PenLine size={28} className="text-muted-foreground" />
           </div>
-          <h3 className="font-semibold text-gray-900 mb-1">
+          <h3 className="font-semibold text-foreground mb-1">
             {t('courses.create.from_scratch')}
           </h3>
-          <p className="text-sm text-gray-500 text-center">
+          <p className="text-sm text-muted-foreground text-center">
             {t('courses.create.from_scratch_description')}
           </p>
         </button>
@@ -44,14 +44,14 @@ function CourseCreationTypeSelector({ onSelectType, currentPlan }: CourseCreatio
           disabled={!canUseAI}
           className={`group flex flex-col items-center p-6 rounded-xl border-2 transition-all duration-200 ${
             canUseAI
-              ? 'border-gray-200 bg-white hover:border-purple-500 hover:shadow-lg cursor-pointer'
-              : 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-60'
+              ? 'border-border bg-card hover:border-purple-500 hover:shadow-lg cursor-pointer'
+              : 'border-border bg-muted cursor-not-allowed opacity-60'
           }`}
         >
           <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-4 transition-colors ${
             canUseAI
               ? 'rotating-gradient-bg'
-              : 'bg-gray-100'
+              : 'bg-muted'
           }`}>
             {canUseAI ? (
               <Image
@@ -62,16 +62,16 @@ function CourseCreationTypeSelector({ onSelectType, currentPlan }: CourseCreatio
                 className="drop-shadow-md"
               />
             ) : (
-              <Lock size={28} className="text-gray-400" />
+              <Lock size={28} className="text-muted-foreground" />
             )}
           </div>
           <div className="flex items-center gap-2 mb-1">
-            <h3 className={`font-semibold ${canUseAI ? 'text-gray-900' : 'text-gray-500'}`}>
+            <h3 className={`font-semibold ${canUseAI ? 'text-foreground' : 'text-muted-foreground'}`}>
               {t('courses.create.with_ai')}
             </h3>
             <PlanBadge currentPlan={currentPlan} requiredPlan={(rf?.ai?.required_plan || 'full') as PlanLevel} size="sm" />
           </div>
-          <p className={`text-sm text-center ${canUseAI ? 'text-gray-500' : 'text-gray-400'}`}>
+          <p className={`text-sm text-center ${canUseAI ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
             {t('courses.create.with_ai_description')}
           </p>
         </button>

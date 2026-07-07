@@ -76,10 +76,10 @@ export default function WelcomeClient() {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white px-6">
+      <div className="flex min-h-screen items-center justify-center bg-card px-6">
         <div className="w-full max-w-md text-center">
-          <h1 className="text-2xl font-semibold text-gray-950">We could not start onboarding</h1>
-          <p className="mt-3 text-sm leading-6 text-gray-500">{error}</p>
+          <h1 className="text-2xl font-semibold text-foreground">We could not start onboarding</h1>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">{error}</p>
           <button
             type="button"
             onClick={() => router.push('/signup')}
@@ -93,8 +93,8 @@ export default function WelcomeClient() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-white">
-      <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-gray-950" />
+    <div className="flex min-h-screen items-center justify-center bg-card">
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-gray-950" />
     </div>
   )
 }

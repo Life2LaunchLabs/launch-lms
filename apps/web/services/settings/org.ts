@@ -93,6 +93,19 @@ export async function updateOrgColorConfig(
   return res
 }
 
+export async function updateOrgDarkColorConfig(
+  org_id: string,
+  dark_color: string,
+  access_token: string
+) {
+  const result: any = await fetch(
+    `${getAPIUrl()}orgs/${org_id}/config/dark_color?dark_color=${encodeURIComponent(dark_color)}`,
+    RequestBodyWithAuthHeader('PUT', null, null, access_token)
+  )
+  const res = await errorHandling(result)
+  return res
+}
+
 export async function updateOrgFooterTextConfig(
   org_id: string,
   footer_text: string,

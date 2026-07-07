@@ -105,15 +105,15 @@ export default function ActivityNavigation(props: ActivityNavigationProps): Reac
               onClick={() => navigateToActivity(prevActivity)}
               className={`flex items-center space-x-1.5 p-2 rounded-md transition-all duration-200 cursor-pointer ${
                 prevActivity 
-                  ? 'text-gray-700' 
-                  : 'opacity-50 text-gray-400 cursor-not-allowed'
+                  ? 'text-muted-foreground' 
+                  : 'opacity-50 text-muted-foreground cursor-not-allowed'
               }`}
               disabled={!prevActivity}
               title={prevActivity ? `${t('common.previous')}: ${prevActivity.name}` : t('activities.no_previous_activity')}
             >
-              <ChevronLeft size={20} className="text-gray-800 shrink-0" />
+              <ChevronLeft size={20} className="text-foreground shrink-0" />
               <div className="flex flex-col items-start">
-                <span className="text-xs text-gray-500">{t('common.previous')}</span>
+                <span className="text-xs text-muted-foreground">{t('common.previous')}</span>
                 <span className="text-sm capitalize font-semibold text-left">
                   {prevActivity ? prevActivity.name : t('activities.no_previous_activity')}
                 </span>
@@ -124,19 +124,19 @@ export default function ActivityNavigation(props: ActivityNavigationProps): Reac
               onClick={() => navigateToActivity(nextActivity)}
               className={`flex items-center space-x-1.5 p-2 rounded-md transition-all duration-200 cursor-pointer ${
                 nextActivity 
-                  ? 'text-gray-700' 
-                  : 'opacity-50 text-gray-400 cursor-not-allowed'
+                  ? 'text-muted-foreground' 
+                  : 'opacity-50 text-muted-foreground cursor-not-allowed'
               }`}
               disabled={!nextActivity}
               title={nextActivity ? `${t('common.next')}: ${nextActivity.name}` : t('activities.no_next_activity')}
             >
               <div className="flex flex-col items-end">
-                <span className="text-xs text-gray-500">{t('common.next')}</span>
+                <span className="text-xs text-muted-foreground">{t('common.next')}</span>
                 <span className="text-sm capitalize font-semibold text-right">
                   {nextActivity ? nextActivity.name : t('activities.no_next_activity')}
                 </span>
               </div>
-              <ChevronRight size={20} className="text-gray-800 shrink-0" />
+              <ChevronRight size={20} className="text-foreground shrink-0" />
             </button>
           </>
         ) : (
@@ -147,15 +147,15 @@ export default function ActivityNavigation(props: ActivityNavigationProps): Reac
                 onClick={() => navigateToActivity(prevActivity)}
                 className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-md transition-all duration-200 cursor-pointer ${
                   prevActivity 
-                    ? 'bg-white nice-shadow text-gray-700' 
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    ? 'bg-card nice-shadow text-muted-foreground' 
+                    : 'bg-muted text-muted-foreground cursor-not-allowed'
                 }`}
                 disabled={!prevActivity}
                 title={prevActivity ? `${t('common.previous')}: ${prevActivity.name}` : t('activities.no_previous_activity')}
               >
                 <ChevronLeft size={16} className="shrink-0" />
                 <div className="flex flex-col items-start">
-                  <span className="text-xs text-gray-500">{t('common.previous')}</span>
+                  <span className="text-xs text-muted-foreground">{t('common.previous')}</span>
                   <span className="text-sm capitalize font-semibold text-left">
                     {prevActivity ? prevActivity.name : t('activities.no_previous_activity')}
                   </span>
@@ -163,7 +163,7 @@ export default function ActivityNavigation(props: ActivityNavigationProps): Reac
               </button>
             </div>
             
-            <div className="text-sm text-gray-500 justify-self-center">
+            <div className="text-sm text-muted-foreground justify-self-center">
               {currentIndex + 1} {t('common.of')} {allActivities.length}
             </div>
             
@@ -172,14 +172,14 @@ export default function ActivityNavigation(props: ActivityNavigationProps): Reac
                 onClick={() => navigateToActivity(nextActivity)}
                 className={`flex items-center space-x-1.5 px-3.5 py-2 rounded-md transition-all duration-200 cursor-pointer ${
                   nextActivity 
-                    ? 'bg-white nice-shadow text-gray-700' 
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    ? 'bg-card nice-shadow text-muted-foreground' 
+                    : 'bg-muted text-muted-foreground cursor-not-allowed'
                 }`}
                 disabled={!nextActivity}
                 title={nextActivity ? `${t('common.next')}: ${nextActivity.name}` : t('activities.no_next_activity')}
               >
                 <div className="flex flex-col items-end">
-                  <span className="text-xs text-gray-500">{t('common.next')}</span>
+                  <span className="text-xs text-muted-foreground">{t('common.next')}</span>
                   <span className="text-sm capitalize font-semibold text-right">
                     {nextActivity ? nextActivity.name : t('activities.no_next_activity')}
                   </span>
@@ -204,7 +204,7 @@ export default function ActivityNavigation(props: ActivityNavigationProps): Reac
       {!isBottomNavVisible && (
         <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-sticky-header w-[85%] sm:w-auto sm:min-w-[350px] max-w-lg transition-all duration-300 ease-in-out">
           <div 
-            className="bg-white/90 backdrop-blur-xl rounded-full py-1.5 px-2.5 shadow-xs animate-in fade-in slide-in-from-bottom duration-300"
+            className="bg-card/90 backdrop-blur-xl rounded-full py-1.5 px-2.5 shadow-xs animate-in fade-in slide-in-from-bottom duration-300"
           >
             <NavigationButtons isFloating={true} />
           </div>

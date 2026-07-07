@@ -81,8 +81,8 @@ export default function ChipMultiSelect({
   return (
     <div ref={rootRef} className="relative w-full">
       <div
-        className={`flex min-h-11 w-full items-start gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left shadow-sm transition-colors ${
-          disabled ? 'cursor-not-allowed opacity-60' : 'hover:border-slate-300'
+        className={`flex min-h-11 w-full items-start gap-3 rounded-xl border border-border bg-card px-3 py-2 text-left shadow-sm transition-colors ${
+          disabled ? 'cursor-not-allowed opacity-60' : 'hover:border-border'
         }`}
         onClick={() => {
           if (disabled) return
@@ -92,7 +92,7 @@ export default function ChipMultiSelect({
       >
         {displayMode === 'summary' ? (
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <Search size={14} className="shrink-0 text-slate-400" />
+            <Search size={14} className="shrink-0 text-muted-foreground" />
             <input
               ref={searchInputRef}
               value={query}
@@ -105,13 +105,13 @@ export default function ChipMultiSelect({
               }}
               placeholder={query ? searchPlaceholder : summaryLabel}
               disabled={disabled}
-              className="w-full min-w-0 border-0 bg-transparent p-0 text-sm text-slate-700 outline-none placeholder:text-slate-400"
+              className="w-full min-w-0 border-0 bg-transparent p-0 text-sm text-muted-foreground outline-none placeholder:text-muted-foreground"
             />
           </div>
         ) : (
           <div className="flex min-w-0 flex-1 items-start gap-3">
             <div className="flex min-w-[180px] flex-1 items-center gap-2 pt-0.5">
-              <Search size={14} className="shrink-0 text-slate-400" />
+              <Search size={14} className="shrink-0 text-muted-foreground" />
               <input
                 ref={searchInputRef}
                 value={query}
@@ -124,14 +124,14 @@ export default function ChipMultiSelect({
                 }}
                 placeholder={selectedOptions.length === 0 ? placeholder : searchPlaceholder}
                 disabled={disabled}
-                className="w-full min-w-0 border-0 bg-transparent p-0 text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                className="w-full min-w-0 border-0 bg-transparent p-0 text-sm text-muted-foreground outline-none placeholder:text-muted-foreground"
               />
             </div>
             <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
               {selectedOptions.map((option) => (
                 <span
                   key={option.value}
-                  className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700"
+                  className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground"
                 >
                   <span>{option.label}</span>
                   <button
@@ -140,7 +140,7 @@ export default function ChipMultiSelect({
                       event.stopPropagation()
                       toggleValue(option.value)
                     }}
-                    className="flex h-4 w-4 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700"
+                    className="flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-muted-foreground"
                     aria-label={`Remove ${option.label}`}
                   >
                     <X size={11} />
@@ -158,15 +158,15 @@ export default function ChipMultiSelect({
             setOpen((current) => !current)
             if (!open) searchInputRef.current?.focus()
           }}
-          className="flex h-6 w-6 shrink-0 items-center justify-center text-slate-400"
+          className="flex h-6 w-6 shrink-0 items-center justify-center text-muted-foreground"
           aria-label={open ? 'Close options' : 'Open options'}
         >
-          <ChevronDown size={16} className="shrink-0 text-slate-400" />
+          <ChevronDown size={16} className="shrink-0 text-muted-foreground" />
         </button>
       </div>
 
       {open && (
-        <div className="absolute left-0 top-[calc(100%+8px)] z-[140] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div className="absolute left-0 top-[calc(100%+8px)] z-[140] w-full overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
           <div className="max-h-64 overflow-y-auto p-2">
             {filteredOptions.length > 0 ? (
               filteredOptions.map((option) => {
@@ -175,14 +175,14 @@ export default function ChipMultiSelect({
                     key={option.value}
                     type="button"
                     onClick={() => toggleValue(option.value)}
-                    className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-50"
+                    className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted"
                   >
                     <span>{option.label}</span>
                   </button>
                 )
               })
             ) : (
-              <div className="px-3 py-6 text-center text-sm text-slate-400">{emptyMessage}</div>
+              <div className="px-3 py-6 text-center text-sm text-muted-foreground">{emptyMessage}</div>
             )}
           </div>
         </div>

@@ -467,7 +467,7 @@ function EditCourseContributors(props: EditCourseContributorsProps) {
                                                                 userId={user.id.toString()}
                                                                 showProfilePopup
                                                                 rounded="rounded-full"
-                                                                backgroundColor="bg-gray-100"
+                                                                backgroundColor="bg-muted"
                                                             />
                                                             <div>
                                                                 <div className="font-medium text-gray-900">

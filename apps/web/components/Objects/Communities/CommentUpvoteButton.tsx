@@ -66,7 +66,7 @@ export function CommentUpvoteButton({
         'flex items-center gap-1 px-2 py-1 rounded-md transition-all duration-200 text-xs',
         hasVoted
           ? 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
-          : 'bg-gray-50 text-gray-500 hover:bg-gray-100',
+          : 'bg-muted text-muted-foreground hover:bg-muted',
         !canVote && 'opacity-50 cursor-not-allowed',
         isLoading && 'opacity-70'
       )}

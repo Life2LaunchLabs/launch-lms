@@ -88,7 +88,7 @@ export function CreateCommunityModal({
               <div>
                 <label
                   htmlFor="name"
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="block text-sm font-medium text-muted-foreground mb-1"
                 >
                   {t('dashboard.courses.communities.modals.create.form.name_label')} *
                 </label>
@@ -97,7 +97,7 @@ export function CreateCommunityModal({
                   name="name"
                   id="name"
                   placeholder={t('dashboard.courses.communities.modals.create.form.name_placeholder')}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black/20 focus:border-transparent outline-none transition-all"
+                  className="w-full px-4 py-2.5 border border-border rounded-lg focus:ring-2 focus:ring-black/20 focus:border-transparent outline-none transition-all"
                 />
                 <ErrorMessage
                   name="name"
@@ -110,7 +110,7 @@ export function CreateCommunityModal({
               <div>
                 <label
                   htmlFor="description"
-                  className="block text-sm font-medium text-gray-700 mb-1"
+                  className="block text-sm font-medium text-muted-foreground mb-1"
                 >
                   {t('dashboard.courses.communities.modals.create.form.description_label')}
                 </label>
@@ -120,7 +120,7 @@ export function CreateCommunityModal({
                   id="description"
                   rows={3}
                   placeholder={t('dashboard.courses.communities.modals.create.form.description_placeholder')}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-black/20 focus:border-transparent outline-none transition-all resize-none"
+                  className="w-full px-4 py-2.5 border border-border rounded-lg focus:ring-2 focus:ring-black/20 focus:border-transparent outline-none transition-all resize-none"
                 />
                 <ErrorMessage
                   name="description"
@@ -135,22 +135,22 @@ export function CreateCommunityModal({
                   type="checkbox"
                   name="public"
                   id="public"
-                  className="w-4 h-4 text-black rounded border-gray-300 focus:ring-black/20"
+                  className="w-4 h-4 text-foreground rounded border-border focus:ring-black/20"
                 />
                 <label
                   htmlFor="public"
-                  className="text-sm text-gray-700"
+                  className="text-sm text-muted-foreground"
                 >
                   {t('dashboard.courses.communities.modals.create.form.public_label')}
                 </label>
               </div>
 
               {/* Actions */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+              <div className="flex justify-end gap-3 pt-4 border-t border-border">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted rounded-lg transition-colors"
                 >
                   {t('dashboard.courses.communities.modals.create.cancel')}
                 </button>

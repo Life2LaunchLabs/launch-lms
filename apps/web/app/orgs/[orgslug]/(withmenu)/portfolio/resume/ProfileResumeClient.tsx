@@ -204,7 +204,7 @@ function EditableText({ value, canEdit, className = '', placeholder = '', multil
 
 const ResumeSection = ({ title, children }: { title: string; children: ReactNode }) => (
   <section className="break-inside-avoid">
-    <h2 className="border-b border-gray-200 pb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+    <h2 className="border-b border-border pb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
       {title}
     </h2>
     <div className="mt-3 space-y-4">{children}</div>
@@ -365,7 +365,7 @@ export default function ProfileResumeClient({
           }
         }
       `}</style>
-      <main className="resume-print-root min-h-screen px-4 py-6 sm:px-6 lg:px-8 print:bg-white print:px-0 print:py-0">
+      <main className="resume-print-root min-h-screen px-4 py-6 sm:px-6 lg:px-8 print:bg-card print:px-0 print:py-0">
         <div className="resume-no-print mx-auto flex w-full max-w-5xl flex-col gap-4">
           <ContentPageHeader
             orgslug={orgslug}
@@ -394,14 +394,14 @@ export default function ProfileResumeClient({
               </Link>
             </Button>
             <div className="flex items-center gap-3">
-              {saving ? <span className="text-sm font-medium text-gray-500">Saving...</span> : null}
+              {saving ? <span className="text-sm font-medium text-muted-foreground">Saving...</span> : null}
               <ResumePrintButton />
             </div>
           </div>
         </div>
 
-        <article className="resume-print-page mx-auto mt-5 grid w-full max-w-5xl gap-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm sm:grid-cols-[280px_minmax(0,1fr)] sm:p-10">
-          <aside className="space-y-6 border-gray-200 sm:border-r sm:pr-8 print:pr-6">
+        <article className="resume-print-page mx-auto mt-5 grid w-full max-w-5xl gap-6 rounded-lg border border-border bg-card p-6 shadow-sm sm:grid-cols-[280px_minmax(0,1fr)] sm:p-10">
+          <aside className="space-y-6 border-border sm:border-r sm:pr-8 print:pr-6">
             <header>
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gray-950 text-white">
                 <User className="h-6 w-6" />
@@ -413,26 +413,26 @@ export default function ProfileResumeClient({
                       value={user.first_name || ''}
                       canEdit={canEdit}
                       placeholder="First name"
-                      className="text-4xl font-semibold leading-tight text-gray-950"
+                      className="text-4xl font-semibold leading-tight text-foreground"
                       onSave={(value) => updateUserField('first_name', value)}
                     />
                     <EditableText
                       value={user.last_name || ''}
                       canEdit={canEdit}
                       placeholder="Last name"
-                      className="text-4xl font-semibold leading-tight text-gray-950"
+                      className="text-4xl font-semibold leading-tight text-foreground"
                       onSave={(value) => updateUserField('last_name', value)}
                     />
                   </>
                 ) : (
-                  <h1 className="text-4xl font-semibold leading-tight text-gray-950">{name}</h1>
+                  <h1 className="text-4xl font-semibold leading-tight text-foreground">{name}</h1>
                 )}
               </div>
             </header>
 
             <section className="space-y-3">
               {user.email ? (
-                <a href={`mailto:${user.email}`} className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-950">
+                <a href={`mailto:${user.email}`} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
                   <Mail className="h-4 w-4" />
                   <span className="min-w-0 truncate">{user.email}</span>
                 </a>
@@ -446,7 +446,7 @@ export default function ProfileResumeClient({
                       value={social.url || ''}
                       canEdit={canEdit}
                       placeholder="https://..."
-                      className="min-w-0 truncate text-sm text-gray-700"
+                      className="min-w-0 truncate text-sm text-muted-foreground"
                       onSave={(value) => updateSocial(social.type, value)}
                     />
                   </>
@@ -456,14 +456,14 @@ export default function ProfileResumeClient({
                     <a
                       key={`${social.type}-${social.url}`}
                       href={social.url}
-                      className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-950"
+                      className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
                     >
                       {socialContent}
                     </a>
                   )
                 }
                 return (
-                  <div key={`${social.type}-${social.url}`} className="flex items-center gap-2 text-sm text-gray-700">
+                  <div key={`${social.type}-${social.url}`} className="flex items-center gap-2 text-sm text-muted-foreground">
                     {socialContent}
                   </div>
                 )
@@ -475,19 +475,19 @@ export default function ProfileResumeClient({
                 <div className="space-y-3">
                   {featuredBadges.slice(0, 6).map((badge) => (
                     <div key={badge.id} className="break-inside-avoid">
-                      <p className="font-medium leading-snug text-gray-950">{badge.title}</p>
-                      <div className="mt-0.5 space-y-0.5 text-xs leading-5 text-gray-600">
+                      <p className="font-medium leading-snug text-foreground">{badge.title}</p>
+                      <div className="mt-0.5 space-y-0.5 text-xs leading-5 text-muted-foreground">
                         <p>
-                          <span className="font-medium text-gray-700">Issuer:</span> {badge.organization}
+                          <span className="font-medium text-muted-foreground">Issuer:</span> {badge.organization}
                         </p>
                         {badge.receivedDate ? (
                           <p>
-                            <span className="font-medium text-gray-700">Issued:</span> {formatCredentialDate(badge.receivedDate)}
+                            <span className="font-medium text-muted-foreground">Issued:</span> {formatCredentialDate(badge.receivedDate)}
                           </p>
                         ) : null}
                         <p className="break-all">
-                          <span className="font-medium text-gray-700">Verify:</span>{' '}
-                          <Link href={badge.href} className="text-gray-700 underline decoration-gray-300 underline-offset-2">
+                          <span className="font-medium text-muted-foreground">Verify:</span>{' '}
+                          <Link href={badge.href} className="text-muted-foreground underline decoration-gray-300 underline-offset-2">
                             {badge.href}
                           </Link>
                         </p>
@@ -507,7 +507,7 @@ export default function ProfileResumeClient({
                   canEdit={canEdit}
                   multiline
                   placeholder="Write a profile summary"
-                  className="text-base leading-6 text-gray-700"
+                  className="text-base leading-6 text-muted-foreground"
                   onSave={(value) => updateUserField('bio', value)}
                 />
               </ResumeSection>
@@ -520,11 +520,11 @@ export default function ProfileResumeClient({
                   <div key={entry.id} className="grid gap-1 sm:grid-cols-[1fr_auto] sm:gap-x-4">
                     <div>
                       <div className="flex items-center gap-2">
-                        <Briefcase className="h-4 w-4 text-gray-400" />
+                        <Briefcase className="h-4 w-4 text-muted-foreground" />
                         <EditableText
                           value={entry.title}
                           canEdit={canEdit}
-                          className="font-semibold text-gray-950"
+                          className="font-semibold text-foreground"
                           onSave={(value) => updateTimelineEntry(entry.id, { title: value })}
                         />
                       </div>
@@ -533,7 +533,7 @@ export default function ProfileResumeClient({
                           value={entry[detailKey] || ''}
                           canEdit={canEdit}
                           placeholder={detailKey === 'employer' ? 'Employer' : 'Institution'}
-                          className="mt-0.5 text-sm font-medium text-gray-600"
+                          className="mt-0.5 text-sm font-medium text-muted-foreground"
                           onSave={(value) => updateTimelineEntry(entry.id, { [detailKey]: value })}
                         />
                       ) : null}
@@ -542,15 +542,15 @@ export default function ProfileResumeClient({
                         canEdit={canEdit}
                         multiline
                         placeholder="Description"
-                        className="mt-1.5 leading-6 text-gray-700"
+                        className="mt-1.5 leading-6 text-muted-foreground"
                         onSave={(value) => updateTimelineEntry(entry.id, { description: value })}
                       />
                     </div>
-                    <p className="text-sm font-medium text-gray-500 sm:text-right">{formatDateRange(entry)}</p>
+                    <p className="text-sm font-medium text-muted-foreground sm:text-right">{formatDateRange(entry)}</p>
                   </div>
                 )
               }) : (
-                <p className="text-sm text-gray-500">Add work entries to your profile timeline to fill this section.</p>
+                <p className="text-sm text-muted-foreground">Add work entries to your profile timeline to fill this section.</p>
               )}
             </ResumeSection>
 
@@ -560,13 +560,13 @@ export default function ProfileResumeClient({
                   <Link
                     key={card.id}
                     href={portfolioHref(card)}
-                    className="group -mx-3 block rounded-md px-3 py-2 transition-colors hover:bg-gray-50"
+                    className="group -mx-3 block rounded-md px-3 py-2 transition-colors hover:bg-muted"
                   >
                     <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-gray-950">{card.title}</h3>
-                      {canEdit ? <Edit3 className="h-3.5 w-3.5 text-gray-400 opacity-0 transition-opacity group-hover:opacity-100 print:hidden" /> : null}
+                      <h3 className="font-semibold text-foreground">{card.title}</h3>
+                      {canEdit ? <Edit3 className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 print:hidden" /> : null}
                     </div>
-                    {card.body ? <p className="mt-1.5 leading-6 text-gray-700">{card.body}</p> : null}
+                    {card.body ? <p className="mt-1.5 leading-6 text-muted-foreground">{card.body}</p> : null}
                   </Link>
                 ))}
               </ResumeSection>
@@ -578,11 +578,11 @@ export default function ProfileResumeClient({
                   <div key={entry.id} className="grid gap-1 sm:grid-cols-[1fr_auto] sm:gap-x-4">
                     <div>
                       <div className="flex items-center gap-2">
-                        <GraduationCap className="h-4 w-4 text-gray-400" />
+                        <GraduationCap className="h-4 w-4 text-muted-foreground" />
                         <EditableText
                           value={entry.title}
                           canEdit={canEdit}
-                          className="font-semibold text-gray-950"
+                          className="font-semibold text-foreground"
                           onSave={(value) => updateTimelineEntry(entry.id, { title: value })}
                         />
                       </div>
@@ -590,7 +590,7 @@ export default function ProfileResumeClient({
                         value={entry.institution || ''}
                         canEdit={canEdit}
                         placeholder="Institution"
-                        className="mt-0.5 text-sm font-medium text-gray-600"
+                        className="mt-0.5 text-sm font-medium text-muted-foreground"
                         onSave={(value) => updateTimelineEntry(entry.id, { institution: value })}
                       />
                       <EditableText
@@ -598,11 +598,11 @@ export default function ProfileResumeClient({
                         canEdit={canEdit}
                         multiline
                         placeholder="Description"
-                        className="mt-1.5 leading-6 text-gray-700"
+                        className="mt-1.5 leading-6 text-muted-foreground"
                         onSave={(value) => updateTimelineEntry(entry.id, { description: value })}
                       />
                     </div>
-                    <p className="text-sm font-medium text-gray-500 sm:text-right">{formatDateRange(entry)}</p>
+                    <p className="text-sm font-medium text-muted-foreground sm:text-right">{formatDateRange(entry)}</p>
                   </div>
                 ))}
               </ResumeSection>
@@ -614,11 +614,11 @@ export default function ProfileResumeClient({
                   <div key={entry.id} className="grid gap-1 sm:grid-cols-[1fr_auto] sm:gap-x-4">
                     <div>
                       <div className="flex items-center gap-2">
-                        <Award className="h-4 w-4 text-gray-400" />
+                        <Award className="h-4 w-4 text-muted-foreground" />
                         <EditableText
                           value={entry.title}
                           canEdit={canEdit}
-                          className="font-semibold text-gray-950"
+                          className="font-semibold text-foreground"
                           onSave={(value) => updateTimelineEntry(entry.id, { title: value })}
                         />
                       </div>
@@ -627,11 +627,11 @@ export default function ProfileResumeClient({
                         canEdit={canEdit}
                         multiline
                         placeholder="Description"
-                        className="mt-1.5 leading-6 text-gray-700"
+                        className="mt-1.5 leading-6 text-muted-foreground"
                         onSave={(value) => updateTimelineEntry(entry.id, { description: value })}
                       />
                     </div>
-                    <p className="text-sm font-medium text-gray-500 sm:text-right">{formatDateRange(entry)}</p>
+                    <p className="text-sm font-medium text-muted-foreground sm:text-right">{formatDateRange(entry)}</p>
                   </div>
                 ))}
               </ResumeSection>

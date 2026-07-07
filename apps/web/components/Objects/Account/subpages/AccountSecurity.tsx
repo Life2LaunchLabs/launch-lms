@@ -57,13 +57,13 @@ function AccountSecurity() {
   }
 
   return (
-    <div className="bg-white rounded-xl nice-shadow">
+    <div className="bg-card rounded-xl nice-shadow">
       <div className="flex flex-col gap-0">
-        <div className="flex flex-col bg-gray-50 -space-y-1 px-5 py-3 mx-3 my-3 rounded-md">
-          <h1 className="font-bold text-xl text-gray-800">
+        <div className="flex flex-col bg-muted -space-y-1 px-5 py-3 mx-3 my-3 rounded-md">
+          <h1 className="font-bold text-xl text-foreground">
             {t('user.settings.password.title')}
           </h1>
-          <h2 className="text-gray-500 text-md">
+          <h2 className="text-muted-foreground text-md">
             {t('user.settings.password.subtitle')}
           </h2>
         </div>
@@ -111,7 +111,7 @@ function AccountSecurity() {
                   )}
                 </div>
 
-                <div className="flex items-center space-x-2 text-amber-600 bg-amber-50 p-3 rounded-md">
+                <div className="flex items-center space-x-2 text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-950/40 p-3 rounded-md">
                   <AlertTriangle size={16} />
                   <span className="text-sm">{t('user.settings.password.logout_warning')}</span>
                 </div>
@@ -120,7 +120,7 @@ function AccountSecurity() {
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="bg-black text-white hover:bg-black/90"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90"
                   >
                     {isSubmitting ? t('user.settings.password.updating') : t('user.settings.password.update_password')}
                   </Button>

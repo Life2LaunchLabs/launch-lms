@@ -176,6 +176,7 @@ class AuthBrandingConfig(BaseModel):
 
 class GeneralCustomization(BaseModel):
     color: str = ""
+    dark_color: str = ""
     footer_text: str = ""
     favicon_image: str = ""
     hide_org_name: bool = False

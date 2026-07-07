@@ -164,7 +164,7 @@ const DetailCard = React.memo(({
   }, [detail.label]);
 
   return (
-    <div className="space-y-2 p-4 border rounded-lg bg-white shadow-sm">
+    <div className="space-y-2 p-4 border rounded-lg bg-card shadow-sm">
       <div className="flex justify-between items-center mb-3">
         <Input
           value={localLabel}
@@ -258,11 +258,11 @@ const UserEditForm = ({
   return (
     <Form>
       <div className="flex flex-col gap-0">
-        <div className="flex flex-col bg-gray-50 -space-y-1 px-5 py-3 mx-3 my-3 rounded-md">
-          <h1 className="font-bold text-xl text-gray-800">
+        <div className="flex flex-col bg-muted -space-y-1 px-5 py-3 mx-3 my-3 rounded-md">
+          <h1 className="font-bold text-xl text-foreground">
             {t('user.settings.general.title')}
           </h1>
-          <h2 className="text-gray-500 text-md">
+          <h2 className="text-muted-foreground text-md">
             {t('user.settings.general.subtitle')}
           </h2>
         </div>
@@ -336,7 +336,7 @@ const UserEditForm = ({
             <div>
               <Label htmlFor="bio">
                 {t('user.settings.general.bio')}
-                <span className="text-gray-500 text-sm ml-2">
+                <span className="text-muted-foreground text-sm ml-2">
                   ({t('user.settings.general.characters_left', { count: 400 - (values.bio?.length || 0) })})
                 </span>
               </Label>
@@ -453,7 +453,7 @@ const UserEditForm = ({
 
           {/* Portfolio Picture Section */}
           <div className="lg:w-80 w-full">
-            <div className="bg-gray-50/50 p-6 rounded-lg nice-shadow h-full">
+            <div className="bg-muted/50 p-6 rounded-lg nice-shadow h-full">
               <div className="flex flex-col items-center space-y-6">
                 <Label className="font-bold">{t('user.settings.general.profile_picture')}</Label>
                 {profilePicture.error && (
@@ -502,7 +502,7 @@ const UserEditForm = ({
                     </Button>
                   </>
                 )}
-                <div className="flex items-center text-xs text-gray-500">
+                <div className="flex items-center text-xs text-muted-foreground">
                   <span className="flex items-center">
                     <Info size={13} className="mr-2" />
                     <p>{t('user.settings.general.recommended_size')}</p>
@@ -587,7 +587,7 @@ function AccountGeneral() {
 
   if (!userData) {
     return (
-      <div className="bg-white rounded-xl nice-shadow p-8">
+      <div className="bg-card rounded-xl nice-shadow p-8">
         <div className="flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
         </div>
@@ -596,7 +596,7 @@ function AccountGeneral() {
   }
 
   return (
-    <div className="bg-white rounded-xl nice-shadow">
+    <div className="bg-card rounded-xl nice-shadow">
       <Formik<FormValues>
         enableReinitialize
         initialValues={{

@@ -39,36 +39,36 @@ export function LabelFilter({ value, onChange }: LabelFilterProps) {
     <div className="flex items-center gap-1">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-1.5 px-3 py-2 h-8 text-xs bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 transition-colors">
+          <button className="flex items-center gap-1.5 px-3 py-2 h-8 text-xs bg-muted border border-border rounded-md hover:bg-muted transition-colors">
             {currentLabel ? (
               <>
                 <span style={{ color: currentLabel.color }}>
                   {getLabelIcon(currentLabel.icon, 12)}
                 </span>
-                <span className="font-medium text-gray-700">{t(`communities.labels.${currentLabel.id}`)}</span>
+                <span className="font-medium text-muted-foreground">{t(`communities.labels.${currentLabel.id}`)}</span>
               </>
             ) : (
               <>
-                <span className="text-gray-500">{t('communities.label_filter.label')}</span>
-                <span className="font-medium text-gray-700">{t('communities.label_filter.all')}</span>
+                <span className="text-muted-foreground">{t('communities.label_filter.label')}</span>
+                <span className="font-medium text-muted-foreground">{t('communities.label_filter.all')}</span>
               </>
             )}
-            <ChevronDown size={12} className="text-gray-400" />
+            <ChevronDown size={12} className="text-muted-foreground" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-44">
           <DropdownMenuItem
             onClick={() => onChange(null)}
-            className={`flex items-center gap-2 text-sm cursor-pointer ${!value ? 'bg-gray-100 text-gray-900' : 'text-gray-600'}`}
+            className={`flex items-center gap-2 text-sm cursor-pointer ${!value ? 'bg-muted text-foreground' : 'text-muted-foreground'}`}
           >
-            <MessageSquare size={14} className="text-gray-400" />
+            <MessageSquare size={14} className="text-muted-foreground" />
             <span>{t('communities.label_filter.all_discussions')}</span>
           </DropdownMenuItem>
           {DISCUSSION_LABELS.map((label) => (
             <DropdownMenuItem
               key={label.id}
               onClick={() => onChange(label.id)}
-              className={`flex items-center gap-2 text-sm cursor-pointer ${value === label.id ? 'bg-gray-100 text-gray-900' : 'text-gray-600'}`}
+              className={`flex items-center gap-2 text-sm cursor-pointer ${value === label.id ? 'bg-muted text-foreground' : 'text-muted-foreground'}`}
             >
               <span style={{ color: label.color }}>
                 {getLabelIcon(label.icon, 14)}
@@ -83,10 +83,10 @@ export function LabelFilter({ value, onChange }: LabelFilterProps) {
       {value && (
         <button
           onClick={() => onChange(null)}
-          className="p-1 hover:bg-gray-100 rounded transition-colors"
+          className="p-1 hover:bg-muted rounded transition-colors"
           title={t('communities.label_filter.clear_filter')}
         >
-          <X size={12} className="text-gray-400" />
+          <X size={12} className="text-muted-foreground" />
         </button>
       )}
     </div>

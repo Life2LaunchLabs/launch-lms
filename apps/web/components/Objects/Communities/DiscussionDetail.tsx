@@ -98,13 +98,13 @@ export function DiscussionDetail({
   }
 
   return (
-    <div className="bg-white nice-shadow rounded-lg overflow-hidden">
+    <div className="bg-card nice-shadow rounded-lg overflow-hidden">
       {/* Header */}
       <div className="p-6 pb-0">
         {/* Title Row */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-gray-900 break-words flex items-start gap-3">
+            <h1 className="text-2xl font-bold text-foreground break-words flex items-start gap-3">
               {discussion.emoji && (
                 <span className="text-3xl flex-shrink-0">{discussion.emoji}</span>
               )}
@@ -115,7 +115,7 @@ export function DiscussionDetail({
           {isAuthor && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button aria-label="Discussion detail" className="flex-shrink-0 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                <button aria-label="Discussion detail" className="flex-shrink-0 p-2 text-muted-foreground hover:text-muted-foreground hover:bg-muted rounded-lg transition-colors">
                   <MoreVertical size={18} />
                 </button>
               </DropdownMenuTrigger>
@@ -157,8 +157,8 @@ export function DiscussionDetail({
             shadow="shadow-none"
           />
           <div>
-            <div className="text-sm font-medium text-gray-900">{authorName}</div>
-            <div className="text-xs text-gray-500">{timeAgo}</div>
+            <div className="text-sm font-medium text-foreground">{authorName}</div>
+            <div className="text-xs text-muted-foreground">{timeAgo}</div>
           </div>
         </div>
       </div>
@@ -170,12 +170,12 @@ export function DiscussionDetail({
             <DiscussionContent content={parseDiscussionContent(discussion.content)} />
           </div>
         ) : (
-          <p className="text-gray-500 italic">{t('communities.discussion_detail.no_details')}</p>
+          <p className="text-muted-foreground italic">{t('communities.discussion_detail.no_details')}</p>
         )}
       </div>
 
       {/* Comments Section */}
-      <div className="border-t border-gray-100">
+      <div className="border-t border-border">
         <CommentSection
           discussionUuid={discussion.discussion_uuid}
           isLocked={discussion.is_locked}

@@ -133,7 +133,7 @@ const EditAssignmentForm: React.FC<EditAssignmentFormProps> = ({
                 <select 
                     id="grading_type"
                     name="grading_type"
-                    className='w-full bg-gray-100/40 rounded-lg px-3 py-2 outline outline-1 outline-gray-100'
+                    className='w-full bg-muted/40 rounded-lg px-3 py-2 outline outline-1 outline-border'
                     onChange={(e) => formik.setFieldValue('grading_type', e.target.value, true)}
                     value={formik.values.grading_type}
                     required
@@ -148,7 +148,7 @@ const EditAssignmentForm: React.FC<EditAssignmentFormProps> = ({
                 <button
                     type="button"
                     onClick={onClose}
-                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md"
+                    className="px-4 py-2 text-muted-foreground hover:bg-muted rounded-md"
                 >
                     {t('dashboard.assignments.modals.edit.form.cancel')}
                 </button>

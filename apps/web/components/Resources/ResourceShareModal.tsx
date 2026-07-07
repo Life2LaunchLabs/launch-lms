@@ -85,19 +85,19 @@ export default function ResourceShareModal({
 
   return (
     <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-4 nice-shadow">
+      <div className="w-full max-w-sm rounded-2xl bg-card p-4 nice-shadow">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             {visual && <div className="shrink-0">{visual}</div>}
             <div className="min-w-0">
-              {eyebrow && <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{eyebrow}</div>}
-              <h3 className="truncate text-base font-semibold text-gray-900">{title}</h3>
-              {description && <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">{description}</p>}
+              {eyebrow && <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{eyebrow}</div>}
+              <h3 className="truncate text-base font-semibold text-foreground">{title}</h3>
+              {description && <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{description}</p>}
             </div>
           </div>
           <button
             onClick={onClose}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg hover:bg-muted transition-colors"
           >
             <X size={16} />
           </button>
@@ -107,7 +107,7 @@ export default function ResourceShareModal({
           {canNativeShare && (
             <button
               onClick={nativeShare}
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-neutral-600 transition-colors hover:bg-neutral-100"
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted"
             >
               <Share2 size={16} />
               Share
@@ -122,18 +122,18 @@ export default function ResourceShareModal({
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={onClose}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-neutral-600 transition-colors ${link.color}`}
+                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors ${link.color}`}
               >
                 <Icon size={16} />
                 {link.name}
               </a>
             )
           })}
-          <div className="my-1 border-t border-gray-100" />
+          <div className="my-1 border-t border-border" />
           <button
             onClick={copyToClipboard}
             className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-              copied ? 'bg-green-500 text-white' : 'text-neutral-600 hover:bg-neutral-100'
+              copied ? 'bg-green-500 text-white' : 'text-muted-foreground hover:bg-muted'
             }`}
           >
             {copied ? <Check size={16} /> : <Link2 size={16} />}

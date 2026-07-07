@@ -244,7 +244,7 @@ function LaunchLMSCourseImport({
           {steps.map((s, index) => (
             <React.Fragment key={s.key}>
               {index > 0 && (
-                <div className="w-12 h-[2px] bg-gray-200">
+                <div className="w-12 h-[2px] bg-muted">
                   <div
                     className={`h-full transition-all duration-300 ${
                       index <= currentStepIndex ? 'w-full bg-green-500' : 'w-0'
@@ -254,7 +254,7 @@ function LaunchLMSCourseImport({
               )}
               <div
                 className={`flex items-center space-x-2 ${
-                  index === currentStepIndex ? 'text-black' : index < currentStepIndex ? 'text-green-600' : 'text-gray-400'
+                  index === currentStepIndex ? 'text-foreground' : index < currentStepIndex ? 'text-green-600' : 'text-muted-foreground'
                 }`}
               >
                 <div
@@ -263,7 +263,7 @@ function LaunchLMSCourseImport({
                       ? 'bg-green-500 text-white'
                       : index === currentStepIndex
                         ? 'bg-black text-white'
-                        : 'bg-gray-200 text-gray-500'
+                        : 'bg-muted text-muted-foreground'
                   }`}
                 >
                   {index < currentStepIndex ? <CheckCircle2 size={16} /> : index + 1}
@@ -286,10 +286,10 @@ function LaunchLMSCourseImport({
               onDrop={handleDrop}
               className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${
                 isDragging
-                  ? 'border-black bg-gray-50 scale-[1.02]'
+                  ? 'border-black bg-muted scale-[1.02]'
                   : importFile
                     ? 'border-green-300 bg-green-50'
-                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    : 'border-border hover:border-border hover:bg-muted'
               }`}
             >
               <input
@@ -310,8 +310,8 @@ function LaunchLMSCourseImport({
                       <FileArchive size={28} className="text-green-600" />
                     </div>
                     <div className="space-y-1">
-                      <p className="font-semibold text-gray-900">{importFile.name}</p>
-                      <p className="text-sm text-gray-500">
+                      <p className="font-semibold text-foreground">{importFile.name}</p>
+                      <p className="text-sm text-muted-foreground">
                         {(importFile.size / 1024 / 1024).toFixed(2)} MB
                       </p>
                       <p className="text-xs text-green-600 font-medium">
@@ -321,12 +321,12 @@ function LaunchLMSCourseImport({
                   </>
                 ) : (
                   <>
-                    <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
-                      <Upload size={28} className="text-gray-400" />
+                    <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
+                      <Upload size={28} className="text-muted-foreground" />
                     </div>
                     <div className="space-y-1">
-                      <p className="font-medium text-gray-700">{t('courses.import.click_to_upload')}</p>
-                      <p className="text-sm text-gray-400">{t('courses.import.launch-lms_format')}</p>
+                      <p className="font-medium text-muted-foreground">{t('courses.import.click_to_upload')}</p>
+                      <p className="text-sm text-muted-foreground">{t('courses.import.launch-lms_format')}</p>
                     </div>
                   </>
                 )}
@@ -388,7 +388,7 @@ function LaunchLMSCourseImport({
           {/* Course Selection */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-semibold text-gray-700">
+              <Label className="text-sm font-semibold text-muted-foreground">
                 {t('courses.import.select_courses')}
               </Label>
               <div className="flex items-center space-x-2">
@@ -403,7 +403,7 @@ function LaunchLMSCourseImport({
                 <button
                   type="button"
                   onClick={handleDeselectAll}
-                  className="text-xs text-gray-500 hover:text-gray-700"
+                  className="text-xs text-muted-foreground hover:text-muted-foreground"
                 >
                   {t('courses.import.deselect_all')}
                 </button>
@@ -416,8 +416,8 @@ function LaunchLMSCourseImport({
                   key={course.course_uuid}
                   className={`p-3 rounded-lg border transition-all duration-200 ${
                     course.include
-                      ? 'border-gray-200 bg-white shadow-sm'
-                      : 'border-gray-100 bg-gray-50 opacity-50'
+                      ? 'border-border bg-card shadow-sm'
+                      : 'border-border bg-muted opacity-50'
                   }`}
                 >
                   <div className="flex items-start space-x-3">
@@ -427,14 +427,14 @@ function LaunchLMSCourseImport({
                       onChange={(e) =>
                         handleCourseSelectionChange(course.course_uuid, e.target.checked)
                       }
-                      className="mt-0.5 w-4 h-4 rounded border-gray-300 text-black focus:ring-black focus:ring-offset-0"
+                      className="mt-0.5 w-4 h-4 rounded border-border text-foreground focus:ring-black focus:ring-offset-0"
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 truncate">{course.name}</p>
+                      <p className="text-sm font-medium text-foreground truncate">{course.name}</p>
                       {course.description && (
-                        <p className="text-xs text-gray-500 truncate mt-0.5">{course.description}</p>
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">{course.description}</p>
                       )}
-                      <div className="flex items-center space-x-4 mt-2 text-xs text-gray-400">
+                      <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
                         <span className="flex items-center space-x-1">
                           <Layers size={12} />
                           <span>{course.chapters_count} {t('courses.import.chapters')}</span>
@@ -456,18 +456,18 @@ function LaunchLMSCourseImport({
               ))}
             </div>
 
-            <div className="text-right text-xs text-gray-500">
+            <div className="text-right text-xs text-muted-foreground">
               {selectedCount} {t('common.of')} {totalCount} {t('courses.import.selected')}
             </div>
           </div>
 
           {/* Import Options */}
-          <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-700">{t('courses.import.options')}</h3>
+          <div className="space-y-4 p-4 bg-muted rounded-lg border border-border">
+            <h3 className="text-sm font-semibold text-muted-foreground">{t('courses.import.options')}</h3>
 
             <div className="space-y-3">
               <div>
-                <Label htmlFor="name-prefix" className="text-sm font-medium text-gray-700">
+                <Label htmlFor="name-prefix" className="text-sm font-medium text-muted-foreground">
                   {t('courses.import.name_prefix')}
                 </Label>
                 <Input
@@ -485,9 +485,9 @@ function LaunchLMSCourseImport({
                     type="checkbox"
                     checked={setPrivate}
                     onChange={(e) => setSetPrivate(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-300 text-black focus:ring-black focus:ring-offset-0"
+                    className="w-4 h-4 rounded border-border text-foreground focus:ring-black focus:ring-offset-0"
                   />
-                  <span className="text-sm text-gray-700">{t('courses.import.set_private')}</span>
+                  <span className="text-sm text-muted-foreground">{t('courses.import.set_private')}</span>
                 </label>
 
                 <label className="flex items-center space-x-2 cursor-pointer">
@@ -495,9 +495,9 @@ function LaunchLMSCourseImport({
                     type="checkbox"
                     checked={setUnpublished}
                     onChange={(e) => setSetUnpublished(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-300 text-black focus:ring-black focus:ring-offset-0"
+                    className="w-4 h-4 rounded border-border text-foreground focus:ring-black focus:ring-offset-0"
                   />
-                  <span className="text-sm text-gray-700">{t('courses.import.set_unpublished')}</span>
+                  <span className="text-sm text-muted-foreground">{t('courses.import.set_unpublished')}</span>
                 </label>
               </div>
             </div>
@@ -512,11 +512,11 @@ function LaunchLMSCourseImport({
           )}
 
           {/* Actions */}
-          <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+          <div className="flex justify-between items-center pt-2 border-t border-border">
             <button
               type="button"
               onClick={resetToUpload}
-              className="flex items-center space-x-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              className="flex items-center space-x-1 text-sm text-muted-foreground hover:text-muted-foreground transition-colors"
             >
               <ArrowLeft size={16} />
               <span>{t('courses.import.upload_different')}</span>
@@ -541,11 +541,11 @@ function LaunchLMSCourseImport({
       {/* Importing Step */}
       {step === 'importing' && (
         <div className="flex flex-col items-center justify-center py-12 space-y-4">
-          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
             <BarLoader width={40} color="#000000" cssOverride={{ borderRadius: 60 }} />
           </div>
-          <p className="text-gray-600 font-medium">{t('courses.import.importing_courses')}</p>
-          <p className="text-sm text-gray-400">{t('courses.import.please_wait')}</p>
+          <p className="text-muted-foreground font-medium">{t('courses.import.importing_courses')}</p>
+          <p className="text-sm text-muted-foreground">{t('courses.import.please_wait')}</p>
         </div>
       )}
 
@@ -589,7 +589,7 @@ function LaunchLMSCourseImport({
                       ? t('courses.import.import_failed')
                       : t('courses.import.import_partial')}
                 </p>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-muted-foreground">
                   {t('courses.import.import_summary', {
                     successful: importResult.successful,
                     total: importResult.successful + importResult.failed,
@@ -637,7 +637,7 @@ function LaunchLMSCourseImport({
           </div>
 
           {/* Action */}
-          <div className="flex justify-end pt-2 border-t border-gray-100">
+          <div className="flex justify-end pt-2 border-t border-border">
             <Button
               type="button"
               onClick={handleComplete}

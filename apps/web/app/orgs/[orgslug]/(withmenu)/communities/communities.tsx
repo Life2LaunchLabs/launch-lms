@@ -44,14 +44,14 @@ const CommunitiesClient = ({ communities, orgslug, org_id }: CommunitiesClientPr
             </div>
           ))}
           {communities.length === 0 && (
-            <div className="col-span-full flex flex-col justify-center items-center py-12 px-4 border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/30">
-              <div className="p-4 bg-white rounded-full nice-shadow mb-4">
+            <div className="col-span-full flex flex-col justify-center items-center py-12 px-4 border-2 border-dashed border-border rounded-2xl bg-muted/30">
+              <div className="p-4 bg-card rounded-full nice-shadow mb-4">
                 <Users className="w-8 h-8 text-gray-300" strokeWidth={1.5} />
               </div>
-              <h1 className="text-xl font-bold text-gray-600 mb-2">
+              <h1 className="text-xl font-bold text-muted-foreground mb-2">
                 {t('communities.no_communities')}
               </h1>
-              <p className="text-md text-gray-400 mb-6 text-center max-w-xs">
+              <p className="text-md text-muted-foreground mb-6 text-center max-w-xs">
                 <ContentPlaceHolderIfUserIsNotAdmin
                   text={t('communities.no_communities_description')}
                 />

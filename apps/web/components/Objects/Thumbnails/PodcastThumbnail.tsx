@@ -85,7 +85,7 @@ function PodcastThumbnail({ podcast, orgslug, customLink, isDashboard = false }:
       : getUriWithOrg(orgslug, routePaths.org.podcast(removePodcastPrefix(podcast.podcast_uuid)))
 
   return (
-    <div className="group relative flex flex-col bg-white rounded-xl nice-shadow overflow-hidden w-full transition-all duration-300 hover:scale-[1.01]">
+    <div className="group relative flex flex-col bg-card rounded-xl nice-shadow overflow-hidden w-full transition-all duration-300 hover:scale-[1.01]">
       {/* Options menu */}
       <AdminEditOptions
         podcast={podcast}
@@ -94,14 +94,14 @@ function PodcastThumbnail({ podcast, orgslug, customLink, isDashboard = false }:
         isDashboard={isDashboard}
       />
 
-      <Link prefetch href={podcastLink} className="block relative aspect-video overflow-hidden bg-gray-50">
+      <Link prefetch href={podcastLink} className="block relative aspect-video overflow-hidden bg-muted">
         <div
           className="w-full h-full bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
           style={{ backgroundImage: `url(${thumbnailImage})` }}
         />
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 flex items-center justify-center">
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/90 rounded-full p-3 shadow-lg">
-            <Play className="w-6 h-6 text-gray-900 fill-current" />
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-foreground/10 transition-colors duration-300 flex items-center justify-center">
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-card/90 rounded-full p-3 shadow-lg">
+            <Play className="w-6 h-6 text-foreground fill-current" />
           </div>
         </div>
         {isDashboard && (
@@ -129,19 +129,19 @@ function PodcastThumbnail({ podcast, orgslug, customLink, isDashboard = false }:
         <div className="flex items-start justify-between">
           <Link
             href={podcastLink}
-            className="text-base font-bold text-gray-900 leading-tight hover:text-black transition-colors line-clamp-1"
+            className="text-base font-bold text-foreground leading-tight hover:text-foreground transition-colors line-clamp-1"
           >
             {podcast.name}
           </Link>
         </div>
 
         {podcast.description && (
-          <p className="text-[11px] text-gray-500 line-clamp-2 min-h-[1.5rem]">
+          <p className="text-[11px] text-muted-foreground line-clamp-2 min-h-[1.5rem]">
             {podcast.description}
           </p>
         )}
 
-        <div className="pt-1.5 flex items-center justify-between border-t border-gray-100">
+        <div className="pt-1.5 flex items-center justify-between border-t border-border">
           <div className="flex items-center gap-2">
             {displayedAuthors.length > 0 && (
               <div className="flex -space-x-2 items-center">
@@ -164,7 +164,7 @@ function PodcastThumbnail({ podcast, orgslug, customLink, isDashboard = false }:
                 ))}
                 {hasMoreAuthors && (
                   <div className="relative z-0">
-                    <div className="flex items-center justify-center w-[20px] h-[20px] text-[8px] font-bold text-gray-600 bg-gray-100 border-2 border-white rounded-full">
+                    <div className="flex items-center justify-center w-[20px] h-[20px] text-[8px] font-bold text-muted-foreground bg-muted border-2 border-white rounded-full">
                       +{remainingAuthorsCount}
                     </div>
                   </div>
@@ -173,7 +173,7 @@ function PodcastThumbnail({ podcast, orgslug, customLink, isDashboard = false }:
             )}
 
             {podcast.update_date && (
-              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
                 {new Date(podcast.update_date).toLocaleDateString(i18n.language === 'fr' ? 'fr-FR' : 'en-US', { month: 'short', day: 'numeric' })}
               </span>
             )}
@@ -181,7 +181,7 @@ function PodcastThumbnail({ podcast, orgslug, customLink, isDashboard = false }:
 
           <Link
             href={podcastLink}
-            className="text-[10px] font-bold text-gray-400 hover:text-gray-900 transition-colors uppercase tracking-wider"
+            className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider"
           >
             {t('podcasts.listen_now')}
           </Link>
@@ -212,8 +212,8 @@ const AdminEditOptions = ({ podcast, orgSlug, deletePodcast, isDashboard = false
       }`}>
         <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
           <DropdownMenuTrigger asChild>
-            <button aria-label="Podcast actions" className="p-1.5 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all shadow-md">
-              <MoreVertical size={18} className="text-gray-700" />
+            <button aria-label="Podcast actions" className="p-1.5 bg-card/90 backdrop-blur-sm rounded-full hover:bg-card transition-all shadow-md">
+              <MoreVertical size={18} className="text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">

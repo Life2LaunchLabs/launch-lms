@@ -21,7 +21,7 @@ function OrgFooter() {
   return (
     <footer className="w-full py-8 mt-12 print:hidden">
       <div className="flex flex-col items-center justify-center space-y-4">
-        <p className="text-sm text-gray-500">{footerText}</p>
+        <p className="text-sm text-muted-foreground">{footerText}</p>
       </div>
     </footer>
   )

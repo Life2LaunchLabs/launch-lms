@@ -1,7 +1,7 @@
 'use client'
 import React from 'react'
 import Link from 'next/link'
-import { Lock, ShoppingBag, Building2 } from 'lucide-react'
+import { Lock, ShoppingBag, Building2, SunMoon } from 'lucide-react'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 
@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { id: 'security', icon: Lock, labelKey: 'account.security' },
   { id: 'purchases', icon: ShoppingBag, labelKey: 'account.purchases' },
   { id: 'organizations', icon: Building2, label: 'Organizations' },
+  { id: 'preferences', icon: SunMoon, label: 'Appearance' },
 ]
 
 export function AccountActionsMobile({ orgslug, currentSubpage }: AccountActionsMobileProps) {
@@ -22,7 +23,7 @@ export function AccountActionsMobile({ orgslug, currentSubpage }: AccountActions
   return (
     <nav aria-label="Account mobile actions" className="md:hidden">
       <div className="overflow-x-auto pb-1">
-        <div className="flex min-w-max items-center gap-2 rounded-2xl bg-white p-2 nice-shadow">
+        <div className="flex min-w-max items-center gap-2 rounded-2xl bg-card p-2 nice-shadow">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon
             const isActive = currentSubpage === item.id
@@ -32,8 +33,8 @@ export function AccountActionsMobile({ orgslug, currentSubpage }: AccountActions
                 href={getUriWithOrg(orgslug, routePaths.org.account.page(item.id))}
                 className={`flex min-w-[84px] flex-col items-center gap-1 rounded-xl px-3 py-2 transition-colors ${
                   isActive
-                    ? 'bg-gray-900 text-white'
-                    : 'text-gray-600 hover:bg-gray-100'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted'
                 }`}
               >
                 <Icon size={18} />

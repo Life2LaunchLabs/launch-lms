@@ -138,20 +138,20 @@ export function FeedbackModal({
           'sm:max-w-md',
           isDark
             ? 'bg-[#0f0f10] border-white/10 text-white'
-            : 'bg-white border-gray-200'
+            : 'bg-card border-border'
         )}
       >
         <DialogHeader className="p-6 pb-2">
           <DialogTitle
             className={cn(
               'flex items-center gap-2',
-              isDark ? 'text-white' : 'text-gray-900'
+              isDark ? 'text-white' : 'text-foreground'
             )}
           >
             <ChatCircleDots size={20} weight="fill" />
             {t('common.help_menu.feedback_title')}
           </DialogTitle>
-          <DialogDescription className={isDark ? 'text-white/60' : 'text-gray-500'}>
+          <DialogDescription className={isDark ? 'text-white/60' : 'text-muted-foreground'}>
             {t('common.help_menu.feedback_description')}
           </DialogDescription>
         </DialogHeader>
@@ -171,7 +171,7 @@ export function FeedbackModal({
                   className={isDark ? 'text-green-500' : 'text-green-600'}
                 />
               </div>
-              <p className={cn('font-medium', isDark ? 'text-white/90' : 'text-gray-900')}>
+              <p className={cn('font-medium', isDark ? 'text-white/90' : 'text-foreground')}>
                 {t('common.help_menu.feedback_success')}
               </p>
             </div>
@@ -179,7 +179,7 @@ export function FeedbackModal({
             <div className="space-y-4">
               {/* Reaction Selection */}
               <div>
-                <p className={cn('text-sm mb-2', isDark ? 'text-white/60' : 'text-gray-600')}>
+                <p className={cn('text-sm mb-2', isDark ? 'text-white/60' : 'text-muted-foreground')}>
                   {t('common.help_menu.how_was_experience')}
                 </p>
                 <div className="flex gap-2">
@@ -194,7 +194,7 @@ export function FeedbackModal({
                           : 'border-green-500 bg-green-50 text-green-600'
                         : isDark
                           ? 'border-white/10 hover:border-white/20 text-white/60 hover:text-white'
-                          : 'border-gray-200 hover:border-gray-300 text-gray-400 hover:text-gray-600'
+                          : 'border-border hover:border-border text-muted-foreground hover:text-muted-foreground'
                     )}
                   >
                     <Smiley size={28} weight={feedbackReaction === 'happy' ? 'fill' : 'regular'} />
@@ -211,7 +211,7 @@ export function FeedbackModal({
                           : 'border-yellow-500 bg-yellow-50 text-yellow-600'
                         : isDark
                           ? 'border-white/10 hover:border-white/20 text-white/60 hover:text-white'
-                          : 'border-gray-200 hover:border-gray-300 text-gray-400 hover:text-gray-600'
+                          : 'border-border hover:border-border text-muted-foreground hover:text-muted-foreground'
                     )}
                   >
                     <SmileyMeh size={28} weight={feedbackReaction === 'neutral' ? 'fill' : 'regular'} />
@@ -228,7 +228,7 @@ export function FeedbackModal({
                           : 'border-red-500 bg-red-50 text-red-600'
                         : isDark
                           ? 'border-white/10 hover:border-white/20 text-white/60 hover:text-white'
-                          : 'border-gray-200 hover:border-gray-300 text-gray-400 hover:text-gray-600'
+                          : 'border-border hover:border-border text-muted-foreground hover:text-muted-foreground'
                     )}
                   >
                     <SmileySad size={28} weight={feedbackReaction === 'sad' ? 'fill' : 'regular'} />
@@ -247,7 +247,7 @@ export function FeedbackModal({
                   'w-full h-28 px-3 py-2 rounded-lg resize-none',
                   isDark
                     ? 'bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-white/20'
-                    : 'bg-gray-50 border border-gray-200 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300'
+                    : 'bg-muted border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-border'
                 )}
               />
 
@@ -270,7 +270,7 @@ export function FeedbackModal({
                           alt={`Upload ${index + 1}`}
                           className={cn(
                             'w-16 h-16 object-cover rounded-lg border',
-                            isDark ? 'border-white/10' : 'border-gray-200'
+                            isDark ? 'border-white/10' : 'border-border'
                           )}
                         />
                         <button
@@ -292,12 +292,12 @@ export function FeedbackModal({
                       'flex items-center gap-2 text-sm transition-colors',
                       isDark
                         ? 'text-white/50 hover:text-white'
-                        : 'text-gray-500 hover:text-gray-700'
+                        : 'text-muted-foreground hover:text-muted-foreground'
                     )}
                   >
                     <ImageSquare size={18} />
                     <span>{t('common.help_menu.attach_image')}</span>
-                    <span className={isDark ? 'text-white/30' : 'text-gray-400'}>
+                    <span className={isDark ? 'text-white/30' : 'text-muted-foreground'}>
                       ({feedbackImages.length}/3)
                     </span>
                   </button>
@@ -315,7 +315,7 @@ export function FeedbackModal({
                 'px-4 py-2 text-sm transition-colors',
                 isDark
                   ? 'text-white/60 hover:text-white'
-                  : 'text-gray-600 hover:text-gray-900'
+                  : 'text-muted-foreground hover:text-foreground'
               )}
             >
               {t('common.cancel')}
@@ -326,7 +326,7 @@ export function FeedbackModal({
               className={cn(
                 'flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
                 isDark
-                  ? 'bg-white text-black hover:bg-white/90'
+                  ? 'bg-card text-foreground hover:bg-card/90'
                   : 'bg-black text-white hover:bg-gray-800'
               )}
             >

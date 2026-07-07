@@ -89,15 +89,15 @@ export default function AdminBadgeCollection({
 function CollectionHeader({ collection }: { collection: any }) {
   return (
     <div className="my-2 flex flex-col gap-5 py-2 md:flex-row md:items-center">
-      <div className="group relative aspect-video w-full max-w-[240px] shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
-        <div className="flex h-full w-full flex-col items-center justify-center text-gray-400">
+      <div className="group relative aspect-video w-full max-w-[240px] shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+        <div className="flex h-full w-full flex-col items-center justify-center text-muted-foreground">
           <BookCopy size={32} strokeWidth={1.5} />
         </div>
       </div>
       <div className="min-w-0 flex-1">
-        <h1 className="text-3xl font-black leading-tight text-gray-950">{collection.name}</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500">{collection.description || 'Manage badges in this collection.'}</p>
-        <div className="mt-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-gray-400">
+        <h1 className="text-3xl font-black leading-tight text-foreground">{collection.name}</h1>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{collection.description || 'Manage badges in this collection.'}</p>
+        <div className="mt-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
           <BookCopy size={14} />
           {(collection.badges || []).length} badges
         </div>
@@ -183,21 +183,21 @@ function CollectionBadges({ orgslug, orgId, collection }: { orgslug: string; org
     <div className="space-y-6 px-10 pb-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search badges"
-            className="w-full rounded-lg bg-white py-2.5 pl-10 pr-10 text-sm nice-shadow focus:outline-none focus:ring-2 focus:ring-black"
+            className="w-full rounded-lg bg-card py-2.5 pl-10 pr-10 text-sm nice-shadow focus:outline-none focus:ring-2 focus:ring-black"
           />
           {search ? (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
               <X className="h-4 w-4" />
             </button>
           ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={exportCollection} disabled={exporting} className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-800 nice-shadow transition-colors hover:bg-gray-50 disabled:opacity-50">
+          <button onClick={exportCollection} disabled={exporting} className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-xs font-bold text-foreground nice-shadow transition-colors hover:bg-muted disabled:opacity-50">
             {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             Export
           </button>
@@ -210,7 +210,7 @@ function CollectionBadges({ orgslug, orgId, collection }: { orgslug: string; org
             dialogDescription={`Import badges into ${collection.name}.`}
             dialogContent={<LearningBadgeImport orgId={orgId} collection={collection} accessToken={accessToken} />}
             dialogTrigger={
-              <button className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-800 nice-shadow transition-colors hover:bg-gray-50">
+              <button className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-xs font-bold text-foreground nice-shadow transition-colors hover:bg-muted">
                 <Upload className="h-4 w-4" />
                 Import
               </button>
@@ -225,8 +225,8 @@ function CollectionBadges({ orgslug, orgId, collection }: { orgslug: string; org
             dialogDescription={`Create a badge in ${collection.name}.`}
             dialogContent={
               <div className="space-y-4 p-2">
-                <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Badge name" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-                <textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Optional badge description" rows={4} className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Badge name" className="w-full rounded-lg border border-border px-3 py-2 text-sm" />
+                <textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Optional badge description" rows={4} className="w-full resize-none rounded-lg border border-border px-3 py-2 text-sm" />
                 <button onClick={createBadge} disabled={creating || !name.trim()} className="ml-auto flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white disabled:opacity-50">
                   {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                   Create Badge
@@ -245,24 +245,24 @@ function CollectionBadges({ orgslug, orgId, collection }: { orgslug: string; org
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {filteredBadges.map((badge: any) => (
-          <Link key={badge.badge_uuid} href={getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/learning-path`)} className="group relative flex w-full flex-col overflow-hidden rounded-xl bg-white nice-shadow transition-all duration-300 hover:scale-[1.01]">
+          <Link key={badge.badge_uuid} href={getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/learning-path`)} className="group relative flex w-full flex-col overflow-hidden rounded-xl bg-card nice-shadow transition-all duration-300 hover:scale-[1.01]">
             <button
               onClick={(event) => removeBadge(event, badge)}
               disabled={deletingBadge === badge.badge_uuid}
-              className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-red-100 bg-white text-red-600 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 disabled:opacity-60"
+              className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-red-100 bg-card text-red-600 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 disabled:opacity-60"
               title="Delete badge"
             >
               {deletingBadge === badge.badge_uuid ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
             </button>
-            <div className="relative flex aspect-video items-center justify-center overflow-hidden bg-gray-50 text-lime-500">
+            <div className="relative flex aspect-video items-center justify-center overflow-hidden bg-muted text-lime-500">
               {badge.thumbnail_image ? <img src={badge.thumbnail_image} alt="" className="h-full w-full object-cover" /> : <Award size={42} strokeWidth={1.5} />}
             </div>
             <div className="flex flex-col space-y-1.5 p-3">
-              <h2 className="line-clamp-1 text-base font-bold leading-tight text-gray-900">{badge.name}</h2>
-              {badge.description ? <p className="min-h-[1.5rem] line-clamp-2 text-[11px] text-gray-500">{badge.description}</p> : null}
-              <div className="flex items-center justify-between border-t border-gray-100 pt-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">{badge.published ? 'Published' : 'Draft'}</span>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Edit</span>
+              <h2 className="line-clamp-1 text-base font-bold leading-tight text-foreground">{badge.name}</h2>
+              {badge.description ? <p className="min-h-[1.5rem] line-clamp-2 text-[11px] text-muted-foreground">{badge.description}</p> : null}
+              <div className="flex items-center justify-between border-t border-border pt-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{badge.published ? 'Published' : 'Draft'}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Edit</span>
               </div>
             </div>
           </Link>
@@ -270,10 +270,10 @@ function CollectionBadges({ orgslug, orgId, collection }: { orgslug: string; org
       </div>
 
       {filteredBadges.length === 0 ? (
-        <div className="flex items-center justify-center rounded-xl border-2 border-dashed border-gray-200 py-16 text-center">
+        <div className="flex items-center justify-center rounded-xl border-2 border-dashed border-border py-16 text-center">
           <div>
             <Award className="mx-auto mb-3 h-9 w-9 text-gray-300" />
-            <p className="text-sm text-gray-500">{search ? 'No badges match your search.' : 'This collection does not have any badges yet.'}</p>
+            <p className="text-sm text-muted-foreground">{search ? 'No badges match your search.' : 'This collection does not have any badges yet.'}</p>
           </div>
         </div>
       ) : null}
@@ -380,11 +380,11 @@ function LearningBadgeImport({ orgId, collection, accessToken }: { orgId: number
     <div className="space-y-4 p-2">
       {!analysis ? (
         <>
-          <div className="grid grid-cols-2 gap-2 rounded-lg bg-gray-100 p-1">
-            <button onClick={() => { setSource('launch'); setFile(null); setTutorFiles([]) }} className={`rounded-md px-3 py-2 text-xs font-bold ${source === 'launch' ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-500'}`}>Launch ZIP</button>
-            <button onClick={() => { setSource('tutor'); setFile(null); setTutorFiles([]) }} className={`rounded-md px-3 py-2 text-xs font-bold ${source === 'tutor' ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-500'}`}>Tutor JSON</button>
+          <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
+            <button onClick={() => { setSource('launch'); setFile(null); setTutorFiles([]) }} className={`rounded-md px-3 py-2 text-xs font-bold ${source === 'launch' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>Launch ZIP</button>
+            <button onClick={() => { setSource('tutor'); setFile(null); setTutorFiles([]) }} className={`rounded-md px-3 py-2 text-xs font-bold ${source === 'tutor' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>Tutor JSON</button>
           </div>
-          <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 px-6 py-10 text-center transition-colors hover:bg-gray-100">
+          <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted px-6 py-10 text-center transition-colors hover:bg-muted">
             <input
               type="file"
               accept={source === 'tutor' ? '.json,application/json' : '.zip,application/zip'}
@@ -395,13 +395,13 @@ function LearningBadgeImport({ orgId, collection, accessToken }: { orgId: number
                 else setFile(event.target.files?.[0] || null)
               }}
             />
-            <FileArchive className="h-10 w-10 text-gray-400" />
-            <p className="mt-3 text-sm font-bold text-gray-900">
+            <FileArchive className="h-10 w-10 text-muted-foreground" />
+            <p className="mt-3 text-sm font-bold text-foreground">
               {source === 'tutor'
                 ? tutorFiles.length ? `${tutorFiles.length} Tutor file(s) selected` : 'Choose Tutor LMS JSON export files'
                 : file?.name || 'Choose a Launch LMS badge or course export ZIP'}
             </p>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-muted-foreground">
               {source === 'tutor'
                 ? 'Tutor imports create legacy courses first, then can be converted into badges.'
                 : 'New badge exports import directly. Legacy course exports can be converted after import.'}
@@ -422,7 +422,7 @@ function LearningBadgeImport({ orgId, collection, accessToken }: { orgId: number
               <h3 className="text-sm font-bold text-amber-900">Convert imported legacy courses?</h3>
               <p className="mt-1 text-xs leading-5 text-amber-800">This upload was an old course export. Convert the imported courses into new badges in this collection now, or skip and leave them as legacy courses.</p>
               <div className="mt-4 flex justify-end gap-2">
-                <button onClick={() => window.location.reload()} className="rounded-lg border border-amber-200 bg-white px-4 py-2 text-xs font-bold text-amber-900">Skip</button>
+                <button onClick={() => window.location.reload()} className="rounded-lg border border-amber-200 bg-card px-4 py-2 text-xs font-bold text-amber-900">Skip</button>
                 <button onClick={convertImported} disabled={converting} className="flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-xs font-bold text-white disabled:opacity-50">
                   {converting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
                   Convert now
@@ -444,7 +444,7 @@ function LearningBadgeImport({ orgId, collection, accessToken }: { orgId: number
             {items.map((item: any) => {
               const id = item.badge_uuid || item.course_uuid
               return (
-                <label key={id} className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-100 bg-white p-3">
+                <label key={id} className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-card p-3">
                   <input type="checkbox" checked={selected.has(id)} onChange={(event) => {
                     const next = new Set(selected)
                     if (event.target.checked) next.add(id)
@@ -452,19 +452,19 @@ function LearningBadgeImport({ orgId, collection, accessToken }: { orgId: number
                     setSelected(next)
                   }} className="mt-1" />
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-gray-900">{item.name}</p>
-                    {item.description ? <p className="mt-0.5 truncate text-xs text-gray-500">{item.description}</p> : null}
-                    <p className="mt-1 text-xs text-gray-400">{item.activities_count || 0} activities{item.pages_count != null ? `, ${item.pages_count} pages` : ''}</p>
+                    <p className="truncate text-sm font-bold text-foreground">{item.name}</p>
+                    {item.description ? <p className="mt-0.5 truncate text-xs text-muted-foreground">{item.description}</p> : null}
+                    <p className="mt-1 text-xs text-muted-foreground">{item.activities_count || 0} activities{item.pages_count != null ? `, ${item.pages_count} pages` : ''}</p>
                   </div>
                 </label>
               )
             })}
           </div>
           <div className="space-y-2">
-            <input value={namePrefix} onChange={(event) => setNamePrefix(event.target.value)} placeholder="Optional name prefix" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+            <input value={namePrefix} onChange={(event) => setNamePrefix(event.target.value)} placeholder="Optional name prefix" className="w-full rounded-lg border border-border px-3 py-2 text-sm" />
           </div>
           <div className="flex justify-between">
-            <button onClick={() => { setAnalysis(null); setResult(null); setSelected(new Set()) }} className="rounded-lg border border-gray-200 px-4 py-2 text-xs font-bold text-gray-700">Back</button>
+            <button onClick={() => { setAnalysis(null); setResult(null); setSelected(new Set()) }} className="rounded-lg border border-border px-4 py-2 text-xs font-bold text-muted-foreground">Back</button>
             <button onClick={importPackage} disabled={selected.size === 0 || loading} className="flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white disabled:opacity-50">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
               Import Selected
@@ -516,32 +516,32 @@ function CollectionSettings({ orgslug, collection }: { orgslug: string; collecti
 
   return (
     <div className="px-10 pb-10 pt-6">
-      <section className="rounded-xl bg-white p-6 shadow-xs">
-        <h2 className="text-lg font-bold text-gray-900">Settings</h2>
-        <div className={`mt-4 divide-y divide-gray-100 ${saving ? 'pointer-events-none opacity-50' : ''}`}>
+      <section className="rounded-xl bg-card p-6 shadow-xs">
+        <h2 className="text-lg font-bold text-foreground">Settings</h2>
+        <div className={`mt-4 divide-y divide-border ${saving ? 'pointer-events-none opacity-50' : ''}`}>
           <div className="flex items-start justify-between gap-6 py-4 first:pt-0 last:pb-0">
             <div className="flex min-w-0 gap-3">
-              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500">
+              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
                 <Globe className="h-4 w-4" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold text-gray-900">Public collection</h3>
-                <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-500">Public collections are discoverable by learners. Restricted collections are hidden from public badge lists.</p>
+                <h3 className="text-sm font-semibold text-foreground">Public collection</h3>
+                <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">Public collections are discoverable by learners. Restricted collections are hidden from public badge lists.</p>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-3">
-              <span className="text-xs font-semibold text-gray-500">{isPublic ? 'Public' : 'Restricted'}</span>
+              <span className="text-xs font-semibold text-muted-foreground">{isPublic ? 'Public' : 'Restricted'}</span>
               <Switch checked={isPublic} onCheckedChange={updatePublic} />
             </div>
           </div>
         </div>
       </section>
-      <section className="mt-6 rounded-xl border border-red-100 bg-white p-6 shadow-xs">
+      <section className="mt-6 rounded-xl border border-red-100 bg-card p-6 shadow-xs">
         <h2 className="text-lg font-bold text-red-700">Danger Zone</h2>
         <div className="mt-4 flex items-start justify-between gap-6">
           <div>
-            <h3 className="text-sm font-semibold text-gray-900">Delete collection</h3>
-            <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-500">This permanently deletes the collection and the badges inside it.</p>
+            <h3 className="text-sm font-semibold text-foreground">Delete collection</h3>
+            <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">This permanently deletes the collection and the badges inside it.</p>
           </div>
           <button onClick={removeCollection} disabled={deleting} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-xs font-bold text-red-700 disabled:opacity-50">
             {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}

@@ -35,7 +35,7 @@ const NavigationButtons = memo(({
         onClick={() => navigateToActivity(prevActivity)}
         className={`flex items-center space-x-1 sm:space-x-2 py-1.5 px-1.5 sm:px-2 rounded-md transition-all duration-200 ${
           prevActivity 
-            ? 'text-gray-700 hover:bg-gray-100' 
+            ? 'text-muted-foreground hover:bg-muted' 
             : 'text-gray-300 cursor-not-allowed'
         }`}
         disabled={!prevActivity}
@@ -43,14 +43,14 @@ const NavigationButtons = memo(({
       >
         <ChevronLeft size={16} className="shrink-0 sm:w-5 sm:h-5" />
         <div className="flex flex-col items-start hidden sm:flex">
-          <span className="text-xs text-gray-500">{t('common.previous')}</span>
+          <span className="text-xs text-muted-foreground">{t('common.previous')}</span>
           <span className="text-sm font-medium text-left truncate max-w-[100px] sm:max-w-[150px]">
             {prevActivity ? prevActivity.name : t('activities.no_previous_activity')}
           </span>
         </div>
       </button>
 
-      <span className="text-sm font-medium text-gray-500 px-1 sm:px-2">
+      <span className="text-sm font-medium text-muted-foreground px-1 sm:px-2">
         {currentIndex + 1} {t('common.of')} {allActivities.length}
       </span>
 
@@ -61,7 +61,7 @@ const NavigationButtons = memo(({
         title={nextActivity ? `${t('common.next')}: ${nextActivity.name}` : t('activities.no_next_activity')}
       >
         <div className="flex flex-col items-end hidden sm:flex">
-          <span className={`text-xs ${nextActivity ? 'text-gray-500' : 'text-gray-500'}`}>{t('common.next')}</span>
+          <span className={`text-xs ${nextActivity ? 'text-muted-foreground' : 'text-muted-foreground'}`}>{t('common.next')}</span>
           <span className="text-sm font-medium text-right truncate max-w-[100px] sm:max-w-[150px]">
             {nextActivity ? nextActivity.name : t('activities.no_next_activity')}
           </span>
@@ -89,8 +89,8 @@ const CourseInfo = memo(({ course, org }: { course: any, org: any }) => {
         alt=""
       />
       <div className="flex flex-col -space-y-0.5 min-w-0 hidden sm:block">
-        <p className="text-sm font-medium text-gray-500">{t('courses.courses')}</p>
-        <h1 className="font-semibold text-gray-900 text-base truncate">
+        <p className="text-sm font-medium text-muted-foreground">{t('courses.courses')}</p>
+        <h1 className="font-semibold text-foreground text-base truncate">
           {course.name}
         </h1>
       </div>
@@ -175,7 +175,7 @@ export default function FixedActivitySecondaryBar(props: FixedActivitySecondaryB
 
   return (
     <div
-      className={`fixed top-[60px] left-0 right-0 bg-white/90 backdrop-blur-xl transition-all duration-300 animate-in fade-in slide-in-from-top ${
+      className={`fixed top-[60px] left-0 right-0 bg-card/90 backdrop-blur-xl transition-all duration-300 animate-in fade-in slide-in-from-top ${
         isScrolled ? 'nice-shadow' : ''
       }`}
       style={{ zIndex: 'var(--z-drag-overlay)' }}

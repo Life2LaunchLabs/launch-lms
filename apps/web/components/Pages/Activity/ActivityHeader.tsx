@@ -18,7 +18,7 @@ export default function ActivityHeader({
     <div className="mx-auto w-full max-w-5xl">
       <Link
         href={getUriWithOrg(orgslug, routePaths.org.course(courseuuid.replace('course_', '')))}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-50 text-gray-700 transition-colors hover:bg-gray-100"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted"
         aria-label="Close activity viewer"
       >
         <X size={18} />
