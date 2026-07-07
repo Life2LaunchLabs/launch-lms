@@ -321,14 +321,14 @@ export const OrgMenu = (props: { orgslug: string }) => {
       <nav
         aria-label="Mobile navigation"
         className={cn(
-          'fixed inset-x-0 bottom-4 z-[var(--z-nav)] flex justify-center px-4 transition-[opacity,transform] duration-300 ease-out md:hidden',
+          'fixed inset-x-0 bottom-0 z-[var(--z-nav)] flex justify-center border-t border-border bg-card px-2 transition-[opacity,transform] duration-300 ease-out md:hidden',
           isActivityPage
-            ? 'pointer-events-none translate-y-6 opacity-0'
+            ? 'pointer-events-none translate-y-full opacity-0'
             : 'translate-y-0 opacity-100'
         )}
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0px)' }}
       >
-        <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-border bg-card/95 p-2 shadow-[0_20px_45px_rgba(15,23,42,0.16)] backdrop-blur-xl">
+        <div className="pointer-events-auto flex h-16 w-full max-w-screen-sm items-center justify-around gap-1">
           {primaryNavItems.map((item) => (
             <MobileNavItem
               key={item.href || item.label}
@@ -565,9 +565,9 @@ function MobileNavItem({
     <Link
       href={getUriWithOrg(orgslug, item.href || '/')}
       aria-label={item.label}
-      className={`relative flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
+      className={`relative flex h-12 flex-1 items-center justify-center rounded-xl transition-colors ${
         item.active
-          ? 'bg-black/[0.12] text-foreground shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]'
+          ? 'text-foreground [&>svg]:scale-110 [&>svg]:stroke-[2.6]'
           : 'text-muted-foreground hover:bg-foreground/[0.08] hover:text-foreground'
       }`}
     >
@@ -598,7 +598,7 @@ function MobileMoreMenu({
         <button
           type="button"
           aria-label="More"
-          className="flex h-12 w-12 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/[0.08] hover:text-foreground"
+          className="flex h-12 flex-1 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-foreground/[0.08] hover:text-foreground"
         >
           <User size={20} weight="bold" />
         </button>

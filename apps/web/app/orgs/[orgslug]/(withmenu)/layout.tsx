@@ -78,7 +78,7 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
               <OrgMenu orgslug={orgslug} />
             </div>
           )}
-          <div className={`min-w-0 w-full pb-28 md:max-w-full md:shrink md:pb-0 print:pb-0 ${isActivityPage ? 'md:w-full' : 'md:w-[66rem]'}`}>
+          <div className={`min-w-0 w-full pb-[calc(5rem+env(safe-area-inset-bottom))] md:max-w-full md:shrink md:pb-0 print:pb-0 ${isActivityPage ? 'md:w-full' : 'md:w-[66rem]'}`}>
             {children}
           </div>
           <div
