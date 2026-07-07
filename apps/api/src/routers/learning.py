@@ -265,6 +265,17 @@ async def api_upload_page_media(
     return await learning_service.upload_page_media(request, page_uuid, current_user, db_session, media)
 
 
+@pages_router.post("/{page_uuid}/response-media")
+async def api_upload_response_media(
+    request: Request,
+    page_uuid: str,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+    media: UploadFile = File(...),
+) -> dict:
+    return await learning_service.upload_response_media(request, page_uuid, current_user, db_session, media)
+
+
 @variables_router.get("/")
 async def api_list_learning_variables(
     request: Request,

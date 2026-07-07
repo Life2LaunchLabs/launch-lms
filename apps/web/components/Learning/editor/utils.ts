@@ -35,7 +35,7 @@ export function createImageBlock(): LearningImageBlock {
   }
 }
 
-export function createQuestionBlock(kind: 'multiple_choice' | 'text_input'): LearningQuestionBlock {
+export function createQuestionBlock(kind: 'multiple_choice' | 'text_input' | 'image_upload'): LearningQuestionBlock {
   if (kind === 'multiple_choice') {
     const options = [
       { id: createOptionId(), text: 'Option 1' },
@@ -56,6 +56,23 @@ export function createQuestionBlock(kind: 'multiple_choice' | 'text_input'): Lea
       completion: {
         min_selections: 1,
         max_selections: 1,
+      },
+    }
+  }
+
+  if (kind === 'image_upload') {
+    return {
+      id: createBlockId(),
+      type: 'question',
+      kind,
+      design: { width: 100, align: 'left' },
+      content: { label: 'Image' },
+      scoring: {
+        mode: 'manual',
+        points: 1,
+      },
+      completion: {
+        required: true,
       },
     }
   }
@@ -125,7 +142,7 @@ export function normalizeQuestionInputs(inputs: any[]): Array<{
         section_id: String(input?.section_id || input?.sectionId || id),
         label: String(input?.label || `Response ${index + 1}`),
         placeholder: String(input?.placeholder || ''),
-        variant: String(input?.variant || 'short_answer'),
+        variant: String(input?.variant || input?.type || 'short_answer'),
         width: String(input?.width || 'full'),
         height: Number(input?.height) || 160,
       }
@@ -301,7 +318,9 @@ export function getBlockStyle(block: LearningBlock): CSSProperties {
 export function blockLabel(block: LearningBlock) {
   if (block.type === 'text') return 'Text block'
   if (block.type === 'image') return 'Image block'
-  return block.kind === 'text_input' ? 'Text input question' : 'Multiple choice question'
+  if (block.kind === 'text_input') return 'Text input question'
+  if (block.kind === 'image_upload') return 'Image upload question'
+  return 'Multiple choice question'
 }
 
 export function withSequentialOrder(pages: any[]) {

@@ -303,9 +303,9 @@ export default function LearningActivityEditor({
     })
   }, [pages, patchPage, variantKey])
 
-  const insertBlock = (type: 'text' | 'image' | 'multiple_choice' | 'text_input', afterBlockId?: string | null) => {
+  const insertBlock = (type: 'text' | 'image' | 'multiple_choice' | 'text_input' | 'image_upload', afterBlockId?: string | null) => {
     if (!selectedPage || selectedPage.page_type !== 'standard') return
-    if ((type === 'multiple_choice' || type === 'text_input') && selectedPage.content?.variants) {
+    if ((type === 'multiple_choice' || type === 'text_input' || type === 'image_upload') && selectedPage.content?.variants) {
       toast.error('Variant pages cannot contain question blocks')
       return
     }
@@ -638,7 +638,7 @@ export default function LearningActivityEditor({
     mediaInputRef.current?.click()
   }
 
-  const createVariableFromKey = async (rawKey: string) => {
+  const createVariableFromKey = async (rawKey: string, valueType = 'text') => {
     const key = String(rawKey || '').trim()
     if (!key || !badge?.org_id || !accessToken) return null
     if (learningVariables.some((variable) => String(variable.key) === key)) {
@@ -650,7 +650,7 @@ export default function LearningActivityEditor({
         org_id: badge.org_id,
         key,
         label: key.split('.').at(-1) || key,
-        value_type: 'text',
+        value_type: valueType,
         options: [],
       }, accessToken)
       setLearningVariables((current) => [...current, variable].sort((a, b) => String(a.key).localeCompare(String(b.key))))
@@ -786,7 +786,7 @@ export default function LearningActivityEditor({
               onSelectVariant={selectVariant}
               onAddText={() => insertBlock('text', selection.blockId)}
               onAddImage={() => insertBlock('image', selection.blockId)}
-              onAddQuestion={(kind: 'multiple_choice' | 'text_input') => insertBlock(kind, selection.blockId)}
+              onAddQuestion={(kind: 'multiple_choice' | 'text_input' | 'image_upload') => insertBlock(kind, selection.blockId)}
             />
             <div className="relative min-h-0 flex-1 overflow-hidden">
               {variantKey !== 'default' && (
@@ -967,6 +967,10 @@ function CanvasToolbar({ selectedPage, pages, variantKey, onSelectVariant, onAdd
             <DropdownMenuItem onClick={() => onAddQuestion('text_input')}>
               <FileText size={16} className="mr-2" />
               Text input
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onAddQuestion('image_upload')}>
+              <Upload size={16} className="mr-2" />
+              Image upload
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -1192,6 +1196,8 @@ function CanvasBlock({ block, page, selected, readOnly, registerBlockEl, onHover
     />
   ) : (block as LearningQuestionBlock).kind === 'multiple_choice' ? (
     <McqBlockCanvas block={block as LearningQuestionBlock} page={page} selected={selected} readOnly={readOnly} onPatch={onPatch} />
+  ) : (block as LearningQuestionBlock).kind === 'image_upload' ? (
+    <ImageUploadBlockCanvas block={block as LearningQuestionBlock} readOnly={readOnly} onPatch={onPatch} />
   ) : (
     <TextInputBlockCanvas block={block as LearningQuestionBlock} page={page} selected={selected} readOnly={readOnly} onPatch={onPatch} />
   )
@@ -1599,6 +1605,29 @@ function TextInputBlockCanvas({ block, page, selected: _selected, readOnly, onPa
   )
 }
 
+function ImageUploadBlockCanvas({ block, readOnly, onPatch }: any) {
+  const content = block.content || {}
+  return (
+    <div className="py-1">
+      {readOnly ? (
+        content.label ? <p className="mb-2 text-lg font-bold leading-7 text-gray-900">{content.label}</p> : null
+      ) : (
+        <AutoGrowTextarea
+          value={content.label || ''}
+          onChange={(event) => onPatch({ content: { ...content, label: event.target.value } })}
+          placeholder="Question label"
+          minRows={1}
+          className="mb-2 w-full resize-none overflow-hidden bg-transparent text-lg font-bold leading-7 text-gray-900 outline-none placeholder:text-gray-300"
+        />
+      )}
+      <div className="flex min-h-48 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 bg-white text-sm font-bold text-gray-500 shadow-sm">
+        <Upload size={22} />
+        Image upload
+      </div>
+    </div>
+  )
+}
+
 function AutoGrowTextarea({
   value,
   minRows = 1,
@@ -1726,7 +1755,7 @@ function ImageBlockEditor({ block, selected = false, readOnly = false, onPatch, 
   )
 }
 
-function InlineInsertMenu({ onInsert, canAddQuestion, alwaysVisible = false }: { onInsert: (type: 'text' | 'image' | 'multiple_choice' | 'text_input') => void; canAddQuestion: boolean; alwaysVisible?: boolean }) {
+function InlineInsertMenu({ onInsert, canAddQuestion, alwaysVisible = false }: { onInsert: (type: 'text' | 'image' | 'multiple_choice' | 'text_input' | 'image_upload') => void; canAddQuestion: boolean; alwaysVisible?: boolean }) {
   const [open, setOpen] = React.useState(false)
   const revealed = open || alwaysVisible
   return (
@@ -1763,6 +1792,10 @@ function InlineInsertMenu({ onInsert, canAddQuestion, alwaysVisible = false }: {
               <DropdownMenuItem onClick={() => onInsert('text_input')}>
                 <FileText size={15} className="mr-2" />
                 Text input
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onInsert('image_upload')}>
+                <Upload size={15} className="mr-2" />
+                Image upload
               </DropdownMenuItem>
             </>
           )}
@@ -2100,6 +2133,7 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
   const variableBindings = completion.variable_bindings || completion.variableBindings || {}
   const hasBindings = Object.values(variableBindings.options || {}).some(Boolean)
     || Object.values(variableBindings.inputs || {}).some(Boolean)
+    || Boolean(variableBindings.image)
   const questionMode: 'scored' | 'variable' = completion.question_mode || (hasBindings ? 'variable' : 'scored')
   const patchQuestion = (patch: any) => onPatchBlock(block.id, patch)
   const patchContent = (patch: any) => patchQuestion({ content: { ...content, ...patch } })
@@ -2242,11 +2276,70 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
                 <VariablePathPicker
                   value={activeBinding?.target || ''}
                   variables={learningVariables}
+                  acceptedTypes={['text', 'number', 'boolean', 'option']}
+                  createValueType="text"
                   onBind={setMcqVariableTarget}
                   onCreateVariableKey={onCreateVariableKey}
                 />
               </div>
             </>
+          )}
+        </InspectorSection>
+      </>
+    )
+  }
+
+  if (block.kind === 'image_upload') {
+    const imageBindings = variableBindings.image || {}
+    const activeBinding = normalizeBinding(imageBindings)
+    return (
+      <>
+        {labelSection}
+        <InspectorSection label="Image upload">
+          <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm">
+            <span className="font-bold text-gray-700">Required</span>
+            <input
+              type="checkbox"
+              checked={completion.required !== false}
+              onChange={(event) => patchCompletion({ required: event.target.checked })}
+            />
+          </label>
+        </InspectorSection>
+        <InspectorSection label="Response handling">
+          <SegmentedControl
+            label="Mode"
+            value={questionMode}
+            options={[
+              { value: 'scored', label: 'Scored' },
+              { value: 'variable', label: 'Variable' },
+            ]}
+            onChange={setQuestionMode}
+          />
+          {questionMode === 'scored' ? (
+            <>
+              <SegmentedControl
+                label="Grading"
+                value={scoring.mode === 'manual' ? 'manual' : 'completion'}
+                options={[
+                  { value: 'completion', label: 'On completion' },
+                  { value: 'manual', label: 'Manual review' },
+                ]}
+                onChange={(value) => patchScoring({ mode: value })}
+              />
+              <TextField label="Points" type="number" value={String(scoring.points ?? 1)} onChange={(value) => patchScoring({ points: Number(value) })} />
+            </>
+          ) : (
+            <div>
+              <FieldLabel>Store image in</FieldLabel>
+              <VariablePathPicker
+                value={activeBinding?.target || ''}
+                variables={learningVariables}
+                acceptedTypes={['image']}
+                createValueType="image"
+                onBind={(target: string) => patchVariableBindings({ image: target ? [{ target }] : null })}
+                onCreateVariableKey={onCreateVariableKey}
+              />
+            </div>
           )}
         </InspectorSection>
       </>
@@ -2292,7 +2385,13 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
                   </label>
                   <select
                     value={input.variant === 'single_line' || Number(input.height) <= 56 ? 'single_line' : 'short_answer'}
-                    onChange={(event) => patchInput(input.id, { variant: event.target.value, height: event.target.value === 'single_line' ? 48 : Math.max(120, Number(input.height) || 160) })}
+                    onChange={(event) => {
+                      const variant = event.target.value
+                      patchInput(input.id, {
+                        variant,
+                        height: variant === 'single_line' ? 48 : Math.max(120, Number(input.height) || 160),
+                      })
+                    }}
                     className="h-8 rounded-lg border border-gray-200 px-2 text-xs font-bold outline-none focus:border-[var(--org-primary-color)]"
                   >
                     <option value="single_line">Single line</option>
@@ -2346,6 +2445,8 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
                     <VariablePathPicker
                       value={binding?.target || ''}
                       variables={learningVariables}
+                      acceptedTypes={['text', 'number', 'boolean', 'option']}
+                      createValueType="text"
                       onBind={(target: string) => {
                         const nextInputs = { ...inputBindings }
                         if (!target) delete nextInputs[input.id]
@@ -2545,6 +2646,7 @@ function VariableRegistry({ variables = [], onPatchVariable, onDeleteVariable }:
               <option value="number">Number</option>
               <option value="boolean">Boolean</option>
               <option value="option">Option</option>
+              <option value="image">Image</option>
             </select>
             <IconButton title="Delete variable" onClick={() => onDeleteVariable(variable)}><Trash2 size={15} /></IconButton>
           </div>

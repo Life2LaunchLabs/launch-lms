@@ -79,6 +79,7 @@ ONBOARDING_GOAL_PAGE_UUID = "learning_page_system_onboarding_goal"
 
 _SYSTEM_FIELDS = {"protected", "system_type"}
 _SAFE_CORE_VARIABLE_TARGETS = {"user.first_name", "user.last_name", "user.bio"}
+_SAFE_IMAGE_VARIABLE_TARGETS = {"user.avatar_image"}
 _SAFE_VARIABLE_PREFIXES = (
     "user.profile.onboarding.",
     "user.details.variables.",
@@ -423,9 +424,24 @@ def _validate_text_answer(question_content: dict, completion: dict, inputs: dict
         results[input_id] = {
             "text": text,
             "word_count": words,
+            "value_type": "text",
             **({"rich_text": value.get("rich_text")} if value.get("rich_text") is not None else {}),
         }
     return results
+
+
+def _validate_image_answer(completion: dict, answer: dict) -> dict:
+    image_url = str((answer or {}).get("url") or (answer or {}).get("image_url") or (answer or {}).get("imageUrl") or "").strip()
+    required = (completion or {}).get("required", True)
+    if required and not image_url:
+        raise HTTPException(status_code=422, detail="Required image response is missing")
+    return {
+        "url": image_url,
+        "name": str((answer or {}).get("name") or (answer or {}).get("filename") or "").strip(),
+        "content_type": str((answer or {}).get("content_type") or (answer or {}).get("contentType") or "").strip(),
+        "size": _as_int((answer or {}).get("size"), 0),
+        "value_type": "image",
+    }
 
 
 def _normalize_bindings(value) -> list[dict]:
@@ -464,15 +480,27 @@ def _extract_learning_variables(page: LearningPage, result: dict) -> list[dict]:
                 continue
             inputs = sub_result.get("inputs") or {}
             for input_id, answer in inputs.items():
-                text = str((answer or {}).get("text") or "").strip()
+                value = str((answer or {}).get("text") or "").strip()
                 for binding in _normalize_bindings(input_bindings.get(input_id)):
                     variables.append(
                         {
                             "target": str(binding.get("target") or ""),
-                            "value": text,
+                            "value": value,
                             "source": {"page_uuid": page.page_uuid, "block_id": block_id, "input_id": input_id},
                         }
                     )
+
+        if kind == "image_upload":
+            image_url = str(sub_result.get("url") or "").strip()
+            for binding in _normalize_bindings(bindings.get("image")):
+                variables.append(
+                    {
+                        "target": str(binding.get("target") or ""),
+                        "value": image_url,
+                        "value_type": "image",
+                        "source": {"page_uuid": page.page_uuid, "block_id": block_id},
+                    }
+                )
 
         if kind == "multiple_choice":
             option_bindings = bindings.get("options") or {}
@@ -523,7 +551,35 @@ def _question_variable_bindings(page: LearningPage, question: dict) -> dict:
     return _variable_bindings(page)
 
 
-def _is_safe_variable_target(target: str, value, user: User, allow_email_write: bool = False) -> tuple[bool, str | None]:
+def _target_value_type(db_session: Session, org_id: int | None, target: str) -> str:
+    if target in _SAFE_IMAGE_VARIABLE_TARGETS:
+        return "image"
+    if target in _SAFE_CORE_VARIABLE_TARGETS or target == "user.email":
+        return "text"
+    if target.startswith("user.details.variables.") and org_id is not None:
+        variable_key = target[len("user.details.variables."):]
+        variable = db_session.exec(
+            select(LearningVariable).where(LearningVariable.org_id == org_id, LearningVariable.key == variable_key)
+        ).first()
+        if variable:
+            return str(variable.value_type or "text")
+    return "text"
+
+
+def _is_variable_value_type_compatible(expected: str, actual: str, value) -> bool:
+    if expected == "image":
+        return actual == "image" and bool(str(value or "").strip())
+    if actual == "image":
+        return False
+    return expected in ("text", "number", "boolean", "option")
+
+
+def _is_safe_variable_target(target: str, value, user: User, db_session: Session, org_id: int | None = None, value_type: str = "text", allow_email_write: bool = False) -> tuple[bool, str | None]:
+    expected_type = _target_value_type(db_session, org_id, target)
+    if not _is_variable_value_type_compatible(expected_type, value_type, value):
+        return False, f"{expected_type.title()} variables cannot store {value_type} responses"
+    if target in _SAFE_IMAGE_VARIABLE_TARGETS:
+        return True, None
     if target in _SAFE_CORE_VARIABLE_TARGETS:
         return True, None
     if target == "user.email":
@@ -559,6 +615,7 @@ def _apply_learning_variables_to_user(
     db_session: Session,
     user: User,
     variables: list[dict],
+    org_id: int | None = None,
     allow_email_write: bool = False,
 ) -> tuple[list[dict], list[dict]]:
     applied: list[dict] = []
@@ -567,7 +624,8 @@ def _apply_learning_variables_to_user(
     for variable in variables:
         target = str(variable.get("target") or "")
         value = variable.get("value")
-        safe, reason = _is_safe_variable_target(target, value, user, allow_email_write=allow_email_write)
+        value_type = str(variable.get("value_type") or "text")
+        safe, reason = _is_safe_variable_target(target, value, user, db_session, org_id=org_id, value_type=value_type, allow_email_write=allow_email_write)
         if not safe:
             skipped.append({**variable, "reason": reason or "Target is not writable"})
             continue
@@ -578,6 +636,8 @@ def _apply_learning_variables_to_user(
             user.last_name = str(value or "").strip()
         elif target == "user.bio":
             user.bio = str(value or "").strip()
+        elif target == "user.avatar_image":
+            user.avatar_image = str(value or "").strip()
         elif target == "user.email":
             user.email = str(value or "").strip()
         elif target.startswith("user.profile."):
@@ -669,6 +729,25 @@ def _grade_text_block(page: LearningPage, question: dict, answer: dict) -> dict:
     return {**base, "is_correct": None, "score": None, "grading_status": "not_required"}
 
 
+def _grade_image_block(page: LearningPage, question: dict, answer: dict) -> dict:
+    completion = _block_completion(page, question)
+    image = _validate_image_answer(completion, answer or {})
+    scoring = _block_scoring(page, question)
+    mode = scoring.get("mode") or "manual"
+    points = _as_float(scoring.get("points"), 1.0)
+    base = {
+        "kind": "image_upload",
+        **image,
+        "points": points,
+        "max_score": points,
+    }
+    if mode == "manual":
+        return {**base, "is_correct": None, "score": None, "grading_status": "pending"}
+    if mode == "completion":
+        return {**base, "is_correct": True, "score": points, "grading_status": "graded"}
+    return {**base, "is_correct": None, "score": None, "grading_status": "not_required"}
+
+
 def _grade_answer(page: LearningPage, answer: dict) -> tuple[bool | None, float | None, str | None, dict]:
     questions = _question_blocks(page)
     if not questions:
@@ -683,6 +762,8 @@ def _grade_answer(page: LearningPage, answer: dict) -> tuple[bool | None, float 
             sub_results[block_id] = _grade_mcq_block(page, question, sub_answer)
         elif question.get("kind") == "text_input":
             sub_results[block_id] = _grade_text_block(page, question, sub_answer)
+        elif question.get("kind") == "image_upload":
+            sub_results[block_id] = _grade_image_block(page, question, sub_answer)
 
     subs = list(sub_results.values())
     if not subs:
@@ -831,7 +912,7 @@ def _has_pending_required_manual_grades(db_session: Session, run: LearningRun) -
         page
         for page in required_pages
         if any(
-            question.get("kind") == "text_input" and _block_scoring(page, question).get("mode") == "manual"
+            question.get("kind") in ("text_input", "image_upload") and _block_scoring(page, question).get("mode") == "manual"
             for question in _question_blocks(page)
         )
     ]
@@ -1566,6 +1647,35 @@ async def upload_page_media(
     return {"url": f"/content/orgs/{org.org_uuid}/learning_pages/{page.page_uuid}/media/{filename}"}
 
 
+async def upload_response_media(
+    request: Request,
+    page_uuid: str,
+    current_user: PublicUser | AnonymousUser,
+    db_session: Session,
+    media_file: UploadFile | None = None,
+) -> dict:
+    user = _require_user(current_user)
+    page = _get_page(db_session, page_uuid)
+    badge = db_session.get(LearningBadge, page.badge_id)
+    if not badge:
+        raise HTTPException(status_code=404, detail="Badge not found")
+    _ensure_read_badge(db_session, badge, current_user)
+    org = _get_org(db_session, page.org_id)
+
+    if not media_file or not media_file.filename:
+        raise HTTPException(status_code=400, detail="Media file is required")
+
+    filename = await upload_file(
+        file=media_file,
+        directory=f"learning_responses/{page.page_uuid}/{user.user_uuid}",
+        type_of_dir="orgs",
+        uuid=org.org_uuid,
+        allowed_types=["image"],
+        filename_prefix="response",
+    )
+    return {"url": f"/content/orgs/{org.org_uuid}/learning_responses/{page.page_uuid}/{user.user_uuid}/{filename}"}
+
+
 _VARIABLE_SEGMENT_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
@@ -1750,7 +1860,7 @@ async def submit_response(request: Request, data: LearningResponseSubmit, actor:
         if actor.user_id is not None:
             user = db_session.get(User, actor.user_id)
             if user:
-                applied, skipped = _apply_learning_variables_to_user(db_session, user, variables)
+                applied, skipped = _apply_learning_variables_to_user(db_session, user, variables, org_id=page.org_id)
                 result = {
                     **result,
                     "variables_applied": applied,

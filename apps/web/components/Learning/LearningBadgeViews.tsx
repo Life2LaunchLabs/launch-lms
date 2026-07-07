@@ -16,6 +16,7 @@ import {
   completeLearningPage,
   startLearningRun,
   submitLearningResponse,
+  uploadLearningResponseMedia,
 } from '@services/learning/learning'
 import {
   findQuestionBlock,
@@ -200,7 +201,7 @@ export function LearningPageContent({ page, answer, setAnswer, setUnlocked, page
   if (page.page_type === 'standard') {
     return <StandardPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} run={run} />
   }
-  if (page.page_type === 'multiple_choice' || page.page_type === 'text_input') {
+  if (page.page_type === 'multiple_choice' || page.page_type === 'text_input' || page.page_type === 'image_upload') {
     return <InfoPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} />
   }
   if (page.page_type === 'question_response') {
@@ -318,7 +319,7 @@ function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editab
   }
 
   if (block.type === 'question') {
-    const label = String(block.content?.label || '').trim()
+    const label = block.kind === 'image_upload' ? '' : String(block.content?.label || '').trim()
     return (
       <section className="learning-info-stack-section" style={blockStyle}>
         {label && <p className="text-lg font-bold text-gray-900">{label}</p>}
@@ -1289,7 +1290,16 @@ function QuestionTextInputSection({
 }
 
 function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, onActivate, showChrome, onChromeHoverChange }: any) {
+  const session = useLHSession() as any
+  const accessToken = session.data?.tokens?.access_token
+  const [uploadingInputId, setUploadingInputId] = React.useState<string | null>(null)
   const titleRef = React.useRef<HTMLElement | null>(null)
+  React.useEffect(() => {
+    if (page.page_type !== 'image_upload') return
+    const imageUrl = answer?.url || answer?.image_url || ''
+    setUnlocked(page.completion?.required === false || Boolean(imageUrl))
+  }, [answer?.image_url, answer?.url, page.completion?.required, page.page_type, setUnlocked])
+
   if (page.page_type === 'multiple_choice') {
     const options = page.content?.options || []
     const visibleOptions = options.length ? options : [{ id: 'a', text: '' }, { id: 'b', text: '' }]
@@ -1430,6 +1440,73 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
             ))}
           </div>
         )}
+      </div>
+    )
+  }
+
+  if (page.page_type === 'image_upload') {
+    const completion = page.completion || {}
+    const imageUrl = answer?.url || answer?.image_url || ''
+    const updateImageAnswer = async (file: File | null) => {
+      if (!file || editable || !accessToken) return
+      const formData = new FormData()
+      formData.append('media', file)
+      setUploadingInputId('image')
+      try {
+        const result = await uploadLearningResponseMedia(page.page_uuid, formData, accessToken)
+        setAnswer({
+          url: result.url,
+          name: file.name,
+          content_type: file.type,
+          size: file.size,
+          value_type: 'image',
+        })
+        setUnlocked(true)
+      } catch (error: any) {
+        toast.error(error?.message || 'Image upload failed')
+      } finally {
+        setUploadingInputId(null)
+      }
+    }
+
+    return (
+      <div className="learning-question-block" onMouseDown={() => editable && onActivate()}>
+        {(editable || page.content?.label) ? (
+          <EditableText
+            editable={editable}
+            value={page.content?.label || ''}
+            placeholder="Question label"
+            onChange={(value: string) => onPagePatch?.({ content: { ...(page.content || {}), label: value } })}
+            className="mb-3 min-w-0 text-lg font-bold leading-7 text-gray-900"
+          />
+        ) : null}
+        <label
+          className={`flex min-h-56 w-full cursor-pointer flex-col items-center justify-center gap-3 overflow-hidden rounded-xl border border-dashed bg-white p-4 text-center shadow-sm transition ${imageUrl ? 'border-gray-200' : 'border-gray-300 hover:border-[var(--org-primary-color)]'}`}
+        >
+          {imageUrl ? (
+            <img src={imageUrl} alt="" className="max-h-64 w-full rounded-lg object-contain" />
+          ) : uploadingInputId === 'image' ? (
+            <Loader2 size={24} className="animate-spin text-gray-400" />
+          ) : (
+            <Upload size={24} className="text-gray-400" />
+          )}
+          <span className="text-sm font-bold text-gray-600">
+            {uploadingInputId === 'image' ? 'Uploading image' : imageUrl ? 'Replace image' : (editable ? 'Image upload' : 'Upload image')}
+          </span>
+          {!editable && (
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={uploadingInputId === 'image'}
+              onChange={(event) => {
+                const file = event.target.files?.[0] || null
+                event.target.value = ''
+                void updateImageAnswer(file)
+              }}
+            />
+          )}
+        </label>
       </div>
     )
   }
@@ -1990,7 +2067,7 @@ function createQuestionBlock() {
 }
 
 function isLearningQuestionPage(page: any) {
-  return page?.page_type === 'multiple_choice' || page?.page_type === 'text_input'
+  return page?.page_type === 'multiple_choice' || page?.page_type === 'text_input' || page?.page_type === 'image_upload'
 }
 
 function isQuestionResponseRequired(page: any) {

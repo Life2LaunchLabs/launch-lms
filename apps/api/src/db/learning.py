@@ -17,6 +17,7 @@ class LearningVariableValueType(str, Enum):
     NUMBER = "number"
     BOOLEAN = "boolean"
     OPTION = "option"
+    IMAGE = "image"
 
 
 class LearningRunStatus(str, Enum):
