@@ -112,32 +112,30 @@ const BadgesPage = async (params: any) => {
 
   try {
     const response = await getLearningBadgeCollections(
-      org.id,
+      undefined,
       access_token ?? undefined,
       false,
       { revalidate: 0, tags: ['learning-badges'] }
     )
     const rawLearningCollections = response.success ? response.data : response
     collections = [
-      ...learningCollectionsToLegacyCollections(rawLearningCollections, org),
+      ...learningCollectionsToLegacyCollections(rawLearningCollections),
       ...collections,
     ]
   } catch (error: any) {
     console.error('Failed to load badge collections', {
       orgslug,
-      org_id: org.id,
       error,
     })
   }
 
   if (access_token) {
     try {
-      const awards = await getLearningBadgeAwards(org.id, access_token)
+      const awards = await getLearningBadgeAwards(undefined, access_token)
       earnedBadgeUuids = new Set((awards || []).map(getAwardedBadgeUuid).map(cleanBadgeUuid).filter(Boolean))
     } catch (error: any) {
       console.error('Failed to load earned badges for catalog filtering', {
         orgslug,
-        org_id: org.id,
         error,
       })
     }

@@ -60,7 +60,7 @@ async def api_create_badge(
 @badges_router.get("/")
 async def api_list_badges(
     request: Request,
-    org_id: int = Query(...),
+    org_id: int | None = Query(None),
     admin: bool = Query(False),
     current_user=Depends(get_current_user),
     db_session=Depends(get_db_session),
@@ -136,7 +136,7 @@ async def api_create_collection(
 @collections_router.get("/")
 async def api_list_collections(
     request: Request,
-    org_id: int = Query(...),
+    org_id: int | None = Query(None),
     admin: bool = Query(False),
     current_user=Depends(get_current_user),
     db_session=Depends(get_db_session),

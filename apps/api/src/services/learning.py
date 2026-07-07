@@ -1223,9 +1223,12 @@ async def get_badge(request: Request, badge_uuid: str, current_user: PublicUser 
     return LearningBadgeRead(**badge.model_dump())
 
 
-async def list_badges(request: Request, org_id: int, current_user: PublicUser | AnonymousUser, db_session: Session, admin: bool = False) -> list[LearningBadgeRead]:
-    _ensure_onboarding_for_owner_org(db_session, org_id)
+async def list_badges(request: Request, org_id: int | None, current_user: PublicUser | AnonymousUser, db_session: Session, admin: bool = False) -> list[LearningBadgeRead]:
+    if org_id is not None:
+        _ensure_onboarding_for_owner_org(db_session, org_id)
     if admin:
+        if org_id is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="org_id is required for admin badge listing")
         _require_org_admin(db_session, current_user, org_id)
         statement = select(LearningBadge).where(LearningBadge.org_id == org_id)
     else:
@@ -1284,14 +1287,20 @@ async def delete_collection(request: Request, collection_uuid: str, current_user
     return {"detail": "Badge collection deleted"}
 
 
-async def list_collections(request: Request, org_id: int, current_user: PublicUser | AnonymousUser, db_session: Session, admin: bool = False) -> list[BadgeCollectionRead]:
-    _ensure_onboarding_for_owner_org(db_session, org_id)
+async def list_collections(request: Request, org_id: int | None, current_user: PublicUser | AnonymousUser, db_session: Session, admin: bool = False) -> list[BadgeCollectionRead]:
+    if org_id is not None:
+        _ensure_onboarding_for_owner_org(db_session, org_id)
     if admin:
+        if org_id is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="org_id is required for admin badge collection listing")
         _require_org_admin(db_session, current_user, org_id)
         collections = db_session.exec(select(BadgeCollection).where(BadgeCollection.org_id == org_id)).all()
         badges = db_session.exec(select(LearningBadge).where(LearningBadge.org_id == org_id)).all()
     else:
-        collections = db_session.exec(select(BadgeCollection).where(BadgeCollection.org_id == org_id, BadgeCollection.public == True, BadgeCollection.hidden == False)).all()
+        collection_statement = select(BadgeCollection).where(BadgeCollection.public == True, BadgeCollection.hidden == False)
+        if org_id is not None:
+            collection_statement = collection_statement.where(BadgeCollection.org_id == org_id)
+        collections = db_session.exec(collection_statement).all()
         badges = db_session.exec(_public_badge_query(org_id)).all()
     badges_by_collection: dict[int, list[LearningBadge]] = {}
     for badge in badges:
