@@ -119,7 +119,7 @@ export default async function PodcastPage({ params }: { params: PageParams }) {
   if (!podcastMeta) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <p className="text-gray-500">Podcast not found</p>
+        <p className="text-muted-foreground">Podcast not found</p>
       </div>
     )
   }

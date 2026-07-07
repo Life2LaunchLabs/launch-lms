@@ -110,7 +110,7 @@ export default function ResourceDetailClient({ orgslug, resourceUuid }: { orgslu
         <div className="mb-4 flex justify-end">
           <button
             onClick={() => router.back()}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors"
           >
             <X size={15} />
           </button>
@@ -121,7 +121,7 @@ export default function ResourceDetailClient({ orgslug, resourceUuid }: { orgslu
           {/* Hero */}
           <div>
             {/* Mobile: full-width image above */}
-            <div className="sm:hidden aspect-[4/3] w-full overflow-hidden rounded-2xl bg-gray-100 mb-4">
+            <div className="sm:hidden aspect-[4/3] w-full overflow-hidden rounded-2xl bg-muted mb-4">
               <ResourceTypeVisual
                 type={resource.resource_type}
                 title={resource.title}
@@ -133,7 +133,7 @@ export default function ResourceDetailClient({ orgslug, resourceUuid }: { orgslu
             {/* Content row */}
             <div className="flex gap-5">
               {/* Desktop square image */}
-              <div className="hidden sm:block aspect-square w-44 shrink-0 overflow-hidden rounded-xl bg-gray-100">
+              <div className="hidden sm:block aspect-square w-44 shrink-0 overflow-hidden rounded-xl bg-muted">
                 <ResourceTypeVisual
                   type={resource.resource_type}
                   title={resource.title}
@@ -143,12 +143,12 @@ export default function ResourceDetailClient({ orgslug, resourceUuid }: { orgslu
               </div>
               {/* Text */}
               <div className="flex-1 min-w-0">
-                <div className="text-xs uppercase tracking-wide text-gray-400 font-medium">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
                   {resource.resource_type}{resource.provider_name ? ` · ${resource.provider_name}` : ''}
                 </div>
-                <h1 className="mt-1.5 text-2xl font-bold text-gray-900 leading-tight">{resource.title}</h1>
+                <h1 className="mt-1.5 text-2xl font-bold text-foreground leading-tight">{resource.title}</h1>
                 {resource.description && (
-                  <p className="mt-3 text-sm text-gray-600 leading-relaxed">{resource.description}</p>
+                  <p className="mt-3 text-sm text-muted-foreground leading-relaxed">{resource.description}</p>
                 )}
               </div>
             </div>
@@ -177,7 +177,7 @@ export default function ResourceDetailClient({ orgslug, resourceUuid }: { orgslu
             {/* Share */}
             <button
               onClick={() => setShareOpen(true)}
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 text-gray-600 hover:border-gray-400 transition-colors"
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-border text-muted-foreground hover:border-gray-400 transition-colors"
               aria-label="Share resource"
               title="Share resource"
             >
@@ -187,46 +187,46 @@ export default function ResourceDetailClient({ orgslug, resourceUuid }: { orgslu
             {/* Comments — scrolls to section */}
             <button
               onClick={() => document.getElementById('resource-comments')?.scrollIntoView({ behavior: 'smooth' })}
-              className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-600 hover:border-gray-400 transition-colors"
+              className="flex items-center gap-1.5 rounded-xl border border-border px-3 py-2.5 text-sm text-muted-foreground hover:border-gray-400 transition-colors"
             >
               <MessageCircle size={14} />
               {resource.comment_count}
             </button>
 
             {/* Opens — display only */}
-            <div className="flex items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-500">
+            <div className="flex items-center gap-1.5 rounded-xl border border-border px-3 py-2.5 text-sm text-muted-foreground">
               <Eye size={14} />
               {resource.user_state?.open_count || 0}
             </div>
           </div>
 
           {/* Outcomes */}
-          <div className="rounded-2xl border border-gray-100 bg-white nice-shadow p-5">
-            <h2 className="text-base font-semibold text-gray-900">Outcomes</h2>
+          <div className="rounded-2xl border border-border bg-card nice-shadow p-5">
+            <h2 className="text-base font-semibold text-foreground">Outcomes</h2>
             {accessToken ? (
               <div className="mt-4 space-y-3">
                 <textarea
                   value={notesDraft ?? resource.user_state?.notes ?? ''}
                   onChange={(e) => setNotesDraft(e.target.value)}
                   rows={3}
-                  className="w-full resize-none rounded-xl border border-gray-200 p-3 text-sm outline-none focus:border-gray-400"
+                  className="w-full resize-none rounded-xl border border-border p-3 text-sm outline-none focus:border-gray-400"
                   placeholder="Private notes"
                 />
                 <textarea
                   value={outcomeTextDraft ?? resource.user_state?.outcome_text ?? ''}
                   onChange={(e) => setOutcomeTextDraft(e.target.value)}
                   rows={3}
-                  className="w-full resize-none rounded-xl border border-gray-200 p-3 text-sm outline-none focus:border-gray-400"
+                  className="w-full resize-none rounded-xl border border-border p-3 text-sm outline-none focus:border-gray-400"
                   placeholder="Outcome details"
                 />
                 <input
                   value={outcomeLinkDraft ?? resource.user_state?.outcome_link ?? ''}
                   onChange={(e) => setOutcomeLinkDraft(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 p-3 text-sm outline-none focus:border-gray-400"
+                  className="w-full rounded-xl border border-border p-3 text-sm outline-none focus:border-gray-400"
                   placeholder="Outcome link"
                 />
                 <div className="flex items-center gap-3">
-                  <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-gray-300 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                  <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-border px-4 py-2.5 text-sm text-muted-foreground hover:bg-muted transition-colors">
                     <Upload size={14} />
                     Upload file
                     <input type="file" className="hidden" onChange={(e) => handleOutcomeUpload(e.target.files?.[0])} />
@@ -245,12 +245,12 @@ export default function ResourceDetailClient({ orgslug, resourceUuid }: { orgslu
                 </button>
               </div>
             ) : (
-              <p className="mt-3 text-sm text-gray-500">Sign in to save this resource and track your outcomes.</p>
+              <p className="mt-3 text-sm text-muted-foreground">Sign in to save this resource and track your outcomes.</p>
             )}
           </div>
 
           {/* Comments */}
-          <div id="resource-comments" className="overflow-hidden rounded-2xl bg-white nice-shadow">
+          <div id="resource-comments" className="overflow-hidden rounded-2xl bg-card nice-shadow">
             <ResourceComments resourceUuid={resource.resource_uuid} />
           </div>
 
@@ -260,14 +260,14 @@ export default function ResourceDetailClient({ orgslug, resourceUuid }: { orgslu
       {/* Return prompt */}
       {showReturnPrompt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-3xl bg-white p-6 nice-shadow">
+          <div className="w-full max-w-lg rounded-3xl bg-card p-6 nice-shadow">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Add outcome details?</h2>
-                <p className="mt-2 text-sm text-gray-500">You just returned from this resource. Add any notes, results, or a link while it's fresh.</p>
+                <h2 className="text-xl font-semibold text-foreground">Add outcome details?</h2>
+                <p className="mt-2 text-sm text-muted-foreground">You just returned from this resource. Add any notes, results, or a link while it's fresh.</p>
               </div>
               <button
-                className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+                className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted transition-colors"
                 onClick={() => setShowReturnPrompt(false)}
               >
                 <X size={16} />
@@ -278,13 +278,13 @@ export default function ResourceDetailClient({ orgslug, resourceUuid }: { orgslu
                 value={outcomeTextDraft ?? resource.user_state?.outcome_text ?? ''}
                 onChange={(e) => setOutcomeTextDraft(e.target.value)}
                 rows={4}
-                className="w-full resize-none rounded-xl border border-gray-200 p-3 text-sm"
+                className="w-full resize-none rounded-xl border border-border p-3 text-sm"
                 placeholder="Outcome details"
               />
               <input
                 value={outcomeLinkDraft ?? resource.user_state?.outcome_link ?? ''}
                 onChange={(e) => setOutcomeLinkDraft(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 p-3 text-sm"
+                className="w-full rounded-xl border border-border p-3 text-sm"
                 placeholder="Outcome link"
               />
               <button

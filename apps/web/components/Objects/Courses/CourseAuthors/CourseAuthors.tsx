@@ -57,7 +57,7 @@ const MultipleAuthors = ({ authors, isMobile }: { authors: Author[], isMobile: b
 
   return (
     <div className="flex flex-col items-center space-y-4 px-2 py-2">
-      <div className="text-[12px] text-neutral-400 font-semibold self-start">{t('courses.authors_and_updates')} </div>
+      <div className="text-[12px] text-muted-foreground font-semibold self-start">{t('courses.authors_and_updates')} </div>
       
       {/* Avatars row */}
       <div className="flex justify-center -space-x-6 relative">
@@ -86,7 +86,7 @@ const MultipleAuthors = ({ authors, isMobile }: { authors: Author[], isMobile: b
             style={{ zIndex: 0 }}
           >
             <div 
-              className="flex items-center justify-center bg-neutral-100 text-neutral-600 font-medium rounded-full border-4 border-white shadow-sm"
+              className="flex items-center justify-center bg-muted text-muted-foreground font-medium rounded-full border-4 border-white shadow-sm"
               style={{ 
                 width: `${avatarSize}px`, 
                 height: `${avatarSize}px`,
@@ -101,7 +101,7 @@ const MultipleAuthors = ({ authors, isMobile }: { authors: Author[], isMobile: b
 
       {/* Names row - improved display logic */}
       <div className="text-center mt-2">
-        <div className="text-sm font-medium text-neutral-800">
+        <div className="text-sm font-medium text-foreground">
           {authors.length === 1 ? (
             <span>
               {authors[0].user.first_name && authors[0].user.last_name
@@ -119,14 +119,14 @@ const MultipleAuthors = ({ authors, isMobile }: { authors: Author[], isMobile: b
                 </span>
               ))}
               {authors.length > 2 && (
-                <span className="text-neutral-500 ml-1">
+                <span className="text-muted-foreground ml-1">
                   & {t('courses.and_x_more', { count: authors.length - 2 })}
                 </span>
               )}
             </>
           )}
         </div>
-        <div className="text-xs text-neutral-500 mt-0.5">
+        <div className="text-xs text-muted-foreground mt-0.5">
           {authors.length === 1 ? (
             <span>@{authors[0].user.username}</span>
           ) : (
@@ -162,11 +162,11 @@ const UpdatesSection = () => {
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center space-x-3">
           <div className="flex items-center space-x-2">
-            <Rss size={14} className="text-neutral-400" />
-            <span className="text-sm font-semibold text-neutral-600">{t('courses.course_updates')}</span>
+            <Rss size={14} className="text-muted-foreground" />
+            <span className="text-sm font-semibold text-muted-foreground">{t('courses.course_updates')}</span>
           </div>
           {updates && updates.length > 0 && (
-            <span className="px-2 py-0.5 text-[11px] font-medium bg-neutral-100 text-neutral-500 rounded-full">
+            <span className="px-2 py-0.5 text-[11px] font-medium bg-muted text-muted-foreground rounded-full">
               {updates.length} {updates.length === 1 ? t('courses.update') : t('courses.updates')}
             </span>
           )}
@@ -178,8 +178,8 @@ const UpdatesSection = () => {
               inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-medium
               transition-colors duration-150
               ${selectedView === 'new' 
-                ? 'bg-neutral-200 text-neutral-700 hover:bg-neutral-300' 
-                : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                ? 'bg-muted text-muted-foreground hover:bg-neutral-300' 
+                : 'bg-muted text-muted-foreground hover:bg-muted'
               }
             `}
           >
@@ -257,7 +257,7 @@ const NewUpdateForm = ({ setSelectedView }: { setSelectedView: (view: string) =>
               type="text"
               required
               placeholder={t('courses.update_title_placeholder')}
-              className="bg-white border-neutral-200 focus:border-neutral-300 focus:ring-neutral-200"
+              className="bg-card border-border focus:border-border focus:ring-border"
             />
           </Form.Control>
         </FormField>
@@ -272,7 +272,7 @@ const NewUpdateForm = ({ setSelectedView }: { setSelectedView: (view: string) =>
               value={formik.values.content}
               required
               placeholder={t('courses.update_content_placeholder')}
-              className="bg-white h-[120px] border-neutral-200 focus:border-neutral-300 focus:ring-neutral-200 resize-none"
+              className="bg-card h-[120px] border-border focus:border-border focus:ring-border resize-none"
             />
           </Form.Control>
         </FormField>
@@ -302,10 +302,10 @@ const UpdatesListView = () => {
 
   if (!updates || updates.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-8 px-4 text-center bg-neutral-50/50 rounded-lg border border-dashed border-neutral-200">
-        <TentTree size={28} className="text-neutral-400 mb-2" />
-        <p className="text-sm text-neutral-600 font-medium">{t('courses.no_updates_yet')}</p>
-        <p className="text-xs text-neutral-400 mt-1">{t('courses.no_updates_desc')}</p>
+      <div className="flex flex-col items-center justify-center py-8 px-4 text-center bg-muted/50 rounded-lg border border-dashed border-border">
+        <TentTree size={28} className="text-muted-foreground mb-2" />
+        <p className="text-sm text-muted-foreground font-medium">{t('courses.no_updates_yet')}</p>
+        <p className="text-xs text-muted-foreground mt-1">{t('courses.no_updates_desc')}</p>
       </div>
     )
   }
@@ -318,20 +318,20 @@ const UpdatesListView = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.2 }}
-          className="group p-3 rounded-lg bg-neutral-50/50 hover:bg-neutral-100/80 transition-colors duration-150"
+          className="group p-3 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors duration-150"
         >
           <div className="flex items-start justify-between">
             <div className="space-y-1 min-w-0 flex-1">
               <div className="flex items-baseline space-x-2">
-                <h4 className="text-sm font-medium text-neutral-800 truncate">{update.title}</h4>
+                <h4 className="text-sm font-medium text-foreground truncate">{update.title}</h4>
                 <span
                   title={dayjs(update.creation_date).format('MMMM D, YYYY')}
-                  className="text-[11px] font-medium text-neutral-400 whitespace-nowrap"
+                  className="text-[11px] font-medium text-muted-foreground whitespace-nowrap"
                 >
                   {dayjs(update.creation_date).fromNow()}
                 </span>
               </div>
-              <p className="text-sm text-neutral-600 line-clamp-3">{update.content}</p>
+              <p className="text-sm text-muted-foreground line-clamp-3">{update.content}</p>
             </div>
             {adminStatus.isAdmin && !adminStatus.loading && (
               <div className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -376,7 +376,7 @@ const DeleteUpdateButton = ({ update }: any) => {
       dialogTrigger={
         <button
           id="delete-update-button"
-          className="p-1.5 text-neutral-400 hover:text-rose-500 rounded-full hover:bg-rose-50 transition-all duration-150"
+          className="p-1.5 text-muted-foreground hover:text-rose-500 rounded-full hover:bg-rose-50 transition-all duration-150"
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

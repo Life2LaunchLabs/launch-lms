@@ -118,12 +118,12 @@ export default function NewUserResourceChannelModal({
 
   return (
     <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 nice-shadow">
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-card p-6 nice-shadow">
         <div className="mb-5 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">{isEditing ? 'Edit channel' : 'New channel'}</h3>
+          <h3 className="text-lg font-semibold text-foreground">{isEditing ? 'Edit channel' : 'New channel'}</h3>
           <button
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted transition-colors"
           >
             <X size={18} />
           </button>
@@ -137,7 +137,7 @@ export default function NewUserResourceChannelModal({
                 className={`h-8 rounded-lg px-3 text-sm font-medium transition-colors ${
                   editingPicker
                     ? 'bg-black text-white hover:bg-gray-800'
-                    : 'text-gray-600 hover:bg-white hover:text-gray-900'
+                    : 'text-muted-foreground hover:bg-card hover:text-foreground'
                 }`}
               >
                 {editingPicker ? 'Done' : 'Edit'}
@@ -167,9 +167,9 @@ export default function NewUserResourceChannelModal({
                   editingPicker ? 'ml-3 translate-x-0 opacity-100' : 'pointer-events-none translate-x-4 opacity-0'
                 }`}
               >
-                <div className="relative mb-2 inline-grid grid-cols-2 rounded-lg bg-gray-100 p-1 shadow-inner ring-1 ring-gray-200/70">
+                <div className="relative mb-2 inline-grid grid-cols-2 rounded-lg bg-muted p-1 shadow-inner ring-1 ring-border/70">
                   <span
-                    className={`absolute top-1 h-[calc(100%-0.5rem)] w-[calc(50%-0.25rem)] rounded-md bg-white shadow-sm transition-transform duration-200 ease-out ${
+                    className={`absolute top-1 h-[calc(100%-0.5rem)] w-[calc(50%-0.25rem)] rounded-md bg-card shadow-sm transition-transform duration-200 ease-out ${
                       pickerMode === 'color' ? 'translate-x-full' : 'translate-x-0'
                     }`}
                   />
@@ -180,8 +180,8 @@ export default function NewUserResourceChannelModal({
                       onClick={() => setPickerMode(mode)}
                       className={`relative z-10 rounded-md px-3 py-1 text-xs font-medium capitalize transition-colors ${
                         pickerMode === mode
-                          ? 'text-gray-950'
-                          : 'text-gray-500 hover:text-gray-900'
+                          ? 'text-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
                       {mode}
@@ -199,8 +199,8 @@ export default function NewUserResourceChannelModal({
                           title={optionName}
                           className={`flex aspect-square items-center justify-center rounded-lg border transition-colors ${
                             selectedIcon === optionName
-                              ? 'border-black bg-white text-gray-900'
-                              : 'border-gray-200 bg-white/70 text-gray-500 hover:bg-white'
+                              ? 'border-black bg-card text-foreground'
+                              : 'border-border bg-card/70 text-muted-foreground hover:bg-card'
                           }`}
                         >
                           <Icon size={17} />
@@ -218,7 +218,7 @@ export default function NewUserResourceChannelModal({
                           className={`flex aspect-square items-center justify-center rounded-lg border transition-transform ${
                             selectedColor.name === option.name
                               ? 'border-black ring-2 ring-black/10'
-                              : 'border-gray-200 hover:scale-105'
+                              : 'border-border hover:scale-105'
                           }`}
                           style={{ background: option.background }}
                         >
@@ -232,22 +232,22 @@ export default function NewUserResourceChannelModal({
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Title</label>
+            <label className="mb-1 block text-sm font-medium text-muted-foreground">Title</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400"
+              className="w-full rounded-xl border border-border px-3 py-2 text-sm outline-none focus:border-gray-400"
               placeholder="Channel name"
               autoFocus
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
+            <label className="mb-1 block text-sm font-medium text-muted-foreground">Description</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-400"
+              className="w-full resize-none rounded-xl border border-border px-3 py-2 text-sm outline-none focus:border-gray-400"
               placeholder="Optional description"
               rows={3}
             />
@@ -256,7 +256,7 @@ export default function NewUserResourceChannelModal({
         <div className="mt-5 flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="rounded-xl border border-gray-200 px-4 py-2 text-sm hover:bg-gray-50 transition-colors"
+            className="rounded-xl border border-border px-4 py-2 text-sm hover:bg-muted transition-colors"
           >
             Cancel
           </button>

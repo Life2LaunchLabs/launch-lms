@@ -232,7 +232,7 @@ const LaunchLMSPlayer: React.FC<LaunchLMSPlayerProps> = ({
     <div
       ref={containerRef}
       className={`launch-lms-player relative w-full aspect-video overflow-hidden bg-black ${
-        isMobile ? 'rounded-none' : 'rounded-xl shadow-md shadow-gray-300/25 outline outline-1 outline-neutral-200/40'
+        isMobile ? 'rounded-none' : 'rounded-xl shadow-md shadow-gray-300/25 outline outline-1 outline-border/40'
       }`}
       onMouseMove={!isMobile ? resetHideControlsTimer : undefined}
       onMouseLeave={!isMobile ? () => isPlaying && setShowControls(false) : undefined}
@@ -314,12 +314,12 @@ const LaunchLMSPlayer: React.FC<LaunchLMSPlayerProps> = ({
             />
             {/* Progress */}
             <div
-              className="absolute inset-y-0 left-0 bg-white rounded-full"
+              className="absolute inset-y-0 left-0 bg-card rounded-full"
               style={{ width: `${played * 100}%` }}
             />
             {/* Thumb */}
             <div
-              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow opacity-0 group-hover/progress:opacity-100 transition-opacity"
+              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-card rounded-full shadow opacity-0 group-hover/progress:opacity-100 transition-opacity"
               style={{ left: `calc(${played * 100}% - 6px)` }}
             />
           </div>
@@ -367,7 +367,7 @@ const LaunchLMSPlayer: React.FC<LaunchLMSPlayerProps> = ({
                     step={0.05}
                     value={isMuted ? 0 : volume}
                     onChange={handleVolumeChange}
-                    className="w-full h-1 bg-white/30 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+                    className="w-full h-1 bg-white/30 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-card"
                   />
                 </div>
               </div>

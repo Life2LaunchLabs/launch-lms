@@ -14,11 +14,11 @@ const buttonVariants = cva(
         brand:
           "bg-[var(--org-primary-color)] font-semibold text-white shadow-[0_4px_0_rgba(0,0,0,0.22)] transition-transform hover:-translate-y-0.5 hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--org-primary-color)] focus-visible:ring-0 active:translate-y-0.5 active:shadow-[0_2px_0_rgba(0,0,0,0.22)]",
         surface:
-          "border-2 border-gray-200 bg-white font-semibold text-gray-950 shadow-[0_4px_0_#e5e7eb] transition-transform hover:-translate-y-0.5 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--org-primary-color)] focus-visible:ring-0 active:translate-y-0.5 active:shadow-[0_2px_0_#e5e7eb]",
+          "border-2 border-border bg-card font-semibold text-foreground shadow-[0_4px_0_hsl(var(--border))] transition-transform hover:-translate-y-0.5 hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--org-primary-color)] focus-visible:ring-0 active:translate-y-0.5 active:shadow-[0_2px_0_hsl(var(--border))]",
         cta:
           "rounded-full bg-[var(--org-primary-color)] font-black uppercase tracking-normal text-white shadow-[0_6px_0_rgba(0,0,0,0.18)] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--org-primary-color)] focus-visible:ring-0",
         ctaSecondary:
-          "rounded-full border-2 border-[#e5e5e5] bg-white font-black uppercase tracking-normal text-[var(--org-primary-color)] shadow-[0_4px_0_#e5e5e5] hover:bg-[#f8fafc] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--org-primary-color)] focus-visible:ring-0",
+          "rounded-full border-2 border-border bg-card font-black uppercase tracking-normal text-[var(--org-primary-color)] shadow-[0_4px_0_hsl(var(--border))] hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--org-primary-color)] focus-visible:ring-0",
         destructive:
           "bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90",
         outline:

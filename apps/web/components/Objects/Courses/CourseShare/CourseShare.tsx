@@ -82,14 +82,14 @@ function CourseShare({ courseName, courseUrl, iconOnly, label, shareText: custom
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white nice-shadow text-neutral-600 hover:text-neutral-800 transition-colors text-sm font-medium"
+        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card nice-shadow text-muted-foreground hover:text-foreground transition-colors text-sm font-medium"
       >
         <Share2 size={14} />
         {!iconOnly && <span>{label || t('courses.share_course')}</span>}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-10 z-50 bg-white rounded-lg nice-shadow py-1 min-w-[160px]">
+        <div className="absolute right-0 top-10 z-50 bg-card rounded-lg nice-shadow py-1 min-w-[160px]">
           {shareLinks.map((link) => {
             const Icon = link.icon
             return (
@@ -99,7 +99,7 @@ function CourseShare({ courseName, courseUrl, iconOnly, label, shareText: custom
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setIsOpen(false)}
-                className={`flex items-center gap-2.5 px-3 py-2 text-sm text-neutral-600 transition-all duration-200 ${link.color}`}
+                className={`flex items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground transition-all duration-200 ${link.color}`}
               >
                 <Icon size={16} />
                 <span>{link.name}</span>
@@ -112,7 +112,7 @@ function CourseShare({ courseName, courseUrl, iconOnly, label, shareText: custom
             className={`flex items-center gap-2.5 w-full px-3 py-2 text-sm transition-all duration-200 ${
               copied
                 ? 'bg-green-500 text-white'
-                : 'text-neutral-600 hover:bg-neutral-100'
+                : 'text-muted-foreground hover:bg-muted'
             }`}
           >
             {copied ? <Check size={16} /> : <Link2 size={16} />}

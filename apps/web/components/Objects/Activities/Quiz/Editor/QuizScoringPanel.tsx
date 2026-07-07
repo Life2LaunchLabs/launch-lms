@@ -146,12 +146,12 @@ export default function QuizScoringPanel({ activity, editor, onClose }: Props) {
   }
 
   return (
-    <div className="w-96 border-l border-neutral-100 bg-white flex flex-col h-full overflow-hidden">
+    <div className="w-96 border-l border-border bg-card flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100">
-        <span className="text-sm font-semibold text-neutral-700">Scoring & Results</span>
-        <button type="button" onClick={onClose} className="p-1 rounded hover:bg-neutral-100 outline-none transition-colors">
-          <X size={14} className="text-neutral-500" />
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <span className="text-sm font-semibold text-muted-foreground">Scoring & Results</span>
+        <button type="button" onClick={onClose} className="p-1 rounded hover:bg-muted outline-none transition-colors">
+          <X size={14} className="text-muted-foreground" />
         </button>
       </div>
 
@@ -159,22 +159,22 @@ export default function QuizScoringPanel({ activity, editor, onClose }: Props) {
         {/* ── Scoring Vectors ─────────────────────────────────────── */}
         <section>
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Scoring Dimensions</h3>
+            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Scoring Dimensions</h3>
             <button type="button" onClick={addVector} className="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-700 outline-none">
               <Plus size={12} /> Add
             </button>
           </div>
           {vectors.length === 0 && (
-            <p className="text-xs text-neutral-400 italic">No dimensions yet. Add one to enable scoring.</p>
+            <p className="text-xs text-muted-foreground italic">No dimensions yet. Add one to enable scoring.</p>
           )}
           {vectors.map((vec, idx) => (
-            <div key={idx} className="bg-neutral-50 rounded-lg p-3 mb-2 space-y-2 border border-neutral-100">
+            <div key={idx} className="bg-muted rounded-lg p-3 mb-2 space-y-2 border border-border">
               <div className="flex items-center gap-2">
                 <input
                   value={vec.label}
                   placeholder="Dimension label (e.g. Extraversion)"
                   onChange={e => updateVector(idx, 'label', e.target.value)}
-                  className="flex-1 text-xs border border-neutral-200 rounded-md px-2 py-1.5 outline-none focus:border-violet-400"
+                  className="flex-1 text-xs border border-border rounded-md px-2 py-1.5 outline-none focus:border-violet-400"
                 />
                 <button type="button" onClick={() => removeVector(idx)} className="p-1 hover:bg-red-50 rounded outline-none transition-colors">
                   <Trash2 size={12} className="text-red-400" />
@@ -185,19 +185,19 @@ export default function QuizScoringPanel({ activity, editor, onClose }: Props) {
                   value={vec.low_label}
                   placeholder="Low label"
                   onChange={e => updateVector(idx, 'low_label', e.target.value)}
-                  className="flex-1 text-xs border border-neutral-200 rounded-md px-2 py-1 outline-none focus:border-violet-400"
+                  className="flex-1 text-xs border border-border rounded-md px-2 py-1 outline-none focus:border-violet-400"
                 />
                 <input
                   value={vec.high_label}
                   placeholder="High label"
                   onChange={e => updateVector(idx, 'high_label', e.target.value)}
-                  className="flex-1 text-xs border border-neutral-200 rounded-md px-2 py-1 outline-none focus:border-violet-400"
+                  className="flex-1 text-xs border border-border rounded-md px-2 py-1 outline-none focus:border-violet-400"
                 />
               </div>
               <select
                 value={vec.type}
                 onChange={e => updateVector(idx, 'type', e.target.value as any)}
-                className="text-xs border border-neutral-200 rounded-md px-2 py-1 outline-none bg-white"
+                className="text-xs border border-border rounded-md px-2 py-1 outline-none bg-card"
               >
                 <option value="unidirectional">Unidirectional (0 → 1)</option>
                 <option value="bidirectional">Bidirectional (−1 → 1)</option>
@@ -210,27 +210,27 @@ export default function QuizScoringPanel({ activity, editor, onClose }: Props) {
         {/* ── Result Categories ────────────────────────────────────── */}
         <section>
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Result Categories</h3>
+            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Result Categories</h3>
             <button type="button" onClick={addCategorySet} className="flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 outline-none">
               <Plus size={12} /> Add set
             </button>
           </div>
           {categorySets.length === 0 && (
-            <p className="text-xs text-neutral-400 italic">No result categories yet. Add a set to show personalised results.</p>
+            <p className="text-xs text-muted-foreground italic">No result categories yet. Add a set to show personalised results.</p>
           )}
           {categorySets.map(catSet => (
-            <div key={catSet.key} className="bg-neutral-50 rounded-lg border border-neutral-100 mb-3 overflow-hidden">
-              <div className="flex items-center gap-2 px-3 py-2 border-b border-neutral-100">
+            <div key={catSet.key} className="bg-muted rounded-lg border border-border mb-3 overflow-hidden">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
                 <input
                   value={catSet.label}
                   placeholder="Category set name (e.g. Personality Type)"
                   onChange={e => updateSetLabel(catSet.key, e.target.value)}
-                  className="flex-1 text-xs font-semibold border-0 outline-none bg-transparent text-neutral-700 placeholder:text-neutral-300"
+                  className="flex-1 text-xs font-semibold border-0 outline-none bg-transparent text-muted-foreground placeholder:text-neutral-300"
                 />
                 <button
                   type="button"
                   onClick={() => setExpandedSets(e => ({ ...e, [catSet.key]: !e[catSet.key] }))}
-                  className="p-1 hover:bg-neutral-200 rounded outline-none"
+                  className="p-1 hover:bg-muted rounded outline-none"
                 >
                   {expandedSets[catSet.key] ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                 </button>
@@ -242,13 +242,13 @@ export default function QuizScoringPanel({ activity, editor, onClose }: Props) {
               {expandedSets[catSet.key] && (
                 <div className="p-3 space-y-2">
                   {catSet.categories.map(cat => (
-                    <div key={cat.uuid} className="bg-white rounded-lg p-2.5 border border-neutral-100 space-y-2">
+                    <div key={cat.uuid} className="bg-card rounded-lg p-2.5 border border-border space-y-2">
                       <div className="flex items-center gap-2">
                         <input
                           value={cat.title}
                           placeholder="Category name"
                           onChange={e => updateCategory(catSet.key, cat.uuid, 'title', e.target.value)}
-                          className="flex-1 text-xs font-semibold border border-neutral-200 rounded-md px-2 py-1 outline-none focus:border-amber-400"
+                          className="flex-1 text-xs font-semibold border border-border rounded-md px-2 py-1 outline-none focus:border-amber-400"
                         />
                         <button type="button" onClick={() => removeCategory(catSet.key, cat.uuid)} className="p-1 hover:bg-red-50 rounded outline-none">
                           <Trash2 size={11} className="text-red-400" />
@@ -259,17 +259,17 @@ export default function QuizScoringPanel({ activity, editor, onClose }: Props) {
                         placeholder="Description shown on results page"
                         rows={2}
                         onChange={e => updateCategory(catSet.key, cat.uuid, 'description', e.target.value)}
-                        className="w-full text-xs border border-neutral-200 rounded-md px-2 py-1 outline-none focus:border-amber-400 resize-none"
+                        className="w-full text-xs border border-border rounded-md px-2 py-1 outline-none focus:border-amber-400 resize-none"
                       />
                       {/* Target scores for this category */}
                       {vectors.length > 0 && (
                         <div className="space-y-1">
-                          <p className="text-xs text-neutral-400 font-medium">Target scores (for matching)</p>
+                          <p className="text-xs text-muted-foreground font-medium">Target scores (for matching)</p>
                           {vectors.map(vec => (
                             <div key={vec.key} className="flex items-center gap-2">
-                              <span className="text-xs text-neutral-500 w-20 truncate">{vec.label || vec.key}</span>
+                              <span className="text-xs text-muted-foreground w-20 truncate">{vec.label || vec.key}</span>
                               {vec.type === 'binary' ? (
-                                <label className="flex-1 flex items-center gap-2 text-xs text-neutral-600">
+                                <label className="flex-1 flex items-center gap-2 text-xs text-muted-foreground">
                                   <input
                                     type="checkbox"
                                     checked={(cat.scores?.[vec.key] ?? 0) >= 0.5}
@@ -289,7 +289,7 @@ export default function QuizScoringPanel({ activity, editor, onClose }: Props) {
                                     onChange={e => setCategoryScore(catSet.key, cat.uuid, vec.key, parseFloat(e.target.value))}
                                     className="flex-1 h-1.5 accent-amber-500"
                                   />
-                                  <span className="text-xs text-neutral-500 w-8 text-right">
+                                  <span className="text-xs text-muted-foreground w-8 text-right">
                                     {(cat.scores?.[vec.key] ?? 0.5).toFixed(2)}
                                   </span>
                                 </>
@@ -303,7 +303,7 @@ export default function QuizScoringPanel({ activity, editor, onClose }: Props) {
                   <button
                     type="button"
                     onClick={() => addCategory(catSet.key)}
-                    className="w-full flex items-center justify-center gap-1 h-8 border-2 border-dashed border-neutral-200 rounded-lg text-xs text-neutral-500 hover:border-amber-300 hover:text-amber-600 transition-colors outline-none"
+                    className="w-full flex items-center justify-center gap-1 h-8 border-2 border-dashed border-border rounded-lg text-xs text-muted-foreground hover:border-amber-300 hover:text-amber-600 transition-colors outline-none"
                   >
                     <Plus size={11} /> Add category
                   </button>
@@ -315,7 +315,7 @@ export default function QuizScoringPanel({ activity, editor, onClose }: Props) {
       </div>
 
       {/* Footer save */}
-      <div className="px-4 py-3 border-t border-neutral-100">
+      <div className="px-4 py-3 border-t border-border">
         <button
           type="button"
           onClick={handleSave}

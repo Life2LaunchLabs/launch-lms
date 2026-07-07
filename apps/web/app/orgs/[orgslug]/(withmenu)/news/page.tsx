@@ -27,7 +27,7 @@ function ArticleCard({
       className={`block rounded-[8px] border p-5 transition-colors ${
         featured
           ? 'border-amber-200 bg-amber-50 hover:bg-amber-100/70'
-          : 'border-gray-200 bg-white hover:bg-gray-50'
+          : 'border-border bg-card hover:bg-muted'
       }`}
     >
       <div className="flex flex-col gap-2">
@@ -38,16 +38,16 @@ function ArticleCard({
             </span>
           )}
           {publishedDate && (
-            <time className="text-xs font-medium text-gray-400">
+            <time className="text-xs font-medium text-muted-foreground">
               {publishedDate}
             </time>
           )}
         </div>
-        <div className="text-lg font-semibold text-gray-950">
+        <div className="text-lg font-semibold text-foreground">
           {article.title}
         </div>
         {article.summary && (
-          <p className="text-sm leading-6 text-gray-600">
+          <p className="text-sm leading-6 text-muted-foreground">
             {article.summary}
           </p>
         )}
@@ -103,10 +103,10 @@ export default async function NewsPage(props: {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-semibold tracking-tight text-gray-950">
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">
           News
         </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
           Updates on the state of the app while this release is still taking shape.
         </p>
       </div>
@@ -142,7 +142,7 @@ export default async function NewsPage(props: {
       </section>
 
       {standardArticles.length === 0 ? (
-        <div className="rounded-[6px] border border-gray-200 bg-white p-6 text-sm text-gray-600">
+        <div className="rounded-[6px] border border-border bg-card p-6 text-sm text-muted-foreground">
           {articles.length === 0
             ? 'No updates have been published yet.'
             : 'No other updates have been published yet.'}

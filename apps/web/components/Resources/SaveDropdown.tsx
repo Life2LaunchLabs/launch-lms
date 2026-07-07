@@ -189,12 +189,12 @@ export default function SaveDropdown({
     ? `rounded-full p-2 transition-colors ${
           isSaved
             ? 'bg-gray-950 text-white'
-            : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-800'
+            : 'bg-muted text-muted-foreground hover:bg-muted hover:text-foreground'
         }`
     : `ml-auto flex items-center gap-1.5 rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${
           isSaved
             ? 'border-black bg-black text-white'
-            : 'border-gray-200 text-gray-600 hover:border-gray-400'
+            : 'border-border text-muted-foreground hover:border-gray-400'
         }`
 
   const menuButtonClass = isCard
@@ -202,20 +202,20 @@ export default function SaveDropdown({
         open
           ? 'bg-gray-950 text-white'
           : isSaved
-            ? 'bg-gray-100 text-gray-700'
-            : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-800'
+            ? 'bg-muted text-muted-foreground'
+            : 'bg-muted text-muted-foreground hover:bg-muted hover:text-foreground'
       }`
-    : `flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-gray-500 transition-colors ${
-        open ? 'bg-gray-100 text-gray-900' : 'hover:border-gray-200 hover:bg-gray-50'
+    : `flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-muted-foreground transition-colors ${
+        open ? 'bg-muted text-foreground' : 'hover:border-border hover:bg-muted'
       }`
 
   const dropdown = (
     <div
       ref={dropdownRef}
-      className="fixed z-[200] w-60 rounded-xl border border-gray-200 bg-white py-1.5 shadow-lg"
+      className="fixed z-[200] w-60 rounded-xl border border-border bg-card py-1.5 shadow-lg"
       style={{ top: pos.top, right: pos.right }}
     >
-      <div className="px-3 pb-1 pt-1.5 text-[10px] uppercase tracking-wide text-gray-400">
+      <div className="px-3 pb-1 pt-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
         Add to
       </div>
       {userChannels.length > 0 ? (
@@ -230,7 +230,7 @@ export default function SaveDropdown({
                 onClick={(e) => handleToggleChannel(e, channel.user_channel_uuid, isActive)}
                 disabled={!!pendingChannelUuid}
                 className={`flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors disabled:cursor-wait ${
-                  isActive ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'
+                  isActive ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted'
                 }`}
               >
                 <ResourceChannelStyleIcon
@@ -243,7 +243,7 @@ export default function SaveDropdown({
                 <span className="flex-1 truncate text-left">{channel.name}</span>
                 <span className="ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded transition-colors">
                   {isPending ? (
-                    <Loader2 size={12} className="animate-spin text-gray-400" />
+                    <Loader2 size={12} className="animate-spin text-muted-foreground" />
                   ) : isConfirmed ? (
                     <Check size={12} className="text-emerald-600" />
                   ) : isActive ? (
@@ -257,32 +257,32 @@ export default function SaveDropdown({
           })}
         </>
       ) : (
-        <p className="px-3 py-2 text-xs text-gray-400">No channels yet</p>
+        <p className="px-3 py-2 text-xs text-muted-foreground">No channels yet</p>
       )}
       <button
         onClick={() => {
           setOpen(false)
           setNewChannelModalOpen(true)
         }}
-        className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+        className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors"
       >
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-gray-200 bg-gray-50 text-gray-500">
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-border bg-muted text-muted-foreground">
           <Plus size={12} />
         </span>
         <span className="flex-1 truncate text-left">New channel</span>
-        <Plus size={12} className="text-gray-400" />
+        <Plus size={12} className="text-muted-foreground" />
       </button>
       {share && (
         <>
-          <div className="my-1 border-t border-gray-100" />
+          <div className="my-1 border-t border-border" />
           <button
             onClick={() => {
               setOpen(false)
               setShareOpen(true)
             }}
-            className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors"
           >
-            <Share2 size={14} className="shrink-0 text-gray-400" />
+            <Share2 size={14} className="shrink-0 text-muted-foreground" />
             <span className="flex-1 truncate text-left">Share</span>
           </button>
         </>

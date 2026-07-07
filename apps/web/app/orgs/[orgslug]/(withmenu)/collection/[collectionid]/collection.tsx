@@ -84,7 +84,7 @@ function BadgeCourseTile({
           />
         ) : (
           <div
-            className={`flex h-full w-full items-center justify-center rounded-lg bg-gray-50 text-gray-300 ${
+            className={`flex h-full w-full items-center justify-center rounded-lg bg-muted text-gray-300 ${
               progress.isEarned ? '' : 'opacity-60 grayscale'
             }`}
           >
@@ -94,12 +94,12 @@ function BadgeCourseTile({
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full">
         {showProgress && (
-          <div className="h-full w-full bg-gray-100">
+          <div className="h-full w-full bg-muted">
             <div className="h-full bg-gray-800" style={{ width: `${progress.percent}%` }} />
           </div>
         )}
       </div>
-      <h2 className="mt-2 text-center text-sm font-semibold leading-snug text-gray-950 transition-colors group-hover:text-gray-600">
+      <h2 className="mt-2 text-center text-sm font-semibold leading-snug text-foreground transition-colors group-hover:text-muted-foreground">
         {course.name}
       </h2>
     </Link>
@@ -185,7 +185,7 @@ const CollectionClient = ({ orgslug, collectionid, initialCollection }: { orgslu
           />
         ))}
         {courses.length === 0 && (
-          <div className="col-span-full flex min-h-[180px] items-center justify-center rounded-lg border border-dashed border-gray-100 text-sm font-medium text-gray-400">
+          <div className="col-span-full flex min-h-[180px] items-center justify-center rounded-lg border border-dashed border-border text-sm font-medium text-muted-foreground">
             No badges in this collection
           </div>
         )}

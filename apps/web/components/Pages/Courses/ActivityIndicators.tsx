@@ -43,7 +43,7 @@ function getActivityTypeBadgeColor(activityType: string): string {
     case 'TYPE_ASSIGNMENT':
       return 'bg-orange-100 text-orange-700'
     default:
-      return 'bg-gray-100 text-gray-700'
+      return 'bg-muted text-muted-foreground'
   }
 }
 
@@ -51,15 +51,15 @@ function getActivityTypeBadgeColor(activityType: string): string {
 const ActivityTypeIcon = memo(({ activityType }: { activityType: string }) => {
   switch (activityType) {
     case 'TYPE_VIDEO':
-      return <Video size={16} className="text-gray-400" />
+      return <Video size={16} className="text-muted-foreground" />
     case 'TYPE_DOCUMENT':
-      return <FileText size={16} className="text-gray-400" />
+      return <FileText size={16} className="text-muted-foreground" />
     case 'TYPE_DYNAMIC':
-      return <Layers size={16} className="text-gray-400" />
+      return <Layers size={16} className="text-muted-foreground" />
     case 'TYPE_ASSIGNMENT':
-      return <BookOpenCheck size={16} className="text-gray-400" />
+      return <BookOpenCheck size={16} className="text-muted-foreground" />
     default:
-      return <FileText size={16} className="text-gray-400" />
+      return <FileText size={16} className="text-muted-foreground" />
   }
 });
 
@@ -77,12 +77,12 @@ const ActivityTooltipContent = memo(({
 }) => {
   const { t } = useTranslation();
   return (
-  <div className="bg-white rounded-lg nice-shadow py-3 px-4 min-w-[200px] animate-in fade-in duration-200">
+  <div className="bg-card rounded-lg nice-shadow py-3 px-4 min-w-[200px] animate-in fade-in duration-200">
     <div className="flex items-center gap-2">
       <ActivityTypeIcon activityType={activity.activity_type} />
-      <span className="text-sm text-gray-700">{activity.name}</span>
+      <span className="text-sm text-muted-foreground">{activity.name}</span>
       {isDone && (
-        <span className="ml-auto text-gray-400">
+        <span className="ml-auto text-muted-foreground">
           <Check size={14} />
         </span>
       )}
@@ -91,7 +91,7 @@ const ActivityTooltipContent = memo(({
       <span className={`text-xs px-2 py-0.5 rounded-full ${getActivityTypeBadgeColor(activity.activity_type)}`}>
         {getActivityTypeLabel(activity.activity_type, t)}
       </span>
-      <span className="text-xs text-gray-400">
+      <span className="text-xs text-muted-foreground">
         {isCurrent ? t('activities.current_activity') : isDone ? t('common.completed') : t('activities.not_started')}
       </span>
     </div>
@@ -115,15 +115,15 @@ const ChapterTooltipContent = memo(({
 }) => {
   const { t } = useTranslation();
   return (
-  <div className="bg-white rounded-lg nice-shadow py-3 px-4 min-w-[200px] animate-in fade-in duration-200">
+  <div className="bg-card rounded-lg nice-shadow py-3 px-4 min-w-[200px] animate-in fade-in duration-200">
     <div className="flex items-center gap-2">
-      <span className="text-sm font-medium text-gray-900">{t('courses.chapter')} {chapterNumber}</span>
-      <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full text-gray-600">
+      <span className="text-sm font-medium text-foreground">{t('courses.chapter')} {chapterNumber}</span>
+      <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
         {completedActivities}/{totalActivities} {t('common.completed')}
       </span>
     </div>
     <div className="mt-1">
-      <span className="text-sm text-gray-700">{chapter.name}</span>
+      <span className="text-sm text-muted-foreground">{chapter.name}</span>
     </div>
   </div>
   );
@@ -147,15 +147,15 @@ const CertificationBadge = memo(({
     sideOffset={8}
     unstyled
     content={
-      <div className="bg-white rounded-lg nice-shadow py-3 px-4 min-w-[200px] animate-in fade-in duration-200">
+      <div className="bg-card rounded-lg nice-shadow py-3 px-4 min-w-[200px] animate-in fade-in duration-200">
         <div className="flex items-center gap-2">
           <Trophy size={16} className="text-yellow-500" />
-          <span className="text-sm font-medium text-gray-900">
+          <span className="text-sm font-medium text-foreground">
             {isCompleted ? t('courses.course_completed_exclamation') : t('courses.course_completion')}
           </span>
         </div>
         <div className="mt-1">
-          <span className="text-sm text-gray-700">
+          <span className="text-sm text-muted-foreground">
             {isCompleted 
               ? t('certificate.view_certificate')
               : t('courses.unlock_certificate_message')
@@ -175,7 +175,7 @@ const CertificationBadge = memo(({
       <div className={`w-[20px] h-[20px] sm:w-[22px] sm:h-[22px] rounded-full flex items-center justify-center text-xs font-medium transition-all border-2 border-white ${
         isCompleted
           ? 'bg-yellow-500 text-white hover:bg-yellow-600'
-          : 'bg-gray-200 text-gray-400'
+          : 'bg-muted text-muted-foreground'
       }`}>
         <Trophy size={10} />
       </div>
@@ -223,7 +223,7 @@ const MobileChapterSelector = memo(({
     <div ref={dropdownRef} className="relative">
       <button
         onClick={() => setIsOpen((v) => !v)}
-        className="flex items-center gap-0.5 text-[10px] text-gray-500 font-medium hover:text-gray-700 transition-colors"
+        className="flex items-center gap-0.5 text-[10px] text-muted-foreground font-medium hover:text-muted-foreground transition-colors"
       >
         <span>{t('courses.chapter')} {currentChapterIndex + 1}/{chapters.length}</span>
         <ChevronDown size={10} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -231,7 +231,7 @@ const MobileChapterSelector = memo(({
 
       {isOpen && (
         <div
-          className="absolute top-full left-0 mt-2 bg-white rounded-lg nice-shadow py-1.5 min-w-[220px] max-h-[60vh] overflow-y-auto"
+          className="absolute top-full left-0 mt-2 bg-card rounded-lg nice-shadow py-1.5 min-w-[220px] max-h-[60vh] overflow-y-auto"
           style={{ zIndex: 'var(--z-dropdown)' }}
         >
           {chapters.map((chapter: any, chapterIdx: number) => {
@@ -240,7 +240,7 @@ const MobileChapterSelector = memo(({
 
             return (
               <div key={chapter.id}>
-                <div className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide ${isCurrentChapter ? 'text-teal-600' : 'text-gray-400'}`}>
+                <div className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide ${isCurrentChapter ? 'text-teal-600' : 'text-muted-foreground'}`}>
                   {t('courses.chapter')} {chapterIdx + 1} — {completedInChapter}/{chapter.activities.length}
                 </div>
                 {chapter.activities.map((activity: any) => {
@@ -256,12 +256,12 @@ const MobileChapterSelector = memo(({
                       onClick={handleClose}
                       className={`flex items-center gap-2 px-3 py-2 text-xs transition-colors ${
                         isCurrent
-                          ? 'bg-gray-50 text-gray-900 font-medium'
-                          : 'text-gray-600 hover:bg-gray-50'
+                          ? 'bg-muted text-foreground font-medium'
+                          : 'text-muted-foreground hover:bg-muted'
                       }`}
                     >
                       <div className={`w-[6px] h-[6px] rounded-full shrink-0 ${
-                        isDone ? 'bg-teal-500' : isCurrent ? 'bg-gray-500 animate-pulse' : 'bg-zinc-200'
+                        isDone ? 'bg-teal-500' : isCurrent ? 'bg-gray-500 animate-pulse' : 'bg-muted'
                       }`} />
                       <ActivityTypeIcon activityType={activity.activity_type} />
                       <span className="truncate">{activity.name}</span>
@@ -289,7 +289,7 @@ function ActivityIndicators(props: Props) {
   const router = useRouter()
 
   const done_activity_style = 'bg-teal-500 hover:bg-teal-600'
-  const black_activity_style = 'bg-zinc-200/80 hover:bg-zinc-300'
+  const black_activity_style = 'bg-muted/80 hover:bg-zinc-300'
   const current_activity_style = 'bg-gray-500 animate-pulse hover:bg-gray-600'
 
   // Flatten all activities for navigation and rendering
@@ -409,15 +409,15 @@ function ActivityIndicators(props: Props) {
           <button
             onClick={navigateToPrevious}
             disabled={currentActivityIndex <= 0}
-            className="p-1.5 rounded-full bg-gray-50 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+            className="p-1.5 rounded-full bg-muted hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
             aria-label={t('activities.previous_activity')}
           >
-            <ChevronLeft size={16} className="text-gray-500" />
+            <ChevronLeft size={16} className="text-muted-foreground" />
           </button>
         )}
 
         <div className="flex-1 flex flex-col gap-1.5 min-w-0 relative">
-          <div className="flex items-center justify-between text-[10px] text-gray-500 font-medium px-0.5">
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground font-medium px-0.5">
             <MobileChapterSelector
               chapters={course.chapters}
               currentChapterIndex={currentChapterIndex}
@@ -429,7 +429,7 @@ function ActivityIndicators(props: Props) {
             />
             <span>{completedCount}/{totalCount}</span>
           </div>
-          <div className="w-full bg-zinc-200/80 rounded-full h-[6px] overflow-hidden">
+          <div className="w-full bg-muted/80 rounded-full h-[6px] overflow-hidden">
             <div
               className="h-full bg-teal-500 rounded-full transition-all duration-300"
               style={{ width: `${progressPercent}%` }}
@@ -447,10 +447,10 @@ function ActivityIndicators(props: Props) {
           <button
             onClick={navigateToNext}
             disabled={currentActivityIndex >= allActivities.length - 1}
-            className="p-1.5 rounded-full bg-gray-50 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+            className="p-1.5 rounded-full bg-muted hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
             aria-label={t('activities.next_activity')}
           >
-            <ChevronRight size={16} className="text-gray-500" />
+            <ChevronRight size={16} className="text-muted-foreground" />
           </button>
         )}
       </div>
@@ -461,10 +461,10 @@ function ActivityIndicators(props: Props) {
           <button
             onClick={navigateToPrevious}
             disabled={currentActivityIndex <= 0}
-            className="p-1 rounded-full hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+            className="p-1 rounded-full hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
             aria-label={t('activities.previous_activity')}
           >
-            <ChevronLeft size={18} className="text-gray-600" />
+            <ChevronLeft size={18} className="text-muted-foreground" />
           </button>
         )}
 
@@ -499,7 +499,7 @@ function ActivityIndicators(props: Props) {
                       <div className={`w-[22px] h-[22px] rounded-full flex items-center justify-center text-[10px] font-bold transition-all border-2 border-white ${
                         isChapterComplete
                           ? 'bg-teal-500 text-white'
-                          : 'bg-gray-200 text-gray-500'
+                          : 'bg-muted text-muted-foreground'
                       }`}>
                         {chapterIndex + 1}
                       </div>
@@ -509,7 +509,7 @@ function ActivityIndicators(props: Props) {
                       <div className={`w-[22px] h-[22px] rounded-full flex items-center justify-center text-[10px] font-bold transition-all border-2 border-white ${
                         isChapterComplete
                           ? 'bg-teal-500 text-white'
-                          : 'bg-gray-200 text-gray-500'
+                          : 'bg-muted text-muted-foreground'
                       }`}>
                         {chapterIndex + 1}
                       </div>
@@ -571,10 +571,10 @@ function ActivityIndicators(props: Props) {
           <button
             onClick={navigateToNext}
             disabled={currentActivityIndex >= allActivities.length - 1}
-            className="p-1 rounded-full hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+            className="p-1 rounded-full hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
             aria-label={t('activities.next_activity')}
           >
-            <ChevronRight size={18} className="text-gray-600" />
+            <ChevronRight size={18} className="text-muted-foreground" />
           </button>
         )}
       </div>

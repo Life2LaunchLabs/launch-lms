@@ -181,7 +181,7 @@ export default function AdminBadgeShell({
         </div>
 
         <div className="my-2 flex flex-col gap-5 py-2 md:flex-row md:items-center">
-          <div className="group relative aspect-video w-full max-w-[240px] shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
+          <div className="group relative aspect-video w-full max-w-[240px] shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
             {imageUrl ? (
               <SafeImage src={imageUrl} alt="Badge thumbnail" className={`h-full w-full object-cover ${isUploading ? 'animate-pulse' : ''}`} />
             ) : (
@@ -238,7 +238,7 @@ export default function AdminBadgeShell({
         <div className="flex items-center gap-2 pb-3">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2 bg-white" disabled={updatingStatus}>
+              <Button variant="outline" className="gap-2 bg-card" disabled={updatingStatus}>
                 {updatingStatus ? <Loader2 className="animate-spin" /> : <StatusIcon status={currentStatus} />}
                 <span>{currentStatus === 'published' ? 'Published' : 'Unpublished'}</span>
                 <ChevronDown className="h-4 w-4" />
@@ -255,11 +255,11 @@ export default function AdminBadgeShell({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <div className="inline-flex overflow-hidden rounded-md border border-gray-200 bg-white">
+          <div className="inline-flex overflow-hidden rounded-md border border-border bg-card">
             <Button
               type="button"
               variant={badge.public === true ? 'default' : 'ghost'}
-              className={`h-10 rounded-none gap-2 px-3 ${badge.public === true ? '' : 'text-gray-500'}`}
+              className={`h-10 rounded-none gap-2 px-3 ${badge.public === true ? '' : 'text-muted-foreground'}`}
               disabled={updatingVisibility}
               onClick={() => updateVisibility(true)}
               title="Public badges appear in learner badge lists."
@@ -270,7 +270,7 @@ export default function AdminBadgeShell({
             <Button
               type="button"
               variant={badge.public === false ? 'default' : 'ghost'}
-              className={`h-10 rounded-none gap-2 px-3 ${badge.public === false ? '' : 'text-gray-500'}`}
+              className={`h-10 rounded-none gap-2 px-3 ${badge.public === false ? '' : 'text-muted-foreground'}`}
               disabled={updatingVisibility}
               onClick={() => updateVisibility(false)}
               title="Private badges are visible only within this org."
@@ -279,7 +279,7 @@ export default function AdminBadgeShell({
               Private
             </Button>
           </div>
-          <Button asChild variant="outline" className="gap-2 bg-white">
+          <Button asChild variant="outline" className="gap-2 bg-card">
             <Link href={publicBadgeHref} target="_blank">
               <Eye className="h-4 w-4" />
               Preview
@@ -369,13 +369,13 @@ function BadgeGradingPanel({ badge }: { badge: any }) {
 
   return (
     <div className="px-10 pb-10 pt-6">
-      <section className="rounded-xl bg-white p-6 shadow-xs">
+      <section className="rounded-xl bg-card p-6 shadow-xs">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">Manual grading</h2>
-            <p className="mt-1 text-sm text-gray-500">Pending text responses that block final badge award.</p>
+            <h2 className="text-lg font-bold text-foreground">Manual grading</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Pending text responses that block final badge award.</p>
           </div>
-          <Button variant="outline" onClick={() => void load()} disabled={loading} className="gap-2 bg-white">
+          <Button variant="outline" onClick={() => void load()} disabled={loading} className="gap-2 bg-card">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
             Refresh
           </Button>
@@ -383,7 +383,7 @@ function BadgeGradingPanel({ badge }: { badge: any }) {
 
         <div className="mt-6 space-y-4">
           {loading ? (
-            <div className="flex items-center justify-center py-16 text-gray-400">
+            <div className="flex items-center justify-center py-16 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin" />
             </div>
           ) : responses.length ? responses.map((response) => {
@@ -395,26 +395,26 @@ function BadgeGradingPanel({ badge }: { badge: any }) {
               : 'Guest learner'
 
             return (
-              <article key={response.attempt_uuid} className="rounded-xl border border-gray-200 p-4">
+              <article key={response.attempt_uuid} className="rounded-xl border border-border p-4">
                 <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                   <div>
-                    <p className="text-sm font-bold text-gray-950">{response.page?.title || 'Text response'}</p>
-                    <p className="mt-1 text-xs text-gray-500">{learner} · {new Date(response.submitted_at).toLocaleString()}</p>
+                    <p className="text-sm font-bold text-foreground">{response.page?.title || 'Text response'}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{learner} · {new Date(response.submitted_at).toLocaleString()}</p>
                   </div>
                   <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">Pending</span>
                 </div>
 
                 <div className="mt-4 space-y-3">
                   {Object.entries(inputs).map(([inputId, value]: any) => (
-                    <div key={inputId} className="rounded-lg bg-gray-50 p-3">
-                      <p className="text-xs font-bold uppercase text-gray-400">{inputId} · {value?.word_count ?? countWords(value?.text)} words</p>
-                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-gray-800">{value?.text || 'No response text.'}</p>
+                    <div key={inputId} className="rounded-lg bg-muted p-3">
+                      <p className="text-xs font-bold uppercase text-muted-foreground">{inputId} · {value?.word_count ?? countWords(value?.text)} words</p>
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">{value?.text || 'No response text.'}</p>
                     </div>
                   ))}
                 </div>
 
                 <div className="mt-4 grid gap-3 md:grid-cols-[160px_1fr_auto] md:items-end">
-                  <label className="block text-xs font-bold uppercase text-gray-500">
+                  <label className="block text-xs font-bold uppercase text-muted-foreground">
                     Score / {maxScore}
                     <input
                       type="number"
@@ -422,15 +422,15 @@ function BadgeGradingPanel({ badge }: { badge: any }) {
                       max={maxScore}
                       value={draft.score}
                       onChange={(event) => setDrafts((current) => ({ ...current, [response.attempt_uuid]: { ...draft, score: event.target.value } }))}
-                      className="mt-2 h-10 w-full rounded-lg border border-gray-200 px-3 text-sm normal-case text-gray-900 outline-none focus:ring-2 focus:ring-black"
+                      className="mt-2 h-10 w-full rounded-lg border border-border px-3 text-sm normal-case text-foreground outline-none focus:ring-2 focus:ring-black"
                     />
                   </label>
-                  <label className="block text-xs font-bold uppercase text-gray-500">
+                  <label className="block text-xs font-bold uppercase text-muted-foreground">
                     Feedback
                     <input
                       value={draft.feedback}
                       onChange={(event) => setDrafts((current) => ({ ...current, [response.attempt_uuid]: { ...draft, feedback: event.target.value } }))}
-                      className="mt-2 h-10 w-full rounded-lg border border-gray-200 px-3 text-sm normal-case text-gray-900 outline-none focus:ring-2 focus:ring-black"
+                      className="mt-2 h-10 w-full rounded-lg border border-border px-3 text-sm normal-case text-foreground outline-none focus:ring-2 focus:ring-black"
                     />
                   </label>
                   <Button onClick={() => saveGrade(response)} disabled={saving === response.attempt_uuid || draft.score === ''} className="gap-2">
@@ -441,9 +441,9 @@ function BadgeGradingPanel({ badge }: { badge: any }) {
               </article>
             )
           }) : (
-            <div className="rounded-xl border border-dashed border-gray-200 py-16 text-center">
-              <p className="text-sm font-semibold text-gray-700">No pending responses</p>
-              <p className="mt-1 text-xs text-gray-500">Manual text submissions will appear here.</p>
+            <div className="rounded-xl border border-dashed border-border py-16 text-center">
+              <p className="text-sm font-semibold text-muted-foreground">No pending responses</p>
+              <p className="mt-1 text-xs text-muted-foreground">Manual text submissions will appear here.</p>
             </div>
           )}
         </div>
@@ -470,16 +470,16 @@ function BadgeAboutPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Reco
 
   return (
     <div className="px-10 pb-10 pt-6">
-      <section className="max-w-4xl rounded-xl bg-white p-6 shadow-xs">
-        <h2 className="text-lg font-bold text-gray-900">About</h2>
+      <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
+        <h2 className="text-lg font-bold text-foreground">About</h2>
         <div className="mt-5 space-y-5">
           <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Badge overview</span>
-            <textarea value={about} onChange={(event) => setAbout(event.target.value)} rows={7} className="mt-2 w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black" />
+            <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Badge overview</span>
+            <textarea value={about} onChange={(event) => setAbout(event.target.value)} rows={7} className="mt-2 w-full resize-none rounded-lg border border-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black" />
           </label>
           <label className="block">
-            <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Criteria</span>
-            <textarea value={criteria} onChange={(event) => setCriteria(event.target.value)} rows={5} className="mt-2 w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black" />
+            <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Criteria</span>
+            <textarea value={criteria} onChange={(event) => setCriteria(event.target.value)} rows={5} className="mt-2 w-full resize-none rounded-lg border border-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black" />
           </label>
           <Button onClick={save} disabled={saving} className="gap-2">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
@@ -527,18 +527,18 @@ function BadgeSettingsPanel({ orgslug, badge, onPatch }: { orgslug: string; badg
 
   return (
     <div className="px-10 pb-10 pt-6">
-      <section className="max-w-4xl rounded-xl bg-white p-6 shadow-xs">
-        <h2 className="text-lg font-bold text-gray-900">Settings</h2>
-        <div className="mt-4 divide-y divide-gray-100">
+      <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
+        <h2 className="text-lg font-bold text-foreground">Settings</h2>
+        <div className="mt-4 divide-y divide-border">
           <SettingRow title="Direct conferral" description="Allow authorized admins to issue this badge without path completion." disabled={savingKey === 'direct_conferral_enabled'} checked={badge.direct_conferral_enabled === true} onChange={(value) => toggle('direct_conferral_enabled', value, 'Conferral setting updated.')} />
         </div>
       </section>
-      <section className="mt-6 max-w-4xl rounded-xl border border-red-100 bg-white p-6 shadow-xs">
+      <section className="mt-6 max-w-4xl rounded-xl border border-red-100 bg-card p-6 shadow-xs">
         <h2 className="text-lg font-bold text-red-700">Danger Zone</h2>
         <div className="mt-4 flex items-start justify-between gap-6">
           <div>
-            <h3 className="text-sm font-semibold text-gray-900">Delete badge</h3>
-            <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-500">This permanently deletes the badge, learning path, activities, pages, learner runs, and awards for this badge.</p>
+            <h3 className="text-sm font-semibold text-foreground">Delete badge</h3>
+            <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">This permanently deletes the badge, learning path, activities, pages, learner runs, and awards for this badge.</p>
           </div>
           <button onClick={removeBadge} disabled={deleting} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-xs font-bold text-red-700 disabled:opacity-50">
             {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
@@ -656,8 +656,8 @@ function BadgeCertificationPanel({ badge, onPatch }: { badge: any; onPatch: (pat
   return (
     <div className="px-10 pb-10 pt-6">
       <div className="max-w-6xl space-y-6">
-        <section className="rounded-xl bg-white p-6 shadow-xs">
-          <h2 className="text-lg font-bold text-gray-900">Preview</h2>
+        <section className="rounded-xl bg-card p-6 shadow-xs">
+          <h2 className="text-lg font-bold text-foreground">Preview</h2>
           <div className="mt-5">
             <CertificatePreview
               certificationName={values.badge_name}
@@ -676,10 +676,10 @@ function BadgeCertificationPanel({ badge, onPatch }: { badge: any; onPatch: (pat
           </div>
         </section>
 
-        <section className="rounded-xl bg-white p-6 shadow-xs">
+        <section className="rounded-xl bg-card p-6 shadow-xs">
           <div className="flex flex-col gap-1">
-            <h2 className="text-lg font-bold text-gray-900">Certificate Setup</h2>
-            <p className="text-sm text-gray-500">Configure the certificate and Open Badge metadata issued when a learner completes this path.</p>
+            <h2 className="text-lg font-bold text-foreground">Certificate Setup</h2>
+            <p className="text-sm text-muted-foreground">Configure the certificate and Open Badge metadata issued when a learner completes this path.</p>
           </div>
 
           <div className="mt-6 space-y-6">
@@ -731,13 +731,13 @@ function TextInput({
 }) {
   return (
     <label className="block">
-      <span className="text-xs font-bold uppercase text-gray-500">{label}</span>
+      <span className="text-xs font-bold uppercase text-muted-foreground">{label}</span>
       <input
         value={value}
         maxLength={maxLength}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black"
+        className="mt-2 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black"
       />
     </label>
   )
@@ -758,13 +758,13 @@ function TextAreaInput({
 }) {
   return (
     <label className="block">
-      <span className="text-xs font-bold uppercase text-gray-500">{label}</span>
+      <span className="text-xs font-bold uppercase text-muted-foreground">{label}</span>
       <textarea
         value={value}
         rows={rows}
         maxLength={maxLength}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black"
+        className="mt-2 w-full resize-none rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black"
       />
     </label>
   )
@@ -783,11 +783,11 @@ function SelectInput({
 }) {
   return (
     <label className="block">
-      <span className="text-xs font-bold uppercase text-gray-500">{label}</span>
+      <span className="text-xs font-bold uppercase text-muted-foreground">{label}</span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-black"
+        className="mt-2 h-10 w-full rounded-lg border border-border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-black"
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>{option.label}</option>
@@ -801,8 +801,8 @@ function SettingRow({ title, description, checked, disabled, onChange }: { title
   return (
     <div className={`flex items-start justify-between gap-6 py-4 first:pt-0 last:pb-0 ${disabled ? 'pointer-events-none opacity-50' : ''}`}>
       <div className="min-w-0">
-        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-        <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-500">{description}</p>
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{description}</p>
       </div>
       <Switch checked={checked} onCheckedChange={onChange} />
     </div>
@@ -832,14 +832,14 @@ function EditableHeaderField({
     <div className={`group flex min-w-0 items-start gap-2 ${isTitle ? 'mb-2' : ''}`}>
       {isEditing ? (
         isTitle ? (
-          <input autoFocus value={value} maxLength={100} onChange={(event) => onChange(event.target.value)} className="min-w-0 flex-1 rounded-md border border-gray-200 bg-white px-3 py-2 text-3xl font-bold tracking-tight text-gray-900 outline-none focus:ring-2 focus:ring-black" />
+          <input autoFocus value={value} maxLength={100} onChange={(event) => onChange(event.target.value)} className="min-w-0 flex-1 rounded-md border border-border bg-card px-3 py-2 text-3xl font-bold tracking-tight text-foreground outline-none focus:ring-2 focus:ring-black" />
         ) : (
-          <textarea autoFocus value={value} maxLength={1000} onChange={(event) => onChange(event.target.value)} rows={2} placeholder="Describe this badge..." className="min-w-0 flex-1 resize-none rounded-md border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-500 outline-none focus:ring-2 focus:ring-black" />
+          <textarea autoFocus value={value} maxLength={1000} onChange={(event) => onChange(event.target.value)} rows={2} placeholder="Describe this badge..." className="min-w-0 flex-1 resize-none rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground outline-none focus:ring-2 focus:ring-black" />
         )
       ) : isTitle ? (
-        <h1 className="min-w-0 break-words text-4xl font-bold tracking-tight text-gray-900">{value}</h1>
+        <h1 className="min-w-0 break-words text-4xl font-bold tracking-tight text-foreground">{value}</h1>
       ) : (
-        <p className="min-w-0 break-words text-sm font-medium text-gray-500">{value || 'No description yet.'}</p>
+        <p className="min-w-0 break-words text-sm font-medium text-muted-foreground">{value || 'No description yet.'}</p>
       )}
 
       <Button type="button" size="icon" variant={isEditing ? 'default' : 'ghost'} disabled={isSaving} className={`mt-1 h-7 w-7 shrink-0 ${isEditing ? 'bg-green-600 text-white hover:bg-green-700' : 'opacity-0 transition-opacity group-hover:opacity-100'}`} onClick={isEditing ? onSave : onEdit} title={isEditing ? 'Save' : 'Edit'}>

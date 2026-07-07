@@ -99,7 +99,7 @@ async function UserPage({ params }: UserPageProps) {
     console.error('Error fetching user data:', err)
     return (
       <div className="container mx-auto py-8">
-        <div className="bg-white rounded-xl nice-shadow p-6">
+        <div className="bg-card rounded-xl nice-shadow p-6">
           <p className="text-red-600">Error loading user profile. The user may not exist or you may not have permission to view this profile.</p>
         </div>
       </div>
@@ -115,13 +115,13 @@ async function UserPage({ params }: UserPageProps) {
     <div>
       {isSelf ? (
         <div className="mx-auto w-full max-w-5xl px-4 pt-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-medium text-muted-foreground">
               You are viewing your public profile.
             </p>
             <Link
               href={getUriWithOrg(orgslug, routePaths.org.portfolio())}
-              className="inline-flex h-9 items-center justify-center rounded-md border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:text-gray-950"
+              className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-card px-3 text-sm font-medium text-muted-foreground hover:text-foreground"
             >
               View full profile
             </Link>

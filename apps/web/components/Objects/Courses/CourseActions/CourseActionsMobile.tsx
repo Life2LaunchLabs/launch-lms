@@ -89,7 +89,7 @@ const MultipleAuthors = ({ authors }: { authors: Author[] }) => {
             style={{ zIndex: 0 }}
           >
             <div 
-              className="flex items-center justify-center bg-neutral-100 text-neutral-600 font-medium rounded-full border-2 border-white shadow-sm"
+              className="flex items-center justify-center bg-muted text-muted-foreground font-medium rounded-full border-2 border-white shadow-sm"
               style={{ 
                 width: `${avatarSize}px`, 
                 height: `${avatarSize}px`,
@@ -103,17 +103,17 @@ const MultipleAuthors = ({ authors }: { authors: Author[] }) => {
       </div>
       
       <div className="flex flex-col">
-        <span className="text-xs text-neutral-400 font-medium">
+        <span className="text-xs text-muted-foreground font-medium">
           {authors.length > 1 ? 'Authors' : 'Author'}
         </span>
         {authors.length === 1 ? (
-          <span className="text-sm font-semibold text-neutral-800">
+          <span className="text-sm font-semibold text-foreground">
             {authors[0].user.first_name && authors[0].user.last_name 
               ? `${authors[0].user.first_name} ${authors[0].user.last_name}` 
               : `@${authors[0].user.username}`}
           </span>
         ) : (
-          <span className="text-sm font-semibold text-neutral-800">
+          <span className="text-sm font-semibold text-foreground">
             {authors[0].user.first_name && authors[0].user.last_name
               ? `${authors[0].user.first_name} ${authors[0].user.last_name}`
               : `@${authors[0].user.username}`}
@@ -200,13 +200,13 @@ const CourseActionsMobile = ({ courseuuid, orgslug, course, trailData }: CourseA
   }
 
   if (isLoading) {
-    return <div className="animate-pulse h-16 bg-gray-100 rounded-lg mt-4 mb-8" />
+    return <div className="animate-pulse h-16 bg-muted rounded-lg mt-4 mb-8" />
   }
 
   // Show join organization prompt for authenticated users who are not part of the org
   if (session.data?.user && !isUserPartOfTheOrg) {
     return (
-      <div className="bg-white/90 backdrop-blur-sm shadow-md shadow-gray-300/25 outline outline-1 outline-neutral-200/40 rounded-lg overflow-hidden p-4 my-6 mx-2">
+      <div className="bg-card/90 backdrop-blur-sm shadow-md shadow-gray-300/25 outline outline-1 outline-border/40 rounded-lg overflow-hidden p-4 my-6 mx-2">
         <div className="flex flex-col space-y-3">
           <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
             <div className="flex items-center gap-2">
@@ -243,7 +243,7 @@ const CourseActionsMobile = ({ courseuuid, orgslug, course, trailData }: CourseA
     });
 
   return (
-    <div className="bg-white/90 backdrop-blur-sm shadow-md shadow-gray-300/25 outline outline-1 outline-neutral-200/40 rounded-lg overflow-hidden p-4 my-6 mx-2">
+    <div className="bg-card/90 backdrop-blur-sm shadow-md shadow-gray-300/25 outline outline-1 outline-border/40 rounded-lg overflow-hidden p-4 my-6 mx-2">
       <div className="flex flex-col space-y-4">
         <MultipleAuthors authors={sortedAuthors} />
         
@@ -281,13 +281,13 @@ const CourseActionsMobile = ({ courseuuid, orgslug, course, trailData }: CourseA
                 </>
               ) : (
                 <>
-                  <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <div className="p-3 bg-muted border border-border rounded-lg">
                     <div className="flex items-center gap-2">
-                      <Lock className="w-4 h-4 text-gray-600" />
+                      <Lock className="w-4 h-4 text-muted-foreground" />
                       <div>
-                        <span className="text-gray-900 text-sm font-semibold">{offer.offer_name}</span>
+                        <span className="text-foreground text-sm font-semibold">{offer.offer_name}</span>
                         {formattedPrice && (
-                          <p className="text-gray-500 text-xs">{formattedPrice}{offer.offer_type === 'subscription' ? ' / month' : ' one-time'}</p>
+                          <p className="text-muted-foreground text-xs">{formattedPrice}{offer.offer_type === 'subscription' ? ' / month' : ' one-time'}</p>
                         )}
                       </div>
                     </div>

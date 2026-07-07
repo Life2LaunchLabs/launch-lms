@@ -409,7 +409,7 @@ export function FeaturedBadgeButton({
       }}
       disabled={isSaving}
       className={cn(
-        'inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-gray-500 shadow-sm ring-1 ring-gray-200 backdrop-blur transition hover:text-amber-500 disabled:cursor-not-allowed disabled:opacity-70',
+        'inline-flex h-9 w-9 items-center justify-center rounded-full bg-card/95 text-muted-foreground shadow-sm ring-1 ring-border backdrop-blur transition hover:text-amber-500 disabled:cursor-not-allowed disabled:opacity-70',
         featured && 'text-amber-500',
         className
       )}
@@ -433,9 +433,9 @@ function EmptyState({
   action?: React.ReactNode
 }) {
   return (
-    <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-6 py-10 text-center">
-      <p className="text-base font-semibold text-gray-800">{title}</p>
-      <p className="mt-2 text-sm text-gray-500">{description}</p>
+    <div className="rounded-lg border border-dashed border-border bg-muted px-6 py-10 text-center">
+      <p className="text-base font-semibold text-foreground">{title}</p>
+      <p className="mt-2 text-sm text-muted-foreground">{description}</p>
       {action ? <div className="mt-4">{action}</div> : null}
     </div>
   )
@@ -476,16 +476,16 @@ function BadgeCard({
           {action ? <div className="absolute right-3 top-3 z-10">{action}</div> : null}
         </div>
         <h3 className={cn(
-          'mt-2 line-clamp-2 text-center font-semibold leading-snug text-gray-950 transition-colors group-hover:text-gray-600',
+          'mt-2 line-clamp-2 text-center font-semibold leading-snug text-foreground transition-colors group-hover:text-muted-foreground',
           compact ? 'text-xs' : 'text-sm'
         )}>
           {badge.title}
         </h3>
         {!compact ? (
-          <p className="mt-1 line-clamp-1 text-center text-sm text-gray-500">{badge.organization}</p>
+          <p className="mt-1 line-clamp-1 text-center text-sm text-muted-foreground">{badge.organization}</p>
         ) : null}
         {showDate && badge.receivedDate && !compact ? (
-          <div className="mt-1.5 flex items-center justify-center gap-1.5 text-xs text-gray-500">
+          <div className="mt-1.5 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
             <Calendar className="h-3.5 w-3.5" />
             <span>{formatDisplayDate(badge.receivedDate)}</span>
           </div>
@@ -499,12 +499,12 @@ function BadgeListRow({ badge }: { badge: BadgeCredential }) {
   return (
     <Link
       href={badge.href}
-      className="flex min-w-0 items-center gap-3 border-b border-gray-100 py-2.5 last:border-b-0"
+      className="flex min-w-0 items-center gap-3 border-b border-border py-2.5 last:border-b-0"
     >
       <div className="h-9 w-9 shrink-0">
         <BadgeSquare badge={badge} />
       </div>
-      <p className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-950">
+      <p className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
         {badge.title}
       </p>
     </Link>
@@ -560,7 +560,7 @@ function ShortBadgeCard({ badge }: { badge: BadgeCredential }) {
           />
         </div>
       </div>
-      <p className="mt-1 line-clamp-2 shrink-0 text-center text-xs font-semibold leading-4 text-gray-950">
+      <p className="mt-1 line-clamp-2 shrink-0 text-center text-xs font-semibold leading-4 text-foreground">
         {badge.title}
       </p>
     </Link>
@@ -569,7 +569,7 @@ function ShortBadgeCard({ badge }: { badge: BadgeCredential }) {
 
 function SuggestedBadgeIcon({ badge }: { badge: RecommendedBadge }) {
   return (
-    <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 text-gray-500">
+    <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground">
       {badge.imageUrl ? (
         <BadgeThumbnailImage
           src={badge.imageUrl}
@@ -596,12 +596,12 @@ function SuggestedBadgeCard({
     return (
       <Link
         href={badge.href}
-        className="flex min-h-0 items-center gap-3 rounded-lg border border-dashed border-gray-200 bg-white px-3 py-3 transition hover:border-[var(--org-primary-color)] hover:bg-gray-50"
+        className="flex min-h-0 items-center gap-3 rounded-lg border border-dashed border-border bg-card px-3 py-3 transition hover:border-[var(--org-primary-color)] hover:bg-muted"
       >
         <SuggestedBadgeIcon badge={badge} />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-base font-bold leading-5 text-gray-950">{badge.title}</span>
-          <span className="mt-0.5 flex items-center gap-1 text-sm font-medium text-gray-500">
+          <span className="block truncate text-base font-bold leading-5 text-foreground">{badge.title}</span>
+          <span className="mt-0.5 flex items-center gap-1 text-sm font-medium text-muted-foreground">
             <Lock className="h-3.5 w-3.5" />
             Locked
           </span>
@@ -613,11 +613,11 @@ function SuggestedBadgeCard({
   return (
     <Link
       href={badge.href}
-      className="flex min-h-0 flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-gray-200 bg-white px-3 py-3 text-center transition hover:border-gray-300 hover:bg-gray-50"
+      className="flex min-h-0 flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card px-3 py-3 text-center transition hover:border-border hover:bg-muted"
     >
       <SuggestedBadgeIcon badge={badge} />
-      <span className="mt-2 line-clamp-1 text-xs font-bold text-gray-950">{badge.title}</span>
-      <span className="text-xs font-medium text-gray-500">Locked</span>
+      <span className="mt-2 line-clamp-1 text-xs font-bold text-foreground">{badge.title}</span>
+      <span className="text-xs font-medium text-muted-foreground">Locked</span>
       <span className={buttonVariants({ variant: 'brand', size: 'sm', className: 'mt-3 w-full pointer-events-none' })}>
         Start
       </span>
@@ -630,12 +630,12 @@ function BadgeProgress({ earnedCount, spacious = false }: { earnedCount: number;
   const percentage = Math.round((progress / 3) * 100)
 
   return (
-    <div className={cn('shrink-0', spacious && 'rounded-lg bg-gray-50 px-3 py-3')}>
-      <div className="mb-2 flex items-center justify-between text-[11px] font-bold text-gray-950">
+    <div className={cn('shrink-0', spacious && 'rounded-lg bg-muted px-3 py-3')}>
+      <div className="mb-2 flex items-center justify-between text-[11px] font-bold text-foreground">
         <span>Goal: 3 Badges</span>
         <span className="text-[var(--org-primary-color)]">{percentage}%</span>
       </div>
-      <div className={cn('overflow-hidden rounded-full bg-gray-100', spacious ? 'h-4' : 'h-3')}>
+      <div className={cn('overflow-hidden rounded-full bg-muted', spacious ? 'h-4' : 'h-3')}>
         <div className="h-full rounded-full bg-[var(--org-primary-color)] transition-all" style={{ width: `${percentage}%` }} />
       </div>
     </div>
@@ -696,7 +696,7 @@ export function ProfileAchievementsSection({
       <section>
       <div className={`${isCompact ? 'mb-2' : 'mb-3'} flex shrink-0 items-center justify-between gap-4`}>
         <div className="flex min-w-0 items-center gap-3">
-          <h2 className={`${isCompact ? 'text-base' : isNarrow ? 'text-base uppercase text-blue-900' : 'text-2xl'} min-w-0 truncate font-semibold ${isNarrow ? '' : 'text-gray-950'}`}>
+          <h2 className={`${isCompact ? 'text-base' : isNarrow ? 'text-base uppercase text-blue-900' : 'text-2xl'} min-w-0 truncate font-semibold ${isNarrow ? '' : 'text-foreground'}`}>
             Badges
           </h2>
           {!isCompact && editMode && canEdit && achievements.enabled ? (
@@ -711,7 +711,7 @@ export function ProfileAchievementsSection({
         ) : editMode && canEdit ? (
           <div className="flex flex-col items-end gap-2">
             <label className="flex items-center gap-3">
-              <span className="text-sm text-gray-500">{achievements.enabled ? 'On your profile' : 'Hidden from profile'}</span>
+              <span className="text-sm text-muted-foreground">{achievements.enabled ? 'On your profile' : 'Hidden from profile'}</span>
               <Switch
                 checked={achievements.enabled}
                 onCheckedChange={(checked) => onChange?.({ ...achievements, enabled: checked })}
@@ -719,7 +719,7 @@ export function ProfileAchievementsSection({
               />
             </label>
             <label className="flex items-center gap-3">
-              <span className="text-sm text-gray-500">{publicVisible ? 'Visible to others' : 'Hidden from others'}</span>
+              <span className="text-sm text-muted-foreground">{publicVisible ? 'Visible to others' : 'Hidden from others'}</span>
               <Switch
                 checked={publicVisible}
                 onCheckedChange={onPublicVisibleChange}
@@ -729,7 +729,7 @@ export function ProfileAchievementsSection({
             </label>
           </div>
         ) : (
-          <Button variant="ghost" className="px-0 text-sm font-medium text-gray-500 hover:bg-transparent hover:text-gray-950" asChild>
+          <Button variant="ghost" className="px-0 text-sm font-medium text-muted-foreground hover:bg-transparent hover:text-foreground" asChild>
             <Link href={routes.badgesHref}>{isCompact ? 'Open' : 'See all'}</Link>
           </Button>
         )}
@@ -739,7 +739,7 @@ export function ProfileAchievementsSection({
         isLoading ? (
           <div className={cn('flex min-h-0 flex-1 gap-3 overflow-hidden', isCompact && 'gap-2')}>
             {[1, 2, 3].map((item) => (
-              <div key={item} className="aspect-square h-full max-h-full min-h-0 shrink-0 animate-pulse rounded-lg bg-gray-100" />
+              <div key={item} className="aspect-square h-full max-h-full min-h-0 shrink-0 animate-pulse rounded-lg bg-muted" />
             ))}
           </div>
         ) : displaySlots > 0 ? (
@@ -748,7 +748,7 @@ export function ProfileAchievementsSection({
           ) : (
             <div className={cn('flex min-h-0 flex-1 flex-col', hasCompletedBadgeGoal && 'justify-center', isNarrow ? 'gap-3' : 'gap-4')}>
               {!hasCompletedBadgeGoal ? (
-                <p className={cn('shrink-0 text-gray-600', isNarrow ? 'text-left text-sm leading-5' : 'text-center text-sm')}>
+                <p className={cn('shrink-0 text-muted-foreground', isNarrow ? 'text-left text-sm leading-5' : 'text-center text-sm')}>
                   Start your journey! Earn your first 3 badges to complete this section.
                 </p>
               ) : null}
@@ -765,7 +765,7 @@ export function ProfileAchievementsSection({
           )
         ) : (
           isCompact ? (
-            <div className="flex min-h-0 flex-1 items-center justify-center rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 text-center text-xs font-medium text-gray-500">
+            <div className="flex min-h-0 flex-1 items-center justify-center rounded-lg border border-dashed border-border bg-muted px-3 text-center text-xs font-medium text-muted-foreground">
               No featured badges
             </div>
           ) : (
@@ -806,8 +806,8 @@ export function ProfileAchievementsManager({
 
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-3xl font-semibold text-gray-950">Badges</h1>
-              <p className="mt-2 text-sm text-gray-500">Featured badges appear on your profile.</p>
+              <h1 className="text-3xl font-semibold text-foreground">Badges</h1>
+              <p className="mt-2 text-sm text-muted-foreground">Featured badges appear on your profile.</p>
             </div>
 
             {canEdit ? (
@@ -818,17 +818,17 @@ export function ProfileAchievementsManager({
           </div>
         </div>
 
-        <section className="rounded-lg bg-gray-50 px-5 py-5 sm:px-6">
+        <section className="rounded-lg bg-muted px-5 py-5 sm:px-6">
           <div className="mb-5 flex items-center justify-between gap-4">
-            <h2 className="text-2xl font-semibold text-gray-950">Featured badges</h2>
+            <h2 className="text-2xl font-semibold text-foreground">Featured badges</h2>
           </div>
 
           {isLoading ? (
             <div className="flex gap-4 overflow-hidden pb-2">
               {[1, 2, 3].map((item) => (
                 <div key={item} className="w-[176px] min-w-[176px]">
-                  <div className="aspect-square animate-pulse rounded-lg bg-gray-100" />
-                  <div className="mx-auto mt-3 h-4 w-3/4 animate-pulse rounded bg-gray-100" />
+                  <div className="aspect-square animate-pulse rounded-lg bg-muted" />
+                  <div className="mx-auto mt-3 h-4 w-3/4 animate-pulse rounded bg-muted" />
                 </div>
               ))}
             </div>

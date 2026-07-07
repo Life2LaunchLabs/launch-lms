@@ -98,7 +98,7 @@ export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: str
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="Activity title"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-border px-3 py-2 text-sm"
               />
               <button
                 onClick={createActivity}
@@ -121,27 +121,27 @@ export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: str
 
       <div className="space-y-3">
         {(badgePath.activities || []).map((activity: any, index: number) => (
-          <div key={activity.activity_uuid} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-xs">
+          <div key={activity.activity_uuid} className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-xs">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-lime-100 text-sm font-black text-lime-700">{index + 1}</div>
             <Link
               href={getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/learning-path/activity/${cleanActivityId(activity.activity_uuid)}/editor`)}
               className="min-w-0 flex-1"
             >
-              <h2 className="truncate text-base font-bold text-gray-950">{activity.title}</h2>
-              <p className="text-sm text-gray-500">{activity.pages?.length || 0} pages · {activity.published ? 'Published' : 'Draft'}</p>
+              <h2 className="truncate text-base font-bold text-foreground">{activity.title}</h2>
+              <p className="text-sm text-muted-foreground">{activity.pages?.length || 0} pages · {activity.published ? 'Published' : 'Draft'}</p>
             </Link>
-            <button onClick={() => togglePublish(activity)} className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-bold">
+            <button onClick={() => togglePublish(activity)} className="rounded-lg border border-border px-3 py-2 text-xs font-bold">
               {activity.published ? 'Unpublish' : 'Publish'}
             </button>
-            <button onClick={() => duplicateActivity(activity)} className="rounded-lg border border-gray-200 p-2"><Copy size={16} /></button>
+            <button onClick={() => duplicateActivity(activity)} className="rounded-lg border border-border p-2"><Copy size={16} /></button>
             <button onClick={() => removeActivity(activity)} className="rounded-lg border border-red-200 p-2 text-red-600"><Trash2 size={16} /></button>
           </div>
         ))}
         {(badgePath.activities || []).length === 0 ? (
-          <div className="flex items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-white py-16 text-center">
+          <div className="flex items-center justify-center rounded-xl border-2 border-dashed border-border bg-card py-16 text-center">
             <div>
-              <p className="text-sm font-semibold text-gray-700">No activities yet</p>
-              <p className="mt-1 text-xs text-gray-500">Create the first activity in this badge learning path.</p>
+              <p className="text-sm font-semibold text-muted-foreground">No activities yet</p>
+              <p className="mt-1 text-xs text-muted-foreground">Create the first activity in this badge learning path.</p>
             </div>
           </div>
         ) : null}

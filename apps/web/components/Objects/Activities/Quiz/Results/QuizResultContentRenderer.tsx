@@ -53,7 +53,7 @@ function renderBlockNodes(
 
     if (node.type === 'paragraph') {
       return (
-        <p key={key} className="mb-3 text-sm leading-relaxed text-neutral-700 last:mb-0">
+        <p key={key} className="mb-3 text-sm leading-relaxed text-muted-foreground last:mb-0">
           {renderInlineNodes(node.content || [], key)}
         </p>
       )
@@ -63,13 +63,13 @@ function renderBlockNodes(
       const level = node.attrs?.level || 2
       if (level === 3) {
         return (
-          <h3 key={key} className="mb-2 mt-5 text-lg font-semibold text-neutral-900 first:mt-0">
+          <h3 key={key} className="mb-2 mt-5 text-lg font-semibold text-foreground first:mt-0">
             {renderInlineNodes(node.content || [], key)}
           </h3>
         )
       }
       return (
-        <h2 key={key} className="mb-3 mt-6 text-2xl font-bold text-neutral-900 first:mt-0">
+        <h2 key={key} className="mb-3 mt-6 text-2xl font-bold text-foreground first:mt-0">
           {renderInlineNodes(node.content || [], key)}
         </h2>
       )
@@ -77,7 +77,7 @@ function renderBlockNodes(
 
     if (node.type === 'bulletList') {
       return (
-        <ul key={key} className="mb-3 list-disc space-y-1 pl-5 text-sm text-neutral-700">
+        <ul key={key} className="mb-3 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
           {renderBlockNodes(node.content || [], opts, key)}
         </ul>
       )
@@ -85,7 +85,7 @@ function renderBlockNodes(
 
     if (node.type === 'orderedList') {
       return (
-        <ol key={key} className="mb-3 list-decimal space-y-1 pl-5 text-sm text-neutral-700">
+        <ol key={key} className="mb-3 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
           {renderBlockNodes(node.content || [], opts, key)}
         </ol>
       )
@@ -183,7 +183,7 @@ export default function QuizResultContentRenderer({
 
   if (!hasContent) {
     if (!fallbackBody) return null
-    return <p className="text-sm leading-relaxed text-neutral-700 whitespace-pre-line">{fallbackBody}</p>
+    return <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">{fallbackBody}</p>
   }
 
   const opts = { activity, org, course, scores, vectors }

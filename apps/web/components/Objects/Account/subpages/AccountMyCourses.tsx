@@ -25,7 +25,7 @@ function AccountMyCourses({ orgId, orgslug }: AccountMyCoursesProps) {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl nice-shadow p-8">
+      <div className="bg-card rounded-xl nice-shadow p-8">
         <div className="flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
         </div>
@@ -35,7 +35,7 @@ function AccountMyCourses({ orgId, orgslug }: AccountMyCoursesProps) {
 
   if (error) {
     return (
-      <div className="bg-white rounded-xl nice-shadow p-8">
+      <div className="bg-card rounded-xl nice-shadow p-8">
         <div className="text-center text-red-500">
           {t('common.something_went_wrong')}
         </div>
@@ -44,11 +44,11 @@ function AccountMyCourses({ orgId, orgslug }: AccountMyCoursesProps) {
   }
 
   return (
-    <div className="bg-white rounded-xl nice-shadow">
+    <div className="bg-card rounded-xl nice-shadow">
       <div className="flex flex-col gap-0">
-        <div className="flex flex-col bg-gray-50 -space-y-1 px-5 py-3 mx-3 my-3 rounded-md">
-          <h1 className="font-bold text-xl text-gray-800">{t('account.my_courses')}</h1>
-          <h2 className="text-gray-500 text-md">{t('account.purchased_courses_description')}</h2>
+        <div className="flex flex-col bg-muted -space-y-1 px-5 py-3 mx-3 my-3 rounded-md">
+          <h1 className="font-bold text-xl text-foreground">{t('account.my_courses')}</h1>
+          <h2 className="text-muted-foreground text-md">{t('account.purchased_courses_description')}</h2>
         </div>
 
         <div className="mx-5 mb-5">
@@ -64,12 +64,12 @@ function AccountMyCourses({ orgId, orgslug }: AccountMyCoursesProps) {
             <div className="flex justify-center items-center py-12">
               <div className="text-center">
                 <div className="mb-4">
-                  <BookOpen className="w-12 h-12 mx-auto text-gray-400" />
+                  <BookOpen className="w-12 h-12 mx-auto text-muted-foreground" />
                 </div>
-                <h2 className="text-xl font-bold text-gray-600 mb-2">
+                <h2 className="text-xl font-bold text-muted-foreground mb-2">
                   {t('account.no_purchased_courses')}
                 </h2>
-                <p className="text-md text-gray-400">
+                <p className="text-md text-muted-foreground">
                   {t('account.purchased_courses_description')}
                 </p>
               </div>

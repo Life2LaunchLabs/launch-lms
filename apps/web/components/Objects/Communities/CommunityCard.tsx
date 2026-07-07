@@ -45,7 +45,7 @@ function CommunityCard(props: PropsType) {
 
   return (
     <div
-      className="group relative flex flex-col bg-white rounded-xl nice-shadow overflow-hidden w-full transition-all duration-300 hover:scale-[1.01]"
+      className="group relative flex flex-col bg-card rounded-xl nice-shadow overflow-hidden w-full transition-all duration-300 hover:scale-[1.01]"
     >
       {variant === 'dashboard' && (
         <CommunityAdminEditsArea
@@ -59,7 +59,7 @@ function CommunityCard(props: PropsType) {
 
       <Link
         href={communityLink}
-        className="block relative aspect-video overflow-hidden bg-gray-50"
+        className="block relative aspect-video overflow-hidden bg-muted"
       >
         {props.community.thumbnail_image && ownerOrgUuid ? (
           <img
@@ -81,19 +81,19 @@ function CommunityCard(props: PropsType) {
       <div className="p-3 flex flex-col space-y-1.5">
         <Link
           href={communityLink}
-          className="text-base font-bold text-gray-900 leading-tight hover:text-black transition-colors line-clamp-1"
+          className="text-base font-bold text-foreground leading-tight hover:text-foreground transition-colors line-clamp-1"
         >
           {props.community.name}
         </Link>
 
         {props.community.description && (
-          <p className="text-[11px] text-gray-500 line-clamp-2 min-h-[1.5rem]">
+          <p className="text-[11px] text-muted-foreground line-clamp-2 min-h-[1.5rem]">
             {props.community.description}
           </p>
         )}
 
-        <div className="pt-1.5 flex items-center justify-between border-t border-gray-100">
-          <div className="flex items-center gap-1.5 text-gray-500">
+        <div className="pt-1.5 flex items-center justify-between border-t border-border">
+          <div className="flex items-center gap-1.5 text-muted-foreground">
             <MessageCircle size={12} />
             <span className="text-[10px] font-bold uppercase tracking-wider">
               {props.community.public ? t('courses.public') : t('courses.private')}
@@ -103,21 +103,21 @@ function CommunityCard(props: PropsType) {
           {variant === 'dashboard' ? (
             <Link
               href={getUriWithOrg(props.orgslug, routePaths.org.dash.communitySettings(communityId, 'general'))}
-              className="text-[10px] font-bold text-gray-400 hover:text-gray-900 transition-colors uppercase tracking-wider"
+              className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider"
             >
               {t('dashboard.courses.communities.card.open_settings')}
             </Link>
           ) : (
             <Link
               href={communityLink}
-              className="text-[10px] font-bold text-gray-400 hover:text-gray-900 transition-colors uppercase tracking-wider"
+              className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider"
             >
               {t('dashboard.courses.communities.card.view_community')}
             </Link>
           )}
         </div>
         {variant === 'public' && props.community.owner_org_name && (
-          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+          <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
             {props.community.owner_org_name}
           </div>
         )}
@@ -147,15 +147,15 @@ const CommunityAdminEditsArea = (props: any) => {
       <div className="absolute top-2 right-2 z-20">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button aria-label="Community actions" className="p-1.5 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all shadow-md">
-              <MoreVertical size={18} className="text-gray-700" />
+            <button aria-label="Community actions" className="p-1.5 bg-card/90 backdrop-blur-sm rounded-full hover:bg-card transition-all shadow-md">
+              <MoreVertical size={18} className="text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem asChild>
               <Link
                 href={getUriWithOrg(props.orgslug, routePaths.org.dash.communitySettings(removeCommunityPrefix(props.community_uuid), 'general'))}
-                className="flex items-center px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                className="flex items-center px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted rounded-md transition-colors"
               >
                 <ExternalLink className="mr-2 h-4 w-4" /> {t('dashboard.courses.communities.card.open_settings')}
               </Link>
@@ -164,7 +164,7 @@ const CommunityAdminEditsArea = (props: any) => {
               <DropdownMenuItem asChild>
                 <button
                   onClick={props.onEdit}
-                  className="w-full text-left flex items-center px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                  className="w-full text-left flex items-center px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted rounded-md transition-colors"
                 >
                   <Edit className="mr-2 h-4 w-4" /> {t('dashboard.courses.communities.card.quick_edit')}
                 </button>

@@ -60,12 +60,12 @@ function ActiveFilterChip({
   onRemove: () => void
 }) {
   return (
-    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
       <span className="whitespace-nowrap">{label}</span>
       <button
         type="button"
         onClick={onRemove}
-        className="flex h-4 w-4 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700"
+        className="flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-muted-foreground"
         aria-label={`Remove ${label}`}
       >
         <X size={11} />
@@ -98,10 +98,10 @@ function ChannelCarouselCard({
       type="button"
       onClick={onClick}
       className={`group flex max-w-[180px] shrink-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors ${
-        active ? 'bg-gray-100 text-gray-950 ring-1 ring-gray-200' : 'hover:bg-gray-50'
+        active ? 'bg-muted text-foreground ring-1 ring-border' : 'hover:bg-muted'
       }`}
     >
-      <div className="h-6 w-6 shrink-0 overflow-hidden rounded-md bg-gray-100">
+      <div className="h-6 w-6 shrink-0 overflow-hidden rounded-md bg-muted">
         {thumbnail ? (
           <img
             src={thumbnail}
@@ -109,7 +109,7 @@ function ChannelCarouselCard({
             className="h-full w-full object-cover"
           />
         ) : SystemIcon ? (
-          <div className="flex h-full w-full items-center justify-center bg-gray-100 text-gray-500">
+          <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">
             <SystemIcon size={12} />
           </div>
         ) : (
@@ -122,7 +122,7 @@ function ChannelCarouselCard({
           />
         )}
       </div>
-      <div className={`min-w-0 truncate text-sm font-semibold ${active ? 'text-gray-950' : 'text-gray-800'}`}>
+      <div className={`min-w-0 truncate text-sm font-semibold ${active ? 'text-foreground' : 'text-foreground'}`}>
         {title}
       </div>
     </button>
@@ -151,9 +151,9 @@ function ChannelTile({
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${active ? 'border-black bg-gray-50' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
+      className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left transition-colors ${active ? 'border-black bg-muted' : 'border-border bg-card hover:bg-muted'}`}
     >
-      <div className="h-10 w-10 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+      <div className="h-10 w-10 rounded-lg bg-muted overflow-hidden shrink-0">
         {thumbnail ? (
           <img src={thumbnail} alt={title} className="h-full w-full object-cover" />
         ) : (
@@ -167,8 +167,8 @@ function ChannelTile({
         )}
       </div>
       <div className="min-w-0">
-        <div className="truncate font-medium text-gray-900">{title}</div>
-        {description && <div className="truncate text-sm text-gray-500">{description}</div>}
+        <div className="truncate font-medium text-foreground">{title}</div>
+        {description && <div className="truncate text-sm text-muted-foreground">{description}</div>}
       </div>
     </button>
   )
@@ -585,16 +585,16 @@ export default function ResourcesClient({
 
       {/* Page header */}
       <div className="flex items-center gap-2.5 my-4">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white nice-shadow">
-          <Layers size={16} className="text-black" />
+        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-card nice-shadow">
+          <Layers size={16} className="text-foreground" />
         </div>
-        <h1 className="text-xl font-bold text-gray-900 tracking-tight">Resources</h1>
+        <h1 className="text-xl font-bold text-foreground tracking-tight">Resources</h1>
       </div>
 
       {/* Active channel */}
       <div className="relative mb-2 flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-gray-100">
+          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-muted">
             {activeThumb ? (
               <img src={activeThumb} alt={activeChannelName} className="h-full w-full object-cover" />
             ) : (
@@ -608,27 +608,27 @@ export default function ResourcesClient({
             )}
           </div>
           <div className="min-w-0">
-            <h2 className="truncate text-xl font-semibold leading-tight text-gray-900">{activeChannelName}</h2>
-            <p className="mt-1 line-clamp-1 text-sm text-gray-500">{activeChannelDescription}</p>
+            <h2 className="truncate text-xl font-semibold leading-tight text-foreground">{activeChannelName}</h2>
+            <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">{activeChannelDescription}</p>
           </div>
         </div>
         <button
           onClick={() => setChannelActionsOpen(!channelActionsOpen)}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           aria-label="Channel actions"
           title="Channel actions"
         >
           <MoreVertical size={16} />
         </button>
         {channelActionsOpen && (
-          <div className="absolute right-0 top-9 z-40 w-40 rounded-xl border border-gray-200 bg-white p-1 shadow-lg">
+          <div className="absolute right-0 top-9 z-40 w-40 rounded-xl border border-border bg-card p-1 shadow-lg">
             {activeUserChannelData && (
               <button
                 onClick={() => {
                   setEditingChannel(activeUserChannelData)
                   setChannelActionsOpen(false)
                 }}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50"
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted"
               >
                 <Pencil size={14} />
                 Edit
@@ -639,7 +639,7 @@ export default function ResourcesClient({
                 setShareChannelOpen(true)
                 setChannelActionsOpen(false)
               }}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50"
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted"
             >
               <Share2 size={14} />
               Share
@@ -652,7 +652,7 @@ export default function ResourcesClient({
       <div className="flex min-w-0 items-center gap-2">
         <button
           onClick={() => setDrawerOpen(true)}
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-muted"
           aria-label="Browse channels"
           title="Browse channels"
         >
@@ -666,7 +666,7 @@ export default function ResourcesClient({
                   type="button"
                   onClick={scrollChannelsLeft}
                   aria-label="Scroll channels left"
-                  className="absolute left-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow ring-1 ring-black/8 transition-colors hover:bg-white"
+                  className="absolute left-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-card/95 text-muted-foreground shadow ring-1 ring-black/8 transition-colors hover:bg-card"
                 >
                   <ChevronLeft className="h-3.5 w-3.5" />
                 </button>
@@ -677,7 +677,7 @@ export default function ResourcesClient({
                   type="button"
                   onClick={scrollChannelsRight}
                   aria-label="Scroll channels right"
-                  className="absolute right-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-gray-700 shadow ring-1 ring-black/8 transition-colors hover:bg-white"
+                  className="absolute right-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-card/95 text-muted-foreground shadow ring-1 ring-black/8 transition-colors hover:bg-card"
                 >
                   <ChevronRight className="h-3.5 w-3.5" />
                 </button>
@@ -714,7 +714,7 @@ export default function ResourcesClient({
                     </div>
                   ))}
                   {personalChannelCarouselItems.length > 0 && globalChannelCarouselItems.length > 0 && (
-                    <div className="mx-1 h-5 w-px shrink-0 bg-gray-200" />
+                    <div className="mx-1 h-5 w-px shrink-0 bg-muted" />
                   )}
                   {globalChannelCarouselItems.map((channel, index) => {
                     const refIndex = personalChannelCarouselItems.length + index
@@ -746,21 +746,21 @@ export default function ResourcesClient({
         )}
       </div>
 
-      <div className="mt-4 flex items-center gap-2 overflow-hidden rounded-2xl border border-gray-200 bg-white px-2 py-2">
+      <div className="mt-4 flex items-center gap-2 overflow-hidden rounded-2xl border border-border bg-card px-2 py-2">
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="icon" className="h-10 w-10 shrink-0 rounded-xl border-gray-200">
+            <Button variant="outline" size="icon" className="h-10 w-10 shrink-0 rounded-xl border-border">
               <Filter size={16} />
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="start" className="z-[120] w-[340px] rounded-2xl border-gray-200 p-0 shadow-2xl">
-            <div className="border-b border-gray-100 px-4 py-3">
-              <div className="text-sm font-semibold text-gray-900">Filters</div>
-              <div className="text-xs text-gray-500">Refine resources without crowding the page.</div>
+          <PopoverContent align="start" className="z-[120] w-[340px] rounded-2xl border-border p-0 shadow-2xl">
+            <div className="border-b border-border px-4 py-3">
+              <div className="text-sm font-semibold text-foreground">Filters</div>
+              <div className="text-xs text-muted-foreground">Refine resources without crowding the page.</div>
             </div>
             <div className="space-y-4 px-4 py-4">
               <div className="space-y-2">
-                <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">Types</div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Types</div>
                 <ChipMultiSelect
                   options={resourceTypeOptions}
                   selectedValues={resourceTypes}
@@ -773,7 +773,7 @@ export default function ResourcesClient({
               </div>
 
               <div className="space-y-2">
-                <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">Tags</div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tags</div>
                 <ChipMultiSelect
                   options={resourceTagOptions}
                   selectedValues={selectedTags}
@@ -786,11 +786,11 @@ export default function ResourcesClient({
               </div>
 
               <div className="space-y-2">
-                <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">Access</div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Access</div>
                 <select
                   value={accessMode}
                   onChange={(e) => setAccessMode(e.target.value)}
-                  className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm"
+                  className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm"
                 >
                   <option value="">All access</option>
                   <option value="free">Free</option>
@@ -800,11 +800,11 @@ export default function ResourcesClient({
               </div>
 
               <div className="space-y-2">
-                <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">Provider</div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Provider</div>
                 <input
                   value={provider}
                   onChange={(e) => setProvider(e.target.value)}
-                  className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none focus:border-gray-400"
+                  className="h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none focus:border-gray-400"
                   placeholder="Provider"
                 />
               </div>
@@ -814,7 +814,7 @@ export default function ResourcesClient({
                   type="button"
                   variant="ghost"
                   onClick={clearAllFilters}
-                  className="w-full justify-center rounded-xl text-sm text-slate-600 hover:bg-slate-50"
+                  className="w-full justify-center rounded-xl text-sm text-muted-foreground hover:bg-muted"
                 >
                   Clear all filters
                 </Button>
@@ -824,14 +824,14 @@ export default function ResourcesClient({
         </Popover>
 
         <div
-          className={`flex shrink-0 items-center rounded-xl border border-gray-200 bg-gray-50 transition-all ${
+          className={`flex shrink-0 items-center rounded-xl border border-border bg-muted transition-all ${
             searchExpanded || search.trim() ? 'w-[240px] px-3' : 'w-10 justify-center'
           }`}
         >
           <button
             type="button"
             onClick={() => setSearchExpanded(true)}
-            className="flex h-10 shrink-0 items-center justify-center text-gray-400"
+            className="flex h-10 shrink-0 items-center justify-center text-muted-foreground"
             aria-label="Search resources"
           >
             <Search size={16} />
@@ -857,7 +857,7 @@ export default function ResourcesClient({
                 <ActiveFilterChip key={chip.key} label={chip.label} onRemove={chip.onRemove} />
               ))
             ) : (
-              <span className="text-sm text-gray-400">No active filters</span>
+              <span className="text-sm text-muted-foreground">No active filters</span>
             )}
           </div>
         </div>
@@ -869,7 +869,7 @@ export default function ResourcesClient({
           <ResourceCard key={resource.resource_uuid} resource={resource} orgslug={orgslug} orgUUID={orgUUID} />
         ))}
         {resources.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-10 text-center text-gray-500">
+          <div className="rounded-2xl border border-dashed border-border bg-muted p-10 text-center text-muted-foreground">
             No resources match this view yet.
           </div>
         )}
@@ -878,10 +878,10 @@ export default function ResourcesClient({
       {/* Channel drawer */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50 flex">
-          <div className="relative h-full w-[calc(100%-2rem)] max-w-md overflow-y-auto bg-white p-5 shadow-2xl">
+          <div className="relative h-full w-[calc(100%-2rem)] max-w-md overflow-y-auto bg-card p-5 shadow-2xl">
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900">Channels</h2>
-              <button className="rounded-lg border border-gray-200 px-3 py-2 text-sm" onClick={() => setDrawerOpen(false)}>
+              <h2 className="text-xl font-semibold text-foreground">Channels</h2>
+              <button className="rounded-lg border border-border px-3 py-2 text-sm" onClick={() => setDrawerOpen(false)}>
                 Close
               </button>
             </div>
@@ -890,10 +890,10 @@ export default function ResourcesClient({
             {accessToken && (
               <div className="mb-5">
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">Your channels</span>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Your channels</span>
                   <button
                     onClick={() => setNewChannelModalOpen(true)}
-                    className="flex h-6 w-6 items-center justify-center rounded-md bg-gray-100 hover:bg-gray-200 transition-colors"
+                    className="flex h-6 w-6 items-center justify-center rounded-md bg-muted hover:bg-muted transition-colors"
                     title="New channel"
                   >
                     <Plus size={13} />
@@ -917,7 +917,7 @@ export default function ResourcesClient({
                     />
                   ))}
                   {userChannels.length === 0 && (
-                    <p className="py-1 text-sm text-gray-400">No channels yet</p>
+                    <p className="py-1 text-sm text-muted-foreground">No channels yet</p>
                   )}
                 </div>
               </div>
@@ -925,7 +925,7 @@ export default function ResourcesClient({
 
             {/* All channels */}
             <div>
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">All channels</div>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">All channels</div>
               <div className="space-y-2">
                 <ChannelTile
                   title="All"
@@ -986,7 +986,7 @@ export default function ResourcesClient({
         url={activeChannelUrl}
         eyebrow="Channel"
         visual={
-          <div className="h-10 w-10 overflow-hidden rounded-lg bg-gray-100">
+          <div className="h-10 w-10 overflow-hidden rounded-lg bg-muted">
             {activeThumb ? (
               <img src={activeThumb} alt={activeChannelName} className="h-full w-full object-cover" />
             ) : (

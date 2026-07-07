@@ -32,8 +32,8 @@ function ToolbarButton({
       title={title}
       className={`p-1.5 rounded transition-colors ${
         isActive
-          ? 'bg-gray-200 text-gray-900'
-          : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+          ? 'bg-muted text-foreground'
+          : 'text-muted-foreground hover:bg-muted hover:text-muted-foreground'
       }`}
     >
       {children}
@@ -121,7 +121,7 @@ export function DiscussionEditor({
       {editable && (
         <>
           {/* Toolbar */}
-          <div className="flex items-center gap-0.5 p-2 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+          <div className="flex items-center gap-0.5 p-2 border-b border-border bg-muted rounded-t-lg">
             <ToolbarButton
               onClick={() => editor.chain().focus().toggleBold().run()}
               isActive={editor.isActive('bold')}

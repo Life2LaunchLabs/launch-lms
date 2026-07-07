@@ -55,7 +55,7 @@ function LinkCollectionToUserGroup({ setUserGroupModal }: Props) {
       <div className="p-4 flex-row flex justify-between items-center">
         {usergroups?.length >= 1 && (
           <div className="py-1">
-            <span className="px-3 text-gray-400 font-bold rounded-full py-1 bg-gray-100 mx-3">User Group</span>
+            <span className="px-3 text-muted-foreground font-bold rounded-full py-1 bg-muted mx-3">User Group</span>
             <select onChange={(e) => setSelectedUserGroup(e.target.value)} defaultValue={selectedUserGroup}>
               {usergroups.map((group: any) => (
                 <option key={group.id} value={group.id}>{group.name}</option>

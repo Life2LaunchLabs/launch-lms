@@ -2,7 +2,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
-import { Lock, ShoppingBag, Building2 } from 'lucide-react'
+import { Lock, ShoppingBag, Building2, SunMoon } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import UserAvatar from '@components/Objects/UserAvatar'
 import { getUriWithOrg } from '@services/config/config'
@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { id: 'security', icon: Lock, labelKey: 'account.security' },
   { id: 'purchases', icon: ShoppingBag, labelKey: 'account.purchases' },
   { id: 'organizations', icon: Building2, label: 'Organizations' },
+  { id: 'preferences', icon: SunMoon, label: 'Appearance' },
 ]
 
 export function AccountSidebar({ orgslug, currentSubpage }: AccountSidebarProps) {
@@ -26,9 +27,9 @@ export function AccountSidebar({ orgslug, currentSubpage }: AccountSidebarProps)
   return (
     <div className="space-y-4">
       {/* User Info Card */}
-      <div className="bg-white nice-shadow rounded-lg overflow-hidden">
+      <div className="bg-card nice-shadow rounded-lg overflow-hidden">
         {/* User Portfolio Header */}
-        <div className="p-4 border-b border-gray-100">
+        <div className="p-4 border-b border-border">
           <div className="flex flex-col items-center text-center">
             <UserAvatar
               border="border-4"
@@ -36,18 +37,18 @@ export function AccountSidebar({ orgslug, currentSubpage }: AccountSidebarProps)
               width={80}
             />
             <div className="mt-3">
-              <h2 className="font-semibold text-gray-900">
+              <h2 className="font-semibold text-foreground">
                 {user?.first_name} {user?.last_name}
               </h2>
-              <p className="text-sm text-gray-500">@{user?.username}</p>
+              <p className="text-sm text-muted-foreground">@{user?.username}</p>
             </div>
           </div>
         </div>
 
         {/* User Bio (truncated) */}
         {user?.bio && (
-          <div className="px-4 py-3 border-b border-gray-100">
-            <p className="text-sm text-gray-600 leading-relaxed line-clamp-3">
+          <div className="px-4 py-3 border-b border-border">
+            <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
               {user.bio}
             </p>
           </div>
@@ -65,11 +66,11 @@ export function AccountSidebar({ orgslug, currentSubpage }: AccountSidebarProps)
                   href={getUriWithOrg(orgslug, `/account/${item.id}`)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
                     isActive
-                      ? 'bg-gray-900 text-white'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-muted'
                   }`}
                 >
-                  <Icon size={18} className={isActive ? 'text-white' : 'text-gray-500'} />
+                  <Icon size={18} className={isActive ? 'text-primary-foreground' : 'text-muted-foreground'} />
                   <span className="text-sm font-medium">{item.labelKey ? t(item.labelKey) : item.label}</span>
                 </Link>
               )

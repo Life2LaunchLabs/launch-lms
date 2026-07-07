@@ -26,7 +26,7 @@ export default function QuizResultsModal({ result, activity, org, course, onReta
       onClick={e => { if (e.target === e.currentTarget) onClose?.() }}
     >
       {/* Modal panel — fullscreen on mobile, paper-width centered card on desktop */}
-      <div className="relative flex flex-col w-full bg-white overflow-y-auto sm:max-w-[816px] sm:max-h-[92vh] sm:rounded-xl sm:shadow-2xl">
+      <div className="relative flex flex-col w-full bg-card overflow-y-auto sm:max-w-[816px] sm:max-h-[92vh] sm:rounded-xl sm:shadow-2xl">
         {/* Close button — floats over the cover image */}
         <button
           onClick={onClose}

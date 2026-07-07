@@ -126,8 +126,8 @@ export function LearningActivitySurface({
     ? String(page.design.background_accent_color)
     : undefined
   const surfaceClassName = isVideoPage
-    ? `relative flex w-full min-w-0 items-center justify-center overflow-hidden bg-black px-4 py-4 text-gray-950 sm:py-6 ${className}`
-    : `relative flex w-full min-w-0 overflow-hidden bg-[var(--org-page-background)] text-gray-950 ${className} items-center justify-center px-4 py-4 sm:py-6`
+    ? `relative flex w-full min-w-0 items-center justify-center overflow-hidden bg-black px-4 py-4 text-foreground sm:py-6 ${className}`
+    : `relative flex w-full min-w-0 overflow-hidden bg-[var(--org-page-background)] text-foreground ${className} items-center justify-center px-4 py-4 sm:py-6`
   const frameClassName = isVideoPage
     ? 'relative flex h-full min-h-0 w-full min-w-0 flex-none flex-col overflow-hidden'
     : 'relative flex h-full min-h-0 w-full min-w-0 max-w-3xl flex-none flex-col overflow-hidden'
@@ -138,9 +138,9 @@ export function LearningActivitySurface({
     ? 'mx-auto flex w-full max-w-3xl justify-center'
     : 'mx-auto flex w-full max-w-2xl justify-center'
   const backControl = backHref ? (
-    <Link href={backHref} className={`rounded-full p-2 transition ${isVideoPage ? 'text-white hover:bg-white/10' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-950'}`}><X size={20} /></Link>
+    <Link href={backHref} className={`rounded-full p-2 transition ${isVideoPage ? 'text-white hover:bg-white/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}><X size={20} /></Link>
   ) : (
-    <button onClick={onBack} className={`rounded-full p-2 transition ${isVideoPage ? 'text-white hover:bg-white/10' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-950'}`}><X size={20} /></button>
+    <button onClick={onBack} className={`rounded-full p-2 transition ${isVideoPage ? 'text-white hover:bg-white/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}><X size={20} /></button>
   )
 
   return (
@@ -149,10 +149,10 @@ export function LearningActivitySurface({
         <div className="relative z-10 shrink-0 px-4">
           <div className={chromeInnerClassName}>
             {backControl}
-            <div className={`h-2 flex-1 overflow-hidden rounded-full ${isVideoPage ? 'bg-white/25' : 'bg-gray-200'}`}>
+            <div className={`h-2 flex-1 overflow-hidden rounded-full ${isVideoPage ? 'bg-white/25' : 'bg-muted'}`}>
               <div className="h-full rounded-full bg-[var(--org-primary-color)] transition-all" style={{ width: `${progress}%` }} />
             </div>
-            <span className={`text-sm font-medium ${isVideoPage ? 'text-white/80' : 'text-gray-500'}`}>{pageIndex + 1}/{Math.max(1, pages.length)}</span>
+            <span className={`text-sm font-medium ${isVideoPage ? 'text-white/80' : 'text-muted-foreground'}`}>{pageIndex + 1}/{Math.max(1, pages.length)}</span>
           </div>
         </div>
         <div className={`${isVideoPage ? 'flex min-h-0 flex-1 items-center justify-center overflow-hidden p-0' : 'min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-5 py-8'}`}>
@@ -166,7 +166,7 @@ export function LearningActivitySurface({
                 exit={{ x: -24, opacity: 0 }}
                 transition={{ duration: 0.18, ease: 'easeOut' }}
               >
-                {page ? children : <div className="flex min-h-[420px] items-center justify-center text-gray-400">No page selected</div>}
+                {page ? children : <div className="flex min-h-[420px] items-center justify-center text-muted-foreground">No page selected</div>}
               </motion.div>
             </AnimatePresence>
           </div>
@@ -321,7 +321,7 @@ function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editab
     const label = String(block.content?.label || '').trim()
     return (
       <section className="learning-info-stack-section" style={blockStyle}>
-        {label && <p className="text-lg font-bold text-gray-900">{label}</p>}
+        {label && <p className="text-lg font-bold text-foreground">{label}</p>}
         <QuestionBlockContent
           page={buildQuestionVirtualPage(page, block)}
           answer={answer}
@@ -661,16 +661,16 @@ function InfoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPag
           onMouseDown={(event) => {
             if ((event.target as HTMLElement).tagName !== 'INPUT') event.preventDefault()
           }}
-          className="learning-info-format-bar fixed z-[120] flex max-w-[calc(100vw-2rem)] items-center gap-1 rounded-xl border border-gray-200 bg-white/95 p-1 shadow-xl shadow-gray-950/10 backdrop-blur"
+          className="learning-info-format-bar fixed z-[120] flex max-w-[calc(100vw-2rem)] items-center gap-1 rounded-xl border border-border bg-card/95 p-1 shadow-xl shadow-gray-950/10 backdrop-blur"
           style={{ top: toolbarPosition.top, left: toolbarPosition.left, transform: 'translateX(-50%)' }}
         >
           {selectedImage ? (
             <>
-              <div className="grid grid-cols-2 rounded-lg bg-gray-100 p-0.5">
+              <div className="grid grid-cols-2 rounded-lg bg-muted p-0.5">
                 <button
                   type="button"
                   onClick={() => updateSelectedImage({ mode: 'url', src: selectedImage.attrs?.mode === 'upload' ? '' : selectedImage.attrs?.src })}
-                  className={`inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-bold ${selectedImage.attrs?.mode !== 'upload' ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-500'}`}
+                  className={`inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-bold ${selectedImage.attrs?.mode !== 'upload' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
                 >
                   <LinkIcon size={14} />
                   URL
@@ -678,7 +678,7 @@ function InfoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPag
                 <button
                   type="button"
                   onClick={() => imageInputRef.current?.click()}
-                  className={`inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-bold ${selectedImage.attrs?.mode === 'upload' ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-500'}`}
+                  className={`inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-bold ${selectedImage.attrs?.mode === 'upload' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
                 >
                   {uploadingImage ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
                   Upload
@@ -689,21 +689,21 @@ function InfoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPag
                 value={selectedImage.attrs?.mode === 'upload' ? '' : selectedImage.attrs?.src || ''}
                 onChange={(event) => updateSelectedImage({ src: event.target.value, mode: 'url' })}
                 placeholder="Paste image URL"
-                className="h-8 w-56 min-w-0 rounded-lg border border-gray-200 bg-white px-2 text-xs font-medium outline-none placeholder:text-gray-400 focus:border-[var(--org-primary-color)] focus:ring-2 focus:ring-[var(--org-primary-color)]"
+                className="h-8 w-56 min-w-0 rounded-lg border border-border bg-card px-2 text-xs font-medium outline-none placeholder:text-muted-foreground focus:border-[var(--org-primary-color)] focus:ring-2 focus:ring-[var(--org-primary-color)]"
               />
             </>
           ) : activeTextEditor ? (
             <>
               <InfoFormatButton title="Heading 1" active={activeTextEditor.isActive('heading', { level: 1 })} onClick={() => activeTextEditor.chain().focus().toggleHeading({ level: 1 }).run()}><Heading1 size={16} /></InfoFormatButton>
               <InfoFormatButton title="Heading 2" active={activeTextEditor.isActive('heading', { level: 2 })} onClick={() => activeTextEditor.chain().focus().toggleHeading({ level: 2 }).run()}><Heading2 size={16} /></InfoFormatButton>
-              <span className="mx-1 h-5 w-px bg-gray-200" />
+              <span className="mx-1 h-5 w-px bg-muted" />
               <InfoFormatButton title="Bold" active={activeTextEditor.isActive('bold')} onClick={() => activeTextEditor.chain().focus().toggleBold().run()}><Bold size={16} /></InfoFormatButton>
               <InfoFormatButton title="Italic" active={activeTextEditor.isActive('italic')} onClick={() => activeTextEditor.chain().focus().toggleItalic().run()}><Italic size={16} /></InfoFormatButton>
               <InfoFormatButton title="Quote" active={activeTextEditor.isActive('blockquote')} onClick={() => activeTextEditor.chain().focus().toggleBlockquote().run()}><Quote size={16} /></InfoFormatButton>
-              <span className="mx-1 h-5 w-px bg-gray-200" />
+              <span className="mx-1 h-5 w-px bg-muted" />
               <InfoFormatButton title="Bullet list" active={activeTextEditor.isActive('bulletList')} onClick={() => { if (!splitActiveListItem(true)) activeTextEditor.chain().focus().toggleBulletList().run() }}><List size={16} /></InfoFormatButton>
               <InfoFormatButton title="Numbered list" active={activeTextEditor.isActive('orderedList')} onClick={() => { if (!splitActiveListItem(true)) activeTextEditor.chain().focus().toggleOrderedList().run() }}><ListOrdered size={16} /></InfoFormatButton>
-              <span className="mx-1 h-5 w-px bg-gray-200" />
+              <span className="mx-1 h-5 w-px bg-muted" />
               <InfoFormatButton title="Align left" active={getActiveTextAlignment(activeTextEditor) === 'left'} onClick={() => setActiveTextAlignment(activeTextEditor, 'left')}><AlignLeft size={16} /></InfoFormatButton>
               <InfoFormatButton title="Align center" active={getActiveTextAlignment(activeTextEditor) === 'center'} onClick={() => setActiveTextAlignment(activeTextEditor, 'center')}><AlignCenter size={16} /></InfoFormatButton>
               <InfoFormatButton title="Align right" active={getActiveTextAlignment(activeTextEditor) === 'right'} onClick={() => setActiveTextAlignment(activeTextEditor, 'right')}><AlignRight size={16} /></InfoFormatButton>
@@ -1198,8 +1198,8 @@ function QuestionOptionSection({
           }}
         />
       )}
-      <div className={`flex w-full items-center gap-4 rounded-xl border bg-white p-4 text-left shadow-sm transition ${selected ? 'border-[var(--org-primary-color)] ring-2 ring-[var(--org-primary-color)]' : 'border-gray-200 hover:border-gray-300'}`}>
-        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${selected ? 'border-[var(--org-primary-color)] bg-[var(--org-primary-color)] text-white' : 'border-gray-200 text-gray-600'}`}>{String.fromCharCode(65 + index)}</span>
+      <div className={`flex w-full items-center gap-4 rounded-xl border bg-card p-4 text-left shadow-sm transition ${selected ? 'border-[var(--org-primary-color)] ring-2 ring-[var(--org-primary-color)]' : 'border-border hover:border-border'}`}>
+        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${selected ? 'border-[var(--org-primary-color)] bg-[var(--org-primary-color)] text-white' : 'border-border text-muted-foreground'}`}>{String.fromCharCode(65 + index)}</span>
         <div className="min-w-0 flex-1" onMouseDown={(event) => event.stopPropagation()}>
           {children}
         </div>
@@ -1374,7 +1374,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
               value={page.content?.prompt || ''}
               placeholder="Question prompt"
               onChange={(value: string) => onPagePatch?.({ content: { ...(page.content || {}), prompt: value } })}
-              className="text-3xl font-bold text-gray-950"
+              className="text-3xl font-bold text-foreground"
               elementRef={titleRef}
             />
           </QuestionTitleSection>
@@ -1410,7 +1410,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
                     value={option.text || ''}
                     placeholder={`Option ${index + 1}`}
                     onChange={(value: string) => updateOption(index, value)}
-                    className="min-w-0 text-gray-900 outline-none"
+                    className="min-w-0 text-foreground outline-none"
                   />
                 </QuestionOptionSection>
               )
@@ -1422,10 +1422,10 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
               <button
                 key={option.id || index}
                 onClick={() => toggleOption(option.id || String(index))}
-                className={`flex w-full items-center gap-4 rounded-xl border bg-white p-4 text-left shadow-sm transition ${selectedIds.includes(option.id || String(index)) ? 'border-[var(--org-primary-color)] ring-2 ring-[var(--org-primary-color)]' : 'border-gray-200 hover:border-gray-300'}`}
+                className={`flex w-full items-center gap-4 rounded-xl border bg-card p-4 text-left shadow-sm transition ${selectedIds.includes(option.id || String(index)) ? 'border-[var(--org-primary-color)] ring-2 ring-[var(--org-primary-color)]' : 'border-border hover:border-border'}`}
               >
-                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${selectedIds.includes(option.id || String(index)) ? 'border-[var(--org-primary-color)] bg-[var(--org-primary-color)] text-white' : 'border-gray-200 text-gray-600'}`}>{String.fromCharCode(65 + index)}</span>
-                <span className="min-w-0 flex-1 text-gray-900">{option.text || `Option ${index + 1}`}</span>
+                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${selectedIds.includes(option.id || String(index)) ? 'border-[var(--org-primary-color)] bg-[var(--org-primary-color)] text-white' : 'border-border text-muted-foreground'}`}>{String.fromCharCode(65 + index)}</span>
+                <span className="min-w-0 flex-1 text-foreground">{option.text || `Option ${index + 1}`}</span>
               </button>
             ))}
           </div>
@@ -1583,7 +1583,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
                       value={input.label || ''}
                       placeholder={`Input ${index + inputIndex + 1}`}
                       onChange={(value: string) => updateInputConfig(input.id, { label: value })}
-                      className="min-w-0 flex-1 text-lg font-bold leading-7 text-gray-900"
+                      className="min-w-0 flex-1 text-lg font-bold leading-7 text-foreground"
                     />
                   ) : <span className="min-w-0 flex-1" />}
                 </div>
@@ -1593,7 +1593,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
                     onChange={(event) => editable ? updateInputConfig(input.id, { placeholder: event.target.value }) : updateTextInput(input.id, event.target.value)}
                     placeholder={editable ? 'Placeholder' : input.placeholder}
                     style={{ height }}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-4 text-gray-950 outline-none shadow-sm placeholder:text-gray-400 focus:border-[var(--org-primary-color)] focus:ring-2 focus:ring-[var(--org-primary-color)]"
+                    className="w-full rounded-xl border border-border bg-card px-4 text-foreground outline-none shadow-sm placeholder:text-muted-foreground focus:border-[var(--org-primary-color)] focus:ring-2 focus:ring-[var(--org-primary-color)]"
                   />
                 ) : (
                   <textarea
@@ -1602,7 +1602,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
                     onChange={(event) => editable ? updateInputConfig(input.id, { placeholder: event.target.value }) : updateTextInput(input.id, event.target.value)}
                     placeholder={editable ? 'Placeholder' : input.placeholder}
                     style={{ height }}
-                    className="w-full resize-none rounded-xl border border-gray-200 bg-white p-4 text-gray-950 outline-none shadow-sm placeholder:text-gray-400 focus:border-[var(--org-primary-color)] focus:ring-2 focus:ring-[var(--org-primary-color)]"
+                    className="w-full resize-none rounded-xl border border-border bg-card p-4 text-foreground outline-none shadow-sm placeholder:text-muted-foreground focus:border-[var(--org-primary-color)] focus:ring-2 focus:ring-[var(--org-primary-color)]"
                   />
                 )}
               </div>
@@ -1631,7 +1631,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
         </div>
       )}
       {page.scoring?.mode === 'manual' && !editable ? (
-        <p className="mt-3 text-xs font-semibold text-gray-500">Your response will be reviewed after you submit.</p>
+        <p className="mt-3 text-xs font-semibold text-muted-foreground">Your response will be reviewed after you submit.</p>
       ) : null}
     </div>
   )
@@ -1764,7 +1764,7 @@ function InfoFormatButton({ title, active, onClick, children }: any) {
       type="button"
       title={title}
       onClick={onClick}
-      className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${active ? 'bg-gray-950 text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-950'}`}
+      className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${active ? 'bg-gray-950 text-white' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
     >
       {children}
     </button>
@@ -2466,11 +2466,11 @@ function VideoPlaybackStatus({ interactionState, pageUuid, allowScrubbing = true
         title={allowScrubbing ? 'Seek video' : 'Seeking disabled'}
       >
         <div className="absolute left-0 right-0 top-1/2 h-1.5 -translate-y-1/2 overflow-hidden rounded-full bg-white/30">
-          <div className="h-full rounded-full bg-white transition-all" style={{ width: `${progress * 100}%` }} />
+          <div className="h-full rounded-full bg-card transition-all" style={{ width: `${progress * 100}%` }} />
         </div>
         {allowScrubbing && (
           <div
-            className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow"
+            className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-card shadow"
             style={{ left: `${progress * 100}%` }}
           />
         )}
@@ -2540,7 +2540,7 @@ function EditableText({ as = 'div', editable, value, placeholder, onChange, clas
           event.currentTarget.blur()
         }
       }}
-      className={`${className || ''} rounded-md outline-none transition focus:bg-white focus:ring-2 focus:ring-[var(--org-primary-color)] empty:before:text-gray-400 empty:before:content-[attr(data-placeholder)]`}
+      className={`${className || ''} rounded-md outline-none transition focus:bg-card focus:ring-2 focus:ring-[var(--org-primary-color)] empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]`}
     />
   )
 }

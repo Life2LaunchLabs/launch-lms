@@ -196,7 +196,7 @@ export const OrgMenu = (props: { orgslug: string }) => {
                   <div className="flex min-w-0 items-center">
                     {org?.logo_image ? (
                       !hideOrgName && (
-                        <span className="truncate text-sm font-semibold text-gray-900">
+                        <span className="truncate text-sm font-semibold text-foreground">
                           {org?.name}
                         </span>
                       )
@@ -228,7 +228,7 @@ export const OrgMenu = (props: { orgslug: string }) => {
                         <button
                           type="button"
                           onClick={() => setDesktopExpanded(true)}
-                          className="absolute inset-0 flex items-center justify-center rounded-2xl text-gray-500 opacity-0 transition-colors transition-opacity duration-150 hover:bg-black/[0.06] hover:text-gray-900 group-hover/sidebar:opacity-100"
+                          className="absolute inset-0 flex items-center justify-center rounded-2xl text-muted-foreground opacity-0 transition-colors transition-opacity duration-150 hover:bg-foreground/[0.06] hover:text-foreground group-hover/sidebar:opacity-100"
                           aria-label="Open sidebar"
                         >
                           <SidebarSimple size={20} weight="bold" />
@@ -245,7 +245,7 @@ export const OrgMenu = (props: { orgslug: string }) => {
                 <button
                   type="button"
                   onClick={() => setDesktopExpanded(false)}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-gray-500 transition-colors hover:bg-black/[0.06] hover:text-gray-900"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
                   aria-label="Collapse sidebar"
                 >
                   <SidebarSimple size={20} weight="bold" />
@@ -321,14 +321,14 @@ export const OrgMenu = (props: { orgslug: string }) => {
       <nav
         aria-label="Mobile navigation"
         className={cn(
-          'fixed inset-x-0 bottom-4 z-[var(--z-nav)] flex justify-center px-4 transition-[opacity,transform] duration-300 ease-out md:hidden',
+          'fixed inset-x-0 bottom-0 z-[var(--z-nav)] flex justify-center border-t border-border bg-card px-2 transition-[opacity,transform] duration-300 ease-out md:hidden',
           isActivityPage
-            ? 'pointer-events-none translate-y-6 opacity-0'
+            ? 'pointer-events-none translate-y-full opacity-0'
             : 'translate-y-0 opacity-100'
         )}
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0px)' }}
       >
-        <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-black/5 bg-white/95 p-2 shadow-[0_20px_45px_rgba(15,23,42,0.16)] backdrop-blur-xl">
+        <div className="pointer-events-auto flex h-16 w-full max-w-screen-sm items-center justify-around gap-1">
           {primaryNavItems.map((item) => (
             <MobileNavItem
               key={item.href || item.label}
@@ -371,10 +371,10 @@ function SidebarItem({
   showOnboardingBadge = false,
 }: SidebarItemProps) {
   const baseClass = item.active
-    ? 'bg-black/[0.07] text-gray-950 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]'
+    ? 'bg-foreground/[0.07] text-foreground shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]'
     : muted
-      ? 'text-gray-400 hover:bg-black/[0.05] hover:text-gray-700'
-      : 'text-gray-500 hover:bg-black/[0.05] hover:text-gray-900'
+      ? 'text-muted-foreground hover:bg-foreground/[0.05] hover:text-muted-foreground'
+      : 'text-muted-foreground hover:bg-foreground/[0.05] hover:text-foreground'
 
   const sharedClass = cn(
     'relative flex h-11 items-center rounded-2xl transition-colors',
@@ -475,7 +475,7 @@ function DesktopAccountLink({
                 type="button"
                 aria-label="Account"
                 className={cn(
-                  'group/account flex h-11 items-center rounded-2xl text-gray-500 transition-colors hover:bg-black/[0.08] hover:text-gray-900',
+                  'group/account flex h-11 items-center rounded-2xl text-muted-foreground transition-colors hover:bg-foreground/[0.08] hover:text-foreground',
                   isExpanded
                     ? 'w-full justify-start gap-1 pl-0.5 pr-3'
                     : 'w-11 justify-center'
@@ -485,12 +485,12 @@ function DesktopAccountLink({
                   <UserAvatar border="border-2" rounded="rounded-xl" width={34} />
                 </div>
                 <div className={cn('min-w-0 flex-1 text-left leading-tight', isExpanded ? 'block' : 'hidden')}>
-                  <p className="truncate text-sm font-semibold text-gray-900 capitalize">
+                  <p className="truncate text-sm font-semibold text-foreground capitalize">
                     {session?.data?.user?.username}
                   </p>
-                  <p className="truncate text-xs text-gray-500">{session?.data?.user?.email}</p>
+                  <p className="truncate text-xs text-muted-foreground">{session?.data?.user?.email}</p>
                 </div>
-                <CaretDown size={16} weight="bold" className={cn('shrink-0 text-gray-400 transition-colors group-hover/account:text-gray-700', isExpanded ? 'block' : 'hidden')} />
+                <CaretDown size={16} weight="bold" className={cn('shrink-0 text-muted-foreground transition-colors group-hover/account:text-muted-foreground', isExpanded ? 'block' : 'hidden')} />
               </button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
@@ -513,7 +513,7 @@ function DesktopAccountLink({
             <UserAvatar border="border-2" rounded="rounded-full" width={24} shadow="" />
             <div className="min-w-0">
               <p className="truncate text-sm font-medium capitalize">{session?.data?.user?.username}</p>
-              <p className="truncate text-xs text-gray-500">{session?.data?.user?.email}</p>
+              <p className="truncate text-xs text-muted-foreground">{session?.data?.user?.email}</p>
             </div>
           </div>
         </DropdownMenuLabel>
@@ -565,10 +565,10 @@ function MobileNavItem({
     <Link
       href={getUriWithOrg(orgslug, item.href || '/')}
       aria-label={item.label}
-      className={`relative flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
+      className={`relative flex h-12 flex-1 items-center justify-center rounded-xl transition-colors ${
         item.active
-          ? 'bg-black/[0.12] text-gray-950 shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]'
-          : 'text-gray-500 hover:bg-black/[0.08] hover:text-gray-900'
+          ? 'text-foreground [&>svg]:scale-110 [&>svg]:stroke-[2.6]'
+          : 'text-muted-foreground hover:bg-foreground/[0.08] hover:text-foreground'
       }`}
     >
       {item.icon}
@@ -598,7 +598,7 @@ function MobileMoreMenu({
         <button
           type="button"
           aria-label="More"
-          className="flex h-12 w-12 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-black/[0.08] hover:text-gray-900"
+          className="flex h-12 flex-1 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-foreground/[0.08] hover:text-foreground"
         >
           <User size={20} weight="bold" />
         </button>

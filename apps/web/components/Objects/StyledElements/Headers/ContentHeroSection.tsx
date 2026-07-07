@@ -29,7 +29,7 @@ function ContentHeroSection({
         <div className="min-w-0 flex-1">
           {eyebrow && (
             <div
-              className="mb-4 inline-flex rounded-md bg-white px-2 py-1 text-xs font-bold uppercase tracking-wide"
+              className="mb-4 inline-flex rounded-md bg-card px-2 py-1 text-xs font-bold uppercase tracking-wide"
               style={{ color: 'var(--org-primary-color, #8b5cf6)' }}
             >
               {eyebrow}
@@ -65,7 +65,7 @@ export function ContentHeroButton({
   return (
     <Link
       href={href}
-      className="inline-flex h-11 items-center rounded-lg bg-white px-5 text-sm font-bold text-gray-950 transition-colors hover:bg-white/90"
+      className="inline-flex h-11 items-center rounded-lg bg-card px-5 text-sm font-bold text-foreground transition-colors hover:bg-card/90"
     >
       {label}
     </Link>
@@ -93,7 +93,7 @@ export function ContentHeroSegmentedProgress({
         className="flex h-6 overflow-hidden rounded-full bg-white/25"
         aria-label={`${earned} earned and ${inProgress} in progress out of ${total} badges`}
       >
-        <div className="h-full bg-white" style={{ width: `${earnedWidth}%` }} />
+        <div className="h-full bg-card" style={{ width: `${earnedWidth}%` }} />
         <div className="h-full bg-white/55" style={{ width: `${inProgressWidth}%` }} />
       </div>
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs font-bold">

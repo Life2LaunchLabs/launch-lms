@@ -47,7 +47,7 @@ FormField.displayName = 'FormField'
 
 export const FormLabel = React.forwardRef<HTMLLabelElement, React.ComponentPropsWithoutRef<typeof Form.Label>>(
   ({ className, ...props }, ref) => (
-    <Form.Label ref={ref} className={`font-medium leading-[35px] text-black ${className || ''}`} {...props} />
+    <Form.Label ref={ref} className={`font-medium leading-[35px] text-foreground ${className || ''}`} {...props} />
   )
 )
 FormLabel.displayName = 'FormLabel'
@@ -70,7 +70,7 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
   ({ className, ...props }, ref) => (
     <input
       ref={ref}
-      className={`box-border w-full inline-flex items-center justify-center rounded h-[35px] leading-none px-2.5 text-[15px] text-[#7c7c7c] bg-[#fbfdff] shadow-[0_0_0_1px_#edeeef] hover:shadow-[0_0_0_1px_#edeeef] focus:shadow-[0_0_0_2px_#edeeef] selection:bg-black selection:text-white border-none outline-none ${className || ''}`}
+      className={`box-border w-full inline-flex items-center justify-center rounded h-[35px] leading-none px-2.5 text-[15px] text-muted-foreground bg-card shadow-[0_0_0_1px_hsl(var(--border))] hover:shadow-[0_0_0_1px_hsl(var(--border))] focus:shadow-[0_0_0_2px_hsl(var(--ring))] selection:bg-black selection:text-white border-none outline-none ${className || ''}`}
       {...props}
     />
   )
@@ -81,7 +81,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTML
   ({ className, ...props }, ref) => (
     <textarea
       ref={ref}
-      className={`box-border w-full inline-flex items-center justify-center rounded resize-none p-2.5 text-[15px] text-[#7c7c7c] bg-[#fbfdff] shadow-[0_0_0_1px_#edeeef] hover:shadow-[0_0_0_1px_#edeeef] focus:shadow-[0_0_0_2px_#edeeef] selection:bg-black selection:text-white border-none outline-none ${className || ''}`}
+      className={`box-border w-full inline-flex items-center justify-center rounded resize-none p-2.5 text-[15px] text-muted-foreground bg-card shadow-[0_0_0_1px_hsl(var(--border))] hover:shadow-[0_0_0_1px_hsl(var(--border))] focus:shadow-[0_0_0_2px_hsl(var(--ring))] selection:bg-black selection:text-white border-none outline-none ${className || ''}`}
       {...props}
     />
   )

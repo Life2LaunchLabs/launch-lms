@@ -443,6 +443,7 @@ async function waitForHealth(label: string, command: string, args: string[], max
 const CONTROLS_BAR = pc.dim('─'.repeat(60)) + '\n' +
   pc.dim('  ') + pc.bold('ra') + pc.dim(' restart api  ') +
   pc.bold('rw') + pc.dim(' restart web  ') +
+  pc.bold('rf') + pc.dim(' fresh web  ') +
   pc.bold('rc') + pc.dim(' restart collab  ') +
   pc.bold('rb') + pc.dim(' restart all  ') +
   pc.bold('q') + pc.dim(' quit') + '\n' +
@@ -528,6 +529,19 @@ function killProcess(child: ChildProcess | null): Promise<void> {
   })
 }
 
+// Turbopack's persistent cache can serve stale compiled output (notably global
+// CSS) even across restarts when sources changed while the server was down.
+// Clearing .next forces a clean compile.
+function clearWebBuildCache(webDir: string): void {
+  const nextDir = path.join(webDir, '.next')
+  if (!fs.existsSync(nextDir)) {
+    p.log.info('Web build cache already clean (no apps/web/.next)')
+    return
+  }
+  fs.rmSync(nextDir, { recursive: true, force: true })
+  p.log.success('Cleared web build cache (apps/web/.next)')
+}
+
 function certHasRequiredDevHosts(certPath: string, publicHost: string): boolean {
   try {
     const certPem = fs.readFileSync(certPath, 'utf8')
@@ -544,7 +558,7 @@ function certHasRequiredDevHosts(certPath: string, publicHost: string): boolean 
   }
 }
 
-export async function devCommand(opts: { ee?: boolean }) {
+export async function devCommand(opts: { ee?: boolean; fresh?: boolean }) {
   const root = findProjectRoot()
   if (!root) {
     p.log.error('Not inside a Launch LMS project.')
@@ -801,6 +815,10 @@ export async function devCommand(opts: { ee?: boolean }) {
     serviceEnv.NODE_TLS_REJECT_UNAUTHORIZED = '0'
   }
 
+  if (opts.fresh) {
+    clearWebBuildCache(webDir)
+  }
+
   // Start local services
   let apiProc: ChildProcess | null = null
   let webProc: ChildProcess | null = null
@@ -898,6 +916,12 @@ export async function devCommand(opts: { ee?: boolean }) {
         } else if (key === 'w') {
           console.log(pc.cyan('\n  Restarting Web...\n'))
           await killProcess(webProc)
+          webProc = startWeb()
+          printControls()
+        } else if (key === 'f') {
+          console.log(pc.cyan('\n  Restarting Web with a fresh build cache...\n'))
+          await killProcess(webProc)
+          clearWebBuildCache(webDir)
           webProc = startWeb()
           printControls()
         } else if (key === 'c') {

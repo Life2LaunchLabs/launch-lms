@@ -52,8 +52,8 @@ const Modal = (params: ModalParams) => {
         "flex flex-col",
         "w-[95vw] max-w-[95vw]",
         "max-h-[90vh]",
-        "bg-white",
-        "border border-gray-200",
+        "bg-card",
+        "border border-border",
         "shadow-lg",
         "p-0",
         "sm:w-[90vw] sm:max-w-[90vw]",
@@ -67,12 +67,12 @@ const Modal = (params: ModalParams) => {
       )}>
         {/* Header */}
         {params.dialogTitle ? (
-          <DialogHeader className="shrink-0 px-5 py-4 border-b border-gray-100 space-y-0">
-            <DialogTitle className="text-xl font-semibold text-gray-900">
+          <DialogHeader className="shrink-0 px-5 py-4 border-b border-border space-y-0">
+            <DialogTitle className="text-xl font-semibold text-foreground">
               {params.dialogTitle}
             </DialogTitle>
             {params.dialogDescription && (
-              <DialogDescription className="text-sm text-gray-500">
+              <DialogDescription className="text-sm text-muted-foreground">
                 {params.dialogDescription}
               </DialogDescription>
             )}
@@ -91,7 +91,7 @@ const Modal = (params: ModalParams) => {
 
         {/* Footer */}
         {hasFooter && (
-          <DialogFooter className="shrink-0 px-5 py-3 border-t border-gray-100 flex flex-row justify-end gap-2">
+          <DialogFooter className="shrink-0 px-5 py-3 border-t border-border flex flex-row justify-end gap-2">
             {params.dialogClose}
             {params.addDefCloseButton && (
               <button

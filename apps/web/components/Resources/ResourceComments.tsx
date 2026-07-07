@@ -69,7 +69,7 @@ export default function ResourceComments({ resourceUuid }: { resourceUuid: strin
 
   return (
     <div className="p-6">
-      <h2 className="text-lg font-semibold text-gray-900">Comments</h2>
+      <h2 className="text-lg font-semibold text-foreground">Comments</h2>
       <div className="mt-4 space-y-4">
         {(comments || []).map((comment) => {
           const isAuthor = currentUserId === comment.author_id
@@ -77,7 +77,7 @@ export default function ResourceComments({ resourceUuid }: { resourceUuid: strin
             ? `${comment.author.first_name || ''} ${comment.author.last_name || ''}`.trim() || comment.author.username
             : 'Unknown'
           return (
-            <div key={comment.comment_uuid} className="rounded-xl border border-gray-100 p-4">
+            <div key={comment.comment_uuid} className="rounded-xl border border-border p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <UserAvatar
@@ -88,14 +88,14 @@ export default function ResourceComments({ resourceUuid }: { resourceUuid: strin
                     shadow="shadow-none"
                   />
                   <div>
-                    <div className="text-sm font-medium text-gray-900">{authorName}</div>
-                    <div className="text-xs text-gray-400">{new Date(comment.creation_date).toLocaleString()}</div>
+                    <div className="text-sm font-medium text-foreground">{authorName}</div>
+                    <div className="text-xs text-muted-foreground">{new Date(comment.creation_date).toLocaleString()}</div>
                   </div>
                 </div>
                 {isAuthor && (
                   <div className="flex gap-2 text-xs">
                     <button
-                      className="rounded-md border border-gray-200 px-2 py-1 text-gray-600"
+                      className="rounded-md border border-border px-2 py-1 text-muted-foreground"
                       onClick={() => {
                         setEditingId(comment.comment_uuid)
                         setEditingDraft(comment.content)
@@ -117,20 +117,20 @@ export default function ResourceComments({ resourceUuid }: { resourceUuid: strin
                   <textarea
                     value={editingDraft}
                     onChange={(e) => setEditingDraft(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 p-3 text-sm"
+                    className="w-full rounded-lg border border-border p-3 text-sm"
                     rows={3}
                   />
                   <div className="flex gap-2">
                     <button className="rounded-lg bg-black px-3 py-2 text-sm text-white" onClick={() => handleUpdate(comment.comment_uuid)}>
                       Save
                     </button>
-                    <button className="rounded-lg border border-gray-200 px-3 py-2 text-sm" onClick={() => setEditingId(null)}>
+                    <button className="rounded-lg border border-border px-3 py-2 text-sm" onClick={() => setEditingId(null)}>
                       Cancel
                     </button>
                   </div>
                 </div>
               ) : (
-                <p className="mt-3 text-sm text-gray-700 whitespace-pre-wrap">{comment.content}</p>
+                <p className="mt-3 text-sm text-muted-foreground whitespace-pre-wrap">{comment.content}</p>
               )}
             </div>
           )
@@ -143,7 +143,7 @@ export default function ResourceComments({ resourceUuid }: { resourceUuid: strin
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={3}
-            className="w-full rounded-xl border border-gray-200 p-3 text-sm"
+            className="w-full rounded-xl border border-border p-3 text-sm"
             placeholder="Add a comment"
           />
           <button className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white" onClick={handleCreate}>
@@ -151,7 +151,7 @@ export default function ResourceComments({ resourceUuid }: { resourceUuid: strin
           </button>
         </div>
       ) : (
-        <p className="mt-6 text-sm text-gray-500">Sign in to comment.</p>
+        <p className="mt-6 text-sm text-muted-foreground">Sign in to comment.</p>
       )}
     </div>
   )

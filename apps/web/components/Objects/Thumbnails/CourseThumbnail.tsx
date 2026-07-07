@@ -137,20 +137,20 @@ function CourseThumbnail({ course, orgslug, customLink, isDashboard = false, isS
   const courseLink = customLink ? customLink : getUriWithOrg(orgslug, routePaths.org.course(removeCoursePrefix(course.course_uuid)))
 
   return (
-    <div className={`group relative flex flex-col bg-white rounded-xl nice-shadow overflow-hidden w-full transition-all duration-300 hover:scale-[1.01] ${isSelected ? 'ring-2 ring-black ring-offset-2' : ''}`}>
+    <div className={`group relative flex flex-col bg-card rounded-xl nice-shadow overflow-hidden w-full transition-all duration-300 hover:scale-[1.01] ${isSelected ? 'ring-2 ring-black ring-offset-2' : ''}`}>
       {/* Selection checkbox - visible on hover or when selected (dashboard only) */}
       {isDashboard && onToggleSelect && (
         <button
           onClick={handleSelectClick}
           aria-label={isSelected ? 'Deselect course' : 'Select course'}
-          className={`absolute top-2 left-2 z-40 p-1.5 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all shadow-md ${
+          className={`absolute top-2 left-2 z-40 p-1.5 bg-card/90 backdrop-blur-sm rounded-full hover:bg-card transition-all shadow-md ${
             isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
           }`}
         >
           {isSelected ? (
-            <CheckSquare className="w-4 h-4 text-black" />
+            <CheckSquare className="w-4 h-4 text-foreground" />
           ) : (
-            <Square className="w-4 h-4 text-gray-500" />
+            <Square className="w-4 h-4 text-muted-foreground" />
           )}
         </button>
       )}
@@ -167,7 +167,7 @@ function CourseThumbnail({ course, orgslug, customLink, isDashboard = false, isS
 
       <Link prefetch href={courseLink} className="block relative aspect-video overflow-hidden bg-black">
         <CourseThumbnailImage src={thumbnailImage} alt={course.name} hoverScale />
-        <div className="absolute inset-0 z-20 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
+        <div className="absolute inset-0 z-20 bg-black/0 group-hover:bg-foreground/10 transition-colors duration-300" />
         {isDashboard && (
           <div className="absolute bottom-2 left-2 z-30 flex gap-1">
             {course.published ? (
@@ -199,19 +199,19 @@ function CourseThumbnail({ course, orgslug, customLink, isDashboard = false, isS
         <div className="flex items-start justify-between">
           <Link
             href={courseLink}
-            className="text-base font-bold text-gray-900 leading-tight hover:text-black transition-colors line-clamp-1"
+            className="text-base font-bold text-foreground leading-tight hover:text-foreground transition-colors line-clamp-1"
           >
             {course.name}
           </Link>
         </div>
         
         {course.description && (
-          <p className="text-[11px] text-gray-500 line-clamp-2 min-h-[1.5rem]">
+          <p className="text-[11px] text-muted-foreground line-clamp-2 min-h-[1.5rem]">
             {course.description}
           </p>
         )}
 
-        <div className="pt-1.5 flex items-center justify-between border-t border-gray-100">
+        <div className="pt-1.5 flex items-center justify-between border-t border-border">
           <div className="flex items-center gap-2">
             {displayedAuthors.length > 0 && (
               <div className="flex -space-x-2 items-center">
@@ -234,7 +234,7 @@ function CourseThumbnail({ course, orgslug, customLink, isDashboard = false, isS
                 ))}
                 {hasMoreAuthors && (
                   <div className="relative z-0">
-                    <div className="flex items-center justify-center w-[20px] h-[20px] text-[8px] font-bold text-gray-600 bg-gray-100 border-2 border-white rounded-full">
+                    <div className="flex items-center justify-center w-[20px] h-[20px] text-[8px] font-bold text-muted-foreground bg-muted border-2 border-white rounded-full">
                       +{remainingAuthorsCount}
                     </div>
                   </div>
@@ -243,7 +243,7 @@ function CourseThumbnail({ course, orgslug, customLink, isDashboard = false, isS
             )}
             
             {course.update_date && (
-              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
                 {new Date(course.update_date).toLocaleDateString(i18n.language === 'fr' ? 'fr-FR' : 'en-US', { month: 'short', day: 'numeric' })}
               </span>
             )}
@@ -256,7 +256,7 @@ function CourseThumbnail({ course, orgslug, customLink, isDashboard = false, isS
           ) : (
             <Link
               href={courseLink}
-              className="text-[10px] font-bold text-gray-400 hover:text-gray-900 transition-colors uppercase tracking-wider"
+              className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider"
             >
               {t('courses.start_learning')}
             </Link>
@@ -298,9 +298,9 @@ const AdminEditOptions = ({ course, orgSlug, deleteCourse, cloneCourse, exportCo
               onClick={(e) => {
                 e.stopPropagation()
               }}
-              className="p-1.5 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all shadow-md"
+              className="p-1.5 bg-card/90 backdrop-blur-sm rounded-full hover:bg-card transition-all shadow-md"
             >
-              <MoreVertical size={18} className="text-gray-700" />
+              <MoreVertical size={18} className="text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
@@ -320,7 +320,7 @@ const AdminEditOptions = ({ course, orgSlug, deleteCourse, cloneCourse, exportCo
                 confirmationMessage={t('courses.clone_course_confirm')}
                 dialogTitle={t('courses.clone_course_title', { name: course.name })}
                 dialogTrigger={
-                  <button className="w-full text-left flex items-center px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors">
+                  <button className="w-full text-left flex items-center px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted rounded-md transition-colors">
                     <Copy className="mr-2 h-4 w-4" /> {t('courses.clone_course')}
                   </button>
                 }
@@ -331,7 +331,7 @@ const AdminEditOptions = ({ course, orgSlug, deleteCourse, cloneCourse, exportCo
             <DropdownMenuItem asChild>
               <button
                 onClick={exportCourse}
-                className="w-full text-left flex items-center px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                className="w-full text-left flex items-center px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted rounded-md transition-colors"
               >
                 <Download className="mr-2 h-4 w-4" /> {t('courses.export_course')}
               </button>

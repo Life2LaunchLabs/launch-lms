@@ -184,21 +184,21 @@ export function DiscussionList({
   return (
     <div>
       {/* Header with Search and Filters */}
-      <div className="p-4 border-b border-gray-100 space-y-3">
+      <div className="p-4 border-b border-border space-y-3">
         {/* Search Bar */}
         <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             placeholder={t('communities.discussion_list.search_placeholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-9 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 transition-all"
+            className="w-full pl-9 pr-9 py-2 text-sm bg-muted border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 transition-all"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground"
             >
               <X size={14} />
             </button>
@@ -210,7 +210,7 @@ export function DiscussionList({
           <div className="flex items-center gap-2 flex-wrap">
             <LabelFilter value={selectedLabel} onChange={handleLabelChange} />
             <SortDropdown value={sortBy} onChange={handleSortChange} />
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-muted-foreground">
               {filteredDiscussions.length} {filteredDiscussions.length === 1 ? t('communities.discussion') : t('communities.discussions')}
             </span>
           </div>
@@ -223,7 +223,7 @@ export function DiscussionList({
                 className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-md transition-colors h-8 ${
                   isSelectMode
                     ? 'bg-indigo-100 text-indigo-700'
-                    : 'bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100'
+                    : 'bg-muted border border-border text-muted-foreground hover:bg-muted'
                 }`}
               >
                 <CheckSquare size={14} />
@@ -288,13 +288,13 @@ export function DiscussionList({
       <div>
         {filteredDiscussions.length === 0 && !isLoading ? (
           <div className="flex flex-col items-center justify-center py-16 px-4">
-            <div className="p-4 bg-gray-50 rounded-full mb-4">
+            <div className="p-4 bg-muted rounded-full mb-4">
               <MessageCircle size={28} className="text-gray-300" />
             </div>
             {searchQuery ? (
               <>
-                <h3 className="text-base font-semibold text-gray-600 mb-1">{t('communities.discussion_list.no_results')}</h3>
-                <p className="text-sm text-gray-400 text-center max-w-xs mb-4">
+                <h3 className="text-base font-semibold text-muted-foreground mb-1">{t('communities.discussion_list.no_results')}</h3>
+                <p className="text-sm text-muted-foreground text-center max-w-xs mb-4">
                   {t('communities.discussion_list.no_results_description')}
                 </p>
                 <button
@@ -306,8 +306,8 @@ export function DiscussionList({
               </>
             ) : (
               <>
-                <h3 className="text-base font-semibold text-gray-600 mb-1">{t('communities.discussion_list.no_discussions')}</h3>
-                <p className="text-sm text-gray-400 text-center max-w-xs mb-4">
+                <h3 className="text-base font-semibold text-muted-foreground mb-1">{t('communities.discussion_list.no_discussions')}</h3>
+                <p className="text-sm text-muted-foreground text-center max-w-xs mb-4">
                   {t('communities.discussion_list.no_discussions_description')}
                 </p>
                 {canCreateDiscussion && onCreateClick && (
@@ -326,7 +326,7 @@ export function DiscussionList({
           <>
             {isLoading && discussions.length === 0 ? (
               <div className="flex justify-center py-8">
-                <Loader2 size={24} className="animate-spin text-gray-400" />
+                <Loader2 size={24} className="animate-spin text-muted-foreground" />
               </div>
             ) : (
               filteredDiscussions.map((discussion) => (

@@ -181,7 +181,7 @@ export function EditDiscussionModal({
 
           {/* Label Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               {t('communities.create_discussion.category_label')}
             </label>
             <div className="flex flex-wrap gap-2">
@@ -193,18 +193,18 @@ export function EditDiscussionModal({
                   onClick={() => setSelectedLabel(label.id)}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
                     selectedLabel === label.id
-                      ? 'border-gray-900 bg-gray-50'
-                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                      ? 'border-gray-900 bg-muted'
+                      : 'border-border hover:border-border bg-card'
                   } ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <span style={{ color: label.color }}>
                     {getLabelIcon(label.icon, 16)}
                   </span>
-                  <span className={`text-sm ${selectedLabel === label.id ? 'font-medium text-gray-900' : 'text-gray-600'}`}>
+                  <span className={`text-sm ${selectedLabel === label.id ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
                     {t(`communities.labels.${label.id}`)}
                   </span>
                   {selectedLabel === label.id && (
-                    <Check size={14} className="text-gray-900" />
+                    <Check size={14} className="text-foreground" />
                   )}
                 </button>
               ))}
@@ -215,7 +215,7 @@ export function EditDiscussionModal({
           <div>
             <label
               htmlFor="title"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-muted-foreground mb-1"
             >
               {t('communities.create_discussion.title_label')} *
             </label>
@@ -227,8 +227,8 @@ export function EditDiscussionModal({
                 disabled={!canEdit}
                 triggerClassName={`flex items-center justify-center w-12 h-12 rounded-lg border-2 transition-colors flex-shrink-0 ${
                   selectedEmoji
-                    ? 'border-gray-200 bg-gray-50'
-                    : 'border-dashed border-gray-300 hover:border-gray-400'
+                    ? 'border-border bg-muted'
+                    : 'border-dashed border-border hover:border-gray-400'
                 } ${!canEdit ? 'opacity-50 cursor-not-allowed' : ''}`}
               />
               <div className="flex-1">
@@ -240,8 +240,8 @@ export function EditDiscussionModal({
                   onChange={handleTitleChange}
                   disabled={!canEdit}
                   placeholder={t('communities.create_discussion.title_placeholder')}
-                  className={`w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all h-12 ${
-                    !canEdit ? 'bg-gray-100 cursor-not-allowed' : ''
+                  className={`w-full px-4 py-2.5 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all h-12 ${
+                    !canEdit ? 'bg-muted cursor-not-allowed' : ''
                   }`}
                 />
               </div>
@@ -253,7 +253,7 @@ export function EditDiscussionModal({
 
           {/* Content Editor */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               {t('communities.create_discussion.details_label')}
             </label>
             <div className={!canEdit ? 'opacity-50 pointer-events-none' : ''}>
@@ -276,11 +276,11 @@ export function EditDiscussionModal({
           )}
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+          <div className="flex justify-end gap-3 pt-4 border-t border-border">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted rounded-lg transition-colors"
             >
               {canEdit ? t('communities.edit_discussion.cancel') : t('communities.edit_discussion.close')}
             </button>

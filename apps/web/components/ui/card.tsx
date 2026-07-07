@@ -10,15 +10,15 @@ const cardVariants = cva(
     variants: {
       variant: {
         default:
-          "border-gray-200 shadow-none",
+          "border-border shadow-none",
         interactive:
-          "cursor-pointer border-gray-200 shadow-none hover:-translate-y-0.5 active:translate-y-0.5",
+          "cursor-pointer border-border shadow-none hover:-translate-y-0.5 active:translate-y-0.5",
         subtle:
-          "border-gray-200 bg-gray-50 shadow-none",
+          "border-border bg-muted shadow-none",
         filled:
           "border-[var(--org-primary-color)] bg-[var(--org-primary-color)] text-white shadow-none",
         flat:
-          "border-gray-200 shadow-none",
+          "border-border shadow-none",
       },
       size: {
         default: "p-7",

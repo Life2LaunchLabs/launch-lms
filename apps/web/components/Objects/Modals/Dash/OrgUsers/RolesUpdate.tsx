@@ -84,7 +84,7 @@ function RolesUpdate(props: Props) {
             <select
               onChange={handleAssignedRole}
               defaultValue={assignedRole}
-              className="border border-gray-300 rounded-md p-2"
+              className="border border-border rounded-md p-2"
               required
               disabled={!roles || rolesError}
             >

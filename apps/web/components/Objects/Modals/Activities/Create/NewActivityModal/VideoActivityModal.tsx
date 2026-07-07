@@ -110,8 +110,8 @@ function VideoModal({
     const endTimeParts = videoDetails.endTime ? convertFromSeconds(videoDetails.endTime) : { minutes: 0, seconds: 0 };
 
     return (
-      <div className="space-y-4 mt-4 p-4 bg-gray-50 rounded-lg">
-        <h3 className="font-medium text-gray-900 mb-3">Video Settings</h3>
+      <div className="space-y-4 mt-4 p-4 bg-muted rounded-lg">
+        <h3 className="font-medium text-foreground mb-3">Video Settings</h3>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label>Start Time</Label>
@@ -132,7 +132,7 @@ function VideoModal({
                   placeholder="0"
                   className="w-full"
                 />
-                <span className="text-xs text-gray-500 mt-1 block">Minutes</span>
+                <span className="text-xs text-muted-foreground mt-1 block">Minutes</span>
               </div>
               <div className="flex-1">
                 <Input
@@ -151,7 +151,7 @@ function VideoModal({
                   placeholder="0"
                   className="w-full"
                 />
-                <span className="text-xs text-gray-500 mt-1 block">Seconds</span>
+                <span className="text-xs text-muted-foreground mt-1 block">Seconds</span>
               </div>
             </div>
           </div>
@@ -178,7 +178,7 @@ function VideoModal({
                   placeholder="0"
                   className="w-full"
                 />
-                <span className="text-xs text-gray-500 mt-1 block">Minutes</span>
+                <span className="text-xs text-muted-foreground mt-1 block">Minutes</span>
               </div>
               <div className="flex-1">
                 <Input
@@ -200,7 +200,7 @@ function VideoModal({
                   placeholder="0"
                   className="w-full"
                 />
-                <span className="text-xs text-gray-500 mt-1 block">Seconds</span>
+                <span className="text-xs text-muted-foreground mt-1 block">Seconds</span>
               </div>
             </div>
           </div>
@@ -215,9 +215,9 @@ function VideoModal({
                 ...videoDetails,
                 autoplay: e.target.checked
               })}
-              className="rounded border-gray-300 text-black focus:ring-black"
+              className="rounded border-border text-foreground focus:ring-black"
             />
-            <span className="text-sm text-gray-700">Autoplay video</span>
+            <span className="text-sm text-muted-foreground">Autoplay video</span>
           </label>
 
           <label className="flex items-center space-x-2">
@@ -228,9 +228,9 @@ function VideoModal({
                 ...videoDetails,
                 muted: e.target.checked
               })}
-              className="rounded border-gray-300 text-black focus:ring-black"
+              className="rounded border-border text-foreground focus:ring-black"
             />
-            <span className="text-sm text-gray-700">Start muted</span>
+            <span className="text-sm text-muted-foreground">Start muted</span>
           </label>
         </div>
       </div>
@@ -251,15 +251,15 @@ function VideoModal({
         />
       </div>
 
-      <div className="mt-4 rounded-lg border border-gray-200">
+      <div className="mt-4 rounded-lg border border-border">
         <div className="grid grid-cols-2 gap-0">
           <button
             type="button"
             onClick={() => setSelectedView('file')}
             className={`flex items-center justify-center p-4 gap-2 ${
               selectedView === 'file'
-                ? 'bg-gray-100 border-b-2 border-black'
-                : 'hover:bg-gray-50 border-b border-gray-200'
+                ? 'bg-muted border-b-2 border-black'
+                : 'hover:bg-muted border-b border-border'
             }`}
           >
             <Upload size={18} />
@@ -270,8 +270,8 @@ function VideoModal({
             onClick={() => setSelectedView('youtube')}
             className={`flex items-center justify-center p-4 gap-2 ${
               selectedView === 'youtube'
-                ? 'bg-gray-100 border-b-2 border-black'
-                : 'hover:bg-gray-50 border-b border-gray-200'
+                ? 'bg-muted border-b-2 border-black'
+                : 'hover:bg-muted border-b border-border'
             }`}
           >
             <Youtube size={18} />
@@ -291,7 +291,7 @@ function VideoModal({
                     accept={SUPPORTED_FILES}
                     onChange={handleVideoChange}
                     required
-                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-black file:text-white hover:file:bg-gray-800"
+                    className="w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-black file:text-white hover:file:bg-gray-800"
                   />
                 </div>
               </div>

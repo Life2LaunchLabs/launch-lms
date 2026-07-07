@@ -9,7 +9,7 @@ interface AccountBadgesProps {
 
 export default function AccountBadges({ orgslug }: AccountBadgesProps) {
   return (
-    <div className="rounded-xl bg-white p-5 nice-shadow sm:p-6">
+    <div className="rounded-xl bg-card p-5 nice-shadow sm:p-6">
       <UserCertificates orgslug={orgslug} />
     </div>
   )

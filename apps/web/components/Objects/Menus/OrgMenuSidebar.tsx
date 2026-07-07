@@ -65,7 +65,7 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
 
       {/* Sidebar panel */}
       <div
-        className={`fixed top-0 left-0 bottom-0 w-80 bg-white rounded-r-2xl shadow-2xl flex flex-col transition-transform duration-300 ease-in-out overflow-hidden ${
+        className={`fixed top-0 left-0 bottom-0 w-80 bg-card rounded-r-2xl shadow-2xl flex flex-col transition-transform duration-300 ease-in-out overflow-hidden ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
         style={{ zIndex: 52 }}
@@ -73,7 +73,7 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
       >
         {/* Header — matches nav bar height and color */}
         <div
-          className={`h-[60px] flex items-center justify-between px-5 shrink-0 ${!primaryColor ? 'bg-white/90 border-b border-black/5' : ''}`}
+          className={`h-[60px] flex items-center justify-between px-5 shrink-0 ${!primaryColor ? 'bg-card/90 border-b border-border' : ''}`}
           style={{ backgroundColor: primaryColor || undefined }}
         >
           <Link href={getUriWithOrg(orgslug, '/')} onClick={onClose} className="flex items-center">
@@ -104,7 +104,7 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
 
         {/* Scrollable content — white below the header when primary color is set */}
         <div
-          className="flex-1 overflow-y-auto bg-white"
+          className="flex-1 overflow-y-auto bg-card"
         >
           {/* Nav links */}
           <nav className="px-3 py-3 flex flex-col gap-0.5">
@@ -114,8 +114,8 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
                 href={getUriWithOrg(orgslug, item.href || '/')}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
                   item.active
-                    ? 'bg-gray-100 text-gray-900 font-semibold'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 font-medium'
+                    ? 'bg-muted text-foreground font-semibold'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground font-medium'
                 }`}
               >
                 {item.icon}
@@ -125,12 +125,12 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
           </nav>
 
           {/* Divider */}
-          <hr className="mx-4 border-gray-100" />
+          <hr className="mx-4 border-border" />
 
           {/* Active courses */}
           {session?.status === 'authenticated' && trail?.runs?.length > 0 && (
             <div className="px-3 py-3">
-              <p className="px-3 text-[11px] text-gray-400 font-semibold uppercase tracking-wider mb-2">
+              <p className="px-3 text-[11px] text-muted-foreground font-semibold uppercase tracking-wider mb-2">
                 Active Badges
               </p>
               <div className="flex flex-col gap-0.5">
@@ -151,14 +151,14 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
                         href={getUriWithOrg(orgslug, routePaths.org.course(courseId))}
                         className={`flex flex-col px-3 py-2 rounded-lg text-sm transition-colors ${
                           isActiveCourse
-                            ? 'bg-gray-100 text-gray-900'
-                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                            ? 'bg-muted text-foreground'
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                         }`}
                       >
                         <span className={`truncate leading-snug ${isActiveCourse ? 'font-semibold' : 'font-medium'}`}>
                           {run.course.name}
                         </span>
-                        <div className="mt-1.5 h-1 bg-gray-200 rounded-full overflow-hidden">
+                        <div className="mt-1.5 h-1 bg-muted rounded-full overflow-hidden">
                           <div
                             className="h-full bg-gray-400 rounded-full transition-all"
                             style={{ width: `${progress}%` }}

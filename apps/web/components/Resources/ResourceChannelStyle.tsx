@@ -148,7 +148,7 @@ export function ResourceChannelStyleIcon({
 
   if (!hasStyle) {
     return (
-      <div className={`flex items-center justify-center bg-gray-100 text-gray-400 ${className}`}>
+      <div className={`flex items-center justify-center bg-muted text-muted-foreground ${className}`}>
         <FolderOpen size={size} />
       </div>
     )

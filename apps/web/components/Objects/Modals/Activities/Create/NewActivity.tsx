@@ -32,10 +32,10 @@ function NewActivityModal({
               setSelectedView('dynamic')
             }}
           >
-            <div className="h-20 rounded-lg m-0.5 flex flex-col items-center justify-end text-center bg-white hover:cursor-pointer">
+            <div className="h-20 rounded-lg m-0.5 flex flex-col items-center justify-end text-center bg-card hover:cursor-pointer">
               <Image unoptimized quality={100} alt="Dynamic Page" src={DynamicPageActivityImage}></Image>
             </div>
-            <div className="flex text-sm h-5 font-medium text-gray-500 items-center justify-center text-center">
+            <div className="flex text-sm h-5 font-medium text-muted-foreground items-center justify-center text-center">
               {t('dashboard.courses.structure.activity.types.dynamic_page')}
             </div>
           </ActivityOption>
@@ -44,10 +44,10 @@ function NewActivityModal({
               setSelectedView('video')
             }}
           >
-            <div className="h-20 rounded-lg m-0.5 flex flex-col items-center justify-end text-center bg-white hover:cursor-pointer">
+            <div className="h-20 rounded-lg m-0.5 flex flex-col items-center justify-end text-center bg-card hover:cursor-pointer">
               <Image unoptimized quality={100} alt="Video Page" src={VideoPageActivityImage}></Image>
             </div>
-            <div className="flex text-sm h-5 font-medium text-gray-500 items-center justify-center text-center">
+            <div className="flex text-sm h-5 font-medium text-muted-foreground items-center justify-center text-center">
               {t('dashboard.courses.structure.activity.types.video')}
             </div>
           </ActivityOption>
@@ -56,10 +56,10 @@ function NewActivityModal({
               setSelectedView('documentpdf')
             }}
           >
-            <div className="h-20 rounded-lg m-0.5 flex flex-col items-center justify-end text-center bg-white hover:cursor-pointer">
+            <div className="h-20 rounded-lg m-0.5 flex flex-col items-center justify-end text-center bg-card hover:cursor-pointer">
               <Image unoptimized quality={100} alt="Document PDF Page" src={DocumentPdfPageActivityImage}></Image>
             </div>
-            <div className="flex text-sm h-5 font-medium text-gray-500 items-center justify-center text-center">
+            <div className="flex text-sm h-5 font-medium text-muted-foreground items-center justify-center text-center">
               {t('dashboard.courses.structure.activity.types.document')}
             </div>
           </ActivityOption>
@@ -68,10 +68,10 @@ function NewActivityModal({
               setSelectedView('assignments')
             }}
           >
-            <div className="h-20 rounded-lg m-0.5 flex flex-col items-center justify-end text-center bg-white hover:cursor-pointer">
+            <div className="h-20 rounded-lg m-0.5 flex flex-col items-center justify-end text-center bg-card hover:cursor-pointer">
               <Image unoptimized quality={100} alt="Assignment Page" src={AssignmentActivityImage}></Image>
             </div>
-            <div className="flex text-sm h-5 font-medium text-gray-500 items-center justify-center text-center">
+            <div className="flex text-sm h-5 font-medium text-muted-foreground items-center justify-center text-center">
               {t('dashboard.courses.structure.activity.types.assignments')}
             </div>
           </ActivityOption>
@@ -80,7 +80,7 @@ function NewActivityModal({
               setSelectedView('quiz')
             }}
           >
-            <div className="h-20 rounded-lg m-0.5 flex flex-col items-center justify-end text-center bg-white hover:cursor-pointer">
+            <div className="h-20 rounded-lg m-0.5 flex flex-col items-center justify-end text-center bg-card hover:cursor-pointer">
               <div className="w-full h-full flex items-center justify-center">
                 <div className="w-12 h-12 rounded-xl bg-violet-100 flex items-center justify-center">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-violet-600">
@@ -89,7 +89,7 @@ function NewActivityModal({
                 </div>
               </div>
             </div>
-            <div className="flex text-sm h-5 font-medium text-gray-500 items-center justify-center text-center">
+            <div className="flex text-sm h-5 font-medium text-muted-foreground items-center justify-center text-center">
               Quiz
             </div>
           </ActivityOption>
@@ -144,7 +144,7 @@ function NewActivityModal({
 const ActivityOption = ({ onClick, children }: any) => (
   <div
     onClick={onClick}
-    className="w-full text-center rounded-xl bg-gray-100 border-4 border-gray-100 mx-auto hover:bg-gray-200 hover:border-gray-200 transition duration-200 ease-in-out cursor-pointer"
+    className="w-full text-center rounded-xl bg-muted border-4 border-border mx-auto hover:bg-muted hover:border-border transition duration-200 ease-in-out cursor-pointer"
   >
     {children}
   </div>

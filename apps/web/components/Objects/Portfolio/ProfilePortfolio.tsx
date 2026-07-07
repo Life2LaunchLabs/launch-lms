@@ -340,14 +340,14 @@ function PortfolioCover({
       </svg>
       <div
         ref={measureTitleRef}
-        className={`pointer-events-none invisible absolute bottom-0 left-0 inline-block break-words px-3 py-2 font-black leading-none text-gray-950 ${titleClassName}`}
+        className={`pointer-events-none invisible absolute bottom-0 left-0 inline-block break-words px-3 py-2 font-black leading-none text-foreground ${titleClassName}`}
         style={{ maxWidth: titleMaxWidth, width: 'max-content' }}
         aria-hidden="true"
       >
         {titleText || 'Untitled post'}
       </div>
       <div
-        className={`absolute bottom-0 left-0 break-words px-3 py-2 font-black leading-none text-gray-950 ${titleClassName}`}
+        className={`absolute bottom-0 left-0 break-words px-3 py-2 font-black leading-none text-foreground ${titleClassName}`}
         style={{
           width: titleSize.width || undefined,
           height: titleSize.height || undefined,
@@ -379,7 +379,7 @@ function FeaturedDisplayCard({
       }` })}
     >
       <div
-        className="h-1/2 min-h-0 w-full shrink-0 overflow-hidden bg-gray-100"
+        className="h-1/2 min-h-0 w-full shrink-0 overflow-hidden bg-muted"
         style={{ background: image ? undefined : getPortfolioGradient(card) }}
       >
         {image ? (
@@ -387,11 +387,11 @@ function FeaturedDisplayCard({
         ) : null}
       </div>
       <div className="flex min-h-0 flex-1 flex-col p-4">
-        <h3 className="line-clamp-2 text-lg font-semibold leading-snug text-gray-950">
+        <h3 className="line-clamp-2 text-lg font-semibold leading-snug text-foreground">
           {card.title || 'Untitled post'}
         </h3>
         {card.body ? (
-          <p className="mt-3 line-clamp-5 min-h-0 text-sm leading-5 text-gray-600">
+          <p className="mt-3 line-clamp-5 min-h-0 text-sm leading-5 text-muted-foreground">
             {card.body}
           </p>
         ) : null}
@@ -490,8 +490,8 @@ export function FeaturedCarousel({
       <Card asChild variant="default" size="sm" className="flex h-full min-h-0 min-w-0 items-center justify-between gap-4">
         <section>
         <div className="min-w-0">
-          <h2 className="truncate text-base font-semibold text-gray-950">Portfolio</h2>
-          <p className="mt-1 truncate text-sm font-medium text-gray-500">
+          <h2 className="truncate text-base font-semibold text-foreground">Portfolio</h2>
+          <p className="mt-1 truncate text-sm font-medium text-muted-foreground">
             {cards.length} {cards.length === 1 ? 'post' : 'posts'}
           </p>
         </div>
@@ -510,14 +510,14 @@ export function FeaturedCarousel({
     <Card asChild variant="default" size="sm" className="flex h-full min-h-0 min-w-0 flex-col">
       <section>
       <div className="mb-3 flex items-center justify-between gap-4">
-        <h2 className={`${isNarrow ? 'text-xl' : 'text-2xl'} min-w-0 truncate font-semibold text-gray-950`}>Portfolio</h2>
+        <h2 className={`${isNarrow ? 'text-xl' : 'text-2xl'} min-w-0 truncate font-semibold text-foreground`}>Portfolio</h2>
         {actions}
       </div>
 
       <div className={`min-h-0 flex-1 origin-top transition-all duration-300 ${visibleEnabled ? 'scale-100 opacity-100' : 'max-h-0 scale-95 overflow-hidden opacity-0'}`}>
         <div className="relative flex h-full min-h-0 flex-col items-center overflow-visible">
           {cards.length === 0 ? (
-            <div className="flex h-full w-full items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 p-5 text-center text-sm leading-6 text-gray-500">
+            <div className="flex h-full w-full items-center justify-center rounded-lg border border-dashed border-border bg-muted p-5 text-center text-sm leading-6 text-muted-foreground">
               No posts yet.
             </div>
           ) : isNarrow && activeCard ? (
@@ -534,7 +534,7 @@ export function FeaturedCarousel({
                       type="button"
                       aria-label="Previous portfolio post"
                       onClick={() => setActiveIndex((current) => (current - 1 + cards.length) % cards.length)}
-                      className="absolute left-2 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-white"
+                      className="absolute left-2 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-card/90 text-foreground shadow-sm ring-1 ring-border hover:bg-card"
                     >
                       <ChevronLeft className="h-5 w-5" />
                     </button>
@@ -542,7 +542,7 @@ export function FeaturedCarousel({
                       type="button"
                       aria-label="Next portfolio post"
                       onClick={() => setActiveIndex((current) => (current + 1) % cards.length)}
-                      className="absolute right-2 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-white"
+                      className="absolute right-2 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-card/90 text-foreground shadow-sm ring-1 ring-border hover:bg-card"
                     >
                       <ChevronRight className="h-5 w-5" />
                     </button>
@@ -586,7 +586,7 @@ export function FeaturedCarousel({
                   type="button"
                   aria-label="Previous portfolio post"
                   onClick={() => scrollPortfolioPage(-1)}
-                  className="absolute left-1 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-white sm:flex"
+                  className="absolute left-1 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-card/90 text-foreground shadow-sm ring-1 ring-border hover:bg-card sm:flex"
                 >
                   <ChevronLeft className="h-5 w-5" />
                 </button>
@@ -596,7 +596,7 @@ export function FeaturedCarousel({
                   type="button"
                   aria-label="Next portfolio post"
                   onClick={() => scrollPortfolioPage(1)}
-                  className="absolute right-1 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-900 shadow-sm ring-1 ring-gray-200 hover:bg-white sm:flex"
+                  className="absolute right-1 top-1/2 z-20 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-card/90 text-foreground shadow-sm ring-1 ring-border hover:bg-card sm:flex"
                 >
                   <ChevronRight className="h-5 w-5" />
                 </button>
@@ -777,9 +777,9 @@ export function PortfolioPostPageClient({
               Back to profile
             </Link>
           </Button>
-          <div className="rounded-lg border border-gray-200 bg-white p-6">
-            <h1 className="text-2xl font-semibold text-gray-950">Portfolio post not found</h1>
-            <p className="mt-2 text-gray-600">This post is unavailable or has been hidden.</p>
+          <div className="rounded-lg border border-border bg-card p-6">
+            <h1 className="text-2xl font-semibold text-foreground">Portfolio post not found</h1>
+            <p className="mt-2 text-muted-foreground">This post is unavailable or has been hidden.</p>
           </div>
         </div>
       </main>
@@ -809,7 +809,7 @@ export function PortfolioPostPageClient({
             </Link>
           </Button>
           {isOwnerMode && isSaving ? (
-            <span className="flex items-center gap-2 text-sm font-medium text-gray-500">
+            <span className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               Saving
             </span>
@@ -826,10 +826,10 @@ export function PortfolioPostPageClient({
               onBlur={() => void persistPost()}
               placeholder="Post title"
               rows={1}
-              className="block h-full w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-3xl font-black leading-none text-gray-950 outline-none placeholder:text-gray-300"
+              className="block h-full w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-3xl font-black leading-none text-foreground outline-none placeholder:text-gray-300"
             />
           ) : (
-            <h1 className="break-words text-3xl font-black leading-none text-gray-950">
+            <h1 className="break-words text-3xl font-black leading-none text-foreground">
               {post.title || 'Untitled post'}
             </h1>
           )}
@@ -850,7 +850,7 @@ export function PortfolioPostPageClient({
                 size="sm"
                 onClick={() => document.getElementById(`portfolio-cover-upload-${post.id}`)?.click()}
                 disabled={isUploadingImage}
-                className="absolute bottom-3 right-3 h-8 bg-white/90 px-2 text-xs text-gray-900 hover:bg-white"
+                className="absolute bottom-3 right-3 h-8 bg-card/90 px-2 text-xs text-foreground hover:bg-card"
               >
                 {isUploadingImage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
               </Button>
@@ -858,8 +858,8 @@ export function PortfolioPostPageClient({
           ) : null}
         </PortfolioCover>
 
-        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
-          <span className="font-medium text-gray-800">{authorName}</span>
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">{authorName}</span>
           <span aria-hidden="true">/</span>
           <span>Last updated {formatPortfolioDate(post.updatedAt || user.update_date)}</span>
         </div>
@@ -873,20 +873,20 @@ export function PortfolioPostPageClient({
               onBlur={() => void persistPost()}
               placeholder="Write the post body"
               rows={1}
-              className="min-h-[1.75rem] resize-none overflow-hidden whitespace-pre-wrap border-0 bg-transparent px-0 py-0 text-base leading-7 text-gray-800 shadow-none outline-none placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0"
+              className="min-h-[1.75rem] resize-none overflow-hidden whitespace-pre-wrap border-0 bg-transparent px-0 py-0 text-base leading-7 text-foreground shadow-none outline-none placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
             />
           ) : (
-            <div className="whitespace-pre-wrap text-base leading-7 text-gray-800">
+            <div className="whitespace-pre-wrap text-base leading-7 text-foreground">
               {post.body || 'No post body yet.'}
             </div>
           )}
         </div>
 
-        <div className="mt-10 border-t border-gray-200 pt-6">
+        <div className="mt-10 border-t border-border pt-6">
           {isOwnerMode ? (
             <div className="space-y-4">
               <label className="flex items-center justify-center gap-3">
-                <span className="text-sm font-medium text-gray-600">{post.includeButton ? 'Button included' : 'Include button'}</span>
+                <span className="text-sm font-medium text-muted-foreground">{post.includeButton ? 'Button included' : 'Include button'}</span>
                 <Switch checked={Boolean(post.includeButton)} onCheckedChange={(checked) => {
                   updatePost({ includeButton: checked })
                   persistPostSoon()
@@ -894,7 +894,7 @@ export function PortfolioPostPageClient({
               </label>
               {post.includeButton ? (
                 <div className="mx-auto max-w-md space-y-3">
-                  <div className="rounded-full border border-gray-200 bg-white px-5 py-2 shadow-sm">
+                  <div className="rounded-full border border-border bg-card px-5 py-2 shadow-sm">
                     <Input
                       value={post.actionButtonText || ''}
                       onChange={(event) => updatePost({ actionButtonText: event.target.value })}
@@ -903,8 +903,8 @@ export function PortfolioPostPageClient({
                       className="h-8 border-0 bg-transparent px-0 text-center font-medium shadow-none focus-visible:ring-0"
                     />
                   </div>
-                  <div className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2">
-                    <Link2 className="h-4 w-4 shrink-0 text-gray-500" />
+                  <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+                    <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <Input
                       value={post.actionUrl || post.url}
                       onChange={(event) => updatePost({ actionUrl: event.target.value, url: event.target.value })}

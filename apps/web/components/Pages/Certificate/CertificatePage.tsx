@@ -364,7 +364,7 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading badge...</p>
+          <p className="text-muted-foreground">Loading badge...</p>
         </div>
       </div>
     );
@@ -413,13 +413,13 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-muted py-8">
       <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <Link
             href={getUriWithOrg(orgslug, routePaths.org.course(courseid))}
-            className="inline-flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition duration-200"
+            className="inline-flex items-center space-x-2 text-muted-foreground hover:text-foreground transition duration-200"
           >
             <ArrowLeft className="w-5 h-5" />
             <span>Back to Course</span>
@@ -437,7 +437,7 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
         </div>
 
         {/* Badge Display */}
-        <div className="bg-white rounded-2xl shadow-lg p-8">
+        <div className="bg-card rounded-2xl shadow-lg p-8">
           <div className="max-w-2xl mx-auto">
             <CertificatePreview
               certificationName={userCertificate.badge_class?.name || userCertificate.certification.config.badge_name || userCertificate.certification.config.certification_name}
@@ -459,7 +459,7 @@ const CertificatePage: React.FC<CertificatePageProps> = ({ orgslug, courseid, qr
         </div>
 
         {/* Instructions */}
-        <div className="mt-8 text-center text-gray-600">
+        <div className="mt-8 text-center text-muted-foreground">
           <p className="mb-2">
             Click "Download Badge PDF" to generate and download a high-quality badge PDF.
           </p>

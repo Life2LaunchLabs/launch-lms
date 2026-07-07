@@ -177,11 +177,11 @@
 
 @layer utilities {
   .nice-shadow {
-    @apply shadow-md shadow-gray-300/25 outline outline-1 outline-neutral-200/40;
+    @apply shadow-md shadow-gray-300/25 outline outline-1 outline-neutral-200/40 dark:shadow-black/40 dark:outline-white/10;
   }
 
   .light-shadow {
-    @apply shadow-lg shadow-gray-300/15 outline outline-1 outline-neutral-200/30;
+    @apply shadow-lg shadow-gray-300/15 outline outline-1 outline-neutral-200/30 dark:shadow-black/30 dark:outline-white/[0.07];
   }
 
   .profile-grid-layout .react-grid-placeholder {
@@ -216,6 +216,12 @@
     background-repeat: repeat;
   }
 
+  .dark .custom-dots-bg {
+    background-image:
+      radial-gradient(#a3a3a34d 1px, transparent 1px),
+      radial-gradient(#a3a3a34d 1px, transparent 1px);
+  }
+
   html,
   body {
     padding: 0;
@@ -235,13 +241,6 @@
 
   * {
     box-sizing: border-box;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    body {
-      color: black;
-      background: #fbfbfb;
-    }
   }
 
   /* Basic editor styles */
@@ -368,23 +367,23 @@
   }
   .dark {
     --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
+    --foreground: 0 0% 93%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 93%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 93%;
     --primary: 0 0% 98%;
     --primary-foreground: 0 0% 9%;
     --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary-foreground: 0 0% 93%;
     --muted: 0 0% 14.9%;
     --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --accent: 0 0% 17%;
+    --accent-foreground: 0 0% 93%;
+    --destructive: 0 72% 45%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
+    --border: 0 0% 16.5%;
+    --input: 0 0% 16.5%;
     --ring: 0 0% 83.1%;
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
@@ -402,6 +401,20 @@
     font-family: 'Wix Madefor Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
     letter-spacing: -0.02em;
   }
+}
+
+/* ─── Org theme variables ───
+   OrgThemeVariables.tsx sets the light/dark pairs inline on [data-org-theme];
+   these rules pick the active pair so the values flip with the theme class
+   without any client-side re-render (and without SSR hydration mismatches). */
+[data-org-theme] {
+  --org-page-background: var(--org-page-background-light);
+  --org-primary-color: var(--org-primary-color-light);
+}
+
+.dark [data-org-theme] {
+  --org-page-background: var(--org-page-background-dark);
+  --org-primary-color: var(--org-primary-color-dark);
 }
 
     /* Confirmation Modal Animations */
@@ -2554,4 +2567,57 @@
   height: 300px;
   min-height: 200px;
   display: block;
+}
+
+/* ─── Dark-mode overrides for user-facing content styles ───
+   These cover hand-written CSS above that hardcodes light-surface colors
+   and is rendered on learner-facing pages (activity viewer, learning
+   activities, table of contents). Editor-only styles are excluded since
+   editors force light mode. */
+
+.dark .learning-info-text-block .ProseMirror {
+  color: var(--learning-text-color, hsl(var(--foreground)));
+}
+
+.dark .learning-info-text-block h1,
+.dark .learning-info-text-block .ProseMirror h1,
+.dark .learning-info-text-block h2,
+.dark .learning-info-text-block .ProseMirror h2 {
+  color: var(--learning-text-color, hsl(var(--foreground)));
+}
+
+.dark .learning-info-text-block p,
+.dark .learning-info-text-block .ProseMirror p,
+.dark .learning-info-text-block ul,
+.dark .learning-info-text-block ol,
+.dark .learning-info-text-block .ProseMirror ul,
+.dark .learning-info-text-block .ProseMirror ol,
+.dark .learning-info-text-block blockquote,
+.dark .learning-info-text-block .ProseMirror blockquote {
+  color: var(--learning-text-color, hsl(var(--muted-foreground)));
+}
+
+.dark .learning-info-image-block {
+  background: hsl(var(--muted));
+}
+
+.dark .toc-item .toc-check,
+.dark .toc-item .toc-link {
+  color: hsl(var(--foreground));
+}
+
+.dark .toc-item .toc-link:hover {
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .canva-content-wrapper .ProseMirror table th {
+  background-color: hsl(var(--muted));
+}
+
+.dark .canva-content-wrapper .ProseMirror a {
+  color: #60a5fa;
+}
+
+.dark .canva-content-wrapper .ProseMirror a:hover {
+  color: #93c5fd;
 }

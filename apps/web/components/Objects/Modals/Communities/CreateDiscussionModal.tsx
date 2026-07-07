@@ -142,7 +142,7 @@ export function CreateDiscussionModal({
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Label Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               {t('communities.create_discussion.category_label')}
             </label>
             <div className="flex flex-wrap gap-2">
@@ -153,18 +153,18 @@ export function CreateDiscussionModal({
                   onClick={() => setSelectedLabel(label.id)}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
                     selectedLabel === label.id
-                      ? 'border-gray-900 bg-gray-50'
-                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                      ? 'border-gray-900 bg-muted'
+                      : 'border-border hover:border-border bg-card'
                   }`}
                 >
                   <span style={{ color: label.color }}>
                     {getLabelIcon(label.icon, 16)}
                   </span>
-                  <span className={`text-sm ${selectedLabel === label.id ? 'font-medium text-gray-900' : 'text-gray-600'}`}>
+                  <span className={`text-sm ${selectedLabel === label.id ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
                     {t(`communities.labels.${label.id}`)}
                   </span>
                   {selectedLabel === label.id && (
-                    <Check size={14} className="text-gray-900" />
+                    <Check size={14} className="text-foreground" />
                   )}
                 </button>
               ))}
@@ -175,7 +175,7 @@ export function CreateDiscussionModal({
           <div>
             <label
               htmlFor="title"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-muted-foreground mb-1"
             >
               {t('communities.create_discussion.title_label')} *
             </label>
@@ -186,8 +186,8 @@ export function CreateDiscussionModal({
                 onChange={setSelectedEmoji}
                 triggerClassName={`flex items-center justify-center w-12 h-12 rounded-lg border-2 transition-colors flex-shrink-0 ${
                   selectedEmoji
-                    ? 'border-gray-200 bg-gray-50'
-                    : 'border-dashed border-gray-300 hover:border-gray-400'
+                    ? 'border-border bg-muted'
+                    : 'border-dashed border-border hover:border-gray-400'
                 }`}
               />
               <div className="flex-1">
@@ -198,11 +198,11 @@ export function CreateDiscussionModal({
                   value={title}
                   onChange={handleTitleChange}
                   placeholder={t('communities.create_discussion.title_placeholder')}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all h-12"
+                  className="w-full px-4 py-2.5 border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all h-12"
                 />
               </div>
             </div>
-            <p className="mt-1.5 text-xs text-gray-500">
+            <p className="mt-1.5 text-xs text-muted-foreground">
               {selectedEmoji ? t('communities.create_discussion.emoji_selected') : t('communities.create_discussion.emoji_hint')}
             </p>
             {titleError && (
@@ -212,7 +212,7 @@ export function CreateDiscussionModal({
 
           {/* Content Editor */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-muted-foreground mb-1">
               {t('communities.create_discussion.details_label')}
             </label>
             <DiscussionEditor
@@ -221,7 +221,7 @@ export function CreateDiscussionModal({
               placeholder={t('communities.create_discussion.details_placeholder')}
               minHeight="180px"
             />
-            <p className="mt-1.5 text-xs text-gray-500">
+            <p className="mt-1.5 text-xs text-muted-foreground">
               {t('communities.create_discussion.editor_hint')}
             </p>
           </div>
@@ -235,11 +235,11 @@ export function CreateDiscussionModal({
           )}
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+          <div className="flex justify-end gap-3 pt-4 border-t border-border">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted rounded-lg transition-colors"
             >
               {t('communities.create_discussion.cancel')}
             </button>

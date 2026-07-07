@@ -21,7 +21,7 @@ function OrgFooter() {
   return (
     <footer className="w-full py-8 mt-12 print:hidden">
       <div className="flex flex-col items-center justify-center space-y-4">
-        <p className="text-sm text-gray-500">{footerText}</p>
+        <p className="text-sm text-muted-foreground">{footerText}</p>
       </div>
     </footer>
   )
@@ -78,7 +78,7 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
               <OrgMenu orgslug={orgslug} />
             </div>
           )}
-          <div className={`min-w-0 w-full pb-28 md:max-w-full md:shrink md:pb-0 print:pb-0 ${isActivityPage ? 'md:w-full' : 'md:w-[66rem]'}`}>
+          <div className={`min-w-0 w-full pb-[calc(5rem+env(safe-area-inset-bottom))] md:max-w-full md:shrink md:pb-0 print:pb-0 ${isActivityPage ? 'md:w-full' : 'md:w-[66rem]'}`}>
             {children}
           </div>
           <div

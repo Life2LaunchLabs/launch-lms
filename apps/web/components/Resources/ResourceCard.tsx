@@ -41,14 +41,14 @@ export default function ResourceCard({
   const estimatedTime = formatEstimatedTime(resource.estimated_time)
 
   return (
-    <article className="group rounded-2xl border border-gray-200 bg-white text-gray-900 shadow-sm transition-colors hover:border-gray-300 hover:bg-gray-50/60">
+    <article className="group rounded-2xl border border-border bg-card text-foreground shadow-sm transition-colors hover:border-border hover:bg-muted/60">
       <Link
         href={resourceUrl}
         className="flex gap-4 p-5 sm:gap-5"
       >
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-semibold capitalize text-gray-700 ring-1 ring-gray-200">
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1 text-xs font-semibold capitalize text-muted-foreground ring-1 ring-border">
               <TypeIcon size={13} aria-hidden="true" />
               {resource.resource_type}
             </span>
@@ -60,20 +60,20 @@ export default function ResourceCard({
             )}
           </div>
 
-          <h3 className="mt-3 text-xl font-bold leading-tight text-gray-950 sm:text-2xl">
+          <h3 className="mt-3 text-xl font-bold leading-tight text-foreground sm:text-2xl">
             {resource.title}
           </h3>
 
           {resource.description && (
-            <p className="mt-2 line-clamp-2 text-sm font-medium leading-6 text-gray-500 sm:text-base">
+            <p className="mt-2 line-clamp-2 text-sm font-medium leading-6 text-muted-foreground sm:text-base">
               {resource.provider_name && (
-                <span className="font-bold text-gray-800">{resource.provider_name}: </span>
+                <span className="font-bold text-foreground">{resource.provider_name}: </span>
               )}
               {resource.description}
             </p>
           )}
 
-          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-gray-400">
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-muted-foreground">
             {resource.owner_org_name && <span>{resource.owner_org_name}</span>}
             {estimatedTime && (
               <span className="inline-flex items-center gap-1">
@@ -85,7 +85,7 @@ export default function ResourceCard({
         </div>
 
         {imageSrc && (
-          <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gray-100 sm:h-24 sm:w-24">
+          <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-muted sm:h-24 sm:w-24">
             <img
               src={imageSrc}
               alt={resource.title}
@@ -96,13 +96,13 @@ export default function ResourceCard({
         )}
       </Link>
 
-      <div className="flex items-center justify-between gap-3 border-t border-gray-100 px-5 pb-4 pt-1">
-        <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-gray-500">
-          <span className="inline-flex items-center gap-1.5 rounded-xl bg-gray-100 px-3 py-1.5">
+      <div className="flex items-center justify-between gap-3 border-t border-border px-5 pb-4 pt-1">
+        <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 rounded-xl bg-muted px-3 py-1.5">
             <Bookmark size={14} aria-hidden="true" />
             {resource.save_count}
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-xl bg-gray-100 px-3 py-1.5">
+          <span className="inline-flex items-center gap-1.5 rounded-xl bg-muted px-3 py-1.5">
             <MessageCircle size={14} aria-hidden="true" />
             {resource.comment_count}
           </span>

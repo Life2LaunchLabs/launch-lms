@@ -207,10 +207,10 @@ function ManageUsers(props: ManageUsersProps) {
     <div className="py-3 space-y-4">
       {/* Search Input */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <input
           placeholder={t('dashboard.users.usergroups.modals.manage_users.search_placeholder')}
-          className="pl-10 pr-4 py-2 w-full border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
+          className="pl-10 pr-4 py-2 w-full border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
           value={searchValue}
           onChange={(e) => setSearchValue(e.target.value)}
         />
@@ -282,7 +282,7 @@ function ManageUsers(props: ManageUsersProps) {
               }
             }}
           />
-          <label htmlFor="select-all" className="text-sm text-gray-600 cursor-pointer">
+          <label htmlFor="select-all" className="text-sm text-muted-foreground cursor-pointer">
             {t('dashboard.users.usergroups.modals.manage_users.selection.select_all_visible')}
           </label>
         </div>
@@ -297,10 +297,10 @@ function ManageUsers(props: ManageUsersProps) {
         ) : orgUsers.length === 0 ? (
           <div className="py-12 text-center">
             <div className="flex flex-col items-center gap-3">
-              <div className="bg-gray-100 p-4 rounded-full">
-                <Users className="w-8 h-8 text-gray-400" />
+              <div className="bg-muted p-4 rounded-full">
+                <Users className="w-8 h-8 text-muted-foreground" />
               </div>
-              <p className="text-gray-400 text-sm font-medium">
+              <p className="text-muted-foreground text-sm font-medium">
                 {debouncedSearch
                   ? t('dashboard.users.usergroups.modals.manage_users.no_results')
                   : t('dashboard.users.usergroups.modals.manage_users.no_users')
@@ -321,7 +321,7 @@ function ManageUsers(props: ManageUsersProps) {
             return (
               <div
                 key={user.user.id}
-                className={`group flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-all duration-200 ${isSelected ? 'bg-indigo-50/50' : ''}`}
+                className={`group flex items-center justify-between p-3 hover:bg-muted rounded-lg transition-all duration-200 ${isSelected ? 'bg-indigo-50/50' : ''}`}
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <Checkbox
@@ -336,10 +336,10 @@ function ManageUsers(props: ManageUsersProps) {
                   />
                   <div className="flex flex-col min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-gray-800 text-sm truncate">
+                      <span className="font-semibold text-foreground text-sm truncate">
                         {user.user.first_name + ' ' + user.user.last_name}
                       </span>
-                      <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full text-gray-500 font-medium">
+                      <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground font-medium">
                         @{user.user.username}
                       </span>
                     </div>
@@ -352,7 +352,7 @@ function ManageUsers(props: ManageUsersProps) {
                       {t('dashboard.users.usergroups.modals.manage_users.status.in_group')}
                     </Badge>
                   ) : (
-                    <Badge variant="secondary" className="bg-gray-100 text-gray-600">
+                    <Badge variant="secondary" className="bg-muted text-muted-foreground">
                       {t('dashboard.users.usergroups.modals.manage_users.status.not_in_group')}
                     </Badge>
                   )}
@@ -366,8 +366,8 @@ function ManageUsers(props: ManageUsersProps) {
 
       {/* Pagination */}
       {total > ITEMS_PER_PAGE && (
-        <div className="flex items-center justify-between px-2 pt-3 border-t border-gray-100">
-          <div className="text-xs text-gray-500 font-medium">
+        <div className="flex items-center justify-between px-2 pt-3 border-t border-border">
+          <div className="text-xs text-muted-foreground font-medium">
             {t('dashboard.users.usergroups.modals.manage_users.pagination.showing', {
               start: (page - 1) * ITEMS_PER_PAGE + 1,
               end: Math.min(page * ITEMS_PER_PAGE, total),
@@ -378,19 +378,19 @@ function ManageUsers(props: ManageUsersProps) {
             <button
               onClick={() => handlePageChange(page - 1)}
               disabled={page === 1}
-              className="p-1.5 rounded-md border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              className="p-1.5 rounded-md border border-border bg-card hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
-              <ChevronLeft className="w-4 h-4 text-gray-600" />
+              <ChevronLeft className="w-4 h-4 text-muted-foreground" />
             </button>
-            <span className="text-xs text-gray-600 font-medium min-w-[60px] text-center">
+            <span className="text-xs text-muted-foreground font-medium min-w-[60px] text-center">
               {t('dashboard.users.usergroups.modals.manage_users.pagination.page', { current: page, total: totalPages })}
             </span>
             <button
               onClick={() => handlePageChange(page + 1)}
               disabled={page >= totalPages}
-              className="p-1.5 rounded-md border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              className="p-1.5 rounded-md border border-border bg-card hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
-              <ChevronRight className="w-4 h-4 text-gray-600" />
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
           </div>
         </div>

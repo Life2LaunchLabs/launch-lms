@@ -59,22 +59,22 @@ export default function ResourceChannelCard({
   }
 
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-xl bg-white nice-shadow transition-all duration-300 hover:scale-[1.01]">
+    <div className="group relative flex flex-col overflow-hidden rounded-xl bg-card nice-shadow transition-all duration-300 hover:scale-[1.01]">
       <div className="absolute right-2 top-2 z-20">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               aria-label="Channel actions"
-              className="rounded-full bg-white/90 p-1.5 shadow-md backdrop-blur-sm transition-all hover:bg-white"
+              className="rounded-full bg-card/90 p-1.5 shadow-md backdrop-blur-sm transition-all hover:bg-card"
             >
-              <MoreVertical size={18} className="text-gray-700" />
+              <MoreVertical size={18} className="text-muted-foreground" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem asChild>
               <Link
                 href={settingsHref}
-                className="flex items-center rounded-md px-2 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-50"
+                className="flex items-center rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted"
               >
                 <ExternalLink className="mr-2 h-4 w-4" />
                 Open settings
@@ -99,7 +99,7 @@ export default function ResourceChannelCard({
         </DropdownMenu>
       </div>
 
-      <Link href={settingsHref} className="relative block aspect-video overflow-hidden bg-gray-50">
+      <Link href={settingsHref} className="relative block aspect-video overflow-hidden bg-muted">
         {thumbnailSrc ? (
           <img
             src={thumbnailSrc}
@@ -116,23 +116,23 @@ export default function ResourceChannelCard({
       <div className="flex flex-col space-y-1.5 p-3">
         <Link
           href={settingsHref}
-          className="line-clamp-1 text-base font-bold leading-tight text-gray-900 transition-colors hover:text-black"
+          className="line-clamp-1 text-base font-bold leading-tight text-foreground transition-colors hover:text-foreground"
         >
           {channel.name}
         </Link>
 
         {channel.description ? (
-          <p className="min-h-[1.5rem] line-clamp-2 text-[11px] text-gray-500">
+          <p className="min-h-[1.5rem] line-clamp-2 text-[11px] text-muted-foreground">
             {channel.description}
           </p>
         ) : (
-          <p className="min-h-[1.5rem] text-[11px] text-gray-400">
+          <p className="min-h-[1.5rem] text-[11px] text-muted-foreground">
             Curate resources for a focused destination.
           </p>
         )}
 
-        <div className="flex items-center justify-between border-t border-gray-100 pt-1.5">
-          <div className="flex items-center gap-2 text-gray-500">
+        <div className="flex items-center justify-between border-t border-border pt-1.5">
+          <div className="flex items-center gap-2 text-muted-foreground">
             <span className="text-[10px] font-bold uppercase tracking-wider">
               {channel.public ? 'Public' : 'Restricted'}
             </span>
@@ -144,7 +144,7 @@ export default function ResourceChannelCard({
             )}
           </div>
 
-          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             {channel.resource_count} resources
           </span>
         </div>

@@ -28,8 +28,8 @@ function AssignmentBoxUI({ type, view, currentPoints, maxPoints, saveFC, submitF
     const isAuthenticated = session?.status === 'authenticated'
 
     return (
-        <div className='flex flex-col px-3 sm:px-6 py-4 nice-shadow rounded-md bg-slate-100/30'>
-            <div className='flex flex-col sm:flex-row sm:justify-between sm:space-x-2 pb-2 text-slate-400 sm:items-center'>
+        <div className='flex flex-col px-3 sm:px-6 py-4 nice-shadow rounded-md bg-muted/30'>
+            <div className='flex flex-col sm:flex-row sm:justify-between sm:space-x-2 pb-2 text-muted-foreground sm:items-center'>
                 {/* Left side with type and badges */}
                 <div className='flex flex-wrap gap-2 items-center mb-2 sm:mb-0'>
                     <div className='text-lg font-semibold'>
@@ -119,7 +119,7 @@ function AssignmentBoxUI({ type, view, currentPoints, maxPoints, saveFC, submitF
                                 <input
                                     onChange={(e) => setCustomGrade(parseInt(e.target.value))}
                                     placeholder={maxPoints.toString()} 
-                                    className='w-full sm:w-[100px] light-shadow text-sm py-0.5 outline outline-gray-200 rounded-lg px-2' 
+                                    className='w-full sm:w-[100px] light-shadow text-sm py-0.5 outline outline-border rounded-lg px-2' 
                                     type="number" 
                                 />
                                 <div

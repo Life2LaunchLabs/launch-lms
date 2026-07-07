@@ -14,7 +14,7 @@ type UserAvatarProps = {
   border?: 'border-2' | 'border-4' | 'border-8'
   borderColor?: string
   predefined_avatar?: 'ai' | 'empty'
-  backgroundColor?: 'bg-white' | 'bg-gray-100' 
+  backgroundColor?: 'bg-card' | 'bg-muted' 
   showProfilePopup?: boolean
   userId?: string
   username?: string
@@ -129,7 +129,7 @@ function UserAvatar(props: UserAvatarProps) {
         ${props.avatar_url && session?.data?.user?.avatar_image ? '' : 'bg-gray-700'}
         ${props.border ? `border ${props.border}` : ''}
         ${props.borderColor ?? 'border-white'}
-        ${props.backgroundColor ?? 'bg-gray-100'}
+        ${props.backgroundColor ?? 'bg-muted'}
         ${props.shadow ?? 'shadow-md shadow-gray-300/45'}
         aspect-square
         w-[${props.width ?? 50}px]

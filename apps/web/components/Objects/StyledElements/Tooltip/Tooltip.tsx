@@ -35,7 +35,7 @@ const ToolTip = (props: TooltipProps) => {
                   outline outline-1 outline-black/[0.06]
                   ${props.slateBlack
                     ? 'bg-[#0d0d0d] text-white'
-                    : 'bg-white/95 text-gray-600'
+                    : 'bg-card/95 text-muted-foreground'
                   }`
             }
           >

@@ -235,7 +235,7 @@ export const HeaderProfileBox = ({ primaryColor = '', compact = false }: { prima
                     <UserAvatar border="border-2" rounded="rounded-full" width={24} />
                     <div>
                       <p className="text-sm font-medium">{session.data.user.username}</p>
-                      <p className="text-xs text-gray-500 capitalize">{session.data.user.email}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{session.data.user.email}</p>
                     </div>
                   </div>
                 </DropdownMenuLabel>

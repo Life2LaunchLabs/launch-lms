@@ -101,9 +101,9 @@ function ExportToastContent({ status, progress, courseName, courseCount, type, e
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden min-w-[320px] max-w-[400px]">
+    <div className="bg-card rounded-xl shadow-lg border border-border overflow-hidden min-w-[320px] max-w-[400px]">
       {/* Progress bar at top */}
-      <div className="h-1 bg-gray-100 relative overflow-hidden">
+      <div className="h-1 bg-muted relative overflow-hidden">
         <div
           className={`h-full transition-all duration-300 ease-out ${getProgressColor()}`}
           style={{ width: `${isComplete ? 100 : progress}%` }}
@@ -125,15 +125,15 @@ function ExportToastContent({ status, progress, courseName, courseCount, type, e
             {config.icon}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-900 truncate">
+            <p className="text-sm font-semibold text-foreground truncate">
               {getTitle()}
             </p>
-            <p className={`text-xs mt-0.5 ${isError ? 'text-red-600' : 'text-gray-500'}`}>
+            <p className={`text-xs mt-0.5 ${isError ? 'text-red-600' : 'text-muted-foreground'}`}>
               {isError ? (error || 'An error occurred during export') : config.label}
             </p>
           </div>
           {showProgress && (
-            <span className="flex-shrink-0 text-xs font-medium text-gray-400 tabular-nums">
+            <span className="flex-shrink-0 text-xs font-medium text-muted-foreground tabular-nums">
               {Math.round(progress)}%
             </span>
           )}
@@ -152,7 +152,7 @@ function ExportToastContent({ status, progress, courseName, courseCount, type, e
                 <div
                   key={stage}
                   className={`h-1 flex-1 rounded-full transition-all duration-300 ${
-                    isPast ? 'bg-blue-500' : isActive ? 'bg-blue-400 animate-pulse' : 'bg-gray-200'
+                    isPast ? 'bg-blue-500' : isActive ? 'bg-blue-400 animate-pulse' : 'bg-muted'
                   }`}
                 />
               )

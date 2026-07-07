@@ -78,12 +78,12 @@ function TrailCourseElement(props: TrailCourseElementProps) {
 
   return (
     <div
-      className="trailcoursebox flex p-3 bg-white rounded-xl"
+      className="trailcoursebox flex p-3 bg-card rounded-xl"
       style={{ boxShadow: '0px 4px 7px 0px rgba(0, 0, 0, 0.03)' }}
     >
       <Link href={getUriWithOrg(props.orgslug, routePaths.org.course(courseid))}>
         <div
-          className="course_tumbnail inset-0 ring-1 ring-inset ring-black/10 rounded-lg relative h-[50px] w-[72px] overflow-hidden bg-gray-100"
+          className="course_tumbnail inset-0 ring-1 ring-inset ring-black/10 rounded-lg relative h-[50px] w-[72px] overflow-hidden bg-muted"
           style={{
             boxShadow: '0px 4px 7px 0px rgba(0, 0, 0, 0.03)',
           }}
@@ -95,7 +95,7 @@ function TrailCourseElement(props: TrailCourseElementProps) {
               props.course.thumbnail_image
             )}
             alt={course.name}
-            className="w-full h-full object-contain bg-gray-100"
+            className="w-full h-full object-contain bg-muted"
           />
         </div>
       </Link>
@@ -103,7 +103,7 @@ function TrailCourseElement(props: TrailCourseElementProps) {
         <div className="course_top">
           <div className="course_info flex">
             <div className="course_basic flex flex-col flex-end -space-y-2">
-              <p className="p-0 font-bold text-sm text-gray-700">{t('search.course')}</p>
+              <p className="p-0 font-bold text-sm text-muted-foreground">{t('search.course')}</p>
               <div className="course_progress flex items-center space-x-2">
                 <h2 className="font-bold text-xl">{course.name}</h2>
                 <div className="bg-slate-300 rounded-full w-[10px] h-[5px]"></div>
@@ -121,7 +121,7 @@ function TrailCourseElement(props: TrailCourseElementProps) {
           </div>
         </div>
         <div className="course_progress indicator w-full">
-          <div className="w-full bg-gray-200 rounded-full h-1.5 ">
+          <div className="w-full bg-muted rounded-full h-1.5 ">
             <div
               className={`bg-teal-600 h-1.5 rounded-full`}
               style={{ width: `${course_progress}%` }}
@@ -131,9 +131,9 @@ function TrailCourseElement(props: TrailCourseElementProps) {
         
         {/* Badge Section */}
         {course_progress === 100 && (
-          <div className="mt-2 pt-2 border-t border-gray-100">
+          <div className="mt-2 pt-2 border-t border-border">
             {isLoadingCertificate ? (
-              <div className="flex items-center space-x-1 text-xs text-gray-500">
+              <div className="flex items-center space-x-1 text-xs text-muted-foreground">
                 <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-yellow-500"></div>
                 <span>{t('common.loading')}</span>
               </div>
@@ -141,7 +141,7 @@ function TrailCourseElement(props: TrailCourseElementProps) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-1">
                   <Award className="w-3 h-3 text-yellow-500" />
-                  <span className="text-xs font-medium text-gray-700">
+                  <span className="text-xs font-medium text-muted-foreground">
                     Badge earned
                   </span>
                 </div>
@@ -156,7 +156,7 @@ function TrailCourseElement(props: TrailCourseElementProps) {
                 </Link>
               </div>
             ) : (
-              <div className="flex items-center space-x-1 text-xs text-gray-500">
+              <div className="flex items-center space-x-1 text-xs text-muted-foreground">
                 <Award className="w-3 h-3 text-gray-300" />
                 <span>No badge issued yet</span>
               </div>

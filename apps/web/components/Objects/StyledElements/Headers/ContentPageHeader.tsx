@@ -44,7 +44,7 @@ function ContentPageHeader({
 
   return (
     <div
-      className={`sticky top-0 border-b border-gray-300/80 px-6 ${noHorizontalBleed ? '' : '-mx-6'} ${noBottomMargin ? '' : 'mb-10'}`}
+      className={`sticky top-0 border-b border-border/80 px-6 ${noHorizontalBleed ? '' : '-mx-6'} ${noBottomMargin ? '' : 'mb-10'}`}
       style={{
         backgroundColor: 'var(--org-page-background, #ffffff)',
         zIndex: 'var(--z-nav)',
@@ -55,7 +55,7 @@ function ContentPageHeader({
           <button
             type="button"
             onClick={onBack || (() => router.back())}
-            className="inline-flex h-10 min-w-0 items-center gap-2 pr-3 text-sm font-semibold text-gray-500 transition-colors hover:text-gray-900"
+            className="inline-flex h-10 min-w-0 items-center gap-2 pr-3 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
             aria-label={backLabel}
           >
             <BackIcon size={18} strokeWidth={2.4} />
@@ -73,7 +73,7 @@ function ContentPageHeader({
                 key={tab.href}
                 href={getUriWithOrg(orgslug, tab.href)}
                 className={`relative flex items-center justify-center text-sm font-bold uppercase tracking-[0.14em] transition-colors ${
-                  tab.active ? 'text-sky-500' : 'text-gray-500 hover:text-gray-800'
+                  tab.active ? 'text-sky-500' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {tab.label}
@@ -87,11 +87,11 @@ function ContentPageHeader({
         {!hasTabs && hasProgress ? (
           <div className="pointer-events-none absolute left-1/2 w-[52%] max-w-sm -translate-x-1/2 sm:w-[64%]">
             {progressLabel && (
-              <div className="mb-1 text-center text-[11px] font-semibold text-gray-500">
+              <div className="mb-1 text-center text-[11px] font-semibold text-muted-foreground">
                 {progressLabel}
               </div>
             )}
-            <div className="h-1.5 overflow-hidden rounded-full bg-gray-200">
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
               <div
                 className="h-full rounded-full bg-gray-800 transition-all"
                 style={{ width: `${normalizedProgress}%` }}
@@ -99,7 +99,7 @@ function ContentPageHeader({
             </div>
           </div>
         ) : !hasTabs && title ? (
-          <h1 className="pointer-events-none absolute left-1/2 max-w-[52%] -translate-x-1/2 truncate text-center text-sm font-semibold text-gray-500 sm:max-w-[64%]">
+          <h1 className="pointer-events-none absolute left-1/2 max-w-[52%] -translate-x-1/2 truncate text-center text-sm font-semibold text-muted-foreground sm:max-w-[64%]">
             {title}
           </h1>
         ) : null}

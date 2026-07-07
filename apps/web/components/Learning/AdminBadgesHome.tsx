@@ -74,8 +74,8 @@ export default function AdminBadgesHome({
     <div className="h-full min-h-screen w-full bg-[#f8f8f8] px-10 py-6">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-950">Badge Collections</h1>
-          <p className="mt-1 text-sm text-gray-500">Every badge belongs to one collection.</p>
+          <h1 className="text-3xl font-bold text-foreground">Badge Collections</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Every badge belongs to one collection.</p>
         </div>
         <Modal
           isDialogOpen={modalOpen}
@@ -90,14 +90,14 @@ export default function AdminBadgesHome({
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Collection name"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-border px-3 py-2 text-sm"
               />
               <textarea
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 placeholder="Optional description"
                 rows={3}
-                className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                className="w-full resize-none rounded-lg border border-border px-3 py-2 text-sm"
               />
               <button
                 onClick={createCollection}
@@ -119,10 +119,10 @@ export default function AdminBadgesHome({
       </div>
 
       {collections.length === 0 ? (
-        <div className="flex items-center justify-center rounded-xl border-2 border-dashed border-gray-200 py-16 text-center">
+        <div className="flex items-center justify-center rounded-xl border-2 border-dashed border-border py-16 text-center">
           <div>
             <Library size={36} className="mx-auto mb-3 text-gray-300" />
-            <p className="text-sm text-gray-500">Create a collection before adding badges.</p>
+            <p className="text-sm text-muted-foreground">Create a collection before adding badges.</p>
           </div>
         </div>
       ) : (
@@ -131,28 +131,28 @@ export default function AdminBadgesHome({
             <Link
               key={collection.collection_uuid}
               href={getUriWithOrg(orgslug, `/admin/badges/collection/${cleanCollectionId(collection.collection_uuid)}`)}
-              className="group relative flex w-full flex-col overflow-hidden rounded-xl bg-white nice-shadow transition-all duration-300 hover:scale-[1.01]"
+              className="group relative flex w-full flex-col overflow-hidden rounded-xl bg-card nice-shadow transition-all duration-300 hover:scale-[1.01]"
             >
               <button
                 onClick={(event) => deleteCollection(event, collection)}
                 disabled={deleting === collection.collection_uuid}
-                className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-red-100 bg-white text-red-600 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 disabled:opacity-60"
+                className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-red-100 bg-card text-red-600 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 disabled:opacity-60"
                 title="Delete collection"
               >
                 {deleting === collection.collection_uuid ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
               </button>
-              <div className="relative flex aspect-video items-center justify-center overflow-hidden bg-gray-50 text-gray-300">
+              <div className="relative flex aspect-video items-center justify-center overflow-hidden bg-muted text-gray-300">
                 <Library size={32} strokeWidth={1.5} />
               </div>
               <div className="flex flex-col space-y-1.5 p-3">
-                <h2 className="line-clamp-1 text-base font-bold leading-tight text-gray-900">{collection.name}</h2>
-                {collection.description ? <p className="min-h-[1.5rem] line-clamp-2 text-[11px] text-gray-500">{collection.description}</p> : null}
-                <div className="flex items-center justify-between border-t border-gray-100 pt-1.5">
-                  <div className="flex items-center gap-1.5 text-gray-500">
+                <h2 className="line-clamp-1 text-base font-bold leading-tight text-foreground">{collection.name}</h2>
+                {collection.description ? <p className="min-h-[1.5rem] line-clamp-2 text-[11px] text-muted-foreground">{collection.description}</p> : null}
+                <div className="flex items-center justify-between border-t border-border pt-1.5">
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
                     <BookCopy size={12} />
                     <span className="text-[10px] font-bold uppercase tracking-wider">{collection.badges?.length || 0} badges</span>
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Edit</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Edit</span>
                 </div>
               </div>
             </Link>

@@ -217,7 +217,7 @@ function AICourseCreationModal({
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 flex-shrink-0">
               <div className="flex items-center gap-3">
                 <Image
-                  className="outline outline-1 outline-neutral-200/20 rounded-lg"
+                  className="outline outline-1 outline-border/20 rounded-lg"
                   width={24}
                   src={lrnaiIcon}
                   alt="AI Course"
