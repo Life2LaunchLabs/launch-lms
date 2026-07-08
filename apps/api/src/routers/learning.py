@@ -165,6 +165,17 @@ async def api_update_collection(
     return await learning_service.update_collection(request, collection_uuid, collection, current_user, db_session)
 
 
+@collections_router.put("/{collection_uuid}/thumbnail")
+async def api_update_collection_thumbnail(
+    request: Request,
+    collection_uuid: str,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+    thumbnail: UploadFile = File(...),
+) -> BadgeCollectionRead:
+    return await learning_service.update_collection_thumbnail(request, collection_uuid, current_user, db_session, thumbnail)
+
+
 @collections_router.delete("/{collection_uuid}")
 async def api_delete_collection(
     request: Request,

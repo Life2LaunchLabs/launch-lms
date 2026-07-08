@@ -1012,7 +1012,7 @@ function ActivityClient(props: ActivityClientProps) {
                                       ? 'overflow-hidden'
                                       : ''
                                   } ${activity.activity_type === 'TYPE_VIDEO' || activity.activity_type === 'TYPE_DOCUMENT' ? 'bg-zinc-950' : 'bg-transparent'}`} style={{ zIndex: 'var(--z-base)' }}>
-                                    {activity.activity_type !== 'TYPE_QUIZ' && (
+                                    {activity.activity_type !== 'TYPE_QUIZ' && activity.activity_type !== 'TYPE_VIDEO' && (
                                       <div className={`flex items-start justify-between gap-3 ${activity.activity_type === 'TYPE_SCORM' ? 'absolute left-4 top-4 z-10 sm:left-0 sm:top-0 sm:static sm:mb-5 sm:px-0 sm:pt-0' : 'p-0 pb-4 sm:pb-5'}`}>
                                         <div className="flex min-w-0 items-start gap-3">
                                           <div className="min-w-0">

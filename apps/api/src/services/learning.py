@@ -1397,6 +1397,40 @@ async def update_collection(request: Request, collection_uuid: str, data: BadgeC
     return BadgeCollectionRead(**collection.model_dump(), badges=[LearningBadgeRead(**badge.model_dump()) for badge in badges])
 
 
+async def update_collection_thumbnail(
+    request: Request,
+    collection_uuid: str,
+    current_user: PublicUser | AnonymousUser,
+    db_session: Session,
+    thumbnail_file: UploadFile | None = None,
+) -> BadgeCollectionRead:
+    collection = db_session.exec(select(BadgeCollection).where(BadgeCollection.collection_uuid == _clean_uuid(collection_uuid, "badge_collection_"))).first()
+    if not collection:
+        raise HTTPException(status_code=404, detail="Badge collection not found")
+    _require_org_admin(db_session, current_user, collection.org_id)
+    org = _get_org(db_session, collection.org_id)
+
+    if not thumbnail_file or not thumbnail_file.filename:
+        raise HTTPException(status_code=400, detail="Thumbnail file is required")
+
+    filename = await upload_file(
+        file=thumbnail_file,
+        directory=f"badge_collections/{collection.collection_uuid}/thumbnails",
+        type_of_dir="orgs",
+        uuid=org.org_uuid,
+        allowed_types=["image"],
+        filename_prefix="thumbnail",
+    )
+    collection.thumbnail_image = f"/content/orgs/{org.org_uuid}/badge_collections/{collection.collection_uuid}/thumbnails/{filename}"
+    collection.update_date = _now()
+
+    db_session.add(collection)
+    db_session.commit()
+    db_session.refresh(collection)
+    badges = db_session.exec(select(LearningBadge).where(LearningBadge.collection_id == collection.id)).all()
+    return BadgeCollectionRead(**collection.model_dump(), badges=[LearningBadgeRead(**badge.model_dump()) for badge in badges])
+
+
 async def delete_collection(request: Request, collection_uuid: str, current_user: PublicUser | AnonymousUser, db_session: Session) -> dict:
     collection = db_session.exec(select(BadgeCollection).where(BadgeCollection.collection_uuid == _clean_uuid(collection_uuid, "badge_collection_"))).first()
     if not collection:

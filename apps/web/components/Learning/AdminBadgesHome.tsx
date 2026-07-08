@@ -11,6 +11,7 @@ import {
 } from '@services/learning/learning'
 import toast from 'react-hot-toast'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
+import { SafeImage } from '@components/Objects/SafeImage'
 
 function cleanCollectionId(value: string) {
   return String(value || '').replace(/^badge_collection_/, '')
@@ -142,7 +143,11 @@ export default function AdminBadgesHome({
                 {deleting === collection.collection_uuid ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
               </button>
               <div className="relative flex aspect-video items-center justify-center overflow-hidden bg-muted text-gray-300">
-                <Library size={32} strokeWidth={1.5} />
+                {collection.thumbnail_image ? (
+                  <SafeImage src={collection.thumbnail_image} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <Library size={32} strokeWidth={1.5} />
+                )}
               </div>
               <div className="flex flex-col space-y-1.5 p-3">
                 <h2 className="line-clamp-1 text-base font-bold leading-tight text-foreground">{collection.name}</h2>
