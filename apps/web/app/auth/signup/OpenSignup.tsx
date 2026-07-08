@@ -51,7 +51,17 @@ const validate = (values: any, t: any) => {
   return errors
 }
 
-function OpenSignUpComponent({ createOrgMode = false }: { createOrgMode?: boolean }) {
+function OpenSignUpComponent({
+  createOrgMode = false,
+  embedded = false,
+  postSignupUrlOverride,
+  onLoginClick,
+}: {
+  createOrgMode?: boolean
+  embedded?: boolean
+  postSignupUrlOverride?: string
+  onLoginClick?: () => void
+}) {
   const { t } = useTranslation()
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false)
@@ -64,9 +74,9 @@ function OpenSignUpComponent({ createOrgMode = false }: { createOrgMode?: boolea
   const [error, setError] = React.useState('')
   const nextUrl = searchParams.get('next')
   const inviteBadge = searchParams.get('inviteBadge')
+  const createOrgRedirect = getUriWithOrg(org?.slug, '/signup/org')
   const postSignupUrl =
-    nextUrl || (inviteBadge ? `/badges?inviteBadge=${encodeURIComponent(inviteBadge)}` : '/')
-  const createOrgRedirect = getUriWithOrg(org?.slug, '/signup?mode=create-org')
+    postSignupUrlOverride || nextUrl || (createOrgMode ? createOrgRedirect : inviteBadge ? `/badges?inviteBadge=${encodeURIComponent(inviteBadge)}` : '/')
   const formik = useFormik({
     initialValues: {
       org_slug: org?.slug,
@@ -303,10 +313,9 @@ function OpenSignUpComponent({ createOrgMode = false }: { createOrgMode?: boolea
   }
 
   return (
-    <div className={createOrgMode ? 'm-auto w-full max-w-sm px-6 py-8 sm:py-0' : 'flex min-h-screen flex-1 items-center justify-center px-6 py-12 lg:px-10'}>
-      <div className="w-full max-w-sm">
-      {/* Header */}
-      <div className="mb-6">
+    <div className={embedded ? 'w-full' : createOrgMode ? 'm-auto w-full max-w-sm px-6 py-8 sm:py-0' : 'flex min-h-screen flex-1 items-center justify-center px-6 py-12 lg:px-10'}>
+      <div className={embedded ? 'w-full' : 'w-full max-w-sm'}>
+      <div className={embedded ? 'mb-6' : 'mb-6'}>
         {!createOrgMode && (
           <button
             type="button"
@@ -320,21 +329,21 @@ function OpenSignUpComponent({ createOrgMode = false }: { createOrgMode?: boolea
         <h1 className="text-2xl font-bold text-gray-900">
           {t('auth.create_account')}
         </h1>
-        <p className="mt-1 text-gray-500">
-          {createOrgMode ? 'Create your user account first, then we will walk you through setting up an organization.' : t('auth.fill_in_details')}
-        </p>
+        {!embedded && (
+          <p className="mt-1 text-gray-500">
+            {createOrgMode ? 'Create your user account first, then we will walk you through setting up an organization.' : t('auth.fill_in_details')}
+          </p>
+        )}
       </div>
 
-      {/* Error/Success Messages */}
       {error && (
-        <div className="flex items-center gap-3 bg-red-100 rounded-xl text-red-900 p-4 mb-6 nice-shadow">
+        <div className="mb-6 flex items-center gap-3 rounded-xl bg-red-100 p-4 text-red-900">
           <AlertTriangle size={18} className="shrink-0" />
           <div className="font-bold text-sm">{error}</div>
         </div>
       )}
 
-      {/* Signup Form Card */}
-      <div className="bg-white rounded-xl p-6 nice-shadow">
+      <div className={embedded ? 'w-full' : 'rounded-xl bg-white p-6 nice-shadow'}>
         <FormLayout onSubmit={formik.handleSubmit}>
           <FormField name="email">
             <FormLabelAndMessage
@@ -445,12 +454,18 @@ function OpenSignUpComponent({ createOrgMode = false }: { createOrgMode?: boolea
       {/* Login Link */}
       <p className="mt-6 text-center text-gray-600">
         {t('auth.already_have_account')}{' '}
-        <Link
-          href={createOrgMode ? `/login?next=${encodeURIComponent(createOrgRedirect)}` : nextUrl ? `/login?next=${encodeURIComponent(nextUrl)}` : '/login'}
-          className="font-semibold text-gray-900 hover:underline"
-        >
-          {t('auth.login')}
-        </Link>
+        {onLoginClick ? (
+          <button type="button" onClick={onLoginClick} className="font-semibold text-gray-900 hover:underline">
+            {t('auth.login')}
+          </button>
+        ) : (
+          <Link
+            href={createOrgMode ? `/login?next=${encodeURIComponent(createOrgRedirect)}` : nextUrl ? `/login?next=${encodeURIComponent(nextUrl)}` : '/login'}
+            className="font-semibold text-gray-900 hover:underline"
+          >
+            {t('auth.login')}
+          </Link>
+        )}
       </p>
       </div>
     </div>

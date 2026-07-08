@@ -10,7 +10,7 @@ export interface RouteAccessClassification {
   kind: RouteAccessKind
 }
 
-const AUTH_PATHS = new Set(['/login', '/signup', '/reset', '/forgot', '/verify-email'])
+const AUTH_PATHS = new Set(['/login', '/signup', '/signup/org', '/reset', '/forgot', '/verify-email'])
 const AUTH_CALLBACK_PREFIXES = ['/auth/sso/', '/auth/callback/', '/auth/token-exchange']
 const PUBLIC_EXACT_PATHS = new Set(['/', '/news', '/quickstart', '/welcome'])
 const PUBLIC_PREFIXES = ['/news/', '/quickstart/']
