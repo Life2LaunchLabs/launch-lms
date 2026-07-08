@@ -26,6 +26,7 @@ from src.db.learning import (
 )
 from src.db.organizations import Organization
 from src.db.organization_config import OrganizationConfig
+from src.db.plan_requests import PlanRequest
 from src.db.users import AnonymousUser, PublicUser, User
 from src.security.features_utils.resolve import resolve_feature
 from src.security.superadmin import is_user_superadmin
@@ -84,6 +85,56 @@ def require_org_feature(
         )
 
 
+def _org_feature_enabled(db_session: Session, org_id: int, feature: str) -> bool:
+    org_config = db_session.exec(
+        select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)
+    ).first()
+    config = org_config.config if org_config and org_config.config else {}
+    return bool(resolve_feature(feature, config, org_id).get("enabled"))
+
+
+def _has_pending_issuing_package_request(db_session: Session, org_id: int) -> bool:
+    return db_session.exec(
+        select(PlanRequest).where(
+            PlanRequest.org_id == org_id,
+            PlanRequest.request_type == "package_add",
+            PlanRequest.requested_value == "badge_issuing",
+            PlanRequest.status == "pending",
+        )
+    ).first() is not None
+
+
+def transition_queued_authorizations(
+    db_session: Session,
+    org_id: int,
+    *,
+    package_denied: bool = False,
+) -> int:
+    """Advance or close queued requests after an entitlement decision."""
+    queued = db_session.exec(
+        select(BadgeIssuerAuthorization).where(
+            BadgeIssuerAuthorization.issuer_org_id == org_id,
+            BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.QUEUED,
+        )
+    ).all()
+    if not queued:
+        return 0
+
+    if _org_feature_enabled(db_session, org_id, "badge_issuing"):
+        next_status = BadgeIssuerAuthorizationStatus.REQUESTED
+    elif package_denied:
+        next_status = BadgeIssuerAuthorizationStatus.PACKAGE_DENIED
+    else:
+        return 0
+
+    now = _now()
+    for authorization in queued:
+        authorization.status = next_status
+        authorization.update_date = now
+        db_session.add(authorization)
+    return len(queued)
+
+
 def _get_authorization(db_session: Session, authorization_uuid: str) -> BadgeIssuerAuthorization:
     authorization = db_session.exec(
         select(BadgeIssuerAuthorization).where(
@@ -140,8 +191,18 @@ async def browse_marketplace_badges(
         badges = [b for b in badges if needle in (b.name or "").lower() or needle in (b.description or "").lower()]
 
     authorizations_by_badge_id: dict[int, BadgeIssuerAuthorization] = {}
+    issuing_access: str | None = None
     if issuer_org_id is not None:
         _require_org_admin(db_session, current_user, issuer_org_id)
+        if (
+            isinstance(current_user, PublicUser)
+            and is_user_superadmin(current_user.id, db_session)
+        ) or _org_feature_enabled(db_session, issuer_org_id, "badge_issuing"):
+            issuing_access = "active"
+        elif _has_pending_issuing_package_request(db_session, issuer_org_id):
+            issuing_access = "pending"
+        else:
+            issuing_access = "unavailable"
         badge_ids = [b.id or 0 for b in badges]
         if badge_ids:
             for authorization in db_session.exec(
@@ -168,6 +229,7 @@ async def browse_marketplace_badges(
             authorization = authorizations_by_badge_id.get(badge.id or 0)
             item["authorization"] = _serialize_authorization(db_session, authorization).model_dump() if authorization else None
             item["is_own_badge"] = badge.org_id == issuer_org_id
+            item["issuing_access"] = issuing_access
         results.append(item)
     return results
 
@@ -179,7 +241,14 @@ async def request_authorization(
     db_session: Session,
 ) -> BadgeIssuerAuthorizationRead:
     user = _require_org_admin(db_session, current_user, data.issuer_org_id)
-    require_org_feature(db_session, current_user, data.issuer_org_id, "badge_issuing", "Badge Issuing")
+    issuing_enabled = (
+        isinstance(current_user, PublicUser)
+        and is_user_superadmin(current_user.id, db_session)
+    ) or _org_feature_enabled(db_session, data.issuer_org_id, "badge_issuing")
+    can_queue = not issuing_enabled and _has_pending_issuing_package_request(db_session, data.issuer_org_id)
+    if not issuing_enabled and not can_queue:
+        require_org_feature(db_session, current_user, data.issuer_org_id, "badge_issuing", "Badge Issuing")
+    next_status = BadgeIssuerAuthorizationStatus.REQUESTED if issuing_enabled else BadgeIssuerAuthorizationStatus.QUEUED
     badge = _get_badge(db_session, data.badge_uuid)
     if badge.org_id == data.issuer_org_id:
         raise HTTPException(status_code=422, detail="Your organization already owns this badge")
@@ -195,12 +264,16 @@ async def request_authorization(
     ).first()
     now = _now()
     if existing:
-        if existing.status in (BadgeIssuerAuthorizationStatus.APPROVED, BadgeIssuerAuthorizationStatus.REQUESTED):
+        if existing.status in (
+            BadgeIssuerAuthorizationStatus.APPROVED,
+            BadgeIssuerAuthorizationStatus.REQUESTED,
+            BadgeIssuerAuthorizationStatus.QUEUED,
+        ):
             return _serialize_authorization(db_session, existing)
         if existing.status == BadgeIssuerAuthorizationStatus.INVITED:
             # Requesting while invited is acceptance
             return await accept_invite(request, existing.authorization_uuid, current_user, db_session)
-        existing.status = BadgeIssuerAuthorizationStatus.REQUESTED
+        existing.status = next_status
         existing.message = data.message or ""
         existing.requested_by_user_id = user.id
         existing.decided_by_user_id = None
@@ -216,7 +289,7 @@ async def request_authorization(
         badge_id=badge.id or 0,
         creator_org_id=badge.org_id,
         issuer_org_id=data.issuer_org_id,
-        status=BadgeIssuerAuthorizationStatus.REQUESTED,
+        status=next_status,
         message=data.message or "",
         requested_by_user_id=user.id,
         creation_date=now,
@@ -381,7 +454,13 @@ async def list_authorizations(
     _require_org_admin(db_session, current_user, org_id)
     statement = select(BadgeIssuerAuthorization)
     if perspective == "creator":
-        statement = statement.where(BadgeIssuerAuthorization.creator_org_id == org_id)
+        statement = statement.where(
+            BadgeIssuerAuthorization.creator_org_id == org_id,
+            BadgeIssuerAuthorization.status.notin_([
+                BadgeIssuerAuthorizationStatus.QUEUED,
+                BadgeIssuerAuthorizationStatus.PACKAGE_DENIED,
+            ]),
+        )
     elif perspective == "issuer":
         statement = statement.where(BadgeIssuerAuthorization.issuer_org_id == org_id)
     else:

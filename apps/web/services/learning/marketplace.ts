@@ -6,11 +6,13 @@ import {
 } from '@services/utils/ts/requests'
 
 export type IssuerAuthorizationStatus =
+  | 'queued'
   | 'requested'
   | 'invited'
   | 'approved'
   | 'rejected'
   | 'revoked'
+  | 'package_denied'
 
 export async function browseMarketplaceBadges(
   issuerOrgId?: string | number,

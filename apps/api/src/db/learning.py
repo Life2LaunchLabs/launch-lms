@@ -37,11 +37,13 @@ class LearningAwardSource(str, Enum):
 
 
 class BadgeIssuerAuthorizationStatus(str, Enum):
+    QUEUED = "queued"
     REQUESTED = "requested"
     INVITED = "invited"
     APPROVED = "approved"
     REJECTED = "rejected"
     REVOKED = "revoked"
+    PACKAGE_DENIED = "package_denied"
 
 
 class LearningBadgeBase(SQLModel):

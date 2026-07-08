@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Award, Check, ClipboardCheck, Handshake, Loader2, Plus, Search, Store, Trash2 } from 'lucide-react'
+import { Award, Check, ClipboardCheck, Handshake, Library, Loader2, Plus, Search, Store, Trash2 } from 'lucide-react'
 import { motion } from 'motion/react'
 import toast from 'react-hot-toast'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
@@ -21,43 +21,69 @@ import {
   revokeIssuerAuthorization,
   updateIssuerAuthorization,
 } from '@services/learning/marketplace'
+import AdminBadgesHome from '@components/Learning/AdminBadgesHome'
 
 const tabs = [
+  { key: 'collections', label: 'Collections', icon: Library },
   { key: 'marketplace', label: 'Marketplace', icon: Store },
   { key: 'issuing', label: 'Issuing', icon: Handshake },
   { key: 'grading', label: 'Grading', icon: ClipboardCheck },
 ]
 
 const statusStyles: Record<string, string> = {
+  queued: 'bg-violet-100 text-violet-800',
   requested: 'bg-amber-100 text-amber-800',
   invited: 'bg-blue-100 text-blue-800',
   approved: 'bg-lime-100 text-lime-800',
   rejected: 'bg-red-100 text-red-700',
   revoked: 'bg-gray-200 text-gray-600',
+  package_denied: 'bg-red-100 text-red-700',
 }
 
-export default function IssuingAdminShell({ orgId }: { orgId: number }) {
-  const [activeTab, setActiveTab] = React.useState('marketplace')
+const statusLabels: Record<string, string> = {
+  queued: 'Waiting for package approval',
+  package_denied: 'Package request denied',
+}
+
+type BadgeAdminTab = 'collections' | 'marketplace' | 'issuing' | 'grading'
+
+export default function IssuingAdminShell({
+  orgId,
+  orgslug,
+  collections,
+  initialTab = 'collections',
+}: {
+  orgId: number
+  orgslug: string
+  collections: any[]
+  initialTab?: BadgeAdminTab
+}) {
+  const [activeTab, setActiveTab] = React.useState<BadgeAdminTab>(initialTab)
+
+  const selectTab = (tab: BadgeAdminTab) => {
+    setActiveTab(tab)
+    const url = tab === 'collections' ? '/admin/badges' : `/admin/badges?tab=${tab}`
+    window.history.replaceState(null, '', url)
+  }
 
   return (
     <div className="min-h-full w-full bg-[#f8f8f8]">
       <div className="relative z-10 bg-[#fcfbfc] pl-10 pr-10 text-sm tracking-tight nice-shadow">
         <div className="pb-4 pt-6">
           <Breadcrumbs items={[
-            { label: 'Badges', href: '/admin/badges' },
-            { label: 'Marketplace & Issuing' },
+            { label: 'Badges' },
           ]} />
         </div>
         <div className="py-2">
-          <h1 className="text-xl font-bold text-foreground">Marketplace & Issuing</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Find badges from other organizations, manage your issuing authorizations, and grade your learners&apos; submissions.</p>
+          <h1 className="text-xl font-bold text-foreground">Badges</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Organize badges, discover issuing opportunities, manage authorizations, and grade learner submissions.</p>
         </div>
         <div className="mt-2 flex space-x-3 text-sm font-black">
           {tabs.map((tab) => {
             const Icon = tab.icon
             const isActive = activeTab === tab.key
             return (
-              <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)} className={`flex w-fit cursor-pointer space-x-4 border-black py-2 text-center transition-all ease-linear ${isActive ? 'border-b-4' : 'opacity-50 hover:opacity-75'}`}>
+              <button key={tab.key} type="button" onClick={() => selectTab(tab.key as BadgeAdminTab)} className={`flex w-fit cursor-pointer space-x-4 border-black py-2 text-center transition-all ease-linear ${isActive ? 'border-b-4' : 'opacity-50 hover:opacity-75'}`}>
                 <div className="mx-2 flex items-center space-x-2.5">
                   <Icon size={16} />
                   <div>{tab.label}</div>
@@ -69,6 +95,7 @@ export default function IssuingAdminShell({ orgId }: { orgId: number }) {
       </div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }} className="overflow-x-hidden">
+        {activeTab === 'collections' ? <AdminBadgesHome orgslug={orgslug} orgId={orgId} collections={collections} /> : null}
         {activeTab === 'marketplace' ? <MarketplaceBrowsePanel orgId={orgId} /> : null}
         {activeTab === 'issuing' ? <IssuingAuthorizationsPanel orgId={orgId} /> : null}
         {activeTab === 'grading' ? <OrgGradingQueuePanel orgId={orgId} /> : null}
@@ -105,8 +132,12 @@ function MarketplaceBrowsePanel({ orgId }: { orgId: number }) {
   const request = async (item: any) => {
     setActingOn(item.badge.badge_uuid)
     try {
-      await requestIssuerAuthorization({ badge_uuid: item.badge.badge_uuid, issuer_org_id: orgId }, accessToken)
-      toast.success('Authorization requested.')
+      const authorization = await requestIssuerAuthorization({ badge_uuid: item.badge.badge_uuid, issuer_org_id: orgId }, accessToken)
+      toast.success(
+        authorization?.status === 'queued'
+          ? 'Request queued. We’ll send it when your issuing package is approved.'
+          : 'Authorization requested.'
+      )
       await load(query)
     } catch (error: any) {
       toast.error(error?.message || 'Failed to request authorization.')
@@ -164,6 +195,8 @@ function MarketplaceBrowsePanel({ orgId }: { orgId: number }) {
           ) : items.length ? items.map((item) => {
             const authorization = item.authorization
             const badge = item.badge
+            const canRequest = item.issuing_access === 'active' || item.issuing_access === 'pending'
+            const requestLabel = item.issuing_access === 'pending' ? 'Queue request' : 'Request to issue'
             return (
               <article key={badge.badge_uuid} className="flex flex-col gap-3 rounded-xl border border-border p-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex min-w-0 items-center gap-4">
@@ -188,23 +221,36 @@ function MarketplaceBrowsePanel({ orgId }: { orgId: number }) {
                   ) : authorization ? (
                     <>
                       <span className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${statusStyles[authorization.status] || 'bg-gray-100 text-gray-600'}`}>
-                        {authorization.status}
+                        {statusLabels[authorization.status] || authorization.status}
                       </span>
                       {authorization.status === 'invited' ? (
                         <Button size="sm" onClick={() => void accept(item)} disabled={actingOn === badge.badge_uuid} className="gap-1">
                           <Check className="h-4 w-4" /> Accept invite
                         </Button>
                       ) : null}
-                      {authorization.status === 'rejected' || authorization.status === 'revoked' ? (
-                        <Button size="sm" variant="outline" onClick={() => void request(item)} disabled={actingOn === badge.badge_uuid} className="gap-1 bg-card">
-                          <Plus className="h-4 w-4" /> Request again
+                      {authorization.status === 'rejected' || authorization.status === 'revoked' || authorization.status === 'package_denied' ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void request(item)}
+                          disabled={!canRequest || actingOn === badge.badge_uuid}
+                          title={canRequest ? undefined : 'Request the Badge Issuing package to continue'}
+                          className="gap-1 bg-card"
+                        >
+                          <Plus className="h-4 w-4" /> {item.issuing_access === 'pending' ? 'Queue again' : 'Request again'}
                         </Button>
                       ) : null}
                     </>
                   ) : (
-                    <Button size="sm" onClick={() => void request(item)} disabled={actingOn === badge.badge_uuid} className="gap-1">
+                    <Button
+                      size="sm"
+                      onClick={() => void request(item)}
+                      disabled={!canRequest || actingOn === badge.badge_uuid}
+                      title={canRequest ? undefined : 'Request the Badge Issuing package to continue'}
+                      className="gap-1"
+                    >
                       {actingOn === badge.badge_uuid ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                      Request to issue
+                      {canRequest ? requestLabel : 'Issuing package required'}
                     </Button>
                   )}
                 </div>
@@ -343,7 +389,7 @@ function IssuingAuthorizationsPanel({ orgId }: { orgId: number }) {
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <span className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${statusStyles[authorization.status] || 'bg-gray-100 text-gray-600'}`}>
-                      {authorization.status}
+                      {statusLabels[authorization.status] || authorization.status}
                     </span>
                     {authorization.status === 'invited' ? (
                       <Button size="sm" onClick={() => void act(authorization, 'accept')} disabled={actingOn === authorization.authorization_uuid} className="gap-1">
@@ -355,8 +401,26 @@ function IssuingAuthorizationsPanel({ orgId }: { orgId: number }) {
                         <Trash2 className="h-4 w-4" /> End
                       </Button>
                     ) : null}
+                    {authorization.status === 'queued' ? (
+                      <Button size="sm" variant="outline" onClick={() => void act(authorization, 'revoke')} disabled={actingOn === authorization.authorization_uuid} className="gap-1 bg-card text-red-700">
+                        <Trash2 className="h-4 w-4" /> Cancel
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
+
+                {authorization.status === 'queued' ? (
+                  <div className="mt-4 rounded-lg bg-violet-50 p-4 text-sm text-violet-900">
+                    <p className="font-bold">Request queued</p>
+                    <p className="mt-1 text-xs text-violet-700">We’ll send this authorization request automatically when your issuing package is approved.</p>
+                  </div>
+                ) : null}
+                {authorization.status === 'package_denied' ? (
+                  <div className="mt-4 rounded-lg bg-red-50 p-4 text-sm text-red-900">
+                    <p className="font-bold">Issuing package request denied</p>
+                    <p className="mt-1 text-xs text-red-700">This authorization request was not sent to the badge creator.</p>
+                  </div>
+                ) : null}
 
                 {authorization.status === 'approved' ? (
                   <div className="mt-4 rounded-lg bg-muted p-4">

@@ -1,7 +1,6 @@
 import {
   House,
   BookOpen,
-  Files,
   Users,
   CurrencyCircleDollar,
   Buildings,
@@ -33,12 +32,6 @@ export const DASHBOARD_MENU_ITEMS: DashboardMenuItem[] = [
     href: '/admin/courses',
     icon: BookOpen,
     labelKey: 'common.badges',
-  },
-  {
-    id: 'assignments',
-    href: '/admin/assignments',
-    icon: Files,
-    labelKey: 'common.assignments',
   },
   {
     id: 'resources',

@@ -6,16 +6,18 @@ import { getCoreCapabilities, getDefaultOrg, getUriWithOrg, routePaths } from '@
 import { getOrgLogoMediaDirectory } from '@services/media/media'
 import {
   BadgeDollarSign,
-  Backpack,
-  BookCopy,
   Building2,
+  ClipboardCheck,
   FolderOpen,
+  Handshake,
   Headphones,
   Home,
+  Library,
   Menu,
   MessagesSquare,
   Newspaper,
   School,
+  Store,
   UserRound,
   Users,
   X,
@@ -58,14 +60,24 @@ function DashMobileMenu() {
       label: t('common.home'),
     },
     {
-      href: routePaths.org.dash.courses(),
-      icon: BookCopy,
-      label: 'Badges',
+      href: routePaths.org.dash.badges(),
+      icon: Library,
+      label: 'Collections',
     },
     {
-      href: routePaths.org.dash.assignments(),
-      icon: Backpack,
-      label: t('common.assignments'),
+      href: `${routePaths.org.dash.badges()}?tab=marketplace`,
+      icon: Store,
+      label: 'Marketplace',
+    },
+    {
+      href: `${routePaths.org.dash.badges()}?tab=issuing`,
+      icon: Handshake,
+      label: 'Issuing',
+    },
+    {
+      href: `${routePaths.org.dash.badges()}?tab=grading`,
+      icon: ClipboardCheck,
+      label: 'Grading',
     },
     showCommunities
       ? {

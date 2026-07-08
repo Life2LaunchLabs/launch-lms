@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import React from 'react'
-import { BookCopy, Library, Loader2, Plus, Store, Trash2 } from 'lucide-react'
+import { BookCopy, Library, Loader2, Plus, Trash2 } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg } from '@services/config/config'
 import {
@@ -72,13 +72,13 @@ export default function AdminBadgesHome({
   }
 
   return (
-    <div className="h-full min-h-screen w-full bg-[#f8f8f8] px-10 py-6">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="px-10 pb-10 pt-6">
+      <section className="rounded-xl bg-card p-6 shadow-xs">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Badge Collections</h1>
+          <h2 className="text-lg font-bold text-foreground">Collections</h2>
           <p className="mt-1 text-sm text-muted-foreground">Every badge belongs to one collection.</p>
         </div>
-        <div className="flex items-center gap-3">
         <Modal
           isDialogOpen={modalOpen}
           onOpenChange={setModalOpen}
@@ -118,14 +118,6 @@ export default function AdminBadgesHome({
             </button>
           }
         />
-        <Link
-          href={getUriWithOrg(orgslug, '/admin/badges/marketplace')}
-          className="flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-2 text-xs font-bold text-foreground nice-shadow transition-transform hover:scale-105"
-        >
-          <Store className="h-4 w-4" />
-          Marketplace & Issuing
-        </Link>
-        </div>
       </div>
 
       {collections.length === 0 ? (
@@ -173,6 +165,7 @@ export default function AdminBadgesHome({
           ))}
         </div>
       )}
+      </section>
     </div>
   )
 }
