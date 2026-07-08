@@ -17,6 +17,7 @@ function ContentPageHeader({
   onBack,
   showBack = true,
   noBottomMargin = false,
+  compactBottomMargin = false,
   noHorizontalBleed = false,
 }: {
   backIcon?: 'arrow' | 'x'
@@ -33,6 +34,7 @@ function ContentPageHeader({
   onBack?: () => void
   showBack?: boolean
   noBottomMargin?: boolean
+  compactBottomMargin?: boolean
   noHorizontalBleed?: boolean
 }) {
   const router = useRouter()
@@ -44,7 +46,7 @@ function ContentPageHeader({
 
   return (
     <div
-      className={`sticky top-0 border-b border-border/80 px-6 ${noHorizontalBleed ? '' : '-mx-6'} ${noBottomMargin ? '' : 'mb-10'}`}
+      className={`sticky top-0 border-b border-border/80 px-6 ${noHorizontalBleed ? '' : '-mx-6'} ${noBottomMargin ? '' : compactBottomMargin ? 'mb-4' : 'mb-10'}`}
       style={{
         backgroundColor: 'var(--org-page-background, #ffffff)',
         zIndex: 'var(--z-nav)',

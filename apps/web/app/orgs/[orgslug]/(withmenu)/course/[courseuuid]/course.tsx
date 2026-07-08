@@ -10,6 +10,7 @@ import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/Ge
 import ContentPageHeader from '@components/Objects/StyledElements/Headers/ContentPageHeader'
 import {
   getCourseThumbnailMediaDirectory,
+  normalizeMediaUrl,
 } from '@services/media/media'
 import { learningPathToLegacyRun } from '@services/learning/legacyAdapters'
 import { getLearningPath, startLearningRun } from '@services/learning/learning'
@@ -35,6 +36,8 @@ import toast from 'react-hot-toast'
 import { devCompleteCourse } from '@services/courses/activity'
 import { useWindowSize } from 'usehooks-ts'
 import CertificatePreview from '@components/Dashboard/Pages/Course/EditCourseCertification/CertificatePreview'
+import { cn } from '@/lib/utils'
+import { SafeImage } from '@components/Objects/SafeImage'
 
 const ReactConfetti = dynamic(() => import('react-confetti'), { ssr: false })
 
@@ -245,6 +248,7 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
           <GeneralWrapperStyled>
             <ContentPageHeader
               orgslug={orgslug}
+              compactBottomMargin={showPath}
             />
 
             {showPath ? (
@@ -253,7 +257,6 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
                 courseOwnerOrgUuid={courseOwnerOrgUuid}
                 orgslug={orgslug}
                 run={run}
-                badgeStatusPath={badgeStatusPath}
               />
             ) : (
               <BadgeStatusHero
@@ -305,153 +308,158 @@ function getPathActivityIcon(activityType: string) {
   }
 }
 
-function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run, badgeStatusPath }: any) {
+function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run }: any) {
+  const descriptionRef = React.useRef<HTMLParagraphElement>(null)
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false)
+  const [descriptionCanExpand, setDescriptionCanExpand] = useState(false)
   const chapters = useMemo(
     () => course.chapters?.filter((chapter: any) => (chapter.activities || []).length > 0) || [],
     [course.chapters]
-  )
-  const completedIds = useMemo(
-    () => new Set(
-      (run?.steps || [])
-        .filter((step: any) => step.complete !== false)
-        .map((step: any) => step.activity_id)
-    ),
-    [run?.steps]
   )
   const chapterSummaries = useMemo(
     () => chapters.map((chapter: any) => getChapterCompletionSummary(chapter, run)),
     [chapters, run]
   )
   const nextChapterIndex = chapterSummaries.findIndex((summary: any) => !summary.isCompleted)
-  const [activeIndex, setActiveIndex] = useState(nextChapterIndex >= 0 ? nextChapterIndex : 0)
-  useEffect(() => {
-    setActiveIndex(nextChapterIndex >= 0 ? nextChapterIndex : 0)
-  }, [nextChapterIndex])
   const totalChapters = chapterSummaries.length
   const completedChapterCount = chapterSummaries.filter((summary: any) => summary.isCompleted).length
-  const progressPercent = totalChapters > 0 ? (completedChapterCount / totalChapters) * 100 : 0
-  const badgeHref = getUriWithOrg(orgslug, badgeStatusPath)
+  const progressPercent = totalChapters > 0 ? Math.round((completedChapterCount / totalChapters) * 100) : 0
+  const badgeMetadata = course.badge_metadata || {}
+  const timeLabel = badgeMetadata.estimated_time_label || badgeMetadata.estimated_time || '~2 hrs'
+  const heroSubtitle = course.description || course.about || 'Complete the activities in order to earn this badge.'
+  const thumbnailSrc = getBadgeThumbnailSrc(course, courseOwnerOrgUuid)
+
+  useEffect(() => {
+    const element = descriptionRef.current
+    if (!element || !heroSubtitle) {
+      setDescriptionCanExpand(false)
+      return
+    }
+    setDescriptionCanExpand(element.scrollHeight > element.clientHeight + 2)
+  }, [descriptionExpanded, heroSubtitle])
 
   return (
-    <section className="mx-auto grid w-full max-w-6xl gap-10 lg:grid-cols-2 lg:gap-14">
-      <aside className="lg:sticky lg:top-8 lg:self-start">
-        <Link
-          href={badgeHref}
-          className="block rounded-lg border border-border bg-card p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 sm:p-6"
-        >
-          <div className="flex items-start gap-4">
-            <div className="h-20 w-20 shrink-0 overflow-visible rounded-lg bg-transparent">
-              {getBadgeThumbnailSrc(course, courseOwnerOrgUuid) ? (
-                <BadgeThumbnailImage
-                  src={getBadgeThumbnailSrc(course, courseOwnerOrgUuid)}
-                  alt={course.name}
-                  className={`${
-                    progressPercent >= 100 ? '' : 'opacity-55 grayscale brightness-110'
-                  }`}
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-gray-300">
-                  <Award size={30} strokeWidth={1.4} />
-                </div>
-              )}
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-xl font-semibold leading-tight text-foreground">{course.name}</h1>
-              {(course.description || course.about) && (
-                <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
-                  {course.description || course.about}
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="mt-6">
-            <div className="mb-2 flex items-center justify-between text-xs font-semibold text-muted-foreground">
-              <span>Progress</span>
-              <span className="tabular-nums">{completedChapterCount}/{totalChapters}</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-green-500 transition-all"
-                style={{ width: `${progressPercent}%` }}
+    <section className="mx-auto w-full max-w-6xl pb-6">
+      <div className="grid gap-4 pt-2 lg:grid-cols-[minmax(180px,0.48fr)_minmax(320px,1fr)] lg:items-center lg:gap-8">
+        <div className="flex h-[150px] items-center justify-center overflow-visible sm:h-[168px] lg:h-[184px]">
+          <div className="relative h-full w-full max-w-[300px] overflow-visible">
+            {thumbnailSrc ? (
+              <BadgeThumbnailImage
+                src={thumbnailSrc}
+                alt={course.name}
+                containerClassName="h-full w-full"
+                imageClassName="h-full w-full object-contain p-[2%]"
               />
-            </div>
+            ) : (
+              <div className="flex h-full w-full items-center justify-center rounded-lg border border-dashed border-border bg-muted text-muted-foreground">
+                <Award size={64} strokeWidth={1.25} />
+              </div>
+            )}
           </div>
-        </Link>
-      </aside>
+        </div>
 
-      <div className="space-y-3">
-        {chapters.map((chapter: any, index: number) => {
-          const summary = chapterSummaries[index]
-          const firstActivity = chapter.activities?.[0]
-          const isCompletedChapter = summary?.isCompleted
-          const isInProgressChapter = summary?.isStarted && !summary?.isCompleted
-          const isNext = index === nextChapterIndex
-          const isAvailable = isCompletedChapter || isInProgressChapter || isNext
-          const isActive = index === activeIndex && isAvailable
-          const Icon = getPathActivityIcon(firstActivity?.activity_type)
-          const stateLabel = isCompletedChapter
-            ? 'Complete'
-            : isInProgressChapter
-              ? 'In progress'
-              : isNext
-                ? 'Next up'
-                : 'Locked'
-          const chapterHref = getUriWithOrg(
-            orgslug,
-            routePaths.org.badgeChapter(
-              course.course_uuid.replace('course_', ''),
-              (chapter.chapter_uuid || chapter.id || '').toString().replace('chapter_', '')
+        <div className="min-w-0">
+          <h1 className="max-w-[520px] pb-0.5 text-[24px] font-black leading-[1.08] tracking-normal text-foreground line-clamp-2 sm:text-[30px] lg:text-[36px]">
+            {course.name}
+          </h1>
+          {heroSubtitle ? (
+            <div className="mt-2 hidden max-w-xl sm:block">
+              <p ref={descriptionRef} className={`whitespace-pre-line text-xs font-medium leading-5 text-muted-foreground sm:text-sm ${descriptionExpanded ? '' : 'line-clamp-2'}`}>
+                {heroSubtitle}
+              </p>
+              {descriptionCanExpand || descriptionExpanded ? (
+                <button type="button" onClick={() => setDescriptionExpanded((value) => !value)} className="mt-1 text-xs font-bold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+                  {descriptionExpanded ? 'Show less' : 'Read more'}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="mt-3 flex max-w-xl items-center gap-4">
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-[var(--org-primary-color)] transition-all" style={{ width: `${progressPercent}%` }} />
+            </div>
+            <span className="shrink-0 text-xs font-bold tabular-nums text-foreground">{progressPercent}% complete</span>
+          </div>
+
+          <div className="mt-4 hidden flex-wrap gap-x-8 gap-y-3 sm:flex">
+            <CompactPathStat icon={<Zap size={18} fill="currentColor" />} value={totalChapters || 0} label="Activities" />
+            <CompactPathStat icon={<Clock size={18} />} value={timeLabel} label="Total time" />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 border-t border-border pt-4 lg:mt-5 lg:pt-4">
+        <h2 className="text-sm font-black uppercase tracking-normal text-foreground">Your Path</h2>
+        <div className="relative mt-5 space-y-3">
+          <div className="absolute bottom-5 left-5 top-5 w-px bg-border sm:left-[1.55rem]" />
+          {chapters.map((chapter: any, index: number) => {
+            const summary = chapterSummaries[index]
+            const firstActivity = chapter.activities?.[0]
+            const isCompletedChapter = summary?.isCompleted
+            const isInProgressChapter = summary?.isStarted && !summary?.isCompleted
+            const isNext = index === nextChapterIndex
+            const isAvailable = isCompletedChapter || isInProgressChapter || isNext
+            const Icon = getPathActivityIcon(firstActivity?.activity_type)
+            const actionLabel = isCompletedChapter ? 'Review' : isInProgressChapter ? 'Continue' : 'Start'
+            const coverSrc = getPathActivityCoverSrc(chapter, firstActivity, course, courseOwnerOrgUuid)
+            const chapterHref = getUriWithOrg(
+              orgslug,
+              routePaths.org.badgeChapter(
+                course.course_uuid.replace('course_', ''),
+                (chapter.chapter_uuid || chapter.id || '').toString().replace('chapter_', '')
+              )
             )
-          )
-
-          return (
-            <div
-              key={chapter.chapter_uuid || chapter.id || chapter.name || index}
-              className={`rounded-lg bg-card transition-all ${
-                isNext || isInProgressChapter
-                  ? `border-2 border-green-500 ${isActive ? '-translate-y-1 shadow-lg' : 'shadow-sm'}`
-                  : isCompletedChapter
-                    ? `border border-border ${isActive ? '-translate-y-0.5 shadow-md' : ''}`
-                    : 'border border-border bg-muted/60'
-              }`}
-            >
-              <button
-                type="button"
-                disabled={!isAvailable}
-                onClick={() => setActiveIndex(index)}
-                className="flex w-full items-center gap-4 px-4 py-4 text-left disabled:cursor-default"
+            const card = (
+              <div
+                className={cn(
+                  'group grid min-h-[88px] grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-3 rounded-lg border p-3 transition sm:grid-cols-[5rem_minmax(0,1fr)_auto] sm:p-4',
+                  isNext || isInProgressChapter
+                    ? 'border-[var(--org-primary-color)] bg-[var(--org-primary-color)]/10 shadow-[0_0_0_1px_var(--org-primary-color)]'
+                    : isCompletedChapter
+                      ? 'border-border bg-muted/30'
+                      : 'border-border bg-muted/40 opacity-70',
+                  isAvailable && 'hover:-translate-y-0.5 hover:bg-muted/50'
+                )}
               >
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                  isAvailable ? 'bg-green-50 text-green-600' : 'bg-muted text-gray-300'
-                }`}>
-                  <Icon size={20} />
+                <div className={cn(
+                  'flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg sm:h-20 sm:w-20',
+                  isAvailable ? 'bg-card text-[var(--org-primary-color)] ring-1 ring-border' : 'bg-card text-muted-foreground ring-1 ring-border'
+                )}>
+                  {coverSrc ? (
+                    <SafeImage src={coverSrc} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <Icon size={30} strokeWidth={1.7} />
+                  )}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className={`text-sm font-semibold ${isAvailable ? 'text-foreground' : 'text-muted-foreground'}`}>
-                    {chapter.name}
-                  </p>
-                  <p className={`mt-0.5 text-xs font-medium ${
-                    isNext || isInProgressChapter ? 'text-green-600' : isCompletedChapter ? 'text-muted-foreground' : 'text-gray-300'
-                  }`}>
-                    {stateLabel}
-                  </p>
-                </div>
-              </button>
 
-              {isActive && (
-                <div className="space-y-3 px-4 pb-4 pl-[4.5rem]">
-                  <Link
-                    href={chapterHref}
-                    className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-                      isNext || isInProgressChapter
-                        ? 'bg-green-600 text-white hover:bg-green-700'
-                        : 'bg-muted text-muted-foreground hover:bg-muted'
-                    }`}
-                  >
-                    {isCompletedChapter ? 'Review' : isInProgressChapter ? 'Continue' : 'Get started'}
-                    <ArrowRight size={15} />
-                  </Link>
-                  <div className="space-y-2">
+                <div className="min-w-0">
+                  <h3 className={cn('text-base font-black leading-tight sm:text-lg', isAvailable ? 'text-foreground' : 'text-muted-foreground')}>
+                    {chapter.name}
+                  </h3>
+                  {(chapter.description || firstActivity?.description) ? (
+                    <p className="mt-1 hidden text-sm font-medium leading-5 text-muted-foreground sm:line-clamp-2">
+                      {chapter.description || firstActivity?.description}
+                    </p>
+                  ) : null}
+                  <div className="mt-2 flex sm:hidden">
+                    {isAvailable ? (
+                      <span className={cn(
+                        'inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-black transition',
+                        isNext || isInProgressChapter
+                          ? 'bg-[var(--org-primary-color)] text-white shadow-[0_3px_0_rgba(0,0,0,0.18)]'
+                          : 'border border-border bg-card text-foreground'
+                      )}>
+                        {actionLabel}
+                        <ArrowRight size={14} />
+                      </span>
+                    ) : (
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                        <LockIcon />
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-2">
                     {(chapter.activities || [])
                       .filter((chapterActivity: any) => chapterActivity.activity_type === 'TYPE_QUIZ')
                       .map((quizActivity: any) => (
@@ -464,12 +472,84 @@ function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run, badgeStatusPa
                       ))}
                   </div>
                 </div>
-              )}
-            </div>
-          )
-        })}
+
+                <div className="hidden justify-end sm:flex">
+                  {isAvailable ? (
+                    <span className={cn(
+                      'inline-flex h-11 items-center gap-2 rounded-full px-4 text-sm font-black transition',
+                      isNext || isInProgressChapter
+                        ? 'bg-[var(--org-primary-color)] text-white shadow-[0_4px_0_rgba(0,0,0,0.2)]'
+                        : 'border border-border bg-card text-foreground'
+                    )}>
+                      {actionLabel}
+                      <ArrowRight size={17} />
+                    </span>
+                  ) : (
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                      <LockIcon />
+                    </span>
+                  )}
+                </div>
+              </div>
+            )
+
+            return (
+              <div key={chapter.chapter_uuid || chapter.id || chapter.name || index} className="relative grid grid-cols-[2.75rem_minmax(0,1fr)] gap-3 sm:grid-cols-[3.25rem_minmax(0,1fr)]">
+                <div className="relative z-10 flex justify-center pt-6">
+                  <span className={cn(
+                    'flex h-10 w-10 items-center justify-center rounded-full border-2',
+                    isCompletedChapter
+                      ? 'border-[var(--org-primary-color)] bg-[var(--org-primary-color)] text-white'
+                      : isNext || isInProgressChapter
+                        ? 'border-[var(--org-primary-color)] bg-card text-[var(--org-primary-color)] shadow-[0_0_18px_var(--org-primary-color)]'
+                        : 'border-border bg-muted text-muted-foreground'
+                  )}>
+                    {isCompletedChapter ? <Check size={20} strokeWidth={2.8} /> : isAvailable ? <span className="h-3 w-3 rounded-full bg-[var(--org-primary-color)]" /> : <LockIcon />}
+                  </span>
+                </div>
+                {isAvailable ? (
+                  <Link href={chapterHref} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--org-primary-color)]">
+                    {card}
+                  </Link>
+                ) : (
+                  <div>{card}</div>
+                )}
+              </div>
+            )
+          })}
+        </div>
       </div>
     </section>
+  )
+}
+
+function getPathActivityCoverSrc(chapter: any, activity: any, course: any, ownerOrgUuid?: string) {
+  const rawCover = activity?.thumbnail_image || activity?.cover_image || chapter?.thumbnail_image || chapter?.cover_image
+  if (!rawCover) return ''
+  const normalized = normalizeMediaUrl(String(rawCover))
+  if (/^(https?:|blob:|\/)/i.test(normalized)) return normalized
+  if (!ownerOrgUuid || !course?.course_uuid) return normalized
+  return getCourseThumbnailMediaDirectory(ownerOrgUuid, course.course_uuid, normalized)
+}
+
+function CompactPathStat({ icon, value, label }: { icon: React.ReactNode; value: React.ReactNode; label: string }) {
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center gap-2">
+        <span className="shrink-0 text-[var(--org-primary-color)]">{icon}</span>
+        <span className="truncate text-sm font-black leading-tight text-foreground sm:text-base">{value}</span>
+      </div>
+      <div className="mt-1 pl-7 text-xs font-medium leading-tight text-muted-foreground">{label}</div>
+    </div>
+  )
+}
+
+function LockIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="14" height="10" x="5" y="11" rx="2" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+    </svg>
   )
 }
 
