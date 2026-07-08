@@ -13,6 +13,9 @@ from src.db.learning import (
     BadgeCollectionCreate,
     BadgeCollectionRead,
     BadgeCollectionUpdate,
+    BadgeIssuerAuthorization,
+    BadgeIssuerAuthorizationStatus,
+    BadgeIssuerLearnerLink,
     LearningActivity,
     LearningActivityCreate,
     LearningActivityRead,
@@ -56,6 +59,7 @@ from src.security.superadmin import is_user_superadmin
 from src.services.courses.openbadges import (
     OPEN_BADGES_CONTEXT,
     build_issuer_payload,
+    get_org_badge_issuer_config,
     get_public_api_base_url,
     get_public_base_url,
 )
@@ -171,6 +175,44 @@ def _require_org_admin(db_session: Session, current_user: PublicUser | Anonymous
     if not membership:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Organization admin access required")
     return user
+
+
+def _effective_issuing_org_id(run: LearningRun | None, fallback_org_id: int) -> int:
+    """The org responsible for grading/issuing a run; a null issuing_org_id means the badge's creator org."""
+    if run is not None and run.issuing_org_id is not None:
+        return run.issuing_org_id
+    return fallback_org_id
+
+
+def _get_approved_issuer_authorization(db_session: Session, badge_id: int, issuer_org_id: int) -> BadgeIssuerAuthorization | None:
+    return db_session.exec(
+        select(BadgeIssuerAuthorization).where(
+            BadgeIssuerAuthorization.badge_id == badge_id,
+            BadgeIssuerAuthorization.issuer_org_id == issuer_org_id,
+            BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.APPROVED,
+        )
+    ).first()
+
+
+def _validate_issuer_selection(db_session: Session, badge: LearningBadge, issuing_org_id: int, user_id: int | None) -> None:
+    """Ensure a learner may run this badge under the selected issuing org."""
+    if issuing_org_id == badge.org_id:
+        return
+    authorization = _get_approved_issuer_authorization(db_session, badge.id or 0, issuing_org_id)
+    if not authorization:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This organization is not authorized to issue this badge")
+    if authorization.open_to_all:
+        return
+    if user_id is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sign in to work with this issuing organization")
+    link = db_session.exec(
+        select(BadgeIssuerLearnerLink).where(
+            BadgeIssuerLearnerLink.authorization_id == authorization.id,
+            BadgeIssuerLearnerLink.user_id == user_id,
+        )
+    ).first()
+    if not link:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This organization only supports invited learners for this badge")
 
 
 def _get_badge(db_session: Session, badge_uuid: str) -> LearningBadge:
@@ -327,6 +369,7 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
         badge_id=run.badge_id,
         path_id=run.path_id,
         org_id=run.org_id,
+        issuing_org_id=run.issuing_org_id,
         user_id=run.user_id,
         guest_session_id=run.guest_session_id,
         status=run.status,
@@ -992,6 +1035,7 @@ def _issue_award_if_complete(request: Request, db_session: Session, run: Learnin
         badge_id=run.badge_id,
         run_id=run.id,
         org_id=run.org_id,
+        issuing_org_id=run.issuing_org_id,
         user_id=run.user_id,
         source=LearningAwardSource.PATH_COMPLETION,
         issued_at=now,
@@ -1829,10 +1873,14 @@ async def delete_learning_variable(request: Request, variable_uuid: str, current
     return {"detail": "Learning variable deleted"}
 
 
-async def start_or_resume_run(request: Request, badge_uuid: str, actor: LearningActor, db_session: Session) -> LearningRunRead:
+async def start_or_resume_run(request: Request, badge_uuid: str, actor: LearningActor, db_session: Session, issuing_org_id: int | None = None) -> LearningRunRead:
     badge = _get_badge(db_session, badge_uuid)
     if not _is_startable_badge(badge):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Badge is not available")
+    if issuing_org_id is not None:
+        _validate_issuer_selection(db_session, badge, issuing_org_id, actor.user_id)
+        if issuing_org_id == badge.org_id:
+            issuing_org_id = None
     path = _get_path_for_badge(db_session, badge)
     statement = select(LearningRun).where(LearningRun.path_id == path.id)
     for owner_filter in _actor_filters(LearningRun, actor):
@@ -1845,11 +1893,23 @@ async def start_or_resume_run(request: Request, badge_uuid: str, actor: Learning
             badge_id=badge.id or 0,
             path_id=path.id or 0,
             org_id=badge.org_id,
+            issuing_org_id=issuing_org_id,
             user_id=actor.user_id,
             guest_session_id=actor.guest_session_id,
             creation_date=now,
             update_date=now,
         )
+        db_session.add(run)
+        db_session.commit()
+        db_session.refresh(run)
+    elif (
+        issuing_org_id is not None
+        and run.issuing_org_id != issuing_org_id
+        and run.status != LearningRunStatus.COMPLETED
+    ):
+        # Learner picked (or switched) an issuer after starting; future grading goes to them
+        run.issuing_org_id = issuing_org_id
+        run.update_date = _now()
         db_session.add(run)
         db_session.commit()
         db_session.refresh(run)
@@ -1977,29 +2037,38 @@ async def list_learning_responses(
     grading_status: str | None = "pending",
 ) -> list[dict]:
     _require_org_admin(db_session, current_user, org_id)
-    page_statement = select(LearningPage).where(LearningPage.org_id == org_id)
+    # The perspective org sees attempts for runs it is responsible for grading:
+    # runs explicitly issued under it, plus (for creator orgs) runs with no issuer set.
+    statement = (
+        select(LearningResponseAttempt)
+        .join(LearningPage, LearningResponseAttempt.page_id == LearningPage.id)  # type: ignore
+        .join(LearningRun, LearningResponseAttempt.run_id == LearningRun.id)  # type: ignore
+        .where(func.coalesce(LearningRun.issuing_org_id, LearningPage.org_id) == org_id)
+        .order_by(LearningResponseAttempt.submitted_at.desc())  # type: ignore
+    )
     if badge_uuid:
         badge = _get_badge(db_session, badge_uuid)
-        page_statement = page_statement.where(LearningPage.badge_id == badge.id)
+        statement = statement.where(LearningPage.badge_id == badge.id)
     if activity_uuid:
         activity = _get_activity(db_session, activity_uuid)
-        page_statement = page_statement.where(LearningPage.activity_id == activity.id)
+        statement = statement.where(LearningPage.activity_id == activity.id)
     if page_uuid:
-        page_statement = page_statement.where(LearningPage.page_uuid == _clean_uuid(page_uuid, "learning_page_"))
+        statement = statement.where(LearningPage.page_uuid == _clean_uuid(page_uuid, "learning_page_"))
 
-    pages = db_session.exec(page_statement).all()
-    page_by_id = {page.id or 0: page for page in pages}
-    if not page_by_id:
-        return []
-
-    attempts = db_session.exec(
-        select(LearningResponseAttempt)
-        .where(LearningResponseAttempt.page_id.in_(list(page_by_id.keys())))  # type: ignore
-        .order_by(LearningResponseAttempt.submitted_at.desc())  # type: ignore
-    ).all()
+    attempts = db_session.exec(statement).all()
     if grading_status and grading_status != "all":
         attempts = [attempt for attempt in attempts if (attempt.result or {}).get("grading_status") == grading_status]
 
+    page_ids = {attempt.page_id for attempt in attempts}
+    page_by_id = {
+        page.id or 0: page
+        for page in db_session.exec(select(LearningPage).where(LearningPage.id.in_(page_ids))).all()  # type: ignore
+    } if page_ids else {}
+    badge_ids = {page.badge_id for page in page_by_id.values()}
+    badge_by_id = {
+        item.id or 0: item
+        for item in db_session.exec(select(LearningBadge).where(LearningBadge.id.in_(badge_ids))).all()  # type: ignore
+    } if badge_ids else {}
     run_ids = {attempt.run_id for attempt in attempts}
     user_ids = {attempt.user_id for attempt in attempts if attempt.user_id is not None}
     runs = {
@@ -2011,10 +2080,17 @@ async def list_learning_responses(
         for user in db_session.exec(select(User).where(User.id.in_(user_ids))).all()  # type: ignore
     } if user_ids else {}
 
+    def badge_summary(page: LearningPage | None) -> dict | None:
+        badge = badge_by_id.get(page.badge_id) if page else None
+        if not badge:
+            return None
+        return {"id": badge.id, "badge_uuid": badge.badge_uuid, "name": badge.name, "org_id": badge.org_id}
+
     return [
         {
             **attempt.model_dump(),
             "page": page_by_id.get(attempt.page_id).model_dump() if page_by_id.get(attempt.page_id) else None,
+            "badge": badge_summary(page_by_id.get(attempt.page_id)),
             "run": runs.get(attempt.run_id).model_dump() if runs.get(attempt.run_id) else None,
             "user": {
                 "id": users[attempt.user_id].id,
@@ -2045,7 +2121,8 @@ async def grade_learning_response(
     page = db_session.get(LearningPage, attempt.page_id)
     if not page:
         raise HTTPException(status_code=404, detail="Learning page not found")
-    admin = _require_org_admin(db_session, current_user, page.org_id)
+    grading_run = db_session.get(LearningRun, attempt.run_id)
+    admin = _require_org_admin(db_session, current_user, _effective_issuing_org_id(grading_run, page.org_id))
 
     max_score = _as_float((attempt.result or {}).get("max_score"), 0.0) \
         or sum(_question_block_points(page, question) for question in _question_blocks(page)) \
@@ -2106,6 +2183,8 @@ async def grade_learning_response(
             if run:
                 db_session.refresh(run)
     award = _issue_award_if_complete(request, db_session, run) if run else None
+    # Later commits (activity run updates, award issuance) expire the attempt instance
+    db_session.refresh(attempt)
     return {
         **attempt.model_dump(),
         "award": award.model_dump() if award else None,
@@ -2114,7 +2193,13 @@ async def grade_learning_response(
 
 async def confer_award(request: Request, data: LearningAwardCreate, current_user: PublicUser | AnonymousUser, db_session: Session) -> dict:
     badge = _get_badge(db_session, data.badge_uuid)
-    admin = _require_org_admin(db_session, current_user, badge.org_id)
+    issuing_org_id = data.issuing_org_id if data.issuing_org_id != badge.org_id else None
+    if issuing_org_id is not None:
+        admin = _require_org_admin(db_session, current_user, issuing_org_id)
+        if not _get_approved_issuer_authorization(db_session, badge.id or 0, issuing_org_id):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Your organization is not authorized to issue this badge")
+    else:
+        admin = _require_org_admin(db_session, current_user, badge.org_id)
     if not badge.direct_conferral_enabled:
         raise HTTPException(status_code=422, detail="Direct conferral is disabled for this badge")
     user = db_session.exec(select(User).where(User.id == data.user_id)).first()
@@ -2128,6 +2213,7 @@ async def confer_award(request: Request, data: LearningAwardCreate, current_user
         award_uuid=f"award_{uuid4()}",
         badge_id=badge.id or 0,
         org_id=badge.org_id,
+        issuing_org_id=issuing_org_id,
         user_id=user.id or 0,
         source=LearningAwardSource.DIRECT_CONFERRAL,
         conferred_by_user_id=admin.id,
@@ -2188,6 +2274,104 @@ def build_learning_assertion_payload(request: Request, org: Organization, badge:
     return payload
 
 
+# ---------------------------------------------------------------------------
+# Open Badges 3.0 (Verifiable Credentials data model)
+#
+# The issuing org is the authoritative `issuer` of the AchievementCredential;
+# the org that designed the badge is the `creator` of the Achievement.
+# ---------------------------------------------------------------------------
+
+OPEN_BADGES_V3_CONTEXTS = [
+    "https://www.w3.org/ns/credentials/v2",
+    "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+]
+
+
+def build_ob3_profile(request: Request, org: Organization, org_config: OrganizationConfig | None) -> dict:
+    base_url = get_public_base_url(request)
+    api_base = get_public_api_base_url(request)
+    issuer_config = get_org_badge_issuer_config(org, org_config)
+    image_url = issuer_config["image_url"] or (
+        f"{base_url}/content/orgs/{org.org_uuid}/logos/{org.logo_image}"
+        if org.logo_image else f"{base_url}/logo-icon.svg"
+    )
+    profile: dict = {
+        "id": f"{api_base}/badge-awards/issuer/{org.org_uuid}",
+        "type": ["Profile"],
+        "name": issuer_config["name"] or org.name,
+        "url": issuer_config["url"] or f"{base_url}/orgs/{org.slug}",
+        "image": {"id": image_url, "type": "Image"},
+    }
+    if issuer_config["email"] or org.email:
+        profile["email"] = issuer_config["email"] or org.email
+    if issuer_config["description"]:
+        profile["description"] = issuer_config["description"]
+    return profile
+
+
+def build_ob3_achievement(request: Request, creator_org: Organization, badge: LearningBadge, creator_org_config: OrganizationConfig | None) -> dict:
+    base_url = get_public_base_url(request)
+    api_base = get_public_api_base_url(request)
+    creator_profile = build_ob3_profile(request, creator_org, creator_org_config)
+    criteria_url = (badge.badge_metadata or {}).get("criteria_url") or f"{base_url}/orgs/{creator_org.slug}/badges/{badge.badge_uuid.replace('badge_', '')}"
+    image_url = (badge.badge_metadata or {}).get("badge_image_url") or badge.thumbnail_image or f"{base_url}/logo-icon.svg"
+    return {
+        "id": f"{api_base}/badge-awards/achievement/{badge.badge_uuid}",
+        "type": ["Achievement"],
+        "creator": creator_profile,
+        "name": (badge.badge_metadata or {}).get("badge_name") or badge.name,
+        "description": (badge.badge_metadata or {}).get("badge_description") or badge.description or "",
+        "criteria": {
+            "id": criteria_url,
+            "narrative": badge.criteria or "Complete the required badge learning path.",
+        },
+        "image": {"id": image_url, "type": "Image"},
+    }
+
+
+def build_ob3_credential(
+    request: Request,
+    issuing_org: Organization,
+    issuing_org_config: OrganizationConfig | None,
+    creator_org: Organization,
+    creator_org_config: OrganizationConfig | None,
+    badge: LearningBadge,
+    award: LearningBadgeAward,
+    user: User,
+) -> dict:
+    api_base = get_public_api_base_url(request)
+    achievement = build_ob3_achievement(request, creator_org, badge, creator_org_config)
+    recipient_email = (user.email or "").strip().lower()
+    salt = f"launchlms-{award.award_uuid[-12:]}"
+    identity_hash = hashlib.sha256(f"{recipient_email}{salt}".encode("utf-8")).hexdigest()
+    issued_at = award.issued_at.isoformat() if hasattr(award.issued_at, "isoformat") else str(award.issued_at)
+    if not issued_at.endswith("Z") and "+" not in issued_at:
+        issued_at = f"{issued_at}Z"
+    credential: dict = {
+        "@context": OPEN_BADGES_V3_CONTEXTS,
+        "id": f"{api_base}/badge-awards/credential/{award.award_uuid}",
+        "type": ["VerifiableCredential", "OpenBadgeCredential"],
+        "issuer": build_ob3_profile(request, issuing_org, issuing_org_config),
+        "validFrom": issued_at,
+        "name": achievement["name"],
+        "credentialSubject": {
+            "type": ["AchievementSubject"],
+            "identifier": [{
+                "type": "IdentityObject",
+                "hashed": True,
+                "identityHash": f"sha256${identity_hash}",
+                "identityType": "emailAddress",
+                "salt": salt,
+            }],
+            "achievement": achievement,
+        },
+    }
+    if award.evidence:
+        evidence = {"type": ["Evidence"], **{k: v for k, v in award.evidence.items() if isinstance(k, str)}}
+        credential["evidence"] = [evidence]
+    return credential
+
+
 def build_award_response(request: Request, db_session: Session, award: LearningBadgeAward) -> dict:
     badge = db_session.exec(select(LearningBadge).where(LearningBadge.id == award.badge_id)).first()
     user = db_session.exec(select(User).where(User.id == award.user_id)).first()
@@ -2195,9 +2379,16 @@ def build_award_response(request: Request, db_session: Session, award: LearningB
         raise HTTPException(status_code=404, detail="Badge award data not found")
     org = _get_org(db_session, badge.org_id)
     org_config = _get_org_config(db_session, badge.org_id)
-    issuer = build_issuer_payload(request, org, org_config)
+    if award.issuing_org_id is not None and award.issuing_org_id != badge.org_id:
+        issuing_org = _get_org(db_session, award.issuing_org_id)
+        issuing_org_config = _get_org_config(db_session, award.issuing_org_id)
+    else:
+        issuing_org = org
+        issuing_org_config = org_config
+    issuer = build_issuer_payload(request, issuing_org, issuing_org_config)
     badge_class = build_learning_badge_class_payload(request, org, badge, org_config)
     assertion = build_learning_assertion_payload(request, org, badge, award, user, org_config)
+    credential = build_ob3_credential(request, issuing_org, issuing_org_config, org, org_config, badge, award, user)
     return {
         "award": award.model_dump(),
         "badge": LearningBadgeRead(**badge.model_dump()).model_dump(),
@@ -2208,6 +2399,7 @@ def build_award_response(request: Request, db_session: Session, award: LearningB
             "assertion": assertion,
             "badge_class": badge_class,
             "issuer": issuer,
+            "credential": credential,
         },
         "user": {
             "id": user.id,
@@ -2223,6 +2415,13 @@ def build_award_response(request: Request, db_session: Session, award: LearningB
             "slug": org.slug,
             "name": org.name,
             "logo_image": org.logo_image,
+        },
+        "issuing_org": {
+            "id": issuing_org.id,
+            "org_uuid": issuing_org.org_uuid,
+            "slug": issuing_org.slug,
+            "name": issuing_org.name,
+            "logo_image": issuing_org.logo_image,
         },
     }
 

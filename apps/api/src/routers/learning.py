@@ -343,11 +343,12 @@ async def api_start_run(
     request: Request,
     response: Response,
     badge_uuid: str,
+    issuing_org_id: int | None = Query(None),
     current_user=Depends(get_current_user),
     db_session=Depends(get_db_session),
 ) -> LearningRunRead:
     actor = resolve_learning_actor(request, response, current_user, db_session)
-    return await learning_service.start_or_resume_run(request, badge_uuid, actor, db_session)
+    return await learning_service.start_or_resume_run(request, badge_uuid, actor, db_session, issuing_org_id=issuing_org_id)
 
 
 @runs_router.post("/complete-page")
@@ -460,6 +461,55 @@ async def api_get_badge_class(
     from src.services.learning import _get_org, _get_org_config, build_learning_badge_class_payload
 
     return build_learning_badge_class_payload(request, _get_org(db_session, badge.org_id), badge, _get_org_config(db_session, badge.org_id))
+
+
+@awards_router.get("/credential/{award_uuid}")
+async def api_get_award_credential(
+    request: Request,
+    award_uuid: str,
+    db_session=Depends(get_db_session),
+) -> dict:
+    """Open Badges 3.0 AchievementCredential for an award."""
+    award = await learning_service.get_award(request, award_uuid, db_session)
+    return award["open_badges"]["credential"]
+
+
+@awards_router.get("/achievement/{badge_uuid}")
+async def api_get_achievement(
+    request: Request,
+    badge_uuid: str,
+    db_session=Depends(get_db_session),
+) -> dict:
+    """Open Badges 3.0 Achievement (includes the creator org profile)."""
+    from sqlmodel import select
+    from fastapi import HTTPException
+    from src.db.learning import LearningBadge
+
+    badge = db_session.exec(select(LearningBadge).where(LearningBadge.badge_uuid == (badge_uuid if badge_uuid.startswith("badge_") else f"badge_{badge_uuid}"))).first()
+    if not badge:
+        raise HTTPException(status_code=404, detail="Badge not found")
+    from src.services.learning import _get_org, _get_org_config, build_ob3_achievement
+
+    return build_ob3_achievement(request, _get_org(db_session, badge.org_id), badge, _get_org_config(db_session, badge.org_id))
+
+
+@awards_router.get("/issuer/{org_uuid}")
+async def api_get_issuer_profile(
+    request: Request,
+    org_uuid: str,
+    db_session=Depends(get_db_session),
+) -> dict:
+    """Open Badges 3.0 Profile for an issuing or creator organization."""
+    from sqlmodel import select
+    from fastapi import HTTPException
+    from src.db.organizations import Organization
+
+    org = db_session.exec(select(Organization).where(Organization.org_uuid == org_uuid)).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    from src.services.learning import _get_org_config, build_ob3_profile
+
+    return build_ob3_profile(request, org, _get_org_config(db_session, org.id or 0))
 
 
 @awards_router.get("/{award_uuid}")

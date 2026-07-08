@@ -1,7 +1,7 @@
 'use client'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { TextIcon, LucideIcon, Palette, School, Sparkles, Shield } from 'lucide-react'
+import { TextIcon, LucideIcon, Palette, School, Sparkles, Shield, CreditCard } from 'lucide-react'
 import Link from 'next/link'
 import React, { useEffect, use } from 'react';
 import { motion } from 'motion/react'
@@ -10,6 +10,7 @@ import OrgEditGeneral from '@components/Dashboard/Pages/Org/OrgEditGeneral/OrgEd
 import OrgEditBranding from '@components/Dashboard/Pages/Org/OrgEditBranding/OrgEditBranding'
 import OrgEditOnboarding from '@components/Dashboard/Pages/Org/OrgEditOnboarding/OrgEditOnboarding'
 import OrgEditSSO from '@components/Dashboard/Pages/Org/OrgEditSSO/OrgEditSSO'
+import OrgEditPlan from '@components/Dashboard/Pages/Org/OrgEditPlan/OrgEditPlan'
 import { useTranslation } from 'react-i18next'
 
 export type OrgParams = {
@@ -28,6 +29,7 @@ const getSettingTabs = (t: any): TabItem[] => [
   { id: 'branding', label: t('dashboard.organization.settings.tabs.branding'), icon: Palette },
   { id: 'onboarding', label: 'Onboarding', icon: Sparkles },
   { id: 'sso', label: 'Single Sign-On', icon: Shield },
+  { id: 'plan', label: 'Plan & Packages', icon: CreditCard },
 ]
 
 function TabLink({ tab, isActive, orgslug }: {
@@ -78,6 +80,9 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
     } else if (params.subpage == 'sso') {
       setH1Label('Single Sign-On')
       setH2Label('Configure SSO providers for your organization')
+    } else if (params.subpage == 'plan') {
+      setH1Label('Plan & Packages')
+      setH2Label('Review your plan, enable add-on packages, and request upgrades')
     }
   }
 
@@ -130,6 +135,7 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
         {params.subpage == 'branding' ? <OrgEditBranding /> : ''}
         {params.subpage == 'onboarding' ? <OrgEditOnboarding /> : ''}
         {params.subpage == 'sso' ? <OrgEditSSO /> : ''}
+        {params.subpage == 'plan' ? <OrgEditPlan orgslug={params.orgslug} /> : ''}
       </motion.div>
     </div>
   )

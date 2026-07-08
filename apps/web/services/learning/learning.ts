@@ -275,9 +275,14 @@ export async function deleteLearningVariable(variableUuid: string, accessToken?:
   return errorHandling(result)
 }
 
-export async function startLearningRun(badgeUuid: string, accessToken?: string) {
+export async function startLearningRun(badgeUuid: string, accessToken?: string, issuingOrgId?: string | number) {
+  const search = new URLSearchParams()
+  if (issuingOrgId !== undefined && issuingOrgId !== null && issuingOrgId !== '') {
+    search.set('issuing_org_id', String(issuingOrgId))
+  }
+  const query = search.toString()
   const result = await fetch(
-    `${getAPIUrl()}learning-runs/start/${badgeUuid}`,
+    `${getAPIUrl()}learning-runs/start/${badgeUuid}${query ? `?${query}` : ''}`,
     RequestBodyWithAuthHeader('POST', null, null, accessToken)
   )
   return errorHandling(result)

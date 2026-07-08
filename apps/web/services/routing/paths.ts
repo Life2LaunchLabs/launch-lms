@@ -177,7 +177,7 @@ export const routePaths = {
         api: () => '/admin/org/settings/general',
         sso: () => '/admin/org/settings/sso',
         usage: () => '/admin/org/settings/general',
-        plan: () => '/admin/org/settings/general',
+        plan: () => '/admin/org/settings/plan',
         other: () => '/admin/org/settings/general',
       },
       platform: {

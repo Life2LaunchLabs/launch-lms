@@ -16,10 +16,10 @@ ALWAYS_ON_WITH_LIMITS = {"courses"}
 
 # All known features
 ALL_FEATURES = [
-    "ai", "analytics", "api", "assignments", "audit_logs", "boards", "collaboration",
-    "collections", "communities", "courses", "certifications",
-    "custom_domains", "members", "payments", "playgrounds", "podcasts", "resources",
-    "roles", "scorm", "sso", "storage", "usergroups", "versioning",
+    "ai", "analytics", "api", "assignments", "audit_logs", "badge_issuing", "boards",
+    "collaboration", "collections", "communities", "courses", "certifications",
+    "custom_domains", "marketplace_publishing", "members", "payments", "playgrounds",
+    "podcasts", "resources", "roles", "scorm", "sso", "storage", "usergroups", "versioning",
 ]
 
 RELEASE_DISABLED_FEATURES = {"communities"}
