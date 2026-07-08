@@ -12,10 +12,10 @@ import {
   getCourseThumbnailMediaDirectory,
 } from '@services/media/media'
 import { learningPathToLegacyRun } from '@services/learning/legacyAdapters'
-import { getLearningPath } from '@services/learning/learning'
+import { getLearningPath, startLearningRun } from '@services/learning/learning'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { CourseThumbnailImage } from '@components/Objects/Thumbnails/CourseThumbnailImage'
-import { ArrowRight, Award, BookOpenCheck, Check, CircleHelp, Clock, FileText, Layers, Play, Video, Image as ImageIcon } from 'lucide-react'
+import { ArrowRight, Award, BookOpenCheck, Check, CircleHelp, Clock, FileText, Layers, Loader2, Play, Video, Zap, Image as ImageIcon } from 'lucide-react'
 import { FeaturedBadgeButton } from '@components/Objects/Portfolio/ProfileAchievements'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -518,6 +518,40 @@ function PathQuizResultAction({ activity, course, orgslug }: { activity: any; co
   )
 }
 
+function getOverviewCards(course: any) {
+  const metadata = course.badge_metadata || {}
+  const configuredCards = Array.isArray(metadata.overview_cards)
+    ? metadata.overview_cards
+        .map((card: any) => ({
+          title: String(card?.title || '').trim(),
+          body: String(card?.body || '').trim(),
+          media_url: String(card?.media_url || '').trim(),
+          image_side: card?.image_side === 'right' ? 'right' : 'left',
+        }))
+        .filter((card: any) => card.title || card.body || card.media_url)
+    : []
+
+  if (configuredCards.length) return configuredCards
+
+  return [
+    {
+      title: metadata.what_youll_do_title || "What you'll do",
+      body: course.about || course.description || 'Build practical proof of a skill through a focused set of activities.',
+      media_url: metadata.what_youll_do_media_url || '',
+      image_side: 'left',
+    },
+    ...(course.criteria ? [{ title: 'How you earn it', body: course.criteria, media_url: '', image_side: 'left' }] : []),
+  ]
+}
+
+function getFirstActivityHref(course: any, orgslug: string) {
+  const badgeUuid = String(course.course_uuid || '').replace('course_', '')
+  const firstChapter = (course.chapters || []).find((chapter: any) => (chapter.activities || []).length > 0)
+  const chapterId = (firstChapter?.chapter_uuid || firstChapter?.id || '').toString().replace('chapter_', '')
+  if (!badgeUuid || !chapterId) return getUriWithOrg(orgslug, routePaths.org.badgePath(badgeUuid))
+  return getUriWithOrg(orgslug, routePaths.org.badgeChapter(badgeUuid, chapterId))
+}
+
 function BadgeStatusHero({
   course,
   courseOwnerOrgUuid,
@@ -541,70 +575,42 @@ function BadgeStatusHero({
 }: any) {
   const router = useRouter()
   const { width, height } = useWindowSize()
+  const descriptionRef = React.useRef<HTMLParagraphElement>(null)
   const [isDevCompleting, setIsDevCompleting] = useState(false)
+  const [isStarting, setIsStarting] = useState(false)
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false)
+  const [descriptionCanExpand, setDescriptionCanExpand] = useState(false)
   const [showCompletionReward, setShowCompletionReward] = useState(false)
-  const progressPercent = totalChapters > 0
-    ? Math.round((completedChapters / totalChapters) * 100)
-    : 0
   const badgeUuid = course.course_uuid?.replace('course_', '') || course.course_uuid
   const pathUrl = getUriWithOrg(orgslug, badgePath)
+  const firstActivityUrl = getFirstActivityHref(course, orgslug)
   const inviteUrl = getUriWithOrg(orgslug, routePaths.org.badgeInvite(badgeUuid))
+  const progressPercent = totalChapters > 0 ? Math.round((completedChapters / totalChapters) * 100) : 0
   const earnedDateLabel = awardedDate
-    ? new Date(awardedDate).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      })
+    ? new Date(awardedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : null
-  const chapters = Array.isArray(course.chapters) ? course.chapters : []
   const canDevComplete = !learningBadgePath && showDevComplete && accessToken && !comingSoon && (!isCompleted || !verificationUrl)
   const completionRewardKey = `launchlms:badge-completion-reward:${badgeUuid}`
   const badgeMetadata = course.badge_metadata || {}
+  const overviewCards = getOverviewCards(course)
+  const heroSubtitle = badgeMetadata.overview_subtitle || course.description || course.about || ''
+  const timeLabel = badgeMetadata.estimated_time_label || badgeMetadata.estimated_time || '~2 hrs'
+  const trustLine = badgeMetadata.trust_line || '100% free - start anytime - no pressure'
   const certificateConfig = userCertificate?.certification?.config || {}
   const awardBadgeClass = learningAward?.badge_class || {}
   const awardIssuer = learningAward?.issuer || learningAward?.open_badges?.issuer || {}
-  const certificateName =
-    awardBadgeClass.name ||
-    certificateConfig.badge_name ||
-    certificateConfig.certification_name ||
-    badgeMetadata.badge_name ||
-    course.name
-  const certificateDescription =
-    awardBadgeClass.description ||
-    certificateConfig.badge_description ||
-    certificateConfig.certification_description ||
-    badgeMetadata.badge_description ||
-    course.description ||
-    course.about ||
-    'This badge certifies completion of the required learning path.'
-  const certificatePattern =
-    certificateConfig.badge_theme ||
-    certificateConfig.certificate_pattern ||
-    badgeMetadata.badge_theme ||
-    badgeMetadata.certificate_pattern ||
-    'professional'
-  const certificateType =
-    certificateConfig.certification_type ||
-    badgeMetadata.certification_type ||
-    'completion'
-  const certificateInstructor =
-    awardIssuer.name ||
-    userCertificate?.issuer?.name ||
-    badgeMetadata.issuer_name ||
-    course.owner_org_name ||
-    ''
-  const certificateBadgeImage =
-    awardBadgeClass.image ||
-    certificateConfig.badge_image_url ||
-    badgeMetadata.badge_image_url ||
-    getBadgeThumbnailSrc(course, courseOwnerOrgUuid)
+  const certificateName = awardBadgeClass.name || certificateConfig.badge_name || certificateConfig.certification_name || badgeMetadata.badge_name || course.name
+  const certificateDescription = awardBadgeClass.description || certificateConfig.badge_description || certificateConfig.certification_description || badgeMetadata.badge_description || course.description || course.about || 'This badge certifies completion of the required learning path.'
+  const certificatePattern = certificateConfig.badge_theme || certificateConfig.certificate_pattern || badgeMetadata.badge_theme || badgeMetadata.certificate_pattern || 'professional'
+  const certificateType = certificateConfig.certification_type || badgeMetadata.certification_type || 'completion'
+  const certificateInstructor = awardIssuer.name || userCertificate?.issuer?.name || badgeMetadata.issuer_name || course.owner_org_name || ''
+  const certificateBadgeImage = awardBadgeClass.image || certificateConfig.badge_image_url || badgeMetadata.badge_image_url || getBadgeThumbnailSrc(course, courseOwnerOrgUuid)
 
   useEffect(() => {
     if (!isCompleted || !badgeUuid) {
       setShowCompletionReward(false)
       return
     }
-
     try {
       const hasSeenReward = window.localStorage.getItem(completionRewardKey) === '1'
       if (!hasSeenReward) {
@@ -616,9 +622,17 @@ function BadgeStatusHero({
     }
   }, [badgeUuid, completionRewardKey, isCompleted])
 
+  useEffect(() => {
+    const element = descriptionRef.current
+    if (!element || !heroSubtitle) {
+      setDescriptionCanExpand(false)
+      return
+    }
+    setDescriptionCanExpand(element.scrollHeight > element.clientHeight + 2)
+  }, [descriptionExpanded, heroSubtitle])
+
   const handleDevComplete = async () => {
     if (!canDevComplete || isDevCompleting) return
-
     setIsDevCompleting(true)
     try {
       await devCompleteCourse(badgeUuid, accessToken)
@@ -632,180 +646,157 @@ function BadgeStatusHero({
     }
   }
 
+  const handlePrimaryAction = async () => {
+    if (comingSoon || isStarting) return
+    if (isInProgress) {
+      router.push(pathUrl)
+      return
+    }
+    setIsStarting(true)
+    try {
+      await startLearningRun(badgeUuid, accessToken)
+      router.push(firstActivityUrl)
+    } catch (error: any) {
+      toast.error(error?.message || 'Could not start badge')
+    } finally {
+      setIsStarting(false)
+    }
+  }
+
   return (
-    <div className="relative mx-auto w-full max-w-3xl">
+    <div className="relative mx-auto w-full max-w-6xl pb-10">
       {showCompletionReward && (
-        <div className="fixed inset-0 pointer-events-none z-50">
-          <ReactConfetti
-            width={width}
-            height={height}
-            numberOfPieces={200}
-            recycle={false}
-            colors={['#6366f1', '#10b981', '#3b82f6']}
-          />
+        <div className="pointer-events-none fixed inset-0 z-50">
+          <ReactConfetti width={width} height={height} numberOfPieces={200} recycle={false} colors={['#84cc16', '#7c3aed', '#111827']} />
         </div>
       )}
-      <section className="text-center">
-        <div className="flex justify-center px-8 pt-5 sm:pt-6">
-          <div className="h-36 w-36 overflow-visible rounded-lg sm:h-40 sm:w-40">
+
+      <section className="grid gap-8 pt-4 lg:grid-cols-[minmax(220px,0.8fr)_minmax(320px,1fr)] lg:items-center lg:gap-12">
+        <div className="flex min-h-[220px] items-center justify-center overflow-visible px-4 py-6 sm:min-h-[280px]">
+          <div className="relative h-48 w-48 overflow-visible sm:h-60 sm:w-60 lg:h-72 lg:w-72">
             {getBadgeThumbnailSrc(course, courseOwnerOrgUuid) ? (
-              <BadgeThumbnailImage
-                src={getBadgeThumbnailSrc(course, courseOwnerOrgUuid)}
-                alt={course.name}
-              />
+              <BadgeThumbnailImage src={getBadgeThumbnailSrc(course, courseOwnerOrgUuid)} alt={course.name} />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-gray-300">
+              <div className="flex h-full w-full items-center justify-center rounded-lg border border-dashed border-border bg-muted text-muted-foreground">
                 <Award size={64} strokeWidth={1.25} />
               </div>
             )}
           </div>
         </div>
 
-        <div className="mx-auto mt-4 max-w-2xl">
-          {showCompletionReward && (
-            <p className="mb-2 text-sm font-semibold uppercase tracking-[0.14em] text-green-600">
-              Congratulations! 🎉 you have mastered
-            </p>
-          )}
-          <h1 className="text-2xl font-semibold leading-tight text-foreground sm:text-3xl">
-            {course.name}
-          </h1>
-
-          {isCompleted ? (
-            earnedDateLabel && (
-              <div className="mt-4 inline-flex items-center rounded-full bg-green-50 px-3 py-1.5 text-sm font-semibold text-green-700 ring-1 ring-green-100">
-                Earned {earnedDateLabel}
-              </div>
-            )
-          ) : (
-            (course.about || course.description) && (
-              <p className="mx-auto mt-2 line-clamp-2 max-w-xl whitespace-pre-line text-sm leading-relaxed text-muted-foreground sm:text-base">
-                {course.about || course.description}
-              </p>
-            )
-          )}
-        </div>
-
-        <div className="mt-4 flex justify-center">
-          {comingSoon ? (
-            <span className="inline-flex items-center gap-2 rounded-lg bg-orange-100 px-4 py-2.5 text-sm font-semibold text-orange-700">
-              <Clock size={15} />
-              {t('courses.coming_soon')}
-            </span>
-          ) : isCompleted ? (
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <CourseShare
-                courseName={course.name}
-                courseUrl={inviteUrl}
-                label="Share invite"
-                shareText={`Claim an invite to earn the ${course.name} badge`}
-              />
-              {verificationUrl && (
-                <Link
-                  href={verificationUrl}
-                  className="inline-flex items-center gap-2 rounded-lg bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground nice-shadow transition-colors hover:text-foreground"
-                >
-                  <FileText size={14} />
-                  View certificate
-                </Link>
-              )}
-              <FeaturedBadgeButton badgeId={badgeId} />
-              {canDevComplete && (
-                <button
-                  type="button"
-                  onClick={handleDevComplete}
-                  disabled={isDevCompleting}
-                  className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Check size={15} />
-                  {isDevCompleting ? 'Issuing...' : 'Dev issue badge'}
+        <div className="min-w-0">
+          {showCompletionReward && <p className="mb-3 text-sm font-black uppercase tracking-[0.14em] text-green-600">Congratulations, you earned</p>}
+          <h1 className="max-w-[560px] text-[36px] font-black leading-[0.95] tracking-normal text-foreground line-clamp-3 sm:text-[48px] lg:text-[56px]">{course.name}</h1>
+          {isCompleted && earnedDateLabel ? (
+            <div className="mt-5 inline-flex items-center rounded-full bg-green-50 px-3 py-1.5 text-sm font-bold text-green-700 ring-1 ring-green-100">Earned {earnedDateLabel}</div>
+          ) : null}
+          {heroSubtitle ? (
+            <div className="mt-5 max-w-xl">
+              <p ref={descriptionRef} className={`whitespace-pre-line text-base font-medium leading-7 text-muted-foreground ${descriptionExpanded ? '' : 'line-clamp-3'}`}>{heroSubtitle}</p>
+              {descriptionCanExpand || descriptionExpanded ? (
+                <button type="button" onClick={() => setDescriptionExpanded((value) => !value)} className="mt-2 text-sm font-bold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+                  {descriptionExpanded ? 'Show less' : 'Read more'}
                 </button>
-              )}
+              ) : null}
             </div>
-          ) : isInProgress ? (
-            <div className="w-full max-w-md">
-              <div className="mb-2 flex items-center justify-between text-xs font-semibold text-muted-foreground">
+          ) : null}
+
+          <div className="mt-7 grid max-w-md grid-cols-2 divide-x divide-border border-y border-border py-5">
+            <div className="px-3 first:pl-0">
+              <Zap className="mb-2 h-7 w-7 text-purple-600" fill="currentColor" />
+              <div className="text-xl font-black text-foreground">{totalChapters || 0}</div>
+              <div className="mt-1 text-[11px] font-bold uppercase text-muted-foreground">Activities</div>
+            </div>
+            <div className="px-4">
+              <Clock className="mb-2 h-7 w-7 text-purple-600" />
+              <div className="text-xl font-black text-foreground">{timeLabel}</div>
+              <div className="mt-1 text-[11px] font-bold uppercase text-muted-foreground">To complete</div>
+            </div>
+          </div>
+
+          {isInProgress && !isCompleted ? (
+            <div className="mt-5 max-w-xl">
+              <div className="mb-2 flex items-center justify-between text-xs font-bold text-muted-foreground">
                 <span>Progress</span>
                 <span className="tabular-nums">{completedChapters}/{totalChapters}</span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-gray-800 transition-all"
-                  style={{ width: `${progressPercent}%` }}
-                />
+                <div className="h-full rounded-full bg-lime-400 transition-all" style={{ width: `${progressPercent}%` }} />
               </div>
-              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-                <Link
-                  href={pathUrl}
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                >
-                  <Play size={15} fill="currentColor" />
-                  Continue
-                </Link>
-                <CourseShare
-                  courseName={course.name}
-                  courseUrl={inviteUrl}
-                  label="Share invite"
-                  shareText={`Claim an invite to earn the ${course.name} badge`}
-                />
-                {canDevComplete && (
-                  <button
-                    type="button"
-                    onClick={handleDevComplete}
-                    disabled={isDevCompleting}
-                    className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <Check size={15} />
-                    {isDevCompleting ? 'Completing...' : 'Dev complete'}
-                  </button>
+            </div>
+          ) : null}
+
+          <div className="mt-8 flex flex-col gap-3 sm:max-w-xl">
+            {comingSoon ? (
+              <span className="inline-flex h-14 items-center justify-center gap-2 rounded-lg bg-orange-100 px-5 text-base font-black text-orange-700">
+                <Clock size={18} />
+                {t('courses.coming_soon')}
+              </span>
+            ) : isCompleted ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <CourseShare courseName={course.name} courseUrl={inviteUrl} label="Share invite" shareText={`Claim an invite to earn the ${course.name} badge`} />
+                {verificationUrl && (
+                  <Link href={verificationUrl} className="inline-flex h-11 items-center gap-2 rounded-lg bg-gray-950 px-4 text-sm font-bold text-white transition-colors hover:bg-gray-800">
+                    <FileText size={15} />
+                    View certificate
+                  </Link>
                 )}
+                <FeaturedBadgeButton badgeId={badgeId} />
               </div>
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <Link
-                href={pathUrl}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                <Play size={15} fill="currentColor" />
-                {t('courses.get_started')}
-              </Link>
-              <CourseShare
-                courseName={course.name}
-                courseUrl={inviteUrl}
-                label="Share invite"
-                shareText={`Claim an invite to earn the ${course.name} badge`}
-              />
-              {canDevComplete && (
-                <button
-                  type="button"
-                  onClick={handleDevComplete}
-                  disabled={isDevCompleting}
-                  className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Check size={15} />
-                  {isDevCompleting ? 'Completing...' : 'Dev complete'}
-                </button>
-              )}
-            </div>
-          )}
+            ) : (
+              <button type="button" onClick={handlePrimaryAction} disabled={isStarting} className="inline-flex h-16 w-full items-center justify-center gap-3 rounded-lg bg-lime-300 px-6 text-lg font-black text-black shadow-sm transition hover:bg-lime-200 disabled:cursor-wait disabled:opacity-70">
+                {isStarting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play size={20} fill="currentColor" />}
+                {isInProgress ? 'Continue' : "Let's do it"}
+                <ArrowRight size={22} />
+              </button>
+            )}
+
+            {!isCompleted && <div className="text-center text-xs font-bold uppercase text-muted-foreground">{trustLine}</div>}
+
+            {canDevComplete && (
+              <button type="button" onClick={handleDevComplete} disabled={isDevCompleting} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 text-xs font-bold text-amber-800 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60">
+                <Check size={15} />
+                {isDevCompleting ? 'Completing...' : 'Dev complete'}
+              </button>
+            )}
+          </div>
         </div>
       </section>
 
+      {overviewCards.length > 0 && (
+        <section className="mt-10 space-y-4" aria-label="About this badge">
+          {overviewCards.map((card: any, index: number) => (
+            <article
+              key={`${card.title}-${index}`}
+              className={`grid gap-5 rounded-lg bg-purple-50/70 p-5 ring-1 ring-purple-100 sm:items-center sm:p-6 lg:gap-10 ${
+                card.image_side === 'right'
+                  ? 'sm:grid-cols-[minmax(0,1fr)_180px] lg:grid-cols-[minmax(0,1fr)_200px]'
+                  : 'sm:grid-cols-[180px_minmax(0,1fr)] lg:grid-cols-[200px_minmax(0,1fr)]'
+              }`}
+            >
+              <div className={`flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-card text-purple-600 shadow-sm ${card.image_side === 'right' ? 'sm:order-2' : ''}`}>
+                {card.media_url ? <img src={card.media_url} alt="" className="h-full w-full object-cover" /> : <Play size={44} fill="currentColor" />}
+              </div>
+              <div className={`flex min-w-0 ${card.image_side === 'right' ? 'sm:order-1' : ''}`}>
+                <div className="w-3/4 min-w-0 text-left">
+                  {card.title ? <h2 className="text-2xl font-black leading-tight text-purple-700 sm:text-3xl">{card.title}</h2> : null}
+                  {card.body ? <p className="mt-3 whitespace-pre-line text-base font-medium leading-7 text-foreground">{card.body}</p> : null}
+                </div>
+              </div>
+            </article>
+          ))}
+        </section>
+      )}
+
       {isCompleted && badgeId && verificationUrl && (
-        <section className="mt-6 space-y-4" aria-label="Certificate">
+        <section className="mt-8 space-y-4" aria-label="Certificate">
           <div className="rounded-lg bg-card p-4 shadow-sm ring-1 ring-border sm:p-5">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Certificate</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Your verifiable Open Badge certificate is ready to share.
-                </p>
+                <p className="mt-1 text-sm text-muted-foreground">Your verifiable Open Badge certificate is ready to share.</p>
               </div>
-              <Link
-                href={verificationUrl}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
-              >
+              <Link href={verificationUrl} className="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-800">
                 <FileText size={15} />
                 Open certificate
               </Link>
@@ -822,35 +813,6 @@ function BadgeStatusHero({
               badgeImageUrl={certificateBadgeImage}
             />
           </div>
-        </section>
-      )}
-
-      {chapters.length > 0 && (
-        <section className="mt-5 space-y-3" aria-label="Badge content">
-          {chapters.map((chapter: any, index: number) => {
-            const firstActivity = chapter.activities?.[0]
-            const ChapterIcon = getPathActivityIcon(firstActivity?.activity_type)
-
-            return (
-              <Link
-                key={chapter.chapter_uuid || chapter.id || chapter.name || index}
-                href={pathUrl}
-                className="flex min-h-[112px] w-full items-center gap-4 rounded-lg bg-card p-3 text-left shadow-sm ring-1 ring-border transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900"
-              >
-                <div className="flex h-[88px] w-[88px] shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground sm:h-24 sm:w-24">
-                  <ChapterIcon size={30} strokeWidth={1.8} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold uppercase text-muted-foreground">
-                    Chapter {index + 1}
-                  </p>
-                  <h2 className="mt-1 break-words text-xl font-semibold leading-snug text-foreground">
-                    {chapter.name}
-                  </h2>
-                </div>
-              </Link>
-            )
-          })}
         </section>
       )}
     </div>

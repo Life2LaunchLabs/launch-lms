@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React from 'react'
-import { Award, Check, ChevronDown, ClipboardCheck, Eye, GalleryVerticalEnd, Globe, GlobeLock, Image as ImageIcon, Info, Loader2, Pencil, Settings, Trash2, UploadCloud } from 'lucide-react'
+import { ArrowDown, ArrowLeftRight, ArrowUp, Award, Check, ChevronDown, ClipboardCheck, Eye, GalleryVerticalEnd, Globe, GlobeLock, Image as ImageIcon, Info, Loader2, Pencil, Plus, Settings, Trash2, UploadCloud } from 'lucide-react'
 import { motion } from 'motion/react'
 import toast from 'react-hot-toast'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
@@ -17,8 +17,11 @@ import {
   DropdownMenuTrigger,
 } from '@components/ui/dropdown-menu'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg } from '@services/config/config'
+import { getOrgLandingMediaDirectory } from '@services/media/media'
 import { deleteLearningBadge, getLearningResponses, gradeLearningResponse, updateLearningBadge, updateLearningBadgeThumbnail } from '@services/learning/learning'
+import { uploadLandingContent } from '@services/organizations/orgs'
 import CertificatePreview from '@components/Dashboard/Pages/Course/EditCourseCertification/CertificatePreview'
 
 type BadgeStatus = 'published' | 'unpublished'
@@ -453,14 +456,107 @@ function BadgeGradingPanel({ badge }: { badge: any }) {
 }
 
 function BadgeAboutPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Record<string, any>, successMessage?: string) => Promise<any> }) {
+  const org = useOrg() as any
+  const session = useLHSession() as any
+  const accessToken = session.data?.tokens?.access_token
+  const metadata = badge.badge_metadata || {}
   const [about, setAbout] = React.useState(badge.about || '')
   const [criteria, setCriteria] = React.useState(badge.criteria || '')
+  const [overviewSubtitle, setOverviewSubtitle] = React.useState(metadata.overview_subtitle || '')
+  const [estimatedTimeLabel, setEstimatedTimeLabel] = React.useState(metadata.estimated_time_label || metadata.estimated_time || '')
+  const [trustLine, setTrustLine] = React.useState(metadata.trust_line || '')
+  const [overviewCards, setOverviewCards] = React.useState<any[]>(
+    Array.isArray(metadata.overview_cards)
+      ? metadata.overview_cards.map((card: any) => ({
+          title: String(card?.title || ''),
+          body: String(card?.body || ''),
+          media_url: String(card?.media_url || ''),
+          image_side: card?.image_side === 'right' ? 'right' : 'left',
+        }))
+      : []
+  )
   const [saving, setSaving] = React.useState(false)
+  const [uploadingCardIndex, setUploadingCardIndex] = React.useState<number | null>(null)
+
+  const patchCard = (index: number, patch: Record<string, any>) => {
+    setOverviewCards((cards) => cards.map((card, cardIndex) => cardIndex === index ? { ...card, ...patch } : card))
+  }
+
+  const addCard = () => {
+    setOverviewCards((cards) => [...cards, { title: '', body: '', media_url: '', image_side: 'left' }])
+  }
+
+  const deleteCard = (index: number) => {
+    setOverviewCards((cards) => cards.filter((_, cardIndex) => cardIndex !== index))
+  }
+
+  const moveCard = (index: number, direction: -1 | 1) => {
+    setOverviewCards((cards) => {
+      const nextIndex = index + direction
+      if (nextIndex < 0 || nextIndex >= cards.length) return cards
+      const next = [...cards]
+      ;[next[index], next[nextIndex]] = [next[nextIndex], next[index]]
+      return next
+    })
+  }
+
+  const uploadCardImage = async (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    event.target.value = ''
+    if (!accessToken || !org?.id || !org?.org_uuid) {
+      toast.error('Please sign in to upload an image.')
+      return
+    }
+
+    const { validateFile } = await import('@/lib/file-validation')
+    const validation = validateFile(file, ['image'])
+    if (!validation.valid) {
+      toast.error(validation.error || 'Invalid image file.')
+      return
+    }
+
+    setUploadingCardIndex(index)
+    try {
+      const response = await uploadLandingContent(org.id, file, accessToken)
+      const filename = response?.data?.filename
+      if (!filename) throw new Error('Upload did not return a file.')
+      patchCard(index, { media_url: getOrgLandingMediaDirectory(org.org_uuid, filename) })
+      toast.success('Image uploaded.')
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to upload image.')
+    } finally {
+      setUploadingCardIndex(null)
+    }
+  }
 
   const save = async () => {
     setSaving(true)
     try {
-      await onPatch({ about, criteria }, 'Badge details updated.')
+      const metadataRest = { ...(badge.badge_metadata || {}) }
+      delete metadataRest.overview_eyebrow
+      delete metadataRest.skill_label
+      delete metadataRest.earned_count_label
+      delete metadataRest.earned_count
+      const cleanedCards = overviewCards
+        .map((card: any) => ({
+          title: String(card?.title || '').trim(),
+          body: String(card?.body || '').trim(),
+          media_url: String(card?.media_url || '').trim(),
+          image_side: card?.image_side === 'right' ? 'right' : 'left',
+        }))
+        .filter((card: any) => card.title || card.body || card.media_url)
+      await onPatch({
+        about,
+        criteria,
+        badge_metadata: {
+          ...metadataRest,
+          overview_subtitle: overviewSubtitle,
+          estimated_time_label: estimatedTimeLabel,
+          trust_line: trustLine,
+          overview_cards: cleanedCards,
+        },
+      }, 'Badge details updated.')
     } catch (error: any) {
       toast.error(error?.message || 'Failed to update badge details.')
     } finally {
@@ -473,6 +569,20 @@ function BadgeAboutPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Reco
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <h2 className="text-lg font-bold text-foreground">About</h2>
         <div className="mt-5 space-y-5">
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="block">
+              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Estimated time</span>
+              <input value={estimatedTimeLabel} onChange={(event) => setEstimatedTimeLabel(event.target.value)} placeholder="~2 hrs" className="mt-2 h-10 w-full rounded-lg border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-black" />
+            </label>
+            <label className="block">
+              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Trust line</span>
+              <input value={trustLine} onChange={(event) => setTrustLine(event.target.value)} placeholder="100% free - start anytime - no pressure" className="mt-2 h-10 w-full rounded-lg border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-black" />
+            </label>
+          </div>
+          <label className="block">
+            <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Overview subtitle</span>
+            <textarea value={overviewSubtitle} onChange={(event) => setOverviewSubtitle(event.target.value)} rows={3} placeholder="Short sell copy shown beside the badge." className="mt-2 w-full resize-none rounded-lg border border-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black" />
+          </label>
           <label className="block">
             <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Badge overview</span>
             <textarea value={about} onChange={(event) => setAbout(event.target.value)} rows={7} className="mt-2 w-full resize-none rounded-lg border border-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black" />
@@ -481,6 +591,63 @@ function BadgeAboutPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Reco
             <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Criteria</span>
             <textarea value={criteria} onChange={(event) => setCriteria(event.target.value)} rows={5} className="mt-2 w-full resize-none rounded-lg border border-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black" />
           </label>
+          <div>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="text-sm font-bold text-foreground">About cards</h3>
+              <Button type="button" variant="outline" onClick={addCard} className="gap-2 bg-card">
+                <Plus className="h-4 w-4" />
+                Add card
+              </Button>
+            </div>
+            <div className="space-y-4">
+              {overviewCards.length ? overviewCards.map((card: any, index: number) => (
+                <article key={index} className="rounded-lg border border-border bg-muted/30 p-4">
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Card {index + 1}</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button type="button" size="icon" variant="ghost" onClick={() => moveCard(index, -1)} disabled={index === 0} title="Move card up">
+                        <ArrowUp className="h-4 w-4" />
+                      </Button>
+                      <Button type="button" size="icon" variant="ghost" onClick={() => moveCard(index, 1)} disabled={index === overviewCards.length - 1} title="Move card down">
+                        <ArrowDown className="h-4 w-4" />
+                      </Button>
+                      <Button type="button" size="icon" variant="ghost" onClick={() => patchCard(index, { image_side: card.image_side === 'right' ? 'left' : 'right' })} title="Switch image side">
+                        <ArrowLeftRight className="h-4 w-4" />
+                      </Button>
+                      <Button type="button" size="icon" variant="ghost" onClick={() => deleteCard(index)} title="Delete card" className="text-red-600 hover:text-red-700">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className={`grid gap-4 md:items-start ${card.image_side === 'right' ? 'md:grid-cols-[1fr_160px]' : 'md:grid-cols-[160px_1fr]'}`}>
+                    <div className={`space-y-2 ${card.image_side === 'right' ? 'md:order-2' : ''}`}>
+                      <div className="flex aspect-square items-center justify-center overflow-hidden rounded-lg border border-border bg-card text-muted-foreground">
+                        {card.media_url ? <img src={card.media_url} alt="" className="h-full w-full object-cover" /> : <ImageIcon className="h-8 w-8" />}
+                      </div>
+                      <div className="flex gap-2">
+                        <input value={card.media_url} onChange={(event) => patchCard(index, { media_url: event.target.value })} placeholder="Image URL" className="h-10 min-w-0 flex-1 rounded-lg border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-black" />
+                        <Button type="button" variant="outline" disabled={uploadingCardIndex === index} onClick={() => document.getElementById(`badge-about-card-image-${index}`)?.click()} className="h-10 shrink-0 gap-2 bg-card">
+                          {uploadingCardIndex === index ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
+                          Upload
+                        </Button>
+                        <input id={`badge-about-card-image-${index}`} type="file" accept="image/*" className="hidden" onChange={(event) => uploadCardImage(index, event)} />
+                      </div>
+                    </div>
+                    <div className={`space-y-3 ${card.image_side === 'right' ? 'md:order-1' : ''}`}>
+                      <input value={card.title} onChange={(event) => patchCard(index, { title: event.target.value })} placeholder="Card title" className="h-10 w-full rounded-lg border border-border px-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-black" />
+                      <textarea value={card.body} onChange={(event) => patchCard(index, { body: event.target.value })} rows={5} placeholder="Card text" className="w-full resize-none rounded-lg border border-border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black" />
+                    </div>
+                  </div>
+                </article>
+              )) : (
+                <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm font-semibold text-muted-foreground">
+                  No about cards yet.
+                </div>
+              )}
+            </div>
+          </div>
           <Button onClick={save} disabled={saving} className="gap-2">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
             Save
