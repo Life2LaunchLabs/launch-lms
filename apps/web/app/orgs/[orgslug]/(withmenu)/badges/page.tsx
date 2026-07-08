@@ -1,5 +1,4 @@
 import React from 'react'
-import Courses from '../courses/courses'
 import { Metadata } from 'next'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getServerSession } from '@/lib/auth/server'
@@ -8,6 +7,7 @@ import { getCanonicalUrl, getOrgSeoConfig, buildPageTitle, buildBreadcrumbJsonLd
 import { JsonLd } from '@components/SEO/JsonLd'
 import { getLearningBadgeAwards, getLearningBadgeCollections } from '@services/learning/learning'
 import { learningCollectionsToLegacyCollections } from '@services/learning/legacyAdapters'
+import BadgeDiscoverPage from '@components/Badges/BadgeDiscoverPage'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string }>
@@ -96,9 +96,6 @@ export async function generateMetadata(props: MetadataProps): Promise<Metadata> 
 
 const BadgesPage = async (params: any) => {
   const orgslug = (await params.params).orgslug
-  const searchParams = await params.searchParams
-  const view = searchParams?.view === 'mine' ? 'mine' : 'discover'
-  const inviteBadge = typeof searchParams?.inviteBadge === 'string' ? searchParams.inviteBadge : undefined
   const org = await getOrganizationContextInfo(orgslug, {
     revalidate: 1800,
     tags: ['organizations'],
@@ -107,7 +104,6 @@ const BadgesPage = async (params: any) => {
   const access_token = session?.tokens?.access_token
 
   let collections: any[] = []
-  let invitedBadgeCourse: any = null
   let earnedBadgeUuids = new Set<string>()
 
   try {
@@ -143,12 +139,6 @@ const BadgesPage = async (params: any) => {
 
   collections = filterAvailableCollections(collections, earnedBadgeUuids)
 
-  if (inviteBadge) {
-    invitedBadgeCourse = collections
-      .flatMap((collection: any) => collection.courses || [])
-      .find((badge: any) => String(badge.course_uuid || '').replace(/^badge_/, '') === inviteBadge.replace(/^badge_/, '')) || null
-  }
-
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
     { name: 'Home', url: getCanonicalUrl(orgslug, '/') },
     { name: 'Badges', url: getCanonicalUrl(orgslug, '/badges') },
@@ -157,14 +147,9 @@ const BadgesPage = async (params: any) => {
   return (
     <div>
       <JsonLd data={breadcrumbJsonLd} />
-      <Courses
-        org_id={org.id}
+      <BadgeDiscoverPage
         orgslug={orgslug}
         collections={collections}
-        view={view}
-        inviteBadge={inviteBadge}
-        invitedBadgeCourse={invitedBadgeCourse}
-        orgConfig={org.config}
       />
     </div>
   )
