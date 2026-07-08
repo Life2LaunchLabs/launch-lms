@@ -102,7 +102,7 @@ export default function ContentOverview() {
       icon: Users,
       iconColor: 'text-indigo-500',
       iconBg: 'bg-indigo-50',
-      href: '/admin/users/settings/users',
+      href: '/admin/users',
       show: true,
     },
     {

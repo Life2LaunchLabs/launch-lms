@@ -13,10 +13,8 @@ import {
 } from '@services/platform/platform'
 import {
   EmptyState,
-  FilterSelect,
   LoadingRows,
   Pagination,
-  SearchInput,
   SortableTh,
   StatusBadge,
   UserAvatar,
@@ -44,6 +42,8 @@ import {
   DialogTitle,
 } from '@components/ui/dialog'
 import { Checkbox } from '@components/ui/checkbox'
+import OrgUsers from '@components/Dashboard/Pages/Users/OrgUsers/OrgUsers'
+import AdminDataTable from '@components/Admin/AdminDataTable'
 
 export interface OrgMembership {
   id: number
@@ -103,7 +103,19 @@ export function useOrgOptions(accessToken?: string) {
   return (data?.items as { id: number; name: string; slug: string }[] | undefined) || []
 }
 
-export default function UsersTable() {
+export default function UsersTable({
+  scope = 'platform',
+}: {
+  scope?: 'platform' | 'organization'
+}) {
+  if (scope === 'organization') {
+    return <OrgUsers />
+  }
+
+  return <PlatformUsersTable />
+}
+
+function PlatformUsersTable() {
   const session = useLHSession() as any
   const org = useOrg() as any
   const accessToken = session?.data?.tokens?.access_token
@@ -168,58 +180,48 @@ export default function UsersTable() {
     setSelected(next)
   }
 
-  const userHref = (id: number) =>
-    getUriWithOrg(org?.slug, `/admin/platform/users/${id}`)
+  const userHref = (username: string) =>
+    getUriWithOrg(org?.slug, `/admin/platform/users/${encodeURIComponent(username)}`)
 
   return (
     <div>
-      {/* Toolbar */}
-      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-        <div className="flex items-center gap-3 flex-wrap">
-          <SearchInput
-            value={search}
-            onChange={handleSearch}
-            placeholder="Search users..."
-          />
-          <FilterSelect
-            label="Role"
-            value={superadminFilter}
-            options={[
+      <AdminDataTable
+        search={{ value: search, onChange: handleSearch, placeholder: 'Search users...' }}
+        filters={[
+          {
+            id: 'role',
+            label: 'Role',
+            value: superadminFilter,
+            options: [
               { value: 'all', label: 'All' },
               { value: 'yes', label: 'Superadmin' },
               { value: 'no', label: 'Regular' },
-            ]}
-            onChange={(value) => update({ superadmin: value, page: 1 })}
-          />
-          <FilterSelect
-            label="Orgs"
-            value={minOrgs}
-            options={[
+            ],
+            onChange: (value) => update({ superadmin: value, page: 1 }),
+          },
+          {
+            id: 'orgs',
+            label: 'Orgs',
+            value: minOrgs,
+            options: [
               { value: '0', label: 'Any' },
               { value: '1', label: '1+' },
               { value: '2', label: '2+' },
               { value: '3', label: '3+' },
               { value: '5', label: '5+' },
-            ]}
-            onChange={(value) => update({ min_orgs: value, page: 1 })}
-          />
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-gray-400">
-            {totalCount} user{totalCount !== 1 ? 's' : ''}
-          </span>
-          <button
+            ],
+            onChange: (value) => update({ min_orgs: value, page: 1 }),
+          },
+        ]}
+        resultLabel={`${totalCount} user${totalCount !== 1 ? 's' : ''}`}
+        actions={<button
             onClick={() => setShowCreate(true)}
             className="inline-flex items-center gap-1.5 rounded-lg bg-gray-900 text-white px-3 py-1.5 text-[13px] font-medium hover:bg-gray-700 transition-colors"
           >
             <Plus size={14} weight="bold" />
             New user
-          </button>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white border border-gray-100 rounded-xl nice-shadow overflow-hidden">
+          </button>}
+      >
         {isLoading ? (
           <LoadingRows />
         ) : users.length === 0 ? (
@@ -283,7 +285,7 @@ export default function UsersTable() {
                         </td>
                         <td className="px-4 py-3">
                           <Link
-                            href={userHref(user.id)}
+                            href={userHref(user.username)}
                             className="flex items-center gap-3 group"
                           >
                             <UserAvatar
@@ -372,7 +374,7 @@ export default function UsersTable() {
             />
           </>
         )}
-      </div>
+      </AdminDataTable>
 
       {selected.size > 0 && (
         <BatchActionBar

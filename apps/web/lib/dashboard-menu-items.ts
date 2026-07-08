@@ -57,7 +57,7 @@ export const DASHBOARD_MENU_ITEMS: DashboardMenuItem[] = [
   },
   {
     id: 'users',
-    href: '/admin/users/settings/users',
+    href: '/admin/users',
     icon: Users,
     labelKey: 'common.users',
   },

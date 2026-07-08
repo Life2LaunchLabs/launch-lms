@@ -4,7 +4,7 @@ import React from 'react'
 import { Award, Check, ClipboardCheck, Handshake, Library, Loader2, Plus, Search, Store, Trash2 } from 'lucide-react'
 import { motion } from 'motion/react'
 import toast from 'react-hot-toast'
-import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
+import AdminFeatureHeader from '@components/Admin/AdminFeatureHeader'
 import { SafeImage } from '@components/Objects/SafeImage'
 import { Button } from '@components/ui/button'
 import { Switch } from '@components/ui/switch'
@@ -68,31 +68,19 @@ export default function IssuingAdminShell({
 
   return (
     <div className="min-h-full w-full bg-[#f8f8f8]">
-      <div className="relative z-10 bg-[#fcfbfc] pl-10 pr-10 text-sm tracking-tight nice-shadow">
-        <div className="pb-4 pt-6">
-          <Breadcrumbs items={[
-            { label: 'Badges' },
-          ]} />
-        </div>
-        <div className="py-2">
-          <h1 className="text-xl font-bold text-foreground">Badges</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Organize badges, discover issuing opportunities, manage authorizations, and grade learner submissions.</p>
-        </div>
-        <div className="mt-2 flex space-x-3 text-sm font-black">
-          {tabs.map((tab) => {
-            const Icon = tab.icon
-            const isActive = activeTab === tab.key
-            return (
-              <button key={tab.key} type="button" onClick={() => selectTab(tab.key as BadgeAdminTab)} className={`flex w-fit cursor-pointer space-x-4 border-black py-2 text-center transition-all ease-linear ${isActive ? 'border-b-4' : 'opacity-50 hover:opacity-75'}`}>
-                <div className="mx-2 flex items-center space-x-2.5">
-                  <Icon size={16} />
-                  <div>{tab.label}</div>
-                </div>
-              </button>
-            )
-          })}
-        </div>
-      </div>
+      <AdminFeatureHeader
+        feature="Badges"
+        activeTab={activeTab}
+        tabs={tabs.map((tab) => {
+          const Icon = tab.icon
+          return {
+            id: tab.key,
+            label: tab.label,
+            icon: <Icon size={16} />,
+            onClick: () => selectTab(tab.key as BadgeAdminTab),
+          }
+        })}
+      />
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }} className="overflow-x-hidden">
         {activeTab === 'collections' ? <AdminBadgesHome orgslug={orgslug} orgId={orgId} collections={collections} /> : null}

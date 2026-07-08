@@ -1,13 +1,12 @@
 'use client'
 
-import Link from 'next/link'
 import { useState } from 'react'
 import useSWR from 'swr'
-import { FolderOpen, Plus, Tag, Trash2 } from 'lucide-react'
+import { Plus, Tag, Trash2 } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/FeatureDisabledView'
-import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
+import AdminFeatureHeader from '@components/Admin/AdminFeatureHeader'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import {
   createResourceTag,
@@ -84,33 +83,16 @@ export default function ResourcesTagsClient({ orgslug }: { orgslug: string }) {
 
   return (
     <FeatureDisabledView featureName="resources" orgslug={orgslug} context="dashboard">
-      <div className="h-full w-full bg-[#f8f8f8] px-10">
-        <div className="mb-6 pt-6">
-          <Breadcrumbs
-            items={[
-              { label: 'Resources', href: '/admin/resources', icon: <FolderOpen size={14} /> },
-              { label: 'Tags' },
-            ]}
-          />
-          <div className="mt-4 flex items-center space-x-4">
-            <h1 className="text-3xl font-bold">Resource Tags</h1>
-          </div>
-          <div className="mt-4 flex gap-1 border-b border-gray-200">
-            <Link
-              href={getUriWithOrg(orgslug, routePaths.org.dash.resources())}
-              className="border-b-2 border-transparent px-1 py-2 text-sm font-semibold text-gray-400 transition-colors hover:text-gray-700"
-            >
-              Channels
-            </Link>
-            <Link
-              href={getUriWithOrg(orgslug, routePaths.org.dash.resourceTags())}
-              className="border-b-2 border-black px-1 py-2 text-sm font-semibold text-gray-900"
-            >
-              Tags
-            </Link>
-          </div>
-        </div>
-
+      <div className="h-full w-full bg-[#f8f8f8]">
+        <AdminFeatureHeader
+          feature="Resources"
+          activeTab="tags"
+          tabs={[
+            { id: 'channels', label: 'Channels', href: getUriWithOrg(orgslug, routePaths.org.dash.resources()) },
+            { id: 'tags', label: 'Tags', href: getUriWithOrg(orgslug, routePaths.org.dash.resourceTags()) },
+          ]}
+        />
+        <div className="px-10 py-6">
         <div className="rounded-xl bg-white nice-shadow">
           <div className="mx-3 my-3 rounded-md bg-gray-50 px-5 py-4">
             <h2 className="text-lg font-semibold text-gray-900">Manage Tags</h2>
@@ -185,6 +167,7 @@ export default function ResourcesTagsClient({ orgslug }: { orgslug: string }) {
               </div>
             )}
           </div>
+        </div>
         </div>
       </div>
     </FeatureDisabledView>

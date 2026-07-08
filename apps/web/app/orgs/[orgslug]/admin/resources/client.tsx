@@ -2,12 +2,11 @@
 
 import { useState } from 'react'
 import useSWR from 'swr'
-import Link from 'next/link'
 import { FolderOpen, Plus } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/FeatureDisabledView'
-import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
+import AdminFeatureHeader from '@components/Admin/AdminFeatureHeader'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import ResourceChannelCard from '@components/Resources/ResourceChannelCard'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -141,42 +140,17 @@ export default function ResourcesDashClient({ orgslug }: { orgslug: string }) {
 
   return (
     <FeatureDisabledView featureName="resources" orgslug={orgslug} context="dashboard">
-      <div className="h-full w-full bg-[#f8f8f8] px-10">
-        <div className="mb-6 pt-6">
-          <Breadcrumbs
-            items={[{ label: 'Resources', href: '/admin/resources', icon: <FolderOpen size={14} /> }]}
-          />
-          <div className="mt-4 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-3xl font-bold">Resources</h1>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                onClick={() => setIsCreateModalOpen(true)}
-                className="rounded-lg bg-black px-5 py-2 text-xs font-bold text-white nice-shadow hover:scale-105"
-              >
-                <Plus className="h-4 w-4" />
-                Add Channel
-              </Button>
-            </div>
-          </div>
-          <div className="mt-4 flex gap-1 border-b border-gray-200">
-            <Link
-              href={getUriWithOrg(orgslug, routePaths.org.dash.resources())}
-              className="border-b-2 border-black px-1 py-2 text-sm font-semibold text-gray-900"
-            >
-              Channels
-            </Link>
-            <Link
-              href={getUriWithOrg(orgslug, routePaths.org.dash.resourceTags())}
-              className="border-b-2 border-transparent px-1 py-2 text-sm font-semibold text-gray-400 transition-colors hover:text-gray-700"
-            >
-              Tags
-            </Link>
-          </div>
-        </div>
-
+      <div className="h-full w-full bg-[#f8f8f8]">
+        <AdminFeatureHeader
+          feature="Resources"
+          activeTab="channels"
+          tabs={[
+            { id: 'channels', label: 'Channels', href: getUriWithOrg(orgslug, routePaths.org.dash.resources()) },
+            { id: 'tags', label: 'Tags', href: getUriWithOrg(orgslug, routePaths.org.dash.resourceTags()) },
+          ]}
+          actions={<Button onClick={() => setIsCreateModalOpen(true)} className="h-8 bg-black px-3 text-xs text-white hover:bg-black/90"><Plus className="h-4 w-4" />Add Channel</Button>}
+        />
+        <div className="px-10 py-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {channels.map((channel) => (
             <ResourceChannelCard
@@ -231,6 +205,7 @@ export default function ResourcesDashClient({ orgslug }: { orgslug: string }) {
             />
           }
         />
+        </div>
       </div>
     </FeatureDisabledView>
   )

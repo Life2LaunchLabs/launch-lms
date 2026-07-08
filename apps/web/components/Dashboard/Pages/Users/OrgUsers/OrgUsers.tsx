@@ -5,10 +5,13 @@ import LaunchLMSSpinner from '@components/Objects/Loaders/LaunchLMSSpinner'
 import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal'
 import Toast from '@components/Objects/StyledElements/Toast/Toast'
 import UserAvatar from '@components/Objects/UserAvatar'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
+import Link from 'next/link'
+import AdminDataTable from '@components/Admin/AdminDataTable'
+import { Pagination } from '@components/Admin/Platform/shared'
 import { removeUserFromOrg, removeUsersFromOrg, updateUserRole } from '@services/organizations/orgs'
 import { swrFetcher } from '@services/utils/ts/requests'
-import { LogOut, Search, ChevronLeft, ChevronRight, Shield, User, Crown, Users, CheckCircle2, XCircle, Mail, Globe, ArrowUp, ArrowDown, X, Filter } from 'lucide-react'
+import { LogOut, Shield, User, Crown, Users, CheckCircle2, XCircle, Mail, Globe, ArrowUp, ArrowDown, X } from 'lucide-react'
 import React, { useState, useCallback, useRef } from 'react'
 import toast from 'react-hot-toast'
 import useSWR, { mutate } from 'swr'
@@ -214,91 +217,17 @@ function OrgUsers() {
   return (
     <div>
       <Toast></Toast>
-      <div className="h-6"></div>
-      <div className="ml-10 mr-10 mx-auto bg-white rounded-xl shadow-xs">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-              <div className="flex-1">
-                <h1 className="font-bold text-xl text-gray-800">{t('dashboard.users.active_users.title')}</h1>
-                <p className="text-sm text-gray-500 mt-0.5">
-                  {t('dashboard.users.active_users.subtitle')}
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                {total > 0 && (
-                  <div className="text-sm text-gray-500 bg-gray-50 px-3 py-1.5 rounded-lg font-medium">
-                    {total} {total === 1 ? 'user' : 'users'}
-                  </div>
-                )}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    placeholder={t('dashboard.users.active_users.search_placeholder') || 'Search users...'}
-                    className="pl-10 pr-4 py-2 w-[260px] border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
-                    value={searchValue}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Filter Bar */}
-            <div className="flex items-center gap-3 px-6 py-3 border-b border-gray-100 bg-gray-50/30">
-              <Filter className="w-4 h-4 text-gray-400" />
-              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Filters</span>
-
-              {/* Role filter */}
-              <Select value={filterRole || 'all'} onValueChange={handleFilterChange(setFilterRole)}>
-                <SelectTrigger className="h-8 w-[140px] text-xs border-gray-200 bg-white">
-                  <SelectValue placeholder="All roles" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All roles</SelectItem>
-                  {roles?.map((role: any) => (
-                    <SelectItem key={role.id} value={role.id.toString()}>
-                      {role.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {/* Status filter */}
-              <Select value={filterStatus || 'all'} onValueChange={handleFilterChange(setFilterStatus)}>
-                <SelectTrigger className="h-8 w-[140px] text-xs border-gray-200 bg-white">
-                  <SelectValue placeholder="All statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  <SelectItem value="verified">Verified</SelectItem>
-                  <SelectItem value="unverified">Unverified</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Group filter */}
-              <Select value={filterGroupId || 'all'} onValueChange={handleFilterChange(setFilterGroupId)}>
-                <SelectTrigger className="h-8 w-[160px] text-xs border-gray-200 bg-white">
-                  <SelectValue placeholder="All groups" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All groups</SelectItem>
-                  {usergroups?.map((group: any) => (
-                    <SelectItem key={group.id} value={group.id.toString()}>
-                      {group.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {hasActiveFilters && (
-                <button
-                  onClick={resetFilters}
-                  className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 font-medium px-2 py-1 rounded hover:bg-gray-100 transition-all"
-                >
-                  <X className="w-3 h-3" />
-                  Clear filters
-                </button>
-              )}
-            </div>
+      <AdminDataTable
+        className="mx-8 my-6"
+        search={{ value: searchValue, onChange: handleSearchChange, placeholder: t('dashboard.users.active_users.search_placeholder') || 'Search users...' }}
+        filters={[
+          { id: 'role', label: 'Role', value: filterRole || 'all', options: [{ value: 'all', label: 'All' }, ...(roles || []).map((role: any) => ({ value: String(role.id), label: role.name }))], onChange: handleFilterChange(setFilterRole) },
+          { id: 'status', label: 'Status', value: filterStatus || 'all', options: [{ value: 'all', label: 'All' }, { value: 'verified', label: 'Verified' }, { value: 'unverified', label: 'Unverified' }], onChange: handleFilterChange(setFilterStatus) },
+          { id: 'group', label: 'Groups', value: filterGroupId || 'all', options: [{ value: 'all', label: 'All' }, ...(usergroups || []).map((group: any) => ({ value: String(group.id), label: group.name }))], onChange: handleFilterChange(setFilterGroupId) },
+        ]}
+        resultLabel={`${total} user${total !== 1 ? 's' : ''}`}
+        actions={hasActiveFilters ? <button onClick={resetFilters} className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-black"><X className="h-3 w-3" />Clear</button> : null}
+      >
 
             {/* Selection Action Bar */}
             {selectedUserIds.size > 0 && (
@@ -424,7 +353,7 @@ function OrgUsers() {
 
                         {/* User Info */}
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
+                          <Link href={getUriWithOrg(org.slug, routePaths.org.dash.users.user(user.user.username))} className="group flex items-center gap-3">
                             <UserAvatar
                               width={40}
                               userId={user.user.id?.toString()}
@@ -433,7 +362,7 @@ function OrgUsers() {
                             />
                             <div className="flex flex-col min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="font-semibold text-gray-800 text-sm truncate">
+                                <span className="truncate text-sm font-semibold text-gray-800 group-hover:underline">
                                   {user.user.first_name + ' ' + user.user.last_name}
                                 </span>
                                 <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full text-gray-500 font-medium">
@@ -446,7 +375,7 @@ function OrgUsers() {
                                 </span>
                               )}
                             </div>
-                          </div>
+                          </Link>
                         </td>
 
                         {/* User Groups */}
@@ -589,38 +518,12 @@ function OrgUsers() {
               )}
             </div>
 
-            {/* Pagination Controls */}
-            {total > ITEMS_PER_PAGE && (
-              <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50">
-                <div className="text-xs text-gray-500 font-medium">
-                  {t('dashboard.users.active_users.pagination.showing', {
-                    start: (page - 1) * ITEMS_PER_PAGE + 1,
-                    end: Math.min(page * ITEMS_PER_PAGE, total),
-                    total
-                  }) || `Showing ${(page - 1) * ITEMS_PER_PAGE + 1}-${Math.min(page * ITEMS_PER_PAGE, total)} of ${total}`}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handlePageChange(page - 1)}
-                    disabled={page === 1}
-                    className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                  >
-                    <ChevronLeft className="w-4 h-4 text-gray-600" />
-                  </button>
-                  <span className="text-sm text-gray-600 font-medium min-w-[80px] text-center bg-white px-3 py-2 rounded-lg border border-gray-200">
-                    {t('dashboard.users.active_users.pagination.page', { current: page, total: Math.ceil(total / ITEMS_PER_PAGE) }) || `Page ${page} of ${Math.ceil(total / ITEMS_PER_PAGE)}`}
-                  </span>
-                  <button
-                    onClick={() => handlePageChange(page + 1)}
-                    disabled={page * ITEMS_PER_PAGE >= total}
-                    className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                  >
-                    <ChevronRight className="w-4 h-4 text-gray-600" />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+            <Pagination
+              page={page}
+              totalPages={Math.max(1, Math.ceil(total / ITEMS_PER_PAGE))}
+              onPageChange={handlePageChange}
+            />
+      </AdminDataTable>
     </div>
   )
 }

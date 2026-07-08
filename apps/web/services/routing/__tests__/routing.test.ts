@@ -25,7 +25,7 @@ test('withQuery omits empty values and encodes query params', () => {
 
 test('route manifest builds key dashboard and owner routes', () => {
   assert.equal(routePaths.org.dash.courseSettings('abc', 'general'), '/admin/courses/course/abc/general')
-  assert.equal(routePaths.org.dash.users.roles(), '/admin/users/settings/roles')
+  assert.equal(routePaths.org.dash.users.roles(), '/admin/users/roles')
   assert.equal(routePaths.owner.platform.organization(42), '/admin/platform/orgs/42')
   assert.equal(routePaths.auth.login({ next: '/' }), '/login?next=%2F')
 })
