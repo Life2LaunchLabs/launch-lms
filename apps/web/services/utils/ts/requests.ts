@@ -52,7 +52,10 @@ export const RequestBodyWithAuthHeader = (
     headers: HeadersConfig,
     redirect: 'follow',
     credentials: 'include',
-    body: (method === 'POST' || method === 'PUT' || method === 'DELETE') && data !== null ? JSON.stringify(data) : null,
+    body:
+      ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) && data !== null
+        ? JSON.stringify(data)
+        : null,
     // Next.js
     next: next,
   }

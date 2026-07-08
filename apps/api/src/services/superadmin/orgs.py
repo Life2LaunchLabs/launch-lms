@@ -13,8 +13,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm.attributes import flag_modified
 from sqlmodel import Session, func, select
 
-from src.db.courses.courses import Course
 from src.db.custom_domains import CustomDomain
+from src.db.learning import LearningBadge
 from src.db.organization_config import OrganizationConfig, OrganizationConfigV2Base
 from src.db.organizations import Organization, OrganizationCreate
 from src.db.plan_requests import PlanRequest, PlanRequestUpdate
@@ -205,7 +205,8 @@ def _sort_org_items(items: list[dict], sort: str) -> list[dict]:
         "oldest": (lambda item: _parse_datetime(item.get("creation_date")), False),
         "users_desc": (lambda item: (item["user_count"], item["id"]), True),
         "users_asc": (lambda item: (item["user_count"], item["id"]), False),
-        "courses_desc": (lambda item: (item["course_count"], item["id"]), True),
+        "badges_desc": (lambda item: (item["badge_count"], item["id"]), True),
+        "courses_desc": (lambda item: (item["badge_count"], item["id"]), True),
         "most_admins": (lambda item: (len(item["admin_users"]), item["id"]), True),
         "recently_updated": (lambda item: _parse_datetime(item.get("update_date")), True),
     }
@@ -228,7 +229,7 @@ def list_organizations(
         cfg.org_id: cfg for cfg in db_session.exec(select(OrganizationConfig)).all()
     }
     user_counts = _counts_by_org(db_session, UserOrganization.org_id)
-    course_counts = _counts_by_org(db_session, Course.org_id)
+    badge_counts = _counts_by_org(db_session, LearningBadge.org_id)
     pending_counts = _counts_by_org(
         db_session, PlanRequest.org_id, filters=(PlanRequest.status == "pending",)
     )
@@ -248,7 +249,9 @@ def list_organizations(
             {
                 **org.model_dump(),
                 "user_count": user_counts.get(org.id, 0),
-                "course_count": course_counts.get(org.id, 0),
+                "badge_count": badge_counts.get(org.id, 0),
+                # Backward-compatible alias for older platform clients.
+                "course_count": badge_counts.get(org.id, 0),
                 "pending_request_count": pending_counts.get(org.id, 0),
                 "plan": org_plan,
                 "custom_domains": domains_by_org.get(org.id, []),
@@ -274,8 +277,8 @@ def get_organization(db_session: Session, org_id: int) -> dict:
     user_count = db_session.exec(
         select(func.count()).where(UserOrganization.org_id == org.id)
     ).one()
-    course_count = db_session.exec(
-        select(func.count()).where(Course.org_id == org.id)
+    badge_count = db_session.exec(
+        select(func.count()).where(LearningBadge.org_id == org.id)
     ).one()
     pending_request_count = db_session.exec(
         select(func.count()).where(
@@ -291,7 +294,9 @@ def get_organization(db_session: Session, org_id: int) -> dict:
         "config": org_config.config if org_config else {},
         "plan": _org_plan(org_config),
         "user_count": user_count,
-        "course_count": course_count,
+        "badge_count": badge_count,
+        # Backward-compatible alias for older platform clients.
+        "course_count": badge_count,
         "pending_request_count": pending_request_count,
         "custom_domains": [domain.domain for domain in domains],
         "admin_users": _admin_users_for_org(org.id, db_session),

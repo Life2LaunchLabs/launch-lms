@@ -68,14 +68,14 @@ async def list_global_roles(db_session: Session = Depends(get_db_session)):
 async def platform_overview(db_session: Session = Depends(get_db_session)):
     from sqlmodel import func, select
 
-    from src.db.courses.courses import Course
+    from src.db.learning import LearningBadge
     from src.db.organizations import Organization
     from src.db.plan_requests import PlanRequest
     from src.db.users import User
 
     org_count = db_session.exec(select(func.count()).select_from(Organization)).one()
     user_count = db_session.exec(select(func.count()).select_from(User)).one()
-    course_count = db_session.exec(select(func.count()).select_from(Course)).one()
+    badge_count = db_session.exec(select(func.count()).select_from(LearningBadge)).one()
     pending_requests = db_session.exec(
         select(func.count()).where(PlanRequest.status == "pending")
     ).one()
@@ -88,7 +88,9 @@ async def platform_overview(db_session: Session = Depends(get_db_session)):
     return {
         "org_count": org_count,
         "user_count": user_count,
-        "course_count": course_count,
+        "badge_count": badge_count,
+        # Backward-compatible alias for older platform clients.
+        "course_count": badge_count,
         "pending_request_count": pending_requests,
         "recent_users": [
             {
@@ -193,8 +195,8 @@ async def get_org_usage(
     return await get_org_usage_and_limits(None, org_id, current_user, db_session)
 
 
-@router.get("/organizations/{org_id}/courses")
-async def get_org_courses(
+@router.get("/organizations/{org_id}/badges")
+async def get_org_badges(
     org_id: int,
     page: int = 1,
     limit: int = 20,
@@ -202,10 +204,10 @@ async def get_org_courses(
 ):
     from sqlmodel import func, select
 
-    from src.db.courses.courses import Course
+    from src.db.learning import LearningBadge
 
-    statement = (
-        select(Course).where(Course.org_id == org_id).order_by(Course.creation_date.desc())  # type: ignore[union-attr]
+    statement = select(LearningBadge).where(LearningBadge.org_id == org_id).order_by(
+        LearningBadge.creation_date.desc()  # type: ignore[union-attr]
     )
     total = db_session.exec(select(func.count()).select_from(statement.subquery())).one()
     items = db_session.exec(statement.offset((page - 1) * limit).limit(limit)).all()

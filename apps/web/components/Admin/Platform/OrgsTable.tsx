@@ -56,6 +56,7 @@ interface OrgRow {
   logo_image?: string | null
   plan: string
   user_count: number
+  badge_count: number
   course_count: number
   pending_request_count: number
   custom_domains: string[]
@@ -216,8 +217,8 @@ export default function OrgsTable() {
                       onSort={(s) => update({ sort: s, page: 1 })}
                     />
                     <SortableTh
-                      label="Courses"
-                      descKey="courses_desc"
+                      label="Badges"
+                      descKey="badges_desc"
                       currentSort={sort}
                       onSort={(s) => update({ sort: s, page: 1 })}
                     />
@@ -262,7 +263,7 @@ export default function OrgsTable() {
                         <PlanBadge plan={row.plan} />
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">{row.user_count}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{row.course_count}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{row.badge_count ?? row.course_count}</td>
                       <td className="px-4 py-3">
                         <Sparkline
                           values={visitsByOrg.map[row.id]}
