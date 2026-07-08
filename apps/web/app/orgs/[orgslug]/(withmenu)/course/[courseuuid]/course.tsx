@@ -10,12 +10,13 @@ import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/Ge
 import ContentPageHeader from '@components/Objects/StyledElements/Headers/ContentPageHeader'
 import {
   getCourseThumbnailMediaDirectory,
+  normalizeMediaUrl,
 } from '@services/media/media'
 import { learningPathToLegacyRun } from '@services/learning/legacyAdapters'
-import { getLearningPath } from '@services/learning/learning'
+import { createLearningBadgeNotificationSignup, getLearningPath, startLearningRun } from '@services/learning/learning'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { CourseThumbnailImage } from '@components/Objects/Thumbnails/CourseThumbnailImage'
-import { ArrowRight, Award, BookOpenCheck, Check, CircleHelp, Clock, FileText, Layers, Play, Video, Image as ImageIcon } from 'lucide-react'
+import { ArrowRight, Award, Bell, BookOpenCheck, Check, CircleHelp, Clock, FileText, Layers, Loader2, Play, Video, Zap, Image as ImageIcon } from 'lucide-react'
 import { FeaturedBadgeButton } from '@components/Objects/Portfolio/ProfileAchievements'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -35,6 +36,8 @@ import toast from 'react-hot-toast'
 import { devCompleteCourse } from '@services/courses/activity'
 import { useWindowSize } from 'usehooks-ts'
 import CertificatePreview from '@components/Dashboard/Pages/Course/EditCourseCertification/CertificatePreview'
+import { cn } from '@/lib/utils'
+import { SafeImage } from '@components/Objects/SafeImage'
 
 const ReactConfetti = dynamic(() => import('react-confetti'), { ssr: false })
 
@@ -245,6 +248,7 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
           <GeneralWrapperStyled>
             <ContentPageHeader
               orgslug={orgslug}
+              compactBottomMargin={showPath}
             />
 
             {showPath ? (
@@ -253,7 +257,6 @@ const BadgeClient = ({ props, showPath }: { props: any; showPath: boolean }) => 
                 courseOwnerOrgUuid={courseOwnerOrgUuid}
                 orgslug={orgslug}
                 run={run}
-                badgeStatusPath={badgeStatusPath}
               />
             ) : (
               <BadgeStatusHero
@@ -305,153 +308,158 @@ function getPathActivityIcon(activityType: string) {
   }
 }
 
-function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run, badgeStatusPath }: any) {
+function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run }: any) {
+  const descriptionRef = React.useRef<HTMLParagraphElement>(null)
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false)
+  const [descriptionCanExpand, setDescriptionCanExpand] = useState(false)
   const chapters = useMemo(
     () => course.chapters?.filter((chapter: any) => (chapter.activities || []).length > 0) || [],
     [course.chapters]
-  )
-  const completedIds = useMemo(
-    () => new Set(
-      (run?.steps || [])
-        .filter((step: any) => step.complete !== false)
-        .map((step: any) => step.activity_id)
-    ),
-    [run?.steps]
   )
   const chapterSummaries = useMemo(
     () => chapters.map((chapter: any) => getChapterCompletionSummary(chapter, run)),
     [chapters, run]
   )
   const nextChapterIndex = chapterSummaries.findIndex((summary: any) => !summary.isCompleted)
-  const [activeIndex, setActiveIndex] = useState(nextChapterIndex >= 0 ? nextChapterIndex : 0)
-  useEffect(() => {
-    setActiveIndex(nextChapterIndex >= 0 ? nextChapterIndex : 0)
-  }, [nextChapterIndex])
   const totalChapters = chapterSummaries.length
   const completedChapterCount = chapterSummaries.filter((summary: any) => summary.isCompleted).length
-  const progressPercent = totalChapters > 0 ? (completedChapterCount / totalChapters) * 100 : 0
-  const badgeHref = getUriWithOrg(orgslug, badgeStatusPath)
+  const progressPercent = totalChapters > 0 ? Math.round((completedChapterCount / totalChapters) * 100) : 0
+  const badgeMetadata = course.badge_metadata || {}
+  const timeLabel = badgeMetadata.estimated_time_label || badgeMetadata.estimated_time || '~2 hrs'
+  const heroSubtitle = course.description || course.about || 'Complete the activities in order to earn this badge.'
+  const thumbnailSrc = getBadgeThumbnailSrc(course, courseOwnerOrgUuid)
+
+  useEffect(() => {
+    const element = descriptionRef.current
+    if (!element || !heroSubtitle) {
+      setDescriptionCanExpand(false)
+      return
+    }
+    setDescriptionCanExpand(element.scrollHeight > element.clientHeight + 2)
+  }, [descriptionExpanded, heroSubtitle])
 
   return (
-    <section className="mx-auto grid w-full max-w-6xl gap-10 lg:grid-cols-2 lg:gap-14">
-      <aside className="lg:sticky lg:top-8 lg:self-start">
-        <Link
-          href={badgeHref}
-          className="block rounded-lg border border-border bg-card p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900 sm:p-6"
-        >
-          <div className="flex items-start gap-4">
-            <div className="h-20 w-20 shrink-0 overflow-visible rounded-lg bg-transparent">
-              {getBadgeThumbnailSrc(course, courseOwnerOrgUuid) ? (
-                <BadgeThumbnailImage
-                  src={getBadgeThumbnailSrc(course, courseOwnerOrgUuid)}
-                  alt={course.name}
-                  className={`${
-                    progressPercent >= 100 ? '' : 'opacity-55 grayscale brightness-110'
-                  }`}
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-gray-300">
-                  <Award size={30} strokeWidth={1.4} />
-                </div>
-              )}
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-xl font-semibold leading-tight text-foreground">{course.name}</h1>
-              {(course.description || course.about) && (
-                <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
-                  {course.description || course.about}
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="mt-6">
-            <div className="mb-2 flex items-center justify-between text-xs font-semibold text-muted-foreground">
-              <span>Progress</span>
-              <span className="tabular-nums">{completedChapterCount}/{totalChapters}</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-green-500 transition-all"
-                style={{ width: `${progressPercent}%` }}
+    <section className="mx-auto w-full max-w-6xl pb-6">
+      <div className="grid gap-4 pt-2 lg:grid-cols-[minmax(180px,0.48fr)_minmax(320px,1fr)] lg:items-center lg:gap-8">
+        <div className="flex h-[150px] items-center justify-center overflow-visible sm:h-[168px] lg:h-[184px]">
+          <div className="relative h-full w-full max-w-[300px] overflow-visible">
+            {thumbnailSrc ? (
+              <BadgeThumbnailImage
+                src={thumbnailSrc}
+                alt={course.name}
+                containerClassName="h-full w-full"
+                imageClassName="h-full w-full object-contain p-[2%]"
               />
-            </div>
+            ) : (
+              <div className="flex h-full w-full items-center justify-center rounded-lg border border-dashed border-border bg-muted text-muted-foreground">
+                <Award size={64} strokeWidth={1.25} />
+              </div>
+            )}
           </div>
-        </Link>
-      </aside>
+        </div>
 
-      <div className="space-y-3">
-        {chapters.map((chapter: any, index: number) => {
-          const summary = chapterSummaries[index]
-          const firstActivity = chapter.activities?.[0]
-          const isCompletedChapter = summary?.isCompleted
-          const isInProgressChapter = summary?.isStarted && !summary?.isCompleted
-          const isNext = index === nextChapterIndex
-          const isAvailable = isCompletedChapter || isInProgressChapter || isNext
-          const isActive = index === activeIndex && isAvailable
-          const Icon = getPathActivityIcon(firstActivity?.activity_type)
-          const stateLabel = isCompletedChapter
-            ? 'Complete'
-            : isInProgressChapter
-              ? 'In progress'
-              : isNext
-                ? 'Next up'
-                : 'Locked'
-          const chapterHref = getUriWithOrg(
-            orgslug,
-            routePaths.org.badgeChapter(
-              course.course_uuid.replace('course_', ''),
-              (chapter.chapter_uuid || chapter.id || '').toString().replace('chapter_', '')
+        <div className="min-w-0">
+          <h1 className="max-w-[520px] pb-0.5 text-[24px] font-black leading-[1.08] tracking-normal text-foreground line-clamp-2 sm:text-[30px] lg:text-[36px]">
+            {course.name}
+          </h1>
+          {heroSubtitle ? (
+            <div className="mt-2 hidden max-w-xl sm:block">
+              <p ref={descriptionRef} className={`whitespace-pre-line text-xs font-medium leading-5 text-muted-foreground sm:text-sm ${descriptionExpanded ? '' : 'line-clamp-2'}`}>
+                {heroSubtitle}
+              </p>
+              {descriptionCanExpand || descriptionExpanded ? (
+                <button type="button" onClick={() => setDescriptionExpanded((value) => !value)} className="mt-1 text-xs font-bold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+                  {descriptionExpanded ? 'Show less' : 'Read more'}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="mt-3 flex max-w-xl items-center gap-4">
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-[var(--org-primary-color)] transition-all" style={{ width: `${progressPercent}%` }} />
+            </div>
+            <span className="shrink-0 text-xs font-bold tabular-nums text-foreground">{progressPercent}% complete</span>
+          </div>
+
+          <div className="mt-4 hidden flex-wrap gap-x-8 gap-y-3 sm:flex">
+            <CompactPathStat icon={<Zap size={18} fill="currentColor" />} value={totalChapters || 0} label="Activities" />
+            <CompactPathStat icon={<Clock size={18} />} value={timeLabel} label="Total time" />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 border-t border-border pt-4 lg:mt-5 lg:pt-4">
+        <h2 className="text-sm font-black uppercase tracking-normal text-foreground">Your Path</h2>
+        <div className="relative mt-5 space-y-3">
+          <div className="absolute bottom-5 left-5 top-5 w-px bg-border sm:left-[1.55rem]" />
+          {chapters.map((chapter: any, index: number) => {
+            const summary = chapterSummaries[index]
+            const firstActivity = chapter.activities?.[0]
+            const isCompletedChapter = summary?.isCompleted
+            const isInProgressChapter = summary?.isStarted && !summary?.isCompleted
+            const isNext = index === nextChapterIndex
+            const isAvailable = isCompletedChapter || isInProgressChapter || isNext
+            const Icon = getPathActivityIcon(firstActivity?.activity_type)
+            const actionLabel = isCompletedChapter ? 'Review' : isInProgressChapter ? 'Continue' : 'Start'
+            const coverSrc = getPathActivityCoverSrc(chapter, firstActivity, course, courseOwnerOrgUuid)
+            const chapterHref = getUriWithOrg(
+              orgslug,
+              routePaths.org.badgeChapter(
+                course.course_uuid.replace('course_', ''),
+                (chapter.chapter_uuid || chapter.id || '').toString().replace('chapter_', '')
+              )
             )
-          )
-
-          return (
-            <div
-              key={chapter.chapter_uuid || chapter.id || chapter.name || index}
-              className={`rounded-lg bg-card transition-all ${
-                isNext || isInProgressChapter
-                  ? `border-2 border-green-500 ${isActive ? '-translate-y-1 shadow-lg' : 'shadow-sm'}`
-                  : isCompletedChapter
-                    ? `border border-border ${isActive ? '-translate-y-0.5 shadow-md' : ''}`
-                    : 'border border-border bg-muted/60'
-              }`}
-            >
-              <button
-                type="button"
-                disabled={!isAvailable}
-                onClick={() => setActiveIndex(index)}
-                className="flex w-full items-center gap-4 px-4 py-4 text-left disabled:cursor-default"
+            const card = (
+              <div
+                className={cn(
+                  'group grid min-h-[88px] grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-3 rounded-lg border p-3 transition sm:grid-cols-[5rem_minmax(0,1fr)_auto] sm:p-4',
+                  isNext || isInProgressChapter
+                    ? 'border-[var(--org-primary-color)] bg-[var(--org-primary-color)]/10 shadow-[0_0_0_1px_var(--org-primary-color)]'
+                    : isCompletedChapter
+                      ? 'border-border bg-muted/30'
+                      : 'border-border bg-muted/40 opacity-70',
+                  isAvailable && 'hover:-translate-y-0.5 hover:bg-muted/50'
+                )}
               >
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                  isAvailable ? 'bg-green-50 text-green-600' : 'bg-muted text-gray-300'
-                }`}>
-                  <Icon size={20} />
+                <div className={cn(
+                  'flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg sm:h-20 sm:w-20',
+                  isAvailable ? 'bg-card text-[var(--org-primary-color)] ring-1 ring-border' : 'bg-card text-muted-foreground ring-1 ring-border'
+                )}>
+                  {coverSrc ? (
+                    <SafeImage src={coverSrc} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <Icon size={30} strokeWidth={1.7} />
+                  )}
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className={`text-sm font-semibold ${isAvailable ? 'text-foreground' : 'text-muted-foreground'}`}>
-                    {chapter.name}
-                  </p>
-                  <p className={`mt-0.5 text-xs font-medium ${
-                    isNext || isInProgressChapter ? 'text-green-600' : isCompletedChapter ? 'text-muted-foreground' : 'text-gray-300'
-                  }`}>
-                    {stateLabel}
-                  </p>
-                </div>
-              </button>
 
-              {isActive && (
-                <div className="space-y-3 px-4 pb-4 pl-[4.5rem]">
-                  <Link
-                    href={chapterHref}
-                    className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-                      isNext || isInProgressChapter
-                        ? 'bg-green-600 text-white hover:bg-green-700'
-                        : 'bg-muted text-muted-foreground hover:bg-muted'
-                    }`}
-                  >
-                    {isCompletedChapter ? 'Review' : isInProgressChapter ? 'Continue' : 'Get started'}
-                    <ArrowRight size={15} />
-                  </Link>
-                  <div className="space-y-2">
+                <div className="min-w-0">
+                  <h3 className={cn('text-base font-black leading-tight sm:text-lg', isAvailable ? 'text-foreground' : 'text-muted-foreground')}>
+                    {chapter.name}
+                  </h3>
+                  {(chapter.description || firstActivity?.description) ? (
+                    <p className="mt-1 hidden text-sm font-medium leading-5 text-muted-foreground sm:line-clamp-2">
+                      {chapter.description || firstActivity?.description}
+                    </p>
+                  ) : null}
+                  <div className="mt-2 flex sm:hidden">
+                    {isAvailable ? (
+                      <span className={cn(
+                        'inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-black transition',
+                        isNext || isInProgressChapter
+                          ? 'bg-[var(--org-primary-color)] text-white shadow-[0_3px_0_rgba(0,0,0,0.18)]'
+                          : 'border border-border bg-card text-foreground'
+                      )}>
+                        {actionLabel}
+                        <ArrowRight size={14} />
+                      </span>
+                    ) : (
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                        <LockIcon />
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-2">
                     {(chapter.activities || [])
                       .filter((chapterActivity: any) => chapterActivity.activity_type === 'TYPE_QUIZ')
                       .map((quizActivity: any) => (
@@ -464,12 +472,84 @@ function BadgePathView({ course, courseOwnerOrgUuid, orgslug, run, badgeStatusPa
                       ))}
                   </div>
                 </div>
-              )}
-            </div>
-          )
-        })}
+
+                <div className="hidden justify-end sm:flex">
+                  {isAvailable ? (
+                    <span className={cn(
+                      'inline-flex h-11 items-center gap-2 rounded-full px-4 text-sm font-black transition',
+                      isNext || isInProgressChapter
+                        ? 'bg-[var(--org-primary-color)] text-white shadow-[0_4px_0_rgba(0,0,0,0.2)]'
+                        : 'border border-border bg-card text-foreground'
+                    )}>
+                      {actionLabel}
+                      <ArrowRight size={17} />
+                    </span>
+                  ) : (
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                      <LockIcon />
+                    </span>
+                  )}
+                </div>
+              </div>
+            )
+
+            return (
+              <div key={chapter.chapter_uuid || chapter.id || chapter.name || index} className="relative grid grid-cols-[2.75rem_minmax(0,1fr)] gap-3 sm:grid-cols-[3.25rem_minmax(0,1fr)]">
+                <div className="relative z-10 flex justify-center pt-6">
+                  <span className={cn(
+                    'flex h-10 w-10 items-center justify-center rounded-full border-2',
+                    isCompletedChapter
+                      ? 'border-[var(--org-primary-color)] bg-[var(--org-primary-color)] text-white'
+                      : isNext || isInProgressChapter
+                        ? 'border-[var(--org-primary-color)] bg-card text-[var(--org-primary-color)] shadow-[0_0_18px_var(--org-primary-color)]'
+                        : 'border-border bg-muted text-muted-foreground'
+                  )}>
+                    {isCompletedChapter ? <Check size={20} strokeWidth={2.8} /> : isAvailable ? <span className="h-3 w-3 rounded-full bg-[var(--org-primary-color)]" /> : <LockIcon />}
+                  </span>
+                </div>
+                {isAvailable ? (
+                  <Link href={chapterHref} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--org-primary-color)]">
+                    {card}
+                  </Link>
+                ) : (
+                  <div>{card}</div>
+                )}
+              </div>
+            )
+          })}
+        </div>
       </div>
     </section>
+  )
+}
+
+function getPathActivityCoverSrc(chapter: any, activity: any, course: any, ownerOrgUuid?: string) {
+  const rawCover = activity?.thumbnail_image || activity?.cover_image || chapter?.thumbnail_image || chapter?.cover_image
+  if (!rawCover) return ''
+  const normalized = normalizeMediaUrl(String(rawCover))
+  if (/^(https?:|blob:|\/)/i.test(normalized)) return normalized
+  if (!ownerOrgUuid || !course?.course_uuid) return normalized
+  return getCourseThumbnailMediaDirectory(ownerOrgUuid, course.course_uuid, normalized)
+}
+
+function CompactPathStat({ icon, value, label }: { icon: React.ReactNode; value: React.ReactNode; label: string }) {
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center gap-2">
+        <span className="shrink-0 text-[var(--org-primary-color)]">{icon}</span>
+        <span className="truncate text-sm font-black leading-tight text-foreground sm:text-base">{value}</span>
+      </div>
+      <div className="mt-1 pl-7 text-xs font-medium leading-tight text-muted-foreground">{label}</div>
+    </div>
+  )
+}
+
+function LockIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="14" height="10" x="5" y="11" rx="2" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+    </svg>
   )
 }
 
@@ -518,6 +598,28 @@ function PathQuizResultAction({ activity, course, orgslug }: { activity: any; co
   )
 }
 
+function getOverviewCards(course: any) {
+  const metadata = course.badge_metadata || {}
+  return Array.isArray(metadata.overview_cards)
+    ? metadata.overview_cards
+        .map((card: any) => ({
+          title: String(card?.title || '').trim(),
+          body: String(card?.body || '').trim(),
+          media_url: String(card?.media_url || '').trim(),
+          image_side: card?.image_side === 'right' ? 'right' : 'left',
+        }))
+        .filter((card: any) => card.title || card.body || card.media_url)
+    : []
+}
+
+function getFirstActivityHref(course: any, orgslug: string) {
+  const badgeUuid = String(course.course_uuid || '').replace('course_', '')
+  const firstChapter = (course.chapters || []).find((chapter: any) => (chapter.activities || []).length > 0)
+  const chapterId = (firstChapter?.chapter_uuid || firstChapter?.id || '').toString().replace('chapter_', '')
+  if (!badgeUuid || !chapterId) return getUriWithOrg(orgslug, routePaths.org.badgePath(badgeUuid))
+  return getUriWithOrg(orgslug, routePaths.org.badgeChapter(badgeUuid, chapterId))
+}
+
 function BadgeStatusHero({
   course,
   courseOwnerOrgUuid,
@@ -541,70 +643,44 @@ function BadgeStatusHero({
 }: any) {
   const router = useRouter()
   const { width, height } = useWindowSize()
+  const descriptionRef = React.useRef<HTMLParagraphElement>(null)
   const [isDevCompleting, setIsDevCompleting] = useState(false)
+  const [isStarting, setIsStarting] = useState(false)
+  const [isNotifySaving, setIsNotifySaving] = useState(false)
+  const [notifyRequested, setNotifyRequested] = useState(false)
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false)
+  const [descriptionCanExpand, setDescriptionCanExpand] = useState(false)
   const [showCompletionReward, setShowCompletionReward] = useState(false)
-  const progressPercent = totalChapters > 0
-    ? Math.round((completedChapters / totalChapters) * 100)
-    : 0
   const badgeUuid = course.course_uuid?.replace('course_', '') || course.course_uuid
   const pathUrl = getUriWithOrg(orgslug, badgePath)
+  const firstActivityUrl = getFirstActivityHref(course, orgslug)
   const inviteUrl = getUriWithOrg(orgslug, routePaths.org.badgeInvite(badgeUuid))
+  const progressPercent = totalChapters > 0 ? Math.round((completedChapters / totalChapters) * 100) : 0
   const earnedDateLabel = awardedDate
-    ? new Date(awardedDate).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      })
+    ? new Date(awardedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : null
-  const chapters = Array.isArray(course.chapters) ? course.chapters : []
   const canDevComplete = !learningBadgePath && showDevComplete && accessToken && !comingSoon && (!isCompleted || !verificationUrl)
   const completionRewardKey = `launchlms:badge-completion-reward:${badgeUuid}`
   const badgeMetadata = course.badge_metadata || {}
+  const overviewCards = getOverviewCards(course)
+  const heroSubtitle = badgeMetadata.overview_subtitle || course.description || course.about || ''
+  const timeLabel = badgeMetadata.estimated_time_label || badgeMetadata.estimated_time || '~2 hrs'
+  const trustLine = badgeMetadata.trust_line || '100% free - start anytime - no pressure'
   const certificateConfig = userCertificate?.certification?.config || {}
   const awardBadgeClass = learningAward?.badge_class || {}
   const awardIssuer = learningAward?.issuer || learningAward?.open_badges?.issuer || {}
-  const certificateName =
-    awardBadgeClass.name ||
-    certificateConfig.badge_name ||
-    certificateConfig.certification_name ||
-    badgeMetadata.badge_name ||
-    course.name
-  const certificateDescription =
-    awardBadgeClass.description ||
-    certificateConfig.badge_description ||
-    certificateConfig.certification_description ||
-    badgeMetadata.badge_description ||
-    course.description ||
-    course.about ||
-    'This badge certifies completion of the required learning path.'
-  const certificatePattern =
-    certificateConfig.badge_theme ||
-    certificateConfig.certificate_pattern ||
-    badgeMetadata.badge_theme ||
-    badgeMetadata.certificate_pattern ||
-    'professional'
-  const certificateType =
-    certificateConfig.certification_type ||
-    badgeMetadata.certification_type ||
-    'completion'
-  const certificateInstructor =
-    awardIssuer.name ||
-    userCertificate?.issuer?.name ||
-    badgeMetadata.issuer_name ||
-    course.owner_org_name ||
-    ''
-  const certificateBadgeImage =
-    awardBadgeClass.image ||
-    certificateConfig.badge_image_url ||
-    badgeMetadata.badge_image_url ||
-    getBadgeThumbnailSrc(course, courseOwnerOrgUuid)
+  const certificateName = awardBadgeClass.name || certificateConfig.badge_name || certificateConfig.certification_name || badgeMetadata.badge_name || course.name
+  const certificateDescription = awardBadgeClass.description || certificateConfig.badge_description || certificateConfig.certification_description || badgeMetadata.badge_description || course.description || course.about || 'This badge certifies completion of the required learning path.'
+  const certificatePattern = certificateConfig.badge_theme || certificateConfig.certificate_pattern || badgeMetadata.badge_theme || badgeMetadata.certificate_pattern || 'professional'
+  const certificateType = certificateConfig.certification_type || badgeMetadata.certification_type || 'completion'
+  const certificateInstructor = awardIssuer.name || userCertificate?.issuer?.name || badgeMetadata.issuer_name || course.owner_org_name || ''
+  const certificateBadgeImage = awardBadgeClass.image || certificateConfig.badge_image_url || badgeMetadata.badge_image_url || getBadgeThumbnailSrc(course, courseOwnerOrgUuid)
 
   useEffect(() => {
     if (!isCompleted || !badgeUuid) {
       setShowCompletionReward(false)
       return
     }
-
     try {
       const hasSeenReward = window.localStorage.getItem(completionRewardKey) === '1'
       if (!hasSeenReward) {
@@ -616,9 +692,17 @@ function BadgeStatusHero({
     }
   }, [badgeUuid, completionRewardKey, isCompleted])
 
+  useEffect(() => {
+    const element = descriptionRef.current
+    if (!element || !heroSubtitle) {
+      setDescriptionCanExpand(false)
+      return
+    }
+    setDescriptionCanExpand(element.scrollHeight > element.clientHeight + 2)
+  }, [descriptionExpanded, heroSubtitle])
+
   const handleDevComplete = async () => {
     if (!canDevComplete || isDevCompleting) return
-
     setIsDevCompleting(true)
     try {
       await devCompleteCourse(badgeUuid, accessToken)
@@ -632,180 +716,183 @@ function BadgeStatusHero({
     }
   }
 
+  const handlePrimaryAction = async () => {
+    if (comingSoon || isStarting) return
+    if (isInProgress) {
+      router.push(pathUrl)
+      return
+    }
+    setIsStarting(true)
+    try {
+      await startLearningRun(badgeUuid, accessToken)
+      router.push(firstActivityUrl)
+    } catch (error: any) {
+      toast.error(error?.message || 'Could not start badge')
+    } finally {
+      setIsStarting(false)
+    }
+  }
+
+  const handleNotifyMe = async () => {
+    if (isNotifySaving) return
+    if (!accessToken) {
+      toast.error('Sign in to get notified when this badge opens.')
+      return
+    }
+    setIsNotifySaving(true)
+    try {
+      await createLearningBadgeNotificationSignup(badgeUuid, accessToken)
+      setNotifyRequested(true)
+      toast.success("We'll notify you when this badge opens.")
+    } catch (error: any) {
+      toast.error(error?.message || 'Could not save notification request')
+    } finally {
+      setIsNotifySaving(false)
+    }
+  }
+
   return (
-    <div className="relative mx-auto w-full max-w-3xl">
+    <div className="relative mx-auto w-full max-w-6xl pb-10">
       {showCompletionReward && (
-        <div className="fixed inset-0 pointer-events-none z-50">
-          <ReactConfetti
-            width={width}
-            height={height}
-            numberOfPieces={200}
-            recycle={false}
-            colors={['#6366f1', '#10b981', '#3b82f6']}
-          />
+        <div className="pointer-events-none fixed inset-0 z-50">
+          <ReactConfetti width={width} height={height} numberOfPieces={200} recycle={false} colors={['#84cc16', '#7c3aed', '#111827']} />
         </div>
       )}
-      <section className="text-center">
-        <div className="flex justify-center px-8 pt-5 sm:pt-6">
-          <div className="h-36 w-36 overflow-visible rounded-lg sm:h-40 sm:w-40">
+
+      <section className="grid gap-8 pt-4 lg:grid-cols-[minmax(220px,0.8fr)_minmax(320px,1fr)] lg:items-center lg:gap-12">
+        <div className="flex min-h-[220px] items-center justify-center overflow-visible px-4 py-6 sm:min-h-[280px]">
+          <div className="relative h-48 w-48 overflow-visible sm:h-60 sm:w-60 lg:h-72 lg:w-72">
             {getBadgeThumbnailSrc(course, courseOwnerOrgUuid) ? (
-              <BadgeThumbnailImage
-                src={getBadgeThumbnailSrc(course, courseOwnerOrgUuid)}
-                alt={course.name}
-              />
+              <BadgeThumbnailImage src={getBadgeThumbnailSrc(course, courseOwnerOrgUuid)} alt={course.name} />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-gray-300">
+              <div className="flex h-full w-full items-center justify-center rounded-lg border border-dashed border-border bg-muted text-muted-foreground">
                 <Award size={64} strokeWidth={1.25} />
               </div>
             )}
           </div>
         </div>
 
-        <div className="mx-auto mt-4 max-w-2xl">
-          {showCompletionReward && (
-            <p className="mb-2 text-sm font-semibold uppercase tracking-[0.14em] text-green-600">
-              Congratulations! 🎉 you have mastered
-            </p>
-          )}
-          <h1 className="text-2xl font-semibold leading-tight text-foreground sm:text-3xl">
-            {course.name}
-          </h1>
-
-          {isCompleted ? (
-            earnedDateLabel && (
-              <div className="mt-4 inline-flex items-center rounded-full bg-green-50 px-3 py-1.5 text-sm font-semibold text-green-700 ring-1 ring-green-100">
-                Earned {earnedDateLabel}
-              </div>
-            )
-          ) : (
-            (course.about || course.description) && (
-              <p className="mx-auto mt-2 line-clamp-2 max-w-xl whitespace-pre-line text-sm leading-relaxed text-muted-foreground sm:text-base">
-                {course.about || course.description}
-              </p>
-            )
-          )}
-        </div>
-
-        <div className="mt-4 flex justify-center">
-          {comingSoon ? (
-            <span className="inline-flex items-center gap-2 rounded-lg bg-orange-100 px-4 py-2.5 text-sm font-semibold text-orange-700">
-              <Clock size={15} />
-              {t('courses.coming_soon')}
-            </span>
-          ) : isCompleted ? (
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <CourseShare
-                courseName={course.name}
-                courseUrl={inviteUrl}
-                label="Share invite"
-                shareText={`Claim an invite to earn the ${course.name} badge`}
-              />
-              {verificationUrl && (
-                <Link
-                  href={verificationUrl}
-                  className="inline-flex items-center gap-2 rounded-lg bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground nice-shadow transition-colors hover:text-foreground"
-                >
-                  <FileText size={14} />
-                  View certificate
-                </Link>
-              )}
-              <FeaturedBadgeButton badgeId={badgeId} />
-              {canDevComplete && (
-                <button
-                  type="button"
-                  onClick={handleDevComplete}
-                  disabled={isDevCompleting}
-                  className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Check size={15} />
-                  {isDevCompleting ? 'Issuing...' : 'Dev issue badge'}
+        <div className="min-w-0">
+          {showCompletionReward && <p className="mb-3 text-sm font-black uppercase tracking-[0.14em] text-green-600">Congratulations, you earned</p>}
+          <h1 className="max-w-[560px] text-[36px] font-black leading-[0.95] tracking-normal text-foreground line-clamp-3 sm:text-[48px] lg:text-[56px]">{course.name}</h1>
+          {isCompleted && earnedDateLabel ? (
+            <div className="mt-5 inline-flex items-center rounded-full bg-green-50 px-3 py-1.5 text-sm font-bold text-green-700 ring-1 ring-green-100">Earned {earnedDateLabel}</div>
+          ) : null}
+          {heroSubtitle ? (
+            <div className="mt-5 max-w-xl">
+              <p ref={descriptionRef} className={`whitespace-pre-line text-base font-medium leading-7 text-muted-foreground ${descriptionExpanded ? '' : 'line-clamp-3'}`}>{heroSubtitle}</p>
+              {descriptionCanExpand || descriptionExpanded ? (
+                <button type="button" onClick={() => setDescriptionExpanded((value) => !value)} className="mt-2 text-sm font-bold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+                  {descriptionExpanded ? 'Show less' : 'Read more'}
                 </button>
-              )}
+              ) : null}
             </div>
-          ) : isInProgress ? (
-            <div className="w-full max-w-md">
-              <div className="mb-2 flex items-center justify-between text-xs font-semibold text-muted-foreground">
+          ) : null}
+
+          <div className="mt-7 grid max-w-md grid-cols-2 divide-x divide-border border-y border-border py-5">
+            <div className="px-3 first:pl-0">
+              <Zap className="mb-2 h-7 w-7 text-purple-600" fill="currentColor" />
+              <div className="text-xl font-black text-foreground">{totalChapters || 0}</div>
+              <div className="mt-1 text-[11px] font-bold uppercase text-muted-foreground">Activities</div>
+            </div>
+            <div className="px-4">
+              <Clock className="mb-2 h-7 w-7 text-purple-600" />
+              <div className="text-xl font-black text-foreground">{timeLabel}</div>
+              <div className="mt-1 text-[11px] font-bold uppercase text-muted-foreground">To complete</div>
+            </div>
+          </div>
+
+          {isInProgress && !isCompleted ? (
+            <div className="mt-5 max-w-xl">
+              <div className="mb-2 flex items-center justify-between text-xs font-bold text-muted-foreground">
                 <span>Progress</span>
                 <span className="tabular-nums">{completedChapters}/{totalChapters}</span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-gray-800 transition-all"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-                <Link
-                  href={pathUrl}
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                >
-                  <Play size={15} fill="currentColor" />
-                  Continue
-                </Link>
-                <CourseShare
-                  courseName={course.name}
-                  courseUrl={inviteUrl}
-                  label="Share invite"
-                  shareText={`Claim an invite to earn the ${course.name} badge`}
-                />
-                {canDevComplete && (
-                  <button
-                    type="button"
-                    onClick={handleDevComplete}
-                    disabled={isDevCompleting}
-                    className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <Check size={15} />
-                    {isDevCompleting ? 'Completing...' : 'Dev complete'}
-                  </button>
-                )}
+                <div className="h-full rounded-full bg-lime-400 transition-all" style={{ width: `${progressPercent}%` }} />
               </div>
             </div>
-          ) : (
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <Link
-                href={pathUrl}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                <Play size={15} fill="currentColor" />
-                {t('courses.get_started')}
-              </Link>
-              <CourseShare
-                courseName={course.name}
-                courseUrl={inviteUrl}
-                label="Share invite"
-                shareText={`Claim an invite to earn the ${course.name} badge`}
-              />
-              {canDevComplete && (
+          ) : null}
+
+          <div className="mt-8 flex flex-col gap-3 sm:max-w-xl">
+            {comingSoon ? (
+              <>
                 <button
                   type="button"
-                  onClick={handleDevComplete}
-                  disabled={isDevCompleting}
-                  className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={handleNotifyMe}
+                  disabled={isNotifySaving}
+                  className="inline-flex h-16 w-full items-center justify-center gap-3 rounded-lg bg-orange-100 px-6 text-lg font-black text-orange-800 shadow-sm transition hover:bg-orange-200 disabled:cursor-wait disabled:opacity-70"
                 >
-                  <Check size={15} />
-                  {isDevCompleting ? 'Completing...' : 'Dev complete'}
+                  {isNotifySaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bell size={20} />}
+                  {notifyRequested ? 'Notification set' : 'Notify me'}
                 </button>
-              )}
-            </div>
-          )}
+                <p className="text-center text-sm font-semibold text-muted-foreground">We'll let you know when this badge opens.</p>
+              </>
+            ) : isCompleted ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <CourseShare courseName={course.name} courseUrl={inviteUrl} label="Share invite" shareText={`Claim an invite to earn the ${course.name} badge`} />
+                {verificationUrl && (
+                  <Link href={verificationUrl} className="inline-flex h-11 items-center gap-2 rounded-lg bg-gray-950 px-4 text-sm font-bold text-white transition-colors hover:bg-gray-800">
+                    <FileText size={15} />
+                    View certificate
+                  </Link>
+                )}
+                <FeaturedBadgeButton badgeId={badgeId} />
+              </div>
+            ) : (
+              <button type="button" onClick={handlePrimaryAction} disabled={isStarting} className="inline-flex h-16 w-full items-center justify-center gap-3 rounded-lg bg-lime-300 px-6 text-lg font-black text-black shadow-sm transition hover:bg-lime-200 disabled:cursor-wait disabled:opacity-70">
+                {isStarting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play size={20} fill="currentColor" />}
+                {isInProgress ? 'Continue' : "Let's do it"}
+                <ArrowRight size={22} />
+              </button>
+            )}
+
+            {!isCompleted && <div className="text-center text-xs font-bold uppercase text-muted-foreground">{trustLine}</div>}
+
+            {canDevComplete && (
+              <button type="button" onClick={handleDevComplete} disabled={isDevCompleting} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 text-xs font-bold text-amber-800 transition-colors hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60">
+                <Check size={15} />
+                {isDevCompleting ? 'Completing...' : 'Dev complete'}
+              </button>
+            )}
+          </div>
         </div>
       </section>
 
+      {overviewCards.length > 0 && (
+        <section className="mt-10 space-y-4" aria-label="About this badge">
+          {overviewCards.map((card: any, index: number) => (
+            <article
+              key={`${card.title}-${index}`}
+              className={`grid gap-5 rounded-lg bg-purple-50/70 p-5 ring-1 ring-purple-100 sm:items-center sm:p-6 lg:gap-10 ${
+                card.image_side === 'right'
+                  ? 'sm:grid-cols-[minmax(0,1fr)_180px] lg:grid-cols-[minmax(0,1fr)_200px]'
+                  : 'sm:grid-cols-[180px_minmax(0,1fr)] lg:grid-cols-[200px_minmax(0,1fr)]'
+              }`}
+            >
+              <div className={`flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-card text-purple-600 shadow-sm ${card.image_side === 'right' ? 'sm:order-2' : ''}`}>
+                {card.media_url ? <img src={card.media_url} alt="" className="h-full w-full object-cover" /> : <Play size={44} fill="currentColor" />}
+              </div>
+              <div className={`flex min-w-0 ${card.image_side === 'right' ? 'sm:order-1' : ''}`}>
+                <div className="w-3/4 min-w-0 text-left">
+                  {card.title ? <h2 className="text-2xl font-black leading-tight text-purple-700 sm:text-3xl">{card.title}</h2> : null}
+                  {card.body ? <p className="mt-3 whitespace-pre-line text-base font-medium leading-7 text-foreground">{card.body}</p> : null}
+                </div>
+              </div>
+            </article>
+          ))}
+        </section>
+      )}
+
       {isCompleted && badgeId && verificationUrl && (
-        <section className="mt-6 space-y-4" aria-label="Certificate">
+        <section className="mt-8 space-y-4" aria-label="Certificate">
           <div className="rounded-lg bg-card p-4 shadow-sm ring-1 ring-border sm:p-5">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Certificate</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Your verifiable Open Badge certificate is ready to share.
-                </p>
+                <p className="mt-1 text-sm text-muted-foreground">Your verifiable Open Badge certificate is ready to share.</p>
               </div>
-              <Link
-                href={verificationUrl}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-800"
-              >
+              <Link href={verificationUrl} className="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-950 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-gray-800">
                 <FileText size={15} />
                 Open certificate
               </Link>
@@ -822,35 +909,6 @@ function BadgeStatusHero({
               badgeImageUrl={certificateBadgeImage}
             />
           </div>
-        </section>
-      )}
-
-      {chapters.length > 0 && (
-        <section className="mt-5 space-y-3" aria-label="Badge content">
-          {chapters.map((chapter: any, index: number) => {
-            const firstActivity = chapter.activities?.[0]
-            const ChapterIcon = getPathActivityIcon(firstActivity?.activity_type)
-
-            return (
-              <Link
-                key={chapter.chapter_uuid || chapter.id || chapter.name || index}
-                href={pathUrl}
-                className="flex min-h-[112px] w-full items-center gap-4 rounded-lg bg-card p-3 text-left shadow-sm ring-1 ring-border transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-gray-900"
-              >
-                <div className="flex h-[88px] w-[88px] shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground sm:h-24 sm:w-24">
-                  <ChapterIcon size={30} strokeWidth={1.8} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold uppercase text-muted-foreground">
-                    Chapter {index + 1}
-                  </p>
-                  <h2 className="mt-1 break-words text-xl font-semibold leading-snug text-foreground">
-                    {chapter.name}
-                  </h2>
-                </div>
-              </Link>
-            )
-          })}
         </section>
       )}
     </div>

@@ -5,7 +5,6 @@ import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { useParams, useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { getAPIUrl, getUriWithOrg } from '@services/config/config'
-import { getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
@@ -30,7 +29,6 @@ import {
 import {
   ArrowLeft,
   ArrowSquareOut,
-  BookOpen,
   Buildings,
   ChartBar,
   Check,
@@ -39,6 +37,7 @@ import {
   EyeSlash,
   GearSix,
   Globe,
+  Medal,
   Tray,
   Users,
 } from '@phosphor-icons/react'
@@ -54,7 +53,7 @@ import PageLoading from '@components/Objects/Loaders/PageLoading'
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: Buildings },
-  { id: 'courses', label: 'Courses', icon: BookOpen },
+  { id: 'badges', label: 'Badges', icon: Medal },
   { id: 'users', label: 'Users', icon: Users },
   { id: 'analytics', label: 'Analytics', icon: ChartBar },
   { id: 'plan', label: 'Plan', icon: CreditCard },
@@ -104,7 +103,8 @@ export default function OrgDetail() {
   const { searchParams, updateParams } = useUrlParams()
   const router = useRouter()
 
-  const activeTab = (searchParams.get('tab') as TabId) || 'overview'
+  const requestedTab = searchParams.get('tab')
+  const activeTab = (requestedTab === 'courses' ? 'badges' : requestedTab || 'overview') as TabId
   const setActiveTab = (tab: TabId) => updateParams({ tab }, ['page', 'search', 'days'])
 
   const orgKey = accessToken ? `${getAPIUrl()}superadmin/organizations/${orgId}` : null
@@ -179,8 +179,8 @@ export default function OrgDetail() {
       {activeTab === 'overview' && (
         <OverviewTab org={org} orgId={orgId} accessToken={accessToken} />
       )}
-      {activeTab === 'courses' && (
-        <CoursesTab orgId={orgId} accessToken={accessToken} orgUuid={org.org_uuid} orgSlug={org.slug} />
+      {activeTab === 'badges' && (
+        <BadgesTab orgId={orgId} accessToken={accessToken} orgSlug={org.slug} />
       )}
       {activeTab === 'users' && (
         <OrgUsersTab orgId={orgId} accessToken={accessToken} currentOrgSlug={currentOrg?.slug} />
@@ -282,12 +282,13 @@ function OverviewTab({
     { revalidateOnFocus: false }
   )
   const features = usageData?.features
+  const badgeFeature = features?.badges || features?.courses
 
   return (
     <div className="space-y-5">
       {features ? (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <UsageBar label="Courses" usage={features.courses.usage} limit={features.courses.limit} />
+          <UsageBar label="Badges" usage={badgeFeature?.usage ?? 0} limit={badgeFeature?.limit ?? 'unlimited'} />
           <UsageBar label="Members" usage={features.members.usage} limit={features.members.limit} />
           <UsageBar label="Admin Seats" usage={features.admin_seats.usage} limit={features.admin_seats.limit} />
         </div>
@@ -295,7 +296,7 @@ function OverviewTab({
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { label: 'Users', value: org.user_count },
-            { label: 'Courses', value: org.course_count },
+            { label: 'Badges', value: org.badge_count ?? org.course_count },
             { label: 'Admins', value: org.admin_users?.length || 0 },
             { label: 'Custom Domains', value: org.custom_domains?.length || 0 },
           ].map((s) => (
@@ -357,7 +358,7 @@ function OverviewTab({
 }
 
 // ============================================================================
-// Courses
+// Badges
 // ============================================================================
 
 function getFrontendDomain(): string {
@@ -370,25 +371,23 @@ function getFrontendDomain(): string {
   )
 }
 
-function CoursesTab({
+function BadgesTab({
   orgId,
   accessToken,
-  orgUuid,
   orgSlug,
 }: {
   orgId: string
   accessToken: string
-  orgUuid: string
   orgSlug: string
 }) {
   const { searchParams, updateParams } = useUrlParams()
   const page = Number(searchParams.get('page')) || 1
-  const setPage = (p: number) => updateParams({ tab: 'courses', page: p })
+  const setPage = (p: number) => updateParams({ tab: 'badges', page: p })
   const domain = getFrontendDomain()
 
   const { data, isLoading } = useSWR(
     accessToken
-      ? `${getAPIUrl()}superadmin/organizations/${orgId}/courses?page=${page}&limit=20`
+      ? `${getAPIUrl()}superadmin/organizations/${orgId}/badges?page=${page}&limit=20`
       : null,
     (url: string) => swrFetcher(url, accessToken),
     { revalidateOnFocus: false }
@@ -403,8 +402,8 @@ function CoursesTab({
   if (items.length === 0 && page === 1) {
     return (
       <EmptyState
-        icon={<BookOpen size={40} weight="fill" />}
-        message="No courses in this organization"
+        icon={<Medal size={40} weight="fill" />}
+        message="No badges in this organization"
       />
     )
   }
@@ -416,7 +415,7 @@ function CoursesTab({
       <table className="w-full text-left">
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50/50">
-            {['Course', 'Status', 'Visibility', 'Created'].map((h) => (
+            {['Badge', 'Status', 'Visibility', 'Created'].map((h) => (
               <th
                 key={h}
                 className="px-4 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider"
@@ -427,20 +426,20 @@ function CoursesTab({
           </tr>
         </thead>
         <tbody>
-          {items.map((course: any) => {
-            const courseId = course.course_uuid.replace(/^course_/, '')
-            const courseUrl = `${protocol}//${orgSlug}.${domain}/course/${courseId}`
+          {items.map((badge: any) => {
+            const badgeId = badge.badge_uuid.replace(/^badge_/, '')
+            const badgeUrl = `${protocol}//${orgSlug}.${domain}/badges/${badgeId}`
             return (
               <tr
-                key={course.id}
+                key={badge.id}
                 className="border-b border-gray-50 hover:bg-gray-50/60 transition-colors cursor-pointer"
-                onClick={() => window.open(courseUrl, '_blank', 'noopener,noreferrer')}
+                onClick={() => window.open(badgeUrl, '_blank', 'noopener,noreferrer')}
               >
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    {course.thumbnail_image ? (
+                    {badge.thumbnail_image ? (
                       <img
-                        src={getCourseThumbnailMediaDirectory(orgUuid, course.course_uuid, course.thumbnail_image)}
+                        src={badge.thumbnail_image}
                         alt=""
                         className="h-8 w-12 object-cover rounded bg-gray-100"
                         onError={(e) => {
@@ -449,26 +448,26 @@ function CoursesTab({
                       />
                     ) : (
                       <div className="h-8 w-12 rounded bg-gray-100 flex items-center justify-center">
-                        <BookOpen size={14} weight="fill" className="text-gray-300" />
+                        <Medal size={14} weight="fill" className="text-gray-300" />
                       </div>
                     )}
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900">{course.name}</p>
-                      {course.description && (
-                        <p className="text-xs text-gray-400 truncate max-w-xs">{course.description}</p>
+                      <p className="text-sm font-medium text-gray-900">{badge.name}</p>
+                      {badge.description && (
+                        <p className="text-xs text-gray-400 truncate max-w-xs">{badge.description}</p>
                       )}
                     </div>
                     <ArrowSquareOut size={14} weight="bold" className="text-gray-300 ml-auto shrink-0" />
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <StatusBadge tone={course.published ? 'green' : 'amber'}>
-                    {course.published ? 'Published' : 'Draft'}
+                  <StatusBadge tone={badge.status === 'published' ? 'green' : badge.status === 'coming_soon' ? 'blue' : 'amber'}>
+                    {badge.status === 'coming_soon' ? 'Coming soon' : badge.status === 'published' ? 'Published' : 'Draft'}
                   </StatusBadge>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                    {course.public ? (
+                    {badge.public ? (
                       <>
                         <Eye size={14} /> Public
                       </>
@@ -480,7 +479,7 @@ function CoursesTab({
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <span className="text-sm text-gray-400">{formatDate(course.creation_date)}</span>
+                  <span className="text-sm text-gray-400">{formatDate(badge.creation_date)}</span>
                 </td>
               </tr>
             )
@@ -982,7 +981,7 @@ function SettingsTab({
         ) : (
           <>
             <p className="text-sm text-gray-500 mb-3">
-              Deleting an organization permanently removes its courses, users'
+              Deleting an organization permanently removes its badges, users'
               memberships, and all associated data.
             </p>
             <button

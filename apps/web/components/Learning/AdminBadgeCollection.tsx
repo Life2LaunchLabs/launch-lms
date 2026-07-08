@@ -3,13 +3,14 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React from 'react'
-import { Award, BookCopy, BookOpen, Download, FileArchive, Globe, Loader2, Plus, Search, Settings, Trash2, Upload, Wand2, X } from 'lucide-react'
+import { Award, BookCopy, BookOpen, Download, FileArchive, Globe, Loader2, Plus, Search, Settings, Trash2, Upload, UploadCloud, Wand2, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { Switch } from '@components/ui/switch'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg } from '@services/config/config'
+import { SafeImage } from '@components/Objects/SafeImage'
 import {
   analyzeLearningBadgeImportPackage,
   createLearningBadge,
@@ -19,6 +20,7 @@ import {
   exportLearningBadgeCollection,
   importLearningBadgePackage,
   updateLearningBadgeCollection,
+  updateLearningBadgeCollectionThumbnail,
 } from '@services/learning/learning'
 import { analyzeTutorImportFiles, downloadBlob, importTutorCourses } from '@services/courses/transfer'
 import toast from 'react-hot-toast'
@@ -28,12 +30,22 @@ const tabs = [
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
 
+const MAX_FILE_SIZE = 8_000_000
+const VALID_IMAGE_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png'] as const
+
 function cleanCollectionId(value: string) {
   return String(value || '').replace(/^badge_collection_/, '')
 }
 
 function cleanBadgeId(value: string) {
   return String(value || '').replace(/^badge_/, '')
+}
+
+function getBadgeStatusLabel(badge: any) {
+  const status = badge?.status || 'draft'
+  if (status === 'published') return 'Published'
+  if (status === 'coming_soon') return 'Coming soon'
+  return 'Draft'
 }
 
 export default function AdminBadgeCollection({
@@ -86,13 +98,88 @@ export default function AdminBadgeCollection({
   )
 }
 
-function CollectionHeader({ collection }: { collection: any }) {
+function CollectionHeader({ collection: initialCollection }: { collection: any }) {
+  const router = useRouter()
+  const session = useLHSession() as any
+  const accessToken = session.data?.tokens?.access_token
+  const imageInputRef = React.useRef<HTMLInputElement>(null)
+  const [collection, setCollection] = React.useState(initialCollection)
+  const [uploadPreview, setUploadPreview] = React.useState<string | null>(null)
+  const [isUploading, setIsUploading] = React.useState(false)
+
+  React.useEffect(() => {
+    return () => {
+      if (uploadPreview) URL.revokeObjectURL(uploadPreview)
+    }
+  }, [uploadPreview])
+
+  const validateImageFile = (file: File) => {
+    if (!VALID_IMAGE_MIME_TYPES.includes(file.type as any)) {
+      toast.error('Only JPG and PNG images are allowed.')
+      return false
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error('Image must be under 8MB.')
+      return false
+    }
+    return true
+  }
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    if (!accessToken) {
+      toast.error('Please sign in to upload a collection image.')
+      event.target.value = ''
+      return
+    }
+    if (!validateImageFile(file)) {
+      event.target.value = ''
+      return
+    }
+
+    const previewUrl = URL.createObjectURL(file)
+    setUploadPreview(previewUrl)
+    setIsUploading(true)
+
+    try {
+      const formData = new FormData()
+      formData.append('thumbnail', file)
+      const nextCollection = await updateLearningBadgeCollectionThumbnail(collection.collection_uuid, formData, accessToken)
+      setCollection(nextCollection)
+      toast.success('Collection cover image updated.')
+      router.refresh()
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to upload image.')
+    } finally {
+      setUploadPreview(null)
+      setIsUploading(false)
+      event.target.value = ''
+    }
+  }
+
+  const imageUrl = uploadPreview || collection.thumbnail_image
+
   return (
     <div className="my-2 flex flex-col gap-5 py-2 md:flex-row md:items-center">
       <div className="group relative aspect-video w-full max-w-[240px] shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
-        <div className="flex h-full w-full flex-col items-center justify-center text-muted-foreground">
-          <BookCopy size={32} strokeWidth={1.5} />
-        </div>
+        {imageUrl ? (
+          <SafeImage src={imageUrl} alt="Collection cover" className={`h-full w-full object-cover ${isUploading ? 'animate-pulse' : ''}`} />
+        ) : (
+          <div className="flex h-full w-full flex-col items-center justify-center text-muted-foreground">
+            <BookCopy size={32} strokeWidth={1.5} />
+          </div>
+        )}
+        <input ref={imageInputRef} type="file" className="hidden" accept=".jpg,.jpeg,.png" onChange={handleFileChange} />
+        <button
+          type="button"
+          disabled={isUploading}
+          onClick={() => imageInputRef.current?.click()}
+          className="absolute right-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-foreground opacity-0 shadow-md transition-opacity group-hover:opacity-100 disabled:opacity-60"
+          title="Upload collection cover image"
+        >
+          {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
+        </button>
       </div>
       <div className="min-w-0 flex-1">
         <h1 className="text-3xl font-black leading-tight text-foreground">{collection.name}</h1>
@@ -135,7 +222,7 @@ function CollectionBadges({ orgslug, orgId, collection }: { orgslug: string; org
         description: description.trim(),
         criteria: 'Complete the required learning path.',
         public: true,
-        published: false,
+        status: 'draft',
       }, accessToken)
       toast.success('Badge created')
       setModalOpen(false)
@@ -261,7 +348,7 @@ function CollectionBadges({ orgslug, orgId, collection }: { orgslug: string; org
               <h2 className="line-clamp-1 text-base font-bold leading-tight text-foreground">{badge.name}</h2>
               {badge.description ? <p className="min-h-[1.5rem] line-clamp-2 text-[11px] text-muted-foreground">{badge.description}</p> : null}
               <div className="flex items-center justify-between border-t border-border pt-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{badge.published ? 'Published' : 'Draft'}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{getBadgeStatusLabel(badge)}</span>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Edit</span>
               </div>
             </div>

@@ -11,7 +11,7 @@ from uuid import uuid4
 from fastapi import HTTPException, Request, UploadFile
 from sqlmodel import Session, select
 
-from src.db.learning import BadgeCollection, LearningActivity, LearningBadge, LearningPage, LearningPath
+from src.db.learning import BadgeCollection, LearningActivity, LearningBadge, LearningBadgeStatus, LearningPage, LearningPath
 from src.db.users import AnonymousUser, PublicUser
 from src.services import learning as learning_service
 from src.services.courses.transfer.import_service import (
@@ -47,6 +47,16 @@ def _get_collection(db_session: Session, collection_uuid: str) -> BadgeCollectio
     if not collection:
         raise HTTPException(status_code=404, detail="Badge collection not found")
     return collection
+
+
+def _badge_status_from_export(badge_data: dict) -> LearningBadgeStatus:
+    try:
+        return LearningBadgeStatus(str(badge_data.get("status") or ""))
+    except ValueError:
+        pass
+    if badge_data.get("published") is True:
+        return LearningBadgeStatus.PUBLISHED
+    return LearningBadgeStatus.DRAFT
 
 
 def _read_json(path: str) -> dict:
@@ -363,7 +373,7 @@ def _import_single_badge(
         criteria=badge_data.get("criteria") or "",
         thumbnail_image=badge_data.get("thumbnail_image") or "",
         public=badge_data.get("public", True),
-        published=badge_data.get("published", False),
+        status=_badge_status_from_export(badge_data),
         protected=False,
         system_type=None,
         direct_conferral_enabled=badge_data.get("direct_conferral_enabled", True),

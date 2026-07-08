@@ -25,6 +25,12 @@ class LearningRunStatus(str, Enum):
     COMPLETED = "completed"
 
 
+class LearningBadgeStatus(str, Enum):
+    DRAFT = "draft"
+    COMING_SOON = "coming_soon"
+    PUBLISHED = "published"
+
+
 class LearningAwardSource(str, Enum):
     PATH_COMPLETION = "path_completion"
     DIRECT_CONFERRAL = "direct_conferral"
@@ -39,7 +45,7 @@ class LearningBadgeBase(SQLModel):
     criteria: Optional[str] = ""
     thumbnail_image: Optional[str] = ""
     public: bool = True
-    published: bool = False
+    status: LearningBadgeStatus = Field(default=LearningBadgeStatus.DRAFT, sa_column=Column(String, nullable=False))
     protected: bool = False
     system_type: Optional[str] = None
     direct_conferral_enabled: bool = True
@@ -64,7 +70,7 @@ class LearningBadgeCreate(SQLModel):
     criteria: Optional[str] = ""
     thumbnail_image: Optional[str] = ""
     public: bool = True
-    published: bool = False
+    status: LearningBadgeStatus = LearningBadgeStatus.DRAFT
     protected: bool = False
     system_type: Optional[str] = None
     direct_conferral_enabled: bool = True
@@ -79,7 +85,7 @@ class LearningBadgeUpdate(SQLModel):
     criteria: Optional[str] = None
     thumbnail_image: Optional[str] = None
     public: Optional[bool] = None
-    published: Optional[bool] = None
+    status: Optional[LearningBadgeStatus] = None
     protected: Optional[bool] = None
     system_type: Optional[str] = None
     direct_conferral_enabled: Optional[bool] = None
@@ -91,6 +97,18 @@ class LearningBadgeRead(LearningBadgeBase):
     badge_uuid: str
     creation_date: str
     update_date: str
+
+
+class LearningBadgeNotificationSignup(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("badge_id", "user_id"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    signup_uuid: str = Field(default="", index=True)
+    badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
+    org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
+    user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True))
+    creation_date: str = ""
+    update_date: str = ""
 
 
 class BadgeCollectionBase(SQLModel):

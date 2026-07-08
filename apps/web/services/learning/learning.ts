@@ -45,6 +45,14 @@ export async function updateLearningBadgeCollection(collectionUuid: string, data
   return errorHandling(result)
 }
 
+export async function updateLearningBadgeCollectionThumbnail(collectionUuid: string, formData: FormData, accessToken: string) {
+  const result = await fetch(
+    `${getAPIUrl()}badge-collections/${collectionUuid}/thumbnail`,
+    RequestBodyFormWithAuthHeader('PUT', formData, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
 export async function deleteLearningBadgeCollection(collectionUuid: string, accessToken?: string) {
   const result = await fetch(
     `${getAPIUrl()}badge-collections/${collectionUuid}`,
@@ -138,6 +146,14 @@ export async function updateLearningBadgeThumbnail(badgeUuid: string, formData: 
   const result = await fetch(
     `${getAPIUrl()}badges/${badgeUuid}/thumbnail`,
     RequestBodyFormWithAuthHeader('PUT', formData, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
+export async function createLearningBadgeNotificationSignup(badgeUuid: string, accessToken?: string) {
+  const result = await fetch(
+    `${getAPIUrl()}badges/${badgeUuid}/notification-signups`,
+    RequestBodyWithAuthHeader('POST', null, null, accessToken)
   )
   return errorHandling(result)
 }

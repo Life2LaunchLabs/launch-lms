@@ -4,10 +4,11 @@ import { Metadata } from 'next'
 import { getOrgOgImageMediaDirectory, normalizeMediaUrl } from '@services/media/media'
 import { getServerSession } from '@/lib/auth/server'
 import { buildPageTitle, getCanonicalUrl, getOrgSeoConfig } from '@/lib/seo/utils'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import CourseClient from '../../course/[courseuuid]/course'
 import { getLearningPath } from '@services/learning/learning'
 import { learningPathToLegacyCourse } from '@services/learning/legacyAdapters'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string; uuid: string }>
@@ -69,6 +70,13 @@ const BadgePage = async (props: MetadataProps) => {
       true,
       { revalidate: 0, tags: ['learning-badges'] }
     )
+    const run = badgePath.run
+    if (run?.award || run?.status === 'completed' || run?.completed_at) {
+      redirect(getUriWithOrg(orgslug, routePaths.org.badgeStatus(uuid)))
+    }
+    if (run) {
+      redirect(getUriWithOrg(orgslug, routePaths.org.badgePath(uuid)))
+    }
     const org = await getOrganizationContextInfo(orgslug, {
       revalidate: 1800,
       tags: ['organizations'],
@@ -82,7 +90,9 @@ const BadgePage = async (props: MetadataProps) => {
         learningBadgePath={badgePath}
       />
     )
-  } catch {}
+  } catch (error: any) {
+    if (String(error?.digest || '').startsWith('NEXT_REDIRECT')) throw error
+  }
   notFound()
 }
 

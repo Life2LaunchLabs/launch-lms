@@ -4,6 +4,7 @@ from src.db.learning import (
     LearningAwardSource,
     LearningBadge,
     LearningBadgeAward,
+    LearningBadgeStatus,
     LearningPage,
     LearningPageType,
 )
@@ -98,7 +99,7 @@ def _badge() -> LearningBadge:
         description="Practice useful design habits",
         criteria="Complete the Design Thinking path.",
         public=True,
-        published=True,
+        status=LearningBadgeStatus.PUBLISHED,
         direct_conferral_enabled=True,
         badge_metadata={
             "badge_name": "Design Thinking Badge",

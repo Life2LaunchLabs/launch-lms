@@ -2,10 +2,11 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { Copy, Loader2, Plus, Trash2 } from 'lucide-react'
+import { Copy, ImageIcon, Loader2, Plus, Trash2 } from 'lucide-react'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg } from '@services/config/config'
+import { useOrg } from '@components/Contexts/OrgContext'
 import {
   createLearningActivity,
   deleteLearningActivity,
@@ -13,6 +14,9 @@ import {
   updateLearningActivity,
 } from '@services/learning/learning'
 import toast from 'react-hot-toast'
+import { uploadLandingContent } from '@services/organizations/orgs'
+import { getOrgLandingMediaDirectory } from '@services/media/media'
+import { SafeImage } from '@components/Objects/SafeImage'
 
 function cleanBadgeId(value: string) {
   return String(value || '').replace(/^badge_/, '')
@@ -24,10 +28,12 @@ function cleanActivityId(value: string) {
 
 export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: string; badgePath: any }) {
   const session = useLHSession() as any
+  const org = useOrg() as any
   const accessToken = session.data?.tokens?.access_token
   const badge = badgePath.badge
   const [title, setTitle] = React.useState('')
   const [busy, setBusy] = React.useState('')
+  const [uploadingCover, setUploadingCover] = React.useState('')
   const [modalOpen, setModalOpen] = React.useState(false)
 
   const createActivity = async () => {
@@ -82,6 +88,41 @@ export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: str
     }
   }
 
+  const uploadCover = async (activity: any, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    if (!accessToken || !org?.id || !org?.org_uuid) {
+      toast.error('Please sign in to upload a cover image.')
+      return
+    }
+
+    const { validateFile } = await import('@/lib/file-validation')
+    const validation = validateFile(file, ['image'])
+    if (!validation.valid) {
+      toast.error(validation.error || 'Invalid image file.')
+      return
+    }
+
+    setUploadingCover(activity.activity_uuid)
+    try {
+      const response = await uploadLandingContent(org.id, file, accessToken)
+      const filename = response?.data?.filename
+      if (!filename) throw new Error('Upload did not return a file.')
+      await updateLearningActivity(
+        activity.activity_uuid,
+        { thumbnail_image: getOrgLandingMediaDirectory(org.org_uuid, filename) },
+        accessToken
+      )
+      toast.success('Cover image updated')
+      window.location.reload()
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to upload cover image.')
+    } finally {
+      setUploadingCover('')
+    }
+  }
+
   return (
     <div className="px-10 pb-10 pt-6">
       <div className="mb-5 flex justify-end">
@@ -123,6 +164,13 @@ export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: str
         {(badgePath.activities || []).map((activity: any, index: number) => (
           <div key={activity.activity_uuid} className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-xs">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-lime-100 text-sm font-black text-lime-700">{index + 1}</div>
+            <div className="hidden h-14 w-20 shrink-0 overflow-hidden rounded-lg border border-border bg-muted text-muted-foreground sm:flex sm:items-center sm:justify-center">
+              {activity.thumbnail_image ? (
+                <SafeImage src={activity.thumbnail_image} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <ImageIcon size={20} />
+              )}
+            </div>
             <Link
               href={getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/learning-path/activity/${cleanActivityId(activity.activity_uuid)}/editor`)}
               className="min-w-0 flex-1"
@@ -130,6 +178,11 @@ export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: str
               <h2 className="truncate text-base font-bold text-foreground">{activity.title}</h2>
               <p className="text-sm text-muted-foreground">{activity.pages?.length || 0} pages · {activity.published ? 'Published' : 'Draft'}</p>
             </Link>
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-bold transition hover:bg-muted">
+              {uploadingCover === activity.activity_uuid ? <Loader2 size={14} className="animate-spin" /> : <ImageIcon size={14} />}
+              Cover
+              <input type="file" accept="image/*" className="sr-only" onChange={(event) => uploadCover(activity, event)} disabled={uploadingCover === activity.activity_uuid} />
+            </label>
             <button onClick={() => togglePublish(activity)} className="rounded-lg border border-border px-3 py-2 text-xs font-bold">
               {activity.published ? 'Unpublish' : 'Publish'}
             </button>

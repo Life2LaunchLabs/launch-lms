@@ -23,7 +23,9 @@ from src.db.learning import (
     LearningBadge,
     LearningBadgeAward,
     LearningBadgeCreate,
+    LearningBadgeNotificationSignup,
     LearningBadgeRead,
+    LearningBadgeStatus,
     LearningBadgeUpdate,
     LearningPage,
     LearningPageComplete,
@@ -238,15 +240,29 @@ def _get_run(db_session: Session, run_uuid: str, actor: LearningActor | None = N
     return run
 
 
+PUBLIC_BADGE_STATUSES = (LearningBadgeStatus.COMING_SOON, LearningBadgeStatus.PUBLISHED)
+
+
+def _is_publicly_visible_badge(badge: LearningBadge) -> bool:
+    return bool(badge.public and badge.status in PUBLIC_BADGE_STATUSES)
+
+
+def _is_startable_badge(badge: LearningBadge) -> bool:
+    return bool(badge.public and badge.status == LearningBadgeStatus.PUBLISHED)
+
+
 def _public_badge_query(org_id: int | None = None):
-    statement = select(LearningBadge).where(LearningBadge.public == True, LearningBadge.published == True)
+    statement = select(LearningBadge).where(
+        LearningBadge.public == True,
+        LearningBadge.status.in_(PUBLIC_BADGE_STATUSES),
+    )
     if org_id is not None:
         statement = statement.where(LearningBadge.org_id == org_id)
     return statement
 
 
 def _can_read_badge(db_session: Session, badge: LearningBadge, current_user: PublicUser | AnonymousUser) -> bool:
-    if badge.public and badge.published:
+    if _is_publicly_visible_badge(badge):
         return True
     if isinstance(current_user, AnonymousUser):
         return False
@@ -1066,7 +1082,7 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
             about="A short onboarding path that helps personalize Launch.",
             criteria="Complete the onboarding activity.",
             public=True,
-            published=True,
+            status=LearningBadgeStatus.PUBLISHED,
             protected=True,
             system_type=LEARNING_SYSTEM_TYPE_ONBOARDING,
             direct_conferral_enabled=False,
@@ -1081,7 +1097,7 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
         badge.org_id = owner_org.id or badge.org_id
         badge.collection_id = collection.id
         badge.public = True
-        badge.published = True
+        badge.status = LearningBadgeStatus.PUBLISHED
         badge.protected = True
         badge.system_type = LEARNING_SYSTEM_TYPE_ONBOARDING
         badge.update_date = now
@@ -1298,6 +1314,34 @@ async def update_badge_thumbnail(
     return LearningBadgeRead(**badge.model_dump())
 
 
+async def create_badge_notification_signup(request: Request, badge_uuid: str, current_user: PublicUser | AnonymousUser, db_session: Session) -> dict:
+    if isinstance(current_user, AnonymousUser):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sign in to get notified")
+    badge = _get_badge(db_session, badge_uuid)
+    _ensure_read_badge(db_session, badge, current_user)
+    existing = db_session.exec(
+        select(LearningBadgeNotificationSignup).where(
+            LearningBadgeNotificationSignup.badge_id == badge.id,
+            LearningBadgeNotificationSignup.user_id == current_user.id,
+        )
+    ).first()
+    if existing:
+        return {"detail": "Notification signup already exists", "signup_uuid": existing.signup_uuid}
+    now = _now()
+    signup = LearningBadgeNotificationSignup(
+        signup_uuid=f"badge_notification_{uuid4()}",
+        badge_id=badge.id or 0,
+        org_id=badge.org_id,
+        user_id=current_user.id,
+        creation_date=now,
+        update_date=now,
+    )
+    db_session.add(signup)
+    db_session.commit()
+    db_session.refresh(signup)
+    return {"detail": "Notification signup created", "signup_uuid": signup.signup_uuid}
+
+
 async def get_badge(request: Request, badge_uuid: str, current_user: PublicUser | AnonymousUser, db_session: Session) -> LearningBadgeRead:
     badge = _get_badge(db_session, badge_uuid)
     _ensure_read_badge(db_session, badge, current_user)
@@ -1346,6 +1390,40 @@ async def update_collection(request: Request, collection_uuid: str, data: BadgeC
     for key, value in _strip_system_fields(data.model_dump(exclude_unset=True)).items():
         setattr(collection, key, value)
     collection.update_date = _now()
+    db_session.add(collection)
+    db_session.commit()
+    db_session.refresh(collection)
+    badges = db_session.exec(select(LearningBadge).where(LearningBadge.collection_id == collection.id)).all()
+    return BadgeCollectionRead(**collection.model_dump(), badges=[LearningBadgeRead(**badge.model_dump()) for badge in badges])
+
+
+async def update_collection_thumbnail(
+    request: Request,
+    collection_uuid: str,
+    current_user: PublicUser | AnonymousUser,
+    db_session: Session,
+    thumbnail_file: UploadFile | None = None,
+) -> BadgeCollectionRead:
+    collection = db_session.exec(select(BadgeCollection).where(BadgeCollection.collection_uuid == _clean_uuid(collection_uuid, "badge_collection_"))).first()
+    if not collection:
+        raise HTTPException(status_code=404, detail="Badge collection not found")
+    _require_org_admin(db_session, current_user, collection.org_id)
+    org = _get_org(db_session, collection.org_id)
+
+    if not thumbnail_file or not thumbnail_file.filename:
+        raise HTTPException(status_code=400, detail="Thumbnail file is required")
+
+    filename = await upload_file(
+        file=thumbnail_file,
+        directory=f"badge_collections/{collection.collection_uuid}/thumbnails",
+        type_of_dir="orgs",
+        uuid=org.org_uuid,
+        allowed_types=["image"],
+        filename_prefix="thumbnail",
+    )
+    collection.thumbnail_image = f"/content/orgs/{org.org_uuid}/badge_collections/{collection.collection_uuid}/thumbnails/{filename}"
+    collection.update_date = _now()
+
     db_session.add(collection)
     db_session.commit()
     db_session.refresh(collection)
@@ -1753,7 +1831,7 @@ async def delete_learning_variable(request: Request, variable_uuid: str, current
 
 async def start_or_resume_run(request: Request, badge_uuid: str, actor: LearningActor, db_session: Session) -> LearningRunRead:
     badge = _get_badge(db_session, badge_uuid)
-    if not (badge.public and badge.published):
+    if not _is_startable_badge(badge):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Badge is not available")
     path = _get_path_for_badge(db_session, badge)
     statement = select(LearningRun).where(LearningRun.path_id == path.id)
