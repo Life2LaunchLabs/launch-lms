@@ -17,7 +17,7 @@ from src.db.courses.chapters import Chapter
 from src.db.courses.course_chapters import CourseChapter
 from src.db.courses.certifications import CertificateUser, Certifications
 from src.db.courses.courses import Course
-from src.db.learning import BadgeCollection, LearningActivity, LearningAwardSource, LearningBadge, LearningBadgeAward, LearningPage, LearningPageType
+from src.db.learning import BadgeCollection, LearningActivity, LearningAwardSource, LearningBadge, LearningBadgeAward, LearningBadgeStatus, LearningPage, LearningPageType
 from src.db.organizations import Organization
 from src.db.users import AnonymousUser, PublicUser
 from src.services.learning import _get_path_for_badge, _require_org_admin
@@ -708,7 +708,7 @@ def convert_course_migration(
             criteria=metadata.get("badge_criteria_text") or "Complete the required badge learning path.",
             thumbnail_image=thumbnail_image,
             public=course.public,
-            published=course.published,
+            status=LearningBadgeStatus.PUBLISHED if course.published else LearningBadgeStatus.COMING_SOON if getattr(course, "coming_soon", False) else LearningBadgeStatus.DRAFT,
             protected=False,
             system_type=None,
             direct_conferral_enabled=True,
@@ -750,7 +750,7 @@ def convert_course_migration(
                 icon=chapter.icon,
                 order=chapter_index,
                 required=True,
-                published=badge.published,
+                published=badge.status == LearningBadgeStatus.PUBLISHED,
                 settings={"legacy_migration": _legacy_source(course, chapter=chapter)},
                 creation_date=now,
                 update_date=now,

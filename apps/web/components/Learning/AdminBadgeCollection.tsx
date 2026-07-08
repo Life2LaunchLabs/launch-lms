@@ -36,6 +36,13 @@ function cleanBadgeId(value: string) {
   return String(value || '').replace(/^badge_/, '')
 }
 
+function getBadgeStatusLabel(badge: any) {
+  const status = badge?.status || 'draft'
+  if (status === 'published') return 'Published'
+  if (status === 'coming_soon') return 'Coming soon'
+  return 'Draft'
+}
+
 export default function AdminBadgeCollection({
   orgslug,
   orgId,
@@ -135,7 +142,7 @@ function CollectionBadges({ orgslug, orgId, collection }: { orgslug: string; org
         description: description.trim(),
         criteria: 'Complete the required learning path.',
         public: true,
-        published: false,
+        status: 'draft',
       }, accessToken)
       toast.success('Badge created')
       setModalOpen(false)
@@ -261,7 +268,7 @@ function CollectionBadges({ orgslug, orgId, collection }: { orgslug: string; org
               <h2 className="line-clamp-1 text-base font-bold leading-tight text-foreground">{badge.name}</h2>
               {badge.description ? <p className="min-h-[1.5rem] line-clamp-2 text-[11px] text-muted-foreground">{badge.description}</p> : null}
               <div className="flex items-center justify-between border-t border-border pt-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{badge.published ? 'Published' : 'Draft'}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{getBadgeStatusLabel(badge)}</span>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Edit</span>
               </div>
             </div>

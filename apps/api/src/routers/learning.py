@@ -100,6 +100,16 @@ async def api_update_badge_thumbnail(
     return await learning_service.update_badge_thumbnail(request, badge_uuid, current_user, db_session, thumbnail)
 
 
+@badges_router.post("/{badge_uuid}/notification-signups")
+async def api_create_badge_notification_signup(
+    request: Request,
+    badge_uuid: str,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    return await learning_service.create_badge_notification_signup(request, badge_uuid, current_user, db_session)
+
+
 @badges_router.delete("/{badge_uuid}")
 async def api_delete_badge(
     request: Request,

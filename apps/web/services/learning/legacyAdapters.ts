@@ -10,6 +10,10 @@ export function cleanLearningCollectionId(value?: string | null) {
     .replace(/^collection_/, '')
 }
 
+function getBadgeStatus(badge: any) {
+  return badge?.status || 'draft'
+}
+
 function getLearningActivityType(activity: any) {
   const firstPageType = activity?.pages?.[0]?.page_type
   if (firstPageType === 'video') return 'TYPE_VIDEO'
@@ -63,6 +67,7 @@ export function learningPathToLegacyRun(badgePath: any) {
 export function learningPathToLegacyCourse(badgePath: any, org?: any) {
   const badge = badgePath?.badge || {}
   const badgeUuid = badge.badge_uuid || `badge_${cleanBadgeId(badge.id)}`
+  const status = getBadgeStatus(badge)
 
   return {
     ...badge,
@@ -76,7 +81,8 @@ export function learningPathToLegacyCourse(badgePath: any, org?: any) {
     owner_org_id: badge.org_id || org?.id,
     owner_org_uuid: org?.org_uuid || '',
     owner_org_name: org?.name || '',
-    coming_soon: false,
+    status,
+    coming_soon: status === 'coming_soon',
     authors: [],
     learnings: [],
     seo: badge.badge_metadata?.seo || {},
@@ -108,20 +114,25 @@ export function learningCollectionsToLegacyCollections(collections: any[], org?:
     learning_collection_uuid: collection.collection_uuid,
     collection_uuid: `collection_${cleanLearningCollectionId(collection.collection_uuid)}`,
     owner_org_uuid: org?.org_uuid || '',
-    courses: (collection.badges || []).map((badge: any) => ({
-      ...badge,
-      _learning_badge: true,
-      id: badge.id,
-      course_uuid: badge.badge_uuid,
-      name: badge.name,
-      description: badge.description,
-      about: badge.about,
-      thumbnail_image: badge.thumbnail_image,
-      thumbnail_image_url: badge.thumbnail_image,
-      owner_org_id: badge.org_id || org?.id,
-      owner_org_uuid: org?.org_uuid || '',
-      owner_org_name: org?.name || '',
-      authors: [],
-    })),
+    courses: (collection.badges || []).map((badge: any) => {
+      const status = getBadgeStatus(badge)
+      return {
+        ...badge,
+        _learning_badge: true,
+        id: badge.id,
+        course_uuid: badge.badge_uuid,
+        name: badge.name,
+        description: badge.description,
+        about: badge.about,
+        thumbnail_image: badge.thumbnail_image,
+        thumbnail_image_url: badge.thumbnail_image,
+        owner_org_id: badge.org_id || org?.id,
+        owner_org_uuid: org?.org_uuid || '',
+        owner_org_name: org?.name || '',
+        status,
+        coming_soon: status === 'coming_soon',
+        authors: [],
+      }
+    }),
   }))
 }

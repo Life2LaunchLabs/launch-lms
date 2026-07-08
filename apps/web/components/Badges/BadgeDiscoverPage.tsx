@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
-import { Award, Play } from 'lucide-react'
+import { Award, Flag, Play } from 'lucide-react'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import ContentPageHeader from '@components/Objects/StyledElements/Headers/ContentPageHeader'
 import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/FeatureDisabledView'
@@ -16,6 +16,7 @@ import { getLearningPath } from '@services/learning/learning'
 import badgesImage from 'public/landing/badges.png'
 
 type BadgeStatus = 'available' | 'in_progress' | 'earned'
+type BadgePublishStatus = 'draft' | 'coming_soon' | 'published'
 
 type BadgeCatalogItem = {
   badgeUuid: string
@@ -26,6 +27,7 @@ type BadgeCatalogItem = {
   ownerOrgName: string
   activityCount: number
   status: BadgeStatus
+  publishStatus: BadgePublishStatus
   progressPercent: number
   updatedAt: number
   path?: any
@@ -73,6 +75,12 @@ function getBadgeActivityCount(badge: any) {
   return Number(badge?.activity_count || badge?.activities_count || 0)
 }
 
+function getBadgePublishStatus(badge: any): BadgePublishStatus {
+  const status = String(badge?.status || '').trim()
+  if (status === 'coming_soon' || status === 'published' || status === 'draft') return status
+  return 'draft'
+}
+
 function getPathActivityProgress(path: any) {
   const activities = path?.activities || []
   const run = path?.run
@@ -82,21 +90,14 @@ function getPathActivityProgress(path: any) {
       .map((progress: any) => progress.page_uuid)
   )
 
-  const requiredActivities = activities.filter((activity: any) => activity.required !== false)
-  const completedActivities = requiredActivities.filter((activity: any) => {
+  const completedActivities = activities.filter((activity: any) => {
     const requiredPages = (activity.pages || []).filter((page: any) => page.required !== false)
     return requiredPages.length > 0 && requiredPages.every((page: any) => completePages.has(page.page_uuid))
   })
-  const requiredPages = requiredActivities.flatMap((activity: any) =>
-    (activity.pages || []).filter((page: any) => page.required !== false)
-  )
-  const completedPageCount = requiredPages.filter((page: any) => completePages.has(page.page_uuid)).length
-  const progressPercent = requiredPages.length
-    ? Math.round((completedPageCount / requiredPages.length) * 100)
-    : requiredActivities.length
-      ? Math.round((completedActivities.length / requiredActivities.length) * 100)
-      : 0
-  const hasProgress = Boolean(run) || completedPageCount > 0 || completedActivities.length > 0
+  const progressPercent = activities.length
+    ? Math.round((completedActivities.length / activities.length) * 100)
+    : 0
+  const hasProgress = Boolean(run) || completedActivities.length > 0
   const earned = run?.status === 'completed' || Boolean(run?.completed_at || run?.award)
 
   return {
@@ -117,6 +118,7 @@ function buildBadgeCatalog(collections: any[], pathsByBadgeUuid: Map<string, any
       if (!badgeUuid || byBadgeUuid.has(badgeUuid)) return
 
       const ownerOrgUuid = rawBadge.owner_org_uuid || collection.owner_org_uuid || ''
+      const publishStatus = getBadgePublishStatus(rawBadge)
       const path = pathsByBadgeUuid.get(badgeUuid)
       const progress = getPathActivityProgress(path)
       const status: BadgeStatus = progress.earned
@@ -134,6 +136,7 @@ function buildBadgeCatalog(collections: any[], pathsByBadgeUuid: Map<string, any
         ownerOrgName: rawBadge.owner_org_name || collection.owner_org_name || collection.org?.name || '',
         activityCount: progress.activityCount || getBadgeActivityCount(rawBadge),
         status,
+        publishStatus,
         progressPercent: progress.progressPercent,
         updatedAt: progress.updatedAt,
         path,
@@ -249,13 +252,20 @@ function ActiveBadgeCard({ badge, orgslug }: { badge: BadgeCatalogItem; orgslug:
 }
 
 function DiscoverBadgeCard({ badge, orgslug }: { badge: BadgeCatalogItem; orgslug: string }) {
+  const isComingSoon = badge.publishStatus === 'coming_soon'
   return (
     <Link
       href={badgeHref(orgslug, badge.badgeUuid)}
       className="group flex w-[150px] shrink-0 flex-col items-center text-center focus:outline-none"
     >
-      <div className="flex h-[132px] w-[132px] items-center justify-center overflow-visible rounded-lg bg-transparent transition group-hover:-translate-y-0.5 group-focus-visible:ring-2 group-focus-visible:ring-foreground">
+      <div className="relative flex h-[132px] w-[132px] items-center justify-center overflow-visible rounded-lg bg-transparent transition group-hover:-translate-y-0.5 group-focus-visible:ring-2 group-focus-visible:ring-foreground">
         <BadgeSticker badge={badge} size="md" hover />
+        {isComingSoon ? (
+          <span className="absolute right-0 top-1 inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-1 text-[10px] font-black uppercase leading-none text-orange-700 ring-1 ring-orange-200">
+            <Flag size={10} fill="currentColor" />
+            Coming soon
+          </span>
+        ) : null}
       </div>
       <div className="mt-0.5 w-full text-sm font-bold leading-tight text-foreground line-clamp-2">
         {badge.name}

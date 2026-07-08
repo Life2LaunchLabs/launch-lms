@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React from 'react'
-import { ArrowDown, ArrowLeftRight, ArrowUp, Award, Check, ChevronDown, ClipboardCheck, Eye, GalleryVerticalEnd, Globe, GlobeLock, Image as ImageIcon, Info, Loader2, Pencil, Plus, Settings, Trash2, UploadCloud } from 'lucide-react'
+import { ArrowDown, ArrowLeftRight, ArrowUp, Award, Check, ChevronDown, ClipboardCheck, Clock, Eye, GalleryVerticalEnd, Globe, GlobeLock, Image as ImageIcon, Info, Loader2, Pencil, Plus, Settings, Trash2, UploadCloud } from 'lucide-react'
 import { motion } from 'motion/react'
 import toast from 'react-hot-toast'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
@@ -24,7 +24,7 @@ import { deleteLearningBadge, getLearningResponses, gradeLearningResponse, updat
 import { uploadLandingContent } from '@services/organizations/orgs'
 import CertificatePreview from '@components/Dashboard/Pages/Course/EditCourseCertification/CertificatePreview'
 
-type BadgeStatus = 'published' | 'unpublished'
+type BadgeStatus = 'draft' | 'coming_soon' | 'published'
 
 const MAX_FILE_SIZE = 8_000_000
 const VALID_IMAGE_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png'] as const
@@ -100,11 +100,10 @@ export default function AdminBadgeShell({
 
   const updateStatus = async (status: BadgeStatus) => {
     if (updatingStatus) return
-    const published = status === 'published'
-    if (badge.published === published) return
+    if ((badge.status || 'draft') === status) return
     setUpdatingStatus(true)
     try {
-      await patchBadge({ published }, 'Badge status updated.')
+      await patchBadge({ status }, 'Badge status updated.')
     } catch (error: any) {
       toast.error(error?.message || 'Failed to update status.')
     } finally {
@@ -170,7 +169,7 @@ export default function AdminBadgeShell({
   }
 
   const publicBadgeHref = getUriWithOrg(orgslug, `/badges/${cleanBadgeId(badge.badge_uuid)}`)
-  const currentStatus: BadgeStatus = badge.published ? 'published' : 'unpublished'
+  const currentStatus: BadgeStatus = getBadgeStatus(badge)
   const imageUrl = uploadPreview || badge.thumbnail_image
 
   return (
@@ -243,14 +242,18 @@ export default function AdminBadgeShell({
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-2 bg-card" disabled={updatingStatus}>
                 {updatingStatus ? <Loader2 className="animate-spin" /> : <StatusIcon status={currentStatus} />}
-                <span>{currentStatus === 'published' ? 'Published' : 'Unpublished'}</span>
+                <span>{getStatusLabel(currentStatus)}</span>
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              <DropdownMenuItem onClick={() => updateStatus('unpublished')}>
+              <DropdownMenuItem onClick={() => updateStatus('draft')}>
                 <GlobeLock className="h-4 w-4" />
-                Unpublished
+                Draft
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => updateStatus('coming_soon')}>
+                <Clock className="h-4 w-4" />
+                Coming soon
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => updateStatus('published')}>
                 <Globe className="h-4 w-4" />
@@ -1018,7 +1021,20 @@ function EditableHeaderField({
 
 function StatusIcon({ status }: { status: BadgeStatus }) {
   if (status === 'published') return <Globe className="h-4 w-4 text-green-700" />
+  if (status === 'coming_soon') return <Clock className="h-4 w-4 text-orange-700" />
   return <GlobeLock className="h-4 w-4 text-yellow-700" />
+}
+
+function getBadgeStatus(badge: any): BadgeStatus {
+  const status = badge?.status
+  if (status === 'published' || status === 'coming_soon' || status === 'draft') return status
+  return 'draft'
+}
+
+function getStatusLabel(status: BadgeStatus) {
+  if (status === 'published') return 'Published'
+  if (status === 'coming_soon') return 'Coming soon'
+  return 'Draft'
 }
 
 function getActiveSubpage(subpage: string) {

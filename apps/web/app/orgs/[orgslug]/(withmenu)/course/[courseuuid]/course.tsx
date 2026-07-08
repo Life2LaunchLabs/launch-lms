@@ -13,10 +13,10 @@ import {
   normalizeMediaUrl,
 } from '@services/media/media'
 import { learningPathToLegacyRun } from '@services/learning/legacyAdapters'
-import { getLearningPath, startLearningRun } from '@services/learning/learning'
+import { createLearningBadgeNotificationSignup, getLearningPath, startLearningRun } from '@services/learning/learning'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { CourseThumbnailImage } from '@components/Objects/Thumbnails/CourseThumbnailImage'
-import { ArrowRight, Award, BookOpenCheck, Check, CircleHelp, Clock, FileText, Layers, Loader2, Play, Video, Zap, Image as ImageIcon } from 'lucide-react'
+import { ArrowRight, Award, Bell, BookOpenCheck, Check, CircleHelp, Clock, FileText, Layers, Loader2, Play, Video, Zap, Image as ImageIcon } from 'lucide-react'
 import { FeaturedBadgeButton } from '@components/Objects/Portfolio/ProfileAchievements'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -600,7 +600,7 @@ function PathQuizResultAction({ activity, course, orgslug }: { activity: any; co
 
 function getOverviewCards(course: any) {
   const metadata = course.badge_metadata || {}
-  const configuredCards = Array.isArray(metadata.overview_cards)
+  return Array.isArray(metadata.overview_cards)
     ? metadata.overview_cards
         .map((card: any) => ({
           title: String(card?.title || '').trim(),
@@ -610,18 +610,6 @@ function getOverviewCards(course: any) {
         }))
         .filter((card: any) => card.title || card.body || card.media_url)
     : []
-
-  if (configuredCards.length) return configuredCards
-
-  return [
-    {
-      title: metadata.what_youll_do_title || "What you'll do",
-      body: course.about || course.description || 'Build practical proof of a skill through a focused set of activities.',
-      media_url: metadata.what_youll_do_media_url || '',
-      image_side: 'left',
-    },
-    ...(course.criteria ? [{ title: 'How you earn it', body: course.criteria, media_url: '', image_side: 'left' }] : []),
-  ]
 }
 
 function getFirstActivityHref(course: any, orgslug: string) {
@@ -658,6 +646,8 @@ function BadgeStatusHero({
   const descriptionRef = React.useRef<HTMLParagraphElement>(null)
   const [isDevCompleting, setIsDevCompleting] = useState(false)
   const [isStarting, setIsStarting] = useState(false)
+  const [isNotifySaving, setIsNotifySaving] = useState(false)
+  const [notifyRequested, setNotifyRequested] = useState(false)
   const [descriptionExpanded, setDescriptionExpanded] = useState(false)
   const [descriptionCanExpand, setDescriptionCanExpand] = useState(false)
   const [showCompletionReward, setShowCompletionReward] = useState(false)
@@ -743,6 +733,24 @@ function BadgeStatusHero({
     }
   }
 
+  const handleNotifyMe = async () => {
+    if (isNotifySaving) return
+    if (!accessToken) {
+      toast.error('Sign in to get notified when this badge opens.')
+      return
+    }
+    setIsNotifySaving(true)
+    try {
+      await createLearningBadgeNotificationSignup(badgeUuid, accessToken)
+      setNotifyRequested(true)
+      toast.success("We'll notify you when this badge opens.")
+    } catch (error: any) {
+      toast.error(error?.message || 'Could not save notification request')
+    } finally {
+      setIsNotifySaving(false)
+    }
+  }
+
   return (
     <div className="relative mx-auto w-full max-w-6xl pb-10">
       {showCompletionReward && (
@@ -808,10 +816,18 @@ function BadgeStatusHero({
 
           <div className="mt-8 flex flex-col gap-3 sm:max-w-xl">
             {comingSoon ? (
-              <span className="inline-flex h-14 items-center justify-center gap-2 rounded-lg bg-orange-100 px-5 text-base font-black text-orange-700">
-                <Clock size={18} />
-                {t('courses.coming_soon')}
-              </span>
+              <>
+                <button
+                  type="button"
+                  onClick={handleNotifyMe}
+                  disabled={isNotifySaving}
+                  className="inline-flex h-16 w-full items-center justify-center gap-3 rounded-lg bg-orange-100 px-6 text-lg font-black text-orange-800 shadow-sm transition hover:bg-orange-200 disabled:cursor-wait disabled:opacity-70"
+                >
+                  {isNotifySaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bell size={20} />}
+                  {notifyRequested ? 'Notification set' : 'Notify me'}
+                </button>
+                <p className="text-center text-sm font-semibold text-muted-foreground">We'll let you know when this badge opens.</p>
+              </>
             ) : isCompleted ? (
               <div className="flex flex-wrap items-center gap-2">
                 <CourseShare courseName={course.name} courseUrl={inviteUrl} label="Share invite" shareText={`Claim an invite to earn the ${course.name} badge`} />

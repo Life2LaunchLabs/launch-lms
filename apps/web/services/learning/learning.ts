@@ -142,6 +142,14 @@ export async function updateLearningBadgeThumbnail(badgeUuid: string, formData: 
   return errorHandling(result)
 }
 
+export async function createLearningBadgeNotificationSignup(badgeUuid: string, accessToken?: string) {
+  const result = await fetch(
+    `${getAPIUrl()}badges/${badgeUuid}/notification-signups`,
+    RequestBodyWithAuthHeader('POST', null, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
 export async function getLearningPath(
   badgeUuid: string,
   accessToken?: string,
