@@ -5,9 +5,7 @@ import * as Yup from 'yup'
 import {
   updateOrganization,
   updateOrgFooterTextConfig,
-  updateOrgQuickstartCourseConfig,
 } from '@services/settings/org'
-import { getOrgCourses } from '@services/courses/courses'
 import { revalidateTags } from '@services/utils/ts/requests'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -20,11 +18,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { mutate } from 'swr'
 import { getAPIUrl } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
-import useSWR from 'swr'
-import {
-  canConfigureOrgQuickstart,
-  getOrgQuickstartCourseUuid,
-} from '@services/org/quickstart'
 
 const ORG_LABELS = [
   { value: 'languages', label: '🌐 Languages' },
@@ -87,23 +80,8 @@ const OrgEditGeneral: React.FC = () => {
   const session = useLHSession() as any
   const access_token = session?.data?.tokens?.access_token
   const org = useOrg() as any
-  const quickstartEligible = canConfigureOrgQuickstart(org)
-  const [quickstartCourseUuid, setQuickstartCourseUuid] = React.useState<string>(
-    getOrgQuickstartCourseUuid(org) || '__none__'
-  )
-
   // Footer text state
   const [footerText, setFooterText] = React.useState<string>(org?.config?.config?.customization?.general?.footer_text || org?.config?.config?.general?.footer_text || '')
-
-  const { data: orgCourses } = useSWR(
-    org?.slug && access_token ? ['org-general-courses', org.slug, access_token] : null,
-    () => getOrgCourses(org.slug, null, access_token, true),
-    { revalidateOnFocus: false }
-  )
-
-  React.useEffect(() => {
-    setQuickstartCourseUuid(getOrgQuickstartCourseUuid(org) || '__none__')
-  }, [org])
 
   const initialValues: OrganizationValues = {
     name: org?.name,
@@ -116,32 +94,9 @@ const OrgEditGeneral: React.FC = () => {
   const updateOrg = async (values: OrganizationValues) => {
     const loadingToast = toast.loading(t('dashboard.organization.settings.updating'))
     try {
-      const selectedQuickstartCourse =
-        quickstartCourseUuid === '__none__'
-          ? null
-          : orgCourses?.find((course: any) => course.course_uuid === quickstartCourseUuid)
-
-      if (
-        quickstartEligible &&
-        selectedQuickstartCourse &&
-        !selectedQuickstartCourse.public
-      ) {
-        toast.error('Quickstart course must be public so guests can access it.', {
-          id: loadingToast,
-        })
-        return
-      }
-
       await updateOrganization(org.id, { ...values, label: values.label === '__none__' ? '' : values.label }, access_token)
       // Also save footer text
       await updateOrgFooterTextConfig(org.id, footerText, access_token)
-      if (quickstartEligible) {
-        await updateOrgQuickstartCourseConfig(
-          org.id,
-          quickstartCourseUuid === '__none__' ? '' : quickstartCourseUuid,
-          access_token
-        )
-      }
       await revalidateTags(['organizations'], org.slug)
       mutate(`${getAPIUrl()}orgs/slug/${org.slug}`)
       toast.success(t('dashboard.organization.settings.update_success'), { id: loadingToast })
@@ -294,40 +249,6 @@ const OrgEditGeneral: React.FC = () => {
                         maxLength={100}
                       />
                       <p className="text-gray-500 text-sm mt-1">{t('dashboard.organization.settings.footer_text_desc')}</p>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="quickstartCourse">Quickstart course</Label>
-                      <Select
-                        value={quickstartCourseUuid}
-                        onValueChange={setQuickstartCourseUuid}
-                        disabled={!quickstartEligible}
-                      >
-                        <SelectTrigger id="quickstartCourse">
-                          <SelectValue placeholder="Choose a public course" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">No quickstart course</SelectItem>
-                          {(orgCourses || []).map((course: any) => (
-                            <SelectItem
-                              key={course.course_uuid}
-                              value={course.course_uuid}
-                            >
-                              {course.name}
-                              {course.public ? ' (public)' : ' (private)'}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {!quickstartEligible ? (
-                        <p className="text-gray-500 text-sm mt-1">
-                          This setting is available for the default org and orgs with dedicated subdomain access.
-                        </p>
-                      ) : (
-                        <p className="text-gray-500 text-sm mt-1">
-                          Guests who hit `/quickstart` will be dropped into the first activity of the first chapter for this course. The course must be public.
-                        </p>
-                      )}
                     </div>
 
                   </div>

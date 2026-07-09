@@ -19,9 +19,7 @@ import {
   Headphones,
   UsersThree,
   Shield,
-  UserPlus,
   ClipboardText,
-  Palette,
   Cube,
   FolderOpen,
   Newspaper,
@@ -29,7 +27,6 @@ import {
   UserCircle,
   ChartPieSlice,
   Tray,
-  Handshake,
 } from '@phosphor-icons/react'
 import Link from 'next/link'
 import React, { useState } from 'react'
@@ -71,6 +68,12 @@ import useSWR from 'swr'
 import { swrFetcher } from '@services/utils/ts/requests'
 
 import { usePlan } from '@components/Hooks/usePlan'
+import {
+  BADGE_ADMIN_PAGES,
+  getOrganizationAdminPages,
+  getUserAdminPages,
+} from '@components/Admin/adminFeaturePages'
+import { planMeetsRequirement } from '@services/plans/plans'
 
 function DashLeftMenu() {
   const org = useOrg() as any
@@ -132,8 +135,12 @@ function DashLeftMenu() {
   const showPodcasts = isEnabled('podcasts')
   const showPlaygrounds = isEnabled('playgrounds')
   const showPayments = capabilities.payments && isEnabled('payments')
-  const showUsergroups = isEnabled('usergroups')
-  const showRoles = isEnabled('roles')
+  const hasUserGroups = planMeetsRequirement(plan, 'full') && (rf?.usergroups?.enabled ?? true)
+  const hasAuditLogs = rf?.audit_logs?.enabled ?? planMeetsRequirement(plan, 'enterprise')
+  const userAdminPages = getUserAdminPages({ t, hasUserGroups, hasAuditLogs })
+  const organizationAdminPages = getOrganizationAdminPages(t, {
+    hasSso: rf?.sso?.enabled === true,
+  })
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -247,30 +254,17 @@ function DashLeftMenu() {
                 <HoverMenuContent className="w-64">
                   <HoverMenuLabel className="text-white/70 font-medium">Badges</HoverMenuLabel>
                   <HoverMenuSeparator />
-                  <HoverMenuItem asChild>
-                    <Link href={routePaths.org.dash.badges()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                      <BookOpen size={16} weight="fill" />
-                      <span>Collections</span>
-                    </Link>
-                  </HoverMenuItem>
-                  <HoverMenuItem asChild>
-                    <Link href={`${routePaths.org.dash.badges()}?tab=marketplace`} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                      <ShoppingBag size={16} weight="fill" />
-                      <span>Marketplace</span>
-                    </Link>
-                  </HoverMenuItem>
-                  <HoverMenuItem asChild>
-                    <Link href={`${routePaths.org.dash.badges()}?tab=issuing`} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                      <Handshake size={16} weight="fill" />
-                      <span>Issuing</span>
-                    </Link>
-                  </HoverMenuItem>
-                  <HoverMenuItem asChild>
-                    <Link href={`${routePaths.org.dash.badges()}?tab=grading`} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                      <ClipboardText size={16} weight="fill" />
-                      <span>Grading</span>
-                    </Link>
-                  </HoverMenuItem>
+                  {BADGE_ADMIN_PAGES.map((page) => {
+                    const Icon = page.icon
+                    return (
+                      <HoverMenuItem key={page.id} asChild>
+                        <Link href={page.href} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                          <Icon size={16} fill="currentColor" />
+                          <span>{page.label}</span>
+                        </Link>
+                      </HoverMenuItem>
+                    )
+                  })}
                   {recentBadges.length > 0 && (
                     <>
                       <HoverMenuSeparator />
@@ -351,40 +345,17 @@ function DashLeftMenu() {
                 <HoverMenuContent className="w-64">
                   <HoverMenuLabel className="text-white/70 font-medium">{t('common.users')}</HoverMenuLabel>
                   <HoverMenuSeparator />
-                  <HoverMenuItem asChild>
-                    <Link href={routePaths.org.dash.users.users()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                      <Users size={16} weight="fill" />
-                      <span>{t('dashboard.users.settings.tabs.users')}</span>
-                    </Link>
-                  </HoverMenuItem>
-                  {showUsergroups && (
-                    <HoverMenuItem asChild>
-                      <Link href={routePaths.org.dash.users.usergroups()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                        <UsersThree size={16} weight="fill" />
-                        <span>{t('dashboard.users.settings.tabs.usergroups')}</span>
-                      </Link>
-                    </HoverMenuItem>
-                  )}
-                  {showRoles && (
-                    <HoverMenuItem asChild>
-                      <Link href={routePaths.org.dash.users.roles()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                        <Shield size={16} weight="fill" />
-                        <span>{t('dashboard.users.settings.tabs.roles')}</span>
-                      </Link>
-                    </HoverMenuItem>
-                  )}
-                  <HoverMenuItem asChild>
-                    <Link href={routePaths.org.dash.users.signups()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                      <ClipboardText size={16} weight="fill" />
-                      <span>{t('dashboard.users.settings.tabs.signups')}</span>
-                    </Link>
-                  </HoverMenuItem>
-                  <HoverMenuItem asChild>
-                    <Link href={routePaths.org.dash.users.add()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                      <UserPlus size={16} weight="fill" />
-                      <span>{t('dashboard.users.settings.tabs.add')}</span>
-                    </Link>
-                  </HoverMenuItem>
+                  {userAdminPages.map((page) => {
+                    const Icon = page.icon
+                    return (
+                      <HoverMenuItem key={page.id} asChild>
+                        <Link href={page.href} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                          <Icon size={16} fill="currentColor" />
+                          <span>{page.label}</span>
+                        </Link>
+                      </HoverMenuItem>
+                    )
+                  })}
                 </HoverMenuContent>
               }
             >
@@ -425,18 +396,17 @@ function DashLeftMenu() {
                 <HoverMenuContent className="w-64">
                   <HoverMenuLabel className="text-white/70 font-medium">{t('common.organization')}</HoverMenuLabel>
                   <HoverMenuSeparator />
-                  <HoverMenuItem asChild>
-                    <Link href={routePaths.org.dash.orgSettings.general()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                      <Gear size={16} weight="fill" />
-                      <span>{t('dashboard.organization.settings.tabs.general')}</span>
-                    </Link>
-                  </HoverMenuItem>
-                  <HoverMenuItem asChild>
-                    <Link href={routePaths.org.dash.orgSettings.branding()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                      <Palette size={16} weight="fill" />
-                      <span>{t('dashboard.organization.settings.tabs.branding')}</span>
-                    </Link>
-                  </HoverMenuItem>
+                  {organizationAdminPages.map((page) => {
+                    const Icon = page.icon
+                    return (
+                      <HoverMenuItem key={page.id} asChild>
+                        <Link href={page.href} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                          <Icon size={16} fill="currentColor" />
+                          <span>{page.label}</span>
+                        </Link>
+                      </HoverMenuItem>
+                    )
+                  })}
                 </HoverMenuContent>
               }
             >

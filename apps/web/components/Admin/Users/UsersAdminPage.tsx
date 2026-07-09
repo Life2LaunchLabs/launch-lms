@@ -1,6 +1,6 @@
 'use client'
 
-import { Monitor, ScanEye, Shield, ShieldAlert, SquareUserRound, Users } from 'lucide-react'
+import { Monitor } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { useMediaQuery } from 'usehooks-ts'
@@ -13,7 +13,8 @@ import UsersTable from '@components/Admin/Platform/UsersTable'
 import { usePlan } from '@components/Hooks/usePlan'
 import { planMeetsRequirement } from '@services/plans/plans'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config'
+import { getUserAdminPages } from '@components/Admin/adminFeaturePages'
 
 export default function UsersAdminPage({ orgslug, section }: { orgslug: string; section: string }) {
   const { t } = useTranslation()
@@ -26,13 +27,10 @@ export default function UsersAdminPage({ orgslug, section }: { orgslug: string; 
     && (resolvedFeatures?.usergroups?.enabled ?? true)
   const hasAuditLogs = resolvedFeatures?.audit_logs?.enabled ?? planMeetsRequirement(currentPlan, 'enterprise')
 
-  const tabs = [
-    { id: 'users', label: t('dashboard.users.settings.tabs.users'), icon: <Users size={16} />, href: getUriWithOrg(orgslug, routePaths.org.dash.users.users()) },
-    ...(hasUserGroups ? [{ id: 'groups', label: t('dashboard.users.settings.tabs.usergroups'), icon: <SquareUserRound size={16} />, href: getUriWithOrg(orgslug, routePaths.org.dash.users.usergroups()) }] : []),
-    { id: 'roles', label: t('dashboard.users.settings.tabs.roles'), icon: <Shield size={16} />, href: getUriWithOrg(orgslug, routePaths.org.dash.users.roles()) },
-    { id: 'signups', label: t('dashboard.users.settings.tabs.signups'), icon: <ScanEye size={16} />, href: getUriWithOrg(orgslug, routePaths.org.dash.users.signups()) },
-    ...(hasAuditLogs ? [{ id: 'audit-logs', label: t('dashboard.users.settings.tabs.audit_logs'), icon: <ShieldAlert size={16} />, href: getUriWithOrg(orgslug, routePaths.org.dash.users.auditLogs()) }] : []),
-  ]
+  const tabs = getUserAdminPages({ t, hasUserGroups, hasAuditLogs }).map((tab) => {
+    const Icon = tab.icon
+    return { ...tab, icon: <Icon size={16} />, href: getUriWithOrg(orgslug, tab.href) }
+  })
 
   if (isMobile) {
     return (

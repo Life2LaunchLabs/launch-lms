@@ -70,12 +70,6 @@ export const routePaths = {
     portfolioAchievementDetail: (achievementId: string) => `/portfolio/achievements/${achievementId}`,
     news: () => '/news',
     newsArticle: (slug: string) => `/news/${slug}`,
-    quickstart: () => '/quickstart',
-    quickstartCourse: (courseUuid: string) => `/quickstart/course/${courseUuid}`,
-    quickstartCourseActivity: (courseUuid: string, activityId: string) =>
-      `/quickstart/course/${courseUuid}/activity/${activityId}`,
-    quickstartCourseActivityEnd: (courseUuid: string) =>
-      `/quickstart/course/${courseUuid}/activity/end`,
     badge: () => '/badge',
     badgesVerify: (uuid: string) => `/badges/${uuid}/verify`,
     certificateVerify: (uuid: string) => `/certificates/${uuid}/verify`,
@@ -169,7 +163,6 @@ export const routePaths = {
       orgSettings: {
         general: () => '/admin/org/settings/general',
         branding: () => '/admin/org/settings/branding',
-        onboarding: () => '/admin/org/settings/onboarding',
         features: () => '/admin/org/settings/general',
         landing: () => '/admin/org/settings/general',
         seo: () => '/admin/org/settings/general',

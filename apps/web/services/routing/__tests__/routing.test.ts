@@ -332,17 +332,7 @@ test('request policy allows unauthenticated news pages', () => {
   assert.equal(articleDecision.destination, '/orgs/acme/news/release-notes')
 })
 
-test('request policy allows unauthenticated quickstart and public course pages', () => {
-  const quickstartDecision = resolveRequestRouting({
-    requestUrl: 'https://acme.launchlms.test/quickstart/course/course_abc',
-    pathname: '/quickstart/course/course_abc',
-    search: '',
-    host: 'acme.launchlms.test',
-    hasSession: false,
-    instanceInfo,
-    resolvedCustomDomainOrgSlug: null,
-    orgSubdomainAccess: null,
-  })
+test('request policy allows unauthenticated public course pages', () => {
   const publicCourseDecision = resolveRequestRouting({
     requestUrl: 'https://acme.launchlms.test/course/badge-slug/activity/activity_abc',
     pathname: '/course/badge-slug/activity/activity_abc',
@@ -354,8 +344,6 @@ test('request policy allows unauthenticated quickstart and public course pages',
     orgSubdomainAccess: null,
   })
 
-  assert.equal(quickstartDecision.action, 'rewrite')
-  assert.equal(quickstartDecision.destination, '/orgs/acme/quickstart/course/course_abc')
   assert.equal(publicCourseDecision.action, 'rewrite')
   assert.equal(publicCourseDecision.destination, '/orgs/acme/course/badge-slug/activity/activity_abc')
 })

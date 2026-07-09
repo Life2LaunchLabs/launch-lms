@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Award, Check, ClipboardCheck, Handshake, Library, Loader2, Plus, Search, Store, Trash2 } from 'lucide-react'
+import { Award, Check, ClipboardCheck, Handshake, Loader2, Plus, Search, Trash2 } from 'lucide-react'
 import { motion } from 'motion/react'
 import toast from 'react-hot-toast'
 import AdminFeatureHeader from '@components/Admin/AdminFeatureHeader'
@@ -22,13 +22,7 @@ import {
   updateIssuerAuthorization,
 } from '@services/learning/marketplace'
 import AdminBadgesHome from '@components/Learning/AdminBadgesHome'
-
-const tabs = [
-  { key: 'collections', label: 'Collections', icon: Library },
-  { key: 'marketplace', label: 'Marketplace', icon: Store },
-  { key: 'issuing', label: 'Issuing', icon: Handshake },
-  { key: 'grading', label: 'Grading', icon: ClipboardCheck },
-]
+import { BADGE_ADMIN_PAGES } from '@components/Admin/adminFeaturePages'
 
 const statusStyles: Record<string, string> = {
   queued: 'bg-violet-100 text-violet-800',
@@ -71,13 +65,13 @@ export default function IssuingAdminShell({
       <AdminFeatureHeader
         feature="Badges"
         activeTab={activeTab}
-        tabs={tabs.map((tab) => {
+        tabs={BADGE_ADMIN_PAGES.map((tab) => {
           const Icon = tab.icon
           return {
-            id: tab.key,
+            id: tab.id,
             label: tab.label,
             icon: <Icon size={16} />,
-            onClick: () => selectTab(tab.key as BadgeAdminTab),
+            onClick: () => selectTab(tab.id as BadgeAdminTab),
           }
         })}
       />

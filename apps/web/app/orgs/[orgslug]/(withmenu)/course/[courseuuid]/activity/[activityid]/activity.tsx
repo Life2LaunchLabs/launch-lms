@@ -380,13 +380,9 @@ function ActivityClient(props: ActivityClientProps) {
   const { allActivities, currentIndex } = useActivityPosition(course, activityid);
   const coursePath = chapterRouteMode
     ? routePaths.org.badgePath(courseuuid)
-    : quickstartMode
-    ? routePaths.org.quickstartCourse(courseuuid)
     : routePaths.org.course(courseuuid)
   const buildActivityPath = (activityUuid: string) =>
-    quickstartMode
-      ? routePaths.org.quickstartCourseActivity(courseuuid, activityUuid)
-      : routePaths.org.courseActivity(courseuuid, activityUuid)
+    routePaths.org.courseActivity(courseuuid, activityUuid)
 
   const setBrowserActivityUrl = React.useCallback((cleanActivityUuid: string) => {
     if (typeof window === 'undefined') return
@@ -440,9 +436,7 @@ function ActivityClient(props: ActivityClientProps) {
     const routesToPrefetch = [
       getUriWithOrg(
         orgslug,
-        quickstartMode
-          ? routePaths.org.quickstartCourse(cleanCourseUuid)
-          : routePaths.org.badgePath(cleanCourseUuid)
+        routePaths.org.badgePath(cleanCourseUuid)
       ),
     ]
 
@@ -577,9 +571,7 @@ function ActivityClient(props: ActivityClientProps) {
       return
     }
 
-    const endPath = quickstartMode
-      ? routePaths.org.quickstartCourseActivityEnd(cleanCourseUuid)
-      : routePaths.org.badgeStatus(cleanCourseUuid)
+    const endPath = routePaths.org.badgeStatus(cleanCourseUuid)
     router.push(getUriWithOrg(orgslug, isGuestLearner ? `${endPath}?guest_completed=1` : endPath))
   }, [
     activity,
@@ -1205,19 +1197,13 @@ function NextActivityButton({ course, currentActivityId, activity, orgslug, gues
   const handleNext = async () => {
     setIsLoading(true);
     const cleanCourseUuid = course.course_uuid?.replace('course_', '');
-    const currentActivityPath = quickstartMode
-      ? routePaths.org.quickstartCourseActivity(cleanCourseUuid, activity.activity_uuid?.replace('activity_', '') || '')
-      : routePaths.org.courseActivity(cleanCourseUuid, activity.activity_uuid?.replace('activity_', '') || '')
+    const currentActivityPath = routePaths.org.courseActivity(cleanCourseUuid, activity.activity_uuid?.replace('activity_', '') || '')
     const chapterCompletePath = shouldShowChapterComplete
       ? `${currentActivityPath}?chapter_complete=${currentChapter.chapter_uuid || currentChapter.id}`
       : null
     const baseNextActivityPath = chapterCompletePath || (nextActivity
-      ? (quickstartMode
-        ? routePaths.org.quickstartCourseActivity(cleanCourseUuid, nextActivity.cleanUuid)
-        : routePaths.org.courseActivity(cleanCourseUuid, nextActivity.cleanUuid))
-      : (quickstartMode
-        ? routePaths.org.quickstartCourseActivityEnd(cleanCourseUuid)
-        : routePaths.org.badgeStatus(cleanCourseUuid)));
+      ? routePaths.org.courseActivity(cleanCourseUuid, nextActivity.cleanUuid)
+      : routePaths.org.badgeStatus(cleanCourseUuid));
     const nextActivityPath =
       !chapterCompletePath && !nextActivity && isGuestLearner
         ? `${baseNextActivityPath}?guest_completed=1`
@@ -1303,9 +1289,7 @@ function PreviousActivityButton({ course, currentActivityId, orgslug, guestMode 
 
   const navigateToActivity = () => {
     const cleanCourseUuid = course.course_uuid?.replace('course_', '');
-    const previousActivityPath = quickstartMode
-      ? routePaths.org.quickstartCourseActivity(cleanCourseUuid, previousActivity.cleanUuid)
-      : routePaths.org.courseActivity(cleanCourseUuid, previousActivity.cleanUuid)
+    const previousActivityPath = routePaths.org.courseActivity(cleanCourseUuid, previousActivity.cleanUuid)
     router.push(getUriWithOrg(orgslug, previousActivityPath));
   };
 

@@ -1,41 +1,32 @@
 'use client'
 import AdminFeatureHeader from '@components/Admin/AdminFeatureHeader'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { TextIcon, LucideIcon, Palette, Sparkles, Shield, CreditCard } from 'lucide-react'
 import React, { useEffect, use } from 'react';
 import { motion } from 'motion/react'
 import { useRouter } from 'next/navigation'
 import OrgEditGeneral from '@components/Dashboard/Pages/Org/OrgEditGeneral/OrgEditGeneral'
 import OrgEditBranding from '@components/Dashboard/Pages/Org/OrgEditBranding/OrgEditBranding'
-import OrgEditOnboarding from '@components/Dashboard/Pages/Org/OrgEditOnboarding/OrgEditOnboarding'
 import OrgEditSSO from '@components/Dashboard/Pages/Org/OrgEditSSO/OrgEditSSO'
 import OrgEditPlan from '@components/Dashboard/Pages/Org/OrgEditPlan/OrgEditPlan'
 import { useTranslation } from 'react-i18next'
+import { getOrganizationAdminPages } from '@components/Admin/adminFeaturePages'
+import { useOrg } from '@components/Contexts/OrgContext'
 
 export type OrgParams = {
   subpage: string
   orgslug: string
 }
 
-interface TabItem {
-  id: string
-  label: string
-  icon?: LucideIcon
-}
-
-const getSettingTabs = (t: any): TabItem[] => [
-  { id: 'general', label: t('dashboard.organization.settings.tabs.general'), icon: TextIcon },
-  { id: 'branding', label: t('dashboard.organization.settings.tabs.branding'), icon: Palette },
-  { id: 'onboarding', label: 'Onboarding', icon: Sparkles },
-  { id: 'sso', label: 'Single Sign-On', icon: Shield },
-  { id: 'plan', label: 'Plan & Packages', icon: CreditCard },
-]
-
 function OrgPage(props: { params: Promise<OrgParams> }) {
   const { t } = useTranslation()
   const params = use(props.params);
   const router = useRouter()
-  const SETTING_TABS = React.useMemo(() => getSettingTabs(t), [t])
+  const org = useOrg() as any
+  const hasSso = org?.config?.config?.resolved_features?.sso?.enabled === true
+  const SETTING_TABS = React.useMemo(
+    () => getOrganizationAdminPages(t, { hasSso }),
+    [hasSso, t]
+  )
   const enabledSubpages = React.useMemo(
     () => new Set(SETTING_TABS.map((tab) => tab.id)),
     [SETTING_TABS]
@@ -59,7 +50,7 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
             id: tab.id,
             label: tab.label,
             icon: Icon ? <Icon size={16} /> : undefined,
-            href: getUriWithOrg(params.orgslug, routePaths.org.dash.orgSettings[tab.id as keyof typeof routePaths.org.dash.orgSettings]()),
+            href: getUriWithOrg(params.orgslug, tab.href),
           }
         })}
       />
@@ -73,7 +64,6 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
       >
         {params.subpage == 'general' ? <OrgEditGeneral /> : ''}
         {params.subpage == 'branding' ? <OrgEditBranding /> : ''}
-        {params.subpage == 'onboarding' ? <OrgEditOnboarding /> : ''}
         {params.subpage == 'sso' ? <OrgEditSSO /> : ''}
         {params.subpage == 'plan' ? <OrgEditPlan orgslug={params.orgslug} /> : ''}
       </motion.div>
