@@ -198,6 +198,8 @@
     "back_to_login": "Voltar ao login",
     "email_verified_success": "E-mail verificado!",
     "email_verified_message": "Seu e-mail foi verificado com sucesso. Agora você pode fazer login na sua conta.",
+    "email_verified_close_window": "Seu e-mail foi verificado — você pode fechar esta janela com segurança. A aba em que você se cadastrou continuará automaticamente.",
+    "email_verified_login_fallback": "Fechou a aba original? Entre aqui",
     "proceed_to_login": "Continuar para o login",
     "check_email_for_verification": "Verifique seu e-mail",
     "verification_email_sent_message": "Enviamos um e-mail de verificação para sua caixa de entrada. Por favor, clique no link do e-mail para verificar sua conta.",

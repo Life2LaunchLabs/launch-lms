@@ -201,6 +201,8 @@
     "back_to_login": "ログインに戻る",
     "email_verified_success": "メールアドレスが確認されました！",
     "email_verified_message": "メールアドレスが正常に確認されました。アカウントにログインできます。",
+    "email_verified_close_window": "メールアドレスが確認されました — このウィンドウは安全に閉じられます。登録したタブは自動的に続行されます。",
+    "email_verified_login_fallback": "元のタブを閉じましたか？こちらからログイン",
     "proceed_to_login": "ログインへ進む",
     "check_email_for_verification": "メールを確認してください",
     "verification_email_sent_message": "確認メールを送信しました。メール内のリンクをクリックしてアカウントを確認してください。",

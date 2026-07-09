@@ -45,6 +45,10 @@ from src.services.security.account_lockout import (
     update_login_info,
     format_lockout_message,
 )
+from src.services.users.welcome_claim import (
+    create_welcome_claim,
+    resolve_welcome_claim,
+)
 from src.services.users.email_verification import (
     verify_email_token,
     resend_verification_email,
@@ -617,6 +621,37 @@ async def complete_welcome_signup(
     db_session.commit()
     db_session.refresh(user)
 
+    onboarding_payload = {
+        "badge_uuid": badge.badge_uuid,
+        "activity_uuid": activity.activity_uuid,
+        "org_slug": owner_org.slug,
+        "redirect_url": _learning_onboarding_redirect_url(owner_org, badge.badge_uuid, activity.activity_uuid),
+    }
+
+    # Hard gate: when email verification is required, attach any guest progress
+    # to the new account but do not issue a session until the email is verified.
+    # The claim token lets the signup tab poll and pick up its session once the
+    # email is verified, without re-entering credentials.
+    if (
+        get_launchlms_config().general_config.require_email_verification
+        and not user.email_verified
+    ):
+        transfer_guest_session_data_to_user(
+            request=request,
+            response=response,
+            db_session=db_session,
+            user=UserRead.model_validate(user),
+        )
+        claim_token = create_welcome_claim(
+            user.user_uuid, onboarding_payload["redirect_url"]
+        )
+        return {
+            "user": UserRead.model_validate(user),
+            "verification_required": True,
+            "claim_token": claim_token,
+            "onboarding": onboarding_payload,
+        }
+
     access_token = create_access_token(
         data={"sub": user.email},
         expires_delta=JWT_ACCESS_TOKEN_EXPIRES,
@@ -637,12 +672,54 @@ async def complete_welcome_signup(
             "refresh_token": refresh_token,
             "expiry": get_token_expiry_ms(),
         },
-        "onboarding": {
-            "badge_uuid": badge.badge_uuid,
-            "activity_uuid": activity.activity_uuid,
-            "org_slug": owner_org.slug,
-            "redirect_url": _learning_onboarding_redirect_url(owner_org, badge.badge_uuid, activity.activity_uuid),
+        "onboarding": onboarding_payload,
+    }
+
+
+class WelcomeClaimRequest(BaseModel):
+    claim_token: str
+
+
+@router.post("/signup/welcome/claim")
+async def claim_welcome_session(
+    request: Request,
+    response: Response,
+    body: WelcomeClaimRequest,
+    db_session: Session = Depends(get_db_session),
+):
+    """
+    Polled by the signup tab while it waits for email verification.
+    Issues the withheld session once the email is verified.
+    """
+    claim_status, user, redirect_url = resolve_welcome_claim(
+        db_session, body.claim_token
+    )
+
+    if claim_status == "invalid":
+        raise HTTPException(
+            status_code=410,
+            detail="Invalid or expired claim token",
+        )
+
+    if claim_status == "pending":
+        return {"status": "pending"}
+
+    access_token = create_access_token(
+        data={"sub": user.email},
+        expires_delta=JWT_ACCESS_TOKEN_EXPIRES,
+    )
+    refresh_token = create_refresh_token(data={"sub": user.email})
+    set_auth_cookies(response, access_token, refresh_token, request)
+
+    return {
+        "status": "ready",
+        "user": UserRead.model_validate(user),
+        "tokens": {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "expiry": get_token_expiry_ms(),
         },
+        "redirect_url": redirect_url,
     }
 
 

@@ -41,7 +41,7 @@ function VerifyEmailClient({ org }: VerifyEmailClientProps) {
                     setError(res.error || t('auth.verification_failed'))
                     setShowMessage(true)
                 }
-            } catch (err) {
+            } catch {
                 setError(t('auth.verification_failed'))
                 setShowMessage(true)
             } finally {
@@ -135,16 +135,15 @@ function VerifyEmailClient({ org }: VerifyEmailClientProps) {
                                         </div>
                                         <div>
                                             <h2 className="font-semibold text-lg text-gray-900">{t('auth.email_verified_success')}</h2>
-                                            <p className="text-sm text-gray-500 mt-1">{t('auth.email_verified_message')}</p>
+                                            <p className="text-sm text-gray-500 mt-1">{t('auth.email_verified_close_window')}</p>
                                         </div>
                                     </div>
                                 </div>
-                                <Link
-                                    href="/login"
-                                    className="block w-full bg-black text-white font-semibold text-center py-2.5 rounded-lg hover:bg-gray-800 transition-colors"
-                                >
-                                    {t('auth.proceed_to_login')}
-                                </Link>
+                                <p className="text-sm text-gray-500 text-center">
+                                    <Link href="/login" className="underline hover:no-underline">
+                                        {t('auth.email_verified_login_fallback')}
+                                    </Link>
+                                </p>
                             </div>
                         )}
                     </div>

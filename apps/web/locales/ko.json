@@ -198,6 +198,8 @@
     "back_to_login": "로그인으로 돌아가기",
     "email_verified_success": "이메일이 인증되었습니다!",
     "email_verified_message": "이메일이 성공적으로 인증되었습니다. 이제 계정에 로그인할 수 있습니다.",
+    "email_verified_close_window": "이메일이 인증되었습니다 — 이 창을 안전히 닫으셔도 됩니다. 가입한 탭이 자동으로 계속됩니다.",
+    "email_verified_login_fallback": "원래 탭을 닫으셨나요? 여기서 로그인",
     "proceed_to_login": "로그인으로 이동",
     "check_email_for_verification": "이메일을 확인하세요",
     "verification_email_sent_message": "받은 편지함으로 인증 이메일을 보냈습니다. 이메일의 링크를 클릭하여 계정을 인증해 주세요.",

@@ -47,9 +47,15 @@ will start in reload mode.
 
 | Variable | Used by | Notes |
 | --- | --- | --- |
-| `LAUNCHLMS_EMAIL_PROVIDER` | API | `resend` or `smtp`. |
+| `LAUNCHLMS_EMAIL_PROVIDER` | API | `resend` or `smtp`. See [email.md](email.md). |
 | `LAUNCHLMS_RESEND_API_KEY` | API | Required when Resend email is enabled. |
-| `LAUNCHLMS_SYSTEM_EMAIL_ADDRESS` | API | Sender address. |
+| `LAUNCHLMS_SYSTEM_EMAIL_ADDRESS` | API | Sender address. Must be on the provider-verified domain. |
+| `LAUNCHLMS_SMTP_HOST` | API | SMTP host. Required for the `smtp` provider. |
+| `LAUNCHLMS_SMTP_PORT` | API | SMTP port. Default `587`. |
+| `LAUNCHLMS_SMTP_USERNAME` | API | SMTP login. Optional. |
+| `LAUNCHLMS_SMTP_PASSWORD` | API | SMTP password. Optional. |
+| `LAUNCHLMS_SMTP_USE_TLS` | API | STARTTLS. Default `true`. |
+| `LAUNCHLMS_REQUIRE_EMAIL_VERIFICATION` | API | Require new accounts to verify their email before login. Default `false`. |
 | `LAUNCHLMS_CONTENT_DELIVERY_TYPE` | API | `filesystem` or `s3api`. |
 | `LAUNCHLMS_S3_API_BUCKET_NAME` | API | S3-compatible bucket. |
 | `LAUNCHLMS_S3_API_ENDPOINT_URL` | API | S3-compatible endpoint. |

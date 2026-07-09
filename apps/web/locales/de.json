@@ -211,6 +211,8 @@
     "back_to_login": "Zurück zur Anmeldung",
     "email_verified_success": "E-Mail bestätigt!",
     "email_verified_message": "Ihre E-Mail wurde erfolgreich bestätigt. Sie können sich jetzt in Ihr Konto einloggen.",
+    "email_verified_close_window": "Ihre E-Mail wurde bestätigt — Sie können dieses Fenster sicher schließen. Der Tab, in dem Sie sich registriert haben, wird automatisch fortgesetzt.",
+    "email_verified_login_fallback": "Ursprünglichen Tab geschlossen? Hier anmelden",
     "proceed_to_login": "Weiter zur Anmeldung",
     "check_email_for_verification": "Überprüfen Sie Ihre E-Mail",
     "verification_email_sent_message": "Wir haben eine Bestätigungs-E-Mail an Ihren Posteingang gesendet. Bitte klicken Sie auf den Link in der E-Mail, um Ihr Konto zu bestätigen.",

@@ -149,7 +149,14 @@ def get_launchlms_config() -> LaunchLMSConfig:
     launchlms_env = os.environ.get("LAUNCHLMS_ENV", "dev")
 
     # Email verification requirement (disabled by default)
-    require_email_verification = False
+    env_require_email_verification = os.environ.get(
+        "LAUNCHLMS_REQUIRE_EMAIL_VERIFICATION", "None"
+    )
+    require_email_verification = (
+        env_require_email_verification.lower() in ("true", "1", "yes")
+        if env_require_email_verification != "None"
+        else yaml_config.get("general", {}).get("require_email_verification", False)
+    )
 
     # OAuth sign-in/sign-up is globally disabled by default.
     env_auth_oauth_enabled = os.environ.get("LAUNCHLMS_AUTH_OAUTH_ENABLED", "None")

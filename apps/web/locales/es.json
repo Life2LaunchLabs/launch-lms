@@ -211,6 +211,8 @@
     "back_to_login": "Volver al inicio de sesión",
     "email_verified_success": "¡Correo verificado!",
     "email_verified_message": "Tu correo electrónico ha sido verificado exitosamente. Ahora puedes iniciar sesión en tu cuenta.",
+    "email_verified_close_window": "Tu correo ha sido verificado — puedes cerrar esta ventana con seguridad. La pestaña en la que te registraste continuará automáticamente.",
+    "email_verified_login_fallback": "¿Cerraste la pestaña original? Inicia sesión aquí",
     "proceed_to_login": "Continuar al inicio de sesión",
     "check_email_for_verification": "Revisa tu correo electrónico",
     "verification_email_sent_message": "Hemos enviado un correo de verificación a tu bandeja de entrada. Por favor, haz clic en el enlace del correo para verificar tu cuenta.",
