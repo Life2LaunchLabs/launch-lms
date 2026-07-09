@@ -4,10 +4,17 @@ import {
   getResponseMetadata,
 } from '@services/utils/ts/requests'
 
-export async function createInviteCode(org_id: any, access_token: any, usergroup_id?: number) {
-  const url = usergroup_id
-    ? `${getAPIUrl()}orgs/${org_id}/invites?usergroup_id=${usergroup_id}`
-    : `${getAPIUrl()}orgs/${org_id}/invites`
+export async function createInviteCode(
+  org_id: any,
+  access_token: any,
+  options?: { usergroupId?: number; displayName?: string; expiryDate?: string }
+) {
+  const params = new URLSearchParams()
+  if (options?.usergroupId) params.set('usergroup_id', String(options.usergroupId))
+  if (options?.displayName?.trim()) params.set('display_name', options.displayName.trim())
+  if (options?.expiryDate) params.set('expiry_date', options.expiryDate)
+  const query = params.toString()
+  const url = `${getAPIUrl()}orgs/${org_id}/invites${query ? `?${query}` : ''}`
   const result = await fetch(
     url,
     RequestBodyWithAuthHeader('POST', null, null, access_token)

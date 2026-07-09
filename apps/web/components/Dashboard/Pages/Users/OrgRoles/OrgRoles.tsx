@@ -5,24 +5,20 @@ import AddRole from '@components/Objects/Modals/Dash/OrgRoles/AddRole'
 import EditRole from '@components/Objects/Modals/Dash/OrgRoles/EditRole'
 import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
-import PlanBadge from '@components/Dashboard/Shared/PlanRestricted/PlanBadge'
 import { getAPIUrl } from '@services/config/config'
 import { deleteRole } from '@services/roles/roles'
 import { swrFetcher } from '@services/utils/ts/requests'
-import { PlanLevel } from '@services/plans/plans'
-import { Pencil, Shield, X, Globe, Lock, Eye, Check, XCircle } from 'lucide-react'
+import { Pencil, Shield, X, Globe, Lock, Eye, Check, XCircle, Sparkles } from 'lucide-react'
 import React from 'react'
 import toast from 'react-hot-toast'
 import useSWR, { mutate } from 'swr'
 import { useTranslation } from 'react-i18next'
-import { usePlan } from '@components/Hooks/usePlan'
 
 function OrgRoles() {
     const { t } = useTranslation()
     const org = useOrg() as any
     const session = useLHSession() as any
     const access_token = session?.data?.tokens?.access_token;
-    const currentPlan = usePlan()
     const rf = org?.config?.config?.resolved_features
     const canCreateRoles = rf?.roles?.enabled === true
     const [createRoleModal, setCreateRoleModal] = React.useState(false)
@@ -171,6 +167,15 @@ function OrgRoles() {
                         {t('dashboard.users.roles.subtitle')}{' '}
                     </h2>
                 </div>
+                {!canCreateRoles && (
+                    <div className="mb-4 flex items-start gap-3 rounded-lg border border-fuchsia-200 bg-fuchsia-50 px-4 py-3 text-fuchsia-900">
+                        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-fuchsia-600" />
+                        <div>
+                            <p className="text-sm font-semibold">Enterprise roles</p>
+                            <p className="text-sm text-fuchsia-800">Upgrade to Enterprise to create, edit, or delete roles. You can still view roles and their permissions.</p>
+                        </div>
+                    </div>
+                )}
                 
                 {/* Mobile view - Cards */}
                 <div className="block sm:hidden space-y-3">
@@ -217,7 +222,7 @@ function OrgRoles() {
                                             </button>
                                         }
                                     />
-                                    {!isSystem ? (
+                                    {!isSystem && canCreateRoles ? (
                                         <>
                                             <Modal
                                                 isDialogOpen={
@@ -327,7 +332,7 @@ function OrgRoles() {
                                                             </button>
                                                         }
                                                     />
-                                                    {!isSystem ? (
+                                                    {!isSystem && canCreateRoles ? (
                                                         <>
                                                             <Modal
                                                                 isDialogOpen={
@@ -405,16 +410,13 @@ function OrgRoles() {
                             }
                         />
                     ) : (
-                        <div className="flex items-center space-x-2">
-                            <button
-                                disabled
-                                className="flex space-x-2 p-2 sm:p-1 sm:px-3 bg-gray-300 rounded-md font-bold items-center text-sm text-gray-500 w-full sm:w-auto justify-center cursor-not-allowed"
-                            >
-                                <Lock className="w-4 h-4" />
-                                <span>{t('dashboard.users.roles.actions.create')}</span>
-                            </button>
-                            <PlanBadge currentPlan={currentPlan} requiredPlan={(rf?.roles?.required_plan || 'enterprise') as PlanLevel} />
-                        </div>
+                        <button
+                            disabled
+                            className="flex space-x-2 p-2 sm:p-1 sm:px-3 bg-gray-300 rounded-md font-bold items-center text-sm text-gray-500 w-full sm:w-auto justify-center cursor-not-allowed"
+                        >
+                            <Lock className="w-4 h-4" />
+                            <span>{t('dashboard.users.roles.actions.create')}</span>
+                        </button>
                     )}
                 </div>
             </div>

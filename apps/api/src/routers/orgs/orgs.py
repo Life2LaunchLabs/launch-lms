@@ -625,13 +625,23 @@ async def api_create_invite_code(
     request: Request,
     org_id: int,
     usergroup_id: Optional[int] = None,
+    display_name: Optional[str] = None,
+    expiry_date: Optional[str] = None,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     """
     Create invite code, optionally linked to a usergroup
     """
-    return await create_invite_code(request, org_id, current_user, db_session, usergroup_id)
+    return await create_invite_code(
+        request,
+        org_id,
+        current_user,
+        db_session,
+        usergroup_id,
+        display_name,
+        expiry_date,
+    )
 
 
 @router.get("/{org_id}/invites")

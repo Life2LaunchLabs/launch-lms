@@ -11,8 +11,8 @@ import AdminDataTable from '@components/Admin/AdminDataTable'
 import { Pagination } from '@components/Admin/Platform/shared'
 import { removeUserFromOrg, removeUsersFromOrg, updateUserRole } from '@services/organizations/orgs'
 import { swrFetcher } from '@services/utils/ts/requests'
-import { LogOut, Shield, User, Crown, Users, CheckCircle2, XCircle, Mail, Globe, ArrowUp, ArrowDown, X } from 'lucide-react'
-import React, { useState, useCallback, useRef } from 'react'
+import { LogOut, Shield, User, Crown, Users, CheckCircle2, XCircle, Mail, Globe, ArrowUp, ArrowDown, X, UserPlus } from 'lucide-react'
+import React, { useState, useRef } from 'react'
 import toast from 'react-hot-toast'
 import useSWR, { mutate } from 'swr'
 import { useTranslation } from 'react-i18next'
@@ -23,6 +23,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@components/ui/select'
+import InviteUsersDialog from '@components/Dashboard/Pages/Users/OrgUsersAdd/InviteUsersDialog'
+import { usePlan } from '@components/Hooks/usePlan'
+import { planMeetsRequirement } from '@services/plans/plans'
 
 const ITEMS_PER_PAGE = 10
 
@@ -47,6 +50,9 @@ function OrgUsers() {
   const org = useOrg() as any
   const session = useLHSession() as any
   const access_token = session?.data?.tokens?.access_token;
+  const currentPlan = usePlan()
+  const hasUserGroups = planMeetsRequirement(currentPlan, 'full')
+    && (org?.config?.config?.resolved_features?.usergroups?.enabled ?? true)
 
   const [page, setPage] = useState(1)
   const [searchValue, setSearchValue] = useState('')
@@ -55,6 +61,7 @@ function OrgUsers() {
   const [filterRole, setFilterRole] = useState<string>('')
   const [filterStatus, setFilterStatus] = useState<string>('')
   const [filterGroupId, setFilterGroupId] = useState<string>('')
+  const [showInviteDialog, setShowInviteDialog] = useState(false)
 
   // Track whether revalidation on focus is allowed
   const revalidateRef = useRef(shouldRevalidate)
@@ -109,12 +116,18 @@ function OrgUsers() {
 
   // Fetch available usergroups for filter dropdown
   const { data: usergroups } = useSWR(
-    org && access_token ? `${getAPIUrl()}usergroups/org/${org.id}?org_id=${org.id}` : null,
+    org && access_token && hasUserGroups ? `${getAPIUrl()}usergroups/org/${org.id}?org_id=${org.id}` : null,
+    (url) => swrFetcher(url, access_token),
+    { revalidateOnFocus: false }
+  )
+  const { data: invitedUsers, mutate: mutateInvitedUsers } = useSWR(
+    org && access_token ? `${getAPIUrl()}orgs/${org.id}/invites/users` : null,
     (url) => swrFetcher(url, access_token),
     { revalidateOnFocus: false }
   )
 
   const orgUsers = data?.items || []
+  const pendingInvites = invitedUsers?.filter((invite: any) => invite.pending) || []
   const total = data?.total || 0
   const isInitialLoading = !data && isValidating
   const isPageTransitioning = !!data && isValidating
@@ -122,9 +135,9 @@ function OrgUsers() {
   const visibleUserIds: number[] = orgUsers.map((u: any) => u.user.id)
   const allVisibleSelected = visibleUserIds.length > 0 && visibleUserIds.every((id: number) => selectedUserIds.has(id))
 
-  const hasActiveFilters = filterRole || filterStatus || filterGroupId
+  const hasActiveFilters = filterRole || filterStatus || (hasUserGroups && filterGroupId)
 
-  const toggleSelectAll = useCallback(() => {
+  const toggleSelectAll = () => {
     setSelectedUserIds((prev) => {
       const next = new Set(prev)
       if (allVisibleSelected) {
@@ -134,9 +147,9 @@ function OrgUsers() {
       }
       return next
     })
-  }, [allVisibleSelected, visibleUserIds])
+  }
 
-  const toggleSelectUser = useCallback((userId: number) => {
+  const toggleSelectUser = (userId: number) => {
     setSelectedUserIds((prev) => {
       const next = new Set(prev)
       if (next.has(userId)) {
@@ -146,7 +159,7 @@ function OrgUsers() {
       }
       return next
     })
-  }, [])
+  }
 
   const toggleSortOrder = () => {
     setSortOrder((prev) => prev === 'desc' ? 'asc' : 'desc')
@@ -223,10 +236,21 @@ function OrgUsers() {
         filters={[
           { id: 'role', label: 'Role', value: filterRole || 'all', options: [{ value: 'all', label: 'All' }, ...(roles || []).map((role: any) => ({ value: String(role.id), label: role.name }))], onChange: handleFilterChange(setFilterRole) },
           { id: 'status', label: 'Status', value: filterStatus || 'all', options: [{ value: 'all', label: 'All' }, { value: 'verified', label: 'Verified' }, { value: 'unverified', label: 'Unverified' }], onChange: handleFilterChange(setFilterStatus) },
-          { id: 'group', label: 'Groups', value: filterGroupId || 'all', options: [{ value: 'all', label: 'All' }, ...(usergroups || []).map((group: any) => ({ value: String(group.id), label: group.name }))], onChange: handleFilterChange(setFilterGroupId) },
+          ...(hasUserGroups ? [{ id: 'group', label: 'Groups', value: filterGroupId || 'all', options: [{ value: 'all', label: 'All' }, ...(usergroups || []).map((group: any) => ({ value: String(group.id), label: group.name }))], onChange: handleFilterChange(setFilterGroupId) }] : []),
         ]}
-        resultLabel={`${total} user${total !== 1 ? 's' : ''}`}
-        actions={hasActiveFilters ? <button onClick={resetFilters} className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-black"><X className="h-3 w-3" />Clear</button> : null}
+        resultLabel={`${total + pendingInvites.length} user${total + pendingInvites.length !== 1 ? 's' : ''}`}
+        actions={
+          <div className="flex items-center gap-2">
+            {hasActiveFilters && <button onClick={resetFilters} className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-black"><X className="h-3 w-3" />Clear</button>}
+            <button
+              onClick={() => setShowInviteDialog(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-gray-700"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              Add users
+            </button>
+          </div>
+        }
       >
 
             {/* Selection Action Bar */}
@@ -265,7 +289,7 @@ function OrgUsers() {
                 <div className="py-20 flex justify-center">
                   <LaunchLMSSpinner size={36} />
                 </div>
-              ) : orgUsers.length === 0 ? (
+              ) : orgUsers.length === 0 && pendingInvites.length === 0 ? (
                 <div className="py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
                     <div className="bg-gray-100 p-4 rounded-full">
@@ -308,9 +332,11 @@ function OrgUsers() {
                       <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">
                         {t('dashboard.users.active_users.table.user') || 'User'}
                       </th>
-                      <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">
-                        {t('dashboard.users.active_users.table.groups') || 'Groups'}
-                      </th>
+                      {hasUserGroups && (
+                        <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">
+                          {t('dashboard.users.active_users.table.groups') || 'Groups'}
+                        </th>
+                      )}
                       <th
                         className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3 cursor-pointer select-none hover:text-gray-700 transition-colors"
                         onClick={toggleSortOrder}
@@ -336,6 +362,34 @@ function OrgUsers() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
+                    {page === 1 && !searchValue && !hasActiveFilters && pendingInvites.map((invite: any) => (
+                      <tr key={`invite-${invite.email}`} className="bg-amber-50/30">
+                        <td className="w-10 px-6 py-4">
+                          <input type="checkbox" disabled className="h-4 w-4 cursor-not-allowed rounded border-gray-200 opacity-40" aria-label={`Invitation for ${invite.email}`} />
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                              <Mail className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-semibold text-gray-800">{invite.email}</div>
+                              <div className="text-xs text-gray-400">Invitation pending</div>
+                            </div>
+                          </div>
+                        </td>
+                        {hasUserGroups && <td className="px-6 py-4 text-xs text-gray-400">—</td>}
+                        <td className="px-6 py-4 text-xs text-gray-400">—</td>
+                        <td className="px-6 py-4">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700">
+                            <Mail className="h-3 w-3" />
+                            Invite sent
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-xs text-gray-400">—</td>
+                        <td className="px-6 py-4 text-right text-xs text-gray-400">Awaiting signup</td>
+                      </tr>
+                    ))}
                     {orgUsers?.map((user: any) => (
                       <tr
                         key={user.user.id}
@@ -379,7 +433,7 @@ function OrgUsers() {
                         </td>
 
                         {/* User Groups */}
-                        <td className="px-6 py-4">
+                        {hasUserGroups && <td className="px-6 py-4">
                           {user.usergroups && user.usergroups.length > 0 ? (
                             <div className="flex items-center gap-1.5 flex-wrap">
                               {user.usergroups.map((group: any) => (
@@ -396,7 +450,7 @@ function OrgUsers() {
                           ) : (
                             <span className="text-xs text-gray-400">—</span>
                           )}
-                        </td>
+                        </td>}
 
                         {/* Joined */}
                         <td className="px-6 py-4">
@@ -524,6 +578,11 @@ function OrgUsers() {
               onPageChange={handlePageChange}
             />
       </AdminDataTable>
+      <InviteUsersDialog
+        open={showInviteDialog}
+        onOpenChange={setShowInviteDialog}
+        onInvited={() => mutateInvitedUsers()}
+      />
     </div>
   )
 }

@@ -3,9 +3,8 @@ import PageLoading from '@components/Objects/Loaders/PageLoading'
 import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal'
 import { getAPIUrl, getUriWithOrg } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
-import { Check, Copy, Globe, Ticket, UserSquare, Users, X } from 'lucide-react'
-import Link from 'next/link'
-import React, { useEffect } from 'react'
+import { CalendarDays, ChevronRight, Copy, Globe, Ticket, Trash2 } from 'lucide-react'
+import React from 'react'
 import useSWR, { mutate } from 'swr'
 import dayjs from 'dayjs'
 import {
@@ -18,26 +17,8 @@ import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import OrgInviteCodeGenerate from '@components/Objects/Modals/Dash/OrgAccess/OrgInviteCodeGenerate'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useTranslation } from 'react-i18next'
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = React.useState(false)
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  return (
-    <button
-      onClick={handleCopy}
-      className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
-      title="Copy to clipboard"
-    >
-      {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
-    </button>
-  )
-}
+import SignupQrDialog from './SignupQrDialog'
+import { Switch } from '@components/ui/switch'
 
 function OrgAccess() {
   const { t } = useTranslation()
@@ -48,32 +29,30 @@ function OrgAccess() {
     org ? `${getAPIUrl()}orgs/${org?.id}/invites` : null,
     (url) => swrFetcher(url, access_token)
   )
-  const [isLoading, setIsLoading] = React.useState(false)
-  const [joinMethod, setJoinMethod] = React.useState('closed')
   const [invitesModal, setInvitesModal] = React.useState(false)
+  const [joinMethodOverride, setJoinMethodOverride] = React.useState<'open' | 'inviteOnly' | null>(null)
+  const [isChangingJoinMethod, setIsChangingJoinMethod] = React.useState(false)
+  const [selectedInvite, setSelectedInvite] = React.useState<any>(null)
+  const [detailsOpen, setDetailsOpen] = React.useState(false)
   const router = useRouter()
 
-  async function getOrgJoinMethod() {
-    if (org) {
-      const config = org.config?.config
-      const isV2 = config?.config_version?.startsWith('2')
-      let signupMode: string
-
-      if (isV2) {
-        signupMode = config?.admin_toggles?.members?.signup_mode || 'open'
-      } else {
-        signupMode = config?.features?.members?.signup_mode || 'open'
-      }
-
-      setJoinMethod(signupMode === 'open' ? 'open' : 'inviteOnly')
-    }
-  }
+  const config = org?.config?.config
+  const isV2 = config?.config_version?.startsWith('2')
+  const signupMode = isV2
+    ? config?.admin_toggles?.members?.signup_mode
+    : config?.features?.members?.signup_mode
+  const configuredJoinMethod = (signupMode || 'open') === 'open' ? 'open' : 'inviteOnly'
+  const joinMethod = joinMethodOverride || configuredJoinMethod
 
   async function deleteInvite(invite: any) {
     const toastId = toast.loading(t('dashboard.users.signups.invite_codes.toasts.deleting'))
     let res = await deleteInviteCode(org.id, invite.invite_code_uuid, access_token)
     if (res.status == 200) {
       mutate(`${getAPIUrl()}orgs/${org.id}/invites`)
+      if (selectedInvite?.invite_code_uuid === invite.invite_code_uuid) {
+        setDetailsOpen(false)
+        setSelectedInvite(null)
+      }
       toast.success(t('dashboard.users.signups.invite_codes.toasts.delete_success'), {id:toastId})
     } else {
       toast.error(t('dashboard.users.signups.invite_codes.toasts.delete_error'), {id:toastId})
@@ -81,29 +60,41 @@ function OrgAccess() {
   }
 
   async function changeJoinMethod(method: 'open' | 'inviteOnly') {
+    const previousMethod = joinMethod
+    setJoinMethodOverride(method)
+    setIsChangingJoinMethod(true)
     const toastId = toast.loading(t('dashboard.users.signups.invite_codes.toasts.changing_method'))
     let res = await changeSignupMechanism(org.id, method, access_token)
+    setIsChangingJoinMethod(false)
     if (res.status == 200) {
       router.refresh()
-      mutate(`${getAPIUrl()}orgs/slug/${org?.slug}`)
+      await mutate(`${getAPIUrl()}orgs/slug/${org?.slug}`)
       toast.success(t('dashboard.users.signups.invite_codes.toasts.change_success', { method }), {id:toastId})
     } else {
+      setJoinMethodOverride(previousMethod)
       toast.error(t('dashboard.users.signups.invite_codes.toasts.change_error'), {id:toastId})
     }
   }
 
-  useEffect(() => {
-    if (invites && org) {
-      getOrgJoinMethod()
-      setIsLoading(false)
-    }
-  }, [org, invites])
-
   const inviteCount = invites?.length ?? 0
+  const selectedInviteUrl = selectedInvite
+    ? getUriWithOrg(org.slug, `/signup?inviteCode=${selectedInvite.invite_code}`)
+    : ''
+
+  const openInviteDetails = (invite: any) => {
+    setSelectedInvite(invite)
+    setDetailsOpen(true)
+  }
+
+  const copyInviteLink = async (invite: any) => {
+    const signupUrl = getUriWithOrg(org.slug, `/signup?inviteCode=${invite.invite_code}`)
+    await navigator.clipboard.writeText(signupUrl)
+    toast.success('Signup link copied')
+  }
 
   return (
     <>
-      {!isLoading ? (
+      {org ? (
         <>
           <div className="h-6"></div>
           <div className="ml-10 mr-10 mx-auto bg-white rounded-xl shadow-xs px-4 py-4 anit ">
@@ -114,61 +105,31 @@ function OrgAccess() {
                 {t('dashboard.users.signups.subtitle')}{' '}
               </h2>
             </div>
-            <div className="flex space-x-2 mx-auto">
-              <ConfirmationModal
-                confirmationButtonText={t('dashboard.users.signups.open.change_to')}
-                confirmationMessage={t('dashboard.users.signups.open.confirmation_message')}
-                dialogTitle={t('dashboard.users.signups.open.confirmation_title')}
-                dialogTrigger={
-                  <div className="w-full h-[160px] bg-slate-100 rounded-lg cursor-pointer hover:bg-slate-200 ease-linear transition-all">
-                    {joinMethod == 'open' ? (
-                      <div className="bg-green-200 text-green-600 font-bold w-fit my-3 mx-3 absolute text-sm px-3 py-1 rounded-lg">
-                        {t('dashboard.users.signups.open.active')}
-                      </div>
-                    ) : null}
-                    <div className="flex flex-col space-y-1 justify-center items-center h-full">
-                      <Globe className="text-slate-400" size={40}></Globe>
-                      <div className="text-2xl text-slate-700 font-bold">
-                        {t('dashboard.users.signups.open.title')}
-                      </div>
-                      <div className="text-gray-400 text-center">
-                        {t('dashboard.users.signups.open.description')}
-                      </div>
-                    </div>
-                  </div>
-                }
-                functionToExecute={() => {
-                  changeJoinMethod('open')
-                }}
-                status="info"
-              ></ConfirmationModal>
-              <ConfirmationModal
-                confirmationButtonText={t('dashboard.users.signups.closed.change_to')}
-                confirmationMessage={t('dashboard.users.signups.closed.confirmation_message')}
-                dialogTitle={t('dashboard.users.signups.closed.confirmation_title')}
-                dialogTrigger={
-                  <div className="w-full h-[160px] bg-slate-100 rounded-lg cursor-pointer hover:bg-slate-200 ease-linear transition-all">
-                    {joinMethod == 'inviteOnly' ? (
-                      <div className="bg-green-200 text-green-600 font-bold w-fit my-3 mx-3 absolute text-sm px-3 py-1 rounded-lg">
-                        {t('dashboard.users.signups.closed.active')}
-                      </div>
-                    ) : null}
-                    <div className="flex flex-col space-y-1 justify-center items-center h-full">
-                      <Ticket className="text-slate-400" size={40}></Ticket>
-                      <div className="text-2xl text-slate-700 font-bold">
-                        {t('dashboard.users.signups.closed.title')}
-                      </div>
-                      <div className="text-gray-400 text-center">
-                        {t('dashboard.users.signups.closed.description')}
-                      </div>
-                    </div>
-                  </div>
-                }
-                functionToExecute={() => {
-                  changeJoinMethod('inviteOnly')
-                }}
-                status="info"
-              ></ConfirmationModal>
+            <div className="flex items-start justify-between gap-6 rounded-lg border border-gray-100 px-4 py-4">
+              <div className="flex min-w-0 gap-3">
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500">
+                  {joinMethod === 'open' ? <Globe className="h-4 w-4" /> : <Ticket className="h-4 w-4" />}
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">Public signups</h3>
+                  <p className="mt-1 text-xs leading-5 text-gray-500">
+                    {joinMethod === 'open'
+                      ? t('dashboard.users.signups.open.description')
+                      : t('dashboard.users.signups.closed.description')}
+                  </p>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-3">
+                <span className="text-xs font-semibold text-gray-500">
+                  {joinMethod === 'open' ? 'Public' : 'Invite only'}
+                </span>
+                <Switch
+                  checked={joinMethod === 'open'}
+                  disabled={isChangingJoinMethod}
+                  onCheckedChange={(checked) => void changeJoinMethod(checked ? 'open' : 'inviteOnly')}
+                  aria-label="Allow public signups"
+                />
+              </div>
             </div>
             <div
               className={
@@ -185,83 +146,62 @@ function OrgAccess() {
                   {t('dashboard.users.signups.invite_codes.subtitle')}{' '}
                 </h2>
               </div>
-              <table className="table-auto w-full text-left whitespace-nowrap rounded-md overflow-hidden">
-                <thead className="bg-gray-100 text-gray-500 rounded-xl uppercase">
-                  <tr className="font-bolder text-sm">
-                    <th className="py-3 px-4">{t('dashboard.users.signups.invite_codes.table.code')}</th>
-                    <th className="py-3 px-4">{t('dashboard.users.signups.invite_codes.table.signup_link')}</th>
-                    <th className="py-3 px-4">{t('dashboard.users.signups.invite_codes.table.type')}</th>
-                    <th className="py-3 px-4">{t('dashboard.users.signups.invite_codes.table.expiration_date')}</th>
-                    <th className="py-3 px-4">{t('dashboard.users.signups.invite_codes.table.actions')}</th>
-                  </tr>
-                </thead>
-                <>
-                  <tbody className="mt-5 bg-white rounded-md">
-                    {invites?.map((invite: any) => (
-                      <tr
-                        key={invite.invite_code_uuid}
-                        className="border-b border-gray-100 text-sm"
+              <div className="space-y-2">
+                {invites?.map((invite: any) => {
+                  const expiry = dayjs(invite.expires_at || invite.created_at)
+                    .add(invite.expires_at ? 0 : 1, 'year')
+                    .format('MMM D, YYYY')
+                  return (
+                    <div
+                      key={invite.invite_code_uuid}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openInviteDetails(invite)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') openInviteDetails(invite)
+                      }}
+                      className="flex min-w-0 cursor-pointer items-center gap-3 rounded-lg border border-gray-100 bg-white px-4 py-3 transition hover:border-gray-200 hover:bg-gray-50"
+                    >
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500">
+                        <Ticket className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-semibold text-gray-800">{invite.display_name || invite.invite_code}</div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1 text-[11px] text-gray-500 sm:text-xs">
+                        <CalendarDays className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Expires </span>{expiry}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          void copyInviteLink(invite)
+                        }}
+                        className="shrink-0 rounded-md p-2 text-gray-400 hover:bg-white hover:text-gray-700"
+                        title="Copy signup link"
                       >
-                        <td className="py-3 px-4">
-                          <div className="flex items-center space-x-2">
-                            <code className="bg-gray-50 px-2 py-0.5 rounded text-sm font-mono">{invite.invite_code}</code>
-                            <CopyButton text={invite.invite_code} />
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 ">
-                          <div className="flex items-center space-x-2">
-                            <Link
-                              className="outline bg-gray-50 text-gray-600 px-2 py-1 rounded-md outline-gray-300 outline-dashed outline-1 text-xs truncate max-w-[300px]"
-                              target="_blank"
-                              href={getUriWithOrg(org.slug, `/signup?inviteCode=${invite.invite_code}`)}
-                            >
-                              {getUriWithOrg(org.slug, `/signup?inviteCode=${invite.invite_code}`)}
-                            </Link>
-                            <CopyButton text={getUriWithOrg(org.slug, `/signup?inviteCode=${invite.invite_code}`)} />
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          {invite.usergroup_id ? (
-                            <div className="flex items-center space-x-1.5">
-                              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                                <UserSquare className="w-3 h-3" />
-                                <span>{invite.usergroup_name || t('dashboard.users.signups.invite_codes.types.linked_to_usergroup')}</span>
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="flex space-x-2 items-center">
-                              <Users className="w-4 h-4 text-gray-400" />
-                              <span className="text-gray-500">{t('dashboard.users.signups.invite_codes.types.normal')}</span>
-                            </div>
-                          )}
-                        </td>
-                        <td className="py-3 px-4">
-                          {dayjs(invite.created_at)
-                            .add(1, 'year')
-                            .format('DD/MM/YYYY')}{' '}
-                        </td>
-                        <td className="py-3 px-4">
-                          <ConfirmationModal
-                            confirmationButtonText={t('dashboard.users.signups.invite_codes.actions.delete_code')}
-                            confirmationMessage={t('dashboard.users.signups.invite_codes.actions.delete_confirmation_message')}
-                            dialogTitle={t('dashboard.users.signups.invite_codes.actions.delete_confirmation_title')}
-                            dialogTrigger={
-                              <button className="mr-2 flex space-x-2 hover:cursor-pointer p-1 px-3 bg-rose-700 rounded-md font-bold items-center text-sm text-rose-100">
-                                <X className="w-4 h-4" />
-                                <span> {t('dashboard.users.signups.invite_codes.actions.delete_code')}</span>
-                              </button>
-                            }
-                            functionToExecute={() => {
-                              deleteInvite(invite)
-                            }}
-                            status="warning"
-                          ></ConfirmationModal>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </>
-              </table>
+                        <Copy className="h-4 w-4" />
+                      </button>
+                      <div onClick={(event) => event.stopPropagation()}>
+                        <ConfirmationModal
+                          confirmationButtonText={t('dashboard.users.signups.invite_codes.actions.delete_code')}
+                          confirmationMessage={t('dashboard.users.signups.invite_codes.actions.delete_confirmation_message')}
+                          dialogTitle={t('dashboard.users.signups.invite_codes.actions.delete_confirmation_title')}
+                          dialogTrigger={
+                            <button type="button" className="shrink-0 rounded-md p-2 text-gray-400 hover:bg-rose-50 hover:text-rose-600" title="Delete invite code">
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          }
+                          functionToExecute={() => deleteInvite(invite)}
+                          status="warning"
+                        />
+                      </div>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
+                    </div>
+                  )
+                })}
+              </div>
               <div className='flex items-center justify-between mt-3 mr-2'>
                 <span className='text-xs text-gray-400 ml-2'>
                   {inviteCount} / 6 invite codes used
@@ -296,6 +236,12 @@ function OrgAccess() {
 
             </div>
           </div>
+          <SignupQrDialog
+            invite={selectedInvite}
+            url={selectedInviteUrl}
+            open={detailsOpen}
+            onOpenChange={setDetailsOpen}
+          />
         </>
       ) : (
         <PageLoading />
