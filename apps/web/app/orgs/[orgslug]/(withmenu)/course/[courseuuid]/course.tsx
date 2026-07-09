@@ -14,6 +14,8 @@ import {
 } from '@services/media/media'
 import { learningPathToLegacyRun } from '@services/learning/legacyAdapters'
 import { createLearningBadgeNotificationSignup, getLearningPath, startLearningRun } from '@services/learning/learning'
+import { getEligibleIssuers } from '@services/learning/marketplace'
+import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { CourseThumbnailImage } from '@components/Objects/Thumbnails/CourseThumbnailImage'
 import { ArrowRight, Award, Bell, BookOpenCheck, Check, CircleHelp, Clock, FileText, Layers, Loader2, Play, Video, Zap, Image as ImageIcon } from 'lucide-react'
@@ -651,6 +653,9 @@ function BadgeStatusHero({
   const [descriptionExpanded, setDescriptionExpanded] = useState(false)
   const [descriptionCanExpand, setDescriptionCanExpand] = useState(false)
   const [showCompletionReward, setShowCompletionReward] = useState(false)
+  const [issuerOptions, setIssuerOptions] = useState<any[]>([])
+  const [selectedIssuerId, setSelectedIssuerId] = useState<number | null>(null)
+  const [issuerModalOpen, setIssuerModalOpen] = useState(false)
   const badgeUuid = course.course_uuid?.replace('course_', '') || course.course_uuid
   const pathUrl = getUriWithOrg(orgslug, badgePath)
   const firstActivityUrl = getFirstActivityHref(course, orgslug)
@@ -716,21 +721,40 @@ function BadgeStatusHero({
     }
   }
 
-  const handlePrimaryAction = async () => {
-    if (comingSoon || isStarting) return
-    if (isInProgress) {
-      router.push(pathUrl)
-      return
-    }
+  const startBadge = async (issuingOrgId?: number) => {
     setIsStarting(true)
     try {
-      await startLearningRun(badgeUuid, accessToken)
+      await startLearningRun(badgeUuid, accessToken, issuingOrgId)
       router.push(firstActivityUrl)
     } catch (error: any) {
       toast.error(error?.message || 'Could not start badge')
     } finally {
       setIsStarting(false)
     }
+  }
+
+  const handlePrimaryAction = async () => {
+    if (comingSoon || isStarting) return
+    if (isInProgress) {
+      router.push(pathUrl)
+      return
+    }
+    // Badges can be issued by multiple orgs; let signed-in learners pick who supports them
+    if (learningBadgePath && accessToken) {
+      try {
+        const response = await getEligibleIssuers(badgeUuid, accessToken)
+        const issuers = response?.success ? response.data : response
+        if (Array.isArray(issuers) && issuers.length > 1) {
+          setIssuerOptions(issuers)
+          setSelectedIssuerId(issuers[0]?.org?.id ?? null)
+          setIssuerModalOpen(true)
+          return
+        }
+      } catch {
+        // Fall through and start under the badge's own org
+      }
+    }
+    await startBadge()
   }
 
   const handleNotifyMe = async () => {
@@ -758,6 +782,47 @@ function BadgeStatusHero({
           <ReactConfetti width={width} height={height} numberOfPieces={200} recycle={false} colors={['#84cc16', '#7c3aed', '#111827']} />
         </div>
       )}
+
+      <Modal
+        isDialogOpen={issuerModalOpen}
+        onOpenChange={setIssuerModalOpen}
+        minHeight="no-min"
+        minWidth="md"
+        dialogTitle="Who will support you on this badge?"
+        dialogDescription="This organization will review your submissions and issue your badge."
+        dialogContent={
+          <div className="flex flex-col gap-3 p-2">
+            {issuerOptions.map((option: any) => (
+              <button
+                key={option.org?.id}
+                type="button"
+                onClick={() => setSelectedIssuerId(option.org?.id ?? null)}
+                className={`flex items-center justify-between rounded-lg border px-4 py-3 text-left transition-colors ${selectedIssuerId === option.org?.id ? 'border-black bg-muted' : 'border-border hover:bg-muted/50'}`}
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-foreground">{option.org?.name}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {option.is_creator ? 'Badge creator' : option.via_link ? 'Invited you to this badge' : 'Open to all learners'}
+                  </p>
+                </div>
+                {selectedIssuerId === option.org?.id ? <Check className="h-4 w-4 shrink-0" /> : null}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                setIssuerModalOpen(false)
+                void startBadge(selectedIssuerId ?? undefined)
+              }}
+              disabled={isStarting || selectedIssuerId === null}
+              className="ml-auto mt-2 inline-flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white disabled:opacity-50"
+            >
+              {isStarting && <Loader2 className="h-4 w-4 animate-spin" />}
+              Start badge
+            </button>
+          </div>
+        }
+      />
 
       <section className="grid gap-8 pt-4 lg:grid-cols-[minmax(220px,0.8fr)_minmax(320px,1fr)] lg:items-center lg:gap-12">
         <div className="flex min-h-[220px] items-center justify-center overflow-visible px-4 py-6 sm:min-h-[280px]">

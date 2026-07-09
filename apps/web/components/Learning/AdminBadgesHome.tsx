@@ -72,10 +72,11 @@ export default function AdminBadgesHome({
   }
 
   return (
-    <div className="h-full min-h-screen w-full bg-[#f8f8f8] px-10 py-6">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="px-10 pb-10 pt-6">
+      <section className="rounded-xl bg-card p-6 shadow-xs">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Badge Collections</h1>
+          <h2 className="text-lg font-bold text-foreground">Collections</h2>
           <p className="mt-1 text-sm text-muted-foreground">Every badge belongs to one collection.</p>
         </div>
         <Modal
@@ -164,6 +165,7 @@ export default function AdminBadgesHome({
           ))}
         </div>
       )}
+      </section>
     </div>
   )
 }

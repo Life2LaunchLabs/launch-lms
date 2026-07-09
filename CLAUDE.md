@@ -238,8 +238,11 @@ Runs on every request. Handles:
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
 | `JUDGE0_API_URL` | Judge0 code execution endpoint |
 | `TINYBIRD_API_TOKEN` | Tinybird analytics token |
-| `RESEND_API_KEY` | Resend email API key |
-| `LAUNCHLMS_SYSTEM_EMAIL` | System sender email |
+| `LAUNCHLMS_EMAIL_PROVIDER` | `resend` (default) or `smtp` |
+| `LAUNCHLMS_RESEND_API_KEY` | Resend email API key |
+| `LAUNCHLMS_SYSTEM_EMAIL_ADDRESS` | System sender email |
+| `LAUNCHLMS_SMTP_HOST` / `_PORT` / `_USERNAME` / `_PASSWORD` / `_USE_TLS` | SMTP settings (if provider is `smtp`) |
+| `LAUNCHLMS_REQUIRE_EMAIL_VERIFICATION` | Require email verification for new accounts |
 | `AWS_S3_BUCKET` | S3 bucket name (if using S3) |
 | `AWS_ACCESS_KEY_ID` | AWS credentials (if using S3) |
 | `AWS_SECRET_ACCESS_KEY` | AWS credentials (if using S3) |

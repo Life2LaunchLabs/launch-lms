@@ -201,6 +201,8 @@
     "back_to_login": "Retour à la connexion",
     "email_verified_success": "E-mail vérifié !",
     "email_verified_message": "Votre e-mail a été vérifié avec succès. Vous pouvez maintenant vous connecter à votre compte.",
+    "email_verified_close_window": "Votre e-mail a été vérifié — vous pouvez fermer cette fenêtre en toute sécurité. L'onglet dans lequel vous vous êtes inscrit continuera automatiquement.",
+    "email_verified_login_fallback": "Vous avez fermé l'onglet d'origine ? Connectez-vous ici",
     "proceed_to_login": "Continuer vers la connexion",
     "check_email_for_verification": "Vérifiez votre e-mail",
     "verification_email_sent_message": "Nous avons envoyé un e-mail de vérification dans votre boîte de réception. Veuillez cliquer sur le lien dans l'e-mail pour vérifier votre compte.",

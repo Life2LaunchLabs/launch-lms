@@ -1,6 +1,5 @@
 'use client'
 import React from 'react'
-import Link from 'next/link'
 import {
   Buildings,
   ChartPie,
@@ -8,6 +7,7 @@ import {
   Tray,
   UsersThree,
 } from '@phosphor-icons/react'
+import AdminFeatureHeader from '@components/Admin/AdminFeatureHeader'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getDefaultOrg, getUriWithOrg } from '@services/config/config'
 
@@ -57,7 +57,6 @@ const SECTIONS: {
 ]
 
 export default function PlatformShell({
-  title,
   activeSection,
   actions,
   children,
@@ -85,42 +84,16 @@ export default function PlatformShell({
 
   return (
     <div className="h-full w-full bg-[#f8f8f8] flex flex-col">
-      {/* Compact header: breadcrumb + title + section tabs on one bar */}
-      <div className="bg-white nice-shadow z-10 flex-shrink-0">
-        <div className="px-8 py-3 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-amber-600 bg-amber-50 rounded-md px-2 py-1">
-              <Buildings size={12} weight="fill" />
-              Platform
-            </span>
-            <h1 className="text-lg font-bold text-gray-900 tracking-tight truncate">
-              {title}
-            </h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <nav className="flex items-center gap-1">
-              {SECTIONS.map((section) => {
-                const isActive = section.id === activeSection
-                return (
-                  <Link
-                    key={section.id}
-                    href={org?.slug ? getUriWithOrg(org.slug, section.href) : section.href}
-                    className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
-                      isActive
-                        ? 'bg-gray-900 text-white'
-                        : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    {section.icon}
-                    <span>{section.label}</span>
-                  </Link>
-                )
-              })}
-            </nav>
-            {actions}
-          </div>
-        </div>
-      </div>
+      <AdminFeatureHeader
+        feature="Platform"
+        activeTab={activeSection}
+        tone="platform"
+        actions={actions}
+        tabs={SECTIONS.map((section) => ({
+          ...section,
+          href: org?.slug ? getUriWithOrg(org.slug, section.href) : section.href,
+        }))}
+      />
       <div className="flex-1 overflow-y-auto px-8 py-6">{children}</div>
     </div>
   )

@@ -15,6 +15,9 @@ import { Button } from '@components/ui/button'
 
 interface LoginClientProps {
   org: any
+  embedded?: boolean
+  nextUrlOverride?: string
+  onSignupClick?: () => void
 }
 
 const LoginClient = (props: LoginClientProps) => {
@@ -68,7 +71,7 @@ const LoginClient = (props: LoginClientProps) => {
     }
   }
 
-  const getCallbackUrl = () => nextUrl || `${window.location.origin}/redirect_from_auth`
+  const getCallbackUrl = () => props.nextUrlOverride || nextUrl || `${window.location.origin}/redirect_from_auth`
 
   const handleGoogleLogin = async () => {
     setError('')
@@ -222,11 +225,11 @@ const LoginClient = (props: LoginClientProps) => {
     },
   })
 
-  return (
-    <AuthLayout org={props.org} welcomeText={t('auth.login_to')}>
+  const content = (
+    <>
       {showErrorModal && (
         <div className={`
-          fixed left-0 right-0 top-0 z-50 w-full px-4 py-3 flex items-center justify-between gap-3 animate-in slide-in-from-top duration-200
+          ${props.embedded ? 'absolute left-0 right-0 top-0 rounded-t-xl' : 'fixed left-0 right-0 top-0'} z-50 w-full px-4 py-3 flex items-center justify-between gap-3 animate-in slide-in-from-top duration-200
           ${errorType === 'EMAIL_NOT_VERIFIED' && !verificationResent ? 'bg-amber-500 text-white' : ''}
           ${verificationResent ? 'bg-green-500 text-white' : ''}
           ${errorType === 'ACCOUNT_LOCKED' ? 'bg-red-500 text-white' : ''}
@@ -287,14 +290,14 @@ const LoginClient = (props: LoginClientProps) => {
         </div>
       )}
 
-      <div className="flex min-h-screen flex-1 items-center justify-center px-6 py-12 lg:px-10">
-        <div className="w-full max-w-[426px] text-center">
-          <h1 className="text-[32px] leading-tight font-bold tracking-[-0.02em] text-gray-950">
-            {t('auth.welcome_back')}
+      <div className={props.embedded ? 'flex flex-1 items-center justify-center px-0 py-0' : 'flex min-h-screen flex-1 items-center justify-center px-6 py-12 lg:px-10'}>
+        <div className={props.embedded ? 'w-full text-left' : 'w-full max-w-[426px] text-center'}>
+          <h1 className={props.embedded ? 'text-2xl font-bold text-gray-900' : 'text-[32px] leading-tight font-bold tracking-[-0.02em] text-gray-950'}>
+            {props.embedded ? 'Sign in' : t('auth.welcome_back')}
           </h1>
 
           {step === 'email' ? (
-            <div className="mt-12 space-y-4">
+            <div className={props.embedded ? 'mt-6 space-y-4' : 'mt-12 space-y-4'}>
               <Button
                 type="button"
                 onClick={handleGoogleLogin}
@@ -341,7 +344,7 @@ const LoginClient = (props: LoginClientProps) => {
               </form>
             </div>
           ) : (
-            <form onSubmit={formik.handleSubmit} className="mt-12 space-y-4 text-left">
+            <form onSubmit={formik.handleSubmit} className={props.embedded ? 'mt-6 space-y-4 text-left' : 'mt-12 space-y-4 text-left'}>
               <button
                 type="button"
                 onClick={() => setStep('email')}
@@ -408,7 +411,7 @@ const LoginClient = (props: LoginClientProps) => {
             </form>
           )}
 
-          <p className="mt-5 text-[12px] leading-relaxed text-gray-500">
+          <p className="mt-5 text-center text-[12px] leading-relaxed text-gray-500">
             By continuing, you agree to Launch LMS&apos;s{' '}
             <span className="underline underline-offset-2">
               Terms of Service
@@ -420,14 +423,30 @@ const LoginClient = (props: LoginClientProps) => {
             .
           </p>
 
-          <p className="mt-14 text-[15px] text-gray-600">
+          <p className={props.embedded ? 'mt-6 text-center text-[15px] text-gray-600' : 'mt-14 text-[15px] text-gray-600'}>
             {t('auth.no_account')}{' '}
-            <Link href="/signup" className="font-semibold text-gray-950 hover:underline">
-              {t('auth.sign_up')}
-            </Link>
+            {props.onSignupClick ? (
+              <button type="button" onClick={props.onSignupClick} className="font-semibold text-gray-950 hover:underline">
+                {t('auth.sign_up')}
+              </button>
+            ) : (
+              <Link href="/signup" className="font-semibold text-gray-950 hover:underline">
+                {t('auth.sign_up')}
+              </Link>
+            )}
           </p>
         </div>
       </div>
+    </>
+  )
+
+  if (props.embedded) {
+    return <div className="relative">{content}</div>
+  }
+
+  return (
+    <AuthLayout org={props.org} welcomeText={t('auth.login_to')}>
+      {content}
     </AuthLayout>
   )
 }

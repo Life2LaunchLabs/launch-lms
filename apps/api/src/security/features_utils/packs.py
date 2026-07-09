@@ -9,6 +9,8 @@ Available packages:
   - credentials:               Enables OpenBadge certifications
   - ai:                        Enables AI features (copilot, magic blocks, course planning)
   - advanced_user_management:  Enables user groups, custom roles, and API tokens
+  - badge_creation:            Enables publishing badges to the cross-org marketplace
+  - badge_issuing:             Enables requesting/holding authorizations to issue other orgs' badges
 """
 
 # Features each package enables when added to an org
@@ -17,6 +19,8 @@ PACKAGE_FEATURE_MAP: dict[str, list[str]] = {
     "credentials": ["certifications"],
     "ai": ["ai"],
     "advanced_user_management": ["usergroups", "roles", "api_tokens"],
+    "badge_creation": ["marketplace_publishing"],
+    "badge_issuing": ["badge_issuing"],
 }
 
 # Package metadata (label, description, min plan required to purchase)
@@ -43,6 +47,18 @@ AVAILABLE_PACKAGES: dict[str, dict] = {
         "label": "Advanced User Management",
         "description": "Custom roles, user groups, bulk access control, and API token management.",
         "features": PACKAGE_FEATURE_MAP["advanced_user_management"],
+        "min_plan": "full",
+    },
+    "badge_creation": {
+        "label": "Badge Publishing",
+        "description": "Publish your badges to the marketplace and authorize other organizations to issue them.",
+        "features": PACKAGE_FEATURE_MAP["badge_creation"],
+        "min_plan": "full",
+    },
+    "badge_issuing": {
+        "label": "Badge Issuing",
+        "description": "Browse the badge marketplace, request authorization to issue badges, and grade your learners' submissions.",
+        "features": PACKAGE_FEATURE_MAP["badge_issuing"],
         "min_plan": "full",
     },
 }

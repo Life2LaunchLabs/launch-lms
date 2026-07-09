@@ -231,6 +231,8 @@
     "back_to_login": "Back to Login",
     "email_verified_success": "Email Verified!",
     "email_verified_message": "Your email has been successfully verified. You can now log in to your account.",
+    "email_verified_close_window": "Your email has been verified — you can safely close this window. The tab you signed up in will continue automatically.",
+    "email_verified_login_fallback": "Closed your original tab? Log in here",
     "proceed_to_login": "Proceed to Login",
     "check_email_for_verification": "Check Your Email",
     "verification_email_sent_message": "We've sent a verification email to your inbox. Please click the link in the email to verify your account.",

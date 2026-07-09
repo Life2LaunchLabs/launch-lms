@@ -5,7 +5,7 @@ import uuid
 from typing import Optional
 from pydantic import EmailStr
 import redis
-from datetime import datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from sqlmodel import Session, select
 from src.services.email.utils import send_email
 from config.config import get_launchlms_config
@@ -25,6 +25,8 @@ async def create_invite_code(
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
     usergroup_id: Optional[int] = None,
+    display_name: Optional[str] = None,
+    expiry_date: Optional[str] = None,
 ):
     # Redis init
     LH_CONFIG = get_launchlms_config()
@@ -89,17 +91,32 @@ async def create_invite_code(
     generated_invite_code = generate_code()
     invite_code_uuid = f"org_invite_code_{uuid.uuid4()}"
 
-    # time to live in days to seconds
-    ttl = int(timedelta(days=365).total_seconds())
+    expires_at = datetime.now() + timedelta(days=365)
+    if expiry_date:
+        try:
+            expires_at = datetime.combine(date.fromisoformat(expiry_date), time.max)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid expiry date") from exc
+        if expires_at <= datetime.now():
+            raise HTTPException(status_code=400, detail="Expiry date must be in the future")
+
+    ttl = int((expires_at - datetime.now()).total_seconds())
+    cleaned_display_name = display_name.strip() if display_name else None
+    if cleaned_display_name and len(cleaned_display_name) > 80:
+        raise HTTPException(status_code=400, detail="Display name must be 80 characters or fewer")
 
     inviteCodeObject = {
         "invite_code": generated_invite_code,
         "invite_code_uuid": invite_code_uuid,
         "invite_code_expires": ttl,
+        "expires_at": expires_at.isoformat(),
         "invite_code_type": "signup",
         "created_at": datetime.now().isoformat(),
         "created_by": current_user.user_uuid,
     }
+
+    if cleaned_display_name:
+        inviteCodeObject["display_name"] = cleaned_display_name
 
     if usergroup_id is not None:
         inviteCodeObject["usergroup_id"] = usergroup_id

@@ -568,7 +568,7 @@ function OrgUsersTab({
                   <tr key={user.id} className="border-b border-gray-50 hover:bg-gray-50/60">
                     <td className="px-4 py-3">
                       <Link
-                        href={getUriWithOrg(currentOrgSlug || '', `/admin/platform/users/${user.id}`)}
+                        href={getUriWithOrg(currentOrgSlug || '', `/admin/platform/users/${encodeURIComponent(user.username)}`)}
                         className="flex items-center gap-3 group"
                       >
                         <UserAvatar userUuid={user.user_uuid} avatarImage={user.avatar_image} size={28} />

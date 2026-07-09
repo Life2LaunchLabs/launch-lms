@@ -22,6 +22,8 @@ from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
+from src.security.features_utils.packs import AVAILABLE_PACKAGES
+from src.security.features_utils.plans import plan_meets_requirement
 
 logger = logging.getLogger(__name__)
 
@@ -408,11 +410,26 @@ def update_org_packages(
 ) -> dict:
     org_config = _get_single_org_config(org_id, db_session)
     config = dict(org_config.config or {})
+    current_packages = set(config.get("packages") or [])
+    for package_id in set(payload.packages) - current_packages:
+        package = AVAILABLE_PACKAGES.get(package_id)
+        if not package:
+            raise HTTPException(status_code=422, detail=f"Unknown package: {package_id}")
+        current_plan = _org_plan(org_config)
+        if not plan_meets_requirement(current_plan, package["min_plan"]):
+            raise HTTPException(
+                status_code=409,
+                detail=f"{package['label']} requires the {package['min_plan']} plan or higher. Approve the plan upgrade first.",
+            )
     config["packages"] = payload.packages
     org_config.config = config
     org_config.update_date = datetime.now(timezone.utc).isoformat()
     flag_modified(org_config, "config")
     db_session.add(org_config)
+    if "badge_issuing" in payload.packages:
+        from src.services.learning_marketplace import transition_queued_authorizations
+
+        transition_queued_authorizations(db_session, org_id)
     db_session.commit()
     return {"success": True}
 
@@ -497,6 +514,16 @@ def update_plan_request(
     if body.status == "approved":
         org_config = _get_single_org_config(req.org_id, db_session)
         config = dict(org_config.config or {})
+        if req.request_type == "package_add":
+            package = AVAILABLE_PACKAGES.get(req.requested_value)
+            if not package:
+                raise HTTPException(status_code=422, detail=f"Unknown package: {req.requested_value}")
+            current_plan = _org_plan(org_config)
+            if not plan_meets_requirement(current_plan, package["min_plan"]):
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"{package['label']} requires the {package['min_plan']} plan or higher. Approve the plan upgrade first.",
+                )
         if req.request_type == "plan_upgrade":
             if str(config.get("config_version", "1.0")).startswith("2"):
                 config["plan"] = req.requested_value
@@ -518,6 +545,18 @@ def update_plan_request(
         req.message = body.message
     req.update_date = datetime.now(timezone.utc).isoformat()
     db_session.add(req)
+    if body.status in ("approved", "denied"):
+        from src.services.learning_marketplace import transition_queued_authorizations
+
+        transition_queued_authorizations(
+            db_session,
+            req.org_id,
+            package_denied=(
+                body.status == "denied"
+                and req.request_type == "package_add"
+                and req.requested_value == "badge_issuing"
+            ),
+        )
     db_session.commit()
     if body.status == "approved" and req.request_type == "plan_upgrade" and org_config:
         _verify_persisted_org_plan(org_config, req.requested_value, db_session)

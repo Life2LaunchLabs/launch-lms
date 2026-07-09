@@ -198,6 +198,8 @@
     "back_to_login": "Terug naar inloggen",
     "email_verified_success": "E-mail geverifieerd!",
     "email_verified_message": "Je e-mail is succesvol geverifieerd. Je kunt nu inloggen op je account.",
+    "email_verified_close_window": "Je e-mail is geverifieerd — je kunt dit venster veilig sluiten. Het tabblad waarin je je hebt aangemeld gaat automatisch verder.",
+    "email_verified_login_fallback": "Oorspronkelijk tabblad gesloten? Log hier in",
     "proceed_to_login": "Ga naar inloggen",
     "check_email_for_verification": "Controleer je e-mail",
     "verification_email_sent_message": "We hebben een verificatie-e-mail naar je inbox gestuurd. Klik op de link in de e-mail om je account te verifiëren.",

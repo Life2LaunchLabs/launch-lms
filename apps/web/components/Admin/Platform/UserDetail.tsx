@@ -64,20 +64,26 @@ interface GlobalUserDetail extends GlobalUser {
 export default function UserDetail() {
   const params = useParams()
   const router = useRouter()
-  const userId = Number(params.userId)
+  const username = decodeURIComponent(String(params.username || ''))
   const session = useLHSession() as any
   const org = useOrg() as any
   const accessToken = session?.data?.tokens?.access_token
   const sessionUserId = session?.data?.user?.id
+  const { data: publicUser, isLoading: isResolvingUser } = useSWR<any>(
+    accessToken && username ? `${getAPIUrl()}users/username/${encodeURIComponent(username)}` : null,
+    (url: string) => swrFetcher(url, accessToken),
+    { revalidateOnFocus: false }
+  )
+  const userId = publicUser?.id
   const isSelf = sessionUserId === userId
 
   const { data: user, isLoading, mutate } = useSWR<GlobalUserDetail>(
-    accessToken ? `${getAPIUrl()}superadmin/users/${userId}` : null,
+    accessToken && userId ? `${getAPIUrl()}superadmin/users/${userId}` : null,
     (url: string) => swrFetcher(url, accessToken),
     { revalidateOnFocus: false }
   )
 
-  if (isLoading) return <PageLoading />
+  if (isResolvingUser || isLoading) return <PageLoading />
   if (!user) {
     return (
       <EmptyState icon={<User size={40} weight="fill" />} message="User not found" />

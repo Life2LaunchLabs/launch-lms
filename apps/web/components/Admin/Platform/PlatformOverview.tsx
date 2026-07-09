@@ -102,7 +102,7 @@ export default function PlatformOverview() {
             {(data?.recent_users || []).map((user: any) => (
               <Link
                 key={user.id}
-                href={href(`/admin/platform/users/${user.id}`)}
+                href={href(`/admin/platform/users/${encodeURIComponent(user.username)}`)}
                 className="flex items-center gap-3 py-2.5 group"
               >
                 <UserAvatar userUuid={user.user_uuid} avatarImage={user.avatar_image} size={28} />

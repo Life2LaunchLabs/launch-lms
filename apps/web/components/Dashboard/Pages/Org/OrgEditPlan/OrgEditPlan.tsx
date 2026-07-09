@@ -41,6 +41,16 @@ const PACKAGE_INFO: Record<string, { label: string; description: string; icon: R
     description: 'Custom roles, user groups, bulk access control, and API token management.',
     icon: <UsersThree size={20} weight="fill" />,
   },
+  badge_creation: {
+    label: 'Badge Publishing',
+    description: 'Publish your badges to the marketplace and authorize other organizations to issue them.',
+    icon: <Certificate size={20} weight="fill" />,
+  },
+  badge_issuing: {
+    label: 'Badge Issuing',
+    description: 'Browse the badge marketplace, request authorization to issue badges, and grade your learners.',
+    icon: <CheckCircle size={20} weight="fill" />,
+  },
 }
 
 const PLAN_FEATURES: Record<PlanLevel, string[]> = {

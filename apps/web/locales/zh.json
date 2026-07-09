@@ -198,6 +198,8 @@
     "back_to_login": "返回登录",
     "email_verified_success": "邮箱已验证！",
     "email_verified_message": "您的邮箱已成功验证。现在可以登录您的账户了。",
+    "email_verified_close_window": "您的邮箱已验证 — 您可以安全地关闭此窗口。您注册时所在的标签页将自动继续。",
+    "email_verified_login_fallback": "已关闭原来的标签页？在此登录",
     "proceed_to_login": "前往登录",
     "check_email_for_verification": "请查收邮件",
     "verification_email_sent_message": "我们已向您的收件箱发送了一封验证邮件。请点击邮件中的链接以验证您的账户。",

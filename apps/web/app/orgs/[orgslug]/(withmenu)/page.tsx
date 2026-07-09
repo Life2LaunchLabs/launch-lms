@@ -33,6 +33,7 @@ const OrgHomePage = async ({ params }: PageProps) => {
 
   const signupHref = getUriWithOrg(orgslug, routePaths.auth.signup())
   const loginHref = getUriWithOrg(orgslug, routePaths.auth.login())
+  const orgSignupHref = getUriWithOrg(orgslug, '/signup/org')
   const sections = [
     {
       title: 'earn badges',
@@ -76,6 +77,12 @@ const OrgHomePage = async ({ params }: PageProps) => {
               className={buttonVariants({ variant: 'ctaSecondary', size: 'cta', className: 'w-full px-6 text-[15px] sm:px-8' })}
             >
               I Already Have an Account
+            </Link>
+            <Link
+              href={orgSignupHref}
+              className="text-center text-sm font-semibold text-[#777] underline-offset-4 transition-colors hover:text-[#27323d] hover:underline"
+            >
+              Create an organization
             </Link>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 from typing import Literal
 from uuid import uuid4
@@ -38,6 +39,8 @@ from src.security.security import security_hash_password, security_verify_passwo
 from src.services.security.password_validation import validate_password_complexity
 from src.services.analytics.analytics import track
 from src.services.analytics import events as analytics_events
+
+logger = logging.getLogger(__name__)
 
 
 async def create_user(
@@ -160,18 +163,25 @@ async def create_user(
 
     # Send verification email for non-OAuth users, account creation email for OAuth users
     if is_oauth:
-        send_account_creation_email(
-            user=user_read,
-            email=user_read.email,
-        )
+        try:
+            send_account_creation_email(
+                user=user_read,
+                email=user_read.email,
+            )
+        except Exception:
+            logger.exception(
+                "Failed to send account creation email to %s", user_read.email
+            )
     elif email_verification_required:
         # Import here to avoid circular imports
         from src.services.users.email_verification import send_verification_email
         try:
             await send_verification_email(request, db_session, user, org_id)
         except Exception:
-            # Log but don't fail user creation if email fails
-            pass
+            # Don't fail user creation if email fails
+            logger.exception(
+                "Failed to send verification email to %s", user_read.email
+            )
 
     return user_read
 
@@ -301,17 +311,24 @@ async def create_user_without_org(
     user_read = UserRead.model_validate(user)
 
     if is_oauth or not email_verification_required:
-        send_account_creation_email(
-            user=user_read,
-            email=user_read.email,
-        )
+        try:
+            send_account_creation_email(
+                user=user_read,
+                email=user_read.email,
+            )
+        except Exception:
+            logger.exception(
+                "Failed to send account creation email to %s", user_read.email
+            )
     else:
         from src.services.users.email_verification import send_verification_email
         try:
             await send_verification_email(request, db_session, user, org_id=None)
         except Exception:
             # Don't fail user creation if email fails
-            pass
+            logger.exception(
+                "Failed to send verification email to %s", user_read.email
+            )
 
     return user_read
 

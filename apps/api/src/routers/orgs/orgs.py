@@ -56,19 +56,17 @@ from src.services.orgs.orgs import (
     update_org_dark_color_config,
     update_org_footer_text_config,
     update_org_hide_org_name_config,
-    update_org_quickstart_course_config,
     update_org_thumbnail,
     update_org_landing,
     upload_org_landing_content_service,
     update_org_auth_branding_config,
     update_org_badge_issuer_config,
-    update_org_onboarding_config,
     upload_org_auth_background_service,
     update_org_seo_config,
     upload_org_og_image_service,
     update_org_favicon,
 )
-from src.db.organization_config import AuthBrandingConfig, SeoOrgConfig, BadgeIssuerConfig, OnboardingConfig
+from src.db.organization_config import AuthBrandingConfig, SeoOrgConfig, BadgeIssuerConfig
 
 
 router = APIRouter()
@@ -499,22 +497,6 @@ async def api_update_org_hide_org_name_config(
     )
 
 
-@router.put("/{org_id}/config/quickstart_course")
-async def api_update_org_quickstart_course_config(
-    request: Request,
-    org_id: int,
-    quickstart_course_uuid: str = "",
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    """
-    Update organization quickstart course configuration
-    """
-    return await update_org_quickstart_course_config(
-        request, quickstart_course_uuid, org_id, current_user, db_session
-    )
-
-
 @router.put("/{org_id}/config/auth_branding")
 async def api_update_org_auth_branding_config(
     request: Request,
@@ -544,22 +526,6 @@ async def api_update_org_badge_issuer_config(
     """
     return await update_org_badge_issuer_config(
         request, badge_issuer, org_id, current_user, db_session
-    )
-
-
-@router.put("/{org_id}/config/onboarding")
-async def api_update_org_onboarding_config(
-    request: Request,
-    org_id: int,
-    onboarding: OnboardingConfig,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    """
-    Update organization onboarding defaults and recommended badges.
-    """
-    return await update_org_onboarding_config(
-        request, onboarding, org_id, current_user, db_session
     )
 
 
@@ -625,13 +591,23 @@ async def api_create_invite_code(
     request: Request,
     org_id: int,
     usergroup_id: Optional[int] = None,
+    display_name: Optional[str] = None,
+    expiry_date: Optional[str] = None,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     """
     Create invite code, optionally linked to a usergroup
     """
-    return await create_invite_code(request, org_id, current_user, db_session, usergroup_id)
+    return await create_invite_code(
+        request,
+        org_id,
+        current_user,
+        db_session,
+        usergroup_id,
+        display_name,
+        expiry_date,
+    )
 
 
 @router.get("/{org_id}/invites")

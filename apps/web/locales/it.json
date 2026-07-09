@@ -201,6 +201,8 @@
     "back_to_login": "Torna al login",
     "email_verified_success": "Email verificata!",
     "email_verified_message": "La tua email è stata verificata con successo. Ora puoi accedere al tuo account.",
+    "email_verified_close_window": "La tua email è stata verificata — puoi chiudere questa finestra in sicurezza. La scheda in cui ti sei registrato continuerà automaticamente.",
+    "email_verified_login_fallback": "Hai chiuso la scheda originale? Accedi qui",
     "proceed_to_login": "Procedi al login",
     "check_email_for_verification": "Controlla la tua email",
     "verification_email_sent_message": "Abbiamo inviato un'email di verifica alla tua casella di posta. Clicca sul link nell'email per verificare il tuo account.",

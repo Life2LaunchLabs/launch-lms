@@ -8,6 +8,7 @@ from src.routers import usergroups
 from src.routers import dev, trail, users, auth, orgs, roles, search, news
 from src.routers import stream
 from src.routers import learning as learning_router_module
+from src.routers import marketplace as marketplace_router_module
 from src.routers import api_tokens
 from src.routers.ai import ai, magicblocks, courseplanning, rag
 from src.routers.boards import boards_playground
@@ -145,6 +146,7 @@ v1_router.include_router(learning_router_module.awards_router, prefix="/badge-aw
 v1_router.include_router(learning_router_module.migrations_router, prefix="/badge-migrations", tags=["learning-badge-migrations"])
 v1_router.include_router(learning_router_module.imports_router, prefix="/badge-import", tags=["learning-badge-import"])
 v1_router.include_router(learning_router_module.variables_router, prefix="/learning-variables", tags=["learning-variables"])
+v1_router.include_router(marketplace_router_module.router, prefix="/badge-marketplace", tags=["learning-badge-marketplace"])
 v1_router.include_router(
     collections.router, prefix="/collections", tags=["collections"]
 )

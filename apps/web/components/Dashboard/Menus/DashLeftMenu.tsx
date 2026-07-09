@@ -4,7 +4,6 @@ import { signOut } from '@components/Contexts/AuthContext'
 import {
   House,
   BookOpen,
-  Files,
   Users,
   CurrencyCircleDollar,
   Buildings,
@@ -20,9 +19,7 @@ import {
   Headphones,
   UsersThree,
   Shield,
-  UserPlus,
   ClipboardText,
-  Palette,
   Cube,
   FolderOpen,
   Newspaper,
@@ -32,7 +29,7 @@ import {
   Tray,
 } from '@phosphor-icons/react'
 import Link from 'next/link'
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import UserAvatar from '../../Objects/UserAvatar'
 import AdminAuthorization from '@components/Security/AdminAuthorization'
@@ -67,11 +64,16 @@ import { FeedbackModal } from '@components/Objects/Modals/FeedbackModal'
 import { AVAILABLE_LANGUAGES } from '@/lib/languages'
 import { getOrgLogoMediaDirectory } from '@services/media/media'
 import { cn } from '@/lib/utils'
-import useSWR, { mutate } from 'swr'
+import useSWR from 'swr'
 import { swrFetcher } from '@services/utils/ts/requests'
-import { getAssignmentsFromACourse } from '@services/courses/assignments'
 
 import { usePlan } from '@components/Hooks/usePlan'
+import {
+  BADGE_ADMIN_PAGES,
+  getOrganizationAdminPages,
+  getUserAdminPages,
+} from '@components/Admin/adminFeaturePages'
+import { planMeetsRequirement } from '@services/plans/plans'
 
 function DashLeftMenu() {
   const org = useOrg() as any
@@ -83,23 +85,11 @@ function DashLeftMenu() {
     if (typeof window === 'undefined') return false
     return localStorage.getItem('dash-menu-collapsed') === 'true'
   })
-  const [recentAssignments, setRecentAssignments] = useState<any[]>([])
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false)
   const access_token = session?.data?.tokens?.access_token
 
-  // SWR key for courses
-  const coursesKey = org?.slug ? `${getAPIUrl()}courses/org_slug/${org.slug}/page/1/limit/8?include_unpublished=true` : null
   const badgesKey = org?.id ? `${getAPIUrl()}badges/?org_id=${org.id}&admin=true` : null
 
-  // Fetch recent courses
-  const { data: coursesData } = useSWR(
-    coursesKey,
-    (url) => swrFetcher(url, access_token),
-    {
-      revalidateOnFocus: true,
-      revalidateOnReconnect: true,
-    }
-  )
   const { data: badgesData } = useSWR(
     badgesKey,
     (url) => swrFetcher(url, access_token),
@@ -109,49 +99,6 @@ function DashLeftMenu() {
     }
   )
   const recentBadges = badgesData?.slice(0, 8) || []
-
-  // Fetch assignments from courses
-  const [assignmentsRefreshKey, setAssignmentsRefreshKey] = useState(0)
-
-  useEffect(() => {
-    if (coursesData && access_token) {
-      const coursesToFetch = coursesData.slice(0, 5)
-      const promises = coursesToFetch.map((course: any) =>
-        getAssignmentsFromACourse(course.course_uuid, access_token)
-      )
-
-      Promise.all(promises).then((results) => {
-        const allAssignments: any[] = []
-        results.forEach((res: any, index: number) => {
-          if (res?.data) {
-            res.data.forEach((assignment: any) => {
-              allAssignments.push({
-                ...assignment,
-                courseName: coursesToFetch[index].name
-              })
-            })
-          }
-        })
-        setRecentAssignments(allAssignments.slice(0, 8))
-      }).catch(() => {
-        // Silently ignore errors
-      })
-    }
-  }, [coursesData, access_token, assignmentsRefreshKey])
-
-  // Refresh on window focus
-  useEffect(() => {
-    const handleFocus = () => {
-      // Revalidate courses SWR cache
-      if (coursesKey) {
-        mutate(coursesKey)
-      }
-      // Trigger assignments refetch
-      setAssignmentsRefreshKey(prev => prev + 1)
-    }
-    window.addEventListener('focus', handleFocus)
-    return () => window.removeEventListener('focus', handleFocus)
-  }, [coursesKey])
 
   const toggleCollapse = () => {
     const newState = !isCollapsed
@@ -188,8 +135,12 @@ function DashLeftMenu() {
   const showPodcasts = isEnabled('podcasts')
   const showPlaygrounds = isEnabled('playgrounds')
   const showPayments = capabilities.payments && isEnabled('payments')
-  const showUsergroups = isEnabled('usergroups')
-  const showRoles = isEnabled('roles')
+  const hasUserGroups = planMeetsRequirement(plan, 'full') && (rf?.usergroups?.enabled ?? true)
+  const hasAuditLogs = rf?.audit_logs?.enabled ?? planMeetsRequirement(plan, 'enterprise')
+  const userAdminPages = getUserAdminPages({ t, hasUserGroups, hasAuditLogs })
+  const organizationAdminPages = getOrganizationAdminPages(t, {
+    hasSso: rf?.sso?.enabled === true,
+  })
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -303,12 +254,17 @@ function DashLeftMenu() {
                 <HoverMenuContent className="w-64">
                   <HoverMenuLabel className="text-white/70 font-medium">Badges</HoverMenuLabel>
                   <HoverMenuSeparator />
-                  <HoverMenuItem asChild>
-                    <Link href={routePaths.org.dash.badges()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                      <BookOpen size={16} weight="fill" />
-                      <span>Badges</span>
-                    </Link>
-                  </HoverMenuItem>
+                  {BADGE_ADMIN_PAGES.map((page) => {
+                    const Icon = page.icon
+                    return (
+                      <HoverMenuItem key={page.id} asChild>
+                        <Link href={page.href} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                          <Icon size={16} fill="currentColor" />
+                          <span>{page.label}</span>
+                        </Link>
+                      </HoverMenuItem>
+                    )
+                  })}
                   {recentBadges.length > 0 && (
                     <>
                       <HoverMenuSeparator />
@@ -351,62 +307,6 @@ function DashLeftMenu() {
               </button>
             </HoverMenu>
 
-            {/* Assignments with hover menu */}
-            <HoverMenu
-              content={
-                <HoverMenuContent className="w-72">
-                  <HoverMenuLabel className="text-white/70 font-medium">{t('common.assignments')}</HoverMenuLabel>
-                  <HoverMenuSeparator />
-                  <HoverMenuItem asChild>
-                    <Link href={routePaths.org.dash.assignments()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                      <Files size={16} weight="fill" />
-                      <span>{t('common.all_assignments')}</span>
-                    </Link>
-                  </HoverMenuItem>
-                  {recentAssignments.length > 0 && (
-                    <>
-                      <HoverMenuSeparator />
-                      <HoverMenuLabel className="text-white/40">{t('common.recent')}</HoverMenuLabel>
-                      {recentAssignments.map((assignment: any) => (
-                        <HoverMenuItem key={assignment.assignment_uuid} asChild>
-                          <Link
-                            href={routePaths.org.dash.assignmentEditor(assignment.assignment_uuid.replace('assignment_', ''))}
-                            className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors"
-                          >
-                            <PencilSimple size={14} className="text-white/40" />
-                            <div className="flex flex-col min-w-0">
-                              <span className="truncate">{assignment.title}</span>
-                              <span className="text-xs text-white/30 truncate">{assignment.courseName}</span>
-                            </div>
-                          </Link>
-                        </HoverMenuItem>
-                      ))}
-                    </>
-                  )}
-                </HoverMenuContent>
-              }
-            >
-              <button
-                aria-label="Open assignments menu"
-                className={cn(
-                  "flex items-center w-full rounded-lg text-white/50 hover:text-white hover:bg-white/[0.08] transition-all",
-                  isCollapsed ? "justify-center h-10" : "px-3 py-2 gap-3"
-                )}
-              >
-                <span className="relative flex items-center justify-center">
-                  <Files size={20} weight="fill" />
-                  {isCollapsed && (
-                    <CaretDown aria-hidden="true" size={8} weight="bold" className="absolute -right-2.5 text-white/30" />
-                  )}
-                </span>
-                {!isCollapsed && (
-                  <>
-                    <span className="text-sm font-medium flex-1 text-left">{t('common.assignments')}</span>
-                    <CaretDown aria-hidden="true" size={14} weight="bold" className="text-white/40" />
-                  </>
-                )}
-              </button>
-            </HoverMenu>
             {showCommunities && (
               <MenuLink
                 href={routePaths.org.dash.communities()}
@@ -445,40 +345,17 @@ function DashLeftMenu() {
                 <HoverMenuContent className="w-64">
                   <HoverMenuLabel className="text-white/70 font-medium">{t('common.users')}</HoverMenuLabel>
                   <HoverMenuSeparator />
-                  <HoverMenuItem asChild>
-                    <Link href={routePaths.org.dash.users.users()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                      <Users size={16} weight="fill" />
-                      <span>{t('dashboard.users.settings.tabs.users')}</span>
-                    </Link>
-                  </HoverMenuItem>
-                  {showUsergroups && (
-                    <HoverMenuItem asChild>
-                      <Link href={routePaths.org.dash.users.usergroups()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                        <UsersThree size={16} weight="fill" />
-                        <span>{t('dashboard.users.settings.tabs.usergroups')}</span>
-                      </Link>
-                    </HoverMenuItem>
-                  )}
-                  {showRoles && (
-                    <HoverMenuItem asChild>
-                      <Link href={routePaths.org.dash.users.roles()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                        <Shield size={16} weight="fill" />
-                        <span>{t('dashboard.users.settings.tabs.roles')}</span>
-                      </Link>
-                    </HoverMenuItem>
-                  )}
-                  <HoverMenuItem asChild>
-                    <Link href={routePaths.org.dash.users.signups()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                      <ClipboardText size={16} weight="fill" />
-                      <span>{t('dashboard.users.settings.tabs.signups')}</span>
-                    </Link>
-                  </HoverMenuItem>
-                  <HoverMenuItem asChild>
-                    <Link href={routePaths.org.dash.users.add()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                      <UserPlus size={16} weight="fill" />
-                      <span>{t('dashboard.users.settings.tabs.add')}</span>
-                    </Link>
-                  </HoverMenuItem>
+                  {userAdminPages.map((page) => {
+                    const Icon = page.icon
+                    return (
+                      <HoverMenuItem key={page.id} asChild>
+                        <Link href={page.href} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                          <Icon size={16} fill="currentColor" />
+                          <span>{page.label}</span>
+                        </Link>
+                      </HoverMenuItem>
+                    )
+                  })}
                 </HoverMenuContent>
               }
             >
@@ -519,18 +396,17 @@ function DashLeftMenu() {
                 <HoverMenuContent className="w-64">
                   <HoverMenuLabel className="text-white/70 font-medium">{t('common.organization')}</HoverMenuLabel>
                   <HoverMenuSeparator />
-                  <HoverMenuItem asChild>
-                    <Link href={routePaths.org.dash.orgSettings.general()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                      <Gear size={16} weight="fill" />
-                      <span>{t('dashboard.organization.settings.tabs.general')}</span>
-                    </Link>
-                  </HoverMenuItem>
-                  <HoverMenuItem asChild>
-                    <Link href={routePaths.org.dash.orgSettings.branding()} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                      <Palette size={16} weight="fill" />
-                      <span>{t('dashboard.organization.settings.tabs.branding')}</span>
-                    </Link>
-                  </HoverMenuItem>
+                  {organizationAdminPages.map((page) => {
+                    const Icon = page.icon
+                    return (
+                      <HoverMenuItem key={page.id} asChild>
+                        <Link href={page.href} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                          <Icon size={16} fill="currentColor" />
+                          <span>{page.label}</span>
+                        </Link>
+                      </HoverMenuItem>
+                    )
+                  })}
                 </HoverMenuContent>
               }
             >
