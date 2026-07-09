@@ -123,8 +123,9 @@ Both signup paths are gated:
   fallback is a normal login, which resumes onboarding via the login `next`
   parameter.
 
-Exceptions: OAuth signups are auto-verified. Accounts created while the flag
-was off keep any session they already have — the gate applies at login.
+Exceptions: OAuth and SSO signups are auto-verified (see [auth.md](auth.md)).
+Accounts created while the flag was off keep any session they already have —
+the gate applies at login.
 
 ## Troubleshooting
 

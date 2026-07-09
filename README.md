@@ -79,6 +79,7 @@ migrations before restart, and verifies the deployed image metadata.
 For the app-side release contract, see [Deployment](docs/deployment.md). For
 production environment variable names, see [Deploy Environment](docs/deploy-env.md).
 For transactional email and account verification setup, see [Email](docs/email.md).
+For Google sign-in and enterprise SSO setup, see [Authentication providers](docs/auth.md).
 
 ### HTTPS `sslip.io` local dev
 

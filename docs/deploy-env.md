@@ -47,6 +47,12 @@ will start in reload mode.
 
 | Variable | Used by | Notes |
 | --- | --- | --- |
+| `LAUNCHLMS_AUTH_OAUTH_ENABLED` | API, web | `true` enables Google sign-in. See [auth.md](auth.md). |
+| `LAUNCHLMS_GOOGLE_CLIENT_ID` | web | Google OAuth client ID. |
+| `LAUNCHLMS_GOOGLE_CLIENT_SECRET` | web | Google OAuth client secret. |
+| `SSO_REDIRECT_URI` | API | Enterprise SSO callback URL, e.g. `https://<frontend-domain>/auth/sso/callback`. See [auth.md](auth.md). |
+| `WORKOS_API_KEY` | API | Only for the WorkOS SSO provider. |
+| `WORKOS_CLIENT_ID` | API | Only for the WorkOS SSO provider. |
 | `LAUNCHLMS_EMAIL_PROVIDER` | API | `resend` or `smtp`. See [email.md](email.md). |
 | `LAUNCHLMS_RESEND_API_KEY` | API | Required when Resend email is enabled. |
 | `LAUNCHLMS_SYSTEM_EMAIL_ADDRESS` | API | Sender address. Must be on the provider-verified domain. |
