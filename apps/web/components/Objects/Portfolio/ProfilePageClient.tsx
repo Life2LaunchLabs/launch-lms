@@ -79,7 +79,9 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { getUserAvatarMediaDirectory, getUserProfileFeaturedMediaDirectory } from '@services/media/media'
 import { devSeedProfile, updateProfile } from '@services/settings/portfolio'
-import { updateUserAvatar, uploadUserProfileFeaturedImage } from '@services/users/users'
+import { uploadUserProfileFeaturedImage } from '@services/users/users'
+import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
+import { MediaAsset, applyMediaAssetToUserAvatar } from '@services/media/library'
 import { swrFetcher } from '@services/utils/ts/requests'
 import QuizResultsView from '@components/Objects/Activities/Quiz/Player/QuizResultsView'
 import { defaultChapterIconName, getChannelIcon } from '@components/Resources/ResourceChannelStyle'
@@ -1490,7 +1492,7 @@ function ProfileHeaderModal({
   canManageProfile,
   isSaving,
   uploadingAvatar,
-  onAvatarChange,
+  onAvatarPickerOpen,
   onDraftChange,
   onAddSocial,
   onUpdateSocial,
@@ -1512,7 +1514,7 @@ function ProfileHeaderModal({
   canManageProfile: boolean
   isSaving: boolean
   uploadingAvatar: boolean
-  onAvatarChange(event: React.ChangeEvent<HTMLInputElement>): void
+  onAvatarPickerOpen(): void
   onDraftChange(patch: Partial<typeof draft>): void
   onAddSocial(type: SocialType): void
   onUpdateSocial(type: SocialType, url: string): void
@@ -1525,7 +1527,6 @@ function ProfileHeaderModal({
     user.username || draft.username
   )
   const visibleSocials = canManageProfile ? socials : socials.filter((social) => social.url)
-  const avatarInputId = `profile-header-modal-avatar-${user.id}`
 
   const saveAndClose = async () => {
     const saved = await onSave()
@@ -1547,23 +1548,14 @@ function ProfileHeaderModal({
             <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-full bg-muted shadow-md ring-4 ring-white">
               <img src={avatarUrl || '/empty_avatar.png'} alt="" className="h-full w-full object-cover" />
               {canManageProfile ? (
-                <>
-                  <input
-                    id={avatarInputId}
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,image/gif"
-                    className="hidden"
-                    onChange={onAvatarChange}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => document.getElementById(avatarInputId)?.click()}
-                    className="absolute inset-x-0 bottom-0 flex h-10 items-center justify-center bg-black/55 text-white transition-colors hover:bg-black/70"
-                    aria-label="Upload profile photo"
-                  >
-                    {uploadingAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-                  </button>
-                </>
+                <button
+                  type="button"
+                  onClick={onAvatarPickerOpen}
+                  className="absolute inset-x-0 bottom-0 flex h-10 items-center justify-center bg-black/55 text-white transition-colors hover:bg-black/70"
+                  aria-label="Update profile photo"
+                >
+                  {uploadingAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                </button>
               ) : null}
             </div>
 
@@ -3517,6 +3509,7 @@ function ProfilePageClient({
   const [isSaving, setIsSaving] = useState(false)
   const [uploading, setUploading] = useState<'avatar' | `media:${string}` | null>(null)
   const [headerModalOpen, setHeaderModalOpen] = useState(false)
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false)
   const [addTrayOpen, setAddTrayOpen] = useState(false)
   const [trayDraftItem, setTrayDraftItem] = useState<ProfileLayoutItem | null>(null)
   const [trayDropMode, setTrayDropMode] = useState(false)
@@ -3759,22 +3752,19 @@ function ProfilePageClient({
     }
   }
 
-  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file || !accessToken) return
-
+  const handleAvatarAssetSave = async (asset: MediaAsset) => {
+    if (!accessToken) return
     setUploading('avatar')
     try {
-      const res = await updateUserAvatar(user.id, file, accessToken)
-      if (!res.success) throw new Error(res.HTTPmessage)
-      setUser(res.data)
+      const updatedUser = await applyMediaAssetToUserAvatar(asset.asset_uuid, accessToken)
+      setUser(updatedUser)
       await session?.update?.(true)
       toast.success('Portfolio photo updated')
     } catch {
       toast.error('Could not update profile photo')
+      throw new Error('Could not update profile photo')
     } finally {
       setUploading(null)
-      event.target.value = ''
     }
   }
 
@@ -4327,12 +4317,22 @@ function ProfilePageClient({
           canManageProfile={canManageProfile}
           isSaving={isSaving}
           uploadingAvatar={uploading === 'avatar'}
-          onAvatarChange={handleAvatarChange}
+          onAvatarPickerOpen={() => setAvatarPickerOpen(true)}
           onDraftChange={(patch) => setDraft((current) => ({ ...current, ...patch }))}
           onAddSocial={addSocial}
           onUpdateSocial={updateSocial}
           onRemoveSocial={removeSocial}
           onSave={handleSave}
+        />
+        <MediaPickerDialog
+          open={avatarPickerOpen}
+          onOpenChange={setAvatarPickerOpen}
+          title="Update your profile image"
+          description="Upload an image, paste a media link, or choose from your library."
+          owner={{ type: 'user', id: Number(user.id || 0) }}
+          mediaType="image"
+          accessToken={accessToken}
+          onSave={handleAvatarAssetSave}
         />
         <div className="px-4 sm:px-0">
           <ContentPageHeader
