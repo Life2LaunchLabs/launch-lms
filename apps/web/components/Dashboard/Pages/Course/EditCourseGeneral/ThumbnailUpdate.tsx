@@ -1,6 +1,6 @@
 import { useCourse, getCourseMetaCacheKey } from '@components/Contexts/CourseContext'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { updateCourseThumbnail } from '@services/courses/courses'
+import { updateCourse, updateCourseThumbnail } from '@services/courses/courses'
 import { getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { ArrowBigUpDash, UploadCloud, Image as ImageIcon, Video } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -10,6 +10,7 @@ import UnsplashImagePicker from './UnsplashImagePicker'
 import toast from 'react-hot-toast'
 import { useTranslation } from 'react-i18next'
 import { SafeImage, SafeVideo } from '@components/Objects/SafeImage'
+import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
 const MAX_FILE_SIZE = 8_000_000; // 8MB for images
 const MAX_VIDEO_FILE_SIZE = 100_000_000; // 100MB for videos
@@ -166,6 +167,27 @@ function ThumbnailUpdate({ thumbnailType }: ThumbnailUpdateProps) {
     }
   }
 
+  const selectImageThumbnail = async (url: string) => {
+    setIsLoading(true)
+    try {
+      await updateCourse(
+        course.courseStructure.course_uuid,
+        { thumbnail_image: url, thumbnail_type: course.courseStructure.thumbnail_video ? 'both' : 'image' },
+        session.data?.tokens?.access_token
+      )
+      const cacheKey = getCourseMetaCacheKey(course.courseStructure.course_uuid, withUnpublishedActivities)
+      await mutate(cacheKey)
+      toast.success('Thumbnail updated successfully', {
+        duration: 3000,
+        position: 'top-center',
+      })
+    } catch (_err) {
+      showError('Failed to update thumbnail')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const getThumbnailUrl = (type: 'image' | 'video') => {
     if (type === 'image') {
       return course.courseStructure.thumbnail_image
@@ -267,14 +289,12 @@ function ThumbnailUpdate({ thumbnailType }: ThumbnailUpdateProps) {
             <UploadCloud size={16} />
             {t('dashboard.courses.general.thumbnail.upload_image')}
           </button>
-          <button
-            type="button"
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            onClick={() => setShowUnsplashPicker(true)}
-          >
-            <ImageIcon size={16} />
-            {t('dashboard.courses.general.thumbnail.gallery')}
-          </button>
+          <ImageMediaPicker
+            owner={{ type: 'org', id: Number(org.id) }}
+            title="Choose course thumbnail"
+            buttonText={t('dashboard.courses.general.thumbnail.gallery')}
+            onSelect={selectImageThumbnail}
+          />
         </div>
       );
     }

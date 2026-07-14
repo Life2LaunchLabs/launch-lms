@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React from 'react'
-import { ArrowDown, ArrowLeftRight, ArrowUp, Award, Check, ChevronDown, ClipboardCheck, Clock, Eye, GalleryVerticalEnd, Globe, GlobeLock, Handshake, Image as ImageIcon, Info, Loader2, Pencil, Plus, Settings, Trash2, UploadCloud, X } from 'lucide-react'
+import { ArrowDown, ArrowLeftRight, ArrowUp, Award, Check, ChevronDown, ClipboardCheck, Clock, Eye, GalleryVerticalEnd, Globe, GlobeLock, Handshake, Image as ImageIcon, Info, Loader2, Pencil, Plus, Settings, Trash2, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import toast from 'react-hot-toast'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
@@ -19,16 +19,12 @@ import {
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg } from '@services/config/config'
-import { getOrgLandingMediaDirectory } from '@services/media/media'
-import { deleteLearningBadge, getLearningResponses, gradeLearningResponse, updateLearningBadge, updateLearningBadgeThumbnail } from '@services/learning/learning'
+import { deleteLearningBadge, getLearningResponses, gradeLearningResponse, updateLearningBadge } from '@services/learning/learning'
 import { approveIssuerAuthorization, getIssuerAuthorizations, inviteIssuerOrg, rejectIssuerAuthorization, revokeIssuerAuthorization } from '@services/learning/marketplace'
-import { uploadLandingContent } from '@services/organizations/orgs'
 import CertificatePreview from '@components/Dashboard/Pages/Course/EditCourseCertification/CertificatePreview'
+import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
 type BadgeStatus = 'draft' | 'coming_soon' | 'published'
-
-const MAX_FILE_SIZE = 8_000_000
-const VALID_IMAGE_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png'] as const
 
 const tabs = [
   { key: 'learning-path', label: 'Learning Path', icon: GalleryVerticalEnd },
@@ -57,23 +53,16 @@ export default function AdminBadgeShell({
   const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
-  const imageInputRef = React.useRef<HTMLInputElement>(null)
+  const org = useOrg() as any
   const [badge, setBadge] = React.useState(initialBadge)
   const [editingField, setEditingField] = React.useState<'name' | 'description' | null>(null)
   const [draftName, setDraftName] = React.useState(initialBadge.name || '')
   const [draftDescription, setDraftDescription] = React.useState(initialBadge.description || '')
   const [savingField, setSavingField] = React.useState<'name' | 'description' | null>(null)
   const [isUploading, setIsUploading] = React.useState(false)
-  const [uploadPreview, setUploadPreview] = React.useState<string | null>(null)
   const [updatingStatus, setUpdatingStatus] = React.useState(false)
   const [updatingVisibility, setUpdatingVisibility] = React.useState(false)
   const normalizedSubpage = getActiveSubpage(activeSubpage)
-
-  React.useEffect(() => {
-    return () => {
-      if (uploadPreview) URL.revokeObjectURL(uploadPreview)
-    }
-  }, [uploadPreview])
 
   const patchBadge = async (patch: Record<string, any>, successMessage?: string) => {
     const nextBadge = await updateLearningBadge(badge.badge_uuid, patch, accessToken)
@@ -125,54 +114,22 @@ export default function AdminBadgeShell({
     }
   }
 
-  const validateImageFile = (file: File) => {
-    if (!VALID_IMAGE_MIME_TYPES.includes(file.type as any)) {
-      toast.error('Only JPG and PNG images are allowed.')
-      return false
-    }
-    if (file.size > MAX_FILE_SIZE) {
-      toast.error('Image must be under 8MB.')
-      return false
-    }
-    return true
-  }
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-    if (!accessToken) {
-      toast.error('Please sign in to upload a badge image.')
-      event.target.value = ''
-      return
-    }
-    if (!validateImageFile(file)) {
-      event.target.value = ''
-      return
-    }
-
-    const previewUrl = URL.createObjectURL(file)
-    setUploadPreview(previewUrl)
+  const handleThumbnailSelect = async (url: string) => {
     setIsUploading(true)
-
     try {
-      const formData = new FormData()
-      formData.append('thumbnail', file)
-      const nextBadge = await updateLearningBadgeThumbnail(badge.badge_uuid, formData, accessToken)
+      const nextBadge = await patchBadge({ thumbnail_image: url }, 'Thumbnail image updated.')
       setBadge(nextBadge)
-      toast.success('Thumbnail image updated.')
       router.refresh()
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to upload image.')
+      toast.error(error?.message || 'Failed to update image.')
     } finally {
-      setUploadPreview(null)
       setIsUploading(false)
-      event.target.value = ''
     }
   }
 
   const publicBadgeHref = getUriWithOrg(orgslug, `/badges/${cleanBadgeId(badge.badge_uuid)}`)
   const currentStatus: BadgeStatus = getBadgeStatus(badge)
-  const imageUrl = uploadPreview || badge.thumbnail_image
+  const imageUrl = badge.thumbnail_image
 
   return (
     <div className="min-h-full w-full bg-[#f8f8f8]">
@@ -194,27 +151,18 @@ export default function AdminBadgeShell({
               </div>
             )}
 
-            <input ref={imageInputRef} type="file" className="hidden" accept=".jpg,.jpeg,.png" onChange={handleFileChange} />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="secondary"
-                  disabled={isUploading}
-                  className="absolute right-2 top-2 z-20 h-8 w-8 opacity-0 shadow-md transition-opacity group-hover:opacity-100"
-                  title="Upload thumbnail media"
-                >
-                  {isUploading ? <Loader2 className="animate-spin" /> : <UploadCloud />}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => imageInputRef.current?.click()}>
-                  <ImageIcon className="h-4 w-4" />
-                  Upload image
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="absolute right-2 top-2 z-20 opacity-0 transition-opacity group-hover:opacity-100">
+              <ImageMediaPicker
+                owner={{ type: 'org', id: Number(org?.id || badge.org_id) }}
+                title="Choose badge thumbnail"
+                buttonText=""
+                buttonSize="icon"
+                buttonVariant="secondary"
+                className="h-8 w-8 shadow-md"
+                disabled={isUploading}
+                onSelect={handleThumbnailSelect}
+              />
+            </div>
           </div>
 
           <div className="min-w-0 flex-1">
@@ -649,7 +597,6 @@ function BadgeAboutPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Reco
       : []
   )
   const [saving, setSaving] = React.useState(false)
-  const [uploadingCardIndex, setUploadingCardIndex] = React.useState<number | null>(null)
 
   const patchCard = (index: number, patch: Record<string, any>) => {
     setOverviewCards((cards) => cards.map((card, cardIndex) => cardIndex === index ? { ...card, ...patch } : card))
@@ -671,36 +618,6 @@ function BadgeAboutPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Reco
       ;[next[index], next[nextIndex]] = [next[nextIndex], next[index]]
       return next
     })
-  }
-
-  const uploadCardImage = async (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-    event.target.value = ''
-    if (!accessToken || !org?.id || !org?.org_uuid) {
-      toast.error('Please sign in to upload an image.')
-      return
-    }
-
-    const { validateFile } = await import('@/lib/file-validation')
-    const validation = validateFile(file, ['image'])
-    if (!validation.valid) {
-      toast.error(validation.error || 'Invalid image file.')
-      return
-    }
-
-    setUploadingCardIndex(index)
-    try {
-      const response = await uploadLandingContent(org.id, file, accessToken)
-      const filename = response?.data?.filename
-      if (!filename) throw new Error('Upload did not return a file.')
-      patchCard(index, { media_url: getOrgLandingMediaDirectory(org.org_uuid, filename) })
-      toast.success('Image uploaded.')
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to upload image.')
-    } finally {
-      setUploadingCardIndex(null)
-    }
   }
 
   const save = async () => {
@@ -801,11 +718,12 @@ function BadgeAboutPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Reco
                       </div>
                       <div className="flex gap-2">
                         <input value={card.media_url} onChange={(event) => patchCard(index, { media_url: event.target.value })} placeholder="Image URL" className="h-10 min-w-0 flex-1 rounded-lg border border-border px-3 text-sm outline-none focus:ring-2 focus:ring-black" />
-                        <Button type="button" variant="outline" disabled={uploadingCardIndex === index} onClick={() => document.getElementById(`badge-about-card-image-${index}`)?.click()} className="h-10 shrink-0 gap-2 bg-card">
-                          {uploadingCardIndex === index ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
-                          Upload
-                        </Button>
-                        <input id={`badge-about-card-image-${index}`} type="file" accept="image/*" className="hidden" onChange={(event) => uploadCardImage(index, event)} />
+                        <ImageMediaPicker
+                          owner={{ type: 'org', id: Number(org.id) }}
+                          title="Choose card image"
+                          buttonText="Choose"
+                          onSelect={(url) => patchCard(index, { media_url: url })}
+                        />
                       </div>
                     </div>
                     <div className={`space-y-3 ${card.image_side === 'right' ? 'md:order-1' : ''}`}>
@@ -916,6 +834,7 @@ const certificatePatterns = [
 ]
 
 function BadgeCertificationPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Record<string, any>, successMessage?: string) => Promise<any> }) {
+  const org = useOrg() as any
   const metadata = badge.badge_metadata || {}
   const [values, setValues] = React.useState({
     badge_name: metadata.badge_name || metadata.certification_name || badge.name || '',
@@ -1035,7 +954,15 @@ function BadgeCertificationPanel({ badge, onPatch }: { badge: any; onPatch: (pat
               <div className="space-y-5">
                 <SelectInput label="Certificate presentation" value={values.badge_theme} onChange={(value) => updateValue('badge_theme', value)} options={certificatePatterns} />
                 <TextInput label="Criteria URL" value={values.criteria_url} onChange={(value) => updateValue('criteria_url', value)} placeholder="https://example.com/badge-criteria" />
-                <TextInput label="Badge image URL" value={values.badge_image_url} onChange={(value) => updateValue('badge_image_url', value)} placeholder="Optional override for the badge image" />
+                <div className="space-y-2">
+                  <TextInput label="Badge image URL" value={values.badge_image_url} onChange={(value) => updateValue('badge_image_url', value)} placeholder="Optional override for the badge image" />
+                  <ImageMediaPicker
+                    owner={{ type: 'org', id: Number(org.id) }}
+                    title="Choose badge image"
+                    buttonText="Choose badge image"
+                    onSelect={(url) => updateValue('badge_image_url', url)}
+                  />
+                </div>
                 <TextInput label="Support URL" value={values.badge_support_url} onChange={(value) => updateValue('badge_support_url', value)} placeholder="Optional issuer support or help page" />
               </div>
             </div>

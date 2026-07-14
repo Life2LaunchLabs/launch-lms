@@ -39,6 +39,7 @@ export interface CommunityUpdate {
   description?: string | null
   public?: boolean
   shared?: boolean
+  thumbnail_image?: string | null
   moderation_words?: string[]
 }
 

@@ -1,9 +1,8 @@
 'use client'
-import React, { useRef, useState } from 'react'
+import React from 'react'
 import { Form, Formik } from 'formik'
 import {
   updateOrgSeoConfig,
-  uploadOrganizationOgImage,
   SeoOrgConfig,
 } from '@services/settings/org'
 import { revalidateTags } from '@services/utils/ts/requests'
@@ -17,16 +16,14 @@ import { Label } from '@components/ui/label'
 import { mutate } from 'swr'
 import { getAPIUrl } from '@services/config/config'
 import { getOrgOgImageMediaDirectory } from '@services/media/media'
-import { Copy, ExternalLink, Upload, X } from 'lucide-react'
+import { Copy, ExternalLink, X } from 'lucide-react'
 import { getCanonicalUrl } from '@/lib/seo/utils'
+import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
 const OrgEditSEO: React.FC = () => {
   const session = useLHSession() as any
   const access_token = session?.data?.tokens?.access_token
   const org = useOrg() as any
-  const ogImageInputRef = useRef<HTMLInputElement>(null)
-  const [ogImageFile, setOgImageFile] = useState<File | null>(null)
-  const [ogImagePreview, setOgImagePreview] = useState<string | null>(null)
 
   const seoConfig = org?.config?.config?.customization?.seo || org?.config?.config?.seo || {}
 
@@ -47,43 +44,12 @@ const OrgEditSEO: React.FC = () => {
     toast.success('Copied to clipboard')
   }
 
-  const handleOgImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setOgImageFile(file)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setOgImagePreview(reader.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-
-  const clearOgImage = () => {
-    setOgImageFile(null)
-    setOgImagePreview(null)
-    if (ogImageInputRef.current) {
-      ogImageInputRef.current.value = ''
-    }
-  }
-
   const saveSeoConfig = async (values: SeoOrgConfig) => {
     const loadingToast = toast.loading('Saving SEO settings...')
     try {
-      // Upload OG image if a new one was selected
-      if (ogImageFile) {
-        const uploadResult = await uploadOrganizationOgImage(
-          org.id,
-          ogImageFile,
-          access_token
-        )
-        values.default_og_image = uploadResult.filename
-      }
-
       await updateOrgSeoConfig(org.id, values, access_token)
       await revalidateTags(['organizations'], org.slug)
       mutate(`${getAPIUrl()}orgs/slug/${org.slug}`)
-      setOgImageFile(null)
       toast.success('SEO settings saved successfully', { id: loadingToast })
     } catch (err) {
       toast.error('Failed to save SEO settings', { id: loadingToast })
@@ -91,8 +57,8 @@ const OrgEditSEO: React.FC = () => {
   }
 
   const existingOgImageUrl =
-    seoConfig.default_og_image
-      ? getOrgOgImageMediaDirectory(org?.org_uuid, seoConfig.default_og_image)
+    initialValues.default_og_image
+      ? getOrgOgImageMediaDirectory(org?.org_uuid, initialValues.default_og_image)
       : null
 
   return (
@@ -239,40 +205,31 @@ const OrgEditSEO: React.FC = () => {
                     Default sharing image for social media (1200x630 recommended)
                   </p>
                   <div className="flex items-start space-x-4">
-                    {(ogImagePreview || existingOgImageUrl) && (
+                    {values.default_og_image && (
                       <div className="relative">
                         <img
-                          src={ogImagePreview || existingOgImageUrl || ''}
+                          src={getOrgOgImageMediaDirectory(org?.org_uuid, values.default_og_image)}
                           alt="OG Image Preview"
                           className="w-48 h-24 object-cover rounded-lg border"
                         />
-                        {ogImagePreview && (
-                          <button
-                            type="button"
-                            onClick={clearOgImage}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5"
-                          >
-                            <X size={14} />
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => setFieldValue('default_og_image', '')}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5"
+                        >
+                          <X size={14} />
+                        </button>
                       </div>
                     )}
                     <div>
-                      <input
-                        ref={ogImageInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleOgImageChange}
-                        className="hidden"
+                      <ImageMediaPicker
+                        owner={{ type: 'org', id: Number(org.id) }}
+                        title="Choose default OG image"
+                        buttonText={existingOgImageUrl ? 'Change Image' : 'Choose Image'}
+                        onSelect={(url) => {
+                          setFieldValue('default_og_image', url)
+                        }}
                       />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => ogImageInputRef.current?.click()}
-                      >
-                        <Upload size={14} className="mr-2" />
-                        {existingOgImageUrl || ogImagePreview ? 'Change Image' : 'Upload Image'}
-                      </Button>
                     </div>
                   </div>
                 </div>

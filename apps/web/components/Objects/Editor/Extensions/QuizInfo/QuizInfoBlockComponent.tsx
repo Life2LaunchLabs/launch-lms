@@ -5,10 +5,11 @@ import { v4 as uuidv4 } from 'uuid'
 import { Upload, Loader2, X, Info, Trash2, Copy, Dice6 } from 'lucide-react'
 import { useEditorProvider } from '@components/Contexts/Editor/EditorContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { uploadNewImageFile } from '@services/blocks/Image/images'
+import { getImageBlockFileId, mediaAssetToImageBlockObject, uploadNewImageFile } from '@services/blocks/Image/images'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useCourse } from '@components/Contexts/CourseContext'
+import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 
 const HEADER_BG = '#dbeafe'
 const HEADER_BORDER = '#bfdbfe'
@@ -56,6 +57,7 @@ function QuizInfoBlockComponent(props: any) {
   const [gradientSeed, setGradientSeed] = React.useState<string>(attrs.gradient_seed || attrs.slide_uuid || uuidv4())
   const [isLoading, setIsLoading] = React.useState(false)
   const [animation, setAnimation] = React.useState<'none' | 'confetti'>(attrs.animation || 'none')
+  const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false)
 
   const save = (newTitle: string, newBody: string, newBlockObj: any, newSeed?: string, newAnimation?: 'none' | 'confetti') => {
     props.updateAttributes({
@@ -87,9 +89,15 @@ function QuizInfoBlockComponent(props: any) {
     }
   }
 
+  const handleMediaAssetSelect = (asset: any) => {
+    const blockObj = mediaAssetToImageBlockObject(asset, props.extension.options.activity?.activity_uuid || '')
+    setImageBlockObject(blockObj)
+    save(title, body, blockObj)
+  }
+
   const getImageUrl = (blockObj: any) => {
     if (!blockObj) return null
-    const fileId = `${blockObj.content.file_id}.${blockObj.content.file_format}`
+    const fileId = getImageBlockFileId(blockObj)
     return getActivityBlockMediaDirectory(
       org?.org_uuid, course?.courseStructure?.course_uuid,
       blockObj.content.activity_uuid || props.extension.options.activity?.activity_uuid || '',
@@ -188,7 +196,7 @@ function QuizInfoBlockComponent(props: any) {
               </button>
             ) : (
               <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 20, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <button type="button" onClick={() => !isLoading && inputRef.current?.click()} title="Upload background"
+                <button type="button" onClick={() => !isLoading && setMediaPickerOpen(true)} title="Choose background"
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: '50%', background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)', border: 'none', cursor: 'pointer', color: '#fff' }}>
                   {isLoading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
                 </button>
@@ -203,6 +211,16 @@ function QuizInfoBlockComponent(props: any) {
           </div>
         </div>
       </div>
+      <MediaPickerDialog
+        open={mediaPickerOpen}
+        onOpenChange={setMediaPickerOpen}
+        title="Choose info slide image"
+        description="Upload, link, or select an image from the media library."
+        owner={{ type: 'org', id: Number(org?.id) }}
+        mediaType="image"
+        accessToken={access_token}
+        onSave={handleMediaAssetSelect}
+      />
     </NodeViewWrapper>
   )
 }

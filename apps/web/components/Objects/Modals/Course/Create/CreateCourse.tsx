@@ -7,7 +7,7 @@ import FormLayout, {
   FormLabelAndMessage,
 } from '@components/Objects/StyledElements/Form/Form'
 import * as Form from '@radix-ui/react-form'
-import { createNewCourse } from '@services/courses/courses'
+import { createNewCourse, updateCourse } from '@services/courses/courses'
 import { getOrganizationContextInfoWithoutCredentials } from '@services/organizations/orgs'
 import React, { useEffect, useRef } from 'react'
 import { BarLoader } from 'react-spinners'
@@ -22,6 +22,7 @@ import {  UploadCloud, Image as ImageIcon } from 'lucide-react'
 import UnsplashImagePicker from "@components/Dashboard/Pages/Course/EditCourseGeneral/UnsplashImagePicker"
 import FormTagInput from "@components/Objects/StyledElements/Form/TagInput"
 import { useTranslation } from "react-i18next"
+import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
 function CreateCourseModal({ closeModal, orgslug, collectionUuid }: any) {
   const { t } = useTranslation()
@@ -30,6 +31,7 @@ function CreateCourseModal({ closeModal, orgslug, collectionUuid }: any) {
   const [orgId, setOrgId] = React.useState(null) as any
   const [showUnsplashPicker, setShowUnsplashPicker] = React.useState(false)
   const [isUploading, setIsUploading] = React.useState(false)
+  const [selectedThumbnailUrl, setSelectedThumbnailUrl] = React.useState('')
   const submitLockRef = useRef(false)
 
   const validationSchema = Yup.object().shape({
@@ -79,6 +81,13 @@ function CreateCourseModal({ closeModal, orgslug, collectionUuid }: any) {
         )
 
         if (res.success) {
+          if (selectedThumbnailUrl && res.data?.course_uuid) {
+            await updateCourse(
+              res.data.course_uuid,
+              { thumbnail_image: selectedThumbnailUrl, thumbnail_type: 'image' },
+              session.data?.tokens?.access_token
+            )
+          }
           // Redirect to the course dashboard - remove 'course_' prefix if present
           const courseId = res.data.course_uuid?.replace('course_', '') || res.data.course_uuid
           toast.dismiss(toast_loading)
@@ -121,6 +130,7 @@ function CreateCourseModal({ closeModal, orgslug, collectionUuid }: any) {
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
+      setSelectedThumbnailUrl('')
       formik.setFieldValue('thumbnail', file)
     }
   }
@@ -182,6 +192,11 @@ function CreateCourseModal({ closeModal, orgslug, collectionUuid }: any) {
                   src={URL.createObjectURL(formik.values.thumbnail)}
                   className={`${isUploading ? 'animate-pulse' : ''} shadow-sm w-[200px] h-[100px] rounded-md`}
                 />
+              ) : selectedThumbnailUrl ? (
+                <img
+                  src={selectedThumbnailUrl}
+                  className={`${isUploading ? 'animate-pulse' : ''} shadow-sm w-[200px] h-[100px] rounded-md object-cover`}
+                />
               ) : (
                 <img
                   src="/empty_thumbnail.png"
@@ -204,14 +219,19 @@ function CreateCourseModal({ closeModal, orgslug, collectionUuid }: any) {
                   <UploadCloud size={16} className="mr-2" />
                   <span>{t('courses.upload_image')}</span>
                 </button>
-                <button
-                  type="button"
-                  className="font-bold antialiased items-center text-gray text-sm rounded-md px-4 mt-6 flex"
-                  onClick={() => setShowUnsplashPicker(true)}
-                >
-                  <ImageIcon size={16} className="mr-2" />
-                  <span>{t('courses.choose_from_gallery')}</span>
-                </button>
+                {orgId && (
+                  <ImageMediaPicker
+                    owner={{ type: 'org', id: Number(orgId) }}
+                    title="Choose course thumbnail"
+                    buttonText={t('courses.choose_from_gallery')}
+                    buttonVariant="ghost"
+                    className="font-bold antialiased items-center text-gray text-sm rounded-md px-4 mt-6 flex"
+                    onSelect={(url) => {
+                      setSelectedThumbnailUrl(url)
+                      formik.setFieldValue('thumbnail', null)
+                    }}
+                  />
+                )}
               </div>
             </div>
           </div>

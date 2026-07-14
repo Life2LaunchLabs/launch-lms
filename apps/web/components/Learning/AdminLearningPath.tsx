@@ -14,9 +14,8 @@ import {
   updateLearningActivity,
 } from '@services/learning/learning'
 import toast from 'react-hot-toast'
-import { uploadLandingContent } from '@services/organizations/orgs'
-import { getOrgLandingMediaDirectory } from '@services/media/media'
 import { SafeImage } from '@components/Objects/SafeImage'
+import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
 function cleanBadgeId(value: string) {
   return String(value || '').replace(/^badge_/, '')
@@ -88,30 +87,17 @@ export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: str
     }
   }
 
-  const uploadCover = async (activity: any, event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file) return
-    if (!accessToken || !org?.id || !org?.org_uuid) {
-      toast.error('Please sign in to upload a cover image.')
-      return
-    }
-
-    const { validateFile } = await import('@/lib/file-validation')
-    const validation = validateFile(file, ['image'])
-    if (!validation.valid) {
-      toast.error(validation.error || 'Invalid image file.')
+  const selectCover = async (activity: any, url: string) => {
+    if (!accessToken || !org?.id) {
+      toast.error('Please sign in to update a cover image.')
       return
     }
 
     setUploadingCover(activity.activity_uuid)
     try {
-      const response = await uploadLandingContent(org.id, file, accessToken)
-      const filename = response?.data?.filename
-      if (!filename) throw new Error('Upload did not return a file.')
       await updateLearningActivity(
         activity.activity_uuid,
-        { thumbnail_image: getOrgLandingMediaDirectory(org.org_uuid, filename) },
+        { thumbnail_image: url },
         accessToken
       )
       toast.success('Cover image updated')
@@ -178,11 +164,13 @@ export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: str
               <h2 className="truncate text-base font-bold text-foreground">{activity.title}</h2>
               <p className="text-sm text-muted-foreground">{activity.pages?.length || 0} pages · {activity.published ? 'Published' : 'Draft'}</p>
             </Link>
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-bold transition hover:bg-muted">
-              {uploadingCover === activity.activity_uuid ? <Loader2 size={14} className="animate-spin" /> : <ImageIcon size={14} />}
-              Cover
-              <input type="file" accept="image/*" className="sr-only" onChange={(event) => uploadCover(activity, event)} disabled={uploadingCover === activity.activity_uuid} />
-            </label>
+            <ImageMediaPicker
+              owner={{ type: 'org', id: Number(org?.id) }}
+              onSelect={(url) => selectCover(activity, url)}
+              buttonText="Cover"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-bold transition hover:bg-muted"
+              disabled={uploadingCover === activity.activity_uuid}
+            />
             <button onClick={() => togglePublish(activity)} className="rounded-lg border border-border px-3 py-2 text-xs font-bold">
               {activity.published ? 'Unpublish' : 'Publish'}
             </button>

@@ -8,11 +8,12 @@ import {
 } from 'lucide-react'
 import { useEditorProvider } from '@components/Contexts/Editor/EditorContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { uploadNewImageFile } from '@services/blocks/Image/images'
+import { getImageBlockFileId, mediaAssetToImageBlockObject, uploadNewImageFile } from '@services/blocks/Image/images'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
 import { updateQuizScoring } from '@services/quiz/quiz'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useCourse } from '@components/Contexts/CourseContext'
+import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 
 type Tab = 'question' | 'scoring'
 type TrayPosition = 'left' | 'right' | 'top'
@@ -260,6 +261,7 @@ function QuizSortBlockComponent(props: any) {
   const [gradedVectors, setGradedVectors] = useState<ScoringVector[]>(activity?.details?.graded_scoring_vectors || activity?.details?.scoring_vectors || [getDefaultCorrectVector()])
   const [optionScores, setOptionScores] = useState<Record<string, Record<string, number>>>(activity?.details?.option_scores || {})
   const [uploadingBackground, setUploadingBackground] = useState(false)
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false)
   const scoringSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -319,12 +321,14 @@ function QuizSortBlockComponent(props: any) {
 
   const getImageUrl = useCallback((blockObj: any): string | null => {
     if (!blockObj?.content?.file_id) return null
+    const fileId = getImageBlockFileId(blockObj)
+    if (!fileId) return null
     return getActivityBlockMediaDirectory(
       org?.org_uuid,
       course?.courseStructure?.course_uuid,
       blockObj.content.activity_uuid || activity?.activity_uuid || '',
       blockObj.block_uuid,
-      `${blockObj.content.file_id}.${blockObj.content.file_format}`,
+      fileId,
       'imageBlock'
     ) ?? null
   }, [org?.org_uuid, course?.courseStructure?.course_uuid, activity?.activity_uuid])
@@ -409,13 +413,21 @@ function QuizSortBlockComponent(props: any) {
     setUploadingBackground(true)
     try {
       const blockObj = await uploadNewImageFile(file, activity?.activity_uuid || '', access_token)
-      const nextFileId = blockObj?.content?.file_id ? `${blockObj.content.file_id}.${blockObj.content.file_format}` : null
+      const nextFileId = getImageBlockFileId(blockObj) || null
       setBackgroundImageBlockObject(blockObj)
       setBackgroundImageFileId(nextFileId)
       persistAttrs({ backgroundImageBlockObject: blockObj, backgroundImageFileId: nextFileId })
     } finally {
       setUploadingBackground(false)
     }
+  }
+
+  const handleBackgroundMediaSelect = (asset: any) => {
+    const blockObj = mediaAssetToImageBlockObject(asset, activity?.activity_uuid || '')
+    const nextFileId = getImageBlockFileId(blockObj) || null
+    setBackgroundImageBlockObject(blockObj)
+    setBackgroundImageFileId(nextFileId)
+    persistAttrs({ backgroundImageBlockObject: blockObj, backgroundImageFileId: nextFileId })
   }
 
   const handleDuplicate = () => {
@@ -522,7 +534,7 @@ function QuizSortBlockComponent(props: any) {
                   </CornerBtn>
                 ) : (
                   <>
-                    <CornerBtn onClick={() => !uploadingBackground && backgroundInputRef.current?.click()} isLoading={uploadingBackground} title="Upload background">
+                    <CornerBtn onClick={() => !uploadingBackground && setMediaPickerOpen(true)} isLoading={uploadingBackground} title="Upload background">
                       <Upload size={12} />
                     </CornerBtn>
                     <CornerBtn onClick={() => {
@@ -745,6 +757,16 @@ function QuizSortBlockComponent(props: any) {
           )}
         </div>
       </div>
+      <MediaPickerDialog
+        open={mediaPickerOpen}
+        onOpenChange={setMediaPickerOpen}
+        title="Choose background image"
+        description="Upload, link, or select an image from the media library."
+        onSave={handleBackgroundMediaSelect}
+        owner={{ type: 'org', id: Number(org?.id) }}
+        mediaType="image"
+        accessToken={access_token}
+      />
     </NodeViewWrapper>
   )
 }

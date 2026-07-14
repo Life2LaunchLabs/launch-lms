@@ -260,6 +260,10 @@ async def update_community(
         community.description = community_object.description
     if community_object.public is not None:
         community.public = community_object.public
+    if community_object.shared is not None:
+        community.shared = community_object.shared
+    if community_object.thumbnail_image is not None:
+        community.thumbnail_image = community_object.thumbnail_image
     if community_object.moderation_words is not None:
         community.moderation_words = community_object.moderation_words
 

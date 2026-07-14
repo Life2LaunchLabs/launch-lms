@@ -18,6 +18,7 @@ import FormLayout, {
   Textarea,
 } from '@components/Objects/StyledElements/Form/Form'
 import * as Form from '@radix-ui/react-form'
+import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
 interface EditPodcastGeneralProps {
   orgslug: string
@@ -31,6 +32,7 @@ function EditPodcastGeneral({ orgslug }: EditPodcastGeneralProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null)
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null)
+  const [selectedThumbnailUrl, setSelectedThumbnailUrl] = useState('')
 
   const accessToken = session?.data?.tokens?.access_token
 
@@ -63,7 +65,11 @@ function EditPodcastGeneral({ orgslug }: EditPodcastGeneralProps) {
       setIsSaving(true)
       const toastId = toast.loading(t('podcasts.dashboard.saving'))
       try {
-        await updatePodcast(podcast!.podcast_uuid, values, accessToken)
+        await updatePodcast(
+          podcast!.podcast_uuid,
+          selectedThumbnailUrl ? { ...values, thumbnail_image: selectedThumbnailUrl } : values,
+          accessToken
+        )
 
         if (thumbnailFile) {
           const formData = new FormData()
@@ -76,6 +82,7 @@ function EditPodcastGeneral({ orgslug }: EditPodcastGeneralProps) {
         toast.success(t('podcasts.dashboard.saved'), { id: toastId })
         setThumbnailFile(null)
         setThumbnailPreview(null)
+        setSelectedThumbnailUrl('')
       } catch (error) {
         console.error('Failed to save podcast:', error)
         toast.error(t('podcasts.dashboard.save_error'), { id: toastId })
@@ -88,6 +95,7 @@ function EditPodcastGeneral({ orgslug }: EditPodcastGeneralProps) {
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      setSelectedThumbnailUrl('')
       setThumbnailFile(file)
       const reader = new FileReader()
       reader.onloadend = () => {
@@ -100,6 +108,7 @@ function EditPodcastGeneral({ orgslug }: EditPodcastGeneralProps) {
   const removeThumbnail = () => {
     setThumbnailFile(null)
     setThumbnailPreview(null)
+    setSelectedThumbnailUrl('')
   }
 
   if (isLoading || !podcast) {
@@ -110,7 +119,7 @@ function EditPodcastGeneral({ orgslug }: EditPodcastGeneralProps) {
     )
   }
 
-  const currentThumbnail = thumbnailPreview || (podcast.thumbnail_image
+  const currentThumbnail = thumbnailPreview || selectedThumbnailUrl || (podcast.thumbnail_image
     ? getPodcastThumbnailMediaDirectory(org?.org_uuid, podcast.podcast_uuid, podcast.thumbnail_image)
     : null)
 
@@ -164,6 +173,18 @@ function EditPodcastGeneral({ orgslug }: EditPodcastGeneralProps) {
                       <Upload size={16} className="mr-2" />
                       {t('podcasts.dashboard.form.upload_thumbnail')}
                     </label>
+                    <div className="mt-2">
+                      <ImageMediaPicker
+                        owner={{ type: 'org', id: Number(org.id) }}
+                        title="Choose podcast thumbnail"
+                        buttonText="Choose from media"
+                        onSelect={(url) => {
+                          setThumbnailFile(null)
+                          setThumbnailPreview(null)
+                          setSelectedThumbnailUrl(url)
+                        }}
+                      />
+                    </div>
                     <p className="mt-2 text-xs text-gray-500">
                       {t('podcasts.dashboard.form.thumbnail_hint')}
                     </p>

@@ -6,10 +6,11 @@ import { AlignLeft, Trash2, Upload, Loader2, X, Copy, Dice6 } from 'lucide-react
 import { useEditorProvider } from '@components/Contexts/Editor/EditorContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { updateQuizScoring } from '@services/quiz/quiz'
-import { uploadNewImageFile } from '@services/blocks/Image/images'
+import { getImageBlockFileId, mediaAssetToImageBlockObject, uploadNewImageFile } from '@services/blocks/Image/images'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useCourse } from '@components/Contexts/CourseContext'
+import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 
 type Tab = 'question' | 'scoring'
 type InputSize = 'single_line' | 'short_answer' | 'open_ended'
@@ -109,6 +110,7 @@ function QuizTextBlockComponent(props: any) {
   const [textScores, setTextScores] = useState<Record<string, TextScoringRule>>(activity?.details?.text_scores || {})
   const scoringSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [uploadingBackground, setUploadingBackground] = useState(false)
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false)
 
   const scoringRule = textScores[questionUuid] || { mode: 'optional', min_chars: 0 }
   const showMinChars = scoringRule.mode === 'min_length'
@@ -163,10 +165,11 @@ function QuizTextBlockComponent(props: any) {
 
   const getImageUrl = (blockObj: any): string | null => {
     if (!blockObj?.content?.file_id) return null
+    const fileId = getImageBlockFileId(blockObj)
     return getActivityBlockMediaDirectory(
       org?.org_uuid, course?.courseStructure?.course_uuid,
       blockObj.content.activity_uuid || activity?.activity_uuid || '',
-      blockObj.block_uuid, `${blockObj.content.file_id}.${blockObj.content.file_format}`, 'imageBlock'
+      blockObj.block_uuid, fileId, 'imageBlock'
     ) ?? null
   }
 
@@ -181,6 +184,14 @@ function QuizTextBlockComponent(props: any) {
     } finally {
       setUploadingBackground(false)
     }
+  }
+
+  const handleBackgroundMediaSelect = (asset: any) => {
+    const blockObj = mediaAssetToImageBlockObject(asset, activity?.activity_uuid || '')
+    const nextFileId = getImageBlockFileId(blockObj) || null
+    setBackgroundImageBlockObject(blockObj)
+    setBackgroundImageFileId(nextFileId)
+    persistAttrs({ backgroundImageBlockObject: blockObj, backgroundImageFileId: nextFileId })
   }
 
   const clearBackground = () => {
@@ -268,7 +279,7 @@ function QuizTextBlockComponent(props: any) {
                   </button>
                 ) : (
                   <>
-                    <button type="button" onClick={() => !uploadingBackground && backgroundInputRef.current?.click()} title="Upload background"
+                    <button type="button" onClick={() => !uploadingBackground && setMediaPickerOpen(true)} title="Choose background"
                       style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: '50%', background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)', border: 'none', cursor: 'pointer', color: '#fff' }}>
                       {uploadingBackground ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
                     </button>
@@ -351,6 +362,16 @@ function QuizTextBlockComponent(props: any) {
           )}
         </div>
       </div>
+      <MediaPickerDialog
+        open={mediaPickerOpen}
+        onOpenChange={setMediaPickerOpen}
+        title="Choose question background"
+        description="Upload, link, or select an image from the media library."
+        owner={{ type: 'org', id: Number(org?.id) }}
+        mediaType="image"
+        accessToken={access_token}
+        onSave={handleBackgroundMediaSelect}
+      />
     </NodeViewWrapper>
   )
 }

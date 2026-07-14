@@ -9,7 +9,7 @@ import {
   Check,
   FileWarning,
   Info,
-  UploadCloud,
+  ImageIcon,
   AlertTriangle,
   Briefcase,
   GraduationCap,
@@ -25,8 +25,6 @@ import {
   Lightbulb
 } from 'lucide-react'
 import UserAvatar from '@components/Objects/UserAvatar'
-import { updateUserAvatar } from '@services/users/users'
-import { constructAcceptValue } from '@/lib/constants'
 import * as Yup from 'yup'
 import { Input } from "@components/ui/input"
 import { Textarea } from "@components/ui/textarea"
@@ -44,8 +42,8 @@ import { signOut } from '@components/Contexts/AuthContext'
 import { getUriWithoutOrg } from '@services/config/config';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useTranslation } from 'react-i18next';
-
-const SUPPORTED_FILES = constructAcceptValue(['jpg', 'png', 'webp', 'gif'])
+import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
+import { MediaAsset, applyMediaAssetToUserAvatar } from '@services/media/library'
 
 const AVAILABLE_ICONS = [
   { name: 'briefcase', labelKey: 'user.settings.general.icons.briefcase', component: Briefcase },
@@ -249,8 +247,7 @@ const UserEditForm = ({
     error: string | undefined;
     success: string;
     isLoading: boolean;
-    localAvatar: File | null;
-    handleFileChange: (event: any) => Promise<void>;
+    openMediaPicker: () => void;
   };
 }) => {
   const { t } = useTranslation();
@@ -468,15 +465,7 @@ const UserEditForm = ({
                     <span className="font-semibold first-letter:uppercase">{profilePicture.success}</span>
                   </div>
                 )}
-                {profilePicture.localAvatar ? (
-                  <UserAvatar
-                    border="border-8"
-                    width={120}
-                    avatar_url={URL.createObjectURL(profilePicture.localAvatar)}
-                  />
-                ) : (
-                  <UserAvatar border="border-8" width={120} />
-                )}
+                <UserAvatar border="border-8" width={120} />
                 {profilePicture.isLoading ? (
                   <div className="font-bold animate-pulse antialiased bg-green-200 text-gray text-sm rounded-md px-4 py-2 flex items-center">
                     <ArrowBigUpDash size={16} className="mr-2" />
@@ -484,20 +473,13 @@ const UserEditForm = ({
                   </div>
                 ) : (
                   <>
-                    <input
-                      type="file"
-                      id="fileInput"
-                      accept={SUPPORTED_FILES}
-                      className="hidden"
-                      onChange={profilePicture.handleFileChange}
-                    />
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => document.getElementById('fileInput')?.click()}
+                      onClick={profilePicture.openMediaPicker}
                       className="w-full"
                     >
-                      <UploadCloud size={16} className="mr-2" />
+                      <ImageIcon size={16} className="mr-2" />
                       {t('user.settings.general.change_avatar')}
                     </Button>
                   </>
@@ -530,11 +512,11 @@ const UserEditForm = ({
 function AccountGeneral() {
   const session = useLHSession() as any;
   const access_token = session?.data?.tokens?.access_token;
-  const [localAvatar, setLocalAvatar] = React.useState(null) as any
   const [isLoading, setIsLoading] = React.useState(false) as any
   const [error, setError] = React.useState() as any
   const [success, setSuccess] = React.useState('') as any
   const [userData, setUserData] = useState<any>(null);
+  const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -553,19 +535,19 @@ function AccountGeneral() {
     fetchUserData();
   }, [session?.data?.user?.id, access_token]);
 
-  const handleFileChange = async (event: any) => {
-    const file = event.target.files[0]
-    setLocalAvatar(file)
+  const handleMediaAssetSave = async (asset: MediaAsset) => {
+    if (!access_token) return
     setIsLoading(true)
-    const res = await updateUserAvatar(session.data.user.id, file, access_token)
-    if (res.success === false) {
-      setError(res.HTTPmessage)
-    } else {
-      // Force refresh session to pick up the new avatar filename
+    setError('')
+    try {
+      await applyMediaAssetToUserAvatar(asset.asset_uuid, access_token)
       await session.update(true)
-      setIsLoading(false)
-      setError('')
       setSuccess(t('user.settings.general.avatar_updated'))
+    } catch (err: any) {
+      setError(err?.message || 'Failed to update avatar')
+      throw err
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -637,12 +619,21 @@ function AccountGeneral() {
               error,
               success,
               isLoading,
-              localAvatar,
-              handleFileChange
+              openMediaPicker: () => setIsMediaPickerOpen(true)
             }}
           />
         )}
       </Formik>
+      <MediaPickerDialog
+        open={isMediaPickerOpen}
+        onOpenChange={setIsMediaPickerOpen}
+        title="Update your profile image"
+        description="Upload an image, paste a media link, or choose from your library."
+        owner={{ type: 'user', id: Number(session?.data?.user?.id || 0) }}
+        mediaType="image"
+        accessToken={access_token}
+        onSave={handleMediaAssetSave}
+      />
     </div>
   );
 }

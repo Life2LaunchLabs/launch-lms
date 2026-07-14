@@ -3,7 +3,7 @@ import React, { useEffect } from 'react'
 import { Resizable } from 're-resizable'
 import { Image, Download, AlignLeft, AlignCenter, AlignRight, Expand, Upload, Loader2, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { uploadNewImageFile } from '../../../../../services/blocks/Image/images'
+import { getImageBlockFileId, mediaAssetToImageBlockObject, uploadNewImageFile } from '../../../../../services/blocks/Image/images'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useCourse } from '@components/Contexts/CourseContext'
@@ -12,6 +12,7 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { constructAcceptValue } from '@/lib/constants';
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { useTranslation } from 'react-i18next'
+import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 
 const SUPPORTED_FILES = constructAcceptValue(['jpg', 'png', 'webp', 'gif'])
 
@@ -37,10 +38,9 @@ function ImageBlockComponent(props: any) {
   })
   const [alignment, setAlignment] = React.useState(props.node.attrs.alignment || 'center')
   const [isModalOpen, setIsModalOpen] = React.useState(false)
+  const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false)
 
-  const fileId = blockObject
-    ? `${blockObject.content.file_id}.${blockObject.content.file_format}`
-    : null
+  const fileId = getImageBlockFileId(blockObject) || null
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -74,6 +74,17 @@ function ImageBlockComponent(props: any) {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleMediaAssetSelect = (asset: any) => {
+    const object = mediaAssetToImageBlockObject(asset, props.extension.options.activity.activity_uuid)
+    setblockObject(object)
+    props.updateAttributes({
+      blockObject: object,
+      size: imageSize,
+      alignment,
+    })
+    setError(null)
   }
 
   const handleDragEnter = (e: React.DragEvent) => {
@@ -228,7 +239,7 @@ function ImageBlockComponent(props: any) {
           {/* Upload Zone - shown when no image */}
           {!blockObject && isEditable && (
             <div
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => setMediaPickerOpen(true)}
               onDragEnter={handleDragEnter}
               onDragOver={handleDragEnter}
               onDragLeave={handleDragLeave}
@@ -377,6 +388,16 @@ function ImageBlockComponent(props: any) {
           }
         />
       )}
+      <MediaPickerDialog
+        open={mediaPickerOpen}
+        onOpenChange={setMediaPickerOpen}
+        title="Choose image"
+        description="Upload, link, or select an image from the media library."
+        owner={{ type: 'org', id: Number(org?.id) }}
+        mediaType="image"
+        accessToken={access_token}
+        onSave={handleMediaAssetSelect}
+      />
     </>
   )
 }

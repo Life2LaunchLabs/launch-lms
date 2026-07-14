@@ -22,6 +22,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { updateCourse, updateCourseThumbnail } from '@services/courses/courses'
 import { getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { revalidateTags } from '@services/utils/ts/requests'
+import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 
 const MAX_FILE_SIZE = 8_000_000
 const MAX_VIDEO_FILE_SIZE = 100_000_000
@@ -56,6 +57,7 @@ export default function CourseEditorHeader({
   const [isUploading, setIsUploading] = useState(false)
   const [uploadPreview, setUploadPreview] = useState<{ url: string; type: UploadType } | null>(null)
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+  const [imagePickerOpen, setImagePickerOpen] = useState(false)
 
   useEffect(() => {
     if (!courseStructure) return
@@ -186,6 +188,23 @@ export default function CourseEditorHeader({
     }
   }
 
+  const handleImageMediaSelect = async (url: string) => {
+    setUploadPreview({ url, type: 'image' })
+    setIsUploading(true)
+    try {
+      await patchCourse({
+        thumbnail_image: url,
+        thumbnail_type: courseStructure.thumbnail_video ? 'both' : 'image',
+      })
+      toast.success('Thumbnail image updated.')
+    } catch {
+      toast.error('Failed to update image.')
+    } finally {
+      setUploadPreview(null)
+      setIsUploading(false)
+    }
+  }
+
   const imageUrl = courseStructure.thumbnail_image
     ? getCourseThumbnailMediaDirectory(org?.org_uuid, courseStructure.course_uuid, courseStructure.thumbnail_image)
     : '/empty_thumbnail.png'
@@ -236,9 +255,9 @@ export default function CourseEditorHeader({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => imageInputRef.current?.click()}>
+              <DropdownMenuItem onClick={() => setImagePickerOpen(true)}>
                 <ImageIcon className="h-4 w-4" />
-                Upload image
+                Choose image
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => videoInputRef.current?.click()}>
                 <Video className="h-4 w-4" />
@@ -269,6 +288,16 @@ export default function CourseEditorHeader({
           />
         </div>
       </div>
+      <MediaPickerDialog
+        open={imagePickerOpen}
+        onOpenChange={setImagePickerOpen}
+        title="Choose course thumbnail"
+        description="Upload, link, or select an image from the media library."
+        owner={{ type: 'org', id: Number(org.id) }}
+        mediaType="image"
+        accessToken={accessToken}
+        onSave={(asset) => handleImageMediaSelect(asset.url)}
+      />
 
       <div className="flex items-center gap-2 pb-3">
         <DropdownMenu>

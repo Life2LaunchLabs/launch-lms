@@ -22,13 +22,14 @@ import QuizMultiSelectBlock from '@components/Objects/Editor/Extensions/QuizMult
 import { CourseProvider } from '@components/Contexts/CourseContext'
 import { updateActivity } from '@services/courses/activities'
 import { updateQuizScoring, updateQuizResults, updateQuizSettings } from '@services/quiz/quiz'
-import { uploadNewImageFile } from '@services/blocks/Image/images'
+import { getImageBlockFileId, mediaAssetToImageBlockObject, uploadNewImageFile } from '@services/blocks/Image/images'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
 import toast from 'react-hot-toast'
 import QuizActivityPlayer from '../Player/QuizActivityPlayer'
 import QuizResultsView from '../Player/QuizResultsView'
 import QuizResultContentEditor from '../Results/QuizResultContentEditor'
 import { channelIconOptions, defaultChapterIconName, getChannelIcon } from '@components/Resources/ResourceChannelStyle'
+import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -166,6 +167,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
   const [resultsDirty, setResultsDirty] = useState(false)
   const [isSavingResults, setIsSavingResults] = useState(false)
   const [coverUploading, setCoverUploading] = useState(false)
+  const [coverPickerOpen, setCoverPickerOpen] = useState(false)
   const coverInputRef = useRef<HTMLInputElement>(null)
 
   const selectedResult = resultOptions.find(r => r.uuid === selectedResultUuid) ?? null
@@ -746,10 +748,17 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
     try {
       const blockObj = await uploadNewImageFile(file, activity.activity_uuid, access_token)
       updateResult(selectedResultUuid, 'cover_image_block_object', blockObj)
-      updateResult(selectedResultUuid, 'cover_image_file_id', blockObj?.content?.file_id ? `${blockObj.content.file_id}.${blockObj.content.file_format}` : null)
+      updateResult(selectedResultUuid, 'cover_image_file_id', getImageBlockFileId(blockObj) || null)
     } finally {
       setCoverUploading(false)
     }
+  }
+
+  const handleCoverMediaSelect = (asset: any) => {
+    if (!selectedResultUuid) return
+    const blockObj = mediaAssetToImageBlockObject(asset, activity.activity_uuid)
+    updateResult(selectedResultUuid, 'cover_image_block_object', blockObj)
+    updateResult(selectedResultUuid, 'cover_image_file_id', getImageBlockFileId(blockObj) || null)
   }
 
   const handleCoverClear = () => {
@@ -824,12 +833,14 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
 
   const getCoverUrl = (blockObj: any): string | null => {
     if (!blockObj?.content?.file_id) return null
+    const fileId = getImageBlockFileId(blockObj)
+    if (!fileId) return null
     return getActivityBlockMediaDirectory(
       org?.org_uuid,
       course?.course_uuid,
       blockObj.content.activity_uuid || activity.activity_uuid,
       blockObj.block_uuid,
-      `${blockObj.content.file_id}.${blockObj.content.file_format}`,
+      fileId,
       'imageBlock'
     ) ?? null
   }
@@ -1382,7 +1393,7 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
                                   </button>
                                 </div>
                               ) : (
-                                <div onClick={() => !coverUploading && coverInputRef.current?.click()}
+                                <div onClick={() => !coverUploading && setCoverPickerOpen(true)}
                                   className="w-full h-52 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-border hover:bg-muted transition-colors">
                                   {coverUploading ? <Loader2 size={20} className="animate-spin text-muted-foreground" /> : (
                                     <>
@@ -1453,6 +1464,16 @@ export default function QuizActivityEditor({ activity, course, org }: QuizActivi
           </div>
         </div>
       </EditorOptionsProvider>
+      <MediaPickerDialog
+        open={coverPickerOpen}
+        onOpenChange={setCoverPickerOpen}
+        title="Choose result cover image"
+        description="Upload, link, or select an image from the media library."
+        onSave={handleCoverMediaSelect}
+        owner={{ type: 'org', id: Number(org?.id) }}
+        mediaType="image"
+        accessToken={access_token}
+      />
     </CourseProvider>
     </OrgProvider>
   )

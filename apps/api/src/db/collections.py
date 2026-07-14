@@ -36,6 +36,7 @@ class CollectionUpdate(SQLModel):
     name: Optional[str] = None
     public: Optional[bool] = None
     shared: Optional[bool] = None
+    thumbnail_image: Optional[str] = None
     hidden: Optional[bool] = None
     protected: Optional[bool] = None
     system_type: Optional[str] = None

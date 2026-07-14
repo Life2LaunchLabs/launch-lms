@@ -23,6 +23,7 @@ import { revalidateTags } from '@services/utils/ts/requests'
 import { mutate } from 'swr'
 import { getAPIUrl } from '@services/config/config'
 import AuthBrandingTab from './AuthBrandingTab'
+import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
 const SUPPORTED_FILES = constructAcceptValue(['png', 'jpg'])
 
@@ -211,6 +212,40 @@ export default function OrgEditBranding() {
   const handleImageButtonClick = (inputId: string) => (event: React.MouseEvent) => {
     event.preventDefault()
     document.getElementById(inputId)?.click()
+  }
+
+  const handleLogoMediaSelect = async (url: string) => {
+    setLocalLogo(url)
+    setIsLogoUploading(true)
+    const loadingToast = toast.loading(t('dashboard.organization.images.uploading_logo'))
+    try {
+      await updateOrganization(org.id, { logo_image: url }, access_token)
+      await revalidateTags(['organizations'], org.slug)
+      mutate(`${getAPIUrl()}orgs/slug/${org.slug}`)
+      toast.success(t('dashboard.organization.images.toasts.logo_success'), { id: loadingToast })
+      router.refresh()
+    } catch (_err) {
+      toast.error(t('dashboard.organization.images.toasts.logo_error'), { id: loadingToast })
+    } finally {
+      setIsLogoUploading(false)
+    }
+  }
+
+  const handleThumbnailMediaSelect = async (url: string) => {
+    setLocalThumbnail(url)
+    setIsThumbnailUploading(true)
+    const loadingToast = toast.loading(t('dashboard.organization.images.uploading_thumbnail'))
+    try {
+      await updateOrganization(org.id, { thumbnail_image: url }, access_token)
+      await revalidateTags(['organizations'], org.slug)
+      mutate(`${getAPIUrl()}orgs/slug/${org.slug}`)
+      toast.success(t('dashboard.organization.images.toasts.thumbnail_success'), { id: loadingToast })
+      router.refresh()
+    } catch (_err) {
+      toast.error(t('dashboard.organization.images.toasts.thumbnail_error'), { id: loadingToast })
+    } finally {
+      setIsThumbnailUploading(false)
+    }
   }
 
   const handlePreviewUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -571,22 +606,13 @@ export default function OrgEditBranding() {
                         className="hidden"
                         onChange={handleFileChange}
                       />
-                      <button
-                        type="button"
+                      <ImageMediaPicker
+                        owner={{ type: 'org', id: Number(org.id) }}
+                        title="Choose organization logo"
+                        buttonText={isLogoUploading ? t('dashboard.organization.images.uploading') : t('dashboard.organization.images.upload_logo')}
                         disabled={isLogoUploading}
-                        className={cn(
-                          "font-medium text-sm px-6 py-2.5 rounded-full",
-                          "bg-linear-to-r from-blue-500 to-blue-600 text-white",
-                          "hover:from-blue-600 hover:to-blue-700",
-                          "shadow-xs hover:shadow-sm transition-all duration-300",
-                          "flex items-center space-x-2",
-                          isLogoUploading && "opacity-75 cursor-not-allowed"
-                        )}
-                        onClick={handleImageButtonClick('fileInput')}
-                      >
-                        <UploadCloud size={18} className={cn("", isLogoUploading && "animate-bounce")} />
-                        <span>{isLogoUploading ? t('dashboard.organization.images.uploading') : t('dashboard.organization.images.upload_logo')}</span>
-                      </button>
+                        onSelect={handleLogoMediaSelect}
+                      />
 
                       <div className="flex flex-col text-xs space-y-2 items-center text-gray-500">
                         <div className="flex items-center space-x-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full">
@@ -694,22 +720,13 @@ export default function OrgEditBranding() {
                         className="hidden"
                         onChange={handleThumbnailChange}
                       />
-                      <button
-                        type="button"
+                      <ImageMediaPicker
+                        owner={{ type: 'org', id: Number(org.id) }}
+                        title="Choose organization thumbnail"
+                        buttonText={isThumbnailUploading ? t('dashboard.organization.images.uploading') : t('dashboard.organization.images.upload_thumbnail')}
                         disabled={isThumbnailUploading}
-                        className={cn(
-                          "font-medium text-sm px-6 py-2.5 rounded-full",
-                          "bg-linear-to-r from-purple-500 to-purple-600 text-white",
-                          "hover:from-purple-600 hover:to-purple-700",
-                          "shadow-xs hover:shadow-sm transition-all duration-300",
-                          "flex items-center space-x-2",
-                          isThumbnailUploading && "opacity-75 cursor-not-allowed"
-                        )}
-                        onClick={handleImageButtonClick('thumbnailInput')}
-                      >
-                        <UploadCloud size={18} className={cn("", isThumbnailUploading && "animate-bounce")} />
-                        <span>{isThumbnailUploading ? t('dashboard.organization.images.uploading') : t('dashboard.organization.images.upload_thumbnail')}</span>
-                      </button>
+                        onSelect={handleThumbnailMediaSelect}
+                      />
 
                       <div className="flex flex-col text-xs space-y-2 items-center text-gray-500">
                         <div className="flex items-center space-x-2 bg-purple-50 text-purple-700 px-3 py-1.5 rounded-full">
@@ -983,7 +1000,15 @@ export default function OrgEditBranding() {
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">Issuer image URL</Label>
-                  <Input value={issuerImageUrl} onChange={(e) => setIssuerImageUrl(e.target.value)} placeholder="Optional override for the issuer image" className="bg-white" />
+                  <div className="flex gap-2">
+                    <Input value={issuerImageUrl} onChange={(e) => setIssuerImageUrl(e.target.value)} placeholder="Optional override for the issuer image" className="bg-white" />
+                    <ImageMediaPicker
+                      owner={{ type: 'org', id: Number(org.id) }}
+                      title="Choose issuer image"
+                      buttonText="Choose"
+                      onSelect={(url) => setIssuerImageUrl(url)}
+                    />
+                  </div>
                 </div>
                 <div className="lg:col-span-2">
                   <Label className="text-sm font-medium text-gray-700 mb-2 block">Issuer description</Label>

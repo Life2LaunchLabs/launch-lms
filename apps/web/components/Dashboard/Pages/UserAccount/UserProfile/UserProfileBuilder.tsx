@@ -12,6 +12,7 @@ import { getUser } from '@services/users/users'
 import { toast } from 'react-hot-toast'
 
 import { useTranslation } from 'react-i18next'
+import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
 // Define section types and their configurations
 const SECTION_TYPES = {
@@ -552,6 +553,8 @@ const ImageGalleryEditor: React.FC<{
   onChange: (section: ImageGallerySection) => void;
 }> = ({ section, onChange }) => {
   const { t } = useTranslation()
+  const session = useLHSession() as any
+  const userId = Number(session?.data?.user?.id)
   return (
     <div className="space-y-6 p-6 bg-white rounded-lg nice-shadow">
       <div className="flex items-center space-x-2">
@@ -579,15 +582,29 @@ const ImageGalleryEditor: React.FC<{
               <div key={index} className="grid grid-cols-[2fr_1fr_auto] gap-4 p-4 border rounded-lg">
                 <div>
                   <Label>{t('user.settings.profile_builder.editors.image_gallery.image_url')}</Label>
-                  <Input
-                    value={image.url}
-                    onChange={(e) => {
-                      const newImages = [...section.images]
-                      newImages[index] = { ...image, url: e.target.value }
-                      onChange({ ...section, images: newImages })
-                    }}
-                    placeholder={t('user.settings.profile_builder.editors.image_gallery.enter_image_url')}
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      value={image.url}
+                      onChange={(e) => {
+                        const newImages = [...section.images]
+                        newImages[index] = { ...image, url: e.target.value }
+                        onChange({ ...section, images: newImages })
+                      }}
+                      placeholder={t('user.settings.profile_builder.editors.image_gallery.enter_image_url')}
+                    />
+                    {userId ? (
+                      <ImageMediaPicker
+                        owner={{ type: 'user', id: userId }}
+                        title={t('user.settings.profile_builder.editors.image_gallery.image_url')}
+                        buttonText="Choose"
+                        onSelect={(url) => {
+                          const newImages = [...section.images]
+                          newImages[index] = { ...image, url }
+                          onChange({ ...section, images: newImages })
+                        }}
+                      />
+                    ) : null}
+                  </div>
                 </div>
                 <div>
                   <Label>{t('user.settings.profile_builder.editors.image_gallery.caption')}</Label>
@@ -1221,6 +1238,8 @@ const AffiliationEditor: React.FC<{
   onChange: (section: AffiliationSection) => void;
 }> = ({ section, onChange }) => {
   const { t } = useTranslation()
+  const session = useLHSession() as any
+  const userId = Number(session?.data?.user?.id)
   return (
     <div className="space-y-6 p-6 bg-white rounded-lg nice-shadow">
       <div className="flex items-center space-x-2">
@@ -1261,15 +1280,29 @@ const AffiliationEditor: React.FC<{
                   </div>
                   <div>
                     <Label>{t('user.settings.profile_builder.editors.affiliation.logo_url')}</Label>
-                    <Input
-                      value={affiliation.logoUrl}
-                      onChange={(e) => {
-                        const newAffiliations = [...section.affiliations]
-                        newAffiliations[index] = { ...affiliation, logoUrl: e.target.value }
-                        onChange({ ...section, affiliations: newAffiliations })
-                      }}
-                      placeholder={t('user.settings.profile_builder.editors.affiliation.logo_url_placeholder')}
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        value={affiliation.logoUrl}
+                        onChange={(e) => {
+                          const newAffiliations = [...section.affiliations]
+                          newAffiliations[index] = { ...affiliation, logoUrl: e.target.value }
+                          onChange({ ...section, affiliations: newAffiliations })
+                        }}
+                        placeholder={t('user.settings.profile_builder.editors.affiliation.logo_url_placeholder')}
+                      />
+                      {userId ? (
+                        <ImageMediaPicker
+                          owner={{ type: 'user', id: userId }}
+                          title={t('user.settings.profile_builder.editors.affiliation.logo_url')}
+                          buttonText="Choose"
+                          onSelect={(url) => {
+                            const newAffiliations = [...section.affiliations]
+                            newAffiliations[index] = { ...affiliation, logoUrl: url }
+                            onChange({ ...section, affiliations: newAffiliations })
+                          }}
+                        />
+                      ) : null}
+                    </div>
                   </div>
                 </div>
 

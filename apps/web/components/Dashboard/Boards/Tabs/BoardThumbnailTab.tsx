@@ -3,12 +3,14 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { UploadCloud, Image as ImageIcon, ArrowBigUpDash } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { updateBoardThumbnail } from '@services/boards/boards'
+import { useOrg } from '@components/Contexts/OrgContext'
+import { updateBoard, updateBoardThumbnail } from '@services/boards/boards'
 import { getBoardThumbnailMediaDirectory } from '@services/media/media'
 import UnsplashImagePicker from '@components/Dashboard/Pages/Course/EditCourseGeneral/UnsplashImagePicker'
 import toast from 'react-hot-toast'
 import { mutate } from 'swr'
 import { useTranslation } from 'react-i18next'
+import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
 const MAX_FILE_SIZE = 8_000_000
 const VALID_IMAGE_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png'] as const
@@ -23,6 +25,7 @@ interface BoardThumbnailTabProps {
 function BoardThumbnailTab({ board, boardUuid, orgUuid, boardKey }: BoardThumbnailTabProps) {
   const { t } = useTranslation()
   const session = useLHSession() as any
+  const org = useOrg() as any
   const access_token = session?.data?.tokens?.access_token
 
   const imageInputRef = useRef<HTMLInputElement>(null)
@@ -104,6 +107,21 @@ function BoardThumbnailTab({ board, boardUuid, orgUuid, boardKey }: BoardThumbna
     }
   }
 
+  const selectThumbnail = async (url: string) => {
+    setIsUploading(true)
+    setLocalThumbnail({ url })
+    try {
+      await updateBoard(boardUuid, { thumbnail_image: url }, access_token)
+      toast.success(t('boards.thumbnail.thumbnail_updated'))
+      if (boardKey) mutate(boardKey)
+      mutate((key) => typeof key === 'string' && key.includes('/boards/org/'), undefined, { revalidate: true })
+    } catch {
+      toast.error(t('boards.thumbnail.thumbnail_updated_error'))
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
   return (
     <div>
       <div className="h-6"></div>
@@ -145,14 +163,12 @@ function BoardThumbnailTab({ board, boardUuid, orgUuid, boardKey }: BoardThumbna
                 <UploadCloud size={16} />
                 {t('boards.thumbnail.upload_image')}
               </button>
-              <button
-                type="button"
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                onClick={() => setShowUnsplashPicker(true)}
-              >
-                <ImageIcon size={16} />
-                {t('boards.thumbnail.gallery')}
-              </button>
+              <ImageMediaPicker
+                owner={{ type: 'org', id: Number(org.id) }}
+                title="Choose board thumbnail"
+                buttonText={t('boards.thumbnail.gallery')}
+                onSelect={selectThumbnail}
+              />
             </div>
           )}
 

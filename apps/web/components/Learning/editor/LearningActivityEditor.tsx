@@ -113,6 +113,7 @@ import {
 import { DEVICE_FRAMES, MOBILE_FRAME_CAP } from './constants'
 import { PageListPanel } from './PageListPanel'
 import { VariablePathPicker } from './VariablePathPicker'
+import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 
 export default function LearningActivityEditor({
   orgslug: _orgslug,
@@ -635,7 +636,19 @@ export default function LearningActivityEditor({
 
   const requestImageUpload = (blockId: string) => {
     setUploadingBlockId(blockId)
-    mediaInputRef.current?.click()
+  }
+
+  const handleMediaAssetPicked = (asset: any) => {
+    if (!selectedPage || !uploadingBlockId) return
+    const targetBlock = getEditorBlocks(selectedPage, variantKey).find((item) => item.id === uploadingBlockId)
+    patchBlock(uploadingBlockId, {
+      content: {
+        ...((targetBlock as LearningImageBlock | undefined)?.content || {}),
+        src: asset.url,
+        alt: asset.title || '',
+      },
+    } as Partial<LearningImageBlock>)
+    setUploadingBlockId(null)
   }
 
   const createVariableFromKey = async (rawKey: string, valueType = 'text') => {
@@ -734,6 +747,18 @@ export default function LearningActivityEditor({
   return (
     <div className="flex h-screen w-full min-w-0 flex-col overflow-hidden bg-gray-50 text-gray-950">
       <input ref={mediaInputRef} type="file" accept="image/*" className="hidden" onChange={handleMediaPicked} />
+      <MediaPickerDialog
+        open={Boolean(uploadingBlockId)}
+        onOpenChange={(open) => {
+          if (!open) setUploadingBlockId(null)
+        }}
+        title="Choose image"
+        description="Upload, link, or select an image from the media library."
+        onSave={handleMediaAssetPicked}
+        owner={{ type: 'org', id: Number(badge?.org_id) }}
+        mediaType="image"
+        accessToken={accessToken}
+      />
       <EditorHeader
         badgeName={badge.name}
         activity={activityState}
