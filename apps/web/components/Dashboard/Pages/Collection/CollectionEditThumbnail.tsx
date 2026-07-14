@@ -5,7 +5,7 @@ import { UploadCloud, Image as ImageIcon, ArrowBigUpDash, Library } from 'lucide
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useCollection, useCollectionDispatch } from '@components/Contexts/CollectionContext'
-import { updateCollectionThumbnail } from '@services/courses/collections'
+import { updateCollection, updateCollectionThumbnail } from '@services/courses/collections'
 import { getCollectionThumbnailMediaDirectory, getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { mutate } from 'swr'
 import { getAPIUrl } from '@services/config/config'
@@ -13,6 +13,7 @@ import UnsplashImagePicker from '@components/Dashboard/Pages/Course/EditCourseGe
 import toast from 'react-hot-toast'
 import { Button } from '@components/ui/button'
 import { SafeImage } from '@components/Objects/SafeImage'
+import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
 const MAX_FILE_SIZE = 8_000_000
 const VALID_IMAGE_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png'] as const
@@ -104,6 +105,23 @@ const CollectionEditThumbnail: React.FC = () => {
     }
   }
 
+  const selectThumbnail = async (url: string) => {
+    setIsLoading(true)
+    try {
+      const updated = await updateCollection(collection.collection_uuid, { thumbnail_image: url }, accessToken)
+      mutate(`${getAPIUrl()}collections/${collection.collection_uuid}`)
+      if (dispatch) {
+        dispatch({ type: 'setCollection', payload: { ...collection, thumbnail_image: updated.thumbnail_image || url } })
+      }
+      toast.success('Cover photo updated.', { duration: 3000, position: 'top-center' })
+      router.refresh()
+    } catch {
+      showError('Failed to update cover photo.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const getCurrentThumbnailUrl = () => {
     if (localThumbnail) return localThumbnail.url
     if (collection.thumbnail_image && org?.org_uuid) {
@@ -186,10 +204,12 @@ const CollectionEditThumbnail: React.FC = () => {
                   <UploadCloud size={16} />
                   Upload Image
                 </Button>
-                <Button type="button" variant="outline" className="flex items-center gap-2" onClick={() => setShowUnsplashPicker(true)}>
-                  <ImageIcon size={16} />
-                  Browse Unsplash
-                </Button>
+                <ImageMediaPicker
+                  owner={{ type: 'org', id: Number(org.id) }}
+                  title="Choose collection cover"
+                  buttonText="Choose Image"
+                  onSelect={selectThumbnail}
+                />
               </div>
             )}
 

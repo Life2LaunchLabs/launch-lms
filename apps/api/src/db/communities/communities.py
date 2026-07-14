@@ -36,6 +36,7 @@ class CommunityUpdate(SQLModel):
     description: Optional[str] = None
     public: Optional[bool] = None
     shared: Optional[bool] = None
+    thumbnail_image: Optional[str] = None
     moderation_words: Optional[List[str]] = None
 
 

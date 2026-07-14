@@ -18,6 +18,7 @@ import { mutate } from 'swr'
 import { getAPIUrl } from '@services/config/config'
 import UnsplashImagePicker from '@components/Dashboard/Pages/Course/EditCourseGeneral/UnsplashImagePicker'
 import { usePlan } from '@components/Hooks/usePlan'
+import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
 const SUPPORTED_FILES = constructAcceptValue(['png', 'jpg', 'webp'])
 
@@ -174,7 +175,7 @@ export default function AuthBrandingTab() {
                   if (option.type === 'unsplash') {
                     setShowUnsplashPicker(true)
                   } else if (option.type === 'custom') {
-                    document.getElementById('backgroundInput')?.click()
+                    setBackgroundType(option.type)
                   } else {
                     setBackgroundType(option.type)
                     setBackgroundImage('')
@@ -200,6 +201,20 @@ export default function AuthBrandingTab() {
               </button>
             ))}
           </div>
+          {backgroundType === 'custom' && (
+            <div className="mt-4">
+              <ImageMediaPicker
+                owner={{ type: 'org', id: Number(org.id) }}
+                title="Choose auth background"
+                buttonText={backgroundImage ? 'Change background image' : 'Choose background image'}
+                onSelect={(url) => {
+                  setBackgroundImage(url)
+                  setBackgroundType('custom')
+                  setLocalBackgroundPreview(null)
+                }}
+              />
+            </div>
+          )}
           <input
             type="file"
             id="backgroundInput"

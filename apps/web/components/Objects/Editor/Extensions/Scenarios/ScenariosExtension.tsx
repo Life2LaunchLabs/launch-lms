@@ -6,6 +6,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { useCourse } from '@components/Contexts/CourseContext'
 import ScenariosModal from './ScenariosModal'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
+import { getImageBlockFileId } from '@services/blocks/Image/images'
 
 interface ScenarioOption {
   id: string
@@ -92,8 +93,9 @@ const ScenariosExtension: React.FC = (props: any) => {
   }
 
   const getScenarioImageUrl = (scenario: Scenario) => {
-    if (scenario.imageBlockObject?.content?.file_id && scenario.imageBlockObject?.content?.file_format) {
-      const fileId = `${scenario.imageBlockObject.content.file_id}.${scenario.imageBlockObject.content.file_format}`
+    if (scenario.imageBlockObject?.content?.file_id) {
+      const fileId = getImageBlockFileId(scenario.imageBlockObject)
+      if (!fileId) return scenario.imageUrl || ''
 
       return getActivityBlockMediaDirectory(
         org?.org_uuid,

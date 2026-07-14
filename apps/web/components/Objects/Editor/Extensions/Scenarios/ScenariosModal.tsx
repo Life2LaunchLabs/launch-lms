@@ -5,10 +5,11 @@ import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { ButtonBlack } from '@components/Objects/StyledElements/Form/Form'
 import { Switch } from '@components/ui/switch'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { uploadNewImageFile } from '@services/blocks/Image/images'
+import { getImageBlockFileId, mediaAssetToImageBlockObject, uploadNewImageFile } from '@services/blocks/Image/images'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useCourse } from '@components/Contexts/CourseContext'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
+import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 
 interface ScenarioOption {
   id: string
@@ -63,6 +64,7 @@ const ScenariosModal: React.FC<ScenariosModalProps> = ({
   const [showImageInputs, setShowImageInputs] = useState<Record<string, boolean>>({})
   const [uploadingScenarioId, setUploadingScenarioId] = useState<string | null>(null)
   const [pendingUploadScenarioId, setPendingUploadScenarioId] = useState<string | null>(null)
+  const [mediaPickerScenarioId, setMediaPickerScenarioId] = useState<string | null>(null)
 
   useEffect(() => {
     setTitle(initialTitle)
@@ -72,6 +74,7 @@ const ScenariosModal: React.FC<ScenariosModalProps> = ({
     setShowImageInputs({})
     setUploadingScenarioId(null)
     setPendingUploadScenarioId(null)
+    setMediaPickerScenarioId(null)
   }, [initialTitle, initialScenarios, initialCurrentScenarioId])
 
   const handleSave = () => {
@@ -204,8 +207,9 @@ const ScenariosModal: React.FC<ScenariosModalProps> = ({
   }
 
   const getScenarioImageUrl = (scenario: Scenario) => {
-    if (scenario.imageBlockObject?.content?.file_id && scenario.imageBlockObject?.content?.file_format) {
-      const fileId = `${scenario.imageBlockObject.content.file_id}.${scenario.imageBlockObject.content.file_format}`
+    if (scenario.imageBlockObject?.content?.file_id) {
+      const fileId = getImageBlockFileId(scenario.imageBlockObject)
+      if (!fileId) return scenario.imageUrl || ''
 
       return getActivityBlockMediaDirectory(
         org?.org_uuid,
@@ -221,8 +225,7 @@ const ScenariosModal: React.FC<ScenariosModalProps> = ({
   }
 
   const triggerImageUpload = (scenarioId: string) => {
-    setPendingUploadScenarioId(scenarioId)
-    fileInputRef.current?.click()
+    setMediaPickerScenarioId(scenarioId)
   }
 
   const handleUpload = async (scenarioId: string, file: File) => {
@@ -248,6 +251,15 @@ const ScenariosModal: React.FC<ScenariosModalProps> = ({
         fileInputRef.current.value = ''
       }
     }
+  }
+
+  const handleMediaAssetSelect = (asset: any) => {
+    if (!mediaPickerScenarioId) return
+    updateScenario(mediaPickerScenarioId, {
+      imageBlockObject: mediaAssetToImageBlockObject(asset, activityUuid),
+      imageUrl: '',
+    })
+    setShowImageInputs((prev) => ({ ...prev, [mediaPickerScenarioId]: true }))
   }
 
   const clearScenarioImage = (scenarioId: string) => {
@@ -727,45 +739,59 @@ const ScenariosModal: React.FC<ScenariosModalProps> = ({
   )
 
   return (
-    <Modal
-      isDialogOpen={isOpen}
-      onOpenChange={handleClose}
-      dialogTitle={showPreview ? "Scenario Preview" : "Edit Scenarios"}
-      dialogDescription={showPreview ? "Test your interactive scenario" : "Create and manage your interactive scenarios"}
-      customHeight="max-h-[75vh]"
-      customWidth="!w-[70vw] !max-w-[70vw] !sm:w-[70vw] !sm:max-w-[70vw] !md:w-[70vw] !md:max-w-[70vw] !lg:max-w-[70vw] !xl:max-w-[70vw]"
-      dialogContent={showPreview ? renderPreviewContent() : renderEditContent()}
-      dialogClose={
-        <>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file && pendingUploadScenarioId) {
-                handleUpload(pendingUploadScenarioId, file)
-              }
-            }}
-          />
-          <ButtonBlack
-            onClick={handleClose}
-            className="bg-gray-200 text-gray-700 hover:bg-gray-300"
-          >
-            Cancel
-          </ButtonBlack>
-          {!showPreview && (
-            <ButtonBlack onClick={handleSave}>
-              <div className="flex items-center gap-2">
-                <Save size={16} />
-                Save Changes
-              </div>
+    <>
+      <Modal
+        isDialogOpen={isOpen}
+        onOpenChange={handleClose}
+        dialogTitle={showPreview ? "Scenario Preview" : "Edit Scenarios"}
+        dialogDescription={showPreview ? "Test your interactive scenario" : "Create and manage your interactive scenarios"}
+        customHeight="max-h-[75vh]"
+        customWidth="!w-[70vw] !max-w-[70vw] !sm:w-[70vw] !sm:max-w-[70vw] !md:w-[70vw] !md:max-w-[70vw] !lg:max-w-[70vw] !xl:max-w-[70vw]"
+        dialogContent={showPreview ? renderPreviewContent() : renderEditContent()}
+        dialogClose={
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file && pendingUploadScenarioId) {
+                  handleUpload(pendingUploadScenarioId, file)
+                }
+              }}
+            />
+            <ButtonBlack
+              onClick={handleClose}
+              className="bg-gray-200 text-gray-700 hover:bg-gray-300"
+            >
+              Cancel
             </ButtonBlack>
-          )}
-        </>
-      }
-    />
+            {!showPreview && (
+              <ButtonBlack onClick={handleSave}>
+                <div className="flex items-center gap-2">
+                  <Save size={16} />
+                  Save Changes
+                </div>
+              </ButtonBlack>
+            )}
+          </>
+        }
+      />
+      <MediaPickerDialog
+        open={Boolean(mediaPickerScenarioId)}
+        onOpenChange={(open) => {
+          if (!open) setMediaPickerScenarioId(null)
+        }}
+        title="Choose scenario image"
+        description="Upload, link, or select an image from the media library."
+        onSave={handleMediaAssetSelect}
+        owner={{ type: 'org', id: Number(org?.id) }}
+        mediaType="image"
+        accessToken={accessToken}
+      />
+    </>
   )
 }
 

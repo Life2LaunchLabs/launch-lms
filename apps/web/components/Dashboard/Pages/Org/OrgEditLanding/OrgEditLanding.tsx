@@ -21,6 +21,7 @@ import useSWR from 'swr'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@components/ui/tabs"
 import { useTranslation } from 'react-i18next'
 import { QUICKSTART_FEATURES } from '@components/Landings/quickstartConfig'
+import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
 // This will be created inside the component to access translations
 const getSectionTypes = (t: any) => ({
@@ -526,22 +527,7 @@ const HeroSectionEditor: React.FC<{
   onChange: (section: LandingHeroSection) => void
 }> = ({ section, onChange }) => {
   const { t } = useTranslation()
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        onChange({
-          ...section,
-          background: {
-            type: 'image',
-            image: reader.result as string
-          }
-        })
-      }
-      reader.readAsDataURL(file)
-    }
-  }
+  const org = useOrg() as any
 
   return (
     <div className="space-y-6 p-6 bg-white rounded-lg nice-shadow">
@@ -903,20 +889,18 @@ const HeroSectionEditor: React.FC<{
                 <div>
                   <Label>{t('dashboard.organization.landing.hero_editor.background_image')}</Label>
                   <div className="mt-2 flex items-center space-x-4">
-                    <Button
-                      variant="outline"
-                      onClick={() => document.getElementById('imageUpload')?.click()}
+                    <ImageMediaPicker
+                      owner={{ type: 'org', id: Number(org.id) }}
+                      title="Choose hero background"
+                      buttonText={t('dashboard.organization.landing.hero_editor.upload_image')}
                       className="w-full"
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      {t('dashboard.organization.landing.hero_editor.upload_image')}
-                    </Button>
-                    <input
-                      id="imageUpload"
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif"
-                      onChange={handleImageUpload}
-                      className="hidden"
+                      onSelect={(url) => onChange({
+                        ...section,
+                        background: {
+                          type: 'image',
+                          image: url,
+                        },
+                      })}
                     />
                   </div>
                   {section.background.image && (
@@ -1169,62 +1153,16 @@ interface ImageUploaderProps {
 }
 
 const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageUploaded, className, buttonText = "Upload Image", id }) => {
-  const { t } = useTranslation()
   const org = useOrg() as any
-  const session = useLHSession() as any
-  const access_token = session?.data?.tokens?.access_token
-  const [isUploading, setIsUploading] = React.useState(false)
-  const inputId = `imageUpload-${id}`
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Validate file using reusable utility
-    const { validateFile } = await import('@/lib/file-validation')
-    const validation = validateFile(file, ['image'])
-    
-    if (!validation.valid) {
-      toast.error(validation.error!)
-      e.target.value = '' // Clear the input
-      return
-    }
-
-    setIsUploading(true)
-    try {
-      const response = await uploadLandingContent(org.id, file, access_token)
-      if (response.status === 200) {
-        const imageUrl = getOrgLandingMediaDirectory(org.org_uuid, response.data.filename)
-        onImageUploaded(imageUrl)
-        toast.success(t('dashboard.organization.images.toasts.logo_success'))
-      } else {
-        toast.error(t('dashboard.organization.images.toasts.logo_error'))
-      }
-    } catch (error) {
-      console.error('Error uploading image:', error)
-      toast.error(t('dashboard.organization.images.toasts.logo_error'))
-    } finally {
-      setIsUploading(false)
-    }
-  }
 
   return (
     <div className={className}>
-      <Button
-        variant="outline"
-        onClick={() => document.getElementById(inputId)?.click()}
-        disabled={isUploading}
+      <ImageMediaPicker
+        owner={{ type: 'org', id: Number(org.id) }}
+        title="Choose landing image"
+        buttonText={buttonText}
         className="w-full"
-      >
-        <Upload className="h-4 w-4 mr-2" />
-        {isUploading ? t('dashboard.organization.images.uploading') : buttonText}
-      </Button>
-      <input
-        id={inputId}
-        type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
-        onChange={handleFileChange}
-        className="hidden"
+        onSelect={onImageUploaded}
       />
     </div>
   )

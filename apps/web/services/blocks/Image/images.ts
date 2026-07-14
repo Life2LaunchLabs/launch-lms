@@ -3,6 +3,33 @@ import {
   RequestBodyFormWithAuthHeader,
   RequestBodyWithAuthHeader,
 } from '@services/utils/ts/requests'
+import { MediaAsset } from '@services/media/library'
+
+export function getImageBlockFileId(blockObject: any) {
+  if (!blockObject?.content) return ''
+  if (blockObject.content.url) return blockObject.content.url
+  if (!blockObject.content.file_id) return ''
+  return blockObject.content.file_format
+    ? `${blockObject.content.file_id}.${blockObject.content.file_format}`
+    : blockObject.content.file_id
+}
+
+export function mediaAssetToImageBlockObject(asset: MediaAsset, activityUuid: string) {
+  return {
+    id: asset.id,
+    block_uuid: `block_${asset.asset_uuid}`,
+    block_type: 'imageBlock',
+    content: {
+      file_id: asset.url,
+      file_format: '',
+      url: asset.url,
+      title: asset.title,
+      activity_uuid: activityUuid,
+      source_type: asset.source_type,
+      media_asset_uuid: asset.asset_uuid,
+    },
+  }
+}
 
 export async function uploadNewImageFile(
   file: any,

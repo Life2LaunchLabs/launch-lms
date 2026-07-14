@@ -17,12 +17,13 @@ import { submitPlanRequest } from '@services/plans/plan_requests'
 import {
   updateOrgColorConfig,
   updateOrgDarkColorConfig,
-  uploadOrganizationThumbnail,
+  updateOrganization,
 } from '@services/settings/org'
 import UserAvatar from '@components/Objects/UserAvatar'
 import { Button } from '@components/ui/button'
 import LoginClient from '../login/login'
 import OpenSignUpComponent from './OpenSignup'
+import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
 const slugifyOrganizationName = (name: string): string =>
   name
@@ -56,12 +57,11 @@ export default function CreateOrgWizard({ ownerOrg }: CreateOrgWizardProps) {
   const [authMode, setAuthMode] = React.useState<'login' | 'signup'>('signup')
   const [error, setError] = React.useState('')
   const [isSubmitting, setIsSubmitting] = React.useState(false)
-  const [thumbnailPreview, setThumbnailPreview] = React.useState('')
   const [form, setForm] = React.useState({
     name: '',
     email: session?.data?.user?.email || '',
     description: '',
-    thumbnail: null as File | null,
+    thumbnail: '',
     primaryColor: '#7c3aed',
     darkColor: '#111827',
     website: '',
@@ -77,12 +77,6 @@ export default function CreateOrgWizard({ ownerOrg }: CreateOrgWizardProps) {
       setForm((current) => ({ ...current, email: session.data.user.email }))
     }
   }, [session?.data?.user?.email, form.email])
-
-  React.useEffect(() => {
-    return () => {
-      if (thumbnailPreview) URL.revokeObjectURL(thumbnailPreview)
-    }
-  }, [thumbnailPreview])
 
   const updateField = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
     setForm((current) => ({ ...current, [key]: value }))
@@ -122,13 +116,6 @@ export default function CreateOrgWizard({ ownerOrg }: CreateOrgWizardProps) {
         ? current.packages.filter((id) => id !== packageId)
         : [...current.packages, packageId],
     }))
-  }
-
-  const handleThumbnailChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] || null
-    updateField('thumbnail', file)
-    if (thumbnailPreview) URL.revokeObjectURL(thumbnailPreview)
-    setThumbnailPreview(file ? URL.createObjectURL(file) : '')
   }
 
   const handleSubmit = async () => {
@@ -175,7 +162,7 @@ export default function CreateOrgWizard({ ownerOrg }: CreateOrgWizardProps) {
       )
 
       if (form.thumbnail) {
-        await uploadOrganizationThumbnail(String(organization.id), form.thumbnail, accessToken)
+        await updateOrganization(String(organization.id), { thumbnail_image: form.thumbnail }, accessToken)
       }
 
       if (form.primaryColor) {
@@ -315,17 +302,18 @@ export default function CreateOrgWizard({ ownerOrg }: CreateOrgWizardProps) {
                 <span className="text-sm font-semibold text-gray-800">Thumbnail</span>
                 <div className="mt-2 flex items-center gap-4">
                   <div className="flex h-24 w-32 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
-                    {thumbnailPreview ? (
-                      <img src={thumbnailPreview} alt="" className="h-full w-full object-cover" />
+                    {form.thumbnail ? (
+                      <img src={form.thumbnail} alt="" className="h-full w-full object-cover" />
                     ) : (
                       <Upload className="h-6 w-6 text-gray-400" />
                     )}
                   </div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleThumbnailChange}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:rounded-lg file:border-0 file:bg-gray-950 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-gray-800"
+                  <ImageMediaPicker
+                    owner={{ type: 'user', id: Number(session?.data?.user?.id) }}
+                    title="Choose organization thumbnail"
+                    buttonText={form.thumbnail ? 'Change image' : 'Choose image'}
+                    disabled={!session?.data?.user?.id}
+                    onSelect={(url) => updateField('thumbnail', url)}
                   />
                 </div>
               </label>

@@ -2,6 +2,7 @@
 import React from 'react'
 import { Trophy, CheckCircle2, XCircle, BarChart3, RotateCcw, Star, Heart, Flame, Leaf, Zap, Sun, Flag, Triangle, Square, ThumbsUp, ThumbsDown, Edit3, Check, X, Plus } from 'lucide-react'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
+import { getImageBlockFileId } from '@services/blocks/Image/images'
 import QuizResultContentRenderer from '../Results/QuizResultContentRenderer'
 import {
   DropdownMenu,
@@ -654,7 +655,8 @@ export default function QuizResultsView({
 
   const getCoverUrl = (blockObj: any) => {
     if (!blockObj) return null
-    const fileId = `${blockObj.content.file_id}.${blockObj.content.file_format}`
+    const fileId = getImageBlockFileId(blockObj)
+    if (!fileId) return null
     return getActivityBlockMediaDirectory(
       org?.org_uuid,
       course?.courseStructure?.course_uuid,

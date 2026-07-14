@@ -23,6 +23,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getUserProfileFeaturedMediaDirectory } from '@services/media/media'
 import { updateProfile } from '@services/settings/portfolio'
 import { uploadUserProfileFeaturedImage } from '@services/users/users'
+import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
 export type FeaturedCard = {
   id: string
@@ -844,16 +845,20 @@ export function PortfolioPostPageClient({
                 className="hidden"
                 onChange={handleCoverUpload}
               />
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => document.getElementById(`portfolio-cover-upload-${post.id}`)?.click()}
+              <ImageMediaPicker
+                owner={{ type: 'user', id: Number(user.id) }}
+                title="Choose portfolio cover"
+                buttonText=""
+                buttonVariant="secondary"
+                buttonSize="sm"
                 disabled={isUploadingImage}
                 className="absolute bottom-3 right-3 h-8 bg-card/90 px-2 text-xs text-foreground hover:bg-card"
-              >
-                {isUploadingImage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
-              </Button>
+                onSelect={(url) => {
+                  updatePost({ imageUrl: url })
+                  persistPostSoon()
+                  toast.success('Cover updated')
+                }}
+              />
             </>
           ) : null}
         </PortfolioCover>

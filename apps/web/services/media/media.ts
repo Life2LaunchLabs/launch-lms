@@ -26,6 +26,22 @@ export function normalizeMediaUrl(url?: string | null) {
   return url.replace('/api/v1/content/', '/content/')
 }
 
+function isStoredMediaUrl(fileId?: string | null) {
+  if (!fileId) return false
+  return /^https?:\/\//i.test(fileId) || fileId.startsWith('/content/') || fileId.startsWith('/api/v1/content/')
+}
+
+function resolveMediaFileId(fileId: string) {
+  if (/^https?:\/\//i.test(fileId)) return fileId
+  if (fileId.startsWith('/api/v1/content/')) return `${getMediaUrl()}${fileId.replace('/api/v1/', '')}`
+  if (fileId.startsWith('/content/')) return `${getMediaUrl()}${fileId.replace(/^\//, '')}`
+  return ''
+}
+
+function legacyMediaDirectory(fileId: string, buildUrl: () => string) {
+  return isStoredMediaUrl(fileId) ? resolveMediaFileId(fileId) : buildUrl()
+}
+
 /**
  * Get the streaming URL for an activity video.
  * Uses the optimized streaming endpoint with proper Range request support.
@@ -72,8 +88,7 @@ export function getCourseThumbnailMediaDirectory(
   courseUUID: string,
   fileId: string
 ) {
-  let uri = `${getMediaUrl()}content/orgs/${orgUUID}/courses/${courseUUID}/thumbnails/${fileId}`
-  return uri
+  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/orgs/${orgUUID}/courses/${courseUUID}/thumbnails/${fileId}`)
 }
 
 export function getCourseCoreBackgroundMediaDirectory(
@@ -89,8 +104,7 @@ export function getBoardThumbnailMediaDirectory(
   boardUUID: string,
   fileId: string
 ) {
-  let uri = `${getMediaUrl()}content/orgs/${orgUUID}/boards/${boardUUID}/thumbnails/${fileId}`
-  return uri
+  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/orgs/${orgUUID}/boards/${boardUUID}/thumbnails/${fileId}`)
 }
 
 export function getPlaygroundThumbnailMediaDirectory(
@@ -98,8 +112,7 @@ export function getPlaygroundThumbnailMediaDirectory(
   playgroundUUID: string,
   fileId: string
 ) {
-  let uri = `${getMediaUrl()}content/orgs/${orgUUID}/playgrounds/${playgroundUUID}/thumbnails/${fileId}`
-  return uri
+  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/orgs/${orgUUID}/playgrounds/${playgroundUUID}/thumbnails/${fileId}`)
 }
 
 export function getCommunityThumbnailMediaDirectory(
@@ -107,8 +120,7 @@ export function getCommunityThumbnailMediaDirectory(
   communityUUID: string,
   fileId: string
 ) {
-  let uri = `${getMediaUrl()}content/orgs/${orgUUID}/communities/${communityUUID}/thumbnails/${fileId}`
-  return uri
+  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/orgs/${orgUUID}/communities/${communityUUID}/thumbnails/${fileId}`)
 }
 
 export function getResourceThumbnailMediaDirectory(
@@ -116,7 +128,7 @@ export function getResourceThumbnailMediaDirectory(
   resourceUUID: string,
   fileId: string
 ) {
-  return `${getMediaUrl()}content/orgs/${orgUUID}/resources/${resourceUUID}/thumbnails/${fileId}`
+  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/orgs/${orgUUID}/resources/${resourceUUID}/thumbnails/${fileId}`)
 }
 
 export function getResourceChannelThumbnailMediaDirectory(
@@ -124,7 +136,7 @@ export function getResourceChannelThumbnailMediaDirectory(
   channelUUID: string,
   fileId: string
 ) {
-  return `${getMediaUrl()}content/orgs/${orgUUID}/resource_channels/${channelUUID}/thumbnails/${fileId}`
+  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/orgs/${orgUUID}/resource_channels/${channelUUID}/thumbnails/${fileId}`)
 }
 
 export function getResourceOutcomeMediaDirectory(
@@ -132,7 +144,7 @@ export function getResourceOutcomeMediaDirectory(
   resourceUUID: string,
   fileId: string
 ) {
-  return `${getMediaUrl()}content/users/${userUUID}/resources/${resourceUUID}/outcomes/${fileId}`
+  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/users/${userUUID}/resources/${resourceUUID}/outcomes/${fileId}`)
 }
 
 export function getCollectionThumbnailMediaDirectory(
@@ -140,30 +152,23 @@ export function getCollectionThumbnailMediaDirectory(
   collectionUUID: string,
   fileId: string
 ) {
-  let uri = `${getMediaUrl()}content/orgs/${orgUUID}/collections/${collectionUUID}/thumbnails/${fileId}`
-  return uri
+  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/orgs/${orgUUID}/collections/${collectionUUID}/thumbnails/${fileId}`)
 }
 
 export function getOrgLandingMediaDirectory(orgUUID: string, fileId: string) {
-  let uri = `${getMediaUrl()}content/orgs/${orgUUID}/landing/${fileId}`
-  return uri
+  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/orgs/${orgUUID}/landing/${fileId}`)
 }
 
 export function getUserAvatarMediaDirectory(userUUID: string, fileId: string) {
-  if (/^https?:\/\//i.test(fileId)) return fileId
-  if (fileId.startsWith('/content/')) return `${getMediaUrl()}${fileId.replace(/^\//, '')}`
-  let uri = `${getMediaUrl()}content/users/${userUUID}/avatars/${fileId}`
-  return uri
+  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/users/${userUUID}/avatars/${fileId}`)
 }
 
 export function getUserProfileCoverMediaDirectory(userUUID: string, fileId: string) {
-  let uri = `${getMediaUrl()}content/users/${userUUID}/profile_covers/${fileId}`
-  return uri
+  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/users/${userUUID}/profile_covers/${fileId}`)
 }
 
 export function getUserProfileFeaturedMediaDirectory(userUUID: string, fileId: string) {
-  let uri = `${getMediaUrl()}content/users/${userUUID}/profile_featured/${fileId}`
-  return uri
+  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/users/${userUUID}/profile_featured/${fileId}`)
 }
 
 export function getActivityBlockMediaDirectory(
@@ -174,6 +179,9 @@ export function getActivityBlockMediaDirectory(
   fileId: any,
   type: string
 ) {
+  if (typeof fileId === 'string' && isStoredMediaUrl(fileId)) {
+    return resolveMediaFileId(fileId)
+  }
   if (type == 'pdfBlock') {
     let uri = `${getMediaUrl()}content/orgs/${orgUUID}/courses/${courseId}/activities/${activityId}/dynamic/blocks/pdfBlock/${blockId}/${fileId}`
     return uri
@@ -235,33 +243,27 @@ export function getActivityMediaDirectory(
 }
 
 export function getOrgLogoMediaDirectory(orgUUID: string, fileId: string) {
-  let uri = `${getMediaUrl()}content/orgs/${orgUUID}/logos/${fileId}`
-  return uri
+  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/orgs/${orgUUID}/logos/${fileId}`)
 }
 
 export function getOrgThumbnailMediaDirectory(orgUUID: string, fileId: string) {
-  let uri = `${getMediaUrl()}content/orgs/${orgUUID}/thumbnails/${fileId}`
-  return uri
+  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/orgs/${orgUUID}/thumbnails/${fileId}`)
 }
 
 export function getOrgPreviewMediaDirectory(orgUUID: string, fileId: string) {
-  let uri = `${getMediaUrl()}content/orgs/${orgUUID}/previews/${fileId}`
-  return uri
+  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/orgs/${orgUUID}/previews/${fileId}`)
 }
 
 export function getOrgOgImageMediaDirectory(orgUUID: string, fileId: string) {
-  let uri = `${getMediaUrl()}content/orgs/${orgUUID}/og_images/${fileId}`
-  return uri
+  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/orgs/${orgUUID}/og_images/${fileId}`)
 }
 
 export function getOrgAuthBackgroundMediaDirectory(orgUUID: string, fileId: string) {
-  let uri = `${getMediaUrl()}content/orgs/${orgUUID}/auth_backgrounds/${fileId}`
-  return uri
+  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/orgs/${orgUUID}/auth_backgrounds/${fileId}`)
 }
 
 export function getOrgFaviconMediaDirectory(orgUUID: string, fileId: string) {
-  let uri = `${getMediaUrl()}content/orgs/${orgUUID}/favicons/${fileId}`
-  return uri
+  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/orgs/${orgUUID}/favicons/${fileId}`)
 }
 
 /**
@@ -287,8 +289,7 @@ export function getPodcastThumbnailMediaDirectory(
   podcastUUID: string,
   fileId: string
 ) {
-  let uri = `${getMediaUrl()}content/orgs/${orgUUID}/podcasts/${podcastUUID}/thumbnails/${fileId}`
-  return uri
+  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/orgs/${orgUUID}/podcasts/${podcastUUID}/thumbnails/${fileId}`)
 }
 
 /**
@@ -300,8 +301,7 @@ export function getEpisodeThumbnailMediaDirectory(
   episodeUUID: string,
   fileId: string
 ) {
-  let uri = `${getMediaUrl()}content/orgs/${orgUUID}/podcasts/${podcastUUID}/episodes/${episodeUUID}/thumbnails/${fileId}`
-  return uri
+  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/orgs/${orgUUID}/podcasts/${podcastUUID}/episodes/${episodeUUID}/thumbnails/${fileId}`)
 }
 
 /**

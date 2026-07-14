@@ -1,6 +1,7 @@
 'use client'
 import React from 'react'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
+import { getImageBlockFileId } from '@services/blocks/Image/images'
 import { mergeContent } from './QuizResultContentEditor'
 import QuizScoresDisplay, { QuizScoresSortOrder } from './QuizScoresDisplay'
 
@@ -102,7 +103,8 @@ function renderBlockNodes(
     if (node.type === 'blockImage') {
       const blockObject = node.attrs?.blockObject
       if (!blockObject?.content?.file_id) return null
-      const fileId = `${blockObject.content.file_id}.${blockObject.content.file_format}`
+      const fileId = getImageBlockFileId(blockObject)
+      if (!fileId) return null
       const courseUuid = opts.course?.courseStructure?.course_uuid || opts.course?.course_uuid
       const imageUrl = getActivityBlockMediaDirectory(
         opts.org?.org_uuid,

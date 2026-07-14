@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React from 'react'
-import { Award, BookCopy, BookOpen, Download, FileArchive, Globe, Loader2, Plus, Search, Settings, Trash2, Upload, UploadCloud, Wand2, X } from 'lucide-react'
+import { Award, BookCopy, BookOpen, Download, FileArchive, Globe, Loader2, Plus, Search, Settings, Trash2, Upload, Wand2, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { Switch } from '@components/ui/switch'
@@ -20,18 +20,15 @@ import {
   exportLearningBadgeCollection,
   importLearningBadgePackage,
   updateLearningBadgeCollection,
-  updateLearningBadgeCollectionThumbnail,
 } from '@services/learning/learning'
 import { analyzeTutorImportFiles, downloadBlob, importTutorCourses } from '@services/courses/transfer'
 import toast from 'react-hot-toast'
+import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
 const tabs = [
   { id: 'badges', label: 'Badges', icon: BookCopy },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
-
-const MAX_FILE_SIZE = 8_000_000
-const VALID_IMAGE_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png'] as const
 
 function cleanCollectionId(value: string) {
   return String(value || '').replace(/^badge_collection_/, '')
@@ -71,7 +68,7 @@ export default function AdminBadgeCollection({
             { label: collection.name },
           ]} />
         </div>
-        <CollectionHeader collection={collection} />
+        <CollectionHeader collection={collection} orgId={orgId} />
         <div className="flex space-x-0.5 text-sm font-black">
           {tabs.map((tab) => {
             const Icon = tab.icon
@@ -98,67 +95,34 @@ export default function AdminBadgeCollection({
   )
 }
 
-function CollectionHeader({ collection: initialCollection }: { collection: any }) {
+function CollectionHeader({ collection: initialCollection, orgId }: { collection: any; orgId: number }) {
   const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
-  const imageInputRef = React.useRef<HTMLInputElement>(null)
   const [collection, setCollection] = React.useState(initialCollection)
-  const [uploadPreview, setUploadPreview] = React.useState<string | null>(null)
   const [isUploading, setIsUploading] = React.useState(false)
 
-  React.useEffect(() => {
-    return () => {
-      if (uploadPreview) URL.revokeObjectURL(uploadPreview)
-    }
-  }, [uploadPreview])
-
-  const validateImageFile = (file: File) => {
-    if (!VALID_IMAGE_MIME_TYPES.includes(file.type as any)) {
-      toast.error('Only JPG and PNG images are allowed.')
-      return false
-    }
-    if (file.size > MAX_FILE_SIZE) {
-      toast.error('Image must be under 8MB.')
-      return false
-    }
-    return true
-  }
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
+  const handleMediaSelect = async (url: string) => {
     if (!accessToken) {
-      toast.error('Please sign in to upload a collection image.')
-      event.target.value = ''
-      return
-    }
-    if (!validateImageFile(file)) {
-      event.target.value = ''
+      toast.error('Please sign in to update a collection image.')
       return
     }
 
-    const previewUrl = URL.createObjectURL(file)
-    setUploadPreview(previewUrl)
     setIsUploading(true)
 
     try {
-      const formData = new FormData()
-      formData.append('thumbnail', file)
-      const nextCollection = await updateLearningBadgeCollectionThumbnail(collection.collection_uuid, formData, accessToken)
+      const nextCollection = await updateLearningBadgeCollection(collection.collection_uuid, { thumbnail_image: url }, accessToken)
       setCollection(nextCollection)
       toast.success('Collection cover image updated.')
       router.refresh()
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to upload image.')
+      toast.error(error?.message || 'Failed to update image.')
     } finally {
-      setUploadPreview(null)
       setIsUploading(false)
-      event.target.value = ''
     }
   }
 
-  const imageUrl = uploadPreview || collection.thumbnail_image
+  const imageUrl = collection.thumbnail_image
 
   return (
     <div className="my-2 flex flex-col gap-5 py-2 md:flex-row md:items-center">
@@ -170,16 +134,18 @@ function CollectionHeader({ collection: initialCollection }: { collection: any }
             <BookCopy size={32} strokeWidth={1.5} />
           </div>
         )}
-        <input ref={imageInputRef} type="file" className="hidden" accept=".jpg,.jpeg,.png" onChange={handleFileChange} />
-        <button
-          type="button"
-          disabled={isUploading}
-          onClick={() => imageInputRef.current?.click()}
-          className="absolute right-2 top-2 z-20 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-card text-foreground opacity-0 shadow-md transition-opacity group-hover:opacity-100 disabled:opacity-60"
-          title="Upload collection cover image"
-        >
-          {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
-        </button>
+        <div className="absolute right-2 top-2 z-20 opacity-0 transition-opacity group-hover:opacity-100">
+          <ImageMediaPicker
+            owner={{ type: 'org', id: Number(orgId) }}
+            title="Choose collection cover image"
+            buttonText=""
+            buttonSize="icon"
+            buttonVariant="secondary"
+            className="h-8 w-8 shadow-md"
+            disabled={isUploading}
+            onSelect={handleMediaSelect}
+          />
+        </div>
       </div>
       <div className="min-w-0 flex-1">
         <h1 className="text-3xl font-black leading-tight text-foreground">{collection.name}</h1>

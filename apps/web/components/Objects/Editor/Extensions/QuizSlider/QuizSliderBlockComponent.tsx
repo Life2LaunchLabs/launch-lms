@@ -6,10 +6,11 @@ import { SlidersHorizontal, Trash2, Upload, Loader2, X, Copy, Dice6, Star } from
 import { useEditorProvider } from '@components/Contexts/Editor/EditorContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { updateQuizScoring } from '@services/quiz/quiz'
-import { uploadNewImageFile } from '@services/blocks/Image/images'
+import { getImageBlockFileId, mediaAssetToImageBlockObject, uploadNewImageFile } from '@services/blocks/Image/images'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useCourse } from '@components/Contexts/CourseContext'
+import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 
 type Tab = 'question' | 'scoring'
 type DirectionMode = 'unidirectional' | 'bidirectional' | 'stars'
@@ -275,6 +276,7 @@ function QuizSliderBlockComponent(props: any) {
   const [gradedVectors, setGradedVectors] = useState<ScoringVector[]>(activity?.details?.graded_scoring_vectors || activity?.details?.scoring_vectors || [getDefaultCorrectVector()])
   const [optionScores, setOptionScores] = useState<Record<string, Record<string, number>>>(activity?.details?.option_scores || {})
   const [uploadingBackground, setUploadingBackground] = useState(false)
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false)
   const scoringSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -369,12 +371,14 @@ function QuizSliderBlockComponent(props: any) {
 
   const getImageUrl = (blockObj: any): string | null => {
     if (!blockObj?.content?.file_id) return null
+    const fileId = getImageBlockFileId(blockObj)
+    if (!fileId) return null
     return getActivityBlockMediaDirectory(
       org?.org_uuid,
       course?.courseStructure?.course_uuid,
       blockObj.content.activity_uuid || activity?.activity_uuid || '',
       blockObj.block_uuid,
-      `${blockObj.content.file_id}.${blockObj.content.file_format}`,
+      fileId,
       'imageBlock'
     ) ?? null
   }
@@ -383,13 +387,21 @@ function QuizSliderBlockComponent(props: any) {
     setUploadingBackground(true)
     try {
       const blockObj = await uploadNewImageFile(file, activity?.activity_uuid || '', access_token)
-      const nextFileId = blockObj?.content?.file_id ? `${blockObj.content.file_id}.${blockObj.content.file_format}` : null
+      const nextFileId = getImageBlockFileId(blockObj) || null
       setBackgroundImageBlockObject(blockObj)
       setBackgroundImageFileId(nextFileId)
       persistAttrs({ backgroundImageBlockObject: blockObj, backgroundImageFileId: nextFileId })
     } finally {
       setUploadingBackground(false)
     }
+  }
+
+  const handleBackgroundMediaSelect = (asset: any) => {
+    const blockObj = mediaAssetToImageBlockObject(asset, activity?.activity_uuid || '')
+    const nextFileId = getImageBlockFileId(blockObj) || null
+    setBackgroundImageBlockObject(blockObj)
+    setBackgroundImageFileId(nextFileId)
+    persistAttrs({ backgroundImageBlockObject: blockObj, backgroundImageFileId: nextFileId })
   }
 
   const clearBackground = () => {
@@ -535,7 +547,29 @@ function QuizSliderBlockComponent(props: any) {
 
         <div style={{ padding: '12px', background: '#fff' }}>
           {activeTab === 'question' && (
-            <div style={{ position: 'relative', height: 420, borderRadius: 12, overflow: 'hidden', background: 'transparent' }}>
+            <div style={{ position: 'relative', height: 420, borderRadius: 12, overflow: 'hidden', background: backgroundUrl ? '#000' : getGradient(backgroundGradientSeed) }}>
+              {backgroundUrl && (
+                <img src={backgroundUrl} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+              )}
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(3,7,18,0.08) 0%, rgba(3,7,18,0.24) 100%)' }} />
+              <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 2, display: 'flex', gap: 6 }}>
+                {backgroundImageBlockObject ? (
+                  <button type="button" onClick={clearBackground} title="Remove background" style={{ width: 30, height: 30, borderRadius: 999, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', background: 'rgba(0,0,0,0.45)', cursor: 'pointer' }}>
+                    <X size={13} />
+                  </button>
+                ) : (
+                  <>
+                    <button type="button" onClick={() => !uploadingBackground && setMediaPickerOpen(true)} title="Upload background" style={{ width: 30, height: 30, borderRadius: 999, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', background: 'rgba(0,0,0,0.45)', cursor: uploadingBackground ? 'default' : 'pointer' }}>
+                      {uploadingBackground ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+                    </button>
+                    <button type="button" onClick={handleRerandomizeGradient} title="Shuffle gradient" style={{ width: 30, height: 30, borderRadius: 999, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', background: 'rgba(0,0,0,0.45)', cursor: 'pointer' }}>
+                      <Dice6 size={13} />
+                    </button>
+                  </>
+                )}
+                <input ref={backgroundInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display: 'none' }}
+                  onChange={e => { const file = e.target.files?.[0]; if (file) void handleBackgroundUpload(file) }} />
+              </div>
               <div style={{ position: 'relative', zIndex: 1, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
                 <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <input
@@ -677,6 +711,16 @@ function QuizSliderBlockComponent(props: any) {
           )}
         </div>
       </div>
+      <MediaPickerDialog
+        open={mediaPickerOpen}
+        onOpenChange={setMediaPickerOpen}
+        title="Choose background image"
+        description="Upload, link, or select an image from the media library."
+        onSave={handleBackgroundMediaSelect}
+        owner={{ type: 'org', id: Number(org?.id) }}
+        mediaType="image"
+        accessToken={access_token}
+      />
     </NodeViewWrapper>
   )
 }

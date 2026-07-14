@@ -60,6 +60,7 @@ import { Label } from '@components/ui/label'
 import { Switch } from '@components/ui/switch'
 import { Textarea } from '@components/ui/textarea'
 import { toast } from 'react-hot-toast'
+import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
 export type ResourceChannelParams = {
   subpage: string
@@ -871,13 +872,22 @@ function AddResourceModal({
 
               <div className="space-y-2">
                 <Label htmlFor="new-resource-image">Cover Image URL</Label>
-                <Input
-                  id="new-resource-image"
-                  value={coverImageUrl}
-                  onChange={(e) => setCoverImageUrl(e.target.value)}
-                  placeholder={isDiscovering ? 'Loading image…' : 'https://example.com/image.jpg'}
-                  disabled={isDiscovering}
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="new-resource-image"
+                    value={coverImageUrl}
+                    onChange={(e) => setCoverImageUrl(e.target.value)}
+                    placeholder={isDiscovering ? 'Loading image…' : 'https://example.com/image.jpg'}
+                    disabled={isDiscovering}
+                  />
+                  <ImageMediaPicker
+                    owner={{ type: 'org', id: Number(orgId) }}
+                    title="Choose resource cover"
+                    buttonText="Choose"
+                    disabled={isDiscovering}
+                    onSelect={(url) => setCoverImageUrl(url)}
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">

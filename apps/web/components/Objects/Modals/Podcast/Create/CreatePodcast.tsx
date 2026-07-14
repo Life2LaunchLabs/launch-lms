@@ -7,7 +7,7 @@ import FormLayout, {
   FormLabelAndMessage,
 } from '@components/Objects/StyledElements/Form/Form'
 import * as Form from '@radix-ui/react-form'
-import { createPodcast } from '@services/podcasts/podcasts'
+import { createPodcast, updatePodcast } from '@services/podcasts/podcasts'
 import { getOrganizationContextInfoWithoutCredentials } from '@services/organizations/orgs'
 import React, { useEffect } from 'react'
 import { BarLoader } from 'react-spinners'
@@ -22,6 +22,7 @@ import { UploadCloud, Image as ImageIcon } from 'lucide-react'
 import UnsplashImagePicker from "@components/Dashboard/Pages/Course/EditCourseGeneral/UnsplashImagePicker"
 import FormTagInput from "@components/Objects/StyledElements/Form/TagInput"
 import { useTranslation } from "react-i18next"
+import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
 function CreatePodcastModal({ closeModal, orgslug }: any) {
   const { t } = useTranslation()
@@ -30,6 +31,7 @@ function CreatePodcastModal({ closeModal, orgslug }: any) {
   const [orgId, setOrgId] = React.useState(null) as any
   const [showUnsplashPicker, setShowUnsplashPicker] = React.useState(false)
   const [isUploading, setIsUploading] = React.useState(false)
+  const [selectedThumbnailUrl, setSelectedThumbnailUrl] = React.useState('')
 
   const validationSchema = Yup.object().shape({
     name: Yup.string()
@@ -68,6 +70,13 @@ function CreatePodcastModal({ closeModal, orgslug }: any) {
         )
 
         if (res.success) {
+          if (selectedThumbnailUrl && res.data?.podcast_uuid) {
+            await updatePodcast(
+              res.data.podcast_uuid,
+              { thumbnail_image: selectedThumbnailUrl },
+              session.data?.tokens?.access_token
+            )
+          }
           await revalidateTags(['podcasts'], orgslug)
           mutate((key) => typeof key === 'string' && key.includes('/podcasts/'))
           toast.dismiss(toast_loading)
@@ -112,6 +121,7 @@ function CreatePodcastModal({ closeModal, orgslug }: any) {
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
+      setSelectedThumbnailUrl('')
       formik.setFieldValue('thumbnail', file)
     }
   }
@@ -172,6 +182,11 @@ function CreatePodcastModal({ closeModal, orgslug }: any) {
                   src={URL.createObjectURL(formik.values.thumbnail)}
                   className={`${isUploading ? 'animate-pulse' : ''} shadow-sm w-[200px] h-[100px] rounded-md object-cover`}
                 />
+              ) : selectedThumbnailUrl ? (
+                <img
+                  src={selectedThumbnailUrl}
+                  className={`${isUploading ? 'animate-pulse' : ''} shadow-sm w-[200px] h-[100px] rounded-md object-cover`}
+                />
               ) : (
                 <img
                   src="/empty_thumbnail.png"
@@ -194,14 +209,19 @@ function CreatePodcastModal({ closeModal, orgslug }: any) {
                   <UploadCloud size={16} className="mr-2" />
                   <span>{t('courses.upload_image')}</span>
                 </button>
-                <button
-                  type="button"
-                  className="font-bold antialiased items-center text-gray text-sm rounded-md px-4 mt-6 flex"
-                  onClick={() => setShowUnsplashPicker(true)}
-                >
-                  <ImageIcon size={16} className="mr-2" />
-                  <span>{t('courses.choose_from_gallery')}</span>
-                </button>
+                {orgId && (
+                  <ImageMediaPicker
+                    owner={{ type: 'org', id: Number(orgId) }}
+                    title="Choose podcast thumbnail"
+                    buttonText={t('courses.choose_from_gallery')}
+                    buttonVariant="ghost"
+                    className="font-bold antialiased items-center text-gray text-sm rounded-md px-4 mt-6 flex"
+                    onSelect={(url) => {
+                      setSelectedThumbnailUrl(url)
+                      formik.setFieldValue('thumbnail', null)
+                    }}
+                  />
+                )}
               </div>
             </div>
           </div>

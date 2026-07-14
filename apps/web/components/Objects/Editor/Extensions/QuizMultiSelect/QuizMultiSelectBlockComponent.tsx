@@ -6,10 +6,11 @@ import { Copy, Dice6, Layers3, Loader2, Plus, Trash2, Upload, X } from 'lucide-r
 import { useEditorProvider } from '@components/Contexts/Editor/EditorContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { updateQuizScoring } from '@services/quiz/quiz'
-import { uploadNewImageFile } from '@services/blocks/Image/images'
+import { getImageBlockFileId, mediaAssetToImageBlockObject, uploadNewImageFile } from '@services/blocks/Image/images'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useCourse } from '@components/Contexts/CourseContext'
+import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 
 type Tab = 'question' | 'scoring'
 
@@ -194,6 +195,7 @@ export default function QuizMultiSelectBlockComponent(props: any) {
   const [gradedVectors, setGradedVectors] = useState<ScoringVector[]>(activity?.details?.graded_scoring_vectors || activity?.details?.scoring_vectors || [getDefaultCorrectVector()])
   const [optionScores, setOptionScores] = useState<Record<string, Record<string, number>>>(activity?.details?.option_scores || {})
   const [uploadingBackground, setUploadingBackground] = useState(false)
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false)
   const scoringSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -268,14 +270,23 @@ export default function QuizMultiSelectBlockComponent(props: any) {
     }
   }
 
+  const handleBackgroundMediaSelect = (asset: any) => {
+    const blockObj = mediaAssetToImageBlockObject(asset, activity?.activity_uuid || '')
+    const nextFileId = getImageBlockFileId(blockObj) || null
+    setBackgroundImageBlockObject(blockObj)
+    setBackgroundImageFileId(nextFileId)
+    persistAttrs({ backgroundImageBlockObject: blockObj, backgroundImageFileId: nextFileId })
+  }
+
   const getImageUrl = (blockObj: any): string | null => {
     if (!blockObj?.content?.file_id) return null
+    const fileId = getImageBlockFileId(blockObj)
     return getActivityBlockMediaDirectory(
       org?.org_uuid,
       course?.courseStructure?.course_uuid,
       blockObj.content.activity_uuid || activity?.activity_uuid || '',
       blockObj.block_uuid,
-      `${blockObj.content.file_id}.${blockObj.content.file_format}`,
+      fileId,
       'imageBlock'
     ) ?? null
   }
@@ -339,7 +350,7 @@ export default function QuizMultiSelectBlockComponent(props: any) {
                     className="flex h-7 w-7 items-center justify-center rounded-full bg-black/45 text-white"><X size={12} /></button>
                 ) : (
                   <>
-                    <button type="button" onClick={() => !uploadingBackground && backgroundInputRef.current?.click()}
+                    <button type="button" onClick={() => !uploadingBackground && setMediaPickerOpen(true)}
                       className="flex h-7 w-7 items-center justify-center rounded-full bg-black/45 text-white">
                       {uploadingBackground ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
                     </button>
@@ -402,6 +413,16 @@ export default function QuizMultiSelectBlockComponent(props: any) {
           )}
         </div>
       </div>
+      <MediaPickerDialog
+        open={mediaPickerOpen}
+        onOpenChange={setMediaPickerOpen}
+        title="Choose question background"
+        description="Upload, link, or select an image from the media library."
+        owner={{ type: 'org', id: Number(org?.id) }}
+        mediaType="image"
+        accessToken={access_token}
+        onSave={handleBackgroundMediaSelect}
+      />
     </NodeViewWrapper>
   )
 }

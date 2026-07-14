@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Globe,
   Lock,
@@ -11,7 +11,6 @@ import {
   TextT,
   ShieldCheck,
   Image,
-  UploadSimple,
   CircleNotch,
 } from '@phosphor-icons/react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -20,7 +19,6 @@ import useSWR, { mutate } from 'swr'
 import { swrFetcher } from '@services/utils/ts/requests'
 import {
   updatePlayground,
-  updatePlaygroundThumbnail,
   addUserGroupToPlayground,
   removeUserGroupFromPlayground,
   Playground,
@@ -28,9 +26,9 @@ import {
 } from '@services/playgrounds/playgrounds'
 import { getPlaygroundThumbnailMediaDirectory } from '@services/media/media'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
-import UnsplashImagePicker from '@components/Dashboard/Pages/Course/EditCourseGeneral/UnsplashImagePicker'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
+import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
 type Tab = 'general' | 'access' | 'thumbnail'
 
@@ -401,9 +399,6 @@ function AccessTab({
 }
 
 /* ── Thumbnail Tab ── */
-const MAX_FILE_SIZE = 8_000_000
-const VALID_IMAGE_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png'] as const
-
 function ThumbnailTab({
   playground,
   onUpdated,
@@ -413,78 +408,26 @@ function ThumbnailTab({
 }) {
   const session = useLHSession() as any
   const access_token = session?.data?.tokens?.access_token
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const [localPreview, setLocalPreview] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
-  const [showUnsplash, setShowUnsplash] = useState(false)
-
-  useEffect(() => {
-    return () => {
-      if (localPreview) URL.revokeObjectURL(localPreview)
-    }
-  }, [localPreview])
 
   const thumbnailUrl =
-    localPreview ||
-    (playground.thumbnail_image && playground.org_uuid
+    playground.thumbnail_image && playground.org_uuid
       ? getPlaygroundThumbnailMediaDirectory(
           playground.org_uuid,
           playground.playground_uuid,
           playground.thumbnail_image
         )
-      : null)
+      : null
 
-  const doUpload = async (file: File) => {
-    setIsUploading(true)
+  const handleMediaSelect = async (url: string) => {
     try {
-      const updated = await updatePlaygroundThumbnail(playground.playground_uuid, file, access_token)
+      setIsUploading(true)
+      const updated = await updatePlayground(playground.playground_uuid, { thumbnail_image: url }, access_token)
       onUpdated(updated)
-      setLocalPreview(null)
       toast.success('Thumbnail updated')
     } catch {
-      toast.error('Failed to upload thumbnail')
+      toast.error('Failed to update thumbnail')
     } finally {
-      setIsUploading(false)
-    }
-  }
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (!VALID_IMAGE_MIME_TYPES.includes(file.type as any)) {
-      toast.error('Please upload a PNG or JPG image')
-      e.target.value = ''
-      return
-    }
-    if (file.size > MAX_FILE_SIZE) {
-      toast.error(`File too large (max 8MB)`)
-      e.target.value = ''
-      return
-    }
-    setLocalPreview(URL.createObjectURL(file))
-    await doUpload(file)
-  }
-
-  const handleUnsplashSelect = async (imageUrl: string) => {
-    try {
-      const url = new URL(imageUrl)
-      if (!['https:', 'http:'].includes(url.protocol)) {
-        toast.error('Invalid image URL')
-        return
-      }
-      setIsUploading(true)
-      const res = await fetch(imageUrl)
-      const blob = await res.blob()
-      if (!blob.type.startsWith('image/')) {
-        toast.error('URL did not return a valid image')
-        setIsUploading(false)
-        return
-      }
-      const file = new File([blob], `unsplash_${Date.now()}.jpg`, { type: blob.type })
-      setLocalPreview(URL.createObjectURL(file))
-      await doUpload(file)
-    } catch {
-      toast.error('Failed to process Unsplash image')
       setIsUploading(false)
     }
   }
@@ -493,7 +436,7 @@ function ThumbnailTab({
     <div className="space-y-6">
       <div>
         <h2 className="text-base font-bold text-gray-900 mb-0.5">Thumbnail</h2>
-        <p className="text-xs text-gray-400">Upload an image or pick one from Unsplash.</p>
+        <p className="text-xs text-gray-400">Upload, link, or choose an image from the media library.</p>
       </div>
 
       {/* Preview */}
@@ -512,15 +455,6 @@ function ThumbnailTab({
         )}
       </div>
 
-      {/* Actions */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".jpg,.jpeg,.png"
-        className="hidden"
-        onChange={handleFileChange}
-      />
-
       {isUploading ? (
         <div className="flex items-center gap-2 text-sm text-gray-500">
           <CircleNotch size={14} weight="bold" className="animate-spin text-sky-500" />
@@ -528,29 +462,14 @@ function ThumbnailTab({
         </div>
       ) : (
         <div className="flex gap-2">
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 h-9 px-4 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-sm font-medium text-gray-700 transition-all nice-shadow"
-          >
-            <UploadSimple size={14} weight="bold" />
-            Upload image
-          </button>
-          <button
-            onClick={() => setShowUnsplash(true)}
-            className="flex items-center gap-1.5 h-9 px-4 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-sm font-medium text-gray-700 transition-all nice-shadow"
-          >
-            <Image size={14} weight="bold" />
-            Unsplash
-          </button>
+          <ImageMediaPicker
+            owner={{ type: 'org', id: Number(playground.org_id) }}
+            title="Choose playground thumbnail"
+            buttonText="Choose image"
+            className="flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition-all nice-shadow hover:bg-gray-50"
+            onSelect={handleMediaSelect}
+          />
         </div>
-      )}
-      <p className="text-xs text-gray-400">PNG or JPG · Max 8MB</p>
-
-      {showUnsplash && (
-        <UnsplashImagePicker
-          onSelect={handleUnsplashSelect}
-          onClose={() => setShowUnsplash(false)}
-        />
       )}
     </div>
   )

@@ -5,11 +5,12 @@ import { v4 as uuidv4 } from 'uuid'
 import { Upload, Loader2, X, Trash2, ListChecks, Copy, Dice6 } from 'lucide-react'
 import { useEditorProvider } from '@components/Contexts/Editor/EditorContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { uploadNewImageFile } from '@services/blocks/Image/images'
+import { getImageBlockFileId, mediaAssetToImageBlockObject, uploadNewImageFile } from '@services/blocks/Image/images'
 import { getActivityBlockMediaDirectory } from '@services/media/media'
 import { updateQuizScoring } from '@services/quiz/quiz'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useCourse } from '@components/Contexts/CourseContext'
+import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 
 interface QuizOption {
   option_uuid: string
@@ -124,12 +125,14 @@ function CornerBtn({ onClick, isLoading, title, children }: { onClick: () => voi
 function QuestionImageCard({
   opt, idx, tileHeight, isUploading, imageUrl,
   onLabelChange, onUpload, onClear, onRerandomize,
+  onChoose,
 }: {
   opt: QuizOption; idx: number; tileHeight: number; isUploading: boolean; imageUrl: string | null
   onLabelChange: (uuid: string, label: string) => void
   onUpload: (file: File, optionUuid: string, field: 'main' | 'info' | 'background') => void
   onClear: (optionUuid: string | null, field: 'main' | 'info' | 'background') => void
   onRerandomize: (uuid: string) => void
+  onChoose: (optionUuid: string | null, field: 'main' | 'info' | 'background') => void
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bg = getGradient(opt.gradient_seed)
@@ -151,7 +154,7 @@ function QuestionImageCard({
           <CornerBtn onClick={() => onClear(opt.option_uuid, 'main')} title="Remove image"><X size={12} /></CornerBtn>
         ) : (
           <>
-            <CornerBtn onClick={() => !isUploading && fileInputRef.current?.click()} isLoading={isUploading} title="Upload image">
+            <CornerBtn onClick={() => !isUploading && onChoose(opt.option_uuid, 'main')} isLoading={isUploading} title="Choose image">
               <Upload size={12} />
             </CornerBtn>
             <CornerBtn onClick={() => onRerandomize(opt.option_uuid)} title="Randomize gradient">
@@ -169,6 +172,7 @@ function QuestionImageCard({
 function QuestionImageGrid({
   options, optionCount, uploadingMap, getImageUrl, questionText,
   onLabelChange, onUpload, onClear, onRerandomize, onTitleChange,
+  onChoose,
 }: {
   options: QuizOption[]; optionCount: number; uploadingMap: Record<string, boolean>
   getImageUrl: (blockObj: any) => string | null
@@ -178,6 +182,7 @@ function QuestionImageGrid({
   onClear: (optionUuid: string | null, field: 'main' | 'info' | 'background') => void
   onRerandomize: (uuid: string) => void
   onTitleChange: (text: string) => void
+  onChoose: (optionUuid: string | null, field: 'main' | 'info' | 'background') => void
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, height: 420 }}>
@@ -197,6 +202,7 @@ function QuestionImageGrid({
             imageUrl={getImageUrl(opt.image_block_object)}
             onLabelChange={onLabelChange} onUpload={onUpload} onClear={onClear}
             onRerandomize={onRerandomize}
+            onChoose={onChoose}
           />
         ))}
       </div>
@@ -238,11 +244,12 @@ function QuestionTextStack({
   )
 }
 
-function ResponseCard({ opt, idx, optionCount, isUploading, imageUrl, onInfoChange, onUpload, onClear }: {
+function ResponseCard({ opt, idx, optionCount, isUploading, imageUrl, onInfoChange, onUpload, onClear, onChoose }: {
   opt: QuizOption; idx: number; optionCount: number; isUploading: boolean; imageUrl: string | null
   onInfoChange: (uuid: string, msg: string) => void
   onUpload: (file: File, optionUuid: string, field: 'main' | 'info' | 'background') => void
   onClear: (optionUuid: string | null, field: 'main' | 'info' | 'background') => void
+  onChoose: (optionUuid: string | null, field: 'main' | 'info' | 'background') => void
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bg = getGradient(opt.gradient_seed)
@@ -265,7 +272,7 @@ function ResponseCard({ opt, idx, optionCount, isUploading, imageUrl, onInfoChan
           <CornerBtn onClick={() => onClear(opt.option_uuid, 'info')}><X size={12} /></CornerBtn>
         ) : (
           <>
-            <CornerBtn onClick={() => !isUploading && fileInputRef.current?.click()} isLoading={isUploading}><Upload size={12} /></CornerBtn>
+            <CornerBtn onClick={() => !isUploading && onChoose(opt.option_uuid, 'info')} isLoading={isUploading}><Upload size={12} /></CornerBtn>
             <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" style={{ display: 'none' }}
               onChange={e => { const f = e.target.files?.[0]; if (f) onUpload(f, opt.option_uuid, 'info') }} />
           </>
@@ -363,6 +370,7 @@ function QuizSelectBlockComponent(props: any) {
   const [showResponses, setShowResponses] = useState<boolean>(attrs.show_responses || false)
   const [activeTab, setActiveTab] = useState<Tab>('question')
   const [uploadingMap, setUploadingMap] = useState<Record<string, boolean>>({})
+  const [mediaTarget, setMediaTarget] = useState<{ optionUuid: string | null; field: 'main' | 'info' | 'background' } | null>(null)
   const [quizMode, setQuizMode] = useState<'categories' | 'graded' | 'ungraded'>(
     activity?.details?.quiz_mode === 'graded' || activity?.details?.quiz_mode === 'ungraded' ? activity.details.quiz_mode : 'categories'
   )
@@ -513,6 +521,30 @@ function QuizSelectBlockComponent(props: any) {
     }
   }
 
+  const applyImageBlockObject = (blockObj: any, optionUuid: string | null, field: 'main' | 'info' | 'background') => {
+    const nextFileId = getImageBlockFileId(blockObj) || null
+    if (field === 'background') {
+      setBackgroundImageBlockObject(blockObj)
+      setBackgroundImageFileId(nextFileId)
+      persistAttrs({ backgroundImageBlockObject: blockObj, backgroundImageFileId: nextFileId })
+      return
+    }
+    const newOpts = options.map(o => {
+      if (o.option_uuid !== optionUuid) return o
+      if (field === 'main') return { ...o, image_block_object: blockObj, image_file_id: nextFileId }
+      return { ...o, info_image_block_object: blockObj, info_image_file_id: nextFileId }
+    })
+    setOptions(newOpts)
+    persistAttrs({ options: newOpts })
+  }
+
+  const handleMediaAssetSelect = (asset: any) => {
+    if (!mediaTarget) return
+    const blockObj = mediaAssetToImageBlockObject(asset, activity?.activity_uuid || '')
+    applyImageBlockObject(blockObj, mediaTarget.optionUuid, mediaTarget.field)
+    setMediaTarget(null)
+  }
+
   const handleImageClear = (optionUuid: string | null, field: 'main' | 'info' | 'background') => {
     if (field === 'background') {
       setBackgroundImageBlockObject(null)
@@ -531,10 +563,11 @@ function QuizSelectBlockComponent(props: any) {
 
   const getImageUrl = (blockObj: any): string | null => {
     if (!blockObj?.content?.file_id) return null
+    const fileId = getImageBlockFileId(blockObj)
     return getActivityBlockMediaDirectory(
       org?.org_uuid, course?.courseStructure?.course_uuid,
       blockObj.content.activity_uuid || activity?.activity_uuid || '',
-      blockObj.block_uuid, `${blockObj.content.file_id}.${blockObj.content.file_format}`, 'imageBlock'
+      blockObj.block_uuid, fileId, 'imageBlock'
     ) ?? null
   }
 
@@ -660,6 +693,7 @@ function QuizSelectBlockComponent(props: any) {
                 onClear={handleImageClear}
                 onRerandomize={handleRerandomizeOptionGradient}
                 onTitleChange={handleQuestionTextChange}
+                onChoose={(optionUuid, field) => setMediaTarget({ optionUuid, field })}
               />
             )
           )}
@@ -679,12 +713,25 @@ function QuizSelectBlockComponent(props: any) {
                 <ResponseCard key={opt.option_uuid} opt={opt} idx={idx} optionCount={optionCount}
                   isUploading={!!uploadingMap[`${opt.option_uuid}_info`]}
                   imageUrl={getImageUrl(opt.info_image_block_object)}
-                  onInfoChange={handleInfoChange} onUpload={handleImageUpload} onClear={handleImageClear} />
+                  onInfoChange={handleInfoChange} onUpload={handleImageUpload} onClear={handleImageClear}
+                  onChoose={(optionUuid, field) => setMediaTarget({ optionUuid, field })} />
               ))}
             </div>
           )}
         </div>
       </div>
+      <MediaPickerDialog
+        open={Boolean(mediaTarget)}
+        onOpenChange={(open) => {
+          if (!open) setMediaTarget(null)
+        }}
+        title="Choose quiz image"
+        description="Upload, link, or select an image from the media library."
+        owner={{ type: 'org', id: Number(org?.id) }}
+        mediaType="image"
+        accessToken={access_token}
+        onSave={handleMediaAssetSelect}
+      />
     </NodeViewWrapper>
   )
 }

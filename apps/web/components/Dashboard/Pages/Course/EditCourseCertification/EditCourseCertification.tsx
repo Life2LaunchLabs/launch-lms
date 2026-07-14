@@ -25,6 +25,7 @@ import { getAPIUrl } from '@services/config/config';
 import { getCourseThumbnailMediaDirectory, normalizeMediaUrl } from '@services/media/media';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
+import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker';
 
 type EditCourseCertificationProps = {
   orgslug: string
@@ -424,6 +425,14 @@ function EditCourseCertification(props: EditCourseCertificationProps) {
                             placeholder="Optional override for the badge image"
                           />
                         </Form.Control>
+                        <div className="mt-2">
+                          <ImageMediaPicker
+                            owner={{ type: 'org', id: Number(org.id) }}
+                            title="Choose badge image"
+                            buttonText="Choose badge image"
+                            onSelect={(url) => formik.setFieldValue('badge_image_url', url)}
+                          />
+                        </div>
                       </FormField>
 
                       <FormField name="badge_support_url">

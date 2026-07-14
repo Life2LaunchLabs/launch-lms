@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useCommunity, useCommunityDispatch } from '@components/Contexts/CommunityContext'
-import { updateCommunityThumbnail } from '@services/communities/communities'
+import { updateCommunity, updateCommunityThumbnail } from '@services/communities/communities'
 import { getCommunityThumbnailMediaDirectory } from '@services/media/media'
 import { revalidateTags } from '@services/utils/ts/requests'
 import { mutate } from 'swr'
@@ -15,6 +15,7 @@ import UnsplashImagePicker from '@components/Dashboard/Pages/Course/EditCourseGe
 import toast from 'react-hot-toast'
 import { Button } from '@components/ui/button'
 import { SafeImage } from '@components/Objects/SafeImage'
+import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
 const MAX_FILE_SIZE = 8_000_000 // 8MB
 const VALID_IMAGE_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png'] as const
@@ -132,6 +133,27 @@ const CommunityEditThumbnail: React.FC = () => {
     }
   }
 
+  const selectThumbnail = async (url: string) => {
+    setIsLoading(true)
+    try {
+      const updated = await updateCommunity(community.community_uuid, { thumbnail_image: url }, accessToken)
+      await revalidateTags(['communities'], org.slug)
+      mutate(`${getAPIUrl()}communities/${community.community_uuid}`)
+      if (dispatch) {
+        dispatch({ type: 'setCommunity', payload: { ...community, thumbnail_image: updated.thumbnail_image || url } })
+      }
+      toast.success(t('dashboard.courses.communities.thumbnail.toasts.update_success'), {
+        duration: 3000,
+        position: 'top-center',
+      })
+      router.refresh()
+    } catch (_err) {
+      showError(t('dashboard.courses.communities.thumbnail.toasts.update_error'))
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const getCurrentThumbnailUrl = () => {
     if (localThumbnail) {
       return localThumbnail.url
@@ -205,15 +227,12 @@ const CommunityEditThumbnail: React.FC = () => {
                   <UploadCloud size={16} />
                   {t('dashboard.courses.communities.thumbnail.upload_image')}
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex items-center gap-2"
-                  onClick={() => setShowUnsplashPicker(true)}
-                >
-                  <ImageIcon size={16} />
-                  {t('dashboard.courses.communities.thumbnail.browse_unsplash')}
-                </Button>
+                <ImageMediaPicker
+                  owner={{ type: 'org', id: Number(org.id) }}
+                  title="Choose community thumbnail"
+                  buttonText={t('dashboard.courses.communities.thumbnail.browse_unsplash')}
+                  onSelect={selectThumbnail}
+                />
               </div>
             )}
 

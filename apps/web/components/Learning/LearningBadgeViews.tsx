@@ -8,7 +8,7 @@ import { Extension } from '@tiptap/core'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
-import { AlignCenter, AlignLeft, AlignRight, Bold, Check, ChevronRight, Columns2, Copy, GripVertical, Heading1, Heading2, Italic, Link as LinkIcon, List, ListOrdered, Loader2, Pause, Play, Plus, Quote, Trash2, Upload, X } from 'lucide-react'
+import { AlignCenter, AlignLeft, AlignRight, Bold, Check, ChevronRight, Columns2, Copy, GripVertical, Heading1, Heading2, Italic, List, ListOrdered, Loader2, Pause, Play, Plus, Quote, Trash2, Upload, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import YouTube from 'react-youtube'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -16,7 +16,6 @@ import {
   completeLearningPage,
   startLearningRun,
   submitLearningResponse,
-  uploadLearningResponseMedia,
 } from '@services/learning/learning'
 import {
   findQuestionBlock,
@@ -32,6 +31,7 @@ import { EMPTY_PARAGRAPH, getTextBlockNodes } from './editor/utils'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import toast from 'react-hot-toast'
 import ReorderableList from '@components/Objects/ReorderableList'
+import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 
 export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgslug: string; badgePath: any; activity: any }) {
   const router = useRouter()
@@ -102,7 +102,16 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
       onAction={completeAndNext}
       interactionState={answer}
     >
-      <LearningPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} pages={pages} run={run} />
+      <LearningPageContent
+        page={page}
+        answer={answer}
+        setAnswer={setAnswer}
+        setUnlocked={setUnlocked}
+        pages={pages}
+        run={run}
+        contentMediaOwner={{ type: 'org', id: Number(badge?.org_id) }}
+        responseMediaOwner={{ type: 'user', id: Number(session?.data?.user?.id) }}
+      />
     </LearningActivitySurface>
   )
 }
@@ -193,27 +202,27 @@ export function LearningActivitySurface({
   )
 }
 
-export function LearningPageContent({ page, answer, setAnswer, setUnlocked, pages, run, editable = false, onPagePatch }: any) {
+export function LearningPageContent({ page, answer, setAnswer, setUnlocked, pages, run, editable = false, onPagePatch, contentMediaOwner, responseMediaOwner }: any) {
   if (!page) return null
   if (page.page_type === 'video') {
     return <VideoPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} />
   }
   if (page.page_type === 'standard') {
-    return <StandardPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} run={run} />
+    return <StandardPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} run={run} responseMediaOwner={responseMediaOwner} />
   }
   if (page.page_type === 'multiple_choice' || page.page_type === 'text_input' || page.page_type === 'image_upload') {
-    return <InfoPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} />
+    return <InfoPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} contentMediaOwner={contentMediaOwner} responseMediaOwner={responseMediaOwner} />
   }
   if (page.page_type === 'question_response') {
     const responseKey = editable
       ? page.content?.response_active_key || 'default'
       : getRuntimeResponseKey(page, pages || [], run)
-    return <InfoPageContent page={page} editable={editable} onPagePatch={onPagePatch} responseKey={responseKey} />
+    return <InfoPageContent page={page} editable={editable} onPagePatch={onPagePatch} responseKey={responseKey} contentMediaOwner={contentMediaOwner} responseMediaOwner={responseMediaOwner} />
   }
-  return <InfoPageContent page={page} editable={editable} onPagePatch={onPagePatch} />
+  return <InfoPageContent page={page} editable={editable} onPagePatch={onPagePatch} contentMediaOwner={contentMediaOwner} responseMediaOwner={responseMediaOwner} />
 }
 
-function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, run }: any) {
+function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, run, responseMediaOwner }: any) {
   const blocks = React.useMemo(
     () => editable ? (page.content?.blocks || []) : resolveVariantBlocks(page, run),
     [editable, page, run]
@@ -257,6 +266,7 @@ function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, o
             setUnlocked={(value: boolean) => setBlockUnlocked(block.id, value)}
             editable={editable}
             onPatch={(patch: any) => patchBlock(block.id, patch)}
+            responseMediaOwner={responseMediaOwner}
           />
         ))}
       </div>
@@ -286,7 +296,7 @@ export function mapQuestionPagePatchToBlock(block: any, patch: any) {
   return next
 }
 
-function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editable, onPatch }: any) {
+function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editable, onPatch, responseMediaOwner }: any) {
   const blockStyle = getStandardBlockStyle(block)
 
   if (block.type === 'text') {
@@ -333,6 +343,7 @@ function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editab
           onActivate={() => null}
           showChrome={false}
           onChromeHoverChange={() => null}
+          responseMediaOwner={responseMediaOwner}
         />
       </section>
     )
@@ -357,7 +368,9 @@ function getStandardBlockStyle(block: LearningBlock): React.CSSProperties {
   return style
 }
 
-function InfoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, responseKey = 'default' }: any) {
+function InfoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, responseKey = 'default', contentMediaOwner, responseMediaOwner }: any) {
+  const session = useLHSession() as any
+  const accessToken = session.data?.tokens?.access_token
   const hasQuestionBlock = isLearningQuestionPage(page)
   const activeResponseKey = page.page_type === 'question_response' ? responseKey || 'default' : 'default'
   const blockContent = React.useMemo(() => getResponseBlockContent(page.content || {}, activeResponseKey), [activeResponseKey, page.content])
@@ -372,12 +385,11 @@ function InfoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPag
   const [hovered, setHovered] = React.useState(false)
   const [chromeHovered, setChromeHovered] = React.useState(false)
   const [draggingBlockId, setDraggingBlockId] = React.useState<string | null>(null)
-  const [uploadingImage, setUploadingImage] = React.useState(false)
+  const [imagePickerOpen, setImagePickerOpen] = React.useState(false)
   const [toolbarPosition, setToolbarPosition] = React.useState<{ top: number; left: number } | null>(null)
   const [blocks, setBlocks] = React.useState<any[]>(() => externalBlocks)
   const [blockIds, setBlockIds] = React.useState<string[]>(() => externalBlocks.map((_block, index) => `${page.page_uuid}-info-block-${index + 1}`))
   const [focusBlockId, setFocusBlockId] = React.useState<string | null>(null)
-  const imageInputRef = React.useRef<HTMLInputElement | null>(null)
   const wrapperRef = React.useRef<HTMLDivElement | null>(null)
   const latestContentRef = React.useRef(page.content || {})
   const nextBlockIdRef = React.useRef(externalBlocks.length)
@@ -630,29 +642,13 @@ function InfoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPag
     updateBlock(activeBlockIndex, { ...selectedImage, attrs: { ...(selectedImage.attrs || {}), ...attrs } })
   }, [activeBlockIndex, selectedImage, updateBlock])
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file) return
-    if (!file.type.startsWith('image/')) {
-      toast.error('Choose an image file')
-      return
-    }
-
-    setUploadingImage(true)
-    const reader = new FileReader()
-    reader.onload = () => {
-      updateSelectedImage({
-        src: typeof reader.result === 'string' ? reader.result : '',
-        mode: 'upload',
-      })
-      setUploadingImage(false)
-    }
-    reader.onerror = () => {
-      toast.error('Could not read image')
-      setUploadingImage(false)
-    }
-    reader.readAsDataURL(file)
+  const handleImageMediaSelect = (asset: any) => {
+    updateSelectedImage({
+      src: asset.url,
+      mode: 'upload',
+      title: asset.title,
+      media_asset_uuid: asset.asset_uuid,
+    })
   }
 
   const toolbar = showToolbar && toolbarPosition && typeof document !== 'undefined'
@@ -667,31 +663,14 @@ function InfoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPag
         >
           {selectedImage ? (
             <>
-              <div className="grid grid-cols-2 rounded-lg bg-muted p-0.5">
-                <button
-                  type="button"
-                  onClick={() => updateSelectedImage({ mode: 'url', src: selectedImage.attrs?.mode === 'upload' ? '' : selectedImage.attrs?.src })}
-                  className={`inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-bold ${selectedImage.attrs?.mode !== 'upload' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
-                >
-                  <LinkIcon size={14} />
-                  URL
-                </button>
-                <button
-                  type="button"
-                  onClick={() => imageInputRef.current?.click()}
-                  className={`inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-bold ${selectedImage.attrs?.mode === 'upload' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
-                >
-                  {uploadingImage ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                  Upload
-                </button>
-              </div>
-              <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-              <input
-                value={selectedImage.attrs?.mode === 'upload' ? '' : selectedImage.attrs?.src || ''}
-                onChange={(event) => updateSelectedImage({ src: event.target.value, mode: 'url' })}
-                placeholder="Paste image URL"
-                className="h-8 w-56 min-w-0 rounded-lg border border-border bg-card px-2 text-xs font-medium outline-none placeholder:text-muted-foreground focus:border-[var(--org-primary-color)] focus:ring-2 focus:ring-[var(--org-primary-color)]"
-              />
+              <button
+                type="button"
+                onClick={() => setImagePickerOpen(true)}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md bg-card px-2 text-xs font-bold text-foreground shadow-sm"
+              >
+                <Upload size={14} />
+                Choose image
+              </button>
             </>
           ) : activeTextEditor ? (
             <>
@@ -851,6 +830,7 @@ function InfoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPag
       setAnswer={setAnswer}
       setUnlocked={setUnlocked}
       onPagePatch={onPagePatch}
+      responseMediaOwner={responseMediaOwner}
     />
   )
 
@@ -862,6 +842,16 @@ function InfoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPag
       onMouseLeave={() => setHovered(false)}
     >
       {toolbar}
+      <MediaPickerDialog
+        open={imagePickerOpen}
+        onOpenChange={setImagePickerOpen}
+        title="Choose image"
+        description="Upload, link, or select an image from the media library."
+        owner={contentMediaOwner || responseMediaOwner}
+        mediaType="image"
+        accessToken={accessToken}
+        onSave={handleImageMediaSelect}
+      />
       <div className="learning-info-reorder-list">
         {blocks.map((block, index) => renderSection(block, index))}
       </div>
@@ -892,6 +882,7 @@ function InfoBlockSection({
   onFocusComplete,
   showChrome,
   onChromeHoverChange,
+  responseMediaOwner,
 }: any) {
   const isImage = block.type === 'learningImage'
   const isQuestion = block.type === 'learningQuestion'
@@ -938,6 +929,7 @@ function InfoBlockSection({
           showChrome={showChrome}
           onChromeHoverChange={onChromeHoverChange}
           onActivate={() => onActivate()}
+          responseMediaOwner={responseMediaOwner}
         />
       ) : (
         <InfoTextBlock
@@ -1289,10 +1281,11 @@ function QuestionTextInputSection({
   )
 }
 
-function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, onActivate, showChrome, onChromeHoverChange }: any) {
+function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, onActivate, showChrome, onChromeHoverChange, responseMediaOwner }: any) {
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
   const [uploadingInputId, setUploadingInputId] = React.useState<string | null>(null)
+  const [imagePickerOpen, setImagePickerOpen] = React.useState(false)
   const titleRef = React.useRef<HTMLElement | null>(null)
   React.useEffect(() => {
     if (page.page_type !== 'image_upload') return
@@ -1447,23 +1440,21 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
   if (page.page_type === 'image_upload') {
     const completion = page.completion || {}
     const imageUrl = answer?.url || answer?.image_url || ''
-    const updateImageAnswer = async (file: File | null) => {
-      if (!file || editable || !accessToken) return
-      const formData = new FormData()
-      formData.append('media', file)
+    const updateImageAnswer = async (asset: any) => {
+      if (!asset || editable || !accessToken) return
       setUploadingInputId('image')
       try {
-        const result = await uploadLearningResponseMedia(page.page_uuid, formData, accessToken)
         setAnswer({
-          url: result.url,
-          name: file.name,
-          content_type: file.type,
-          size: file.size,
+          url: asset.url,
+          name: asset.title || asset.filename || 'Image',
+          content_type: asset.mime_type || 'image/*',
+          size: asset.size_bytes || 0,
           value_type: 'image',
+          media_asset_uuid: asset.asset_uuid,
         })
         setUnlocked(true)
       } catch (error: any) {
-        toast.error(error?.message || 'Image upload failed')
+        toast.error(error?.message || 'Image selection failed')
       } finally {
         setUploadingInputId(null)
       }
@@ -1480,7 +1471,10 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
             className="mb-3 min-w-0 text-lg font-bold leading-7 text-gray-900"
           />
         ) : null}
-        <label
+        <button
+          type="button"
+          disabled={editable || uploadingInputId === 'image' || !responseMediaOwner?.id}
+          onClick={() => !editable && setImagePickerOpen(true)}
           className={`flex min-h-56 w-full cursor-pointer flex-col items-center justify-center gap-3 overflow-hidden rounded-xl border border-dashed bg-white p-4 text-center shadow-sm transition ${imageUrl ? 'border-gray-200' : 'border-gray-300 hover:border-[var(--org-primary-color)]'}`}
         >
           {imageUrl ? (
@@ -1493,20 +1487,17 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
           <span className="text-sm font-bold text-gray-600">
             {uploadingInputId === 'image' ? 'Uploading image' : imageUrl ? 'Replace image' : (editable ? 'Image upload' : 'Upload image')}
           </span>
-          {!editable && (
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              disabled={uploadingInputId === 'image'}
-              onChange={(event) => {
-                const file = event.target.files?.[0] || null
-                event.target.value = ''
-                void updateImageAnswer(file)
-              }}
-            />
-          )}
-        </label>
+        </button>
+        <MediaPickerDialog
+          open={imagePickerOpen}
+          onOpenChange={setImagePickerOpen}
+          title={imageUrl ? 'Replace image' : 'Upload image'}
+          description="Upload, link, or select an image from your media library."
+          owner={responseMediaOwner}
+          mediaType="image"
+          accessToken={accessToken}
+          onSave={updateImageAnswer}
+        />
       </div>
     )
   }
