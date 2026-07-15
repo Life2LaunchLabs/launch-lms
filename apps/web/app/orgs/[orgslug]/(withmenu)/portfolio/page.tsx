@@ -1,55 +1,16 @@
 import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/auth/server'
-import { OwnerProfilePageClient } from '@components/Objects/Portfolio/ProfilePageClient'
-import { getUser } from '@services/users/users'
+import { PortfolioShell } from '@components/Pages/Portfolio/PortfolioShell'
+import { getMyPortfolio } from '@services/portfolio/portfolio'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { getOrganizationContextInfo } from '@services/organizations/orgs'
-import { getLearningBadgeCollections } from '@services/learning/learning'
-import { learningCollectionsToLegacyCollections } from '@services/learning/legacyAdapters'
 
-const ProfilePage = async (props: { params: Promise<{ orgslug: string }> }) => {
-  const params = await props.params
+export default async function PortfolioPage({ params }: { params: Promise<{ orgslug: string }> }) {
+  const { orgslug } = await params
   const session = await getServerSession()
-  const accessToken = session?.tokens?.access_token
-  const userId = session?.user?.id
-
-  if (!accessToken || !userId) {
-    redirect(getUriWithOrg(params.orgslug, routePaths.org.root()))
+  const token = session?.tokens?.access_token
+  if (!token) redirect(getUriWithOrg(orgslug, routePaths.org.root()))
+  if (process.env.LAUNCHLMS_PORTFOLIO_V2_ENABLED === 'false') {
+    redirect(getUriWithOrg(orgslug, routePaths.org.portfolioLegacy()))
   }
-
-  const user = await getUser(String(userId), accessToken)
-  const org = await getOrganizationContextInfo(params.orgslug, {
-    revalidate: 0,
-    tags: ['organizations'],
-  }, accessToken)
-  let collections: any[] = []
-
-  try {
-    const response = await getLearningBadgeCollections(
-      org.id,
-      accessToken,
-      false,
-      { revalidate: 0, tags: ['collections'] }
-    )
-    const rawLearningCollections = response.success ? response.data : response
-    collections = learningCollectionsToLegacyCollections(rawLearningCollections, org)
-  } catch (error) {
-    console.error('Failed to load collections for portfolio badges widget', {
-      orgslug: params.orgslug,
-      org_id: org.id,
-      error,
-    })
-  }
-
-  return (
-    <OwnerProfilePageClient
-      initialUser={user}
-      orgslug={params.orgslug}
-      orgConfig={org.config}
-      orgId={org.id}
-      collections={collections}
-    />
-  )
+  return <PortfolioShell initialShell={await getMyPortfolio(token)} orgslug={orgslug} username={session?.user?.username} owner />
 }
-
-export default ProfilePage

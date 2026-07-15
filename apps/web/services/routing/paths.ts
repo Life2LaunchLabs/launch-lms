@@ -62,6 +62,11 @@ export const routePaths = {
   org: {
     root: () => '/',
     portfolio: () => '/portfolio',
+    portfolioWork: () => '/portfolio/work',
+    portfolioWorkNew: () => '/portfolio/work/new',
+    portfolioWorkDetail: (workUuid: string) => `/portfolio/work/${encodeURIComponent(workUuid)}`,
+    portfolioPreview: () => '/portfolio/preview',
+    portfolioLegacy: () => '/portfolio/legacy',
     portfolioEdit: () => '/portfolio/edit',
     portfolioPost: (slug: string) => `/portfolio/journal/${slug}`,
     portfolioResume: () => '/portfolio/resume',
@@ -103,6 +108,8 @@ export const routePaths = {
     communityDiscussion: (communityUuid: string, discussionUuid: string) =>
       `/community/${communityUuid}/discussion/${discussionUuid}`,
     user: (username: string) => `/user/${username}`,
+    userWork: (username: string) => `/user/${username}/work`,
+    userWorkDetail: (username: string, slug: string) => `/user/${username}/work/${encodeURIComponent(slug)}`,
     userResume: (username: string) => `/user/${username}/resume`,
     userPortfolioPost: (username: string, slug: string) => `/user/${username}/portfolio/${slug}`,
     userTimeline: (username: string) => `/user/${username}/timeline`,

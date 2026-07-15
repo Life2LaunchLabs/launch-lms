@@ -5,7 +5,7 @@ from src.routers import health
 from src.routers import instance
 from src.routers import plans
 from src.routers import usergroups
-from src.routers import dev, trail, users, auth, orgs, roles, search, news, media
+from src.routers import dev, trail, users, auth, orgs, roles, search, news, media, portfolio
 from src.routers import stream
 from src.routers import learning as learning_router_module
 from src.routers import marketplace as marketplace_router_module
@@ -167,6 +167,17 @@ v1_router.include_router(
     prefix="/media",
     tags=["media"],
     dependencies=[Depends(get_non_api_token_user)]
+)
+v1_router.include_router(
+    portfolio.router,
+    prefix="/portfolio",
+    tags=["portfolio"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    portfolio.public_router,
+    prefix="/public/portfolio",
+    tags=["public-portfolio"],
 )
 v1_router.include_router(
     news.router,

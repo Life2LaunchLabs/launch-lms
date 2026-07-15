@@ -261,6 +261,13 @@ test('route access treats welcome onboarding as public', () => {
   assert.equal(classifyRoute('/welcome').kind, 'public')
 })
 
+test('route access exposes only the new public portfolio surfaces', () => {
+  assert.equal(classifyRoute('/user/maya').kind, 'public')
+  assert.equal(classifyRoute('/user/maya/work').kind, 'public')
+  assert.equal(classifyRoute('/user/maya/work/community-garden').kind, 'public')
+  assert.equal(classifyRoute('/user/maya/resume').kind, 'protected')
+})
+
 test('request policy serves welcome onboarding from the app route', () => {
   const decision = resolveRequestRouting({
     requestUrl: 'https://acme.launchlms.test/welcome?email=learner%40example.com',
