@@ -119,6 +119,62 @@ class WorkItemBlock(SQLModel, table=True):
     update_date: str = ""
 
 
+class JourneyEntry(SQLModel, table=True):
+    __tablename__ = "journeyentry"
+    __table_args__ = (UniqueConstraint("journey_uuid"), UniqueConstraint("portfolio_id", "slug"))
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    journey_uuid: str = Field(index=True)
+    portfolio_id: int = Field(sa_column=Column(Integer, ForeignKey("portfolio.id", ondelete="CASCADE"), index=True))
+    entry_type: str = Field(default="experience", sa_column=Column(String, nullable=False, index=True))
+    title: str
+    organization: str = ""
+    location_label: str = ""
+    summary: str = Field(default="", sa_column=Column(Text, nullable=False))
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    start_precision: str = "month"
+    end_precision: Optional[str] = None
+    is_current: bool = False
+    cover_asset_id: Optional[int] = Field(default=None, sa_column=Column(Integer, ForeignKey("mediaasset.id", ondelete="SET NULL"), nullable=True))
+    status: PortfolioContentStatus = Field(default=PortfolioContentStatus.DRAFT, sa_column=Column(String, nullable=False, index=True))
+    visibility: PortfolioVisibility = Field(default=PortfolioVisibility.PUBLIC, sa_column=Column(String, nullable=False))
+    slug: str = Field(index=True)
+    source: str = "manual"
+    source_reference: Optional[str] = None
+    revision: int = 1
+    creation_date: str = ""
+    update_date: str = ""
+
+
+class JourneyEntryBlock(SQLModel, table=True):
+    __tablename__ = "journeyentryblock"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    block_uuid: str = Field(index=True, unique=True)
+    journey_entry_id: int = Field(sa_column=Column(Integer, ForeignKey("journeyentry.id", ondelete="CASCADE"), index=True))
+    block_type: str = "image"
+    data: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    sort_order: int = 0
+    visibility: PortfolioVisibility = Field(default=PortfolioVisibility.PUBLIC, sa_column=Column(String, nullable=False))
+    creation_date: str = ""
+    update_date: str = ""
+
+
+class JourneyWorkLink(SQLModel, table=True):
+    __tablename__ = "journeyworklink"
+    __table_args__ = (UniqueConstraint("journey_entry_id", "work_item_id"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    link_uuid: str = Field(index=True, unique=True)
+    journey_entry_id: int = Field(sa_column=Column(Integer, ForeignKey("journeyentry.id", ondelete="CASCADE"), index=True))
+    work_item_id: int = Field(sa_column=Column(Integer, ForeignKey("workitem.id", ondelete="CASCADE"), index=True))
+    relationship_label: str = "Related work"
+    sort_order: int = 0
+    creation_date: str = ""
+    update_date: str = ""
+
+
 class PortfolioLink(SQLModel, table=True):
     __tablename__ = "portfoliolink"
 
@@ -192,6 +248,42 @@ class WorkItemUpdate(SQLModel):
     end_date: Optional[str] = None
     cover_asset_uuid: Optional[str] = None
     blocks: Optional[list[dict]] = None
+    revision: int
+
+
+class JourneyEntryCreate(SQLModel):
+    title: str
+    entry_type: str = "experience"
+    organization: str = ""
+    location_label: str = ""
+    summary: str = ""
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    start_precision: str = "month"
+    end_precision: Optional[str] = None
+    is_current: bool = False
+    visibility: PortfolioVisibility = PortfolioVisibility.PUBLIC
+    cover_asset_uuid: Optional[str] = None
+    blocks: list[dict] = Field(default_factory=list)
+    work_links: list[dict] = Field(default_factory=list)
+    idempotency_key: Optional[str] = None
+
+
+class JourneyEntryUpdate(SQLModel):
+    title: Optional[str] = None
+    entry_type: Optional[str] = None
+    organization: Optional[str] = None
+    location_label: Optional[str] = None
+    summary: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    start_precision: Optional[str] = None
+    end_precision: Optional[str] = None
+    is_current: Optional[bool] = None
+    visibility: Optional[PortfolioVisibility] = None
+    cover_asset_uuid: Optional[str] = None
+    blocks: Optional[list[dict]] = None
+    work_links: Optional[list[dict]] = None
     revision: int
 
 

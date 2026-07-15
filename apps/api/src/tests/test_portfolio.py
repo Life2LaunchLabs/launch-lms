@@ -4,7 +4,7 @@ from sqlmodel import Session, SQLModel, create_engine
 
 from src.db.media import MediaAsset
 from src.db.organizations import Organization
-from src.db.portfolio import Portfolio, PortfolioLink, PortfolioSection, PortfolioUpdate, PublishRequest, WorkItem, WorkItemBlock, WorkItemCreate, WorkItemUpdate
+from src.db.portfolio import JourneyEntry, JourneyEntryBlock, JourneyEntryCreate, JourneyEntryUpdate, JourneyWorkLink, Portfolio, PortfolioLink, PortfolioSection, PortfolioUpdate, PublishRequest, WorkItem, WorkItemBlock, WorkItemCreate, WorkItemUpdate
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
@@ -13,7 +13,7 @@ from src.services import portfolio as service
 
 def _session():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    SQLModel.metadata.create_all(engine, tables=[User.__table__, Organization.__table__, Role.__table__, UserOrganization.__table__, MediaAsset.__table__, Portfolio.__table__, PortfolioSection.__table__, PortfolioLink.__table__, WorkItem.__table__, WorkItemBlock.__table__])
+    SQLModel.metadata.create_all(engine, tables=[User.__table__, Organization.__table__, Role.__table__, UserOrganization.__table__, MediaAsset.__table__, Portfolio.__table__, PortfolioSection.__table__, PortfolioLink.__table__, WorkItem.__table__, WorkItemBlock.__table__, JourneyEntry.__table__, JourneyEntryBlock.__table__, JourneyWorkLink.__table__])
     return Session(engine)
 
 
@@ -97,3 +97,30 @@ def test_header_socials_can_be_added_edited_and_removed():
         assert updated["portfolio"]["socials"] == [{"type": "instagram", "url": "https://instagram.com/maya"}]
         removed = service.update_portfolio(PortfolioUpdate(revision=updated["portfolio"]["revision"], socials=[]), actor, db)
         assert removed["portfolio"]["socials"] == []
+
+
+def test_journey_current_first_links_work_and_checks_revision():
+    with _session() as db:
+        user = _user(); db.add(user); db.commit(); actor = _public(user)
+        image = MediaAsset(asset_uuid="asset_chapter", owner_type="user", owner_user_id=1, created_by_user_id=1, source_type="upload", media_type="image", url="/media/chapter.jpg")
+        db.add(image); db.commit()
+        work = service.create_work(WorkItemCreate(title="StudyMate"), actor, db)
+        older = service.create_journey(JourneyEntryCreate(title="Started school", entry_type="education", start_date="2023-09"), actor, db)
+        current = service.create_journey(JourneyEntryCreate(title="Design internship", start_date="2025-01", is_current=True, cover_asset_uuid="asset_chapter", blocks=[{"block_type": "image", "data": {"asset_uuid": "asset_chapter", "url": "/media/chapter.jpg"}}], work_links=[{"work_uuid": work["work_uuid"], "relationship_label": "Built here"}]), actor, db)
+        shell = service.get_owner_shell(actor, db)
+        assert shell["journey"][0]["journey_uuid"] == current["journey_uuid"]
+        assert shell["journey"][0]["work"][0]["title"] == "StudyMate"
+        assert shell["journey"][0]["cover_url"] == "/media/chapter.jpg"
+        assert shell["journey"][0]["blocks"][0]["data"]["asset_uuid"] == "asset_chapter"
+        assert next(view for view in shell["views"] if view["key"] == "journey")["visible"] is True
+        with pytest.raises(HTTPException) as error:
+            service.update_journey(older["journey_uuid"], JourneyEntryUpdate(revision=999, title="Stale"), actor, db)
+        assert error.value.status_code == 409
+
+
+def test_legacy_timeline_import_is_repeatable():
+    with _session() as db:
+        user = _user(); user.profile = {"timeline": [{"title": "Community lead", "category": "work", "company": "Youth Lab", "startDate": "2024-01"}]}; db.add(user); db.commit(); actor = _public(user)
+        first, second = service.execute_legacy_import(actor, db), service.execute_legacy_import(actor, db)
+        assert first["journeyImported"] == 1
+        assert second["journeyImported"] == 0

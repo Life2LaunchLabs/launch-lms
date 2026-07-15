@@ -15,6 +15,11 @@ from src.db.portfolio import (
     PortfolioUpdate,
     PortfolioVisibility,
     PublishRequest,
+    JourneyEntry,
+    JourneyEntryBlock,
+    JourneyEntryCreate,
+    JourneyEntryUpdate,
+    JourneyWorkLink,
     WorkItem,
     WorkItemBlock,
     WorkItemCreate,
@@ -111,6 +116,30 @@ def _work_dto(work: WorkItem, db_session: Session, public_only: bool = False) ->
     return {**work.model_dump(), "story_kind": _enum_value(work.story_kind), "status": _enum_value(work.status), "visibility": _enum_value(work.visibility), "cover_url": cover.url if cover else "", "cover_asset_uuid": cover.asset_uuid if cover else None, "blocks": [block.model_dump() for block in blocks]}
 
 
+def _journey_query(portfolio_id: int, public_only: bool = False):
+    statement = select(JourneyEntry).where(JourneyEntry.portfolio_id == portfolio_id, JourneyEntry.status != PortfolioContentStatus.ARCHIVED.value)
+    if public_only:
+        statement = statement.where(JourneyEntry.status == PortfolioContentStatus.PUBLISHED.value, JourneyEntry.visibility != PortfolioVisibility.PRIVATE.value)
+    return statement.order_by(JourneyEntry.is_current.desc(), JourneyEntry.start_date.desc(), JourneyEntry.update_date.desc())
+
+
+def _journey_dto(entry: JourneyEntry, db_session: Session, public_only: bool = False) -> dict:
+    links = db_session.exec(select(JourneyWorkLink).where(JourneyWorkLink.journey_entry_id == entry.id).order_by(JourneyWorkLink.sort_order)).all()
+    blocks = list(db_session.exec(select(JourneyEntryBlock).where(JourneyEntryBlock.journey_entry_id == entry.id).order_by(JourneyEntryBlock.sort_order)).all())
+    if public_only:
+        blocks = [block for block in blocks if _enum_value(block.visibility) != PortfolioVisibility.PRIVATE.value]
+    cover = db_session.exec(select(MediaAsset).where(MediaAsset.id == entry.cover_asset_id)).first() if entry.cover_asset_id else None
+    linked_work = []
+    for link in links:
+        work = db_session.exec(select(WorkItem).where(WorkItem.id == link.work_item_id)).first()
+        if not work or _enum_value(work.status) == PortfolioContentStatus.ARCHIVED.value:
+            continue
+        if public_only and (_enum_value(work.status) != PortfolioContentStatus.PUBLISHED.value or _enum_value(work.visibility) == PortfolioVisibility.PRIVATE.value):
+            continue
+        linked_work.append({**_work_dto(work, db_session, public_only), "relationship_label": link.relationship_label})
+    return {**entry.model_dump(), "status": _enum_value(entry.status), "visibility": _enum_value(entry.visibility), "cover_url": cover.url if cover else "", "cover_asset_uuid": cover.asset_uuid if cover else None, "blocks": [block.model_dump() for block in blocks], "work": linked_work}
+
+
 def portfolio_shell(portfolio: Portfolio, db_session: Session, public_only: bool = False) -> dict:
     user = db_session.exec(select(User).where(User.id == portfolio.user_id)).first()
     links = list(db_session.exec(select(PortfolioLink).where(PortfolioLink.portfolio_id == portfolio.id).order_by(PortfolioLink.sort_order)).all())
@@ -118,13 +147,14 @@ def portfolio_shell(portfolio: Portfolio, db_session: Session, public_only: bool
     legacy_socials = (((user.profile or {}).get("header") or {}).get("socials") or []) if user and isinstance(user.profile, dict) else []
     socials_migrated = bool((portfolio.theme_settings or {}).get("socials_migrated"))
     work = list(db_session.exec(_work_query(portfolio.id or 0, public_only=public_only)).all())
-    meaningful_count = len(work)
+    journey = list(db_session.exec(_journey_query(portfolio.id or 0, public_only=public_only)).all())
+    meaningful_count = len(work) + len(journey)
     blockers = _readiness_blockers(portfolio, meaningful_count)
     state = _portfolio_state(portfolio, meaningful_count)
     views = [
         {"key": "overview", "visible": True, "itemCount": 1},
         {"key": "work", "visible": bool(work), "itemCount": len(work)},
-        {"key": "journey", "visible": False, "itemCount": 0},
+        {"key": "journey", "visible": bool(journey), "itemCount": len(journey)},
         {"key": "badges", "visible": False, "itemCount": 0},
     ]
     next_action = None
@@ -151,6 +181,7 @@ def portfolio_shell(portfolio: Portfolio, db_session: Session, public_only: bool
         "nextAction": next_action,
         "permissions": {"canEdit": not public_only, "canPublish": not public_only and state != "restricted"},
         "work": [_work_dto(item, db_session, public_only=public_only) for item in work],
+        "journey": [_journey_dto(item, db_session, public_only=public_only) for item in journey],
     }
 
 
@@ -314,12 +345,120 @@ def archive_work(work_uuid: str, revision: int, current_user: PublicUser, db_ses
     return {"success": True}
 
 
+ALLOWED_JOURNEY_TYPES = {"employment", "education", "volunteering", "training", "experience", "other"}
+ALLOWED_DATE_PRECISIONS = {"day", "month", "year"}
+
+
+def _unique_journey_slug(portfolio_id: int, title: str, db_session: Session, exclude_id: int | None = None) -> str:
+    base, candidate, counter = _slug(title), _slug(title), 2
+    while True:
+        existing = db_session.exec(select(JourneyEntry).where(JourneyEntry.portfolio_id == portfolio_id, JourneyEntry.slug == candidate)).first()
+        if not existing or existing.id == exclude_id:
+            return candidate
+        candidate, counter = f"{base}-{counter}", counter + 1
+
+
+def _validate_journey(entry_type: str, start_precision: str, end_precision: str | None, start_date: str | None, end_date: str | None, is_current: bool) -> None:
+    if entry_type not in ALLOWED_JOURNEY_TYPES:
+        raise HTTPException(status_code=422, detail="Unsupported Journey entry type")
+    if start_precision not in ALLOWED_DATE_PRECISIONS or (end_precision and end_precision not in ALLOWED_DATE_PRECISIONS):
+        raise HTTPException(status_code=422, detail="Unsupported date precision")
+    if start_date and end_date and end_date < start_date:
+        raise HTTPException(status_code=422, detail="End date must not be before start date")
+    if is_current and end_date:
+        raise HTTPException(status_code=422, detail="Current entries cannot have an end date")
+
+
+def _replace_journey_work_links(entry: JourneyEntry, links: list[dict], portfolio: Portfolio, db_session: Session) -> None:
+    for existing in db_session.exec(select(JourneyWorkLink).where(JourneyWorkLink.journey_entry_id == entry.id)).all():
+        db_session.delete(existing)
+    seen: set[int] = set()
+    now = _now()
+    for index, raw in enumerate(links):
+        work_uuid = str(raw.get("work_uuid") or "")
+        work = db_session.exec(select(WorkItem).where(WorkItem.work_uuid == work_uuid, WorkItem.portfolio_id == portfolio.id, WorkItem.status != PortfolioContentStatus.ARCHIVED.value)).first()
+        if not work or not work.id or work.id in seen:
+            if not work:
+                raise HTTPException(status_code=422, detail="Linked Work item is unavailable")
+            continue
+        seen.add(work.id)
+        db_session.add(JourneyWorkLink(link_uuid=f"jwl_{uuid4().hex}", journey_entry_id=entry.id or 0, work_item_id=work.id, relationship_label=str(raw.get("relationship_label") or "Related work").strip()[:120], sort_order=index, creation_date=now, update_date=now))
+
+
+def _replace_journey_blocks(entry: JourneyEntry, blocks: list[dict], db_session: Session) -> None:
+    for existing in db_session.exec(select(JourneyEntryBlock).where(JourneyEntryBlock.journey_entry_id == entry.id)).all():
+        db_session.delete(existing)
+    now = _now()
+    for index, raw in enumerate(blocks):
+        if str(raw.get("block_type") or raw.get("type") or "image") != "image":
+            raise HTTPException(status_code=422, detail="Journey chapters currently support image blocks only")
+        db_session.add(JourneyEntryBlock(block_uuid=f"jbl_{uuid4().hex}", journey_entry_id=entry.id or 0, block_type="image", data=raw.get("data") or {}, sort_order=index, creation_date=now, update_date=now))
+
+
+def create_journey(payload: JourneyEntryCreate, current_user: PublicUser, db_session: Session) -> dict:
+    portfolio = get_or_create_portfolio(current_user, db_session)
+    if payload.idempotency_key:
+        existing = db_session.exec(select(JourneyEntry).where(JourneyEntry.portfolio_id == portfolio.id, JourneyEntry.source_reference == payload.idempotency_key)).first()
+        if existing:
+            return _journey_dto(existing, db_session)
+    title = payload.title.strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="Title is required")
+    _validate_journey(payload.entry_type, payload.start_precision, payload.end_precision, payload.start_date, payload.end_date, payload.is_current)
+    now = _now()
+    entry = JourneyEntry(journey_uuid=f"jrn_{uuid4().hex}", portfolio_id=portfolio.id or 0, title=title, entry_type=payload.entry_type,
+        organization=payload.organization.strip(), location_label=payload.location_label.strip(), summary=payload.summary.strip(), start_date=payload.start_date,
+        end_date=None if payload.is_current else payload.end_date, start_precision=payload.start_precision, end_precision=payload.end_precision,
+        is_current=payload.is_current, cover_asset_id=_cover_asset_id(payload.cover_asset_uuid, current_user.id, db_session), status=PortfolioContentStatus.PUBLISHED, visibility=payload.visibility,
+        slug=_unique_journey_slug(portfolio.id or 0, title, db_session), source_reference=payload.idempotency_key, creation_date=now, update_date=now)
+    db_session.add(entry); db_session.flush()
+    _replace_journey_blocks(entry, payload.blocks, db_session)
+    _replace_journey_work_links(entry, payload.work_links, portfolio, db_session)
+    portfolio.revision += 1; portfolio.update_date = now; db_session.add(portfolio); db_session.commit(); db_session.refresh(entry)
+    return _journey_dto(entry, db_session)
+
+
+def _owner_journey(journey_uuid: str, current_user: PublicUser, db_session: Session) -> tuple[Portfolio, JourneyEntry]:
+    portfolio = get_or_create_portfolio(current_user, db_session)
+    entry = db_session.exec(select(JourneyEntry).where(JourneyEntry.journey_uuid == journey_uuid, JourneyEntry.portfolio_id == portfolio.id)).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Journey entry not found")
+    return portfolio, entry
+
+
+def update_journey(journey_uuid: str, payload: JourneyEntryUpdate, current_user: PublicUser, db_session: Session) -> dict:
+    portfolio, entry = _owner_journey(journey_uuid, current_user, db_session)
+    _check_revision(entry.revision, payload.revision)
+    values = payload.model_dump(exclude={"revision", "work_links", "blocks", "cover_asset_uuid"}, exclude_unset=True)
+    for field, value in values.items():
+        setattr(entry, field, value.strip() if isinstance(value, str) else value)
+    if not entry.title.strip():
+        raise HTTPException(status_code=422, detail="Title is required")
+    _validate_journey(entry.entry_type, entry.start_precision, entry.end_precision, entry.start_date, entry.end_date, entry.is_current)
+    if payload.title is not None:
+        entry.slug = _unique_journey_slug(portfolio.id or 0, entry.title, db_session, entry.id)
+    if payload.work_links is not None:
+        _replace_journey_work_links(entry, payload.work_links, portfolio, db_session)
+    if payload.blocks is not None:
+        _replace_journey_blocks(entry, payload.blocks, db_session)
+    if "cover_asset_uuid" in payload.model_fields_set:
+        entry.cover_asset_id = _cover_asset_id(payload.cover_asset_uuid, current_user.id, db_session)
+    entry.status = PortfolioContentStatus.PUBLISHED; entry.revision += 1; entry.update_date = _now(); db_session.add(entry); db_session.commit(); db_session.refresh(entry)
+    return _journey_dto(entry, db_session)
+
+
+def archive_journey(journey_uuid: str, revision: int, current_user: PublicUser, db_session: Session) -> dict:
+    _, entry = _owner_journey(journey_uuid, current_user, db_session); _check_revision(entry.revision, revision)
+    entry.status = PortfolioContentStatus.ARCHIVED; entry.revision += 1; entry.update_date = _now(); db_session.add(entry); db_session.commit()
+    return {"success": True}
+
+
 def publish_portfolio(payload: PublishRequest, current_user: PublicUser, db_session: Session) -> dict:
     portfolio = get_or_create_portfolio(current_user, db_session)
     _check_revision(portfolio.revision, payload.revision)
     if payload.privacy_confirmed:
         portfolio.privacy_confirmed_at = _now()
-    blockers = _readiness_blockers(portfolio, len(list(db_session.exec(_work_query(portfolio.id or 0)).all())))
+    blockers = _readiness_blockers(portfolio, len(list(db_session.exec(_work_query(portfolio.id or 0)).all())) + len(list(db_session.exec(_journey_query(portfolio.id or 0)).all())))
     if blockers:
         raise HTTPException(status_code=422, detail={"message": "Portfolio is not ready to publish", "blockers": blockers})
     now = _now()
@@ -365,17 +504,29 @@ def get_public_work(org_id: int, username: str, slug: str, db_session: Session) 
     raise HTTPException(status_code=404, detail="Work item not found")
 
 
+def get_public_journey(org_id: int, username: str, slug: str, db_session: Session) -> dict:
+    shell = get_public_shell(org_id, username, db_session)
+    for entry in shell["journey"]:
+        if entry["slug"] == slug:
+            return {"portfolio": shell["portfolio"], "journey": entry}
+    raise HTTPException(status_code=404, detail="Journey entry not found")
+
+
 def legacy_import_preview(current_user: PublicUser, db_session: Session) -> dict:
     user = db_session.exec(select(User).where(User.id == current_user.id)).first()
     profile = user.profile if user and isinstance(user.profile, dict) else {}
     cards = ((profile.get("featured") or {}).get("cards") or profile.get("portfolio") or []) if isinstance(profile, dict) else []
     if not isinstance(cards, list):
         cards = []
+    timeline = profile.get("timeline") or []
+    if not isinstance(timeline, list):
+        timeline = []
     return {
         "source": "user.profile",
         "preservesLegacyData": True,
         "identity": {"displayName": " ".join(part for part in (user.first_name, user.last_name) if part).strip() if user else "", "bio": user.bio if user else ""},
         "work": [{"title": str(card.get("title") or "Untitled work"), "summary": str(card.get("description") or card.get("text") or ""), "sourceIndex": index} for index, card in enumerate(cards) if isinstance(card, dict)],
+        "journey": [{"title": str(item.get("title") or "Untitled chapter"), "entryType": {"work": "employment", "life": "experience"}.get(str(item.get("category")), "education"), "organization": str(item.get("company") or item.get("institution") or item.get("organization") or ""), "summary": str(item.get("description") or ""), "startDate": item.get("startDate") or item.get("start_date"), "endDate": item.get("endDate") or item.get("end_date"), "isCurrent": bool(item.get("current") or item.get("isCurrent")), "sourceIndex": index} for index, item in enumerate(timeline) if isinstance(item, dict)],
     }
 
 
@@ -390,4 +541,11 @@ def execute_legacy_import(current_user: PublicUser, db_session: Session) -> dict
             continue
         create_work(WorkItemCreate(title=item["title"], summary=item["summary"], idempotency_key=key), current_user, db_session)
         imported += 1
-    return {"imported": imported, "skipped": len(preview["work"]) - imported, "shell": get_owner_shell(current_user, db_session)}
+    journey_imported = 0
+    for item in preview["journey"]:
+        key = f"legacy:user.profile:journey:{item['sourceIndex']}"
+        if db_session.exec(select(JourneyEntry).where(JourneyEntry.portfolio_id == portfolio.id, JourneyEntry.source_reference == key)).first():
+            continue
+        create_journey(JourneyEntryCreate(title=item["title"], entry_type=item["entryType"], organization=item["organization"], summary=item["summary"], start_date=item["startDate"], end_date=None if item["isCurrent"] else item["endDate"], is_current=item["isCurrent"], idempotency_key=key), current_user, db_session)
+        journey_imported += 1
+    return {"imported": imported + journey_imported, "workImported": imported, "journeyImported": journey_imported, "skipped": len(preview["work"]) + len(preview["journey"]) - imported - journey_imported, "shell": get_owner_shell(current_user, db_session)}
