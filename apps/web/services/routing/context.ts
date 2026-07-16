@@ -107,6 +107,33 @@ export function replaceHostPreservingPort(targetHostname: string, configuredHost
     : targetHostname
 }
 
+/**
+ * Reconstruct the browser-facing request URL at the reverse-proxy boundary.
+ * Next's request URL can contain the internal upstream scheme and port (for
+ * example http://example.com:8000) even when the browser used HTTPS.
+ */
+export function buildPublicRequestUrl(
+  requestUrl: string,
+  forwardedHost: string | null | undefined,
+  forwardedProto: string | null | undefined
+): string {
+  const url = new URL(requestUrl)
+  const host = forwardedHost?.split(',')[0]?.trim()
+  const protocol = forwardedProto?.split(',')[0]?.trim().toLowerCase()
+
+  if (host) {
+    // Assigning a host without first clearing the port can preserve the
+    // internal port when the hostname itself is unchanged.
+    url.port = ''
+    url.host = host
+  }
+  if (protocol === 'http' || protocol === 'https') {
+    url.protocol = `${protocol}:`
+  }
+
+  return url.toString()
+}
+
 export function buildMainDomainUrl(
   requestUrl: string,
   pathname: string,
@@ -114,6 +141,7 @@ export function buildMainDomainUrl(
   frontendDomain: string
 ): string {
   const url = new URL(requestUrl)
+  url.port = ''
   url.host = frontendDomain
   url.pathname = pathname
   url.search = search
@@ -130,6 +158,7 @@ export function buildOrgSubdomainUrl(
   const bareFrontendDomain = stripPort(frontendDomain)
   const targetHostname = `${orgSlug}.${bareFrontendDomain}`
   const url = new URL(requestUrl)
+  url.port = ''
   url.host = replaceHostPreservingPort(targetHostname, frontendDomain)
   url.pathname = pathname
   url.search = search

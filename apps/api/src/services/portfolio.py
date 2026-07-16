@@ -881,7 +881,8 @@ def portfolio_shell(
                     "moderation_status": _enum_value(portfolio.moderation_status),
                     "has_legacy_portfolio": bool(
                         legacy_preview["work"] or legacy_preview["journey"]
-                    ),
+                    )
+                    and not bool((portfolio.theme_settings or {}).get("legacy_import_dismissed")),
                 }
             ),
         },
@@ -1873,3 +1874,17 @@ def execute_legacy_import(current_user: PublicUser, db_session: Session) -> dict
         - journey_imported,
         "shell": get_owner_shell(current_user, db_session),
     }
+
+
+def dismiss_legacy_import(current_user: PublicUser, db_session: Session) -> dict:
+    """Hide the optional import without modifying the legacy profile data."""
+    portfolio = get_or_create_portfolio(current_user, db_session)
+    portfolio.theme_settings = {
+        **(portfolio.theme_settings or {}),
+        "legacy_import_dismissed": True,
+    }
+    portfolio.revision += 1
+    portfolio.update_date = _now()
+    db_session.add(portfolio)
+    db_session.commit()
+    return get_owner_shell(current_user, db_session)

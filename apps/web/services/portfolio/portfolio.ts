@@ -39,3 +39,4 @@ export const updatePortfolioJourney = (uuid: string, payload: unknown, token: st
 export const publishMyPortfolio = (payload: unknown, token: string) => mutate('me/publish', 'POST', payload, token)
 export const unpublishMyPortfolio = (revision: number, token: string) => mutate(`me/unpublish?revision=${encodeURIComponent(revision)}`, 'POST', null, token)
 export const importLegacyPortfolio = (token: string) => mutate('me/legacy-import', 'POST', null, token)
+export const dismissLegacyPortfolioImport = (token: string) => mutate('me/legacy-import/dismiss', 'POST', null, token)

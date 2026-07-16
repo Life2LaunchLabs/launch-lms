@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { routePaths, withQuery } from '../paths.ts'
 import { resolveRequestRouting, type RequestInstanceInfo } from '../requestPolicy.ts'
 import { classifyRoute } from '../routeAccess.ts'
+import { buildPublicRequestUrl } from '../context.ts'
 
 const instanceInfo: RequestInstanceInfo = {
   multi_org_enabled: true,
@@ -381,6 +382,34 @@ test('request policy redirects direct internal org paths to canonical org URLs',
   assert.equal(subdomainDecision.destination, 'https://acme.launchlms.test/resources')
   assert.equal(defaultDecision.action, 'redirect')
   assert.equal(defaultDecision.destination, 'https://launchlms.test/resources?tab=all')
+})
+
+test('canonical redirects do not expose a reverse proxy internal scheme or port', () => {
+  const publicRequestUrl = buildPublicRequestUrl(
+    'http://life2launch-core.com:8000/orgs/default/badges/system_onboarding',
+    'life2launch-core.com',
+    'https'
+  )
+  const decision = resolveRequestRouting({
+    requestUrl: publicRequestUrl,
+    pathname: '/orgs/default/badges/system_onboarding',
+    search: '?returnTo=%2Fportfolio',
+    host: 'life2launch-core.com',
+    hasSession: true,
+    instanceInfo: {
+      ...instanceInfo,
+      frontend_domain: 'life2launch-core.com',
+      top_domain: 'life2launch-core.com',
+    },
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+
+  assert.equal(decision.action, 'redirect')
+  assert.equal(
+    decision.destination,
+    'https://life2launch-core.com/badges/system_onboarding?returnTo=%2Fportfolio'
+  )
 })
 
 test('request policy rewrites sitemap and annotates org slug header', () => {

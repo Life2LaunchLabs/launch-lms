@@ -99,6 +99,11 @@ async def api_execute_legacy_import(current_user: PublicUser = Depends(get_curre
     return portfolio_service.execute_legacy_import(current_user, db_session)
 
 
+@router.post("/me/legacy-import/dismiss")
+async def api_dismiss_legacy_import(current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
+    return portfolio_service.dismiss_legacy_import(current_user, db_session)
+
+
 @public_router.get("/{org_id}/{username}")
 async def api_get_public_portfolio(org_id: int, username: str, db_session: Session = Depends(get_db_session)):
     return portfolio_service.get_public_shell(org_id, username, db_session)
