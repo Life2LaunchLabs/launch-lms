@@ -142,6 +142,8 @@ export function normalizeQuestionInputs(inputs: any[]): Array<{
   variant: string
   width: string
   height: number
+  input_type?: string
+  adaptive?: any
 }> {
   const normalized = Array.isArray(inputs)
     ? inputs.map((input, index) => {
@@ -154,6 +156,8 @@ export function normalizeQuestionInputs(inputs: any[]): Array<{
         variant: String(input?.variant || input?.type || 'short_answer'),
         width: String(input?.width || 'full'),
         height: Number(input?.height) || 160,
+        input_type: String(input?.input_type || input?.inputType || 'text'),
+        adaptive: input?.adaptive,
       }
     })
     : []
@@ -165,6 +169,7 @@ export function normalizeQuestionInputs(inputs: any[]): Array<{
     variant: 'short_answer',
     width: 'full',
     height: 160,
+    input_type: 'text',
   }]
 }
 
@@ -328,6 +333,7 @@ export function blockLabel(block: LearningBlock) {
   if (block.type === 'button') return 'Page button'
   if (block.type === 'text') return 'Text block'
   if (block.type === 'image') return 'Image block'
+  if (block.type === 'portfolio_preview') return 'Portfolio preview'
   if (block.kind === 'text_input') return 'Text input question'
   if (block.kind === 'image_upload') return 'Image upload question'
   return 'Multiple choice question'

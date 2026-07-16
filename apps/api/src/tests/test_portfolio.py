@@ -92,6 +92,35 @@ def test_activity_journey_outcome_assigns_only_an_owned_cover_image():
         with pytest.raises(PortfolioActionError, match="owned by the learner"):
             apply_portfolio_outcomes(db, user, 8, invalid, {"answers": {}, "bindings": {}})
 
+        invalid_date = {"version": 1, "actions": [{"id": "bad-date", "type": "create_journey_entry", "fields": {"title": "Broken date", "start_date": "sometime last year"}}]}
+        with pytest.raises(PortfolioActionError, match="YYYY-MM"):
+            apply_portfolio_outcomes(db, user, 9, invalid_date, {"answers": {}, "bindings": {}})
+
+
+def test_activity_work_outcome_persists_story_cover_and_existing_journey_link():
+    with _session() as db:
+        user = _user(); db.add(user); db.commit()
+        cover = MediaAsset(asset_uuid="asset_work", owner_type="user", owner_user_id=1, source_type="upload", media_type="image", title="Work cover", url="/work.jpg")
+        db.add(cover); db.commit()
+        portfolio = Portfolio(portfolio_uuid="por_existing", user_id=1, creation_date="", update_date="")
+        db.add(portfolio); db.flush()
+        journey = JourneyEntry(journey_uuid="jrn_existing", portfolio_id=portfolio.id, title="My current chapter", slug="current", creation_date="", update_date="")
+        db.add(journey); db.commit()
+        outcomes = {"version": 1, "actions": [
+            {"id": "work", "type": "create_work_item", "store_as": "work_item_id", "fields": {"title": "Community garden", "subtitle": "Growing food together", "story_kind": "made"}, "story": "I planned the beds and learned how to coordinate volunteers.", "cover_asset_uuid": "asset_work"},
+            {"id": "link", "type": "link_work_to_journey", "work": {"$source": "binding", "key": "work_item_id"}, "journey": "jrn_existing", "optional": True},
+        ]}
+        apply_portfolio_outcomes(db, user, 10, outcomes, {"answers": {}, "bindings": {}}); db.commit()
+
+        work = db.exec(select(WorkItem)).one()
+        blocks = db.exec(select(WorkItemBlock).where(WorkItemBlock.work_item_id == work.id).order_by(WorkItemBlock.sort_order)).all()
+        assert work.cover_asset_id == cover.id
+        assert [(block.block_type, block.data) for block in blocks] == [
+            ("text", {"text": "I planned the beds and learned how to coordinate volunteers."}),
+            ("image", {"asset_uuid": "asset_work", "url": "/work.jpg", "caption": ""}),
+        ]
+        assert db.exec(select(JourneyWorkLink).where(JourneyWorkLink.work_item_id == work.id, JourneyWorkLink.journey_entry_id == journey.id)).one()
+
 
 def test_work_idempotency_revision_conflict_and_publish_flow():
     with _session() as db:

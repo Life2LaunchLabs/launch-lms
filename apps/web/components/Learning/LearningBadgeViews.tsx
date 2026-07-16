@@ -9,7 +9,7 @@ import { Extension } from '@tiptap/core'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
-import { AlignCenter, AlignLeft, AlignRight, Bold, Check, ChevronRight, Columns2, Copy, GripVertical, Heading1, Heading2, Italic, List, ListOrdered, Loader2, Pause, Play, Plus, Quote, Trash2, Upload, X } from 'lucide-react'
+import { AlignCenter, AlignLeft, AlignRight, ArrowLeft, ArrowRight, Bold, Check, ChevronRight, Columns2, Copy, GripVertical, Heading1, Heading2, Italic, List, ListOrdered, Loader2, Pause, Play, Plus, Quote, Trash2, Upload, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import YouTube from 'react-youtube'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -35,6 +35,9 @@ import { getUriWithOrg } from '@services/config/config'
 import toast from 'react-hot-toast'
 import ReorderableList from '@components/Objects/ReorderableList'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
+import { JourneyCardView, type JourneyEntry } from '@components/Pages/Portfolio/Journey'
+import { WorkCardView, type Work } from '@components/Pages/Portfolio/PortfolioShell'
+import { normalizeMediaUrl } from '@services/media/media'
 
 export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgslug: string; badgePath: any; activity: any }) {
   const router = useRouter()
@@ -274,25 +277,18 @@ function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, o
     onPagePatch?.({ content: { ...(page.content || {}), version: page.content?.version || 2, blocks: nextBlocks } })
   }
 
+  const renderBlock = (block: LearningBlock) => <StandardBlockView key={block.id} block={block} page={page} answer={getQuestionAnswer(answer, block.id)} setAnswer={(value: any) => setBlockAnswer(block.id, value)} setUnlocked={(value: boolean) => setBlockUnlocked(block.id, value)} editable={editable} onPatch={(patch: any) => patchBlock(block.id, patch)} responseMediaOwner={responseMediaOwner} run={run} pages={pages} onNavigatePage={onNavigatePage} />
+
   return (
     <div className="learning-info-block-stack">
       <div className="learning-info-reorder-list">
-        {blocks.map((block: LearningBlock) => (
-          <StandardBlockView
-            key={block.id}
-            block={block}
-            page={page}
-            answer={getQuestionAnswer(answer, block.id)}
-            setAnswer={(value: any) => setBlockAnswer(block.id, value)}
-            setUnlocked={(value: boolean) => setBlockUnlocked(block.id, value)}
-            editable={editable}
-            onPatch={(patch: any) => patchBlock(block.id, patch)}
-            responseMediaOwner={responseMediaOwner}
-            run={run}
-            pages={pages}
-            onNavigatePage={onNavigatePage}
-          />
-        ))}
+        {blocks.map((block: LearningBlock, index: number) => {
+          const group = block.design?.group
+          if (!group) return renderBlock(block)
+          if (index > 0 && blocks[index - 1]?.design?.group === group) return null
+          const members = blocks.filter((item: LearningBlock) => item.design?.group === group)
+          return <div key={group} className="my-3 grid w-full grid-cols-1 gap-3 sm:grid-cols-2">{members.map(renderBlock)}</div>
+        })}
       </div>
     </div>
   )
@@ -357,7 +353,30 @@ function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editab
   if (block.type === 'button') {
     const destination = String(block.content?.destination_page_uuid || '')
     const available = Boolean(destination && (pages || []).some((item: any) => item.page_uuid === destination))
-    return <section className="learning-info-stack-section" style={blockStyle}><button type="button" disabled={editable || !available} onClick={() => onNavigatePage?.(destination)} className={`min-h-11 rounded-lg px-5 py-3 text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${block.design?.variant === 'primary' ? 'bg-[var(--org-primary-color)] text-white' : 'border border-border bg-card text-foreground hover:bg-muted'} disabled:cursor-not-allowed disabled:opacity-50`}>{block.content?.label || 'Go to page'}</button></section>
+    const currentIndex = (pages || []).findIndex((item: any) => item.page_uuid === page.page_uuid)
+    const destinationIndex = (pages || []).findIndex((item: any) => item.page_uuid === destination)
+    const backwards = destinationIndex >= 0 && destinationIndex < currentIndex
+    const Direction = backwards ? ArrowLeft : ArrowRight
+    return <section className="learning-info-stack-section !w-full" style={{ ...blockStyle, width: '100%' }}><button type="button" disabled={editable || !available} onClick={() => onNavigatePage?.(destination)} className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-center text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${block.design?.variant === 'primary' ? 'bg-[var(--org-primary-color)] text-white shadow-sm' : 'border border-border/80 bg-background text-foreground shadow-sm hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md'} disabled:cursor-not-allowed disabled:opacity-50`}>{backwards && <Direction className="h-4 w-4 shrink-0" />}<span className="text-center">{block.content?.label || 'Go to page'}</span>{!backwards && <Direction className="h-4 w-4 shrink-0" />}</button></section>
+  }
+
+  if (block.type === 'portfolio_preview') {
+    const bindings = block.content?.bindings || {}
+    const value = (key: string, fallback = '') => resolveDisplayBinding(bindings[key], run, editable) || fallback
+    const variant = block.content?.variant
+    if (variant === 'journey_card') {
+      const entry: JourneyEntry = { journey_uuid: 'preview', slug: 'preview', entry_type: value('entry_type', 'experience'), title: value('title', 'Your current chapter'), organization: value('organization'), location_label: value('location_label'), summary: value('summary'), start_date: value('start_date') || undefined, start_precision: 'month', is_current: true, revision: 1, cover_url: value('cover_url') || undefined, blocks: [], work: [] }
+      return <section className="learning-info-stack-section my-5" style={blockStyle}><JourneyCardView entry={entry} preview /></section>
+    }
+    if (variant === 'work_card') {
+      const item: Work = { work_uuid: 'preview', slug: 'preview', title: value('title', 'Something you did'), subtitle: value('subtitle'), summary: value('summary'), story_kind: value('story_kind', 'made'), status: 'published', featured: true, revision: 1, cover_url: value('cover_url') || undefined, blocks: [] }
+      return <section className="learning-info-stack-section mx-auto my-5 max-w-sm" style={blockStyle}><WorkCardView item={item} preview /></section>
+    }
+    if (variant === 'identity_header') return <section className="learning-info-stack-section mx-auto my-5 max-w-sm rounded-2xl bg-card p-6 text-center" style={blockStyle}><div className="flex flex-col items-center gap-4"><div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">{value('avatar_url') ? <img src={normalizeMediaUrl(value('avatar_url'))} alt="" className="h-full w-full object-cover" /> : <span className="text-2xl font-black">{value('display_name', 'You').slice(0, 1)}</span>}</div><div><h3 className="text-2xl font-black">{value('display_name', 'Your name')}</h3><p className="mt-1 text-muted-foreground">{value('headline', 'Your tagline will appear here')}</p>{value('location_label') && <p className="mt-2 text-xs text-muted-foreground">{value('location_label')}</p>}</div></div>{value('short_bio') && <p className="mt-5 text-sm leading-relaxed text-muted-foreground">{value('short_bio')}</p>}</section>
+    if (variant === 'traits_panel') return <section className="learning-info-stack-section mx-auto my-5 max-w-sm rounded-2xl bg-card p-6" style={blockStyle}><p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">What I bring</p><div className="mt-4 flex flex-col gap-2">{value('traits', 'Curious, Creative').split(',').filter(Boolean).map((trait) => <span key={trait} className="rounded-full bg-muted/50 px-3 py-1.5 text-center text-sm font-semibold">{trait.trim()}</span>)}</div></section>
+    if (variant === 'links_strip') return <section className="learning-info-stack-section mx-auto my-5 max-w-sm rounded-2xl bg-card p-5" style={blockStyle}><p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Find me online</p><div className="mt-3 flex flex-col gap-2"><span className="rounded-full bg-muted px-4 py-2 text-center text-sm font-semibold">{value('label', 'My link')}</span></div><p className="mt-3 break-all text-center text-xs text-muted-foreground">{value('url', 'https://example.com')}</p></section>
+    if (variant === 'portfolio_frame') return <section className="learning-info-stack-section mx-auto my-5 max-w-sm overflow-hidden rounded-2xl bg-background shadow-sm" style={blockStyle}><div className={`h-2 ${value('theme_id', 'default') === 'electric' ? 'bg-fuchsia-500' : value('theme_id') === 'creative' ? 'bg-orange-400' : 'bg-foreground'}`} /><div className="p-6 text-center"><p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Portfolio preview</p><h3 className="mt-5 text-3xl font-black">{value('display_name', 'Your portfolio')}</h3><p className="mt-2 text-muted-foreground">{value('headline', 'Your story, work, and journey')}</p><div className="mt-6 grid grid-cols-1 gap-3"><div className="aspect-[4/3] rounded-xl bg-muted"/><div className="aspect-[4/3] rounded-xl bg-muted/60"/></div></div></section>
+    return null
   }
 
   if (block.type === 'question') {
@@ -388,6 +407,7 @@ function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editab
           showChrome={false}
           onChromeHoverChange={() => null}
           responseMediaOwner={responseMediaOwner}
+          renderVariables={run?.render_context?.variables}
         />
       </section>
     )
@@ -1325,7 +1345,7 @@ function QuestionTextInputSection({
   )
 }
 
-function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, onActivate, showChrome, onChromeHoverChange, responseMediaOwner }: any) {
+function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, onActivate, showChrome, onChromeHoverChange, responseMediaOwner, renderVariables }: any) {
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
   const [uploadingInputId, setUploadingInputId] = React.useState<string | null>(null)
@@ -1699,9 +1719,14 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
                     />
                   ) : <span className="min-w-0 flex-1" />}
                 </div>
-                {isSingleLine ? (
+                {input.input_type === 'select' ? (
+                  <select value={value} onChange={(event) => updateTextInput(input.id, event.target.value)} style={{ height }} className="w-full rounded-xl border border-border bg-card px-4 text-foreground outline-none shadow-sm focus:border-[var(--org-primary-color)] focus:ring-2 focus:ring-[var(--org-primary-color)]">
+                    <option value="">{input.placeholder || 'None'}</option>
+                    {(renderVariables?.[input.options_binding?.path] || []).map((option: any) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                ) : isSingleLine ? (
                   <input
-                    type={input.input_type === 'month' ? 'month' : 'text'}
+                    type={input.input_type === 'month' ? 'month' : input.input_type === 'url' ? 'url' : 'text'}
                     value={editable ? input.placeholder || '' : value}
                     onChange={(event) => editable ? updateInputConfig(input.id, { placeholder: event.target.value }) : updateTextInput(input.id, event.target.value)}
                     placeholder={editable ? 'Placeholder' : input.placeholder}
@@ -2184,7 +2209,10 @@ function getQuestionTextInputs(page: any) {
       placeholder: input.placeholder || '',
       variant: input.variant || 'short_answer',
       width: input.width || 'full',
-      height: Number(input.height) || 160,
+      height: Number(input.height) || ((input.variant === 'single_line' || input.input_type === 'month' || input.input_type === 'url' || input.input_type === 'select') ? 48 : 160),
+      input_type: input.input_type || input.inputType || 'text',
+      adaptive: input.adaptive,
+      options_binding: input.options_binding || input.optionsBinding,
     }))
   }
   return [{ id: 'response', section_id: 'response', label: '', placeholder: '', variant: 'short_answer', width: 'full', height: 160 }]

@@ -4,7 +4,7 @@ export type LearningBlockAlign = 'left' | 'center' | 'right'
 
 export interface LearningBlockBase {
   id: string
-  type: 'text' | 'image' | 'question' | 'button'
+  type: 'text' | 'image' | 'question' | 'button' | 'portfolio_preview'
   design?: {
     width?: number
     align?: LearningBlockAlign
@@ -13,6 +13,7 @@ export interface LearningBlockBase {
     text_color?: string
     shape?: 'rounded' | 'circle'
     variant?: 'primary' | 'secondary'
+    group?: string
   }
 }
 
@@ -45,6 +46,14 @@ export interface LearningButtonBlock extends LearningBlockBase {
   content?: { label?: string; destination_page_uuid?: string }
 }
 
+export interface LearningPortfolioPreviewBlock extends LearningBlockBase {
+  type: 'portfolio_preview'
+  content?: {
+    variant?: 'journey_card' | 'work_card' | 'identity_header' | 'traits_panel' | 'links_strip' | 'portfolio_frame'
+    bindings?: Record<string, LearningDisplayBinding>
+  }
+}
+
 export interface LearningQuestionBlock extends LearningBlockBase {
   type: 'question'
   kind: 'multiple_choice' | 'text_input' | string
@@ -53,7 +62,7 @@ export interface LearningQuestionBlock extends LearningBlockBase {
   completion?: any
 }
 
-export type LearningBlock = LearningTextBlock | LearningImageBlock | LearningQuestionBlock | LearningButtonBlock
+export type LearningBlock = LearningTextBlock | LearningImageBlock | LearningQuestionBlock | LearningButtonBlock | LearningPortfolioPreviewBlock
 
 export function resolveDisplayBinding(binding: LearningDisplayBinding | undefined, run: any, preview = false): string {
   if (!binding) return ''

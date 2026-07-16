@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 
 from src.db.portfolio import (
     JourneyEntry, JourneyWorkLink, Portfolio, PortfolioContentStatus, PortfolioLink,
-    PortfolioSection, PortfolioVisibility, ProfileTrait, WorkItem,
+    PortfolioSection, PortfolioVisibility, ProfileTrait, WorkItem, WorkItemBlock,
 )
 from src.db.media import MediaAsset
 from src.db.users import User
@@ -92,6 +92,19 @@ def _unique_slug(model, portfolio_id: int, title: str, db: Session) -> str:
     return candidate
 
 
+def _portfolio_date(value, field: str) -> str | None:
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    if not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])(?:-([0-2]\d|3[01]))?", raw):
+        raise PortfolioActionError("portfolio-date", field, "Dates must use YYYY-MM or YYYY-MM-DD")
+    try:
+        datetime.strptime(raw if len(raw) == 10 else f"{raw}-01", "%Y-%m-%d")
+    except ValueError as exc:
+        raise PortfolioActionError("portfolio-date", field, "Date is not valid") from exc
+    return raw
+
+
 def _portfolio(db: Session, user: User, now: str) -> Portfolio:
     portfolio = db.exec(select(Portfolio).where(Portfolio.user_id == user.id)).first()
     if portfolio:
@@ -122,17 +135,36 @@ def apply_portfolio_outcomes(db: Session, user: User, activity_run_id: int, outc
         elif kind == "create_work_item":
             values = _mapped(action, local, WORK_FIELDS); title = str(values.pop("title", "") or "").strip()
             if not title: raise PortfolioActionError(action_id, "title", "Work title is required")
+            for date_field in ("start_date", "end_date"):
+                if date_field in values:
+                    values[date_field] = _portfolio_date(values[date_field], date_field)
+            cover_asset_uuid = str(_resolve(action.get("cover_asset_uuid"), local) or "").strip()
+            cover_asset_id = None
+            if cover_asset_uuid:
+                cover = db.exec(select(MediaAsset).where(MediaAsset.asset_uuid == cover_asset_uuid, MediaAsset.owner_user_id == user.id, MediaAsset.media_type == "image")).first()
+                if not cover: raise PortfolioActionError(action_id, "cover_asset_uuid", "Cover image must be an image owned by the learner")
+                cover_asset_id = cover.id
             work = WorkItem(
                 work_uuid=f"wrk_{uuid4().hex}", portfolio_id=portfolio.id or 0, title=title,
+                cover_asset_id=cover_asset_id,
                 slug=_unique_slug(WorkItem, portfolio.id or 0, title, db), status=PortfolioContentStatus.PUBLISHED,
                 visibility=PortfolioVisibility.PUBLIC, source="activity", source_reference=f"{run_ref}:{action_id}",
                 creation_date=now, update_date=now, **values,
             )
-            db.add(work); db.flush(); binding = str(action.get("store_as") or "work_item_id"); bindings[binding] = work.work_uuid
+            db.add(work); db.flush()
+            story = str(_resolve(action.get("story"), local) or "").strip()
+            if story:
+                db.add(WorkItemBlock(block_uuid=f"wkb_{uuid4().hex}", work_item_id=work.id or 0, block_type="text", data={"text": story}, sort_order=0, creation_date=now, update_date=now))
+            if cover_asset_uuid and cover:
+                db.add(WorkItemBlock(block_uuid=f"wkb_{uuid4().hex}", work_item_id=work.id or 0, block_type="image", data={"asset_uuid": cover.asset_uuid, "url": cover.url, "caption": ""}, sort_order=1, creation_date=now, update_date=now))
+            binding = str(action.get("store_as") or "work_item_id"); bindings[binding] = work.work_uuid
             receipts[action_id] = {"type": kind, "entity_uuid": work.work_uuid}
         elif kind == "create_journey_entry":
             values = _mapped(action, local, JOURNEY_FIELDS); title = str(values.pop("title", "") or "").strip()
             if not title: raise PortfolioActionError(action_id, "title", "Journey title is required")
+            for date_field in ("start_date", "end_date"):
+                if date_field in values:
+                    values[date_field] = _portfolio_date(values[date_field], date_field)
             cover_asset_uuid = str(values.pop("cover_asset_uuid", "") or "").strip()
             cover_asset_id = None
             if cover_asset_uuid:
@@ -158,6 +190,9 @@ def apply_portfolio_outcomes(db: Session, user: User, activity_run_id: int, outc
             journey_uuid = str(_resolve(action.get("journey"), local) or bindings.get("journey_entry_id") or "")
             work = db.exec(select(WorkItem).where(WorkItem.portfolio_id == portfolio.id, WorkItem.work_uuid == work_uuid)).first()
             journey = db.exec(select(JourneyEntry).where(JourneyEntry.portfolio_id == portfolio.id, JourneyEntry.journey_uuid == journey_uuid)).first()
+            if not journey_uuid and action.get("optional"):
+                receipts[action_id] = {"type": kind, "skipped": True}
+                continue
             if not work or not journey: raise PortfolioActionError(action_id, "bindings", "Linked entities must belong to this portfolio")
             existing = db.exec(select(JourneyWorkLink).where(JourneyWorkLink.work_item_id == work.id, JourneyWorkLink.journey_entry_id == journey.id)).first()
             if not existing: db.add(JourneyWorkLink(link_uuid=f"jwl_{uuid4().hex}", work_item_id=work.id or 0, journey_entry_id=journey.id or 0, relationship_label=str(action.get("label") or "Related work"), creation_date=now, update_date=now))
@@ -174,6 +209,8 @@ def apply_portfolio_outcomes(db: Session, user: User, activity_run_id: int, outc
             if not isinstance(links, list): raise PortfolioActionError(action_id, "links", "Links must be a list")
             for index, item in enumerate(links):
                 url = str(item.get("url") or ""); parsed = urlparse(url)
+                if not url and action.get("optional"):
+                    continue
                 if parsed.scheme not in {"http", "https"} or not parsed.netloc: raise PortfolioActionError(action_id, "url", "Links must use http or https")
                 db.add(PortfolioLink(link_uuid=f"lnk_{uuid4().hex}", portfolio_id=portfolio.id or 0, link_type=str(item.get("link_type") or "other"), platform=item.get("platform"), label=str(item.get("label") or parsed.netloc), url=url, safety_status="pending", sort_order=index, creation_date=now, update_date=now))
         elif kind == "set_theme":

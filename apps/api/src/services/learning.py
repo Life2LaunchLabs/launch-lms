@@ -52,6 +52,7 @@ from src.db.learning import (
 )
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
+from src.db.portfolio import JourneyEntry, Portfolio
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser, User
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
@@ -470,6 +471,16 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
                 "user.last_name": user.last_name or "",
                 "user.avatar_image": user.avatar_image or "",
             }
+            portfolio = db_session.exec(select(Portfolio).where(Portfolio.user_id == user.id)).first()
+            if portfolio:
+                journeys = db_session.exec(
+                    select(JourneyEntry)
+                    .where(JourneyEntry.portfolio_id == portfolio.id)
+                    .order_by(JourneyEntry.is_current.desc(), JourneyEntry.start_date.desc())  # type: ignore
+                ).all()
+                render_context["variables"]["portfolio.journey_options"] = [
+                    {"value": item.journey_uuid, "label": item.title} for item in journeys
+                ]
     return LearningRunRead(
         id=run.id or 0,
         run_uuid=run.run_uuid,
@@ -1236,6 +1247,13 @@ def _ensure_launch_ready_activity(
             page.page_type, page.title, page.content = LearningPageType.STANDARD, spec["title"], content
             page.update_date = now
         db_session.add(page)
+    desired_page_uuids = {spec["page_uuid"] for spec in pages}
+    stale_system_pages = db_session.exec(select(LearningPage).where(LearningPage.activity_id == activity.id)).all()
+    for stale_page in stale_system_pages:
+        if stale_page.page_uuid.startswith("learning_page_system_onboarding_") and stale_page.page_uuid not in desired_page_uuids:
+            db_session.delete(stale_page)
+    if stale_system_pages:
+        db_session.flush()
     return activity
 
 
@@ -1398,10 +1416,11 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
         db_session.add(name_page)
 
     goal_options = [
-        {"id": "higher_education", "text": "Higher education"},
-        {"id": "employment", "text": "Employment"},
-        {"id": "self_starting", "text": "Self Starting"},
-        {"id": "not_sure", "text": "Not sure"},
+        {"id": "higher_education", "text": "Get into school or training"},
+        {"id": "employment", "text": "Find work or an internship"},
+        {"id": "self_starting", "text": "Grow something I’m building"},
+        {"id": "show_people", "text": "Show people what I can do"},
+        {"id": "not_sure", "text": "Figure out what comes next"},
     ]
     goal_bindings = {
         "options": {
@@ -1419,13 +1438,14 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
             badge_id=badge.id or 0,
             org_id=owner_org.id or 0,
             page_type=LearningPageType.STANDARD,
-            title="What next step are you working towards?",
+            title="What are you building toward?",
             order=2,
             required=True,
             content={
                 "version": STANDARD_CONTENT_VERSION,
                 "blocks": [
-                    text_block(heading_node("What next step are you working towards?"), block_id="blk_onboarding_goal_heading"),
+                    text_block(heading_node("What are you building toward?"), block_id="blk_onboarding_goal_heading"),
+                    text_block(paragraph_node("This stays private. We use it to personalize your Launch Ready path and examples."), block_id="blk_onboarding_goal_private"),
                     question_block(
                         "multiple_choice",
                         {"options": goal_options},
@@ -1450,6 +1470,7 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
         goal_page.org_id = owner_org.id or goal_page.org_id
         goal_page.order = 2
         goal_page.required = True
+        goal_page.title = "What are you building toward?"
         _merge_onboarding_variable_bindings(goal_page, goal_bindings)
         goal_page.update_date = now
         db_session.add(goal_page)
@@ -1462,6 +1483,7 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
 
     profile_photo_page, profile_photo_block = "learning_page_system_onboarding_profile_photo", "blk_launch_profile_photo"
     profile_details_page, profile_details_block = "learning_page_system_onboarding_profile_details", "blk_launch_profile_details"
+    profile_review_page = "learning_page_system_onboarding_profile_review"
     stale_profile_activities = db_session.exec(
         select(LearningActivity).where(
             LearningActivity.badge_id == badge.id,
@@ -1475,21 +1497,19 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
         db_session.flush()
     _ensure_launch_ready_activity(
         db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="profile", order=2,
-        title="Complete your profile", description="Add a photo, bio, tagline, and location.",
+        title="Make it feel like you", description="Build an introduction that feels like you and preview the real result.",
         pages=[
-            {"page_uuid": profile_photo_page, "block_id": profile_photo_block, "title": "Add a profile photo", "kind": "image_upload", "content": {"label": "Choose a photo"}, "completion": {"variable_bindings": {"image": {"target": "user.avatar_image", "value_type": "image"}}}},
-            {"page_uuid": profile_details_page, "block_id": profile_details_block, "title": "Tell people a little more", "kind": "text_input", "content": {"inputs": [{"id": "bio", "label": "Short bio", "variant": "short_answer"}, {"id": "tagline", "label": "Tagline", "variant": "single_line"}, {"id": "location", "label": "Location", "variant": "single_line"}]}, "completion": {"inputs": {"bio": {"required": True, "min_words": 2}, "tagline": {"required": True, "min_words": 1}, "location": {"required": False}}}},
+            {"page_uuid": profile_photo_page, "block_id": profile_photo_block, "title": "Choose how you show up", "kind": "image_upload", "content": {"label": "Add a profile photo if you want. You can skip this, and you can change it later."}, "completion": {"required": False, "variable_bindings": {"image": {"target": "user.avatar_image", "value_type": "image"}}}},
+            {"page_uuid": profile_details_page, "block_id": profile_details_block, "title": "Write your introduction", "kind": "text_input", "content": {"inputs": [{"id": "display_name", "label": "Display name", "placeholder": "How you want people to know you", "variant": "single_line", "height": 48}, {"id": "tagline", "label": "Tagline", "placeholder": "Student, maker, and community builder", "variant": "single_line", "height": 48}, {"id": "bio", "label": "Bio", "placeholder": "Share what you’re interested in, what you’re working toward, and what you want people to know.", "variant": "short_answer", "height": 200}, {"id": "location", "label": "Location (optional)", "placeholder": "City or region", "variant": "single_line", "height": 48}]}, "completion": {"inputs": {"display_name": {"required": True, "min_words": 1}, "bio": {"required": True, "min_words": 2}, "tagline": {"required": True, "min_words": 1}, "location": {"required": False}}}},
+            {"page_uuid": profile_review_page, "block_id": "blk_launch_profile_review", "title": "This is how you’ll show up", "action_label": "Add this to my portfolio", "blocks": [text_block(heading_node("This is how you’ll show up"), block_id="blk_profile_review_heading"), text_block(paragraph_node("This preview uses the same identity treatment as your portfolio."), block_id="blk_profile_review_intro"), {"id": "blk_profile_review_header", "type": "portfolio_preview", "design": {"width": 100}, "content": {"variant": "identity_header", "bindings": {"display_name": {"source": "answer", "path": f"{profile_details_page}.answer.questions.{profile_details_block}.inputs.display_name.text", "fallback": "Your name"}, "headline": {"source": "answer", "path": f"{profile_details_page}.answer.questions.{profile_details_block}.inputs.tagline.text", "fallback": "Your tagline"}, "short_bio": {"source": "answer", "path": f"{profile_details_page}.answer.questions.{profile_details_block}.inputs.bio.text", "fallback": "Your introduction"}, "location_label": {"source": "answer", "path": f"{profile_details_page}.answer.questions.{profile_details_block}.inputs.location.text", "fallback": ""}, "avatar_url": {"source": "answer", "path": f"{profile_photo_page}.answer.questions.{profile_photo_block}.url", "fallback_binding": {"source": "variable", "path": "user.avatar_image", "fallback": ""}}}}}, {"id": "blk_profile_review_details", "type": "button", "design": {"width": 48, "variant": "secondary", "group": "profile_review_actions"}, "content": {"label": "Change my introduction", "destination_page_uuid": profile_details_page}}, {"id": "blk_profile_review_photo", "type": "button", "design": {"width": 48, "variant": "secondary", "group": "profile_review_actions"}, "content": {"label": "Choose another photo", "destination_page_uuid": profile_photo_page}}]},
         ],
-        outcomes=[{"id": "set-profile-details", "type": "set_portfolio_fields", "fields": {"short_bio": answer(profile_details_page, profile_details_block, "inputs.bio.text"), "headline": answer(profile_details_page, profile_details_block, "inputs.tagline.text"), "location_label": answer(profile_details_page, profile_details_block, "inputs.location.text")}}],
+        outcomes=[{"id": "set-profile-details", "type": "set_portfolio_fields", "fields": {"display_name": answer(profile_details_page, profile_details_block, "inputs.display_name.text"), "short_bio": answer(profile_details_page, profile_details_block, "inputs.bio.text"), "headline": answer(profile_details_page, profile_details_block, "inputs.tagline.text"), "location_label": answer(profile_details_page, profile_details_block, "inputs.location.text")}}],
     )
 
     journey_kind_page, journey_kind_block = "learning_page_system_onboarding_journey_kind", "blk_launch_journey_kind"
     journey_page, journey_block = "learning_page_system_onboarding_journey", "blk_launch_journey"
     journey_photo_page, journey_photo_block = "learning_page_system_onboarding_journey_photo", "blk_launch_journey_photo"
     journey_review_page = "learning_page_system_onboarding_journey_review"
-    def bound_text(block_id: str, path: str, fallback: str, heading: bool = False) -> dict:
-        node = {"type": "heading" if heading else "paragraph", "attrs": {"level": 2} if heading else {}, "content": [{"type": "displayBinding", "attrs": {"binding": {"source": "answer", "path": path, "fallback": fallback}}}]}
-        return {"id": block_id, "type": "text", "design": {"width": 100}, "content": {"node": node, "nodes": [node]}}
     journey_pages = [
         {"page_uuid": journey_kind_page, "block_id": journey_kind_block, "title": "Where are you growing right now?", "kind": "multiple_choice", "content": {"label": "Choose what fits best — there’s no wrong kind of experience.", "options": [
             {"id": "education", "text": "School or college"}, {"id": "employment", "text": "Job or internship"},
@@ -1507,12 +1527,17 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
         {"page_uuid": journey_review_page, "block_id": "blk_launch_journey_review", "title": "Here’s your current chapter", "action_label": "Add to my Journey", "blocks": [
             text_block(heading_node("Here’s your current chapter"), block_id="blk_journey_review_heading"),
             text_block(paragraph_node("This is how it will appear in your Journey. You can always change it later."), block_id="blk_journey_review_intro"),
-            {"id": "blk_journey_review_image", "type": "image", "design": {"width": 46, "align": "center", "height": 220, "fit": "cover", "shape": "rounded"}, "content": {"alt": "Your current chapter", "binding": {"source": "answer", "path": f"{journey_photo_page}.answer.questions.{journey_photo_block}.url", "fallback_binding": {"source": "variable", "path": "user.avatar_image", "fallback": ""}}}},
-            bound_text("blk_journey_review_title", f"{journey_page}.answer.questions.{journey_block}.inputs.title.text", "Your current chapter", True),
-            bound_text("blk_journey_review_org", f"{journey_page}.answer.questions.{journey_block}.inputs.organization.text", "A place where you’re growing"),
-            bound_text("blk_journey_review_summary", f"{journey_page}.answer.questions.{journey_block}.inputs.summary.text", "Your story will appear here."),
-            {"id": "blk_journey_review_details_button", "type": "button", "design": {"width": 48, "align": "center", "variant": "secondary"}, "content": {"label": "Change the details", "destination_page_uuid": journey_page}},
-            {"id": "blk_journey_review_photo_button", "type": "button", "design": {"width": 48, "align": "center", "variant": "secondary"}, "content": {"label": "Choose another photo", "destination_page_uuid": journey_photo_page}},
+            {"id": "blk_journey_review_card", "type": "portfolio_preview", "design": {"width": 100}, "content": {"variant": "journey_card", "bindings": {
+                "entry_type": {"source": "answer", "path": f"{journey_kind_page}.answer.questions.{journey_kind_block}.option_ids.0", "fallback": "experience"},
+                "title": {"source": "answer", "path": f"{journey_page}.answer.questions.{journey_block}.inputs.title.text", "fallback": "Your current chapter"},
+                "organization": {"source": "answer", "path": f"{journey_page}.answer.questions.{journey_block}.inputs.organization.text", "fallback": "A place where you’re growing"},
+                "location_label": {"source": "answer", "path": f"{journey_page}.answer.questions.{journey_block}.inputs.location.text", "fallback": ""},
+                "start_date": {"source": "answer", "path": f"{journey_page}.answer.questions.{journey_block}.inputs.start_date.text", "fallback": ""},
+                "summary": {"source": "answer", "path": f"{journey_page}.answer.questions.{journey_block}.inputs.summary.text", "fallback": "Your story will appear here."},
+                "cover_url": {"source": "answer", "path": f"{journey_photo_page}.answer.questions.{journey_photo_block}.url", "fallback_binding": {"source": "variable", "path": "user.avatar_image", "fallback": ""}},
+            }}},
+            {"id": "blk_journey_review_details_button", "type": "button", "design": {"width": 48, "align": "center", "variant": "secondary", "group": "journey_review_actions"}, "content": {"label": "Change the details", "destination_page_uuid": journey_page}},
+            {"id": "blk_journey_review_photo_button", "type": "button", "design": {"width": 48, "align": "center", "variant": "secondary", "group": "journey_review_actions"}, "content": {"label": "Choose another photo", "destination_page_uuid": journey_photo_page}},
         ]},
     ]
     _ensure_launch_ready_activity(
@@ -1528,36 +1553,34 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
         }}],
     )
 
-    work_kind_page, work_kind_block = "learning_page_system_onboarding_work_kind", "blk_launch_work_kind"
     work_detail_page, work_detail_block = "learning_page_system_onboarding_work_detail", "blk_launch_work_detail"
-    work_branch_pages = [(kind, f"learning_page_system_onboarding_work_{kind}") for kind in ("made", "did", "led", "learned")]
-    work_pages = [{"page_uuid": work_kind_page, "block_id": work_kind_block, "title": "What kind of work will you share?", "kind": "multiple_choice", "content": {"options": [{"id": kind, "text": kind.title()} for kind, _ in work_branch_pages]}, "completion": {"min_selections": 1, "max_selections": 1}}]
-    work_pages += [{"page_uuid": page_uuid, "block_id": f"blk_work_{kind}", "title": f"Something you {kind}", "body": "School, hobbies, community work, experiments, and personal growth all count."} for kind, page_uuid in work_branch_pages]
-    work_pages += [{"page_uuid": work_detail_page, "block_id": work_detail_block, "title": "Tell us about it", "kind": "text_input", "content": {"inputs": [{"id": "title", "label": "Title", "variant": "single_line"}, {"id": "summary", "label": "What happened?", "variant": "short_answer"}]}, "completion": {"inputs": {"title": {"required": True, "min_words": 1}, "summary": {"required": False}}}}]
-    work_nodes = [{"id": f"page:{spec['page_uuid']}", "type": "page", "page_uuid": spec["page_uuid"]} for spec in work_pages] + [{"id": "complete", "type": "complete"}]
-    work_edges = []
-    for priority, (kind, page_uuid) in enumerate(work_branch_pages):
-        work_edges.append({"from": f"page:{work_kind_page}", "to": f"page:{page_uuid}", "priority": 100 - priority, "condition": {"op": "contains", "left": {"source": "answer", "key": f"{work_kind_page}.result.questions.{work_kind_block}.option_ids"}, "right": kind}})
-        work_edges.append({"from": f"page:{page_uuid}", "to": f"page:{work_detail_page}", "priority": 0})
-    work_edges.append({"from": f"page:{work_detail_page}", "to": "complete", "priority": 0})
+    work_photo_page, work_photo_block = "learning_page_system_onboarding_work_photo", "blk_launch_work_photo"
+    work_journey_page, work_journey_block = "learning_page_system_onboarding_work_journey", "blk_launch_work_journey"
+    work_review_page = "learning_page_system_onboarding_work_review"
+    work_pages = [{"page_uuid": work_detail_page, "block_id": work_detail_block, "title": "Tell the story of your work", "kind": "text_input", "content": {"inputs": [{"id": "title", "label": "Title", "placeholder": "Name this work", "variant": "single_line", "height": 48}, {"id": "tagline", "label": "Tagline", "placeholder": "A short line about this work", "variant": "single_line", "height": 48}, {"id": "start_date", "section_id": "work_dates", "label": "Start date (optional)", "input_type": "month", "variant": "single_line", "width": "half", "height": 48}, {"id": "end_date", "section_id": "work_dates", "label": "End date (optional)", "input_type": "month", "variant": "single_line", "width": "half", "height": 48}, {"id": "story", "label": "Story", "placeholder": "What did you set out to do? What did you contribute? What changed, or what did you learn?", "variant": "short_answer", "height": 240}]}, "completion": {"inputs": {"title": {"required": True, "min_words": 1}, "tagline": {"required": False}, "start_date": {"required": False}, "end_date": {"required": False}, "story": {"required": True, "min_words": 3}}}}, {"page_uuid": work_photo_page, "block_id": work_photo_block, "title": "Cover image", "kind": "image_upload", "content": {"label": "Choose the cover image that will appear on your Work card."}, "completion": {"required": False}}, {"page_uuid": work_journey_page, "block_id": work_journey_block, "title": "Connect this to your Journey", "kind": "text_input", "content": {"inputs": [{"id": "journey_uuid", "label": "Journey entry (optional)", "placeholder": "Don’t connect this yet", "input_type": "select", "variant": "single_line", "height": 48, "options_binding": {"source": "variable", "path": "portfolio.journey_options"}}]}, "completion": {"inputs": {"journey_uuid": {"required": False}}}}, {"page_uuid": work_review_page, "block_id": "blk_launch_work_review", "title": "Your work is ready to share", "action_label": "Add this to my Work", "blocks": [text_block(heading_node("Your work is ready to share"), block_id="blk_work_review_heading"), {"id": "blk_work_review_card", "type": "portfolio_preview", "design": {"width": 100}, "content": {"variant": "work_card", "bindings": {"title": {"source": "answer", "path": f"{work_detail_page}.answer.questions.{work_detail_block}.inputs.title.text", "fallback": "Your work"}, "subtitle": {"source": "answer", "path": f"{work_detail_page}.answer.questions.{work_detail_block}.inputs.tagline.text", "fallback": ""}, "summary": {"source": "answer", "path": f"{work_detail_page}.answer.questions.{work_detail_block}.inputs.story.text", "fallback": "Your story"}, "cover_url": {"source": "answer", "path": f"{work_photo_page}.answer.questions.{work_photo_block}.url", "fallback": ""}}}}, {"id": "blk_work_review_details", "type": "button", "design": {"width": 48, "variant": "secondary", "group": "work_review_actions"}, "content": {"label": "Change the story", "destination_page_uuid": work_detail_page}}, {"id": "blk_work_review_photo", "type": "button", "design": {"width": 48, "variant": "secondary", "group": "work_review_actions"}, "content": {"label": "Choose another cover", "destination_page_uuid": work_photo_page}}]}]
     _ensure_launch_ready_activity(
         db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="work", order=4,
         title="Show something you've done", description="Add a project, creation, achievement, or story.", pages=work_pages,
-        flow={"version": 1, "entry": f"page:{work_kind_page}", "nodes": work_nodes, "edges": work_edges},
-        outcomes=[{"id": "create-first-work", "type": "create_work_item", "store_as": "work_item_id", "fields": {"story_kind": answer(work_kind_page, work_kind_block, "option_ids", "made", "first"), "title": answer(work_detail_page, work_detail_block, "inputs.title.text"), "summary": answer(work_detail_page, work_detail_block, "inputs.summary.text"), "featured": True}}],
+        outcomes=[{"id": "create-first-work", "type": "create_work_item", "store_as": "work_item_id", "fields": {"story_kind": "made", "title": answer(work_detail_page, work_detail_block, "inputs.title.text"), "subtitle": answer(work_detail_page, work_detail_block, "inputs.tagline.text"), "summary": answer(work_detail_page, work_detail_block, "inputs.story.text"), "start_date": answer(work_detail_page, work_detail_block, "inputs.start_date.text"), "end_date": answer(work_detail_page, work_detail_block, "inputs.end_date.text"), "featured": True}, "story": answer(work_detail_page, work_detail_block, "inputs.story.text"), "cover_asset_uuid": answer(work_photo_page, work_photo_block, "media_asset_uuid")}, {"id": "link-work-to-existing-journey", "type": "link_work_to_journey", "optional": True, "work": {"$source": "binding", "key": "work_item_id"}, "journey": answer(work_journey_page, work_journey_block, "inputs.journey_uuid.text"), "label": "Related work"}],
     )
 
     trait_page, trait_block = "learning_page_system_onboarding_traits", "blk_launch_traits"
-    _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="traits", order=5, title="Name what makes you strong", description="Add strengths, interests, values, or goals.", pages=[{"page_uuid": trait_page, "block_id": trait_block, "title": "What sounds like you?", "kind": "multiple_choice", "content": {"options": [{"id": item, "text": item.title()} for item in ("creative", "curious", "reliable", "collaborative", "determined")]}, "completion": {"min_selections": 1, "max_selections": 5}}], outcomes=[{"id": "set-strengths", "type": "set_traits", "trait_type": "strength", "values": answer(trait_page, trait_block, "option_ids", [])}])
+    trait_review_page = "learning_page_system_onboarding_traits_review"
+    trait_options = ("creative", "curious", "reliable", "collaborative", "determined", "empathetic", "resourceful", "patient", "bold", "thoughtful")
+    _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="traits", order=5, title="What do you bring?", description="Choose the strengths that feel true now—you can change them as you grow.", pages=[{"page_uuid": trait_page, "block_id": trait_block, "title": "What feels true about you right now?", "kind": "multiple_choice", "content": {"label": "Pick two or three qualities you want people to understand about you.", "options": [{"id": item, "text": item.title()} for item in trait_options]}, "completion": {"min_selections": 2, "max_selections": 3}}, {"page_uuid": trait_review_page, "block_id": "blk_launch_traits_review", "title": "This is what you bring", "action_label": "Add what makes me, me", "blocks": [text_block(heading_node("This is what you bring"), block_id="blk_traits_review_heading"), text_block(paragraph_node("Choose what feels true now. This can change as you do."), block_id="blk_traits_review_intro"), {"id": "blk_traits_review_panel", "type": "portfolio_preview", "design": {"width": 100}, "content": {"variant": "traits_panel", "bindings": {"traits": {"source": "answer", "path": f"{trait_page}.answer.questions.{trait_block}.option_ids", "fallback": "Curious, Creative"}}}}, {"id": "blk_traits_review_change", "type": "button", "design": {"width": 100, "variant": "secondary"}, "content": {"label": "Change my choices", "destination_page_uuid": trait_page}}]}], outcomes=[{"id": "set-strengths", "type": "set_traits", "trait_type": "strength", "values": answer(trait_page, trait_block, "option_ids", [])}])
 
+    links_platform_page, links_platform_block = "learning_page_system_onboarding_links_platform", "blk_launch_links_platform"
     links_page, links_block = "learning_page_system_onboarding_links", "blk_launch_links"
-    _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="links", order=6, title="Connect your world", description="Add a safe website or profile link.", pages=[{"page_uuid": links_page, "block_id": links_block, "title": "Where can people see more?", "kind": "text_input", "content": {"inputs": [{"id": "url", "label": "Website URL", "variant": "single_line"}]}, "completion": {"inputs": {"url": {"required": True, "min_words": 1}}}}], outcomes=[{"id": "set-main-link", "type": "set_portfolio_links", "links": [{"label": "My link", "url": answer(links_page, links_block, "inputs.url.text")}]}])
+    links_review_page = "learning_page_system_onboarding_links_review"
+    _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="links", order=6, title="Connect the places you show up", description="Connect a public profile or site—or confidently say not yet.", pages=[{"page_uuid": links_platform_page, "block_id": links_platform_block, "title": "Where do you show up online?", "kind": "multiple_choice", "content": {"label": "You do not need a personal website.", "options": [{"id": key, "text": label} for key, label in (("website", "Personal site"), ("github", "GitHub"), ("youtube", "YouTube"), ("linkedin", "LinkedIn"), ("instagram", "Instagram"), ("tiktok", "TikTok"), ("other", "Another link"), ("not_yet", "I don’t have anything to add yet"))]}, "completion": {"min_selections": 1, "max_selections": 1}}, {"page_uuid": links_page, "block_id": links_block, "title": "Make the destination clear", "kind": "text_input", "content": {"inputs": [{"id": "label", "label": "Public label", "placeholder": "My GitHub", "variant": "single_line"}, {"id": "url", "label": "Public URL", "placeholder": "https://…", "input_type": "url", "variant": "single_line"}]}, "completion": {"inputs": {"label": {"required": False}, "url": {"required": False}}}}, {"page_uuid": links_review_page, "block_id": "blk_launch_links_review", "title": "Here’s what people can explore", "action_label": "Connect this to my portfolio", "blocks": [text_block(heading_node("Here’s what people can explore"), block_id="blk_links_review_heading"), text_block(paragraph_node("This label and URL will be public. Contact information stays separate."), block_id="blk_links_review_intro"), {"id": "blk_links_review_strip", "type": "portfolio_preview", "design": {"width": 100}, "content": {"variant": "links_strip", "bindings": {"label": {"source": "answer", "path": f"{links_page}.answer.questions.{links_block}.inputs.label.text", "fallback": "My link"}, "url": {"source": "answer", "path": f"{links_page}.answer.questions.{links_block}.inputs.url.text", "fallback": "No link added yet"}}}}, {"id": "blk_links_review_change", "type": "button", "design": {"width": 100, "variant": "secondary"}, "content": {"label": "Change this link", "destination_page_uuid": links_page}}]}], outcomes=[{"id": "set-main-link", "type": "set_portfolio_links", "optional": True, "links": [{"link_type": "social", "platform": answer(links_platform_page, links_platform_block, "option_ids", "other", "first"), "label": answer(links_page, links_block, "inputs.label.text", "My link"), "url": answer(links_page, links_block, "inputs.url.text")}]}])
 
     theme_page, theme_block = "learning_page_system_onboarding_theme", "blk_launch_theme"
-    _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="theme", order=7, title="Make it yours", description="Choose the starting look for your portfolio.", pages=[{"page_uuid": theme_page, "block_id": theme_block, "title": "Choose your vibe", "kind": "multiple_choice", "content": {"options": [{"id": item, "text": item.title()} for item in ("default", "electric", "minimal", "creative")]}, "completion": {"min_selections": 1, "max_selections": 1}}], outcomes=[{"id": "set-theme", "type": "set_theme", "theme_id": answer(theme_page, theme_block, "option_ids", "default", "first")}])
+    theme_review_page = "learning_page_system_onboarding_theme_review"
+    _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="theme", order=7, title="Choose how your story feels", description="Compare real looks using your portfolio content; themes stay reversible.", pages=[{"page_uuid": theme_page, "block_id": theme_block, "title": "Choose a look that feels like you", "kind": "multiple_choice", "content": {"label": "Your choice updates the preview on the next screen.", "options": [{"id": item, "text": label} for item, label in (("default", "Classic — balanced and familiar"), ("electric", "Electric — bold and energetic"), ("minimal", "Minimal — quiet and focused"), ("creative", "Creative — warm and expressive"))]}, "completion": {"min_selections": 1, "max_selections": 1}}, {"page_uuid": theme_review_page, "block_id": "blk_launch_theme_review", "title": "Preview your new look", "action_label": "Use this look", "blocks": [text_block(heading_node("Preview your new look"), block_id="blk_theme_review_heading"), text_block(paragraph_node("Themes remain reversible—you are choosing a starting point, not locking it forever."), block_id="blk_theme_review_intro"), {"id": "blk_theme_review_frame", "type": "portfolio_preview", "design": {"width": 100}, "content": {"variant": "portfolio_frame", "bindings": {"theme_id": {"source": "answer", "path": f"{theme_page}.answer.questions.{theme_block}.option_ids.0", "fallback": "default"}, "display_name": {"source": "variable", "path": "user.display_name", "fallback": "Your portfolio"}, "headline": {"source": "variable", "path": "portfolio.headline", "fallback": "Your story, work, and journey"}}}}, {"id": "blk_theme_review_change", "type": "button", "design": {"width": 100, "variant": "secondary"}, "content": {"label": "Compare another look", "destination_page_uuid": theme_page}}]}], outcomes=[{"id": "set-theme", "type": "set_theme", "theme_id": answer(theme_page, theme_block, "option_ids", "default", "first")}])
 
+    launch_preview_page = "learning_page_system_onboarding_launch_preview"
     launch_page, launch_block = "learning_page_system_onboarding_launch", "blk_launch_confirm"
-    _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="launch", order=8, title="Launch your portfolio", description="Review privacy and get ready to share.", pages=[{"page_uuid": launch_page, "block_id": launch_block, "title": "Ready to launch?", "kind": "multiple_choice", "content": {"options": [{"id": "confirm", "text": "I reviewed my public portfolio and privacy choices"}]}, "completion": {"min_selections": 1, "max_selections": 1}}], outcomes=[{"id": "confirm-privacy", "type": "confirm_privacy"}])
+    _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="launch", order=8, title="See exactly what others will see", description="Review the public result and privacy choices before publishing.", pages=[{"page_uuid": launch_preview_page, "block_id": "blk_launch_preview", "title": "Review your public portfolio", "blocks": [text_block(heading_node("Review your public portfolio"), block_id="blk_launch_preview_heading"), text_block(paragraph_node("This is the information other people will see. Check your introduction, Journey, Work, links, and overall look."), block_id="blk_launch_preview_intro"), {"id": "blk_launch_preview_frame", "type": "portfolio_preview", "design": {"width": 100}, "content": {"variant": "portfolio_frame", "bindings": {"display_name": {"source": "variable", "path": "user.display_name", "fallback": "Your portfolio"}, "headline": {"source": "variable", "path": "portfolio.headline", "fallback": "Your public story"}, "theme_id": {"source": "variable", "path": "portfolio.theme_id", "fallback": "default"}}}}]}, {"page_uuid": launch_page, "block_id": launch_block, "title": "Confirm your privacy choices", "action_label": "Complete my launch review", "kind": "multiple_choice", "content": {"label": "Your portfolio can be viewed by anyone with its public address. Only publish information you are comfortable sharing.", "options": [{"id": "public_info", "text": "I understand which information will be public"}, {"id": "permission", "text": "I have permission to share the images and details I added"}, {"id": "reviewed", "text": "I reviewed the public preview and want to continue"}]}, "completion": {"min_selections": 3, "max_selections": 3}}], outcomes=[{"id": "confirm-privacy", "type": "confirm_privacy"}])
 
     badge.name = "Launch Ready"
     badge.description = "Build and launch your portfolio one useful step at a time."
@@ -2039,7 +2062,7 @@ def _validate_page_payload(page_type: LearningPageType, content: dict | None) ->
                 raise HTTPException(status_code=422, detail="Block ids must be unique within a page")
             seen_ids.add(block_id)
             block_type = block.get("type")
-            if block_type not in {"text", "image", "question", "button"}:
+            if block_type not in {"text", "image", "question", "button", "portfolio_preview"}:
                 raise HTTPException(status_code=422, detail=f"Unsupported block type: {block_type}")
             destination = str((block.get("content") or {}).get("destination_page_uuid") or "")
             if block_type == "button" and destination and not destination.startswith("learning_page_"):
@@ -2049,6 +2072,14 @@ def _validate_page_payload(page_type: LearningPageType, content: dict | None) ->
                 validate_display_binding(binding)
             if block_type == "text":
                 validate_nodes((block.get("content") or {}).get("nodes") or [(block.get("content") or {}).get("node")])
+            if block_type == "portfolio_preview":
+                preview = block.get("content") or {}
+                if preview.get("variant") not in {"journey_card", "work_card", "identity_header", "traits_panel", "links_strip", "portfolio_frame"}:
+                    raise HTTPException(status_code=422, detail="Unsupported portfolio preview variant")
+                for binding in (preview.get("bindings") or {}).values():
+                    if not isinstance(binding, dict):
+                        raise HTTPException(status_code=422, detail="Portfolio preview bindings must be objects")
+                    validate_display_binding(binding)
             if block.get("type") == "question":
                 question_count += 1
 
@@ -2075,6 +2106,10 @@ async def create_page(request: Request, data: LearningPageCreate, current_user: 
     activity = _get_activity(db_session, data.activity_uuid)
     _require_org_admin(db_session, current_user, activity.org_id)
     _validate_page_payload(data.page_type, data.content)
+    if any(block.get("type") == "portfolio_preview" for stack in iter_block_stacks(data.content or {}) for block in stack if isinstance(block, dict)):
+        badge = db_session.get(LearningBadge, activity.badge_id)
+        if not badge or not _is_system_object(badge):
+            raise HTTPException(status_code=403, detail="Portfolio preview blocks are limited to trusted system activities")
     pages = db_session.exec(select(LearningPage).where(LearningPage.activity_id == activity.id).order_by(LearningPage.order.asc())).all()  # type: ignore
     _validate_page_button_destinations(data.content, {page.page_uuid for page in pages})
     now = _now()
@@ -2101,6 +2136,10 @@ async def update_page(request: Request, page_uuid: str, data: LearningPageUpdate
     patch = data.model_dump(exclude_unset=True)
     if "content" in patch or "page_type" in patch:
         _validate_page_payload(patch.get("page_type") or page.page_type, patch.get("content", page.content))
+        if any(block.get("type") == "portfolio_preview" for stack in iter_block_stacks(patch.get("content", page.content) or {}) for block in stack if isinstance(block, dict)):
+            badge = db_session.get(LearningBadge, page.badge_id)
+            if not badge or not _is_system_object(badge):
+                raise HTTPException(status_code=403, detail="Portfolio preview blocks are limited to trusted system activities")
         siblings = db_session.exec(select(LearningPage).where(LearningPage.activity_id == page.activity_id)).all()
         _validate_page_button_destinations(patch.get("content", page.content), {item.page_uuid for item in siblings})
     for key, value in data.model_dump(exclude_unset=True).items():

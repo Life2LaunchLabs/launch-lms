@@ -26,8 +26,10 @@ class PortfolioModerationStatus(str, Enum):
 class WorkStoryKind(str, Enum):
     MADE = "made"
     DID = "did"
+    HELPED = "helped"
     LED = "led"
     LEARNED = "learned"
+    SOLVED = "solved"
     ACHIEVED = "achieved"
     LAUNCHED = "launched"
     PERFORMED = "performed"
