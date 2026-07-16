@@ -101,7 +101,25 @@ def test_private_by_default_and_created_work_is_public_after_portfolio_publish()
 
         public = service.get_public_shell(1, "maya", db)
         assert len(public["work"]) == 1
-        assert public["work"][0]["status"] == "published"
+        assert public["work"][0]["title"] == "My first build"
+
+
+def test_public_shell_uses_allowlisted_dtos_without_internal_fields():
+    with _session() as db:
+        user = _user(); org = Organization(id=1, org_uuid="org_1", name="Youth Lab", slug="youth", email="org@example.com"); role = Role(id=1, name="member")
+        db.add_all([user, org, role]); db.commit(); db.add(UserOrganization(user_id=1, org_id=1, role_id=1, creation_date="", update_date="")); db.commit()
+        actor = _public(user)
+        work = service.create_work(WorkItemCreate(title="Public build", blocks=[{"block_type": "text", "data": {"text": "Built safely"}}]), actor, db)
+        portfolio = service._get_portfolio(db, 1); portfolio.previewed_at = service._now(); portfolio.privacy_confirmed_at = service._now(); portfolio.revision += 1
+        db.add(portfolio); db.commit(); db.refresh(portfolio)
+        service.publish_portfolio(PublishRequest(revision=portfolio.revision, privacy_confirmed=True), actor, db)
+
+        public = service.get_public_shell(1, "maya", db)
+
+        assert {"id", "user_id", "revision", "privacy_confirmed_at", "previewed_at", "moderation_status", "theme_settings"}.isdisjoint(public["portfolio"])
+        assert {"id", "portfolio_id", "revision", "source", "source_reference", "visibility", "status"}.isdisjoint(public["work"][0])
+        assert {"id", "work_item_id", "visibility", "creation_date", "update_date"}.isdisjoint(public["work"][0]["blocks"][0])
+        assert public["work"][0]["work_uuid"] == work["work_uuid"]
 
 
 def test_activity_journey_outcome_assigns_only_an_owned_cover_image():

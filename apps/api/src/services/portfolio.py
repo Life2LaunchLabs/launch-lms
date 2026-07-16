@@ -15,7 +15,9 @@ from src.db.portfolio import (
     PortfolioLink,
     PortfolioUpdate,
     PortfolioTraitsUpdate,
+    PortfolioBadgeVisibilityUpdate,
     PortfolioFeaturedBadgesUpdate,
+    PortfolioSectionsUpdate,
     ProfileTrait,
     PortfolioVisibility,
     PublishRequest,
@@ -36,7 +38,7 @@ from src.db.learning import LearningActivity, LearningActivityRun, LearningBadge
 from src.services.learning import LAUNCH_READY_ACTIVITY_UUIDS, ONBOARDING_BADGE_UUID
 
 
-DEFAULT_SECTIONS = ("identity_hero", "featured_work", "about", "links")
+DEFAULT_SECTIONS = ("about", "featured_badges", "traits", "current_journey", "featured_work", "links")
 ALLOWED_BLOCK_TYPES = {"text", "image", "gallery", "video", "link", "process", "contribution", "outcome", "quote", "tools", "collaborators"}
 
 
@@ -161,6 +163,13 @@ def get_or_create_portfolio(current_user: PublicUser, db_session: Session) -> Po
         raise HTTPException(status_code=401, detail="Authentication required")
     portfolio = _get_portfolio(db_session, current_user.id)
     if portfolio:
+        existing_types = {item.section_type for item in db_session.exec(select(PortfolioSection).where(PortfolioSection.portfolio_id == portfolio.id)).all()}
+        if missing := [section_type for section_type in DEFAULT_SECTIONS if section_type not in existing_types]:
+            now = _now()
+            next_order = len(existing_types)
+            for offset, section_type in enumerate(missing):
+                db_session.add(PortfolioSection(section_uuid=f"sec_{uuid4().hex}", portfolio_id=portfolio.id or 0, section_type=section_type, sort_order=next_order + offset, creation_date=now, update_date=now))
+            db_session.commit()
         return portfolio
     now = _now()
     portfolio = Portfolio(
@@ -192,6 +201,14 @@ def _work_dto(work: WorkItem, db_session: Session, public_only: bool = False) ->
     if public_only:
         blocks = [block for block in blocks if _enum_value(block.visibility) != PortfolioVisibility.PRIVATE.value]
     cover = db_session.exec(select(MediaAsset).where(MediaAsset.id == work.cover_asset_id)).first() if work.cover_asset_id else None
+    if public_only:
+        return {
+            "work_uuid": work.work_uuid, "slug": work.slug, "story_kind": _enum_value(work.story_kind),
+            "title": work.title, "subtitle": work.subtitle, "summary": work.summary, "role_label": work.role_label,
+            "start_date": work.start_date, "end_date": work.end_date, "date_precision": work.date_precision,
+            "is_ongoing": work.is_ongoing, "featured": work.featured, "cover_url": cover.url if cover else "",
+            "blocks": [{"block_uuid": block.block_uuid, "block_type": block.block_type, "data": block.data, "sort_order": block.sort_order} for block in blocks],
+        }
     return {**work.model_dump(), "story_kind": _enum_value(work.story_kind), "status": _enum_value(work.status), "visibility": _enum_value(work.visibility), "cover_url": cover.url if cover else "", "cover_asset_uuid": cover.asset_uuid if cover else None, "blocks": [block.model_dump() for block in blocks]}
 
 
@@ -216,6 +233,16 @@ def _journey_dto(entry: JourneyEntry, db_session: Session, public_only: bool = F
         if public_only and (_enum_value(work.status) != PortfolioContentStatus.PUBLISHED.value or _enum_value(work.visibility) == PortfolioVisibility.PRIVATE.value):
             continue
         linked_work.append({**_work_dto(work, db_session, public_only), "relationship_label": link.relationship_label})
+    if public_only:
+        return {
+            "journey_uuid": entry.journey_uuid, "slug": entry.slug, "entry_type": entry.entry_type,
+            "title": entry.title, "organization": entry.organization, "location_label": entry.location_label,
+            "summary": entry.summary, "start_date": entry.start_date, "end_date": entry.end_date,
+            "start_precision": entry.start_precision, "end_precision": entry.end_precision, "is_current": entry.is_current,
+            "cover_url": cover.url if cover else "",
+            "blocks": [{"block_uuid": block.block_uuid, "block_type": block.block_type, "data": block.data, "sort_order": block.sort_order} for block in blocks],
+            "work": linked_work,
+        }
     return {**entry.model_dump(), "status": _enum_value(entry.status), "visibility": _enum_value(entry.visibility), "cover_url": cover.url if cover else "", "cover_asset_uuid": cover.asset_uuid if cover else None, "blocks": [block.model_dump() for block in blocks], "work": linked_work}
 
 
@@ -234,6 +261,9 @@ def portfolio_shell(portfolio: Portfolio, db_session: Session, public_only: bool
     if public_only:
         traits = [item for item in traits if _enum_value(item.visibility) != PortfolioVisibility.PRIVATE.value]
     meaningful_count = len(work) + len(journey)
+    sections = list(db_session.exec(select(PortfolioSection).where(PortfolioSection.portfolio_id == portfolio.id).order_by(PortfolioSection.sort_order)).all())
+    if public_only:
+        sections = [section for section in sections if section.enabled and _enum_value(section.visibility) != PortfolioVisibility.PRIVATE.value]
     launch_ready = _launch_ready_state(portfolio.user_id, db_session, len(work), len(journey)) if not public_only else None
     learning_tables = set(inspect(bind).get_table_names()) if bind is not None else set()
     awards = list(db_session.exec(select(LearningBadgeAward).where(LearningBadgeAward.user_id == portfolio.user_id)).all()) if "learningbadgeaward" in learning_tables else []
@@ -265,6 +295,9 @@ def portfolio_shell(portfolio: Portfolio, db_session: Session, public_only: bool
     in_progress_badges = [badge_dto(badges_by_id[item.badge_id], "in_progress") for item in runs if item.badge_id in in_progress_ids and item.badge_id in badges_by_id]
     earned_badges = list({item["badge_uuid"]: item for item in earned_badges}.values())
     in_progress_badges = list({item["badge_uuid"]: item for item in in_progress_badges}.values())
+    hidden_badge_uuids = set((portfolio.theme_settings or {}).get("hidden_badge_uuids") or [])
+    if public_only:
+        earned_badges = [item for item in earned_badges if item["badge_uuid"] not in hidden_badge_uuids]
     featured_uuids = list((portfolio.theme_settings or {}).get("featured_badge_uuids") or [])
     earned_by_uuid = {item["badge_uuid"]: item for item in earned_badges}
     featured_badges = [earned_by_uuid[uuid] for uuid in featured_uuids if uuid in earned_by_uuid]
@@ -292,16 +325,24 @@ def portfolio_shell(portfolio: Portfolio, db_session: Session, public_only: bool
         elif not portfolio.published_at:
             next_action = {"id": "publish", "type": "portfolio", "label": "Launch your portfolio", "href": "/portfolio/preview", "priority": 60}
     return {
-        "portfolio": {
+        "portfolio": ({
+            "portfolio_uuid": portfolio.portfolio_uuid,
+            "display_name": portfolio.display_name,
+            "headline": portfolio.headline,
+            "short_bio": portfolio.short_bio,
+            "location_label": portfolio.location_label,
+            "theme_id": portfolio.theme_id,
+            "published_at": portfolio.published_at,
+        } if public_only else {
             **portfolio.model_dump(),
+        }) | {
             "username": user.username if user else "",
             "user_uuid": user.user_uuid if user else "",
             "avatar_image": user.avatar_image if user else "",
             "socials": normalized_socials if socials_migrated else (normalized_socials or legacy_socials),
             "state": state,
             "visibility": _enum_value(portfolio.visibility),
-            "moderation_status": _enum_value(portfolio.moderation_status),
-            "has_legacy_portfolio": bool(legacy_preview["work"] or legacy_preview["journey"]),
+            **({} if public_only else {"moderation_status": _enum_value(portfolio.moderation_status), "has_legacy_portfolio": bool(legacy_preview["work"] or legacy_preview["journey"])}),
         },
         "views": views,
         "readiness": {"canPublish": not blockers, "completed": 3 - len([b for b in blockers if b != "moderation_clearance_required"]), "total": 3, "blockers": blockers},
@@ -312,7 +353,8 @@ def portfolio_shell(portfolio: Portfolio, db_session: Session, public_only: bool
         "work": [_work_dto(item, db_session, public_only=public_only) for item in work],
         "journey": [_journey_dto(item, db_session, public_only=public_only) for item in journey],
         "traits": {kind: [item.label for item in traits if item.trait_type == kind] for kind in ("strength", "value")},
-        "badges": {"earned": earned_badges, "inProgress": in_progress_badges, "featured": featured_badges, "featuredBadgeUuids": featured_uuids},
+        "sections": [{"section_uuid": item.section_uuid, "section_type": item.section_type, "title_override": item.title_override, "enabled": item.enabled, "sort_order": item.sort_order} for item in sections],
+        "badges": {"earned": earned_badges, "inProgress": in_progress_badges, "featured": featured_badges, "featuredBadgeUuids": featured_uuids, "hiddenBadgeUuids": list(hidden_badge_uuids) if not public_only else []},
     }
 
 
@@ -328,6 +370,48 @@ def update_featured_badges(payload: PortfolioFeaturedBadgesUpdate, current_user:
     portfolio.theme_settings = {**(portfolio.theme_settings or {}), "featured_badge_uuids": requested}
     portfolio.revision += 1
     portfolio.update_date = _now()
+    db_session.add(portfolio)
+    db_session.commit()
+    db_session.refresh(portfolio)
+    return portfolio_shell(portfolio, db_session)
+
+
+def update_badge_visibility(payload: PortfolioBadgeVisibilityUpdate, current_user: PublicUser, db_session: Session) -> dict:
+    portfolio = get_or_create_portfolio(current_user, db_session)
+    _check_revision(portfolio.revision, payload.revision)
+    earned = db_session.exec(select(LearningBadgeAward).where(LearningBadgeAward.user_id == current_user.id)).all()
+    earned_ids = {item.badge_id for item in earned}
+    badges = db_session.exec(select(LearningBadge).where(LearningBadge.id.in_(earned_ids))).all() if earned_ids else []  # type: ignore
+    allowed = {item.badge_uuid for item in badges}
+    hidden = list(dict.fromkeys(payload.hidden_badge_uuids))
+    if any(item not in allowed for item in hidden):
+        raise HTTPException(status_code=422, detail="Only earned badges can be hidden")
+    portfolio.theme_settings = {**(portfolio.theme_settings or {}), "hidden_badge_uuids": hidden}
+    portfolio.revision += 1
+    portfolio.update_date = _now()
+    db_session.add(portfolio)
+    db_session.commit()
+    db_session.refresh(portfolio)
+    return portfolio_shell(portfolio, db_session)
+
+
+def update_sections(payload: PortfolioSectionsUpdate, current_user: PublicUser, db_session: Session) -> dict:
+    portfolio = get_or_create_portfolio(current_user, db_session)
+    _check_revision(portfolio.revision, payload.revision)
+    existing = list(db_session.exec(select(PortfolioSection).where(PortfolioSection.portfolio_id == portfolio.id)).all())
+    by_uuid = {item.section_uuid: item for item in existing}
+    requested = [item.section_uuid for item in payload.sections]
+    if len(requested) != len(set(requested)) or set(requested) != set(by_uuid):
+        raise HTTPException(status_code=422, detail="Sections must contain every portfolio section exactly once")
+    now = _now()
+    for index, requested_item in enumerate(payload.sections):
+        section = by_uuid[requested_item.section_uuid]
+        section.sort_order = index
+        section.enabled = requested_item.enabled
+        section.update_date = now
+        db_session.add(section)
+    portfolio.revision += 1
+    portfolio.update_date = now
     db_session.add(portfolio)
     db_session.commit()
     db_session.refresh(portfolio)

@@ -232,6 +232,21 @@ class PortfolioFeaturedBadgesUpdate(SQLModel):
     badge_uuids: list[str] = Field(default_factory=list)
 
 
+class PortfolioBadgeVisibilityUpdate(SQLModel):
+    hidden_badge_uuids: list[str] = Field(default_factory=list)
+    revision: int
+
+
+class PortfolioSectionItemUpdate(SQLModel):
+    section_uuid: str
+    enabled: bool = True
+
+
+class PortfolioSectionsUpdate(SQLModel):
+    sections: list[PortfolioSectionItemUpdate] = Field(default_factory=list)
+    revision: int
+
+
 class WorkItemCreate(SQLModel):
     title: str
     story_kind: WorkStoryKind = WorkStoryKind.MADE
