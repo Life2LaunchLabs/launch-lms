@@ -1255,6 +1255,13 @@ def _ensure_launch_ready_activity(
         activity.settings = merged_settings
         activity.update_date = now
         db_session.add(activity); db_session.flush()
+    if key == "links":
+        activity.required = False
+        activity.published = False
+        activity.update_date = now
+        db_session.add(activity)
+        db_session.flush()
+        return activity
     for page_order, spec in enumerate(pages, start=1):
         page = db_session.exec(select(LearningPage).where(LearningPage.page_uuid == spec["page_uuid"])).first()
         content = {"version": STANDARD_CONTENT_VERSION, "blocks": deepcopy(spec.get("blocks") or [text_block(heading_node(spec["title"]), block_id=f"{spec['block_id']}_heading")])}

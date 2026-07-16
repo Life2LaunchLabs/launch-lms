@@ -2,9 +2,9 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { CSSProperties, FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { ArrowLeft, Camera, CircleCheck, Eye, FilePlus2, Globe, Globe2, Heart, Instagram, Linkedin, MapPin, Pencil, Plus, Sparkles, Trash2, Youtube, X, Zap } from 'lucide-react'
+import { ArrowLeft, Camera, Eye, FilePlus2, Globe, Globe2, Heart, Instagram, Linkedin, MapPin, Pencil, Plus, Sparkles, Trash2, Youtube, X, Zap } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -42,7 +42,10 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false)
   const [draftSocials, setDraftSocials] = useState<Array<{ type: string; url: string }>>(() => shellSocials(initialShell))
   const [busy, setBusy] = useState(false)
-  const [completedActivity, setCompletedActivity] = useState('')
+  const shellColumnRef = useRef<HTMLDivElement | null>(null)
+  const headerRef = useRef<HTMLElement | null>(null)
+  const compactThresholdRef = useRef(180)
+  const [fixedHeaderStyle, setFixedHeaderStyle] = useState<CSSProperties>({})
   const displayName = shell.portfolio.display_name || username || 'Your portfolio'
   const nav = useMemo(() => tabs(orgslug, username, owner, shell), [orgslug, username, owner, shell])
   const compact = activeView !== 'overview' || scrolled
@@ -51,17 +54,36 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
     : ''
 
   useEffect(() => {
-    setCompletedActivity(new URLSearchParams(window.location.search).get('completedActivity') || '')
-    const handleScroll = () => setScrolled(window.scrollY > 88)
+    if (activeView === 'overview' && !scrolled && headerRef.current) compactThresholdRef.current = Math.max(120, headerRef.current.offsetHeight)
+    const syncFixedHeader = () => {
+      if (activeView !== 'overview' || !scrolled || !shellColumnRef.current) {
+        setFixedHeaderStyle({})
+        return
+      }
+      const rect = shellColumnRef.current.getBoundingClientRect()
+      setFixedHeaderStyle({ left: rect.left, width: rect.width })
+    }
+    const handleScroll = () => {
+      if (activeView !== 'overview') return
+      setScrolled((current) => current ? window.scrollY > 16 : window.scrollY > compactThresholdRef.current)
+      syncFixedHeader()
+    }
+    const handleResize = () => {
+      if (!scrolled && headerRef.current) compactThresholdRef.current = Math.max(120, headerRef.current.offsetHeight)
+      syncFixedHeader()
+    }
     const handlePopState = () => setActiveView(window.location.pathname.endsWith('/work') ? 'work' : window.location.pathname.endsWith('/journey') ? 'journey' : 'overview')
     handleScroll()
+    syncFixedHeader()
     window.addEventListener('scroll', handleScroll, { passive: true })
+    window.addEventListener('resize', handleResize)
     window.addEventListener('popstate', handlePopState)
     return () => {
       window.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('resize', handleResize)
       window.removeEventListener('popstate', handlePopState)
     }
-  }, [])
+  }, [activeView, scrolled])
 
   function changeView(view: 'overview' | 'journey' | 'work', href: string) {
     if (view === activeView) return
@@ -76,8 +98,9 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
     const form = new FormData(event.currentTarget)
     setBusy(true)
     try {
-      const next = await updateMyPortfolio({ revision: shell.portfolio.revision, display_name: form.get('display_name'), headline: form.get('headline'), location_label: form.get('location_label'), socials: draftSocials }, token)
-      setShell(next); setEditingIdentity(false); toast.success('Portfolio updated')
+      const normalizedSocials = draftSocials.map((social) => ({ ...social, url: normalizeSocialInput(social.type, social.url) }))
+      const next = await updateMyPortfolio({ revision: shell.portfolio.revision, display_name: form.get('display_name'), headline: form.get('headline'), location_label: form.get('location_label'), socials: normalizedSocials }, token)
+      setDraftSocials(shellSocials(next)); setShell(next); setEditingIdentity(false); toast.success('Portfolio updated')
     } catch (error: any) { toast.error(error?.message || 'Could not update portfolio') } finally { setBusy(false) }
   }
 
@@ -105,8 +128,10 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
 
   return <main className="min-h-screen bg-background pb-20 text-foreground">
     {preview && <div className="border-b border-border px-4 py-3"><div className="mx-auto flex max-w-5xl items-center justify-between gap-4"><span className="text-sm font-medium">Public preview</span><Button asChild variant="outline" size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio')}><ArrowLeft className="mr-2 h-4 w-4" />Back to editing</Link></Button></div></div>}
-    <motion.header layout className={`sticky top-0 z-[var(--z-sticky-header)] border-b border-border/70 bg-background/95 backdrop-blur-xl ${compact ? 'shadow-[0_1px_0_hsl(var(--border)/.25)]' : ''}`} transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 320, damping: 34 }}>
-      <motion.div layout className={`mx-auto max-w-5xl px-5 sm:px-8 ${compact ? 'py-3' : 'py-8 sm:py-12'}`}>
+    <div ref={shellColumnRef} className="mx-auto max-w-5xl px-5 sm:px-8">
+    <div style={activeView === 'overview' && scrolled ? { height: compactThresholdRef.current } : undefined}>
+    <motion.header ref={headerRef} style={activeView === 'overview' && scrolled ? fixedHeaderStyle : undefined} className={`${activeView === 'overview' ? (scrolled ? 'fixed top-0 box-border px-5 sm:px-8' : 'relative') : 'sticky top-0'} z-[var(--z-sticky-header)] border-b border-border/70 bg-background/95 backdrop-blur-xl ${compact ? 'shadow-[0_1px_0_hsl(var(--border)/.25)]' : ''}`} transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 320, damping: 34 }}>
+      <motion.div layout className={`${compact ? 'py-3' : 'py-8 sm:py-12'}`}>
         <motion.div layout className={`${compact ? 'flex items-center justify-between gap-4' : 'flex flex-col items-center gap-5 text-center sm:flex-row sm:items-center sm:text-left'}`}>
           <motion.div layout className={`${compact ? 'flex min-w-0 items-center gap-3' : 'flex flex-col items-center gap-5 sm:flex-row'}`}>
             <Avatar url={avatarUrl} name={displayName} compact={compact} />
@@ -126,12 +151,13 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
           {owner && !preview && compact && activeView === 'journey' && shell.capabilities?.journey?.unlocked && <Button asChild size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio/journey/new')}><Plus className="mr-1.5 h-4 w-4" />Add chapter</Link></Button>}
         </motion.div>
       </motion.div>
-      {nav.length > 1 && <nav className="mx-auto flex max-w-5xl gap-7 overflow-x-auto px-5 sm:px-8" aria-label="Portfolio views">{nav.map((tab) => { const view = tab.view as 'overview' | 'journey' | 'work'; const selected = activeView === view; return <button type="button" key={tab.label} onClick={() => changeView(view, tab.href)} className={`relative py-3 text-sm font-semibold transition-colors ${selected ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>{tab.label}{selected && <motion.span layoutId="portfolio-active-tab" className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-foreground" transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}</button>})}</nav>}
+      {nav.length > 1 && <nav className="flex gap-7 overflow-x-auto" aria-label="Portfolio views">{nav.map((tab) => { const view = tab.view as 'overview' | 'journey' | 'work'; const selected = activeView === view; return <button type="button" key={tab.label} onClick={() => changeView(view, tab.href)} className={`relative py-3 text-sm font-semibold transition-colors ${selected ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>{tab.label}{selected && <motion.span layoutId="portfolio-active-tab" className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-foreground" transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}</button>})}</nav>}
     </motion.header>
+    </div>
 
-    <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 sm:py-12">
-      <AnimatePresence>{owner && completedActivity && <CompletionReward activityUuid={completedActivity} reduceMotion={Boolean(reduceMotion)} onView={(view) => { const item = nav.find((entry) => entry.view === view); if (item) changeView(view, item.href); setCompletedActivity('') }} onDismiss={() => setCompletedActivity('')} />}</AnimatePresence>
+    <div className="py-8 sm:py-12">
       <AnimatePresence mode="wait" initial={false}>{activeView === 'overview' ? <motion.div key="overview" initial={{ opacity: 0, y: reduceMotion ? 0 : 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }} transition={{ duration: reduceMotion ? 0 : 0.18 }}><Overview shell={shell} owner={owner && !preview} orgslug={orgslug} username={username} importLegacy={importLegacy} busy={busy} /></motion.div> : activeView === 'journey' ? <motion.div key="journey" initial={{ opacity: 0, y: reduceMotion ? 0 : 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }} transition={{ duration: reduceMotion ? 0 : 0.18 }}><JourneyTimeline entries={shell.journey || []} owner={owner && !preview} orgslug={orgslug} username={username} /></motion.div> : <motion.div key="work" initial={{ opacity: 0, y: reduceMotion ? 0 : 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }} transition={{ duration: reduceMotion ? 0 : 0.18 }}><WorkGrid shell={shell} owner={owner && !preview} orgslug={orgslug} username={username} /></motion.div>}</AnimatePresence>
+    </div>
     </div>
     {owner && <HeaderEditor open={editingIdentity} onOpenChange={setEditingIdentity} shell={shell} avatarUrl={avatarUrl} displayName={displayName} socials={draftSocials} setSocials={setDraftSocials} onAvatarClick={() => setAvatarPickerOpen(true)} onSubmit={saveIdentity} busy={busy} />}
     {owner && <MediaPickerDialog open={avatarPickerOpen} onOpenChange={setAvatarPickerOpen} title="Update your profile image" description="Upload an image or choose one from your media library." owner={{ type: 'user', id: Number(shell.portfolio.user_id) }} mediaType="image" accessToken={token} onSave={saveAvatar} />}
@@ -149,6 +175,33 @@ const SOCIAL_OPTIONS = [
   { type: 'youtube', label: 'YouTube' },
   { type: 'x', label: 'X' },
 ]
+
+function socialHandle(type: string, value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  try {
+    const url = new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`)
+    const host = url.hostname.replace(/^www\./, '').toLowerCase()
+    const parts = url.pathname.split('/').filter(Boolean)
+    if (type === 'website') return `${url.hostname}${url.pathname === '/' ? '' : url.pathname}`.replace(/\/$/, '')
+    if (type === 'linkedin' && host === 'linkedin.com') return (parts[0] === 'in' ? parts[1] : parts[0]) || ''
+    if (type === 'instagram' && host === 'instagram.com') return parts[0] || ''
+    if (type === 'youtube' && host === 'youtube.com') return ['channel', 'c', 'user'].includes(parts[0]) ? parts[1] || '' : parts[0] || ''
+    if (type === 'youtube' && host === 'youtu.be') return parts[0] || ''
+    if (type === 'x' && (host === 'x.com' || host === 'twitter.com')) return parts[0] || ''
+  } catch { /* Parse handles below. */ }
+  return trimmed.replace(/^@+/, '').replace(/^https?:\/\//i, '').replace(/^(www\.)?/, '').replace(/^(instagram\.com|x\.com|twitter\.com)\//i, '').replace(/^linkedin\.com\/in\//i, '').replace(/^youtube\.com\/(?:@|channel\/|c\/|user\/)?/i, '').split(/[/?#]/)[0]
+}
+
+function normalizeSocialInput(type: string, value: string) {
+  const handle = socialHandle(type, value)
+  if (!handle) return ''
+  if (type === 'website') return /^https?:\/\//i.test(value.trim()) ? value.trim() : `https://${handle}`
+  if (type === 'linkedin') return `https://linkedin.com/in/${handle}`
+  if (type === 'instagram') return `https://instagram.com/${handle}`
+  if (type === 'youtube') return /^UC[a-zA-Z0-9_-]{20,}$/.test(handle) ? `https://youtube.com/channel/${handle}` : `https://youtube.com/@${handle.replace(/^@+/, '')}`
+  return `https://x.com/${handle}`
+}
 
 function HeaderEditor({ open, onOpenChange, shell, avatarUrl, displayName, socials, setSocials, onAvatarClick, onSubmit, busy }: any) {
   const missing = SOCIAL_OPTIONS.filter((option) => !socials.some((social: any) => social.type === option.type))
@@ -191,15 +244,42 @@ function TraitCard({ kind, initial, owner }: { kind: 'strength' | 'value'; initi
   return <><button type="button" disabled={!owner} onClick={() => { setDraft(value); setDraftCustomOptions(customOptions); setOpen(true) }} className="min-h-40 rounded-2xl border border-border p-5 text-left disabled:cursor-default"><div className="flex items-center justify-between"><span className="flex items-center gap-2 font-bold"><Icon className="h-5 w-5" />{title}</span>{owner && <Pencil className="h-4 w-4 text-muted-foreground" />}</div><div className="mt-5 flex flex-wrap gap-2">{value.length ? value.map((id) => <span key={id} className="rounded-full border border-border bg-muted px-3 py-1.5 text-sm font-semibold">{options.find((option) => option.id === id)?.text || customOptions.find((option) => option.id === id)?.text || id}</span>) : <span className="text-sm text-muted-foreground">Choose the {title.toLowerCase()} you want to share.</span>}</div></button><Dialog open={open} onOpenChange={setOpen}><DialogContent className="flex max-h-[90dvh] max-w-2xl flex-col overflow-hidden p-0"><DialogHeader className="border-b border-border px-6 py-5"><DialogTitle>Edit {title.toLowerCase()}</DialogTitle><DialogDescription>Choose up to five. You can change these as you grow.</DialogDescription></DialogHeader><div className="overflow-y-auto px-6 py-5"><CategorizedMultiSelect options={options} customOptions={draftCustomOptions} onCustomOptionsChange={setDraftCustomOptions} value={draft} onChange={setDraft} min={1} max={5} /></div><div className="flex justify-end gap-2 border-t border-border px-6 py-4"><Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save} disabled={saving || !draft.length}>{saving ? 'Saving…' : 'Save'}</Button></div></DialogContent></Dialog></>
 }
 
+type SocialPreviewItem = { id: string; title: string; url: string; thumbnailUrl?: string }
+
+function SocialPreviewCarousel({ type, url }: { type: 'instagram' | 'youtube'; url: string }) {
+  const handle = socialHandle(type, url)
+  const [items, setItems] = useState<SocialPreviewItem[]>([])
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    fetch(`/api/portfolio/social-previews?site=${type}&handle=${encodeURIComponent(handle)}`)
+      .then((response) => response.ok ? response.json() : { items: [] })
+      .then((data) => { if (!cancelled) setItems(Array.isArray(data.items) ? data.items.slice(0, 6) : []) })
+      .catch(() => { if (!cancelled) setItems([]) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [handle, type])
+  const Icon = type === 'instagram' ? Instagram : Youtube
+  return <div><div className="mb-3 flex items-center gap-2"><Icon className="h-4 w-4" /><h3 className="text-sm font-bold">{type === 'instagram' ? 'Instagram' : 'YouTube'}</h3></div><div className="flex snap-x gap-3 overflow-x-auto pb-3">{loading ? Array.from({ length: 3 }).map((_, index) => <div key={index} className={`${type === 'instagram' ? 'aspect-[9/16] w-40' : 'aspect-video w-64'} shrink-0 animate-pulse rounded-xl bg-muted`} />) : items.length ? items.map((item) => <a key={item.id} href={item.url} target="_blank" rel="noreferrer" className={`${type === 'instagram' ? 'aspect-[9/16] w-40 sm:w-48' : 'aspect-video w-64 sm:w-72'} group relative shrink-0 snap-start overflow-hidden rounded-xl bg-muted`}>{item.thumbnailUrl ? <img src={item.thumbnailUrl} alt={item.title || ''} loading="lazy" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]" /> : null}{type === 'youtube' && <span className="absolute inset-0 flex items-center justify-center"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 text-white"><Youtube className="h-5 w-5" /></span></span>}</a>) : <a href={normalizeSocialInput(type, handle)} target="_blank" rel="noreferrer" className="text-sm font-medium text-muted-foreground hover:text-foreground">View @{handle} on {type === 'instagram' ? 'Instagram' : 'YouTube'}</a>}</div></div>
+}
+
+function SocialPreviews({ socials }: { socials: Array<{ type: string; url: string }> }) {
+  const previewSocials = socials.filter((social) => (social.type === 'instagram' || social.type === 'youtube') && social.url) as Array<{ type: 'instagram' | 'youtube'; url: string }>
+  if (!previewSocials.length) return null
+  return <section><h2 className="mb-5 text-sm font-bold uppercase tracking-widest text-muted-foreground">Elsewhere</h2><div className="space-y-8">{previewSocials.map((social) => <SocialPreviewCarousel key={social.type} type={social.type} url={social.url} />)}</div></section>
+}
+
 function Overview({ shell, owner, orgslug, username, importLegacy, busy }: any) {
   const featured = shell.work.filter((work: Work) => work.featured || shell.work.length <= 3).slice(0, 3)
   return <div className="space-y-14">
-    {shell.portfolio.short_bio && <section><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">About</h2><p className="mt-4 max-w-3xl text-xl leading-relaxed">{shell.portfolio.short_bio}</p></section>}
     {shell.nextAction && owner && <NextStepCard action={shell.nextAction} orgslug={orgslug} />}
+    {shell.portfolio.short_bio && <section><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">About</h2><p className="mt-4 max-w-3xl text-xl leading-relaxed">{shell.portfolio.short_bio}</p></section>}
     {((shell.traits?.strength || []).length > 0 || (shell.traits?.value || []).length > 0 || shell.capabilities?.traits?.unlocked) && <section><h2 className="mb-5 text-sm font-bold uppercase tracking-widest text-muted-foreground">What I bring</h2><div className="grid gap-4 sm:grid-cols-2"><TraitCard kind="strength" initial={shell.traits?.strength || []} owner={owner} /><TraitCard kind="value" initial={shell.traits?.value || []} owner={owner} /></div></section>}
     {(shell.journey || []).length > 0 && <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Current chapter</h2><button className="text-sm font-semibold" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, owner ? '/portfolio/journey' : `/user/${username}/journey`)); window.dispatchEvent(new PopStateEvent('popstate')) }}>View journey</button></div><JourneyTimeline entries={((shell.journey || []).filter((entry: JourneyEntry) => entry.is_current).slice(0, 1).length ? (shell.journey || []).filter((entry: JourneyEntry) => entry.is_current).slice(0, 1) : (shell.journey || []).slice(0, 1))} owner={owner} orgslug={orgslug} username={username} /></section>}
     {(featured.length > 0 || (owner && shell.capabilities?.work?.unlocked)) && <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Selected work</h2>{shell.work.length > 0 && <button className="text-sm font-semibold" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, owner ? '/portfolio/work' : `/user/${username}/work`)); window.dispatchEvent(new PopStateEvent('popstate')) }}>View all</button>}</div>{featured.length ? <WorkCards work={featured} owner={owner} orgslug={orgslug} username={username} /> : owner ? <EmptyWork orgslug={orgslug} /> : null}</section>}
     {owner && shell.portfolio.has_legacy_portfolio && <section className="rounded-2xl border border-dashed border-border p-6"><h2 className="font-bold">Have an older Launch LMS portfolio?</h2><p className="mt-1 text-sm text-muted-foreground">Import a copy into the new builder. Your original profile data stays untouched.</p><Button className="mt-4" variant="outline" disabled={busy} onClick={importLegacy}>Preview and import legacy work</Button></section>}
+    <SocialPreviews socials={shell.portfolio.socials || []} />
   </div>
 }
 
@@ -225,18 +305,6 @@ function WorkGrid({ shell, owner, orgslug, username }: any) { return <section>{s
 export function WorkCardView({ item, href, preview = false }: { item: Work; href?: string; preview?: boolean }) { const card = <div className="group min-w-0"><div className="aspect-[4/3] overflow-hidden rounded-xl bg-muted">{item.cover_url ? <img src={normalizeMediaUrl(item.cover_url)} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]" /> : <div className="flex h-full items-center justify-center px-4 text-center text-sm font-semibold text-muted-foreground">{item.title || 'Your work'}</div>}</div><h3 className="mt-3 line-clamp-2 text-sm font-bold leading-snug sm:text-base">{item.title || 'Your work'}</h3>{item.subtitle && <p className="mt-1 line-clamp-1 text-xs text-muted-foreground sm:text-sm">{item.subtitle}</p>}{item.summary && <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{item.summary}</p>}{preview && <span className="sr-only">Preview of your Work card</span>}</div>; return href ? <Link href={href}>{card}</Link> : card }
 
 function WorkCards({ work, owner, orgslug, username }: { work: Work[]; owner: boolean; orgslug: string; username?: string }) { return <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-5 lg:grid-cols-3">{work.map((item) => <WorkCardView key={item.work_uuid} item={item} href={getUriWithOrg(orgslug, owner ? `/portfolio/work/${item.work_uuid}` : `/user/${username}/work/${item.slug}`)} />)}</div> }
-
-const COMPLETION_REWARDS: Record<string, { title: string; message: string; view: 'overview' | 'journey' | 'work'; action: string }> = {
-  learning_activity_system_onboarding_profile: { title: 'Your portfolio looks like you now', message: 'Your introduction is now part of your portfolio.', view: 'overview', action: 'See my introduction' },
-  learning_activity_system_onboarding_journey: { title: 'Your Journey has begun', message: 'Your current chapter is now part of your portfolio.', view: 'journey', action: 'View my Journey' },
-  learning_activity_system_onboarding_work: { title: 'You now have proof of what you can do', message: 'Your story is now featured in Work.', view: 'work', action: 'View my Work' },
-  learning_activity_system_onboarding_traits: { title: 'Your portfolio says more than a résumé', message: 'The qualities that matter to you are now part of your story.', view: 'overview', action: 'See my portfolio' },
-  learning_activity_system_onboarding_links: { title: 'People can explore more of your world', message: 'Your public links are now connected.', view: 'overview', action: 'See my links' },
-  learning_activity_system_onboarding_theme: { title: 'This feels like yours', message: 'Your chosen look is now applied and can be changed later.', view: 'overview', action: 'See my new look' },
-  learning_activity_system_onboarding_launch: { title: 'Your portfolio is ready to share', message: 'You completed the privacy review and launch checklist.', view: 'overview', action: 'See my portfolio' },
-}
-
-function CompletionReward({ activityUuid, reduceMotion, onView, onDismiss }: { activityUuid: string; reduceMotion: boolean; onView: (view: 'overview' | 'journey' | 'work') => void; onDismiss: () => void }) { const reward = COMPLETION_REWARDS[activityUuid]; if (!reward) return null; return <motion.section role="status" initial={{ opacity: 0, y: reduceMotion ? 0 : -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mb-10 overflow-hidden rounded-2xl border border-lime-400/60 bg-lime-400/10 p-5 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:p-6"><div className="flex gap-4"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-lime-400 text-black"><CircleCheck className="h-6 w-6" /></span><div><p className="text-xs font-bold uppercase tracking-widest text-lime-700 dark:text-lime-300">Launch Ready</p><h2 className="mt-1 text-xl font-black">{reward.title}</h2><p className="mt-1 text-sm text-muted-foreground">{reward.message}</p></div></div><div className="mt-5 flex shrink-0 flex-wrap gap-2 sm:mt-0"><Button onClick={() => onView(reward.view)}>{reward.action}</Button><Button variant="ghost" onClick={onDismiss}>Dismiss</Button></div></motion.section> }
 
 export function WorkEditor({ initialWork, orgslug }: { initialWork?: Work; orgslug: string }) {
   const router = useRouter(); const session = useLHSession() as any; const token = session?.data?.tokens?.access_token; const userId = Number(session?.data?.user?.id || 0); const [busy, setBusy] = useState(false); const [pickerOpen, setPickerOpen] = useState(false)

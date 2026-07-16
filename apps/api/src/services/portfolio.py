@@ -88,7 +88,7 @@ def _launch_ready_state(user_id: int, db_session: Session, work_count: int = 0, 
         return {"capabilities": {"overview": {"unlocked": True, "reason": "always_available", "requiredActivity": None}, "work": {"unlocked": True, "reason": "not_configured", "requiredActivity": None}, "journey": {"unlocked": True, "reason": "not_configured", "requiredActivity": None}}, "progress": {"completed": 0, "total": 0}, "nextAction": None}
     badge = db_session.exec(select(LearningBadge).where(LearningBadge.badge_uuid == ONBOARDING_BADGE_UUID)).first()
     activities = list(db_session.exec(
-        select(LearningActivity).where(LearningActivity.badge_id == badge.id)  # type: ignore
+        select(LearningActivity).where(LearningActivity.badge_id == badge.id, LearningActivity.activity_uuid != LAUNCH_READY_ACTIVITY_UUIDS["links"])  # type: ignore
         .order_by(LearningActivity.order.asc())  # type: ignore
     ).all()) if badge else []
     runs = list(db_session.exec(select(LearningRun).where(LearningRun.user_id == user_id, LearningRun.badge_id == badge.id)).all()) if badge else []

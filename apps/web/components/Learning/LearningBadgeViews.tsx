@@ -60,7 +60,6 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
   const flowIsCurrent = flowPageUuids.length > 0 && flowPageUuids.every((pageUuid: string) => configuredPageUuids.has(pageUuid))
   const pages = flowIsCurrent && navigatedPages.length ? navigatedPages : configuredPages
   const page = pages[index]
-  const currentPageUuid = navigation?.current_page_uuid
 
   React.useEffect(() => {
     startLearningRun(badge.badge_uuid, accessToken)
@@ -73,12 +72,6 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
     const prior = (run?.attempts || []).filter((item: any) => item.page_uuid === page?.page_uuid).at(-1)
     setAnswer(prior?.answer || {})
   }, [page?.content, page?.page_type, page?.page_uuid, run?.attempts])
-
-  React.useEffect(() => {
-    if (!currentPageUuid) return
-    const destination = pages.findIndex((item: any) => item.page_uuid === currentPageUuid)
-    if (destination >= 0) setIndex(destination)
-  }, [currentPageUuid, pages])
 
   const navigateToPage = React.useCallback((pageUuid: string) => {
     const destination = pages.findIndex((item: any) => item.page_uuid === pageUuid)
@@ -122,7 +115,7 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
         }
         const returnTo = searchParams.get('returnTo')
         if (returnTo?.startsWith('/portfolio')) {
-          router.push(getUriWithOrg(orgslug, `${returnTo}${returnTo.includes('?') ? '&' : '?'}completedActivity=${encodeURIComponent(activity.activity_uuid)}`))
+          router.push(getUriWithOrg(orgslug, returnTo))
         } else {
           router.back()
         }
