@@ -509,6 +509,8 @@ class LearningRunRead(BaseModel):
     page_progress: list[dict] = []
     attempts: list[dict] = []
     award: Optional[dict] = None
+    navigation: Optional[dict] = None
+    render_context: dict = Field(default_factory=dict)
 
 
 class LearningPathRead(BaseModel):

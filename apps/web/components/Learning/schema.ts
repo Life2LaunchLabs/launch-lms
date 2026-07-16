@@ -4,13 +4,20 @@ export type LearningBlockAlign = 'left' | 'center' | 'right'
 
 export interface LearningBlockBase {
   id: string
-  type: 'text' | 'image' | 'question'
+  type: 'text' | 'image' | 'question' | 'button' | 'portfolio_preview'
   design?: {
     width?: number
     align?: LearningBlockAlign
     height?: number
     fit?: 'contain' | 'cover'
     text_color?: string
+    shape?: 'rounded' | 'circle'
+    variant?: 'primary' | 'secondary'
+    group?: string
+  }
+  system?: {
+    locked?: boolean
+    reason?: string
   }
 }
 
@@ -27,18 +34,61 @@ export interface LearningImageBlock extends LearningBlockBase {
   content?: {
     src?: string
     alt?: string
+    binding?: LearningDisplayBinding
+  }
+}
+
+export interface LearningDisplayBinding {
+  source: 'answer' | 'variable'
+  path: string
+  fallback?: string
+  fallback_binding?: LearningDisplayBinding
+}
+
+export interface LearningButtonBlock extends LearningBlockBase {
+  type: 'button'
+  content?: { label?: string; destination_page_uuid?: string }
+}
+
+export interface LearningPortfolioPreviewBlock extends LearningBlockBase {
+  type: 'portfolio_preview'
+  content?: {
+    variant?: 'journey_card' | 'work_card' | 'identity_header' | 'traits_panel' | 'links_strip' | 'portfolio_frame' | 'share_panel'
+    bindings?: Record<string, LearningDisplayBinding>
   }
 }
 
 export interface LearningQuestionBlock extends LearningBlockBase {
   type: 'question'
-  kind: 'multiple_choice' | 'text_input' | string
+  kind: 'multiple_choice' | 'categorized_multi_select' | 'text_input' | string
   content?: any
   scoring?: any
   completion?: any
 }
 
-export type LearningBlock = LearningTextBlock | LearningImageBlock | LearningQuestionBlock
+export type LearningBlock = LearningTextBlock | LearningImageBlock | LearningQuestionBlock | LearningButtonBlock | LearningPortfolioPreviewBlock
+
+export function resolveDisplayBinding(binding: LearningDisplayBinding | undefined, run: any, preview = false): string {
+  if (!binding) return ''
+  if (preview) return binding.fallback || (binding.source === 'answer' ? 'Your answer' : 'Profile value')
+  let value: any = binding.source === 'answer' ? run?.render_context?.answers : run?.render_context?.variables
+  const parts = binding.source === 'answer' ? String(binding.path || '').split('.') : [String(binding.path || '')]
+  for (const part of parts) {
+    if (!part || value == null || typeof value !== 'object' || !(part in value)) return binding.fallback_binding ? resolveDisplayBinding(binding.fallback_binding, run, preview) : binding.fallback || ''
+    value = value[part]
+  }
+  if (Array.isArray(value)) return value.join(', ')
+  return value == null || typeof value === 'object' || value === '' ? (binding.fallback_binding ? resolveDisplayBinding(binding.fallback_binding, run, preview) : binding.fallback || '') : String(value)
+}
+
+export function resolveDisplayNodes(nodes: any[], run: any, preview = false): any[] {
+  return (nodes || []).map((node) => {
+    if (node?.type === 'displayBinding') {
+      return { type: 'text', text: resolveDisplayBinding(node.attrs?.binding, run, preview) || node.attrs?.binding?.fallback || '' }
+    }
+    return node?.content ? { ...node, content: resolveDisplayNodes(node.content, run, preview) } : node
+  })
+}
 
 export interface LearningPageLike {
   page_uuid?: string

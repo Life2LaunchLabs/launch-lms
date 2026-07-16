@@ -752,7 +752,7 @@ def install_create_organization_user(
     # Complete the user object
     user.user_uuid = f"user_{uuid4()}"
     user.password = security_hash_password(user_object.password)
-    user.email_verified = not get_launchlms_config().general_config.require_email_verification
+    user.email_verified = not get_launchlms_config().general_config.email_verification_required
     user.email_verified_at = str(datetime.now()) if user.email_verified else None
     user.is_superadmin = is_superadmin
     user.creation_date = str(datetime.now())

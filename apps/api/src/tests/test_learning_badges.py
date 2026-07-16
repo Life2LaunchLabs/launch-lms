@@ -12,8 +12,11 @@ from src.db.organizations import Organization
 from src.db.organization_config import OrganizationConfig
 from src.db.users import User
 from fastapi import HTTPException
+import pytest
 
 from src.services.learning import (
+    LAUNCH_READY_ACTIVITY_UUIDS,
+    LAUNCH_READY_DEFAULT_IMAGES,
     _apply_learning_variables_to_user,
     _extract_learning_variables,
     _grade_answer,
@@ -138,6 +141,21 @@ def _award() -> LearningBadgeAward:
         creation_date="2026-01-01T00:00:00",
         update_date="2026-01-01T00:00:00",
     )
+
+
+def test_launch_ready_activity_set_excludes_theme_customization():
+    assert "theme" not in LAUNCH_READY_ACTIVITY_UUIDS
+    assert "/images/launch-ready/theme.png" not in LAUNCH_READY_DEFAULT_IMAGES.values()
+    assert list(LAUNCH_READY_ACTIVITY_UUIDS) == [
+        "identity",
+        "profile",
+        "journey",
+        "work",
+        "traits",
+        "links",
+        "badges",
+        "launch",
+    ]
 
 
 def _standard_page(page_uuid: str, question: dict | None = None, **overrides) -> LearningPage:
@@ -721,3 +739,18 @@ def test_learning_assertion_payload_hashes_recipient_and_points_to_award():
     assert payload["recipient"]["hashed"] is True
     assert payload["recipient"]["identity"].startswith("sha256$")
     assert payload["evidence"][0]["narrative"] == "Completed every required activity."
+
+
+def test_standard_page_accepts_bound_image_and_internal_page_button():
+    _validate_page_payload(LearningPageType.STANDARD, {"version": 2, "blocks": [
+        {"id": "image", "type": "image", "content": {"binding": {"source": "answer", "path": "learning_page_photo.answer.questions.photo.url"}}},
+        {"id": "button", "type": "button", "content": {"label": "Change details", "destination_page_uuid": "learning_page_details"}},
+        {"id": "preview", "type": "portfolio_preview", "content": {"variant": "journey_card", "bindings": {"title": {"source": "answer", "path": "learning_page_details.answer.questions.details.inputs.title.text"}}}},
+    ]})
+
+
+def test_standard_page_rejects_unsafe_display_binding_path():
+    with pytest.raises(HTTPException, match="unsupported source or path"):
+        _validate_page_payload(LearningPageType.STANDARD, {"version": 2, "blocks": [
+            {"id": "image", "type": "image", "content": {"binding": {"source": "answer", "path": "../../private"}}},
+        ]})

@@ -1,3 +1,5 @@
+import { resolveLearningActivityImage } from './launchReadyImages'
+
 function cleanBadgeId(value?: string | null) {
   return String(value || '').replace(/^badge_/, '')
 }
@@ -91,14 +93,14 @@ export function learningPathToLegacyCourse(badgePath: any, org?: any) {
       chapter_uuid: activity.activity_uuid,
       name: activity.title,
       description: activity.description,
-      thumbnail_image: activity.thumbnail_image,
+      thumbnail_image: resolveLearningActivityImage(activity.thumbnail_image),
       order: activity.order ?? index + 1,
       activities: [{
         id: activity.id,
         activity_uuid: activity.activity_uuid,
         name: activity.title,
         description: activity.description,
-        thumbnail_image: activity.thumbnail_image,
+        thumbnail_image: resolveLearningActivityImage(activity.thumbnail_image),
         activity_type: getLearningActivityType(activity),
         content: {},
         published: activity.published,

@@ -1,0 +1,3 @@
+export default function PublicWorkLoading() {
+  return <div className="min-h-screen animate-pulse bg-background"><div className="border-b border-border"><div className="mx-auto flex max-w-5xl items-center gap-3 px-5 py-3 sm:px-8"><div className="h-10 w-10 rounded-full bg-muted" /><div className="h-5 w-32 rounded bg-muted" /></div><div className="mx-auto flex max-w-5xl gap-7 px-5 sm:px-8"><div className="h-11 w-20 bg-muted" /><div className="h-11 w-14 bg-muted" /></div></div><div className="mx-auto grid max-w-5xl gap-6 px-5 py-10 sm:grid-cols-3 sm:px-8"><div className="h-56 bg-muted" /><div className="h-56 bg-muted" /><div className="h-56 bg-muted" /></div></div>
+}

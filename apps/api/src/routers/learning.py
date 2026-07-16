@@ -234,6 +234,17 @@ async def api_duplicate_activity(
     return await learning_service.duplicate_activity(request, activity_uuid, current_user, db_session)
 
 
+@activities_router.post("/{activity_uuid}/pages/{page_uuid}/convert-variants")
+async def api_convert_page_variants_to_flow(
+    request: Request,
+    activity_uuid: str,
+    page_uuid: str,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> LearningActivityRead:
+    return await learning_service.convert_page_variants_to_flow(request, activity_uuid, page_uuid, current_user, db_session)
+
+
 @activities_router.delete("/{activity_uuid}")
 async def api_delete_activity(
     request: Request,

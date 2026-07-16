@@ -391,16 +391,28 @@ def test_welcome_claim_deleted_user(
     assert fake_claim_redis.store == {}
 
 
-def test_require_email_verification_env_var(monkeypatch):
+@pytest.mark.parametrize(
+    ("development_mode", "effective_requirement"),
+    [("true", False), ("false", True)],
+)
+def test_require_email_verification_env_var(
+    monkeypatch, development_mode, effective_requirement
+):
     from config.config import get_launchlms_config
 
     monkeypatch.setenv("LAUNCHLMS_REQUIRE_EMAIL_VERIFICATION", "true")
+    monkeypatch.setenv("LAUNCHLMS_DEVELOPMENT_MODE", development_mode)
     if hasattr(get_launchlms_config, "cache_clear"):
         get_launchlms_config.cache_clear()
     try:
         config = get_launchlms_config()
         assert config.general_config.require_email_verification is True
+        assert (
+            config.general_config.email_verification_required
+            is effective_requirement
+        )
     finally:
         monkeypatch.delenv("LAUNCHLMS_REQUIRE_EMAIL_VERIFICATION")
+        monkeypatch.delenv("LAUNCHLMS_DEVELOPMENT_MODE")
         if hasattr(get_launchlms_config, "cache_clear"):
             get_launchlms_config.cache_clear()

@@ -75,7 +75,7 @@ async def create_user(
     user.user_uuid = f"user_{uuid4()}"
     user.password = security_hash_password(user_object.password) if user_object.password else ""
 
-    email_verification_required = get_launchlms_config().general_config.require_email_verification
+    email_verification_required = get_launchlms_config().general_config.email_verification_required
 
     if is_oauth or not email_verification_required:
         user.email_verified = True
@@ -260,7 +260,7 @@ async def create_user_without_org(
     user.user_uuid = f"user_{uuid4()}"
     user.password = security_hash_password(user_object.password) if user_object.password else ""
 
-    email_verification_required = get_launchlms_config().general_config.require_email_verification
+    email_verification_required = get_launchlms_config().general_config.email_verification_required
 
     if is_oauth or not email_verification_required:
         user.email_verified = True

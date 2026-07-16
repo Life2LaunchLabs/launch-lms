@@ -2,13 +2,14 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import React from 'react'
 import { createPortal } from 'react-dom'
 import { Extension } from '@tiptap/core'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
-import { AlignCenter, AlignLeft, AlignRight, Bold, Check, ChevronRight, Columns2, Copy, GripVertical, Heading1, Heading2, Italic, List, ListOrdered, Loader2, Pause, Play, Plus, Quote, Trash2, Upload, X } from 'lucide-react'
+import { AlignCenter, AlignLeft, AlignRight, ArrowLeft, ArrowRight, Bold, Check, ChevronRight, Columns2, Copy, GripVertical, Heading1, Heading2, Italic, List, ListOrdered, Loader2, Pause, Play, Plus, Quote, Trash2, Upload, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import YouTube from 'react-youtube'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -23,30 +24,41 @@ import {
   getBlockScoring,
   getQuestionAnswer,
   type LearningTextBlock,
+  resolveDisplayBinding,
+  resolveDisplayNodes,
   resolveVariantBlocks,
   setQuestionAnswer,
   type LearningBlock,
 } from '@components/Learning/schema'
 import { EMPTY_PARAGRAPH, getTextBlockNodes } from './editor/utils'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config'
 import toast from 'react-hot-toast'
 import ReorderableList from '@components/Objects/ReorderableList'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
+import { JourneyCardView, type JourneyEntry } from '@components/Pages/Portfolio/Journey'
+import { WorkCardView, type Work } from '@components/Pages/Portfolio/PortfolioShell'
+import { normalizeMediaUrl } from '@services/media/media'
+import { CategorizedMultiSelect } from '@components/Portfolio/CategorizedMultiSelect'
 
 export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgslug: string; badgePath: any; activity: any }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
   const badge = badgePath.badge
-  const pages = activity.pages || []
-  const activityIndex = (badgePath.activities || []).findIndex((item: any) =>
-    item.id === activity.id || item.activity_uuid === activity.activity_uuid
-  )
-  const isFinalActivity = activityIndex >= 0 && activityIndex === (badgePath.activities || []).length - 1
+  const configuredPages = activity.pages || []
   const [run, setRun] = React.useState<any>(badgePath.run)
   const [index, setIndex] = React.useState(0)
   const [unlocked, setUnlocked] = React.useState(false)
   const [answer, setAnswer] = React.useState<any>({})
+  const navigation = (run?.navigation?.activities || []).find((item: any) => item.activity_id === activity.id)
+  const navigatedPages = navigation?.path?.length
+    ? navigation.path.map((pageUuid: string) => configuredPages.find((item: any) => item.page_uuid === pageUuid)).filter(Boolean)
+    : []
+  const configuredPageUuids = new Set(configuredPages.map((item: any) => item.page_uuid))
+  const flowPageUuids = (activity.settings?.flow?.nodes || []).filter((node: any) => node.type === 'page').map((node: any) => node.page_uuid)
+  const flowIsCurrent = flowPageUuids.length > 0 && flowPageUuids.every((pageUuid: string) => configuredPageUuids.has(pageUuid))
+  const pages = flowIsCurrent && navigatedPages.length ? navigatedPages : configuredPages
   const page = pages[index]
 
   React.useEffect(() => {
@@ -57,8 +69,20 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
 
   React.useEffect(() => {
     setUnlocked(Boolean(page) && !isQuestionResponseRequired(page))
-    setAnswer({})
-  }, [page?.content, page?.page_type, page?.page_uuid])
+    const prior = (run?.attempts || []).filter((item: any) => item.page_uuid === page?.page_uuid).at(-1)
+    setAnswer(prior?.answer || {})
+  }, [page?.content, page?.page_type, page?.page_uuid, run?.attempts])
+
+  const navigateToPage = React.useCallback((pageUuid: string) => {
+    const destination = pages.findIndex((item: any) => item.page_uuid === pageUuid)
+    if (destination < 0) return
+    setIndex(destination)
+    window.requestAnimationFrame(() => {
+      const heading = document.querySelector('[data-learning-page-heading]') as HTMLElement | null
+      heading?.focus()
+      heading?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })
+    })
+  }, [pages])
 
   const completeAndNext = async () => {
     if (!run || !page) return
@@ -70,18 +94,28 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
         nextRun = await completeLearningPage(run.run_uuid, page.page_uuid, {}, accessToken)
       }
       setRun(nextRun)
-      if (index < pages.length - 1) {
-        setIndex(index + 1)
+      const nextNavigation = (nextRun?.navigation?.activities || []).find((item: any) => item.activity_id === activity.id)
+      const nextPageUuid = nextNavigation?.current_page_uuid
+      const configuredDestination = nextPageUuid
+        ? configuredPages.findIndex((item: any) => item.page_uuid === nextPageUuid)
+        : -1
+      const visibleDestination = nextPageUuid
+        ? pages.findIndex((item: any) => item.page_uuid === nextPageUuid)
+        : -1
+      if (visibleDestination >= 0) {
+        setIndex(visibleDestination)
+      } else if (configuredDestination >= 0) {
+        setIndex(configuredDestination)
+      } else if (index < pages.length - 1) {
+        setIndex((current) => Math.min(current + 1, pages.length - 1))
       } else {
         const grading = activity.settings?.grading || {}
         if (grading.mode === 'pass_fail' && grading.success_message) {
           toast.success(grading.success_message)
         }
-        const cleanBadgeUuid = String(badge.badge_uuid || '').replace(/^badge_/, '')
-        if (isFinalActivity && cleanBadgeUuid) {
-          router.push(getUriWithOrg(orgslug, routePaths.org.badgeStatus(cleanBadgeUuid)))
-        } else if (cleanBadgeUuid) {
-          router.push(getUriWithOrg(orgslug, routePaths.org.badgePath(cleanBadgeUuid)))
+        const returnTo = searchParams.get('returnTo')
+        if (returnTo?.startsWith('/portfolio')) {
+          router.push(getUriWithOrg(orgslug, returnTo))
         } else {
           router.back()
         }
@@ -97,7 +131,7 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
       page={page}
       pageIndex={index}
       onBack={() => router.back()}
-      actionLabel={index === pages.length - 1 ? 'Finish' : 'Continue'}
+      actionLabel={page?.content?.action_label || (index === pages.length - 1 ? 'Finish' : 'Continue')}
       actionDisabled={!unlocked}
       onAction={completeAndNext}
       interactionState={answer}
@@ -109,6 +143,7 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
         setUnlocked={setUnlocked}
         pages={pages}
         run={run}
+        onNavigatePage={navigateToPage}
         contentMediaOwner={{ type: 'org', id: Number(badge?.org_id) }}
         responseMediaOwner={{ type: 'user', id: Number(session?.data?.user?.id) }}
       />
@@ -170,6 +205,8 @@ export function LearningActivitySurface({
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={page?.page_uuid || pageIndex}
+                data-learning-page-heading
+                tabIndex={-1}
                 className={isVideoPage ? 'flex h-full w-full items-center justify-center' : 'w-full'}
                 initial={{ x: 36, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
@@ -202,13 +239,13 @@ export function LearningActivitySurface({
   )
 }
 
-export function LearningPageContent({ page, answer, setAnswer, setUnlocked, pages, run, editable = false, onPagePatch, contentMediaOwner, responseMediaOwner }: any) {
+export function LearningPageContent({ page, answer, setAnswer, setUnlocked, pages, run, editable = false, onPagePatch, onNavigatePage, contentMediaOwner, responseMediaOwner }: any) {
   if (!page) return null
   if (page.page_type === 'video') {
     return <VideoPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} />
   }
   if (page.page_type === 'standard') {
-    return <StandardPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} run={run} responseMediaOwner={responseMediaOwner} />
+    return <StandardPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} run={run} pages={pages} onNavigatePage={onNavigatePage} responseMediaOwner={responseMediaOwner} />
   }
   if (page.page_type === 'multiple_choice' || page.page_type === 'text_input' || page.page_type === 'image_upload') {
     return <InfoPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} contentMediaOwner={contentMediaOwner} responseMediaOwner={responseMediaOwner} />
@@ -222,7 +259,7 @@ export function LearningPageContent({ page, answer, setAnswer, setUnlocked, page
   return <InfoPageContent page={page} editable={editable} onPagePatch={onPagePatch} contentMediaOwner={contentMediaOwner} responseMediaOwner={responseMediaOwner} />
 }
 
-function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, run, responseMediaOwner }: any) {
+function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, run, pages, onNavigatePage, responseMediaOwner }: any) {
   const blocks = React.useMemo(
     () => editable ? (page.content?.blocks || []) : resolveVariantBlocks(page, run),
     [editable, page, run]
@@ -234,8 +271,9 @@ function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, o
   const unlockedByBlockRef = React.useRef<Record<string, boolean>>({})
 
   React.useEffect(() => {
-    unlockedByBlockRef.current = {}
-  }, [page?.page_uuid])
+    unlockedByBlockRef.current = Object.fromEntries(blocks.filter((block: any) => block.type === 'question' && block.kind === 'image_upload' && getBlockCompletion(page, block)?.required === false).map((block: any) => [block.id, true]))
+    setUnlocked?.(questionIds.every((id: string) => unlockedByBlockRef.current[id]))
+  }, [blocks, page?.page_uuid, questionIds, setUnlocked])
 
   const setBlockUnlocked = (blockId: string, value: boolean) => {
     unlockedByBlockRef.current[blockId] = value
@@ -253,22 +291,18 @@ function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, o
     onPagePatch?.({ content: { ...(page.content || {}), version: page.content?.version || 2, blocks: nextBlocks } })
   }
 
+  const renderBlock = (block: LearningBlock) => <StandardBlockView key={block.id} block={block} page={page} answer={getQuestionAnswer(answer, block.id)} setAnswer={(value: any) => setBlockAnswer(block.id, value)} setUnlocked={(value: boolean) => setBlockUnlocked(block.id, value)} editable={editable} onPatch={(patch: any) => patchBlock(block.id, patch)} responseMediaOwner={responseMediaOwner} run={run} pages={pages} onNavigatePage={onNavigatePage} />
+
   return (
     <div className="learning-info-block-stack">
       <div className="learning-info-reorder-list">
-        {blocks.map((block: LearningBlock) => (
-          <StandardBlockView
-            key={block.id}
-            block={block}
-            page={page}
-            answer={getQuestionAnswer(answer, block.id)}
-            setAnswer={(value: any) => setBlockAnswer(block.id, value)}
-            setUnlocked={(value: boolean) => setBlockUnlocked(block.id, value)}
-            editable={editable}
-            onPatch={(patch: any) => patchBlock(block.id, patch)}
-            responseMediaOwner={responseMediaOwner}
-          />
-        ))}
+        {blocks.map((block: LearningBlock, index: number) => {
+          const group = block.design?.group
+          if (!group) return renderBlock(block)
+          if (index > 0 && blocks[index - 1]?.design?.group === group) return null
+          const members = blocks.filter((item: LearningBlock) => item.design?.group === group)
+          return <div key={group} className="my-3 grid w-full grid-cols-1 gap-3 sm:grid-cols-2">{members.map(renderBlock)}</div>
+        })}
       </div>
     </div>
   )
@@ -296,11 +330,11 @@ export function mapQuestionPagePatchToBlock(block: any, patch: any) {
   return next
 }
 
-function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editable, onPatch, responseMediaOwner }: any) {
+function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editable, onPatch, responseMediaOwner, run, pages, onNavigatePage }: any) {
   const blockStyle = getStandardBlockStyle(block)
 
   if (block.type === 'text') {
-    const nodes = getTextBlockNodes(block as LearningTextBlock)
+    const nodes = resolveDisplayNodes(getTextBlockNodes(block as LearningTextBlock), run, editable)
     return (
       <section className="learning-info-stack-section" style={blockStyle}>
         <InfoTextBlock
@@ -316,25 +350,69 @@ function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editab
 
   if (block.type === 'image') {
     const height = Math.max(80, Number(block.design?.height) || 220)
-    const fit = block.design?.fit === 'cover' ? 'object-cover' : 'object-contain'
+    const circle = block.design?.shape === 'circle'
+    const fit = circle || block.design?.fit === 'cover' ? 'object-cover' : 'object-contain'
+    const source = resolveDisplayBinding(block.content?.binding, run, editable) || block.content?.src
     return (
       <section className="learning-info-stack-section" style={blockStyle}>
-        <figure className="w-full max-w-full overflow-hidden rounded-lg" style={{ height }}>
-          {block.content?.src ? (
-            <img src={block.content.src} alt={block.content?.alt || ''} className={`h-full w-full max-w-full ${fit}`} />
+        <figure className={`mx-auto max-w-full overflow-hidden ${circle ? 'aspect-square rounded-full' : 'w-full rounded-lg'}`} style={circle ? { width: height, height } : { height }}>
+          {source ? (
+            <img src={source} alt={block.content?.alt || ''} className={`h-full w-full max-w-full ${fit}`} />
           ) : null}
         </figure>
       </section>
     )
   }
 
+  if (block.type === 'button') {
+    const destination = String(block.content?.destination_page_uuid || '')
+    const available = Boolean(destination && (pages || []).some((item: any) => item.page_uuid === destination))
+    const currentIndex = (pages || []).findIndex((item: any) => item.page_uuid === page.page_uuid)
+    const destinationIndex = (pages || []).findIndex((item: any) => item.page_uuid === destination)
+    const backwards = destinationIndex >= 0 && destinationIndex < currentIndex
+    const Direction = backwards ? ArrowLeft : ArrowRight
+    return <section className="learning-info-stack-section !w-full" style={{ ...blockStyle, width: '100%' }}><button type="button" disabled={editable || !available} onClick={() => onNavigatePage?.(destination)} className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-center text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${block.design?.variant === 'primary' ? 'bg-[var(--org-primary-color)] text-white shadow-sm' : 'border border-border/80 bg-background text-foreground shadow-sm hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md'} disabled:cursor-not-allowed disabled:opacity-50`}>{backwards && <Direction className="h-4 w-4 shrink-0" />}<span className="text-center">{block.content?.label || 'Go to page'}</span>{!backwards && <Direction className="h-4 w-4 shrink-0" />}</button></section>
+  }
+
+  if (block.type === 'portfolio_preview') {
+    const bindings = block.content?.bindings || {}
+    const value = (key: string, fallback = '') => resolveDisplayBinding(bindings[key], run, editable) || fallback
+    const variant = block.content?.variant
+    if (variant === 'journey_card') {
+      const entry: JourneyEntry = { journey_uuid: 'preview', slug: 'preview', entry_type: value('entry_type', 'experience'), title: value('title', 'Your current chapter'), organization: value('organization'), location_label: value('location_label'), summary: value('summary'), start_date: value('start_date') || undefined, start_precision: 'month', is_current: true, revision: 1, cover_url: value('cover_url') || undefined, blocks: [], work: [] }
+      return <section className="learning-info-stack-section my-5" style={blockStyle}><JourneyCardView entry={entry} preview /></section>
+    }
+    if (variant === 'work_card') {
+      const item: Work = { work_uuid: 'preview', slug: 'preview', title: value('title', 'Something you did'), subtitle: value('subtitle'), summary: value('summary'), story_kind: value('story_kind', 'made'), status: 'published', featured: true, revision: 1, cover_url: value('cover_url') || undefined, blocks: [] }
+      return <section className="learning-info-stack-section mx-auto my-5 max-w-sm" style={blockStyle}><WorkCardView item={item} preview /></section>
+    }
+    if (variant === 'identity_header') return <section className="learning-info-stack-section mx-auto my-5 max-w-sm rounded-2xl bg-card p-6 text-center" style={blockStyle}><div className="flex flex-col items-center gap-4"><div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">{value('avatar_url') ? <img src={normalizeMediaUrl(value('avatar_url'))} alt="" className="h-full w-full object-cover" /> : <span className="text-2xl font-black">{value('display_name', 'You').slice(0, 1)}</span>}</div><div><h3 className="text-2xl font-black">{value('display_name', 'Your name')}</h3><p className="mt-1 text-muted-foreground">{value('headline', 'Your tagline will appear here')}</p>{value('location_label') && <p className="mt-2 text-xs text-muted-foreground">{value('location_label')}</p>}</div></div>{value('short_bio') && <p className="mt-5 text-sm leading-relaxed text-muted-foreground">{value('short_bio')}</p>}</section>
+    if (variant === 'traits_panel') return <section className="learning-info-stack-section mx-auto my-5 max-w-sm rounded-2xl bg-card p-6" style={blockStyle}><p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">What I bring</p><div className="mt-4 flex flex-col gap-2">{value('traits', 'Curious, Creative').split(',').filter(Boolean).map((trait) => <span key={trait} className="rounded-full bg-muted/50 px-3 py-1.5 text-center text-sm font-semibold">{trait.trim()}</span>)}</div></section>
+    if (variant === 'links_strip') return <section className="learning-info-stack-section mx-auto my-5 max-w-sm rounded-2xl bg-card p-5" style={blockStyle}><p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Find me online</p><div className="mt-3 flex flex-col gap-2"><span className="rounded-full bg-muted px-4 py-2 text-center text-sm font-semibold">{value('label', 'My link')}</span></div><p className="mt-3 break-all text-center text-xs text-muted-foreground">{value('url', 'https://example.com')}</p></section>
+    if (variant === 'portfolio_frame') return <section className="learning-info-stack-section mx-auto my-5 max-w-sm overflow-hidden rounded-2xl bg-background shadow-sm" style={blockStyle}><div className={`h-2 ${value('theme_id', 'default') === 'electric' ? 'bg-fuchsia-500' : value('theme_id') === 'creative' ? 'bg-orange-400' : 'bg-foreground'}`} /><div className="p-6 text-center"><p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Portfolio preview</p><h3 className="mt-5 text-3xl font-black">{value('display_name', 'Your portfolio')}</h3><p className="mt-2 text-muted-foreground">{value('headline', 'Your story, work, and journey')}</p><div className="mt-6 grid grid-cols-1 gap-3"><div className="aspect-[4/3] rounded-xl bg-muted"/><div className="aspect-[4/3] rounded-xl bg-muted/60"/></div></div></section>
+    if (variant === 'share_panel') return <SharePortfolioPanel username={value('username')} blockStyle={blockStyle} />
+    return null
+  }
+
   if (block.type === 'question') {
+    const resolvedBlock = !editable && block.kind === 'text_input' ? {
+      ...block,
+      content: {
+        ...(block.content || {}),
+        inputs: (block.content?.inputs || []).map((input: any) => {
+          const adaptive = input.adaptive || {}
+          const key = resolveDisplayBinding(adaptive.binding, run)
+          const values = adaptive.values?.[key] || {}
+          return { ...input, label: values.label || input.label, placeholder: values.placeholder || input.placeholder }
+        }),
+      },
+    } : block
     const label = block.kind === 'image_upload' ? '' : String(block.content?.label || '').trim()
     return (
       <section className="learning-info-stack-section" style={blockStyle}>
         {label && <p className="text-lg font-bold text-foreground">{label}</p>}
         <QuestionBlockContent
-          page={buildQuestionVirtualPage(page, block)}
+          page={buildQuestionVirtualPage(page, resolvedBlock)}
           answer={answer}
           setAnswer={setAnswer}
           setUnlocked={setUnlocked}
@@ -344,6 +422,7 @@ function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editab
           showChrome={false}
           onChromeHoverChange={() => null}
           responseMediaOwner={responseMediaOwner}
+          renderVariables={run?.render_context?.variables}
         />
       </section>
     )
@@ -366,6 +445,30 @@ function getStandardBlockStyle(block: LearningBlock): React.CSSProperties {
     ;(style as any)['--learning-text-color'] = design.text_color
   }
   return style
+}
+
+function SharePortfolioPanel({ username, blockStyle }: { username: string; blockStyle: React.CSSProperties }) {
+  const session = useLHSession() as any
+  const [copied, setCopied] = React.useState(false)
+  const resolvedUsername = username || session?.data?.user?.username || ''
+  const href = React.useMemo(() => {
+    if (typeof window === 'undefined') return ''
+    const parts = window.location.pathname.split('/').filter(Boolean)
+    const orgIndex = parts.indexOf('orgs')
+    const orgslug = orgIndex >= 0 ? parts[orgIndex + 1] : ''
+    return orgslug && resolvedUsername ? `${window.location.origin}/orgs/${orgslug}/user/${resolvedUsername}` : ''
+  }, [resolvedUsername])
+  const copy = async () => {
+    if (!href) return
+    await navigator.clipboard?.writeText(href)
+    setCopied(true)
+    toast.success('Portfolio link copied')
+  }
+  return <section className="learning-info-stack-section mx-auto my-5 max-w-sm rounded-2xl bg-card p-5 text-center" style={blockStyle}>
+    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Share link</p>
+    <p className="mt-3 break-all rounded-xl bg-muted px-3 py-3 text-sm font-semibold">{href || 'Your public portfolio link'}</p>
+    <button type="button" disabled={!href} onClick={copy} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[var(--org-primary-color)] px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50"><Copy className="h-4 w-4" />{copied ? 'Copied' : 'Copy link'}</button>
+  </section>
 }
 
 function InfoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, responseKey = 'default', contentMediaOwner, responseMediaOwner }: any) {
@@ -1281,7 +1384,7 @@ function QuestionTextInputSection({
   )
 }
 
-function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, onActivate, showChrome, onChromeHoverChange, responseMediaOwner }: any) {
+function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, onActivate, showChrome, onChromeHoverChange, responseMediaOwner, renderVariables }: any) {
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
   const [uploadingInputId, setUploadingInputId] = React.useState<string | null>(null)
@@ -1293,8 +1396,42 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
     setUnlocked(page.completion?.required === false || Boolean(imageUrl))
   }, [answer?.image_url, answer?.url, page.completion?.required, page.page_type, setUnlocked])
 
+  React.useEffect(() => {
+    if (page.page_type === 'multiple_choice' || page.page_type === 'categorized_multi_select') {
+      const completion = page.completion || {}
+      const selectedIds = Array.isArray(answer?.option_ids) ? answer.option_ids : answer?.option_id ? [answer.option_id] : []
+      const minSelections = Math.max(1, Number(completion.min_selections ?? 1))
+      const maxSelections = Math.max(minSelections, Number(completion.max_selections ?? 1))
+      setUnlocked(selectedIds.length >= minSelections && selectedIds.length <= maxSelections)
+      return
+    }
+    if (page.page_type === 'text_input') {
+      const inputs = getQuestionTextInputs(page)
+      setUnlocked(areTextInputsComplete(inputs, page.completion?.inputs || {}, answer?.inputs || {}))
+    }
+  }, [answer?.inputs, answer?.option_id, answer?.option_ids, page, setUnlocked])
+
+  if (page.page_type === 'categorized_multi_select') {
+    const completion = page.completion || {}
+    const options = (page.content?.options || []).map((option: any) => ({ ...option, category: option.category || 'Options' }))
+    const selectedIds = Array.isArray(answer?.option_ids) ? answer.option_ids : []
+    const customOptions = Array.isArray(answer?.custom_options) ? answer.custom_options : []
+    const minSelections = Math.max(1, Number(completion.min_selections ?? 1))
+    const maxSelections = Math.max(minSelections, Number(completion.max_selections ?? 5))
+    return <div className="learning-question-block" onMouseDown={() => editable && onActivate()}>
+      {page.content?.label && <p className="mb-4 text-lg font-bold text-foreground">{page.content.label}</p>}
+      <CategorizedMultiSelect options={options} customOptions={customOptions} value={selectedIds} min={minSelections} max={maxSelections} disabled={editable} onCustomOptionsChange={(nextCustom) => { const configuredIds = new Set(options.map((option: any) => option.id)); const customIds = new Set(nextCustom.map((option: any) => option.id)); const added = nextCustom.find((option: any) => !customOptions.some((current: any) => current.id === option.id)); const nextSelected = selectedIds.filter((id: string) => configuredIds.has(id) || customIds.has(id)); if (added && nextSelected.length < maxSelections && !nextSelected.includes(added.id)) nextSelected.push(added.id); setAnswer({ option_ids: nextSelected, option_id: nextSelected[0], custom_options: nextCustom }); setUnlocked(nextSelected.length >= minSelections && nextSelected.length <= maxSelections) }} onChange={(next) => { setAnswer({ option_ids: next, option_id: next[0], custom_options: customOptions }); setUnlocked(next.length >= minSelections && next.length <= maxSelections) }} />
+    </div>
+  }
+
   if (page.page_type === 'multiple_choice') {
-    const options = page.content?.options || []
+    const optionBindingPath = page.content?.options_binding?.path
+    const boundOptions = optionBindingPath ? (renderVariables?.[optionBindingPath] || []) : []
+    const options = (boundOptions.length ? boundOptions : (page.content?.options || [])).map((option: any) => ({
+      ...option,
+      id: option.id || option.value,
+      text: option.text || option.label,
+    }))
     const visibleOptions = options.length ? options : [{ id: 'a', text: '' }, { id: 'b', text: '' }]
     const completion = page.completion || {}
     const scoring = page.scoring || {}
@@ -1655,8 +1792,14 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
                     />
                   ) : <span className="min-w-0 flex-1" />}
                 </div>
-                {isSingleLine ? (
+                {input.input_type === 'select' ? (
+                  <select value={value} onChange={(event) => updateTextInput(input.id, event.target.value)} style={{ height }} className="mx-auto block w-[calc(100%-1rem)] min-w-0 max-w-full rounded-xl border border-border bg-card px-4 text-foreground outline-none shadow-sm focus:border-[var(--org-primary-color)] focus:ring-2 focus:ring-[var(--org-primary-color)]">
+                    <option value="">{input.placeholder || 'None'}</option>
+                    {(renderVariables?.[input.options_binding?.path] || []).map((option: any) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                ) : isSingleLine ? (
                   <input
+                    type={input.input_type === 'month' ? 'month' : input.input_type === 'url' ? 'url' : 'text'}
                     value={editable ? input.placeholder || '' : value}
                     onChange={(event) => editable ? updateInputConfig(input.id, { placeholder: event.target.value }) : updateTextInput(input.id, event.target.value)}
                     placeholder={editable ? 'Placeholder' : input.placeholder}
@@ -2139,7 +2282,10 @@ function getQuestionTextInputs(page: any) {
       placeholder: input.placeholder || '',
       variant: input.variant || 'short_answer',
       width: input.width || 'full',
-      height: Number(input.height) || 160,
+      height: Number(input.height) || ((input.variant === 'single_line' || input.input_type === 'month' || input.input_type === 'url' || input.input_type === 'select') ? 48 : 160),
+      input_type: input.input_type || input.inputType || 'text',
+      adaptive: input.adaptive,
+      options_binding: input.options_binding || input.optionsBinding,
     }))
   }
   return [{ id: 'response', section_id: 'response', label: '', placeholder: '', variant: 'short_answer', width: 'full', height: 160 }]

@@ -16,6 +16,7 @@ import {
 import toast from 'react-hot-toast'
 import { SafeImage } from '@components/Objects/SafeImage'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
+import { resolveLearningActivityImage } from '@services/learning/launchReadyImages'
 
 function cleanBadgeId(value: string) {
   return String(value || '').replace(/^badge_/, '')
@@ -147,12 +148,14 @@ export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: str
       </div>
 
       <div className="space-y-3">
-        {(badgePath.activities || []).map((activity: any, index: number) => (
+        {(badgePath.activities || []).map((activity: any, index: number) => {
+          const locked = activity.settings?.system_required === true
+          return (
           <div key={activity.activity_uuid} className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-xs">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-lime-100 text-sm font-black text-lime-700">{index + 1}</div>
             <div className="hidden h-14 w-20 shrink-0 overflow-hidden rounded-lg border border-border bg-muted text-muted-foreground sm:flex sm:items-center sm:justify-center">
               {activity.thumbnail_image ? (
-                <SafeImage src={activity.thumbnail_image} alt="" className="h-full w-full object-cover" />
+                <SafeImage src={resolveLearningActivityImage(activity.thumbnail_image)} alt="" className="h-full w-full object-cover" />
               ) : (
                 <ImageIcon size={20} />
               )}
@@ -171,13 +174,10 @@ export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: str
               className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-bold transition hover:bg-muted"
               disabled={uploadingCover === activity.activity_uuid}
             />
-            <button onClick={() => togglePublish(activity)} className="rounded-lg border border-border px-3 py-2 text-xs font-bold">
-              {activity.published ? 'Unpublish' : 'Publish'}
-            </button>
-            <button onClick={() => duplicateActivity(activity)} className="rounded-lg border border-border p-2"><Copy size={16} /></button>
-            <button onClick={() => removeActivity(activity)} className="rounded-lg border border-red-200 p-2 text-red-600"><Trash2 size={16} /></button>
+            {locked ? <span className="rounded-full border border-border px-3 py-1.5 text-xs font-bold text-muted-foreground">Required</span> : <><button onClick={() => togglePublish(activity)} className="rounded-lg border border-border px-3 py-2 text-xs font-bold">{activity.published ? 'Unpublish' : 'Publish'}</button><button onClick={() => duplicateActivity(activity)} className="rounded-lg border border-border p-2"><Copy size={16} /></button><button onClick={() => removeActivity(activity)} className="rounded-lg border border-red-200 p-2 text-red-600"><Trash2 size={16} /></button></>}
           </div>
-        ))}
+          )
+        })}
         {(badgePath.activities || []).length === 0 ? (
           <div className="flex items-center justify-center rounded-xl border-2 border-dashed border-border bg-card py-16 text-center">
             <div>

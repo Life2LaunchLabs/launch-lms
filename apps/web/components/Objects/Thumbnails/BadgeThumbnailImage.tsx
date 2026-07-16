@@ -22,7 +22,7 @@ export function BadgeThumbnailImage({
         src={src}
         alt={alt}
         className={cn(
-          'h-full w-full object-contain p-[6%] drop-shadow-[0_6px_0_rgba(31,41,55,0.45)]',
+          'badge-sticker-image h-full w-full object-contain p-[9%]',
           hoverScale && 'transition-transform duration-300 group-hover:scale-[1.03]',
           imageClassName,
           className

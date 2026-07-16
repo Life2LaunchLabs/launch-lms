@@ -93,7 +93,7 @@ def _get_owner_org(db_session: Session) -> Organization:
 def _learning_onboarding_redirect_url(owner_org: Organization, badge_uuid: str, activity_uuid: str) -> str:
     badge_id = badge_uuid.replace("badge_", "")
     activity_id = activity_uuid.replace("learning_activity_", "")
-    return f"/orgs/{owner_org.slug}/badges/{badge_id}/chapter/{activity_id}"
+    return f"/orgs/{owner_org.slug}/badges/{badge_id}/chapter/{activity_id}?returnTo=/portfolio"
 
 
 def _onboarding_quiz_content() -> dict:
@@ -633,7 +633,7 @@ async def complete_welcome_signup(
     # The claim token lets the signup tab poll and pick up its session once the
     # email is verified, without re-entering credentials.
     if (
-        get_launchlms_config().general_config.require_email_verification
+        get_launchlms_config().general_config.email_verification_required
         and not user.email_verified
     ):
         transfer_guest_session_data_to_user(
@@ -843,7 +843,7 @@ async def login(
         )
 
     # Step 5: Check email verification when explicitly enabled
-    if not user.email_verified and get_launchlms_config().general_config.require_email_verification:
+    if not user.email_verified and get_launchlms_config().general_config.email_verification_required:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={

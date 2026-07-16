@@ -100,6 +100,11 @@ Every email the app sends appears in the Mailpit UI at
 
 With `LAUNCHLMS_REQUIRE_EMAIL_VERIFICATION=true`:
 
+> In development mode (`LAUNCHLMS_DEVELOPMENT_MODE=true`), new accounts are
+> automatically marked verified and continue through the usual signup and
+> onboarding flow without sending a verification email. The verification gate
+> below applies outside development mode.
+
 - Signup creates the user with `email_verified = false` and emails a one-time
   verification link (token stored in Redis, 1-hour TTL, single use).
 - The link opens `/verify-email` on the frontend, which calls
