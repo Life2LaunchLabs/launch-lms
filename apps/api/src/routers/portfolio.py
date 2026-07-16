@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
-from src.db.portfolio import JourneyEntryCreate, JourneyEntryUpdate, PortfolioBadgeVisibilityUpdate, PortfolioFeaturedBadgesUpdate, PortfolioSectionsUpdate, PortfolioTraitsUpdate, PortfolioUpdate, PublishRequest, WorkItemCreate, WorkItemUpdate
+from src.db.portfolio import JourneyEntryCreate, JourneyEntryUpdate, PortfolioBadgeVisibilityUpdate, PortfolioFeaturedBadgesUpdate, PortfolioFeaturedWorkUpdate, PortfolioSectionsUpdate, PortfolioTraitsUpdate, PortfolioUpdate, PublishRequest, WorkItemCreate, WorkItemUpdate
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.services import portfolio as portfolio_service
@@ -30,6 +30,11 @@ async def api_update_traits(payload: PortfolioTraitsUpdate, current_user: Public
 @router.put("/me/featured-badges")
 async def api_update_featured_badges(payload: PortfolioFeaturedBadgesUpdate, current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
     return portfolio_service.update_featured_badges(payload, current_user, db_session)
+
+
+@router.put("/me/featured-work")
+async def api_update_featured_work(payload: PortfolioFeaturedWorkUpdate, current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
+    return portfolio_service.update_featured_work(payload, current_user, db_session)
 
 
 @router.put("/me/badge-visibility")

@@ -17,6 +17,7 @@ from src.db.portfolio import (
     PortfolioTraitsUpdate,
     PortfolioBadgeVisibilityUpdate,
     PortfolioFeaturedBadgesUpdate,
+    PortfolioFeaturedWorkUpdate,
     PortfolioSectionsUpdate,
     ProfileTrait,
     PortfolioVisibility,
@@ -321,9 +322,9 @@ def portfolio_shell(portfolio: Portfolio, db_session: Session, public_only: bool
         if "meaningful_content_required" in blockers:
             next_action = {"id": "add-work", "type": "portfolio", "label": "Show something you've done", "href": "/portfolio/work/new", "priority": 80}
         elif "public_preview_required" in blockers:
-            next_action = {"id": "preview", "type": "portfolio", "label": "Preview your portfolio", "href": "/portfolio/preview", "priority": 70}
+            next_action = {"id": "preview", "type": "portfolio", "label": "Review your portfolio before publishing", "supportingText": "See exactly what visitors will see, then publish when it looks right.", "ctaLabel": "Review and publish", "href": "/portfolio/preview", "priority": 70}
         elif not portfolio.published_at:
-            next_action = {"id": "publish", "type": "portfolio", "label": "Launch your portfolio", "href": "/portfolio/preview", "priority": 60}
+            next_action = {"id": "publish", "type": "portfolio", "label": "Your portfolio is ready to publish", "supportingText": "Give it one final review, then make it visible to visitors from the preview screen.", "ctaLabel": "Review and publish", "href": "/portfolio/preview", "priority": 60}
     return {
         "portfolio": ({
             "portfolio_uuid": portfolio.portfolio_uuid,
@@ -373,6 +374,30 @@ def update_featured_badges(payload: PortfolioFeaturedBadgesUpdate, current_user:
     db_session.add(portfolio)
     db_session.commit()
     db_session.refresh(portfolio)
+    return portfolio_shell(portfolio, db_session)
+
+
+def update_featured_work(payload: PortfolioFeaturedWorkUpdate, current_user: PublicUser, db_session: Session) -> dict:
+    portfolio = get_or_create_portfolio(current_user, db_session)
+    work = list(db_session.exec(_work_query(portfolio.id or 0)).all())
+    if payload.work_uuid and not any(item.work_uuid == payload.work_uuid for item in work):
+        raise HTTPException(status_code=422, detail="Only your available work can be featured")
+    now = _now()
+    changed = False
+    for item in work:
+        featured = item.work_uuid == payload.work_uuid
+        if item.featured != featured:
+            item.featured = featured
+            item.revision += 1
+            item.update_date = now
+            db_session.add(item)
+            changed = True
+    if changed:
+        portfolio.revision += 1
+        portfolio.update_date = now
+        db_session.add(portfolio)
+        db_session.commit()
+        db_session.refresh(portfolio)
     return portfolio_shell(portfolio, db_session)
 
 
@@ -784,12 +809,18 @@ def legacy_import_preview(current_user: PublicUser, db_session: Session) -> dict
     timeline = profile.get("timeline") or []
     if not isinstance(timeline, list):
         timeline = []
+    portfolio = _get_portfolio(db_session, current_user.id or 0)
+    imported_work_refs = set()
+    imported_journey_refs = set()
+    if portfolio:
+        imported_work_refs = {item.source_reference for item in db_session.exec(select(WorkItem).where(WorkItem.portfolio_id == portfolio.id)).all() if item.source_reference}
+        imported_journey_refs = {item.source_reference for item in db_session.exec(select(JourneyEntry).where(JourneyEntry.portfolio_id == portfolio.id)).all() if item.source_reference}
     return {
         "source": "user.profile",
         "preservesLegacyData": True,
         "identity": {"displayName": " ".join(part for part in (user.first_name, user.last_name) if part).strip() if user else "", "bio": user.bio if user else ""},
-        "work": [{"title": str(card.get("title") or "Untitled work"), "summary": str(card.get("description") or card.get("text") or ""), "sourceIndex": index} for index, card in enumerate(cards) if isinstance(card, dict)],
-        "journey": [{"title": str(item.get("title") or "Untitled chapter"), "entryType": {"work": "employment", "life": "experience"}.get(str(item.get("category")), "education"), "organization": str(item.get("company") or item.get("institution") or item.get("organization") or ""), "summary": str(item.get("description") or ""), "startDate": item.get("startDate") or item.get("start_date"), "endDate": item.get("endDate") or item.get("end_date"), "isCurrent": bool(item.get("current") or item.get("isCurrent")), "sourceIndex": index} for index, item in enumerate(timeline) if isinstance(item, dict)],
+        "work": [{"title": str(card.get("title") or "Untitled work"), "summary": str(card.get("description") or card.get("text") or ""), "sourceIndex": index} for index, card in enumerate(cards) if isinstance(card, dict) and f"legacy:user.profile:work:{index}" not in imported_work_refs],
+        "journey": [{"title": str(item.get("title") or "Untitled chapter"), "entryType": {"work": "employment", "life": "experience"}.get(str(item.get("category")), "education"), "organization": str(item.get("company") or item.get("institution") or item.get("organization") or ""), "summary": str(item.get("description") or ""), "startDate": item.get("startDate") or item.get("start_date"), "endDate": item.get("endDate") or item.get("end_date"), "isCurrent": bool(item.get("current") or item.get("isCurrent")), "sourceIndex": index} for index, item in enumerate(timeline) if isinstance(item, dict) and f"legacy:user.profile:journey:{index}" not in imported_journey_refs],
     }
 
 

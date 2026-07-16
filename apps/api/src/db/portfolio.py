@@ -232,6 +232,10 @@ class PortfolioFeaturedBadgesUpdate(SQLModel):
     badge_uuids: list[str] = Field(default_factory=list)
 
 
+class PortfolioFeaturedWorkUpdate(SQLModel):
+    work_uuid: Optional[str] = None
+
+
 class PortfolioBadgeVisibilityUpdate(SQLModel):
     hidden_badge_uuids: list[str] = Field(default_factory=list)
     revision: int

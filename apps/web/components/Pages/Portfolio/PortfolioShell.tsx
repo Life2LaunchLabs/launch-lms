@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { CSSProperties, FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { ArrowLeft, Award, Briefcase, Camera, Copy, Eye, EyeOff, FilePlus2, Globe, Globe2, GraduationCap, GripVertical, Heart, Instagram, Linkedin, MapPin, Pencil, Plus, Printer, Sparkles, Star, Trash2, Youtube, X, Zap } from 'lucide-react'
+import { ArrowLeft, Award, Briefcase, Camera, Eye, EyeOff, FilePlus2, Globe, Globe2, GraduationCap, GripVertical, Instagram, Linkedin, MapPin, Minus, Pencil, Plus, Printer, Sparkles, Star, Trash2, Youtube, X } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
 
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { Button } from '@components/ui/button'
@@ -15,7 +16,7 @@ import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { applyMediaAssetToUserAvatar, type MediaAsset } from '@services/media/library'
 import { getUserAvatarMediaDirectory, normalizeMediaUrl } from '@services/media/media'
-import { createPortfolioWork, importLegacyPortfolio, publishMyPortfolio, unpublishMyPortfolio, updateMyPortfolio, updateMyPortfolioBadgeVisibility, updateMyPortfolioFeaturedBadges, updateMyPortfolioSections, updateMyPortfolioTraits, updatePortfolioWork } from '@services/portfolio/portfolio'
+import { createPortfolioWork, importLegacyPortfolio, publishMyPortfolio, unpublishMyPortfolio, updateMyPortfolio, updateMyPortfolioBadgeVisibility, updateMyPortfolioFeaturedBadges, updateMyPortfolioFeaturedWork, updateMyPortfolioSections, updateMyPortfolioTraits, updatePortfolioWork } from '@services/portfolio/portfolio'
 import { CategorizedMultiSelect, PORTFOLIO_STRENGTHS, PORTFOLIO_VALUES, type CategorizedOption } from '@components/Portfolio/CategorizedMultiSelect'
 import { JourneyTimeline, type JourneyEntry } from './Journey'
 import nextStepIllustration from '../../../public/images/portfolio/next-step-illustration.png'
@@ -25,7 +26,7 @@ import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbna
 export type Work = { work_uuid: string; slug: string; title: string; subtitle: string; summary: string; story_kind: string; status: string; featured: boolean; revision: number; start_date?: string; end_date?: string; cover_url?: string; cover_asset_uuid?: string; blocks: Array<{ block_uuid?: string; block_type: string; data: Record<string, any> }> }
 type PortfolioBadge = { badge_uuid: string; name: string; description?: string; thumbnail_image?: string; status: 'earned' | 'in_progress'; progress?: { completed: number; total: number; percent: number } }
 type PortfolioSection = { section_uuid: string; section_type: string; title_override?: string; enabled: boolean; sort_order: number }
-type Shell = { portfolio: Record<string, any>; work: Work[]; journey: JourneyEntry[]; sections?: PortfolioSection[]; traits?: { strength?: string[]; value?: string[] }; badges?: { earned: PortfolioBadge[]; inProgress: PortfolioBadge[]; featured: PortfolioBadge[]; featuredBadgeUuids: string[]; hiddenBadgeUuids: string[] }; views: Array<{ key: string; visible: boolean; itemCount: number }>; readiness: { canPublish: boolean; blockers: string[] }; capabilities?: Record<string, { unlocked: boolean; reason: string; requiredActivity?: string }>; launchReady?: { completed: number; total: number }; nextAction?: { label: string; supportingText?: string; estimatedMinutes?: number; thumbnailImage?: string; href: string; progress?: { completed: number; total: number } } | null }
+type Shell = { portfolio: Record<string, any>; work: Work[]; journey: JourneyEntry[]; sections?: PortfolioSection[]; traits?: { strength?: string[]; value?: string[] }; badges?: { earned: PortfolioBadge[]; inProgress: PortfolioBadge[]; featured: PortfolioBadge[]; featuredBadgeUuids: string[]; hiddenBadgeUuids: string[] }; views: Array<{ key: string; visible: boolean; itemCount: number }>; readiness: { canPublish: boolean; blockers: string[] }; capabilities?: Record<string, { unlocked: boolean; reason: string; requiredActivity?: string }>; launchReady?: { completed: number; total: number }; nextAction?: { label: string; supportingText?: string; ctaLabel?: string; estimatedMinutes?: number; thumbnailImage?: string; href: string; progress?: { completed: number; total: number } } | null }
 
 type PortfolioView = 'overview' | 'journey' | 'work' | 'badges' | 'resume'
 
@@ -47,48 +48,28 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false)
   const [draftSocials, setDraftSocials] = useState<Array<{ type: string; url: string }>>(() => shellSocials(initialShell))
   const [busy, setBusy] = useState(false)
-  const shellColumnRef = useRef<HTMLDivElement | null>(null)
   const headerRef = useRef<HTMLElement | null>(null)
-  const compactThresholdRef = useRef(180)
-  const [fixedHeaderStyle, setFixedHeaderStyle] = useState<CSSProperties>({})
   const displayName = shell.portfolio.display_name || username || 'Your portfolio'
   const nav = useMemo(() => tabs(orgslug, username, owner, shell), [orgslug, username, owner, shell])
-  const compact = activeView !== 'overview' || scrolled
+  const compact = activeView !== 'overview'
   const avatarUrl = shell.portfolio.avatar_image
     ? getUserAvatarMediaDirectory(shell.portfolio.user_uuid, shell.portfolio.avatar_image)
     : ''
 
   useEffect(() => {
-    if (activeView === 'overview' && !scrolled && headerRef.current) compactThresholdRef.current = Math.max(120, headerRef.current.offsetHeight)
-    const syncFixedHeader = () => {
-      if (activeView !== 'overview' || !scrolled || !shellColumnRef.current) {
-        setFixedHeaderStyle({})
-        return
-      }
-      const rect = shellColumnRef.current.getBoundingClientRect()
-      setFixedHeaderStyle({ left: rect.left, width: rect.width })
-    }
     const handleScroll = () => {
       if (activeView !== 'overview') return
-      setScrolled((current) => current ? window.scrollY > 16 : window.scrollY > compactThresholdRef.current)
-      syncFixedHeader()
-    }
-    const handleResize = () => {
-      if (!scrolled && headerRef.current) compactThresholdRef.current = Math.max(120, headerRef.current.offsetHeight)
-      syncFixedHeader()
+      setScrolled((headerRef.current?.getBoundingClientRect().bottom || 1) <= 0)
     }
     const handlePopState = () => setActiveView(window.location.pathname.endsWith('/resume') ? 'resume' : window.location.pathname.endsWith('/badges') ? 'badges' : window.location.pathname.endsWith('/work') ? 'work' : window.location.pathname.endsWith('/journey') ? 'journey' : 'overview')
     handleScroll()
-    syncFixedHeader()
     window.addEventListener('scroll', handleScroll, { passive: true })
-    window.addEventListener('resize', handleResize)
     window.addEventListener('popstate', handlePopState)
     return () => {
       window.removeEventListener('scroll', handleScroll)
-      window.removeEventListener('resize', handleResize)
       window.removeEventListener('popstate', handlePopState)
     }
-  }, [activeView, scrolled])
+  }, [activeView])
 
   function changeView(view: PortfolioView, href: string) {
     if (view === activeView) return
@@ -138,11 +119,10 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
     toast.success('Profile image updated')
   }
 
-  return <main className="min-h-screen bg-background pb-20 text-foreground">
-    {preview && <div className="border-b border-border px-4 py-3"><div className="mx-auto flex max-w-5xl items-center justify-between gap-4"><span className="text-sm font-medium">Public preview</span><Button asChild variant="outline" size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio')}><ArrowLeft className="mr-2 h-4 w-4" />Back to editing</Link></Button></div></div>}
-    <div ref={shellColumnRef} className="mx-auto max-w-5xl px-5 sm:px-8">
-    <div style={activeView === 'overview' && scrolled ? { height: compactThresholdRef.current } : undefined}>
-    <motion.header ref={headerRef} style={activeView === 'overview' && scrolled ? fixedHeaderStyle : undefined} className={`${activeView === 'overview' ? (scrolled ? 'fixed top-0 box-border px-5 sm:px-8' : 'relative') : 'sticky top-0'} z-[var(--z-sticky-header)] border-b border-border/70 bg-background/95 backdrop-blur-xl ${compact ? 'shadow-[0_1px_0_hsl(var(--border)/.25)]' : ''}`} transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 320, damping: 34 }}>
+  return <main className={`${activeView === 'resume' ? 'h-dvh overflow-hidden' : 'min-h-screen pb-20'} bg-background text-foreground`}>
+    {preview && <div className="border-b border-border px-4 py-3"><div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3"><div><span className="text-sm font-bold">Public preview</span><p className="text-xs text-muted-foreground">This is how visitors will see your portfolio.</p></div><div className="flex items-center gap-2"><Button asChild variant="outline" size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio')}><ArrowLeft className="mr-2 h-4 w-4" />Back to editing</Link></Button>{shell.portfolio.published_at ? <span className="inline-flex h-9 items-center rounded-md bg-muted px-3 text-sm font-semibold text-muted-foreground"><Globe2 className="mr-2 h-4 w-4" />Published</span> : shell.capabilities?.launch?.unlocked && <Button size="sm" onClick={publish} disabled={busy}><Globe2 className="mr-2 h-4 w-4" />{busy ? 'Publishing…' : 'Publish portfolio'}</Button>}</div></div></div>}
+    <div className="mx-auto max-w-5xl px-5 sm:px-8">
+    <motion.header ref={headerRef} className={`${activeView === 'overview' ? 'relative' : 'sticky top-0'} z-[var(--z-sticky-header)] border-b border-border/70 bg-background/95 backdrop-blur-xl ${compact ? 'shadow-[0_1px_0_hsl(var(--border)/.25)]' : ''}`}>
       <motion.div layout className={`${compact ? 'py-3' : 'py-8 sm:py-12'}`}>
         <motion.div layout className={`${compact ? 'flex items-center justify-between gap-4' : 'flex flex-col items-center gap-5 text-center sm:flex-row sm:items-center sm:text-left'}`}>
           <motion.div layout className={`${compact ? 'flex min-w-0 items-center gap-3' : 'flex flex-col items-center gap-5 sm:flex-row'}`}>
@@ -161,14 +141,23 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
           </motion.div>
           {owner && !preview && compact && activeView === 'work' && shell.capabilities?.work?.unlocked && <Button asChild size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio/work/new')}><Plus className="mr-1.5 h-4 w-4" />Add work</Link></Button>}
           {owner && !preview && compact && activeView === 'journey' && shell.capabilities?.journey?.unlocked && <Button asChild size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio/journey/new')}><Plus className="mr-1.5 h-4 w-4" />Add chapter</Link></Button>}
+          {compact && activeView === 'resume' && <Button type="button" size="sm" onClick={() => window.print()}><Printer className="mr-1.5 h-4 w-4" />Print / save PDF</Button>}
         </motion.div>
       </motion.div>
       {nav.length > 1 && <nav className="flex gap-7 overflow-x-auto" aria-label="Portfolio views">{nav.map((tab) => { const view = tab.view as PortfolioView; const selected = activeView === view; return <button type="button" key={tab.label} onClick={() => changeView(view, tab.href)} className={`relative py-3 text-sm font-semibold transition-colors ${selected ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>{tab.label}{selected && <motion.span layoutId="portfolio-active-tab" className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-foreground" transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}</button>})}</nav>}
     </motion.header>
-    </div>
 
-    <div className="py-8 sm:py-12">
-      <AnimatePresence mode="wait" initial={false}>{activeView === 'overview' ? <motion.div key="overview"><Overview shell={shell} setShell={setShell} owner={owner && !preview} orgslug={orgslug} username={username} importLegacy={importLegacy} busy={busy} token={token} /></motion.div> : activeView === 'journey' ? <motion.div key="journey"><JourneyTimeline entries={shell.journey || []} owner={owner && !preview} orgslug={orgslug} username={username} /></motion.div> : activeView === 'badges' ? <motion.div key="badges"><BadgesView shell={shell} setShell={setShell} owner={owner && !preview} orgslug={orgslug} token={token} /></motion.div> : activeView === 'resume' ? <motion.div key="resume"><ResumeView shell={shell} orgslug={orgslug} username={username} owner={owner && !preview} /></motion.div> : <motion.div key="work"><WorkGrid shell={shell} owner={owner && !preview} orgslug={orgslug} username={username} /></motion.div>}</AnimatePresence>
+    <AnimatePresence>
+      {activeView === 'overview' && scrolled && <motion.header initial={reduceMotion ? false : { opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }} transition={{ duration: reduceMotion ? 0 : 0.16, ease: 'easeOut' }} className="fixed left-1/2 top-0 z-[var(--z-sticky-header)] w-full max-w-5xl -translate-x-1/2 border-b border-border/70 bg-background/95 backdrop-blur-xl">
+        <div className="px-5 sm:px-8">
+          <div className="flex items-center gap-3 py-2.5"><Avatar url={avatarUrl} name={displayName} compact /><h1 className="min-w-0 truncate text-base font-bold">{displayName}</h1></div>
+          {nav.length > 1 && <nav className="flex gap-7 overflow-x-auto" aria-label="Portfolio views">{nav.map((tab) => { const view = tab.view as PortfolioView; const selected = activeView === view; return <button type="button" key={tab.label} onClick={() => changeView(view, tab.href)} className={`relative shrink-0 py-2.5 text-sm font-semibold transition-colors ${selected ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>{tab.label}{selected && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-foreground" />}</button>})}</nav>}
+        </div>
+      </motion.header>}
+    </AnimatePresence>
+
+    <div className={activeView === 'resume' ? '' : 'py-8 sm:py-12'}>
+      <AnimatePresence mode="wait" initial={false}>{activeView === 'overview' ? <motion.div key="overview"><Overview shell={shell} setShell={setShell} owner={owner && !preview} orgslug={orgslug} username={username} importLegacy={importLegacy} busy={busy} token={token} /></motion.div> : activeView === 'journey' ? <motion.div key="journey"><JourneyTimeline entries={shell.journey || []} owner={owner && !preview} orgslug={orgslug} username={username} /></motion.div> : activeView === 'badges' ? <motion.div key="badges"><BadgesView shell={shell} setShell={setShell} owner={owner && !preview} orgslug={orgslug} token={token} /></motion.div> : activeView === 'resume' ? <motion.div key="resume"><ResumeView shell={shell} orgslug={orgslug} username={username} owner={owner && !preview} /></motion.div> : <motion.div key="work"><WorkGrid shell={shell} setShell={setShell} owner={owner && !preview} orgslug={orgslug} username={username} token={token} /></motion.div>}</AnimatePresence>
     </div>
     </div>
     {owner && <HeaderEditor open={editingIdentity} onOpenChange={setEditingIdentity} shell={shell} avatarUrl={avatarUrl} displayName={displayName} socials={draftSocials} setSocials={setDraftSocials} onAvatarClick={() => setAvatarPickerOpen(true)} onSubmit={saveIdentity} busy={busy} />}
@@ -243,7 +232,6 @@ function TraitCard({ kind, initial, owner }: { kind: 'strength' | 'value'; initi
   const [draft, setDraft] = useState(value)
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
-  const Icon = kind === 'strength' ? Zap : Heart
   const title = kind === 'strength' ? 'Strengths' : 'Values'
   if (!owner && !value.length) return null
   const save = async () => {
@@ -253,7 +241,8 @@ function TraitCard({ kind, initial, owner }: { kind: 'strength' | 'value'; initi
     catch (error: any) { toast.error(error?.message || `Could not update ${title.toLowerCase()}`) }
     finally { setSaving(false) }
   }
-  return <><button type="button" disabled={!owner} onClick={() => { setDraft(value); setDraftCustomOptions(customOptions); setOpen(true) }} className="min-h-40 rounded-2xl border border-border p-5 text-left disabled:cursor-default"><div className="flex items-center justify-between"><span className="flex items-center gap-2 font-bold"><Icon className="h-5 w-5" />{title}</span>{owner && <Pencil className="h-4 w-4 text-muted-foreground" />}</div><div className="mt-5 flex flex-wrap gap-2">{value.length ? value.map((id) => <span key={id} className="rounded-full border border-border bg-muted px-3 py-1.5 text-sm font-semibold">{options.find((option) => option.id === id)?.text || customOptions.find((option) => option.id === id)?.text || id}</span>) : <span className="text-sm text-muted-foreground">Choose the {title.toLowerCase()} you want to share.</span>}</div></button><Dialog open={open} onOpenChange={setOpen}><DialogContent className="flex max-h-[90dvh] max-w-2xl flex-col overflow-hidden p-0"><DialogHeader className="border-b border-border px-6 py-5"><DialogTitle>Edit {title.toLowerCase()}</DialogTitle><DialogDescription>Choose up to five. You can change these as you grow.</DialogDescription></DialogHeader><div className="overflow-y-auto px-6 py-5"><CategorizedMultiSelect options={options} customOptions={draftCustomOptions} onCustomOptionsChange={setDraftCustomOptions} value={draft} onChange={setDraft} min={1} max={5} /></div><div className="flex justify-end gap-2 border-t border-border px-6 py-4"><Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save} disabled={saving || !draft.length}>{saving ? 'Saving…' : 'Save'}</Button></div></DialogContent></Dialog></>
+  const openEditor = () => { setDraft(value); setDraftCustomOptions(customOptions); setOpen(true) }
+  return <><section><div className="flex items-center gap-2"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">{title}</h2>{owner && <button type="button" onClick={openEditor} className="rounded-md p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground" aria-label={`Edit ${title.toLowerCase()}`}><Pencil className="h-3.5 w-3.5" /></button>}</div><div className="mt-4 flex flex-wrap gap-2">{value.length ? value.map((id) => <span key={id} className="rounded-full border border-border px-3 py-1.5 text-sm font-semibold">{options.find((option) => option.id === id)?.text || customOptions.find((option) => option.id === id)?.text || id}</span>) : owner ? <button type="button" onClick={openEditor} className="text-sm text-muted-foreground transition hover:text-foreground">Choose the {title.toLowerCase()} you want to share.</button> : null}</div></section><Dialog open={open} onOpenChange={setOpen}><DialogContent className="flex max-h-[90dvh] max-w-2xl flex-col overflow-hidden p-0"><DialogHeader className="border-b border-border px-6 py-5"><DialogTitle>Edit {title.toLowerCase()}</DialogTitle><DialogDescription>Choose up to five. You can change these as you grow.</DialogDescription></DialogHeader><div className="overflow-y-auto px-6 py-5"><CategorizedMultiSelect options={options} customOptions={draftCustomOptions} onCustomOptionsChange={setDraftCustomOptions} value={draft} onChange={setDraft} min={1} max={5} /></div><div className="flex justify-end gap-2 border-t border-border px-6 py-4"><Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save} disabled={saving || !draft.length}>{saving ? 'Saving…' : 'Save'}</Button></div></DialogContent></Dialog></>
 }
 
 type SocialPreviewItem = { id: string; title: string; url: string; thumbnailUrl?: string }
@@ -283,9 +272,8 @@ function SocialPreviews({ socials }: { socials: Array<{ type: string; url: strin
 }
 
 function Overview({ shell, setShell, owner, orgslug, username, importLegacy, busy, token }: any) {
-  const featured = shell.work.filter((work: Work) => work.featured || shell.work.length <= 3).slice(0, 3)
+  const featured = shell.work.filter((work: Work) => work.featured).slice(0, 1)
   const [sections, setSections] = useState<PortfolioSection[]>(() => (shell.sections || []).filter((section: PortfolioSection) => section.section_type !== 'identity_hero'))
-  const [dragging, setDragging] = useState<string | null>(null)
   const saveSections = async (nextSections: PortfolioSection[]) => {
     if (!token) return
     const omitted = (shell.sections || []).filter((section: PortfolioSection) => section.section_type === 'identity_hero')
@@ -296,13 +284,36 @@ function Overview({ shell, setShell, owner, orgslug, username, importLegacy, bus
   }
   const renderSection = (type: string) => type === 'about' ? (shell.portfolio.short_bio ? <section><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">About</h2><p className="mt-4 max-w-3xl text-xl leading-relaxed">{shell.portfolio.short_bio}</p></section> : null)
     : type === 'featured_badges' ? ((shell.badges?.featured || []).length > 0 ? <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Badges</h2><Link href={getUriWithOrg(orgslug, owner ? '/portfolio/badges' : `/user/${username}/badges`)} className="text-sm font-semibold">View all</Link></div><div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">{shell.badges.featured.map((badge: PortfolioBadge) => <BadgeCard key={badge.badge_uuid} badge={badge} compact orgslug={orgslug} />)}</div></section> : null)
-    : type === 'traits' ? (((shell.traits?.strength || []).length > 0 || (shell.traits?.value || []).length > 0 || (owner && shell.capabilities?.traits?.unlocked)) ? <section><h2 className="mb-5 text-sm font-bold uppercase tracking-widest text-muted-foreground">What I bring</h2><div className="grid gap-4 sm:grid-cols-2"><TraitCard kind="strength" initial={shell.traits?.strength || []} owner={owner} /><TraitCard kind="value" initial={shell.traits?.value || []} owner={owner} /></div></section> : null)
+    : type === 'traits' ? (((shell.traits?.strength || []).length > 0 || (shell.traits?.value || []).length > 0 || (owner && shell.capabilities?.traits?.unlocked)) ? <div className="grid gap-10 sm:grid-cols-2 sm:gap-12"><TraitCard kind="strength" initial={shell.traits?.strength || []} owner={owner} /><TraitCard kind="value" initial={shell.traits?.value || []} owner={owner} /></div> : null)
     : type === 'current_journey' ? ((shell.journey || []).length > 0 ? <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Current chapter</h2><button className="text-sm font-semibold" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, owner ? '/portfolio/journey' : `/user/${username}/journey`)); window.dispatchEvent(new PopStateEvent('popstate')) }}>View journey</button></div><JourneyTimeline entries={((shell.journey || []).filter((entry: JourneyEntry) => entry.is_current).slice(0, 1).length ? (shell.journey || []).filter((entry: JourneyEntry) => entry.is_current).slice(0, 1) : (shell.journey || []).slice(0, 1))} owner={owner} orgslug={orgslug} username={username} /></section> : null)
-    : type === 'featured_work' ? ((featured.length > 0 || (owner && shell.capabilities?.work?.unlocked)) ? <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Selected work</h2>{shell.work.length > 0 && <button className="text-sm font-semibold" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, owner ? '/portfolio/work' : `/user/${username}/work`)); window.dispatchEvent(new PopStateEvent('popstate')) }}>View all</button>}</div>{featured.length ? <WorkCards work={featured} owner={owner} orgslug={orgslug} username={username} /> : owner ? <EmptyWork orgslug={orgslug} /> : null}</section> : null)
+    : type === 'featured_work' ? ((featured.length > 0 || (owner && (shell.work.length > 0 || shell.capabilities?.work?.unlocked))) ? <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-black uppercase tracking-[0.16em] text-lime-600 dark:text-lime-400">Featured work</h2>{shell.work.length > 0 && <button className="text-sm font-semibold transition-colors hover:text-lime-600" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, owner ? '/portfolio/work' : `/user/${username}/work`)); window.dispatchEvent(new PopStateEvent('popstate')) }}>View all</button>}</div>{featured.length ? <FeaturedWorkCards work={featured} owner={owner} orgslug={orgslug} username={username} /> : owner && shell.work.length ? <button type="button" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, '/portfolio/work')); window.dispatchEvent(new PopStateEvent('popstate')) }} className="w-full rounded-xl border border-dashed border-border px-5 py-10 text-center text-sm font-semibold text-muted-foreground transition hover:border-foreground hover:text-foreground">Star one of your work items to feature it here.</button> : owner ? <EmptyWork orgslug={orgslug} /> : null}</section> : null)
     : type === 'links' ? <SocialPreviews socials={shell.portfolio.socials || []} /> : null
+  const onDragEnd = (result: DropResult) => {
+    if (!result.destination || result.destination.index === result.source.index) return
+    const next = Array.from(sections)
+    const [moved] = next.splice(result.source.index, 1)
+    next.splice(result.destination.index, 0, moved)
+    setSections(next)
+    void saveSections(next)
+  }
   return <div className="space-y-14">
     {shell.nextAction && owner && <NextStepCard action={shell.nextAction} orgslug={orgslug} />}
-    {sections.map((section) => { const content = renderSection(section.section_type); if (!content && !owner) return null; return <div key={section.section_uuid} draggable={owner} onDragStart={() => setDragging(section.section_uuid)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (!dragging || dragging === section.section_uuid) return; const moved = sections.find((item) => item.section_uuid === dragging); if (!moved) return; const next = sections.filter((item) => item.section_uuid !== dragging); next.splice(next.findIndex((item) => item.section_uuid === section.section_uuid), 0, moved); setSections(next); setDragging(null); void saveSections(next) }} className={`relative transition ${section.enabled ? '' : 'opacity-40 grayscale'}`}>{owner && <div className="absolute -left-1 -top-10 z-10 flex items-center gap-1 rounded-full border border-border bg-background p-1 shadow-sm"><span className="cursor-grab p-1 text-muted-foreground" title="Drag to reorder"><GripVertical className="h-4 w-4" /></span><button type="button" onClick={() => { const next = sections.map((item) => item.section_uuid === section.section_uuid ? { ...item, enabled: !item.enabled } : item); setSections(next); void saveSections(next) }} className="p-1 text-muted-foreground hover:text-foreground" aria-label={section.enabled ? 'Hide section from visitors' : 'Show section to visitors'}>{section.enabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</button></div>}{content || <div className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">{section.section_type.replaceAll('_', ' ')} is empty.</div>}</div> })}
+    <DragDropContext onDragEnd={onDragEnd} autoScrollerOptions={{ disabled: false }}>
+      <Droppable droppableId="portfolio-overview-sections">
+        {(dropProvided, dropSnapshot) => <div ref={dropProvided.innerRef} {...dropProvided.droppableProps} className={`space-y-14 ${dropSnapshot.isDraggingOver ? 'portfolio-sections-dragging' : ''}`}>
+          {sections.map((section, index) => { const content = renderSection(section.section_type); if (!content && !owner) return null; return <Draggable key={section.section_uuid} draggableId={section.section_uuid} index={index} isDragDisabled={!owner}>
+            {(dragProvided, dragSnapshot) => <div ref={dragProvided.innerRef} {...dragProvided.draggableProps} style={dragProvided.draggableProps.style} className={`group/section relative before:absolute before:-bottom-5 before:-left-16 before:-top-5 before:w-16 before:content-[''] ${dragSnapshot.isDragging ? 'z-50 rounded-2xl bg-background p-5 shadow-2xl ring-1 ring-border' : 'transition-opacity'} ${section.enabled ? '' : 'opacity-40 grayscale'}`}>
+              {owner && <div className={`absolute left-0 top-0 z-10 -translate-x-[calc(100%+12px)] flex-col items-center gap-1 rounded-xl border border-border bg-background/95 p-1 shadow-md backdrop-blur transition duration-200 sm:flex ${dragSnapshot.isDragging ? 'cursor-grabbing opacity-100' : 'pointer-events-none -translate-x-[calc(100%+6px)] opacity-0 group-hover/section:pointer-events-auto group-hover/section:-translate-x-[calc(100%+12px)] group-hover/section:opacity-100 group-focus-within/section:pointer-events-auto group-focus-within/section:opacity-100'}`}>
+                <button type="button" {...dragProvided.dragHandleProps} className="cursor-grab rounded-lg p-2 text-muted-foreground outline-none transition hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-foreground active:cursor-grabbing" aria-label={`Reorder ${section.title_override || section.section_type.replaceAll('_', ' ')} section`} title="Drag to reorder"><GripVertical className="h-4 w-4" /></button>
+                <button type="button" onClick={() => { const next = sections.map((item) => item.section_uuid === section.section_uuid ? { ...item, enabled: !item.enabled } : item); setSections(next); void saveSections(next) }} className="rounded-lg p-2 text-muted-foreground outline-none transition hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-foreground" aria-label={section.enabled ? 'Hide section from visitors' : 'Show section to visitors'}>{section.enabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</button>
+              </div>}
+              {content || <div className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">{section.section_type.replaceAll('_', ' ')} is empty.</div>}
+            </div>}
+          </Draggable> })}
+          {dropProvided.placeholder}
+        </div>}
+      </Droppable>
+    </DragDropContext>
     {owner && shell.portfolio.has_legacy_portfolio && <section className="rounded-2xl border border-dashed border-border p-6"><h2 className="font-bold">Have an older Launch LMS portfolio?</h2><p className="mt-1 text-sm text-muted-foreground">Import a copy into the new builder. Your original profile data stays untouched.</p><Button className="mt-4" variant="outline" disabled={busy} onClick={importLegacy}>Preview and import legacy work</Button></section>}
   </div>
 }
@@ -356,7 +367,7 @@ function NextStepCard({ action, orgslug }: { action: NonNullable<Shell['nextActi
       <h2 className="mt-2 text-2xl font-black tracking-tight">{action.label}</h2>
       {action.supportingText && <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">{action.supportingText}</p>}
       {progress && <div className="mt-5 max-w-sm"><div className="mb-2 flex justify-between text-xs font-medium text-muted-foreground"><span>Launch Ready</span><span>{progress.completed} of {progress.total}</span></div><div className="h-1.5 overflow-hidden rounded-full bg-primary/15"><div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${percent}%` }} /></div></div>}
-      <Button asChild className="mt-6 bg-primary text-primary-foreground hover:bg-primary/90"><Link href={getUriWithOrg(orgslug, action.href)}><Sparkles className="mr-2 h-4 w-4" />{action.progress?.completed ? 'Continue' : 'Get started'}</Link></Button>
+      <Button asChild className="mt-6 bg-primary text-primary-foreground hover:bg-primary/90"><Link href={getUriWithOrg(orgslug, action.href)}><Sparkles className="mr-2 h-4 w-4" />{action.ctaLabel || (action.progress?.completed ? 'Continue' : 'Get started')}</Link></Button>
     </div>
     <img src={resolveLearningActivityImage(action.thumbnailImage) || nextStepIllustration.src} onError={(event) => { event.currentTarget.src = nextStepIllustration.src }} alt="" className="pointer-events-none absolute bottom-5 right-5 hidden h-36 w-48 rounded-xl object-cover opacity-95 sm:block" />
   </section>
@@ -364,30 +375,65 @@ function NextStepCard({ action, orgslug }: { action: NonNullable<Shell['nextActi
 
 function EmptyWork({ orgslug }: { orgslug: string }) { return <div className="border-y border-dashed border-border py-14 text-center"><FilePlus2 className="mx-auto h-9 w-9 text-muted-foreground" /><h3 className="mt-4 text-lg font-bold">Your work belongs here</h3><p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">A class project, performance, volunteer effort, hobby, or something you learned all count.</p><Button asChild className="mt-6"><Link href={getUriWithOrg(orgslug, '/portfolio/work/new')}><Plus className="mr-2 h-4 w-4" />Add something</Link></Button></div> }
 
-function WorkGrid({ shell, owner, orgslug, username }: any) { return <section>{shell.work.length ? <WorkCards work={shell.work} owner={owner} orgslug={orgslug} username={username} /> : owner ? <EmptyWork orgslug={orgslug} /> : <p className="text-muted-foreground">No public work yet.</p>}</section> }
-
-function ResumeView({ shell, orgslug, username, owner }: { shell: Shell; orgslug: string; username?: string; owner: boolean }) {
-  const displayName = shell.portfolio.display_name || username || 'Your name'
-  const publicHref = getUriWithOrg(orgslug, `/user/${username || shell.portfolio.username}`)
-  const copyLink = async () => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : ''
-    await navigator.clipboard?.writeText(`${origin}${publicHref}`)
-    toast.success('Portfolio link copied')
+function WorkGrid({ shell, setShell, owner, orgslug, username, token }: any) {
+  const [savingUuid, setSavingUuid] = useState<string | null>(null)
+  const toggleFeatured = async (item: Work) => {
+    if (!token || savingUuid) return
+    setSavingUuid(item.work_uuid)
+    try {
+      const next = await updateMyPortfolioFeaturedWork({ work_uuid: item.featured ? null : item.work_uuid }, token)
+      setShell(next)
+      toast.success(item.featured ? 'Removed from featured work' : `${item.title} is now featured`)
+    } catch (error: any) { toast.error(error?.message || 'Could not update featured work') }
+    finally { setSavingUuid(null) }
   }
-  return <section>
-    <style jsx global>{`@media print { body * { visibility: hidden !important; } [data-portfolio-resume], [data-portfolio-resume] * { visibility: visible !important; } [data-portfolio-resume] { position: absolute; inset: 0; width: 100%; border: 0 !important; box-shadow: none !important; } [data-resume-actions] { display: none !important; } }`}</style>
-    <div data-resume-actions className="mb-5 flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h2 className="text-2xl font-black tracking-tight">Resume</h2>
-        <p className="mt-1 text-sm text-muted-foreground">A print-friendly version of your portfolio for employers.</p>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {owner && <Button type="button" variant="outline" onClick={copyLink}><Copy className="mr-2 h-4 w-4" />Copy portfolio link</Button>}
-        <Button type="button" variant="outline" onClick={() => window.print()}><Printer className="mr-2 h-4 w-4" />Print / save PDF</Button>
-      </div>
+  if (!shell.work.length) return owner ? <EmptyWork orgslug={orgslug} /> : <p className="text-muted-foreground">No public work yet.</p>
+  return <section>{owner && <div className="mb-5"><h2 className="text-2xl font-black">Your work</h2><p className="mt-1 text-sm text-muted-foreground">Star one item to feature on your overview. Choosing another replaces the current selection.</p></div>}<div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-5 lg:grid-cols-3">{shell.work.map((item: Work) => <div key={item.work_uuid} className={`group/work relative ${savingUuid === item.work_uuid ? 'pointer-events-none opacity-65' : ''}`}><WorkCardView item={item} href={getUriWithOrg(orgslug, owner ? `/portfolio/work/${item.work_uuid}` : `/user/${username}/work/${item.slug}`)} />{owner && <button type="button" onClick={() => toggleFeatured(item)} aria-label={item.featured ? `Remove ${item.title} from featured work` : `Feature ${item.title}`} aria-pressed={item.featured} className={`absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-background/95 shadow-md ring-1 ring-border transition hover:scale-105 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground ${item.featured ? 'text-amber-500 opacity-100' : 'text-muted-foreground opacity-100 sm:opacity-0 sm:group-hover/work:opacity-100'}`}><Star className="h-5 w-5" fill={item.featured ? 'currentColor' : 'none'} /></button>}</div>)}</div></section>
+}
+
+function ResumeView({ shell, username }: { shell: Shell; orgslug: string; username?: string; owner: boolean }) {
+  const displayName = shell.portfolio.display_name || username || 'Your name'
+  const canvasRef = useRef<HTMLDivElement | null>(null)
+  const pageRef = useRef<HTMLElement | null>(null)
+  const [fitScale, setFitScale] = useState(1)
+  const [zoom, setZoom] = useState(1)
+  const [pageHeight, setPageHeight] = useState(1056)
+  const panRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null)
+  const scale = fitScale * zoom
+  useEffect(() => {
+    const canvas = canvasRef.current
+    const page = pageRef.current
+    if (!canvas || !page) return
+    const measure = () => {
+      setFitScale(Math.min(1, Math.max(0.25, (canvas.clientWidth - 48) / 816)))
+      setPageHeight(Math.max(1056, page.scrollHeight))
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(canvas); observer.observe(page)
+    return () => observer.disconnect()
+  }, [])
+  const startPan = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!canvasRef.current || (event.target as HTMLElement).closest('[data-resume-canvas-controls], a, button')) return
+    panRef.current = { x: event.clientX, y: event.clientY, left: canvasRef.current.scrollLeft, top: canvasRef.current.scrollTop }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+  const movePan = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!panRef.current || !canvasRef.current) return
+    canvasRef.current.scrollLeft = panRef.current.left - (event.clientX - panRef.current.x)
+    canvasRef.current.scrollTop = panRef.current.top - (event.clientY - panRef.current.y)
+  }
+  return <section className="relative">
+    <style jsx global>{`[data-portfolio-resume] { color: #0a0a0a !important; } [data-portfolio-resume] .text-foreground { color: #0a0a0a !important; } [data-portfolio-resume] .text-muted-foreground { color: #666 !important; } [data-portfolio-resume] .bg-muted { background-color: #f0f0f0 !important; } [data-portfolio-resume] .border-border { border-color: #d9d9d9 !important; } [data-portfolio-resume] svg { color: #777 !important; } @page { size: letter; margin: 0; } @media print { body * { visibility: hidden !important; } [data-portfolio-resume], [data-portfolio-resume] * { visibility: visible !important; } [data-portfolio-resume] { position: absolute !important; inset: 0 !important; width: 8.5in !important; min-height: 11in !important; transform: none !important; border: 0 !important; } [data-resume-canvas-controls] { display: none !important; } }`}</style>
+    <div data-resume-canvas-controls className="absolute right-4 top-4 z-20 flex w-fit items-center gap-1 rounded-xl border border-border bg-popover/95 p-1 text-popover-foreground backdrop-blur">
+      <button type="button" onClick={() => setZoom((current) => Math.max(0.5, Number((current - 0.25).toFixed(2))))} className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted" aria-label="Zoom out"><Minus className="h-4 w-4" /></button>
+      <button type="button" onClick={() => setZoom(1)} className="h-8 min-w-14 rounded-lg px-2 text-xs font-bold hover:bg-muted" aria-label="Reset zoom">{Math.round(zoom * 100)}%</button>
+      <button type="button" onClick={() => setZoom((current) => Math.min(2.5, Number((current + 0.25).toFixed(2))))} className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted" aria-label="Zoom in"><Plus className="h-4 w-4" /></button>
     </div>
-    <article data-portfolio-resume className="grid gap-6 rounded-lg border border-border bg-card p-6 shadow-sm sm:grid-cols-[260px_minmax(0,1fr)] sm:p-8">
-      <aside className="space-y-6 border-border sm:border-r sm:pr-6">
+    <div ref={canvasRef} onPointerDown={startPan} onPointerMove={movePan} onPointerUp={() => { panRef.current = null }} onPointerCancel={() => { panRef.current = null }} className="relative h-[calc(100dvh-6.625rem)] cursor-grab overflow-auto overscroll-contain bg-muted/70 p-6 active:cursor-grabbing">
+      <div className="mx-auto mt-2" style={{ width: 816 * scale, height: pageHeight * scale }}>
+    <article ref={pageRef} data-portfolio-resume style={{ width: 816, minHeight: 1056, transform: `scale(${scale})`, transformOrigin: 'top left', '--background': '0 0% 100%', '--foreground': '0 0% 4%', '--card': '0 0% 100%', '--card-foreground': '0 0% 4%', '--muted': '0 0% 95%', '--muted-foreground': '0 0% 40%', '--border': '0 0% 86%' } as React.CSSProperties} className="grid grid-cols-[260px_minmax(0,1fr)] gap-7 border border-neutral-200 bg-white p-10 text-neutral-950">
+      <aside className="space-y-6 border-r border-border pr-6">
         <header>
           <h1 className="text-3xl font-semibold leading-tight text-foreground">{displayName}</h1>
           {shell.portfolio.headline && <p className="mt-2 text-sm font-medium text-muted-foreground">{shell.portfolio.headline}</p>}
@@ -402,6 +448,8 @@ function ResumeView({ shell, orgslug, username, owner }: { shell: Shell; orgslug
         <ResumeSection title="Selected Work">{shell.work?.length ? shell.work.slice(0, 5).map((work) => <div key={work.work_uuid} className="break-inside-avoid"><div className="flex items-center gap-2"><Briefcase className="h-4 w-4 text-muted-foreground" /><h3 className="font-semibold">{work.title}</h3></div>{work.subtitle && <p className="mt-1 text-sm font-medium text-muted-foreground">{work.subtitle}</p>}{work.summary && <p className="mt-1.5 leading-6 text-muted-foreground">{work.summary}</p>}</div>) : <p className="text-sm text-muted-foreground">Add Work items to fill this section.</p>}</ResumeSection>
       </div>
     </article>
+      </div>
+    </div>
   </section>
 }
 
@@ -416,6 +464,17 @@ function ResumeJourneyEntry({ entry }: { entry: JourneyEntry }) {
 export function WorkCardView({ item, href, preview = false }: { item: Work; href?: string; preview?: boolean }) { const card = <div className="group min-w-0"><div className="aspect-[4/3] overflow-hidden rounded-xl bg-muted">{item.cover_url ? <img src={normalizeMediaUrl(item.cover_url)} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]" /> : <div className="flex h-full items-center justify-center px-4 text-center text-sm font-semibold text-muted-foreground">{item.title || 'Your work'}</div>}</div><h3 className="mt-3 line-clamp-2 text-sm font-bold leading-snug sm:text-base">{item.title || 'Your work'}</h3>{item.subtitle && <p className="mt-1 line-clamp-1 text-xs text-muted-foreground sm:text-sm">{item.subtitle}</p>}{item.summary && <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{item.summary}</p>}{preview && <span className="sr-only">Preview of your Work card</span>}</div>; return href ? <Link href={href}>{card}</Link> : card }
 
 function WorkCards({ work, owner, orgslug, username }: { work: Work[]; owner: boolean; orgslug: string; username?: string }) { return <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-5 lg:grid-cols-3">{work.map((item) => <WorkCardView key={item.work_uuid} item={item} href={getUriWithOrg(orgslug, owner ? `/portfolio/work/${item.work_uuid}` : `/user/${username}/work/${item.slug}`)} />)}</div> }
+
+function FeaturedWorkCards({ work, owner, orgslug, username }: { work: Work[]; owner: boolean; orgslug: string; username?: string }) {
+  return <div>{work.map((item) => {
+    const href = getUriWithOrg(orgslug, owner ? `/portfolio/work/${item.work_uuid}` : `/user/${username}/work/${item.slug}`)
+    const excerpt = item.summary || String(item.blocks.find((block) => block.block_type === 'text')?.data?.text || '')
+    return <Link key={item.work_uuid} href={href} className="group grid min-h-28 max-w-3xl grid-cols-[minmax(0,1fr)_44%] overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground transition-colors hover:border-foreground/25 hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground sm:h-44 sm:grid-cols-[42%_minmax(0,1fr)]">
+      <div className="order-1 flex min-w-0 flex-col justify-center px-3.5 py-3 sm:order-2 sm:px-6"><h3 className="line-clamp-2 text-[15px] font-bold leading-tight tracking-tight sm:text-lg">{item.title}</h3>{item.subtitle && <p className="mt-1.5 line-clamp-1 text-[11px] font-medium text-muted-foreground sm:text-xs">{item.subtitle}</p>}{excerpt && <p className="mt-3 hidden line-clamp-2 text-sm leading-relaxed text-muted-foreground sm:block">{excerpt}</p>}</div>
+      <div className="order-2 min-w-0 overflow-hidden border-l border-border bg-muted sm:order-1 sm:border-l-0 sm:border-r">{item.cover_url ? <img src={normalizeMediaUrl(item.cover_url)} alt="" className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.02]" /> : <div className="flex h-full items-center justify-center px-3 text-center text-xs font-semibold text-muted-foreground">{item.title}</div>}</div>
+    </Link>
+  })}</div>
+}
 
 export function WorkEditor({ initialWork, orgslug }: { initialWork?: Work; orgslug: string }) {
   const router = useRouter(); const session = useLHSession() as any; const token = session?.data?.tokens?.access_token; const userId = Number(session?.data?.user?.id || 0); const [busy, setBusy] = useState(false); const [pickerOpen, setPickerOpen] = useState(false)

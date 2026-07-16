@@ -686,6 +686,17 @@
   visibility: visible;
 }
 
+/* Portfolio sections use the activity editor's clear insertion-line language. */
+.portfolio-sections-dragging [data-rbd-placeholder-context-id] {
+  position: relative;
+  margin-block: 18px !important;
+  border: 2px solid #3b82f6;
+  border-radius: 16px;
+  background: rgb(59 130 246 / 4%);
+  box-shadow: 0 10px 30px rgb(59 130 246 / 18%), inset 0 0 0 1px rgb(255 255 255 / 55%);
+  transition: height 180ms cubic-bezier(0.16, 1, 0.3, 1), margin 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* Block being dragged */
 .ProseMirror .is-dragging {
   opacity: 0.4;

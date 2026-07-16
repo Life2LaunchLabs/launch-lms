@@ -5,7 +5,7 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from src.db.learning import LearningActivity, LearningActivityRun, LearningBadge, LearningBadgeAward, LearningPage, LearningPageProgress, LearningPageType, LearningPath, LearningRun
 from src.db.media import MediaAsset
 from src.db.organizations import Organization
-from src.db.portfolio import JourneyEntry, JourneyEntryBlock, JourneyEntryCreate, JourneyEntryUpdate, JourneyWorkLink, Portfolio, PortfolioLink, PortfolioSection, PortfolioUpdate, PublishRequest, WorkItem, WorkItemBlock, WorkItemCreate, WorkItemUpdate
+from src.db.portfolio import JourneyEntry, JourneyEntryBlock, JourneyEntryCreate, JourneyEntryUpdate, JourneyWorkLink, Portfolio, PortfolioFeaturedWorkUpdate, PortfolioLink, PortfolioSection, PortfolioUpdate, PublishRequest, WorkItem, WorkItemBlock, WorkItemCreate, WorkItemUpdate
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
@@ -104,6 +104,22 @@ def test_private_by_default_and_created_work_is_public_after_portfolio_publish()
         assert public["work"][0]["title"] == "My first build"
 
 
+def test_unpublished_portfolio_action_explains_preview_then_publish_flow():
+    with _session() as db:
+        user = _user(); db.add(user); db.commit()
+        actor = _public(user)
+        service.create_work(WorkItemCreate(title="Ready to share"), actor, db)
+        portfolio = service._get_portfolio(db, 1)
+        portfolio.previewed_at = service._now()
+        db.add(portfolio); db.commit()
+
+        action = service.get_owner_shell(actor, db)["nextAction"]
+
+        assert action["label"] == "Your portfolio is ready to publish"
+        assert action["ctaLabel"] == "Review and publish"
+        assert action["href"] == "/portfolio/preview"
+
+
 def test_public_shell_uses_allowlisted_dtos_without_internal_fields():
     with _session() as db:
         user = _user(); org = Organization(id=1, org_uuid="org_1", name="Youth Lab", slug="youth", email="org@example.com"); role = Role(id=1, name="member")
@@ -184,6 +200,22 @@ def test_work_idempotency_revision_conflict_and_publish_flow():
         assert error.value.status_code == 409
 
 
+def test_featured_work_allows_exactly_one_selection():
+    with _session() as db:
+        user = _user(); db.add(user); db.commit(); actor = _public(user)
+        first = service.create_work(WorkItemCreate(title="First"), actor, db)
+        second = service.create_work(WorkItemCreate(title="Second"), actor, db)
+
+        shell = service.update_featured_work(PortfolioFeaturedWorkUpdate(work_uuid=first["work_uuid"]), actor, db)
+        assert [item["title"] for item in shell["work"] if item["featured"]] == ["First"]
+
+        shell = service.update_featured_work(PortfolioFeaturedWorkUpdate(work_uuid=second["work_uuid"]), actor, db)
+        assert [item["title"] for item in shell["work"] if item["featured"]] == ["Second"]
+
+        shell = service.update_featured_work(PortfolioFeaturedWorkUpdate(work_uuid=None), actor, db)
+        assert not any(item["featured"] for item in shell["work"])
+
+
 def test_legacy_import_is_repeatable_and_preserves_profile_json():
     with _session() as db:
         original = {"featured": {"cards": [{"title": "Robot", "description": "Built in class"}]}}
@@ -195,6 +227,7 @@ def test_legacy_import_is_repeatable_and_preserves_profile_json():
         db.refresh(user)
         assert first["imported"] == 1
         assert second["imported"] == 0
+        assert second["shell"]["portfolio"]["has_legacy_portfolio"] is False
         assert user.profile == original
 
 
