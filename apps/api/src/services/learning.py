@@ -78,6 +78,7 @@ from src.services.learning_page_convert import (
 from src.services.learning_flow import FlowValidationError, resolve_flow, validate_flow
 from src.services.learning_portfolio_actions import (
     PortfolioActionError,
+    _portfolio,
     apply_portfolio_outcomes,
     validate_outcomes,
 )
@@ -110,6 +111,12 @@ LAUNCH_READY_DEFAULT_IMAGES["badges"] = "/images/launch-ready/traits.png"
 _SYSTEM_FIELDS = {"protected", "system_type"}
 _SAFE_CORE_VARIABLE_TARGETS = {"user.first_name", "user.last_name", "user.bio"}
 _SAFE_IMAGE_VARIABLE_TARGETS = {"user.avatar_image"}
+_SAFE_PORTFOLIO_VARIABLE_TARGETS = {
+    "user.portfolio.display_name": "display_name",
+    "user.portfolio.headline": "headline",
+    "user.portfolio.short_bio": "short_bio",
+    "user.portfolio.location_label": "location_label",
+}
 _SAFE_VARIABLE_PREFIXES = (
     "user.profile.onboarding.",
     "user.details.variables.",
@@ -477,6 +484,12 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
             }
             portfolio = db_session.exec(select(Portfolio).where(Portfolio.user_id == user.id)).first()
             if portfolio:
+                render_context["variables"].update({
+                    "user.portfolio.display_name": portfolio.display_name or "",
+                    "user.portfolio.headline": portfolio.headline or "",
+                    "user.portfolio.short_bio": portfolio.short_bio or "",
+                    "user.portfolio.location_label": portfolio.location_label or "",
+                })
                 journeys = db_session.exec(
                     select(JourneyEntry)
                     .where(JourneyEntry.portfolio_id == portfolio.id)
@@ -776,7 +789,7 @@ def _question_variable_bindings(page: LearningPage, question: dict) -> dict:
 def _target_value_type(db_session: Session, org_id: int | None, target: str) -> str:
     if target in _SAFE_IMAGE_VARIABLE_TARGETS:
         return "image"
-    if target in _SAFE_CORE_VARIABLE_TARGETS or target == "user.email":
+    if target in _SAFE_CORE_VARIABLE_TARGETS or target in _SAFE_PORTFOLIO_VARIABLE_TARGETS or target == "user.email":
         return "text"
     if target.startswith("user.details.variables.") and org_id is not None:
         variable_key = target[len("user.details.variables."):]
@@ -803,6 +816,8 @@ def _is_safe_variable_target(target: str, value, user: User, db_session: Session
     if target in _SAFE_IMAGE_VARIABLE_TARGETS:
         return True, None
     if target in _SAFE_CORE_VARIABLE_TARGETS:
+        return True, None
+    if target in _SAFE_PORTFOLIO_VARIABLE_TARGETS:
         return True, None
     if target == "user.email":
         current_email = (user.email or "").strip().lower()
@@ -860,6 +875,11 @@ def _apply_learning_variables_to_user(
             user.bio = str(value or "").strip()
         elif target == "user.avatar_image":
             user.avatar_image = str(value or "").strip()
+        elif target in _SAFE_PORTFOLIO_VARIABLE_TARGETS:
+            portfolio = _portfolio(db_session, user, str(datetime.now()))
+            setattr(portfolio, _SAFE_PORTFOLIO_VARIABLE_TARGETS[target], str(value or "").strip())
+            portfolio.update_date = str(datetime.now())
+            db_session.add(portfolio)
         elif target == "user.email":
             user.email = str(value or "").strip()
         elif target.startswith("user.profile."):
@@ -1336,6 +1356,17 @@ def _ensure_launch_ready_activity(
             content["blocks"].append(question_block(spec["kind"], spec["content"], block_id=spec["block_id"], scoring={"mode": "off", "points": 0}, completion=spec.get("completion") or {}))
         elif not spec.get("blocks"):
             content["blocks"].append(text_block(paragraph_node(spec.get("body") or "Continue when you're ready."), block_id=f"{spec['block_id']}_body"))
+        for block in content["blocks"]:
+            if block.get("type") == "portfolio_preview":
+                block["system"] = {
+                    "locked": True,
+                    "reason": "This preview is generated from activity answers and rendered by the portfolio system.",
+                }
+            elif block.get("type") == "question" and key in {"journey", "work", "traits", "links", "badges", "launch"}:
+                block["system"] = {
+                    "locked": True,
+                    "reason": "This response drives a structured portfolio action and cannot be safely reconfigured as a scalar editor variable.",
+                }
         if spec.get("action_label"):
             content["action_label"] = spec["action_label"]
         if not page:
@@ -1631,7 +1662,7 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
         title="Make it feel like you", description="Build an introduction that feels like you and preview the real result.",
         pages=[
             {"page_uuid": profile_photo_page, "block_id": profile_photo_block, "title": "Choose how you show up", "kind": "image_upload", "content": {"label": "Add a profile photo if you want. You can skip this, and you can change it later."}, "completion": {"required": False, "variable_bindings": {"image": {"target": "user.avatar_image", "value_type": "image"}}}},
-            {"page_uuid": profile_details_page, "block_id": profile_details_block, "title": "Write your introduction", "kind": "text_input", "content": {"inputs": [{"id": "display_name", "label": "Display name", "placeholder": "How you want people to know you", "variant": "single_line", "height": 48}, {"id": "tagline", "label": "Tagline", "placeholder": "Student, maker, and community builder", "variant": "single_line", "height": 48}, {"id": "bio", "label": "Bio", "placeholder": "Share what you’re interested in, what you’re working toward, and what you want people to know.", "variant": "short_answer", "height": 200}, {"id": "location", "label": "Location (optional)", "placeholder": "City or region", "variant": "single_line", "height": 48}]}, "completion": {"inputs": {"display_name": {"required": True, "min_words": 1}, "bio": {"required": True, "min_words": 2}, "tagline": {"required": True, "min_words": 1}, "location": {"required": False}}}},
+            {"page_uuid": profile_details_page, "block_id": profile_details_block, "title": "Write your introduction", "kind": "text_input", "content": {"inputs": [{"id": "display_name", "label": "Display name", "placeholder": "How you want people to know you", "variant": "single_line", "height": 48}, {"id": "tagline", "label": "Tagline", "placeholder": "Student, maker, and community builder", "variant": "single_line", "height": 48}, {"id": "bio", "label": "Bio", "placeholder": "Share what you’re interested in, what you’re working toward, and what you want people to know.", "variant": "short_answer", "height": 200}, {"id": "location", "label": "Location (optional)", "placeholder": "City or region", "variant": "single_line", "height": 48}]}, "completion": {"inputs": {"display_name": {"required": True, "min_words": 1}, "bio": {"required": True, "min_words": 2}, "tagline": {"required": True, "min_words": 1}, "location": {"required": False}}, "question_mode": "variable", "variable_bindings": {"inputs": {"display_name": {"target": "user.portfolio.display_name"}, "tagline": {"target": "user.portfolio.headline"}, "bio": {"target": "user.portfolio.short_bio"}, "location": {"target": "user.portfolio.location_label"}}}}},
             {"page_uuid": profile_review_page, "block_id": "blk_launch_profile_review", "title": "This is how you’ll show up", "action_label": "Add this to my portfolio", "blocks": [text_block(heading_node("This is how you’ll show up"), block_id="blk_profile_review_heading"), text_block(paragraph_node("This preview uses the same identity treatment as your portfolio."), block_id="blk_profile_review_intro"), {"id": "blk_profile_review_header", "type": "portfolio_preview", "design": {"width": 100}, "content": {"variant": "identity_header", "bindings": {"display_name": {"source": "answer", "path": f"{profile_details_page}.answer.questions.{profile_details_block}.inputs.display_name.text", "fallback": "Your name"}, "headline": {"source": "answer", "path": f"{profile_details_page}.answer.questions.{profile_details_block}.inputs.tagline.text", "fallback": "Your tagline"}, "short_bio": {"source": "answer", "path": f"{profile_details_page}.answer.questions.{profile_details_block}.inputs.bio.text", "fallback": "Your introduction"}, "location_label": {"source": "answer", "path": f"{profile_details_page}.answer.questions.{profile_details_block}.inputs.location.text", "fallback": ""}, "avatar_url": {"source": "answer", "path": f"{profile_photo_page}.answer.questions.{profile_photo_block}.url", "fallback_binding": {"source": "variable", "path": "user.avatar_image", "fallback": ""}}}}}, {"id": "blk_profile_review_details", "type": "button", "design": {"width": 48, "variant": "secondary", "group": "profile_review_actions"}, "content": {"label": "Change my introduction", "destination_page_uuid": profile_details_page}}, {"id": "blk_profile_review_photo", "type": "button", "design": {"width": 48, "variant": "secondary", "group": "profile_review_actions"}, "content": {"label": "Choose another photo", "destination_page_uuid": profile_photo_page}}]},
         ],
         outcomes=[{"id": "set-profile-details", "type": "set_portfolio_fields", "fields": {"display_name": answer(profile_details_page, profile_details_block, "inputs.display_name.text"), "short_bio": answer(profile_details_page, profile_details_block, "inputs.bio.text"), "headline": answer(profile_details_page, profile_details_block, "inputs.tagline.text"), "location_label": answer(profile_details_page, profile_details_block, "inputs.location.text")}}],

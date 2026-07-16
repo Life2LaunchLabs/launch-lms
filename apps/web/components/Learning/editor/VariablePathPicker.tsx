@@ -17,6 +17,13 @@ const PROFILE_LEAVES: Array<{ name: string; label: string; target: string; value
   { name: 'onboarding_goal', label: 'Onboarding goal', target: 'user.details.onboarding.next_step', value_type: 'text' },
 ]
 
+const PORTFOLIO_LEAVES: Array<{ name: string; label: string; target: string; value_type: string }> = [
+  { name: 'display_name', label: 'Display name', target: 'user.portfolio.display_name', value_type: 'text' },
+  { name: 'headline', label: 'Headline', target: 'user.portfolio.headline', value_type: 'text' },
+  { name: 'short_bio', label: 'Short bio', target: 'user.portfolio.short_bio', value_type: 'text' },
+  { name: 'location_label', label: 'Location', target: 'user.portfolio.location_label', value_type: 'text' },
+]
+
 const SEGMENT_PATTERN = /^[a-z][a-z0-9_]*$/
 
 type PathNode = {
@@ -52,6 +59,20 @@ function buildTree(variables: any[], sessionFolders: Set<string>): PathNode {
     profile.children.set(leaf.name, {
       name: leaf.name,
       path: `profile.${leaf.name}`,
+      target: leaf.target,
+      value_type: leaf.value_type,
+      builtin: true,
+      isLeaf: true,
+      children: new Map(),
+    })
+  })
+
+  const portfolio = ensureFolder(root, 'portfolio')
+  portfolio.builtin = true
+  PORTFOLIO_LEAVES.forEach((leaf) => {
+    portfolio.children.set(leaf.name, {
+      name: leaf.name,
+      path: `portfolio.${leaf.name}`,
       target: leaf.target,
       value_type: leaf.value_type,
       builtin: true,
@@ -105,6 +126,8 @@ export function targetToDisplayPath(target: string): string {
   if (!target) return ''
   const profileLeaf = PROFILE_LEAVES.find((leaf) => leaf.target === target)
   if (profileLeaf) return `profile.${profileLeaf.name}`
+  const portfolioLeaf = PORTFOLIO_LEAVES.find((leaf) => leaf.target === target)
+  if (portfolioLeaf) return `portfolio.${portfolioLeaf.name}`
   return String(target).replace(/^user\.details\.variables\./, '')
 }
 

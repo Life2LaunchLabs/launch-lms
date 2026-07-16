@@ -27,6 +27,7 @@ import {
   Italic,
   Layers3,
   ListChecks,
+  Lock,
   Loader2,
   Monitor,
   MousePointer2,
@@ -117,6 +118,7 @@ import {
 import { DEVICE_FRAMES, MOBILE_FRAME_CAP } from './constants'
 import { PageListPanel } from './PageListPanel'
 import { VariablePathPicker } from './VariablePathPicker'
+import VisualFlowEditor, { createLinearFlow } from './VisualFlowEditor'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { JourneyCardView, type JourneyEntry } from '@components/Pages/Portfolio/Journey'
 
@@ -332,11 +334,12 @@ export default function LearningActivityEditor({
 
   const patchBlock = React.useCallback((blockId: string, patch: Partial<LearningBlock>) => {
     if (!selectedPage || selectedPage.page_type !== 'standard') return
-    setBlocks(selectedPage.page_uuid, getEditorBlocks(selectedPage, variantKey).map((block) => block.id === blockId ? ({ ...block, ...patch } as LearningBlock) : block))
+    setBlocks(selectedPage.page_uuid, getEditorBlocks(selectedPage, variantKey).map((block) => block.id === blockId && !block.system?.locked ? ({ ...block, ...patch } as LearningBlock) : block))
   }, [selectedPage, setBlocks, variantKey])
 
   const removeBlock = (blockId: string) => {
     if (!selectedPage) return
+    if (getEditorBlocks(selectedPage, variantKey).find((block) => block.id === blockId)?.system?.locked) return
     const blocks = getEditorBlocks(selectedPage, variantKey).filter((block) => block.id !== blockId)
     setBlocks(selectedPage.page_uuid, blocks)
     setSelection({ pageUuid: selectedPage.page_uuid, blockId: null })
@@ -347,6 +350,7 @@ export default function LearningActivityEditor({
     const blocks = getEditorBlocks(selectedPage, variantKey)
     const index = blocks.findIndex((block) => block.id === blockId)
     if (index < 0) return
+    if (blocks[index].system?.locked) return
     const clone = { ...cloneJson(blocks[index]), id: createBlockId() } as LearningBlock
     const nextBlocks = [...blocks]
     nextBlocks.splice(index + 1, 0, clone)
@@ -359,6 +363,7 @@ export default function LearningActivityEditor({
     const blocks = getEditorBlocks(selectedPage, variantKey)
     const index = blocks.findIndex((block) => block.id === blockId)
     if (index < 0 || toIndex < 0 || toIndex >= blocks.length || toIndex === index) return
+    if (blocks[index].system?.locked) return
     const nextBlocks = [...blocks]
     const [item] = nextBlocks.splice(index, 1)
     nextBlocks.splice(toIndex, 0, item)
@@ -375,6 +380,7 @@ export default function LearningActivityEditor({
   const moveBlockToRef = React.useRef(moveBlockTo)
   moveBlockToRef.current = moveBlockTo
   const startBlockDrag = React.useCallback((blockId: string, startEvent: React.PointerEvent) => {
+    if (getEditorBlocks(selectedPage, variantKey).find((block) => block.id === blockId)?.system?.locked) return
     startEvent.preventDefault()
     startEvent.stopPropagation()
     setDraggingBlockId(blockId)
@@ -410,7 +416,7 @@ export default function LearningActivityEditor({
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onEnd)
     window.addEventListener('pointercancel', onEnd)
-  }, [])
+  }, [selectedPage, variantKey])
 
   // A text-input block is one row: either a single input or two side by side.
   const toggleSideBySide = (blockId: string) => {
@@ -953,7 +959,15 @@ export default function LearningActivityEditor({
   )
 }
 
-function ActivityFlowView({ activity, pages, trusted, onSelectPage, onPatchFlow, onPatchActivity, onConvertVariants }: any) {
+function ActivityFlowView({ activity, pages, onSelectPage, onPatchFlow, onConvertVariants }: any) {
+  const flow = activity.settings?.flow
+  if (!flow) {
+    return <div className="flex min-h-0 flex-1 items-center justify-center bg-gray-50 p-8"><div className="max-w-md rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm"><GitBranch size={24} className="mx-auto text-gray-700"/><h2 className="mt-4 text-lg font-bold">Turn page order into a visual flow</h2><p className="mt-2 text-sm leading-6 text-gray-500">Start with the current page order, then add decision points, rearrange paths, and draw merge connections directly on the canvas.</p><button onClick={() => onPatchFlow(createLinearFlow(pages))} className="mt-6 h-10 rounded-lg bg-gray-950 px-4 text-sm font-bold text-white hover:bg-black">Open visual flow</button>{pages.some((page: any) => page.content?.variants) && <div className="mt-5 border-t border-gray-100 pt-5"><p className="text-xs text-gray-500">This activity also has legacy page variants.</p><div className="mt-2 flex flex-wrap justify-center gap-2">{pages.filter((page: any) => page.content?.variants).map((page: any) => <button key={page.page_uuid} onClick={() => onConvertVariants(page)} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900">Convert {page.title}</button>)}</div></div>}</div></div>
+  }
+  return <VisualFlowEditor flow={flow} pages={pages} onChange={onPatchFlow} onSelectPage={onSelectPage}/>
+}
+
+function LegacyActivityFlowView({ activity, pages, trusted, onSelectPage, onPatchFlow, onPatchActivity, onConvertVariants }: any) {
   const flow = activity.settings?.flow
   const outcomes = activity.settings?.outcomes || { version: 1, actions: [] }
   const enableLinearFlow = () => {
@@ -1280,29 +1294,30 @@ function CanvasBlock({ block, page, selected, readOnly, registerBlockEl, onHover
   onRequestImageUpload: () => void
 }) {
   const style = getBlockStyle(block)
+  const contentReadOnly = Boolean(readOnly || block.system?.locked)
 
   const content = block.type === 'text' ? (
     block.content?.nodes?.[0]?.content?.[0]?.type === 'displayBinding'
       ? <div className="rounded-lg border border-dashed border-violet-300 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-800">{block.content.nodes[0].content[0].attrs?.binding?.fallback || 'Dynamic value'}</div>
-      : <TextBlockEditor block={block} selected={selected} readOnly={readOnly} onEditorReady={onTextEditorReady} onPatch={onPatch} />
+      : <TextBlockEditor block={block} selected={selected} readOnly={contentReadOnly} onEditorReady={onTextEditorReady} onPatch={onPatch} />
   ) : block.type === 'image' ? (
     <ImageBlockEditor
       block={block}
       selected={selected}
-      readOnly={readOnly}
+      readOnly={contentReadOnly}
       onPatch={onPatch}
       onRequestImageUpload={onRequestImageUpload}
     />
   ) : block.type === 'button' ? (
-    <button type="button" disabled className={`min-h-11 rounded-full px-5 py-3 text-sm font-bold ${block.design?.variant === 'primary' ? 'bg-[var(--org-primary-color)] text-white' : 'border border-gray-200 bg-white text-gray-700 shadow-sm'}`}>{block.content?.label || 'Go to page'}</button>
+    <button type="button" disabled className={`pointer-events-none min-h-11 rounded-full px-5 py-3 text-sm font-bold ${block.design?.variant === 'primary' ? 'bg-[var(--org-primary-color)] text-white' : 'border border-gray-200 bg-white text-gray-700 shadow-sm'}`}>{block.content?.label || 'Go to page'}</button>
   ) : block.type === 'portfolio_preview' ? (
     <JourneyCardView preview entry={{ journey_uuid: 'preview', slug: 'preview', entry_type: 'education', title: 'Your current chapter', organization: 'Your school or organization', location_label: 'Your location', summary: 'Your story will appear here.', start_date: '2026-01', start_precision: 'month', is_current: true, revision: 1, cover_url: '', blocks: [], work: [] } as JourneyEntry} />
   ) : ['multiple_choice', 'categorized_multi_select'].includes((block as LearningQuestionBlock).kind) ? (
-    <McqBlockCanvas block={block as LearningQuestionBlock} page={page} selected={selected} readOnly={readOnly} onPatch={onPatch} />
+    <McqBlockCanvas block={block as LearningQuestionBlock} page={page} selected={selected} readOnly={contentReadOnly} onPatch={onPatch} />
   ) : (block as LearningQuestionBlock).kind === 'image_upload' ? (
-    <ImageUploadBlockCanvas block={block as LearningQuestionBlock} readOnly={readOnly} onPatch={onPatch} />
+    <ImageUploadBlockCanvas block={block as LearningQuestionBlock} readOnly={contentReadOnly} onPatch={onPatch} />
   ) : (
-    <TextInputBlockCanvas block={block as LearningQuestionBlock} page={page} selected={selected} readOnly={readOnly} onPatch={onPatch} />
+    <TextInputBlockCanvas block={block as LearningQuestionBlock} page={page} selected={selected} readOnly={contentReadOnly} onPatch={onPatch} />
   )
 
   if (readOnly) {
@@ -1322,6 +1337,7 @@ function CanvasBlock({ block, page, selected, readOnly, registerBlockEl, onHover
         onSelect()
       }}
     >
+      {block.system?.locked && <span className="pointer-events-none absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white/95 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-gray-500 shadow-sm"><Lock size={11} /> System</span>}
       {content}
     </section>
   )
@@ -1402,6 +1418,7 @@ function BlockOverlay({ selectedPage, selectedBlock, hoveredBlockId, draggingBlo
   const isTextBlock = isSelected && selectedBlock?.type === 'text'
   const isTextInputQuestion = isSelected && selectedBlock?.type === 'question' && selectedBlock?.kind === 'text_input'
   const sideBySideActive = isTextInputQuestion && (selectedBlock?.content?.inputs || []).length > 1
+  const locked = Boolean(selectedBlock?.system?.locked)
 
   return (
     <div ref={containerRef} className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
@@ -1442,12 +1459,11 @@ function BlockOverlay({ selectedPage, selectedBlock, hoveredBlockId, draggingBlo
                 </>
               )}
               <span className="h-5 w-px bg-gray-200" />
-              <IconButton title="Duplicate" onClick={onDuplicate}><Copy size={14} /></IconButton>
-              <IconButton title="Delete" onClick={onRemove}><Trash2 size={14} /></IconButton>
+              {locked ? <span title={selectedBlock.system?.reason || 'Managed by the system'} className="flex items-center gap-1 px-1.5 text-[11px] font-bold text-gray-500"><Lock size={13} /> Locked</span> : <><IconButton title="Duplicate" onClick={onDuplicate}><Copy size={14} /></IconButton><IconButton title="Delete" onClick={onRemove}><Trash2 size={14} /></IconButton></>}
             </div>
           )}
 
-          <button
+          {!locked && <button
             type="button"
             title="Drag to reorder"
             onPointerDown={(event) => onStartDrag(targetId, event)}
@@ -1455,9 +1471,9 @@ function BlockOverlay({ selectedPage, selectedBlock, hoveredBlockId, draggingBlo
             style={{ top: rect.top + rect.height / 2 - 16, left: Math.max(2, rect.left - 30) }}
           >
             <GripVertical size={14} />
-          </button>
+          </button>}
 
-          {isSelected && !isDragging && (
+          {isSelected && !isDragging && !locked && (
             <>
               <div
                 title="Drag to resize width"
@@ -1602,7 +1618,7 @@ function McqBlockCanvas({ block, page, selected, readOnly, onPatch }: any) {
 // two side by side (toggled from the block toolbar).
 function TextInputBlockCanvas({ block, page, selected: _selected, readOnly, onPatch }: any) {
   const content = block.content || {}
-  const inputs = normalizeQuestionInputs(content.inputs).slice(0, 2)
+  const inputs = normalizeQuestionInputs(content.inputs)
   const scoring = getBlockScoring(page, block)
   const sideBySide = inputs.length > 1
 
@@ -2162,6 +2178,9 @@ function VariantControls({ page, pages, variantKey, setVariantKey, onSelectVaria
 function BlockInspector({ block, page, pages, learningVariables, onCreateVariableKey, onPatchBlock, onPatchPage, onToggleSideBySide, onRequestImageUpload }: any) {
   const design = block.design || {}
   const patchDesign = (patch: any) => onPatchBlock(block.id, { design: { ...design, ...patch } })
+  if (block.system?.locked) {
+    return <div className="p-5"><div className="rounded-xl border border-gray-200 bg-gray-50 p-4"><div className="flex items-center gap-2 text-sm font-bold text-gray-800"><Lock size={15} /> Locked system block</div><p className="mt-2 text-xs leading-5 text-gray-600">{block.system.reason || 'This block is managed by the portfolio activity and cannot be configured in the editor.'}</p></div></div>
+  }
   return (
     <div className="space-y-6 p-5">
       <InspectorSection label="Layout">
@@ -2475,9 +2494,9 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
     )
   }
 
-  const inputs = normalizeQuestionInputs(content.inputs).slice(0, 2)
+  const inputs = normalizeQuestionInputs(content.inputs)
   const rules = completion.inputs || {}
-  const sideBySide = inputs.length > 1
+  const sideBySide = inputs.length === 2
   const inputBindings = variableBindings.inputs || {}
   const patchInput = (id: string, patch: any) => patchContent({ inputs: inputs.map((input) => input.id === id ? { ...input, ...patch } : input) })
   const patchInputRule = (id: string, patch: any) => patchCompletion({ inputs: { ...rules, [id]: { ...(rules[id] || {}), ...patch } } })
@@ -2486,10 +2505,10 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
     <>
       {labelSection}
       <InspectorSection label={sideBySide ? 'Inputs (side by side)' : 'Input'}>
-        <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm">
+        {inputs.length <= 2 && <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm">
           <span className="font-bold text-gray-700">Two inputs side by side</span>
           <input type="checkbox" checked={sideBySide} onChange={onToggleSideBySide} />
-        </label>
+        </label>}
         <div className="space-y-3">
           {inputs.map((input) => {
             const rule = rules[input.id] || {}

@@ -15,6 +15,10 @@ export interface LearningBlockBase {
     variant?: 'primary' | 'secondary'
     group?: string
   }
+  system?: {
+    locked?: boolean
+    reason?: string
+  }
 }
 
 export interface LearningTextBlock extends LearningBlockBase {
