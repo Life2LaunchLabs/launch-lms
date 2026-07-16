@@ -10,6 +10,7 @@ import {
   type RoutingDecision,
 } from './services/routing/requestPolicy'
 import { stripPort } from './services/utils/ts/hostUtils'
+import { buildPublicRequestUrl } from './services/routing/context'
 
 interface OrgSubdomainAccess {
   user_site_enabled: boolean
@@ -184,6 +185,11 @@ export default async function proxy(req: NextRequest) {
   const pathname = req.nextUrl.pathname
   const search = req.nextUrl.search
   const host = req.headers.get('host')
+  const publicRequestUrl = buildPublicRequestUrl(
+    req.url,
+    req.headers.get('x-forwarded-host') || host,
+    req.headers.get('x-forwarded-proto')
+  )
   const hasSession =
     !!req.cookies.get(ACCESS_TOKEN_COOKIE)?.value ||
     !!req.cookies.get(REFRESH_TOKEN_COOKIE)?.value
@@ -205,7 +211,7 @@ export default async function proxy(req: NextRequest) {
   }
 
   const decision = resolveRequestRouting({
-    requestUrl: req.url,
+    requestUrl: publicRequestUrl,
     pathname,
     search,
     host,
