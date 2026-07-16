@@ -90,12 +90,16 @@ ONBOARDING_NAME_PAGE_UUID = "learning_page_system_onboarding_name"
 ONBOARDING_GOAL_PAGE_UUID = "learning_page_system_onboarding_goal"
 LAUNCH_READY_ACTIVITY_UUIDS = {
     "identity": ONBOARDING_ACTIVITY_UUID,
+    "profile": "learning_activity_system_onboarding_profile",
     "journey": "learning_activity_system_onboarding_journey",
     "work": "learning_activity_system_onboarding_work",
     "traits": "learning_activity_system_onboarding_traits",
     "links": "learning_activity_system_onboarding_links",
     "theme": "learning_activity_system_onboarding_theme",
     "launch": "learning_activity_system_onboarding_launch",
+}
+LAUNCH_READY_DEFAULT_IMAGES = {
+    key: f"/images/launch-ready/{key}.png" for key in LAUNCH_READY_ACTIVITY_UUIDS
 }
 
 _SYSTEM_FIELDS = {"protected", "system_type"}
@@ -158,6 +162,13 @@ def _strip_system_fields(payload: dict) -> dict:
 def _is_system_object(value) -> bool:
     system_type = getattr(value, "system_type", None)
     return bool(getattr(value, "protected", False) or (system_type and system_type != "legacy_badge_migration"))
+
+
+def _is_locked_launch_ready_activity(activity: LearningActivity) -> bool:
+    return bool(
+        activity.activity_uuid in set(LAUNCH_READY_ACTIVITY_UUIDS.values())
+        and (activity.settings or {}).get("system_required")
+    )
 
 
 def _ensure_onboarding_for_owner_org(db_session: Session, org_id: int) -> None:
@@ -1180,26 +1191,29 @@ def _ensure_launch_ready_activity(
     settings = {"system_required": True, "estimated_minutes": 3, "capability": key, "outcomes": {"version": 1, "actions": outcomes}}
     if flow: settings["flow"] = flow
     if not activity:
-        activity = LearningActivity(path_id=path.id or 0, badge_id=badge.id or 0, org_id=org_id, title=title, description=description, icon="sparkles", order=order, required=True, published=True, settings=settings, activity_uuid=activity_uuid, creation_date=now, update_date=now)
+        activity = LearningActivity(path_id=path.id or 0, badge_id=badge.id or 0, org_id=org_id, title=title, description=description, thumbnail_image=LAUNCH_READY_DEFAULT_IMAGES[key], icon="sparkles", order=order, required=True, published=True, settings=settings, activity_uuid=activity_uuid, creation_date=now, update_date=now)
         db_session.add(activity); db_session.flush()
     else:
         activity.path_id, activity.badge_id, activity.org_id = path.id or 0, badge.id or 0, org_id
+        activity.title, activity.description = title, description
+        activity.thumbnail_image = activity.thumbnail_image or LAUNCH_READY_DEFAULT_IMAGES[key]
         activity.order = order
         activity.required, activity.published = True, True
-        activity.settings = {**settings, **(activity.settings or {}), "system_required": True, "capability": key}
+        activity.settings = {**(activity.settings or {}), **settings}
         activity.update_date = now
         db_session.add(activity); db_session.flush()
     for page_order, spec in enumerate(pages, start=1):
         page = db_session.exec(select(LearningPage).where(LearningPage.page_uuid == spec["page_uuid"])).first()
+        content = {"version": STANDARD_CONTENT_VERSION, "blocks": [text_block(heading_node(spec["title"]), block_id=f"{spec['block_id']}_heading")]}
+        if spec.get("kind"):
+            content["blocks"].append(question_block(spec["kind"], spec["content"], block_id=spec["block_id"], scoring={"mode": "off", "points": 0}, completion=spec.get("completion") or {}))
+        else:
+            content["blocks"].append(text_block(paragraph_node(spec.get("body") or "Continue when you're ready."), block_id=f"{spec['block_id']}_body"))
         if not page:
-            content = {"version": STANDARD_CONTENT_VERSION, "blocks": [text_block(heading_node(spec["title"]), block_id=f"{spec['block_id']}_heading")]}
-            if spec.get("kind"):
-                content["blocks"].append(question_block(spec["kind"], spec["content"], block_id=spec["block_id"], scoring={"mode": "off", "points": 0}, completion=spec.get("completion") or {}))
-            else:
-                content["blocks"].append(text_block(paragraph_node(spec.get("body") or "Continue when you're ready."), block_id=f"{spec['block_id']}_body"))
             page = LearningPage(activity_id=activity.id or 0, badge_id=badge.id or 0, org_id=org_id, page_type=LearningPageType.STANDARD, title=spec["title"], order=page_order, required=True, content=content, page_uuid=spec["page_uuid"], creation_date=now, update_date=now)
         else:
             page.activity_id, page.badge_id, page.org_id, page.order, page.required = activity.id or 0, badge.id or 0, org_id, page_order, True
+            page.page_type, page.title, page.content = LearningPageType.STANDARD, spec["title"], content
             page.update_date = now
         db_session.add(page)
     return activity
@@ -1283,6 +1297,7 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
             org_id=owner_org.id or 0,
             title="Welcome",
             description="Tell us a little about yourself.",
+            thumbnail_image=LAUNCH_READY_DEFAULT_IMAGES["identity"],
             icon="sparkles",
             order=1,
             required=True,
@@ -1302,6 +1317,7 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
         activity.order = 1
         activity.required = True
         activity.published = True
+        activity.thumbnail_image = activity.thumbnail_image or LAUNCH_READY_DEFAULT_IMAGES["identity"]
         activity.settings = {**(activity.settings or {}), "system_required": True}
         activity.update_date = now
         db_session.add(activity)
@@ -1424,9 +1440,32 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
         if transform: value["transform"] = transform
         return value
 
+    profile_photo_page, profile_photo_block = "learning_page_system_onboarding_profile_photo", "blk_launch_profile_photo"
+    profile_details_page, profile_details_block = "learning_page_system_onboarding_profile_details", "blk_launch_profile_details"
+    stale_profile_activities = db_session.exec(
+        select(LearningActivity).where(
+            LearningActivity.badge_id == badge.id,
+            func.lower(LearningActivity.title).in_(("complete your profile", "complete your portfolio")),  # type: ignore
+            LearningActivity.activity_uuid.notin_(set(LAUNCH_READY_ACTIVITY_UUIDS.values())),  # type: ignore
+        )
+    ).all()
+    for stale_activity in stale_profile_activities:
+        db_session.delete(stale_activity)
+    if stale_profile_activities:
+        db_session.flush()
+    _ensure_launch_ready_activity(
+        db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="profile", order=2,
+        title="Complete your profile", description="Add a photo, bio, tagline, and location.",
+        pages=[
+            {"page_uuid": profile_photo_page, "block_id": profile_photo_block, "title": "Add a profile photo", "kind": "image_upload", "content": {"label": "Choose a photo"}, "completion": {"variable_bindings": {"image": {"target": "user.avatar_image", "value_type": "image"}}}},
+            {"page_uuid": profile_details_page, "block_id": profile_details_block, "title": "Tell people a little more", "kind": "text_input", "content": {"inputs": [{"id": "bio", "label": "Short bio", "variant": "short_answer"}, {"id": "tagline", "label": "Tagline", "variant": "single_line"}, {"id": "location", "label": "Location", "variant": "single_line"}]}, "completion": {"inputs": {"bio": {"required": True, "min_words": 2}, "tagline": {"required": True, "min_words": 1}, "location": {"required": False}}}},
+        ],
+        outcomes=[{"id": "set-profile-details", "type": "set_portfolio_fields", "fields": {"short_bio": answer(profile_details_page, profile_details_block, "inputs.bio.text"), "headline": answer(profile_details_page, profile_details_block, "inputs.tagline.text"), "location_label": answer(profile_details_page, profile_details_block, "inputs.location.text")}}],
+    )
+
     journey_page, journey_block = "learning_page_system_onboarding_journey", "blk_launch_journey"
     _ensure_launch_ready_activity(
-        db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="journey", order=2,
+        db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="journey", order=3,
         title="Add your current chapter", description="Show where you're learning, working, or growing now.",
         pages=[{"page_uuid": journey_page, "block_id": journey_block, "title": "What's your current chapter?", "kind": "text_input", "content": {"inputs": [{"id": "title", "label": "Chapter title", "variant": "single_line"}, {"id": "summary", "label": "What are you doing or learning?", "variant": "short_answer"}]}, "completion": {"inputs": {"title": {"required": True, "min_words": 1}, "summary": {"required": False}}}}],
         outcomes=[{"id": "create-current-chapter", "type": "create_journey_entry", "store_as": "journey_entry_id", "fields": {"title": answer(journey_page, journey_block, "inputs.title.text"), "summary": answer(journey_page, journey_block, "inputs.summary.text"), "is_current": True, "entry_type": "experience"}}],
@@ -1445,23 +1484,23 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
         work_edges.append({"from": f"page:{page_uuid}", "to": f"page:{work_detail_page}", "priority": 0})
     work_edges.append({"from": f"page:{work_detail_page}", "to": "complete", "priority": 0})
     _ensure_launch_ready_activity(
-        db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="work", order=3,
+        db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="work", order=4,
         title="Show something you've done", description="Add a project, creation, achievement, or story.", pages=work_pages,
         flow={"version": 1, "entry": f"page:{work_kind_page}", "nodes": work_nodes, "edges": work_edges},
         outcomes=[{"id": "create-first-work", "type": "create_work_item", "store_as": "work_item_id", "fields": {"story_kind": answer(work_kind_page, work_kind_block, "option_ids", "made", "first"), "title": answer(work_detail_page, work_detail_block, "inputs.title.text"), "summary": answer(work_detail_page, work_detail_block, "inputs.summary.text"), "featured": True}}],
     )
 
     trait_page, trait_block = "learning_page_system_onboarding_traits", "blk_launch_traits"
-    _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="traits", order=4, title="Name what makes you strong", description="Add strengths, interests, values, or goals.", pages=[{"page_uuid": trait_page, "block_id": trait_block, "title": "What sounds like you?", "kind": "multiple_choice", "content": {"options": [{"id": item, "text": item.title()} for item in ("creative", "curious", "reliable", "collaborative", "determined")]}, "completion": {"min_selections": 1, "max_selections": 5}}], outcomes=[{"id": "set-strengths", "type": "set_traits", "trait_type": "strength", "values": answer(trait_page, trait_block, "option_ids", [])}])
+    _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="traits", order=5, title="Name what makes you strong", description="Add strengths, interests, values, or goals.", pages=[{"page_uuid": trait_page, "block_id": trait_block, "title": "What sounds like you?", "kind": "multiple_choice", "content": {"options": [{"id": item, "text": item.title()} for item in ("creative", "curious", "reliable", "collaborative", "determined")]}, "completion": {"min_selections": 1, "max_selections": 5}}], outcomes=[{"id": "set-strengths", "type": "set_traits", "trait_type": "strength", "values": answer(trait_page, trait_block, "option_ids", [])}])
 
     links_page, links_block = "learning_page_system_onboarding_links", "blk_launch_links"
-    _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="links", order=5, title="Connect your world", description="Add a safe website or profile link.", pages=[{"page_uuid": links_page, "block_id": links_block, "title": "Where can people see more?", "kind": "text_input", "content": {"inputs": [{"id": "url", "label": "Website URL", "variant": "single_line"}]}, "completion": {"inputs": {"url": {"required": True, "min_words": 1}}}}], outcomes=[{"id": "set-main-link", "type": "set_portfolio_links", "links": [{"label": "My link", "url": answer(links_page, links_block, "inputs.url.text")}]}])
+    _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="links", order=6, title="Connect your world", description="Add a safe website or profile link.", pages=[{"page_uuid": links_page, "block_id": links_block, "title": "Where can people see more?", "kind": "text_input", "content": {"inputs": [{"id": "url", "label": "Website URL", "variant": "single_line"}]}, "completion": {"inputs": {"url": {"required": True, "min_words": 1}}}}], outcomes=[{"id": "set-main-link", "type": "set_portfolio_links", "links": [{"label": "My link", "url": answer(links_page, links_block, "inputs.url.text")}]}])
 
     theme_page, theme_block = "learning_page_system_onboarding_theme", "blk_launch_theme"
-    _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="theme", order=6, title="Make it yours", description="Choose the starting look for your portfolio.", pages=[{"page_uuid": theme_page, "block_id": theme_block, "title": "Choose your vibe", "kind": "multiple_choice", "content": {"options": [{"id": item, "text": item.title()} for item in ("default", "electric", "minimal", "creative")]}, "completion": {"min_selections": 1, "max_selections": 1}}], outcomes=[{"id": "set-theme", "type": "set_theme", "theme_id": answer(theme_page, theme_block, "option_ids", "default", "first")}])
+    _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="theme", order=7, title="Make it yours", description="Choose the starting look for your portfolio.", pages=[{"page_uuid": theme_page, "block_id": theme_block, "title": "Choose your vibe", "kind": "multiple_choice", "content": {"options": [{"id": item, "text": item.title()} for item in ("default", "electric", "minimal", "creative")]}, "completion": {"min_selections": 1, "max_selections": 1}}], outcomes=[{"id": "set-theme", "type": "set_theme", "theme_id": answer(theme_page, theme_block, "option_ids", "default", "first")}])
 
     launch_page, launch_block = "learning_page_system_onboarding_launch", "blk_launch_confirm"
-    _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="launch", order=7, title="Launch your portfolio", description="Review privacy and get ready to share.", pages=[{"page_uuid": launch_page, "block_id": launch_block, "title": "Ready to launch?", "kind": "multiple_choice", "content": {"options": [{"id": "confirm", "text": "I reviewed my public portfolio and privacy choices"}]}, "completion": {"min_selections": 1, "max_selections": 1}}], outcomes=[{"id": "confirm-privacy", "type": "confirm_privacy"}])
+    _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="launch", order=8, title="Launch your portfolio", description="Review privacy and get ready to share.", pages=[{"page_uuid": launch_page, "block_id": launch_block, "title": "Ready to launch?", "kind": "multiple_choice", "content": {"options": [{"id": "confirm", "text": "I reviewed my public portfolio and privacy choices"}]}, "completion": {"min_selections": 1, "max_selections": 1}}], outcomes=[{"id": "confirm-privacy", "type": "confirm_privacy"}])
 
     badge.name = "Launch Ready"
     badge.description = "Build and launch your portfolio one useful step at a time."
@@ -1758,6 +1797,8 @@ async def update_activity(request: Request, activity_uuid: str, data: LearningAc
     activity = _get_activity(db_session, activity_uuid)
     _require_org_admin(db_session, current_user, activity.org_id)
     patch = data.model_dump(exclude_unset=True)
+    if _is_locked_launch_ready_activity(activity) and patch.get("published") is False:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Required Launch Ready activities cannot be unpublished")
     if "settings" in patch:
         pages = db_session.exec(select(LearningPage).where(LearningPage.activity_id == activity.id)).all()
         badge = db_session.get(LearningBadge, activity.badge_id)
@@ -1783,6 +1824,8 @@ async def update_activity(request: Request, activity_uuid: str, data: LearningAc
 async def delete_activity(request: Request, activity_uuid: str, current_user: PublicUser | AnonymousUser, db_session: Session) -> dict:
     activity = _get_activity(db_session, activity_uuid)
     _require_org_admin(db_session, current_user, activity.org_id)
+    if _is_locked_launch_ready_activity(activity):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Required Launch Ready activities cannot be deleted")
     badge = db_session.get(LearningBadge, activity.badge_id)
     if badge and _is_system_object(badge):
         sibling_count = db_session.exec(
@@ -1798,6 +1841,8 @@ async def delete_activity(request: Request, activity_uuid: str, current_user: Pu
 async def duplicate_activity(request: Request, activity_uuid: str, current_user: PublicUser | AnonymousUser, db_session: Session) -> LearningActivityRead:
     activity = _get_activity(db_session, activity_uuid)
     _require_org_admin(db_session, current_user, activity.org_id)
+    if _is_locked_launch_ready_activity(activity):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Required Launch Ready activities cannot be duplicated")
     pages = db_session.exec(select(LearningPage).where(LearningPage.activity_id == activity.id).order_by(LearningPage.order.asc())).all()  # type: ignore
     siblings = db_session.exec(select(LearningActivity).where(LearningActivity.path_id == activity.path_id).order_by(LearningActivity.order.asc())).all()  # type: ignore
     now = _now()

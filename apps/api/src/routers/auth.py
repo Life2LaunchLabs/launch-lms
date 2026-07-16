@@ -93,7 +93,7 @@ def _get_owner_org(db_session: Session) -> Organization:
 def _learning_onboarding_redirect_url(owner_org: Organization, badge_uuid: str, activity_uuid: str) -> str:
     badge_id = badge_uuid.replace("badge_", "")
     activity_id = activity_uuid.replace("learning_activity_", "")
-    return f"/orgs/{owner_org.slug}/badges/{badge_id}/chapter/{activity_id}"
+    return f"/orgs/{owner_org.slug}/badges/{badge_id}/chapter/{activity_id}?returnTo=/portfolio"
 
 
 def _onboarding_quiz_content() -> dict:

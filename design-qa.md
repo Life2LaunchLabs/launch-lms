@@ -1,39 +1,31 @@
-# Portfolio Journey refinement visual QA
+# Portfolio Guided Launch Ready — Design QA
 
-- Source visual truth: user-attached current Journey screenshot, grouped mobile timeline reference, and borderless compact-card refinement screenshot.
-- Implementation: `apps/web/components/Pages/Portfolio/Journey.tsx`.
-- Target states: populated owner Journey collection; chapter editor with images; chapter detail with linked Work.
-- Target viewports: supplied desktop collection viewport and narrow mobile reference.
-- Implementation screenshot: unavailable because no browser capture surface is exposed in this environment.
+- Source visual truth: user-provided dark portfolio screenshot and “Your portfolio is waiting” reference image in the July 15, 2026 conversation.
+- Implementation screenshot: unavailable.
+- Viewport: intended desktop owner Overview, matching the supplied 895 × 815 portfolio capture.
+- State: new account after completing the first onboarding activity; dark theme; only Overview revealed.
 
 ## Full-view comparison evidence
 
-Blocked. Source imagery was inspected, but a browser-rendered implementation capture is unavailable for the required same-viewport comparison.
+Blocked. The current Codex environment does not expose the configured in-app browser, so the authenticated local portfolio route could not be rendered and captured for a same-state visual comparison.
 
 ## Focused region comparison evidence
 
-Blocked. Code inspection confirms year headings above grouped entries, per-group rails, card-midpoint markers, chapter-owned cover selection, and cover-led horizontal Work cards, but code inspection is not visual evidence.
+Blocked for the same reason. The intended focus region is the generated in-content next-step card, including its dotted accent border, Launch Ready progress, CTA, and illustration.
 
 ## Findings
 
-- [P2] Timeline geometry remains visually unverified.
-  Location: Journey year groups, rail, markers, and cards.
-  Evidence: the implementation now derives marker position from each card's 50% vertical midpoint and places the rail and marker on the same x-coordinate, but no rendered screenshot exists.
-  Impact: pixel-level spacing or density may still differ from the reference.
-  Fix: capture desktop and mobile populated Journey states and compare them together with the supplied sources.
+- No code- or type-level blockers remain. Browser-rendered evidence is still required to judge typography, spacing, token contrast, responsive crop, generated-image scale/alpha edges, and final copy wrapping.
 
 ## Comparison history
 
-- Initial Phase 2 comparison: blocked because implementation capture was unavailable.
-- Refinement pass: source issues were addressed structurally; visual comparison remains blocked for the same capture limitation.
-- Mobile density pass: card borders moved to the desktop breakpoint, mobile padding/height/image width reduced, and successful save toasts removed; rendered comparison remains blocked.
+- Initial pass: implementation capture unavailable; no visual iteration can be claimed.
 
 ## Implementation checklist
 
-- Capture populated Journey at desktop and mobile widths.
-- Verify year grouping uses conclusion year and remains reverse chronological.
-- Test add/edit image selection, explicit cover choice, and return to Journey.
-- Test the linked-Work horizontal row with keyboard and touch scrolling.
-- Check console errors and focus states.
+- Capture the authenticated `/portfolio` route in the new-account state.
+- Compare it with the supplied desktop screenshot and the small waiting-card reference in one combined visual.
+- Check mobile behavior and the states after profile details and current chapter completion.
+- Fix any P0–P2 visual differences before marking this report passed.
 
 final result: blocked

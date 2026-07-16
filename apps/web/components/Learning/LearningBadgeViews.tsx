@@ -29,7 +29,7 @@ import {
   type LearningBlock,
 } from '@components/Learning/schema'
 import { EMPTY_PARAGRAPH, getTextBlockNodes } from './editor/utils'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config'
 import toast from 'react-hot-toast'
 import ReorderableList from '@components/Objects/ReorderableList'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
@@ -41,10 +41,6 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
   const accessToken = session.data?.tokens?.access_token
   const badge = badgePath.badge
   const configuredPages = activity.pages || []
-  const activityIndex = (badgePath.activities || []).findIndex((item: any) =>
-    item.id === activity.id || item.activity_uuid === activity.activity_uuid
-  )
-  const isFinalActivity = activityIndex >= 0 && activityIndex === (badgePath.activities || []).length - 1
   const [run, setRun] = React.useState<any>(badgePath.run)
   const [index, setIndex] = React.useState(0)
   const [unlocked, setUnlocked] = React.useState(false)
@@ -87,13 +83,8 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
           toast.success(grading.success_message)
         }
         const returnTo = searchParams.get('returnTo')
-        const cleanBadgeUuid = String(badge.badge_uuid || '').replace(/^badge_/, '')
         if (returnTo?.startsWith('/portfolio')) {
           router.push(getUriWithOrg(orgslug, `${returnTo}${returnTo.includes('?') ? '&' : '?'}completedActivity=${encodeURIComponent(activity.activity_uuid)}`))
-        } else if (isFinalActivity && cleanBadgeUuid) {
-          router.push(getUriWithOrg(orgslug, routePaths.org.badgeStatus(cleanBadgeUuid)))
-        } else if (cleanBadgeUuid) {
-          router.push(getUriWithOrg(orgslug, routePaths.org.badgePath(cleanBadgeUuid)))
         } else {
           router.back()
         }

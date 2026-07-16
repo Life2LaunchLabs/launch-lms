@@ -29,7 +29,7 @@ from src.db.portfolio import (
 from src.db.media import MediaAsset
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser, User
-from src.db.learning import LearningActivity, LearningActivityRun, LearningRun, LearningRunStatus
+from src.db.learning import LearningActivity, LearningActivityRun, LearningBadge, LearningPage, LearningPageProgress, LearningRun
 from src.services.learning import LAUNCH_READY_ACTIVITY_UUIDS, ONBOARDING_BADGE_UUID
 
 
@@ -84,15 +84,31 @@ def _launch_ready_state(user_id: int, db_session: Session, work_count: int = 0, 
     bind = db_session.get_bind()
     if not inspect(bind).has_table("learningactivity"):
         return {"capabilities": {"overview": {"unlocked": True, "reason": "always_available", "requiredActivity": None}, "work": {"unlocked": True, "reason": "not_configured", "requiredActivity": None}, "journey": {"unlocked": True, "reason": "not_configured", "requiredActivity": None}}, "progress": {"completed": 0, "total": 0}, "nextAction": None}
+    badge = db_session.exec(select(LearningBadge).where(LearningBadge.badge_uuid == ONBOARDING_BADGE_UUID)).first()
     activities = list(db_session.exec(
-        select(LearningActivity).where(LearningActivity.activity_uuid.in_(set(LAUNCH_READY_ACTIVITY_UUIDS.values())))  # type: ignore
+        select(LearningActivity).where(LearningActivity.badge_id == badge.id)  # type: ignore
         .order_by(LearningActivity.order.asc())  # type: ignore
-    ).all())
-    runs = list(db_session.exec(select(LearningRun).where(LearningRun.user_id == user_id)).all())
+    ).all()) if badge else []
+    runs = list(db_session.exec(select(LearningRun).where(LearningRun.user_id == user_id, LearningRun.badge_id == badge.id)).all()) if badge else []
     run_ids = {run.id for run in runs if run.id}
     activity_runs = list(db_session.exec(select(LearningActivityRun).where(LearningActivityRun.run_id.in_(run_ids))).all()) if run_ids else []  # type: ignore
     by_activity = {item.activity_id: item for item in activity_runs}
-    completed = {item.activity_id for item in activity_runs if item.status == LearningRunStatus.COMPLETED}
+    completed_page_ids = {
+        item.page_id for item in db_session.exec(
+            select(LearningPageProgress).where(LearningPageProgress.run_id.in_(run_ids), LearningPageProgress.complete == True)  # type: ignore
+        ).all()
+    } if run_ids else set()
+    required_pages = list(db_session.exec(
+        select(LearningPage).where(LearningPage.badge_id == badge.id, LearningPage.required == True)  # type: ignore
+    ).all()) if badge else []
+    required_by_activity: dict[int, set[int]] = {}
+    for page in required_pages:
+        required_by_activity.setdefault(page.activity_id, set()).add(page.id or 0)
+    completed = {
+        activity.id or 0 for activity in activities
+        if required_by_activity.get(activity.id or 0)
+        and required_by_activity[activity.id or 0].issubset(completed_page_ids)
+    }
     key_by_uuid = {value: key for key, value in LAUNCH_READY_ACTIVITY_UUIDS.items()}
     configured = bool(activities)
     capabilities = {
@@ -120,6 +136,7 @@ def _launch_ready_state(user_id: int, db_session: Session, work_count: int = 0, 
             "label": next_activity.title,
             "supportingText": next_activity.description or "Keep building your portfolio.",
             "estimatedMinutes": int((next_activity.settings or {}).get("estimated_minutes", 3)),
+            "thumbnailImage": next_activity.thumbnail_image or "",
             "href": f"/badges/{ONBOARDING_BADGE_UUID}/chapter/{next_activity.activity_uuid}?returnTo=/portfolio",
             "progress": {"completed": completed_count, "total": len(activities)},
             "priority": 100 if next_run else 90,
@@ -196,6 +213,7 @@ def portfolio_shell(portfolio: Portfolio, db_session: Session, public_only: bool
     links = list(db_session.exec(select(PortfolioLink).where(PortfolioLink.portfolio_id == portfolio.id).order_by(PortfolioLink.sort_order)).all())
     normalized_socials = [{"type": link.platform or link.link_type, "url": link.url} for link in links if link.link_type == "social" and (not public_only or _enum_value(link.visibility) != PortfolioVisibility.PRIVATE.value)]
     legacy_socials = (((user.profile or {}).get("header") or {}).get("socials") or []) if user and isinstance(user.profile, dict) else []
+    legacy_preview = legacy_import_preview(user, db_session) if user and not public_only else {"work": [], "journey": []}
     socials_migrated = bool((portfolio.theme_settings or {}).get("socials_migrated"))
     work = list(db_session.exec(_work_query(portfolio.id or 0, public_only=public_only)).all())
     journey = list(db_session.exec(_journey_query(portfolio.id or 0, public_only=public_only)).all())
@@ -229,6 +247,7 @@ def portfolio_shell(portfolio: Portfolio, db_session: Session, public_only: bool
             "state": state,
             "visibility": _enum_value(portfolio.visibility),
             "moderation_status": _enum_value(portfolio.moderation_status),
+            "has_legacy_portfolio": bool(legacy_preview["work"] or legacy_preview["journey"]),
         },
         "views": views,
         "readiness": {"canPublish": not blockers, "completed": 3 - len([b for b in blockers if b != "moderation_clearance_required"]), "total": 3, "blockers": blockers},
