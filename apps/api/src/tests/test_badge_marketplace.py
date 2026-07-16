@@ -29,6 +29,7 @@ from src.db.learning import (
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.plan_requests import PlanRequest
+from src.db.portfolio import Portfolio
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
@@ -72,6 +73,7 @@ def _create_tables(engine) -> None:
         UserOrganization,
         Role,
         GuestSession,
+        Portfolio,
         LearningBadge,
         LearningPath,
         LearningActivity,
