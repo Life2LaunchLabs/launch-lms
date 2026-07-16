@@ -31,7 +31,7 @@ from src.db.portfolio import (
 from src.db.media import MediaAsset
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser, User
-from src.db.learning import LearningActivity, LearningActivityRun, LearningBadge, LearningPage, LearningPageProgress, LearningRun
+from src.db.learning import LearningActivity, LearningActivityRun, LearningBadge, LearningBadgeAward, LearningPage, LearningPageProgress, LearningRun
 from src.services.learning import LAUNCH_READY_ACTIVITY_UUIDS, ONBOARDING_BADGE_UUID
 
 
@@ -91,6 +91,9 @@ def _launch_ready_state(user_id: int, db_session: Session, work_count: int = 0, 
         select(LearningActivity).where(LearningActivity.badge_id == badge.id, LearningActivity.activity_uuid != LAUNCH_READY_ACTIVITY_UUIDS["links"])  # type: ignore
         .order_by(LearningActivity.order.asc())  # type: ignore
     ).all()) if badge else []
+    award = db_session.exec(
+        select(LearningBadgeAward).where(LearningBadgeAward.user_id == user_id, LearningBadgeAward.badge_id == badge.id)
+    ).first() if badge else None
     runs = list(db_session.exec(select(LearningRun).where(LearningRun.user_id == user_id, LearningRun.badge_id == badge.id)).all()) if badge else []
     run_ids = {run.id for run in runs if run.id}
     activity_runs = list(db_session.exec(select(LearningActivityRun).where(LearningActivityRun.run_id.in_(run_ids))).all()) if run_ids else []  # type: ignore
@@ -117,19 +120,24 @@ def _launch_ready_state(user_id: int, db_session: Session, work_count: int = 0, 
         "overview": {"unlocked": True, "reason": "always_available", "requiredActivity": None},
         "journey": {"unlocked": journey_count > 0 or not configured, "reason": "existing_content" if journey_count else "launch_ready_required" if configured else "not_configured", "requiredActivity": LAUNCH_READY_ACTIVITY_UUIDS["journey"]},
         "work": {"unlocked": work_count > 0 or not configured, "reason": "existing_content" if work_count else "launch_ready_required" if configured else "not_configured", "requiredActivity": LAUNCH_READY_ACTIVITY_UUIDS["work"]},
+        "resume": {"unlocked": not configured, "reason": "launch_ready_required" if configured else "not_configured", "requiredActivity": LAUNCH_READY_ACTIVITY_UUIDS["launch"]},
     }
     for activity in activities:
         key = key_by_uuid.get(activity.activity_uuid)
         if key:
-            unlocked = (activity.id or 0) in completed
+            unlocked = bool(award) or (activity.id or 0) in completed
             if key in capabilities:
                 capabilities[key]["unlocked"] = capabilities[key]["unlocked"] or unlocked
-                if unlocked: capabilities[key]["reason"] = "activity_complete"
+                if unlocked: capabilities[key]["reason"] = "badge_earned" if award else "activity_complete"
             else:
-                capabilities[key] = {"unlocked": unlocked, "reason": "activity_complete" if unlocked else "launch_ready_required", "requiredActivity": activity.activity_uuid}
-    next_activity = next((item for item in activities if (item.id or 0) not in completed), None)
+                capabilities[key] = {"unlocked": unlocked, "reason": "badge_earned" if award and unlocked else "activity_complete" if unlocked else "launch_ready_required", "requiredActivity": activity.activity_uuid}
+    if award:
+        for capability in capabilities.values():
+            capability["unlocked"] = True
+            capability["reason"] = "badge_earned"
+    next_activity = None if award else next((item for item in activities if (item.id or 0) not in completed), None)
     next_run = by_activity.get(next_activity.id or 0) if next_activity else None
-    completed_count = len([item for item in activities if (item.id or 0) in completed])
+    completed_count = len(activities) if award else len([item for item in activities if (item.id or 0) in completed])
     next_action = None
     if next_activity:
         next_action = {
@@ -232,6 +240,7 @@ def portfolio_shell(portfolio: Portfolio, db_session: Session, public_only: bool
         {"key": "overview", "visible": True, "itemCount": 1},
         {"key": "work", "visible": bool(work) or bool(launch_ready and launch_ready["capabilities"].get("work", {}).get("unlocked")), "itemCount": len(work)},
         {"key": "journey", "visible": bool(journey) or bool(launch_ready and launch_ready["capabilities"].get("journey", {}).get("unlocked")), "itemCount": len(journey)},
+        {"key": "resume", "visible": bool(launch_ready and launch_ready["capabilities"].get("resume", {}).get("unlocked")), "itemCount": 1},
         {"key": "badges", "visible": False, "itemCount": 0},
     ]
     next_action = None

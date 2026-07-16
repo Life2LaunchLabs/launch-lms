@@ -96,8 +96,10 @@ LAUNCH_READY_ACTIVITY_UUIDS = {
     "work": "learning_activity_system_onboarding_work",
     "traits": "learning_activity_system_onboarding_traits",
     "links": "learning_activity_system_onboarding_links",
-    "theme": "learning_activity_system_onboarding_theme",
     "launch": "learning_activity_system_onboarding_launch",
+}
+LEGACY_LAUNCH_READY_ACTIVITY_UUIDS = {
+    "learning_activity_system_onboarding_theme",
 }
 LAUNCH_READY_DEFAULT_IMAGES = {
     key: f"/images/launch-ready/{key}.png" for key in LAUNCH_READY_ACTIVITY_UUIDS
@@ -1220,6 +1222,39 @@ def _merge_onboarding_variable_bindings(page: LearningPage, defaults: dict) -> N
     page.completion = completion
 
 
+def _delete_legacy_launch_ready_activities(db_session: Session, badge_id: int) -> None:
+    legacy_activities = db_session.exec(
+        select(LearningActivity).where(
+            LearningActivity.badge_id == badge_id,
+            LearningActivity.activity_uuid.in_(LEGACY_LAUNCH_READY_ACTIVITY_UUIDS),  # type: ignore
+        )
+    ).all()
+    for activity in legacy_activities:
+        pages = db_session.exec(select(LearningPage).where(LearningPage.activity_id == activity.id)).all()
+        activity_runs = db_session.exec(
+            select(LearningActivityRun).where(LearningActivityRun.activity_id == activity.id)
+        ).all()
+        for page in pages:
+            for progress in db_session.exec(
+                select(LearningPageProgress).where(LearningPageProgress.page_id == page.id)
+            ).all():
+                db_session.delete(progress)
+            for attempt in db_session.exec(
+                select(LearningResponseAttempt).where(LearningResponseAttempt.page_id == page.id)
+            ).all():
+                db_session.delete(attempt)
+            db_session.delete(page)
+        for activity_run in activity_runs:
+            for progress in db_session.exec(
+                select(LearningPageProgress).where(LearningPageProgress.activity_run_id == activity_run.id)
+            ).all():
+                db_session.delete(progress)
+            db_session.delete(activity_run)
+        db_session.delete(activity)
+    if legacy_activities:
+        db_session.flush()
+
+
 def _ensure_launch_ready_activity(
     db_session: Session, *, path: LearningPath, badge: LearningBadge, org_id: int,
     key: str, order: int, title: str, description: str, pages: list[dict], outcomes: list[dict], flow: dict | None = None,
@@ -1558,6 +1593,7 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
         db_session.delete(stale_activity)
     if stale_profile_activities:
         db_session.flush()
+    _delete_legacy_launch_ready_activities(db_session, badge.id or 0)
     _ensure_launch_ready_activity(
         db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="profile", order=2,
         title="Make it feel like you", description="Build an introduction that feels like you and preview the real result.",
@@ -1637,13 +1673,28 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
     links_review_page = "learning_page_system_onboarding_links_review"
     _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="links", order=6, title="Connect the places you show up", description="Connect a public profile or site—or confidently say not yet.", pages=[{"page_uuid": links_platform_page, "block_id": links_platform_block, "title": "Where do you show up online?", "kind": "multiple_choice", "content": {"label": "You do not need a personal website.", "options": [{"id": key, "text": label} for key, label in (("website", "Personal site"), ("github", "GitHub"), ("youtube", "YouTube"), ("linkedin", "LinkedIn"), ("instagram", "Instagram"), ("tiktok", "TikTok"), ("other", "Another link"), ("not_yet", "I don’t have anything to add yet"))]}, "completion": {"min_selections": 1, "max_selections": 1}}, {"page_uuid": links_page, "block_id": links_block, "title": "Make the destination clear", "kind": "text_input", "content": {"inputs": [{"id": "label", "label": "Public label", "placeholder": "My GitHub", "variant": "single_line"}, {"id": "url", "label": "Public URL", "placeholder": "https://…", "input_type": "url", "variant": "single_line"}]}, "completion": {"inputs": {"label": {"required": False}, "url": {"required": False}}}}, {"page_uuid": links_review_page, "block_id": "blk_launch_links_review", "title": "Here’s what people can explore", "action_label": "Connect this to my portfolio", "blocks": [text_block(heading_node("Here’s what people can explore"), block_id="blk_links_review_heading"), text_block(paragraph_node("This label and URL will be public. Contact information stays separate."), block_id="blk_links_review_intro"), {"id": "blk_links_review_strip", "type": "portfolio_preview", "design": {"width": 100}, "content": {"variant": "links_strip", "bindings": {"label": {"source": "answer", "path": f"{links_page}.answer.questions.{links_block}.inputs.label.text", "fallback": "My link"}, "url": {"source": "answer", "path": f"{links_page}.answer.questions.{links_block}.inputs.url.text", "fallback": "No link added yet"}}}}, {"id": "blk_links_review_change", "type": "button", "design": {"width": 100, "variant": "secondary"}, "content": {"label": "Change this link", "destination_page_uuid": links_page}}]}], outcomes=[{"id": "set-main-link", "type": "set_portfolio_links", "optional": True, "links": [{"link_type": "social", "platform": answer(links_platform_page, links_platform_block, "option_ids", "other", "first"), "label": answer(links_page, links_block, "inputs.label.text", "My link"), "url": answer(links_page, links_block, "inputs.url.text")}]}])
 
-    theme_page, theme_block = "learning_page_system_onboarding_theme", "blk_launch_theme"
-    theme_review_page = "learning_page_system_onboarding_theme_review"
-    _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="theme", order=7, title="Choose how your story feels", description="Compare real looks using your portfolio content; themes stay reversible.", pages=[{"page_uuid": theme_page, "block_id": theme_block, "title": "Choose a look that feels like you", "kind": "multiple_choice", "content": {"label": "Your choice updates the preview on the next screen.", "options": [{"id": item, "text": label} for item, label in (("default", "Classic — balanced and familiar"), ("electric", "Electric — bold and energetic"), ("minimal", "Minimal — quiet and focused"), ("creative", "Creative — warm and expressive"))]}, "completion": {"min_selections": 1, "max_selections": 1}}, {"page_uuid": theme_review_page, "block_id": "blk_launch_theme_review", "title": "Preview your new look", "action_label": "Use this look", "blocks": [text_block(heading_node("Preview your new look"), block_id="blk_theme_review_heading"), text_block(paragraph_node("Themes remain reversible—you are choosing a starting point, not locking it forever."), block_id="blk_theme_review_intro"), {"id": "blk_theme_review_frame", "type": "portfolio_preview", "design": {"width": 100}, "content": {"variant": "portfolio_frame", "bindings": {"theme_id": {"source": "answer", "path": f"{theme_page}.answer.questions.{theme_block}.option_ids.0", "fallback": "default"}, "display_name": {"source": "variable", "path": "user.display_name", "fallback": "Your portfolio"}, "headline": {"source": "variable", "path": "portfolio.headline", "fallback": "Your story, work, and journey"}}}}, {"id": "blk_theme_review_change", "type": "button", "design": {"width": 100, "variant": "secondary"}, "content": {"label": "Compare another look", "destination_page_uuid": theme_page}}]}], outcomes=[{"id": "set-theme", "type": "set_theme", "theme_id": answer(theme_page, theme_block, "option_ids", "default", "first")}])
-
-    launch_preview_page = "learning_page_system_onboarding_launch_preview"
+    launch_done_page = "learning_page_system_onboarding_launch_done"
     launch_page, launch_block = "learning_page_system_onboarding_launch", "blk_launch_confirm"
-    _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="launch", order=8, title="See exactly what others will see", description="Review the public result and privacy choices before publishing.", pages=[{"page_uuid": launch_preview_page, "block_id": "blk_launch_preview", "title": "Review your public portfolio", "blocks": [text_block(heading_node("Review your public portfolio"), block_id="blk_launch_preview_heading"), text_block(paragraph_node("This is the information other people will see. Check your introduction, Journey, Work, links, and overall look."), block_id="blk_launch_preview_intro"), {"id": "blk_launch_preview_frame", "type": "portfolio_preview", "design": {"width": 100}, "content": {"variant": "portfolio_frame", "bindings": {"display_name": {"source": "variable", "path": "user.display_name", "fallback": "Your portfolio"}, "headline": {"source": "variable", "path": "portfolio.headline", "fallback": "Your public story"}, "theme_id": {"source": "variable", "path": "portfolio.theme_id", "fallback": "default"}}}}]}, {"page_uuid": launch_page, "block_id": launch_block, "title": "Confirm your privacy choices", "action_label": "Complete my launch review", "kind": "multiple_choice", "content": {"label": "Your portfolio can be viewed by anyone with its public address. Only publish information you are comfortable sharing.", "options": [{"id": "public_info", "text": "I understand which information will be public"}, {"id": "permission", "text": "I have permission to share the images and details I added"}, {"id": "reviewed", "text": "I reviewed the public preview and want to continue"}]}, "completion": {"min_selections": 3, "max_selections": 3}}], outcomes=[{"id": "confirm-privacy", "type": "confirm_privacy"}])
+    launch_share_page = "learning_page_system_onboarding_launch_share"
+    _ensure_launch_ready_activity(
+        db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="launch", order=7,
+        title="You did it!", description="Celebrate finishing Launch Ready, publish your portfolio, and get ready to share it.",
+        pages=[
+            {"page_uuid": launch_done_page, "block_id": "blk_launch_done", "title": "You did it!", "blocks": [
+                text_block(heading_node("You did it!"), block_id="blk_launch_done_heading"),
+                text_block(paragraph_node("Your portfolio now has an introduction, a current chapter, work you can point to, and the strengths and values that help tell your story."), block_id="blk_launch_done_body"),
+                text_block(paragraph_node("Finishing Launch Ready also unlocks your resume view, formatted for printing and sharing with employers."), block_id="blk_launch_done_resume"),
+            ]},
+            {"page_uuid": launch_page, "block_id": launch_block, "title": "Set your portfolio public", "action_label": "Publish my portfolio", "kind": "multiple_choice", "content": {"label": "Turn on your public portfolio so people with the link can view it.", "options": [{"id": "set_public", "text": "Make my portfolio public"}]}, "completion": {"min_selections": 1, "max_selections": 1}},
+            {"page_uuid": launch_share_page, "block_id": "blk_launch_share", "title": "Share your next step", "action_label": "Finish Launch Ready", "blocks": [
+                text_block(heading_node("Share your next step"), block_id="blk_launch_share_heading"),
+                text_block(paragraph_node("Your public portfolio and print-friendly resume are ready from your Portfolio page. Copy your link when you want to send it to a mentor, teacher, employer, or someone who should see what you can do."), block_id="blk_launch_share_body"),
+                {"id": "blk_launch_share_panel", "type": "portfolio_preview", "design": {"width": 100}, "content": {"variant": "share_panel", "bindings": {"username": {"source": "variable", "path": "user.username", "fallback": ""}}}},
+                text_block(paragraph_node("You can keep editing after this. Publishing is a starting line, not a final draft."), block_id="blk_launch_share_note"),
+            ]},
+        ],
+        outcomes=[{"id": "confirm-public", "type": "confirm_privacy"}, {"id": "publish-public-portfolio", "type": "publish_portfolio"}],
+    )
 
     badge.name = "Launch Ready"
     badge.description = "Build and launch your portfolio one useful step at a time."
@@ -2137,7 +2188,7 @@ def _validate_page_payload(page_type: LearningPageType, content: dict | None) ->
                 validate_nodes((block.get("content") or {}).get("nodes") or [(block.get("content") or {}).get("node")])
             if block_type == "portfolio_preview":
                 preview = block.get("content") or {}
-                if preview.get("variant") not in {"journey_card", "work_card", "identity_header", "traits_panel", "links_strip", "portfolio_frame"}:
+                if preview.get("variant") not in {"journey_card", "work_card", "identity_header", "traits_panel", "links_strip", "portfolio_frame", "share_panel"}:
                     raise HTTPException(status_code=422, detail="Unsupported portfolio preview variant")
                 for binding in (preview.get("bindings") or {}).values():
                     if not isinstance(binding, dict):

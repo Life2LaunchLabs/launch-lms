@@ -226,7 +226,8 @@ def apply_portfolio_outcomes(db: Session, user: User, activity_run_id: int, outc
             work.featured = True; db.add(work)
         elif kind == "confirm_privacy": portfolio.privacy_confirmed_at = now
         elif kind == "publish_portfolio":
-            if not portfolio.previewed_at or not portfolio.privacy_confirmed_at: raise PortfolioActionError(action_id, "publish", "Preview and privacy confirmation are required")
+            if not portfolio.privacy_confirmed_at: raise PortfolioActionError(action_id, "publish", "Privacy confirmation is required")
+            portfolio.previewed_at = portfolio.previewed_at or now
             portfolio.published_at = now; portfolio.first_published_at = portfolio.first_published_at or now; portfolio.visibility = PortfolioVisibility.PUBLIC
         receipts.setdefault(action_id, {"type": kind, "applied_at": now})
     portfolio.revision += 1; portfolio.update_date = now; db.add(portfolio)

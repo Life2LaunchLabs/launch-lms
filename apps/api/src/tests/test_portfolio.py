@@ -2,7 +2,7 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from src.db.learning import LearningActivity, LearningActivityRun, LearningBadge, LearningPage, LearningPageProgress, LearningPageType, LearningPath, LearningRun
+from src.db.learning import LearningActivity, LearningActivityRun, LearningBadge, LearningBadgeAward, LearningPage, LearningPageProgress, LearningPageType, LearningPath, LearningRun
 from src.db.media import MediaAsset
 from src.db.organizations import Organization
 from src.db.portfolio import JourneyEntry, JourneyEntryBlock, JourneyEntryCreate, JourneyEntryUpdate, JourneyWorkLink, Portfolio, PortfolioLink, PortfolioSection, PortfolioUpdate, PublishRequest, WorkItem, WorkItemBlock, WorkItemCreate, WorkItemUpdate
@@ -29,7 +29,7 @@ def _public(user):
 
 def test_launch_ready_next_action_uses_badge_path_order_and_page_completion():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    for model in (User, LearningBadge, LearningPath, LearningActivity, LearningPage, LearningRun, LearningActivityRun, LearningPageProgress):
+    for model in (User, Organization, LearningBadge, LearningPath, LearningActivity, LearningPage, LearningRun, LearningActivityRun, LearningPageProgress, LearningBadgeAward):
         model.__table__.create(engine)
     with Session(engine) as db:
         user = _user(); db.add(user)
@@ -52,6 +52,34 @@ def test_launch_ready_next_action_uses_badge_path_order_and_page_completion():
         assert state["nextAction"]["label"] == "Complete your portfolio"
         assert state["nextAction"]["thumbnailImage"] == "/custom/complete.png"
         assert state["progress"] == {"completed": 1, "total": 3}
+
+
+def test_launch_ready_award_unlocks_every_portfolio_capability():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    for model in (User, Organization, LearningBadge, LearningPath, LearningActivity, LearningPage, LearningRun, LearningActivityRun, LearningPageProgress, LearningBadgeAward):
+        model.__table__.create(engine)
+    with Session(engine) as db:
+        user = _user()
+        org = Organization(id=1, org_uuid="org_1", name="Youth Lab", slug="youth", email="org@example.com")
+        badge = LearningBadge(id=1, badge_uuid="badge_system_onboarding", org_id=1, collection_id=1, name="Launch Ready")
+        path = LearningPath(id=1, path_uuid="learning_path_system_onboarding", badge_id=1, org_id=1)
+        db.add_all([user, org, badge, path])
+        db.add_all([
+            LearningActivity(id=1, activity_uuid="learning_activity_system_onboarding_intro", badge_id=1, path_id=1, org_id=1, title="Introduce yourself", order=1),
+            LearningActivity(id=2, activity_uuid="learning_activity_system_onboarding_journey", badge_id=1, path_id=1, org_id=1, title="Add your current chapter", order=2),
+            LearningActivity(id=3, activity_uuid="learning_activity_system_onboarding_work", badge_id=1, path_id=1, org_id=1, title="Show work", order=3),
+            LearningActivity(id=4, activity_uuid="learning_activity_system_onboarding_traits", badge_id=1, path_id=1, org_id=1, title="Traits", order=4),
+            LearningActivity(id=5, activity_uuid="learning_activity_system_onboarding_launch", badge_id=1, path_id=1, org_id=1, title="You did it", order=5),
+        ])
+        db.add(LearningBadgeAward(award_uuid="award_launch_ready", badge_id=1, org_id=1, user_id=1))
+        db.commit()
+
+        state = service._launch_ready_state(1, db)
+
+        assert state["nextAction"] is None
+        assert state["progress"] == {"completed": 5, "total": 5}
+        assert all(capability["unlocked"] for capability in state["capabilities"].values())
+        assert state["capabilities"]["resume"]["reason"] == "badge_earned"
 
 
 def test_private_by_default_and_created_work_is_public_after_portfolio_publish():

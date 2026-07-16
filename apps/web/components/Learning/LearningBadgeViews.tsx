@@ -390,6 +390,7 @@ function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editab
     if (variant === 'traits_panel') return <section className="learning-info-stack-section mx-auto my-5 max-w-sm rounded-2xl bg-card p-6" style={blockStyle}><p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">What I bring</p><div className="mt-4 flex flex-col gap-2">{value('traits', 'Curious, Creative').split(',').filter(Boolean).map((trait) => <span key={trait} className="rounded-full bg-muted/50 px-3 py-1.5 text-center text-sm font-semibold">{trait.trim()}</span>)}</div></section>
     if (variant === 'links_strip') return <section className="learning-info-stack-section mx-auto my-5 max-w-sm rounded-2xl bg-card p-5" style={blockStyle}><p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Find me online</p><div className="mt-3 flex flex-col gap-2"><span className="rounded-full bg-muted px-4 py-2 text-center text-sm font-semibold">{value('label', 'My link')}</span></div><p className="mt-3 break-all text-center text-xs text-muted-foreground">{value('url', 'https://example.com')}</p></section>
     if (variant === 'portfolio_frame') return <section className="learning-info-stack-section mx-auto my-5 max-w-sm overflow-hidden rounded-2xl bg-background shadow-sm" style={blockStyle}><div className={`h-2 ${value('theme_id', 'default') === 'electric' ? 'bg-fuchsia-500' : value('theme_id') === 'creative' ? 'bg-orange-400' : 'bg-foreground'}`} /><div className="p-6 text-center"><p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Portfolio preview</p><h3 className="mt-5 text-3xl font-black">{value('display_name', 'Your portfolio')}</h3><p className="mt-2 text-muted-foreground">{value('headline', 'Your story, work, and journey')}</p><div className="mt-6 grid grid-cols-1 gap-3"><div className="aspect-[4/3] rounded-xl bg-muted"/><div className="aspect-[4/3] rounded-xl bg-muted/60"/></div></div></section>
+    if (variant === 'share_panel') return <SharePortfolioPanel username={value('username')} blockStyle={blockStyle} />
     return null
   }
 
@@ -444,6 +445,30 @@ function getStandardBlockStyle(block: LearningBlock): React.CSSProperties {
     ;(style as any)['--learning-text-color'] = design.text_color
   }
   return style
+}
+
+function SharePortfolioPanel({ username, blockStyle }: { username: string; blockStyle: React.CSSProperties }) {
+  const session = useLHSession() as any
+  const [copied, setCopied] = React.useState(false)
+  const resolvedUsername = username || session?.data?.user?.username || ''
+  const href = React.useMemo(() => {
+    if (typeof window === 'undefined') return ''
+    const parts = window.location.pathname.split('/').filter(Boolean)
+    const orgIndex = parts.indexOf('orgs')
+    const orgslug = orgIndex >= 0 ? parts[orgIndex + 1] : ''
+    return orgslug && resolvedUsername ? `${window.location.origin}/orgs/${orgslug}/user/${resolvedUsername}` : ''
+  }, [resolvedUsername])
+  const copy = async () => {
+    if (!href) return
+    await navigator.clipboard?.writeText(href)
+    setCopied(true)
+    toast.success('Portfolio link copied')
+  }
+  return <section className="learning-info-stack-section mx-auto my-5 max-w-sm rounded-2xl bg-card p-5 text-center" style={blockStyle}>
+    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Share link</p>
+    <p className="mt-3 break-all rounded-xl bg-muted px-3 py-3 text-sm font-semibold">{href || 'Your public portfolio link'}</p>
+    <button type="button" disabled={!href} onClick={copy} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[var(--org-primary-color)] px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50"><Copy className="h-4 w-4" />{copied ? 'Copied' : 'Copy link'}</button>
+  </section>
 }
 
 function InfoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, responseKey = 'default', contentMediaOwner, responseMediaOwner }: any) {

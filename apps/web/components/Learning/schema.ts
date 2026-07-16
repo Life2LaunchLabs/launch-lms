@@ -49,7 +49,7 @@ export interface LearningButtonBlock extends LearningBlockBase {
 export interface LearningPortfolioPreviewBlock extends LearningBlockBase {
   type: 'portfolio_preview'
   content?: {
-    variant?: 'journey_card' | 'work_card' | 'identity_header' | 'traits_panel' | 'links_strip' | 'portfolio_frame'
+    variant?: 'journey_card' | 'work_card' | 'identity_header' | 'traits_panel' | 'links_strip' | 'portfolio_frame' | 'share_panel'
     bindings?: Record<string, LearningDisplayBinding>
   }
 }

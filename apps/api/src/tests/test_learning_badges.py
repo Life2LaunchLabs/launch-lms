@@ -15,6 +15,8 @@ from fastapi import HTTPException
 import pytest
 
 from src.services.learning import (
+    LAUNCH_READY_ACTIVITY_UUIDS,
+    LAUNCH_READY_DEFAULT_IMAGES,
     _apply_learning_variables_to_user,
     _extract_learning_variables,
     _grade_answer,
@@ -139,6 +141,20 @@ def _award() -> LearningBadgeAward:
         creation_date="2026-01-01T00:00:00",
         update_date="2026-01-01T00:00:00",
     )
+
+
+def test_launch_ready_activity_set_excludes_theme_customization():
+    assert "theme" not in LAUNCH_READY_ACTIVITY_UUIDS
+    assert "/images/launch-ready/theme.png" not in LAUNCH_READY_DEFAULT_IMAGES.values()
+    assert list(LAUNCH_READY_ACTIVITY_UUIDS) == [
+        "identity",
+        "profile",
+        "journey",
+        "work",
+        "traits",
+        "links",
+        "launch",
+    ]
 
 
 def _standard_page(page_uuid: str, question: dict | None = None, **overrides) -> LearningPage:
