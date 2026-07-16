@@ -32,6 +32,11 @@ class GeneralConfig(BaseModel):
     auth_oauth_enabled: bool
     env: str
 
+    @property
+    def email_verification_required(self) -> bool:
+        """Whether email verification should gate the current environment."""
+        return self.require_email_verification and not self.development_mode
+
 
 class SecurityConfig(BaseModel):
     auth_jwt_secret_key: str

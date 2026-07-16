@@ -74,6 +74,12 @@ from src.services.learning_page_convert import (
     question_block,
     text_block,
 )
+from src.services.learning_flow import FlowValidationError, resolve_flow, validate_flow
+from src.services.learning_portfolio_actions import (
+    PortfolioActionError,
+    apply_portfolio_outcomes,
+    validate_outcomes,
+)
 from src.services.utils.upload_content import upload_file
 
 LEARNING_SYSTEM_TYPE_ONBOARDING = "onboarding"
@@ -82,6 +88,15 @@ ONBOARDING_BADGE_UUID = "badge_system_onboarding"
 ONBOARDING_ACTIVITY_UUID = "learning_activity_system_onboarding_intro"
 ONBOARDING_NAME_PAGE_UUID = "learning_page_system_onboarding_name"
 ONBOARDING_GOAL_PAGE_UUID = "learning_page_system_onboarding_goal"
+LAUNCH_READY_ACTIVITY_UUIDS = {
+    "identity": ONBOARDING_ACTIVITY_UUID,
+    "journey": "learning_activity_system_onboarding_journey",
+    "work": "learning_activity_system_onboarding_work",
+    "traits": "learning_activity_system_onboarding_traits",
+    "links": "learning_activity_system_onboarding_links",
+    "theme": "learning_activity_system_onboarding_theme",
+    "launch": "learning_activity_system_onboarding_launch",
+}
 
 _SYSTEM_FIELDS = {"protected", "system_type"}
 _SAFE_CORE_VARIABLE_TARGETS = {"user.first_name", "user.last_name", "user.bio"}
@@ -341,6 +356,69 @@ def _question_blocks(page: LearningPage) -> list[dict]:
     return find_question_blocks(page.content)
 
 
+def _flow_context(db_session: Session, run: LearningRun, activity_run: LearningActivityRun) -> dict:
+    from src.db.portfolio import JourneyEntry, Portfolio, WorkItem
+
+    pages = db_session.exec(select(LearningPage).where(LearningPage.activity_id == activity_run.activity_id)).all()
+    page_by_id = {page.id: page for page in pages}
+    answers: dict = {}
+    for attempt in db_session.exec(
+        select(LearningResponseAttempt)
+        .where(LearningResponseAttempt.run_id == run.id, LearningResponseAttempt.page_id.in_(set(page_by_id)))  # type: ignore
+        .order_by(LearningResponseAttempt.submitted_at.asc())  # type: ignore
+    ).all():
+        page = page_by_id.get(attempt.page_id)
+        if page:
+            answers[page.page_uuid] = {"answer": attempt.answer, "result": attempt.result}
+    facts = {"has_work": False, "has_journey": False, "work_count": 0, "journey_count": 0, "readiness_blockers": []}
+    if run.user_id:
+        portfolio = db_session.exec(select(Portfolio).where(Portfolio.user_id == run.user_id)).first()
+        if portfolio:
+            facts["work_count"] = len(db_session.exec(select(WorkItem).where(WorkItem.portfolio_id == portfolio.id, WorkItem.status != "archived")).all())
+            facts["journey_count"] = len(db_session.exec(select(JourneyEntry).where(JourneyEntry.portfolio_id == portfolio.id, JourneyEntry.status != "archived")).all())
+            facts["has_work"], facts["has_journey"] = facts["work_count"] > 0, facts["journey_count"] > 0
+    data = activity_run.data or {}
+    return {
+        "answers": answers,
+        "variables": data.get("variables") or {},
+        "facts": facts,
+        "context": {"mode": data.get("mode") or "create", "bindings": data.get("bindings") or {}},
+        "bindings": data.get("bindings") or {},
+    }
+
+
+def _resolved_activity_flow(db_session: Session, run: LearningRun, activity_run: LearningActivityRun):
+    activity = db_session.get(LearningActivity, activity_run.activity_id)
+    definition = (activity_run.data or {}).get("definition") or {}
+    flow = definition.get("flow") if "flow" in definition else (activity.settings or {}).get("flow") if activity else None
+    return resolve_flow(flow, _flow_context(db_session, run, activity_run)) if flow else None
+
+
+def _run_navigation(db_session: Session, run: LearningRun) -> dict:
+    activities = []
+    for activity_run in db_session.exec(select(LearningActivityRun).where(LearningActivityRun.run_id == run.id)).all():
+        resolved = _resolved_activity_flow(db_session, run, activity_run)
+        completed = {
+            item.page_id for item in db_session.exec(
+                select(LearningPageProgress).where(LearningPageProgress.run_id == run.id, LearningPageProgress.complete == True)
+            ).all()
+        }
+        pages = db_session.exec(select(LearningPage).where(LearningPage.activity_id == activity_run.activity_id)).all()
+        by_uuid = {page.page_uuid: page for page in pages}
+        path = resolved.page_uuids if resolved else [page.page_uuid for page in sorted(pages, key=lambda page: page.order)]
+        current = next((uuid for uuid in path if (by_uuid.get(uuid).id if by_uuid.get(uuid) else None) not in completed), None)
+        activities.append({
+            "activity_id": activity_run.activity_id,
+            "path": path,
+            "current_page_uuid": current,
+            "terminal_reachable": bool(resolved.terminal) if resolved else True,
+            "condition_trace": resolved.trace if resolved else [],
+            "completed": len([uuid for uuid in path if by_uuid.get(uuid) and by_uuid[uuid].id in completed]),
+            "total": len(path),
+        })
+    return {"activities": activities}
+
+
 def _block_scoring(page: LearningPage, question: dict) -> dict:
     scoring = question.get("scoring")
     if isinstance(scoring, dict) and scoring:
@@ -363,6 +441,7 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
     }
     attempts = db_session.exec(select(LearningResponseAttempt).where(LearningResponseAttempt.run_id == run.id)).all()
     award = db_session.exec(select(LearningBadgeAward).where(LearningBadgeAward.run_id == run.id)).first()
+    navigation = _run_navigation(db_session, run)
     return LearningRunRead(
         id=run.id or 0,
         run_uuid=run.run_uuid,
@@ -385,6 +464,7 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
         ],
         attempts=[attempt.model_dump() for attempt in attempts],
         award=award.model_dump() if award else None,
+        navigation=navigation,
     )
 
 
@@ -874,7 +954,14 @@ def _ensure_activity_run(db_session: Session, run: LearningRun, activity_id: int
     ).first()
     if activity_run:
         return activity_run
-    activity_run = LearningActivityRun(run_id=run.id or 0, activity_id=activity_id, status=LearningRunStatus.IN_PROGRESS)
+    activity = db_session.get(LearningActivity, activity_id)
+    settings = deepcopy(activity.settings or {}) if activity else {}
+    activity_run = LearningActivityRun(
+        run_id=run.id or 0,
+        activity_id=activity_id,
+        status=LearningRunStatus.IN_PROGRESS,
+        data={"definition": {"version": 1, "flow": settings.get("flow"), "outcomes": settings.get("outcomes")}},
+    )
     db_session.add(activity_run)
     db_session.commit()
     db_session.refresh(activity_run)
@@ -1082,6 +1169,40 @@ def _merge_onboarding_variable_bindings(page: LearningPage, defaults: dict) -> N
     completion = deepcopy(page.completion or {})
     completion["variable_bindings"] = merged_bindings(completion)
     page.completion = completion
+
+
+def _ensure_launch_ready_activity(
+    db_session: Session, *, path: LearningPath, badge: LearningBadge, org_id: int,
+    key: str, order: int, title: str, description: str, pages: list[dict], outcomes: list[dict], flow: dict | None = None,
+) -> LearningActivity:
+    now, activity_uuid = _now(), LAUNCH_READY_ACTIVITY_UUIDS[key]
+    activity = db_session.exec(select(LearningActivity).where(LearningActivity.activity_uuid == activity_uuid)).first()
+    settings = {"system_required": True, "estimated_minutes": 3, "capability": key, "outcomes": {"version": 1, "actions": outcomes}}
+    if flow: settings["flow"] = flow
+    if not activity:
+        activity = LearningActivity(path_id=path.id or 0, badge_id=badge.id or 0, org_id=org_id, title=title, description=description, icon="sparkles", order=order, required=True, published=True, settings=settings, activity_uuid=activity_uuid, creation_date=now, update_date=now)
+        db_session.add(activity); db_session.flush()
+    else:
+        activity.path_id, activity.badge_id, activity.org_id = path.id or 0, badge.id or 0, org_id
+        activity.order = order
+        activity.required, activity.published = True, True
+        activity.settings = {**settings, **(activity.settings or {}), "system_required": True, "capability": key}
+        activity.update_date = now
+        db_session.add(activity); db_session.flush()
+    for page_order, spec in enumerate(pages, start=1):
+        page = db_session.exec(select(LearningPage).where(LearningPage.page_uuid == spec["page_uuid"])).first()
+        if not page:
+            content = {"version": STANDARD_CONTENT_VERSION, "blocks": [text_block(heading_node(spec["title"]), block_id=f"{spec['block_id']}_heading")]}
+            if spec.get("kind"):
+                content["blocks"].append(question_block(spec["kind"], spec["content"], block_id=spec["block_id"], scoring={"mode": "off", "points": 0}, completion=spec.get("completion") or {}))
+            else:
+                content["blocks"].append(text_block(paragraph_node(spec.get("body") or "Continue when you're ready."), block_id=f"{spec['block_id']}_body"))
+            page = LearningPage(activity_id=activity.id or 0, badge_id=badge.id or 0, org_id=org_id, page_type=LearningPageType.STANDARD, title=spec["title"], order=page_order, required=True, content=content, page_uuid=spec["page_uuid"], creation_date=now, update_date=now)
+        else:
+            page.activity_id, page.badge_id, page.org_id, page.order, page.required = activity.id or 0, badge.id or 0, org_id, page_order, True
+            page.update_date = now
+        db_session.add(page)
+    return activity
 
 
 def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization, BadgeCollection, LearningBadge, LearningActivity]:
@@ -1296,6 +1417,57 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
         _merge_onboarding_variable_bindings(goal_page, goal_bindings)
         goal_page.update_date = now
         db_session.add(goal_page)
+
+    def answer(page_uuid: str, block_id: str, suffix: str, default=None, transform=None) -> dict:
+        value = {"$source": "answer", "path": f"{page_uuid}.answer.questions.{block_id}.{suffix}"}
+        if default is not None: value["default"] = default
+        if transform: value["transform"] = transform
+        return value
+
+    journey_page, journey_block = "learning_page_system_onboarding_journey", "blk_launch_journey"
+    _ensure_launch_ready_activity(
+        db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="journey", order=2,
+        title="Add your current chapter", description="Show where you're learning, working, or growing now.",
+        pages=[{"page_uuid": journey_page, "block_id": journey_block, "title": "What's your current chapter?", "kind": "text_input", "content": {"inputs": [{"id": "title", "label": "Chapter title", "variant": "single_line"}, {"id": "summary", "label": "What are you doing or learning?", "variant": "short_answer"}]}, "completion": {"inputs": {"title": {"required": True, "min_words": 1}, "summary": {"required": False}}}}],
+        outcomes=[{"id": "create-current-chapter", "type": "create_journey_entry", "store_as": "journey_entry_id", "fields": {"title": answer(journey_page, journey_block, "inputs.title.text"), "summary": answer(journey_page, journey_block, "inputs.summary.text"), "is_current": True, "entry_type": "experience"}}],
+    )
+
+    work_kind_page, work_kind_block = "learning_page_system_onboarding_work_kind", "blk_launch_work_kind"
+    work_detail_page, work_detail_block = "learning_page_system_onboarding_work_detail", "blk_launch_work_detail"
+    work_branch_pages = [(kind, f"learning_page_system_onboarding_work_{kind}") for kind in ("made", "did", "led", "learned")]
+    work_pages = [{"page_uuid": work_kind_page, "block_id": work_kind_block, "title": "What kind of work will you share?", "kind": "multiple_choice", "content": {"options": [{"id": kind, "text": kind.title()} for kind, _ in work_branch_pages]}, "completion": {"min_selections": 1, "max_selections": 1}}]
+    work_pages += [{"page_uuid": page_uuid, "block_id": f"blk_work_{kind}", "title": f"Something you {kind}", "body": "School, hobbies, community work, experiments, and personal growth all count."} for kind, page_uuid in work_branch_pages]
+    work_pages += [{"page_uuid": work_detail_page, "block_id": work_detail_block, "title": "Tell us about it", "kind": "text_input", "content": {"inputs": [{"id": "title", "label": "Title", "variant": "single_line"}, {"id": "summary", "label": "What happened?", "variant": "short_answer"}]}, "completion": {"inputs": {"title": {"required": True, "min_words": 1}, "summary": {"required": False}}}}]
+    work_nodes = [{"id": f"page:{spec['page_uuid']}", "type": "page", "page_uuid": spec["page_uuid"]} for spec in work_pages] + [{"id": "complete", "type": "complete"}]
+    work_edges = []
+    for priority, (kind, page_uuid) in enumerate(work_branch_pages):
+        work_edges.append({"from": f"page:{work_kind_page}", "to": f"page:{page_uuid}", "priority": 100 - priority, "condition": {"op": "contains", "left": {"source": "answer", "key": f"{work_kind_page}.result.questions.{work_kind_block}.option_ids"}, "right": kind}})
+        work_edges.append({"from": f"page:{page_uuid}", "to": f"page:{work_detail_page}", "priority": 0})
+    work_edges.append({"from": f"page:{work_detail_page}", "to": "complete", "priority": 0})
+    _ensure_launch_ready_activity(
+        db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="work", order=3,
+        title="Show something you've done", description="Add a project, creation, achievement, or story.", pages=work_pages,
+        flow={"version": 1, "entry": f"page:{work_kind_page}", "nodes": work_nodes, "edges": work_edges},
+        outcomes=[{"id": "create-first-work", "type": "create_work_item", "store_as": "work_item_id", "fields": {"story_kind": answer(work_kind_page, work_kind_block, "option_ids", "made", "first"), "title": answer(work_detail_page, work_detail_block, "inputs.title.text"), "summary": answer(work_detail_page, work_detail_block, "inputs.summary.text"), "featured": True}}],
+    )
+
+    trait_page, trait_block = "learning_page_system_onboarding_traits", "blk_launch_traits"
+    _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="traits", order=4, title="Name what makes you strong", description="Add strengths, interests, values, or goals.", pages=[{"page_uuid": trait_page, "block_id": trait_block, "title": "What sounds like you?", "kind": "multiple_choice", "content": {"options": [{"id": item, "text": item.title()} for item in ("creative", "curious", "reliable", "collaborative", "determined")]}, "completion": {"min_selections": 1, "max_selections": 5}}], outcomes=[{"id": "set-strengths", "type": "set_traits", "trait_type": "strength", "values": answer(trait_page, trait_block, "option_ids", [])}])
+
+    links_page, links_block = "learning_page_system_onboarding_links", "blk_launch_links"
+    _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="links", order=5, title="Connect your world", description="Add a safe website or profile link.", pages=[{"page_uuid": links_page, "block_id": links_block, "title": "Where can people see more?", "kind": "text_input", "content": {"inputs": [{"id": "url", "label": "Website URL", "variant": "single_line"}]}, "completion": {"inputs": {"url": {"required": True, "min_words": 1}}}}], outcomes=[{"id": "set-main-link", "type": "set_portfolio_links", "links": [{"label": "My link", "url": answer(links_page, links_block, "inputs.url.text")}]}])
+
+    theme_page, theme_block = "learning_page_system_onboarding_theme", "blk_launch_theme"
+    _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="theme", order=6, title="Make it yours", description="Choose the starting look for your portfolio.", pages=[{"page_uuid": theme_page, "block_id": theme_block, "title": "Choose your vibe", "kind": "multiple_choice", "content": {"options": [{"id": item, "text": item.title()} for item in ("default", "electric", "minimal", "creative")]}, "completion": {"min_selections": 1, "max_selections": 1}}], outcomes=[{"id": "set-theme", "type": "set_theme", "theme_id": answer(theme_page, theme_block, "option_ids", "default", "first")}])
+
+    launch_page, launch_block = "learning_page_system_onboarding_launch", "blk_launch_confirm"
+    _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="launch", order=7, title="Launch your portfolio", description="Review privacy and get ready to share.", pages=[{"page_uuid": launch_page, "block_id": launch_block, "title": "Ready to launch?", "kind": "multiple_choice", "content": {"options": [{"id": "confirm", "text": "I reviewed my public portfolio and privacy choices"}]}, "completion": {"min_selections": 1, "max_selections": 1}}], outcomes=[{"id": "confirm-privacy", "type": "confirm_privacy"}])
+
+    badge.name = "Launch Ready"
+    badge.description = "Build and launch your portfolio one useful step at a time."
+    badge.about = "A guided path for introducing yourself, sharing your journey and work, and preparing your portfolio to publish."
+    badge.criteria = "Complete all Launch Ready activities."
+    db_session.add(badge)
 
     db_session.commit()
     db_session.refresh(collection)
@@ -1585,7 +1757,20 @@ async def create_activity(request: Request, data: LearningActivityCreate, curren
 async def update_activity(request: Request, activity_uuid: str, data: LearningActivityUpdate, current_user: PublicUser | AnonymousUser, db_session: Session) -> LearningActivityRead:
     activity = _get_activity(db_session, activity_uuid)
     _require_org_admin(db_session, current_user, activity.org_id)
-    for key, value in data.model_dump(exclude_unset=True).items():
+    patch = data.model_dump(exclude_unset=True)
+    if "settings" in patch:
+        pages = db_session.exec(select(LearningPage).where(LearningPage.activity_id == activity.id)).all()
+        badge = db_session.get(LearningBadge, activity.badge_id)
+        try:
+            validate_flow(
+                (patch["settings"] or {}).get("flow"),
+                {page.page_uuid for page in pages},
+                {page.page_uuid for page in pages if page.required},
+            )
+            validate_outcomes((patch["settings"] or {}).get("outcomes"), bool(badge and _is_system_object(badge)))
+        except (FlowValidationError, PortfolioActionError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+    for key, value in patch.items():
         setattr(activity, key, value)
     activity.update_date = _now()
     db_session.add(activity)
@@ -1659,6 +1844,67 @@ async def duplicate_activity(request: Request, activity_uuid: str, current_user:
     for page in cloned_pages:
         db_session.refresh(page)
     return _serialize_activity(clone, cloned_pages)
+
+
+async def convert_page_variants_to_flow(request: Request, activity_uuid: str, page_uuid: str, current_user: PublicUser | AnonymousUser, db_session: Session) -> LearningActivityRead:
+    activity = _get_activity(db_session, activity_uuid)
+    _require_org_admin(db_session, current_user, activity.org_id)
+    pages = list(db_session.exec(select(LearningPage).where(LearningPage.activity_id == activity.id).order_by(LearningPage.order.asc())).all())  # type: ignore
+    page = next((item for item in pages if item.page_uuid == _clean_uuid(page_uuid, "learning_page_")), None)
+    variants = (page.content or {}).get("variants") if page else None
+    if not page or not isinstance(variants, dict) or not (variants.get("overrides") or {}):
+        raise HTTPException(status_code=422, detail="Page does not contain convertible variants")
+    source_uuid = (variants.get("source") or {}).get("page_uuid")
+    source_block_id = (variants.get("source") or {}).get("block_id")
+    source_page = next((item for item in pages if item.page_uuid == source_uuid), None)
+    if not source_page or source_page.order >= page.order:
+        raise HTTPException(status_code=422, detail="Variant source must be an earlier question page")
+    now, created = _now(), []
+    for key, override in (variants.get("overrides") or {}).items():
+        clone = LearningPage(
+            activity_id=page.activity_id, badge_id=page.badge_id, org_id=page.org_id,
+            page_type=page.page_type, title=f"{page.title} — {key}", order=page.order,
+            required=page.required, content={"version": (page.content or {}).get("version", STANDARD_CONTENT_VERSION), "blocks": deepcopy((override or {}).get("blocks") or [])},
+            design=deepcopy(page.design), scoring=deepcopy(page.scoring), completion=deepcopy(page.completion),
+            page_uuid=f"learning_page_{uuid4()}", creation_date=now, update_date=now,
+        )
+        db_session.add(clone); db_session.flush(); created.append((str(key), clone))
+    page.content = {key: deepcopy(value) for key, value in (page.content or {}).items() if key != "variants"}
+    db_session.add(page)
+    nodes = [{"id": f"page:{item.page_uuid}", "type": "page", "page_uuid": item.page_uuid} for item in pages]
+    nodes.extend({"id": f"page:{item.page_uuid}", "type": "page", "page_uuid": item.page_uuid} for _, item in created)
+    nodes.append({"id": "complete", "type": "complete"})
+    edges = []
+    page_index = pages.index(page)
+    branch_from = pages[page_index - 1] if page_index > 0 else source_page
+    for index, item in enumerate(pages):
+        source = f"page:{item.page_uuid}"
+        target = f"page:{pages[index + 1].page_uuid}" if index + 1 < len(pages) else "complete"
+        if item.id == branch_from.id:
+            continue
+        if item.id == page.id:
+            edges.append({"from": source, "to": target, "priority": 0})
+            for _, branch in created: edges.append({"from": f"page:{branch.page_uuid}", "to": target, "priority": 0})
+        else:
+            edges.append({"from": source, "to": target, "priority": 0})
+    default_target = f"page:{page.page_uuid}"
+    edges.append({"from": f"page:{branch_from.page_uuid}", "to": default_target, "priority": -100})
+    for priority, (key, branch) in enumerate(created, start=1):
+        answer_key = f"{source_page.page_uuid}.result.questions.{source_block_id}.option_ids" if source_block_id else f"{source_page.page_uuid}.result.option_ids"
+        edges.append({
+            "from": f"page:{branch_from.page_uuid}", "to": f"page:{branch.page_uuid}", "priority": 100 - priority,
+            "condition": {"op": "contains", "left": {"source": "answer", "key": answer_key}, "right": key},
+        })
+    flow = {"version": 1, "entry": f"page:{pages[0].page_uuid}", "nodes": nodes, "edges": edges}
+    try:
+        validate_flow(flow, {node["page_uuid"] for node in nodes if node["type"] == "page"}, {item.page_uuid for item in pages if item.required})
+    except FlowValidationError as exc:
+        db_session.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    activity.settings = {**(activity.settings or {}), "flow": flow}
+    activity.update_date = now; db_session.add(activity); db_session.commit()
+    all_pages = db_session.exec(select(LearningPage).where(LearningPage.activity_id == activity.id).order_by(LearningPage.order.asc())).all()  # type: ignore
+    return _serialize_activity(activity, all_pages)
 
 
 def _validate_page_payload(page_type: LearningPageType, content: dict | None) -> None:
@@ -1945,7 +2191,33 @@ async def complete_page(request: Request, data: LearningPageComplete, actor: Lea
     progress.update_date = str(now)
     db_session.add(progress)
 
-    required_pages = db_session.exec(select(LearningPage).where(LearningPage.activity_id == page.activity_id, LearningPage.required == True)).all()
+    all_activity_pages = db_session.exec(select(LearningPage).where(LearningPage.activity_id == page.activity_id)).all()
+    resolved_flow = _resolved_activity_flow(db_session, run, activity_run)
+    reachable_uuids = set(resolved_flow.page_uuids) if resolved_flow else {item.page_uuid for item in all_activity_pages}
+    page_uuid_by_id = {item.id: item.page_uuid for item in all_activity_pages}
+    if resolved_flow:
+        for old_progress in db_session.exec(
+            select(LearningPageProgress).where(
+                LearningPageProgress.run_id == run.id,
+                LearningPageProgress.activity_run_id == activity_run.id,
+                LearningPageProgress.complete == True,
+            )
+        ).all():
+            if page_uuid_by_id.get(old_progress.page_id) not in reachable_uuids:
+                old_progress.complete = False
+                old_progress.completed_at = None
+                old_progress.data = {**(old_progress.data or {}), "invalidated_by_routing": True}
+                db_session.add(old_progress)
+    activity_run.data = {
+        **(activity_run.data or {}),
+        "route": {
+            "page_uuids": list(resolved_flow.page_uuids) if resolved_flow else [item.page_uuid for item in sorted(all_activity_pages, key=lambda item: item.order)],
+            "node_ids": list(resolved_flow.node_ids) if resolved_flow else [],
+            "terminal": bool(resolved_flow.terminal) if resolved_flow else True,
+            "condition_trace": list(resolved_flow.trace) if resolved_flow else [],
+        },
+    }
+    required_pages = [item for item in all_activity_pages if item.required and item.page_uuid in reachable_uuids]
     completed_page_ids = {
         item.page_id
         for item in db_session.exec(
@@ -1955,7 +2227,8 @@ async def complete_page(request: Request, data: LearningPageComplete, actor: Lea
             )
         ).all()
     } | {page.id or 0}
-    if required_pages and all((required_page.id or 0) in completed_page_ids for required_page in required_pages):
+    path_can_finish = not resolved_flow or resolved_flow.terminal
+    if path_can_finish and required_pages and all((required_page.id or 0) in completed_page_ids for required_page in required_pages):
         can_complete, completion_result = _activity_meets_completion_rules(db_session, run, activity)
         activity_run.data = {
             **(activity_run.data or {}),
@@ -1963,6 +2236,24 @@ async def complete_page(request: Request, data: LearningPageComplete, actor: Lea
             "last_checked_at": now.isoformat(),
         }
         if can_complete:
+            definition = (activity_run.data or {}).get("definition") or {}
+            outcomes = definition.get("outcomes") if "outcomes" in definition else (activity.settings or {}).get("outcomes")
+            if outcomes:
+                if run.user_id is None:
+                    raise HTTPException(status_code=422, detail="Portfolio outcomes require an authenticated learner")
+                user = db_session.get(User, run.user_id)
+                if not user:
+                    raise HTTPException(status_code=404, detail="Learner not found")
+                try:
+                    receipts, bindings = apply_portfolio_outcomes(
+                        db_session, user, activity_run.id or 0, outcomes,
+                        _flow_context(db_session, run, activity_run),
+                        (activity_run.data or {}).get("action_receipts") or {},
+                    )
+                except PortfolioActionError as exc:
+                    db_session.rollback()
+                    raise HTTPException(status_code=422, detail={"action_id": exc.action_id, "field": exc.field, "message": exc.message}) from exc
+                activity_run.data = {**(activity_run.data or {}), "action_receipts": receipts, "bindings": bindings}
             activity_run.status = LearningRunStatus.COMPLETED
             activity_run.completed_at = now
         else:
@@ -1974,7 +2265,7 @@ async def complete_page(request: Request, data: LearningPageComplete, actor: Lea
     db_session.commit()
     db_session.refresh(run)
     _issue_award_if_complete(request, db_session, run)
-    if required_pages and all((required_page.id or 0) in completed_page_ids for required_page in required_pages):
+    if path_can_finish and required_pages and all((required_page.id or 0) in completed_page_ids for required_page in required_pages):
         result = (activity_run.data or {}).get("completion_result") or {}
         if not result.get("passed", True):
             grading = result.get("grading") or {}

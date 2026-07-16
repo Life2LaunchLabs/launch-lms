@@ -18,6 +18,7 @@ import {
   Copy,
   Eye,
   FileText,
+  GitBranch,
   GripVertical,
   Hand,
   Heading1,
@@ -49,6 +50,7 @@ import {
 } from '@components/ui/dropdown-menu'
 import {
   createLearningPage,
+  convertLearningPageVariants,
   createLearningVariable,
   deleteLearningVariable,
   deleteLearningPage,
@@ -574,6 +576,26 @@ export default function LearningActivityEditor({
     scheduleActivitySave({ settings })
   }
 
+  const patchFlowSettings = (flow: any) => {
+    const settings = { ...(activityState.settings || {}), flow }
+    setActivityState((current: any) => ({ ...current, settings }))
+    scheduleActivitySave({ settings })
+  }
+
+  const convertVariants = async (page: any) => {
+    if (!accessToken) return
+    try {
+      await saveBeforeAction()
+      const saved = await convertLearningPageVariants(activityState.activity_uuid, page.page_uuid, accessToken)
+      setActivityState((current: any) => ({ ...current, ...(saved || {}) }))
+      setPages(normalizeInitialPages(saved.pages || []))
+      setVariantKey('default')
+      toast.success('Variants converted to editable branches')
+    } catch (error: any) {
+      toast.error(error?.message || 'Could not convert variants')
+    }
+  }
+
   const saveBeforeAction = async () => {
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current)
@@ -773,6 +795,7 @@ export default function LearningActivityEditor({
       />
       <div className="flex h-11 shrink-0 items-center justify-center gap-2 border-b border-gray-200 bg-white px-5">
         <TopModeButton active={viewMode === 'editor'} onClick={() => setViewMode('editor')} label="Editor" />
+        <TopModeButton active={viewMode === 'flow'} onClick={() => setViewMode('flow')} label="Flow" />
         <TopModeButton active={viewMode === 'settings'} onClick={() => setViewMode('settings')} label="Settings" />
       </div>
 
@@ -788,6 +811,16 @@ export default function LearningActivityEditor({
           onCreateVariable={createVariable}
           onPatchVariable={patchVariable}
           onDeleteVariable={removeVariable}
+        />
+      ) : viewMode === 'flow' ? (
+        <ActivityFlowView
+          activity={activityState}
+          pages={pages}
+          trusted={badge?.system_type === 'onboarding' || badge?.protected === true}
+          onSelectPage={(pageUuid: string) => { setSelection({ pageUuid, blockId: null }); setViewMode('editor') }}
+          onPatchFlow={patchFlowSettings}
+          onPatchActivity={patchActivityBasics}
+          onConvertVariants={convertVariants}
         />
       ) : (
         <div className="flex min-h-0 flex-1">
@@ -912,6 +945,37 @@ export default function LearningActivityEditor({
       )}
     </div>
   )
+}
+
+function ActivityFlowView({ activity, pages, trusted, onSelectPage, onPatchFlow, onPatchActivity, onConvertVariants }: any) {
+  const flow = activity.settings?.flow
+  const outcomes = activity.settings?.outcomes || { version: 1, actions: [] }
+  const enableLinearFlow = () => {
+    const nodes: any[] = pages.map((page: any) => ({ id: `page:${page.page_uuid}`, type: 'page', page_uuid: page.page_uuid }))
+    nodes.push({ id: 'complete', type: 'complete' })
+    const edges = pages.map((page: any, index: number) => ({ from: `page:${page.page_uuid}`, to: index + 1 < pages.length ? `page:${pages[index + 1].page_uuid}` : 'complete', priority: 0 }))
+    onPatchFlow({ version: 1, entry: nodes[0]?.id, nodes, edges })
+  }
+  const patchEdge = (index: number, patch: any) => onPatchFlow({ ...flow, edges: flow.edges.map((edge: any, edgeIndex: number) => edgeIndex === index ? { ...edge, ...patch } : edge) })
+  const saveOutcomes = (actions: any[]) => onPatchActivity({ settings: { ...(activity.settings || {}), outcomes: { version: 1, actions } } })
+  const patchOutcome = (index: number, patch: any) => saveOutcomes(outcomes.actions.map((action: any, actionIndex: number) => actionIndex === index ? { ...action, ...patch } : action))
+  const addOutcome = (type: string) => {
+    const defaults: Record<string, any> = { set_portfolio_fields: { fields: { headline: '' } }, create_work_item: { store_as: 'work_item_id', fields: { title: '' } }, create_journey_entry: { store_as: 'journey_entry_id', fields: { title: '' } }, set_traits: { trait_type: 'strength', values: [] }, set_portfolio_links: { links: [] }, set_theme: { theme_id: 'default' }, set_featured_content: { work: { $source: 'binding', key: 'work_item_id' } } }
+    saveOutcomes([...outcomes.actions, { id: `${type}-${Date.now()}`, type, ...(defaults[type] || {}) }])
+  }
+  return <div className="min-h-0 flex-1 overflow-y-auto bg-gray-50 p-6">
+    <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="flex items-start justify-between gap-4"><div><div className="flex items-center gap-2"><GitBranch size={18}/><h2 className="font-bold">Learner flow</h2></div><p className="mt-1 text-sm text-gray-500">Split into multi-page paths, join them later, or finish a path early.</p></div>{!flow && <button onClick={enableLinearFlow} className="rounded-lg bg-gray-950 px-3 py-2 text-xs font-bold text-white">Enable branching</button>}</div>
+        {!flow ? <div className="mt-8 rounded-xl border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">This activity follows page order. Enable branching to create an editable acyclic flow.</div> : <>
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">{flow.nodes.map((node: any) => node.type === 'complete' ? <div key={node.id} className="rounded-xl border-2 border-emerald-200 bg-emerald-50 p-4"><p className="text-xs font-bold uppercase text-emerald-700">Completion</p><p className="mt-1 font-bold">Activity complete</p></div> : <button key={node.id} onClick={() => onSelectPage(node.page_uuid)} className="rounded-xl border border-gray-200 p-4 text-left hover:border-gray-400"><p className="text-xs font-bold uppercase text-gray-400">Page node</p><p className="mt-1 truncate font-bold">{pages.find((page: any) => page.page_uuid === node.page_uuid)?.title || node.page_uuid}</p></button>)}</div>
+          <div className="mt-7"><h3 className="text-sm font-bold">Transitions</h3><div className="mt-3 space-y-3">{flow.edges.map((edge: any, index: number) => <div key={`${edge.from}-${edge.to}-${index}`} className="grid gap-3 rounded-lg border border-gray-200 p-3 sm:grid-cols-[1fr_1fr_90px]"><div><p className="text-[10px] font-bold uppercase text-gray-400">From → to</p><p className="mt-1 truncate text-xs font-semibold">{edge.from} → {edge.to}</p></div><label className="text-[10px] font-bold uppercase text-gray-400">Answer option<input value={edge.condition?.right || ''} onChange={(event) => patchEdge(index, { condition: event.target.value ? { op: 'contains', left: edge.condition?.left || { source: 'answer', key: '' }, right: event.target.value } : undefined })} placeholder="Fallback" className="mt-1 h-8 w-full rounded border px-2 text-xs font-normal normal-case"/></label><label className="text-[10px] font-bold uppercase text-gray-400">Priority<input type="number" value={edge.priority || 0} onChange={(event) => patchEdge(index, { priority: Number(event.target.value) })} className="mt-1 h-8 w-full rounded border px-2 text-xs font-normal"/></label></div>)}</div></div>
+        </>}
+        {pages.some((page: any) => page.content?.variants) && <div className="mt-7 border-t pt-5"><h3 className="text-sm font-bold">Page variants</h3><p className="mt-1 text-xs text-gray-500">Convert a single-page variant into separate editable paths.</p><div className="mt-3 flex flex-wrap gap-2">{pages.filter((page: any) => page.content?.variants).map((page: any) => <button key={page.page_uuid} onClick={() => onConvertVariants(page)} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900">Convert {page.title}</button>)}</div></div>}
+      </section>
+      <aside className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"><h2 className="font-bold">Completion outcomes</h2><p className="mt-1 text-sm text-gray-500">These run atomically after the learner finishes.</p>{trusted ? <><div className="mt-4 space-y-2">{outcomes.actions.map((action: any, index: number) => <div key={action.id} className="rounded-lg border border-gray-200 p-3"><div className="flex items-center justify-between gap-2"><p className="text-xs font-bold">{action.type.replaceAll('_', ' ')}</p><button onClick={() => saveOutcomes(outcomes.actions.filter((_: any, actionIndex: number) => actionIndex !== index))} className="text-gray-400 hover:text-red-600" title="Remove outcome"><Trash2 size={13}/></button></div><p className="mt-1 truncate text-[11px] text-gray-400">{action.id}</p>{action.fields && <label className="mt-3 block text-[10px] font-bold uppercase text-gray-400">Title or headline<input value={typeof (action.fields.title ?? action.fields.headline) === 'string' ? (action.fields.title ?? action.fields.headline) : ''} onChange={(event) => patchOutcome(index, { fields: { ...action.fields, [action.fields.title !== undefined ? 'title' : 'headline']: event.target.value } })} placeholder="Constant value" className="mt-1 h-8 w-full rounded border px-2 text-xs font-normal normal-case"/></label>}{action.type === 'set_theme' && <label className="mt-3 block text-[10px] font-bold uppercase text-gray-400">Theme<select value={typeof action.theme_id === 'string' ? action.theme_id : 'default'} onChange={(event) => patchOutcome(index, { theme_id: event.target.value })} className="mt-1 h-8 w-full rounded border px-2 text-xs font-normal normal-case"><option value="default">Default</option><option value="electric">Electric</option><option value="minimal">Minimal</option><option value="creative">Creative</option></select></label>}</div>)}{!outcomes.actions.length && <p className="rounded-lg bg-gray-50 p-3 text-xs text-gray-500">No portfolio changes configured.</p>}</div><select defaultValue="" onChange={(event) => { if (event.target.value) addOutcome(event.target.value); event.target.value = '' }} className="mt-4 h-9 w-full rounded-lg border px-2 text-xs font-semibold"><option value="">Add an outcome…</option>{['set_portfolio_fields','create_work_item','create_journey_entry','set_traits','set_portfolio_links','set_theme','set_featured_content','confirm_privacy','publish_portfolio'].map((type) => <option key={type} value={type}>{type.replaceAll('_', ' ')}</option>)}</select></> : <p className="mt-4 rounded-lg bg-gray-50 p-3 text-xs text-gray-500">Portfolio outcomes are available only to trusted system badges. Branching remains available to this activity.</p>}</aside>
+    </div>
+  </div>
 }
 
 function EditorHeader({ badgeName, activity, device, setDevice, saveState, lastSavedAt, publishing, onBack, onPreview, onPublish }: any) {

@@ -509,6 +509,7 @@ class LearningRunRead(BaseModel):
     page_progress: list[dict] = []
     attempts: list[dict] = []
     award: Optional[dict] = None
+    navigation: Optional[dict] = None
 
 
 class LearningPathRead(BaseModel):

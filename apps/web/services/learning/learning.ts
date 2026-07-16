@@ -227,6 +227,14 @@ export async function deleteLearningPage(pageUuid: string, accessToken?: string)
   return errorHandling(result)
 }
 
+export async function convertLearningPageVariants(activityUuid: string, pageUuid: string, accessToken?: string) {
+  const result = await fetch(
+    `${getAPIUrl()}learning-activities/${activityUuid}/pages/${pageUuid}/convert-variants`,
+    RequestBodyWithAuthHeader('POST', null, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
 export async function uploadLearningPageMedia(pageUuid: string, formData: FormData, accessToken: string) {
   const result = await fetch(
     `${getAPIUrl()}learning-pages/${pageUuid}/media`,

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import React from 'react'
 import { createPortal } from 'react-dom'
 import { Extension } from '@tiptap/core'
@@ -35,10 +36,11 @@ import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 
 export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgslug: string; badgePath: any; activity: any }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
   const badge = badgePath.badge
-  const pages = activity.pages || []
+  const configuredPages = activity.pages || []
   const activityIndex = (badgePath.activities || []).findIndex((item: any) =>
     item.id === activity.id || item.activity_uuid === activity.activity_uuid
   )
@@ -47,6 +49,10 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
   const [index, setIndex] = React.useState(0)
   const [unlocked, setUnlocked] = React.useState(false)
   const [answer, setAnswer] = React.useState<any>({})
+  const navigation = (run?.navigation?.activities || []).find((item: any) => item.activity_id === activity.id)
+  const pages = navigation?.path?.length
+    ? navigation.path.map((pageUuid: string) => configuredPages.find((item: any) => item.page_uuid === pageUuid)).filter(Boolean)
+    : configuredPages
   const page = pages[index]
 
   React.useEffect(() => {
@@ -70,15 +76,21 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
         nextRun = await completeLearningPage(run.run_uuid, page.page_uuid, {}, accessToken)
       }
       setRun(nextRun)
-      if (index < pages.length - 1) {
-        setIndex(index + 1)
+      const nextNavigation = (nextRun?.navigation?.activities || []).find((item: any) => item.activity_id === activity.id)
+      const nextPath = nextNavigation?.path?.length ? nextNavigation.path : configuredPages.map((item: any) => item.page_uuid)
+      const nextPageUuid = nextNavigation?.current_page_uuid
+      if (nextPageUuid && nextPath.includes(nextPageUuid)) {
+        setIndex(nextPath.indexOf(nextPageUuid))
       } else {
         const grading = activity.settings?.grading || {}
         if (grading.mode === 'pass_fail' && grading.success_message) {
           toast.success(grading.success_message)
         }
+        const returnTo = searchParams.get('returnTo')
         const cleanBadgeUuid = String(badge.badge_uuid || '').replace(/^badge_/, '')
-        if (isFinalActivity && cleanBadgeUuid) {
+        if (returnTo?.startsWith('/portfolio')) {
+          router.push(getUriWithOrg(orgslug, `${returnTo}${returnTo.includes('?') ? '&' : '?'}completedActivity=${encodeURIComponent(activity.activity_uuid)}`))
+        } else if (isFinalActivity && cleanBadgeUuid) {
           router.push(getUriWithOrg(orgslug, routePaths.org.badgeStatus(cleanBadgeUuid)))
         } else if (cleanBadgeUuid) {
           router.push(getUriWithOrg(orgslug, routePaths.org.badgePath(cleanBadgeUuid)))

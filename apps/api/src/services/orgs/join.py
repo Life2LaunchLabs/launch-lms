@@ -70,7 +70,7 @@ async def join_org(
 
     # Check if user's email is verified when explicitly required
     if (
-        get_launchlms_config().general_config.require_email_verification
+        get_launchlms_config().general_config.email_verification_required
         and not user.email_verified
     ):
         raise HTTPException(

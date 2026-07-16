@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 from fastapi import HTTPException, status
+from sqlalchemy import inspect
 from sqlmodel import Session, select
 
 from src.db.portfolio import (
@@ -28,6 +29,8 @@ from src.db.portfolio import (
 from src.db.media import MediaAsset
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser, User
+from src.db.learning import LearningActivity, LearningActivityRun, LearningRun, LearningRunStatus
+from src.services.learning import LAUNCH_READY_ACTIVITY_UUIDS, ONBOARDING_BADGE_UUID
 
 
 DEFAULT_SECTIONS = ("identity_hero", "featured_work", "about", "links")
@@ -75,6 +78,54 @@ def _readiness_blockers(portfolio: Portfolio, meaningful_count: int) -> list[str
 
 def _get_portfolio(db_session: Session, user_id: int) -> Portfolio | None:
     return db_session.exec(select(Portfolio).where(Portfolio.user_id == user_id)).first()
+
+
+def _launch_ready_state(user_id: int, db_session: Session, work_count: int = 0, journey_count: int = 0) -> dict:
+    bind = db_session.get_bind()
+    if not inspect(bind).has_table("learningactivity"):
+        return {"capabilities": {"overview": {"unlocked": True, "reason": "always_available", "requiredActivity": None}, "work": {"unlocked": True, "reason": "not_configured", "requiredActivity": None}, "journey": {"unlocked": True, "reason": "not_configured", "requiredActivity": None}}, "progress": {"completed": 0, "total": 0}, "nextAction": None}
+    activities = list(db_session.exec(
+        select(LearningActivity).where(LearningActivity.activity_uuid.in_(set(LAUNCH_READY_ACTIVITY_UUIDS.values())))  # type: ignore
+        .order_by(LearningActivity.order.asc())  # type: ignore
+    ).all())
+    runs = list(db_session.exec(select(LearningRun).where(LearningRun.user_id == user_id)).all())
+    run_ids = {run.id for run in runs if run.id}
+    activity_runs = list(db_session.exec(select(LearningActivityRun).where(LearningActivityRun.run_id.in_(run_ids))).all()) if run_ids else []  # type: ignore
+    by_activity = {item.activity_id: item for item in activity_runs}
+    completed = {item.activity_id for item in activity_runs if item.status == LearningRunStatus.COMPLETED}
+    key_by_uuid = {value: key for key, value in LAUNCH_READY_ACTIVITY_UUIDS.items()}
+    configured = bool(activities)
+    capabilities = {
+        "overview": {"unlocked": True, "reason": "always_available", "requiredActivity": None},
+        "journey": {"unlocked": journey_count > 0 or not configured, "reason": "existing_content" if journey_count else "launch_ready_required" if configured else "not_configured", "requiredActivity": LAUNCH_READY_ACTIVITY_UUIDS["journey"]},
+        "work": {"unlocked": work_count > 0 or not configured, "reason": "existing_content" if work_count else "launch_ready_required" if configured else "not_configured", "requiredActivity": LAUNCH_READY_ACTIVITY_UUIDS["work"]},
+    }
+    for activity in activities:
+        key = key_by_uuid.get(activity.activity_uuid)
+        if key:
+            unlocked = (activity.id or 0) in completed
+            if key in capabilities:
+                capabilities[key]["unlocked"] = capabilities[key]["unlocked"] or unlocked
+                if unlocked: capabilities[key]["reason"] = "activity_complete"
+            else:
+                capabilities[key] = {"unlocked": unlocked, "reason": "activity_complete" if unlocked else "launch_ready_required", "requiredActivity": activity.activity_uuid}
+    next_activity = next((item for item in activities if (item.id or 0) not in completed), None)
+    next_run = by_activity.get(next_activity.id or 0) if next_activity else None
+    completed_count = len([item for item in activities if (item.id or 0) in completed])
+    next_action = None
+    if next_activity:
+        next_action = {
+            "id": f"launch-ready-{key_by_uuid.get(next_activity.activity_uuid, next_activity.activity_uuid)}",
+            "type": "activity",
+            "label": next_activity.title,
+            "supportingText": next_activity.description or "Keep building your portfolio.",
+            "estimatedMinutes": int((next_activity.settings or {}).get("estimated_minutes", 3)),
+            "href": f"/badges/{ONBOARDING_BADGE_UUID}/chapter/{next_activity.activity_uuid}?returnTo=/portfolio",
+            "progress": {"completed": completed_count, "total": len(activities)},
+            "priority": 100 if next_run else 90,
+            "resume": bool(next_run),
+        }
+    return {"capabilities": capabilities, "progress": {"completed": completed_count, "total": len(activities)}, "nextAction": next_action}
 
 
 def get_or_create_portfolio(current_user: PublicUser, db_session: Session) -> Portfolio:
@@ -149,16 +200,19 @@ def portfolio_shell(portfolio: Portfolio, db_session: Session, public_only: bool
     work = list(db_session.exec(_work_query(portfolio.id or 0, public_only=public_only)).all())
     journey = list(db_session.exec(_journey_query(portfolio.id or 0, public_only=public_only)).all())
     meaningful_count = len(work) + len(journey)
+    launch_ready = _launch_ready_state(portfolio.user_id, db_session, len(work), len(journey)) if not public_only else None
     blockers = _readiness_blockers(portfolio, meaningful_count)
     state = _portfolio_state(portfolio, meaningful_count)
     views = [
         {"key": "overview", "visible": True, "itemCount": 1},
-        {"key": "work", "visible": bool(work), "itemCount": len(work)},
-        {"key": "journey", "visible": bool(journey), "itemCount": len(journey)},
+        {"key": "work", "visible": bool(work) or bool(launch_ready and launch_ready["capabilities"].get("work", {}).get("unlocked")), "itemCount": len(work)},
+        {"key": "journey", "visible": bool(journey) or bool(launch_ready and launch_ready["capabilities"].get("journey", {}).get("unlocked")), "itemCount": len(journey)},
         {"key": "badges", "visible": False, "itemCount": 0},
     ]
     next_action = None
-    if not public_only:
+    if not public_only and launch_ready and launch_ready.get("nextAction"):
+        next_action = launch_ready["nextAction"]
+    elif not public_only:
         if "meaningful_content_required" in blockers:
             next_action = {"id": "add-work", "type": "portfolio", "label": "Show something you've done", "href": "/portfolio/work/new", "priority": 80}
         elif "public_preview_required" in blockers:
@@ -179,6 +233,8 @@ def portfolio_shell(portfolio: Portfolio, db_session: Session, public_only: bool
         "views": views,
         "readiness": {"canPublish": not blockers, "completed": 3 - len([b for b in blockers if b != "moderation_clearance_required"]), "total": 3, "blockers": blockers},
         "nextAction": next_action,
+        "capabilities": launch_ready["capabilities"] if launch_ready else {},
+        "launchReady": launch_ready["progress"] if launch_ready else None,
         "permissions": {"canEdit": not public_only, "canPublish": not public_only and state != "restricted"},
         "work": [_work_dto(item, db_session, public_only=public_only) for item in work],
         "journey": [_journey_dto(item, db_session, public_only=public_only) for item in journey],
@@ -275,6 +331,10 @@ def _cover_asset_id(asset_uuid: str | None, user_id: int, db_session: Session) -
 
 def create_work(payload: WorkItemCreate, current_user: PublicUser, db_session: Session) -> dict:
     portfolio = get_or_create_portfolio(current_user, db_session)
+    existing_count = len(db_session.exec(_work_query(portfolio.id or 0)).all())
+    capability = _launch_ready_state(current_user.id, db_session, work_count=existing_count)["capabilities"].get("work", {})
+    if capability and not capability.get("unlocked"):
+        raise HTTPException(status_code=403, detail={"code": "launch_ready_required", "required_activity": capability.get("requiredActivity")})
     if payload.idempotency_key:
         existing = db_session.exec(select(WorkItem).where(WorkItem.portfolio_id == portfolio.id, WorkItem.source_reference == payload.idempotency_key)).first()
         if existing:
@@ -397,6 +457,10 @@ def _replace_journey_blocks(entry: JourneyEntry, blocks: list[dict], db_session:
 
 def create_journey(payload: JourneyEntryCreate, current_user: PublicUser, db_session: Session) -> dict:
     portfolio = get_or_create_portfolio(current_user, db_session)
+    existing_count = len(db_session.exec(_journey_query(portfolio.id or 0)).all())
+    capability = _launch_ready_state(current_user.id, db_session, journey_count=existing_count)["capabilities"].get("journey", {})
+    if capability and not capability.get("unlocked"):
+        raise HTTPException(status_code=403, detail={"code": "launch_ready_required", "required_activity": capability.get("requiredActivity")})
     if payload.idempotency_key:
         existing = db_session.exec(select(JourneyEntry).where(JourneyEntry.portfolio_id == portfolio.id, JourneyEntry.source_reference == payload.idempotency_key)).first()
         if existing:
@@ -455,6 +519,9 @@ def archive_journey(journey_uuid: str, revision: int, current_user: PublicUser, 
 
 def publish_portfolio(payload: PublishRequest, current_user: PublicUser, db_session: Session) -> dict:
     portfolio = get_or_create_portfolio(current_user, db_session)
+    capability = _launch_ready_state(current_user.id, db_session)["capabilities"].get("launch", {})
+    if capability and not capability.get("unlocked"):
+        raise HTTPException(status_code=403, detail={"code": "launch_ready_required", "required_activity": capability.get("requiredActivity")})
     _check_revision(portfolio.revision, payload.revision)
     if payload.privacy_confirmed:
         portfolio.privacy_confirmed_at = _now()
