@@ -24,6 +24,8 @@ import {
   getBlockScoring,
   getQuestionAnswer,
   type LearningTextBlock,
+  resolveDisplayBinding,
+  resolveDisplayNodes,
   resolveVariantBlocks,
   setQuestionAnswer,
   type LearningBlock,
@@ -59,8 +61,20 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
 
   React.useEffect(() => {
     setUnlocked(Boolean(page) && !isQuestionResponseRequired(page))
-    setAnswer({})
-  }, [page?.content, page?.page_type, page?.page_uuid])
+    const prior = (run?.attempts || []).filter((item: any) => item.page_uuid === page?.page_uuid).at(-1)
+    setAnswer(prior?.answer || {})
+  }, [page?.content, page?.page_type, page?.page_uuid, run?.attempts])
+
+  const navigateToPage = React.useCallback((pageUuid: string) => {
+    const destination = pages.findIndex((item: any) => item.page_uuid === pageUuid)
+    if (destination < 0) return
+    setIndex(destination)
+    window.requestAnimationFrame(() => {
+      const heading = document.querySelector('[data-learning-page-heading]') as HTMLElement | null
+      heading?.focus()
+      heading?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })
+    })
+  }, [pages])
 
   const completeAndNext = async () => {
     if (!run || !page) return
@@ -100,7 +114,7 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
       page={page}
       pageIndex={index}
       onBack={() => router.back()}
-      actionLabel={index === pages.length - 1 ? 'Finish' : 'Continue'}
+      actionLabel={page?.content?.action_label || (index === pages.length - 1 ? 'Finish' : 'Continue')}
       actionDisabled={!unlocked}
       onAction={completeAndNext}
       interactionState={answer}
@@ -112,6 +126,7 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
         setUnlocked={setUnlocked}
         pages={pages}
         run={run}
+        onNavigatePage={navigateToPage}
         contentMediaOwner={{ type: 'org', id: Number(badge?.org_id) }}
         responseMediaOwner={{ type: 'user', id: Number(session?.data?.user?.id) }}
       />
@@ -173,6 +188,8 @@ export function LearningActivitySurface({
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={page?.page_uuid || pageIndex}
+                data-learning-page-heading
+                tabIndex={-1}
                 className={isVideoPage ? 'flex h-full w-full items-center justify-center' : 'w-full'}
                 initial={{ x: 36, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
@@ -205,13 +222,13 @@ export function LearningActivitySurface({
   )
 }
 
-export function LearningPageContent({ page, answer, setAnswer, setUnlocked, pages, run, editable = false, onPagePatch, contentMediaOwner, responseMediaOwner }: any) {
+export function LearningPageContent({ page, answer, setAnswer, setUnlocked, pages, run, editable = false, onPagePatch, onNavigatePage, contentMediaOwner, responseMediaOwner }: any) {
   if (!page) return null
   if (page.page_type === 'video') {
     return <VideoPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} />
   }
   if (page.page_type === 'standard') {
-    return <StandardPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} run={run} responseMediaOwner={responseMediaOwner} />
+    return <StandardPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} run={run} pages={pages} onNavigatePage={onNavigatePage} responseMediaOwner={responseMediaOwner} />
   }
   if (page.page_type === 'multiple_choice' || page.page_type === 'text_input' || page.page_type === 'image_upload') {
     return <InfoPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} contentMediaOwner={contentMediaOwner} responseMediaOwner={responseMediaOwner} />
@@ -225,7 +242,7 @@ export function LearningPageContent({ page, answer, setAnswer, setUnlocked, page
   return <InfoPageContent page={page} editable={editable} onPagePatch={onPagePatch} contentMediaOwner={contentMediaOwner} responseMediaOwner={responseMediaOwner} />
 }
 
-function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, run, responseMediaOwner }: any) {
+function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, run, pages, onNavigatePage, responseMediaOwner }: any) {
   const blocks = React.useMemo(
     () => editable ? (page.content?.blocks || []) : resolveVariantBlocks(page, run),
     [editable, page, run]
@@ -237,8 +254,9 @@ function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, o
   const unlockedByBlockRef = React.useRef<Record<string, boolean>>({})
 
   React.useEffect(() => {
-    unlockedByBlockRef.current = {}
-  }, [page?.page_uuid])
+    unlockedByBlockRef.current = Object.fromEntries(blocks.filter((block: any) => block.type === 'question' && block.kind === 'image_upload' && getBlockCompletion(page, block)?.required === false).map((block: any) => [block.id, true]))
+    setUnlocked?.(questionIds.every((id: string) => unlockedByBlockRef.current[id]))
+  }, [blocks, page?.page_uuid, questionIds, setUnlocked])
 
   const setBlockUnlocked = (blockId: string, value: boolean) => {
     unlockedByBlockRef.current[blockId] = value
@@ -270,6 +288,9 @@ function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, o
             editable={editable}
             onPatch={(patch: any) => patchBlock(block.id, patch)}
             responseMediaOwner={responseMediaOwner}
+            run={run}
+            pages={pages}
+            onNavigatePage={onNavigatePage}
           />
         ))}
       </div>
@@ -299,11 +320,11 @@ export function mapQuestionPagePatchToBlock(block: any, patch: any) {
   return next
 }
 
-function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editable, onPatch, responseMediaOwner }: any) {
+function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editable, onPatch, responseMediaOwner, run, pages, onNavigatePage }: any) {
   const blockStyle = getStandardBlockStyle(block)
 
   if (block.type === 'text') {
-    const nodes = getTextBlockNodes(block as LearningTextBlock)
+    const nodes = resolveDisplayNodes(getTextBlockNodes(block as LearningTextBlock), run, editable)
     return (
       <section className="learning-info-stack-section" style={blockStyle}>
         <InfoTextBlock
@@ -319,25 +340,45 @@ function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editab
 
   if (block.type === 'image') {
     const height = Math.max(80, Number(block.design?.height) || 220)
-    const fit = block.design?.fit === 'cover' ? 'object-cover' : 'object-contain'
+    const circle = block.design?.shape === 'circle'
+    const fit = circle || block.design?.fit === 'cover' ? 'object-cover' : 'object-contain'
+    const source = resolveDisplayBinding(block.content?.binding, run, editable) || block.content?.src
     return (
       <section className="learning-info-stack-section" style={blockStyle}>
-        <figure className="w-full max-w-full overflow-hidden rounded-lg" style={{ height }}>
-          {block.content?.src ? (
-            <img src={block.content.src} alt={block.content?.alt || ''} className={`h-full w-full max-w-full ${fit}`} />
+        <figure className={`mx-auto max-w-full overflow-hidden ${circle ? 'aspect-square rounded-full' : 'w-full rounded-lg'}`} style={circle ? { width: height, height } : { height }}>
+          {source ? (
+            <img src={source} alt={block.content?.alt || ''} className={`h-full w-full max-w-full ${fit}`} />
           ) : null}
         </figure>
       </section>
     )
   }
 
+  if (block.type === 'button') {
+    const destination = String(block.content?.destination_page_uuid || '')
+    const available = Boolean(destination && (pages || []).some((item: any) => item.page_uuid === destination))
+    return <section className="learning-info-stack-section" style={blockStyle}><button type="button" disabled={editable || !available} onClick={() => onNavigatePage?.(destination)} className={`min-h-11 rounded-lg px-5 py-3 text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${block.design?.variant === 'primary' ? 'bg-[var(--org-primary-color)] text-white' : 'border border-border bg-card text-foreground hover:bg-muted'} disabled:cursor-not-allowed disabled:opacity-50`}>{block.content?.label || 'Go to page'}</button></section>
+  }
+
   if (block.type === 'question') {
+    const resolvedBlock = !editable && block.kind === 'text_input' ? {
+      ...block,
+      content: {
+        ...(block.content || {}),
+        inputs: (block.content?.inputs || []).map((input: any) => {
+          const adaptive = input.adaptive || {}
+          const key = resolveDisplayBinding(adaptive.binding, run)
+          const values = adaptive.values?.[key] || {}
+          return { ...input, label: values.label || input.label, placeholder: values.placeholder || input.placeholder }
+        }),
+      },
+    } : block
     const label = block.kind === 'image_upload' ? '' : String(block.content?.label || '').trim()
     return (
       <section className="learning-info-stack-section" style={blockStyle}>
         {label && <p className="text-lg font-bold text-foreground">{label}</p>}
         <QuestionBlockContent
-          page={buildQuestionVirtualPage(page, block)}
+          page={buildQuestionVirtualPage(page, resolvedBlock)}
           answer={answer}
           setAnswer={setAnswer}
           setUnlocked={setUnlocked}
@@ -1660,6 +1701,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
                 </div>
                 {isSingleLine ? (
                   <input
+                    type={input.input_type === 'month' ? 'month' : 'text'}
                     value={editable ? input.placeholder || '' : value}
                     onChange={(event) => editable ? updateInputConfig(input.id, { placeholder: event.target.value }) : updateTextInput(input.id, event.target.value)}
                     placeholder={editable ? 'Placeholder' : input.placeholder}

@@ -1,6 +1,6 @@
 import pytest
 from fastapi import HTTPException
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, SQLModel, create_engine, select
 
 from src.db.learning import LearningActivity, LearningActivityRun, LearningBadge, LearningPage, LearningPageProgress, LearningPageType, LearningPath, LearningRun
 from src.db.media import MediaAsset
@@ -10,6 +10,7 @@ from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
 from src.services import portfolio as service
+from src.services.learning_portfolio_actions import PortfolioActionError, apply_portfolio_outcomes
 
 
 def _session():
@@ -73,6 +74,23 @@ def test_private_by_default_and_created_work_is_public_after_portfolio_publish()
         public = service.get_public_shell(1, "maya", db)
         assert len(public["work"]) == 1
         assert public["work"][0]["status"] == "published"
+
+
+def test_activity_journey_outcome_assigns_only_an_owned_cover_image():
+    with _session() as db:
+        user = _user(); db.add(user); db.commit()
+        owned = MediaAsset(asset_uuid="asset_owned", owner_type="user", owner_user_id=1, source_type="upload", media_type="image", title="Chapter", url="/chapter.jpg")
+        foreign = MediaAsset(asset_uuid="asset_foreign", owner_type="user", owner_user_id=2, source_type="upload", media_type="image", title="Other", url="/other.jpg")
+        db.add(owned); db.add(foreign); db.commit()
+        outcomes = {"version": 1, "actions": [{"id": "chapter", "type": "create_journey_entry", "fields": {"title": "My chapter", "cover_asset_uuid": "asset_owned", "is_current": True}}]}
+        apply_portfolio_outcomes(db, user, 7, outcomes, {"answers": {}, "bindings": {}})
+        db.commit()
+        entry = db.exec(select(JourneyEntry)).one()
+        assert entry.cover_asset_id == owned.id
+
+        invalid = {"version": 1, "actions": [{"id": "other", "type": "create_journey_entry", "fields": {"title": "Not mine", "cover_asset_uuid": "asset_foreign"}}]}
+        with pytest.raises(PortfolioActionError, match="owned by the learner"):
+            apply_portfolio_outcomes(db, user, 8, invalid, {"answers": {}, "bindings": {}})
 
 
 def test_work_idempotency_revision_conflict_and_publish_flow():

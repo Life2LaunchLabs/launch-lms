@@ -30,6 +30,7 @@ import {
   Loader2,
   Monitor,
   MousePointer2,
+  MousePointerClick,
   Plus,
   Quote,
   Smartphone,
@@ -83,6 +84,7 @@ import {
   cloneJson,
   createBlockId,
   createImageBlock,
+  createButtonBlock,
   createInputId,
   createOptionId,
   createQuestionBlock,
@@ -306,7 +308,7 @@ export default function LearningActivityEditor({
     })
   }, [pages, patchPage, variantKey])
 
-  const insertBlock = (type: 'text' | 'image' | 'multiple_choice' | 'text_input' | 'image_upload', afterBlockId?: string | null) => {
+  const insertBlock = (type: 'text' | 'image' | 'button' | 'multiple_choice' | 'text_input' | 'image_upload', afterBlockId?: string | null) => {
     if (!selectedPage || selectedPage.page_type !== 'standard') return
     if ((type === 'multiple_choice' || type === 'text_input' || type === 'image_upload') && selectedPage.content?.variants) {
       toast.error('Variant pages cannot contain question blocks')
@@ -317,6 +319,8 @@ export default function LearningActivityEditor({
       ? createTextBlock()
       : type === 'image'
         ? createImageBlock()
+        : type === 'button'
+          ? createButtonBlock()
         : createQuestionBlock(type)
     const index = afterBlockId ? blocks.findIndex((item) => item.id === afterBlockId) + 1 : blocks.length
     const nextBlocks = [...blocks]
@@ -844,6 +848,7 @@ export default function LearningActivityEditor({
               onSelectVariant={selectVariant}
               onAddText={() => insertBlock('text', selection.blockId)}
               onAddImage={() => insertBlock('image', selection.blockId)}
+              onAddButton={() => insertBlock('button', selection.blockId)}
               onAddQuestion={(kind: 'multiple_choice' | 'text_input' | 'image_upload') => insertBlock(kind, selection.blockId)}
             />
             <div className="relative min-h-0 flex-1 overflow-hidden">
@@ -1017,7 +1022,7 @@ function EditorHeader({ badgeName, activity, device, setDevice, saveState, lastS
   )
 }
 
-function CanvasToolbar({ selectedPage, pages, variantKey, onSelectVariant, onAddText, onAddImage, onAddQuestion }: any) {
+function CanvasToolbar({ selectedPage, pages, variantKey, onSelectVariant, onAddText, onAddImage, onAddButton, onAddQuestion }: any) {
   const canEditBlocks = selectedPage?.page_type === 'standard'
   const hasVariants = Boolean(selectedPage?.content?.variants)
   const canAddQuestion = canEditBlocks && !hasVariants
@@ -1039,6 +1044,10 @@ function CanvasToolbar({ selectedPage, pages, variantKey, onSelectVariant, onAdd
         <button disabled={!canEditBlocks} onClick={onAddImage} className="inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40" title="Add an image block">
           <ImageIcon size={15} />
           Image
+        </button>
+        <button disabled={!canEditBlocks} onClick={onAddButton} className="inline-flex h-8 items-center gap-2 rounded-lg px-3 text-sm font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40" title="Add a page button">
+          <MousePointerClick size={15} />
+          Button
         </button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -1268,13 +1277,9 @@ function CanvasBlock({ block, page, selected, readOnly, registerBlockEl, onHover
   const style = getBlockStyle(block)
 
   const content = block.type === 'text' ? (
-    <TextBlockEditor
-      block={block}
-      selected={selected}
-      readOnly={readOnly}
-      onEditorReady={onTextEditorReady}
-      onPatch={onPatch}
-    />
+    block.content?.nodes?.[0]?.content?.[0]?.type === 'displayBinding'
+      ? <div className="rounded-lg border border-dashed border-violet-300 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-800">{block.content.nodes[0].content[0].attrs?.binding?.fallback || 'Dynamic value'}</div>
+      : <TextBlockEditor block={block} selected={selected} readOnly={readOnly} onEditorReady={onTextEditorReady} onPatch={onPatch} />
   ) : block.type === 'image' ? (
     <ImageBlockEditor
       block={block}
@@ -1283,6 +1288,8 @@ function CanvasBlock({ block, page, selected, readOnly, registerBlockEl, onHover
       onPatch={onPatch}
       onRequestImageUpload={onRequestImageUpload}
     />
+  ) : block.type === 'button' ? (
+    <button type="button" disabled className={`min-h-11 rounded-lg px-5 py-3 text-sm font-bold ${block.design?.variant === 'primary' ? 'bg-[var(--org-primary-color)] text-white' : 'border border-gray-200 bg-white text-gray-700'}`}>{block.content?.label || 'Go to page'}</button>
   ) : (block as LearningQuestionBlock).kind === 'multiple_choice' ? (
     <McqBlockCanvas block={block as LearningQuestionBlock} page={page} selected={selected} readOnly={readOnly} onPatch={onPatch} />
   ) : (block as LearningQuestionBlock).kind === 'image_upload' ? (
@@ -1799,11 +1806,14 @@ function TextBlockEditor({ block, selected, readOnly = false, onEditorReady, onP
 function ImageBlockEditor({ block, selected = false, readOnly = false, onPatch, onRequestImageUpload }: { block: LearningImageBlock; selected?: boolean; readOnly?: boolean; onPatch: (patch: any) => void; onRequestImageUpload: () => void }) {
   const src = block.content?.src || ''
   const height = Math.max(80, Number(block.design?.height) || 220)
-  const fit = (block.design as any)?.fit === 'cover' ? 'object-cover' : 'object-contain'
+  const circle = (block.design as any)?.shape === 'circle'
+  const fit = circle || (block.design as any)?.fit === 'cover' ? 'object-cover' : 'object-contain'
   return (
-    <figure className="relative w-full max-w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-100" style={{ height }}>
+    <figure className={`relative max-w-full overflow-hidden border border-gray-200 bg-gray-100 ${circle ? 'mx-auto aspect-square rounded-full' : 'w-full rounded-lg'}`} style={circle ? { width: height, height } : { height }}>
       {src ? (
         <img src={src} alt={block.content?.alt || ''} className={`h-full w-full max-w-full ${fit}`} />
+      ) : block.content?.binding ? (
+        <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm font-bold text-violet-700">Dynamic image<br/>{block.content.binding.fallback || block.content.binding.path}</div>
       ) : (
         <button onClick={onRequestImageUpload} disabled={readOnly} className="flex h-full w-full flex-col items-center justify-center gap-2 text-sm font-bold text-gray-500 hover:bg-gray-50">
           <Upload size={22} />
@@ -1844,7 +1854,7 @@ function ImageBlockEditor({ block, selected = false, readOnly = false, onPatch, 
   )
 }
 
-function InlineInsertMenu({ onInsert, canAddQuestion, alwaysVisible = false }: { onInsert: (type: 'text' | 'image' | 'multiple_choice' | 'text_input' | 'image_upload') => void; canAddQuestion: boolean; alwaysVisible?: boolean }) {
+function InlineInsertMenu({ onInsert, canAddQuestion, alwaysVisible = false }: { onInsert: (type: 'text' | 'image' | 'button' | 'multiple_choice' | 'text_input' | 'image_upload') => void; canAddQuestion: boolean; alwaysVisible?: boolean }) {
   const [open, setOpen] = React.useState(false)
   const revealed = open || alwaysVisible
   return (
@@ -1871,6 +1881,10 @@ function InlineInsertMenu({ onInsert, canAddQuestion, alwaysVisible = false }: {
           <DropdownMenuItem onClick={() => onInsert('image')}>
             <ImageIcon size={15} className="mr-2" />
             Image
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onInsert('button')}>
+            <MousePointerClick size={15} className="mr-2" />
+            Page button
           </DropdownMenuItem>
           {canAddQuestion && (
             <>
@@ -1963,6 +1977,7 @@ function InspectorPanel({
         <BlockInspector
           block={block}
           page={page}
+          pages={pages}
           learningVariables={learningVariables}
           onCreateVariableKey={onCreateVariableKey}
           onPatchBlock={onPatchBlock}
@@ -2133,7 +2148,7 @@ function VariantControls({ page, pages, variantKey, setVariantKey, onSelectVaria
   )
 }
 
-function BlockInspector({ block, page, learningVariables, onCreateVariableKey, onPatchBlock, onPatchPage, onToggleSideBySide, onRequestImageUpload }: any) {
+function BlockInspector({ block, page, pages, learningVariables, onCreateVariableKey, onPatchBlock, onPatchPage, onToggleSideBySide, onRequestImageUpload }: any) {
   const design = block.design || {}
   const patchDesign = (patch: any) => onPatchBlock(block.id, { design: { ...design, ...patch } })
   return (
@@ -2178,6 +2193,17 @@ function BlockInspector({ block, page, learningVariables, onCreateVariableKey, o
             ]}
             onChange={(value) => patchDesign({ fit: value })}
           />
+          <SegmentedControl
+            label="Frame"
+            value={design.shape === 'circle' ? 'circle' : 'rounded'}
+            options={[{ value: 'rounded', label: 'Rounded' }, { value: 'circle', label: 'Circle' }]}
+            onChange={(value) => patchDesign({ shape: value })}
+          />
+          <FieldLabel>Dynamic source</FieldLabel>
+          <select value={block.content?.binding?.source || ''} onChange={(event) => onPatchBlock(block.id, { content: { ...(block.content || {}), binding: event.target.value ? { source: event.target.value, path: '', fallback: '' } : undefined } })} className="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm">
+            <option value="">Static image</option><option value="answer">Prior answer</option><option value="variable">User variable</option>
+          </select>
+          {block.content?.binding && <><TextField label="Source path" value={block.content.binding.path || ''} onChange={(value) => onPatchBlock(block.id, { content: { ...(block.content || {}), binding: { ...block.content.binding, path: value } } })} /><TextField label="Fallback URL" value={block.content.binding.fallback || ''} onChange={(value) => onPatchBlock(block.id, { content: { ...(block.content || {}), binding: { ...block.content.binding, fallback: value } } })} /></>}
           <div>
             <FieldLabel>Height</FieldLabel>
             <input
@@ -2197,8 +2223,11 @@ function BlockInspector({ block, page, learningVariables, onCreateVariableKey, o
             fallback="#4b5563"
             onChange={(value) => patchDesign({ text_color: value })}
           />
+          <button type="button" onClick={() => onPatchBlock(block.id, { content: { node: { type: 'paragraph', content: [{ type: 'displayBinding', attrs: { binding: { source: 'answer', path: '', fallback: 'Your answer' } } }] }, nodes: [{ type: 'paragraph', content: [{ type: 'displayBinding', attrs: { binding: { source: 'answer', path: '', fallback: 'Your answer' } } }] }] } })} className="h-10 w-full rounded-lg border border-gray-200 text-sm font-bold hover:bg-gray-50">Use a dynamic value</button>
+          {block.content?.nodes?.[0]?.content?.[0]?.type === 'displayBinding' && <><select value={block.content.nodes[0].content[0].attrs?.binding?.source || 'answer'} onChange={(event) => { const binding = { ...block.content.nodes[0].content[0].attrs.binding, source: event.target.value }; const node = { type: 'paragraph', content: [{ type: 'displayBinding', attrs: { binding } }] }; onPatchBlock(block.id, { content: { node, nodes: [node] } }) }} className="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm"><option value="answer">Prior answer</option><option value="variable">User variable</option></select><TextField label="Source path" value={block.content.nodes[0].content[0].attrs?.binding?.path || ''} onChange={(value) => { const binding = { ...block.content.nodes[0].content[0].attrs.binding, path: value }; const node = { type: 'paragraph', content: [{ type: 'displayBinding', attrs: { binding } }] }; onPatchBlock(block.id, { content: { node, nodes: [node] } }) }} /><TextField label="Fallback text" value={block.content.nodes[0].content[0].attrs?.binding?.fallback || ''} onChange={(value) => { const binding = { ...block.content.nodes[0].content[0].attrs.binding, fallback: value }; const node = { type: 'paragraph', content: [{ type: 'displayBinding', attrs: { binding } }] }; onPatchBlock(block.id, { content: { node, nodes: [node] } }) }} /></>}
         </InspectorSection>
       )}
+      {block.type === 'button' && <InspectorSection label="Page button"><TextField label="Label" value={block.content?.label || ''} onChange={(value) => onPatchBlock(block.id, { content: { ...(block.content || {}), label: value } })} /><label className="grid gap-2 text-xs font-bold text-gray-500">Destination page<select value={block.content?.destination_page_uuid || ''} onChange={(event) => onPatchBlock(block.id, { content: { ...(block.content || {}), destination_page_uuid: event.target.value } })} className="h-10 rounded-lg border border-gray-200 px-3 text-sm font-normal text-gray-900"><option value="">Choose a page</option>{(pages || []).map((item: any) => <option key={item.page_uuid} value={item.page_uuid}>{item.title}</option>)}</select></label><SegmentedControl label="Style" value={design.variant === 'primary' ? 'primary' : 'secondary'} options={[{ value: 'primary', label: 'Primary' }, { value: 'secondary', label: 'Secondary' }]} onChange={(value) => patchDesign({ variant: value })} /></InspectorSection>}
       {block.type === 'question' && (
         <QuestionInspector
           block={block}

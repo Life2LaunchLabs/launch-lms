@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { ArrowLeft, Camera, Eye, FilePlus2, Globe, Globe2, Instagram, Linkedin, MapPin, Pencil, Plus, Sparkles, Trash2, Youtube, X } from 'lucide-react'
+import { ArrowLeft, Camera, CircleCheck, Eye, FilePlus2, Globe, Globe2, Instagram, Linkedin, MapPin, Pencil, Plus, Sparkles, Trash2, Youtube, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -41,6 +41,7 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false)
   const [draftSocials, setDraftSocials] = useState<Array<{ type: string; url: string }>>(() => shellSocials(initialShell))
   const [busy, setBusy] = useState(false)
+  const [completedActivity, setCompletedActivity] = useState('')
   const displayName = shell.portfolio.display_name || username || 'Your portfolio'
   const nav = useMemo(() => tabs(orgslug, username, owner, shell), [orgslug, username, owner, shell])
   const compact = activeView !== 'overview' || scrolled
@@ -49,6 +50,7 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
     : ''
 
   useEffect(() => {
+    setCompletedActivity(new URLSearchParams(window.location.search).get('completedActivity') || '')
     const handleScroll = () => setScrolled(window.scrollY > 88)
     const handlePopState = () => setActiveView(window.location.pathname.endsWith('/work') ? 'work' : window.location.pathname.endsWith('/journey') ? 'journey' : 'overview')
     handleScroll()
@@ -127,6 +129,7 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
     </motion.header>
 
     <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 sm:py-12">
+      <AnimatePresence>{owner && completedActivity === 'learning_activity_system_onboarding_journey' && <motion.section role="status" initial={{ opacity: 0, y: reduceMotion ? 0 : -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="mb-10 overflow-hidden rounded-2xl border border-lime-400/60 bg-lime-400/10 p-5 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:p-6"><div className="flex gap-4"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-lime-400 text-black"><CircleCheck className="h-6 w-6" /></span><div><p className="text-xs font-bold uppercase tracking-widest text-lime-700 dark:text-lime-300">Launch Ready</p><h2 className="mt-1 text-xl font-black">Your Journey has begun</h2><p className="mt-1 text-sm text-muted-foreground">Your current chapter is now part of your portfolio.</p></div></div><div className="mt-5 flex shrink-0 gap-2 sm:mt-0"><Button onClick={() => { const item = nav.find((entry) => entry.view === 'journey'); if (item) changeView('journey', item.href); setCompletedActivity('') }}>View my Journey</Button><Button variant="ghost" onClick={() => setCompletedActivity('')}>Dismiss</Button></div></motion.section>}</AnimatePresence>
       <AnimatePresence mode="wait" initial={false}>{activeView === 'overview' ? <motion.div key="overview" initial={{ opacity: 0, y: reduceMotion ? 0 : 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }} transition={{ duration: reduceMotion ? 0 : 0.18 }}><Overview shell={shell} owner={owner && !preview} orgslug={orgslug} username={username} importLegacy={importLegacy} busy={busy} /></motion.div> : activeView === 'journey' ? <motion.div key="journey" initial={{ opacity: 0, y: reduceMotion ? 0 : 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }} transition={{ duration: reduceMotion ? 0 : 0.18 }}><JourneyTimeline entries={shell.journey || []} owner={owner && !preview} orgslug={orgslug} username={username} /></motion.div> : <motion.div key="work" initial={{ opacity: 0, y: reduceMotion ? 0 : 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }} transition={{ duration: reduceMotion ? 0 : 0.18 }}><WorkGrid shell={shell} owner={owner && !preview} orgslug={orgslug} username={username} /></motion.div>}</AnimatePresence>
     </div>
     {owner && <HeaderEditor open={editingIdentity} onOpenChange={setEditingIdentity} shell={shell} avatarUrl={avatarUrl} displayName={displayName} socials={draftSocials} setSocials={setDraftSocials} onAvatarClick={() => setAvatarPickerOpen(true)} onSubmit={saveIdentity} busy={busy} />}

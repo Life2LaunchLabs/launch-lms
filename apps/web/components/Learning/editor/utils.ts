@@ -35,6 +35,15 @@ export function createImageBlock(): LearningImageBlock {
   }
 }
 
+export function createButtonBlock(): any {
+  return {
+    id: createBlockId(),
+    type: 'button',
+    design: { width: 100, align: 'center', variant: 'secondary' },
+    content: { label: 'Go to page', destination_page_uuid: '' },
+  }
+}
+
 export function createQuestionBlock(kind: 'multiple_choice' | 'text_input' | 'image_upload'): LearningQuestionBlock {
   if (kind === 'multiple_choice') {
     const options = [
@@ -316,6 +325,7 @@ export function getBlockStyle(block: LearningBlock): CSSProperties {
 }
 
 export function blockLabel(block: LearningBlock) {
+  if (block.type === 'button') return 'Page button'
   if (block.type === 'text') return 'Text block'
   if (block.type === 'image') return 'Image block'
   if (block.kind === 'text_input') return 'Text input question'

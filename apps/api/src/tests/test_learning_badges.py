@@ -12,6 +12,7 @@ from src.db.organizations import Organization
 from src.db.organization_config import OrganizationConfig
 from src.db.users import User
 from fastapi import HTTPException
+import pytest
 
 from src.services.learning import (
     _apply_learning_variables_to_user,
@@ -721,3 +722,17 @@ def test_learning_assertion_payload_hashes_recipient_and_points_to_award():
     assert payload["recipient"]["hashed"] is True
     assert payload["recipient"]["identity"].startswith("sha256$")
     assert payload["evidence"][0]["narrative"] == "Completed every required activity."
+
+
+def test_standard_page_accepts_bound_image_and_internal_page_button():
+    _validate_page_payload(LearningPageType.STANDARD, {"version": 2, "blocks": [
+        {"id": "image", "type": "image", "content": {"binding": {"source": "answer", "path": "learning_page_photo.answer.questions.photo.url"}}},
+        {"id": "button", "type": "button", "content": {"label": "Change details", "destination_page_uuid": "learning_page_details"}},
+    ]})
+
+
+def test_standard_page_rejects_unsafe_display_binding_path():
+    with pytest.raises(HTTPException, match="unsupported source or path"):
+        _validate_page_payload(LearningPageType.STANDARD, {"version": 2, "blocks": [
+            {"id": "image", "type": "image", "content": {"binding": {"source": "answer", "path": "../../private"}}},
+        ]})

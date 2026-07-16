@@ -510,6 +510,7 @@ class LearningRunRead(BaseModel):
     attempts: list[dict] = []
     award: Optional[dict] = None
     navigation: Optional[dict] = None
+    render_context: dict = Field(default_factory=dict)
 
 
 class LearningPathRead(BaseModel):

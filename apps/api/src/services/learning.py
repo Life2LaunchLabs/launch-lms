@@ -453,6 +453,23 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
     attempts = db_session.exec(select(LearningResponseAttempt).where(LearningResponseAttempt.run_id == run.id)).all()
     award = db_session.exec(select(LearningBadgeAward).where(LearningBadgeAward.run_id == run.id)).first()
     navigation = _run_navigation(db_session, run)
+    render_context = {"answers": {}, "variables": {}}
+    page_by_id = {page.id: page for page in progress}
+    for attempt in sorted(attempts, key=lambda item: item.submitted_at):
+        attempt_page = page_by_id.get(attempt.page_id)
+        if attempt_page:
+            render_context["answers"][attempt_page.page_uuid] = {
+                "answer": attempt.answer or {},
+                "result": attempt.result or {},
+            }
+    if run.user_id:
+        user = db_session.get(User, run.user_id)
+        if user:
+            render_context["variables"] = {
+                "user.first_name": user.first_name or "",
+                "user.last_name": user.last_name or "",
+                "user.avatar_image": user.avatar_image or "",
+            }
     return LearningRunRead(
         id=run.id or 0,
         run_uuid=run.run_uuid,
@@ -473,9 +490,10 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
             }
             for page in progress
         ],
-        attempts=[attempt.model_dump() for attempt in attempts],
+        attempts=[{**attempt.model_dump(), "page_uuid": page_by_id.get(attempt.page_id).page_uuid if page_by_id.get(attempt.page_id) else None} for attempt in attempts],
         award=award.model_dump() if award else None,
         navigation=navigation,
+        render_context=render_context,
     )
 
 
@@ -1204,15 +1222,17 @@ def _ensure_launch_ready_activity(
         db_session.add(activity); db_session.flush()
     for page_order, spec in enumerate(pages, start=1):
         page = db_session.exec(select(LearningPage).where(LearningPage.page_uuid == spec["page_uuid"])).first()
-        content = {"version": STANDARD_CONTENT_VERSION, "blocks": [text_block(heading_node(spec["title"]), block_id=f"{spec['block_id']}_heading")]}
-        if spec.get("kind"):
+        content = {"version": STANDARD_CONTENT_VERSION, "blocks": deepcopy(spec.get("blocks") or [text_block(heading_node(spec["title"]), block_id=f"{spec['block_id']}_heading")])}
+        if spec.get("kind") and not spec.get("blocks"):
             content["blocks"].append(question_block(spec["kind"], spec["content"], block_id=spec["block_id"], scoring={"mode": "off", "points": 0}, completion=spec.get("completion") or {}))
-        else:
+        elif not spec.get("blocks"):
             content["blocks"].append(text_block(paragraph_node(spec.get("body") or "Continue when you're ready."), block_id=f"{spec['block_id']}_body"))
+        if spec.get("action_label"):
+            content["action_label"] = spec["action_label"]
         if not page:
-            page = LearningPage(activity_id=activity.id or 0, badge_id=badge.id or 0, org_id=org_id, page_type=LearningPageType.STANDARD, title=spec["title"], order=page_order, required=True, content=content, page_uuid=spec["page_uuid"], creation_date=now, update_date=now)
+            page = LearningPage(activity_id=activity.id or 0, badge_id=badge.id or 0, org_id=org_id, page_type=LearningPageType.STANDARD, title=spec["title"], order=page_order, required=spec.get("required", True), content=content, page_uuid=spec["page_uuid"], creation_date=now, update_date=now)
         else:
-            page.activity_id, page.badge_id, page.org_id, page.order, page.required = activity.id or 0, badge.id or 0, org_id, page_order, True
+            page.activity_id, page.badge_id, page.org_id, page.order, page.required = activity.id or 0, badge.id or 0, org_id, page_order, spec.get("required", True)
             page.page_type, page.title, page.content = LearningPageType.STANDARD, spec["title"], content
             page.update_date = now
         db_session.add(page)
@@ -1463,12 +1483,49 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
         outcomes=[{"id": "set-profile-details", "type": "set_portfolio_fields", "fields": {"short_bio": answer(profile_details_page, profile_details_block, "inputs.bio.text"), "headline": answer(profile_details_page, profile_details_block, "inputs.tagline.text"), "location_label": answer(profile_details_page, profile_details_block, "inputs.location.text")}}],
     )
 
+    journey_kind_page, journey_kind_block = "learning_page_system_onboarding_journey_kind", "blk_launch_journey_kind"
     journey_page, journey_block = "learning_page_system_onboarding_journey", "blk_launch_journey"
+    journey_photo_page, journey_photo_block = "learning_page_system_onboarding_journey_photo", "blk_launch_journey_photo"
+    journey_review_page = "learning_page_system_onboarding_journey_review"
+    def bound_text(block_id: str, path: str, fallback: str, heading: bool = False) -> dict:
+        node = {"type": "heading" if heading else "paragraph", "attrs": {"level": 2} if heading else {}, "content": [{"type": "displayBinding", "attrs": {"binding": {"source": "answer", "path": path, "fallback": fallback}}}]}
+        return {"id": block_id, "type": "text", "design": {"width": 100}, "content": {"node": node, "nodes": [node]}}
+    journey_pages = [
+        {"page_uuid": journey_kind_page, "block_id": journey_kind_block, "title": "Where are you growing right now?", "kind": "multiple_choice", "content": {"label": "Choose what fits best — there’s no wrong kind of experience.", "options": [
+            {"id": "education", "text": "School or college"}, {"id": "employment", "text": "Job or internship"},
+            {"id": "training", "text": "Program or training"}, {"id": "volunteering", "text": "Volunteering or community"},
+            {"id": "experience", "text": "Building something"}, {"id": "other", "text": "Exploring what’s next"},
+        ]}, "completion": {"min_selections": 1, "max_selections": 1}},
+        {"page_uuid": journey_page, "block_id": journey_block, "title": "Make this chapter yours", "kind": "text_input", "content": {"inputs": [
+            {"id": "title", "section_id": "title", "label": "What should we call this chapter?", "placeholder": "My current chapter", "variant": "single_line", "height": 48, "adaptive": {"binding": {"source": "answer", "path": f"{journey_kind_page}.answer.questions.{journey_kind_block}.option_ids.0"}, "values": {"education": {"placeholder": "My high school years"}, "employment": {"placeholder": "My first internship"}, "training": {"placeholder": "Learning a new skill"}, "volunteering": {"placeholder": "Showing up for my community"}, "experience": {"placeholder": "Building something that matters"}, "other": {"placeholder": "Exploring what’s next"}}}},
+            {"id": "organization", "section_id": "place", "label": "Organization or place", "placeholder": "Name of the place", "variant": "single_line", "width": "half", "height": 48, "adaptive": {"binding": {"source": "answer", "path": f"{journey_kind_page}.answer.questions.{journey_kind_block}.option_ids.0"}, "values": {"education": {"label": "School or program", "placeholder": "Lincoln High School"}, "employment": {"label": "Company or organization", "placeholder": "Your workplace"}, "training": {"label": "Program or organization", "placeholder": "Your program"}, "volunteering": {"label": "Community or organization", "placeholder": "Where you volunteer"}, "experience": {"label": "Project, group, or place", "placeholder": "Where this is happening"}, "other": {"label": "Place or community (optional)", "placeholder": "Anywhere that matters"}}}},
+            {"id": "location", "section_id": "place", "label": "Location", "placeholder": "Portland, Oregon", "variant": "single_line", "width": "half", "height": 48},
+            {"id": "start_date", "section_id": "start_date", "label": "When did you start?", "placeholder": "", "input_type": "month", "variant": "single_line", "height": 48},
+            {"id": "summary", "section_id": "summary", "label": "What are you learning, doing, or excited about?", "placeholder": "I’m learning about plants and environmental science.", "variant": "short_answer", "height": 150},
+        ]}, "completion": {"inputs": {"title": {"required": True, "min_words": 1}, "organization": {"required": False}, "location": {"required": False}, "start_date": {"required": False}, "summary": {"required": True, "min_words": 2}}}},
+        {"page_uuid": journey_photo_page, "block_id": journey_photo_block, "title": "Add a picture to this chapter", "kind": "image_upload", "content": {"label": "A school, workspace, team, event, creation, or anything that represents this moment."}, "completion": {"required": False}},
+        {"page_uuid": journey_review_page, "block_id": "blk_launch_journey_review", "title": "Here’s your current chapter", "action_label": "Add to my Journey", "blocks": [
+            text_block(heading_node("Here’s your current chapter"), block_id="blk_journey_review_heading"),
+            text_block(paragraph_node("This is how it will appear in your Journey. You can always change it later."), block_id="blk_journey_review_intro"),
+            {"id": "blk_journey_review_image", "type": "image", "design": {"width": 46, "align": "center", "height": 220, "fit": "cover", "shape": "rounded"}, "content": {"alt": "Your current chapter", "binding": {"source": "answer", "path": f"{journey_photo_page}.answer.questions.{journey_photo_block}.url", "fallback_binding": {"source": "variable", "path": "user.avatar_image", "fallback": ""}}}},
+            bound_text("blk_journey_review_title", f"{journey_page}.answer.questions.{journey_block}.inputs.title.text", "Your current chapter", True),
+            bound_text("blk_journey_review_org", f"{journey_page}.answer.questions.{journey_block}.inputs.organization.text", "A place where you’re growing"),
+            bound_text("blk_journey_review_summary", f"{journey_page}.answer.questions.{journey_block}.inputs.summary.text", "Your story will appear here."),
+            {"id": "blk_journey_review_details_button", "type": "button", "design": {"width": 48, "align": "center", "variant": "secondary"}, "content": {"label": "Change the details", "destination_page_uuid": journey_page}},
+            {"id": "blk_journey_review_photo_button", "type": "button", "design": {"width": 48, "align": "center", "variant": "secondary"}, "content": {"label": "Choose another photo", "destination_page_uuid": journey_photo_page}},
+        ]},
+    ]
     _ensure_launch_ready_activity(
         db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="journey", order=3,
         title="Add your current chapter", description="Show where you're learning, working, or growing now.",
-        pages=[{"page_uuid": journey_page, "block_id": journey_block, "title": "What's your current chapter?", "kind": "text_input", "content": {"inputs": [{"id": "title", "label": "Chapter title", "variant": "single_line"}, {"id": "summary", "label": "What are you doing or learning?", "variant": "short_answer"}]}, "completion": {"inputs": {"title": {"required": True, "min_words": 1}, "summary": {"required": False}}}}],
-        outcomes=[{"id": "create-current-chapter", "type": "create_journey_entry", "store_as": "journey_entry_id", "fields": {"title": answer(journey_page, journey_block, "inputs.title.text"), "summary": answer(journey_page, journey_block, "inputs.summary.text"), "is_current": True, "entry_type": "experience"}}],
+        pages=journey_pages,
+        outcomes=[{"id": "create-current-chapter", "type": "create_journey_entry", "store_as": "journey_entry_id", "fields": {
+            "entry_type": answer(journey_kind_page, journey_kind_block, "option_ids", "experience", "first"),
+            "title": answer(journey_page, journey_block, "inputs.title.text"), "organization": answer(journey_page, journey_block, "inputs.organization.text"),
+            "location_label": answer(journey_page, journey_block, "inputs.location.text"), "start_date": answer(journey_page, journey_block, "inputs.start_date.text"),
+            "summary": answer(journey_page, journey_block, "inputs.summary.text"), "cover_asset_uuid": answer(journey_photo_page, journey_photo_block, "media_asset_uuid"),
+            "is_current": True,
+        }}],
     )
 
     work_kind_page, work_kind_block = "learning_page_system_onboarding_work_kind", "blk_launch_work_kind"
@@ -1959,6 +2016,18 @@ def _validate_page_payload(page_type: LearningPageType, content: dict | None) ->
     stacks = list(iter_block_stacks(content))
     question_count = 0
     seen_ids: set[str] = set()
+    def validate_display_binding(binding: dict) -> None:
+        if binding.get("source") not in {"answer", "variable"} or not re.fullmatch(r"[A-Za-z0-9_.-]+", str(binding.get("path") or "")):
+            raise HTTPException(status_code=422, detail="Display binding uses an unsupported source or path")
+        if isinstance(binding.get("fallback_binding"), dict):
+            validate_display_binding(binding["fallback_binding"])
+    def validate_nodes(nodes) -> None:
+        for node in nodes or []:
+            if not isinstance(node, dict):
+                continue
+            if node.get("type") == "displayBinding":
+                validate_display_binding(((node.get("attrs") or {}).get("binding") or {}))
+            validate_nodes(node.get("content"))
     for stack in stacks:
         for block in stack:
             if not isinstance(block, dict):
@@ -1969,6 +2038,17 @@ def _validate_page_payload(page_type: LearningPageType, content: dict | None) ->
             if block_id in seen_ids:
                 raise HTTPException(status_code=422, detail="Block ids must be unique within a page")
             seen_ids.add(block_id)
+            block_type = block.get("type")
+            if block_type not in {"text", "image", "question", "button"}:
+                raise HTTPException(status_code=422, detail=f"Unsupported block type: {block_type}")
+            destination = str((block.get("content") or {}).get("destination_page_uuid") or "")
+            if block_type == "button" and destination and not destination.startswith("learning_page_"):
+                raise HTTPException(status_code=422, detail="Page buttons need an internal destination page")
+            if block_type == "image" and (block.get("content") or {}).get("binding"):
+                binding = (block.get("content") or {}).get("binding") or {}
+                validate_display_binding(binding)
+            if block_type == "text":
+                validate_nodes((block.get("content") or {}).get("nodes") or [(block.get("content") or {}).get("node")])
             if block.get("type") == "question":
                 question_count += 1
 
@@ -1982,11 +2062,21 @@ def _validate_page_payload(page_type: LearningPageType, content: dict | None) ->
             raise HTTPException(status_code=422, detail="Variants need a source question page")
 
 
+def _validate_page_button_destinations(content: dict | None, page_uuids: set[str]) -> None:
+    for stack in iter_block_stacks(content or {}):
+        for block in stack:
+            if isinstance(block, dict) and block.get("type") == "button":
+                destination = str((block.get("content") or {}).get("destination_page_uuid") or "")
+                if destination and destination not in page_uuids:
+                    raise HTTPException(status_code=422, detail="Page button destination must belong to the same activity")
+
+
 async def create_page(request: Request, data: LearningPageCreate, current_user: PublicUser | AnonymousUser, db_session: Session) -> LearningPageRead:
     activity = _get_activity(db_session, data.activity_uuid)
     _require_org_admin(db_session, current_user, activity.org_id)
     _validate_page_payload(data.page_type, data.content)
     pages = db_session.exec(select(LearningPage).where(LearningPage.activity_id == activity.id).order_by(LearningPage.order.asc())).all()  # type: ignore
+    _validate_page_button_destinations(data.content, {page.page_uuid for page in pages})
     now = _now()
     payload = data.model_dump(exclude={"activity_uuid"})
     page = LearningPage(
@@ -2011,6 +2101,8 @@ async def update_page(request: Request, page_uuid: str, data: LearningPageUpdate
     patch = data.model_dump(exclude_unset=True)
     if "content" in patch or "page_type" in patch:
         _validate_page_payload(patch.get("page_type") or page.page_type, patch.get("content", page.content))
+        siblings = db_session.exec(select(LearningPage).where(LearningPage.activity_id == page.activity_id)).all()
+        _validate_page_button_destinations(patch.get("content", page.content), {item.page_uuid for item in siblings})
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(page, key, value)
     page.update_date = _now()

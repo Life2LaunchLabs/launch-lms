@@ -13,6 +13,7 @@ from src.db.portfolio import (
     JourneyEntry, JourneyWorkLink, Portfolio, PortfolioContentStatus, PortfolioLink,
     PortfolioSection, PortfolioVisibility, ProfileTrait, WorkItem,
 )
+from src.db.media import MediaAsset
 from src.db.users import User
 
 
@@ -29,7 +30,7 @@ ACTION_TYPES = {
 }
 PORTFOLIO_FIELDS = {"display_name", "headline", "short_bio", "location_label"}
 WORK_FIELDS = {"title", "story_kind", "subtitle", "summary", "role_label", "featured", "start_date", "end_date"}
-JOURNEY_FIELDS = {"title", "entry_type", "organization", "location_label", "summary", "start_date", "end_date", "is_current"}
+JOURNEY_FIELDS = {"title", "entry_type", "organization", "location_label", "summary", "start_date", "end_date", "is_current", "cover_asset_uuid"}
 TRAIT_TYPES = {"strength", "value", "interest", "goal", "skill"}
 
 
@@ -132,8 +133,20 @@ def apply_portfolio_outcomes(db: Session, user: User, activity_run_id: int, outc
         elif kind == "create_journey_entry":
             values = _mapped(action, local, JOURNEY_FIELDS); title = str(values.pop("title", "") or "").strip()
             if not title: raise PortfolioActionError(action_id, "title", "Journey title is required")
+            cover_asset_uuid = str(values.pop("cover_asset_uuid", "") or "").strip()
+            cover_asset_id = None
+            if cover_asset_uuid:
+                cover = db.exec(select(MediaAsset).where(
+                    MediaAsset.asset_uuid == cover_asset_uuid,
+                    MediaAsset.owner_user_id == user.id,
+                    MediaAsset.media_type == "image",
+                )).first()
+                if not cover:
+                    raise PortfolioActionError(action_id, "cover_asset_uuid", "Cover image must be an image owned by the learner")
+                cover_asset_id = cover.id
             journey = JourneyEntry(
                 journey_uuid=f"jrn_{uuid4().hex}", portfolio_id=portfolio.id or 0, title=title,
+                cover_asset_id=cover_asset_id,
                 slug=_unique_slug(JourneyEntry, portfolio.id or 0, title, db), status=PortfolioContentStatus.PUBLISHED,
                 visibility=PortfolioVisibility.PUBLIC, source="activity", source_reference=f"{run_ref}:{action_id}",
                 creation_date=now, update_date=now, **values,
