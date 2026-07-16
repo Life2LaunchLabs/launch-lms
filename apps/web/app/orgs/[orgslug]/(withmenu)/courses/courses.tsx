@@ -2,7 +2,6 @@
 
 import React, { useMemo } from 'react'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
-import ContentPageHeader from '@components/Objects/StyledElements/Headers/ContentPageHeader'
 import ContentHeroSection, { ContentHeroButton } from '@components/Objects/StyledElements/Headers/ContentHeroSection'
 import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/FeatureDisabledView'
 import CollectionsOverviewSection from '@components/Pages/Courses/CollectionsOverviewSection'
@@ -152,13 +151,6 @@ function Courses(props: CourseProps) {
   return (
     <div className="w-full">
       <GeneralWrapperStyled>
-        <ContentPageHeader
-          orgslug={props.orgslug}
-          tabs={[
-            { href: routePaths.org.badges(), label: 'Discover', active: activeView === 'discover' },
-            { href: routePaths.org.myBadges(), label: 'My Badges', active: activeView === 'mine' },
-          ]}
-        />
         <FeatureDisabledView
           featureName="collections"
           orgslug={props.orgslug}

@@ -1425,7 +1425,13 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
   }
 
   if (page.page_type === 'multiple_choice') {
-    const options = page.content?.options || []
+    const optionBindingPath = page.content?.options_binding?.path
+    const boundOptions = optionBindingPath ? (renderVariables?.[optionBindingPath] || []) : []
+    const options = (boundOptions.length ? boundOptions : (page.content?.options || [])).map((option: any) => ({
+      ...option,
+      id: option.id || option.value,
+      text: option.text || option.label,
+    }))
     const visibleOptions = options.length ? options : [{ id: 'a', text: '' }, { id: 'b', text: '' }]
     const completion = page.completion || {}
     const scoring = page.scoring || {}

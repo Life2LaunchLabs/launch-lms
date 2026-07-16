@@ -228,6 +228,10 @@ class PortfolioTraitsUpdate(SQLModel):
     labels: list[str] = Field(default_factory=list, max_length=5)
 
 
+class PortfolioFeaturedBadgesUpdate(SQLModel):
+    badge_uuids: list[str] = Field(default_factory=list)
+
+
 class WorkItemCreate(SQLModel):
     title: str
     story_kind: WorkStoryKind = WorkStoryKind.MADE

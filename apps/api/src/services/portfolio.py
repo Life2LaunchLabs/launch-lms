@@ -15,6 +15,7 @@ from src.db.portfolio import (
     PortfolioLink,
     PortfolioUpdate,
     PortfolioTraitsUpdate,
+    PortfolioFeaturedBadgesUpdate,
     ProfileTrait,
     PortfolioVisibility,
     PublishRequest,
@@ -234,6 +235,43 @@ def portfolio_shell(portfolio: Portfolio, db_session: Session, public_only: bool
         traits = [item for item in traits if _enum_value(item.visibility) != PortfolioVisibility.PRIVATE.value]
     meaningful_count = len(work) + len(journey)
     launch_ready = _launch_ready_state(portfolio.user_id, db_session, len(work), len(journey)) if not public_only else None
+    learning_tables = set(inspect(bind).get_table_names()) if bind is not None else set()
+    awards = list(db_session.exec(select(LearningBadgeAward).where(LearningBadgeAward.user_id == portfolio.user_id)).all()) if "learningbadgeaward" in learning_tables else []
+    earned_ids = {item.badge_id for item in awards}
+    runs = list(db_session.exec(select(LearningRun).where(LearningRun.user_id == portfolio.user_id)).all()) if "learningrun" in learning_tables else []
+    in_progress_ids = {item.badge_id for item in runs if item.status != "completed" and item.badge_id not in earned_ids}
+    run_ids = {item.id for item in runs if item.id}
+    badge_page_totals: dict[int, int] = {}
+    completed_pages_by_run: dict[int, int] = {}
+    if badge_ids := (earned_ids | in_progress_ids):
+        if "learningpage" in learning_tables:
+            for page in db_session.exec(select(LearningPage).where(LearningPage.badge_id.in_(badge_ids))).all():  # type: ignore
+                badge_page_totals[page.badge_id] = badge_page_totals.get(page.badge_id, 0) + 1
+        if run_ids and "learningpageprogress" in learning_tables:
+            for progress in db_session.exec(select(LearningPageProgress).where(
+                LearningPageProgress.run_id.in_(run_ids), LearningPageProgress.complete == True  # type: ignore
+            )).all():
+                completed_pages_by_run[progress.run_id] = completed_pages_by_run.get(progress.run_id, 0) + 1
+    badge_ids = earned_ids | (set() if public_only else in_progress_ids)
+    badge_records = list(db_session.exec(select(LearningBadge).where(LearningBadge.id.in_(badge_ids))).all()) if badge_ids and "learningbadge" in learning_tables else []  # type: ignore
+    badges_by_id = {item.id: item for item in badge_records}
+    run_by_badge_id = {item.badge_id: item for item in runs if item.badge_id in in_progress_ids}
+    def badge_dto(item: LearningBadge, badge_status: str) -> dict:
+        run = run_by_badge_id.get(item.id or 0)
+        total = badge_page_totals.get(item.id or 0, 0)
+        completed = total if badge_status == "earned" else completed_pages_by_run.get(run.id or 0, 0) if run else 0
+        return {"badge_uuid": item.badge_uuid, "name": item.name, "description": item.description or "", "thumbnail_image": item.thumbnail_image or "", "status": badge_status, "progress": {"completed": completed, "total": total, "percent": 100 if badge_status == "earned" else round((completed / total) * 100) if total else 0}}
+    earned_badges = [badge_dto(badges_by_id[item.badge_id], "earned") for item in awards if item.badge_id in badges_by_id]
+    in_progress_badges = [badge_dto(badges_by_id[item.badge_id], "in_progress") for item in runs if item.badge_id in in_progress_ids and item.badge_id in badges_by_id]
+    earned_badges = list({item["badge_uuid"]: item for item in earned_badges}.values())
+    in_progress_badges = list({item["badge_uuid"]: item for item in in_progress_badges}.values())
+    featured_uuids = list((portfolio.theme_settings or {}).get("featured_badge_uuids") or [])
+    earned_by_uuid = {item["badge_uuid"]: item for item in earned_badges}
+    featured_badges = [earned_by_uuid[uuid] for uuid in featured_uuids if uuid in earned_by_uuid]
+    featured_badges += [item for item in earned_badges if item["badge_uuid"] not in {badge["badge_uuid"] for badge in featured_badges}]
+    if not public_only:
+        featured_badges += in_progress_badges
+    featured_badges = featured_badges[:5]
     blockers = _readiness_blockers(portfolio, meaningful_count)
     state = _portfolio_state(portfolio, meaningful_count)
     views = [
@@ -241,7 +279,7 @@ def portfolio_shell(portfolio: Portfolio, db_session: Session, public_only: bool
         {"key": "work", "visible": bool(work) or bool(launch_ready and launch_ready["capabilities"].get("work", {}).get("unlocked")), "itemCount": len(work)},
         {"key": "journey", "visible": bool(journey) or bool(launch_ready and launch_ready["capabilities"].get("journey", {}).get("unlocked")), "itemCount": len(journey)},
         {"key": "resume", "visible": bool(launch_ready and launch_ready["capabilities"].get("resume", {}).get("unlocked")), "itemCount": 1},
-        {"key": "badges", "visible": False, "itemCount": 0},
+        {"key": "badges", "visible": bool(public_only and earned_badges) or bool(launch_ready and launch_ready["capabilities"].get("badges", {}).get("unlocked")), "itemCount": len(earned_badges) + (0 if public_only else len(in_progress_badges))},
     ]
     next_action = None
     if not public_only and launch_ready and launch_ready.get("nextAction"):
@@ -274,7 +312,26 @@ def portfolio_shell(portfolio: Portfolio, db_session: Session, public_only: bool
         "work": [_work_dto(item, db_session, public_only=public_only) for item in work],
         "journey": [_journey_dto(item, db_session, public_only=public_only) for item in journey],
         "traits": {kind: [item.label for item in traits if item.trait_type == kind] for kind in ("strength", "value")},
+        "badges": {"earned": earned_badges, "inProgress": in_progress_badges, "featured": featured_badges, "featuredBadgeUuids": featured_uuids},
     }
+
+
+def update_featured_badges(payload: PortfolioFeaturedBadgesUpdate, current_user: PublicUser, db_session: Session) -> dict:
+    portfolio = get_or_create_portfolio(current_user, db_session)
+    requested = list(dict.fromkeys(payload.badge_uuids))
+    earned = db_session.exec(select(LearningBadgeAward).where(LearningBadgeAward.user_id == current_user.id)).all()
+    earned_ids = {item.badge_id for item in earned}
+    badges = db_session.exec(select(LearningBadge).where(LearningBadge.id.in_(earned_ids))).all() if earned_ids else []  # type: ignore
+    allowed = {item.badge_uuid for item in badges}
+    if any(item not in allowed for item in requested):
+        raise HTTPException(status_code=422, detail="Only earned badges can be featured")
+    portfolio.theme_settings = {**(portfolio.theme_settings or {}), "featured_badge_uuids": requested}
+    portfolio.revision += 1
+    portfolio.update_date = _now()
+    db_session.add(portfolio)
+    db_session.commit()
+    db_session.refresh(portfolio)
+    return portfolio_shell(portfolio, db_session)
 
 
 def update_traits(payload: PortfolioTraitsUpdate, current_user: PublicUser, db_session: Session) -> dict:

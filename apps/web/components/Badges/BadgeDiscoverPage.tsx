@@ -5,7 +5,6 @@ import Link from 'next/link'
 import useSWR from 'swr'
 import { Award, Flag, Play } from 'lucide-react'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
-import ContentPageHeader from '@components/Objects/StyledElements/Headers/ContentPageHeader'
 import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/FeatureDisabledView'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -395,14 +394,6 @@ export default function BadgeDiscoverPage(props: BadgeDiscoverPageProps) {
   return (
     <div className="w-full">
       <GeneralWrapperStyled>
-        <ContentPageHeader
-          orgslug={props.orgslug}
-          noBottomMargin
-          tabs={[
-            { href: routePaths.org.badges(), label: 'Discover', active: true },
-            { href: routePaths.org.myBadges(), label: 'My Badges', active: false },
-          ]}
-        />
         <FeatureDisabledView
           featureName="collections"
           orgslug={props.orgslug}

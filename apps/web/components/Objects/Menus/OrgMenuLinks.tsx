@@ -59,12 +59,12 @@ export function getPrimaryOrgMenuItems({
   t: TFunction
 }): OrgMenuNavItem[] {
   const isHome = !KNOWN_SUBPATHS.some((subpath) => pathname?.includes(subpath))
+  const isOnPortfolio = pathname?.includes('/portfolio')
   const isOnCourses =
-    pathname?.includes('/badges') ||
+    (!isOnPortfolio && pathname?.includes('/badges')) ||
     pathname?.includes('/courses') ||
     pathname?.includes('/course/') ||
     pathname?.includes('/collection/')
-  const isOnPortfolio = pathname?.includes('/portfolio')
   const isOnResources = pathname?.includes('/resources') || pathname?.includes('/resource/')
   const isOnNews = pathname?.includes('/news')
 

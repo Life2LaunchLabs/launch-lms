@@ -96,6 +96,7 @@ LAUNCH_READY_ACTIVITY_UUIDS = {
     "work": "learning_activity_system_onboarding_work",
     "traits": "learning_activity_system_onboarding_traits",
     "links": "learning_activity_system_onboarding_links",
+    "badges": "learning_activity_system_onboarding_badges",
     "launch": "learning_activity_system_onboarding_launch",
 }
 LEGACY_LAUNCH_READY_ACTIVITY_UUIDS = {
@@ -104,6 +105,7 @@ LEGACY_LAUNCH_READY_ACTIVITY_UUIDS = {
 LAUNCH_READY_DEFAULT_IMAGES = {
     key: f"/images/launch-ready/{key}.png" for key in LAUNCH_READY_ACTIVITY_UUIDS
 }
+LAUNCH_READY_DEFAULT_IMAGES["badges"] = "/images/launch-ready/traits.png"
 
 _SYSTEM_FIELDS = {"protected", "system_type"}
 _SAFE_CORE_VARIABLE_TARGETS = {"user.first_name", "user.last_name", "user.bio"}
@@ -483,6 +485,36 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
                 render_context["variables"]["portfolio.journey_options"] = [
                     {"value": item.journey_uuid, "label": item.title} for item in journeys
                 ]
+            # Dynamic option collections use the same {value,label,...} contract as
+            # journey_options, so standard question blocks can consume new domain
+            # lists without adding one-off response shapes.
+            started_badge_ids = {
+                item.badge_id for item in db_session.exec(
+                    select(LearningRun).where(LearningRun.user_id == user.id)
+                ).all()
+            }
+            earned_badge_ids = {
+                item.badge_id for item in db_session.exec(
+                    select(LearningBadgeAward).where(LearningBadgeAward.user_id == user.id)
+                ).all()
+            }
+            available_badges = db_session.exec(
+                select(LearningBadge).where(
+                    LearningBadge.status == LearningBadgeStatus.PUBLISHED,
+                    LearningBadge.public == True,  # type: ignore
+                    LearningBadge.system_type.is_(None),  # type: ignore
+                ).order_by(LearningBadge.creation_date.desc())  # type: ignore
+            ).all()
+            render_context["variables"]["learning.available_badge_options"] = [
+                {
+                    "value": item.badge_uuid,
+                    "label": item.name,
+                    "description": item.description or "",
+                    "image": item.thumbnail_image or "",
+                }
+                for item in available_badges
+                if (item.id or 0) not in started_badge_ids and (item.id or 0) not in earned_badge_ids
+            ][:6]
     return LearningRunRead(
         id=run.id or 0,
         run_uuid=run.run_uuid,
@@ -1673,11 +1705,29 @@ def ensure_onboarding_learning_badge(db_session: Session) -> tuple[Organization,
     links_review_page = "learning_page_system_onboarding_links_review"
     _ensure_launch_ready_activity(db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="links", order=6, title="Connect the places you show up", description="Connect a public profile or site—or confidently say not yet.", pages=[{"page_uuid": links_platform_page, "block_id": links_platform_block, "title": "Where do you show up online?", "kind": "multiple_choice", "content": {"label": "You do not need a personal website.", "options": [{"id": key, "text": label} for key, label in (("website", "Personal site"), ("github", "GitHub"), ("youtube", "YouTube"), ("linkedin", "LinkedIn"), ("instagram", "Instagram"), ("tiktok", "TikTok"), ("other", "Another link"), ("not_yet", "I don’t have anything to add yet"))]}, "completion": {"min_selections": 1, "max_selections": 1}}, {"page_uuid": links_page, "block_id": links_block, "title": "Make the destination clear", "kind": "text_input", "content": {"inputs": [{"id": "label", "label": "Public label", "placeholder": "My GitHub", "variant": "single_line"}, {"id": "url", "label": "Public URL", "placeholder": "https://…", "input_type": "url", "variant": "single_line"}]}, "completion": {"inputs": {"label": {"required": False}, "url": {"required": False}}}}, {"page_uuid": links_review_page, "block_id": "blk_launch_links_review", "title": "Here’s what people can explore", "action_label": "Connect this to my portfolio", "blocks": [text_block(heading_node("Here’s what people can explore"), block_id="blk_links_review_heading"), text_block(paragraph_node("This label and URL will be public. Contact information stays separate."), block_id="blk_links_review_intro"), {"id": "blk_links_review_strip", "type": "portfolio_preview", "design": {"width": 100}, "content": {"variant": "links_strip", "bindings": {"label": {"source": "answer", "path": f"{links_page}.answer.questions.{links_block}.inputs.label.text", "fallback": "My link"}, "url": {"source": "answer", "path": f"{links_page}.answer.questions.{links_block}.inputs.url.text", "fallback": "No link added yet"}}}}, {"id": "blk_links_review_change", "type": "button", "design": {"width": 100, "variant": "secondary"}, "content": {"label": "Change this link", "destination_page_uuid": links_page}}]}], outcomes=[{"id": "set-main-link", "type": "set_portfolio_links", "optional": True, "links": [{"link_type": "social", "platform": answer(links_platform_page, links_platform_block, "option_ids", "other", "first"), "label": answer(links_page, links_block, "inputs.label.text", "My link"), "url": answer(links_page, links_block, "inputs.url.text")}]}])
 
+    badges_pick_page, badges_pick_block = "learning_page_system_onboarding_badges_pick", "blk_launch_badges_pick"
+    _ensure_launch_ready_activity(
+        db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="badges", order=7,
+        title="Choose badges to work toward", description="Start a few badge paths that match where you want to grow.",
+        pages=[
+            {"page_uuid": "learning_page_system_onboarding_badges_intro", "block_id": "blk_launch_badges_intro", "title": "Badges make growth visible", "blocks": [
+                text_block(heading_node("Badges make growth visible"), block_id="blk_launch_badges_intro_heading"),
+                text_block(paragraph_node("A badge is evidence of something you can do—not just a completion mark. Each path helps you practice, create evidence, and make your progress easier to share."), block_id="blk_launch_badges_intro_body"),
+                text_block(paragraph_node("Choose a few that fit what you want to learn next. They’ll appear in your portfolio while you work toward them."), block_id="blk_launch_badges_intro_value"),
+            ]},
+            {"page_uuid": badges_pick_page, "block_id": badges_pick_block, "title": "Pick your starting badges", "action_label": "Start these badges", "kind": "multiple_choice", "content": {
+                "label": "Choose up to three. You can always start more later.",
+                "options_binding": {"source": "variable", "path": "learning.available_badge_options"},
+            }, "completion": {"min_selections": 1, "max_selections": 3}},
+        ],
+        outcomes=[{"id": "enroll-starting-badges", "type": "enroll_badges", "badge_uuids": answer(badges_pick_page, badges_pick_block, "option_ids", [])}],
+    )
+
     launch_done_page = "learning_page_system_onboarding_launch_done"
     launch_page, launch_block = "learning_page_system_onboarding_launch", "blk_launch_confirm"
     launch_share_page = "learning_page_system_onboarding_launch_share"
     _ensure_launch_ready_activity(
-        db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="launch", order=7,
+        db_session, path=path, badge=badge, org_id=owner_org.id or 0, key="launch", order=8,
         title="You did it!", description="Celebrate finishing Launch Ready, publish your portfolio, and get ready to share it.",
         pages=[
             {"page_uuid": launch_done_page, "block_id": "blk_launch_done", "title": "You did it!", "blocks": [

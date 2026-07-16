@@ -153,6 +153,7 @@ def test_launch_ready_activity_set_excludes_theme_customization():
         "work",
         "traits",
         "links",
+        "badges",
         "launch",
     ]
 

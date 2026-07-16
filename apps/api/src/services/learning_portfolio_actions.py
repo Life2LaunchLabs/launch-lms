@@ -15,6 +15,7 @@ from src.db.portfolio import (
 )
 from src.db.media import MediaAsset
 from src.db.users import User
+from src.db.learning import LearningBadge, LearningPath, LearningRun, LearningRunStatus
 
 
 class PortfolioActionError(ValueError):
@@ -27,6 +28,7 @@ ACTION_TYPES = {
     "set_portfolio_fields", "create_work_item", "create_journey_entry",
     "link_work_to_journey", "set_traits", "set_portfolio_links", "set_theme",
     "set_featured_content", "confirm_privacy", "publish_portfolio", "emit_event",
+    "enroll_badges",
 }
 PORTFOLIO_FIELDS = {"display_name", "headline", "short_bio", "location_label"}
 WORK_FIELDS = {"title", "story_kind", "subtitle", "summary", "role_label", "featured", "start_date", "end_date"}
@@ -132,6 +134,32 @@ def apply_portfolio_outcomes(db: Session, user: User, activity_run_id: int, outc
         local = {**context, "bindings": bindings}
         if kind == "set_portfolio_fields":
             for key, value in _mapped(action, local, PORTFOLIO_FIELDS).items(): setattr(portfolio, key, str(value or "").strip())
+        elif kind == "enroll_badges":
+            badge_uuids = list(dict.fromkeys(_resolve(action.get("badge_uuids"), local) or []))[:3]
+            enrolled: list[str] = []
+            for badge_uuid in badge_uuids:
+                badge = db.exec(select(LearningBadge).where(
+                    LearningBadge.badge_uuid == str(badge_uuid),
+                    LearningBadge.status == "published",
+                    LearningBadge.public == True,  # type: ignore
+                    LearningBadge.system_type.is_(None),  # type: ignore
+                )).first()
+                if not badge:
+                    continue
+                existing = db.exec(select(LearningRun).where(
+                    LearningRun.user_id == user.id, LearningRun.badge_id == badge.id
+                )).first()
+                if not existing:
+                    path = db.exec(select(LearningPath).where(LearningPath.badge_id == badge.id)).first()
+                    if not path:
+                        continue
+                    db.add(LearningRun(
+                        run_uuid=f"learning_run_{uuid4()}", badge_id=badge.id or 0,
+                        path_id=path.id or 0, org_id=badge.org_id, user_id=user.id,
+                        status=LearningRunStatus.IN_PROGRESS, creation_date=now, update_date=now,
+                    ))
+                enrolled.append(badge.badge_uuid)
+            receipts[action_id] = {"type": kind, "badge_uuids": enrolled}
         elif kind == "create_work_item":
             values = _mapped(action, local, WORK_FIELDS); title = str(values.pop("title", "") or "").strip()
             if not title: raise PortfolioActionError(action_id, "title", "Work title is required")
