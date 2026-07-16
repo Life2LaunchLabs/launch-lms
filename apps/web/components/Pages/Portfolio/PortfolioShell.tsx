@@ -16,7 +16,7 @@ import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { applyMediaAssetToUserAvatar, type MediaAsset } from '@services/media/library'
 import { getUserAvatarMediaDirectory, normalizeMediaUrl } from '@services/media/media'
-import { createPortfolioWork, importLegacyPortfolio, publishMyPortfolio, unpublishMyPortfolio, updateMyPortfolio, updateMyPortfolioBadgeVisibility, updateMyPortfolioFeaturedBadges, updateMyPortfolioFeaturedWork, updateMyPortfolioSections, updateMyPortfolioTraits, updatePortfolioWork } from '@services/portfolio/portfolio'
+import { createPortfolioWork, dismissLegacyPortfolioImport, importLegacyPortfolio, publishMyPortfolio, unpublishMyPortfolio, updateMyPortfolio, updateMyPortfolioBadgeVisibility, updateMyPortfolioFeaturedBadges, updateMyPortfolioFeaturedWork, updateMyPortfolioSections, updateMyPortfolioTraits, updatePortfolioWork } from '@services/portfolio/portfolio'
 import { CategorizedMultiSelect, PORTFOLIO_STRENGTHS, PORTFOLIO_VALUES, type CategorizedOption } from '@components/Portfolio/CategorizedMultiSelect'
 import { JourneyTimeline, type JourneyEntry } from './Journey'
 import nextStepIllustration from '../../../public/images/portfolio/next-step-illustration.png'
@@ -108,7 +108,7 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
     if (!token) return
     setBusy(true)
     try { const result = await importLegacyPortfolio(token); setShell(result.shell); toast.success(`${result.imported} legacy item${result.imported === 1 ? '' : 's'} imported`) }
-    catch { toast.error('Could not import the legacy portfolio') } finally { setBusy(false) }
+    catch (error: any) { toast.error(error?.message || 'The legacy portfolio could not be imported. Your existing data was not changed.') } finally { setBusy(false) }
   }
 
   async function saveAvatar(asset: MediaAsset) {
@@ -274,6 +274,11 @@ function SocialPreviews({ socials }: { socials: Array<{ type: string; url: strin
 function Overview({ shell, setShell, owner, orgslug, username, importLegacy, busy, token }: any) {
   const featured = shell.work.filter((work: Work) => work.featured).slice(0, 1)
   const [sections, setSections] = useState<PortfolioSection[]>(() => (shell.sections || []).filter((section: PortfolioSection) => section.section_type !== 'identity_hero'))
+  const dismissLegacyImport = async () => {
+    if (!token) return
+    try { setShell(await dismissLegacyPortfolioImport(token)); toast.success('Legacy import skipped') }
+    catch (error: any) { toast.error(error?.message || 'Could not skip the legacy import') }
+  }
   const saveSections = async (nextSections: PortfolioSection[]) => {
     if (!token) return
     const omitted = (shell.sections || []).filter((section: PortfolioSection) => section.section_type === 'identity_hero')
@@ -284,9 +289,9 @@ function Overview({ shell, setShell, owner, orgslug, username, importLegacy, bus
   }
   const renderSection = (type: string) => type === 'about' ? (shell.portfolio.short_bio ? <section><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">About</h2><p className="mt-4 max-w-3xl text-xl leading-relaxed">{shell.portfolio.short_bio}</p></section> : null)
     : type === 'featured_badges' ? ((shell.badges?.featured || []).length > 0 ? <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Badges</h2><Link href={getUriWithOrg(orgslug, owner ? '/portfolio/badges' : `/user/${username}/badges`)} className="text-sm font-semibold">View all</Link></div><div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">{shell.badges.featured.map((badge: PortfolioBadge) => <BadgeCard key={badge.badge_uuid} badge={badge} compact orgslug={orgslug} />)}</div></section> : null)
-    : type === 'traits' ? (((shell.traits?.strength || []).length > 0 || (shell.traits?.value || []).length > 0 || (owner && shell.capabilities?.traits?.unlocked)) ? <div className="grid gap-10 sm:grid-cols-2 sm:gap-12"><TraitCard kind="strength" initial={shell.traits?.strength || []} owner={owner} /><TraitCard kind="value" initial={shell.traits?.value || []} owner={owner} /></div> : null)
+    : type === 'traits' ? (((shell.traits?.strength || []).length > 0 || (shell.traits?.value || []).length > 0) ? <div className="grid gap-10 sm:grid-cols-2 sm:gap-12"><TraitCard kind="strength" initial={shell.traits?.strength || []} owner={owner} /><TraitCard kind="value" initial={shell.traits?.value || []} owner={owner} /></div> : null)
     : type === 'current_journey' ? ((shell.journey || []).length > 0 ? <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Current chapter</h2><button className="text-sm font-semibold" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, owner ? '/portfolio/journey' : `/user/${username}/journey`)); window.dispatchEvent(new PopStateEvent('popstate')) }}>View journey</button></div><JourneyTimeline entries={((shell.journey || []).filter((entry: JourneyEntry) => entry.is_current).slice(0, 1).length ? (shell.journey || []).filter((entry: JourneyEntry) => entry.is_current).slice(0, 1) : (shell.journey || []).slice(0, 1))} owner={owner} orgslug={orgslug} username={username} /></section> : null)
-    : type === 'featured_work' ? ((featured.length > 0 || (owner && (shell.work.length > 0 || shell.capabilities?.work?.unlocked))) ? <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-black uppercase tracking-[0.16em] text-lime-600 dark:text-lime-400">Featured work</h2>{shell.work.length > 0 && <button className="text-sm font-semibold transition-colors hover:text-lime-600" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, owner ? '/portfolio/work' : `/user/${username}/work`)); window.dispatchEvent(new PopStateEvent('popstate')) }}>View all</button>}</div>{featured.length ? <FeaturedWorkCards work={featured} owner={owner} orgslug={orgslug} username={username} /> : owner && shell.work.length ? <button type="button" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, '/portfolio/work')); window.dispatchEvent(new PopStateEvent('popstate')) }} className="w-full rounded-xl border border-dashed border-border px-5 py-10 text-center text-sm font-semibold text-muted-foreground transition hover:border-foreground hover:text-foreground">Star one of your work items to feature it here.</button> : owner ? <EmptyWork orgslug={orgslug} /> : null}</section> : null)
+    : type === 'featured_work' ? (shell.work.length > 0 ? <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-black uppercase tracking-[0.16em] text-lime-600 dark:text-lime-400">Featured work</h2><button className="text-sm font-semibold transition-colors hover:text-lime-600" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, owner ? '/portfolio/work' : `/user/${username}/work`)); window.dispatchEvent(new PopStateEvent('popstate')) }}>View all</button></div>{featured.length ? <FeaturedWorkCards work={featured} owner={owner} orgslug={orgslug} username={username} /> : owner ? <button type="button" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, '/portfolio/work')); window.dispatchEvent(new PopStateEvent('popstate')) }} className="w-full rounded-xl border border-dashed border-border px-5 py-10 text-center text-sm font-semibold text-muted-foreground transition hover:border-foreground hover:text-foreground">Star one of your work items to feature it here.</button> : null}</section> : null)
     : type === 'links' ? <SocialPreviews socials={shell.portfolio.socials || []} /> : null
   const onDragEnd = (result: DropResult) => {
     if (!result.destination || result.destination.index === result.source.index) return
@@ -301,20 +306,20 @@ function Overview({ shell, setShell, owner, orgslug, username, importLegacy, bus
     <DragDropContext onDragEnd={onDragEnd} autoScrollerOptions={{ disabled: false }}>
       <Droppable droppableId="portfolio-overview-sections">
         {(dropProvided, dropSnapshot) => <div ref={dropProvided.innerRef} {...dropProvided.droppableProps} className={`space-y-14 ${dropSnapshot.isDraggingOver ? 'portfolio-sections-dragging' : ''}`}>
-          {sections.map((section, index) => { const content = renderSection(section.section_type); if (!content && !owner) return null; return <Draggable key={section.section_uuid} draggableId={section.section_uuid} index={index} isDragDisabled={!owner}>
+          {sections.map((section, index) => { const content = renderSection(section.section_type); if (!content) return null; return <Draggable key={section.section_uuid} draggableId={section.section_uuid} index={index} isDragDisabled={!owner}>
             {(dragProvided, dragSnapshot) => <div ref={dragProvided.innerRef} {...dragProvided.draggableProps} style={dragProvided.draggableProps.style} className={`group/section relative before:absolute before:-bottom-5 before:-left-16 before:-top-5 before:w-16 before:content-[''] ${dragSnapshot.isDragging ? 'z-50 rounded-2xl bg-background p-5 shadow-2xl ring-1 ring-border' : 'transition-opacity'} ${section.enabled ? '' : 'opacity-40 grayscale'}`}>
               {owner && <div className={`absolute left-0 top-0 z-10 -translate-x-[calc(100%+12px)] flex-col items-center gap-1 rounded-xl border border-border bg-background/95 p-1 shadow-md backdrop-blur transition duration-200 sm:flex ${dragSnapshot.isDragging ? 'cursor-grabbing opacity-100' : 'pointer-events-none -translate-x-[calc(100%+6px)] opacity-0 group-hover/section:pointer-events-auto group-hover/section:-translate-x-[calc(100%+12px)] group-hover/section:opacity-100 group-focus-within/section:pointer-events-auto group-focus-within/section:opacity-100'}`}>
                 <button type="button" {...dragProvided.dragHandleProps} className="cursor-grab rounded-lg p-2 text-muted-foreground outline-none transition hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-foreground active:cursor-grabbing" aria-label={`Reorder ${section.title_override || section.section_type.replaceAll('_', ' ')} section`} title="Drag to reorder"><GripVertical className="h-4 w-4" /></button>
                 <button type="button" onClick={() => { const next = sections.map((item) => item.section_uuid === section.section_uuid ? { ...item, enabled: !item.enabled } : item); setSections(next); void saveSections(next) }} className="rounded-lg p-2 text-muted-foreground outline-none transition hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-foreground" aria-label={section.enabled ? 'Hide section from visitors' : 'Show section to visitors'}>{section.enabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}</button>
               </div>}
-              {content || <div className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">{section.section_type.replaceAll('_', ' ')} is empty.</div>}
+              {content}
             </div>}
           </Draggable> })}
           {dropProvided.placeholder}
         </div>}
       </Droppable>
     </DragDropContext>
-    {owner && shell.portfolio.has_legacy_portfolio && <section className="rounded-2xl border border-dashed border-border p-6"><h2 className="font-bold">Have an older Launch LMS portfolio?</h2><p className="mt-1 text-sm text-muted-foreground">Import a copy into the new builder. Your original profile data stays untouched.</p><Button className="mt-4" variant="outline" disabled={busy} onClick={importLegacy}>Preview and import legacy work</Button></section>}
+    {owner && shell.portfolio.has_legacy_portfolio && <section className="rounded-2xl border border-dashed border-border p-6"><h2 className="font-bold">Have an older Launch LMS portfolio?</h2><p className="mt-1 text-sm text-muted-foreground">Import its work and journey items into the new builder. Your original profile data stays untouched.</p><div className="mt-4 flex flex-wrap gap-2"><Button variant="outline" disabled={busy} onClick={importLegacy}>{busy ? 'Importing…' : 'Import legacy work'}</Button><Button variant="ghost" disabled={busy} onClick={dismissLegacyImport}>Skip import</Button></div></section>}
   </div>
 }
 

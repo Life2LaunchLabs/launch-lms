@@ -664,6 +664,23 @@ def test_legacy_import_is_repeatable_and_preserves_profile_json():
         assert user.profile == original
 
 
+def test_legacy_import_can_be_dismissed_without_changing_profile():
+    with _session() as db:
+        original = {"featured": {"cards": [{"title": "Robot"}]}}
+        user = _user()
+        user.profile = original
+        db.add(user)
+        db.commit()
+        actor = _public(user)
+
+        shell = service.dismiss_legacy_import(actor, db)
+
+        db.refresh(user)
+        assert shell["portfolio"]["has_legacy_portfolio"] is False
+        assert user.profile == original
+        assert service.legacy_import_preview(actor, db)["work"]
+
+
 def test_portfolio_revision_conflict():
     with _session() as db:
         user = _user()
