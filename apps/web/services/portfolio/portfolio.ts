@@ -27,6 +27,7 @@ async function mutate(path: string, method: string, payload: unknown, token: str
 }
 
 export const updateMyPortfolio = (payload: unknown, token: string) => mutate('me', 'PATCH', payload, token)
+export const updateMyPortfolioTraits = (payload: { trait_type: 'strength' | 'value'; labels: string[] }, token: string) => mutate('me/traits', 'PUT', payload, token)
 export const createPortfolioWork = (payload: unknown, token: string) => mutate('me/work', 'POST', payload, token)
 export const updatePortfolioWork = (uuid: string, payload: unknown, token: string) => mutate(`me/work/${uuid}`, 'PATCH', payload, token)
 export const createPortfolioJourney = (payload: unknown, token: string) => mutate('me/journey', 'POST', payload, token)

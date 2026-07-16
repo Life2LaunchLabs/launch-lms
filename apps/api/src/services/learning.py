@@ -561,7 +561,7 @@ def _normalize_text_answer(question_content: dict, answer: dict) -> dict[str, di
     }
 
 
-def _validate_mcq_answer(question_content: dict, completion: dict, selected: list[str]) -> None:
+def _validate_mcq_answer(question_content: dict, completion: dict, selected: list[str], answer: dict | None = None) -> None:
     options = question_content.get("options") or []
     option_ids = {str(option.get("id")) for option in options if option.get("id") is not None}
     completion = completion or {}
@@ -572,8 +572,17 @@ def _validate_mcq_answer(question_content: dict, completion: dict, selected: lis
         raise HTTPException(status_code=422, detail=f"Select at least {min_selections} option(s)")
     if len(selected) > max_selections:
         raise HTTPException(status_code=422, detail=f"Select no more than {max_selections} option(s)")
+    custom_options = (answer or {}).get("custom_options") or []
+    custom_ids: set[str] = set()
+    for option in custom_options:
+        if not isinstance(option, dict):
+            raise HTTPException(status_code=422, detail="Custom option is invalid")
+        option_id, text = str(option.get("id") or "").strip(), str(option.get("text") or "").strip()
+        if not text or len(text) > 80 or option_id != text:
+            raise HTTPException(status_code=422, detail="Custom option must be between 1 and 80 characters")
+        custom_ids.add(option_id)
     if option_ids:
-        invalid = [option_id for option_id in selected if option_id not in option_ids]
+        invalid = [option_id for option_id in selected if option_id not in option_ids and option_id not in custom_ids]
         if invalid:
             raise HTTPException(status_code=422, detail="Selected option is not available")
 
@@ -681,7 +690,7 @@ def _extract_learning_variables(page: LearningPage, result: dict) -> list[dict]:
                     }
                 )
 
-        if kind == "multiple_choice":
+        if kind in {"multiple_choice", "categorized_multi_select"}:
             option_bindings = bindings.get("options") or {}
             if not isinstance(option_bindings, dict):
                 continue
@@ -854,7 +863,7 @@ def _normalize_question_answers(questions: list[dict], answer: dict) -> dict[str
 def _grade_mcq_block(page: LearningPage, question: dict, answer: dict) -> dict:
     content = question.get("content") or {}
     selected = _normalize_mcq_answer(answer or {})
-    _validate_mcq_answer(content, _block_completion(page, question), selected)
+    _validate_mcq_answer(content, _block_completion(page, question), selected, answer)
     scoring = _block_scoring(page, question)
     correct_options = {str(value) for value in scoring.get("correct_option_ids") or scoring.get("correctOptionIds") or []}
     is_correct = set(selected) == correct_options if correct_options else None
@@ -937,7 +946,7 @@ def _grade_answer(page: LearningPage, answer: dict) -> tuple[bool | None, float 
     for question in questions:
         block_id = str(question.get("id") or "")
         sub_answer = answers.get(block_id) or {}
-        if question.get("kind") == "multiple_choice":
+        if question.get("kind") in {"multiple_choice", "categorized_multi_select"}:
             sub_results[block_id] = _grade_mcq_block(page, question, sub_answer)
         elif question.get("kind") == "text_input":
             sub_results[block_id] = _grade_text_block(page, question, sub_answer)
@@ -974,7 +983,7 @@ def _grade_answer(page: LearningPage, answer: dict) -> tuple[bool | None, float 
         }
         if pending:
             feedback_key = "pending"
-        elif only.get("kind") == "multiple_choice":
+        elif only.get("kind") in {"multiple_choice", "categorized_multi_select"}:
             selected = only.get("option_ids") or []
             feedback_key = selected[0] if len(selected) == 1 else ("correct" if is_correct else "incorrect")
         else:
@@ -1216,6 +1225,18 @@ def _ensure_launch_ready_activity(
     key: str, order: int, title: str, description: str, pages: list[dict], outcomes: list[dict], flow: dict | None = None,
 ) -> LearningActivity:
     now, activity_uuid = _now(), LAUNCH_READY_ACTIVITY_UUIDS[key]
+    if key == "traits":
+        pages = deepcopy(pages)
+        outcomes = deepcopy(outcomes)
+        strength_page = pages[0]
+        strength_page["kind"] = "categorized_multi_select"
+        strength_categories = {"creative": "Creating", "curious": "Thinking", "reliable": "Execution", "collaborative": "Working With Others", "determined": "Execution", "empathetic": "Working With Others", "resourceful": "Thinking", "patient": "Working With Others", "bold": "Execution", "thoughtful": "Thinking"}
+        for option in (strength_page.get("content") or {}).get("options") or []:
+            option["category"] = strength_categories.get(option.get("id"), "Strengths")
+        values_page_uuid, values_block_id = "learning_page_system_onboarding_values", "blk_launch_values"
+        values = (("Personal Qualities", "Authenticity"), ("Personal Qualities", "Mindfulness"), ("Relationships", "Kindness"), ("Relationships", "Empathy"), ("Growth", "Learning"), ("Growth", "Courage"), ("Impact", "Service"), ("Impact", "Community"), ("Impact", "Justice"), ("Impact", "Leadership"))
+        pages.insert(1, {"page_uuid": values_page_uuid, "block_id": values_block_id, "title": "What matters most to you?", "kind": "categorized_multi_select", "content": {"label": "Choose the values you want people to understand about you.", "options": [{"id": label.lower(), "text": label, "category": category} for category, label in values]}, "completion": {"min_selections": 2, "max_selections": 5}})
+        outcomes.append({"id": "set-values", "type": "set_traits", "trait_type": "value", "values": {"$source": "answer", "path": f"{values_page_uuid}.answer.questions.{values_block_id}.option_ids", "default": []}})
     activity = db_session.exec(select(LearningActivity).where(LearningActivity.activity_uuid == activity_uuid)).first()
     settings = {"system_required": True, "estimated_minutes": 3, "capability": key, "outcomes": {"version": 1, "actions": outcomes}}
     if flow: settings["flow"] = flow
@@ -1228,7 +1249,10 @@ def _ensure_launch_ready_activity(
         activity.thumbnail_image = activity.thumbnail_image or LAUNCH_READY_DEFAULT_IMAGES[key]
         activity.order = order
         activity.required, activity.published = True, True
-        activity.settings = {**(activity.settings or {}), **settings}
+        merged_settings = {**(activity.settings or {}), **settings}
+        if flow is None:
+            merged_settings.pop("flow", None)
+        activity.settings = merged_settings
         activity.update_date = now
         db_session.add(activity); db_session.flush()
     for page_order, spec in enumerate(pages, start=1):
@@ -1254,6 +1278,38 @@ def _ensure_launch_ready_activity(
             db_session.delete(stale_page)
     if stale_system_pages:
         db_session.flush()
+    # Launch Ready is system-managed and can evolve between learner sessions. Keep
+    # snapshots without applied outcomes aligned so a removed branch cannot strand
+    # a learner or leave a prematurely completed run carrying obsolete actions.
+    # Matching page progress and answers remain intact.
+    for activity_run in db_session.exec(
+        select(LearningActivityRun).where(LearningActivityRun.activity_id == activity.id)
+    ).all():
+        run_data = deepcopy(activity_run.data or {})
+        if run_data.get("action_receipts"):
+            continue
+        was_completed = activity_run.status == LearningRunStatus.COMPLETED
+        definition = deepcopy(run_data.get("definition") or {})
+        definition.update({"version": 1, "flow": flow, "outcomes": settings["outcomes"]})
+        run_data["definition"] = definition
+        activity_run.data = run_data
+        activity_run.status = LearningRunStatus.IN_PROGRESS
+        activity_run.completed_at = None
+        db_session.add(activity_run)
+        if was_completed and pages:
+            final_page_uuid = pages[-1]["page_uuid"]
+            final_page = db_session.exec(select(LearningPage).where(LearningPage.page_uuid == final_page_uuid)).first()
+            if final_page:
+                final_progress = db_session.exec(select(LearningPageProgress).where(
+                    LearningPageProgress.run_id == activity_run.run_id,
+                    LearningPageProgress.page_id == final_page.id,
+                )).first()
+                if final_progress:
+                    final_progress.complete = False
+                    final_progress.completed_at = None
+                    final_progress.data = {**(final_progress.data or {}), "invalidated_by_definition_update": True}
+                    db_session.add(final_progress)
+    db_session.flush()
     return activity
 
 
@@ -2414,6 +2470,8 @@ async def complete_page(request: Request, data: LearningPageComplete, actor: Lea
         if can_complete:
             definition = (activity_run.data or {}).get("definition") or {}
             outcomes = definition.get("outcomes") if "outcomes" in definition else (activity.settings or {}).get("outcomes")
+            if (activity.settings or {}).get("system_required") and (activity.settings or {}).get("outcomes"):
+                outcomes = (activity.settings or {}).get("outcomes")
             if outcomes:
                 if run.user_id is None:
                     raise HTTPException(status_code=422, detail="Portfolio outcomes require an authenticated learner")

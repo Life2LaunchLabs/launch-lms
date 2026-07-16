@@ -309,9 +309,9 @@ export default function LearningActivityEditor({
     })
   }, [pages, patchPage, variantKey])
 
-  const insertBlock = (type: 'text' | 'image' | 'button' | 'multiple_choice' | 'text_input' | 'image_upload', afterBlockId?: string | null) => {
+  const insertBlock = (type: 'text' | 'image' | 'button' | 'multiple_choice' | 'categorized_multi_select' | 'text_input' | 'image_upload', afterBlockId?: string | null) => {
     if (!selectedPage || selectedPage.page_type !== 'standard') return
-    if ((type === 'multiple_choice' || type === 'text_input' || type === 'image_upload') && selectedPage.content?.variants) {
+    if ((type === 'multiple_choice' || type === 'categorized_multi_select' || type === 'text_input' || type === 'image_upload') && selectedPage.content?.variants) {
       toast.error('Variant pages cannot contain question blocks')
       return
     }
@@ -850,7 +850,7 @@ export default function LearningActivityEditor({
               onAddText={() => insertBlock('text', selection.blockId)}
               onAddImage={() => insertBlock('image', selection.blockId)}
               onAddButton={() => insertBlock('button', selection.blockId)}
-              onAddQuestion={(kind: 'multiple_choice' | 'text_input' | 'image_upload') => insertBlock(kind, selection.blockId)}
+              onAddQuestion={(kind: 'multiple_choice' | 'categorized_multi_select' | 'text_input' | 'image_upload') => insertBlock(kind, selection.blockId)}
             />
             <div className="relative min-h-0 flex-1 overflow-hidden">
               {variantKey !== 'default' && (
@@ -1062,6 +1062,10 @@ function CanvasToolbar({ selectedPage, pages, variantKey, onSelectVariant, onAdd
             <DropdownMenuItem onClick={() => onAddQuestion('multiple_choice')}>
               <ListChecks size={16} className="mr-2" />
               Multiple choice
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onAddQuestion('categorized_multi_select')}>
+              <ListChecks size={16} className="mr-2" />
+              Categorized multi-select
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onAddQuestion('text_input')}>
               <FileText size={16} className="mr-2" />
@@ -1293,7 +1297,7 @@ function CanvasBlock({ block, page, selected, readOnly, registerBlockEl, onHover
     <button type="button" disabled className={`min-h-11 rounded-full px-5 py-3 text-sm font-bold ${block.design?.variant === 'primary' ? 'bg-[var(--org-primary-color)] text-white' : 'border border-gray-200 bg-white text-gray-700 shadow-sm'}`}>{block.content?.label || 'Go to page'}</button>
   ) : block.type === 'portfolio_preview' ? (
     <JourneyCardView preview entry={{ journey_uuid: 'preview', slug: 'preview', entry_type: 'education', title: 'Your current chapter', organization: 'Your school or organization', location_label: 'Your location', summary: 'Your story will appear here.', start_date: '2026-01', start_precision: 'month', is_current: true, revision: 1, cover_url: '', blocks: [], work: [] } as JourneyEntry} />
-  ) : (block as LearningQuestionBlock).kind === 'multiple_choice' ? (
+  ) : ['multiple_choice', 'categorized_multi_select'].includes((block as LearningQuestionBlock).kind) ? (
     <McqBlockCanvas block={block as LearningQuestionBlock} page={page} selected={selected} readOnly={readOnly} onPatch={onPatch} />
   ) : (block as LearningQuestionBlock).kind === 'image_upload' ? (
     <ImageUploadBlockCanvas block={block as LearningQuestionBlock} readOnly={readOnly} onPatch={onPatch} />
@@ -1857,7 +1861,7 @@ function ImageBlockEditor({ block, selected = false, readOnly = false, onPatch, 
   )
 }
 
-function InlineInsertMenu({ onInsert, canAddQuestion, alwaysVisible = false }: { onInsert: (type: 'text' | 'image' | 'button' | 'multiple_choice' | 'text_input' | 'image_upload') => void; canAddQuestion: boolean; alwaysVisible?: boolean }) {
+function InlineInsertMenu({ onInsert, canAddQuestion, alwaysVisible = false }: { onInsert: (type: 'text' | 'image' | 'button' | 'multiple_choice' | 'categorized_multi_select' | 'text_input' | 'image_upload') => void; canAddQuestion: boolean; alwaysVisible?: boolean }) {
   const [open, setOpen] = React.useState(false)
   const revealed = open || alwaysVisible
   return (
@@ -1894,6 +1898,10 @@ function InlineInsertMenu({ onInsert, canAddQuestion, alwaysVisible = false }: {
               <DropdownMenuItem onClick={() => onInsert('multiple_choice')}>
                 <ListChecks size={15} className="mr-2" />
                 Multiple choice
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onInsert('categorized_multi_select')}>
+                <ListChecks size={15} className="mr-2" />
+                Categorized multi-select
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onInsert('text_input')}>
                 <FileText size={15} className="mr-2" />
@@ -2285,7 +2293,7 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
       })
     } else {
       patchQuestion({
-        scoring: block.kind === 'multiple_choice'
+        scoring: ['multiple_choice', 'categorized_multi_select'].includes(block.kind)
           ? { ...scoring, mode: 'points', points: Number(scoring.points) || 1, score_policy: 'exact_match' }
           : { ...scoring, mode: 'completion', points: Number(scoring.points) || 1 },
         completion: { ...completion, question_mode: 'scored', variable_bindings: {} },
@@ -2293,7 +2301,7 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
     }
   }
 
-  if (block.kind === 'multiple_choice') {
+  if (block.kind === 'multiple_choice' || block.kind === 'categorized_multi_select') {
     const options = normalizeQuestionOptions(content.options)
     const correctIds = new Set<string>(scoring.correct_option_ids || scoring.correctOptionIds || [])
     const minSelections = Math.max(1, Number(completion.min_selections ?? 1))

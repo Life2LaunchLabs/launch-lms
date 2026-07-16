@@ -38,6 +38,7 @@ import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { JourneyCardView, type JourneyEntry } from '@components/Pages/Portfolio/Journey'
 import { WorkCardView, type Work } from '@components/Pages/Portfolio/PortfolioShell'
 import { normalizeMediaUrl } from '@services/media/media'
+import { CategorizedMultiSelect } from '@components/Portfolio/CategorizedMultiSelect'
 
 export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgslug: string; badgePath: any; activity: any }) {
   const router = useRouter()
@@ -51,10 +52,15 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
   const [unlocked, setUnlocked] = React.useState(false)
   const [answer, setAnswer] = React.useState<any>({})
   const navigation = (run?.navigation?.activities || []).find((item: any) => item.activity_id === activity.id)
-  const pages = navigation?.path?.length
+  const navigatedPages = navigation?.path?.length
     ? navigation.path.map((pageUuid: string) => configuredPages.find((item: any) => item.page_uuid === pageUuid)).filter(Boolean)
-    : configuredPages
+    : []
+  const configuredPageUuids = new Set(configuredPages.map((item: any) => item.page_uuid))
+  const flowPageUuids = (activity.settings?.flow?.nodes || []).filter((node: any) => node.type === 'page').map((node: any) => node.page_uuid)
+  const flowIsCurrent = flowPageUuids.length > 0 && flowPageUuids.every((pageUuid: string) => configuredPageUuids.has(pageUuid))
+  const pages = flowIsCurrent && navigatedPages.length ? navigatedPages : configuredPages
   const page = pages[index]
+  const currentPageUuid = navigation?.current_page_uuid
 
   React.useEffect(() => {
     startLearningRun(badge.badge_uuid, accessToken)
@@ -67,6 +73,12 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
     const prior = (run?.attempts || []).filter((item: any) => item.page_uuid === page?.page_uuid).at(-1)
     setAnswer(prior?.answer || {})
   }, [page?.content, page?.page_type, page?.page_uuid, run?.attempts])
+
+  React.useEffect(() => {
+    if (!currentPageUuid) return
+    const destination = pages.findIndex((item: any) => item.page_uuid === currentPageUuid)
+    if (destination >= 0) setIndex(destination)
+  }, [currentPageUuid, pages])
 
   const navigateToPage = React.useCallback((pageUuid: string) => {
     const destination = pages.findIndex((item: any) => item.page_uuid === pageUuid)
@@ -90,10 +102,19 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
       }
       setRun(nextRun)
       const nextNavigation = (nextRun?.navigation?.activities || []).find((item: any) => item.activity_id === activity.id)
-      const nextPath = nextNavigation?.path?.length ? nextNavigation.path : configuredPages.map((item: any) => item.page_uuid)
       const nextPageUuid = nextNavigation?.current_page_uuid
-      if (nextPageUuid && nextPath.includes(nextPageUuid)) {
-        setIndex(nextPath.indexOf(nextPageUuid))
+      const configuredDestination = nextPageUuid
+        ? configuredPages.findIndex((item: any) => item.page_uuid === nextPageUuid)
+        : -1
+      const visibleDestination = nextPageUuid
+        ? pages.findIndex((item: any) => item.page_uuid === nextPageUuid)
+        : -1
+      if (visibleDestination >= 0) {
+        setIndex(visibleDestination)
+      } else if (configuredDestination >= 0) {
+        setIndex(configuredDestination)
+      } else if (index < pages.length - 1) {
+        setIndex((current) => Math.min(current + 1, pages.length - 1))
       } else {
         const grading = activity.settings?.grading || {}
         if (grading.mode === 'pass_fail' && grading.success_message) {
@@ -1357,6 +1378,34 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
     setUnlocked(page.completion?.required === false || Boolean(imageUrl))
   }, [answer?.image_url, answer?.url, page.completion?.required, page.page_type, setUnlocked])
 
+  React.useEffect(() => {
+    if (page.page_type === 'multiple_choice' || page.page_type === 'categorized_multi_select') {
+      const completion = page.completion || {}
+      const selectedIds = Array.isArray(answer?.option_ids) ? answer.option_ids : answer?.option_id ? [answer.option_id] : []
+      const minSelections = Math.max(1, Number(completion.min_selections ?? 1))
+      const maxSelections = Math.max(minSelections, Number(completion.max_selections ?? 1))
+      setUnlocked(selectedIds.length >= minSelections && selectedIds.length <= maxSelections)
+      return
+    }
+    if (page.page_type === 'text_input') {
+      const inputs = getQuestionTextInputs(page)
+      setUnlocked(areTextInputsComplete(inputs, page.completion?.inputs || {}, answer?.inputs || {}))
+    }
+  }, [answer?.inputs, answer?.option_id, answer?.option_ids, page, setUnlocked])
+
+  if (page.page_type === 'categorized_multi_select') {
+    const completion = page.completion || {}
+    const options = (page.content?.options || []).map((option: any) => ({ ...option, category: option.category || 'Options' }))
+    const selectedIds = Array.isArray(answer?.option_ids) ? answer.option_ids : []
+    const customOptions = Array.isArray(answer?.custom_options) ? answer.custom_options : []
+    const minSelections = Math.max(1, Number(completion.min_selections ?? 1))
+    const maxSelections = Math.max(minSelections, Number(completion.max_selections ?? 5))
+    return <div className="learning-question-block" onMouseDown={() => editable && onActivate()}>
+      {page.content?.label && <p className="mb-4 text-lg font-bold text-foreground">{page.content.label}</p>}
+      <CategorizedMultiSelect options={options} customOptions={customOptions} value={selectedIds} min={minSelections} max={maxSelections} disabled={editable} onCustomOptionsChange={(nextCustom) => { const configuredIds = new Set(options.map((option: any) => option.id)); const customIds = new Set(nextCustom.map((option: any) => option.id)); const added = nextCustom.find((option: any) => !customOptions.some((current: any) => current.id === option.id)); const nextSelected = selectedIds.filter((id: string) => configuredIds.has(id) || customIds.has(id)); if (added && nextSelected.length < maxSelections && !nextSelected.includes(added.id)) nextSelected.push(added.id); setAnswer({ option_ids: nextSelected, option_id: nextSelected[0], custom_options: nextCustom }); setUnlocked(nextSelected.length >= minSelections && nextSelected.length <= maxSelections) }} onChange={(next) => { setAnswer({ option_ids: next, option_id: next[0], custom_options: customOptions }); setUnlocked(next.length >= minSelections && next.length <= maxSelections) }} />
+    </div>
+  }
+
   if (page.page_type === 'multiple_choice') {
     const options = page.content?.options || []
     const visibleOptions = options.length ? options : [{ id: 'a', text: '' }, { id: 'b', text: '' }]
@@ -1720,7 +1769,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
                   ) : <span className="min-w-0 flex-1" />}
                 </div>
                 {input.input_type === 'select' ? (
-                  <select value={value} onChange={(event) => updateTextInput(input.id, event.target.value)} style={{ height }} className="w-full rounded-xl border border-border bg-card px-4 text-foreground outline-none shadow-sm focus:border-[var(--org-primary-color)] focus:ring-2 focus:ring-[var(--org-primary-color)]">
+                  <select value={value} onChange={(event) => updateTextInput(input.id, event.target.value)} style={{ height }} className="mx-auto block w-[calc(100%-1rem)] min-w-0 max-w-full rounded-xl border border-border bg-card px-4 text-foreground outline-none shadow-sm focus:border-[var(--org-primary-color)] focus:ring-2 focus:ring-[var(--org-primary-color)]">
                     <option value="">{input.placeholder || 'None'}</option>
                     {(renderVariables?.[input.options_binding?.path] || []).map((option: any) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>

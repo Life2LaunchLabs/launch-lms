@@ -223,6 +223,11 @@ class PortfolioUpdate(SQLModel):
     revision: int
 
 
+class PortfolioTraitsUpdate(SQLModel):
+    trait_type: str
+    labels: list[str] = Field(default_factory=list, max_length=5)
+
+
 class WorkItemCreate(SQLModel):
     title: str
     story_kind: WorkStoryKind = WorkStoryKind.MADE

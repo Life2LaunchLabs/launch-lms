@@ -201,6 +201,8 @@ def apply_portfolio_outcomes(db: Session, user: User, activity_run_id: int, outc
             if trait_type not in TRAIT_TYPES: raise PortfolioActionError(action_id, "trait_type", "Unsupported trait type")
             labels = _resolve(action.get("values"), local) or []
             if not isinstance(labels, list): labels = [labels]
+            for existing in db.exec(select(ProfileTrait).where(ProfileTrait.portfolio_id == portfolio.id, ProfileTrait.trait_type == trait_type)).all():
+                db.delete(existing)
             for index, label in enumerate(labels):
                 label = str(label or "").strip()
                 if label: db.add(ProfileTrait(trait_uuid=f"trt_{uuid4().hex}", portfolio_id=portfolio.id or 0, trait_type=trait_type, label=label, source="activity", source_reference=f"{run_ref}:{action_id}", sort_order=index, creation_date=now, update_date=now))

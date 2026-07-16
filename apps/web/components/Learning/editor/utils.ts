@@ -44,8 +44,8 @@ export function createButtonBlock(): any {
   }
 }
 
-export function createQuestionBlock(kind: 'multiple_choice' | 'text_input' | 'image_upload'): LearningQuestionBlock {
-  if (kind === 'multiple_choice') {
+export function createQuestionBlock(kind: 'multiple_choice' | 'categorized_multi_select' | 'text_input' | 'image_upload'): LearningQuestionBlock {
+  if (kind === 'multiple_choice' || kind === 'categorized_multi_select') {
     const options = [
       { id: createOptionId(), text: 'Option 1' },
       { id: createOptionId(), text: 'Option 2' },
@@ -55,7 +55,7 @@ export function createQuestionBlock(kind: 'multiple_choice' | 'text_input' | 'im
       type: 'question',
       kind,
       design: { width: 100, align: 'left' },
-      content: { options },
+      content: { options, ...(kind === 'categorized_multi_select' ? { label: 'Choose the options that fit you', categories: [{ id: 'category-1', label: 'Category', option_ids: options.map((option) => option.id) }] } : {}) },
       scoring: {
         mode: 'points',
         points: 1,
@@ -385,7 +385,7 @@ export function getVariantSourceOptions(pages: any[], page: any): VariantSourceO
   const sources: VariantSourceOption[] = []
   pages.forEach((item, index) => {
     if (item.page_uuid === page.page_uuid) return
-    const questions = findQuestionBlocks(item).filter((question) => question.kind === 'multiple_choice')
+    const questions = findQuestionBlocks(item).filter((question) => question.kind === 'multiple_choice' || question.kind === 'categorized_multi_select')
     questions.forEach((question, questionIndex) => {
       const completion = getBlockCompletion(item, question)
       if (Math.max(1, Number(completion?.max_selections ?? 1)) > 1) return

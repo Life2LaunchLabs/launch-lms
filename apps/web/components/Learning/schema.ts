@@ -56,7 +56,7 @@ export interface LearningPortfolioPreviewBlock extends LearningBlockBase {
 
 export interface LearningQuestionBlock extends LearningBlockBase {
   type: 'question'
-  kind: 'multiple_choice' | 'text_input' | string
+  kind: 'multiple_choice' | 'categorized_multi_select' | 'text_input' | string
   content?: any
   scoring?: any
   completion?: any

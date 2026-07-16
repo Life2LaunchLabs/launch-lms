@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { ArrowLeft, Camera, CircleCheck, Eye, FilePlus2, Globe, Globe2, Instagram, Linkedin, MapPin, Pencil, Plus, Sparkles, Trash2, Youtube, X } from 'lucide-react'
+import { ArrowLeft, Camera, CircleCheck, Eye, FilePlus2, Globe, Globe2, Heart, Instagram, Linkedin, MapPin, Pencil, Plus, Sparkles, Trash2, Youtube, X, Zap } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -15,7 +15,8 @@ import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { applyMediaAssetToUserAvatar, type MediaAsset } from '@services/media/library'
 import { getUserAvatarMediaDirectory, normalizeMediaUrl } from '@services/media/media'
-import { createPortfolioWork, importLegacyPortfolio, publishMyPortfolio, updateMyPortfolio, updatePortfolioWork } from '@services/portfolio/portfolio'
+import { createPortfolioWork, importLegacyPortfolio, publishMyPortfolio, updateMyPortfolio, updateMyPortfolioTraits, updatePortfolioWork } from '@services/portfolio/portfolio'
+import { CategorizedMultiSelect, PORTFOLIO_STRENGTHS, PORTFOLIO_VALUES, type CategorizedOption } from '@components/Portfolio/CategorizedMultiSelect'
 import { JourneyTimeline, type JourneyEntry } from './Journey'
 import nextStepIllustration from '../../../public/images/portfolio/next-step-illustration.png'
 import { resolveLearningActivityImage } from '@services/learning/launchReadyImages'
@@ -166,11 +167,36 @@ function Avatar({ url, name, compact }: { url?: string; name: string; compact: b
   return <motion.div layout className={`${compact ? 'h-10 w-10' : 'h-28 w-28 sm:h-36 sm:w-36'} shrink-0 overflow-hidden rounded-full border border-border bg-muted`} transition={{ type: 'spring', stiffness: 320, damping: 32 }}>{url ? <img src={url} alt="" className="h-full w-full object-cover" /> : <span className={`${compact ? 'text-sm' : 'text-3xl'} flex h-full w-full items-center justify-center font-bold text-muted-foreground`}>{initials || 'P'}</span>}</motion.div>
 }
 
+function TraitCard({ kind, initial, owner }: { kind: 'strength' | 'value'; initial: string[]; owner: boolean }) {
+  const session = useLHSession() as any
+  const token = session?.data?.tokens?.access_token
+  const options = kind === 'strength' ? PORTFOLIO_STRENGTHS : PORTFOLIO_VALUES
+  const initialCustom: CategorizedOption[] = initial.filter((label) => !options.some((option) => option.text.toLocaleLowerCase() === label.toLocaleLowerCase())).map((text) => ({ id: text, text, category: 'Your own' }))
+  const [customOptions, setCustomOptions] = useState(initialCustom)
+  const [draftCustomOptions, setDraftCustomOptions] = useState(initialCustom)
+  const [value, setValue] = useState(() => initial.map((label) => options.find((option) => option.text.toLocaleLowerCase() === label.toLocaleLowerCase())?.id || label))
+  const [draft, setDraft] = useState(value)
+  const [open, setOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const Icon = kind === 'strength' ? Zap : Heart
+  const title = kind === 'strength' ? 'Strengths' : 'Values'
+  if (!owner && !value.length) return null
+  const save = async () => {
+    if (!token) return
+    setSaving(true)
+    try { await updateMyPortfolioTraits({ trait_type: kind, labels: draft.map((id) => options.find((option) => option.id === id)?.text || draftCustomOptions.find((option) => option.id === id)?.text || id) }, token); setValue(draft); setCustomOptions(draftCustomOptions); setOpen(false); toast.success(`${title} updated`) }
+    catch (error: any) { toast.error(error?.message || `Could not update ${title.toLowerCase()}`) }
+    finally { setSaving(false) }
+  }
+  return <><button type="button" disabled={!owner} onClick={() => { setDraft(value); setDraftCustomOptions(customOptions); setOpen(true) }} className="min-h-40 rounded-2xl border border-border p-5 text-left disabled:cursor-default"><div className="flex items-center justify-between"><span className="flex items-center gap-2 font-bold"><Icon className="h-5 w-5" />{title}</span>{owner && <Pencil className="h-4 w-4 text-muted-foreground" />}</div><div className="mt-5 flex flex-wrap gap-2">{value.length ? value.map((id) => <span key={id} className="rounded-full border border-border bg-muted px-3 py-1.5 text-sm font-semibold">{options.find((option) => option.id === id)?.text || customOptions.find((option) => option.id === id)?.text || id}</span>) : <span className="text-sm text-muted-foreground">Choose the {title.toLowerCase()} you want to share.</span>}</div></button><Dialog open={open} onOpenChange={setOpen}><DialogContent className="flex max-h-[90dvh] max-w-2xl flex-col overflow-hidden p-0"><DialogHeader className="border-b border-border px-6 py-5"><DialogTitle>Edit {title.toLowerCase()}</DialogTitle><DialogDescription>Choose up to five. You can change these as you grow.</DialogDescription></DialogHeader><div className="overflow-y-auto px-6 py-5"><CategorizedMultiSelect options={options} customOptions={draftCustomOptions} onCustomOptionsChange={setDraftCustomOptions} value={draft} onChange={setDraft} min={1} max={5} /></div><div className="flex justify-end gap-2 border-t border-border px-6 py-4"><Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save} disabled={saving || !draft.length}>{saving ? 'Saving…' : 'Save'}</Button></div></DialogContent></Dialog></>
+}
+
 function Overview({ shell, owner, orgslug, username, importLegacy, busy }: any) {
   const featured = shell.work.filter((work: Work) => work.featured || shell.work.length <= 3).slice(0, 3)
   return <div className="space-y-14">
     {shell.portfolio.short_bio && <section><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">About</h2><p className="mt-4 max-w-3xl text-xl leading-relaxed">{shell.portfolio.short_bio}</p></section>}
     {shell.nextAction && owner && <NextStepCard action={shell.nextAction} orgslug={orgslug} />}
+    {((shell.traits?.strength || []).length > 0 || (shell.traits?.value || []).length > 0 || shell.capabilities?.traits?.unlocked) && <section><h2 className="mb-5 text-sm font-bold uppercase tracking-widest text-muted-foreground">What I bring</h2><div className="grid gap-4 sm:grid-cols-2"><TraitCard kind="strength" initial={shell.traits?.strength || []} owner={owner} /><TraitCard kind="value" initial={shell.traits?.value || []} owner={owner} /></div></section>}
     {(shell.journey || []).length > 0 && <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Current chapter</h2><button className="text-sm font-semibold" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, owner ? '/portfolio/journey' : `/user/${username}/journey`)); window.dispatchEvent(new PopStateEvent('popstate')) }}>View journey</button></div><JourneyTimeline entries={((shell.journey || []).filter((entry: JourneyEntry) => entry.is_current).slice(0, 1).length ? (shell.journey || []).filter((entry: JourneyEntry) => entry.is_current).slice(0, 1) : (shell.journey || []).slice(0, 1))} owner={owner} orgslug={orgslug} username={username} /></section>}
     {(featured.length > 0 || (owner && shell.capabilities?.work?.unlocked)) && <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Selected work</h2>{shell.work.length > 0 && <button className="text-sm font-semibold" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, owner ? '/portfolio/work' : `/user/${username}/work`)); window.dispatchEvent(new PopStateEvent('popstate')) }}>View all</button>}</div>{featured.length ? <WorkCards work={featured} owner={owner} orgslug={orgslug} username={username} /> : owner ? <EmptyWork orgslug={orgslug} /> : null}</section>}
     {owner && shell.portfolio.has_legacy_portfolio && <section className="rounded-2xl border border-dashed border-border p-6"><h2 className="font-bold">Have an older Launch LMS portfolio?</h2><p className="mt-1 text-sm text-muted-foreground">Import a copy into the new builder. Your original profile data stays untouched.</p><Button className="mt-4" variant="outline" disabled={busy} onClick={importLegacy}>Preview and import legacy work</Button></section>}

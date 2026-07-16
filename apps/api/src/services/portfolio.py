@@ -14,6 +14,8 @@ from src.db.portfolio import (
     PortfolioSection,
     PortfolioLink,
     PortfolioUpdate,
+    PortfolioTraitsUpdate,
+    ProfileTrait,
     PortfolioVisibility,
     PublishRequest,
     JourneyEntry,
@@ -217,6 +219,11 @@ def portfolio_shell(portfolio: Portfolio, db_session: Session, public_only: bool
     socials_migrated = bool((portfolio.theme_settings or {}).get("socials_migrated"))
     work = list(db_session.exec(_work_query(portfolio.id or 0, public_only=public_only)).all())
     journey = list(db_session.exec(_journey_query(portfolio.id or 0, public_only=public_only)).all())
+    bind = db_session.get_bind()
+    trait_query = select(ProfileTrait).where(ProfileTrait.portfolio_id == portfolio.id).order_by(ProfileTrait.sort_order)
+    traits = list(db_session.exec(trait_query).all()) if bind is not None and inspect(bind).has_table("profiletrait") else []
+    if public_only:
+        traits = [item for item in traits if _enum_value(item.visibility) != PortfolioVisibility.PRIVATE.value]
     meaningful_count = len(work) + len(journey)
     launch_ready = _launch_ready_state(portfolio.user_id, db_session, len(work), len(journey)) if not public_only else None
     blockers = _readiness_blockers(portfolio, meaningful_count)
@@ -257,7 +264,27 @@ def portfolio_shell(portfolio: Portfolio, db_session: Session, public_only: bool
         "permissions": {"canEdit": not public_only, "canPublish": not public_only and state != "restricted"},
         "work": [_work_dto(item, db_session, public_only=public_only) for item in work],
         "journey": [_journey_dto(item, db_session, public_only=public_only) for item in journey],
+        "traits": {kind: [item.label for item in traits if item.trait_type == kind] for kind in ("strength", "value")},
     }
+
+
+def update_traits(payload: PortfolioTraitsUpdate, current_user: PublicUser, db_session: Session) -> dict:
+    if payload.trait_type not in {"strength", "value"}:
+        raise HTTPException(status_code=422, detail="trait_type must be strength or value")
+    portfolio = get_or_create_portfolio(current_user, db_session)
+    existing = db_session.exec(select(ProfileTrait).where(ProfileTrait.portfolio_id == portfolio.id, ProfileTrait.trait_type == payload.trait_type)).all()
+    for item in existing:
+        db_session.delete(item)
+    now = datetime.utcnow().isoformat()
+    labels = list(dict.fromkeys(label.strip() for label in payload.labels if label.strip()))[:5]
+    for index, label in enumerate(labels):
+        db_session.add(ProfileTrait(trait_uuid=f"trt_{uuid4().hex}", portfolio_id=portfolio.id or 0, trait_type=payload.trait_type, label=label, source="manual", sort_order=index, creation_date=now, update_date=now))
+    portfolio.revision += 1
+    portfolio.update_date = now
+    db_session.add(portfolio)
+    db_session.commit()
+    db_session.refresh(portfolio)
+    return portfolio_shell(portfolio, db_session)
 
 
 def get_owner_shell(current_user: PublicUser, db_session: Session, mark_previewed: bool = False) -> dict:
