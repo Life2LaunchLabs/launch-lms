@@ -24,6 +24,7 @@ from src.db.portfolio import (
     Portfolio,
     PortfolioFeaturedWorkUpdate,
     PortfolioLink,
+    ProfileTrait,
     PortfolioSection,
     PortfolioUpdate,
     PublishRequest,
@@ -57,11 +58,20 @@ def _session():
             Portfolio.__table__,
             PortfolioSection.__table__,
             PortfolioLink.__table__,
+            ProfileTrait.__table__,
             WorkItem.__table__,
             WorkItemBlock.__table__,
             JourneyEntry.__table__,
             JourneyEntryBlock.__table__,
             JourneyWorkLink.__table__,
+            LearningBadge.__table__,
+            LearningPath.__table__,
+            LearningActivity.__table__,
+            LearningPage.__table__,
+            LearningRun.__table__,
+            LearningActivityRun.__table__,
+            LearningPageProgress.__table__,
+            LearningBadgeAward.__table__,
         ],
     )
     return Session(engine)
@@ -84,24 +94,8 @@ def _public(user):
     return PublicUser.model_validate(user)
 
 
-def test_launch_ready_next_action_uses_badge_path_order_and_page_completion():
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}
-    )
-    for model in (
-        User,
-        Organization,
-        LearningBadge,
-        LearningPath,
-        LearningActivity,
-        LearningPage,
-        LearningRun,
-        LearningActivityRun,
-        LearningPageProgress,
-        LearningBadgeAward,
-    ):
-        model.__table__.create(engine)
-    with Session(engine) as db:
+def test_launch_ready_checklist_is_content_derived():
+    with _session() as db:
         user = _user()
         db.add(user)
         badge = LearningBadge(
@@ -110,90 +104,54 @@ def test_launch_ready_next_action_uses_badge_path_order_and_page_completion():
             org_id=1,
             collection_id=1,
             name="Launch Ready",
+            system_type="onboarding",
         )
         path = LearningPath(
             id=1, path_uuid="learning_path_system_onboarding", badge_id=1, org_id=1
         )
         db.add(badge)
         db.add(path)
-        activities = [
-            LearningActivity(
-                id=1,
-                activity_uuid="learning_activity_system_onboarding_intro",
-                badge_id=1,
-                path_id=1,
-                org_id=1,
-                title="Introduce yourself",
-                order=1,
-            ),
-            LearningActivity(
-                id=2,
-                activity_uuid="learning_activity_custom_complete_portfolio",
-                badge_id=1,
-                path_id=1,
-                org_id=1,
-                title="Complete your portfolio",
-                thumbnail_image="/custom/complete.png",
-                order=2,
-            ),
-            LearningActivity(
-                id=3,
-                activity_uuid="learning_activity_system_onboarding_journey",
-                badge_id=1,
-                path_id=1,
-                org_id=1,
-                title="Add your current chapter",
-                order=3,
-            ),
-        ]
-        db.add_all(activities)
-        pages = [
-            LearningPage(
-                id=index,
-                page_uuid=f"page_{index}",
-                activity_id=index,
-                badge_id=1,
-                org_id=1,
-                page_type=LearningPageType.STANDARD,
-                title=f"Page {index}",
-                order=1,
-                required=True,
-            )
-            for index in range(1, 4)
-        ]
-        db.add_all(pages)
+        activity = LearningActivity(id=1, activity_uuid="learning_activity_system_onboarding_intro", badge_id=1, path_id=1, org_id=1, title="Introduce yourself", order=1)
+        db.add(activity)
         run = LearningRun(
             id=1, run_uuid="run_1", badge_id=1, path_id=1, org_id=1, user_id=1
         )
         db.add(run)
-        db.add(LearningPageProgress(run_id=1, page_id=1, complete=True))
+        db.add(LearningActivityRun(id=1, run_id=1, activity_id=1, status="completed"))
         db.commit()
 
         state = service._launch_ready_state(1, db)
 
-        assert state["nextAction"]["label"] == "Complete your portfolio"
-        assert state["nextAction"]["thumbnailImage"] == "/custom/complete.png"
-        assert state["progress"] == {"completed": 1, "total": 3}
+        assert state["completed"] == 1
+        assert state["total"] == 7
+        assert state["items"][0]["complete"] is True
+        assert state["nextIncomplete"]["key"] == "current_chapter"
+
+        portfolio = Portfolio(
+            portfolio_uuid="por_journey_checklist",
+            user_id=1,
+            creation_date="",
+            update_date="",
+        )
+        db.add(portfolio)
+        db.flush()
+        db.add(JourneyEntry(
+            journey_uuid="jrn_past",
+            portfolio_id=portfolio.id,
+            title="A previous chapter",
+            slug="previous-chapter",
+            is_current=False,
+            creation_date="",
+            update_date="",
+        ))
+        db.commit()
+
+        state = service._launch_ready_state(1, db, journey_count=1)
+        assert state["items"][1]["complete"] is True
 
 
-def test_launch_ready_award_unlocks_every_portfolio_capability():
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}
-    )
-    for model in (
-        User,
-        Organization,
-        LearningBadge,
-        LearningPath,
-        LearningActivity,
-        LearningPage,
-        LearningRun,
-        LearningActivityRun,
-        LearningPageProgress,
-        LearningBadgeAward,
-    ):
-        model.__table__.create(engine)
-    with Session(engine) as db:
+def test_existing_launch_ready_award_is_permanent_when_content_is_removed():
+    with _session() as db:
         user = _user()
         org = Organization(
             id=1,
@@ -213,55 +171,6 @@ def test_launch_ready_award_unlocks_every_portfolio_capability():
             id=1, path_uuid="learning_path_system_onboarding", badge_id=1, org_id=1
         )
         db.add_all([user, org, badge, path])
-        db.add_all(
-            [
-                LearningActivity(
-                    id=1,
-                    activity_uuid="learning_activity_system_onboarding_intro",
-                    badge_id=1,
-                    path_id=1,
-                    org_id=1,
-                    title="Introduce yourself",
-                    order=1,
-                ),
-                LearningActivity(
-                    id=2,
-                    activity_uuid="learning_activity_system_onboarding_journey",
-                    badge_id=1,
-                    path_id=1,
-                    org_id=1,
-                    title="Add your current chapter",
-                    order=2,
-                ),
-                LearningActivity(
-                    id=3,
-                    activity_uuid="learning_activity_system_onboarding_work",
-                    badge_id=1,
-                    path_id=1,
-                    org_id=1,
-                    title="Show work",
-                    order=3,
-                ),
-                LearningActivity(
-                    id=4,
-                    activity_uuid="learning_activity_system_onboarding_traits",
-                    badge_id=1,
-                    path_id=1,
-                    org_id=1,
-                    title="Traits",
-                    order=4,
-                ),
-                LearningActivity(
-                    id=5,
-                    activity_uuid="learning_activity_system_onboarding_launch",
-                    badge_id=1,
-                    path_id=1,
-                    org_id=1,
-                    title="You did it",
-                    order=5,
-                ),
-            ]
-        )
         db.add(
             LearningBadgeAward(
                 award_uuid="award_launch_ready", badge_id=1, org_id=1, user_id=1
@@ -271,12 +180,8 @@ def test_launch_ready_award_unlocks_every_portfolio_capability():
 
         state = service._launch_ready_state(1, db)
 
-        assert state["nextAction"] is None
-        assert state["progress"] == {"completed": 5, "total": 5}
-        assert all(
-            capability["unlocked"] for capability in state["capabilities"].values()
-        )
-        assert state["capabilities"]["resume"]["reason"] == "badge_earned"
+        assert state["earned"] is True
+        assert state["completed"] == 0
 
 
 def test_private_by_default_and_created_work_is_public_after_portfolio_publish():
@@ -327,23 +232,17 @@ def test_private_by_default_and_created_work_is_public_after_portfolio_publish()
         assert public["work"][0]["title"] == "My first build"
 
 
-def test_unpublished_portfolio_action_explains_preview_then_publish_flow():
+def test_empty_portfolio_can_publish_without_preview():
     with _session() as db:
         user = _user()
         db.add(user)
         db.commit()
         actor = _public(user)
-        service.create_work(WorkItemCreate(title="Ready to share"), actor, db)
-        portfolio = service._get_portfolio(db, 1)
-        portfolio.previewed_at = service._now()
-        db.add(portfolio)
-        db.commit()
+        portfolio = service.get_or_create_portfolio(actor, db)
+        published = service.publish_portfolio(PublishRequest(revision=portfolio.revision, privacy_confirmed=True), actor, db)
 
-        action = service.get_owner_shell(actor, db)["nextAction"]
-
-        assert action["label"] == "Your portfolio is ready to publish"
-        assert action["ctaLabel"] == "Review and publish"
-        assert action["href"] == "/portfolio/preview"
+        assert published["portfolio"]["published_at"] is not None
+        assert published["readiness"]["canPublish"] is True
 
 
 def test_public_shell_uses_allowlisted_dtos_without_internal_fields():

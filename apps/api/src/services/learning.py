@@ -1575,6 +1575,9 @@ def _issue_award_if_complete(
 ) -> LearningBadgeAward | None:
     if run.user_id is None:
         return None
+    badge = db_session.get(LearningBadge, run.badge_id)
+    if badge and (badge.badge_metadata or {}).get("award_strategy") == "portfolio_checklist":
+        return None
     required_activities = db_session.exec(
         select(LearningActivity).where(
             LearningActivity.path_id == run.path_id,
@@ -2051,6 +2054,7 @@ def ensure_onboarding_learning_badge(
         badge.status = LearningBadgeStatus.PUBLISHED
         badge.protected = True
         badge.system_type = LEARNING_SYSTEM_TYPE_ONBOARDING
+        badge.badge_metadata = {**(badge.badge_metadata or {}), "award_strategy": "portfolio_checklist"}
         badge.update_date = now
         db_session.add(badge)
 
@@ -3404,10 +3408,39 @@ def ensure_onboarding_learning_badge(
         ],
     )
 
+    profile_activity = db_session.exec(select(LearningActivity).where(LearningActivity.activity_uuid == LAUNCH_READY_ACTIVITY_UUIDS["profile"])).first()
+    if profile_activity:
+        profile_order = {
+            "learning_page_system_onboarding_profile_photo": 3,
+            "learning_page_system_onboarding_profile_details": 4,
+            "learning_page_system_onboarding_profile_review": 5,
+        }
+        for profile_page in db_session.exec(select(LearningPage).where(LearningPage.activity_id == profile_activity.id)).all():
+            profile_page.activity_id = activity.id or profile_page.activity_id
+            profile_page.order = profile_order.get(profile_page.page_uuid, profile_page.order)
+            profile_page.update_date = now
+            db_session.add(profile_page)
+        profile_actions = ((profile_activity.settings or {}).get("outcomes") or {}).get("actions") or []
+        activity.settings = {
+            **(activity.settings or {}),
+            "system_required": True,
+            "estimated_minutes": 5,
+            "outcomes": {"version": 1, "actions": profile_actions},
+        }
+        db_session.add(activity)
+
+    for retired_activity in db_session.exec(select(LearningActivity).where(LearningActivity.badge_id == badge.id, LearningActivity.activity_uuid != ONBOARDING_ACTIVITY_UUID)).all():
+        retired_activity.required = False
+        retired_activity.published = False
+        retired_activity.settings = {**(retired_activity.settings or {}), "retired_from_launch_ready": True}
+        retired_activity.update_date = now
+        db_session.add(retired_activity)
+
+    badge.badge_metadata = {**(badge.badge_metadata or {}), "award_strategy": "portfolio_checklist"}
     badge.name = "Launch Ready"
     badge.description = "Build and launch your portfolio one useful step at a time."
     badge.about = "A guided path for introducing yourself, sharing your journey and work, and preparing your portfolio to publish."
-    badge.criteria = "Complete all Launch Ready activities."
+    badge.criteria = "Complete the seven Launch Ready portfolio checklist items."
     db_session.add(badge)
 
     db_session.commit()
@@ -3769,6 +3802,8 @@ async def get_path(
         .where(LearningActivity.path_id == path.id)
         .order_by(LearningActivity.order.asc())
     ).all()  # type: ignore
+    if badge.system_type == LEARNING_SYSTEM_TYPE_ONBOARDING:
+        activities = [activity for activity in activities if activity.published]
     pages = db_session.exec(
         select(LearningPage)
         .where(LearningPage.badge_id == badge.id)
@@ -3778,6 +3813,7 @@ async def get_path(
     for page in pages:
         pages_by_activity.setdefault(page.activity_id, []).append(page)
     run = None
+    non_path_award = None
     if actor:
         statement = select(LearningRun).where(LearningRun.path_id == path.id)
         for owner_filter in _actor_filters(LearningRun, actor):
@@ -3785,10 +3821,16 @@ async def get_path(
         run_obj = db_session.exec(statement).first()
         if run_obj:
             run = _serialize_run(db_session, run_obj)
+        if actor.user_id is not None:
+            candidate = db_session.exec(select(LearningBadgeAward).where(LearningBadgeAward.badge_id == badge.id, LearningBadgeAward.user_id == actor.user_id)).first()
+            if candidate and (candidate.source.value if hasattr(candidate.source, "value") else str(candidate.source)) != LearningAwardSource.PATH_COMPLETION.value:
+                non_path_award = candidate
+                if run:
+                    run.award = candidate.model_dump()
     return LearningPathRead(
         path=path.model_dump(),
         badge=LearningBadgeRead(**badge.model_dump()),
-        activities=[
+        activities=[] if non_path_award else [
             _serialize_activity(activity, pages_by_activity.get(activity.id or 0, []))
             for activity in activities
         ],

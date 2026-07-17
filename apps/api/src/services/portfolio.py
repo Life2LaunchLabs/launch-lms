@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from fastapi import HTTPException, status
 from sqlalchemy import inspect
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from src.db.portfolio import (
@@ -43,8 +44,10 @@ from src.db.learning import (
     LearningPage,
     LearningPageProgress,
     LearningRun,
+    LearningRunStatus,
+    LearningAwardSource,
 )
-from src.services.learning import LAUNCH_READY_ACTIVITY_UUIDS, ONBOARDING_BADGE_UUID
+from src.services.learning import ONBOARDING_ACTIVITY_UUID, ONBOARDING_BADGE_UUID
 
 
 DEFAULT_SECTIONS = (
@@ -106,15 +109,6 @@ def _portfolio_state(portfolio: Portfolio, meaningful_count: int) -> str:
 
 def _readiness_blockers(portfolio: Portfolio, meaningful_count: int) -> list[str]:
     blockers = []
-    if not (
-        portfolio.display_name.strip()
-        or portfolio.headline.strip()
-        or portfolio.short_bio.strip()
-        or meaningful_count
-    ):
-        blockers.append("meaningful_content_required")
-    if not portfolio.previewed_at:
-        blockers.append("public_preview_required")
     if not portfolio.privacy_confirmed_at:
         blockers.append("privacy_confirmation_required")
     if (
@@ -136,45 +130,11 @@ def _launch_ready_state(
 ) -> dict:
     bind = db_session.get_bind()
     if not inspect(bind).has_table("learningactivity"):
-        return {
-            "capabilities": {
-                "overview": {
-                    "unlocked": True,
-                    "reason": "always_available",
-                    "requiredActivity": None,
-                },
-                "work": {
-                    "unlocked": True,
-                    "reason": "not_configured",
-                    "requiredActivity": None,
-                },
-                "journey": {
-                    "unlocked": True,
-                    "reason": "not_configured",
-                    "requiredActivity": None,
-                },
-            },
-            "progress": {"completed": 0, "total": 0},
-            "nextAction": None,
-        }
+        return {"items": [], "completed": 0, "total": 0, "percent": 0, "nextIncomplete": None, "earned": False}
     badge = db_session.exec(
         select(LearningBadge).where(LearningBadge.badge_uuid == ONBOARDING_BADGE_UUID)
     ).first()
-    activities = (
-        list(
-            db_session.exec(
-                select(LearningActivity)
-                .where(
-                    LearningActivity.badge_id == badge.id,
-                    LearningActivity.activity_uuid
-                    != LAUNCH_READY_ACTIVITY_UUIDS["links"],
-                )  # type: ignore
-                .order_by(LearningActivity.order.asc())  # type: ignore
-            ).all()
-        )
-        if badge
-        else []
-    )
+    onboarding = db_session.exec(select(LearningActivity).where(LearningActivity.activity_uuid == ONBOARDING_ACTIVITY_UUID)).first()
     award = (
         db_session.exec(
             select(LearningBadgeAward).where(
@@ -185,156 +145,47 @@ def _launch_ready_state(
         if badge
         else None
     )
-    runs = (
-        list(
-            db_session.exec(
-                select(LearningRun).where(
-                    LearningRun.user_id == user_id, LearningRun.badge_id == badge.id
-                )
-            ).all()
-        )
-        if badge
-        else []
-    )
-    run_ids = {run.id for run in runs if run.id}
-    activity_runs = (
-        list(
-            db_session.exec(
-                select(LearningActivityRun).where(
-                    LearningActivityRun.run_id.in_(run_ids)
-                )
-            ).all()
-        )
-        if run_ids
-        else []
-    )  # type: ignore
-    by_activity = {item.activity_id: item for item in activity_runs}
-    completed_page_ids = (
-        {
-            item.page_id
-            for item in db_session.exec(
-                select(LearningPageProgress).where(
-                    LearningPageProgress.run_id.in_(run_ids),
-                    LearningPageProgress.complete == True,
-                )  # type: ignore
-            ).all()
-        }
-        if run_ids
-        else set()
-    )
-    required_pages = (
-        list(
-            db_session.exec(
-                select(LearningPage).where(
-                    LearningPage.badge_id == badge.id, LearningPage.required == True
-                )  # type: ignore
-            ).all()
-        )
-        if badge
-        else []
-    )
-    required_by_activity: dict[int, set[int]] = {}
-    for page in required_pages:
-        required_by_activity.setdefault(page.activity_id, set()).add(page.id or 0)
-    completed = {
-        activity.id or 0
-        for activity in activities
-        if required_by_activity.get(activity.id or 0)
-        and required_by_activity[activity.id or 0].issubset(completed_page_ids)
+    onboarding_complete = False
+    if onboarding:
+        onboarding_complete = bool(db_session.exec(select(LearningActivityRun).join(LearningRun, LearningActivityRun.run_id == LearningRun.id).where(LearningRun.user_id == user_id, LearningActivityRun.activity_id == onboarding.id, LearningActivityRun.status == LearningRunStatus.COMPLETED)).first())
+    portfolio = _get_portfolio(db_session, user_id)
+    traits = list(db_session.exec(select(ProfileTrait).where(ProfileTrait.portfolio_id == portfolio.id)).all()) if portfolio else []
+    has_journey = bool(portfolio and db_session.exec(select(JourneyEntry).where(JourneyEntry.portfolio_id == portfolio.id, JourneyEntry.status != PortfolioContentStatus.ARCHIVED)).first())
+    started_other_badge = bool(db_session.exec(select(LearningRun).join(LearningBadge, LearningRun.badge_id == LearningBadge.id).where(LearningRun.user_id == user_id, LearningBadge.system_type.is_(None))).first())  # type: ignore
+    facts = {
+        "onboarding": onboarding_complete,
+        "current_chapter": has_journey,
+        "work": work_count > 0,
+        "strength": any(item.trait_type == "strength" for item in traits),
+        "value": any(item.trait_type == "value" for item in traits),
+        "badge_started": started_other_badge,
+        "preview": bool(portfolio and portfolio.previewed_at),
     }
-    key_by_uuid = {value: key for key, value in LAUNCH_READY_ACTIVITY_UUIDS.items()}
-    configured = bool(activities)
-    capabilities = {
-        "overview": {
-            "unlocked": True,
-            "reason": "always_available",
-            "requiredActivity": None,
-        },
-        "journey": {
-            "unlocked": journey_count > 0 or not configured,
-            "reason": "existing_content"
-            if journey_count
-            else "launch_ready_required"
-            if configured
-            else "not_configured",
-            "requiredActivity": LAUNCH_READY_ACTIVITY_UUIDS["journey"],
-        },
-        "work": {
-            "unlocked": work_count > 0 or not configured,
-            "reason": "existing_content"
-            if work_count
-            else "launch_ready_required"
-            if configured
-            else "not_configured",
-            "requiredActivity": LAUNCH_READY_ACTIVITY_UUIDS["work"],
-        },
-        "resume": {
-            "unlocked": not configured,
-            "reason": "launch_ready_required" if configured else "not_configured",
-            "requiredActivity": LAUNCH_READY_ACTIVITY_UUIDS["launch"],
-        },
-    }
-    for activity in activities:
-        key = key_by_uuid.get(activity.activity_uuid)
-        if key:
-            unlocked = bool(award) or (activity.id or 0) in completed
-            if key in capabilities:
-                capabilities[key]["unlocked"] = (
-                    capabilities[key]["unlocked"] or unlocked
-                )
-                if unlocked:
-                    capabilities[key]["reason"] = (
-                        "badge_earned" if award else "activity_complete"
-                    )
-            else:
-                capabilities[key] = {
-                    "unlocked": unlocked,
-                    "reason": "badge_earned"
-                    if award and unlocked
-                    else "activity_complete"
-                    if unlocked
-                    else "launch_ready_required",
-                    "requiredActivity": activity.activity_uuid,
-                }
-    if award:
-        for capability in capabilities.values():
-            capability["unlocked"] = True
-            capability["reason"] = "badge_earned"
-    next_activity = (
-        None
-        if award
-        else next(
-            (item for item in activities if (item.id or 0) not in completed), None
-        )
-    )
-    next_run = by_activity.get(next_activity.id or 0) if next_activity else None
-    completed_count = (
-        len(activities)
-        if award
-        else len([item for item in activities if (item.id or 0) in completed])
-    )
-    next_action = None
-    if next_activity:
-        next_action = {
-            "id": f"launch-ready-{key_by_uuid.get(next_activity.activity_uuid, next_activity.activity_uuid)}",
-            "type": "activity",
-            "label": next_activity.title,
-            "supportingText": next_activity.description
-            or "Keep building your portfolio.",
-            "estimatedMinutes": int(
-                (next_activity.settings or {}).get("estimated_minutes", 3)
-            ),
-            "thumbnailImage": next_activity.thumbnail_image or "",
-            "href": f"/badges/{ONBOARDING_BADGE_UUID}/chapter/{next_activity.activity_uuid}?returnTo=/portfolio",
-            "progress": {"completed": completed_count, "total": len(activities)},
-            "priority": 100 if next_run else 90,
-            "resume": bool(next_run),
-        }
-    return {
-        "capabilities": capabilities,
-        "progress": {"completed": completed_count, "total": len(activities)},
-        "nextAction": next_action,
-    }
+    definitions = [
+        ("onboarding", "Complete your profile", "Add your name, introduction, and the basics that make this portfolio yours.", "/badges/badge_system_onboarding/chapter/learning_activity_system_onboarding_intro?returnTo=/portfolio"),
+        ("current_chapter", "Add a Journey chapter", "Share a current, recent, or formative part of your story.", "/portfolio/journey/new"),
+        ("work", "Add your first work item", "Show a project, performance, volunteer effort, hobby, or anything you made.", "/portfolio/work/new"),
+        ("strength", "Add a strength", "Name something you are good at or actively developing.", "/portfolio?edit=strengths"),
+        ("value", "Add a value", "Share what matters to you and guides your choices.", "/portfolio?edit=values"),
+        ("badge_started", "Start a badge", "Choose a badge path that matches something you want to learn or prove.", "/badges"),
+        ("preview", "Preview your portfolio", "See exactly what visitors will see before you share it.", "/portfolio/preview"),
+    ]
+    items = [{"key": key, "label": label, "supportingText": supporting, "href": href, "complete": facts[key]} for key, label, supporting, href in definitions]
+    completed_count = sum(1 for item in items if item["complete"])
+    if badge and completed_count == len(items) and not award:
+        now = datetime.utcnow()
+        award = LearningBadgeAward(award_uuid=f"award_{uuid4()}", badge_id=badge.id or 0, org_id=badge.org_id, user_id=user_id, source=LearningAwardSource.CHECKLIST_COMPLETION, issued_at=now, evidence={"type": "portfolio_launch_ready_checklist", "items": [item["key"] for item in items]}, creation_date=str(now), update_date=str(now))
+        try:
+            with db_session.begin_nested():
+                db_session.add(award)
+                db_session.flush()
+            db_session.commit()
+            db_session.refresh(award)
+        except IntegrityError:
+            db_session.rollback()
+            award = db_session.exec(select(LearningBadgeAward).where(LearningBadgeAward.badge_id == badge.id, LearningBadgeAward.user_id == user_id)).first()
+    next_incomplete = next((item for item in items if not item["complete"]), None)
+    return {"items": items, "completed": completed_count, "total": len(items), "percent": round(completed_count / len(items) * 100), "nextIncomplete": next_incomplete, "earned": bool(award)}
 
 
 def get_or_create_portfolio(current_user: PublicUser, db_session: Session) -> Portfolio:
@@ -746,7 +597,9 @@ def portfolio_shell(
     in_progress_badges = [
         badge_dto(badges_by_id[item.badge_id], "in_progress")
         for item in runs
-        if item.badge_id in in_progress_ids and item.badge_id in badges_by_id
+        if item.badge_id in in_progress_ids
+        and item.badge_id in badges_by_id
+        and badges_by_id[item.badge_id].badge_uuid != ONBOARDING_BADGE_UUID
     ]
     earned_badges = list({item["badge_uuid"]: item for item in earned_badges}.values())
     in_progress_badges = list(
@@ -782,73 +635,26 @@ def portfolio_shell(
         {"key": "overview", "visible": True, "itemCount": 1},
         {
             "key": "work",
-            "visible": bool(work)
-            or bool(
-                launch_ready
-                and launch_ready["capabilities"].get("work", {}).get("unlocked")
-            ),
+            "visible": not public_only or bool(work),
             "itemCount": len(work),
         },
         {
             "key": "journey",
-            "visible": bool(journey)
-            or bool(
-                launch_ready
-                and launch_ready["capabilities"].get("journey", {}).get("unlocked")
-            ),
+            "visible": not public_only or bool(journey),
             "itemCount": len(journey),
         },
         {
             "key": "resume",
-            "visible": bool(
-                launch_ready
-                and launch_ready["capabilities"].get("resume", {}).get("unlocked")
-            ),
-            "itemCount": 1,
+            "visible": not public_only or bool(work or journey),
+            "itemCount": len(work) + len(journey),
         },
         {
             "key": "badges",
-            "visible": bool(public_only and earned_badges)
-            or bool(
-                launch_ready
-                and launch_ready["capabilities"].get("badges", {}).get("unlocked")
-            ),
+            "visible": not public_only or bool(earned_badges),
             "itemCount": len(earned_badges)
             + (0 if public_only else len(in_progress_badges)),
         },
     ]
-    next_action = None
-    if not public_only and launch_ready and launch_ready.get("nextAction"):
-        next_action = launch_ready["nextAction"]
-    elif not public_only:
-        if "meaningful_content_required" in blockers:
-            next_action = {
-                "id": "add-work",
-                "type": "portfolio",
-                "label": "Show something you've done",
-                "href": "/portfolio/work/new",
-                "priority": 80,
-            }
-        elif "public_preview_required" in blockers:
-            next_action = {
-                "id": "preview",
-                "type": "portfolio",
-                "label": "Review your portfolio before publishing",
-                "supportingText": "See exactly what visitors will see, then publish when it looks right.",
-                "ctaLabel": "Review and publish",
-                "href": "/portfolio/preview",
-                "priority": 70,
-            }
-        elif not portfolio.published_at:
-            next_action = {
-                "id": "publish",
-                "type": "portfolio",
-                "label": "Your portfolio is ready to publish",
-                "supportingText": "Give it one final review, then make it visible to visitors from the preview screen.",
-                "ctaLabel": "Review and publish",
-                "href": "/portfolio/preview",
-                "priority": 60,
-            }
     return {
         "portfolio": (
             {
@@ -879,6 +685,8 @@ def portfolio_shell(
                 if public_only
                 else {
                     "moderation_status": _enum_value(portfolio.moderation_status),
+                    "email": user.email if user else "",
+                    "email_verified": bool(user.email_verified) if user else False,
                     "has_legacy_portfolio": bool(
                         legacy_preview["work"] or legacy_preview["journey"]
                     )
@@ -889,14 +697,11 @@ def portfolio_shell(
         "views": views,
         "readiness": {
             "canPublish": not blockers,
-            "completed": 3
-            - len([b for b in blockers if b != "moderation_clearance_required"]),
-            "total": 3,
+            "completed": int("privacy_confirmation_required" not in blockers),
+            "total": 1,
             "blockers": blockers,
         },
-        "nextAction": next_action,
-        "capabilities": launch_ready["capabilities"] if launch_ready else {},
-        "launchReady": launch_ready["progress"] if launch_ready else None,
+        "checklist": launch_ready,
         "permissions": {
             "canEdit": not public_only,
             "canPublish": not public_only and state != "restricted",
@@ -1263,18 +1068,6 @@ def create_work(
     payload: WorkItemCreate, current_user: PublicUser, db_session: Session
 ) -> dict:
     portfolio = get_or_create_portfolio(current_user, db_session)
-    existing_count = len(db_session.exec(_work_query(portfolio.id or 0)).all())
-    capability = _launch_ready_state(
-        current_user.id, db_session, work_count=existing_count
-    )["capabilities"].get("work", {})
-    if capability and not capability.get("unlocked"):
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "code": "launch_ready_required",
-                "required_activity": capability.get("requiredActivity"),
-            },
-        )
     if payload.idempotency_key:
         existing = db_session.exec(
             select(WorkItem).where(
@@ -1501,18 +1294,6 @@ def create_journey(
     payload: JourneyEntryCreate, current_user: PublicUser, db_session: Session
 ) -> dict:
     portfolio = get_or_create_portfolio(current_user, db_session)
-    existing_count = len(db_session.exec(_journey_query(portfolio.id or 0)).all())
-    capability = _launch_ready_state(
-        current_user.id, db_session, journey_count=existing_count
-    )["capabilities"].get("journey", {})
-    if capability and not capability.get("unlocked"):
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "code": "launch_ready_required",
-                "required_activity": capability.get("requiredActivity"),
-            },
-        )
     if payload.idempotency_key:
         existing = db_session.exec(
             select(JourneyEntry).where(
@@ -1646,17 +1427,6 @@ def publish_portfolio(
     payload: PublishRequest, current_user: PublicUser, db_session: Session
 ) -> dict:
     portfolio = get_or_create_portfolio(current_user, db_session)
-    capability = _launch_ready_state(current_user.id, db_session)["capabilities"].get(
-        "launch", {}
-    )
-    if capability and not capability.get("unlocked"):
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "code": "launch_ready_required",
-                "required_activity": capability.get("requiredActivity"),
-            },
-        )
     _check_revision(portfolio.revision, payload.revision)
     if payload.privacy_confirmed:
         portfolio.privacy_confirmed_at = _now()

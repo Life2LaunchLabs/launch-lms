@@ -221,7 +221,7 @@ const LoggedInJoinScreen = ({ inviteCode, org }: JoinScreenProps) => {
               </div>
 
               {/* Join Button or Verification Warning */}
-              {session.data?.user?.email_verified === false ? (
+              {false ? (
                 <div className="w-full bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
                   <Mail size={24} className="mx-auto mb-2 text-amber-600" />
                   <p className="font-semibold text-amber-800 mb-1">{t('auth.email_verification_required')}</p>

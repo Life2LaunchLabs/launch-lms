@@ -16,7 +16,7 @@ const cardVariants = cva(
         subtle:
           "border-border bg-muted shadow-none",
         filled:
-          "border-[var(--org-primary-color)] bg-[var(--org-primary-color)] text-white shadow-none",
+          "border-[var(--org-primary-color)] bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)] shadow-none",
         flat:
           "border-border shadow-none",
       },
