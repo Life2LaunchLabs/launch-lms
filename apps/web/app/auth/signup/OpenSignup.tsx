@@ -96,12 +96,6 @@ function OpenSignUpComponent({
       let res = await signup(values)
       let result = await res.json()
       if (res.status == 200) {
-        if (result?.email_verified === false) {
-          setError(t('auth.email_not_verified_message'))
-          setIsSubmitting(false)
-          return
-        }
-
         const callbackUrl = postSignupUrl
         const signInRes = await signIn('credentials', {
           redirect: false,

@@ -685,6 +685,8 @@ def portfolio_shell(
                 if public_only
                 else {
                     "moderation_status": _enum_value(portfolio.moderation_status),
+                    "email": user.email if user else "",
+                    "email_verified": bool(user.email_verified) if user else False,
                     "has_legacy_portfolio": bool(
                         legacy_preview["work"] or legacy_preview["journey"]
                     )

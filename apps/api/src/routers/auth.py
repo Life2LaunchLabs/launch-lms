@@ -45,10 +45,7 @@ from src.services.security.account_lockout import (
     update_login_info,
     format_lockout_message,
 )
-from src.services.users.welcome_claim import (
-    create_welcome_claim,
-    resolve_welcome_claim,
-)
+from src.services.users.welcome_claim import resolve_welcome_claim
 from src.services.users.email_verification import (
     verify_email_token,
     resend_verification_email,
@@ -628,30 +625,6 @@ async def complete_welcome_signup(
         "redirect_url": _learning_onboarding_redirect_url(owner_org, badge.badge_uuid, activity.activity_uuid),
     }
 
-    # Hard gate: when email verification is required, attach any guest progress
-    # to the new account but do not issue a session until the email is verified.
-    # The claim token lets the signup tab poll and pick up its session once the
-    # email is verified, without re-entering credentials.
-    if (
-        get_launchlms_config().general_config.email_verification_required
-        and not user.email_verified
-    ):
-        transfer_guest_session_data_to_user(
-            request=request,
-            response=response,
-            db_session=db_session,
-            user=UserRead.model_validate(user),
-        )
-        claim_token = create_welcome_claim(
-            user.user_uuid, onboarding_payload["redirect_url"]
-        )
-        return {
-            "user": UserRead.model_validate(user),
-            "verification_required": True,
-            "claim_token": claim_token,
-            "onboarding": onboarding_payload,
-        }
-
     access_token = create_access_token(
         data={"sub": user.email},
         expires_delta=JWT_ACCESS_TOKEN_EXPIRES,
@@ -842,18 +815,8 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Step 5: Check email verification when explicitly enabled
-    if not user.email_verified and get_launchlms_config().general_config.email_verification_required:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "code": "EMAIL_NOT_VERIFIED",
-                "message": "Please verify your email address before logging in. Check your inbox for the verification email.",
-                "email": user.email,
-            },
-        )
-
-    # Step 6: Reset failed attempts and update login info
+    # Step 5: Reset failed attempts and update login info. Email verification is
+    # encouraged after signup, but it never prevents access to the account.
     reset_failed_attempts(user, db_session)
     client_ip = get_client_ip(request)
     update_login_info(user, client_ip, db_session)
