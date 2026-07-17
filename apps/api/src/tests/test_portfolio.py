@@ -9,7 +9,6 @@ from src.db.learning import (
     LearningBadgeAward,
     LearningPage,
     LearningPageProgress,
-    LearningPageType,
     LearningPath,
     LearningRun,
 )
@@ -23,6 +22,7 @@ from src.db.portfolio import (
     JourneyWorkLink,
     Portfolio,
     PortfolioFeaturedWorkUpdate,
+    PortfolioTraitsUpdate,
     PortfolioLink,
     ProfileTrait,
     PortfolioSection,
@@ -85,6 +85,7 @@ def _user(user_id=1, username="maya"):
         first_name="Maya",
         last_name="Rivera",
         email=f"{username}@example.com",
+        email_verified=True,
         profile={},
         details={},
     )
@@ -243,6 +244,40 @@ def test_empty_portfolio_can_publish_without_preview():
 
         assert published["portfolio"]["published_at"] is not None
         assert published["readiness"]["canPublish"] is True
+
+
+def test_unverified_user_cannot_publish():
+    with _session() as db:
+        user = _user()
+        user.email_verified = False
+        db.add(user)
+        db.commit()
+        portfolio = service.get_or_create_portfolio(_public(user), db)
+
+        with pytest.raises(HTTPException) as error:
+            service.publish_portfolio(
+                PublishRequest(revision=portfolio.revision, privacy_confirmed=True),
+                _public(user),
+                db,
+            )
+
+        assert error.value.status_code == 403
+
+
+def test_traits_allow_more_than_five_labels():
+    with _session() as db:
+        user = _user()
+        db.add(user)
+        db.commit()
+        labels = [f"Value {index}" for index in range(8)]
+
+        shell = service.update_traits(
+            PortfolioTraitsUpdate(trait_type="value", labels=labels),
+            _public(user),
+            db,
+        )
+
+        assert shell["traits"]["value"] == labels
 
 
 def test_public_shell_uses_allowlisted_dtos_without_internal_fields():

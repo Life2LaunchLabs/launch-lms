@@ -1,5 +1,5 @@
 'use client'
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
@@ -36,11 +36,6 @@ import {
   getPrimaryOrgMenuItems,
   OrgMenuNavItem,
 } from './OrgMenuLinks'
-import {
-  getOnboardingUserKey,
-  OnboardingFeatureKey,
-  useOrgOnboarding,
-} from '@components/Onboarding/orgOnboarding'
 import { cn } from '@/lib/utils'
 import { Z_INDEX } from '@/lib/z-index'
 
@@ -68,12 +63,6 @@ export const OrgMenu = (props: { orgslug: string }) => {
   )
   const hasAdminOrgs = Array.isArray(adminOrgs) && adminOrgs.length > 0
   const adminPanelHref = getUriWithOrg(getDefaultOrg(), routePaths.owner.account.orgAdmin())
-  const onboardingUserKey = getOnboardingUserKey(session)
-  const { state: onboardingState, markFeatureVisited } = useOrgOnboarding(
-    orgslug,
-    onboardingUserKey
-  )
-
   const topOffset = isJoinBannerVisible ? JOIN_BANNER_HEIGHT : 0
   const config = org?.config?.config
   const resolvedFeatures = config?.resolved_features
@@ -81,37 +70,6 @@ export const OrgMenu = (props: { orgslug: string }) => {
   const isActivityPage = pathname?.includes('/activity/')
   const isCoursePage = /^\/course\/[^/]+$/.test(pathname || '')
   const isPublicCourseExperience = isCoursePage || isActivityPage
-  useEffect(() => {
-    if (session?.status !== 'authenticated' || !pathname) {
-      return
-    }
-
-    const featureMatchers: Array<{
-      feature: OnboardingFeatureKey
-      matches: boolean
-    }> = [
-      {
-        feature: 'courses',
-        matches:
-          (!pathname.includes('/portfolio') && pathname.includes('/badges')) ||
-          pathname.includes('/courses') ||
-          pathname.includes('/course/') ||
-          pathname.includes('/collection/'),
-      },
-      {
-        feature: 'resources',
-        matches:
-          pathname.includes('/resources') || pathname.includes('/resource/'),
-      },
-    ]
-
-    featureMatchers.forEach(({ feature, matches }) => {
-      if (matches && !onboardingState.visitedFeatures[feature]) {
-        markFeatureVisited(feature)
-      }
-    })
-  }, [markFeatureVisited, onboardingState.visitedFeatures, pathname, session?.status])
-
   if (session?.status === 'unauthenticated') {
     if (isPublicCourseExperience) {
       return null
@@ -282,11 +240,6 @@ export const OrgMenu = (props: { orgslug: string }) => {
                     item={item}
                     orgslug={orgslug}
                     isExpanded={isDesktopNavExpanded}
-                    showOnboardingBadge={
-                      item.onboardingFeature
-                        ? !onboardingState.visitedFeatures[item.onboardingFeature]
-                        : false
-                    }
                   />
                 ))}
               </nav>
@@ -334,11 +287,6 @@ export const OrgMenu = (props: { orgslug: string }) => {
               key={item.href || item.label}
               item={item}
               orgslug={orgslug}
-              showOnboardingBadge={
-                item.onboardingFeature
-                  ? !onboardingState.visitedFeatures[item.onboardingFeature]
-                  : false
-              }
             />
           ))}
           <MobileMoreMenu
@@ -368,7 +316,6 @@ function SidebarItem({
   muted = false,
   isExpanded = false,
   onAction,
-  showOnboardingBadge = false,
 }: SidebarItemProps) {
   const baseClass = item.active
     ? 'bg-foreground/[0.07] text-foreground shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]'
@@ -396,11 +343,6 @@ function SidebarItem({
       >
         {item.label}
       </span>
-      {showOnboardingBadge ? (
-        <>
-          <span className={cn('absolute h-2.5 w-2.5 rounded-full bg-[#f97316]', isExpanded ? 'right-2.5 top-2.5' : 'right-1.5 top-1.5')} />
-        </>
-      ) : null}
     </>
   )
 
@@ -446,7 +388,6 @@ type SidebarItemProps = {
   muted?: boolean
   isExpanded?: boolean
   onAction?: React.Dispatch<string | undefined>
-  showOnboardingBadge?: boolean
 }
 
 function DesktopAccountLink({
@@ -555,11 +496,9 @@ function DesktopAccountLink({
 function MobileNavItem({
   item,
   orgslug,
-  showOnboardingBadge = false,
 }: {
   item: OrgMenuNavItem
   orgslug: string
-  showOnboardingBadge?: boolean
 }) {
   return (
     <Link
@@ -572,9 +511,6 @@ function MobileNavItem({
       }`}
     >
       {item.icon}
-      {showOnboardingBadge ? (
-        <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-[#f97316]" />
-      ) : null}
     </Link>
   )
 }

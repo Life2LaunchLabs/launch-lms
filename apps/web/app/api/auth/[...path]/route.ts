@@ -15,7 +15,7 @@ const BACKEND_URL = (process.env.LAUNCHLMS_INTERNAL_BACKEND_URL || getConfig('NE
 const GUEST_SESSION_COOKIE = 'guest_session_cookie'
 
 // Paths that return tokens in response body (relative to /api/v1/auth/)
-const TOKEN_RESPONSE_PATHS = ['login', 'refresh', 'oauth', 'signup']
+const TOKEN_RESPONSE_PATHS = ['login', 'refresh', 'oauth', 'signup', 'change-email']
 
 function shouldExtractTokens(path: string): boolean {
   return TOKEN_RESPONSE_PATHS.some(p => path.startsWith(p))

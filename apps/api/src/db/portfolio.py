@@ -225,7 +225,7 @@ class PortfolioUpdate(SQLModel):
 
 class PortfolioTraitsUpdate(SQLModel):
     trait_type: str
-    labels: list[str] = Field(default_factory=list, max_length=5)
+    labels: list[str] = Field(default_factory=list)
 
 
 class PortfolioFeaturedBadgesUpdate(SQLModel):

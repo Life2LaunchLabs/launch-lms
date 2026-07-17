@@ -508,6 +508,10 @@ def apply_portfolio_outcomes(
         elif kind == "confirm_privacy":
             portfolio.privacy_confirmed_at = now
         elif kind == "publish_portfolio":
+            if not user.email_verified:
+                raise PortfolioActionError(
+                    action_id, "publish", "Email verification is required"
+                )
             if not portfolio.privacy_confirmed_at:
                 raise PortfolioActionError(
                     action_id, "publish", "Privacy confirmation is required"

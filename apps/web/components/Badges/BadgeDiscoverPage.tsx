@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
-import { Award, Flag, Play } from 'lucide-react'
+import { Award, ChevronDown, Flag, Play } from 'lucide-react'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/FeatureDisabledView'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
@@ -35,6 +35,7 @@ type BadgeCatalogItem = {
 type BadgeDiscoverPageProps = {
   orgslug: string
   collections: any[]
+  choosingBadge?: boolean
 }
 
 function cleanBadgeUuid(value?: string | null) {
@@ -303,7 +304,7 @@ function EmptyBadgeState({ children }: { children: React.ReactNode }) {
   )
 }
 
-function BadgeDiscoverContent({ orgslug, collections }: BadgeDiscoverPageProps) {
+function BadgeDiscoverContent({ orgslug, collections, choosingBadge }: BadgeDiscoverPageProps) {
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
 
@@ -361,6 +362,16 @@ function BadgeDiscoverContent({ orgslug, collections }: BadgeDiscoverPageProps) 
 
   return (
     <div className="flex flex-col gap-4 pb-10 pt-5 md:pt-0">
+      {choosingBadge ? (
+        <section className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl bg-[var(--org-primary-color)] px-4 py-3 text-[var(--org-on-primary-color)] shadow-sm" aria-labelledby="choose-a-badge-title">
+          <Award className="h-5 w-5" aria-hidden="true" />
+          <div className="min-w-0">
+            <h1 id="choose-a-badge-title" className="truncate text-sm font-black">Pick a badge to start</h1>
+            <p className="mt-0.5 truncate text-xs opacity-80">Choose one that interests you, open it, and select <strong className="font-black">Start badge</strong>.</p>
+          </div>
+          <ChevronDown className="h-5 w-5 opacity-75" aria-hidden="true" />
+        </section>
+      ) : null}
       <BadgesHero featuredBadge={featuredBadges[0]} orgslug={orgslug} />
 
       <BadgeCarousel title="Pick up where you left off">

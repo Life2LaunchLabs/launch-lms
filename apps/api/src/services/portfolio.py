@@ -165,9 +165,9 @@ def _launch_ready_state(
         ("onboarding", "Complete your profile", "Add your name, introduction, and the basics that make this portfolio yours.", "/badges/badge_system_onboarding/chapter/learning_activity_system_onboarding_intro?returnTo=/portfolio"),
         ("current_chapter", "Add a Journey chapter", "Share a current, recent, or formative part of your story.", "/portfolio/journey/new"),
         ("work", "Add your first work item", "Show a project, performance, volunteer effort, hobby, or anything you made.", "/portfolio/work/new"),
-        ("strength", "Add a strength", "Name something you are good at or actively developing.", "/portfolio?edit=strengths"),
-        ("value", "Add a value", "Share what matters to you and guides your choices.", "/portfolio?edit=values"),
-        ("badge_started", "Start a badge", "Choose a badge path that matches something you want to learn or prove.", "/badges"),
+        ("strength", "Add your strengths", "Name what you are good at or actively developing.", "/portfolio?edit=strengths"),
+        ("value", "Add your values", "Share what matters to you and guides your choices.", "/portfolio?edit=values"),
+        ("badge_started", "Find a badge to start", "Choose something you want to learn or prove, then start its badge path.", "/badges?choose=1"),
         ("preview", "Preview your portfolio", "See exactly what visitors will see before you share it.", "/portfolio/preview"),
     ]
     items = [{"key": key, "label": label, "supportingText": supporting, "href": href, "complete": facts[key]} for key, label, supporting, href in definitions]
@@ -630,6 +630,8 @@ def portfolio_shell(
         featured_badges += in_progress_badges
     featured_badges = featured_badges[:5]
     blockers = _readiness_blockers(portfolio, meaningful_count)
+    if not public_only and user and not user.email_verified:
+        blockers.append("email_verification_required")
     state = _portfolio_state(portfolio, meaningful_count)
     views = [
         {"key": "overview", "visible": True, "itemCount": 1},
@@ -697,8 +699,9 @@ def portfolio_shell(
         "views": views,
         "readiness": {
             "canPublish": not blockers,
-            "completed": int("privacy_confirmation_required" not in blockers),
-            "total": 1,
+            "completed": int("privacy_confirmation_required" not in blockers)
+            + int("email_verification_required" not in blockers),
+            "total": 2,
             "blockers": blockers,
         },
         "checklist": launch_ready,
@@ -886,7 +889,7 @@ def update_traits(
     now = datetime.utcnow().isoformat()
     labels = list(
         dict.fromkeys(label.strip() for label in payload.labels if label.strip())
-    )[:5]
+    )
     for index, label in enumerate(labels):
         db_session.add(
             ProfileTrait(
@@ -1427,6 +1430,9 @@ def publish_portfolio(
     payload: PublishRequest, current_user: PublicUser, db_session: Session
 ) -> dict:
     portfolio = get_or_create_portfolio(current_user, db_session)
+    user = db_session.exec(select(User).where(User.id == current_user.id)).first()
+    if not user or not user.email_verified:
+        raise HTTPException(status_code=403, detail="Verify your email before publishing")
     _check_revision(portfolio.revision, payload.revision)
     if payload.privacy_confirmed:
         portfolio.privacy_confirmed_at = _now()

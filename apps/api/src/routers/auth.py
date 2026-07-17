@@ -49,6 +49,7 @@ from src.services.users.welcome_claim import resolve_welcome_claim
 from src.services.users.email_verification import (
     verify_email_token,
     resend_verification_email,
+    invalidate_verification_tokens,
 )
 
 
@@ -603,6 +604,7 @@ async def complete_welcome_signup(
         user_create,
         owner_org.id or 0,
         signup_provider="onboarding",
+        send_verification=False,
     )
 
     user = db_session.exec(select(User).where(User.id == user_read.id)).first()
@@ -983,4 +985,49 @@ async def api_resend_verification_email(
         email=body.email,
         org_id=body.org_id,
     )
-    return {"message": result}
+    return {"message": result, "verified": result == "Email verified successfully"}
+
+
+class ChangeEmailRequest(BaseModel):
+    email: EmailStr
+
+
+@router.post("/change-email")
+async def api_change_email(
+    request: Request,
+    response: Response,
+    body: ChangeEmailRequest,
+    current_user: UserRead = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    """Change the signed-in user's unverified email and refresh their session."""
+    email = str(body.email).strip().lower()
+    user = db_session.exec(select(User).where(User.id == current_user.id)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.email_verified:
+        raise HTTPException(status_code=409, detail="Verified emails cannot be changed here")
+    duplicate = db_session.exec(select(User).where(User.email == email, User.id != user.id)).first()
+    if duplicate:
+        raise HTTPException(status_code=409, detail="Email already exists")
+
+    invalidate_verification_tokens(user.user_uuid, "none")
+    user.email = email
+    user.email_verified = False
+    user.email_verified_at = None
+    user.update_date = str(datetime.now())
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    access_token = create_access_token(data={"sub": user.email}, expires_delta=JWT_ACCESS_TOKEN_EXPIRES)
+    refresh_token = create_refresh_token(data={"sub": user.email})
+    set_auth_cookies(response, access_token, refresh_token, request)
+    return {
+        "user": UserRead.model_validate(user),
+        "tokens": {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "expiry": get_token_expiry_ms(),
+        },
+    }
