@@ -5,7 +5,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from fastapi import HTTPException, Request, UploadFile, status
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlmodel import Session, select
 
 from src.db.learning import (
@@ -381,6 +381,10 @@ def _public_badge_query(org_id: int | None = None):
     statement = select(LearningBadge).where(
         LearningBadge.public == True,
         LearningBadge.status.in_(PUBLIC_BADGE_STATUSES),
+        or_(
+            LearningBadge.system_type.is_(None),  # type: ignore
+            LearningBadge.system_type != LEARNING_SYSTEM_TYPE_ONBOARDING,
+        ),
     )
     if org_id is not None:
         statement = statement.where(LearningBadge.org_id == org_id)

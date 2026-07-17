@@ -96,6 +96,8 @@ export async function generateMetadata(props: MetadataProps): Promise<Metadata> 
 
 const BadgesPage = async (params: any) => {
   const orgslug = (await params.params).orgslug
+  const searchParams = await params.searchParams
+  const choosingBadge = searchParams?.choose === '1'
   const org = await getOrganizationContextInfo(orgslug, {
     revalidate: 1800,
     tags: ['organizations'],
@@ -150,6 +152,7 @@ const BadgesPage = async (params: any) => {
       <BadgeDiscoverPage
         orgslug={orgslug}
         collections={collections}
+        choosingBadge={choosingBadge}
       />
     </div>
   )

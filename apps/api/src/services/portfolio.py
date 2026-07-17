@@ -167,7 +167,7 @@ def _launch_ready_state(
         ("work", "Add your first work item", "Show a project, performance, volunteer effort, hobby, or anything you made.", "/portfolio/work/new"),
         ("strength", "Add your strengths", "Name what you are good at or actively developing.", "/portfolio?edit=strengths"),
         ("value", "Add your values", "Share what matters to you and guides your choices.", "/portfolio?edit=values"),
-        ("badge_started", "Start a badge", "Choose a badge path that matches something you want to learn or prove.", "/badges"),
+        ("badge_started", "Find a badge to start", "Choose something you want to learn or prove, then start its badge path.", "/badges?choose=1"),
         ("preview", "Preview your portfolio", "See exactly what visitors will see before you share it.", "/portfolio/preview"),
     ]
     items = [{"key": key, "label": label, "supportingText": supporting, "href": href, "complete": facts[key]} for key, label, supporting, href in definitions]

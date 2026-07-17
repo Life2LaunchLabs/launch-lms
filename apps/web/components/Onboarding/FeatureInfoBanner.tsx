@@ -1,6 +1,6 @@
 'use client'
 
-import { X } from 'lucide-react'
+import { Award, FolderOpen, X } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getOnboardingUserKey, OnboardingFeatureKey, useOrgOnboarding } from './orgOnboarding'
 
@@ -20,9 +20,9 @@ const FEATURE_COPY: Record<
   },
   resources: {
     eyebrow: 'About Resources',
-    title: 'All the resources you need in one place.',
+    title: 'Find what helps, right when you need it',
     description:
-      'Quickly find any information, tools, and support you need for life launching.',
+      'Browse practical guides, tools, and support for whatever comes next.',
   },
 }
 
@@ -46,30 +46,23 @@ export default function FeatureInfoBanner({
   }
 
   const copy = FEATURE_COPY[feature]
+  const Icon = feature === 'resources' ? FolderOpen : Award
 
   return (
-    <div
-      className="relative mb-4 overflow-hidden rounded-[6px] border border-white/20 bg-blue-900 bg-cover bg-center px-4 py-3 text-white shadow-sm sm:px-5"
-      style={{ backgroundImage: 'url(/rough_blue_background.png)' }}
-    >
-      <div className="pointer-events-none absolute inset-0 bg-white/25" />
+    <div className="mb-4 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl bg-[var(--org-primary-color)] px-4 py-3 text-[var(--org-on-primary-color)] shadow-sm">
+      <Icon className="h-5 w-5" aria-hidden="true" />
+      <div className="min-w-0">
+        <h2 className="truncate text-sm font-black">{copy.title}</h2>
+        <p className="mt-0.5 truncate text-xs opacity-80">{copy.description}</p>
+      </div>
       <button
         type="button"
         onClick={() => dismissFeatureBanner(feature)}
-        className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/15 hover:text-white"
+        className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--org-on-primary-color)] opacity-75 transition hover:bg-white/10 hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--org-on-primary-color)]"
         aria-label={`Dismiss ${copy.eyebrow}`}
       >
-        <X size={14} />
+        <X className="h-4 w-4" />
       </button>
-
-      <div className="relative z-10 max-w-3xl pr-9">
-        <h2 className="text-sm font-semibold tracking-tight text-white sm:text-[15px]">
-          {copy.title}
-        </h2>
-        <p className="mt-1 text-xs leading-5 text-white/82 sm:text-[13px]">
-          {copy.description}
-        </p>
-      </div>
     </div>
   )
 }
