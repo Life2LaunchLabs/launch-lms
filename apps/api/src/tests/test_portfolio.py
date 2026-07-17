@@ -9,7 +9,6 @@ from src.db.learning import (
     LearningBadgeAward,
     LearningPage,
     LearningPageProgress,
-    LearningPageType,
     LearningPath,
     LearningRun,
 )
