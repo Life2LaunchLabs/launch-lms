@@ -68,7 +68,7 @@ function VerifyEmailClient({ org }: VerifyEmailClientProps) {
                                 </span>
                                 {success && (
                                     <span className="text-sm ml-2">
-                                        · <Link href="/login" className="underline hover:no-underline">{t('auth.proceed_to_login')}</Link>
+                                        · <Link href="/portfolio" className="underline hover:no-underline">Return to your portfolio</Link>
                                     </span>
                                 )}
                             </div>
@@ -140,8 +140,8 @@ function VerifyEmailClient({ org }: VerifyEmailClientProps) {
                                     </div>
                                 </div>
                                 <p className="text-sm text-gray-500 text-center">
-                                    <Link href="/login" className="underline hover:no-underline">
-                                        {t('auth.email_verified_login_fallback')}
+                                    <Link href="/portfolio" className="underline hover:no-underline">
+                                        Return to your portfolio
                                     </Link>
                                 </p>
                             </div>

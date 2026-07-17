@@ -17,6 +17,7 @@ from config.config import get_launchlms_config
 from src.services.users.emails import send_email_verification_email
 from src.services.email.utils import get_base_url_from_request
 from src.services.security.rate_limiting import check_verification_resend_rate_limit
+from src.services.dev.dev import isDevModeEnabled
 
 
 # Token expiration time in seconds (1 hour)
@@ -248,6 +249,14 @@ async def resend_verification_email(
     # Check if already verified
     if user.email_verified:
         return "Email is already verified"
+
+    if isDevModeEnabled():
+        user.email_verified = True
+        user.email_verified_at = datetime.now(timezone.utc).isoformat()
+        user.update_date = str(datetime.now())
+        db_session.add(user)
+        db_session.commit()
+        return "Email verified successfully"
 
     # Send verification email
     await send_verification_email(request, db_session, user, org_id)

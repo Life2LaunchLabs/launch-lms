@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { ArrowLeft, ArrowRight, Award, BookOpen, Briefcase, Camera, Check, ChevronDown, Circle, Eye, EyeOff, FileText, FolderOpen, Globe, Globe2, GraduationCap, GripVertical, Instagram, Linkedin, MailWarning, MapPin, Minus, Pencil, Plus, Printer, Share2, Sparkles, Star, Trash2, WandSparkles, Youtube, X, Zap } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -17,7 +17,7 @@ import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { applyMediaAssetToUserAvatar, type MediaAsset } from '@services/media/library'
 import { getUserAvatarMediaDirectory, normalizeMediaUrl } from '@services/media/media'
-import { createPortfolioWork, dismissLegacyPortfolioImport, importLegacyPortfolio, publishMyPortfolio, unpublishMyPortfolio, updateMyPortfolio, updateMyPortfolioBadgeVisibility, updateMyPortfolioFeaturedBadges, updateMyPortfolioFeaturedWork, updateMyPortfolioSections, updateMyPortfolioTraits, updatePortfolioWork } from '@services/portfolio/portfolio'
+import { createPortfolioWork, dismissLegacyPortfolioImport, getMyPortfolio, importLegacyPortfolio, publishMyPortfolio, unpublishMyPortfolio, updateMyPortfolio, updateMyPortfolioBadgeVisibility, updateMyPortfolioFeaturedBadges, updateMyPortfolioFeaturedWork, updateMyPortfolioSections, updateMyPortfolioTraits, updatePortfolioWork } from '@services/portfolio/portfolio'
 import { CategorizedMultiSelect, PORTFOLIO_STRENGTHS, PORTFOLIO_VALUES, type CategorizedOption } from '@components/Portfolio/CategorizedMultiSelect'
 import { JourneyTimeline, journeyDateLabel, type JourneyEntry } from './Journey'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
@@ -38,7 +38,7 @@ function tabs(orgslug: string, username: string | undefined, owner: boolean, she
 }
 
 export function PortfolioShell({ initialShell, orgslug, username, owner = false, active = 'overview', preview = false }: { initialShell: Shell; orgslug: string; username?: string; owner?: boolean; active?: PortfolioView; preview?: boolean }) {
-  const router = useRouter()
+  const searchParams = useSearchParams()
   const reduceMotion = useReducedMotion()
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token
@@ -79,8 +79,8 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
   }, [activeView])
 
   useEffect(() => {
-    if (owner && new URLSearchParams(window.location.search).get('edit') === 'profile') setEditingIdentity(true)
-  }, [owner])
+    if (owner && searchParams.get('edit') === 'profile') setEditingIdentity(true)
+  }, [owner, searchParams])
 
   function changeView(view: PortfolioView, href: string) {
     if (view === activeView) return
@@ -131,7 +131,7 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
   }
 
   return <main className={`${activeView === 'resume' ? 'h-dvh overflow-hidden' : 'min-h-screen pb-20'} bg-background text-foreground`}>
-    {preview && <div className="border-b border-border px-4 py-3"><div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3"><div><span className="text-sm font-bold">Public preview</span><p className="text-xs text-muted-foreground">This is how visitors will see your portfolio.</p></div><div className="flex items-center gap-2"><Button asChild variant="outline" size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio')}><ArrowLeft className="mr-2 h-4 w-4" />Back to editing</Link></Button>{shell.portfolio.published_at ? <span className="inline-flex h-9 items-center rounded-md bg-muted px-3 text-sm font-semibold text-muted-foreground"><Globe2 className="mr-2 h-4 w-4" />Published</span> : <Button size="sm" onClick={publish} disabled={busy}><Globe2 className="mr-2 h-4 w-4" />{busy ? 'Publishing…' : 'Publish portfolio'}</Button>}</div></div></div>}
+    {preview && <div className="border-b border-border px-4 py-3"><div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3"><div><span className="text-sm font-bold">Public preview</span><p className="text-xs text-muted-foreground">This is how visitors will see your portfolio.</p></div><div className="flex items-center gap-2"><Button asChild variant="outline" size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio')}><ArrowLeft className="mr-2 h-4 w-4" />Back to editing</Link></Button>{shell.portfolio.published_at ? <span className="inline-flex h-9 items-center rounded-md bg-muted px-3 text-sm font-semibold text-muted-foreground"><Globe2 className="mr-2 h-4 w-4" />Published</span> : shell.portfolio.email_verified === false ? <VerificationMenu email={shell.portfolio.email} token={token} setShell={setShell} onPublish={publish} busy={busy} /> : <Button size="sm" onClick={publish} disabled={busy}><Globe2 className="mr-2 h-4 w-4" />{busy ? 'Publishing…' : 'Publish portfolio'}</Button>}</div></div></div>}
     <div className="mx-auto max-w-5xl px-5 sm:px-8">
     <motion.header ref={headerRef} className={`${activeView === 'overview' ? 'relative' : 'sticky top-0'} z-[var(--z-sticky-header)] border-b border-border/70 bg-background/95 backdrop-blur-xl ${compact ? 'shadow-[0_1px_0_hsl(var(--border)/.25)]' : ''}`}>
       <motion.div layout className={`${compact ? 'py-3' : 'py-8 sm:py-12'}`}>
@@ -145,7 +145,7 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
                   {shell.portfolio.headline && <p className="mt-2 max-w-xl text-base text-muted-foreground sm:text-lg">{shell.portfolio.headline}</p>}
                   {shell.portfolio.location_label && <p className="mt-2 flex items-center justify-center gap-1.5 text-sm text-muted-foreground sm:justify-start"><MapPin className="h-3.5 w-3.5" />{shell.portfolio.location_label}</p>}
                   <SocialCircles socials={shell.portfolio.socials || []} />
-                  {owner && !preview && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start"><Button variant="outline" onClick={() => setEditingIdentity(true)}><Pencil className="mr-2 h-4 w-4" />Edit</Button><Button asChild variant="outline"><Link href={getUriWithOrg(orgslug, '/portfolio/preview')}><Eye className="mr-2 h-4 w-4" />Preview</Link></Button>{shell.portfolio.published_at ? <Button variant="outline" onClick={unpublish} disabled={busy}><EyeOff className="mr-2 h-4 w-4" />Unpublish</Button> : <Button onClick={publish} disabled={busy}><Globe2 className="mr-2 h-4 w-4" />Publish</Button>}{shell.portfolio.email_verified === false && <VerificationMenu email={shell.portfolio.email} />}</motion.div>}
+                  {owner && !preview && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start"><Button variant="outline" onClick={() => setEditingIdentity(true)}><Pencil className="mr-2 h-4 w-4" />Edit</Button><Button asChild variant="outline"><Link href={getUriWithOrg(orgslug, '/portfolio/preview')}><Eye className="mr-2 h-4 w-4" />Preview</Link></Button>{shell.portfolio.published_at ? <Button variant="outline" onClick={unpublish} disabled={busy}><EyeOff className="mr-2 h-4 w-4" />Unpublish</Button> : shell.portfolio.email_verified === false ? <VerificationMenu email={shell.portfolio.email} token={token} setShell={setShell} onPublish={publish} busy={busy} /> : <Button onClick={publish} disabled={busy}><Globe2 className="mr-2 h-4 w-4" />Publish</Button>}</motion.div>}
                   {shell.portfolio.short_bio && <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground">{shell.portfolio.short_bio}</p>}
                 </motion.div>}
               </AnimatePresence>
@@ -220,18 +220,69 @@ function HeaderEditor({ open, onOpenChange, shell, avatarUrl, displayName, socia
   return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="bottom-0 left-0 top-auto h-[92dvh] max-w-none translate-x-0 translate-y-0 overflow-hidden rounded-t-3xl border-x-0 border-b-0 p-0 data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:h-[88dvh] sm:max-h-[760px] sm:max-w-xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:border"><form onSubmit={onSubmit} className="flex h-full min-h-0 flex-col overflow-hidden"><DialogHeader className="shrink-0 border-b border-border px-6 py-5"><DialogTitle>Edit portfolio header</DialogTitle><DialogDescription>Update the identity shown at the top of your portfolio.</DialogDescription></DialogHeader><div className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain px-6 py-6"><div className="flex justify-center"><button type="button" onClick={onAvatarClick} className="group relative h-28 w-28 overflow-hidden rounded-full border border-border bg-muted" aria-label="Change profile image">{avatarUrl ? <img src={avatarUrl} alt="Profile preview" className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center text-2xl font-bold text-muted-foreground">{displayName.slice(0, 1)}</span>}<span className="absolute inset-0 flex items-center justify-center bg-black/0 text-white transition group-hover:bg-black/45"><Camera className="h-6 w-6 opacity-0 transition group-hover:opacity-100" /></span></button></div><div className="grid gap-4"><label className="grid gap-2 text-sm font-semibold">Name<input name="display_name" defaultValue={shell.portfolio.display_name} placeholder={displayName || 'First name Last name'} className="h-11 rounded-md border border-input bg-background px-3 font-normal" /></label><label className="grid gap-2 text-sm font-semibold">Tagline<input name="headline" defaultValue={shell.portfolio.headline} placeholder="What do you want people to know first?" className="h-11 rounded-md border border-input bg-background px-3 font-normal" /></label><label className="grid gap-2 text-sm font-semibold">Location<input name="location_label" defaultValue={shell.portfolio.location_label} placeholder="City, region" className="h-11 rounded-md border border-input bg-background px-3 font-normal" /></label></div><section><div className="mb-3 flex items-center justify-between"><h3 className="text-sm font-semibold">Social links</h3>{missing.length > 0 && <Button type="button" size="sm" variant="outline" onClick={() => setSocials((current: any[]) => [...current, { type: missing[0].type, url: '' }])}><Plus className="mr-1.5 h-4 w-4" />Add</Button>}</div><div className="space-y-3">{socials.map((social: any, index: number) => <div key={`${social.type}-${index}`} className="flex gap-2"><select aria-label="Social platform" value={social.type} onChange={(event) => setSocials((current: any[]) => current.map((item, itemIndex) => itemIndex === index ? { ...item, type: event.target.value } : item))} className="h-11 w-32 rounded-md border border-input bg-background px-2 text-sm">{SOCIAL_OPTIONS.filter((option) => option.type === social.type || !socials.some((item: any) => item.type === option.type)).map((option) => <option key={option.type} value={option.type}>{option.label}</option>)}</select><input aria-label={`${social.type} URL`} value={social.url} onChange={(event) => setSocials((current: any[]) => current.map((item, itemIndex) => itemIndex === index ? { ...item, url: event.target.value } : item))} placeholder="https://" className="h-11 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm" /><Button type="button" size="icon" variant="ghost" aria-label={`Remove ${social.type}`} onClick={() => setSocials((current: any[]) => current.filter((_: any, itemIndex: number) => itemIndex !== index))}><Trash2 className="h-4 w-4" /></Button></div>)}{!socials.length && <p className="py-3 text-sm text-muted-foreground">Add links so visitors can find you elsewhere.</p>}</div></section></div><div className="shrink-0 flex justify-end gap-2 border-t border-border bg-popover px-6 py-4"><Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button><Button disabled={busy}>{busy ? 'Saving…' : 'Save header'}</Button></div></form></DialogContent></Dialog>
 }
 
-function VerificationMenu({ email }: { email: string }) {
+function VerificationMenu({ email, token, setShell, onPublish, busy }: { email: string; token?: string; setShell: (shell: Shell) => void; onPublish: () => void; busy: boolean }) {
+  const session = useLHSession() as any
+  const [open, setOpen] = useState(false)
   const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [nextEmail, setNextEmail] = useState(email)
+  const [changing, setChanging] = useState(false)
+  const continuingPublishRef = useRef(false)
+  useEffect(() => {
+    if (!token) return
+    const refresh = async () => {
+      try {
+        const next = await getMyPortfolio(token)
+        if (next?.portfolio?.email_verified) {
+          setShell(next)
+          setOpen(false)
+          if (sent && !continuingPublishRef.current) {
+            continuingPublishRef.current = true
+            onPublish()
+          }
+        }
+      } catch {
+        // Verification may still be pending or the tab may be offline.
+      }
+    }
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    return () => { window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh) }
+  }, [token, setShell, sent, onPublish])
   const resend = async () => {
     setSending(true)
     try {
       const response = await fetch('/api/auth/resend-verification', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) })
       if (!response.ok) throw new Error()
-      toast.success('Verification email sent')
+      const data = await response.json().catch(() => null)
+      if (data?.verified && token) {
+        setShell(await getMyPortfolio(token))
+        setOpen(false)
+        toast.success('Email verified')
+        continuingPublishRef.current = true
+        onPublish()
+      } else {
+        setSent(true)
+        toast.success('Verification email sent')
+      }
     } catch { toast.error('Could not resend verification email') }
     finally { setSending(false) }
   }
-  return <Popover><PopoverTrigger asChild><Button type="button" variant="outline" className="border-amber-300 text-amber-700 dark:text-amber-300"><MailWarning className="mr-2 h-4 w-4" />Unverified<ChevronDown className="ml-2 h-3.5 w-3.5" /></Button></PopoverTrigger><PopoverContent align="start" className="w-72"><p className="text-sm font-semibold">Verify your email</p><p className="mt-1 text-xs leading-5 text-muted-foreground">We sent a verification link to {email}. Your portfolio remains available while you verify.</p><Button type="button" size="sm" className="mt-3 w-full" onClick={resend} disabled={sending}>{sending ? 'Sending…' : 'Resend verification email'}</Button></PopoverContent></Popover>
+  const changeEmail = async () => {
+    const normalized = nextEmail.trim().toLowerCase()
+    if (!normalized || normalized === email) { setEditing(false); return }
+    setChanging(true)
+    try {
+      const changed = await fetch('/api/auth/change-email', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: normalized }) })
+      const data = await changed.json().catch(() => null)
+      if (!changed.ok) throw new Error(data?.detail || 'Could not change email')
+      await fetch('/api/auth/resend-verification', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: normalized }) })
+      await session?.update?.(true)
+      window.location.reload()
+    } catch (error: any) { toast.error(error?.message || 'Could not change email'); setChanging(false) }
+  }
+  return <><Button type="button" onClick={() => setOpen(true)} disabled={busy}><Globe2 className="mr-2 h-4 w-4" />{busy ? 'Publishing…' : 'Publish'}</Button><Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-w-md">{editing ? <div><DialogHeader><DialogTitle>Change email</DialogTitle><DialogDescription>We’ll send the verification link to your new address.</DialogDescription></DialogHeader><input type="email" value={nextEmail} onChange={(event) => setNextEmail(event.target.value)} className="mt-5 h-11 w-full rounded-md border border-input bg-background px-3 text-sm" autoFocus /><div className="mt-5 flex justify-end gap-2"><Button variant="ghost" onClick={() => { setEditing(false); setNextEmail(email) }}>Cancel</Button><Button onClick={changeEmail} disabled={changing}>{changing ? 'Saving…' : 'Save & send'}</Button></div></div> : <div><DialogHeader><DialogTitle>Verify your email to publish</DialogTitle><DialogDescription>We need to confirm that <span className="font-semibold text-foreground">{email}</span> belongs to you. Your portfolio is ready and will publish as soon as verification finishes.</DialogDescription></DialogHeader>{sent ? <div className="mt-5 rounded-xl bg-muted p-4 text-sm"><p className="font-semibold">Check your inbox</p><p className="mt-1 leading-6 text-muted-foreground">Open the verification link, then return here. We’ll continue publishing automatically.</p></div> : <Button type="button" className="mt-5 w-full" onClick={resend} disabled={sending}>{sending ? 'Sending…' : 'Send verification link'}</Button>}<button type="button" onClick={() => setEditing(true)} className="mt-4 w-full text-center text-sm font-medium text-muted-foreground underline underline-offset-2 hover:text-foreground">Use a different email</button></div>}</DialogContent></Dialog></>
 }
 
 const SOCIAL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = { website: Globe, instagram: Instagram, linkedin: Linkedin, youtube: Youtube, x: X }
@@ -247,6 +298,7 @@ function Avatar({ url, name, compact }: { url?: string; name: string; compact: b
 }
 
 function TraitCard({ kind, initial, owner, onShellChange }: { kind: 'strength' | 'value'; initial: string[]; owner: boolean; onShellChange?: (shell: Shell) => void }) {
+  const searchParams = useSearchParams()
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token
   const options = kind === 'strength' ? PORTFOLIO_STRENGTHS : PORTFOLIO_VALUES
@@ -259,9 +311,9 @@ function TraitCard({ kind, initial, owner, onShellChange }: { kind: 'strength' |
   const [saving, setSaving] = useState(false)
   const title = kind === 'strength' ? 'Strengths' : 'Values'
   useEffect(() => {
-    const target = new URLSearchParams(window.location.search).get('edit')
+    const target = searchParams.get('edit')
     if (owner && target === (kind === 'strength' ? 'strengths' : 'values')) setOpen(true)
-  }, [kind, owner])
+  }, [kind, owner, searchParams])
   if (!owner && !value.length) return null
   const save = async () => {
     if (!token) return
@@ -271,7 +323,42 @@ function TraitCard({ kind, initial, owner, onShellChange }: { kind: 'strength' |
     finally { setSaving(false) }
   }
   const openEditor = () => { setDraft(value); setDraftCustomOptions(customOptions); setOpen(true) }
-  return <><section><div className="flex items-center gap-2"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">{title}</h2>{owner && <button type="button" onClick={openEditor} className="rounded-md p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground" aria-label={`Edit ${title.toLowerCase()}`}><Pencil className="h-3.5 w-3.5" /></button>}</div><div className="mt-4 flex flex-wrap gap-2">{value.length ? value.map((id) => <span key={id} className="rounded-full border border-border px-3 py-1.5 text-sm font-semibold">{options.find((option) => option.id === id)?.text || customOptions.find((option) => option.id === id)?.text || id}</span>) : owner ? <button type="button" onClick={openEditor} className="text-sm text-muted-foreground transition hover:text-foreground">Choose the {title.toLowerCase()} you want to share.</button> : null}</div></section><Dialog open={open} onOpenChange={setOpen}><DialogContent className="flex max-h-[90dvh] max-w-2xl flex-col overflow-hidden p-0"><DialogHeader className="border-b border-border px-6 py-5"><DialogTitle>Edit {title.toLowerCase()}</DialogTitle><DialogDescription>Choose up to five. You can change these as you grow.</DialogDescription></DialogHeader><div className="overflow-y-auto px-6 py-5"><CategorizedMultiSelect options={options} customOptions={draftCustomOptions} onCustomOptionsChange={setDraftCustomOptions} value={draft} onChange={setDraft} min={1} max={5} /></div><div className="flex justify-end gap-2 border-t border-border px-6 py-4"><Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save} disabled={saving || !draft.length}>{saving ? 'Saving…' : 'Save'}</Button></div></DialogContent></Dialog></>
+  const labels = value.map((id) => options.find((option) => option.id === id)?.text || customOptions.find((option) => option.id === id)?.text || id)
+  return <><section><div className="flex items-center gap-2"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">{title}</h2>{owner && <button type="button" onClick={openEditor} className="rounded-md p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground" aria-label={`Edit ${title.toLowerCase()}`}><Pencil className="h-3.5 w-3.5" /></button>}</div><div className="mt-4">{value.length ? <TraitChips labels={labels} /> : owner ? <button type="button" onClick={openEditor} className="text-sm text-muted-foreground transition hover:text-foreground">Choose the {title.toLowerCase()} you want to share.</button> : null}</div></section><Dialog open={open} onOpenChange={setOpen}><DialogContent className="flex max-h-[90dvh] max-w-2xl flex-col overflow-hidden p-0"><DialogHeader className="border-b border-border px-6 py-5"><DialogTitle>Edit {title.toLowerCase()}</DialogTitle><DialogDescription>Choose everything that feels true to you. You can change these as you grow.</DialogDescription></DialogHeader><div className="overflow-y-auto px-6 py-5"><CategorizedMultiSelect options={options} customOptions={draftCustomOptions} onCustomOptionsChange={setDraftCustomOptions} value={draft} onChange={setDraft} min={1} /></div><div className="flex justify-end gap-2 border-t border-border px-6 py-4"><Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save} disabled={saving || !draft.length}>{saving ? 'Saving…' : 'Save'}</Button></div></DialogContent></Dialog></>
+}
+
+function TraitChips({ labels }: { labels: string[] }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const moreMeasureRef = useRef<HTMLSpanElement>(null)
+  const [visibleCount, setVisibleCount] = useState(labels.length)
+  useLayoutEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const measure = () => {
+      setVisibleCount(labels.length)
+      window.requestAnimationFrame(() => {
+        const chips = Array.from(container.querySelectorAll<HTMLElement>('[data-trait-chip]'))
+        if (!chips.length) return
+        const rowTops = [...new Set(chips.map((chip) => chip.offsetTop))]
+        if (rowTops.length <= 3) return
+        const thirdTop = rowTops[2]
+        const initiallyVisible = chips.filter((chip) => chip.offsetTop <= thirdTop)
+        const hidden = labels.length - initiallyVisible.length
+        if (hidden <= 0) return
+        if (moreMeasureRef.current) moreMeasureRef.current.textContent = `+${hidden} more`
+        const reserve = (moreMeasureRef.current?.offsetWidth || 72) + 8
+        const rightEdge = container.clientWidth - reserve
+        const fit = initiallyVisible.filter((chip) => chip.offsetTop < thirdTop || chip.offsetLeft + chip.offsetWidth <= rightEdge).length
+        setVisibleCount(Math.max(0, fit))
+      })
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [labels])
+  const hidden = Math.max(0, labels.length - visibleCount)
+  return <div ref={containerRef} className="relative flex flex-wrap items-center gap-2 overflow-hidden" style={{ maxHeight: 'calc(3 * 2rem + 2 * 0.5rem)' }}>{labels.slice(0, visibleCount).map((label, index) => <span data-trait-chip key={`${label}-${index}`} className="inline-flex h-8 items-center whitespace-nowrap rounded-full border border-border px-3 text-sm font-semibold leading-none">{label}</span>)}{hidden > 0 && <span className="inline-flex h-8 items-center whitespace-nowrap text-sm font-medium leading-none text-muted-foreground">+{hidden} more</span>}<span ref={moreMeasureRef} aria-hidden className="pointer-events-none absolute invisible inline-flex h-8 items-center whitespace-nowrap text-sm font-medium">+99 more</span></div>
 }
 
 type SocialPreviewItem = { id: string; title: string; url: string; thumbnailUrl?: string }
@@ -301,8 +388,11 @@ function SocialPreviews({ socials }: { socials: Array<{ type: string; url: strin
 }
 
 function Overview({ shell, setShell, owner, orgslug, username, importLegacy, busy, token }: any) {
+  const searchParams = useSearchParams()
   const featured = shell.work.filter((work: Work) => work.featured).slice(0, 1)
   const [sections, setSections] = useState<PortfolioSection[]>(() => (shell.sections || []).filter((section: PortfolioSection) => !['identity_hero', 'about'].includes(section.section_type)))
+  const editTarget = searchParams.get('edit')
+  const enablingTraitsRef = useRef(false)
   const dismissLegacyImport = async () => {
     if (!token) return
     try { setShell(await dismissLegacyPortfolioImport(token)); toast.success('Legacy import skipped') }
@@ -316,6 +406,14 @@ function Overview({ shell, setShell, owner, orgslug, username, importLegacy, bus
       setShell(next); setSections((next.sections || []).filter((section: PortfolioSection) => !['identity_hero', 'about'].includes(section.section_type)))
     } catch (error: any) { setSections((shell.sections || []).filter((section: PortfolioSection) => !['identity_hero', 'about'].includes(section.section_type))); toast.error(error?.message || 'Could not update sections') }
   }
+  useEffect(() => {
+    if (!owner || (editTarget !== 'strengths' && editTarget !== 'values') || !token || enablingTraitsRef.current) return
+    const traits = sections.find((section) => section.section_type === 'traits')
+    if (!traits || traits.enabled) return
+    enablingTraitsRef.current = true
+    const next = sections.map((section) => section.section_uuid === traits.section_uuid ? { ...section, enabled: true } : section)
+    void saveSections(next)
+  }, [editTarget, token, sections])
   const hasContent = (type: string) => type === 'about' ? Boolean(shell.portfolio.short_bio)
     : type === 'featured_badges' ? (shell.badges?.featured || []).length > 0
     : type === 'traits' ? (shell.traits?.strength || []).length > 0 || (shell.traits?.value || []).length > 0
@@ -337,8 +435,9 @@ function Overview({ shell, setShell, owner, orgslug, username, importLegacy, bus
     featured_work: { title: 'Projects', prompt: 'Showcase your work', href: '/portfolio/work/new', icon: FolderOpen },
     links: { title: 'Socials', prompt: 'Connect your world', href: '/portfolio?edit=profile', icon: Share2 },
   }
-  const completedSections = sections.filter((section) => hasContent(section.section_type))
-  const emptySections = owner ? sections.filter((section) => !hasContent(section.section_type) && actionConfig[section.section_type]) : []
+  const editingTraits = editTarget === 'strengths' || editTarget === 'values'
+  const completedSections = sections.filter((section) => hasContent(section.section_type) || (editingTraits && section.section_type === 'traits'))
+  const emptySections = owner ? sections.filter((section) => !hasContent(section.section_type) && !(editingTraits && section.section_type === 'traits') && actionConfig[section.section_type]) : []
   const onDragEnd = (result: DropResult) => {
     if (!result.destination || result.destination.index === result.source.index) return
     const sourceSection = completedSections[result.source.index]

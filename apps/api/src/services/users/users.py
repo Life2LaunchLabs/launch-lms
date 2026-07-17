@@ -39,6 +39,7 @@ from src.security.security import security_hash_password, security_verify_passwo
 from src.services.security.password_validation import validate_password_complexity
 from src.services.analytics.analytics import track
 from src.services.analytics import events as analytics_events
+from src.services.dev.dev import isDevModeEnabled
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,7 @@ async def create_user(
     org_id: int,
     is_oauth: bool = False,
     signup_provider: str = "email",
+    send_verification: bool = True,
 ):
     # Validate password complexity (skip for OAuth users who have empty passwords)
     if user_object.password and not is_oauth:
@@ -75,7 +77,8 @@ async def create_user(
     user.user_uuid = f"user_{uuid4()}"
     user.password = security_hash_password(user_object.password) if user_object.password else ""
 
-    email_verification_required = get_launchlms_config().general_config.email_verification_required
+    dev_mode = isDevModeEnabled()
+    email_verification_required = get_launchlms_config().general_config.email_verification_required or dev_mode
 
     if is_oauth or not email_verification_required:
         user.email_verified = True
@@ -172,7 +175,7 @@ async def create_user(
             logger.exception(
                 "Failed to send account creation email to %s", user_read.email
             )
-    elif email_verification_required:
+    elif email_verification_required and send_verification and not dev_mode:
         # Import here to avoid circular imports
         from src.services.users.email_verification import send_verification_email
         try:
@@ -260,7 +263,8 @@ async def create_user_without_org(
     user.user_uuid = f"user_{uuid4()}"
     user.password = security_hash_password(user_object.password) if user_object.password else ""
 
-    email_verification_required = get_launchlms_config().general_config.email_verification_required
+    dev_mode = isDevModeEnabled()
+    email_verification_required = get_launchlms_config().general_config.email_verification_required or dev_mode
 
     if is_oauth or not email_verification_required:
         user.email_verified = True
@@ -322,13 +326,14 @@ async def create_user_without_org(
             )
     else:
         from src.services.users.email_verification import send_verification_email
-        try:
-            await send_verification_email(request, db_session, user, org_id=None)
-        except Exception:
-            # Don't fail user creation if email fails
-            logger.exception(
-                "Failed to send verification email to %s", user_read.email
-            )
+        if not dev_mode:
+            try:
+                await send_verification_email(request, db_session, user, org_id=None)
+            except Exception:
+                # Don't fail user creation if email fails
+                logger.exception(
+                    "Failed to send verification email to %s", user_read.email
+                )
 
     return user_read
 

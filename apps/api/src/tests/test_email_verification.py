@@ -309,6 +309,9 @@ async def test_resend_verification_email_sends_for_unverified_user(
         "src.services.users.email_verification.check_verification_resend_rate_limit",
         return_value=(True, 0),
     ), patch(
+        "src.services.users.email_verification.isDevModeEnabled",
+        return_value=False,
+    ), patch(
         "src.services.users.email_verification.get_base_url_from_request",
         return_value="http://test",
     ), patch(
@@ -322,6 +325,32 @@ async def test_resend_verification_email_sends_for_unverified_user(
     assert "if an account" in result.lower()
     assert mock_send.call_count == 1
     assert len(fake_redis.store) == 1
+
+
+@pytest.mark.asyncio
+async def test_resend_verification_email_verifies_immediately_in_dev_mode(
+    db_session: Session,
+):
+    user = _create_user(db_session)
+
+    with patch(
+        "src.services.users.email_verification.check_verification_resend_rate_limit",
+        return_value=(True, 0),
+    ), patch(
+        "src.services.users.email_verification.isDevModeEnabled",
+        return_value=True,
+    ), patch(
+        "src.services.users.email_verification.send_verification_email",
+    ) as mock_send:
+        result = await resend_verification_email(
+            None, db_session, user.email, org_id=None
+        )
+
+    db_session.refresh(user)
+    assert result == "Email verified successfully"
+    assert user.email_verified is True
+    assert user.email_verified_at is not None
+    mock_send.assert_not_called()
 
 
 @pytest.fixture

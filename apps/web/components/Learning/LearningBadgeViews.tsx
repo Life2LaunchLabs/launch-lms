@@ -60,6 +60,14 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
   const flowIsCurrent = flowPageUuids.length > 0 && flowPageUuids.every((pageUuid: string) => configuredPageUuids.has(pageUuid))
   const pages = flowIsCurrent && navigatedPages.length ? navigatedPages : configuredPages
   const page = pages[index]
+  const closeActivity = React.useCallback(() => {
+    const returnTo = searchParams.get('returnTo')
+    if (returnTo?.startsWith('/portfolio')) {
+      router.push(getUriWithOrg(orgslug, returnTo))
+    } else {
+      router.back()
+    }
+  }, [orgslug, router, searchParams])
 
   React.useEffect(() => {
     startLearningRun(badge.badge_uuid, accessToken)
@@ -130,7 +138,7 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
       pages={pages}
       page={page}
       pageIndex={index}
-      onBack={() => router.back()}
+      onBack={closeActivity}
       actionLabel={page?.content?.action_label || (index === pages.length - 1 ? 'Finish' : 'Continue')}
       actionDisabled={!unlocked}
       onAction={completeAndNext}
