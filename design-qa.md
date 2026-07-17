@@ -1,30 +1,33 @@
-# Portfolio overview design QA
+**Source visual truth**
 
-- source visual truth path: user-provided chat reference (featured-work card)
-- implementation screenshot path: unavailable; no authenticated in-app browser surface is available in this session
-- viewport: not captured
-- state: owner overview, featured work populated, traits populated, section controls hovered, section dragging
-- full-view comparison evidence: blocked because the authenticated portfolio could not be rendered and captured
-- focused region comparison evidence: blocked for the same reason
-- primary interactions tested: static type validation only; hover, drag placement, and edge auto-scroll require browser verification
-- console errors checked: unavailable without a browser-rendered session
+- Four mobile UI references attached in the conversation: checklist popover, compact next-step bar, educational empty tab, and stacked add-action cards.
 
-## Findings
+**Implementation**
 
-- No code-level P0/P1/P2 issue remains after TypeScript validation.
-- The requested code-level corrections are present: compact 50/50 featured cards, cover cropping, flat trait sections, high-contrast selected chips, vertical margin controls, and a rounded shadowed drop target.
-- Visual fidelity and interaction feel remain unverified in a rendered authenticated portfolio.
+- `apps/web/components/Pages/Portfolio/PortfolioShell.tsx`
+- `apps/web/components/Pages/Portfolio/Journey.tsx`
 
-## Comparison history
+**Viewport and state**
 
-- Initial implementation: recreated the dark editorial featured-work composition, moved owner controls to a left hover gutter, and replaced native HTML drag/drop with the activity editor's `@hello-pangea/dnd` setup.
-- First correction: reduced featured cards to a compact equal split, removed decorative and CTA elements, switched imagery to cover cropping, stacked margin controls, and changed the drop target to a shadowed rounded rectangle.
-- Trait correction: removed the grouped card treatment and promoted Strengths and Values to the same visual heading level as About; selected editor chips now use foreground/background theme tokens for reliable light-mode contrast.
-- Import correction: legacy preview now excludes source references already imported; the API test confirms `has_legacy_portfolio` becomes false after import.
+- Intended comparison: responsive owner portfolio at mobile and desktop widths, with the checklist closed/open and Work, Journey, Badges, Resume, and Overview empty states.
 
-## Follow-up polish
+**Full-view comparison evidence**
 
-- Capture desktop and narrow-screen owner states once an authenticated browser surface is available.
-- Verify the left hover bridge, insertion position, and top/bottom auto-scroll speed with real section heights.
+- Blocked: this workspace does not expose a cloud or in-app browser capable of opening and capturing the authenticated local portfolio.
+
+**Focused region comparison evidence**
+
+- Blocked for the same reason. The implementation was checked structurally against the supplied references, but code inspection is not visual evidence.
+
+**Findings**
+
+- No browser-rendered evidence is available to evaluate typography, responsive spacing, token rendering, icon scale, popover placement, or final copy wrapping.
+- TypeScript compilation, focused backend tests, and whitespace validation pass; these checks do not replace visual QA.
+
+**Comparison history**
+
+- No visual iteration could be performed because an authenticated browser capture is unavailable.
+
+**Final result**
 
 final result: blocked

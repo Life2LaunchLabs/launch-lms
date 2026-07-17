@@ -407,14 +407,18 @@
    OrgThemeVariables.tsx sets the light/dark pairs inline on [data-org-theme];
    these rules pick the active pair so the values flip with the theme class
    without any client-side re-render (and without SSR hydration mismatches). */
+:root,
 [data-org-theme] {
   --org-page-background: var(--org-page-background-light);
   --org-primary-color: var(--org-primary-color-light);
+  --org-on-primary-color: var(--org-on-primary-color-light);
 }
 
+.dark,
 .dark [data-org-theme] {
   --org-page-background: var(--org-page-background-dark);
   --org-primary-color: var(--org-primary-color-dark);
+  --org-on-primary-color: var(--org-on-primary-color-dark);
 }
 
     /* Confirmation Modal Animations */

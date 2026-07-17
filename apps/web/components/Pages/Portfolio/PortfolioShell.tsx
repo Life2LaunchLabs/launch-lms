@@ -4,13 +4,14 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { ArrowLeft, Award, Briefcase, Camera, Eye, EyeOff, FilePlus2, Globe, Globe2, GraduationCap, GripVertical, Instagram, Linkedin, MapPin, Minus, Pencil, Plus, Printer, Sparkles, Star, Trash2, Youtube, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Award, BookOpen, Briefcase, Camera, Check, ChevronDown, Circle, Eye, EyeOff, FileText, FolderOpen, Globe, Globe2, GraduationCap, GripVertical, Instagram, Linkedin, MapPin, Minus, Pencil, Plus, Printer, Share2, Sparkles, Star, Trash2, WandSparkles, Youtube, X, Zap } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
 
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { Button } from '@components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog'
+import { Popover, PopoverContent, PopoverTrigger } from '@components/ui/popover'
 import ContentPageHeader from '@components/Objects/StyledElements/Headers/ContentPageHeader'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -19,20 +20,20 @@ import { getUserAvatarMediaDirectory, normalizeMediaUrl } from '@services/media/
 import { createPortfolioWork, dismissLegacyPortfolioImport, importLegacyPortfolio, publishMyPortfolio, unpublishMyPortfolio, updateMyPortfolio, updateMyPortfolioBadgeVisibility, updateMyPortfolioFeaturedBadges, updateMyPortfolioFeaturedWork, updateMyPortfolioSections, updateMyPortfolioTraits, updatePortfolioWork } from '@services/portfolio/portfolio'
 import { CategorizedMultiSelect, PORTFOLIO_STRENGTHS, PORTFOLIO_VALUES, type CategorizedOption } from '@components/Portfolio/CategorizedMultiSelect'
 import { JourneyTimeline, type JourneyEntry } from './Journey'
-import nextStepIllustration from '../../../public/images/portfolio/next-step-illustration.png'
-import { resolveLearningActivityImage } from '@services/learning/launchReadyImages'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 
 export type Work = { work_uuid: string; slug: string; title: string; subtitle: string; summary: string; story_kind: string; status: string; featured: boolean; revision: number; start_date?: string; end_date?: string; cover_url?: string; cover_asset_uuid?: string; blocks: Array<{ block_uuid?: string; block_type: string; data: Record<string, any> }> }
 type PortfolioBadge = { badge_uuid: string; name: string; description?: string; thumbnail_image?: string; status: 'earned' | 'in_progress'; progress?: { completed: number; total: number; percent: number } }
 type PortfolioSection = { section_uuid: string; section_type: string; title_override?: string; enabled: boolean; sort_order: number }
-type Shell = { portfolio: Record<string, any>; work: Work[]; journey: JourneyEntry[]; sections?: PortfolioSection[]; traits?: { strength?: string[]; value?: string[] }; badges?: { earned: PortfolioBadge[]; inProgress: PortfolioBadge[]; featured: PortfolioBadge[]; featuredBadgeUuids: string[]; hiddenBadgeUuids: string[] }; views: Array<{ key: string; visible: boolean; itemCount: number }>; readiness: { canPublish: boolean; blockers: string[] }; capabilities?: Record<string, { unlocked: boolean; reason: string; requiredActivity?: string }>; launchReady?: { completed: number; total: number }; nextAction?: { label: string; supportingText?: string; ctaLabel?: string; estimatedMinutes?: number; thumbnailImage?: string; href: string; progress?: { completed: number; total: number } } | null }
+type ChecklistItem = { key: string; label: string; supportingText: string; href: string; complete: boolean }
+type Shell = { portfolio: Record<string, any>; work: Work[]; journey: JourneyEntry[]; sections?: PortfolioSection[]; traits?: { strength?: string[]; value?: string[] }; badges?: { earned: PortfolioBadge[]; inProgress: PortfolioBadge[]; featured: PortfolioBadge[]; featuredBadgeUuids: string[]; hiddenBadgeUuids: string[] }; views: Array<{ key: string; visible: boolean; itemCount: number }>; readiness: { canPublish: boolean; blockers: string[] }; checklist?: { items: ChecklistItem[]; completed: number; total: number; percent: number; nextIncomplete?: ChecklistItem | null; earned: boolean } }
 
 type PortfolioView = 'overview' | 'journey' | 'work' | 'badges' | 'resume'
 
-function tabs(orgslug: string, username: string | undefined, owner: boolean, shell: Shell) {
+function tabs(orgslug: string, username: string | undefined, owner: boolean, shell: Shell, preview = false) {
   const base = owner ? '/portfolio' : `/user/${username}`
-  return [{ label: 'Overview', view: 'overview', href: base, visible: true }, { label: 'Journey', view: 'journey', href: `${base}/journey`, visible: shell.views.some((view) => view.key === 'journey' && view.visible) }, { label: 'Work', view: 'work', href: `${base}/work`, visible: shell.views.some((view) => view.key === 'work' && view.visible) }, { label: 'Badges', view: 'badges', href: `${base}/badges`, visible: shell.views.some((view) => view.key === 'badges' && view.visible) }, { label: 'Resume', view: 'resume', href: `${base}/resume`, visible: shell.views.some((view) => view.key === 'resume' && view.visible) }]
+  const visible = (key: string) => shell.views.some((view) => view.key === key && view.visible && (!preview || view.itemCount > 0))
+  return [{ label: 'Overview', view: 'overview', href: base, visible: true }, { label: 'Journey', view: 'journey', href: `${base}/journey`, visible: visible('journey') }, { label: 'Work', view: 'work', href: `${base}/work`, visible: visible('work') }, { label: 'Badges', view: 'badges', href: `${base}/badges`, visible: visible('badges') }, { label: 'Resume', view: 'resume', href: `${base}/resume`, visible: visible('resume') }]
     .filter((tab) => tab.visible).map((tab) => ({ ...tab, href: getUriWithOrg(orgslug, tab.href) }))
 }
 
@@ -50,8 +51,9 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
   const [busy, setBusy] = useState(false)
   const headerRef = useRef<HTMLElement | null>(null)
   const displayName = shell.portfolio.display_name || username || 'Your portfolio'
-  const nav = useMemo(() => tabs(orgslug, username, owner, shell), [orgslug, username, owner, shell])
+  const nav = useMemo(() => tabs(orgslug, username, owner, shell, preview), [orgslug, username, owner, shell, preview])
   const compact = activeView !== 'overview'
+  const showLaunchGuide = Boolean(shell.checklist?.total && (!shell.portfolio.published_at || shell.checklist.completed < shell.checklist.total))
   const avatarUrl = shell.portfolio.avatar_image
     ? getUserAvatarMediaDirectory(shell.portfolio.user_uuid, shell.portfolio.avatar_image)
     : ''
@@ -70,6 +72,10 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
       window.removeEventListener('popstate', handlePopState)
     }
   }, [activeView])
+
+  useEffect(() => {
+    if (owner && new URLSearchParams(window.location.search).get('edit') === 'profile') setEditingIdentity(true)
+  }, [owner])
 
   function changeView(view: PortfolioView, href: string) {
     if (view === activeView) return
@@ -120,7 +126,7 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
   }
 
   return <main className={`${activeView === 'resume' ? 'h-dvh overflow-hidden' : 'min-h-screen pb-20'} bg-background text-foreground`}>
-    {preview && <div className="border-b border-border px-4 py-3"><div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3"><div><span className="text-sm font-bold">Public preview</span><p className="text-xs text-muted-foreground">This is how visitors will see your portfolio.</p></div><div className="flex items-center gap-2"><Button asChild variant="outline" size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio')}><ArrowLeft className="mr-2 h-4 w-4" />Back to editing</Link></Button>{shell.portfolio.published_at ? <span className="inline-flex h-9 items-center rounded-md bg-muted px-3 text-sm font-semibold text-muted-foreground"><Globe2 className="mr-2 h-4 w-4" />Published</span> : shell.capabilities?.launch?.unlocked && <Button size="sm" onClick={publish} disabled={busy}><Globe2 className="mr-2 h-4 w-4" />{busy ? 'Publishing…' : 'Publish portfolio'}</Button>}</div></div></div>}
+    {preview && <div className="border-b border-border px-4 py-3"><div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3"><div><span className="text-sm font-bold">Public preview</span><p className="text-xs text-muted-foreground">This is how visitors will see your portfolio.</p></div><div className="flex items-center gap-2"><Button asChild variant="outline" size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio')}><ArrowLeft className="mr-2 h-4 w-4" />Back to editing</Link></Button>{shell.portfolio.published_at ? <span className="inline-flex h-9 items-center rounded-md bg-muted px-3 text-sm font-semibold text-muted-foreground"><Globe2 className="mr-2 h-4 w-4" />Published</span> : <Button size="sm" onClick={publish} disabled={busy}><Globe2 className="mr-2 h-4 w-4" />{busy ? 'Publishing…' : 'Publish portfolio'}</Button>}</div></div></div>}
     <div className="mx-auto max-w-5xl px-5 sm:px-8">
     <motion.header ref={headerRef} className={`${activeView === 'overview' ? 'relative' : 'sticky top-0'} z-[var(--z-sticky-header)] border-b border-border/70 bg-background/95 backdrop-blur-xl ${compact ? 'shadow-[0_1px_0_hsl(var(--border)/.25)]' : ''}`}>
       <motion.div layout className={`${compact ? 'py-3' : 'py-8 sm:py-12'}`}>
@@ -134,30 +140,29 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
                   {shell.portfolio.headline && <p className="mt-2 max-w-xl text-base text-muted-foreground sm:text-lg">{shell.portfolio.headline}</p>}
                   {shell.portfolio.location_label && <p className="mt-2 flex items-center justify-center gap-1.5 text-sm text-muted-foreground sm:justify-start"><MapPin className="h-3.5 w-3.5" />{shell.portfolio.location_label}</p>}
                   <SocialCircles socials={shell.portfolio.socials || []} />
-                  {owner && !preview && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start"><Button variant="outline" onClick={() => setEditingIdentity(true)}><Pencil className="mr-2 h-4 w-4" />Edit</Button><Button asChild variant="outline"><Link href={getUriWithOrg(orgslug, '/portfolio/preview')}><Eye className="mr-2 h-4 w-4" />Preview</Link></Button>{shell.portfolio.published_at ? <Button variant="outline" onClick={unpublish} disabled={busy}><EyeOff className="mr-2 h-4 w-4" />Unpublish</Button> : shell.capabilities?.launch?.unlocked && <Button onClick={publish} disabled={busy}><Globe2 className="mr-2 h-4 w-4" />Publish</Button>}</motion.div>}
+                  {owner && !preview && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start"><Button variant="outline" onClick={() => setEditingIdentity(true)}><Pencil className="mr-2 h-4 w-4" />Edit</Button><Button asChild variant="outline"><Link href={getUriWithOrg(orgslug, '/portfolio/preview')}><Eye className="mr-2 h-4 w-4" />Preview</Link></Button>{shell.portfolio.published_at ? <Button variant="outline" onClick={unpublish} disabled={busy}><EyeOff className="mr-2 h-4 w-4" />Unpublish</Button> : <Button onClick={publish} disabled={busy}><Globe2 className="mr-2 h-4 w-4" />Publish</Button>}</motion.div>}
                 </motion.div>}
               </AnimatePresence>
             </motion.div>
           </motion.div>
-          {owner && !preview && compact && activeView === 'work' && shell.capabilities?.work?.unlocked && <Button asChild size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio/work/new')}><Plus className="mr-1.5 h-4 w-4" />Add work</Link></Button>}
-          {owner && !preview && compact && activeView === 'journey' && shell.capabilities?.journey?.unlocked && <Button asChild size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio/journey/new')}><Plus className="mr-1.5 h-4 w-4" />Add chapter</Link></Button>}
-          {compact && activeView === 'resume' && <Button type="button" size="sm" onClick={() => window.print()}><Printer className="mr-1.5 h-4 w-4" />Print / save PDF</Button>}
+          {owner && !preview && compact && <div className="flex items-center gap-2">{showLaunchGuide && <ChecklistGauge checklist={shell.checklist} orgslug={orgslug} onPublish={publish} busy={busy} />}{activeView === 'work' && <Button asChild size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio/work/new')}><Plus className="mr-1.5 h-4 w-4" />Add work</Link></Button>}{activeView === 'journey' && <Button asChild size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio/journey/new')}><Plus className="mr-1.5 h-4 w-4" />Add chapter</Link></Button>}{activeView === 'badges' && <Button asChild size="sm"><Link href={getUriWithOrg(orgslug, '/badges')}><Award className="mr-1.5 h-4 w-4" />See all badges</Link></Button>}{activeView === 'resume' && <Button type="button" size="sm" onClick={() => window.print()}><Printer className="mr-1.5 h-4 w-4" />Print / save PDF</Button>}</div>}
         </motion.div>
       </motion.div>
+      {owner && !preview && activeView === 'overview' && showLaunchGuide && <ChecklistBanner checklist={shell.checklist} orgslug={orgslug} onPublish={publish} busy={busy} />}
       {nav.length > 1 && <nav className="flex gap-7 overflow-x-auto" aria-label="Portfolio views">{nav.map((tab) => { const view = tab.view as PortfolioView; const selected = activeView === view; return <button type="button" key={tab.label} onClick={() => changeView(view, tab.href)} className={`relative py-3 text-sm font-semibold transition-colors ${selected ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>{tab.label}{selected && <motion.span layoutId="portfolio-active-tab" className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-foreground" transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}</button>})}</nav>}
     </motion.header>
 
     <AnimatePresence>
       {activeView === 'overview' && scrolled && <motion.header initial={reduceMotion ? false : { opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }} transition={{ duration: reduceMotion ? 0 : 0.16, ease: 'easeOut' }} className="fixed left-1/2 top-0 z-[var(--z-sticky-header)] w-full max-w-5xl -translate-x-1/2 border-b border-border/70 bg-background/95 backdrop-blur-xl">
         <div className="px-5 sm:px-8">
-          <div className="flex items-center gap-3 py-2.5"><Avatar url={avatarUrl} name={displayName} compact /><h1 className="min-w-0 truncate text-base font-bold">{displayName}</h1></div>
+          <div className="flex items-center gap-3 py-2.5"><Avatar url={avatarUrl} name={displayName} compact /><h1 className="min-w-0 flex-1 truncate text-base font-bold">{displayName}</h1>{owner && !preview && showLaunchGuide && <ChecklistGauge checklist={shell.checklist} orgslug={orgslug} onPublish={publish} busy={busy} />}</div>
           {nav.length > 1 && <nav className="flex gap-7 overflow-x-auto" aria-label="Portfolio views">{nav.map((tab) => { const view = tab.view as PortfolioView; const selected = activeView === view; return <button type="button" key={tab.label} onClick={() => changeView(view, tab.href)} className={`relative shrink-0 py-2.5 text-sm font-semibold transition-colors ${selected ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>{tab.label}{selected && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-foreground" />}</button>})}</nav>}
         </div>
       </motion.header>}
     </AnimatePresence>
 
     <div className={activeView === 'resume' ? '' : 'py-8 sm:py-12'}>
-      <AnimatePresence mode="wait" initial={false}>{activeView === 'overview' ? <motion.div key="overview"><Overview shell={shell} setShell={setShell} owner={owner && !preview} orgslug={orgslug} username={username} importLegacy={importLegacy} busy={busy} token={token} /></motion.div> : activeView === 'journey' ? <motion.div key="journey"><JourneyTimeline entries={shell.journey || []} owner={owner && !preview} orgslug={orgslug} username={username} /></motion.div> : activeView === 'badges' ? <motion.div key="badges"><BadgesView shell={shell} setShell={setShell} owner={owner && !preview} orgslug={orgslug} token={token} /></motion.div> : activeView === 'resume' ? <motion.div key="resume"><ResumeView shell={shell} orgslug={orgslug} username={username} owner={owner && !preview} /></motion.div> : <motion.div key="work"><WorkGrid shell={shell} setShell={setShell} owner={owner && !preview} orgslug={orgslug} username={username} token={token} /></motion.div>}</AnimatePresence>
+      <AnimatePresence mode="wait" initial={false}>{activeView === 'overview' ? <motion.div key="overview"><Overview shell={shell} setShell={setShell} owner={owner && !preview} orgslug={orgslug} username={username} importLegacy={importLegacy} busy={busy} token={token} /></motion.div> : activeView === 'journey' ? <motion.div key="journey"><JourneyTimeline entries={shell.journey || []} owner={owner && !preview} orgslug={orgslug} username={username} /></motion.div> : activeView === 'badges' ? <motion.div key="badges"><BadgesView shell={shell} setShell={setShell} owner={owner && !preview} orgslug={orgslug} token={token} /></motion.div> : activeView === 'resume' ? <motion.div key="resume">{owner && !preview && !shell.work.length && !shell.journey.length ? <EmptyTab icon={FileText} eyebrow="Your resume" title="Build a resume from your story" description="Your resume grows automatically as you add projects, experience, strengths, and badges." examples={['Projects you’re proud of', 'Education and experience', 'Skills and strengths', 'Verified badges']} action="Add your first project" href="/portfolio/work/new" orgslug={orgslug} /> : <ResumeView shell={shell} orgslug={orgslug} username={username} owner={owner && !preview} />}</motion.div> : <motion.div key="work"><WorkGrid shell={shell} setShell={setShell} owner={owner && !preview} orgslug={orgslug} username={username} token={token} /></motion.div>}</AnimatePresence>
     </div>
     </div>
     {owner && <HeaderEditor open={editingIdentity} onOpenChange={setEditingIdentity} shell={shell} avatarUrl={avatarUrl} displayName={displayName} socials={draftSocials} setSocials={setDraftSocials} onAvatarClick={() => setAvatarPickerOpen(true)} onSubmit={saveIdentity} busy={busy} />}
@@ -221,7 +226,7 @@ function Avatar({ url, name, compact }: { url?: string; name: string; compact: b
   return <motion.div layout className={`${compact ? 'h-10 w-10' : 'h-28 w-28 sm:h-36 sm:w-36'} shrink-0 overflow-hidden rounded-full border border-border bg-muted`} transition={{ type: 'spring', stiffness: 320, damping: 32 }}>{url ? <img src={url} alt="" className="h-full w-full object-cover" /> : <span className={`${compact ? 'text-sm' : 'text-3xl'} flex h-full w-full items-center justify-center font-bold text-muted-foreground`}>{initials || 'P'}</span>}</motion.div>
 }
 
-function TraitCard({ kind, initial, owner }: { kind: 'strength' | 'value'; initial: string[]; owner: boolean }) {
+function TraitCard({ kind, initial, owner, onShellChange }: { kind: 'strength' | 'value'; initial: string[]; owner: boolean; onShellChange?: (shell: Shell) => void }) {
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token
   const options = kind === 'strength' ? PORTFOLIO_STRENGTHS : PORTFOLIO_VALUES
@@ -233,11 +238,15 @@ function TraitCard({ kind, initial, owner }: { kind: 'strength' | 'value'; initi
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const title = kind === 'strength' ? 'Strengths' : 'Values'
+  useEffect(() => {
+    const target = new URLSearchParams(window.location.search).get('edit')
+    if (owner && target === (kind === 'strength' ? 'strengths' : 'values')) setOpen(true)
+  }, [kind, owner])
   if (!owner && !value.length) return null
   const save = async () => {
     if (!token) return
     setSaving(true)
-    try { await updateMyPortfolioTraits({ trait_type: kind, labels: draft.map((id) => options.find((option) => option.id === id)?.text || draftCustomOptions.find((option) => option.id === id)?.text || id) }, token); setValue(draft); setCustomOptions(draftCustomOptions); setOpen(false); toast.success(`${title} updated`) }
+    try { const next = await updateMyPortfolioTraits({ trait_type: kind, labels: draft.map((id) => options.find((option) => option.id === id)?.text || draftCustomOptions.find((option) => option.id === id)?.text || id) }, token); setValue(draft); setCustomOptions(draftCustomOptions); onShellChange?.(next); setOpen(false); toast.success(`${title} updated`) }
     catch (error: any) { toast.error(error?.message || `Could not update ${title.toLowerCase()}`) }
     finally { setSaving(false) }
   }
@@ -287,26 +296,47 @@ function Overview({ shell, setShell, owner, orgslug, username, importLegacy, bus
       setShell(next); setSections((next.sections || []).filter((section: PortfolioSection) => section.section_type !== 'identity_hero'))
     } catch (error: any) { setSections((shell.sections || []).filter((section: PortfolioSection) => section.section_type !== 'identity_hero')); toast.error(error?.message || 'Could not update sections') }
   }
-  const renderSection = (type: string) => type === 'about' ? (shell.portfolio.short_bio ? <section><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">About</h2><p className="mt-4 max-w-3xl text-xl leading-relaxed">{shell.portfolio.short_bio}</p></section> : null)
-    : type === 'featured_badges' ? ((shell.badges?.featured || []).length > 0 ? <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Badges</h2><Link href={getUriWithOrg(orgslug, owner ? '/portfolio/badges' : `/user/${username}/badges`)} className="text-sm font-semibold">View all</Link></div><div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">{shell.badges.featured.map((badge: PortfolioBadge) => <BadgeCard key={badge.badge_uuid} badge={badge} compact orgslug={orgslug} />)}</div></section> : null)
-    : type === 'traits' ? (((shell.traits?.strength || []).length > 0 || (shell.traits?.value || []).length > 0) ? <div className="grid gap-10 sm:grid-cols-2 sm:gap-12"><TraitCard kind="strength" initial={shell.traits?.strength || []} owner={owner} /><TraitCard kind="value" initial={shell.traits?.value || []} owner={owner} /></div> : null)
-    : type === 'current_journey' ? ((shell.journey || []).length > 0 ? <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Current chapter</h2><button className="text-sm font-semibold" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, owner ? '/portfolio/journey' : `/user/${username}/journey`)); window.dispatchEvent(new PopStateEvent('popstate')) }}>View journey</button></div><JourneyTimeline entries={((shell.journey || []).filter((entry: JourneyEntry) => entry.is_current).slice(0, 1).length ? (shell.journey || []).filter((entry: JourneyEntry) => entry.is_current).slice(0, 1) : (shell.journey || []).slice(0, 1))} owner={owner} orgslug={orgslug} username={username} /></section> : null)
-    : type === 'featured_work' ? (shell.work.length > 0 ? <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-black uppercase tracking-[0.16em] text-lime-600 dark:text-lime-400">Featured work</h2><button className="text-sm font-semibold transition-colors hover:text-lime-600" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, owner ? '/portfolio/work' : `/user/${username}/work`)); window.dispatchEvent(new PopStateEvent('popstate')) }}>View all</button></div>{featured.length ? <FeaturedWorkCards work={featured} owner={owner} orgslug={orgslug} username={username} /> : owner ? <button type="button" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, '/portfolio/work')); window.dispatchEvent(new PopStateEvent('popstate')) }} className="w-full rounded-xl border border-dashed border-border px-5 py-10 text-center text-sm font-semibold text-muted-foreground transition hover:border-foreground hover:text-foreground">Star one of your work items to feature it here.</button> : null}</section> : null)
+  const hasContent = (type: string) => type === 'about' ? Boolean(shell.portfolio.short_bio)
+    : type === 'featured_badges' ? (shell.badges?.featured || []).length > 0
+    : type === 'traits' ? (shell.traits?.strength || []).length > 0 || (shell.traits?.value || []).length > 0
+    : type === 'current_journey' ? (shell.journey || []).length > 0
+    : type === 'featured_work' ? shell.work.length > 0
+    : type === 'links' ? (shell.portfolio.socials || []).length > 0
+    : false
+  const renderSection = (type: string) => type === 'about' ? <section><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">About</h2><p className="mt-4 max-w-3xl text-xl leading-relaxed">{shell.portfolio.short_bio}</p></section>
+    : type === 'featured_badges' ? <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Badges</h2><Link href={getUriWithOrg(orgslug, owner ? '/portfolio/badges' : `/user/${username}/badges`)} className="text-sm font-semibold">View all</Link></div><div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5">{shell.badges.featured.map((badge: PortfolioBadge) => <BadgeCard key={badge.badge_uuid} badge={badge} compact orgslug={orgslug} />)}</div></section>
+    : type === 'traits' ? <div className="grid gap-10 sm:grid-cols-2 sm:gap-12"><TraitCard kind="strength" initial={shell.traits?.strength || []} owner={owner} onShellChange={setShell} /><TraitCard kind="value" initial={shell.traits?.value || []} owner={owner} onShellChange={setShell} /></div>
+    : type === 'current_journey' ? <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Current chapter</h2><button className="text-sm font-semibold" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, owner ? '/portfolio/journey' : `/user/${username}/journey`)); window.dispatchEvent(new PopStateEvent('popstate')) }}>View journey</button></div><JourneyTimeline entries={((shell.journey || []).filter((entry: JourneyEntry) => entry.is_current).slice(0, 1).length ? (shell.journey || []).filter((entry: JourneyEntry) => entry.is_current).slice(0, 1) : (shell.journey || []).slice(0, 1))} owner={owner} orgslug={orgslug} username={username} /></section>
+    : type === 'featured_work' ? <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-black uppercase tracking-[0.16em] text-lime-600 dark:text-lime-400">Featured work</h2><button className="text-sm font-semibold transition-colors hover:text-lime-600" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, owner ? '/portfolio/work' : `/user/${username}/work`)); window.dispatchEvent(new PopStateEvent('popstate')) }}>View all</button></div>{featured.length ? <FeaturedWorkCards work={featured} owner={owner} orgslug={orgslug} username={username} /> : owner ? <button type="button" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, '/portfolio/work')); window.dispatchEvent(new PopStateEvent('popstate')) }} className="w-full rounded-xl border border-dashed border-border px-5 py-10 text-center text-sm font-semibold text-muted-foreground transition hover:border-foreground hover:text-foreground">Star one of your work items to feature it here.</button> : null}</section>
     : type === 'links' ? <SocialPreviews socials={shell.portfolio.socials || []} /> : null
+  const actionConfig: Record<string, { title: string; prompt: string; href: string; icon: React.ComponentType<{ className?: string }> }> = {
+    about: { title: 'Profile', prompt: 'Introduce yourself', href: '/portfolio?edit=profile', icon: BookOpen },
+    featured_badges: { title: 'Badges', prompt: 'Show what you can do', href: '/badges', icon: Award },
+    traits: { title: 'Strengths & values', prompt: 'Highlight what makes you, you', href: '/portfolio?edit=strengths', icon: Zap },
+    current_journey: { title: 'Story', prompt: 'Share your journey', href: '/portfolio/journey/new', icon: BookOpen },
+    featured_work: { title: 'Projects', prompt: 'Showcase your work', href: '/portfolio/work/new', icon: FolderOpen },
+    links: { title: 'Socials', prompt: 'Connect your world', href: '/portfolio?edit=profile', icon: Share2 },
+  }
+  const completedSections = sections.filter((section) => hasContent(section.section_type))
+  const emptySections = owner ? sections.filter((section) => !hasContent(section.section_type) && actionConfig[section.section_type]) : []
   const onDragEnd = (result: DropResult) => {
     if (!result.destination || result.destination.index === result.source.index) return
+    const sourceSection = completedSections[result.source.index]
+    const destinationSection = completedSections[result.destination.index]
+    if (!sourceSection || !destinationSection) return
     const next = Array.from(sections)
-    const [moved] = next.splice(result.source.index, 1)
-    next.splice(result.destination.index, 0, moved)
+    const sourceIndex = next.findIndex((section) => section.section_uuid === sourceSection.section_uuid)
+    const destinationIndex = next.findIndex((section) => section.section_uuid === destinationSection.section_uuid)
+    const [moved] = next.splice(sourceIndex, 1)
+    next.splice(destinationIndex, 0, moved)
     setSections(next)
     void saveSections(next)
   }
   return <div className="space-y-14">
-    {shell.nextAction && owner && <NextStepCard action={shell.nextAction} orgslug={orgslug} />}
     <DragDropContext onDragEnd={onDragEnd} autoScrollerOptions={{ disabled: false }}>
       <Droppable droppableId="portfolio-overview-sections">
         {(dropProvided, dropSnapshot) => <div ref={dropProvided.innerRef} {...dropProvided.droppableProps} className={`space-y-14 ${dropSnapshot.isDraggingOver ? 'portfolio-sections-dragging' : ''}`}>
-          {sections.map((section, index) => { const content = renderSection(section.section_type); if (!content) return null; return <Draggable key={section.section_uuid} draggableId={section.section_uuid} index={index} isDragDisabled={!owner}>
+          {completedSections.map((section, index) => { const content = renderSection(section.section_type); if (!content) return null; return <Draggable key={section.section_uuid} draggableId={section.section_uuid} index={index} isDragDisabled={!owner}>
             {(dragProvided, dragSnapshot) => <div ref={dragProvided.innerRef} {...dragProvided.draggableProps} style={dragProvided.draggableProps.style} className={`group/section relative before:absolute before:-bottom-5 before:-left-16 before:-top-5 before:w-16 before:content-[''] ${dragSnapshot.isDragging ? 'z-50 rounded-2xl bg-background p-5 shadow-2xl ring-1 ring-border' : 'transition-opacity'} ${section.enabled ? '' : 'opacity-40 grayscale'}`}>
               {owner && <div className={`absolute left-0 top-0 z-10 -translate-x-[calc(100%+12px)] flex-col items-center gap-1 rounded-xl border border-border bg-background/95 p-1 shadow-md backdrop-blur transition duration-200 sm:flex ${dragSnapshot.isDragging ? 'cursor-grabbing opacity-100' : 'pointer-events-none -translate-x-[calc(100%+6px)] opacity-0 group-hover/section:pointer-events-auto group-hover/section:-translate-x-[calc(100%+12px)] group-hover/section:opacity-100 group-focus-within/section:pointer-events-auto group-focus-within/section:opacity-100'}`}>
                 <button type="button" {...dragProvided.dragHandleProps} className="cursor-grab rounded-lg p-2 text-muted-foreground outline-none transition hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-foreground active:cursor-grabbing" aria-label={`Reorder ${section.title_override || section.section_type.replaceAll('_', ' ')} section`} title="Drag to reorder"><GripVertical className="h-4 w-4" /></button>
@@ -319,6 +349,7 @@ function Overview({ shell, setShell, owner, orgslug, username, importLegacy, bus
         </div>}
       </Droppable>
     </DragDropContext>
+    {emptySections.length > 0 && <section className="max-w-xl space-y-2"><div className="mb-4"><h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Keep building</h2><p className="mt-1 text-sm text-muted-foreground">Choose what you want to add next.</p></div>{emptySections.map((section) => { const action = actionConfig[section.section_type]; const Icon = action.icon; return <Link key={section.section_uuid} href={getUriWithOrg(orgslug, action.href)} className="group flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"><Icon className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-black">{action.title}</span><span className="block truncate text-xs text-muted-foreground">{action.prompt}</span></span><span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)] transition group-hover:scale-105"><Plus className="h-4 w-4" /></span></Link>})}</section>}
     {owner && shell.portfolio.has_legacy_portfolio && <section className="rounded-2xl border border-dashed border-border p-6"><h2 className="font-bold">Have an older Launch LMS portfolio?</h2><p className="mt-1 text-sm text-muted-foreground">Import its work and journey items into the new builder. Your original profile data stays untouched.</p><div className="mt-4 flex flex-wrap gap-2"><Button variant="outline" disabled={busy} onClick={importLegacy}>{busy ? 'Importing…' : 'Import legacy work'}</Button><Button variant="ghost" disabled={busy} onClick={dismissLegacyImport}>Skip import</Button></div></section>}
   </div>
 }
@@ -357,28 +388,46 @@ function BadgesView({ shell, setShell, owner, orgslug, token }: { shell: Shell; 
     catch (error: any) { setHidden(hidden); toast.error(error?.message || 'Could not update badge visibility') }
     finally { setSavingUuid(null) }
   }
+  if (owner && !earned.length && !inProgress.length) return <EmptyTab icon={Award} eyebrow="Your badges" title="Turn progress into proof" description="Badge paths help you practice skills, collect evidence, and show what you can do." examples={['Choose a skill to grow', 'Complete hands-on activities', 'Collect evidence of your work', 'Share verified achievements']} action="Find your first badge" href="/badges" orgslug={orgslug} />
   return <div className="space-y-12">
     {inProgress.length > 0 && <section><div className="mb-5 flex items-end justify-between"><div><h2 className="text-2xl font-black">In progress</h2><p className="mt-1 text-sm text-muted-foreground">Keep going on the badge paths you’ve started.</p></div>{owner && <Button asChild variant="outline"><Link href={getUriWithOrg(orgslug, '/badges')}>Find more badges</Link></Button>}</div><div className="flex gap-4 overflow-x-auto pb-2">{inProgress.map((badge) => <InProgressBadgeCard key={badge.badge_uuid} badge={badge} orgslug={orgslug} />)}</div></section>}
-    <section><div className="mb-5"><h2 className="text-2xl font-black">Earned badges</h2>{owner && <p className="mt-1 text-sm text-muted-foreground">Star badges for your overview. Use the eye control to hide a badge from visitors.</p>}</div>{earned.length ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{earned.map((badge) => <div key={badge.badge_uuid} className={savingUuid === badge.badge_uuid ? 'pointer-events-none opacity-70' : ''}><BadgeCard badge={badge} orgslug={orgslug} featured={selected.includes(badge.badge_uuid)} hidden={hidden.includes(badge.badge_uuid)} onFeature={owner ? () => toggle(badge.badge_uuid) : undefined} onVisibility={owner ? () => toggleVisibility(badge.badge_uuid) : undefined} /></div>)}</div> : <div className="rounded-2xl border border-dashed border-border py-14 text-center"><Award className="mx-auto h-10 w-10 text-muted-foreground" /><p className="mt-3 font-semibold">Earned badges will appear here.</p></div>}</section>
+    <section><div className="mb-5"><h2 className="text-2xl font-black">Earned badges</h2>{owner && <p className="mt-1 text-sm text-muted-foreground">Star badges for your overview. Use the eye control to hide a badge from visitors.</p>}</div>{earned.length ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{earned.map((badge) => <div key={badge.badge_uuid} className={savingUuid === badge.badge_uuid ? 'pointer-events-none opacity-70' : ''}><BadgeCard badge={badge} orgslug={orgslug} featured={selected.includes(badge.badge_uuid)} hidden={hidden.includes(badge.badge_uuid)} onFeature={owner ? () => toggle(badge.badge_uuid) : undefined} onVisibility={owner ? () => toggleVisibility(badge.badge_uuid) : undefined} /></div>)}</div> : <div className="rounded-2xl border border-dashed border-border py-14 text-center"><Award className="mx-auto h-10 w-10 text-muted-foreground" /><p className="mt-3 font-semibold">Your earned badges will appear here.</p><p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">Start a badge path to practice a skill and collect evidence you can share.</p>{owner && <Button asChild className="mt-6"><Link href={getUriWithOrg(orgslug, '/badges')}>Find a badge</Link></Button>}</div>}</section>
   </div>
 }
 
-function NextStepCard({ action, orgslug }: { action: NonNullable<Shell['nextAction']>; orgslug: string }) {
-  const progress = action.progress
-  const percent = progress ? Math.round((progress.completed / Math.max(1, progress.total)) * 100) : 0
-  return <section className="relative overflow-hidden rounded-2xl border border-dashed border-primary/70 bg-primary/[0.035] p-6 sm:p-8">
-    <div className="relative z-10 max-w-2xl sm:pr-48">
-      <p className="text-sm font-semibold text-primary">Keep going{action.estimatedMinutes ? ` · about ${action.estimatedMinutes} min` : ''}</p>
-      <h2 className="mt-2 text-2xl font-black tracking-tight">{action.label}</h2>
-      {action.supportingText && <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">{action.supportingText}</p>}
-      {progress && <div className="mt-5 max-w-sm"><div className="mb-2 flex justify-between text-xs font-medium text-muted-foreground"><span>Launch Ready</span><span>{progress.completed} of {progress.total}</span></div><div className="h-1.5 overflow-hidden rounded-full bg-primary/15"><div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${percent}%` }} /></div></div>}
-      <Button asChild className="mt-6 bg-primary text-primary-foreground hover:bg-primary/90"><Link href={getUriWithOrg(orgslug, action.href)}><Sparkles className="mr-2 h-4 w-4" />{action.ctaLabel || (action.progress?.completed ? 'Continue' : 'Get started')}</Link></Button>
-    </div>
-    <img src={resolveLearningActivityImage(action.thumbnailImage) || nextStepIllustration.src} onError={(event) => { event.currentTarget.src = nextStepIllustration.src }} alt="" className="pointer-events-none absolute bottom-5 right-5 hidden h-36 w-48 rounded-xl object-cover opacity-95 sm:block" />
-  </section>
+function ChecklistMenu({ checklist, orgslug, children, align = 'end' }: { checklist?: Shell['checklist']; orgslug: string; children: React.ReactNode; align?: 'start' | 'center' | 'end' }) {
+  if (!checklist?.total) return null
+  return <Popover><PopoverTrigger asChild>{children}</PopoverTrigger><PopoverContent align={align} sideOffset={8} collisionPadding={16} className="z-[10001] w-[min(22rem,calc(100vw-2rem))] rounded-2xl border-border bg-popover p-4 shadow-2xl"><div className="flex items-end justify-between"><div><p className="text-lg font-black">Launch Ready</p><p className="mt-0.5 text-xs text-muted-foreground">Let’s build your portfolio</p></div><span className="text-sm font-black tabular-nums text-muted-foreground">{checklist.completed}/{checklist.total}</span></div><div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-[var(--org-primary-color)] transition-[width]" style={{ width: `${checklist.percent}%` }} /></div><div className="mt-3 space-y-0.5">{checklist.items.map((item) => item.complete ? <div key={item.key} className="flex items-center gap-3 rounded-lg px-2 py-2.5 text-foreground"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)] shadow-sm"><Check className="h-3 w-3" /></span><span className="text-sm font-semibold">{item.label}</span></div> : <Link key={item.key} href={getUriWithOrg(orgslug, item.href)} className="group flex items-center gap-3 rounded-lg px-2 py-2.5 transition hover:bg-muted"><Circle className="h-5 w-5 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1 text-sm font-semibold">{item.label}</span><ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 transition group-hover:translate-x-0.5 group-hover:opacity-100" /></Link>)}</div></PopoverContent></Popover>
 }
 
-function EmptyWork({ orgslug }: { orgslug: string }) { return <div className="border-y border-dashed border-border py-14 text-center"><FilePlus2 className="mx-auto h-9 w-9 text-muted-foreground" /><h3 className="mt-4 text-lg font-bold">Your work belongs here</h3><p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">A class project, performance, volunteer effort, hobby, or something you learned all count.</p><Button asChild className="mt-6"><Link href={getUriWithOrg(orgslug, '/portfolio/work/new')}><Plus className="mr-2 h-4 w-4" />Add something</Link></Button></div> }
+function ProgressRing({ checklist, size = 'compact' }: { checklist: NonNullable<Shell['checklist']>; size?: 'compact' | 'expanded' }) {
+  const dimensions = size === 'compact' ? 'h-6 w-6' : 'h-7 w-7'
+  return <span role="progressbar" aria-label={`${checklist.completed} of ${checklist.total} Launch Ready items complete`} aria-valuemin={0} aria-valuemax={checklist.total} aria-valuenow={checklist.completed} className={`${dimensions} relative shrink-0 rounded-full`} style={{ background: `conic-gradient(var(--org-primary-color) ${checklist.percent}%, hsl(var(--muted)) 0)` }}><span className="absolute inset-[3px] rounded-full bg-background" /></span>
+}
+
+function CompletionStar({ size = 'compact' }: { size?: 'compact' | 'expanded' }) {
+  const dimensions = size === 'compact' ? 'h-6 w-6' : 'h-8 w-8'
+  return <span className={`${dimensions} flex shrink-0 items-center justify-center rounded-full bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)]`}><Star className={size === 'compact' ? 'h-3.5 w-3.5' : 'h-4 w-4'} fill="currentColor" /></span>
+}
+
+function ChecklistGauge({ checklist, orgslug, onPublish, busy }: { checklist?: Shell['checklist']; orgslug: string; onPublish: () => void; busy: boolean }) {
+  if (!checklist?.total) return null
+  if (checklist.completed === checklist.total) return <Popover><PopoverTrigger asChild><button type="button" className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-border bg-background px-2.5 text-xs font-black shadow-sm transition hover:bg-muted" aria-label="Your portfolio is ready to publish"><CompletionStar /><ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /></button></PopoverTrigger><PopoverContent align="end" sideOffset={8} collisionPadding={16} className="z-[10001] w-[min(20rem,calc(100vw-2rem))] rounded-2xl border-border bg-popover p-4 shadow-2xl"><div className="flex items-start gap-3"><CompletionStar size="expanded" /><div><p className="font-black">Your portfolio is ready to share</p><p className="mt-1 text-sm leading-relaxed text-muted-foreground">Publish it so others can see what you’ve built.</p></div></div><Button variant="brand" className="mt-4 w-full" onClick={onPublish} disabled={busy}><Globe2 className="mr-2 h-4 w-4" />{busy ? 'Publishing…' : 'Publish portfolio'}</Button></PopoverContent></Popover>
+  return <ChecklistMenu checklist={checklist} orgslug={orgslug}><button type="button" className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-border bg-background px-3 text-xs font-black shadow-sm transition hover:bg-muted" aria-label={`Open Launch Ready checklist, ${checklist.completed} of ${checklist.total} complete`}><span className="tabular-nums">{checklist.completed}/{checklist.total}</span><ProgressRing checklist={checklist} /><ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /></button></ChecklistMenu>
+}
+
+function ChecklistBanner({ checklist, orgslug, onPublish, busy }: { checklist?: Shell['checklist']; orgslug: string; onPublish: () => void; busy: boolean }) {
+  if (!checklist?.total) return null
+  const next = checklist.nextIncomplete
+  if (!next) return <div className="mb-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 shadow-sm"><CompletionStar size="expanded" /><div className="min-w-0"><p className="text-sm font-black">Your portfolio is ready to share</p><p className="text-xs text-muted-foreground">Publish it so others can see what you’ve built.</p></div><Button variant="brand" size="sm" onClick={onPublish} disabled={busy}><Globe2 className="mr-1.5 h-4 w-4" />{busy ? 'Publishing…' : 'Publish'}</Button></div>
+  return <div className="mb-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 shadow-sm"><div className="flex flex-col items-center gap-0.5"><ProgressRing checklist={checklist} size="expanded" /><span className="text-[10px] font-black tabular-nums text-muted-foreground">{checklist.completed}/{checklist.total}</span></div><Link href={getUriWithOrg(orgslug, next.href)} className="group min-w-0 rounded-md px-1 py-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--org-primary-color)]"><span className="flex items-center gap-1.5 text-sm font-black"><span className="truncate">{next.label}</span><ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" /></span><span className="mt-0.5 block text-xs text-muted-foreground">Let’s build your profile</span></Link><ChecklistMenu checklist={checklist} orgslug={orgslug}><button type="button" aria-label="Show complete Launch Ready checklist" className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted-foreground transition hover:bg-muted hover:text-foreground"><ChevronDown className="h-4 w-4" /></button></ChecklistMenu></div>
+}
+
+function EmptyTab({ icon: Icon, eyebrow, title, description, examples, action, href, orgslug }: { icon: React.ComponentType<{ className?: string }>; eyebrow: string; title: string; description: string; examples: string[]; action: string; href: string; orgslug: string }) {
+  return <section className="mx-auto flex max-w-xl flex-col items-center px-4 py-3 text-center sm:py-5"><div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-muted text-muted-foreground"><Icon className="h-8 w-8" /><Sparkles className="absolute -right-2 top-1 h-4 w-4" /><WandSparkles className="absolute -left-2 bottom-2 h-3.5 w-3.5" /></div><p className="mt-4 text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">{eyebrow}</p><h2 className="mt-1.5 text-2xl font-black tracking-tight sm:text-3xl">{title}</h2><p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">{description}</p><ul className="mt-4 grid w-full max-w-md grid-cols-1 gap-x-5 gap-y-1.5 text-left sm:grid-cols-2">{examples.map((example) => <li key={example} className="flex items-center gap-2 text-sm"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-muted-foreground"><Check className="h-3 w-3" /></span>{example}</li>)}</ul><Button asChild variant="brand" className="mt-5 w-full max-w-sm"><Link href={getUriWithOrg(orgslug, href)}>{action}<ArrowRight className="ml-auto h-4 w-4" /></Link></Button></section>
+}
+
+function EmptyWork({ orgslug }: { orgslug: string }) { return <EmptyTab icon={FolderOpen} eyebrow="Your work" title="Let’s add your first project" description="Projects can be anything you’re proud of—not just formal work." examples={['School work', 'Personal projects', 'Clubs and activities', 'Volunteering', 'Anything you’ve built']} action="Add project" href="/portfolio/work/new" orgslug={orgslug} /> }
 
 function WorkGrid({ shell, setShell, owner, orgslug, username, token }: any) {
   const [savingUuid, setSavingUuid] = useState<string | null>(null)

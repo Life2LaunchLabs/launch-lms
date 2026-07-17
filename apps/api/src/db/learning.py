@@ -34,6 +34,7 @@ class LearningBadgeStatus(str, Enum):
 class LearningAwardSource(str, Enum):
     PATH_COMPLETION = "path_completion"
     DIRECT_CONFERRAL = "direct_conferral"
+    CHECKLIST_COMPLETION = "checklist_completion"
 
 
 class BadgeIssuerAuthorizationStatus(str, Enum):
