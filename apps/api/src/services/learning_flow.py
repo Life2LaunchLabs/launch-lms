@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from copy import deepcopy
 from typing import Any
 
 
@@ -19,6 +20,42 @@ ALLOWED_FACTS = {
 }
 ALLOWED_CONTEXT = {"mode", "bindings"}
 COMPARISONS = {"eq", "ne", "gt", "gte", "lt", "lte", "in", "contains", "exists"}
+
+
+def append_page_to_flow(flow: dict | None, page_uuid: str) -> dict | None:
+    """Append a page after every existing path, immediately before completion."""
+    if not flow:
+        return flow
+    updated = deepcopy(flow)
+    node_id = f"page:{page_uuid}"
+    if any(node.get("page_uuid") == page_uuid for node in updated.get("nodes", [])):
+        return updated
+
+    terminals = [
+        node for node in updated.get("nodes", []) if node.get("type") == "complete"
+    ]
+    if not terminals:
+        return updated
+    terminal_ids = {str(node.get("id")) for node in terminals}
+    completion_id = str(terminals[0].get("id"))
+    updated["nodes"] = [
+        node
+        for node in updated.get("nodes", [])
+        if node.get("type") != "complete" or str(node.get("id")) == completion_id
+    ]
+    updated["nodes"].append(
+        {"id": node_id, "type": "page", "page_uuid": page_uuid}
+    )
+    updated["edges"] = [
+        {**edge, "to": node_id} if str(edge.get("to")) in terminal_ids else edge
+        for edge in updated.get("edges", [])
+    ]
+    updated["edges"].append(
+        {"from": node_id, "to": completion_id, "priority": 0}
+    )
+    if str(updated.get("entry")) in terminal_ids:
+        updated["entry"] = node_id
+    return updated
 
 
 def _value(ref: Any, context: dict) -> Any:
