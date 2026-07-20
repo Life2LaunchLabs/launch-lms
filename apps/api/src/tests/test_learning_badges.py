@@ -815,6 +815,16 @@ def test_standard_page_accepts_bound_image_and_internal_page_button():
     ]})
 
 
+def test_standard_page_accepts_display_binding_draft_without_path():
+    _validate_page_payload(LearningPageType.STANDARD, {"version": 2, "blocks": [
+        {"id": "text", "type": "text", "content": {"nodes": [
+            {"type": "paragraph", "content": [
+                {"type": "displayBinding", "attrs": {"binding": {"source": "answer", "path": "", "fallback": "Your answer"}}},
+            ]},
+        ]}},
+    ]})
+
+
 def test_standard_page_rejects_unsafe_display_binding_path():
     with pytest.raises(HTTPException, match="unsupported source or path"):
         _validate_page_payload(LearningPageType.STANDARD, {"version": 2, "blocks": [

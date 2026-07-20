@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React from 'react'
-import { Award, BookCopy, BookOpen, Download, FileArchive, Globe, Loader2, Plus, Search, Settings, Trash2, Upload, Wand2, X } from 'lucide-react'
+import { Award, BookCopy, BookOpen, Check, Download, FileArchive, Globe, Loader2, Pencil, Plus, Search, Settings, Trash2, Upload, Wand2, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { Switch } from '@components/ui/switch'
@@ -101,6 +101,31 @@ function CollectionHeader({ collection: initialCollection, orgId }: { collection
   const accessToken = session.data?.tokens?.access_token
   const [collection, setCollection] = React.useState(initialCollection)
   const [isUploading, setIsUploading] = React.useState(false)
+  const [editingName, setEditingName] = React.useState(false)
+  const [draftName, setDraftName] = React.useState(initialCollection.name || '')
+  const [savingName, setSavingName] = React.useState(false)
+
+  const saveName = async () => {
+    const name = draftName.trim()
+    if (savingName) return
+    if (name.length < 3) {
+      toast.error('Collection title must be at least 3 characters.')
+      return
+    }
+    setSavingName(true)
+    try {
+      const nextCollection = await updateLearningBadgeCollection(collection.collection_uuid, { name }, accessToken)
+      setCollection(nextCollection)
+      setDraftName(nextCollection.name)
+      setEditingName(false)
+      toast.success('Collection title updated.')
+      router.refresh()
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to update collection title.')
+    } finally {
+      setSavingName(false)
+    }
+  }
 
   const handleMediaSelect = async (url: string) => {
     if (!accessToken) {
@@ -148,7 +173,29 @@ function CollectionHeader({ collection: initialCollection, orgId }: { collection
         </div>
       </div>
       <div className="min-w-0 flex-1">
-        <h1 className="text-3xl font-black leading-tight text-foreground">{collection.name}</h1>
+        <div className="group flex min-w-0 items-start gap-2">
+          {editingName ? (
+            <input
+              autoFocus
+              value={draftName}
+              maxLength={100}
+              onChange={(event) => setDraftName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') void saveName()
+                if (event.key === 'Escape') {
+                  setDraftName(collection.name)
+                  setEditingName(false)
+                }
+              }}
+              className="min-w-0 flex-1 rounded-md border border-border bg-card px-3 py-2 text-3xl font-black leading-tight text-foreground outline-none focus:ring-2 focus:ring-black"
+            />
+          ) : (
+            <h1 className="min-w-0 break-words text-3xl font-black leading-tight text-foreground">{collection.name}</h1>
+          )}
+          <button type="button" disabled={savingName} onClick={editingName ? saveName : () => setEditingName(true)} title={editingName ? 'Save' : 'Edit'} className={`mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${editingName ? 'bg-green-600 text-white hover:bg-green-700' : 'opacity-0 transition-opacity hover:bg-muted group-hover:opacity-100'}`}>
+            {savingName ? <Loader2 size={15} className="animate-spin" /> : editingName ? <Check size={15} /> : <Pencil size={15} />}
+          </button>
+        </div>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{collection.description || 'Manage badges in this collection.'}</p>
         <div className="mt-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
           <BookCopy size={14} />
