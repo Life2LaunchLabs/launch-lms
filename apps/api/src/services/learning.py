@@ -3468,10 +3468,24 @@ async def create_badge(
         creation_date=now,
         update_date=now,
     )
-    db_session.add(badge)
-    db_session.commit()
-    db_session.refresh(badge)
-    _get_path_for_badge(db_session, badge)
+    try:
+        db_session.add(badge)
+        db_session.flush()
+        path = LearningPath(
+            path_uuid=f"path_{uuid4()}",
+            badge_id=badge.id or 0,
+            org_id=badge.org_id,
+            title=f"{badge.name} Path",
+            description=badge.description or "",
+            creation_date=now,
+            update_date=now,
+        )
+        db_session.add(path)
+        db_session.commit()
+        db_session.refresh(badge)
+    except Exception:
+        db_session.rollback()
+        raise
     return LearningBadgeRead(**badge.model_dump())
 
 

@@ -4,7 +4,9 @@ from src.db.learning import (
     LearningAwardSource,
     LearningBadge,
     LearningBadgeAward,
+    LearningBadgeCreate,
     LearningBadgeStatus,
+    LearningPath,
     LearningPage,
     LearningPageType,
 )
@@ -24,7 +26,9 @@ from src.services.learning import (
     _validate_variable_key,
     build_learning_assertion_payload,
     build_learning_badge_class_payload,
+    create_badge,
 )
+from src.services import learning as learning_service
 from src.services.learning_page_convert import (
     convert_legacy_page,
     find_question_block,
@@ -41,6 +45,68 @@ class _FakeSession:
 
     def add(self, item):
         self.added.append(item)
+
+
+class _BadgeCreateSession:
+    def __init__(self, fail_commit=False):
+        self.added = []
+        self.commit_count = 0
+        self.rollback_count = 0
+        self.fail_commit = fail_commit
+
+    def add(self, item):
+        self.added.append(item)
+
+    def flush(self):
+        badge = next(item for item in self.added if isinstance(item, LearningBadge))
+        badge.id = 42
+
+    def commit(self):
+        self.commit_count += 1
+        if self.fail_commit:
+            raise RuntimeError("path insert failed")
+
+    def refresh(self, item):
+        return None
+
+    def rollback(self):
+        self.rollback_count += 1
+
+
+@pytest.mark.asyncio
+async def test_create_badge_commits_badge_and_default_path_together(monkeypatch):
+    monkeypatch.setattr(learning_service, "_require_org_admin", lambda *_args: None)
+    session = _BadgeCreateSession()
+
+    result = await create_badge(
+        _request(),
+        LearningBadgeCreate(org_id=1, collection_id=7, name="Demo badge"),
+        object(),
+        session,
+    )
+
+    badge = next(item for item in session.added if isinstance(item, LearningBadge))
+    path = next(item for item in session.added if isinstance(item, LearningPath))
+    assert session.commit_count == 1
+    assert path.badge_id == badge.id == 42
+    assert result.id == 42
+
+
+@pytest.mark.asyncio
+async def test_create_badge_rolls_back_when_default_path_cannot_be_committed(monkeypatch):
+    monkeypatch.setattr(learning_service, "_require_org_admin", lambda *_args: None)
+    session = _BadgeCreateSession(fail_commit=True)
+
+    with pytest.raises(RuntimeError, match="path insert failed"):
+        await create_badge(
+            _request(),
+            LearningBadgeCreate(org_id=1, collection_id=7, name="Demo badge"),
+            object(),
+            session,
+        )
+
+    assert session.commit_count == 1
+    assert session.rollback_count == 1
 
 
 def _request() -> Request:
