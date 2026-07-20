@@ -4215,8 +4215,9 @@ def _validate_page_payload(page_type: LearningPageType, content: dict | None) ->
     seen_ids: set[str] = set()
 
     def validate_display_binding(binding: dict) -> None:
-        if binding.get("source") not in {"answer", "variable"} or not re.fullmatch(
-            r"[A-Za-z0-9_.-]+", str(binding.get("path") or "")
+        path = str(binding.get("path") or "")
+        if binding.get("source") not in {"answer", "variable"} or (
+            path and not re.fullmatch(r"[A-Za-z0-9_.-]+", path)
         ):
             raise HTTPException(
                 status_code=422,

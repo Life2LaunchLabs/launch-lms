@@ -1041,8 +1041,6 @@ function CanvasToolbar({ selectedPage, pages, variantKey, onSelectVariant, onAdd
   const canEditBlocks = selectedPage?.page_type === 'standard'
   const hasVariants = Boolean(selectedPage?.content?.variants)
   const canAddQuestion = canEditBlocks && !hasVariants
-  const source = hasVariants ? getVariantSource(pages, selectedPage) : null
-  const enabledVariants = hasVariants ? getEnabledVariantKeys(selectedPage, source) : []
 
   return (
     <div className="flex h-11 shrink-0 items-center justify-between gap-4 border-b border-gray-200 bg-white px-4">
@@ -1092,23 +1090,6 @@ function CanvasToolbar({ selectedPage, pages, variantKey, onSelectVariant, onAdd
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      {hasVariants && (
-        <div className="flex shrink-0 items-center gap-2">
-          <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">
-            <Layers3 size={12} />
-            Variant
-          </span>
-          <select
-            value={enabledVariants.some((item) => item.key === variantKey) ? variantKey : 'default'}
-            onChange={(event) => onSelectVariant(event.target.value)}
-            className={`h-8 max-w-52 rounded-lg border px-2 text-xs font-bold outline-none ${variantKey !== 'default' ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-gray-200 bg-white text-gray-700'}`}
-          >
-            {enabledVariants.map((item) => (
-              <option key={item.key} value={item.key}>{item.label}</option>
-            ))}
-          </select>
-        </div>
-      )}
     </div>
   )
 }
@@ -1535,6 +1516,7 @@ function McqBlockCanvas({ block, page, selected, readOnly, onPatch }: any) {
     if (next.has(id)) next.delete(id)
     else {
       if (maxSelections <= 1) next.clear()
+      else if (next.size >= maxSelections) return
       next.add(id)
     }
     onPatch({ scoring: { ...scoring, mode: 'points', score_policy: 'exact_match', correct_option_ids: Array.from(next) } })
@@ -1656,17 +1638,6 @@ function TextInputBlockCanvas({ block, page, selected: _selected, readOnly, onPa
 
   return (
     <div className="group/inputs relative py-1">
-      {readOnly ? (
-        content.label ? <p className="mb-2 text-lg font-bold leading-7 text-gray-900">{content.label}</p> : null
-      ) : (
-        <AutoGrowTextarea
-          value={content.label || ''}
-          onChange={(event) => onPatch({ content: { ...content, label: event.target.value } })}
-          placeholder="Question label"
-          minRows={1}
-          className="mb-2 w-full resize-none overflow-hidden bg-transparent text-lg font-bold leading-7 text-gray-900 outline-none placeholder:text-gray-300"
-        />
-      )}
       <div className={`grid gap-3 ${sideBySide ? 'grid-cols-2' : 'grid-cols-1'}`}>
         {inputs.map((input: any, index: number) => {
           const height = Math.max(48, Number(input.height) || 160)
@@ -2019,9 +1990,8 @@ function InspectorPanel({
   )
 }
 
-function PageInspector({ page, pages, variantKey, setVariantKey, onSelectVariant, onDisableVariant, onPatchPage }: any) {
+function PageInspector({ page, onPatchPage }: any) {
   if (!page) return null
-  const hasVariants = Boolean(page.content?.variants)
   const design = page.design || {}
   const patchDesign = (patch: any) => onPatchPage({ design: { ...design, ...patch } })
   return (
@@ -2050,23 +2020,6 @@ function PageInspector({ page, pages, variantKey, setVariantKey, onSelectVariant
             <span className="font-bold text-gray-700">Allow scrubbing</span>
             <input type="checkbox" checked={page.content?.allow_scrubbing !== false} onChange={(event) => onPatchPage({ content: { ...(page.content || {}), allow_scrubbing: event.target.checked } })} />
           </label>
-        </InspectorSection>
-      )}
-      {page.page_type === 'standard' && (
-        <InspectorSection label="Variants">
-          {findQuestionBlock(page) ? (
-            <p className="text-xs font-medium leading-5 text-gray-500">Pages with question blocks cannot have variants. Variants show different content based on an earlier question&apos;s answer.</p>
-          ) : (
-            <VariantControls
-              page={page}
-              pages={pages}
-              variantKey={variantKey}
-              setVariantKey={setVariantKey}
-              onSelectVariant={onSelectVariant}
-              onDisableVariant={onDisableVariant}
-              onPatchPage={onPatchPage}
-            />
-          )}
         </InspectorSection>
       )}
     </div>
@@ -2178,6 +2131,17 @@ function VariantControls({ page, pages, variantKey, setVariantKey, onSelectVaria
 function BlockInspector({ block, page, pages, learningVariables, onCreateVariableKey, onPatchBlock, onPatchPage, onToggleSideBySide, onRequestImageUpload }: any) {
   const design = block.design || {}
   const patchDesign = (patch: any) => onPatchBlock(block.id, { design: { ...design, ...patch } })
+  const textBinding = block.type === 'text' && block.content?.nodes?.[0]?.content?.[0]?.type === 'displayBinding'
+    ? block.content.nodes[0].content[0].attrs?.binding
+    : null
+  const useStaticText = () => {
+    const fallback = String(textBinding?.fallback || '')
+    const node = {
+      type: 'paragraph',
+      ...(fallback ? { content: [{ type: 'text', text: fallback }] } : {}),
+    }
+    onPatchBlock(block.id, { content: { node, nodes: [node] } })
+  }
   if (block.system?.locked) {
     return <div className="p-5"><div className="rounded-xl border border-gray-200 bg-gray-50 p-4"><div className="flex items-center gap-2 text-sm font-bold text-gray-800"><Lock size={15} /> Locked system block</div><p className="mt-2 text-xs leading-5 text-gray-600">{block.system.reason || 'This block is managed by the portfolio activity and cannot be configured in the editor.'}</p></div></div>
   }
@@ -2253,8 +2217,16 @@ function BlockInspector({ block, page, pages, learningVariables, onCreateVariabl
             fallback="#4b5563"
             onChange={(value) => patchDesign({ text_color: value })}
           />
-          <button type="button" onClick={() => onPatchBlock(block.id, { content: { node: { type: 'paragraph', content: [{ type: 'displayBinding', attrs: { binding: { source: 'answer', path: '', fallback: 'Your answer' } } }] }, nodes: [{ type: 'paragraph', content: [{ type: 'displayBinding', attrs: { binding: { source: 'answer', path: '', fallback: 'Your answer' } } }] }] } })} className="h-10 w-full rounded-lg border border-gray-200 text-sm font-bold hover:bg-gray-50">Use a dynamic value</button>
-          {block.content?.nodes?.[0]?.content?.[0]?.type === 'displayBinding' && <><select value={block.content.nodes[0].content[0].attrs?.binding?.source || 'answer'} onChange={(event) => { const binding = { ...block.content.nodes[0].content[0].attrs.binding, source: event.target.value }; const node = { type: 'paragraph', content: [{ type: 'displayBinding', attrs: { binding } }] }; onPatchBlock(block.id, { content: { node, nodes: [node] } }) }} className="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm"><option value="answer">Prior answer</option><option value="variable">User variable</option></select><TextField label="Source path" value={block.content.nodes[0].content[0].attrs?.binding?.path || ''} onChange={(value) => { const binding = { ...block.content.nodes[0].content[0].attrs.binding, path: value }; const node = { type: 'paragraph', content: [{ type: 'displayBinding', attrs: { binding } }] }; onPatchBlock(block.id, { content: { node, nodes: [node] } }) }} /><TextField label="Fallback text" value={block.content.nodes[0].content[0].attrs?.binding?.fallback || ''} onChange={(value) => { const binding = { ...block.content.nodes[0].content[0].attrs.binding, fallback: value }; const node = { type: 'paragraph', content: [{ type: 'displayBinding', attrs: { binding } }] }; onPatchBlock(block.id, { content: { node, nodes: [node] } }) }} /></>}
+          {textBinding ? (
+            <>
+              <button type="button" onClick={useStaticText} className="h-10 w-full rounded-lg border border-gray-200 text-sm font-bold hover:bg-gray-50">Use static text</button>
+              <select value={textBinding.source || 'answer'} onChange={(event) => { const binding = { ...textBinding, source: event.target.value }; const node = { type: 'paragraph', content: [{ type: 'displayBinding', attrs: { binding } }] }; onPatchBlock(block.id, { content: { node, nodes: [node] } }) }} className="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm"><option value="answer">Prior answer</option><option value="variable">User variable</option></select>
+              <TextField label="Source path" value={textBinding.path || ''} onChange={(value) => { const binding = { ...textBinding, path: value }; const node = { type: 'paragraph', content: [{ type: 'displayBinding', attrs: { binding } }] }; onPatchBlock(block.id, { content: { node, nodes: [node] } }) }} />
+              <TextField label="Fallback text" value={textBinding.fallback || ''} onChange={(value) => { const binding = { ...textBinding, fallback: value }; const node = { type: 'paragraph', content: [{ type: 'displayBinding', attrs: { binding } }] }; onPatchBlock(block.id, { content: { node, nodes: [node] } }) }} />
+            </>
+          ) : (
+            <button type="button" onClick={() => onPatchBlock(block.id, { content: { node: { type: 'paragraph', content: [{ type: 'displayBinding', attrs: { binding: { source: 'answer', path: '', fallback: 'Your answer' } } }] }, nodes: [{ type: 'paragraph', content: [{ type: 'displayBinding', attrs: { binding: { source: 'answer', path: '', fallback: 'Your answer' } } }] }] } })} className="h-10 w-full rounded-lg border border-gray-200 text-sm font-bold hover:bg-gray-50">Use a dynamic value</button>
+          )}
         </InspectorSection>
       )}
       {block.type === 'button' && <InspectorSection label="Page button"><TextField label="Label" value={block.content?.label || ''} onChange={(value) => onPatchBlock(block.id, { content: { ...(block.content || {}), label: value } })} /><label className="grid gap-2 text-xs font-bold text-gray-500">Destination page<select value={block.content?.destination_page_uuid || ''} onChange={(event) => onPatchBlock(block.id, { content: { ...(block.content || {}), destination_page_uuid: event.target.value } })} className="h-10 rounded-lg border border-gray-200 px-3 text-sm font-normal text-gray-900"><option value="">Choose a page</option>{(pages || []).map((item: any) => <option key={item.page_uuid} value={item.page_uuid}>{item.title}</option>)}</select></label><SegmentedControl label="Style" value={design.variant === 'primary' ? 'primary' : 'secondary'} options={[{ value: 'primary', label: 'Primary' }, { value: 'secondary', label: 'Secondary' }]} onChange={(value) => patchDesign({ variant: value })} /><SegmentedControl label="Layout" value={design.group ? 'grouped' : 'solo'} options={[{ value: 'solo', label: 'Solo' }, { value: 'grouped', label: 'Side by side' }]} onChange={(value) => patchDesign({ group: value === 'grouped' ? `button_group_${page.page_uuid}` : undefined })} /><p className="text-xs leading-5 text-gray-500">Grouped page buttons share one responsive row. Direction icons are added automatically.</p></InspectorSection>}
@@ -2288,18 +2260,6 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
   const patchScoring = (patch: any) => patchQuestion({ scoring: { ...scoring, ...patch } })
   const patchCompletion = (patch: any) => patchQuestion({ completion: { ...completion, ...patch } })
   const patchVariableBindings = (patch: any) => patchCompletion({ variable_bindings: { ...variableBindings, ...patch } })
-  const labelSection = (
-    <InspectorSection label="Question">
-      <TextAreaField
-        label="Label"
-        value={content.label || ''}
-        onChange={(value) => patchContent({ label: value })}
-        placeholder="Question label"
-        rows={2}
-      />
-    </InspectorSection>
-  )
-
   // Scored questions grade answers and award points; variable questions just
   // store what the learner chose/typed. Switching modes clears the other side.
   const setQuestionMode = (value: string) => {
@@ -2352,6 +2312,7 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
       if (next.has(id)) next.delete(id)
       else {
         if (maxSelections <= 1) next.clear()
+        else if (next.size >= maxSelections) return
         next.add(id)
       }
       patchScoring({ mode: 'points', score_policy: 'exact_match', correct_option_ids: Array.from(next) })
@@ -2370,7 +2331,6 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
 
     return (
       <>
-        {labelSection}
         <InspectorSection label="Answers">
           <div className="space-y-2">
             {options.map((option, index) => (
@@ -2400,10 +2360,15 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
             <Plus size={15} />
             Add answer
           </button>
-          <div className="grid grid-cols-2 gap-2">
-            <TextField label="Min selections" type="number" value={String(minSelections)} onChange={(value) => patchCompletion({ min_selections: Math.max(1, Number(value)) })} />
-            <TextField label="Max selections" type="number" value={String(maxSelections)} onChange={(value) => patchCompletion({ max_selections: Math.max(1, Number(value)) })} />
-          </div>
+          <SelectionRangeFields
+            minSelections={minSelections}
+            maxSelections={maxSelections}
+            optionCount={options.length}
+            onCommit={(nextMin, nextMax) => patchQuestion({
+              completion: { ...completion, min_selections: nextMin, max_selections: nextMax },
+              scoring: { ...scoring, correct_option_ids: Array.from(correctIds).slice(0, nextMax) },
+            })}
+          />
         </InspectorSection>
         <InspectorSection label="Response handling">
           <SegmentedControl
@@ -2442,7 +2407,6 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
     const activeBinding = normalizeBinding(imageBindings)
     return (
       <>
-        {labelSection}
         <InspectorSection label="Image upload">
           <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm">
             <span className="font-bold text-gray-700">Required</span>
@@ -2503,7 +2467,6 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
 
   return (
     <>
-      {labelSection}
       <InspectorSection label={sideBySide ? 'Inputs (side by side)' : 'Input'}>
         {inputs.length <= 2 && <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm">
           <span className="font-bold text-gray-700">Two inputs side by side</span>
@@ -2614,17 +2577,52 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
   )
 }
 
-function TextAreaField({ label, value, onChange, placeholder, rows = 3 }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; rows?: number }) {
+function SelectionRangeFields({
+  minSelections,
+  maxSelections,
+  optionCount,
+  onCommit,
+}: {
+  minSelections: number
+  maxSelections: number
+  optionCount: number
+  onCommit: (minSelections: number, maxSelections: number) => void
+}) {
+  const [draftMin, setDraftMin] = React.useState(String(minSelections))
+  const [draftMax, setDraftMax] = React.useState(String(maxSelections))
+
+  React.useEffect(() => setDraftMin(String(minSelections)), [minSelections])
+  React.useEffect(() => setDraftMax(String(maxSelections)), [maxSelections])
+
+  const parseDraft = (value: string, fallback: number) => {
+    if (!/^\d+$/.test(value)) return fallback
+    return Math.max(1, Math.min(optionCount, Number(value)))
+  }
+  const commit = (field: 'min' | 'max') => {
+    let nextMin = parseDraft(draftMin, minSelections)
+    let nextMax = parseDraft(draftMax, maxSelections)
+    if (field === 'min' && nextMin > nextMax) nextMax = nextMin
+    if (field === 'max' && nextMax < nextMin) nextMin = nextMax
+    setDraftMin(String(nextMin))
+    setDraftMax(String(nextMax))
+    if (nextMin !== minSelections || nextMax !== maxSelections) onCommit(nextMin, nextMax)
+  }
+  const inputClass = (value: string) => {
+    const parsed = Number(value)
+    const invalid = value !== '' && (!/^\d+$/.test(value) || parsed < 1 || parsed > optionCount)
+    return `h-10 w-full rounded-lg border px-3 text-sm outline-none focus:border-[var(--org-primary-color)] ${invalid ? 'border-red-300 bg-red-50' : 'border-gray-200'}`
+  }
+
   return (
-    <div>
-      <FieldLabel>{label}</FieldLabel>
-      <textarea
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        rows={rows}
-        className="min-h-20 w-full resize-y rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none placeholder:text-gray-400 focus:border-[var(--org-primary-color)]"
-      />
+    <div className="grid grid-cols-2 gap-2">
+      <div>
+        <FieldLabel>Min selections</FieldLabel>
+        <input inputMode="numeric" value={draftMin} onChange={(event) => setDraftMin(event.target.value)} onBlur={() => commit('min')} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} className={inputClass(draftMin)} />
+      </div>
+      <div>
+        <FieldLabel>Max selections</FieldLabel>
+        <input inputMode="numeric" value={draftMax} onChange={(event) => setDraftMax(event.target.value)} onBlur={() => commit('max')} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} className={inputClass(draftMax)} />
+      </div>
     </div>
   )
 }
