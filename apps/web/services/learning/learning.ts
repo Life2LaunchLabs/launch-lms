@@ -61,6 +61,16 @@ export async function deleteLearningBadgeCollection(collectionUuid: string, acce
   return errorHandling(result)
 }
 
+export async function getDeletedLearningBadgeCollections(orgId: number, accessToken?: string) {
+  const result = await fetch(`${getAPIUrl()}badge-collections/trash/?org_id=${orgId}`, RequestBodyWithAuthHeader('GET', null, null, accessToken))
+  return errorHandling(result)
+}
+
+export async function restoreLearningBadgeCollection(collectionUuid: string, accessToken?: string) {
+  const result = await fetch(`${getAPIUrl()}badge-collections/${collectionUuid}/restore`, RequestBodyWithAuthHeader('POST', null, null, accessToken))
+  return errorHandling(result)
+}
+
 export async function exportLearningBadgeCollection(collectionUuid: string, accessToken?: string) {
   const response = await fetch(
     `${getAPIUrl()}badge-collections/${collectionUuid}/export`,
@@ -131,6 +141,16 @@ export async function deleteLearningBadge(badgeUuid: string, accessToken?: strin
     `${getAPIUrl()}badges/${badgeUuid}`,
     RequestBodyWithAuthHeader('DELETE', null, null, accessToken)
   )
+  return errorHandling(result)
+}
+
+export async function getDeletedLearningBadges(orgId: number, accessToken?: string) {
+  const result = await fetch(`${getAPIUrl()}badges/trash/?org_id=${orgId}`, RequestBodyWithAuthHeader('GET', null, null, accessToken))
+  return errorHandling(result)
+}
+
+export async function restoreLearningBadge(badgeUuid: string, accessToken?: string) {
+  const result = await fetch(`${getAPIUrl()}badges/${badgeUuid}/restore`, RequestBodyWithAuthHeader('POST', null, null, accessToken))
   return errorHandling(result)
 }
 

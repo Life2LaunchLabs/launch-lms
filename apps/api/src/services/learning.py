@@ -1,7 +1,7 @@
 import hashlib
 import re
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import uuid4
 
 from fastapi import HTTPException, Request, UploadFile, status
@@ -287,7 +287,8 @@ def _validate_issuer_selection(
 def _get_badge(db_session: Session, badge_uuid: str) -> LearningBadge:
     badge = db_session.exec(
         select(LearningBadge).where(
-            LearningBadge.badge_uuid == _clean_uuid(badge_uuid, "badge_")
+            LearningBadge.badge_uuid == _clean_uuid(badge_uuid, "badge_"),
+            LearningBadge.deleted_at.is_(None),
         )
     ).first()
     if not badge:
@@ -381,6 +382,7 @@ def _public_badge_query(org_id: int | None = None):
     statement = select(LearningBadge).where(
         LearningBadge.public == True,
         LearningBadge.status.in_(PUBLIC_BADGE_STATUSES),
+        LearningBadge.deleted_at.is_(None),
         or_(
             LearningBadge.system_type.is_(None),  # type: ignore
             LearningBadge.system_type != LEARNING_SYSTEM_TYPE_ONBOARDING,
@@ -3605,7 +3607,9 @@ async def list_badges(
                 detail="org_id is required for admin badge listing",
             )
         _require_org_admin(db_session, current_user, org_id)
-        statement = select(LearningBadge).where(LearningBadge.org_id == org_id)
+        statement = select(LearningBadge).where(
+            LearningBadge.org_id == org_id, LearningBadge.deleted_at.is_(None)
+        )
     else:
         statement = _public_badge_query(org_id)
     badges = db_session.exec(
@@ -3627,9 +3631,55 @@ async def delete_badge(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="System badges cannot be deleted",
         )
-    db_session.delete(badge)
+    badge.deleted_at = datetime.utcnow()
+    badge.update_date = _now()
+    db_session.add(badge)
     db_session.commit()
-    return {"detail": "Badge deleted"}
+    return {"detail": "Badge moved to trash"}
+
+
+async def list_deleted_badges(request: Request, org_id: int, current_user, db_session: Session) -> list[LearningBadgeRead]:
+    _require_org_admin(db_session, current_user, org_id)
+    cutoff = datetime.utcnow() - timedelta(days=14)
+    badges = db_session.exec(select(LearningBadge).where(
+        LearningBadge.org_id == org_id,
+        LearningBadge.deleted_at.is_not(None),
+        LearningBadge.deleted_at >= cutoff,
+    ).order_by(LearningBadge.deleted_at.desc())).all()
+    deleted_collection_ids = set(db_session.exec(select(BadgeCollection.id).where(
+        BadgeCollection.org_id == org_id,
+        BadgeCollection.deleted_at.is_not(None),
+    )).all())
+    return [
+        LearningBadgeRead(**badge.model_dump())
+        for badge in badges
+        if badge.collection_id not in deleted_collection_ids
+    ]
+
+
+async def restore_badge(request: Request, badge_uuid: str, current_user, db_session: Session) -> LearningBadgeRead:
+    badge = db_session.exec(select(LearningBadge).where(
+        LearningBadge.badge_uuid == _clean_uuid(badge_uuid, "badge_"),
+        LearningBadge.deleted_at.is_not(None),
+    )).first()
+    if not badge:
+        raise HTTPException(status_code=404, detail="Badge not found in trash")
+    _require_org_admin(db_session, current_user, badge.org_id)
+    if badge.deleted_at < datetime.utcnow() - timedelta(days=14):
+        raise HTTPException(status_code=410, detail="The 14-day restore period has expired")
+    if badge.collection_id is not None:
+        deleted_collection = db_session.exec(select(BadgeCollection).where(
+            BadgeCollection.id == badge.collection_id,
+            BadgeCollection.deleted_at.is_not(None),
+        )).first()
+        if deleted_collection:
+            raise HTTPException(status_code=409, detail="Restore the badge collection first")
+    badge.deleted_at = None
+    badge.update_date = _now()
+    db_session.add(badge)
+    db_session.commit()
+    db_session.refresh(badge)
+    return LearningBadgeRead(**badge.model_dump())
 
 
 async def create_collection(
@@ -3661,8 +3711,8 @@ async def update_collection(
 ) -> BadgeCollectionRead:
     collection = db_session.exec(
         select(BadgeCollection).where(
-            BadgeCollection.collection_uuid
-            == _clean_uuid(collection_uuid, "badge_collection_")
+            BadgeCollection.collection_uuid == _clean_uuid(collection_uuid, "badge_collection_"),
+            BadgeCollection.deleted_at.is_(None),
         )
     ).first()
     if not collection:
@@ -3692,8 +3742,8 @@ async def update_collection_thumbnail(
 ) -> BadgeCollectionRead:
     collection = db_session.exec(
         select(BadgeCollection).where(
-            BadgeCollection.collection_uuid
-            == _clean_uuid(collection_uuid, "badge_collection_")
+            BadgeCollection.collection_uuid == _clean_uuid(collection_uuid, "badge_collection_"),
+            BadgeCollection.deleted_at.is_(None),
         )
     ).first()
     if not collection:
@@ -3735,8 +3785,8 @@ async def delete_collection(
 ) -> dict:
     collection = db_session.exec(
         select(BadgeCollection).where(
-            BadgeCollection.collection_uuid
-            == _clean_uuid(collection_uuid, "badge_collection_")
+            BadgeCollection.collection_uuid == _clean_uuid(collection_uuid, "badge_collection_"),
+            BadgeCollection.deleted_at.is_(None),
         )
     ).first()
     if not collection:
@@ -3750,11 +3800,55 @@ async def delete_collection(
     badges = db_session.exec(
         select(LearningBadge).where(LearningBadge.collection_id == collection.id)
     ).all()
+    deleted_at = datetime.utcnow()
     for badge in badges:
-        db_session.delete(badge)
-    db_session.delete(collection)
+        if badge.deleted_at is None:
+            badge.deleted_at = deleted_at
+            badge.update_date = _now()
+            db_session.add(badge)
+    collection.deleted_at = deleted_at
+    collection.update_date = _now()
+    db_session.add(collection)
     db_session.commit()
-    return {"detail": "Badge collection deleted"}
+    return {"detail": "Badge collection moved to trash"}
+
+
+async def list_deleted_collections(request: Request, org_id: int, current_user, db_session: Session) -> list[BadgeCollectionRead]:
+    _require_org_admin(db_session, current_user, org_id)
+    cutoff = datetime.utcnow() - timedelta(days=14)
+    collections = db_session.exec(select(BadgeCollection).where(
+        BadgeCollection.org_id == org_id,
+        BadgeCollection.deleted_at.is_not(None),
+        BadgeCollection.deleted_at >= cutoff,
+    ).order_by(BadgeCollection.deleted_at.desc())).all()
+    return [BadgeCollectionRead(**collection.model_dump(), badges=[]) for collection in collections]
+
+
+async def restore_collection(request: Request, collection_uuid: str, current_user, db_session: Session) -> BadgeCollectionRead:
+    collection = db_session.exec(select(BadgeCollection).where(
+        BadgeCollection.collection_uuid == _clean_uuid(collection_uuid, "badge_collection_"),
+        BadgeCollection.deleted_at.is_not(None),
+    )).first()
+    if not collection:
+        raise HTTPException(status_code=404, detail="Badge collection not found in trash")
+    _require_org_admin(db_session, current_user, collection.org_id)
+    if collection.deleted_at < datetime.utcnow() - timedelta(days=14):
+        raise HTTPException(status_code=410, detail="The 14-day restore period has expired")
+    deleted_at = collection.deleted_at
+    badges = db_session.exec(select(LearningBadge).where(
+        LearningBadge.collection_id == collection.id,
+        LearningBadge.deleted_at == deleted_at,
+    )).all()
+    for badge in badges:
+        badge.deleted_at = None
+        badge.update_date = _now()
+        db_session.add(badge)
+    collection.deleted_at = None
+    collection.update_date = _now()
+    db_session.add(collection)
+    db_session.commit()
+    db_session.refresh(collection)
+    return BadgeCollectionRead(**collection.model_dump(), badges=[LearningBadgeRead(**b.model_dump()) for b in badges])
 
 
 async def list_collections(
@@ -3774,14 +3868,19 @@ async def list_collections(
             )
         _require_org_admin(db_session, current_user, org_id)
         collections = db_session.exec(
-            select(BadgeCollection).where(BadgeCollection.org_id == org_id)
+            select(BadgeCollection).where(
+                BadgeCollection.org_id == org_id, BadgeCollection.deleted_at.is_(None)
+            )
         ).all()
         badges = db_session.exec(
-            select(LearningBadge).where(LearningBadge.org_id == org_id)
+            select(LearningBadge).where(
+                LearningBadge.org_id == org_id, LearningBadge.deleted_at.is_(None)
+            )
         ).all()
     else:
         collection_statement = select(BadgeCollection).where(
-            BadgeCollection.public == True, BadgeCollection.hidden == False
+            BadgeCollection.public == True, BadgeCollection.hidden == False,
+            BadgeCollection.deleted_at.is_(None),
         )
         if org_id is not None:
             collection_statement = collection_statement.where(

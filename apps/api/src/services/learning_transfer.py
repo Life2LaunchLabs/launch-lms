@@ -40,10 +40,16 @@ def _normalize_collection_uuid(value: str) -> str:
 
 def _get_collection(db_session: Session, collection_uuid: str) -> BadgeCollection:
     collection = db_session.exec(
-        select(BadgeCollection).where(BadgeCollection.collection_uuid == _normalize_collection_uuid(collection_uuid))
+        select(BadgeCollection).where(
+            BadgeCollection.collection_uuid == _normalize_collection_uuid(collection_uuid),
+            BadgeCollection.deleted_at.is_(None),
+        )
     ).first()
     if not collection:
-        collection = db_session.exec(select(BadgeCollection).where(BadgeCollection.collection_uuid == collection_uuid)).first()
+        collection = db_session.exec(select(BadgeCollection).where(
+            BadgeCollection.collection_uuid == collection_uuid,
+            BadgeCollection.deleted_at.is_(None),
+        )).first()
     if not collection:
         raise HTTPException(status_code=404, detail="Badge collection not found")
     return collection
@@ -78,7 +84,10 @@ async def export_badge_collection(
     learning_service._require_org_admin(db_session, current_user, collection.org_id)
     org = learning_service._get_org(db_session, collection.org_id)
     badges = db_session.exec(
-        select(LearningBadge).where(LearningBadge.collection_id == collection.id).order_by(LearningBadge.creation_date.asc())  # type: ignore
+        select(LearningBadge).where(
+            LearningBadge.collection_id == collection.id,
+            LearningBadge.deleted_at.is_(None),
+        ).order_by(LearningBadge.creation_date.asc())  # type: ignore
     ).all()
 
     buffer = io.BytesIO()

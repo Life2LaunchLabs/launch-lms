@@ -62,6 +62,7 @@ class LearningBadgeBase(SQLModel):
     direct_conferral_enabled: bool = True
     marketplace_listed: bool = False
     badge_metadata: dict = Field(default_factory=dict, sa_column=Column("metadata", JSON))
+    deleted_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime, nullable=True, index=True))
 
 
 class LearningBadge(LearningBadgeBase, table=True):
@@ -134,6 +135,7 @@ class BadgeCollectionBase(SQLModel):
     hidden: bool = False
     protected: bool = False
     system_type: Optional[str] = None
+    deleted_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime, nullable=True, index=True))
 
 
 class BadgeCollection(BadgeCollectionBase, table=True):

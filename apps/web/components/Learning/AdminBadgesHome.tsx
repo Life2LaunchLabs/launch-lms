@@ -2,12 +2,16 @@
 
 import Link from 'next/link'
 import React from 'react'
-import { BookCopy, Library, Loader2, Plus, Trash2 } from 'lucide-react'
+import { BookCopy, Library, Loader2, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg } from '@services/config/config'
 import {
   createLearningBadgeCollection,
   deleteLearningBadgeCollection,
+  getDeletedLearningBadgeCollections,
+  getDeletedLearningBadges,
+  restoreLearningBadge,
+  restoreLearningBadgeCollection,
 } from '@services/learning/learning'
 import toast from 'react-hot-toast'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
@@ -33,6 +37,40 @@ export default function AdminBadgesHome({
   const [creating, setCreating] = React.useState(false)
   const [modalOpen, setModalOpen] = React.useState(false)
   const [deleting, setDeleting] = React.useState('')
+  const [trashOpen, setTrashOpen] = React.useState(false)
+  const [trash, setTrash] = React.useState<{ collections: any[]; badges: any[] }>({ collections: [], badges: [] })
+  const [trashLoading, setTrashLoading] = React.useState(false)
+  const [restoring, setRestoring] = React.useState('')
+
+  const openTrash = async () => {
+    setTrashOpen(true)
+    setTrashLoading(true)
+    try {
+      const [deletedCollections, deletedBadges] = await Promise.all([
+        getDeletedLearningBadgeCollections(orgId, accessToken),
+        getDeletedLearningBadges(orgId, accessToken),
+      ])
+      setTrash({ collections: deletedCollections || [], badges: deletedBadges || [] })
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to load trash')
+    } finally {
+      setTrashLoading(false)
+    }
+  }
+
+  const restore = async (item: any, type: 'collection' | 'badge') => {
+    const id = type === 'collection' ? item.collection_uuid : item.badge_uuid
+    setRestoring(id)
+    try {
+      if (type === 'collection') await restoreLearningBadgeCollection(id, accessToken)
+      else await restoreLearningBadge(id, accessToken)
+      toast.success(`${type === 'collection' ? 'Collection' : 'Badge'} restored`)
+      window.location.reload()
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to restore item')
+      setRestoring('')
+    }
+  }
 
   const createCollection = async () => {
     if (!name.trim()) return
@@ -58,11 +96,11 @@ export default function AdminBadgesHome({
     event.preventDefault()
     event.stopPropagation()
     if (deleting) return
-    if (!confirm(`Delete "${collection.name}" and its badges?`)) return
+    if (!confirm(`Move "${collection.name}" and its badges to trash? You can restore them for 14 days.`)) return
     setDeleting(collection.collection_uuid)
     try {
       await deleteLearningBadgeCollection(collection.collection_uuid, accessToken)
-      toast.success('Badge collection deleted')
+      toast.success('Badge collection moved to trash')
       window.location.reload()
     } catch (error: any) {
       toast.error(error?.message || 'Failed to delete collection')
@@ -79,6 +117,10 @@ export default function AdminBadgesHome({
           <h2 className="text-lg font-bold text-foreground">Collections</h2>
           <p className="mt-1 text-sm text-muted-foreground">Every badge belongs to one collection.</p>
         </div>
+        <div className="flex items-center gap-2">
+        <button onClick={openTrash} className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-xs font-bold text-foreground">
+          <Trash2 className="h-4 w-4" /> Trash
+        </button>
         <Modal
           isDialogOpen={modalOpen}
           onOpenChange={setModalOpen}
@@ -118,6 +160,7 @@ export default function AdminBadgesHome({
             </button>
           }
         />
+        </div>
       </div>
 
       {collections.length === 0 ? (
@@ -166,6 +209,32 @@ export default function AdminBadgesHome({
         </div>
       )}
       </section>
+      <Modal
+        isDialogOpen={trashOpen}
+        onOpenChange={setTrashOpen}
+        minHeight="no-min"
+        minWidth="md"
+        dialogTitle="Trash"
+        dialogDescription="Deleted badges and collections can be restored for 14 days."
+        dialogContent={
+          <div className="max-h-[60vh] space-y-3 overflow-y-auto p-2">
+            {trashLoading ? <Loader2 className="mx-auto h-5 w-5 animate-spin" /> : null}
+            {!trashLoading && !trash.collections.length && !trash.badges.length ? <p className="py-8 text-center text-sm text-muted-foreground">Trash is empty.</p> : null}
+            {[...trash.collections.map(item => ({ ...item, _type: 'collection' })), ...trash.badges.map(item => ({ ...item, _type: 'badge' }))].map(item => (
+              <div key={item.collection_uuid || item.badge_uuid} className="flex items-center justify-between rounded-lg border border-border p-3">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{item.name}</p>
+                  <p className="text-xs text-muted-foreground">{item._type === 'collection' ? 'Collection' : 'Badge'} · deleted {new Date(item.deleted_at).toLocaleDateString()}</p>
+                </div>
+                <button disabled={restoring === (item.collection_uuid || item.badge_uuid)} onClick={() => restore(item, item._type)} className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-xs font-bold disabled:opacity-50">
+                  {restoring === (item.collection_uuid || item.badge_uuid) ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />} Restore
+                </button>
+              </div>
+            ))}
+          </div>
+        }
+        dialogTrigger={<span className="hidden" />}
+      />
     </div>
   )
 }

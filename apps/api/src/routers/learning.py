@@ -68,6 +68,16 @@ async def api_list_badges(
     return await learning_service.list_badges(request, org_id, current_user, db_session, admin=admin)
 
 
+@badges_router.get("/trash/")
+async def api_list_deleted_badges(
+    request: Request,
+    org_id: int = Query(...),
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> list[LearningBadgeRead]:
+    return await learning_service.list_deleted_badges(request, org_id, current_user, db_session)
+
+
 @badges_router.get("/{badge_uuid}")
 async def api_get_badge(
     request: Request,
@@ -120,6 +130,16 @@ async def api_delete_badge(
     return await learning_service.delete_badge(request, badge_uuid, current_user, db_session)
 
 
+@badges_router.post("/{badge_uuid}/restore")
+async def api_restore_badge(
+    request: Request,
+    badge_uuid: str,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> LearningBadgeRead:
+    return await learning_service.restore_badge(request, badge_uuid, current_user, db_session)
+
+
 @badges_router.get("/{badge_uuid}/path")
 async def api_get_badge_path(
     request: Request,
@@ -154,6 +174,16 @@ async def api_list_collections(
     return await learning_service.list_collections(request, org_id, current_user, db_session, admin=admin)
 
 
+@collections_router.get("/trash/")
+async def api_list_deleted_collections(
+    request: Request,
+    org_id: int = Query(...),
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> list[BadgeCollectionRead]:
+    return await learning_service.list_deleted_collections(request, org_id, current_user, db_session)
+
+
 @collections_router.put("/{collection_uuid}")
 async def api_update_collection(
     request: Request,
@@ -184,6 +214,16 @@ async def api_delete_collection(
     db_session=Depends(get_db_session),
 ) -> dict:
     return await learning_service.delete_collection(request, collection_uuid, current_user, db_session)
+
+
+@collections_router.post("/{collection_uuid}/restore")
+async def api_restore_collection(
+    request: Request,
+    collection_uuid: str,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> BadgeCollectionRead:
+    return await learning_service.restore_collection(request, collection_uuid, current_user, db_session)
 
 
 @collections_router.get("/{collection_uuid}/export")
