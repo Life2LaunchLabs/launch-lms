@@ -111,6 +111,24 @@ export function createLinearFlow(pages: any[]): Flow {
   }
 }
 
+export function appendPageToFlow(flow: Flow | undefined, page: any): Flow | undefined {
+  if (!flow || flow.nodes.some((node) => node.page_uuid === page.page_uuid)) return flow
+  const terminals = flow.nodes.filter((node) => node.type === 'complete')
+  if (!terminals.length) return flow
+  const terminalIds = new Set(terminals.map((node) => node.id))
+  const completionId = terminals[0].id
+  const pageNode: FlowNode = { id: `page:${page.page_uuid}`, type: 'page', page_uuid: page.page_uuid }
+  return {
+    ...flow,
+    entry: terminalIds.has(flow.entry) ? pageNode.id : flow.entry,
+    nodes: [...flow.nodes.filter((node) => node.type !== 'complete' || node.id === completionId), pageNode],
+    edges: [
+      ...flow.edges.map((edge) => terminalIds.has(edge.to) ? { ...edge, to: pageNode.id } : edge),
+      { from: pageNode.id, to: completionId, priority: 0 },
+    ],
+  }
+}
+
 export default function VisualFlowEditor({ flow, pages, onChange, onSelectPage }: { flow: Flow; pages: any[]; onChange: (flow: Flow) => void; onSelectPage: (pageUuid: string) => void }) {
   const [activeDecision, setActiveDecision] = React.useState<string | null>(null)
   const [connectingFrom, setConnectingFrom] = React.useState<string | null>(null)

@@ -118,7 +118,7 @@ import {
 import { DEVICE_FRAMES, MOBILE_FRAME_CAP } from './constants'
 import { PageListPanel } from './PageListPanel'
 import { VariablePathPicker } from './VariablePathPicker'
-import VisualFlowEditor, { createLinearFlow } from './VisualFlowEditor'
+import VisualFlowEditor, { appendPageToFlow, createLinearFlow } from './VisualFlowEditor'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { JourneyCardView, type JourneyEntry } from '@components/Pages/Portfolio/Journey'
 
@@ -506,6 +506,10 @@ export default function LearningActivityEditor({
         completion: {},
       }, accessToken)
       setPages((current) => [...current, page])
+      setActivityState((current: any) => {
+        const flow = appendPageToFlow(current.settings?.flow, page)
+        return flow ? { ...current, settings: { ...(current.settings || {}), flow } } : current
+      })
       setSelection({ pageUuid: page.page_uuid, blockId: null })
       setLastSavedAt(new Date())
     } catch (error: any) {
@@ -531,6 +535,10 @@ export default function LearningActivityEditor({
       nextPages.splice(sourceIndex + 1, 0, duplicate)
       const ordered = withSequentialOrder(nextPages)
       setPages(ordered)
+      setActivityState((current: any) => {
+        const flow = appendPageToFlow(current.settings?.flow, duplicate)
+        return flow ? { ...current, settings: { ...(current.settings || {}), flow } } : current
+      })
       setSelection({ pageUuid: duplicate.page_uuid, blockId: null })
       await persistPageOrder(ordered)
       setLastSavedAt(new Date())

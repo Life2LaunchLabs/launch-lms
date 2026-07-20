@@ -1,6 +1,12 @@
 import pytest
 
-from src.services.learning_flow import FlowValidationError, evaluate_condition, resolve_flow, validate_flow
+from src.services.learning_flow import (
+    FlowValidationError,
+    append_page_to_flow,
+    evaluate_condition,
+    resolve_flow,
+    validate_flow,
+)
 
 
 def _flow():
@@ -54,3 +60,21 @@ def test_rejects_unsafe_fact_paths():
     flow["edges"][0]["condition"]["left"] = {"source": "fact", "key": "private_email"}
     with pytest.raises(FlowValidationError, match="unsupported portfolio fact"):
         validate_flow(flow, {"page_question", "page_made", "page_default"}, {"page_question"})
+
+
+def test_appends_new_page_after_every_branch_before_completion():
+    flow = append_page_to_flow(_flow(), "page_new")
+
+    validate_flow(
+        flow,
+        {"page_question", "page_made", "page_default", "page_new"},
+        {"page_question", "page_new"},
+    )
+    made = resolve_flow(
+        flow,
+        {"answers": {"page_question": {"result": {"option_ids": ["made"]}}}},
+    )
+    default = resolve_flow(flow, {"answers": {}})
+    assert made.page_uuids == ["page_question", "page_made", "page_new"]
+    assert default.page_uuids == ["page_question", "page_default", "page_new"]
+    assert made.terminal is default.terminal is True

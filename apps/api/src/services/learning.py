@@ -75,7 +75,12 @@ from src.services.learning_page_convert import (
     question_block,
     text_block,
 )
-from src.services.learning_flow import FlowValidationError, resolve_flow, validate_flow
+from src.services.learning_flow import (
+    FlowValidationError,
+    append_page_to_flow,
+    resolve_flow,
+    validate_flow,
+)
 from src.services.learning_portfolio_actions import (
     PortfolioActionError,
     _portfolio,
@@ -4000,6 +4005,14 @@ async def create_activity(
         update_date=now,
     )
     db_session.add(page)
+    flow = (activity.settings or {}).get("flow")
+    if flow:
+        activity.settings = {
+            **(activity.settings or {}),
+            "flow": append_page_to_flow(flow, page.page_uuid),
+        }
+        activity.update_date = now
+        db_session.add(activity)
     db_session.commit()
     db_session.refresh(activity)
     db_session.refresh(page)
