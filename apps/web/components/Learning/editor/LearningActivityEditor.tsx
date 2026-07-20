@@ -120,6 +120,7 @@ import { PageListPanel } from './PageListPanel'
 import { VariablePathPicker } from './VariablePathPicker'
 import VisualFlowEditor, { appendPageToFlow, createLinearFlow } from './VisualFlowEditor'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
+import type { MediaAsset } from '@services/media/library'
 import { JourneyCardView, type JourneyEntry } from '@components/Pages/Portfolio/Journey'
 
 export default function LearningActivityEditor({
@@ -157,6 +158,7 @@ export default function LearningActivityEditor({
   const [publishing, setPublishing] = React.useState(false)
   const [previewOpen, setPreviewOpen] = React.useState(false)
   const [uploadingBlockId, setUploadingBlockId] = React.useState<string | null>(null)
+  const [selectingVideoPageUuid, setSelectingVideoPageUuid] = React.useState<string | null>(null)
   const [hoveredBlockId, setHoveredBlockId] = React.useState<string | null>(null)
   const [draggingBlockId, setDraggingBlockId] = React.useState<string | null>(null)
   const [activeTextEditor, setActiveTextEditor] = React.useState<any>(null)
@@ -692,6 +694,20 @@ export default function LearningActivityEditor({
     setUploadingBlockId(null)
   }
 
+  const handleVideoAssetPicked = (asset: MediaAsset) => {
+    if (!selectingVideoPageUuid) return
+    const page = pages.find((item) => item.page_uuid === selectingVideoPageUuid)
+    if (!page) return
+    patchPage(selectingVideoPageUuid, {
+      content: {
+        ...(page.content || {}),
+        video_url: asset.url,
+        video_asset_uuid: asset.asset_uuid,
+      },
+    })
+    setSelectingVideoPageUuid(null)
+  }
+
   const createVariableFromKey = async (rawKey: string, valueType = 'text') => {
     const key = String(rawKey || '').trim()
     if (!key || !badge?.org_id || !accessToken) return null
@@ -798,6 +814,18 @@ export default function LearningActivityEditor({
         onSave={handleMediaAssetPicked}
         owner={{ type: 'org', id: Number(badge?.org_id) }}
         mediaType="image"
+        accessToken={accessToken}
+      />
+      <MediaPickerDialog
+        open={Boolean(selectingVideoPageUuid)}
+        onOpenChange={(open) => {
+          if (!open) setSelectingVideoPageUuid(null)
+        }}
+        title="Choose video"
+        description="Upload a video, add an external link, or choose one from the media library."
+        onSave={handleVideoAssetPicked}
+        owner={{ type: 'org', id: Number(badge?.org_id) }}
+        mediaType="video"
         accessToken={accessToken}
       />
       <EditorHeader
@@ -915,6 +943,7 @@ export default function LearningActivityEditor({
                     onDuplicateBlock={duplicateBlock}
                     onRemoveBlock={removeBlock}
                     onRequestImageUpload={requestImageUpload}
+                    onRequestVideo={() => selectedPage && setSelectingVideoPageUuid(selectedPage.page_uuid)}
                   />
                 </div>
               </div>
@@ -955,6 +984,7 @@ export default function LearningActivityEditor({
               onPatchPage={patchSelectedPage}
               onPatchBlock={patchBlock}
               onRequestImageUpload={requestImageUpload}
+              onRequestVideo={() => selectedPage && setSelectingVideoPageUuid(selectedPage.page_uuid)}
             />
           </div>
         </div>
@@ -1131,6 +1161,7 @@ function CanvasFrame({
   onPatchBlock,
   onInsertBlock,
   onRequestImageUpload,
+  onRequestVideo,
   registerBlockEl,
   onHoverBlock,
   onTextEditorReady,
@@ -1176,7 +1207,7 @@ function CanvasFrame({
             className="h-full"
           >
             {page.page_type === 'video' ? (
-              <VideoCanvasPage page={page} onPatchPage={onPatchPage} />
+              <VideoCanvasPage page={page} onRequestVideo={onRequestVideo} />
             ) : (
               <StandardCanvasPage
                 page={page}
@@ -1917,7 +1948,7 @@ function InlineInsertMenu({ onInsert, canAddQuestion, alwaysVisible = false }: {
 
 // The surrounding LearningActivitySurface already draws the theater chrome
 // (progress bar, footer) for video pages — this is just the editable body.
-function VideoCanvasPage({ page, onPatchPage }: any) {
+function VideoCanvasPage({ page, onRequestVideo }: any) {
   const videoUrl = page.content?.video_url || ''
   return (
     <div className="flex w-full max-w-3xl flex-col gap-4 px-6 text-white">
@@ -1928,15 +1959,17 @@ function VideoCanvasPage({ page, onPatchPage }: any) {
             <p className="break-all text-sm font-bold text-white/80">{videoUrl}</p>
           </div>
         ) : (
-          <p className="text-sm font-bold text-white/50">Paste a video URL below</p>
+          <p className="text-sm font-bold text-white/50">Upload a video or add an external link</p>
         )}
       </div>
-      <input
-        value={videoUrl}
-        onChange={(event) => onPatchPage({ content: { ...(page.content || {}), video_url: event.target.value } })}
-        placeholder="Video URL"
-        className="h-10 w-full rounded-lg border border-white/10 bg-white/10 px-3 text-sm text-white outline-none placeholder:text-white/40"
-      />
+      <button
+        type="button"
+        onClick={onRequestVideo}
+        className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/10 px-3 text-sm font-bold text-white hover:bg-white/15"
+      >
+        <Upload size={16} />
+        {videoUrl ? 'Change video' : 'Choose video'}
+      </button>
     </div>
   )
 }
@@ -1972,6 +2005,7 @@ function InspectorPanel({
   onPatchPage,
   onPatchBlock,
   onRequestImageUpload,
+  onRequestVideo,
 }: any) {
   return (
     <aside className="h-full w-full overflow-y-auto border-l border-gray-200 bg-white">
@@ -1992,13 +2026,13 @@ function InspectorPanel({
           onRequestImageUpload={onRequestImageUpload}
         />
       ) : (
-        <PageInspector page={page} pages={pages} variantKey={variantKey} setVariantKey={setVariantKey} onSelectVariant={onSelectVariant} onDisableVariant={onDisableVariant} onPatchPage={onPatchPage} />
+        <PageInspector page={page} pages={pages} variantKey={variantKey} setVariantKey={setVariantKey} onSelectVariant={onSelectVariant} onDisableVariant={onDisableVariant} onPatchPage={onPatchPage} onRequestVideo={onRequestVideo} />
       )}
     </aside>
   )
 }
 
-function PageInspector({ page, onPatchPage }: any) {
+function PageInspector({ page, onPatchPage, onRequestVideo }: any) {
   if (!page) return null
   const design = page.design || {}
   const patchDesign = (patch: any) => onPatchPage({ design: { ...design, ...patch } })
@@ -2023,7 +2057,11 @@ function PageInspector({ page, onPatchPage }: any) {
       )}
       {page.page_type === 'video' && (
         <InspectorSection label="Video">
-          <TextField label="URL" value={page.content?.video_url || ''} onChange={(value) => onPatchPage({ content: { ...(page.content || {}), video_url: value } })} />
+          <button type="button" onClick={onRequestVideo} className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-gray-200 text-sm font-bold hover:bg-gray-50">
+            <Upload size={16} />
+            {page.content?.video_url ? 'Change video' : 'Choose video'}
+          </button>
+          {page.content?.video_url && <p className="break-all text-xs text-gray-500">{page.content.video_url}</p>}
           <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm">
             <span className="font-bold text-gray-700">Allow scrubbing</span>
             <input type="checkbox" checked={page.content?.allow_scrubbing !== false} onChange={(event) => onPatchPage({ content: { ...(page.content || {}), allow_scrubbing: event.target.checked } })} />
