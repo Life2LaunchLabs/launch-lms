@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { getOfferCheckoutSession } from '@services/payments/offers'
 import {
   ArrowLeft, RefreshCcw, SquareCheck, Sparkles, BookOpen,
@@ -45,7 +44,7 @@ function stripTypePrefix(uuid: string): string {
 function getResourceUrl(orgslug: string, resource: Resource): string | null {
   const id = stripTypePrefix(resource.resource_uuid)
   switch (resource.resource_type) {
-    case 'course': return getUriWithOrg(orgslug, routePaths.org.course(id))
+    case 'badge': return getUriWithOrg(orgslug, routePaths.org.badgeDetail(id))
     case 'podcast': return getUriWithOrg(orgslug, routePaths.org.podcast(id))
     case 'playground': return getUriWithOrg(orgslug, routePaths.org.playground(id))
     default: return null
@@ -53,9 +52,7 @@ function getResourceUrl(orgslug: string, resource: Resource): string | null {
 }
 
 function ResourceCard({ resource, orgslug }: { resource: Resource; orgslug: string }) {
-  const src = resource.thumbnail_image && resource.resource_type === 'course'
-    ? getCourseThumbnailMediaDirectory(resource.org_uuid, resource.resource_uuid, resource.thumbnail_image)
-    : null
+  const src = resource.thumbnail_image || null
 
   const url = getResourceUrl(orgslug, resource)
   const card = (
@@ -255,9 +252,7 @@ export default function OfferDetailClient({ orgslug, orgId, offerUuid, offer, ac
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Included</p>
                   <div className="space-y-2">
                     {resources.map((r) => {
-                      const src = r.thumbnail_image && r.resource_type === 'course'
-                        ? getCourseThumbnailMediaDirectory(r.org_uuid, r.resource_uuid, r.thumbnail_image)
-                        : null
+                      const src = r.thumbnail_image || null
                       return (
                         <div key={r.resource_uuid} className="flex items-center gap-2.5">
                           <div

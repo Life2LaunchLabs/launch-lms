@@ -28,7 +28,7 @@ type EditRoleProps = {
 }
 
 interface Rights {
-    courses: {
+    badges: {
         action_create: boolean;
         action_read: boolean;
         action_read_own: boolean;
@@ -49,7 +49,7 @@ interface Rights {
         action_update: boolean;
         action_delete: boolean;
     };
-    collections: {
+    badge_collections: {
         action_create: boolean;
         action_read: boolean;
         action_update: boolean;
@@ -61,13 +61,7 @@ interface Rights {
         action_update: boolean;
         action_delete: boolean;
     };
-    coursechapters: {
-        action_create: boolean;
-        action_read: boolean;
-        action_update: boolean;
-        action_delete: boolean;
-    };
-    activities: {
+    learning_activities: {
         action_create: boolean;
         action_read: boolean;
         action_update: boolean;
@@ -107,58 +101,54 @@ const predefinedRoles = {
         name: 'Admin',
         description: 'Full platform control with all permissions',
         rights: {
-            courses: { action_create: true, action_read: true, action_read_own: true, action_update: true, action_update_own: true, action_delete: true, action_delete_own: true },
+            badges: { action_create: true, action_read: true, action_read_own: true, action_update: true, action_update_own: true, action_delete: true, action_delete_own: true },
             users: { action_create: true, action_read: true, action_update: true, action_delete: true },
             usergroups: { action_create: true, action_read: true, action_update: true, action_delete: true },
-            collections: { action_create: true, action_read: true, action_update: true, action_delete: true },
+            badge_collections: { action_create: true, action_read: true, action_update: true, action_delete: true },
             organizations: { action_create: true, action_read: true, action_update: true, action_delete: true },
-            coursechapters: { action_create: true, action_read: true, action_update: true, action_delete: true },
-            activities: { action_create: true, action_read: true, action_update: true, action_delete: true },
+            learning_activities: { action_create: true, action_read: true, action_update: true, action_delete: true },
             roles: { action_create: true, action_read: true, action_update: true, action_delete: true },
             dashboard: { action_access: true }
         }
     },
-    'Course Manager': {
-        name: 'Course Manager',
-        description: 'Can manage courses, chapters, and activities',
+    'Badge Manager': {
+        name: 'Badge Manager',
+        description: 'Can manage badges, chapters, and learning_activities',
         rights: {
-            courses: { action_create: true, action_read: true, action_read_own: true, action_update: true, action_update_own: true, action_delete: false, action_delete_own: true },
+            badges: { action_create: true, action_read: true, action_read_own: true, action_update: true, action_update_own: true, action_delete: false, action_delete_own: true },
             users: { action_create: false, action_read: true, action_update: false, action_delete: false },
             usergroups: { action_create: false, action_read: true, action_update: false, action_delete: false },
-            collections: { action_create: true, action_read: true, action_update: true, action_delete: false },
+            badge_collections: { action_create: true, action_read: true, action_update: true, action_delete: false },
             organizations: { action_create: false, action_read: false, action_update: false, action_delete: false },
-            coursechapters: { action_create: true, action_read: true, action_update: true, action_delete: false },
-            activities: { action_create: true, action_read: true, action_update: true, action_delete: false },
+            learning_activities: { action_create: true, action_read: true, action_update: true, action_delete: false },
             roles: { action_create: false, action_read: false, action_update: false, action_delete: false },
             dashboard: { action_access: true }
         }
     },
     'Instructor': {
         name: 'Instructor',
-        description: 'Can create and manage their own courses',
+        description: 'Can create and manage their own badges',
         rights: {
-            courses: { action_create: true, action_read: true, action_read_own: true, action_update: false, action_update_own: true, action_delete: false, action_delete_own: true },
+            badges: { action_create: true, action_read: true, action_read_own: true, action_update: false, action_update_own: true, action_delete: false, action_delete_own: true },
             users: { action_create: false, action_read: false, action_update: false, action_delete: false },
             usergroups: { action_create: false, action_read: false, action_update: false, action_delete: false },
-            collections: { action_create: false, action_read: true, action_update: false, action_delete: false },
+            badge_collections: { action_create: false, action_read: true, action_update: false, action_delete: false },
             organizations: { action_create: false, action_read: false, action_update: false, action_delete: false },
-            coursechapters: { action_create: true, action_read: true, action_update: false, action_delete: false },
-            activities: { action_create: true, action_read: true, action_update: false, action_delete: false },
+            learning_activities: { action_create: true, action_read: true, action_update: false, action_delete: false },
             roles: { action_create: false, action_read: false, action_update: false, action_delete: false },
             dashboard: { action_access: true }
         }
     },
     'Viewer': {
         name: 'Viewer',
-        description: 'Read-only access to courses and content',
+        description: 'Read-only access to badges and content',
         rights: {
-            courses: { action_create: false, action_read: true, action_read_own: true, action_update: false, action_update_own: false, action_delete: false, action_delete_own: false },
+            badges: { action_create: false, action_read: true, action_read_own: true, action_update: false, action_update_own: false, action_delete: false, action_delete_own: false },
             users: { action_create: false, action_read: false, action_update: false, action_delete: false },
             usergroups: { action_create: false, action_read: false, action_update: false, action_delete: false },
-            collections: { action_create: false, action_read: true, action_update: false, action_delete: false },
+            badge_collections: { action_create: false, action_read: true, action_update: false, action_delete: false },
             organizations: { action_create: false, action_read: false, action_update: false, action_delete: false },
-            coursechapters: { action_create: false, action_read: true, action_update: false, action_delete: false },
-            activities: { action_create: false, action_read: true, action_update: false, action_delete: false },
+            learning_activities: { action_create: false, action_read: true, action_update: false, action_delete: false },
             roles: { action_create: false, action_read: false, action_update: false, action_delete: false },
             dashboard: { action_access: true }
         }
@@ -167,13 +157,12 @@ const predefinedRoles = {
         name: 'Content Creator',
         description: 'Can create and edit content but not manage users',
         rights: {
-            courses: { action_create: true, action_read: true, action_read_own: true, action_update: true, action_update_own: true, action_delete: false, action_delete_own: false },
+            badges: { action_create: true, action_read: true, action_read_own: true, action_update: true, action_update_own: true, action_delete: false, action_delete_own: false },
             users: { action_create: false, action_read: false, action_update: false, action_delete: false },
             usergroups: { action_create: false, action_read: false, action_update: false, action_delete: false },
-            collections: { action_create: true, action_read: true, action_update: true, action_delete: false },
+            badge_collections: { action_create: true, action_read: true, action_update: true, action_delete: false },
             organizations: { action_create: false, action_read: false, action_update: false, action_delete: false },
-            coursechapters: { action_create: true, action_read: true, action_update: true, action_delete: false },
-            activities: { action_create: true, action_read: true, action_update: true, action_delete: false },
+            learning_activities: { action_create: true, action_read: true, action_update: true, action_delete: false },
             roles: { action_create: false, action_read: false, action_update: false, action_delete: false },
             dashboard: { action_access: true }
         }
@@ -182,28 +171,26 @@ const predefinedRoles = {
         name: 'User Manager',
         description: 'Can manage users and user groups',
         rights: {
-            courses: { action_create: false, action_read: true, action_read_own: true, action_update: false, action_update_own: false, action_delete: false, action_delete_own: false },
+            badges: { action_create: false, action_read: true, action_read_own: true, action_update: false, action_update_own: false, action_delete: false, action_delete_own: false },
             users: { action_create: true, action_read: true, action_update: true, action_delete: true },
             usergroups: { action_create: true, action_read: true, action_update: true, action_delete: true },
-            collections: { action_create: false, action_read: true, action_update: false, action_delete: false },
+            badge_collections: { action_create: false, action_read: true, action_update: false, action_delete: false },
             organizations: { action_create: false, action_read: false, action_update: false, action_delete: false },
-            coursechapters: { action_create: false, action_read: true, action_update: false, action_delete: false },
-            activities: { action_create: false, action_read: true, action_update: false, action_delete: false },
+            learning_activities: { action_create: false, action_read: true, action_update: false, action_delete: false },
             roles: { action_create: false, action_read: true, action_update: false, action_delete: false },
             dashboard: { action_access: true }
         }
     },
     'Moderator': {
         name: 'Moderator',
-        description: 'Can moderate content and manage activities',
+        description: 'Can moderate content and manage learning_activities',
         rights: {
-            courses: { action_create: false, action_read: true, action_read_own: true, action_update: false, action_update_own: false, action_delete: false, action_delete_own: false },
+            badges: { action_create: false, action_read: true, action_read_own: true, action_update: false, action_update_own: false, action_delete: false, action_delete_own: false },
             users: { action_create: false, action_read: true, action_update: false, action_delete: false },
             usergroups: { action_create: false, action_read: true, action_update: false, action_delete: false },
-            collections: { action_create: false, action_read: true, action_update: true, action_delete: false },
+            badge_collections: { action_create: false, action_read: true, action_update: true, action_delete: false },
             organizations: { action_create: false, action_read: false, action_update: false, action_delete: false },
-            coursechapters: { action_create: false, action_read: true, action_update: true, action_delete: false },
-            activities: { action_create: false, action_read: true, action_update: true, action_delete: false },
+            learning_activities: { action_create: false, action_read: true, action_update: true, action_delete: false },
             roles: { action_create: false, action_read: false, action_update: false, action_delete: false },
             dashboard: { action_access: true }
         }
@@ -212,13 +199,12 @@ const predefinedRoles = {
         name: 'Analyst',
         description: 'Read-only access with analytics capabilities',
         rights: {
-            courses: { action_create: false, action_read: true, action_read_own: true, action_update: false, action_update_own: false, action_delete: false, action_delete_own: false },
+            badges: { action_create: false, action_read: true, action_read_own: true, action_update: false, action_update_own: false, action_delete: false, action_delete_own: false },
             users: { action_create: false, action_read: true, action_update: false, action_delete: false },
             usergroups: { action_create: false, action_read: true, action_update: false, action_delete: false },
-            collections: { action_create: false, action_read: true, action_update: false, action_delete: false },
+            badge_collections: { action_create: false, action_read: true, action_update: false, action_delete: false },
             organizations: { action_create: false, action_read: true, action_update: false, action_delete: false },
-            coursechapters: { action_create: false, action_read: true, action_update: false, action_delete: false },
-            activities: { action_create: false, action_read: true, action_update: false, action_delete: false },
+            learning_activities: { action_create: false, action_read: true, action_update: false, action_delete: false },
             roles: { action_create: false, action_read: true, action_update: false, action_delete: false },
             dashboard: { action_access: true }
         }
@@ -227,13 +213,12 @@ const predefinedRoles = {
         name: 'Guest',
         description: 'Limited access for external users',
         rights: {
-            courses: { action_create: false, action_read: true, action_read_own: false, action_update: false, action_update_own: false, action_delete: false, action_delete_own: false },
+            badges: { action_create: false, action_read: true, action_read_own: false, action_update: false, action_update_own: false, action_delete: false, action_delete_own: false },
             users: { action_create: false, action_read: false, action_update: false, action_delete: false },
             usergroups: { action_create: false, action_read: false, action_update: false, action_delete: false },
-            collections: { action_create: false, action_read: true, action_update: false, action_delete: false },
+            badge_collections: { action_create: false, action_read: true, action_update: false, action_delete: false },
             organizations: { action_create: false, action_read: false, action_update: false, action_delete: false },
-            coursechapters: { action_create: false, action_read: true, action_update: false, action_delete: false },
-            activities: { action_create: false, action_read: true, action_update: false, action_delete: false },
+            learning_activities: { action_create: false, action_read: true, action_update: false, action_delete: false },
             roles: { action_create: false, action_read: false, action_update: false, action_delete: false },
             dashboard: { action_access: false }
         }
@@ -320,14 +305,14 @@ function EditRole(props: EditRoleProps) {
             
             // Ensure rights object is properly structured
             const formattedRights = {
-                courses: {
-                    action_create: rights.courses?.action_create || false,
-                    action_read: rights.courses?.action_read || false,
-                    action_read_own: rights.courses?.action_read_own || false,
-                    action_update: rights.courses?.action_update || false,
-                    action_update_own: rights.courses?.action_update_own || false,
-                    action_delete: rights.courses?.action_delete || false,
-                    action_delete_own: rights.courses?.action_delete_own || false
+                badges: {
+                    action_create: rights.badges?.action_create || false,
+                    action_read: rights.badges?.action_read || false,
+                    action_read_own: rights.badges?.action_read_own || false,
+                    action_update: rights.badges?.action_update || false,
+                    action_update_own: rights.badges?.action_update_own || false,
+                    action_delete: rights.badges?.action_delete || false,
+                    action_delete_own: rights.badges?.action_delete_own || false
                 },
                 users: {
                     action_create: rights.users?.action_create || false,
@@ -341,11 +326,11 @@ function EditRole(props: EditRoleProps) {
                     action_update: rights.usergroups?.action_update || false,
                     action_delete: rights.usergroups?.action_delete || false
                 },
-                collections: {
-                    action_create: rights.collections?.action_create || false,
-                    action_read: rights.collections?.action_read || false,
-                    action_update: rights.collections?.action_update || false,
-                    action_delete: rights.collections?.action_delete || false
+                badge_collections: {
+                    action_create: rights.badge_collections?.action_create || false,
+                    action_read: rights.badge_collections?.action_read || false,
+                    action_update: rights.badge_collections?.action_update || false,
+                    action_delete: rights.badge_collections?.action_delete || false
                 },
                 organizations: {
                     action_create: rights.organizations?.action_create || false,
@@ -353,17 +338,11 @@ function EditRole(props: EditRoleProps) {
                     action_update: rights.organizations?.action_update || false,
                     action_delete: rights.organizations?.action_delete || false
                 },
-                coursechapters: {
-                    action_create: rights.coursechapters?.action_create || false,
-                    action_read: rights.coursechapters?.action_read || false,
-                    action_update: rights.coursechapters?.action_update || false,
-                    action_delete: rights.coursechapters?.action_delete || false
-                },
-                activities: {
-                    action_create: rights.activities?.action_create || false,
-                    action_read: rights.activities?.action_read || false,
-                    action_update: rights.activities?.action_update || false,
-                    action_delete: rights.activities?.action_delete || false
+                learning_activities: {
+                    action_create: rights.learning_activities?.action_create || false,
+                    action_read: rights.learning_activities?.action_read || false,
+                    action_update: rights.learning_activities?.action_update || false,
+                    action_delete: rights.learning_activities?.action_delete || false
                 },
                 roles: {
                     action_create: rights.roles?.action_create || false,
@@ -477,9 +456,9 @@ function EditRole(props: EditRoleProps) {
                         <h3 className="text-lg font-semibold text-foreground mb-4">{t('dashboard.users.roles.modals.edit.permissions.title')}</h3>
                         
                         <PermissionSection
-                            title={t('dashboard.users.roles.modals.edit.permissions.sections.courses')}
+                            title={t('dashboard.users.roles.modals.edit.permissions.sections.badges')}
                             icon={BookOpen}
-                            section="courses"
+                            section="badges"
                             permissions={['action_create', 'action_read', 'action_read_own', 'action_update', 'action_update_own', 'action_delete', 'action_delete_own']}
                         rights={rights}
                         onSelectAll={handleSelectAll}
@@ -507,9 +486,9 @@ function EditRole(props: EditRoleProps) {
                         />
                         
                         <PermissionSection
-                            title={t('dashboard.users.roles.modals.edit.permissions.sections.collections')}
+                            title={t('dashboard.users.roles.modals.edit.permissions.sections.badge_collections')}
                             icon={FolderOpen}
-                            section="collections"
+                            section="badge_collections"
                             permissions={['action_create', 'action_read', 'action_update', 'action_delete']}
                         rights={rights}
                         onSelectAll={handleSelectAll}
@@ -527,9 +506,9 @@ function EditRole(props: EditRoleProps) {
                         />
                         
                         <PermissionSection
-                            title={t('dashboard.users.roles.modals.edit.permissions.sections.coursechapters')}
+                            title={t('dashboard.users.roles.modals.edit.permissions.sections.badge_collections')}
                             icon={FileText}
-                            section="coursechapters"
+                            section="badge_collections"
                             permissions={['action_create', 'action_read', 'action_update', 'action_delete']}
                         rights={rights}
                         onSelectAll={handleSelectAll}
@@ -537,9 +516,9 @@ function EditRole(props: EditRoleProps) {
                         />
                         
                         <PermissionSection
-                            title={t('dashboard.users.roles.modals.edit.permissions.sections.activities')}
+                            title={t('dashboard.users.roles.modals.edit.permissions.sections.learning_activities')}
                             icon={Activity}
-                            section="activities"
+                            section="learning_activities"
                             permissions={['action_create', 'action_read', 'action_update', 'action_delete']}
                         rights={rights}
                         onSelectAll={handleSelectAll}

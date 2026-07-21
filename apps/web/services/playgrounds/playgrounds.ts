@@ -17,8 +17,6 @@ export interface Playground {
   thumbnail_image?: string | null
   access_type: PlaygroundAccessType
   published: boolean
-  course_uuid?: string | null
-  course_id?: number | null
   html_content?: string | null
   created_by?: number | null
   author_username?: string | null
@@ -35,7 +33,6 @@ export interface PlaygroundCreate {
   description?: string
   thumbnail_image?: string
   access_type?: PlaygroundAccessType
-  course_uuid?: string
   html_content?: string
 }
 
@@ -45,7 +42,6 @@ export interface PlaygroundUpdate {
   thumbnail_image?: string
   access_type?: PlaygroundAccessType
   published?: boolean
-  course_uuid?: string
   html_content?: string
 }
 

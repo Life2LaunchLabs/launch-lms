@@ -28,10 +28,9 @@ export default function ContentOverview() {
     return defaultDisabled ? v1?.enabled === true : v1?.enabled !== false
   }
 
-  // Courses
-  const { data: coursesData } = useSWR(
-    token && orgslug
-      ? `${getAPIUrl()}courses/org_slug/${orgslug}/page/1/limit/500?include_unpublished=true`
+  const { data: badgesData } = useSWR(
+    token && orgId
+      ? `${getAPIUrl()}badges/?org_id=${orgId}&admin=true`
       : null,
     (url) => swrFetcher(url, token),
     { revalidateOnFocus: false }
@@ -75,24 +74,24 @@ export default function ContentOverview() {
     { revalidateOnFocus: false }
   )
 
-  const courses: any[] = coursesData ?? []
+  const badges: any[] = badgesData ?? []
   const totalMembers = membersData?.total ?? 0
   const communities: any[] = communitiesData ?? []
   const resources: any[] = resourcesData ?? []
   const podcasts: any[] = podcastsData ?? []
 
-  const publishedCourses = courses.filter((c: any) => c.published).length
-  const draftCourses = courses.length - publishedCourses
+  const publishedBadges = badges.filter((badge: any) => badge.status === 'published').length
+  const draftBadges = badges.length - publishedBadges
 
   const cards = [
     {
       label: 'Badges',
-      value: courses.length,
-      sub: `${publishedCourses} published · ${draftCourses} draft`,
+      value: badges.length,
+      sub: `${publishedBadges} published · ${draftBadges} draft`,
       icon: BookOpen,
       iconColor: 'text-blue-500',
       iconBg: 'bg-blue-50',
-      href: '/admin/courses',
+      href: '/admin/badges',
       show: true,
     },
     {

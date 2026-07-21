@@ -1,7 +1,6 @@
 import { Metadata } from 'next'
 import { getServerSession } from '@/lib/auth/server'
 import { getPlayground } from '@services/playgrounds/playgrounds'
-import { getOrgCourses } from '@services/courses/courses'
 import { notFound, redirect } from 'next/navigation'
 import PlaygroundEditor from '@components/Playground/PlaygroundEditor'
 
@@ -33,25 +32,11 @@ export default async function EditPlaygroundPage({ params }: { params: PageParam
     notFound()
   }
 
-  let orgCourses: { course_uuid: string; name: string }[] = []
-  if (playground.org_slug) {
-    try {
-      const coursesRes = await getOrgCourses(playground.org_slug, null, access_token, true)
-      orgCourses = (Array.isArray(coursesRes) ? coursesRes : []).map((c: any) => ({
-        course_uuid: c.course_uuid,
-        name: c.name,
-      }))
-    } catch {
-      // Non-fatal — proceed without course context
-    }
-  }
-
   return (
     <PlaygroundEditor
       playground={playground}
       orgslug={playground.org_slug || ''}
       accessToken={access_token}
-      orgCourses={orgCourses}
     />
   )
 }

@@ -37,13 +37,12 @@ class DashboardPermission(BaseModel):
 
 
 class Rights(BaseModel):
-    courses: PermissionsWithOwn
+    badges: PermissionsWithOwn
     users: Permission
     usergroups : Permission
-    collections: Permission
+    badge_collections: Permission
     organizations: Permission
-    coursechapters: Permission
-    activities: Permission
+    learning_activities: Permission
     roles: Permission
     dashboard: DashboardPermission
     communities: Permission

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React from 'react'
-import { Award, BookCopy, BookOpen, Check, Download, FileArchive, Globe, Loader2, Pencil, Plus, Search, Settings, Trash2, Upload, Wand2, X } from 'lucide-react'
+import { Award, BookCopy, BookOpen, Check, Download, FileArchive, Globe, Loader2, Pencil, Plus, Search, Settings, Trash2, Upload, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { Switch } from '@components/ui/switch'
@@ -14,14 +14,13 @@ import { SafeImage } from '@components/Objects/SafeImage'
 import {
   analyzeLearningBadgeImportPackage,
   createLearningBadge,
-  convertLearningBadgeCourseMigration,
   deleteLearningBadge,
   deleteLearningBadgeCollection,
   exportLearningBadgeCollection,
   importLearningBadgePackage,
   updateLearningBadgeCollection,
+  downloadBlob,
 } from '@services/learning/learning'
-import { analyzeTutorImportFiles, downloadBlob, importTutorCourses } from '@services/courses/transfer'
 import toast from 'react-hot-toast'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
@@ -382,27 +381,22 @@ function CollectionBadges({ orgslug, orgId, collection }: { orgslug: string; org
 }
 
 function LearningBadgeImport({ orgId, collection, accessToken }: { orgId: number; collection: any; accessToken?: string }) {
-  const [source, setSource] = React.useState<'launch' | 'tutor'>('launch')
   const [file, setFile] = React.useState<File | null>(null)
-  const [tutorFiles, setTutorFiles] = React.useState<File[]>([])
   const [analysis, setAnalysis] = React.useState<any>(null)
   const [selected, setSelected] = React.useState<Set<string>>(new Set())
   const [namePrefix, setNamePrefix] = React.useState('')
   const [loading, setLoading] = React.useState(false)
   const [result, setResult] = React.useState<any>(null)
-  const [converting, setConverting] = React.useState(false)
 
   const analyze = async () => {
     if (loading) return
     setLoading(true)
     setResult(null)
     try {
-      const nextAnalysis = source === 'tutor'
-        ? { ...(await analyzeTutorImportFiles(tutorFiles, orgId, accessToken)), source_format: 'tutor-lms-json', requires_conversion: true }
-        : await analyzeLearningBadgeImportPackage(file as File, orgId, accessToken)
+      const nextAnalysis = await analyzeLearningBadgeImportPackage(file as File, orgId, accessToken)
       setAnalysis(nextAnalysis)
-      const items = nextAnalysis.source_format === 'launch-lms-badge-export' ? nextAnalysis.badges || [] : nextAnalysis.courses || []
-      setSelected(new Set(items.map((item: any) => item.badge_uuid || item.course_uuid).filter(Boolean)))
+      const items = nextAnalysis.badges || []
+      setSelected(new Set(items.map((item: any) => item.badge_uuid).filter(Boolean)))
     } catch (error: any) {
       toast.error(error?.message || 'Failed to analyze import')
     } finally {
@@ -414,41 +408,17 @@ function LearningBadgeImport({ orgId, collection, accessToken }: { orgId: number
     if (!analysis || loading) return
     setLoading(true)
     try {
-      const sourceItems = analysis.source_format === 'launch-lms-badge-export' ? analysis.badges || [] : analysis.courses || []
-      const selectedIds = sourceItems.map((item: any) => item.badge_uuid || item.course_uuid).filter((id: string) => selected.has(id))
-      const payload = analysis.source_format === 'launch-lms-badge-export'
-        ? {
-            temp_id: analysis.temp_id,
-            collection_uuid: collection.collection_uuid,
-            badge_uuids: selectedIds,
-            name_prefix: namePrefix || null,
-          }
-        : {
-            temp_id: analysis.temp_id,
-            course_uuids: selectedIds,
-            name_prefix: namePrefix || null,
-            set_private: true,
-            set_unpublished: true,
-          }
-      const nextResult = analysis.source_format === 'tutor-lms-json'
-        ? await importTutorCourses(
-            analysis.temp_id,
-            orgId,
-            {
-              course_uuids: selectedIds,
-              name_prefix: namePrefix || null,
-              set_private: true,
-              set_unpublished: true,
-              collection_uuid: null,
-            },
-            accessToken
-          )
-        : await importLearningBadgePackage(orgId, payload, accessToken)
+      const selectedIds = (analysis.badges || []).map((item: any) => item.badge_uuid).filter((id: string) => selected.has(id))
+      const payload = {
+        temp_id: analysis.temp_id,
+        collection_uuid: collection.collection_uuid,
+        badge_uuids: selectedIds,
+        name_prefix: namePrefix || null,
+      }
+      const nextResult = await importLearningBadgePackage(orgId, payload, accessToken)
       setResult(nextResult)
       toast.success('Import complete')
-      if (analysis.source_format === 'launch-lms-badge-export') {
-        window.location.reload()
-      }
+      window.location.reload()
     } catch (error: any) {
       toast.error(error?.message || 'Failed to import package')
     } finally {
@@ -456,58 +426,28 @@ function LearningBadgeImport({ orgId, collection, accessToken }: { orgId: number
     }
   }
 
-  const convertImported = async () => {
-    const candidates = result?.migration_candidates || []
-    if (!candidates.length || converting) return
-    setConverting(true)
-    try {
-      for (const candidate of candidates) {
-        await convertLearningBadgeCourseMigration(candidate.course_uuid, accessToken, collection.collection_uuid)
-      }
-      toast.success('Imported legacy courses converted to badges')
-      window.location.reload()
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to convert imported courses')
-    } finally {
-      setConverting(false)
-    }
-  }
-
-  const items = analysis?.source_format === 'launch-lms-badge-export' ? analysis?.badges || [] : analysis?.courses || []
-  const isLegacy = analysis?.source_format === 'launch-lms-course-export' || analysis?.source_format === 'tutor-lms-json'
+  const items = analysis?.badges || []
 
   return (
     <div className="space-y-4 p-2">
       {!analysis ? (
         <>
-          <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
-            <button onClick={() => { setSource('launch'); setFile(null); setTutorFiles([]) }} className={`rounded-md px-3 py-2 text-xs font-bold ${source === 'launch' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>Launch ZIP</button>
-            <button onClick={() => { setSource('tutor'); setFile(null); setTutorFiles([]) }} className={`rounded-md px-3 py-2 text-xs font-bold ${source === 'tutor' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>Tutor JSON</button>
-          </div>
           <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted px-6 py-10 text-center transition-colors hover:bg-muted">
             <input
               type="file"
-              accept={source === 'tutor' ? '.json,application/json' : '.zip,application/zip'}
-              multiple={source === 'tutor'}
+              accept=".zip,application/zip"
               className="hidden"
-              onChange={(event) => {
-                if (source === 'tutor') setTutorFiles(Array.from(event.target.files || []))
-                else setFile(event.target.files?.[0] || null)
-              }}
+              onChange={(event) => setFile(event.target.files?.[0] || null)}
             />
             <FileArchive className="h-10 w-10 text-muted-foreground" />
             <p className="mt-3 text-sm font-bold text-foreground">
-              {source === 'tutor'
-                ? tutorFiles.length ? `${tutorFiles.length} Tutor file(s) selected` : 'Choose Tutor LMS JSON export files'
-                : file?.name || 'Choose a Launch LMS badge or course export ZIP'}
+              {file?.name || 'Choose a Launch LMS badge export ZIP'}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {source === 'tutor'
-                ? 'Tutor imports create legacy courses first, then can be converted into badges.'
-                : 'New badge exports import directly. Legacy course exports can be converted after import.'}
+              Native badge exports import directly.
             </p>
           </label>
-          <button onClick={analyze} disabled={(source === 'tutor' ? tutorFiles.length === 0 : !file) || loading} className="ml-auto flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white disabled:opacity-50">
+          <button onClick={analyze} disabled={!file || loading} className="ml-auto flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white disabled:opacity-50">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
             Analyze Package
           </button>
@@ -517,32 +457,16 @@ function LearningBadgeImport({ orgId, collection, accessToken }: { orgId: number
           <div className="rounded-lg border border-green-100 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">
             Imported {result.successful || 0} item(s){result.failed ? `, ${result.failed} failed` : ''}.
           </div>
-          {isLegacy && (result.migration_candidates || []).length > 0 ? (
-            <div className="rounded-lg border border-amber-100 bg-amber-50 p-4">
-              <h3 className="text-sm font-bold text-amber-900">Convert imported legacy courses?</h3>
-              <p className="mt-1 text-xs leading-5 text-amber-800">This upload was an old course export. Convert the imported courses into new badges in this collection now, or skip and leave them as legacy courses.</p>
-              <div className="mt-4 flex justify-end gap-2">
-                <button onClick={() => window.location.reload()} className="rounded-lg border border-amber-200 bg-card px-4 py-2 text-xs font-bold text-amber-900">Skip</button>
-                <button onClick={convertImported} disabled={converting} className="flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-xs font-bold text-white disabled:opacity-50">
-                  {converting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                  Convert now
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button onClick={() => window.location.reload()} className="ml-auto flex rounded-lg bg-black px-5 py-2 text-xs font-bold text-white">Done</button>
-          )}
+          <button onClick={() => window.location.reload()} className="ml-auto flex rounded-lg bg-black px-5 py-2 text-xs font-bold text-white">Done</button>
         </div>
       ) : (
         <>
-          <div className={`rounded-lg border px-4 py-3 text-sm ${isLegacy ? 'border-amber-100 bg-amber-50 text-amber-800' : 'border-green-100 bg-green-50 text-green-800'}`}>
-            {analysis.source_format === 'tutor-lms-json'
-              ? 'Tutor LMS export detected. Import will create legacy courses first, then prompt you to convert them into badges.'
-              : isLegacy ? 'Legacy course export detected. Import will create legacy courses first, then prompt you to convert them into badges.' : 'New badge export detected.'}
+          <div className="rounded-lg border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-800">
+            Native badge export detected.
           </div>
           <div className="max-h-64 space-y-2 overflow-y-auto">
             {items.map((item: any) => {
-              const id = item.badge_uuid || item.course_uuid
+              const id = item.badge_uuid
               return (
                 <label key={id} className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-card p-3">
                   <input type="checkbox" checked={selected.has(id)} onChange={(event) => {

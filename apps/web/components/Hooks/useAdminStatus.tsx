@@ -16,7 +16,7 @@ interface Role {
 }
 
 interface Rights {
-    courses: {
+    badges: {
         action_create: boolean;
         action_read: boolean;
         action_read_own: boolean;
@@ -37,7 +37,7 @@ interface Rights {
         action_update: boolean;
         action_delete: boolean;
     };
-    collections: {
+    badge_collections: {
         action_create: boolean;
         action_read: boolean;
         action_update: boolean;
@@ -49,13 +49,7 @@ interface Rights {
         action_update: boolean;
         action_delete: boolean;
     };
-    coursechapters: {
-        action_create: boolean;
-        action_read: boolean;
-        action_update: boolean;
-        action_delete: boolean;
-    };
-    activities: {
+    learning_activities: {
         action_create: boolean;
         action_read: boolean;
         action_update: boolean;
@@ -86,7 +80,7 @@ function extractRightsFromRoles(userRoles: Role[], orgId: number): Rights | null
     if (orgRoles.length === 0) return null;
 
     const mergedRights: Rights = {
-        courses: {
+        badges: {
             action_create: false,
             action_read: false,
             action_read_own: false,
@@ -107,7 +101,7 @@ function extractRightsFromRoles(userRoles: Role[], orgId: number): Rights | null
             action_update: false,
             action_delete: false
         },
-        collections: {
+        badge_collections: {
             action_create: false,
             action_read: false,
             action_update: false,
@@ -119,13 +113,7 @@ function extractRightsFromRoles(userRoles: Role[], orgId: number): Rights | null
             action_update: false,
             action_delete: false
         },
-        coursechapters: {
-            action_create: false,
-            action_read: false,
-            action_update: false,
-            action_delete: false
-        },
-        activities: {
+        learning_activities: {
             action_create: false,
             action_read: false,
             action_update: false,
@@ -161,13 +149,12 @@ function extractRightsFromRoles(userRoles: Role[], orgId: number): Rights | null
 
 // Full-access rights object for superadmins
 const SUPERADMIN_RIGHTS: Rights = {
-    courses: { action_create: true, action_read: true, action_read_own: true, action_update: true, action_update_own: true, action_delete: true, action_delete_own: true },
+    badges: { action_create: true, action_read: true, action_read_own: true, action_update: true, action_update_own: true, action_delete: true, action_delete_own: true },
     users: { action_create: true, action_read: true, action_update: true, action_delete: true },
     usergroups: { action_create: true, action_read: true, action_update: true, action_delete: true },
-    collections: { action_create: true, action_read: true, action_update: true, action_delete: true },
+    badge_collections: { action_create: true, action_read: true, action_update: true, action_delete: true },
     organizations: { action_create: true, action_read: true, action_update: true, action_delete: true },
-    coursechapters: { action_create: true, action_read: true, action_update: true, action_delete: true },
-    activities: { action_create: true, action_read: true, action_update: true, action_delete: true },
+    learning_activities: { action_create: true, action_read: true, action_update: true, action_delete: true },
     roles: { action_create: true, action_read: true, action_update: true, action_delete: true },
     dashboard: { action_access: true },
 };
@@ -203,4 +190,3 @@ function useAdminStatus(): UseAdminStatusReturn {
 }
 
 export default useAdminStatus;
-

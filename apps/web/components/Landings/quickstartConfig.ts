@@ -23,7 +23,7 @@ export const QUICKSTART_FEATURES: Record<
       createElement(House, { size: 44, weight: 'fill', className }),
     href: routePaths.org.portfolio(),
   },
-  courses: {
+  badges: {
     label: 'Badges',
     description: 'Discover badges to earn',
     icon: ({ className }) =>

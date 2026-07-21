@@ -10,7 +10,6 @@ import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbna
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { cn } from '@/lib/utils'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { getLearningPath } from '@services/learning/learning'
 import badgesImage from 'public/landing/badges.png'
 
@@ -39,7 +38,7 @@ type BadgeDiscoverPageProps = {
 }
 
 function cleanBadgeUuid(value?: string | null) {
-  return String(value || '').replace(/^(course_|badge_)/, '')
+  return String(value || '').replace(/^badge_/, '')
 }
 
 function getRunTimestamp(run: any, fallback?: any) {
@@ -60,11 +59,7 @@ function getRunTimestamp(run: any, fallback?: any) {
 }
 
 function getBadgeThumbnailSrc(badge: any, ownerOrgUuid: string) {
-  if (badge?.thumbnail_image_url) return badge.thumbnail_image_url
-  if (badge?.thumbnail_image && ownerOrgUuid) {
-    return getCourseThumbnailMediaDirectory(ownerOrgUuid, badge.course_uuid, badge.thumbnail_image)
-  }
-  return ''
+  return badge?.thumbnail_image || ''
 }
 
 function getBadgeActivityCount(badge: any) {
@@ -113,8 +108,8 @@ function buildBadgeCatalog(collections: any[], pathsByBadgeUuid: Map<string, any
   const byBadgeUuid = new Map<string, BadgeCatalogItem>()
 
   ;(collections || []).forEach((collection: any) => {
-    ;(collection.courses || []).forEach((rawBadge: any) => {
-      const badgeUuid = cleanBadgeUuid(rawBadge.course_uuid || rawBadge.badge_uuid)
+    ;(collection.badges || []).forEach((rawBadge: any) => {
+      const badgeUuid = cleanBadgeUuid(rawBadge.badge_uuid)
       if (!badgeUuid || byBadgeUuid.has(badgeUuid)) return
 
       const ownerOrgUuid = rawBadge.owner_org_uuid || collection.owner_org_uuid || ''
@@ -311,8 +306,8 @@ function BadgeDiscoverContent({ orgslug, collections, choosingBadge }: BadgeDisc
   const badgeUuids = useMemo(() => {
     const seen = new Set<string>()
     ;(collections || []).forEach((collection: any) => {
-      ;(collection.courses || []).forEach((badge: any) => {
-        const badgeUuid = cleanBadgeUuid(badge.course_uuid || badge.badge_uuid)
+      ;(collection.badges || []).forEach((badge: any) => {
+        const badgeUuid = cleanBadgeUuid(badge.badge_uuid)
         if (badgeUuid) seen.add(badgeUuid)
       })
     })

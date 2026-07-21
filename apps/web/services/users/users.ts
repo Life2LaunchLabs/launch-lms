@@ -36,20 +36,6 @@ export async function getUserByUsername(username: string, access_token: string) 
   return res
 }
 
-/**
- * Get courses created/contributed by a user.
- *
- * SECURITY: Requires authentication.
- * The access_token parameter is required.
- */
-export async function getCoursesByUser(user_id: string, access_token: string) {
-  const result = await fetch(
-    `${getAPIUrl()}users/${user_id}/courses`,
-    RequestBodyWithAuthHeader('GET', null, null, access_token)
-  )
-  const res = await getResponseMetadata(result)
-  return res
-}
 export async function updateUserAvatar(
   user_uuid: any,
   avatar_file: any,

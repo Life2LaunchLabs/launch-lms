@@ -17,7 +17,7 @@ class UsageEvent(SQLModel, table=True):
     org_id: int = Field(
         sa_column=Column(BigInteger, ForeignKey("organization.id", ondelete="CASCADE"))
     )
-    feature: str  # "members" or "courses"
+    feature: str  # e.g. "members", "badges", or "badge_collections"
     event_type: str  # "add" or "remove"
     timestamp: datetime = Field(default_factory=datetime.now)
     usage_after: int  # Total count after this event

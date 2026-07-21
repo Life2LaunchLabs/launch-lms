@@ -76,7 +76,6 @@ export const routePaths = {
     newsArticle: (slug: string) => `/news/${slug}`,
     badge: () => '/badge',
     badgesVerify: (uuid: string) => `/badges/${uuid}/verify`,
-    certificateVerify: (uuid: string) => `/certificates/${uuid}/verify`,
     organizations: () => '/organizations',
     organization: (orgSlug: string) => `/organization/${orgSlug}`,
     search: (query?: string) => withQuery('/search', { q: query }),
@@ -86,20 +85,12 @@ export const routePaths = {
     podcasts: () => '/podcasts',
     badges: () => '/badges',
     myBadges: () => '/portfolio/badges',
-    courses: () => '/courses',
-    collections: () => '/collections',
-    collectionNew: () => '/collections/new',
-    collection: (collectionUuid: string) => `/collection/${collectionUuid}`,
-    course: (courseUuid: string) => `/badges/${courseUuid}`,
+    badgeDetail: (badgeUuid: string) => `/badges/${badgeUuid}`,
     badgeStatus: (courseUuid: string) => `/badges/${courseUuid}/badge`,
     badgePath: (courseUuid: string) => `/badges/${courseUuid}/path`,
     badgeChapter: (courseUuid: string, chapterId: string) =>
       `/badges/${courseUuid}/chapter/${chapterId}`,
     badgeInvite: (courseUuid: string) => `/badges/${courseUuid}/invite`,
-    courseActivity: (courseUuid: string, activityId: string) =>
-      `/course/${courseUuid}/activity/${activityId}`,
-    courseActivityEnd: (courseUuid: string) =>
-      `/course/${courseUuid}/activity/end`,
     resource: (resourceUuid: string) => `/resource/${resourceUuid}`,
     podcast: (podcastUuid: string) => `/podcast/${podcastUuid}`,
     playground: (playgroundUuid: string) => `/playground/${playgroundUuid}`,
@@ -125,9 +116,7 @@ export const routePaths = {
     dash: {
       root: () => '/admin',
       analytics: () => '/admin',
-      courses: () => '/admin/courses',
       badges: () => '/admin/badges',
-      assignments: () => '/admin/assignments',
       news: () => '/admin/news',
       newsNewPost: () => '/admin/news/new-post',
       newsPost: (articleUuid: string) => `/admin/news/${articleUuid}`,
@@ -141,10 +130,6 @@ export const routePaths = {
       paymentsOffers: () => '/admin/payments/offers',
       paymentsGroups: () => '/admin/payments/groups',
       paymentsConfiguration: () => '/admin/payments/configuration',
-      courseSettings: (courseUuid: string, subpage: string) =>
-        `/admin/courses/course/${courseUuid}/${subpage}`,
-      collectionSettings: (collectionUuid: string, subpage: string) =>
-        `/admin/courses/collection/${collectionUuid}/${subpage}`,
       boardSettings: (boardUuid: string, subpage: string) =>
         '/admin',
       boardRoot: (boardUuid: string) => '/admin',
@@ -154,9 +139,6 @@ export const routePaths = {
         `/admin/podcasts/podcast/${podcastUuid}/${subpage}`,
       communitySettings: (communityUuid: string, subpage: string) =>
         `/admin/communities/${communityUuid}/${subpage}`,
-      assignment: (assignmentUuid: string) => `/admin/assignments/${assignmentUuid}`,
-      assignmentEditor: (assignmentUuid: string) =>
-        withQuery(`/admin/assignments/${assignmentUuid}`, { subpage: 'editor' }),
       users: {
         users: () => '/admin/users',
         user: (username: string) => `/admin/users/${encodeURIComponent(username)}`,
@@ -196,7 +178,5 @@ export const routePaths = {
     board: (boardUuid: string) => `/board/${boardUuid}`,
     playgroundEdit: (playgroundUuid: string) =>
       `/editor/playground/${playgroundUuid}/edit`,
-    courseActivityEdit: (courseId: string, activityUuid: string) =>
-      `/editor/course/${courseId}/activity/${activityUuid}/edit`,
   },
 } as const

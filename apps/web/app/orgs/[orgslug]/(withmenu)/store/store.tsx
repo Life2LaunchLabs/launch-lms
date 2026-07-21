@@ -3,7 +3,6 @@ import React from 'react'
 import Link from 'next/link'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { getCourseThumbnailMediaDirectory } from '@services/media/media'
 import { ShoppingBag, RefreshCcw, SquareCheck, ArrowRight, Sparkles, BookOpen, Mic, Puzzle } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
 
@@ -42,7 +41,7 @@ function stripTypePrefix(uuid: string): string {
 function getResourceUrl(orgslug: string, resource: Resource): string | null {
   const id = stripTypePrefix(resource.resource_uuid)
   switch (resource.resource_type) {
-    case 'course': return getUriWithOrg(orgslug, routePaths.org.course(id))
+    case 'badge': return getUriWithOrg(orgslug, routePaths.org.badgeDetail(id))
     case 'podcast': return getUriWithOrg(orgslug, routePaths.org.podcast(id))
     case 'playground': return getUriWithOrg(orgslug, routePaths.org.playground(id))
     default: return null
@@ -51,21 +50,19 @@ function getResourceUrl(orgslug: string, resource: Resource): string | null {
 
 function resourceIcon(type: string) {
   switch (type) {
-    case 'course': return <BookOpen size={12} className="text-indigo-400" />
+    case 'badge': return <BookOpen size={12} className="text-indigo-400" />
     case 'podcast': return <Mic size={12} className="text-pink-400" />
     default: return <Puzzle size={12} className="text-gray-300" />
   }
 }
 
-function CourseBoxes({ resources, orgUuid }: { resources: Resource[]; orgUuid: string }) {
+function ResourceBoxes({ resources }: { resources: Resource[]; orgUuid: string }) {
   const items = resources.slice(0, 3)
   if (items.length === 0) return null
   return (
     <div className="flex -space-x-8 items-center justify-center w-full">
       {items.map((r, index) => {
-        const src = r.thumbnail_image && r.resource_type === 'course'
-          ? getCourseThumbnailMediaDirectory(r.org_uuid || orgUuid, r.resource_uuid, r.thumbnail_image)
-          : null
+        const src = r.thumbnail_image || null
         return (
           <div
             key={r.resource_uuid}
@@ -104,7 +101,7 @@ function OfferCard({ offer, orgslug, orgUuid }: { offer: Offer; orgslug: string;
         }`}>
           {resources.length > 0 ? (
             <div className="p-4 w-full">
-              <CourseBoxes resources={resources} orgUuid={orgUuid} />
+              <ResourceBoxes resources={resources} orgUuid={orgUuid} />
             </div>
           ) : (
             <ShoppingBag size={28} className="text-gray-200" strokeWidth={1.5} />

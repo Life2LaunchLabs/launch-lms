@@ -1,10 +1,8 @@
 import React from 'react'
-import { BadgePathClient } from '../../../course/[courseuuid]/course'
+import LearningBadgeOverview from '@components/Learning/LearningBadgeOverview'
 import { getServerSession } from '@/lib/auth/server'
 import { notFound } from 'next/navigation'
 import { getLearningPath } from '@services/learning/learning'
-import { getOrganizationContextInfo } from '@services/organizations/orgs'
-import { learningPathToLegacyCourse } from '@services/learning/legacyAdapters'
 
 type BadgePathPageProps = {
   params: Promise<{ orgslug: string; uuid: string }>
@@ -21,17 +19,10 @@ const BadgePathPage = async ({ params }: BadgePathPageProps) => {
       true,
       { revalidate: 0, tags: ['learning-badges'] }
     )
-    const org = await getOrganizationContextInfo(orgslug, {
-      revalidate: 1800,
-      tags: ['organizations'],
-    })
     return (
-      <BadgePathClient
-        courseuuid={uuid}
+      <LearningBadgeOverview
         orgslug={orgslug}
-        course={learningPathToLegacyCourse(badgePath, org)}
-        access_token={session?.tokens?.access_token}
-        learningBadgePath={badgePath}
+        badgePath={badgePath}
       />
     )
   } catch {

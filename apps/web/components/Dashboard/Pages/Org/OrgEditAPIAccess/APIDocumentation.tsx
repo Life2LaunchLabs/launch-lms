@@ -93,12 +93,13 @@ const METHOD_COLORS: Record<string, string> = {
 // API tokens are restricted to these resource types only
 // The tags here should match OpenAPI tags (case-insensitive)
 const ALLOWED_API_TAGS = [
-  'courses',
-  'activities',
-  'coursechapters',
-  'chapters',
-  'collections',
-  'certifications',
+  'learning-badges',
+  'learning-activities',
+  'learning-badge-collections',
+  'learning-pages',
+  'learning-runs',
+  'learning-responses',
+  'learning-badge-awards',
   'usergroups',
   'user-groups',
   'payments',

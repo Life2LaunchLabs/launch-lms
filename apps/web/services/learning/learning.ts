@@ -105,6 +105,15 @@ export async function importLearningBadgePackage(orgId: string | number, payload
   return errorHandling(response)
 }
 
+export function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
 export async function getLearningBadges(
   orgId?: string | number,
   accessToken?: string,
@@ -382,39 +391,6 @@ export async function getLearningBadgeAward(awardUuid: string, accessToken?: str
   const result = await fetch(
     `${getAPIUrl()}badge-awards/${awardUuid}`,
     RequestBodyWithAuthHeader('GET', null, null, accessToken)
-  )
-  return errorHandling(result)
-}
-
-export async function previewLearningBadgeCourseMigration(courseUuid: string, accessToken?: string) {
-  const result = await fetch(
-    `${getAPIUrl()}badge-migrations/course/${courseUuid}/preview`,
-    RequestBodyWithAuthHeader('GET', null, null, accessToken)
-  )
-  return errorHandling(result)
-}
-
-export async function convertLearningBadgeCourseMigration(courseUuid: string, accessToken?: string, targetCollectionUuid?: string) {
-  const suffix = targetCollectionUuid ? `?target_collection_uuid=${encodeURIComponent(targetCollectionUuid)}` : ''
-  const result = await fetch(
-    `${getAPIUrl()}badge-migrations/course/${courseUuid}/convert${suffix}`,
-    RequestBodyWithAuthHeader('POST', null, null, accessToken)
-  )
-  return errorHandling(result)
-}
-
-export async function previewLearningBadgeCollectionMigration(collectionUuid: string, accessToken?: string) {
-  const result = await fetch(
-    `${getAPIUrl()}badge-migrations/collection/${collectionUuid}/preview`,
-    RequestBodyWithAuthHeader('GET', null, null, accessToken)
-  )
-  return errorHandling(result)
-}
-
-export async function convertLearningBadgeCollectionMigration(collectionUuid: string, accessToken?: string) {
-  const result = await fetch(
-    `${getAPIUrl()}badge-migrations/collection/${collectionUuid}/convert`,
-    RequestBodyWithAuthHeader('POST', null, null, accessToken)
   )
   return errorHandling(result)
 }

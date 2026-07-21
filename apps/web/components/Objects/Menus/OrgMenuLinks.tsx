@@ -10,14 +10,8 @@ import {
 import type { TFunction } from 'i18next'
 
 export const KNOWN_SUBPATHS = [
-  '/courses',
-  '/course/',
-  '/collection/',
-  '/collections',
-  '/trail',
-  '/certificate',
-  '/badge',
   '/badges',
+  '/badge',
   '/podcasts',
   '/communities',
   '/community/',
@@ -26,8 +20,6 @@ export const KNOWN_SUBPATHS = [
   '/resources',
   '/resource/',
   '/news',
-  '/activity/',
-  '/assignment',
   '/editor',
   '/portfolio',
   '/account',
@@ -40,7 +32,7 @@ export interface OrgMenuNavItem {
   icon: React.ReactNode
   active: boolean
   show: boolean
-  onboardingFeature?: 'courses' | 'resources'
+  onboardingFeature?: 'badges' | 'resources'
   kind?: 'link' | 'action'
   actionKey?: 'help'
 }
@@ -60,11 +52,7 @@ export function getPrimaryOrgMenuItems({
 }): OrgMenuNavItem[] {
   const isHome = !KNOWN_SUBPATHS.some((subpath) => pathname?.includes(subpath))
   const isOnPortfolio = pathname?.includes('/portfolio')
-  const isOnCourses =
-    (!isOnPortfolio && pathname?.includes('/badges')) ||
-    pathname?.includes('/courses') ||
-    pathname?.includes('/course/') ||
-    pathname?.includes('/collection/')
+  const isOnBadges = !isOnPortfolio && pathname?.includes('/badges')
   const isOnResources = pathname?.includes('/resources') || pathname?.includes('/resource/')
   const isOnNews = pathname?.includes('/news')
 
@@ -80,9 +68,9 @@ export function getPrimaryOrgMenuItems({
       href: '/badges',
       label: 'Badges',
       icon: <SealCheck size={18} weight="fill" />,
-      active: Boolean(isOnCourses),
-      show: isFeatureEnabled(resolvedFeatures, 'courses'),
-      onboardingFeature: 'courses',
+      active: Boolean(isOnBadges),
+      show: isFeatureEnabled(resolvedFeatures, 'badges'),
+      onboardingFeature: 'badges',
     },
     {
       href: '/resources',
