@@ -1,6 +1,5 @@
-import { getOrgCourses, getCourseMetadata } from '@services/courses/courses'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
-import { getOrgCollections } from '@services/courses/collections'
+import { getLearningBadgeCollections, getLearningBadges, getLearningPath } from '@services/learning/learning'
 import { getOrgPodcasts } from '@services/podcasts/podcasts'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -39,62 +38,53 @@ export async function GET(request: NextRequest) {
     case 'pages': {
       sitemapUrls = [
         { loc: baseUrl, priority: 1.0, changefreq: 'daily' },
-        { loc: `${baseUrl}courses`, priority: 0.9, changefreq: 'weekly' },
-        { loc: `${baseUrl}collections`, priority: 0.9, changefreq: 'weekly' },
+        { loc: `${baseUrl}badges`, priority: 0.9, changefreq: 'weekly' },
         { loc: `${baseUrl}podcasts`, priority: 0.9, changefreq: 'weekly' },
         { loc: `${baseUrl}news`, priority: 0.8, changefreq: 'weekly' },
       ]
       break
     }
-    case 'courses': {
-      const courses = await getOrgCourses(orgSlug, null).catch(() => [])
-      for (const course of courses) {
+    case 'badges': {
+      const response = await getLearningBadges(orgInfo.id).catch(() => ({ data: [] }))
+      const badges = Array.isArray(response) ? response : response?.data || []
+      for (const badge of badges) {
         sitemapUrls.push({
-          loc: `${baseUrl}course/${course.course_uuid.replace('course_', '')}`,
+          loc: `${baseUrl}badges/${badge.badge_uuid.replace('badge_', '')}`,
           priority: 0.7,
           changefreq: 'weekly',
-          lastmod: course.update_date,
+          lastmod: badge.update_date,
         })
       }
       break
     }
     case 'activities': {
-      const courses = await getOrgCourses(orgSlug, null).catch(() => [])
-      for (const course of courses) {
+      const response = await getLearningBadges(orgInfo.id).catch(() => ({ data: [] }))
+      const badges = Array.isArray(response) ? response : response?.data || []
+      for (const badge of badges) {
         try {
-          const meta = await getCourseMetadata(
-            course.course_uuid.replace('course_', ''),
-            null,
-            null
-          )
-          if (meta?.chapters) {
-            for (const chapter of meta.chapters) {
-              if (chapter.activities) {
-                for (const activity of chapter.activities) {
-                  const activityId = (activity.activity_uuid || '').replace('activity_', '')
-                  if (activityId) {
-                    sitemapUrls.push({
-                      loc: `${baseUrl}course/${course.course_uuid.replace('course_', '')}/activity/${activityId}`,
-                      priority: 0.6,
-                      changefreq: 'weekly',
-                      lastmod: activity.update_date,
-                    })
-                  }
-                }
-              }
+          const path = await getLearningPath(badge.badge_uuid, undefined, true)
+          for (const activity of path?.activities || []) {
+            if (activity.activity_uuid) {
+              sitemapUrls.push({
+                loc: `${baseUrl}badges/${badge.badge_uuid.replace('badge_', '')}/chapter/${activity.activity_uuid.replace('learning_activity_', '')}`,
+                priority: 0.6,
+                changefreq: 'weekly',
+                lastmod: activity.update_date,
+              })
             }
           }
         } catch {
-          // Skip activities for this course if metadata fetch fails
+          // Skip activities for this badge if metadata fetch fails.
         }
       }
       break
     }
-    case 'collections': {
-      const collections = await getOrgCollections(orgInfo.id).catch(() => [])
+    case 'badge-collections': {
+      const response = await getLearningBadgeCollections(orgInfo.id).catch(() => ({ data: [] }))
+      const collections = Array.isArray(response) ? response : response?.data || []
       for (const collection of collections) {
         sitemapUrls.push({
-          loc: `${baseUrl}collections/${collection.collection_uuid.replace('collection_', '')}`,
+          loc: `${baseUrl}badges?collection=${collection.collection_uuid}`,
           priority: 0.6,
           changefreq: 'weekly',
           lastmod: collection.update_date,
@@ -132,7 +122,7 @@ interface SitemapUrl {
   lastmod?: string
 }
 
-const SITEMAP_TYPES = ['pages', 'courses', 'activities', 'collections', 'podcasts']
+const SITEMAP_TYPES = ['pages', 'badges', 'activities', 'badge-collections', 'podcasts']
 
 function generateSitemapIndex(baseUrl: string): string {
   const sitemaps = SITEMAP_TYPES.map(type => `

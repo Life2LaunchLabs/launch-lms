@@ -19,7 +19,7 @@ async def api_search_across_org(
     current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
 ) -> SearchResult:
     """
-    Search across courses, collections and users within an organization.
+    Search across badges, badge collections, and users within an organization.
 
     SECURITY:
     - Maximum limit is 50 to prevent data dumping attacks

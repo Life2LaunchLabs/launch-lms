@@ -16,7 +16,6 @@ from src.db.usergroup_user import UserGroupUser
 from src.db.users import PublicUser, AnonymousUser, User
 from src.db.organizations import Organization
 from src.db.user_organizations import UserOrganization
-from src.db.courses.courses import Course
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.services.utils.upload_content import upload_file
 
@@ -139,15 +138,6 @@ async def create_playground(
     if not pg_rights.get("action_create", False):
         raise HTTPException(status_code=403, detail="Insufficient permissions to create playgrounds")
 
-    # Resolve course_id if course_uuid provided
-    course_id = None
-    if playground_data.course_uuid:
-        course = db_session.exec(
-            select(Course).where(Course.course_uuid == playground_data.course_uuid)
-        ).first()
-        if course and course.org_id == org_id:
-            course_id = course.id
-
     now = datetime.utcnow().isoformat()
     playground = Playground(
         name=playground_data.name,
@@ -155,11 +145,9 @@ async def create_playground(
         thumbnail_image=playground_data.thumbnail_image,
         access_type=playground_data.access_type,
         published=False,
-        course_uuid=playground_data.course_uuid,
         html_content=playground_data.html_content,
         org_id=org_id,
         playground_uuid=str(uuid4()),
-        course_id=course_id,
         created_by=current_user.id,
         creation_date=now,
         update_date=now,
@@ -237,20 +225,6 @@ async def update_playground(
 
     update_data = playground_data.model_dump(exclude_unset=True)
 
-    # Resolve course_id if course_uuid changed
-    if "course_uuid" in update_data:
-        new_course_uuid = update_data.get("course_uuid")
-        if new_course_uuid:
-            course = db_session.exec(
-                select(Course).where(Course.course_uuid == new_course_uuid)
-            ).first()
-            if course and course.org_id == playground.org_id:
-                playground.course_id = course.id
-            else:
-                playground.course_id = None
-        else:
-            playground.course_id = None
-
     for key, value in update_data.items():
         setattr(playground, key, value)
 
@@ -321,11 +295,9 @@ async def duplicate_playground(
         thumbnail_image=None,
         access_type=playground.access_type,
         published=False,
-        course_uuid=playground.course_uuid,
         html_content=playground.html_content,
         org_id=playground.org_id,
         playground_uuid=str(uuid4()),
-        course_id=playground.course_id,
         created_by=current_user.id,
         creation_date=now,
         update_date=now,

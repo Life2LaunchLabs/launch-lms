@@ -104,7 +104,7 @@ export default function OrgDetail() {
   const router = useRouter()
 
   const requestedTab = searchParams.get('tab')
-  const activeTab = (requestedTab === 'courses' ? 'badges' : requestedTab || 'overview') as TabId
+  const activeTab = (requestedTab || 'overview') as TabId
   const setActiveTab = (tab: TabId) => updateParams({ tab }, ['page', 'search', 'days'])
 
   const orgKey = accessToken ? `${getAPIUrl()}superadmin/organizations/${orgId}` : null
@@ -282,7 +282,7 @@ function OverviewTab({
     { revalidateOnFocus: false }
   )
   const features = usageData?.features
-  const badgeFeature = features?.badges || features?.courses
+  const badgeFeature = features?.badges
 
   return (
     <div className="space-y-5">

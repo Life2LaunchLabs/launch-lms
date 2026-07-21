@@ -16,10 +16,6 @@ class Community(CommunityBase, table=True):
     org_id: int = Field(
         sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"))
     )
-    course_id: Optional[int] = Field(
-        default=None,
-        sa_column=Column(Integer, ForeignKey("course.id", ondelete="SET NULL"))
-    )
     community_uuid: str = ""
     moderation_words: List[str] = Field(default=[], sa_column=Column(JSON, default=[]))
     creation_date: str = ""
@@ -28,7 +24,6 @@ class Community(CommunityBase, table=True):
 
 class CommunityCreate(CommunityBase):
     org_id: int = Field(default=None, foreign_key="organization.id")
-    course_id: Optional[int] = Field(default=None, foreign_key="course.id")
 
 
 class CommunityUpdate(SQLModel):
@@ -43,7 +38,6 @@ class CommunityUpdate(SQLModel):
 class CommunityRead(CommunityBase):
     id: int
     org_id: int = Field(default=None, foreign_key="organization.id")
-    course_id: Optional[int] = Field(default=None, foreign_key="course.id")
     community_uuid: str
     owner_org_id: Optional[int] = None
     owner_org_uuid: Optional[str] = None

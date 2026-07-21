@@ -28,8 +28,8 @@ export const DASHBOARD_MENU_ITEMS: DashboardMenuItem[] = [
     labelKey: 'common.home',
   },
   {
-    id: 'courses',
-    href: '/admin/courses',
+    id: 'badges',
+    href: '/admin/badges',
     icon: BookOpen,
     labelKey: 'common.badges',
   },

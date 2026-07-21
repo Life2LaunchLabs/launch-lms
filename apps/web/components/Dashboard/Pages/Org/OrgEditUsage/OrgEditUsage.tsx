@@ -48,7 +48,7 @@ function getBarPercent(usage: number, limit: number | 'unlimited'): number {
 }
 
 const METER_ICONS: Record<string, React.ComponentType<any>> = {
-  Courses: BookOpen,
+  Badges: BookOpen,
   Members: Users,
   'Admin Seats': ShieldCheck,
 }
@@ -84,7 +84,7 @@ export default function OrgEditUsage() {
 
   const meters = features
     ? [
-        { label: 'Courses', ...features.courses },
+        { label: 'Badges', ...features.badges },
         { label: 'Members', ...features.members },
         { label: 'Admin Seats', ...features.admin_seats },
       ]

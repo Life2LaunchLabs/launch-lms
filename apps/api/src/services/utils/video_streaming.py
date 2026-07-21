@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 from typing import Generator, Tuple, Optional
 
-from src.services.courses.transfer.storage_utils import (
+from src.services.utils.storage import (
     is_s3_enabled,
     get_storage_client,
     get_s3_bucket_name,

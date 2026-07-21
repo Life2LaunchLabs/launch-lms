@@ -54,7 +54,7 @@ export default function DashboardHome() {
             </div>
             <div className="flex items-center gap-2">
               <Link
-                href={routePaths.org.dash.courses() + '?new=true'}
+                href={routePaths.org.dash.badges() + '?new=true'}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
               >
                 <PlusCircle size={14} weight="bold" />

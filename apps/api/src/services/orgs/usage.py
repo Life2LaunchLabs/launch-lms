@@ -27,7 +27,7 @@ def _get_cache_key(org_id: int) -> str:
 def invalidate_usage_cache(org_id: int) -> None:
     """
     Invalidate the usage cache for an organization.
-    Call this when usage changes (member/course added/removed).
+    Call this when usage changes.
     """
     try:
         r = _get_redis_client()
@@ -97,14 +97,17 @@ async def get_org_usage_and_limits(
     org_plan: PlanLevel = _get_plan_from_config(config)
 
     # Get actual usage counts
-    courses_usage = _get_actual_usage("courses", org_id, db_session)
+    badges_usage = _get_actual_usage("badges", org_id, db_session)
+    badge_collections_usage = _get_actual_usage("badge_collections", org_id, db_session)
     members_usage = _get_actual_usage("members", org_id, db_session)
     admin_seats_usage = _get_actual_admin_seat_count(org_id, db_session)
 
     # Get limits via resolve_feature (handles mode, overrides, packs)
-    courses_resolved = resolve_feature("courses", config, org_id)
+    badges_resolved = resolve_feature("badges", config, org_id)
+    badge_collections_resolved = resolve_feature("badge_collections", config, org_id)
     members_resolved = resolve_feature("members", config, org_id)
-    courses_limit = courses_resolved["limit"]
+    badges_limit = badges_resolved["limit"]
+    badge_collections_limit = badge_collections_resolved["limit"]
     members_limit = members_resolved["limit"]
     members_plan_limit = get_plan_limit(org_plan, "members")
     members_purchased = get_purchased_member_seats(org_id)
@@ -124,11 +127,17 @@ async def get_org_usage_and_limits(
         "org_id": org_id,
         "plan": org_plan,
         "features": {
-            "courses": {
-                "usage": courses_usage,
-                "limit": courses_limit if courses_limit > 0 else "unlimited",
-                "remaining": calc_remaining(courses_usage, courses_limit),
-                "limit_reached": is_limit_reached(courses_usage, courses_limit),
+            "badges": {
+                "usage": badges_usage,
+                "limit": badges_limit if badges_limit > 0 else "unlimited",
+                "remaining": calc_remaining(badges_usage, badges_limit),
+                "limit_reached": is_limit_reached(badges_usage, badges_limit),
+            },
+            "badge_collections": {
+                "usage": badge_collections_usage,
+                "limit": badge_collections_limit if badge_collections_limit > 0 else "unlimited",
+                "remaining": calc_remaining(badge_collections_usage, badge_collections_limit),
+                "limit_reached": is_limit_reached(badge_collections_usage, badge_collections_limit),
             },
             "members": {
                 "usage": members_usage,

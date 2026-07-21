@@ -5,7 +5,6 @@ Tests cover:
 - _verify_org_membership rejects non-members
 - _verify_org_membership allows members
 - _verify_org_membership allows superadmins
-- _validate_course_uuid rejects SQL injection
 - _build_sql type safety
 - FrontendEvent model validation
 """
@@ -51,40 +50,6 @@ class TestVerifyOrgMembership:
         _verify_org_membership(user_id=1, org_id=99, db_session=db)
 
 
-class TestValidateCourseUuid:
-    """Test _validate_course_uuid in analytics.py."""
-
-    def test_valid_course_uuid(self):
-        from src.routers.analytics import _validate_course_uuid
-        assert _validate_course_uuid("course_abc-123") == "course_abc-123"
-
-    def test_sql_injection_rejected(self):
-        from src.routers.analytics import _validate_course_uuid
-        with pytest.raises(HTTPException) as exc_info:
-            _validate_course_uuid("course'; DROP TABLE events; --")
-        assert exc_info.value.status_code == 400
-
-    def test_empty_rejected(self):
-        from src.routers.analytics import _validate_course_uuid
-        with pytest.raises(HTTPException):
-            _validate_course_uuid("")
-
-    def test_too_long_rejected(self):
-        from src.routers.analytics import _validate_course_uuid
-        with pytest.raises(HTTPException):
-            _validate_course_uuid("a" * 101)
-
-    def test_special_chars_rejected(self):
-        from src.routers.analytics import _validate_course_uuid
-        with pytest.raises(HTTPException):
-            _validate_course_uuid("course{uuid}")
-
-    def test_spaces_rejected(self):
-        from src.routers.analytics import _validate_course_uuid
-        with pytest.raises(HTTPException):
-            _validate_course_uuid("course uuid")
-
-
 class TestBuildSql:
     """Test _build_sql type safety."""
 
@@ -98,25 +63,6 @@ class TestBuildSql:
         from src.routers.analytics import _build_sql
         with pytest.raises(HTTPException):
             _build_sql("SELECT *", "1; DROP TABLE", 30)
-
-    def test_course_uuid_validated(self):
-        from src.routers.analytics import _build_sql
-        with pytest.raises(HTTPException):
-            _build_sql(
-                "SELECT * WHERE course_uuid='{course_uuid}'",
-                1, 30,
-                course_uuid="'; DROP TABLE events; --"
-            )
-
-    def test_valid_course_uuid_in_sql(self):
-        from src.routers.analytics import _build_sql
-        sql = _build_sql(
-            "SELECT * WHERE course_uuid='{course_uuid}'",
-            1, 30,
-            course_uuid="course_abc-123"
-        )
-        assert "course_abc-123" in sql
-
 
 class TestParseParams:
     """Test _parse_safe_params."""

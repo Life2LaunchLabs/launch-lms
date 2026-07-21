@@ -3,13 +3,7 @@ from typing import Literal, Optional
 from fastapi import Depends, APIRouter, HTTPException, Response, status, Request, Form
 from pydantic import BaseModel, EmailStr
 from sqlmodel import Session, select
-from src.db.collections import Collection
-from src.db.collections_courses import CollectionCourse
-from src.db.courses.activities import Activity, ActivitySubTypeEnum, ActivityTypeEnum
-from src.db.courses.chapter_activities import ChapterActivity
-from src.db.courses.chapters import Chapter
-from src.db.courses.course_chapters import CourseChapter
-from src.db.courses.courses import Course
+from src.db.learning import LearningBadge
 from src.db.organizations import Organization
 from src.db.organization_config import OrganizationConfig
 from src.db.users import AnonymousUser, User, UserCreate, UserRead
@@ -64,10 +58,6 @@ def get_token_expiry_ms() -> Optional[int]:
 router = APIRouter()
 
 ONBOARDING_SYSTEM_TYPE = "onboarding"
-ONBOARDING_COURSE_UUID = "course_system_onboarding_welcome"
-ONBOARDING_COLLECTION_UUID = "collection_system_onboarding"
-ONBOARDING_CHAPTER_UUID = "chapter_system_onboarding_welcome"
-ONBOARDING_ACTIVITY_UUID = "activity_system_onboarding_profile_quiz"
 ONBOARDING_GOALS = {"higher_education", "employment", "self_starting", "not_sure"}
 
 
@@ -169,170 +159,6 @@ def _onboarding_quiz_content() -> dict:
             },
         ],
     }
-
-
-def _ensure_onboarding_content(db_session: Session) -> tuple[Organization, Course, Chapter, Activity]:
-    owner_org = _get_owner_org(db_session)
-    now = str(datetime.now())
-
-    collection = db_session.exec(
-        select(Collection).where(Collection.collection_uuid == ONBOARDING_COLLECTION_UUID)
-    ).first()
-    if not collection:
-        collection = Collection(
-            name="System Onboarding",
-            description="Hidden onboarding collection",
-            public=False,
-            shared=False,
-            hidden=True,
-            protected=True,
-            system_type=ONBOARDING_SYSTEM_TYPE,
-            org_id=owner_org.id or 0,
-            collection_uuid=ONBOARDING_COLLECTION_UUID,
-            creation_date=now,
-            update_date=now,
-        )
-        db_session.add(collection)
-        db_session.commit()
-        db_session.refresh(collection)
-
-    course = db_session.exec(select(Course).where(Course.course_uuid == ONBOARDING_COURSE_UUID)).first()
-    if not course:
-        course = Course(
-            name="Welcome",
-            description="Welcome to Launch LMS",
-            about="A short onboarding flow to personalize your profile.",
-            learnings="",
-            tags="",
-            thumbnail_type="image",
-            thumbnail_image="",
-            thumbnail_video="",
-            public=True,
-            shared=False,
-            guest_access=True,
-            published=True,
-            coming_soon=False,
-            core_course=False,
-            core_course_order=None,
-            hidden=True,
-            protected=True,
-            system_type=ONBOARDING_SYSTEM_TYPE,
-            open_to_contributors=False,
-            org_id=owner_org.id or 0,
-            collection_id=collection.id,
-            course_uuid=ONBOARDING_COURSE_UUID,
-            creation_date=now,
-            update_date=now,
-        )
-        db_session.add(course)
-        db_session.commit()
-        db_session.refresh(course)
-
-    if course.collection_id != collection.id:
-        course.collection_id = collection.id
-        course.update_date = now
-        db_session.add(course)
-
-    link = db_session.exec(
-        select(CollectionCourse).where(
-            CollectionCourse.collection_id == collection.id,
-            CollectionCourse.course_id == course.id,
-        )
-    ).first()
-    if not link:
-        db_session.add(
-            CollectionCourse(
-                collection_id=collection.id or 0,
-                course_id=course.id or 0,
-                org_id=owner_org.id or 0,
-                creation_date=now,
-                update_date=now,
-            )
-        )
-
-    chapter = db_session.exec(select(Chapter).where(Chapter.chapter_uuid == ONBOARDING_CHAPTER_UUID)).first()
-    if not chapter:
-        chapter = Chapter(
-            name="Welcome",
-            description="Set up your profile",
-            icon="sparkles",
-            course_id=course.id or 0,
-            org_id=owner_org.id or 0,
-            chapter_uuid=ONBOARDING_CHAPTER_UUID,
-            creation_date=now,
-            update_date=now,
-        )
-        db_session.add(chapter)
-        db_session.commit()
-        db_session.refresh(chapter)
-
-    course_chapter = db_session.exec(
-        select(CourseChapter).where(
-            CourseChapter.course_id == course.id,
-            CourseChapter.chapter_id == chapter.id,
-        )
-    ).first()
-    if not course_chapter:
-        db_session.add(
-            CourseChapter(
-                course_id=course.id or 0,
-                chapter_id=chapter.id or 0,
-                org_id=owner_org.id or 0,
-                order=1,
-                creation_date=now,
-                update_date=now,
-            )
-        )
-
-    activity = db_session.exec(select(Activity).where(Activity.activity_uuid == ONBOARDING_ACTIVITY_UUID)).first()
-    if not activity:
-        activity = Activity(
-            name="Welcome",
-            description="Tell us about yourself",
-            icon="user-round-pen",
-            activity_type=ActivityTypeEnum.TYPE_QUIZ,
-            activity_sub_type=ActivitySubTypeEnum.SUBTYPE_QUIZ_STANDARD,
-            content=_onboarding_quiz_content(),
-            details={
-                "quiz_mode": "ungraded",
-                "onboarding_locked": True,
-                "results_template": {},
-            },
-            published=True,
-            org_id=owner_org.id or 0,
-            course_id=course.id or 0,
-            activity_uuid=ONBOARDING_ACTIVITY_UUID,
-            creation_date=now,
-            update_date=now,
-        )
-        db_session.add(activity)
-        db_session.commit()
-        db_session.refresh(activity)
-
-    chapter_activity = db_session.exec(
-        select(ChapterActivity).where(
-            ChapterActivity.chapter_id == chapter.id,
-            ChapterActivity.activity_id == activity.id,
-        )
-    ).first()
-    if not chapter_activity:
-        db_session.add(
-            ChapterActivity(
-                chapter_id=chapter.id or 0,
-                activity_id=activity.id or 0,
-                course_id=course.id or 0,
-                org_id=owner_org.id or 0,
-                order=1,
-                creation_date=now,
-                update_date=now,
-            )
-        )
-
-    db_session.commit()
-    db_session.refresh(course)
-    db_session.refresh(chapter)
-    db_session.refresh(activity)
-    return owner_org, course, chapter, activity
 
 
 def _extract_onboarding_answers(quiz_result: Optional[dict]) -> dict:
@@ -452,7 +278,7 @@ def _get_onboarding_recommended_badges(owner_org: Organization, next_step: str, 
     goal = next_step if next_step in ONBOARDING_GOALS else "not_sure"
     badge_uuids = recommended.get(goal, []) if isinstance(recommended, dict) else []
     configured_badges = [
-        value if str(value).startswith("course_") else f"course_{value}"
+        value if str(value).startswith("badge_") else f"badge_{value}"
         for value in badge_uuids
         if isinstance(value, str) and value.strip()
     ][:3]
@@ -460,25 +286,25 @@ def _get_onboarding_recommended_badges(owner_org: Organization, next_step: str, 
         return configured_badges
 
     configured_set = set(configured_badges)
-    fallback_courses = db_session.exec(
-        select(Course).where(
-            Course.org_id == owner_org.id,
-            Course.public == True,
-            Course.hidden == False,
-            Course.system_type.is_(None),
+    fallback_badges = db_session.exec(
+        select(LearningBadge).where(
+            LearningBadge.org_id == owner_org.id,
+            LearningBadge.public == True,
+            LearningBadge.system_type.is_(None),
+            LearningBadge.deleted_at.is_(None),
         )
     ).all()
-    fallback_badges = [
-        course.course_uuid
-        for course in sorted(
-            fallback_courses,
-            key=lambda course: course.creation_date or course.update_date or "",
+    fallback_badge_uuids = [
+        badge.badge_uuid
+        for badge in sorted(
+            fallback_badges,
+            key=lambda badge: badge.creation_date or badge.update_date or "",
             reverse=True,
         )
-        if course.course_uuid and course.course_uuid not in configured_set
+        if badge.badge_uuid and badge.badge_uuid not in configured_set
     ]
 
-    return (configured_badges + fallback_badges)[:3]
+    return (configured_badges + fallback_badge_uuids)[:3]
 
 
 def _generate_onboarding_username(email: str, db_session: Session) -> str:

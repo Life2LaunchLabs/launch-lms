@@ -12,14 +12,14 @@ RESOURCE_CONFIGS: dict[str, ResourceConfig] = {
     # ============================================
     # PRIMARY RESOURCES (have their own access rules)
     # ============================================
-    "courses": ResourceConfig(
-        resource_type="courses",
-        uuid_prefix="course_",
+    "badges": ResourceConfig(
+        resource_type="badges",
+        uuid_prefix="badge_",
         has_published_field=True,
         supports_usergroups=True,
         supports_authorship=True,
-        model_name="Course",
-        uuid_field="course_uuid",
+        model_name="LearningBadge",
+        uuid_field="badge_uuid",
     ),
     "podcasts": ResourceConfig(
         resource_type="podcasts",
@@ -39,13 +39,13 @@ RESOURCE_CONFIGS: dict[str, ResourceConfig] = {
         model_name="Community",
         uuid_field="community_uuid",
     ),
-    "collections": ResourceConfig(
-        resource_type="collections",
-        uuid_prefix="collection_",
+    "badge_collections": ResourceConfig(
+        resource_type="badge_collections",
+        uuid_prefix="badge_collection_",
         has_published_field=False,  # Collections use only public flag
         supports_usergroups=False,
         supports_authorship=False,
-        model_name="Collection",
+        model_name="BadgeCollection",
         uuid_field="collection_uuid",
     ),
 
@@ -80,27 +80,16 @@ RESOURCE_CONFIGS: dict[str, ResourceConfig] = {
     # ============================================
     # CHILD RESOURCES (inherit access from parent)
     # ============================================
-    "coursechapters": ResourceConfig(
-        resource_type="coursechapters",
-        uuid_prefix="chapter_",
-        has_published_field=False,  # Inherits from course
+    "learning_activities": ResourceConfig(
+        resource_type="learning_activities",
+        uuid_prefix="learning_activity_",
+        has_published_field=True,
         supports_usergroups=False,  # Access via course
         supports_authorship=False,  # Authorship on course level
-        model_name="Chapter",
-        uuid_field="chapter_uuid",
-        parent_resource_type="courses",
-        parent_id_field="course_id",
-    ),
-    "activities": ResourceConfig(
-        resource_type="activities",
-        uuid_prefix="activity_",
-        has_published_field=False,  # Inherits from course via chapter
-        supports_usergroups=False,  # Access via course
-        supports_authorship=False,  # Authorship on course level
-        model_name="Activity",
+        model_name="LearningActivity",
         uuid_field="activity_uuid",
-        parent_resource_type="coursechapters",  # Activity -> Chapter -> Course
-        parent_id_field="chapter_id",
+        parent_resource_type="badges",
+        parent_id_field="badge_id",
     ),
     "episodes": ResourceConfig(
         resource_type="episodes",
@@ -141,7 +130,7 @@ def get_resource_config(resource_uuid: str) -> ResourceConfig | None:
     if not resource_uuid:
         return None
 
-    for config in RESOURCE_CONFIGS.values():
+    for config in sorted(RESOURCE_CONFIGS.values(), key=lambda item: len(item.uuid_prefix), reverse=True):
         if resource_uuid.startswith(config.uuid_prefix):
             return config
     return None

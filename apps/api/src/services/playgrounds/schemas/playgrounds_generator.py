@@ -5,8 +5,6 @@ from typing import Optional, List
 class PlaygroundContext(BaseModel):
     playground_name: str
     playground_description: str
-    course_uuid: Optional[str] = None
-    course_name: Optional[str] = None
 
 
 class StartPlaygroundSession(BaseModel):

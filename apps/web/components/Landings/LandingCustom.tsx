@@ -3,13 +3,9 @@
 import React from 'react'
 import { LandingSection } from '@components/Dashboard/Pages/Org/OrgEditLanding/landing_types'
 import useSWR from 'swr'
-import { getOrgCourses } from '@services/courses/courses'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import CourseThumbnailLanding from '@components/Objects/Thumbnails/CourseThumbnailLanding'
 import UserAvatar from '@components/Objects/UserAvatar'
 import { useTranslation } from 'react-i18next'
-import InProgressSection from '@components/Landings/InProgressSection'
-import { getOrgCollections } from '@services/courses/collections'
 import { useOrg } from '@components/Contexts/OrgContext'
 import {
   getResourceChannels,
@@ -36,19 +32,8 @@ function LandingCustom({
   const org = useOrg() as any
   const access_token = session?.data?.tokens?.access_token
 
-  // Fetch all courses for the organization
-  const { data: allCourses } = useSWR(
-    orgslug ? [orgslug, access_token] : null,
-    ([slug, token]) => getOrgCourses(slug, null, token)
-  )
   const hasQuickstartSection = landing.sections.some(
     (section) => section.type === 'quickstart'
-  )
-  const { data: collections = [] } = useSWR(
-    org?.id && hasQuickstartSection
-      ? ['landing-collections', org.id, access_token || 'anon']
-      : null,
-    () => getOrgCollections(org.id, access_token, null)
   )
   const { data: resourceChannelData } = useSWR(
     org?.id && hasQuickstartSection
@@ -238,56 +223,6 @@ function LandingCustom({
             </div>
           </div>
         )
-      case 'featured-courses': {
-        if (!allCourses) {
-          return (
-            <div 
-              key={`featured-courses-${section.title}`}
-              className="py-16 mx-2 sm:mx-4 lg:mx-16 w-full"
-            >
-              <h2 className="text-2xl md:text-3xl font-bold text-left mb-6 text-foreground">{section.title}</h2>
-              <div className="text-center py-6 text-muted-foreground">{t('courses.loading_courses')}</div>
-            </div>
-          )
-        }
-
-        const featuredCourses = allCourses.filter((course: any) => 
-          section.courses.includes(course.course_uuid)
-        )
-
-        return (
-          <div 
-            key={`featured-courses-${section.title}`}
-            className="py-16 mx-2 sm:mx-4 lg:mx-16 w-full"
-          >
-            <h2 className="text-2xl md:text-3xl font-bold text-left mb-6 text-foreground">{section.title}</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
-              {featuredCourses.map((course: any) => (
-                <div key={course.course_uuid} className="w-full flex justify-center">
-                  <CourseThumbnailLanding
-                    course={course}
-                    orgslug={orgslug}
-                  />
-                </div>
-              ))}
-              {featuredCourses.length === 0 && (
-                <div className="col-span-full text-center py-6 text-muted-foreground">
-                  {t('courses.no_featured_courses')}
-                </div>
-              )}
-            </div>
-          </div>
-        )
-      }
-      case 'in-progress':
-        return (
-          <div
-            key="in-progress"
-            className="py-8 mx-2 sm:mx-4 lg:mx-16 w-full"
-          >
-            <InProgressSection orgslug={orgslug} />
-          </div>
-        )
       case 'quickstart': {
         return (
           <div
@@ -300,7 +235,6 @@ function LandingCustom({
               items={section.items}
               orgslug={orgslug}
               orgUUID={org?.org_uuid}
-              collections={collections}
               communities={[]}
               resourceChannels={resourceChannels}
             />

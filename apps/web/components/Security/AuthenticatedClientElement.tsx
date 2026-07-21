@@ -8,9 +8,9 @@ interface AuthenticatedClientElementProps {
   checkMethod: 'authentication' | 'roles'
   orgId?: string | number
   ressourceType?:
-  | 'collections'
-  | 'courses'
-  | 'activities'
+  | 'badge_collections'
+  | 'badges'
+  | 'learning_activities'
   | 'users'
   | 'organizations'
   | 'communities'

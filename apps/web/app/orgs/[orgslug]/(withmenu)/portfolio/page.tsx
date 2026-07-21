@@ -9,8 +9,5 @@ export default async function PortfolioPage({ params }: { params: Promise<{ orgs
   const session = await getServerSession()
   const token = session?.tokens?.access_token
   if (!token) redirect(getUriWithOrg(orgslug, routePaths.org.root()))
-  if (process.env.LAUNCHLMS_PORTFOLIO_V2_ENABLED === 'false') {
-    redirect(getUriWithOrg(orgslug, routePaths.org.portfolioLegacy()))
-  }
   return <PortfolioShell initialShell={await getMyPortfolio(token)} orgslug={orgslug} username={session?.user?.username} owner />
 }

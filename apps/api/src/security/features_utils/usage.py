@@ -3,7 +3,7 @@ from datetime import datetime
 from src.db.organization_config import OrganizationConfig
 from src.db.billing_usage import UsageEvent
 from src.db.user_organizations import UserOrganization
-from src.db.courses.courses import Course
+from src.db.learning import BadgeCollection, LearningBadge
 from src.db.roles import Role, RoleTypeEnum
 from sqlalchemy import or_
 from config.config import get_launchlms_config
@@ -23,9 +23,9 @@ FeatureSet: TypeAlias = Literal[
     "ai",
     "analytics",
     "api",
-    "assignments",
+    "badge_collections",
     "collaboration",
-    "courses",
+    "badges",
     "members",
     "payments",
     "podcasts",
@@ -34,10 +34,10 @@ FeatureSet: TypeAlias = Literal[
 ]
 
 # Features that use plan-based limits (tracked via events in PostgreSQL)
-PLAN_BASED_FEATURES = {"courses", "members", "admin_seats"}
+PLAN_BASED_FEATURES = {"badges", "badge_collections", "members", "admin_seats"}
 
 # Features that use Redis for usage tracking (non-billing, rate limiting)
-REDIS_TRACKED_FEATURES = {"ai", "analytics", "api", "assignments", "collaboration",
+REDIS_TRACKED_FEATURES = {"ai", "analytics", "api", "collaboration",
                           "payments", "podcasts", "storage", "usergroups"}
 
 def _get_redis_client():
@@ -73,9 +73,16 @@ def _get_actual_member_count(org_id: int, db_session: Session) -> int:
     return db_session.exec(statement).one()
 
 
-def _get_actual_course_count(org_id: int, db_session: Session) -> int:
-    """Get actual course count from database."""
-    statement = select(func.count()).where(Course.org_id == org_id)
+def _get_actual_badge_count(org_id: int, db_session: Session) -> int:
+    statement = select(func.count()).where(LearningBadge.org_id == org_id, LearningBadge.deleted_at.is_(None))
+    return db_session.exec(statement).one()
+
+
+def _get_actual_badge_collection_count(org_id: int, db_session: Session) -> int:
+    statement = select(func.count()).where(
+        BadgeCollection.org_id == org_id,
+        BadgeCollection.deleted_at.is_(None),
+    )
     return db_session.exec(statement).one()
 
 
@@ -117,8 +124,10 @@ def _get_actual_usage(feature: str, org_id: int, db_session: Session) -> int:
     """Get actual usage count from database for plan-based features."""
     if feature == "members":
         return _get_actual_member_count(org_id, db_session)
-    elif feature == "courses":
-        return _get_actual_course_count(org_id, db_session)
+    elif feature == "badges":
+        return _get_actual_badge_count(org_id, db_session)
+    elif feature == "badge_collections":
+        return _get_actual_badge_collection_count(org_id, db_session)
     elif feature == "admin_seats":
         return _get_actual_admin_seat_count(org_id, db_session)
     return 0
@@ -145,7 +154,7 @@ def log_usage_event(
 ):
     """
     Log a usage event for billing tracking.
-    Called when a member/course is added or removed.
+    Called when a member or badge is added or removed.
     """
     if feature not in PLAN_BASED_FEATURES:
         return

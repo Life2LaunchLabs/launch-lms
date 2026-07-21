@@ -14,20 +14,14 @@ const AUTH_PATHS = new Set(['/login', '/signup', '/signup/org', '/reset', '/forg
 const AUTH_CALLBACK_PREFIXES = ['/auth/sso/', '/auth/callback/', '/auth/token-exchange']
 const PUBLIC_EXACT_PATHS = new Set(['/', '/news', '/welcome'])
 const PUBLIC_PREFIXES = ['/news/']
-const PUBLIC_COURSE_PATH_RE = /^\/course\/[^/]+(\/activity\/[^/]+)?$/
 const PUBLIC_BADGE_ENTRY_PATH_RE = /^\/badges\/[^/]+(\/invite)?$/
 const PUBLIC_PORTFOLIO_PATH_RE = /^\/user\/[^/]+(?:\/work(?:\/[^/]+)?)?$/
-const EDITOR_ACTIVITY_RE = /^\/course\/[^/]+\/activity\/[^/]+\/edit$/
 const SPECIAL_PREFIXES = ['/board/', '/editor/playground/', '/payments/stripe/connect/oauth', '/health']
 const SPECIAL_EXACT_PATHS = new Set(['/sitemap.xml', '/robots.txt', '/redirect_from_auth'])
 const PODCAST_FEED_RE = /^\/podcast\/([^/]+)\/feed$/
 
 export function isAuthenticatedAuthRedirectPath(pathname: string): boolean {
   return pathname === '/login' || pathname === '/signup'
-}
-
-export function isEditorActivityPath(pathname: string): boolean {
-  return EDITOR_ACTIVITY_RE.test(pathname)
 }
 
 export function isPodcastFeedPath(pathname: string): boolean {
@@ -50,7 +44,6 @@ export function classifyRoute(pathname: string): RouteAccessClassification {
   if (
     SPECIAL_EXACT_PATHS.has(pathname) ||
     SPECIAL_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
-    isEditorActivityPath(pathname) ||
     isPodcastFeedPath(pathname)
   ) {
     return { kind: 'special' }
@@ -59,7 +52,6 @@ export function classifyRoute(pathname: string): RouteAccessClassification {
   if (
     PUBLIC_EXACT_PATHS.has(pathname) ||
     PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
-    PUBLIC_COURSE_PATH_RE.test(pathname) ||
     PUBLIC_BADGE_ENTRY_PATH_RE.test(pathname) ||
     PUBLIC_PORTFOLIO_PATH_RE.test(pathname)
   ) {

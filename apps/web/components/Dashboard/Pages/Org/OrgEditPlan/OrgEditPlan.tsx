@@ -54,10 +54,10 @@ const PACKAGE_INFO: Record<string, { label: string; description: string; icon: R
 }
 
 const PLAN_FEATURES: Record<PlanLevel, string[]> = {
-  free: ['Up to 5 courses', '1 collection', '1 admin seat', '5 GB storage', 'Basic course features'],
+  free: ['Up to 5 badges', '1 badge collection', '1 admin seat', '5 GB storage', 'Basic badge features'],
   full: [
-    'Up to 20 courses',
-    '5 collections',
+    'Up to 20 badges',
+    '5 badge collections',
     '3 admin seats',
     '20 GB storage',
     'Communities (1)',
@@ -68,7 +68,7 @@ const PLAN_FEATURES: Record<PlanLevel, string[]> = {
     'Add-on packages available',
   ],
   enterprise: [
-    'Unlimited courses & collections',
+    'Unlimited badges & badge collections',
     '20 admin seats',
     '100 GB storage',
     'All full features',
@@ -79,7 +79,7 @@ const PLAN_FEATURES: Record<PlanLevel, string[]> = {
     'Custom roles',
     'AI features included',
     'Analytics included',
-    'Certifications included',
+    'Badge issuing included',
     'SSO',
     'Audit logs',
   ],

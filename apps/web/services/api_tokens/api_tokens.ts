@@ -7,7 +7,7 @@ import {
 
 // Types - API Token access is restricted to specific resources
 export interface APITokenRights {
-  courses: {
+  badges: {
     action_create: boolean
     action_read: boolean
     action_read_own: boolean
@@ -16,25 +16,13 @@ export interface APITokenRights {
     action_delete: boolean
     action_delete_own: boolean
   }
-  activities: {
+  learning_activities: {
     action_create: boolean
     action_read: boolean
     action_update: boolean
     action_delete: boolean
   }
-  coursechapters: {
-    action_create: boolean
-    action_read: boolean
-    action_update: boolean
-    action_delete: boolean
-  }
-  collections: {
-    action_create: boolean
-    action_read: boolean
-    action_update: boolean
-    action_delete: boolean
-  }
-  certifications: {
+  badge_collections: {
     action_create: boolean
     action_read: boolean
     action_update: boolean
@@ -93,7 +81,7 @@ export interface APITokenCreatedResponse extends APIToken {
 
 // Default rights template with all permissions disabled
 export const getDefaultRights = (): APITokenRights => ({
-  courses: {
+  badges: {
     action_create: false,
     action_read: false,
     action_read_own: false,
@@ -102,25 +90,13 @@ export const getDefaultRights = (): APITokenRights => ({
     action_delete: false,
     action_delete_own: false,
   },
-  activities: {
+  learning_activities: {
     action_create: false,
     action_read: false,
     action_update: false,
     action_delete: false,
   },
-  coursechapters: {
-    action_create: false,
-    action_read: false,
-    action_update: false,
-    action_delete: false,
-  },
-  collections: {
-    action_create: false,
-    action_read: false,
-    action_update: false,
-    action_delete: false,
-  },
-  certifications: {
+  badge_collections: {
     action_create: false,
     action_read: false,
     action_update: false,
@@ -145,7 +121,7 @@ export const getDefaultRights = (): APITokenRights => ({
 
 // Full permissions template
 export const getFullRights = (): APITokenRights => ({
-  courses: {
+  badges: {
     action_create: true,
     action_read: true,
     action_read_own: true,
@@ -154,25 +130,13 @@ export const getFullRights = (): APITokenRights => ({
     action_delete: true,
     action_delete_own: true,
   },
-  activities: {
+  learning_activities: {
     action_create: true,
     action_read: true,
     action_update: true,
     action_delete: true,
   },
-  coursechapters: {
-    action_create: true,
-    action_read: true,
-    action_update: true,
-    action_delete: true,
-  },
-  collections: {
-    action_create: true,
-    action_read: true,
-    action_update: true,
-    action_delete: true,
-  },
-  certifications: {
+  badge_collections: {
     action_create: true,
     action_read: true,
     action_update: true,
@@ -197,7 +161,7 @@ export const getFullRights = (): APITokenRights => ({
 
 // Read-only permissions template
 export const getReadOnlyRights = (): APITokenRights => ({
-  courses: {
+  badges: {
     action_create: false,
     action_read: true,
     action_read_own: true,
@@ -206,25 +170,13 @@ export const getReadOnlyRights = (): APITokenRights => ({
     action_delete: false,
     action_delete_own: false,
   },
-  activities: {
+  learning_activities: {
     action_create: false,
     action_read: true,
     action_update: false,
     action_delete: false,
   },
-  coursechapters: {
-    action_create: false,
-    action_read: true,
-    action_update: false,
-    action_delete: false,
-  },
-  collections: {
-    action_create: false,
-    action_read: true,
-    action_update: false,
-    action_delete: false,
-  },
-  certifications: {
+  badge_collections: {
     action_create: false,
     action_read: true,
     action_update: false,

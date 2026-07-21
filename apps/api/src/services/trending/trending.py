@@ -7,14 +7,13 @@ from sqlmodel import Session, select
 from src.db.communities.communities import Community
 from src.db.communities.discussion_comments import DiscussionComment
 from src.db.communities.discussions import Discussion
-from src.db.courses.courses import Course
 from src.db.organizations import Organization
 from src.db.resources import Resource, ResourceChannel, ResourceChannelResource, ResourceComment
 from src.db.users import AnonymousUser, APITokenUser, PublicUser
 
 
 class TrendingItemRead(BaseModel):
-    item_type: str  # "discussion" | "resource" | "course"
+    item_type: str  # "discussion" | "resource"
     item_uuid: str
     title: str
     last_event_date: str
@@ -37,7 +36,6 @@ async def get_trending_items(
 
     items.extend(_get_trending_discussions(org, db_session, fetch_limit))
     items.extend(_get_trending_resources(org, db_session, fetch_limit))
-    items.extend(_get_trending_courses(org, db_session, fetch_limit))
 
     items.sort(key=lambda x: x.last_event_date, reverse=True)
     return items[:limit]
@@ -157,36 +155,3 @@ def _get_trending_resources(
             )
         )
     return result
-
-
-def _get_trending_courses(
-    org: Organization,
-    db_session: Session,
-    limit: int,
-) -> list[TrendingItemRead]:
-    stmt = (
-        select(
-            Course.course_uuid,
-            Course.name,
-            Course.thumbnail_image,
-            Course.creation_date,
-        )
-        .where(Course.org_id == org.id)
-        .where(Course.published == True)  # noqa: E712
-        .where(Course.public == True)  # noqa: E712
-        .order_by(Course.creation_date.desc())
-        .limit(limit)
-    )
-
-    rows = db_session.execute(stmt).all()
-    return [
-        TrendingItemRead(
-            item_type="course",
-            item_uuid=course_uuid,
-            title=name,
-            last_event_date=creation_date,
-            thumbnail_image=thumbnail_image,
-            org_slug=org.slug,
-        )
-        for course_uuid, name, thumbnail_image, creation_date in rows
-    ]

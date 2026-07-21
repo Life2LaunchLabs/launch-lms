@@ -13,7 +13,7 @@ export interface OrgUsageResponse {
   org_id: number
   plan: string
   features: {
-    courses: FeatureUsage
+    badges: FeatureUsage
     members: FeatureUsage
     admin_seats: FeatureUsage
   }

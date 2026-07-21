@@ -46,8 +46,8 @@ from src.services.orgs.orgs import (
     update_org_ai_config,
     update_org_communities_config,
     update_org_payments_config,
-    update_org_collections_config,
-    update_org_courses_config,
+    update_org_badge_collections_config,
+    update_org_badges_config,
     update_org_podcasts_config,
     update_org_resources_config,
     update_org_boards_config,
@@ -337,35 +337,35 @@ async def api_update_org_payments_config(
     )
 
 
-@feature_config_router.put("/{org_id}/config/courses")
-async def api_update_org_courses_config(
+@feature_config_router.put("/{org_id}/config/badges")
+async def api_update_org_badges_config(
     request: Request,
     org_id: int,
-    courses_enabled: bool,
+    badges_enabled: bool,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     """
-    Update organization courses configuration (admin-only)
+    Update organization badge configuration (admin-only)
     """
-    return await update_org_courses_config(
-        request, courses_enabled, org_id, current_user, db_session
+    return await update_org_badges_config(
+        request, badges_enabled, org_id, current_user, db_session
     )
 
 
-@feature_config_router.put("/{org_id}/config/collections")
-async def api_update_org_collections_config(
+@feature_config_router.put("/{org_id}/config/badge-collections")
+async def api_update_org_badge_collections_config(
     request: Request,
     org_id: int,
-    collections_enabled: bool,
+    badge_collections_enabled: bool,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     """
-    Update organization collections configuration (admin-only)
+    Update organization badge collection configuration (admin-only)
     """
-    return await update_org_collections_config(
-        request, collections_enabled, org_id, current_user, db_session
+    return await update_org_badge_collections_config(
+        request, badge_collections_enabled, org_id, current_user, db_session
     )
 
 

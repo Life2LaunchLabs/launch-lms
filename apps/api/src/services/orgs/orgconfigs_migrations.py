@@ -22,10 +22,10 @@ from src.security.features_utils.plans import PLAN_FEATURE_CONFIGS  # noqa: E402
 logger = logging.getLogger(__name__)
 
 # Features that have admin toggle entries in v2
-# (storage, usergroups, assignments, courses are always-on — no toggle)
+# (storage, usergroups, badges, and badge collections are always-on)
 ALL_FEATURES = [
     "ai", "analytics", "api", "boards", "collaboration",
-    "collections", "communities", "members", "payments", "playgrounds", "podcasts",
+    "badge_collections", "communities", "members", "payments", "playgrounds", "podcasts",
     "resources",
 ]
 
@@ -144,9 +144,8 @@ def _v2_migrate_all_configs(db_session: Session, batch_size: int = 50) -> int:
                 if deprecated in toggles:
                     del toggles[deprecated]
                     patched = True
-            # Ensure collections toggle exists (was briefly removed, now restored)
-            if "collections" not in toggles:
-                toggles["collections"] = {"disabled": False}
+            if "badge_collections" not in toggles:
+                toggles["badge_collections"] = toggles.pop("collections", {"disabled": False})
                 patched = True
             if "resources" not in toggles:
                 toggles["resources"] = {"disabled": False}

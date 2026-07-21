@@ -283,7 +283,7 @@ async def api_list_public_offers(
 ):
     """Public endpoint — lists all publicly listed offers for an org, enriched with resource metadata."""
     from src.db.payments.payments_offers import PaymentsOffer
-    from src.db.courses.courses import Course
+    from src.db.learning import LearningBadge
     from src.db.organizations import Organization
 
     org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
@@ -311,17 +311,17 @@ async def api_list_public_offers(
 
         enriched = []
         for uuid in uuids:
-            if uuid.startswith("course_"):
-                course = db_session.exec(
-                    select(Course).where(Course.course_uuid == uuid)
+            if uuid.startswith("badge_"):
+                badge = db_session.exec(
+                    select(LearningBadge).where(LearningBadge.badge_uuid == uuid)
                 ).first()
-                if course:
+                if badge:
                     enriched.append({
                         "resource_uuid": uuid,
-                        "resource_type": "course",
-                        "name": course.name,
-                        "description": course.description or "",
-                        "thumbnail_image": course.thumbnail_image or "",
+                        "resource_type": "badge",
+                        "name": badge.name,
+                        "description": badge.description or "",
+                        "thumbnail_image": badge.thumbnail_image or "",
                         "org_uuid": org_uuid,
                     })
                     continue
@@ -427,10 +427,10 @@ async def api_get_public_offer(
     offer_uuid: str,
     db_session: Session = Depends(get_db_session),
 ):
-    """Public endpoint — offer metadata + included resources enriched with course details."""
+    """Public endpoint — offer metadata with generic resource details."""
     from fastapi import HTTPException
     from src.db.payments.payments_offers import PaymentsOffer
-    from src.db.courses.courses import Course
+    from src.db.learning import LearningBadge
     from src.db.organizations import Organization
 
     org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
@@ -458,15 +458,15 @@ async def api_get_public_offer(
 
     enriched = []
     for uuid in uuids:
-        if uuid.startswith("course_"):
-            course = db_session.exec(select(Course).where(Course.course_uuid == uuid)).first()
-            if course:
+        if uuid.startswith("badge_"):
+            badge = db_session.exec(select(LearningBadge).where(LearningBadge.badge_uuid == uuid)).first()
+            if badge:
                 enriched.append({
                     "resource_uuid": uuid,
-                    "resource_type": "course",
-                    "name": course.name,
-                    "description": course.description or "",
-                    "thumbnail_image": course.thumbnail_image or "",
+                    "resource_type": "badge",
+                    "name": badge.name,
+                    "description": badge.description or "",
+                    "thumbnail_image": badge.thumbnail_image or "",
                     "org_uuid": org_uuid,
                 })
                 continue

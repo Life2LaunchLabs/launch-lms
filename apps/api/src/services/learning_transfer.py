@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import io
 import json
 import os
@@ -14,20 +13,25 @@ from sqlmodel import Session, select
 from src.db.learning import BadgeCollection, LearningActivity, LearningBadge, LearningBadgeStatus, LearningPage, LearningPath
 from src.db.users import AnonymousUser, PublicUser
 from src.services import learning as learning_service
-from src.services.courses.transfer.import_service import (
-    MAX_COMPRESSION_RATIO,
-    MAX_PACKAGE_SIZE,
-    TEMP_IMPORT_DIR,
-    import_courses,
-    sanitize_path,
-    validate_zip,
-)
-from src.services.courses.transfer.models import ImportOptions
 from src.services.learning_page_convert import convert_legacy_page, link_variant_sources_to_question_blocks
 
 
 LEARNING_EXPORT_FORMAT = "launch-lms-badge-export"
-LEGACY_COURSE_EXPORT_FORMAT = "launch-lms-course-export"
+MAX_PACKAGE_SIZE = 500 * 1024 * 1024
+MAX_COMPRESSION_RATIO = 100
+TEMP_IMPORT_DIR = "content/temp/badge-imports"
+
+
+def sanitize_path(path: str) -> str:
+    normalized = os.path.normpath(path).replace("\\", "/").lstrip("/")
+    return "" if normalized == ".." or normalized.startswith("../") else normalized
+
+
+def validate_zip(content: bytes) -> None:
+    if len(content) > MAX_PACKAGE_SIZE:
+        raise HTTPException(status_code=413, detail="Import package is too large")
+    if not zipfile.is_zipfile(io.BytesIO(content)):
+        raise HTTPException(status_code=400, detail="Invalid ZIP package")
 
 
 def _now() -> str:
@@ -217,18 +221,6 @@ async def analyze_badge_import_package(
                 "source_format": LEARNING_EXPORT_FORMAT,
                 "requires_conversion": False,
                 "badges": badges,
-                "courses": [],
-            }
-
-        if package_format == LEGACY_COURSE_EXPORT_FORMAT:
-            analysis = await _analyze_legacy_course_export(extract_dir, manifest)
-            return {
-                "temp_id": temp_id,
-                "version": manifest.get("version", "1.0.0"),
-                "source_format": LEGACY_COURSE_EXPORT_FORMAT,
-                "requires_conversion": True,
-                "badges": [],
-                "courses": analysis,
             }
 
         raise HTTPException(status_code=400, detail="Invalid package: Unsupported import format")
@@ -267,28 +259,6 @@ def _extract_zip(content: bytes, temp_dir: str) -> str:
     return extract_dir
 
 
-async def _analyze_legacy_course_export(extract_dir: str, manifest: dict) -> list[dict]:
-    courses = []
-    for course_entry in manifest.get("courses", []):
-        course_path = os.path.join(extract_dir, course_entry.get("path", ""))
-        course_json_path = os.path.join(course_path, "course.json")
-        if not os.path.exists(course_json_path):
-            continue
-        course_data = _read_json(course_json_path)
-        courses.append({
-            "course_uuid": course_data.get("course_uuid"),
-            "name": course_data.get("name", "Untitled Course"),
-            "description": course_data.get("description"),
-            "chapters_count": _count_chapter_dirs(course_path),
-            "activities_count": _count_legacy_activity_dirs(course_path),
-            "has_thumbnail": bool(course_data.get("thumbnail_image") or course_data.get("thumbnail_video")),
-            "media_count": 0,
-        })
-    if not courses:
-        raise HTTPException(status_code=400, detail="Invalid package: No valid courses found")
-    return courses
-
-
 async def import_badge_package(
     request: Request,
     org_id: int,
@@ -306,17 +276,6 @@ async def import_badge_package(
         raise HTTPException(status_code=404, detail="Package not found. Please upload and analyze again.")
     manifest = _read_json(manifest_path)
     package_format = manifest.get("format")
-
-    if package_format == LEGACY_COURSE_EXPORT_FORMAT:
-        options = ImportOptions(
-            course_uuids=payload.get("course_uuids") or [],
-            name_prefix=payload.get("name_prefix"),
-            set_private=payload.get("set_private", True),
-            set_unpublished=payload.get("set_unpublished", True),
-            collection_uuid=None,
-        )
-        result = await import_courses(request, temp_id, org_id, options, current_user, db_session)
-        return {**result.model_dump(), "source_format": LEGACY_COURSE_EXPORT_FORMAT, "requires_conversion": True}
 
     if package_format != LEARNING_EXPORT_FORMAT:
         raise HTTPException(status_code=400, detail="Unsupported import package")
@@ -498,23 +457,4 @@ def _count_page_files(badge_path: str) -> int:
         pages_dir = os.path.join(activities_dir, activity_name, "pages")
         if os.path.exists(pages_dir):
             count += len([name for name in os.listdir(pages_dir) if name.endswith(".json")])
-    return count
-
-
-def _count_chapter_dirs(course_path: str) -> int:
-    chapters_dir = os.path.join(course_path, "chapters")
-    if not os.path.exists(chapters_dir):
-        return 0
-    return len([name for name in os.listdir(chapters_dir) if os.path.isdir(os.path.join(chapters_dir, name))])
-
-
-def _count_legacy_activity_dirs(course_path: str) -> int:
-    count = 0
-    chapters_dir = os.path.join(course_path, "chapters")
-    if not os.path.exists(chapters_dir):
-        return 0
-    for chapter_name in os.listdir(chapters_dir):
-        activities_dir = os.path.join(chapters_dir, chapter_name, "activities")
-        if os.path.exists(activities_dir):
-            count += len([name for name in os.listdir(activities_dir) if os.path.isdir(os.path.join(activities_dir, name))])
     return count

@@ -5,20 +5,17 @@ from src.routers import health
 from src.routers import instance
 from src.routers import plans
 from src.routers import usergroups
-from src.routers import dev, trail, users, auth, orgs, roles, search, news, media, portfolio
+from src.routers import dev, users, auth, orgs, roles, search, news, media, portfolio
 from src.routers import stream
 from src.routers import learning as learning_router_module
 from src.routers import marketplace as marketplace_router_module
 from src.routers import api_tokens
-from src.routers.ai import ai, magicblocks, courseplanning, rag
 from src.routers.boards import boards_playground
 from src.routers.orgs import ai_credits
 from src.routers.orgs import custom_domains
 from src.routers.orgs import packs
-from src.routers.courses import chapters, collections, courses, assignments, certifications, quiz as quiz_router_module
 from src.routers.communities import communities as communities_router_module
 from src.routers.communities import discussions as discussions_router_module
-from src.routers.courses.activities import activities, blocks
 from src.routers.podcasts import podcasts as podcasts_router_module
 from src.routers.podcasts import episodes as episodes_router_module
 from src.routers.boards import boards as boards_router_module
@@ -35,7 +32,7 @@ from src.routers.superadmin import router as superadmin_router
 from src.routers.plan_requests import router as plan_requests_router
 from src.security.auth import get_current_user
 from src.security.api_token_utils import require_non_api_token_user
-from src.security.features_utils.plan_check import require_plan, require_plan_for_boards, require_plan_for_certifications, require_plan_for_community, require_plan_for_resources, require_plan_for_usergroups, require_plan_for_playgrounds
+from src.security.features_utils.plan_check import require_plan, require_plan_for_boards, require_plan_for_community, require_plan_for_resources, require_plan_for_usergroups, require_plan_for_playgrounds
 
 
 v1_router = APIRouter(prefix="/api/v1")
@@ -114,28 +111,7 @@ v1_router.include_router(
     tags=["packs"],
     dependencies=[Depends(get_non_api_token_user)],
 )
-v1_router.include_router(
-    blocks.router,
-    prefix="/blocks",
-    tags=["blocks"],
-    dependencies=[Depends(get_non_api_token_user)]
-)
-v1_router.include_router(courses.router, prefix="/courses", tags=["courses"])
 v1_router.include_router(search.router, prefix="/search", tags=["search"])
-v1_router.include_router(
-    assignments.router,
-    prefix="/assignments",
-    tags=["assignments"],
-    dependencies=[Depends(get_non_api_token_user)]
-)
-v1_router.include_router(
-    quiz_router_module.router,
-    prefix="/quizzes",
-    tags=["quizzes"],
-    dependencies=[Depends(get_non_api_token_user)]
-)
-v1_router.include_router(chapters.router, prefix="/chapters", tags=["chapters"])
-v1_router.include_router(activities.router, prefix="/activities", tags=["activities"])
 v1_router.include_router(learning_router_module.badges_router, prefix="/badges", tags=["learning-badges"])
 v1_router.include_router(learning_router_module.collections_router, prefix="/badge-collections", tags=["learning-badge-collections"])
 v1_router.include_router(learning_router_module.activities_router, prefix="/learning-activities", tags=["learning-activities"])
@@ -143,13 +119,9 @@ v1_router.include_router(learning_router_module.pages_router, prefix="/learning-
 v1_router.include_router(learning_router_module.runs_router, prefix="/learning-runs", tags=["learning-runs"])
 v1_router.include_router(learning_router_module.responses_router, prefix="/learning-responses", tags=["learning-responses"])
 v1_router.include_router(learning_router_module.awards_router, prefix="/badge-awards", tags=["learning-badge-awards"])
-v1_router.include_router(learning_router_module.migrations_router, prefix="/badge-migrations", tags=["learning-badge-migrations"])
 v1_router.include_router(learning_router_module.imports_router, prefix="/badge-import", tags=["learning-badge-import"])
 v1_router.include_router(learning_router_module.variables_router, prefix="/learning-variables", tags=["learning-variables"])
 v1_router.include_router(marketplace_router_module.router, prefix="/badge-marketplace", tags=["learning-badge-marketplace"])
-v1_router.include_router(
-    collections.router, prefix="/collections", tags=["collections"]
-)
 v1_router.include_router(
     communities_router_module.router,
     prefix="/communities",
@@ -200,12 +172,6 @@ v1_router.include_router(
     tags=["podcasts", "episodes"]
 )
 v1_router.include_router(
-    certifications.router,
-    prefix="/certifications",
-    tags=["certifications"],
-    dependencies=[Depends(require_plan_for_certifications("full", "Certifications"))]
-)
-v1_router.include_router(
     boards_router_module.router,
     prefix="/boards",
     tags=["boards"],
@@ -215,36 +181,6 @@ v1_router.include_router(
     boards_router_module.internal_router,
     prefix="/boards",
     tags=["boards-internal"],
-)
-v1_router.include_router(
-    trail.router,
-    prefix="/trail",
-    tags=["trail"],
-    dependencies=[Depends(get_non_api_token_user)]
-)
-v1_router.include_router(
-    ai.router,
-    prefix="/ai",
-    tags=["ai"],
-    dependencies=[Depends(get_non_api_token_user)]
-)
-v1_router.include_router(
-    magicblocks.router,
-    prefix="/ai",
-    tags=["ai", "magicblocks"],
-    dependencies=[Depends(get_non_api_token_user)]
-)
-v1_router.include_router(
-    courseplanning.router,
-    prefix="/ai",
-    tags=["ai", "courseplanning"],
-    dependencies=[Depends(get_non_api_token_user)]
-)
-v1_router.include_router(
-    rag.router,
-    prefix="/ai",
-    tags=["ai", "rag"],
-    dependencies=[Depends(get_non_api_token_user)]
 )
 v1_router.include_router(
     boards_playground.router,

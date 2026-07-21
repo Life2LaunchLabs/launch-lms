@@ -63,13 +63,12 @@ function OrgRoles() {
 
     const formatResourceName = (resource: string) => {
         const resourceNames: { [key: string]: string } = {
-            courses: t('dashboard.users.roles.rights.resources.courses'),
+            badges: 'Badges',
             users: t('dashboard.users.roles.rights.resources.users'),
             usergroups: t('dashboard.users.roles.rights.resources.usergroups'),
-            collections: t('dashboard.users.roles.rights.resources.collections'),
+            badge_collections: 'Badge collections',
             organizations: t('dashboard.users.roles.rights.resources.organizations'),
-            coursechapters: t('dashboard.users.roles.rights.resources.coursechapters'),
-            activities: t('dashboard.users.roles.rights.resources.activities'),
+            learning_activities: 'Learning activities',
             roles: t('dashboard.users.roles.rights.resources.roles'),
             dashboard: t('dashboard.users.roles.rights.resources.dashboard'),
         }

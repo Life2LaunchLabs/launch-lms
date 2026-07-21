@@ -2,7 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from 'react'
 
-export type OnboardingFeatureKey = 'courses' | 'resources'
+export type OnboardingFeatureKey = 'badges' | 'resources'
 
 type FeatureState = Record<OnboardingFeatureKey, boolean>
 
@@ -18,7 +18,7 @@ type OnboardingStateUpdater = (state: OrgOnboardingState) => OrgOnboardingState
 const ORG_ONBOARDING_EVENT = 'org-onboarding-change'
 
 const DEFAULT_FEATURE_STATE: FeatureState = {
-  courses: false,
+  badges: false,
   resources: false,
 }
 
@@ -56,7 +56,7 @@ function normalizeFeatureState(value: unknown): FeatureState {
   const record = value && typeof value === 'object' ? value as Partial<FeatureState> : {}
 
   return {
-    courses: record.courses === true,
+    badges: record.badges === true,
     resources: record.resources === true,
   }
 }

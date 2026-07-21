@@ -1,26 +1,14 @@
 import logging
 from datetime import datetime
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlmodel import Session, select
 from config.config import get_launchlms_config
 from migrations.orgconfigs.orgconfigs_migrations import migrate_to_v1_1, migrate_to_v1_2, migrate_v0_to_v1
 from src.core.events.database import get_db_session
-from src.db.courses.activities import Activity
-from src.db.courses.chapter_activities import ChapterActivity
-from src.db.courses.certifications import Certifications
-from src.db.courses.courses import Course
 from src.db.organization_config import OrganizationConfig
-from src.db.trail_runs import StatusEnum, TrailRun
-from src.db.trail_steps import TrailStep
-from src.db.trails import Trail
 from src.db.users import PublicUser, User
 from src.security.auth import get_authenticated_user
-from src.security.rbac import AccessAction, check_resource_access
-from src.services.analytics import events as analytics_events
-from src.services.analytics.analytics import track
-from src.services.courses.certifications import check_course_completion_and_create_certificate
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +20,6 @@ def _require_superadmin(current_user: PublicUser):
     """Require superadmin access for dev endpoints."""
     if not hasattr(current_user, 'is_superadmin') or not current_user.is_superadmin:
         raise HTTPException(status_code=403, detail="Superadmin access required")
-
-
-def _normalize_course_uuid(course_uuid: str) -> str:
-    return course_uuid if course_uuid.startswith("course_") else f"course_{course_uuid}"
 
 
 DEV_PROFILE_BIO = (
@@ -311,171 +295,6 @@ async def seed_profile(
     return {
         "message": "Profile seeded",
         "user": user.model_dump(exclude={"password"}),
-    }
-
-
-@router.post("/complete_course/{course_uuid}")
-async def complete_course(
-    request: Request,
-    course_uuid: str,
-    db_session: Session = Depends(get_db_session),
-    current_user: PublicUser = Depends(get_authenticated_user),
-):
-    """
-    Development-only helper to mark every activity in a course complete for the current user.
-    """
-    normalized_course_uuid = _normalize_course_uuid(course_uuid)
-    course = db_session.exec(
-        select(Course).where(Course.course_uuid == normalized_course_uuid)
-    ).first()
-    if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
-    if course.id is None:
-        raise HTTPException(status_code=400, detail="Course is missing an id")
-
-    await check_resource_access(request, db_session, current_user, course.course_uuid, AccessAction.READ)
-
-    if current_user.id is None:
-        raise HTTPException(status_code=400, detail="Current user is missing an id")
-
-    activity_rows = db_session.exec(
-        select(Activity)
-        .join(ChapterActivity, ChapterActivity.activity_id == Activity.id)  # type: ignore
-        .where(ChapterActivity.course_id == course.id)
-        .order_by(ChapterActivity.order.asc())  # type: ignore
-    ).all()
-    activities = []
-    seen_activity_ids = set()
-    for activity in activity_rows:
-        if activity.id is None or activity.id in seen_activity_ids:
-            continue
-        seen_activity_ids.add(activity.id)
-        activities.append(activity)
-
-    now = str(datetime.now())
-    trail = db_session.exec(
-        select(Trail).where(
-            Trail.org_id == course.org_id,
-            Trail.user_id == current_user.id,
-        )
-    ).first()
-    if not trail:
-        trail = Trail(
-            org_id=course.org_id,
-            user_id=current_user.id,
-            trail_uuid=f"trail_{uuid4()}",
-            creation_date=now,
-            update_date=now,
-        )
-        db_session.add(trail)
-        db_session.commit()
-        db_session.refresh(trail)
-
-    trailrun = db_session.exec(
-        select(TrailRun).where(
-            TrailRun.trail_id == trail.id,
-            TrailRun.course_id == course.id,
-            TrailRun.user_id == current_user.id,
-        )
-    ).first()
-    if not trailrun:
-        trailrun = TrailRun(
-            trail_id=trail.id or 0,
-            course_id=course.id or 0,
-            org_id=course.org_id,
-            user_id=current_user.id,
-            creation_date=now,
-            update_date=now,
-        )
-        db_session.add(trailrun)
-        db_session.commit()
-        db_session.refresh(trailrun)
-
-    created_steps = 0
-    updated_steps = 0
-    for activity in activities:
-        trailstep = db_session.exec(
-            select(TrailStep).where(
-                TrailStep.trailrun_id == trailrun.id,
-                TrailStep.activity_id == activity.id,
-                TrailStep.user_id == current_user.id,
-            )
-        ).first()
-
-        if trailstep:
-            if not trailstep.complete:
-                trailstep.complete = True
-                updated_steps += 1
-            trailstep.update_date = now
-        else:
-            trailstep = TrailStep(
-                trailrun_id=trailrun.id or 0,
-                activity_id=activity.id or 0,
-                course_id=course.id or 0,
-                trail_id=trail.id or 0,
-                org_id=course.org_id,
-                complete=True,
-                teacher_verified=False,
-                grade="",
-                data={},
-                user_id=current_user.id,
-                creation_date=now,
-                update_date=now,
-            )
-            created_steps += 1
-
-        db_session.add(trailstep)
-
-    trail.update_date = now
-    trailrun.status = StatusEnum.STATUS_COMPLETED
-    trailrun.update_date = now
-    db_session.add(trail)
-    db_session.add(trailrun)
-    db_session.commit()
-
-    certification = db_session.exec(
-        select(Certifications).where(Certifications.course_id == course.id)
-    ).first()
-    if not certification:
-        certification = Certifications(
-            course_id=course.id,
-            certification_uuid=f"certification_{uuid4()}",
-            config={
-                "badge_name": course.name,
-                "badge_description": course.description or f"Completed {course.name}",
-                "certification_name": course.name,
-                "certification_description": course.description or f"Completed {course.name}",
-                "badge_criteria_text": "Complete the required badge activities.",
-                "badge_theme": "professional",
-                "certificate_pattern": "professional",
-            },
-            creation_date=now,
-            update_date=now,
-        )
-        db_session.add(certification)
-        db_session.commit()
-
-    course_was_completed = False
-    if course.id:
-        course_was_completed = await check_course_completion_and_create_certificate(
-            request, current_user.id, course.id, db_session
-        )
-
-    if course_was_completed:
-        await track(
-            event_name=analytics_events.COURSE_COMPLETED,
-            org_id=course.org_id,
-            user_id=current_user.id,
-            properties={"course_uuid": course.course_uuid, "source": "dev_cheat"},
-        )
-
-    return {
-        "message": "Course marked complete",
-        "course_uuid": course.course_uuid,
-        "activity_count": len(activities),
-        "created_steps": created_steps,
-        "updated_steps": updated_steps,
-        "certificate_created": course_was_completed,
     }
 
 

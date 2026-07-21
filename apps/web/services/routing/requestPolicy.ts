@@ -7,7 +7,6 @@ import {
 import {
   classifyRoute,
   isAuthenticatedAuthRedirectPath,
-  isEditorActivityPath,
   isPodcastFeedPath,
 } from './routeAccess.ts'
 
@@ -176,13 +175,6 @@ export function resolveRequestRouting(
   if (pathname === '/welcome') {
     return {
       action: 'next',
-    }
-  }
-
-  if (isEditorActivityPath(pathname)) {
-    return {
-      action: 'rewrite',
-      destination: `/editor${pathname}`,
     }
   }
 

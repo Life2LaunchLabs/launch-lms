@@ -7,7 +7,6 @@ import {
 } from '@services/communities/communities'
 import { getUriWithOrg } from '@services/config/config'
 import {
-  getCollectionThumbnailMediaDirectory,
   getCommunityThumbnailMediaDirectory,
   getResourceChannelThumbnailMediaDirectory,
 } from '@services/media/media'
@@ -16,21 +15,6 @@ import {
   LandingQuickstartItem,
 } from '@components/Dashboard/Pages/Org/OrgEditLanding/landing_types'
 import { QUICKSTART_FEATURES } from './quickstartConfig'
-import CollectionCoverFanThumbnail, {
-  CollectionCoverFanCourse,
-} from '@components/Objects/Thumbnails/CollectionCoverFanThumbnail'
-
-type CollectionLike = {
-  collection_uuid: string
-  name: string
-  thumbnail_image?: string | null
-  owner_org_uuid?: string | null
-  courses?: Array<{
-    course_uuid: string
-    thumbnail_image?: string | null
-    owner_org_uuid?: string | null
-  }>
-}
 
 interface QuickstartSectionProps {
   title?: string
@@ -38,7 +22,6 @@ interface QuickstartSectionProps {
   items: LandingQuickstartItem[]
   orgslug: string
   orgUUID?: string
-  collections: CollectionLike[]
   communities: Community[]
   resourceChannels: ResourceChannel[]
 }
@@ -48,7 +31,6 @@ type ResolvedQuickstartCard = {
   title: string
   href: string
   imageUrl?: string | null
-  fallbackCourses?: CollectionCoverFanCourse[]
   fallbackOrgUuid?: string | null
   Icon?: ComponentType<{ className?: string }>
 }
@@ -64,7 +46,6 @@ function resolveQuickstartCard(
   item: LandingQuickstartItem,
   orgslug: string,
   orgUUID: string | undefined,
-  collections: CollectionLike[],
   communities: Community[],
   resourceChannels: ResourceChannel[]
 ): ResolvedQuickstartCard | null {
@@ -77,41 +58,6 @@ function resolveQuickstartCard(
       title: feature.label,
       href: getUriWithOrg(orgslug, feature.href),
       Icon: feature.icon,
-    }
-  }
-
-  if (item.type === 'collection' && item.target_uuid) {
-    const collection = collections.find(
-      (entry) => entry.collection_uuid === item.target_uuid
-    )
-    if (!collection) return null
-
-    return {
-      key: collection.collection_uuid,
-      title: collection.name,
-      href: getUriWithOrg(
-        orgslug,
-        `/collection/${collection.collection_uuid.replace('collection_', '')}`
-      ),
-      imageUrl:
-        collection.thumbnail_image && (collection.owner_org_uuid || orgUUID)
-          ? getCollectionThumbnailMediaDirectory(
-              collection.owner_org_uuid || orgUUID || '',
-              collection.collection_uuid,
-              collection.thumbnail_image
-            )
-          : null,
-      fallbackCourses:
-        collection.thumbnail_image || !collection.courses?.length
-          ? []
-          : collection.courses
-              .filter(
-                (course) =>
-                  course.thumbnail_image &&
-                  (course.owner_org_uuid || collection.owner_org_uuid || orgUUID)
-              )
-              .slice(0, 3),
-      fallbackOrgUuid: collection.owner_org_uuid || orgUUID,
     }
   }
 
@@ -169,7 +115,6 @@ export default function QuickstartSection({
   items,
   orgslug,
   orgUUID,
-  collections,
   communities,
   resourceChannels,
 }: QuickstartSectionProps) {
@@ -179,7 +124,6 @@ export default function QuickstartSection({
         item,
         orgslug,
         orgUUID,
-        collections,
         communities,
         resourceChannels
       )
@@ -213,11 +157,6 @@ export default function QuickstartSection({
                   src={card.imageUrl}
                   alt={card.title}
                   className="h-full w-full object-cover"
-                />
-              ) : card.fallbackCourses?.length ? (
-                <CollectionCoverFanThumbnail
-                  courses={card.fallbackCourses}
-                  fallbackOrgUuid={card.fallbackOrgUuid}
                 />
               ) : card.Icon ? (
                 <div className="flex h-full w-full items-center justify-center">

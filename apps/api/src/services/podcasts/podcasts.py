@@ -727,7 +727,7 @@ async def delete_podcast(
     org_statement = select(Organization).where(Organization.id == podcast.org_id)
     org = db_session.exec(org_statement).first()
     if org:
-        from src.services.courses.transfer.storage_utils import delete_storage_directory
+        from src.services.utils.storage import delete_storage_directory
         content_path = f"content/orgs/{org.org_uuid}/podcasts/{podcast_uuid}"
         delete_storage_directory(content_path)
 

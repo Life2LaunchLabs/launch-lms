@@ -686,11 +686,9 @@ const PermissionsEditor: React.FC<{
 }> = ({ rights, onChange }) => {
   // API Token access is restricted to specific resources
   const resources = [
-    { key: 'courses', label: 'Courses', hasCrud: true },
-    { key: 'activities', label: 'Activities', hasCrud: true },
-    { key: 'coursechapters', label: 'Chapters', hasCrud: true },
-    { key: 'collections', label: 'Collections', hasCrud: true },
-    { key: 'certifications', label: 'Certifications', hasCrud: true },
+    { key: 'badges', label: 'Badges', hasCrud: true },
+    { key: 'learning_activities', label: 'Learning Activities', hasCrud: true },
+    { key: 'badge_collections', label: 'Badge Collections', hasCrud: true },
     { key: 'usergroups', label: 'User Groups', hasCrud: true },
     { key: 'payments', label: 'Payments', hasCrud: true },
   ]
@@ -776,11 +774,9 @@ const PermissionsViewer: React.FC<{ rights: APITokenRights }> = ({ rights }) => 
 
   return (
     <div className="grid grid-cols-3 gap-2">
-      <div>Courses: {getPermissionSummary(rights.courses)}</div>
-      <div>Activities: {getPermissionSummary(rights.activities)}</div>
-      <div>Chapters: {getPermissionSummary(rights.coursechapters)}</div>
-      <div>Collections: {getPermissionSummary(rights.collections)}</div>
-      <div>Certs: {getPermissionSummary(rights.certifications)}</div>
+      <div>Badges: {getPermissionSummary(rights.badges)}</div>
+      <div>Learning activities: {getPermissionSummary(rights.learning_activities)}</div>
+      <div>Badge collections: {getPermissionSummary(rights.badge_collections)}</div>
       <div>Groups: {getPermissionSummary(rights.usergroups)}</div>
       <div>Payments: {getPermissionSummary(rights.payments)}</div>
       <div>Search: {rights.search?.action_read ? 'R' : '-'}</div>

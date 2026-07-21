@@ -2,11 +2,8 @@ from src.services.communities.communities import (
     create_community,
     get_community,
     get_communities_by_org,
-    get_community_by_course,
     update_community,
     delete_community,
-    link_community_to_course,
-    unlink_community_from_course,
     get_community_user_rights,
 )
 from src.services.communities.discussions import (
@@ -34,11 +31,8 @@ __all__ = [
     "create_community",
     "get_community",
     "get_communities_by_org",
-    "get_community_by_course",
     "update_community",
     "delete_community",
-    "link_community_to_course",
-    "unlink_community_from_course",
     "get_community_user_rights",
     "create_discussion",
     "get_discussion",

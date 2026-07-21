@@ -17,8 +17,6 @@ const ADMIN_PATHS = [
   '/admin/org',
   '/admin/users/*',
   '/admin/users',
-  '/admin/courses/*',
-  '/admin/courses',
   '/admin/org/settings/general',
 ];
 

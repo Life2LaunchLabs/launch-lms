@@ -155,12 +155,12 @@ def require_create_access(
     Dependency for create access.
 
     Args:
-        resource_type: The type of resource being created (courses, podcasts, communities)
+        resource_type: The type of resource being created
 
     Usage:
         @router.post("/")
-        async def create_course(
-            access: AccessDecision = Depends(require_create_access("courses")),
+        async def create_badge(
+            access: AccessDecision = Depends(require_create_access("badges")),
         ):
             pass
     """
@@ -171,7 +171,11 @@ def require_create_access(
         current_user: Union[PublicUser, AnonymousUser, APITokenUser] = Depends(_get_current_user_dependency()),
     ) -> AccessDecision:
         # Use placeholder UUID for creation
-        resource_uuid = f"{resource_type[:-1]}_x"  # e.g., "course_x"
+        resource_uuid = {
+            "badges": "badge_x",
+            "badge_collections": "badge_collection_x",
+            "learning_activities": "learning_activity_x",
+        }.get(resource_type, f"{resource_type.rstrip('s')}_x")
 
         checker = ResourceAccessChecker(request, db_session, current_user)
         decision = await checker.check_access(
@@ -219,28 +223,28 @@ def require_dashboard_access(
 
 # Pre-configured dependencies for common use cases
 
-class CourseAccess:
-    """Pre-configured dependencies for course access."""
+class BadgeAccess:
+    """Pre-configured dependencies for badge access."""
 
     @staticmethod
     def read(context: AccessContext = AccessContext.PUBLIC_VIEW):
-        return require_read_access("course_uuid", context)
+        return require_read_access("badge_uuid", context)
 
     @staticmethod
     def create():
-        return require_create_access("courses")
+        return require_create_access("badges")
 
     @staticmethod
     def update():
-        return require_write_access(AccessAction.UPDATE, "course_uuid")
+        return require_write_access(AccessAction.UPDATE, "badge_uuid")
 
     @staticmethod
     def delete():
-        return require_write_access(AccessAction.DELETE, "course_uuid")
+        return require_write_access(AccessAction.DELETE, "badge_uuid")
 
     @staticmethod
     def dashboard():
-        return require_dashboard_access("course_uuid")
+        return require_dashboard_access("badge_uuid")
 
 
 class PodcastAccess:

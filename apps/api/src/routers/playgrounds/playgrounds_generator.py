@@ -1,4 +1,3 @@
-from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select
@@ -7,7 +6,6 @@ import logging
 
 from src.db.organizations import Organization
 from src.db.playgrounds import Playground
-from src.db.courses.courses import Course
 from src.core.events.database import get_db_session
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
@@ -52,36 +50,6 @@ def get_org_ai_model(org_id: int, db_session: Session) -> str:
         return "gemini-2.5-flash-lite"
 
 
-def _get_course_context(
-    course_uuid: Optional[str],
-    org_id: int,
-    db_session: Session,
-    prompt: str,
-) -> tuple[Optional[str], Optional[int]]:
-    """Return (course_context_str, course_id) or (None, None) if no course."""
-    if not course_uuid:
-        return None, None
-
-    course = db_session.exec(
-        select(Course).where(Course.course_uuid == course_uuid)
-    ).first()
-    if not course or course.org_id != org_id:
-        return None, None
-
-    try:
-        from src.services.ai.rag.query_service import query_course_rag
-        rag_result = query_course_rag(
-            question=prompt,
-            org_id=org_id,
-            db_session=db_session,
-            course_id=course.id,
-        )
-        return rag_result.get("context") or None, course.id
-    except Exception as e:
-        logging.warning("Failed to fetch RAG context for playground: %s", e)
-        return None, course.id
-
-
 @router.post("/generate/start")
 async def start_playground_session(
     request: Request,
@@ -118,14 +86,6 @@ async def start_playground_session(
 
     ai_model = get_org_ai_model(org.id, db_session)
 
-    # Fetch RAG context if course linked
-    course_context, _ = _get_course_context(
-        session_request.context.course_uuid,
-        org.id,
-        db_session,
-        session_request.prompt,
-    )
-
     session = create_playground_session(
         playground_uuid=session_request.playground_uuid,
         context=session_request.context,
@@ -136,7 +96,6 @@ async def start_playground_session(
         session=session,
         gemini_model_name=ai_model,
         current_html=playground.html_content or None,
-        course_context=course_context,
     )
 
     db_session.close()
@@ -200,14 +159,6 @@ async def iterate_playground_session(
 
     ai_model = get_org_ai_model(org.id, db_session)
 
-    # Fetch RAG context if course linked
-    course_context, _ = _get_course_context(
-        session.context.course_uuid,
-        org.id,
-        db_session,
-        message_request.message,
-    )
-
     html_to_iterate = message_request.current_html or session.current_html
 
     stream = generate_playground_stream(
@@ -215,7 +166,6 @@ async def iterate_playground_session(
         session=session,
         gemini_model_name=ai_model,
         current_html=html_to_iterate,
-        course_context=course_context,
     )
 
     db_session.close()

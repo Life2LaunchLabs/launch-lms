@@ -6,7 +6,6 @@ import { getServerSession } from '@/lib/auth/server'
 import { getCanonicalUrl, getOrgSeoConfig } from '@/lib/seo/utils'
 import { getLearningPath } from '@services/learning/learning'
 import { LearningActivityPlayer } from '@components/Learning/LearningBadgeViews'
-import { learningPathToLegacyCourse } from '@services/learning/legacyAdapters'
 
 type ChapterPageProps = {
   params: Promise<{ orgslug: string; uuid: string; chapterid: string }>
@@ -23,14 +22,14 @@ export async function generateMetadata(props: ChapterPageProps): Promise<Metadat
 
   try {
     const badgePath = await getLearningPath(params.uuid, accessToken || undefined, true, { revalidate: 0, tags: ['learning-badges'] })
-    const course = learningPathToLegacyCourse(badgePath, org)
+    const course = badgePath.badge
     const cleanActivityId = params.chapterid.replace('learning_activity_', '')
-    const chapter = (course?.chapters || []).find((item: any) => (
-      item.chapter_uuid === params.chapterid ||
-      item.chapter_uuid.replace('learning_activity_', '') === cleanActivityId
+    const chapter = (badgePath.activities || []).find((item: any) => (
+      item.activity_uuid === params.chapterid ||
+      item.activity_uuid.replace('learning_activity_', '') === cleanActivityId
     ))
     const seoConfig = getOrgSeoConfig(org)
-    const rawTitle = `${chapter?.name || 'Chapter'} — ${course.name} Badge`
+    const rawTitle = `${chapter?.title || 'Activity'} — ${course.name} Badge`
     const pageTitle = seoConfig.default_meta_title_suffix ? `${rawTitle}${seoConfig.default_meta_title_suffix}` : rawTitle
     const orgOgImageUrl = seoConfig.default_og_image
       ? getOrgOgImageMediaDirectory(org?.org_uuid, seoConfig.default_og_image)
@@ -57,8 +56,8 @@ export async function generateMetadata(props: ChapterPageProps): Promise<Metadat
     }
   } catch {
     return {
-      title: `Chapter — ${org?.name || 'Launch LMS'}`,
-      description: 'View this badge chapter on Launch LMS',
+      title: `Activity — ${org?.name || 'Launch LMS'}`,
+      description: 'View this badge activity on Launch LMS',
     }
   }
 }

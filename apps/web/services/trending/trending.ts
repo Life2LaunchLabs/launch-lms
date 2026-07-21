@@ -2,7 +2,7 @@ import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader } from '@services/utils/ts/requests'
 
 export interface TrendingItem {
-  item_type: 'discussion' | 'resource' | 'course'
+  item_type: 'discussion' | 'resource'
   item_uuid: string
   title: string
   last_event_date: string

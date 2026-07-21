@@ -18,9 +18,6 @@ import {
   X
 } from 'lucide-react'
 import { getUserAvatarMediaDirectory } from '@services/media/media'
-import { getCoursesByUser } from '@services/users/users'
-import { useLHSession } from '@components/Contexts/LHSessionContext'
-import CourseThumbnailLanding from '@components/Objects/Thumbnails/CourseThumbnailLanding'
 import { useTranslation } from 'react-i18next'
 
 interface UserProfileClientProps {
@@ -72,31 +69,7 @@ const ImageModal: React.FC<{
 
 function UserProfileClient({ userData, profile }: UserProfileClientProps) {
   const { t } = useTranslation()
-  const session = useLHSession() as any
-  const access_token = session?.data?.tokens?.access_token
   const [selectedImage, setSelectedImage] = React.useState<{ url: string; caption?: string } | null>(null);
-  const [userCourses, setUserCourses] = React.useState<any[]>([]);
-  const [isLoadingCourses, setIsLoadingCourses] = React.useState(false);
-
-  React.useEffect(() => {
-    const fetchUserCourses = async () => {
-      if (userData.id && access_token) {
-        try {
-          setIsLoadingCourses(true);
-          const coursesData = await getCoursesByUser(userData.id, access_token);
-          if (coursesData.data) {
-            setUserCourses(coursesData.data);
-          }
-        } catch (error) {
-          console.error('Error fetching user courses:', error);
-        } finally {
-          setIsLoadingCourses(false);
-        }
-      }
-    };
-
-    fetchUserCourses();
-  }, [userData.id, access_token]);
 
   const IconComponent = ({ iconName }: { iconName: string }) => {
     const IconElement = ICON_MAP[iconName as keyof typeof ICON_MAP]
@@ -303,30 +276,6 @@ function UserProfileClient({ userData, profile }: UserProfileClientProps) {
                         </div>
                       )}
 
-                      {section.type === 'courses' && (
-                        <div>
-                          {isLoadingCourses ? (
-                            <div className="flex items-center justify-center py-8">
-                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-                            </div>
-                          ) : userCourses.length > 0 ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">
-                              {userCourses.map((course) => (
-                                <div key={course.id} className="flex">
-                                  <CourseThumbnailLanding
-                                    course={course}
-                                    orgslug={userData.org_slug || course.org_slug}
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-center py-8 text-muted-foreground">
-                              {t('courses.no_courses_found')}
-                            </div>
-                          )}
-                        </div>
-                      )}
                     </div>
                   ))}
                 </div>
@@ -347,4 +296,4 @@ function UserProfileClient({ userData, profile }: UserProfileClientProps) {
   )
 }
 
-export default UserProfileClient 
+export default UserProfileClient

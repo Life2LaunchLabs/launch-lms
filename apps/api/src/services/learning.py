@@ -57,7 +57,7 @@ from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser, User
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.security.superadmin import is_user_superadmin
-from src.services.courses.openbadges import (
+from src.services.badge_openbadges import (
     OPEN_BADGES_CONTEXT,
     build_issuer_payload,
     get_org_badge_issuer_config,

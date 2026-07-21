@@ -7,8 +7,12 @@ async def check_element_type(element_uuid):
     """
     Check if the element is a course, a user, a house or a collection, by checking its prefix
     """
-    if element_uuid.startswith("course_") or element_uuid.startswith("courseupdate_"):
-        return "courses"
+    if element_uuid.startswith("badge_collection_"):
+        return "badge_collections"
+    if element_uuid.startswith("badge_"):
+        return "badges"
+    if element_uuid.startswith("learning_activity_"):
+        return "learning_activities"
     elif element_uuid.startswith("user_"):
         return "users"
     elif element_uuid.startswith("usergroup_"):
@@ -17,12 +21,6 @@ async def check_element_type(element_uuid):
         return "houses"
     elif element_uuid.startswith("org_"):
         return "organizations"
-    elif element_uuid.startswith("chapter_"):
-        return "coursechapters"
-    elif element_uuid.startswith("collection_"):
-        return "collections"
-    elif element_uuid.startswith("activity_"):
-        return "activities"
     elif element_uuid.startswith("role_"):
         return "roles"
     elif element_uuid.startswith("community_"):
@@ -48,16 +46,16 @@ async def check_element_type(element_uuid):
         )
 
 
-async def check_course_permissions_with_own(
+async def check_permissions_with_own(
     element_rights,
     action: str,
     is_author: bool = False
 ) -> bool:
     """
-    Check course-specific permissions including "own" permissions.
+    Check permissions including resource-owner variants.
 
     Args:
-        element_rights: The rights object for courses (PermissionsWithOwn) or dict from JSON
+        element_rights: A PermissionsWithOwn object or stored dictionary
         action: The action to check ("read", "update", "delete", "create")
         is_author: Whether the user is the author of the course
 
@@ -89,7 +87,7 @@ async def check_course_permissions_with_own(
 async def get_singular_form_of_element(element_uuid):
     element_type = await check_element_type(element_uuid)
 
-    if element_type == "activities":
+    if element_type == "learning_activities":
         return "activity"
     else:
         singular_form_element = element_type[:-1]
@@ -123,45 +121,22 @@ async def get_element_organization_id(
         Optional[int]: The organization ID, or None if not applicable
     """
     # Import models here to avoid circular imports
-    from src.db.courses.courses import Course
-    from src.db.courses.chapters import Chapter
-    from src.db.courses.activities import Activity
-    from src.db.collections import Collection
+    from src.db.learning import BadgeCollection, LearningActivity, LearningBadge
     from src.db.organizations import Organization
     from src.db.roles import Role
     from src.db.usergroups import UserGroup
 
     element_type = await check_element_type(element_uuid)
 
-    if element_type == "courses":
-        statement = select(Course).where(Course.course_uuid == element_uuid)
-        course = db_session.exec(statement).first()
-        return course.org_id if course else None
-
-    elif element_type == "coursechapters":
-        statement = select(Chapter).where(Chapter.chapter_uuid == element_uuid)
-        chapter = db_session.exec(statement).first()
-        if chapter:
-            # Get org_id from the course
-            course_statement = select(Course).where(Course.id == chapter.course_id)
-            course = db_session.exec(course_statement).first()
-            return course.org_id if course else None
-        return None
-
-    elif element_type == "activities":
-        statement = select(Activity).where(Activity.activity_uuid == element_uuid)
-        activity = db_session.exec(statement).first()
-        if activity:
-            # Get org_id from the course directly
-            course_statement = select(Course).where(Course.id == activity.course_id)
-            course = db_session.exec(course_statement).first()
-            return course.org_id if course else None
-        return None
-
-    elif element_type == "collections":
-        statement = select(Collection).where(Collection.collection_uuid == element_uuid)
-        collection = db_session.exec(statement).first()
-        return collection.org_id if collection else None
+    if element_type == "badges":
+        item = db_session.exec(select(LearningBadge).where(LearningBadge.badge_uuid == element_uuid)).first()
+        return item.org_id if item else None
+    elif element_type == "badge_collections":
+        item = db_session.exec(select(BadgeCollection).where(BadgeCollection.collection_uuid == element_uuid)).first()
+        return item.org_id if item else None
+    elif element_type == "learning_activities":
+        item = db_session.exec(select(LearningActivity).where(LearningActivity.activity_uuid == element_uuid)).first()
+        return item.org_id if item else None
 
     elif element_type == "organizations":
         statement = select(Organization).where(Organization.org_uuid == element_uuid)

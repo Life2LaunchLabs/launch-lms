@@ -3,8 +3,7 @@ from typing import Literal, Union
 from fastapi import HTTPException, status, Request
 from sqlalchemy import null
 from sqlmodel import Session, select
-from src.db.collections import Collection
-from src.db.courses.courses import Course
+from src.db.learning import BadgeCollection, LearningBadge
 from src.db.resource_authors import ResourceAuthor, ResourceAuthorshipEnum, ResourceAuthorshipStatusEnum
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
@@ -13,7 +12,7 @@ from src.db.usergroup_resources import UserGroupResource
 from src.db.usergroup_user import UserGroupUser
 from src.security.rbac.utils import (
     check_element_type,
-    check_course_permissions_with_own,
+    check_permissions_with_own,
     get_element_organization_id,
 )
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
@@ -121,12 +120,12 @@ async def authorization_verify_if_element_is_public(
 ):
     element_nature = await check_element_type(element_uuid)
     # Verifies if the element is public
-    if element_nature == "courses" and action == "read":
-        statement = select(Course).where(
-            Course.public == True, Course.course_uuid == element_uuid
+    if element_nature == "badges" and action == "read":
+        statement = select(LearningBadge).where(
+            LearningBadge.public == True, LearningBadge.badge_uuid == element_uuid
         )
-        course = db_session.exec(statement).first()
-        if course:
+        badge = db_session.exec(statement).first()
+        if badge:
             return True
         else:
             raise HTTPException(
@@ -134,9 +133,9 @@ async def authorization_verify_if_element_is_public(
                 detail="User rights : You don't have the right to perform this action",
             )
 
-    elif element_nature == "collections" and action == "read":
-        statement = select(Collection).where(
-            Collection.public == True, Collection.collection_uuid == element_uuid
+    elif element_nature == "badge_collections" and action == "read":
+        statement = select(BadgeCollection).where(
+            BadgeCollection.public == True, BadgeCollection.collection_uuid == element_uuid
         )
         collection = db_session.exec(statement).first()
         if collection:
@@ -253,8 +252,8 @@ async def authorization_verify_based_on_roles(
                 element_rights = getattr(rights, element_type, None)
             if element_rights:
                 # Special handling for resources with PermissionsWithOwn
-                if element_type in ("courses", "discussions", "podcasts"):
-                    if await check_course_permissions_with_own(element_rights, action, is_author):
+                if element_type in ("badges", "discussions", "podcasts"):
+                    if await check_permissions_with_own(element_rights, action, is_author):
                         return True
                 else:
                     # For non-course resources, only check general permissions
@@ -390,7 +389,7 @@ async def authorization_verify_api_token_permissions(
     access resources within their organization.
 
     API tokens are restricted to these resources:
-    - courses, activities, coursechapters, collections, certifications,
+    - badges, badge collections, learning activities,
     - usergroups, payments, search
 
     Args:
@@ -410,8 +409,8 @@ async def authorization_verify_api_token_permissions(
 
     # API tokens are restricted to specific resource types
     allowed_resource_types = [
-        'courses', 'activities', 'coursechapters', 'collections',
-        'certifications', 'usergroups', 'payments', 'search'
+        'badges', 'badge_collections', 'learning_activities',
+        'usergroups', 'payments', 'search'
     ]
 
     if element_type not in allowed_resource_types:
@@ -458,8 +457,7 @@ async def authorization_verify_api_token_permissions(
             has_permission = element_rights.get("action_read", False)
         else:
             has_permission = getattr(element_rights, "action_read", False)
-    elif element_type == "courses":
-        # For courses, check standard permission (no "own" for API tokens)
+    elif element_type == "badges":
         if isinstance(element_rights, dict):
             has_permission = element_rights.get(f"action_{action}", False)
         else:

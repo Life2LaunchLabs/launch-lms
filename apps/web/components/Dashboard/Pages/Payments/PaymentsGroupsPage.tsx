@@ -26,7 +26,7 @@ import { Label } from '@components/ui/label';
 import Modal from '@components/Objects/StyledElements/Modal/Modal';
 import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal';
 import toast from 'react-hot-toast';
-import { getOrgCourses } from '@services/courses/courses';
+import { getLearningBadges } from '@services/learning/learning';
 import { usePaymentsEnabled } from '@hooks/usePaymentsEnabled';
 import UnconfiguredPaymentsDisclaimer from '@components/Pages/Payments/UnconfiguredPaymentsDisclaimer';
 
@@ -43,8 +43,11 @@ function GroupResourcePanel({ group, orgId, token }: { group: any; orgId: number
   const { data: resources } = useSWR(swrKey, () => getGroupResources(orgId, group.id, token));
 
   const { data: coursesData } = useSWR(
-    org ? [`/courses/org`, org.slug, token] : null,
-    ([, slug, t]: any) => getOrgCourses(slug, null, t, true)
+    org ? [`/badges/org`, org.id, token] : null,
+    async ([, orgId, t]: any) => {
+      const response = await getLearningBadges(orgId, t, true)
+      return Array.isArray(response) ? response : response?.data || []
+    }
   );
 
   const rawList: string[] = Array.isArray(resources?.data) ? resources.data : Array.isArray(resources) ? resources : [];
@@ -53,13 +56,13 @@ function GroupResourcePanel({ group, orgId, token }: { group: any; orgId: number
   // Build a name map from courses
   const nameMap: Record<string, string> = {};
   courses.forEach((c: any) => {
-    const uuid = `course_${c.course_uuid?.replace('course_', '')}`;
+    const uuid = c.badge_uuid;
     nameMap[uuid] = c.name;
   });
 
   const linkedSet = new Set(rawList);
   const available = courses.filter((c: any) => {
-    const uuid = `course_${c.course_uuid?.replace('course_', '')}`;
+    const uuid = c.badge_uuid;
     return !linkedSet.has(uuid);
   });
 
@@ -79,7 +82,7 @@ function GroupResourcePanel({ group, orgId, token }: { group: any; orgId: number
   return (
     <div className="space-y-2">
       {rawList.length === 0 ? (
-        <p className="text-xs text-gray-400 italic py-1">No courses yet — add one below.</p>
+        <p className="text-xs text-gray-400 italic py-1">No badges yet — add one below.</p>
       ) : (
         <ul className="space-y-1">
           {rawList.map((uuid: string) => (
@@ -121,11 +124,11 @@ function GroupResourcePanel({ group, orgId, token }: { group: any; orgId: number
           {!coursesData ? (
             <p className="text-xs text-gray-400 px-3 py-2">Loading…</p>
           ) : available.length === 0 ? (
-            <p className="text-xs text-gray-400 px-3 py-2 italic">All courses are already in this group.</p>
+            <p className="text-xs text-gray-400 px-3 py-2 italic">All badges are already in this group.</p>
           ) : (
             <ul className="max-h-40 overflow-y-auto divide-y divide-gray-50">
               {available.map((c: any) => {
-                const uuid = `course_${c.course_uuid?.replace('course_', '')}`;
+                const uuid = c.badge_uuid;
                 return (
                   <li key={uuid}>
                     <button
@@ -413,7 +416,7 @@ export default function PaymentsGroupsPage() {
         isDialogOpen={isCreateOpen}
         onOpenChange={setIsCreateOpen}
         dialogTitle="Create Payment Group"
-        dialogDescription="Group courses together for subscriptions or bundles"
+        dialogDescription="Group badges together for subscriptions or bundles"
         dialogContent={
           <GroupForm onSubmit={handleCreate} onCancel={() => setIsCreateOpen(false)} />
         }
@@ -438,7 +441,7 @@ export default function PaymentsGroupsPage() {
       <div className="flex items-center justify-between bg-gray-50 px-5 py-3 rounded-md mb-5">
         <div className="-space-y-0.5">
           <h1 className="font-bold text-xl text-gray-800">Payment Groups</h1>
-          <p className="text-gray-500 text-sm">Bundle courses together for subscriptions or multi-course offers.</p>
+          <p className="text-gray-500 text-sm">Bundle badges together for subscriptions or offers.</p>
         </div>
         <Button onClick={() => setIsCreateOpen(true)} size="sm">
           <Plus size={14} className="mr-1.5" /> New Group
@@ -452,7 +455,7 @@ export default function PaymentsGroupsPage() {
           </div>
           <p className="font-semibold text-gray-600 mb-1">No groups yet</p>
           <p className="text-sm text-gray-400 mb-4 max-w-xs mx-auto">
-            Groups let you attach multiple courses to a single offer — perfect for subscriptions or bundles.
+            Groups let you attach multiple badges to a single offer — perfect for subscriptions or bundles.
           </p>
           <Button onClick={() => setIsCreateOpen(true)} variant="outline" size="sm">
             <Plus size={13} className="mr-1.5" /> Create your first group

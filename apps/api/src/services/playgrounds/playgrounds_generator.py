@@ -83,23 +83,12 @@ def save_playground_session(session: PlaygroundSessionData) -> bool:
 
 def build_playground_system_prompt(
     context: PlaygroundContext,
-    course_context: Optional[str] = None,
 ) -> str:
     base_prompt = f"""You are an expert interactive content creator for educational playgrounds.
 
 CONTEXT:
 - Playground: {context.playground_name}
 - Description: {context.playground_description}"""
-
-    if course_context and context.course_name:
-        base_prompt += f"""
-
-COURSE CONTEXT:
-The following content is from the course "{context.course_name}":
-
-{course_context}
-
-Use this content as the foundation for the interactive experience when relevant."""
 
     base_prompt += """
 
@@ -194,14 +183,13 @@ async def generate_playground_stream(
     session: PlaygroundSessionData,
     gemini_model_name: str = "gemini-2.0-flash",
     current_html: Optional[str] = None,
-    course_context: Optional[str] = None,
 ) -> AsyncGenerator[str, None]:
     try:
         client = get_gemini_client()
 
         contents = []
 
-        system_prompt = build_playground_system_prompt(session.context, course_context)
+        system_prompt = build_playground_system_prompt(session.context)
         contents.append({"role": "user", "parts": [{"text": system_prompt}]})
         contents.append(
             {

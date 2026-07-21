@@ -19,7 +19,6 @@ import { BoardCardExtension } from './Extensions/BoardCard'
 import { DrawingStrokeExtension } from './Extensions/DrawingStroke'
 import { YouTubeBlockExtension } from './Extensions/YouTubeBlock'
 import { PlaygroundBlockExtension } from './Extensions/PlaygroundBlock'
-import { ActivityBlockExtension } from './Extensions/ActivityBlock'
 import { EmbedBlockExtension } from './Extensions/EmbedBlock'
 import { WebpageBlockExtension } from './Extensions/WebpageBlock'
 import { StickerBlockExtension } from './Extensions/StickerBlock'
@@ -32,7 +31,6 @@ import {
   Square,
   YoutubeLogo,
   Sparkle,
-  BookOpen,
   Code,
   Globe,
   Smiley,
@@ -98,7 +96,7 @@ function BoardEditorInner({
   ydoc: Y.Doc
   provider: HocuspocusProvider
 }) {
-  const [toolMode, setToolMode] = useState<'select' | 'pan' | 'draw' | 'card' | 'youtube' | 'playground' | 'activity' | 'embed' | 'webpage' | 'sticker' | 'frame' | 'note' | 'todo' | 'podcast'>('select')
+  const [toolMode, setToolMode] = useState<'select' | 'pan' | 'draw' | 'card' | 'youtube' | 'playground' | 'embed' | 'webpage' | 'sticker' | 'frame' | 'note' | 'todo' | 'podcast'>('select')
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [drawColor, setDrawColor] = useState('#000000')
@@ -124,7 +122,6 @@ function BoardEditorInner({
     card: { icon: Square, label: 'Card' },
     youtube: { icon: YoutubeLogo, label: 'YouTube' },
     playground: { icon: Sparkle, label: 'AI Playground' },
-    activity: { icon: BookOpen, label: 'Activity' },
     embed: { icon: Code, label: 'Embed' },
     webpage: { icon: Globe, label: 'Webpage' },
     note: { icon: Note, label: 'Note' },
@@ -178,7 +175,6 @@ function BoardEditorInner({
       DrawingStrokeExtension,
       YouTubeBlockExtension,
       PlaygroundBlockExtension,
-      ActivityBlockExtension,
       EmbedBlockExtension,
       WebpageBlockExtension,
       StickerBlockExtension,
@@ -349,22 +345,6 @@ function BoardEditorInner({
         type: 'playgroundBlock',
         attrs: {
           blockUuid: `pg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-          x: Math.round(x),
-          y: Math.round(y),
-          width: 520,
-          height: 400,
-        },
-      }).run()
-      setToolMode('select')
-    } else if (toolMode === 'activity' && editor) {
-      const rect = canvasRef.current?.getBoundingClientRect()
-      if (!rect) return
-      const x = (e.clientX - rect.left - pan.x) / zoom
-      const y = (e.clientY - rect.top - pan.y) / zoom
-      const pos = editor.state.doc.content.size
-      editor.chain().insertContentAt(pos, {
-        type: 'activityBlock',
-        attrs: {
           x: Math.round(x),
           y: Math.round(y),
           width: 520,

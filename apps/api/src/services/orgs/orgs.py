@@ -1010,28 +1010,28 @@ async def update_org_payments_config(
     )
 
 
-async def update_org_collections_config(
+async def update_org_badge_collections_config(
     request: Request,
-    collections_enabled: bool,
+    badge_collections_enabled: bool,
     org_id: int,
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
 ):
     return await _update_feature_toggle(
-        request, "collections", collections_enabled, org_id, current_user, db_session,
+        request, "badge_collections", badge_collections_enabled, org_id, current_user, db_session,
         v1_default={"enabled": True},
     )
 
 
-async def update_org_courses_config(
+async def update_org_badges_config(
     request: Request,
-    courses_enabled: bool,
+    badges_enabled: bool,
     org_id: int,
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
 ):
     return await _update_feature_toggle(
-        request, "courses", courses_enabled, org_id, current_user, db_session,
+        request, "badges", badges_enabled, org_id, current_user, db_session,
         v1_default={"enabled": True, "limit": 100},
     )
 

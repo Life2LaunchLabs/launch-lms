@@ -6,7 +6,6 @@ from fastapi import HTTPException, Request
 
 from src.db.users import PublicUser, AnonymousUser, APITokenUser
 from src.db.organizations import Organization
-from src.db.courses.courses import Course
 from src.security.superadmin import is_user_superadmin
 from src.db.communities.communities import (
     Community,
@@ -76,7 +75,6 @@ async def create_community(
         description=community_object.description,
         public=community_object.public,
         org_id=org_id,
-        course_id=community_object.course_id,
         community_uuid=f"community_{uuid4()}",
         creation_date=str(datetime.now()),
         update_date=str(datetime.now()),
@@ -199,38 +197,6 @@ async def get_communities_by_org(
     return [_serialize_community(c, owner_orgs.get(c.org_id), org_id) for c in communities]
 
 
-async def get_community_by_course(
-    request: Request,
-    course_uuid: str,
-    current_user: Union[PublicUser, AnonymousUser, APITokenUser],
-    db_session: Session,
-) -> CommunityRead | None:
-    """
-    Get the community linked to a specific course.
-    """
-    # Get the course first
-    course_statement = select(Course).where(Course.course_uuid == course_uuid)
-    course = db_session.exec(course_statement).first()
-
-    if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
-
-    # Find community linked to this course
-    community_statement = select(Community).where(Community.course_id == course.id)
-    community = db_session.exec(community_statement).first()
-
-    if not community:
-        return None
-
-    # Check if user can read the community
-    await check_resource_access(
-        request, db_session, current_user, community.community_uuid, AccessAction.READ
-    )
-
-    owner_org = db_session.exec(select(Organization).where(Organization.id == community.org_id)).first()
-    return _serialize_community(community, owner_org)
-
-
 async def update_community(
     request: Request,
     community_uuid: str,
@@ -302,96 +268,6 @@ async def delete_community(
     db_session.commit()
 
     return {"detail": "Community deleted"}
-
-
-async def link_community_to_course(
-    request: Request,
-    community_uuid: str,
-    course_uuid: str,
-    current_user: Union[PublicUser, AnonymousUser, APITokenUser],
-    db_session: Session,
-) -> CommunityRead:
-    """
-    Link a community to a course.
-
-    Requires admin/maintainer role.
-    """
-    # Get community
-    statement = select(Community).where(Community.community_uuid == community_uuid)
-    community = db_session.exec(statement).first()
-
-    if not community:
-        raise HTTPException(status_code=404, detail="Community not found")
-
-    # RBAC check
-    await check_resource_access(request, db_session, current_user, community_uuid, AccessAction.UPDATE)
-
-    # Get the course
-    course_statement = select(Course).where(Course.course_uuid == course_uuid)
-    course = db_session.exec(course_statement).first()
-
-    if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
-
-    # Check if course belongs to same org
-    if course.org_id != community.org_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Course must belong to the same organization as the community",
-        )
-
-    # Check if another community is already linked to this course
-    existing_statement = select(Community).where(
-        Community.course_id == course.id,
-        Community.id != community.id
-    )
-    existing = db_session.exec(existing_statement).first()
-
-    if existing:
-        raise HTTPException(
-            status_code=400,
-            detail="This course already has a linked community",
-        )
-
-    community.course_id = course.id
-    community.update_date = str(datetime.now())
-
-    db_session.add(community)
-    db_session.commit()
-    db_session.refresh(community)
-
-    return CommunityRead.model_validate(community.model_dump())
-
-
-async def unlink_community_from_course(
-    request: Request,
-    community_uuid: str,
-    current_user: Union[PublicUser, AnonymousUser, APITokenUser],
-    db_session: Session,
-) -> CommunityRead:
-    """
-    Unlink a community from its course.
-
-    Requires admin/maintainer role.
-    """
-    # Get community
-    statement = select(Community).where(Community.community_uuid == community_uuid)
-    community = db_session.exec(statement).first()
-
-    if not community:
-        raise HTTPException(status_code=404, detail="Community not found")
-
-    # RBAC check
-    await check_resource_access(request, db_session, current_user, community_uuid, AccessAction.UPDATE)
-
-    community.course_id = None
-    community.update_date = str(datetime.now())
-
-    db_session.add(community)
-    db_session.commit()
-    db_session.refresh(community)
-
-    return CommunityRead.model_validate(community.model_dump())
 
 
 async def get_community_user_rights(

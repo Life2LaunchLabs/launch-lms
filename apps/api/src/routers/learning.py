@@ -30,7 +30,6 @@ from src.db.learning import (
 )
 from src.security.auth import get_current_user
 from src.services import learning as learning_service
-from src.services import learning_migration as learning_migration_service
 from src.services import learning_transfer as learning_transfer_service
 from src.services.guest_sessions import resolve_learning_actor
 
@@ -42,7 +41,6 @@ pages_router = APIRouter()
 runs_router = APIRouter()
 responses_router = APIRouter()
 awards_router = APIRouter()
-migrations_router = APIRouter()
 imports_router = APIRouter()
 variables_router = APIRouter()
 
@@ -570,57 +568,6 @@ async def api_get_award(
     db_session=Depends(get_db_session),
 ) -> dict:
     return await learning_service.get_award(request, award_uuid, db_session)
-
-
-@migrations_router.get("/course/{course_uuid}/preview")
-async def api_preview_course_migration(
-    request: Request,
-    course_uuid: str,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> dict:
-    return learning_migration_service.preview_course_migration(request, course_uuid, current_user, db_session)
-
-
-@migrations_router.post("/course/{course_uuid}/convert")
-async def api_convert_course_migration(
-    request: Request,
-    course_uuid: str,
-    target_collection_uuid: str | None = Query(None),
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> dict:
-    target_collection = None
-    if target_collection_uuid:
-        from sqlmodel import select
-        from src.db.learning import BadgeCollection
-
-        target_collection = db_session.exec(select(BadgeCollection).where(BadgeCollection.collection_uuid == target_collection_uuid)).first()
-        if not target_collection:
-            from fastapi import HTTPException
-            raise HTTPException(status_code=404, detail="Target badge collection not found")
-        learning_service._require_org_admin(db_session, current_user, target_collection.org_id)
-    return learning_migration_service.convert_course_migration(request, course_uuid, current_user, db_session, target_collection=target_collection)
-
-
-@migrations_router.get("/collection/{collection_uuid}/preview")
-async def api_preview_collection_migration(
-    request: Request,
-    collection_uuid: str,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> dict:
-    return learning_migration_service.preview_collection_migration(request, collection_uuid, current_user, db_session)
-
-
-@migrations_router.post("/collection/{collection_uuid}/convert")
-async def api_convert_collection_migration(
-    request: Request,
-    collection_uuid: str,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> dict:
-    return learning_migration_service.convert_collection_migration(request, collection_uuid, current_user, db_session)
 
 
 @imports_router.post("/analyze")

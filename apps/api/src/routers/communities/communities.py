@@ -11,11 +11,8 @@ from src.services.communities.communities import (
     create_community,
     get_community,
     get_communities_by_org,
-    get_community_by_course,
     update_community,
     delete_community,
-    link_community_to_course,
-    unlink_community_from_course,
     get_community_user_rights,
 )
 from src.services.communities.thumbnails import upload_community_thumbnail
@@ -30,7 +27,6 @@ class CommunityCreateRequest(BaseModel):
     name: str
     description: str | None = None
     public: bool = True
-    course_id: int | None = None
 
 
 @router.post("/")
@@ -53,7 +49,6 @@ async def api_create_community(
         description=community_data.description,
         public=community_data.public,
         org_id=org_id,
-        course_id=community_data.course_id,
     )
 
     return await create_community(
@@ -91,19 +86,6 @@ async def api_get_communities_by_org(
     )
 
 
-@router.get("/course/{course_uuid}")
-async def api_get_community_by_course(
-    request: Request,
-    course_uuid: str,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-) -> CommunityRead | None:
-    """
-    Get the community linked to a specific course.
-    """
-    return await get_community_by_course(request, course_uuid, current_user, db_session)
-
-
 @router.put("/{community_uuid}")
 async def api_update_community(
     request: Request,
@@ -135,41 +117,6 @@ async def api_delete_community(
     Requires admin/maintainer role.
     """
     return await delete_community(request, community_uuid, current_user, db_session)
-
-
-@router.put("/{community_uuid}/link-course/{course_uuid}")
-async def api_link_community_to_course(
-    request: Request,
-    community_uuid: str,
-    course_uuid: str,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-) -> CommunityRead:
-    """
-    Link a community to a course.
-
-    Requires admin/maintainer role.
-    """
-    return await link_community_to_course(
-        request, community_uuid, course_uuid, current_user, db_session
-    )
-
-
-@router.delete("/{community_uuid}/unlink-course")
-async def api_unlink_community_from_course(
-    request: Request,
-    community_uuid: str,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-) -> CommunityRead:
-    """
-    Unlink a community from its course.
-
-    Requires admin/maintainer role.
-    """
-    return await unlink_community_from_course(
-        request, community_uuid, current_user, db_session
-    )
 
 
 @router.get("/{community_uuid}/rights")

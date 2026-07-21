@@ -6,7 +6,7 @@ They are stored as a list of package IDs in the org config under the 'packages' 
 
 Available packages:
   - analytics:                 Enables analytics dashboard and reporting
-  - credentials:               Enables OpenBadge certifications
+  - credentials:               Enables Open Badge issuing
   - ai:                        Enables AI features (copilot, magic blocks, course planning)
   - advanced_user_management:  Enables user groups, custom roles, and API tokens
   - badge_creation:            Enables publishing badges to the cross-org marketplace
@@ -16,7 +16,7 @@ Available packages:
 # Features each package enables when added to an org
 PACKAGE_FEATURE_MAP: dict[str, list[str]] = {
     "analytics": ["analytics"],
-    "credentials": ["certifications"],
+    "credentials": ["badge_issuing"],
     "ai": ["ai"],
     "advanced_user_management": ["usergroups", "roles", "api_tokens"],
     "badge_creation": ["marketplace_publishing"],

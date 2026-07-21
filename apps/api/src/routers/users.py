@@ -16,7 +16,6 @@ from src.services.security.rate_limiting import check_password_reset_rate_limit
 from src.services.orgs.orgs import get_org_join_mechanism
 from src.security.auth import get_current_user, get_authenticated_user
 from src.core.events.database import get_db_session
-from src.db.courses.courses import CourseRead
 
 from src.db.users import (
     AnonymousUser,
@@ -45,7 +44,6 @@ from src.services.users.users import (
     upload_user_profile_featured_image,
     update_user_password,
 )
-from src.services.courses.courses import get_user_courses
 from src.services.guest_sessions import transfer_guest_session_data_to_user
 
 
@@ -524,31 +522,3 @@ async def api_delete_user(
     """
     Delete User
     """
-    result = await delete_user_by_id(request, db_session, current_user, user_id)
-    _invalidate_session_cache(user_id)
-    return result
-
-
-@router.get("/{user_id}/courses", response_model=List[CourseRead], tags=["users"])
-async def api_get_user_courses(
-    *,
-    request: Request,
-    db_session: Session = Depends(get_db_session),
-    current_user: PublicUser = Depends(get_current_user),
-    user_id: int,
-    page: int = Query(default=1, ge=1, description="Page number"),
-    limit: int = Query(default=10, ge=1, le=50, description="Items per page (max 50)"),
-) -> List[CourseRead]:
-    """
-    Get courses made or contributed by a user.
-
-    SECURITY: Maximum limit is 50 to prevent data dumping.
-    """
-    return await get_user_courses(
-        request=request,
-        current_user=current_user,
-        user_id=user_id,
-        db_session=db_session,
-        page=page,
-        limit=limit,
-    )

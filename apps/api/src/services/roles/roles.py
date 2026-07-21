@@ -100,8 +100,8 @@ async def create_role(
         
         # Validate rights structure - check for required top-level keys
         required_rights = [
-            'courses', 'users', 'usergroups', 'collections', 
-            'organizations', 'coursechapters', 'activities', 
+            'badges', 'users', 'usergroups', 'badge_collections',
+            'organizations', 'learning_activities',
             'roles', 'dashboard'
         ]
         
@@ -120,26 +120,26 @@ async def create_role(
                     detail=f"Right '{required_right}' must be a JSON object",
                 )
             
-            # Validate courses permissions (has additional 'own' permissions)
-            if required_right == 'courses':
-                required_course_permissions = [
+            # Badge permissions include ownership-specific actions.
+            if required_right == 'badges':
+                required_badge_permissions = [
                     'action_create', 'action_read', 'action_read_own', 
                     'action_update', 'action_update_own', 'action_delete', 'action_delete_own'
                 ]
-                for perm in required_course_permissions:
+                for perm in required_badge_permissions:
                     if perm not in right_data:
                         raise HTTPException(
                             status_code=400,
-                            detail=f"Missing required course permission: {perm}",
+                            detail=f"Missing required badge permission: {perm}",
                         )
                     if not isinstance(right_data[perm], bool):
                         raise HTTPException(
                             status_code=400,
-                            detail=f"Course permission '{perm}' must be a boolean",
+                            detail=f"Badge permission '{perm}' must be a boolean",
                         )
             
             # Validate other permissions (standard permissions)
-            elif required_right in ['users', 'usergroups', 'collections', 'organizations', 'coursechapters', 'activities', 'roles']:
+            elif required_right in ['users', 'usergroups', 'badge_collections', 'organizations', 'learning_activities', 'roles']:
                 required_permissions = ['action_create', 'action_read', 'action_update', 'action_delete']
                 for perm in required_permissions:
                     if perm not in right_data:
@@ -412,8 +412,8 @@ async def update_role(
         
         # Validate rights structure - check for required top-level keys
         required_rights = [
-            'courses', 'users', 'usergroups', 'collections', 
-            'organizations', 'coursechapters', 'activities', 
+            'badges', 'users', 'usergroups', 'badge_collections',
+            'organizations', 'learning_activities',
             'roles', 'dashboard'
         ]
         
@@ -432,26 +432,26 @@ async def update_role(
                     detail=f"Right '{required_right}' must be a JSON object",
                 )
             
-            # Validate courses permissions (has additional 'own' permissions)
-            if required_right == 'courses':
-                required_course_permissions = [
+            # Badge permissions include ownership-specific actions.
+            if required_right == 'badges':
+                required_badge_permissions = [
                     'action_create', 'action_read', 'action_read_own', 
                     'action_update', 'action_update_own', 'action_delete', 'action_delete_own'
                 ]
-                for perm in required_course_permissions:
+                for perm in required_badge_permissions:
                     if perm not in right_data:
                         raise HTTPException(
                             status_code=400,
-                            detail=f"Missing required course permission: {perm}",
+                            detail=f"Missing required badge permission: {perm}",
                         )
                     if not isinstance(right_data[perm], bool):
                         raise HTTPException(
                             status_code=400,
-                            detail=f"Course permission '{perm}' must be a boolean",
+                            detail=f"Badge permission '{perm}' must be a boolean",
                         )
             
             # Validate other permissions (standard permissions)
-            elif required_right in ['users', 'usergroups', 'collections', 'organizations', 'coursechapters', 'activities', 'roles']:
+            elif required_right in ['users', 'usergroups', 'badge_collections', 'organizations', 'learning_activities', 'roles']:
                 required_permissions = ['action_create', 'action_read', 'action_update', 'action_delete']
                 for perm in required_permissions:
                     if perm not in right_data:

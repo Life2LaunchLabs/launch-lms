@@ -8,16 +8,16 @@ from src.security.features_utils.plans import FEATURE_PLAN_REQUIREMENTS, get_pla
 
 
 # Features that are always on (no admin toggle — cannot be disabled)
-ALWAYS_ON_FEATURES = {"courses", "storage", "usergroups", "assignments"}
+ALWAYS_ON_FEATURES = {"badges", "badge_collections", "storage", "usergroups"}
 
 # Always-on features that have plan-based limits (not unlimited)
 # These are always enabled but their limit comes from the plan config
-ALWAYS_ON_WITH_LIMITS = {"courses"}
+ALWAYS_ON_WITH_LIMITS = {"badges", "badge_collections"}
 
 # All known features
 ALL_FEATURES = [
-    "ai", "analytics", "api", "assignments", "audit_logs", "badge_issuing", "boards",
-    "collaboration", "collections", "communities", "courses", "certifications",
+    "ai", "analytics", "api", "audit_logs", "badge_issuing", "boards",
+    "badge_collections", "badges", "collaboration", "communities",
     "custom_domains", "marketplace_publishing", "members", "payments", "playgrounds",
     "podcasts", "resources", "roles", "scorm", "sso", "storage", "usergroups", "versioning",
 ]

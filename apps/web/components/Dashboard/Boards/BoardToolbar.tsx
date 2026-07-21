@@ -11,7 +11,6 @@ import {
   Square,
   YoutubeLogo,
   Sparkle,
-  BookOpen,
   Code,
   Globe,
   Smiley,
@@ -29,7 +28,7 @@ import type { Editor } from '@tiptap/core'
 import ToolTip from '@components/Objects/StyledElements/Tooltip/Tooltip'
 import { routePaths } from '@services/config/config'
 
-type ToolMode = 'select' | 'pan' | 'draw' | 'card' | 'youtube' | 'playground' | 'activity' | 'embed' | 'webpage' | 'sticker' | 'frame' | 'note' | 'todo' | 'podcast'
+type ToolMode = 'select' | 'pan' | 'draw' | 'card' | 'youtube' | 'playground' | 'embed' | 'webpage' | 'sticker' | 'frame' | 'note' | 'todo' | 'podcast'
 
 interface BoardToolbarProps {
   toolMode: ToolMode
@@ -63,7 +62,6 @@ const tools = [
   { mode: 'sticker' as const, icon: Smiley, label: 'boards.toolbar.sticker', colorClass: 'editor-tool-btn-warning' },
   { mode: 'youtube' as const, icon: YoutubeLogo, label: 'boards.toolbar.youtube', colorClass: 'editor-tool-btn-interactive' },
   { mode: 'playground' as const, icon: Sparkle, label: 'boards.toolbar.ai_playground', colorClass: 'editor-tool-btn-tip' },
-  { mode: 'activity' as const, icon: BookOpen, label: 'boards.toolbar.activity', colorClass: 'editor-tool-btn-info' },
   { mode: 'embed' as const, icon: Code, label: 'boards.toolbar.embed', colorClass: 'editor-tool-btn-interactive' },
   { mode: 'webpage' as const, icon: Globe, label: 'boards.toolbar.webpage', colorClass: 'editor-tool-btn-info' },
   { mode: 'podcast' as const, icon: Headphones, label: 'boards.toolbar.podcast', colorClass: 'editor-tool-btn-tip' },

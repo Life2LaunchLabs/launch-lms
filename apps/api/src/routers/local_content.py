@@ -3,11 +3,9 @@ Local Content Files Router
 
 Serves static content files from the local filesystem with access control.
 Replaces the unauthenticated StaticFiles mount to enforce authorization
-on private course/podcast content while allowing public content through.
+on private podcast content while allowing generic content through.
 
 SECURITY:
-- Activity content (videos, PDFs, blocks) for non-public courses requires auth
-- Course-level metadata (thumbnails) is always public (shown in listings)
 - Org-level content (logos, branding) is always public
 - Podcast episode content for non-public podcasts requires auth
 """
@@ -21,12 +19,10 @@ from fastapi.responses import FileResponse
 from sqlmodel import Session, select
 
 from src.core.events.database import get_db_session
-from src.db.courses.courses import Course
 from src.db.podcasts.podcasts import Podcast
 from src.db.users import AnonymousUser, PublicUser, APITokenUser
 from src.db.user_organizations import UserOrganization
 from src.security.auth import get_current_user
-from src.security.rbac import AccessAction, check_resource_access
 
 router = APIRouter()
 
@@ -67,8 +63,6 @@ async def _check_content_access(
     Check if the user has access to the requested content.
 
     Path patterns:
-    - orgs/{uuid}/courses/{uuid}/activities/{uuid}/... → check course access
-    - orgs/{uuid}/courses/{uuid}/...                   → course metadata (public)
     - orgs/{uuid}/podcasts/{uuid}/episodes/{uuid}/...  → check podcast access
     - orgs/{uuid}/...                                  → org-level (public)
     """
@@ -82,48 +76,6 @@ async def _check_content_access(
         raise HTTPException(status_code=400, detail="Invalid content path")
 
     parts = file_path.split('/')
-
-    # Activity content: requires course to be public or user to be org member
-    if (
-        len(parts) >= 6
-        and parts[0] == 'orgs'
-        and parts[2] == 'courses'
-        and parts[4] == 'activities'
-    ):
-        course_uuid = parts[3]
-        course = db_session.exec(
-            select(Course).where(Course.course_uuid == course_uuid)
-        ).first()
-        if not course:
-            raise HTTPException(status_code=403, detail="Access denied")
-        try:
-            await check_resource_access(
-                request,
-                db_session,
-                current_user,
-                course.course_uuid,
-                AccessAction.READ,
-            )
-        except HTTPException as exc:
-            if isinstance(current_user, AnonymousUser) and exc.status_code == 403:
-                raise HTTPException(status_code=401, detail="Authentication required")
-            raise
-
-        # Optional paid-access gating for public courses.
-        if course.public and not isinstance(current_user, APITokenUser):
-            try:
-                from src.services.payments.payments_access import check_course_paid_access
-            except ModuleNotFoundError:
-                return
-            try:
-                has_paid_access = await check_course_paid_access(course.id, current_user, db_session)
-            except Exception:
-                return
-            if not has_paid_access:
-                if isinstance(current_user, AnonymousUser):
-                    raise HTTPException(status_code=401, detail="Authentication required")
-                raise HTTPException(status_code=403, detail="Access denied")
-        return
 
     # Podcast episode content: requires podcast to be public or user to be org member
     if (
@@ -158,8 +110,7 @@ async def _check_content_access(
             raise HTTPException(status_code=403, detail="Access denied")
         return
 
-    # Course metadata (thumbnails, etc.) and org-level content — always public
-    # These are displayed on listing pages to all users
+    # Generic organization content is public.
     if len(parts) >= 2 and parts[0] == 'orgs':
         return
 
@@ -208,7 +159,7 @@ async def serve_local_content(
     Serve content files from local filesystem with access control.
 
     SECURITY: Validates user access based on resource ownership.
-    Public courses/podcasts are accessible to anonymous users.
+    Public podcasts are accessible to anonymous users.
     Private content requires authentication.
     """
     resolved = _validate_content_path(file_path)

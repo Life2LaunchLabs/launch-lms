@@ -6,7 +6,6 @@ import { getOrgThumbnailMediaDirectory, getOrgOgImageMediaDirectory } from '@ser
 import { getCanonicalUrl, getOrgSeoConfig, buildPageTitle, buildBreadcrumbJsonLd } from '@/lib/seo/utils'
 import { JsonLd } from '@components/SEO/JsonLd'
 import { getLearningBadgeAwards, getLearningBadgeCollections } from '@services/learning/learning'
-import { learningCollectionsToLegacyCollections } from '@services/learning/legacyAdapters'
 import BadgeDiscoverPage from '@components/Badges/BadgeDiscoverPage'
 
 type MetadataProps = {
@@ -31,11 +30,11 @@ function filterAvailableCollections(collections: any[], earnedBadgeUuids: Set<st
   return (collections || [])
     .map((collection: any) => ({
       ...collection,
-      courses: (collection.courses || []).filter((course: any) => (
-        !earnedBadgeUuids.has(cleanBadgeUuid(course.course_uuid || course.badge_uuid))
+      badges: (collection.badges || []).filter((badge: any) => (
+        !earnedBadgeUuids.has(cleanBadgeUuid(badge.badge_uuid))
       )),
     }))
-    .filter((collection: any) => (collection.courses || []).length > 0)
+    .filter((collection: any) => (collection.badges || []).length > 0)
 }
 
 export async function generateMetadata(props: MetadataProps): Promise<Metadata> {
@@ -117,7 +116,7 @@ const BadgesPage = async (params: any) => {
     )
     const rawLearningCollections = response.success ? response.data : response
     collections = [
-      ...learningCollectionsToLegacyCollections(rawLearningCollections),
+      ...rawLearningCollections,
       ...collections,
     ]
   } catch (error: any) {

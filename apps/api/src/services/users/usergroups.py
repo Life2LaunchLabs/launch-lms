@@ -31,7 +31,7 @@ async def _validate_resource_exists_and_belongs_to_org(
     Validate that a resource exists and belongs to the specified organization.
 
     Args:
-        resource_uuid: UUID of the resource (course_xxx, podcast_xxx, community_xxx)
+        resource_uuid: UUID of the resource
         org_id: Organization ID the resource should belong to
         db_session: Database session
 
@@ -51,9 +51,9 @@ async def _validate_resource_exists_and_belongs_to_org(
     # Import the appropriate model based on resource type
     resource = None
 
-    if config.resource_type == "courses":
-        from src.db.courses.courses import Course
-        statement = select(Course).where(Course.course_uuid == resource_uuid)
+    if config.resource_type == "badges":
+        from src.db.learning import LearningBadge
+        statement = select(LearningBadge).where(LearningBadge.badge_uuid == resource_uuid)
         resource = db_session.exec(statement).first()
     elif config.resource_type == "podcasts":
         from src.db.podcasts.podcasts import Podcast
@@ -63,9 +63,9 @@ async def _validate_resource_exists_and_belongs_to_org(
         from src.db.communities.communities import Community
         statement = select(Community).where(Community.community_uuid == resource_uuid)
         resource = db_session.exec(statement).first()
-    elif config.resource_type == "collections":
-        from src.db.collections import Collection
-        statement = select(Collection).where(Collection.collection_uuid == resource_uuid)
+    elif config.resource_type == "badge_collections":
+        from src.db.learning import BadgeCollection
+        statement = select(BadgeCollection).where(BadgeCollection.collection_uuid == resource_uuid)
         resource = db_session.exec(statement).first()
     elif config.resource_type == "boards":
         from src.db.boards import Board
@@ -92,7 +92,7 @@ async def _validate_resource_exists_and_belongs_to_org(
         )
 
     # Verify resource belongs to the same organization
-    # All supported resource types (courses, podcasts, communities, collections) have org_id
+    # All supported resource types have org_id.
     if not hasattr(resource, 'org_id'):
         raise HTTPException(
             status_code=500,
@@ -137,7 +137,7 @@ async def create_usergroup(
         )
 
     # Usage check
-    check_limits_with_usage("courses", org.id, db_session)
+    check_limits_with_usage("usergroups", org.id, db_session)
 
     # Complete the object
     usergroup.usergroup_uuid = f"usergroup_{uuid4()}"

@@ -5,7 +5,6 @@ import { searchOrgContent } from '@services/search/search';
 import { useLHSession } from '@components/Contexts/LHSessionContext';
 import Link from 'next/link';
 import {
-  getCourseThumbnailMediaDirectory,
   getOrgLogoMediaDirectory,
   getOrgThumbnailMediaDirectory,
   getUserAvatarMediaDirectory,
@@ -13,7 +12,6 @@ import {
 import { useDebounce } from '@/hooks/useDebounce';
 import { useOrg } from '@components/Contexts/OrgContext';
 import { getUriWithOrg, routePaths } from '@services/config/config';
-import { removeCoursePrefix } from '../Thumbnails/CourseThumbnail';
 import UserAvatar from '../UserAvatar';
 import { useTranslation } from 'react-i18next';
 import { useAnalytics } from '@/hooks/useAnalytics';
@@ -47,19 +45,15 @@ interface Author {
   update_date: string;
 }
 
-interface Course {
+interface Badge {
   name: string;
   description: string;
   about: string;
-  learnings: string;
-  tags: string;
   thumbnail_image: string;
   public: boolean;
-  open_to_contributors: boolean;
   id: number;
   org_id: number;
-  authors: Author[];
-  course_uuid: string;
+  badge_uuid: string;
   creation_date: string;
   update_date: string;
   owner_org_uuid?: string | null;
@@ -67,12 +61,11 @@ interface Course {
   is_shared_from_other_org?: boolean;
 }
 
-interface Collection {
+interface BadgeCollection {
   name: string;
   public: boolean;
   description: string;
   id: number;
-  courses: string[];
   collection_uuid: string;
   creation_date: string;
   update_date: string;
@@ -104,8 +97,8 @@ interface ResourceChannel {
 }
 
 interface SearchResults {
-  courses: Course[];
-  collections: Collection[];
+  badges: Badge[];
+  badge_collections: BadgeCollection[];
   organizations: DiscoverOrganization[];
   communities: Community[];
   resource_channels: ResourceChannel[];
@@ -153,8 +146,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const colors = getMenuColorClasses(primaryColor);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResults>({
-    courses: [],
-    collections: [],
+    badges: [],
+    badge_collections: [],
     organizations: [],
     communities: [],
     resource_channels: [],
@@ -200,7 +193,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   useEffect(() => {
     const fetchResults = async () => {
       if (debouncedSearch.trim().length === 0) {
-        setSearchResults({ courses: [], collections: [], organizations: [], communities: [], resource_channels: [], users: [] });
+        setSearchResults({ badges: [], badge_collections: [], organizations: [], communities: [], resource_channels: [], users: [] });
         setIsLoading(false);
         return;
       }
@@ -221,8 +214,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
         // Ensure we have the correct structure and handle potential undefined values
         const processedResults: SearchResults = {
-          courses: Array.isArray(typedResponse?.courses) ? typedResponse.courses : [],
-          collections: Array.isArray(typedResponse?.collections) ? typedResponse.collections : [],
+          badges: Array.isArray(typedResponse?.badges) ? typedResponse.badges : [],
+          badge_collections: Array.isArray(typedResponse?.badge_collections) ? typedResponse.badge_collections : [],
           organizations: Array.isArray(typedResponse?.organizations) ? typedResponse.organizations : [],
           communities: Array.isArray(typedResponse?.communities) ? typedResponse.communities : [],
           resource_channels: Array.isArray(typedResponse?.resource_channels) ? typedResponse.resource_channels : [],
@@ -231,14 +224,14 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
         setSearchResults(processedResults);
 
-        const totalResults = processedResults.courses.length + processedResults.collections.length + processedResults.organizations.length + processedResults.communities.length + processedResults.resource_channels.length + processedResults.users.length;
+        const totalResults = processedResults.badges.length + processedResults.badge_collections.length + processedResults.organizations.length + processedResults.communities.length + processedResults.resource_channels.length + processedResults.users.length;
         track('search_query', {
           query: debouncedSearch,
           results_count: totalResults,
         });
       } catch (error) {
         console.error('Error searching content:', error);
-        setSearchResults({ courses: [], collections: [], organizations: [], communities: [], resource_channels: [], users: [] });
+        setSearchResults({ badges: [], badge_collections: [], organizations: [], communities: [], resource_channels: [], users: [] });
       }
       setIsLoading(false);
       setIsInitialLoad(false);
@@ -270,8 +263,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
   const searchTerms = useMemo(() => [
     { term: searchQuery, type: 'exact', icon: <Search size={14} className="text-foreground/40" /> },
-    { term: `${searchQuery} courses`, type: 'courses', icon: <BookCopy size={14} className="text-foreground/40" /> },
-    { term: `${searchQuery} collections`, type: 'collections', icon: <SquareLibrary size={14} className="text-foreground/40" /> },
+    { term: `${searchQuery} badges`, type: 'badges', icon: <BookCopy size={14} className="text-foreground/40" /> },
+    { term: `${searchQuery} badge collections`, type: 'badge_collections', icon: <SquareLibrary size={14} className="text-foreground/40" /> },
     { term: `${searchQuery} organizations`, type: 'organizations', icon: <Building2 size={14} className="text-foreground/40" /> },
   ], [searchQuery]);
 
@@ -305,8 +298,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   }, [searchQuery, searchTerms, orgslug, t]);
 
   const MemoizedQuickResults = useMemo(() => {
-    const hasResults = searchResults.courses.length > 0 ||
-                      searchResults.collections.length > 0 ||
+    const hasResults = searchResults.badges.length > 0 ||
+                      searchResults.badge_collections.length > 0 ||
                       searchResults.organizations.length > 0 ||
                       searchResults.communities.length > 0 ||
                       searchResults.resource_channels.length > 0 ||
@@ -321,23 +314,23 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           <span className="font-medium">{t('search.quick_results')}</span>
         </div>
 
-        {/* Courses Section */}
-        {searchResults.courses.length > 0 && (
+        {/* Badges Section */}
+        {searchResults.badges.length > 0 && (
           <div className="mb-2">
             <div className="flex items-center gap-2 px-2 py-1 text-xs text-foreground/40">
               <BookCopy size={12} />
-              <span>{t('courses.courses')}</span>
+              <span>Badges</span>
             </div>
-            {searchResults.courses.map((course) => (
+            {searchResults.badges.map((course) => (
               <Link
-                key={course.course_uuid}
-                href={getUriWithOrg(orgslug, routePaths.org.course(removeCoursePrefix(course.course_uuid)))}
+                key={course.badge_uuid}
+                href={getUriWithOrg(orgslug, `/badges/${course.badge_uuid.replace('badge_', '')}`)}
                 className="flex items-center gap-3 p-2 hover:bg-foreground/[0.02] rounded-lg transition-colors"
               >
                 <div className="relative">
                   {course.thumbnail_image ? (
                     <img
-                      src={getCourseThumbnailMediaDirectory(course.owner_org_uuid || org?.org_uuid, course.course_uuid, course.thumbnail_image)}
+                      src={course.thumbnail_image}
                       alt={course.name}
                       className="w-10 h-10 object-cover rounded-lg"
                     />
@@ -353,7 +346,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-medium text-foreground/80 truncate">{course.name}</h3>
-                    <span className="text-[10px] font-medium text-foreground/40 uppercase tracking-wide whitespace-nowrap">{t('search.course')}</span>
+                    <span className="text-[10px] font-medium text-foreground/40 uppercase tracking-wide whitespace-nowrap">Badge</span>
                   </div>
                   <p className="text-xs text-foreground/50 truncate">{course.description}</p>
                 </div>
@@ -362,17 +355,17 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           </div>
         )}
 
-        {/* Collections Section */}
-        {searchResults.collections.length > 0 && (
+        {/* Badge collections section */}
+        {searchResults.badge_collections.length > 0 && (
           <div className="mb-2">
             <div className="flex items-center gap-2 px-2 py-1 text-xs text-foreground/40">
               <SquareLibrary size={12} />
-              <span>{t('collections.collections')}</span>
+              <span>Badge collections</span>
             </div>
-            {searchResults.collections.map((collection) => (
+            {searchResults.badge_collections.map((collection) => (
               <Link
                 key={collection.collection_uuid}
-                href={getUriWithOrg(orgslug, routePaths.org.collection(collection.collection_uuid.replace('collection_', '')))}
+                href={getUriWithOrg(orgslug, `/badges?collection=${collection.collection_uuid}`)}
                 className="flex items-center gap-3 p-2 hover:bg-foreground/[0.02] rounded-lg transition-colors"
               >
                 <div className="w-10 h-10 bg-foreground/10 rounded-lg flex items-center justify-center">
@@ -381,7 +374,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-medium text-foreground/80 truncate">{collection.name}</h3>
-                    <span className="text-[10px] font-medium text-foreground/40 uppercase tracking-wide whitespace-nowrap">{t('collections.collection')}</span>
+                    <span className="text-[10px] font-medium text-foreground/40 uppercase tracking-wide whitespace-nowrap">Badge collection</span>
                   </div>
                   <p className="text-xs text-foreground/50 truncate">{collection.description}</p>
                 </div>
@@ -559,8 +552,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       ) : (
         <>
           {MemoizedQuickResults}
-          {((searchResults.courses.length > 0 ||
-             searchResults.collections.length > 0 ||
+          {((searchResults.badges.length > 0 ||
+             searchResults.badge_collections.length > 0 ||
              searchResults.organizations.length > 0 ||
              searchResults.communities.length > 0 ||
              searchResults.resource_channels.length > 0 ||

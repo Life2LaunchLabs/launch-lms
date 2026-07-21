@@ -5,13 +5,11 @@ from sqlalchemy import true as sa_true
 from pydantic import BaseModel, ConfigDict
 from src.db.organization_config import OrganizationConfig
 from src.db.users import PublicUser, AnonymousUser, UserRead, User, APITokenUser
-from src.db.courses.courses import Course, CourseRead
-from src.db.collections import Collection, CollectionRead
+from src.db.learning import BadgeCollection, BadgeCollectionRead, LearningBadge, LearningBadgeRead
 from src.db.communities.communities import Community, CommunityRead
 from src.db.organizations import Organization, OrganizationDiscoverRead
 from src.db.resources import ResourceChannel, ResourceChannelRead
 from src.db.user_organizations import UserOrganization
-from src.services.courses.courses import search_courses
 from src.services.orgs.orgs import _build_discover_org_read
 from src.services.shared_content import owner_org_payload
 from src.security.org_auth import is_org_member
@@ -21,8 +19,8 @@ T = TypeVar('T')
 class SearchResult(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    courses: List[CourseRead]
-    collections: List[CollectionRead]
+    badges: List[LearningBadgeRead]
+    badge_collections: List[BadgeCollectionRead]
     communities: List[CommunityRead]
     organizations: List[OrganizationDiscoverRead]
     resource_channels: List[ResourceChannelRead]
@@ -43,10 +41,10 @@ async def search_across_org(
     limit: int = 10,
 ) -> SearchResult:
     """
-    Search across courses, collections and users within an organization.
+    Search across badges, badge collections, and users within an organization.
 
     SECURITY:
-    - Anonymous users can only search public courses and collections
+    - Anonymous users can only search public badges and badge collections
     - Anonymous users CANNOT search/enumerate users (privacy protection)
     - Maximum limit enforced at service level
     - Uses parameterized queries (SQL injection protected)
@@ -66,7 +64,7 @@ async def search_across_org(
     org = db_session.exec(org_statement).first()
 
     if not org:
-        return SearchResult(courses=[], collections=[], communities=[], organizations=[], resources=[], users=[])
+        return SearchResult(badges=[], badge_collections=[], communities=[], organizations=[], resource_channels=[], users=[])
 
     # API Token validation: verify token belongs to this organization
     if isinstance(current_user, APITokenUser):
@@ -91,18 +89,22 @@ async def search_across_org(
                     detail="API token does not have search permission",
                 )
 
-    # Search courses using existing search_courses function
-    courses = await search_courses(request, current_user, org_slug, search_query, db_session, page, limit)
+    badges_query = select(LearningBadge).where(
+        LearningBadge.org_id == org.id,
+        LearningBadge.deleted_at.is_(None),
+        or_(
+            text('LOWER(learningbadge.name) LIKE LOWER(:pattern)'),
+            text('LOWER(learningbadge.description) LIKE LOWER(:pattern)'),
+        ),
+    ).params(pattern=f"%{search_query}%")
 
-    # Search collections
     collections_query = (
-        select(Collection)
-        .where(or_(Collection.org_id == org.id, Collection.shared == sa_true()))
-        .where(Collection.hidden == False)
+        select(BadgeCollection)
+        .where(BadgeCollection.org_id == org.id, BadgeCollection.deleted_at.is_(None), BadgeCollection.hidden == False)
         .where(
             or_(
-                text('LOWER("collection".name) LIKE LOWER(:pattern)'),
-                text('LOWER("collection".description) LIKE LOWER(:pattern)')
+                text('LOWER(badgecollection.name) LIKE LOWER(:pattern)'),
+                text('LOWER(badgecollection.description) LIKE LOWER(:pattern)')
             )
         )
         .params(pattern=f"%{search_query}%")
@@ -160,10 +162,8 @@ async def search_across_org(
 
     if isinstance(current_user, AnonymousUser):
         # For anonymous users, only show public collections
-        collections_query = collections_query.where(
-            Collection.org_id == org.id,
-            Collection.public == sa_true(),
-        )
+        collections_query = collections_query.where(BadgeCollection.public == sa_true())
+        badges_query = badges_query.where(LearningBadge.public == sa_true())
         communities_query = communities_query.where(
             Community.org_id == org.id,
             Community.public == sa_true(),
@@ -186,16 +186,7 @@ async def search_across_org(
         users = []
     else:
         # For authenticated users, show public collections and those in their org
-        collections_query = (
-            collections_query
-            .where(
-                or_(
-                    Collection.public == sa_true(),
-                    Collection.org_id == org.id,
-                    Collection.shared == sa_true(),
-                )
-            )
-        )
+        collections_query = collections_query.where(or_(BadgeCollection.public == sa_true(), BadgeCollection.org_id == org.id))
         communities_query = communities_query.where(
             or_(
                 Community.org_id == org.id,
@@ -284,31 +275,14 @@ async def search_across_org(
     collections = db_session.exec(collections_query.offset(offset).limit(limit)).all()
     communities = db_session.exec(communities_query.offset(offset).limit(limit)).all()
 
-    # Batch fetch all courses for all collections in a single query
-    collection_reads = []
-    if collections:
-        collection_ids = [c.id for c in collections]
-        batch_statement = (
-            select(Course)
-            .where(Course.collection_id.in_(collection_ids))  # type: ignore
-            .where(Course.hidden == False)
-        )
-        batch_results = db_session.exec(batch_statement).all()
-
-        # Group courses by collection_id
-        collection_courses_map: dict[int, list[Course]] = {}
-        for course in batch_results:
-            if course.collection_id is not None:
-                collection_courses_map.setdefault(course.collection_id, []).append(course)
-
-        for collection in collections:
-            courses_list = collection_courses_map.get(collection.id, [])
-            owner_org = db_session.exec(select(Organization).where(Organization.id == collection.org_id)).first()
-            payload = CollectionRead(**collection.model_dump(), courses=courses_list).model_dump()
-            if owner_org:
-                payload.update(owner_org_payload(owner_org, org.id))
-            collection_read = CollectionRead.model_validate(payload)
-            collection_reads.append(collection_read)
+    badges = db_session.exec(badges_query.offset(offset).limit(limit)).all()
+    collection_reads = [
+        BadgeCollectionRead(**collection.model_dump(), badges=[
+            LearningBadgeRead.model_validate(badge)
+            for badge in db_session.exec(select(LearningBadge).where(LearningBadge.collection_id == collection.id, LearningBadge.deleted_at.is_(None))).all()
+        ])
+        for collection in collections
+    ]
 
     community_reads = []
     for community in communities:
@@ -322,8 +296,8 @@ async def search_across_org(
     user_reads = [UserRead.model_validate(user) for user in users]
 
     return SearchResult(
-        courses=courses,
-        collections=collection_reads,
+        badges=[LearningBadgeRead.model_validate(badge) for badge in badges],
+        badge_collections=collection_reads,
         communities=community_reads,
         organizations=organizations,
         resource_channels=resource_channels,
