@@ -6,10 +6,11 @@ import { Plus, X } from 'lucide-react'
 export type CategorizedOption = { id: string; text: string; category?: string }
 
 export const PORTFOLIO_VALUES: CategorizedOption[] = [
-  ['Personal Qualities', ['Authenticity', 'Creativity', 'Mindfulness', 'Responsibility', 'Self-discipline']],
-  ['Relationships', ['Kindness', 'Empathy', 'Loyalty', 'Respect', 'Trust']],
-  ['Growth', ['Curiosity', 'Learning', 'Courage', 'Resilience', 'Reflection']],
-  ['Impact', ['Service', 'Leadership', 'Justice', 'Community', 'Stewardship']],
+  ['Personal Growth', ['Achievement', 'Adventure', 'Curiosity', 'Creativity', 'Growth', 'Learning', 'Excellence', 'Independence']],
+  ['Relationships', ['Belonging', 'Compassion', 'Friendship', 'Family', 'Generosity', 'Kindness', 'Love', 'Respect', 'Trust']],
+  ['Character', ['Authenticity', 'Courage', 'Fairness', 'Gratitude', 'Honesty', 'Integrity', 'Responsibility', 'Perseverance']],
+  ['Lifestyle', ['Balance', 'Freedom', 'Fun', 'Health', 'Joy', 'Simplicity', 'Stability', 'Wellbeing']],
+  ['Purpose & Impact', ['Community', 'Contribution', 'Justice', 'Leadership', 'Nature', 'Service', 'Sustainability', 'Wisdom']],
 ].flatMap(([category, items]) => (items as string[]).map((text) => ({ id: text.toLowerCase().replace(/\W+/g, '-'), text, category: category as string })))
 
 export const PORTFOLIO_STRENGTHS: CategorizedOption[] = [

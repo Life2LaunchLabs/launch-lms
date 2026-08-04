@@ -66,7 +66,6 @@ export const routePaths = {
     portfolioWorkNew: () => '/portfolio/work/new',
     portfolioWorkDetail: (workUuid: string) => `/portfolio/work/${encodeURIComponent(workUuid)}`,
     portfolioPreview: () => '/portfolio/preview',
-    portfolioLegacy: () => '/portfolio/legacy',
     portfolioEdit: () => '/portfolio/edit',
     portfolioPost: (slug: string) => `/portfolio/journal/${slug}`,
     portfolioResume: () => '/portfolio/resume',
