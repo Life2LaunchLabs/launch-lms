@@ -121,17 +121,18 @@ class WorkItemBlock(SQLModel, table=True):
     update_date: str = ""
 
 
-class JourneyEntry(SQLModel, table=True):
-    __tablename__ = "journeyentry"
-    __table_args__ = (UniqueConstraint("journey_uuid"), UniqueConstraint("portfolio_id", "slug"))
+class TimelineEntry(SQLModel, table=True):
+    __tablename__ = "timelineentry"
+    __table_args__ = (UniqueConstraint("timeline_uuid"), UniqueConstraint("portfolio_id", "slug"))
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    journey_uuid: str = Field(index=True)
+    timeline_uuid: str = Field(index=True)
     portfolio_id: int = Field(sa_column=Column(Integer, ForeignKey("portfolio.id", ondelete="CASCADE"), index=True))
     entry_type: str = Field(default="experience", sa_column=Column(String, nullable=False, index=True))
     title: str
     organization: str = ""
     location_label: str = ""
+    details: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
     summary: str = Field(default="", sa_column=Column(Text, nullable=False))
     start_date: Optional[str] = None
     end_date: Optional[str] = None
@@ -149,12 +150,12 @@ class JourneyEntry(SQLModel, table=True):
     update_date: str = ""
 
 
-class JourneyEntryBlock(SQLModel, table=True):
-    __tablename__ = "journeyentryblock"
+class TimelineEntryBlock(SQLModel, table=True):
+    __tablename__ = "timelineentryblock"
 
     id: Optional[int] = Field(default=None, primary_key=True)
     block_uuid: str = Field(index=True, unique=True)
-    journey_entry_id: int = Field(sa_column=Column(Integer, ForeignKey("journeyentry.id", ondelete="CASCADE"), index=True))
+    timeline_entry_id: int = Field(sa_column=Column(Integer, ForeignKey("timelineentry.id", ondelete="CASCADE"), index=True))
     block_type: str = "image"
     data: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
     sort_order: int = 0
@@ -163,13 +164,13 @@ class JourneyEntryBlock(SQLModel, table=True):
     update_date: str = ""
 
 
-class JourneyWorkLink(SQLModel, table=True):
-    __tablename__ = "journeyworklink"
-    __table_args__ = (UniqueConstraint("journey_entry_id", "work_item_id"),)
+class TimelineWorkLink(SQLModel, table=True):
+    __tablename__ = "timelineworklink"
+    __table_args__ = (UniqueConstraint("timeline_entry_id", "work_item_id"),)
 
     id: Optional[int] = Field(default=None, primary_key=True)
     link_uuid: str = Field(index=True, unique=True)
-    journey_entry_id: int = Field(sa_column=Column(Integer, ForeignKey("journeyentry.id", ondelete="CASCADE"), index=True))
+    timeline_entry_id: int = Field(sa_column=Column(Integer, ForeignKey("timelineentry.id", ondelete="CASCADE"), index=True))
     work_item_id: int = Field(sa_column=Column(Integer, ForeignKey("workitem.id", ondelete="CASCADE"), index=True))
     relationship_label: str = "Related work"
     sort_order: int = 0
@@ -237,8 +238,8 @@ class PortfolioFeaturedWorkUpdate(SQLModel):
     work_uuids: Optional[list[str]] = None
 
 
-class PortfolioFeaturedJourneyUpdate(SQLModel):
-    journey_uuids: list[str] = Field(default_factory=list)
+class PortfolioFeaturedTimelineUpdate(SQLModel):
+    timeline_uuids: list[str] = Field(default_factory=list)
 
 
 class PortfolioBadgeVisibilityUpdate(SQLModel):
@@ -286,11 +287,12 @@ class WorkItemUpdate(SQLModel):
     revision: int
 
 
-class JourneyEntryCreate(SQLModel):
+class TimelineEntryCreate(SQLModel):
     title: str
     entry_type: str = "experience"
     organization: str = ""
     location_label: str = ""
+    details: dict = Field(default_factory=dict)
     summary: str = ""
     start_date: Optional[str] = None
     end_date: Optional[str] = None
@@ -304,11 +306,12 @@ class JourneyEntryCreate(SQLModel):
     idempotency_key: Optional[str] = None
 
 
-class JourneyEntryUpdate(SQLModel):
+class TimelineEntryUpdate(SQLModel):
     title: Optional[str] = None
     entry_type: Optional[str] = None
     organization: Optional[str] = None
     location_label: Optional[str] = None
+    details: Optional[dict] = None
     summary: Optional[str] = None
     start_date: Optional[str] = None
     end_date: Optional[str] = None

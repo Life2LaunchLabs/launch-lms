@@ -18,17 +18,17 @@ from src.db.portfolio import (
     PortfolioTraitsUpdate,
     PortfolioBadgeVisibilityUpdate,
     PortfolioFeaturedBadgesUpdate,
-    PortfolioFeaturedJourneyUpdate,
+    PortfolioFeaturedTimelineUpdate,
     PortfolioFeaturedWorkUpdate,
     PortfolioSectionsUpdate,
     ProfileTrait,
     PortfolioVisibility,
     PublishRequest,
-    JourneyEntry,
-    JourneyEntryBlock,
-    JourneyEntryCreate,
-    JourneyEntryUpdate,
-    JourneyWorkLink,
+    TimelineEntry,
+    TimelineEntryBlock,
+    TimelineEntryCreate,
+    TimelineEntryUpdate,
+    TimelineWorkLink,
     WorkItem,
     WorkItemBlock,
     WorkItemCreate,
@@ -55,7 +55,7 @@ DEFAULT_SECTIONS = (
     "about",
     "featured_badges",
     "traits",
-    "current_journey",
+    "current_timeline",
     "featured_work",
     "instagram",
     "youtube",
@@ -128,7 +128,7 @@ def _get_portfolio(db_session: Session, user_id: int) -> Portfolio | None:
 
 
 def _launch_ready_state(
-    user_id: int, db_session: Session, work_count: int = 0, journey_count: int = 0
+    user_id: int, db_session: Session, work_count: int = 0, timeline_count: int = 0
 ) -> dict:
     bind = db_session.get_bind()
     if not inspect(bind).has_table("learningactivity"):
@@ -152,11 +152,11 @@ def _launch_ready_state(
         onboarding_complete = bool(db_session.exec(select(LearningActivityRun).join(LearningRun, LearningActivityRun.run_id == LearningRun.id).where(LearningRun.user_id == user_id, LearningActivityRun.activity_id == onboarding.id, LearningActivityRun.status == LearningRunStatus.COMPLETED)).first())
     portfolio = _get_portfolio(db_session, user_id)
     traits = list(db_session.exec(select(ProfileTrait).where(ProfileTrait.portfolio_id == portfolio.id)).all()) if portfolio else []
-    has_journey = bool(portfolio and db_session.exec(select(JourneyEntry).where(JourneyEntry.portfolio_id == portfolio.id, JourneyEntry.status != PortfolioContentStatus.ARCHIVED)).first())
+    has_timeline = bool(portfolio and db_session.exec(select(TimelineEntry).where(TimelineEntry.portfolio_id == portfolio.id, TimelineEntry.status != PortfolioContentStatus.ARCHIVED)).first())
     started_other_badge = bool(db_session.exec(select(LearningRun).join(LearningBadge, LearningRun.badge_id == LearningBadge.id).where(LearningRun.user_id == user_id, LearningBadge.system_type.is_(None))).first())  # type: ignore
     facts = {
         "onboarding": onboarding_complete,
-        "current_chapter": has_journey,
+        "current_experience": has_timeline,
         "work": work_count > 0,
         "strength": any(item.trait_type == "strength" for item in traits),
         "value": any(item.trait_type == "value" for item in traits),
@@ -165,7 +165,7 @@ def _launch_ready_state(
     }
     definitions = [
         ("onboarding", "Complete your profile", "Add your name, introduction, and the basics that make this portfolio yours.", "/badges/badge_system_onboarding/chapter/learning_activity_system_onboarding_intro?returnTo=/portfolio"),
-        ("current_chapter", "Add a Journey chapter", "Share a current, recent, or formative part of your story.", "/portfolio/journey/new"),
+        ("current_experience", "Add a Timeline experience", "Share a current, recent, or formative part of your story.", "/portfolio/timeline?experience=work_career"),
         ("work", "Add your first work item", "Show a project, performance, volunteer effort, hobby, or anything you made.", "/portfolio/work/new"),
         ("strength", "Add your strengths", "Name what you are good at or actively developing.", "/portfolio?edit=strengths"),
         ("value", "Add your values", "Share what matters to you and guides your choices.", "/portfolio?edit=values"),
@@ -320,36 +320,36 @@ def _work_dto(work: WorkItem, db_session: Session, public_only: bool = False) ->
     }
 
 
-def _journey_query(portfolio_id: int, public_only: bool = False):
-    statement = select(JourneyEntry).where(
-        JourneyEntry.portfolio_id == portfolio_id,
-        JourneyEntry.status != PortfolioContentStatus.ARCHIVED.value,
+def _timeline_query(portfolio_id: int, public_only: bool = False):
+    statement = select(TimelineEntry).where(
+        TimelineEntry.portfolio_id == portfolio_id,
+        TimelineEntry.status != PortfolioContentStatus.ARCHIVED.value,
     )
     if public_only:
         statement = statement.where(
-            JourneyEntry.status == PortfolioContentStatus.PUBLISHED.value,
-            JourneyEntry.visibility != PortfolioVisibility.PRIVATE.value,
+            TimelineEntry.status == PortfolioContentStatus.PUBLISHED.value,
+            TimelineEntry.visibility != PortfolioVisibility.PRIVATE.value,
         )
     return statement.order_by(
-        JourneyEntry.is_current.desc(),
-        JourneyEntry.start_date.desc(),
-        JourneyEntry.update_date.desc(),
+        TimelineEntry.is_current.desc(),
+        TimelineEntry.start_date.desc(),
+        TimelineEntry.update_date.desc(),
     )
 
 
-def _journey_dto(
-    entry: JourneyEntry, db_session: Session, public_only: bool = False
+def _timeline_dto(
+    entry: TimelineEntry, db_session: Session, public_only: bool = False
 ) -> dict:
     links = db_session.exec(
-        select(JourneyWorkLink)
-        .where(JourneyWorkLink.journey_entry_id == entry.id)
-        .order_by(JourneyWorkLink.sort_order)
+        select(TimelineWorkLink)
+        .where(TimelineWorkLink.timeline_entry_id == entry.id)
+        .order_by(TimelineWorkLink.sort_order)
     ).all()
     blocks = list(
         db_session.exec(
-            select(JourneyEntryBlock)
-            .where(JourneyEntryBlock.journey_entry_id == entry.id)
-            .order_by(JourneyEntryBlock.sort_order)
+            select(TimelineEntryBlock)
+            .where(TimelineEntryBlock.timeline_entry_id == entry.id)
+            .order_by(TimelineEntryBlock.sort_order)
         ).all()
     )
     if public_only:
@@ -388,12 +388,13 @@ def _journey_dto(
         )
     if public_only:
         return {
-            "journey_uuid": entry.journey_uuid,
+            "timeline_uuid": entry.timeline_uuid,
             "slug": entry.slug,
             "entry_type": entry.entry_type,
             "title": entry.title,
             "organization": entry.organization,
             "location_label": entry.location_label,
+            "details": entry.details,
             "summary": entry.summary,
             "start_date": entry.start_date,
             "end_date": entry.end_date,
@@ -451,15 +452,15 @@ def portfolio_shell(
     legacy_preview = (
         legacy_import_preview(user, db_session)
         if user and not public_only
-        else {"work": [], "journey": []}
+        else {"work": [], "timeline": []}
     )
     socials_migrated = bool((portfolio.theme_settings or {}).get("socials_migrated"))
     work = list(
         db_session.exec(_work_query(portfolio.id or 0, public_only=public_only)).all()
     )
-    journey = list(
+    timeline = list(
         db_session.exec(
-            _journey_query(portfolio.id or 0, public_only=public_only)
+            _timeline_query(portfolio.id or 0, public_only=public_only)
         ).all()
     )
     bind = db_session.get_bind()
@@ -479,7 +480,7 @@ def portfolio_shell(
             for item in traits
             if _enum_value(item.visibility) != PortfolioVisibility.PRIVATE.value
         ]
-    meaningful_count = len(work) + len(journey)
+    meaningful_count = len(work) + len(timeline)
     sections = list(
         db_session.exec(
             select(PortfolioSection)
@@ -495,7 +496,7 @@ def portfolio_shell(
             and _enum_value(section.visibility) != PortfolioVisibility.PRIVATE.value
         ]
     launch_ready = (
-        _launch_ready_state(portfolio.user_id, db_session, len(work), len(journey))
+        _launch_ready_state(portfolio.user_id, db_session, len(work), len(timeline))
         if not public_only
         else None
     )
@@ -643,14 +644,14 @@ def portfolio_shell(
             "itemCount": len(work),
         },
         {
-            "key": "journey",
-            "visible": not public_only or bool(journey),
-            "itemCount": len(journey),
+            "key": "timeline",
+            "visible": not public_only or bool(timeline),
+            "itemCount": len(timeline),
         },
         {
             "key": "resume",
-            "visible": not public_only or bool(work or journey),
-            "itemCount": len(work) + len(journey),
+            "visible": not public_only or bool(work or timeline),
+            "itemCount": len(work) + len(timeline),
         },
         {
             "key": "badges",
@@ -692,7 +693,7 @@ def portfolio_shell(
                     "email": user.email if user else "",
                     "email_verified": bool(user.email_verified) if user else False,
                     "has_legacy_portfolio": bool(
-                        legacy_preview["work"] or legacy_preview["journey"]
+                        legacy_preview["work"] or legacy_preview["timeline"]
                     )
                     and not bool((portfolio.theme_settings or {}).get("legacy_import_dismissed")),
                 }
@@ -712,16 +713,16 @@ def portfolio_shell(
             "canPublish": not public_only and state != "restricted",
         },
         "work": [_work_dto(item, db_session, public_only=public_only) for item in work],
-        "journey": [
+        "timeline": [
             {
-                **_journey_dto(item, db_session, public_only=public_only),
-                "featured": item.journey_uuid
+                **_timeline_dto(item, db_session, public_only=public_only),
+                "featured": item.timeline_uuid
                 in set(
-                    (portfolio.theme_settings or {}).get("featured_journey_uuids")
+                    (portfolio.theme_settings or {}).get("featured_timeline_uuids")
                     or []
                 ),
             }
-            for item in journey
+            for item in timeline
         ],
         "traits": {
             kind: [item.label for item in traits if item.trait_type == kind]
@@ -818,22 +819,22 @@ def update_featured_work(
     return portfolio_shell(portfolio, db_session)
 
 
-def update_featured_journey(
-    payload: PortfolioFeaturedJourneyUpdate,
+def update_featured_timeline(
+    payload: PortfolioFeaturedTimelineUpdate,
     current_user: PublicUser,
     db_session: Session,
 ) -> dict:
     portfolio = get_or_create_portfolio(current_user, db_session)
-    requested = list(dict.fromkeys(payload.journey_uuids))
-    journey = list(db_session.exec(_journey_query(portfolio.id or 0)).all())
-    available = {item.journey_uuid for item in journey}
-    if any(journey_uuid not in available for journey_uuid in requested):
+    requested = list(dict.fromkeys(payload.timeline_uuids))
+    timeline = list(db_session.exec(_timeline_query(portfolio.id or 0)).all())
+    available = {item.timeline_uuid for item in timeline}
+    if any(timeline_uuid not in available for timeline_uuid in requested):
         raise HTTPException(
             status_code=422, detail="Only your available timeline entries can be featured"
         )
     portfolio.theme_settings = {
         **(portfolio.theme_settings or {}),
-        "featured_journey_uuids": requested,
+        "featured_timeline_uuids": requested,
     }
     portfolio.revision += 1
     portfolio.update_date = _now()
@@ -1216,26 +1217,32 @@ def archive_work(
     return {"success": True}
 
 
-ALLOWED_JOURNEY_TYPES = {
+ALLOWED_TIMELINE_TYPES = {
     "employment",
     "education",
     "volunteering",
     "training",
     "experience",
+    "work_career",
+    "leadership_service",
+    "learning_experiences",
+    "teams_activities",
+    "awards_recognition",
+    "challenges_milestones",
     "other",
 }
-ALLOWED_DATE_PRECISIONS = {"day", "month", "year"}
+ALLOWED_DATE_PRECISIONS = {"day", "month", "season", "year"}
 
 
-def _unique_journey_slug(
+def _unique_timeline_slug(
     portfolio_id: int, title: str, db_session: Session, exclude_id: int | None = None
 ) -> str:
     base, candidate, counter = _slug(title), _slug(title), 2
     while True:
         existing = db_session.exec(
-            select(JourneyEntry).where(
-                JourneyEntry.portfolio_id == portfolio_id,
-                JourneyEntry.slug == candidate,
+            select(TimelineEntry).where(
+                TimelineEntry.portfolio_id == portfolio_id,
+                TimelineEntry.slug == candidate,
             )
         ).first()
         if not existing or existing.id == exclude_id:
@@ -1243,7 +1250,7 @@ def _unique_journey_slug(
         candidate, counter = f"{base}-{counter}", counter + 1
 
 
-def _validate_journey(
+def _validate_timeline(
     entry_type: str,
     start_precision: str,
     end_precision: str | None,
@@ -1251,8 +1258,8 @@ def _validate_journey(
     end_date: str | None,
     is_current: bool,
 ) -> None:
-    if entry_type not in ALLOWED_JOURNEY_TYPES:
-        raise HTTPException(status_code=422, detail="Unsupported Journey entry type")
+    if entry_type not in ALLOWED_TIMELINE_TYPES:
+        raise HTTPException(status_code=422, detail="Unsupported Timeline experience type")
     if start_precision not in ALLOWED_DATE_PRECISIONS or (
         end_precision and end_precision not in ALLOWED_DATE_PRECISIONS
     ):
@@ -1267,11 +1274,11 @@ def _validate_journey(
         )
 
 
-def _replace_journey_work_links(
-    entry: JourneyEntry, links: list[dict], portfolio: Portfolio, db_session: Session
+def _replace_timeline_work_links(
+    entry: TimelineEntry, links: list[dict], portfolio: Portfolio, db_session: Session
 ) -> None:
     for existing in db_session.exec(
-        select(JourneyWorkLink).where(JourneyWorkLink.journey_entry_id == entry.id)
+        select(TimelineWorkLink).where(TimelineWorkLink.timeline_entry_id == entry.id)
     ).all():
         db_session.delete(existing)
     seen: set[int] = set()
@@ -1293,9 +1300,9 @@ def _replace_journey_work_links(
             continue
         seen.add(work.id)
         db_session.add(
-            JourneyWorkLink(
+            TimelineWorkLink(
                 link_uuid=f"jwl_{uuid4().hex}",
-                journey_entry_id=entry.id or 0,
+                timeline_entry_id=entry.id or 0,
                 work_item_id=work.id,
                 relationship_label=str(
                     raw.get("relationship_label") or "Related work"
@@ -1307,11 +1314,11 @@ def _replace_journey_work_links(
         )
 
 
-def _replace_journey_blocks(
-    entry: JourneyEntry, blocks: list[dict], db_session: Session
+def _replace_timeline_blocks(
+    entry: TimelineEntry, blocks: list[dict], db_session: Session
 ) -> None:
     for existing in db_session.exec(
-        select(JourneyEntryBlock).where(JourneyEntryBlock.journey_entry_id == entry.id)
+        select(TimelineEntryBlock).where(TimelineEntryBlock.timeline_entry_id == entry.id)
     ).all():
         db_session.delete(existing)
     now = _now()
@@ -1319,12 +1326,12 @@ def _replace_journey_blocks(
         if str(raw.get("block_type") or raw.get("type") or "image") != "image":
             raise HTTPException(
                 status_code=422,
-                detail="Journey chapters currently support image blocks only",
+                detail="Timeline experiences currently support image blocks only",
             )
         db_session.add(
-            JourneyEntryBlock(
+            TimelineEntryBlock(
                 block_uuid=f"jbl_{uuid4().hex}",
-                journey_entry_id=entry.id or 0,
+                timeline_entry_id=entry.id or 0,
                 block_type="image",
                 data=raw.get("data") or {},
                 sort_order=index,
@@ -1334,23 +1341,23 @@ def _replace_journey_blocks(
         )
 
 
-def create_journey(
-    payload: JourneyEntryCreate, current_user: PublicUser, db_session: Session
+def create_timeline(
+    payload: TimelineEntryCreate, current_user: PublicUser, db_session: Session
 ) -> dict:
     portfolio = get_or_create_portfolio(current_user, db_session)
     if payload.idempotency_key:
         existing = db_session.exec(
-            select(JourneyEntry).where(
-                JourneyEntry.portfolio_id == portfolio.id,
-                JourneyEntry.source_reference == payload.idempotency_key,
+            select(TimelineEntry).where(
+                TimelineEntry.portfolio_id == portfolio.id,
+                TimelineEntry.source_reference == payload.idempotency_key,
             )
         ).first()
         if existing:
-            return _journey_dto(existing, db_session)
+            return _timeline_dto(existing, db_session)
     title = payload.title.strip()
     if not title:
         raise HTTPException(status_code=422, detail="Title is required")
-    _validate_journey(
+    _validate_timeline(
         payload.entry_type,
         payload.start_precision,
         payload.end_precision,
@@ -1359,13 +1366,14 @@ def create_journey(
         payload.is_current,
     )
     now = _now()
-    entry = JourneyEntry(
-        journey_uuid=f"jrn_{uuid4().hex}",
+    entry = TimelineEntry(
+        timeline_uuid=f"tml_{uuid4().hex}",
         portfolio_id=portfolio.id or 0,
         title=title,
         entry_type=payload.entry_type,
         organization=payload.organization.strip(),
         location_label=payload.location_label.strip(),
+        details=payload.details,
         summary=payload.summary.strip(),
         start_date=payload.start_date,
         end_date=None if payload.is_current else payload.end_date,
@@ -1377,45 +1385,45 @@ def create_journey(
         ),
         status=PortfolioContentStatus.PUBLISHED,
         visibility=payload.visibility,
-        slug=_unique_journey_slug(portfolio.id or 0, title, db_session),
+        slug=_unique_timeline_slug(portfolio.id or 0, title, db_session),
         source_reference=payload.idempotency_key,
         creation_date=now,
         update_date=now,
     )
     db_session.add(entry)
     db_session.flush()
-    _replace_journey_blocks(entry, payload.blocks, db_session)
-    _replace_journey_work_links(entry, payload.work_links, portfolio, db_session)
+    _replace_timeline_blocks(entry, payload.blocks, db_session)
+    _replace_timeline_work_links(entry, payload.work_links, portfolio, db_session)
     portfolio.revision += 1
     portfolio.update_date = now
     db_session.add(portfolio)
     db_session.commit()
     db_session.refresh(entry)
-    return _journey_dto(entry, db_session)
+    return _timeline_dto(entry, db_session)
 
 
-def _owner_journey(
-    journey_uuid: str, current_user: PublicUser, db_session: Session
-) -> tuple[Portfolio, JourneyEntry]:
+def _owner_timeline(
+    timeline_uuid: str, current_user: PublicUser, db_session: Session
+) -> tuple[Portfolio, TimelineEntry]:
     portfolio = get_or_create_portfolio(current_user, db_session)
     entry = db_session.exec(
-        select(JourneyEntry).where(
-            JourneyEntry.journey_uuid == journey_uuid,
-            JourneyEntry.portfolio_id == portfolio.id,
+        select(TimelineEntry).where(
+            TimelineEntry.timeline_uuid == timeline_uuid,
+            TimelineEntry.portfolio_id == portfolio.id,
         )
     ).first()
     if not entry:
-        raise HTTPException(status_code=404, detail="Journey entry not found")
+        raise HTTPException(status_code=404, detail="Timeline experience not found")
     return portfolio, entry
 
 
-def update_journey(
-    journey_uuid: str,
-    payload: JourneyEntryUpdate,
+def update_timeline(
+    timeline_uuid: str,
+    payload: TimelineEntryUpdate,
     current_user: PublicUser,
     db_session: Session,
 ) -> dict:
-    portfolio, entry = _owner_journey(journey_uuid, current_user, db_session)
+    portfolio, entry = _owner_timeline(timeline_uuid, current_user, db_session)
     _check_revision(entry.revision, payload.revision)
     values = payload.model_dump(
         exclude={"revision", "work_links", "blocks", "cover_asset_uuid"},
@@ -1425,7 +1433,7 @@ def update_journey(
         setattr(entry, field, value.strip() if isinstance(value, str) else value)
     if not entry.title.strip():
         raise HTTPException(status_code=422, detail="Title is required")
-    _validate_journey(
+    _validate_timeline(
         entry.entry_type,
         entry.start_precision,
         entry.end_precision,
@@ -1434,13 +1442,13 @@ def update_journey(
         entry.is_current,
     )
     if payload.title is not None:
-        entry.slug = _unique_journey_slug(
+        entry.slug = _unique_timeline_slug(
             portfolio.id or 0, entry.title, db_session, entry.id
         )
     if payload.work_links is not None:
-        _replace_journey_work_links(entry, payload.work_links, portfolio, db_session)
+        _replace_timeline_work_links(entry, payload.work_links, portfolio, db_session)
     if payload.blocks is not None:
-        _replace_journey_blocks(entry, payload.blocks, db_session)
+        _replace_timeline_blocks(entry, payload.blocks, db_session)
     if "cover_asset_uuid" in payload.model_fields_set:
         entry.cover_asset_id = _cover_asset_id(
             payload.cover_asset_uuid, current_user.id, db_session
@@ -1451,13 +1459,13 @@ def update_journey(
     db_session.add(entry)
     db_session.commit()
     db_session.refresh(entry)
-    return _journey_dto(entry, db_session)
+    return _timeline_dto(entry, db_session)
 
 
-def archive_journey(
-    journey_uuid: str, revision: int, current_user: PublicUser, db_session: Session
+def archive_timeline(
+    timeline_uuid: str, revision: int, current_user: PublicUser, db_session: Session
 ) -> dict:
-    _, entry = _owner_journey(journey_uuid, current_user, db_session)
+    _, entry = _owner_timeline(timeline_uuid, current_user, db_session)
     _check_revision(entry.revision, revision)
     entry.status = PortfolioContentStatus.ARCHIVED
     entry.revision += 1
@@ -1480,7 +1488,7 @@ def publish_portfolio(
     blockers = _readiness_blockers(
         portfolio,
         len(list(db_session.exec(_work_query(portfolio.id or 0)).all()))
-        + len(list(db_session.exec(_journey_query(portfolio.id or 0)).all())),
+        + len(list(db_session.exec(_timeline_query(portfolio.id or 0)).all())),
     )
     if blockers:
         raise HTTPException(
@@ -1548,14 +1556,14 @@ def get_public_work(org_id: int, username: str, slug: str, db_session: Session) 
     raise HTTPException(status_code=404, detail="Work item not found")
 
 
-def get_public_journey(
+def get_public_timeline(
     org_id: int, username: str, slug: str, db_session: Session
 ) -> dict:
     shell = get_public_shell(org_id, username, db_session)
-    for entry in shell["journey"]:
+    for entry in shell["timeline"]:
         if entry["slug"] == slug:
-            return {"portfolio": shell["portfolio"], "journey": entry}
-    raise HTTPException(status_code=404, detail="Journey entry not found")
+            return {"portfolio": shell["portfolio"], "timeline": entry}
+    raise HTTPException(status_code=404, detail="Timeline experience not found")
 
 
 def legacy_import_preview(current_user: PublicUser, db_session: Session) -> dict:
@@ -1573,7 +1581,7 @@ def legacy_import_preview(current_user: PublicUser, db_session: Session) -> dict
         timeline = []
     portfolio = _get_portfolio(db_session, current_user.id or 0)
     imported_work_refs = set()
-    imported_journey_refs = set()
+    imported_timeline_refs = set()
     if portfolio:
         imported_work_refs = {
             item.source_reference
@@ -1582,10 +1590,10 @@ def legacy_import_preview(current_user: PublicUser, db_session: Session) -> dict
             ).all()
             if item.source_reference
         }
-        imported_journey_refs = {
+        imported_timeline_refs = {
             item.source_reference
             for item in db_session.exec(
-                select(JourneyEntry).where(JourneyEntry.portfolio_id == portfolio.id)
+                select(TimelineEntry).where(TimelineEntry.portfolio_id == portfolio.id)
             ).all()
             if item.source_reference
         }
@@ -1610,9 +1618,9 @@ def legacy_import_preview(current_user: PublicUser, db_session: Session) -> dict
             if isinstance(card, dict)
             and f"legacy:user.profile:work:{index}" not in imported_work_refs
         ],
-        "journey": [
+        "timeline": [
             {
-                "title": str(item.get("title") or "Untitled chapter"),
+                "title": str(item.get("title") or "Untitled experience"),
                 "entryType": {"work": "employment", "life": "experience"}.get(
                     str(item.get("category")), "education"
                 ),
@@ -1630,7 +1638,7 @@ def legacy_import_preview(current_user: PublicUser, db_session: Session) -> dict
             }
             for index, item in enumerate(timeline)
             if isinstance(item, dict)
-            and f"legacy:user.profile:journey:{index}" not in imported_journey_refs
+            and f"legacy:user.profile:timeline:{index}" not in imported_timeline_refs
         ],
     }
 
@@ -1656,18 +1664,18 @@ def execute_legacy_import(current_user: PublicUser, db_session: Session) -> dict
             db_session,
         )
         imported += 1
-    journey_imported = 0
-    for item in preview["journey"]:
-        key = f"legacy:user.profile:journey:{item['sourceIndex']}"
+    timeline_imported = 0
+    for item in preview["timeline"]:
+        key = f"legacy:user.profile:timeline:{item['sourceIndex']}"
         if db_session.exec(
-            select(JourneyEntry).where(
-                JourneyEntry.portfolio_id == portfolio.id,
-                JourneyEntry.source_reference == key,
+            select(TimelineEntry).where(
+                TimelineEntry.portfolio_id == portfolio.id,
+                TimelineEntry.source_reference == key,
             )
         ).first():
             continue
-        create_journey(
-            JourneyEntryCreate(
+        create_timeline(
+            TimelineEntryCreate(
                 title=item["title"],
                 entry_type=item["entryType"],
                 organization=item["organization"],
@@ -1680,15 +1688,15 @@ def execute_legacy_import(current_user: PublicUser, db_session: Session) -> dict
             current_user,
             db_session,
         )
-        journey_imported += 1
+        timeline_imported += 1
     return {
-        "imported": imported + journey_imported,
+        "imported": imported + timeline_imported,
         "workImported": imported,
-        "journeyImported": journey_imported,
+        "timelineImported": timeline_imported,
         "skipped": len(preview["work"])
-        + len(preview["journey"])
+        + len(preview["timeline"])
         - imported
-        - journey_imported,
+        - timeline_imported,
         "shell": get_owner_shell(current_user, db_session),
     }
 

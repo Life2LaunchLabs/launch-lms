@@ -215,7 +215,7 @@ def test_launch_ready_activity_set_excludes_theme_customization():
     assert list(LAUNCH_READY_ACTIVITY_UUIDS) == [
         "identity",
         "profile",
-        "journey",
+        "timeline",
         "work",
         "traits",
         "links",
@@ -811,7 +811,7 @@ def test_standard_page_accepts_bound_image_and_internal_page_button():
     _validate_page_payload(LearningPageType.STANDARD, {"version": 2, "blocks": [
         {"id": "image", "type": "image", "content": {"binding": {"source": "answer", "path": "learning_page_photo.answer.questions.photo.url"}}},
         {"id": "button", "type": "button", "content": {"label": "Change details", "destination_page_uuid": "learning_page_details"}},
-        {"id": "preview", "type": "portfolio_preview", "content": {"variant": "journey_card", "bindings": {"title": {"source": "answer", "path": "learning_page_details.answer.questions.details.inputs.title.text"}}}},
+        {"id": "preview", "type": "portfolio_preview", "content": {"variant": "timeline_card", "bindings": {"title": {"source": "answer", "path": "learning_page_details.answer.questions.details.inputs.title.text"}}}},
     ]})
 
 

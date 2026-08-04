@@ -11,29 +11,31 @@ import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-p
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { Button } from '@components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@components/ui/popover'
 import ContentPageHeader from '@components/Objects/StyledElements/Headers/ContentPageHeader'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { applyMediaAssetToUserAvatar, type MediaAsset } from '@services/media/library'
 import { getUserAvatarMediaDirectory, normalizeMediaUrl } from '@services/media/media'
-import { createPortfolioWork, dismissLegacyPortfolioImport, getMyPortfolio, importLegacyPortfolio, publishMyPortfolio, unpublishMyPortfolio, updateMyPortfolio, updateMyPortfolioBadgeVisibility, updateMyPortfolioFeaturedBadges, updateMyPortfolioFeaturedJourney, updateMyPortfolioFeaturedWork, updateMyPortfolioSections, updateMyPortfolioTraits, updatePortfolioWork } from '@services/portfolio/portfolio'
+import { createPortfolioWork, dismissLegacyPortfolioImport, getMyPortfolio, importLegacyPortfolio, publishMyPortfolio, unpublishMyPortfolio, updateMyPortfolio, updateMyPortfolioBadgeVisibility, updateMyPortfolioFeaturedBadges, updateMyPortfolioFeaturedTimeline, updateMyPortfolioFeaturedWork, updateMyPortfolioSections, updateMyPortfolioTraits, updatePortfolioWork } from '@services/portfolio/portfolio'
 import { CategorizedMultiSelect, PORTFOLIO_STRENGTHS, PORTFOLIO_VALUES, type CategorizedOption } from '@components/Portfolio/CategorizedMultiSelect'
-import { JourneyTimeline, journeyDateLabel, type JourneyEntry } from './Journey'
+import { TimelineView, timelineDateLabel, type TimelineEntry } from './Timeline'
+import { EXPERIENCE_TYPES, ExperienceEditorDialog } from './ExperienceEditor'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 
 export type Work = { work_uuid: string; slug: string; title: string; subtitle: string; summary: string; story_kind: string; status: string; featured: boolean; revision: number; start_date?: string; end_date?: string; cover_url?: string; cover_asset_uuid?: string; blocks: Array<{ block_uuid?: string; block_type: string; data: Record<string, any> }> }
 type PortfolioBadge = { badge_uuid: string; name: string; description?: string; thumbnail_image?: string; status: 'earned' | 'in_progress'; progress?: { completed: number; total: number; percent: number } }
 type PortfolioSection = { section_uuid: string; section_type: string; title_override?: string; enabled: boolean; sort_order: number }
 type ChecklistItem = { key: string; label: string; supportingText: string; href: string; complete: boolean }
-type Shell = { portfolio: Record<string, any>; work: Work[]; journey: JourneyEntry[]; sections?: PortfolioSection[]; traits?: { strength?: string[]; value?: string[] }; badges?: { earned: PortfolioBadge[]; inProgress: PortfolioBadge[]; featured: PortfolioBadge[]; featuredBadgeUuids: string[]; hiddenBadgeUuids: string[] }; views: Array<{ key: string; visible: boolean; itemCount: number }>; readiness: { canPublish: boolean; blockers: string[] }; checklist?: { items: ChecklistItem[]; completed: number; total: number; percent: number; nextIncomplete?: ChecklistItem | null; earned: boolean } }
+type Shell = { portfolio: Record<string, any>; work: Work[]; timeline: TimelineEntry[]; sections?: PortfolioSection[]; traits?: { strength?: string[]; value?: string[] }; badges?: { earned: PortfolioBadge[]; inProgress: PortfolioBadge[]; featured: PortfolioBadge[]; featuredBadgeUuids: string[]; hiddenBadgeUuids: string[] }; views: Array<{ key: string; visible: boolean; itemCount: number }>; readiness: { canPublish: boolean; blockers: string[] }; checklist?: { items: ChecklistItem[]; completed: number; total: number; percent: number; nextIncomplete?: ChecklistItem | null; earned: boolean } }
 
-type PortfolioView = 'overview' | 'journey' | 'work' | 'badges' | 'resume'
+type PortfolioView = 'overview' | 'timeline' | 'work' | 'badges' | 'resume'
 
 function tabs(orgslug: string, username: string | undefined, owner: boolean, shell: Shell, preview = false) {
   const base = owner ? '/portfolio' : `/user/${username}`
   const visible = (key: string) => shell.views.some((view) => view.key === key && view.visible && (!preview || view.itemCount > 0))
-  return [{ label: 'Overview', view: 'overview', href: base, visible: true }, { label: 'Timeline', view: 'journey', href: `${base}/journey`, visible: visible('journey') }, { label: 'Projects', view: 'work', href: `${base}/work`, visible: visible('work') }, { label: 'Badges', view: 'badges', href: `${base}/badges`, visible: visible('badges') }, { label: 'Resume', view: 'resume', href: `${base}/resume`, visible: visible('resume') }]
+  return [{ label: 'Overview', view: 'overview', href: base, visible: true }, { label: 'Timeline', view: 'timeline', href: `${base}/timeline`, visible: visible('timeline') }, { label: 'Projects', view: 'work', href: `${base}/work`, visible: visible('work') }, { label: 'Badges', view: 'badges', href: `${base}/badges`, visible: visible('badges') }, { label: 'Resume', view: 'resume', href: `${base}/resume`, visible: visible('resume') }]
     .filter((tab) => tab.visible).map((tab) => ({ ...tab, href: getUriWithOrg(orgslug, tab.href) }))
 }
 
@@ -50,7 +52,9 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false)
   const [draftSocials, setDraftSocials] = useState<Array<{ type: string; url: string }>>(() => shellSocials(initialShell))
   const [busy, setBusy] = useState(false)
-  const [savingJourneyUuid, setSavingJourneyUuid] = useState<string | null>(null)
+  const [savingTimelineUuid, setSavingTimelineUuid] = useState<string | null>(null)
+  const [experienceEditorOpen, setExperienceEditorOpen] = useState(false)
+  const [experienceType, setExperienceType] = useState<string>('work_career')
   const headerRef = useRef<HTMLElement | null>(null)
   const displayName = shell.portfolio.display_name || username || 'Your portfolio'
   const nav = useMemo(() => tabs(orgslug, username, owner, shell, preview), [orgslug, username, owner, shell, preview])
@@ -67,7 +71,7 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
       setScrolled((bounds?.bottom || 1) <= 0)
       if (bounds) setStickyBounds({ left: bounds.left, width: bounds.width })
     }
-    const handlePopState = () => setActiveView(window.location.pathname.endsWith('/resume') ? 'resume' : window.location.pathname.endsWith('/badges') ? 'badges' : window.location.pathname.endsWith('/work') ? 'work' : window.location.pathname.endsWith('/journey') ? 'journey' : 'overview')
+    const handlePopState = () => setActiveView(window.location.pathname.endsWith('/resume') ? 'resume' : window.location.pathname.endsWith('/badges') ? 'badges' : window.location.pathname.endsWith('/work') ? 'work' : window.location.pathname.endsWith('/timeline') ? 'timeline' : 'overview')
     handleScroll()
     window.addEventListener('scroll', handleScroll, { passive: true })
     window.addEventListener('resize', handleScroll)
@@ -81,7 +85,18 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
 
   useEffect(() => {
     if (owner && searchParams.get('edit') === 'profile') setEditingIdentity(true)
+    const createType = searchParams.get('experience')
+    if (owner && createType) {
+      setExperienceType(createType)
+      setExperienceEditorOpen(true)
+    }
   }, [owner, searchParams])
+
+  async function experienceSaved() {
+    if (!token) return
+    setShell(await getMyPortfolio(token))
+    window.history.replaceState({}, '', getUriWithOrg(orgslug, '/portfolio/timeline'))
+  }
 
   function changeView(view: PortfolioView, href: string) {
     if (view === activeView) return
@@ -131,16 +146,16 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
     toast.success('Profile image updated')
   }
 
-  async function toggleFeaturedJourney(entry: JourneyEntry) {
-    if (!token || savingJourneyUuid) return
-    setSavingJourneyUuid(entry.journey_uuid)
+  async function toggleFeaturedTimeline(entry: TimelineEntry) {
+    if (!token || savingTimelineUuid) return
+    setSavingTimelineUuid(entry.timeline_uuid)
     try {
-      const featuredUuids = shell.journey.filter((item) => item.featured && item.journey_uuid !== entry.journey_uuid).map((item) => item.journey_uuid)
-      const next = await updateMyPortfolioFeaturedJourney({ journey_uuids: entry.featured ? featuredUuids : [...featuredUuids, entry.journey_uuid] }, token)
+      const featuredUuids = shell.timeline.filter((item) => item.featured && item.timeline_uuid !== entry.timeline_uuid).map((item) => item.timeline_uuid)
+      const next = await updateMyPortfolioFeaturedTimeline({ timeline_uuids: entry.featured ? featuredUuids : [...featuredUuids, entry.timeline_uuid] }, token)
       setShell(next)
       toast.success(entry.featured ? 'Removed from featured timeline' : `${entry.title} is now featured`)
     } catch (error: any) { toast.error(error?.message || 'Could not update featured timeline') }
-    finally { setSavingJourneyUuid(null) }
+    finally { setSavingTimelineUuid(null) }
   }
 
   return <main className={`${activeView === 'resume' ? 'h-dvh overflow-hidden' : 'min-h-screen pb-20'} bg-background text-foreground`}>
@@ -163,7 +178,7 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
               </AnimatePresence>
             </motion.div>
           </motion.div>
-          {owner && !preview && compact && <div className="flex items-center gap-2">{showLaunchGuide && <ChecklistGauge checklist={shell.checklist} orgslug={orgslug} onPublish={publish} busy={busy} />}{activeView === 'work' && <Button asChild size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio/work/new')}><Plus className="mr-1.5 h-4 w-4" />Add project</Link></Button>}{activeView === 'journey' && <Button asChild size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio/journey/new')}><Plus className="mr-1.5 h-4 w-4" />Add chapter</Link></Button>}{activeView === 'badges' && <Button asChild size="sm"><Link href={getUriWithOrg(orgslug, '/badges?choose=1')}><Award className="mr-1.5 h-4 w-4" />Find badges</Link></Button>}{activeView === 'resume' && <Button type="button" size="sm" onClick={() => window.print()}><Printer className="mr-1.5 h-4 w-4" />Print / save PDF</Button>}</div>}
+          {owner && !preview && compact && <div className="flex items-center gap-2">{showLaunchGuide && <ChecklistGauge checklist={shell.checklist} orgslug={orgslug} onPublish={publish} busy={busy} />}{activeView === 'work' && <Button asChild size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio/work/new')}><Plus className="mr-1.5 h-4 w-4" />Add project</Link></Button>}{activeView === 'timeline' && <DropdownMenu><DropdownMenuTrigger asChild><Button size="sm"><Plus className="mr-1.5 h-4 w-4" />Add experience<ChevronDown className="ml-1.5 h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-60">{EXPERIENCE_TYPES.map((type) => <DropdownMenuItem key={type.value} onSelect={() => { setExperienceType(type.value); setExperienceEditorOpen(true) }}>{type.label}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>}{activeView === 'badges' && <Button asChild size="sm"><Link href={getUriWithOrg(orgslug, '/badges?choose=1')}><Award className="mr-1.5 h-4 w-4" />Find badges</Link></Button>}{activeView === 'resume' && <Button type="button" size="sm" onClick={() => window.print()}><Printer className="mr-1.5 h-4 w-4" />Print / save PDF</Button>}</div>}
         </motion.div>
       </motion.div>
       {owner && !preview && activeView === 'overview' && showLaunchGuide && <ChecklistBanner checklist={shell.checklist} orgslug={orgslug} onPublish={publish} busy={busy} />}
@@ -180,10 +195,11 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
     </AnimatePresence>
 
     <div className={activeView === 'resume' ? '' : 'py-8 sm:py-12'}>
-      <AnimatePresence mode="wait" initial={false}>{activeView === 'overview' ? <motion.div key="overview"><Overview shell={shell} setShell={setShell} owner={owner && !preview} orgslug={orgslug} username={username} importLegacy={importLegacy} busy={busy} token={token} /></motion.div> : activeView === 'journey' ? <motion.div key="journey"><JourneyTimeline entries={shell.journey || []} owner={owner && !preview} orgslug={orgslug} username={username} onToggleFeatured={owner && !preview ? toggleFeaturedJourney : undefined} savingUuid={savingJourneyUuid} /></motion.div> : activeView === 'badges' ? <motion.div key="badges"><BadgesView shell={shell} setShell={setShell} owner={owner && !preview} orgslug={orgslug} token={token} /></motion.div> : activeView === 'resume' ? <motion.div key="resume">{owner && !preview && !shell.work.length && !shell.journey.length ? <EmptyTab icon={FileText} eyebrow="Your resume" title="Build a resume from your story" description="Your resume grows automatically as you add projects, experience, strengths, and badges." examples={['Projects you’re proud of', 'Education and experience', 'Skills and strengths', 'Verified badges']} action="Add your first project" href="/portfolio/work/new" orgslug={orgslug} /> : <ResumeView shell={shell} orgslug={orgslug} username={username} owner={owner && !preview} />}</motion.div> : <motion.div key="work"><WorkGrid shell={shell} setShell={setShell} owner={owner && !preview} orgslug={orgslug} username={username} token={token} /></motion.div>}</AnimatePresence>
+      <AnimatePresence mode="wait" initial={false}>{activeView === 'overview' ? <motion.div key="overview"><Overview shell={shell} setShell={setShell} owner={owner && !preview} orgslug={orgslug} username={username} importLegacy={importLegacy} busy={busy} token={token} /></motion.div> : activeView === 'timeline' ? <motion.div key="timeline"><TimelineView entries={shell.timeline || []} owner={owner && !preview} orgslug={orgslug} username={username} onToggleFeatured={owner && !preview ? toggleFeaturedTimeline : undefined} savingUuid={savingTimelineUuid} /></motion.div> : activeView === 'badges' ? <motion.div key="badges"><BadgesView shell={shell} setShell={setShell} owner={owner && !preview} orgslug={orgslug} token={token} /></motion.div> : activeView === 'resume' ? <motion.div key="resume">{owner && !preview && !shell.work.length && !shell.timeline.length ? <EmptyTab icon={FileText} eyebrow="Your resume" title="Build a resume from your story" description="Your resume grows automatically as you add projects, experience, strengths, and badges." examples={['Projects you’re proud of', 'Education and experience', 'Skills and strengths', 'Verified badges']} action="Add your first project" href="/portfolio/work/new" orgslug={orgslug} /> : <ResumeView shell={shell} orgslug={orgslug} username={username} owner={owner && !preview} />}</motion.div> : <motion.div key="work"><WorkGrid shell={shell} setShell={setShell} owner={owner && !preview} orgslug={orgslug} username={username} token={token} /></motion.div>}</AnimatePresence>
     </div>
     </div>
     {owner && <HeaderEditor open={editingIdentity} onOpenChange={setEditingIdentity} shell={shell} avatarUrl={avatarUrl} displayName={displayName} socials={draftSocials} setSocials={setDraftSocials} onAvatarClick={() => setAvatarPickerOpen(true)} onSubmit={saveIdentity} busy={busy} />}
+    {owner && <ExperienceEditorDialog open={experienceEditorOpen} onOpenChange={setExperienceEditorOpen} work={shell.work} initialType={experienceType} onSaved={experienceSaved} />}
     {owner && <MediaPickerDialog open={avatarPickerOpen} onOpenChange={setAvatarPickerOpen} title="Update your profile image" description="Upload an image or choose one from your media library." owner={{ type: 'user', id: Number(shell.portfolio.user_id) }} mediaType="image" accessToken={token} onSave={saveAvatar} />}
   </main>
 }
@@ -441,7 +457,7 @@ function SocialPreviewCarousel({ type, url }: { type: 'instagram' | 'youtube'; u
 function Overview({ shell, setShell, owner, orgslug, username, importLegacy, busy, token }: any) {
   const searchParams = useSearchParams()
   const featured = shell.work.filter((work: Work) => work.featured)
-  const featuredJourney = (shell.journey || []).filter((entry: JourneyEntry) => entry.featured)
+  const featuredTimeline = (shell.timeline || []).filter((entry: TimelineEntry) => entry.featured)
   const [sections, setSections] = useState<PortfolioSection[]>(() => (shell.sections || []).filter((section: PortfolioSection) => section.section_type !== 'identity_hero'))
   const editTarget = searchParams.get('edit')
   const enablingTraitsRef = useRef(false)
@@ -469,21 +485,21 @@ function Overview({ shell, setShell, owner, orgslug, username, importLegacy, bus
   const hasContent = (type: string) => type === 'about' ? Boolean(shell.portfolio.short_bio)
     : type === 'featured_badges' ? (shell.badges?.featured || []).length > 0
     : type === 'traits' ? (shell.traits?.strength || []).length > 0 || (shell.traits?.value || []).length > 0
-    : type === 'current_journey' ? (owner ? (shell.journey || []).length > 0 : featuredJourney.length > 0)
+    : type === 'current_timeline' ? (owner ? (shell.timeline || []).length > 0 : featuredTimeline.length > 0)
     : type === 'featured_work' ? shell.work.length > 0
     : type === 'instagram' || type === 'youtube' ? (shell.portfolio.socials || []).some((social: { type: string; url: string }) => social.type === type && social.url)
     : false
   const renderSection = (type: string) => type === 'about' ? <AboutSection shell={shell} setShell={setShell} owner={owner} token={token} />
     : type === 'featured_badges' ? <section><div className="mb-4 flex items-center justify-between gap-3"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Badges</h2><Link href={getUriWithOrg(orgslug, owner ? '/portfolio/badges' : `/user/${username}/badges`)} className="text-xs font-semibold text-muted-foreground transition hover:text-foreground">View all</Link></div><div className="grid gap-3">{shell.badges.featured.map((badge: PortfolioBadge) => <SidebarBadge key={badge.badge_uuid} badge={badge} orgslug={orgslug} />)}</div></section>
     : type === 'traits' ? <div className="grid gap-9"><TraitCard kind="strength" initial={shell.traits?.strength || []} owner={owner} onShellChange={setShell} /><TraitCard kind="value" initial={shell.traits?.value || []} owner={owner} onShellChange={setShell} /></div>
-    : type === 'current_journey' ? <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Timeline</h2><button className="text-sm font-semibold" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, owner ? '/portfolio/journey' : `/user/${username}/journey`)); window.dispatchEvent(new PopStateEvent('popstate')) }}>View all</button></div>{featuredJourney.length ? <JourneyTimeline entries={featuredJourney} owner={owner} orgslug={orgslug} username={username} variant="overview" /> : owner ? <button type="button" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, '/portfolio/journey')); window.dispatchEvent(new PopStateEvent('popstate')) }} className="w-full rounded-xl border border-dashed border-border px-5 py-10 text-center text-sm font-semibold text-muted-foreground transition hover:border-foreground hover:text-foreground">Star timeline entries to feature them here.</button> : null}</section>
+    : type === 'current_timeline' ? <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Timeline</h2><button className="text-sm font-semibold" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, owner ? '/portfolio/timeline' : `/user/${username}/timeline`)); window.dispatchEvent(new PopStateEvent('popstate')) }}>View all</button></div>{featuredTimeline.length ? <TimelineView entries={featuredTimeline} owner={owner} orgslug={orgslug} username={username} variant="overview" /> : owner ? <button type="button" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, '/portfolio/timeline')); window.dispatchEvent(new PopStateEvent('popstate')) }} className="w-full rounded-xl border border-dashed border-border px-5 py-10 text-center text-sm font-semibold text-muted-foreground transition hover:border-foreground hover:text-foreground">Star Timeline experiences to feature them here.</button> : null}</section>
     : type === 'featured_work' ? <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Featured project{featured.length > 1 ? 's' : ''}</h2><button className="text-sm font-semibold transition-colors hover:text-foreground" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, owner ? '/portfolio/work' : `/user/${username}/work`)); window.dispatchEvent(new PopStateEvent('popstate')) }}>View all</button></div>{featured.length ? <FeaturedWorkCards work={featured} owner={owner} orgslug={orgslug} username={username} /> : owner ? <button type="button" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, '/portfolio/work')); window.dispatchEvent(new PopStateEvent('popstate')) }} className="w-full rounded-xl border border-dashed border-border px-5 py-10 text-center text-sm font-semibold text-muted-foreground transition hover:border-foreground hover:text-foreground">Star one of your projects to feature it here.</button> : null}</section>
     : type === 'instagram' || type === 'youtube' ? (() => { const social = (shell.portfolio.socials || []).find((item: { type: string; url: string }) => item.type === type && item.url); return social ? <SocialPreviewCarousel type={type} url={social.url} /> : null })() : null
   const actionConfig: Record<string, { title: string; prompt: string; href: string; icon: React.ComponentType<{ className?: string }> }> = {
     about: { title: 'About', prompt: 'Introduce yourself', href: '/portfolio?edit=about', icon: BookOpen },
     featured_badges: { title: 'Badges', prompt: 'Find one you’d like to start', href: '/badges?choose=1', icon: Award },
     traits: { title: 'Strengths & values', prompt: 'Highlight what makes you, you', href: '/portfolio?edit=strengths', icon: Zap },
-    current_journey: { title: 'Timeline', prompt: 'Add experience or education', href: '/portfolio/journey/new', icon: BookOpen },
+    current_timeline: { title: 'Timeline', prompt: 'Add an experience', href: '/portfolio/timeline?experience=work_career', icon: BookOpen },
     featured_work: { title: 'Projects', prompt: 'Showcase your work', href: '/portfolio/work/new', icon: FolderOpen },
     instagram: { title: 'Instagram', prompt: 'Connect your Instagram', href: '/portfolio?edit=profile', icon: Instagram },
     youtube: { title: 'YouTube', prompt: 'Connect your YouTube channel', href: '/portfolio?edit=profile', icon: Youtube },
@@ -534,7 +550,7 @@ function Overview({ shell, setShell, owner, orgslug, username, importLegacy, bus
     </aside>}
     </div>
     {emptySections.length > 0 && <section className="max-w-xl space-y-2"><div className="mb-4"><h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Keep building</h2><p className="mt-1 text-sm text-muted-foreground">Choose what you want to add next.</p></div>{emptySections.map((section) => { const action = actionConfig[section.section_type]; const Icon = action.icon; return <Link key={section.section_uuid} href={getUriWithOrg(orgslug, action.href)} className="group flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"><Icon className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-black">{action.title}</span><span className="block truncate text-xs text-muted-foreground">{action.prompt}</span></span><span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)] transition group-hover:scale-105"><Plus className="h-4 w-4" /></span></Link>})}</section>}
-    {owner && shell.portfolio.has_legacy_portfolio && <section className="rounded-2xl border border-dashed border-border p-6"><h2 className="font-bold">Have an older Launch LMS portfolio?</h2><p className="mt-1 text-sm text-muted-foreground">Import its work and journey items into the new builder. Your original profile data stays untouched.</p><div className="mt-4 flex flex-wrap gap-2"><Button variant="outline" disabled={busy} onClick={importLegacy}>{busy ? 'Importing…' : 'Import legacy work'}</Button><Button variant="ghost" disabled={busy} onClick={dismissLegacyImport}>Skip import</Button></div></section>}
+    {owner && shell.portfolio.has_legacy_portfolio && <section className="rounded-2xl border border-dashed border-border p-6"><h2 className="font-bold">Have an older Launch LMS portfolio?</h2><p className="mt-1 text-sm text-muted-foreground">Import its work and timeline experiences into the new builder. Your original profile data stays untouched.</p><div className="mt-4 flex flex-wrap gap-2"><Button variant="outline" disabled={busy} onClick={importLegacy}>{busy ? 'Importing…' : 'Import legacy work'}</Button><Button variant="ghost" disabled={busy} onClick={dismissLegacyImport}>Skip import</Button></div></section>}
   </div>
 }
 
@@ -642,8 +658,8 @@ function WorkGrid({ shell, setShell, owner, orgslug, username, token }: any) {
 
 function ResumeView({ shell, username }: { shell: Shell; orgslug: string; username?: string; owner: boolean }) {
   const displayName = shell.portfolio.display_name || username || 'Your name'
-  const experience = (shell.journey || []).filter((entry) => ['employment', 'volunteering', 'experience', 'other'].includes(entry.entry_type))
-  const education = (shell.journey || []).filter((entry) => ['education', 'training'].includes(entry.entry_type))
+  const experience = (shell.timeline || []).filter((entry) => ['employment', 'volunteering', 'experience', 'other'].includes(entry.entry_type))
+  const education = (shell.timeline || []).filter((entry) => ['education', 'training'].includes(entry.entry_type))
   const canvasRef = useRef<HTMLDivElement | null>(null)
   const pageRef = useRef<HTMLElement | null>(null)
   const [fitScale, setFitScale] = useState(1)
@@ -695,8 +711,8 @@ function ResumeView({ shell, username }: { shell: Shell; orgslug: string; userna
       </aside>
       <div className="space-y-7">
         {shell.portfolio.short_bio && <ResumeSection title="Summary"><p className="leading-7 text-muted-foreground">{shell.portfolio.short_bio}</p></ResumeSection>}
-        <ResumeSection title="Experience">{experience.length ? experience.map((entry) => <ResumeJourneyEntry key={entry.journey_uuid} entry={entry} />) : <p className="text-sm text-muted-foreground">Add jobs, internships, or other experience to your timeline.</p>}</ResumeSection>
-        {education.length > 0 && <ResumeSection title="Education & Training">{education.map((entry) => <ResumeJourneyEntry key={entry.journey_uuid} entry={entry} />)}</ResumeSection>}
+        <ResumeSection title="Experience">{experience.length ? experience.map((entry) => <ResumeTimelineEntry key={entry.timeline_uuid} entry={entry} />) : <p className="text-sm text-muted-foreground">Add jobs, internships, or other experience to your timeline.</p>}</ResumeSection>
+        {education.length > 0 && <ResumeSection title="Education & Training">{education.map((entry) => <ResumeTimelineEntry key={entry.timeline_uuid} entry={entry} />)}</ResumeSection>}
         <ResumeSection title="Projects">{shell.work?.length ? shell.work.slice(0, 5).map((work) => { const description = String(work.blocks.find((block) => block.block_type === 'text')?.data?.text || work.summary || ''); return <div key={work.work_uuid} className="break-inside-avoid"><div className="flex items-center gap-2"><Briefcase className="h-4 w-4 text-muted-foreground" /><h3 className="font-semibold">{work.title}</h3></div>{formatWorkDate(work.start_date, work.end_date) && <p className="mt-1 text-sm font-medium text-muted-foreground">{formatWorkDate(work.start_date, work.end_date)}</p>}{description && <p className="mt-1.5 whitespace-pre-wrap leading-6 text-muted-foreground">{description}</p>}</div> }) : <p className="text-sm text-muted-foreground">Add projects to fill this section.</p>}</ResumeSection>
       </div>
     </article>
@@ -709,8 +725,8 @@ function ResumeSection({ title, children }: { title: string; children: React.Rea
   return <section className="break-inside-avoid"><h2 className="border-b border-border pb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{title}</h2><div className="mt-3 space-y-4">{children}</div></section>
 }
 
-function ResumeJourneyEntry({ entry }: { entry: JourneyEntry }) {
-  return <div className="grid break-inside-avoid grid-cols-[1fr_auto] gap-x-4"><div><div className="flex items-center gap-2">{['education', 'training'].includes(entry.entry_type) ? <GraduationCap className="h-4 w-4 text-muted-foreground" /> : <Briefcase className="h-4 w-4 text-muted-foreground" />}<h3 className="font-semibold">{entry.title}</h3></div>{entry.organization && <p className="mt-1 text-sm font-medium text-muted-foreground">{entry.organization}</p>}{entry.summary && <p className="mt-1.5 whitespace-pre-wrap leading-6 text-muted-foreground">{entry.summary}</p>}</div><p className="text-right text-sm font-medium text-muted-foreground">{journeyDateLabel(entry)}</p></div>
+function ResumeTimelineEntry({ entry }: { entry: TimelineEntry }) {
+  return <div className="grid break-inside-avoid grid-cols-[1fr_auto] gap-x-4"><div><div className="flex items-center gap-2">{['education', 'training'].includes(entry.entry_type) ? <GraduationCap className="h-4 w-4 text-muted-foreground" /> : <Briefcase className="h-4 w-4 text-muted-foreground" />}<h3 className="font-semibold">{entry.title}</h3></div>{entry.organization && <p className="mt-1 text-sm font-medium text-muted-foreground">{entry.organization}</p>}{entry.summary && <p className="mt-1.5 whitespace-pre-wrap leading-6 text-muted-foreground">{entry.summary}</p>}</div><p className="text-right text-sm font-medium text-muted-foreground">{timelineDateLabel(entry)}</p></div>
 }
 
 export function WorkCardView({ item, href, preview = false }: { item: Work; href?: string; preview?: boolean }) { const card = <div className="group min-w-0"><div className="aspect-[4/3] overflow-hidden rounded-xl bg-muted">{item.cover_url ? <img src={normalizeMediaUrl(item.cover_url)} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]" /> : <div className="flex h-full items-center justify-center px-4 text-center text-sm font-semibold text-muted-foreground">{item.title || 'Your projects'}</div>}</div><h3 className="mt-3 line-clamp-2 text-sm font-bold leading-snug sm:text-base">{item.title || 'Your projects'}</h3>{(item.summary || String(item.blocks.find((block) => block.block_type === 'text')?.data?.text || '')) && <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{item.summary || String(item.blocks.find((block) => block.block_type === 'text')?.data?.text || '')}</p>}{preview && <span className="sr-only">Preview of your Work card</span>}</div>; return href ? <Link href={href}>{card}</Link> : card }

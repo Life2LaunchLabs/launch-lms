@@ -1,29 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/auth/server'
-import ProfileTimeline from '@components/Objects/Portfolio/ProfileTimeline'
-import { getUser } from '@services/users/users'
-import { getUriWithOrg, routePaths } from '@services/config/config'
-
-const ProfileTimelinePage = async (props: { params: Promise<{ orgslug: string }> }) => {
-  const params = await props.params
-  const session = await getServerSession()
-  const accessToken = session?.tokens?.access_token
-  const userId = session?.user?.id
-
-  if (!accessToken || !userId) {
-    redirect(getUriWithOrg(params.orgslug, routePaths.org.root()))
-  }
-
-  const user = await getUser(String(userId), accessToken)
-
-  return (
-    <ProfileTimeline
-      initialUser={user}
-      orgslug={params.orgslug}
-      canEdit
-      editMode
-    />
-  )
-}
-
-export default ProfileTimelinePage
+import { PortfolioShell } from '@components/Pages/Portfolio/PortfolioShell'
+import { getMyPortfolio } from '@services/portfolio/portfolio'
+import { getUriWithOrg } from '@services/config/config'
+export default async function TimelinePage({ params }: { params: Promise<{ orgslug: string }> }) { const { orgslug } = await params; const session = await getServerSession(); const token = session?.tokens?.access_token; if (!token) redirect(getUriWithOrg(orgslug, '/')); return <PortfolioShell initialShell={await getMyPortfolio(token)} orgslug={orgslug} username={session?.user?.username} owner active="timeline"/> }

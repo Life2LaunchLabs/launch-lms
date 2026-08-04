@@ -15,13 +15,13 @@ from src.db.learning import (
 from src.db.media import MediaAsset
 from src.db.organizations import Organization
 from src.db.portfolio import (
-    JourneyEntry,
-    JourneyEntryBlock,
-    JourneyEntryCreate,
-    JourneyEntryUpdate,
-    JourneyWorkLink,
+    TimelineEntry,
+    TimelineEntryBlock,
+    TimelineEntryCreate,
+    TimelineEntryUpdate,
+    TimelineWorkLink,
     Portfolio,
-    PortfolioFeaturedJourneyUpdate,
+    PortfolioFeaturedTimelineUpdate,
     PortfolioFeaturedWorkUpdate,
     PortfolioTraitsUpdate,
     PortfolioLink,
@@ -62,9 +62,9 @@ def _session():
             ProfileTrait.__table__,
             WorkItem.__table__,
             WorkItemBlock.__table__,
-            JourneyEntry.__table__,
-            JourneyEntryBlock.__table__,
-            JourneyWorkLink.__table__,
+            TimelineEntry.__table__,
+            TimelineEntryBlock.__table__,
+            TimelineWorkLink.__table__,
             LearningBadge.__table__,
             LearningPath.__table__,
             LearningActivity.__table__,
@@ -127,28 +127,28 @@ def test_launch_ready_checklist_is_content_derived():
         assert state["completed"] == 1
         assert state["total"] == 7
         assert state["items"][0]["complete"] is True
-        assert state["nextIncomplete"]["key"] == "current_chapter"
+        assert state["nextIncomplete"]["key"] == "current_experience"
 
         portfolio = Portfolio(
-            portfolio_uuid="por_journey_checklist",
+            portfolio_uuid="por_timeline_checklist",
             user_id=1,
             creation_date="",
             update_date="",
         )
         db.add(portfolio)
         db.flush()
-        db.add(JourneyEntry(
-            journey_uuid="jrn_past",
+        db.add(TimelineEntry(
+            timeline_uuid="tml_past",
             portfolio_id=portfolio.id,
-            title="A previous chapter",
-            slug="previous-chapter",
+            title="A previous experience",
+            slug="previous-experience",
             is_current=False,
             creation_date="",
             update_date="",
         ))
         db.commit()
 
-        state = service._launch_ready_state(1, db, journey_count=1)
+        state = service._launch_ready_state(1, db, timeline_count=1)
         assert state["items"][1]["complete"] is True
 
 
@@ -374,7 +374,7 @@ def test_public_shell_uses_allowlisted_dtos_without_internal_fields():
         assert public["work"][0]["work_uuid"] == work["work_uuid"]
 
 
-def test_activity_journey_outcome_assigns_only_an_owned_cover_image():
+def test_activity_timeline_outcome_assigns_only_an_owned_cover_image():
     with _session() as db:
         user = _user()
         db.add(user)
@@ -386,7 +386,7 @@ def test_activity_journey_outcome_assigns_only_an_owned_cover_image():
             source_type="upload",
             media_type="image",
             title="Chapter",
-            url="/chapter.jpg",
+            url="/experience.jpg",
         )
         foreign = MediaAsset(
             asset_uuid="asset_foreign",
@@ -404,10 +404,10 @@ def test_activity_journey_outcome_assigns_only_an_owned_cover_image():
             "version": 1,
             "actions": [
                 {
-                    "id": "chapter",
-                    "type": "create_journey_entry",
+                    "id": "experience",
+                    "type": "create_timeline_entry",
                     "fields": {
-                        "title": "My chapter",
+                        "title": "My experience",
                         "cover_asset_uuid": "asset_owned",
                         "is_current": True,
                     },
@@ -416,7 +416,7 @@ def test_activity_journey_outcome_assigns_only_an_owned_cover_image():
         }
         apply_portfolio_outcomes(db, user, 7, outcomes, {"answers": {}, "bindings": {}})
         db.commit()
-        entry = db.exec(select(JourneyEntry)).one()
+        entry = db.exec(select(TimelineEntry)).one()
         assert entry.cover_asset_id == owned.id
 
         invalid = {
@@ -424,7 +424,7 @@ def test_activity_journey_outcome_assigns_only_an_owned_cover_image():
             "actions": [
                 {
                     "id": "other",
-                    "type": "create_journey_entry",
+                    "type": "create_timeline_entry",
                     "fields": {
                         "title": "Not mine",
                         "cover_asset_uuid": "asset_foreign",
@@ -442,7 +442,7 @@ def test_activity_journey_outcome_assigns_only_an_owned_cover_image():
             "actions": [
                 {
                     "id": "bad-date",
-                    "type": "create_journey_entry",
+                    "type": "create_timeline_entry",
                     "fields": {
                         "title": "Broken date",
                         "start_date": "sometime last year",
@@ -456,7 +456,7 @@ def test_activity_journey_outcome_assigns_only_an_owned_cover_image():
             )
 
 
-def test_activity_work_outcome_persists_story_cover_and_existing_journey_link():
+def test_activity_work_outcome_persists_story_cover_and_existing_timeline_link():
     with _session() as db:
         user = _user()
         db.add(user)
@@ -477,15 +477,15 @@ def test_activity_work_outcome_persists_story_cover_and_existing_journey_link():
         )
         db.add(portfolio)
         db.flush()
-        journey = JourneyEntry(
-            journey_uuid="jrn_existing",
+        timeline = TimelineEntry(
+            timeline_uuid="tml_existing",
             portfolio_id=portfolio.id,
-            title="My current chapter",
+            title="My current experience",
             slug="current",
             creation_date="",
             update_date="",
         )
-        db.add(journey)
+        db.add(timeline)
         db.commit()
         outcomes = {
             "version": 1,
@@ -504,9 +504,9 @@ def test_activity_work_outcome_persists_story_cover_and_existing_journey_link():
                 },
                 {
                     "id": "link",
-                    "type": "link_work_to_journey",
+                    "type": "link_work_to_timeline",
                     "work": {"$source": "binding", "key": "work_item_id"},
-                    "journey": "jrn_existing",
+                    "timeline": "tml_existing",
                     "optional": True,
                 },
             ],
@@ -533,9 +533,9 @@ def test_activity_work_outcome_persists_story_cover_and_existing_journey_link():
             ("image", {"asset_uuid": "asset_work", "url": "/work.jpg", "caption": ""}),
         ]
         assert db.exec(
-            select(JourneyWorkLink).where(
-                JourneyWorkLink.work_item_id == work.id,
-                JourneyWorkLink.journey_entry_id == journey.id,
+            select(TimelineWorkLink).where(
+                TimelineWorkLink.work_item_id == work.id,
+                TimelineWorkLink.timeline_entry_id == timeline.id,
             )
         ).one()
 
@@ -607,30 +607,30 @@ def test_featured_work_allows_multiple_selections():
         assert not any(item["featured"] for item in shell["work"])
 
 
-def test_featured_journey_allows_multiple_selections():
+def test_featured_timeline_allows_multiple_selections():
     with _session() as db:
         user = _user()
         db.add(user)
         db.commit()
         actor = _public(user)
-        first = service.create_journey(JourneyEntryCreate(title="First"), actor, db)
-        second = service.create_journey(JourneyEntryCreate(title="Second"), actor, db)
+        first = service.create_timeline(TimelineEntryCreate(title="First"), actor, db)
+        second = service.create_timeline(TimelineEntryCreate(title="Second"), actor, db)
 
-        shell = service.update_featured_journey(
-            PortfolioFeaturedJourneyUpdate(
-                journey_uuids=[first["journey_uuid"], second["journey_uuid"]]
+        shell = service.update_featured_timeline(
+            PortfolioFeaturedTimelineUpdate(
+                timeline_uuids=[first["timeline_uuid"], second["timeline_uuid"]]
             ),
             actor,
             db,
         )
 
-        assert {item["title"] for item in shell["journey"] if item["featured"]} == {
+        assert {item["title"] for item in shell["timeline"] if item["featured"]} == {
             "First",
             "Second",
         }
         with pytest.raises(HTTPException) as error:
-            service.update_featured_journey(
-                PortfolioFeaturedJourneyUpdate(journey_uuids=["not-mine"]), actor, db
+            service.update_featured_timeline(
+                PortfolioFeaturedTimelineUpdate(timeline_uuids=["not-mine"]), actor, db
             )
         assert error.value.status_code == 422
 
@@ -722,43 +722,43 @@ def test_header_socials_can_be_added_edited_and_removed():
         assert removed["portfolio"]["socials"] == []
 
 
-def test_journey_current_first_links_work_and_checks_revision():
+def test_timeline_current_first_links_work_and_checks_revision():
     with _session() as db:
         user = _user()
         db.add(user)
         db.commit()
         actor = _public(user)
         image = MediaAsset(
-            asset_uuid="asset_chapter",
+            asset_uuid="asset_experience",
             owner_type="user",
             owner_user_id=1,
             created_by_user_id=1,
             source_type="upload",
             media_type="image",
-            url="/media/chapter.jpg",
+            url="/media/experience.jpg",
         )
         db.add(image)
         db.commit()
         work = service.create_work(WorkItemCreate(title="StudyMate"), actor, db)
-        older = service.create_journey(
-            JourneyEntryCreate(
+        older = service.create_timeline(
+            TimelineEntryCreate(
                 title="Started school", entry_type="education", start_date="2023-09"
             ),
             actor,
             db,
         )
-        current = service.create_journey(
-            JourneyEntryCreate(
+        current = service.create_timeline(
+            TimelineEntryCreate(
                 title="Design internship",
                 start_date="2025-01",
                 is_current=True,
-                cover_asset_uuid="asset_chapter",
+                cover_asset_uuid="asset_experience",
                 blocks=[
                     {
                         "block_type": "image",
                         "data": {
-                            "asset_uuid": "asset_chapter",
-                            "url": "/media/chapter.jpg",
+                            "asset_uuid": "asset_experience",
+                            "url": "/media/experience.jpg",
                         },
                     }
                 ],
@@ -770,18 +770,18 @@ def test_journey_current_first_links_work_and_checks_revision():
             db,
         )
         shell = service.get_owner_shell(actor, db)
-        assert shell["journey"][0]["journey_uuid"] == current["journey_uuid"]
-        assert shell["journey"][0]["work"][0]["title"] == "StudyMate"
-        assert shell["journey"][0]["cover_url"] == "/media/chapter.jpg"
-        assert shell["journey"][0]["blocks"][0]["data"]["asset_uuid"] == "asset_chapter"
+        assert shell["timeline"][0]["timeline_uuid"] == current["timeline_uuid"]
+        assert shell["timeline"][0]["work"][0]["title"] == "StudyMate"
+        assert shell["timeline"][0]["cover_url"] == "/media/experience.jpg"
+        assert shell["timeline"][0]["blocks"][0]["data"]["asset_uuid"] == "asset_experience"
         assert (
-            next(view for view in shell["views"] if view["key"] == "journey")["visible"]
+            next(view for view in shell["views"] if view["key"] == "timeline")["visible"]
             is True
         )
         with pytest.raises(HTTPException) as error:
-            service.update_journey(
-                older["journey_uuid"],
-                JourneyEntryUpdate(revision=999, title="Stale"),
+            service.update_timeline(
+                older["timeline_uuid"],
+                TimelineEntryUpdate(revision=999, title="Stale"),
                 actor,
                 db,
             )
@@ -808,5 +808,5 @@ def test_legacy_timeline_import_is_repeatable():
             service.execute_legacy_import(actor, db),
             service.execute_legacy_import(actor, db),
         )
-        assert first["journeyImported"] == 1
-        assert second["journeyImported"] == 0
+        assert first["timelineImported"] == 1
+        assert second["timelineImported"] == 0

@@ -1,33 +1,35 @@
 **Source visual truth**
 
-- Four mobile UI references attached in the conversation: checklist popover, compact next-step bar, educational empty tab, and stacked add-action cards.
+- User-provided LinkedIn add-experience and media-section screenshots in this conversation.
 
-**Implementation**
+**Implementation evidence**
 
-- `apps/web/components/Pages/Portfolio/PortfolioShell.tsx`
-- `apps/web/components/Pages/Portfolio/Journey.tsx`
-
-**Viewport and state**
-
-- Intended comparison: responsive owner portfolio at mobile and desktop widths, with the checklist closed/open and Work, Journey, Badges, Resume, and Overview empty states.
-
-**Full-view comparison evidence**
-
-- Blocked: this workspace does not expose a cloud or in-app browser capable of opening and capturing the authenticated local portfolio.
-
-**Focused region comparison evidence**
-
-- Blocked for the same reason. The implementation was checked structurally against the supplied references, but code inspection is not visual evidence.
+- Implementation screenshot: unavailable.
+- Viewport and pixel dimensions: unavailable.
+- State: Timeline header category menu and add-experience modal.
+- Browser interactions and console: not tested because this session has no compatible local browser surface.
 
 **Findings**
 
-- No browser-rendered evidence is available to evaluate typography, responsive spacing, token rendering, icon scale, popover placement, or final copy wrapping.
-- TypeScript compilation, focused backend tests, and whitespace validation pass; these checks do not replace visual QA.
+- No visual comparison findings can be responsibly reported without a browser-rendered implementation capture.
+
+**Open Questions**
+
+- The implementation intentionally follows Launch LMS tokens and component patterns while using the reference for modal hierarchy and section structure, so it is not intended to be a pixel-identical LinkedIn clone.
+
+**Implementation Checklist**
+
+- Capture the Timeline header with its category menu open.
+- Capture each type's modal state at desktop and mobile widths.
+- Test type switching, date precision, current-date behavior, detail-chip exclusivity, media selection, project selection, and save.
+- Compare the captures with the reference and address any P0/P1/P2 findings.
+
+**Follow-up Polish**
+
+- Revisit modal density after testing with realistic long project lists and multiple media assets.
 
 **Comparison history**
 
-- No visual iteration could be performed because an authenticated browser capture is unavailable.
-
-**Final result**
+- No comparison iteration was possible because browser-rendered evidence was unavailable.
 
 final result: blocked
