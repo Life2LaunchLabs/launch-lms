@@ -19,7 +19,7 @@ from src.db.portfolio import (
     PortfolioBadgeVisibilityUpdate,
     PortfolioFeaturedBadgesUpdate,
     PortfolioFeaturedTimelineUpdate,
-    PortfolioFeaturedWorkUpdate,
+    PortfolioFeaturedProjectUpdate,
     PortfolioSectionsUpdate,
     ProfileTrait,
     PortfolioVisibility,
@@ -28,11 +28,11 @@ from src.db.portfolio import (
     TimelineEntryBlock,
     TimelineEntryCreate,
     TimelineEntryUpdate,
-    TimelineWorkLink,
-    WorkItem,
-    WorkItemBlock,
-    WorkItemCreate,
-    WorkItemUpdate,
+    TimelineProjectLink,
+    ProjectItem,
+    ProjectItemBlock,
+    ProjectItemCreate,
+    ProjectItemUpdate,
 )
 from src.db.media import MediaAsset
 from src.db.user_organizations import UserOrganization
@@ -56,7 +56,7 @@ DEFAULT_SECTIONS = (
     "featured_badges",
     "traits",
     "current_timeline",
-    "featured_work",
+    "featured_projects",
     "instagram",
     "youtube",
 )
@@ -81,7 +81,7 @@ def _now() -> str:
 
 def _slug(value: str) -> str:
     clean = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
-    return clean[:80] or "work"
+    return clean[:80] or "project"
 
 
 def _enum_value(value) -> str:
@@ -128,7 +128,7 @@ def _get_portfolio(db_session: Session, user_id: int) -> Portfolio | None:
 
 
 def _launch_ready_state(
-    user_id: int, db_session: Session, work_count: int = 0, timeline_count: int = 0
+    user_id: int, db_session: Session, project_count: int = 0, timeline_count: int = 0
 ) -> dict:
     bind = db_session.get_bind()
     if not inspect(bind).has_table("learningactivity"):
@@ -157,7 +157,7 @@ def _launch_ready_state(
     facts = {
         "onboarding": onboarding_complete,
         "current_experience": has_timeline,
-        "work": work_count > 0,
+        "projects": project_count > 0,
         "strength": any(item.trait_type == "strength" for item in traits),
         "value": any(item.trait_type == "value" for item in traits),
         "badge_started": started_other_badge,
@@ -166,7 +166,7 @@ def _launch_ready_state(
     definitions = [
         ("onboarding", "Complete your profile", "Add your name, introduction, and the basics that make this portfolio yours.", "/badges/badge_system_onboarding/chapter/learning_activity_system_onboarding_intro?returnTo=/portfolio"),
         ("current_experience", "Add a Timeline experience", "Share a current, recent, or formative part of your story.", "/portfolio/timeline?experience=work_career"),
-        ("work", "Add your first work item", "Show a project, performance, volunteer effort, hobby, or anything you made.", "/portfolio/work/new"),
+        ("projects", "Add your first project", "Show a project, performance, volunteer effort, hobby, or anything you made.", "/portfolio/projects/new"),
         ("strength", "Add your strengths", "Name what you are good at or actively developing.", "/portfolio?edit=strengths"),
         ("value", "Add your values", "Share what matters to you and guides your choices.", "/portfolio?edit=values"),
         ("badge_started", "Find a badge to start", "Choose something you want to learn or prove, then start its badge path.", "/badges?choose=1"),
@@ -252,24 +252,24 @@ def get_or_create_portfolio(current_user: PublicUser, db_session: Session) -> Po
     return portfolio
 
 
-def _work_query(portfolio_id: int, public_only: bool = False):
-    statement = select(WorkItem).where(
-        WorkItem.portfolio_id == portfolio_id,
-        WorkItem.status != PortfolioContentStatus.ARCHIVED.value,
+def _project_query(portfolio_id: int, public_only: bool = False):
+    statement = select(ProjectItem).where(
+        ProjectItem.portfolio_id == portfolio_id,
+        ProjectItem.status != PortfolioContentStatus.ARCHIVED.value,
     )
     if public_only:
         statement = statement.where(
-            WorkItem.status == PortfolioContentStatus.PUBLISHED.value,
-            WorkItem.visibility != PortfolioVisibility.PRIVATE.value,
+            ProjectItem.status == PortfolioContentStatus.PUBLISHED.value,
+            ProjectItem.visibility != PortfolioVisibility.PRIVATE.value,
         )
-    return statement.order_by(WorkItem.featured.desc(), WorkItem.update_date.desc())
+    return statement.order_by(ProjectItem.featured.desc(), ProjectItem.update_date.desc())
 
 
-def _work_dto(work: WorkItem, db_session: Session, public_only: bool = False) -> dict:
+def _project_dto(project: ProjectItem, db_session: Session, public_only: bool = False) -> dict:
     blocks = db_session.exec(
-        select(WorkItemBlock)
-        .where(WorkItemBlock.work_item_id == work.id)
-        .order_by(WorkItemBlock.sort_order)
+        select(ProjectItemBlock)
+        .where(ProjectItemBlock.project_item_id == project.id)
+        .order_by(ProjectItemBlock.sort_order)
     ).all()
     if public_only:
         blocks = [
@@ -279,25 +279,25 @@ def _work_dto(work: WorkItem, db_session: Session, public_only: bool = False) ->
         ]
     cover = (
         db_session.exec(
-            select(MediaAsset).where(MediaAsset.id == work.cover_asset_id)
+            select(MediaAsset).where(MediaAsset.id == project.cover_asset_id)
         ).first()
-        if work.cover_asset_id
+        if project.cover_asset_id
         else None
     )
     if public_only:
         return {
-            "work_uuid": work.work_uuid,
-            "slug": work.slug,
-            "story_kind": _enum_value(work.story_kind),
-            "title": work.title,
-            "subtitle": work.subtitle,
-            "summary": work.summary,
-            "role_label": work.role_label,
-            "start_date": work.start_date,
-            "end_date": work.end_date,
-            "date_precision": work.date_precision,
-            "is_ongoing": work.is_ongoing,
-            "featured": work.featured,
+            "project_uuid": project.project_uuid,
+            "slug": project.slug,
+            "story_kind": _enum_value(project.story_kind),
+            "title": project.title,
+            "subtitle": project.subtitle,
+            "summary": project.summary,
+            "role_label": project.role_label,
+            "start_date": project.start_date,
+            "end_date": project.end_date,
+            "date_precision": project.date_precision,
+            "is_ongoing": project.is_ongoing,
+            "featured": project.featured,
             "cover_url": cover.url if cover else "",
             "blocks": [
                 {
@@ -310,10 +310,10 @@ def _work_dto(work: WorkItem, db_session: Session, public_only: bool = False) ->
             ],
         }
     return {
-        **work.model_dump(),
-        "story_kind": _enum_value(work.story_kind),
-        "status": _enum_value(work.status),
-        "visibility": _enum_value(work.visibility),
+        **project.model_dump(),
+        "story_kind": _enum_value(project.story_kind),
+        "status": _enum_value(project.status),
+        "visibility": _enum_value(project.visibility),
         "cover_url": cover.url if cover else "",
         "cover_asset_uuid": cover.asset_uuid if cover else None,
         "blocks": [block.model_dump() for block in blocks],
@@ -341,9 +341,9 @@ def _timeline_dto(
     entry: TimelineEntry, db_session: Session, public_only: bool = False
 ) -> dict:
     links = db_session.exec(
-        select(TimelineWorkLink)
-        .where(TimelineWorkLink.timeline_entry_id == entry.id)
-        .order_by(TimelineWorkLink.sort_order)
+        select(TimelineProjectLink)
+        .where(TimelineProjectLink.timeline_entry_id == entry.id)
+        .order_by(TimelineProjectLink.sort_order)
     ).all()
     blocks = list(
         db_session.exec(
@@ -365,24 +365,24 @@ def _timeline_dto(
         if entry.cover_asset_id
         else None
     )
-    linked_work = []
+    linked_project = []
     for link in links:
-        work = db_session.exec(
-            select(WorkItem).where(WorkItem.id == link.work_item_id)
+        project = db_session.exec(
+            select(ProjectItem).where(ProjectItem.id == link.project_item_id)
         ).first()
         if (
-            not work
-            or _enum_value(work.status) == PortfolioContentStatus.ARCHIVED.value
+            not project
+            or _enum_value(project.status) == PortfolioContentStatus.ARCHIVED.value
         ):
             continue
         if public_only and (
-            _enum_value(work.status) != PortfolioContentStatus.PUBLISHED.value
-            or _enum_value(work.visibility) == PortfolioVisibility.PRIVATE.value
+            _enum_value(project.status) != PortfolioContentStatus.PUBLISHED.value
+            or _enum_value(project.visibility) == PortfolioVisibility.PRIVATE.value
         ):
             continue
-        linked_work.append(
+        linked_project.append(
             {
-                **_work_dto(work, db_session, public_only),
+                **_project_dto(project, db_session, public_only),
                 "relationship_label": link.relationship_label,
             }
         )
@@ -411,7 +411,7 @@ def _timeline_dto(
                 }
                 for block in blocks
             ],
-            "work": linked_work,
+            "projects": linked_project,
         }
     return {
         **entry.model_dump(),
@@ -420,7 +420,7 @@ def _timeline_dto(
         "cover_url": cover.url if cover else "",
         "cover_asset_uuid": cover.asset_uuid if cover else None,
         "blocks": [block.model_dump() for block in blocks],
-        "work": linked_work,
+        "projects": linked_project,
     }
 
 
@@ -452,11 +452,11 @@ def portfolio_shell(
     legacy_preview = (
         legacy_import_preview(user, db_session)
         if user and not public_only
-        else {"work": [], "timeline": []}
+        else {"projects": [], "timeline": []}
     )
     socials_migrated = bool((portfolio.theme_settings or {}).get("socials_migrated"))
-    work = list(
-        db_session.exec(_work_query(portfolio.id or 0, public_only=public_only)).all()
+    project = list(
+        db_session.exec(_project_query(portfolio.id or 0, public_only=public_only)).all()
     )
     timeline = list(
         db_session.exec(
@@ -480,7 +480,7 @@ def portfolio_shell(
             for item in traits
             if _enum_value(item.visibility) != PortfolioVisibility.PRIVATE.value
         ]
-    meaningful_count = len(work) + len(timeline)
+    meaningful_count = len(project) + len(timeline)
     sections = list(
         db_session.exec(
             select(PortfolioSection)
@@ -496,7 +496,7 @@ def portfolio_shell(
             and _enum_value(section.visibility) != PortfolioVisibility.PRIVATE.value
         ]
     launch_ready = (
-        _launch_ready_state(portfolio.user_id, db_session, len(work), len(timeline))
+        _launch_ready_state(portfolio.user_id, db_session, len(project), len(timeline))
         if not public_only
         else None
     )
@@ -639,9 +639,9 @@ def portfolio_shell(
     views = [
         {"key": "overview", "visible": True, "itemCount": 1},
         {
-            "key": "work",
-            "visible": not public_only or bool(work),
-            "itemCount": len(work),
+            "key": "projects",
+            "visible": not public_only or bool(project),
+            "itemCount": len(project),
         },
         {
             "key": "timeline",
@@ -650,8 +650,8 @@ def portfolio_shell(
         },
         {
             "key": "resume",
-            "visible": not public_only or bool(work or timeline),
-            "itemCount": len(work) + len(timeline),
+            "visible": not public_only or bool(project or timeline),
+            "itemCount": len(project) + len(timeline),
         },
         {
             "key": "badges",
@@ -693,7 +693,7 @@ def portfolio_shell(
                     "email": user.email if user else "",
                     "email_verified": bool(user.email_verified) if user else False,
                     "has_legacy_portfolio": bool(
-                        legacy_preview["work"] or legacy_preview["timeline"]
+                        legacy_preview["projects"] or legacy_preview["timeline"]
                     )
                     and not bool((portfolio.theme_settings or {}).get("legacy_import_dismissed")),
                 }
@@ -712,7 +712,7 @@ def portfolio_shell(
             "canEdit": not public_only,
             "canPublish": not public_only and state != "restricted",
         },
-        "work": [_work_dto(item, db_session, public_only=public_only) for item in work],
+        "projects": [_project_dto(item, db_session, public_only=public_only) for item in project],
         "timeline": [
             {
                 **_timeline_dto(item, db_session, public_only=public_only),
@@ -783,27 +783,27 @@ def update_featured_badges(
     return portfolio_shell(portfolio, db_session)
 
 
-def update_featured_work(
-    payload: PortfolioFeaturedWorkUpdate, current_user: PublicUser, db_session: Session
+def update_featured_projects(
+    payload: PortfolioFeaturedProjectUpdate, current_user: PublicUser, db_session: Session
 ) -> dict:
     portfolio = get_or_create_portfolio(current_user, db_session)
-    work = list(db_session.exec(_work_query(portfolio.id or 0)).all())
+    project = list(db_session.exec(_project_query(portfolio.id or 0)).all())
     requested = list(
         dict.fromkeys(
-            payload.work_uuids
-            if payload.work_uuids is not None
-            else ([payload.work_uuid] if payload.work_uuid else [])
+            payload.project_uuids
+            if payload.project_uuids is not None
+            else ([payload.project_uuid] if payload.project_uuid else [])
         )
     )
-    available = {item.work_uuid for item in work}
-    if any(work_uuid not in available for work_uuid in requested):
+    available = {item.project_uuid for item in project}
+    if any(project_uuid not in available for project_uuid in requested):
         raise HTTPException(
-            status_code=422, detail="Only your available work can be featured"
+            status_code=422, detail="Only your available project can be featured"
         )
     now = _now()
     changed = False
-    for item in work:
-        featured = item.work_uuid in requested
+    for item in project:
+        featured = item.project_uuid in requested
         if item.featured != featured:
             item.featured = featured
             item.revision += 1
@@ -1057,8 +1057,8 @@ def _unique_slug(
     counter = 2
     while True:
         existing = db_session.exec(
-            select(WorkItem).where(
-                WorkItem.portfolio_id == portfolio_id, WorkItem.slug == candidate
+            select(ProjectItem).where(
+                ProjectItem.portfolio_id == portfolio_id, ProjectItem.slug == candidate
             )
         ).first()
         if not existing or existing.id == exclude_id:
@@ -1067,9 +1067,9 @@ def _unique_slug(
         counter += 1
 
 
-def _replace_blocks(work: WorkItem, blocks: list[dict], db_session: Session) -> None:
+def _replace_blocks(project: ProjectItem, blocks: list[dict], db_session: Session) -> None:
     for existing in db_session.exec(
-        select(WorkItemBlock).where(WorkItemBlock.work_item_id == work.id)
+        select(ProjectItemBlock).where(ProjectItemBlock.project_item_id == project.id)
     ).all():
         db_session.delete(existing)
     now = _now()
@@ -1077,12 +1077,12 @@ def _replace_blocks(work: WorkItem, blocks: list[dict], db_session: Session) -> 
         block_type = str(raw.get("block_type") or raw.get("type") or "text")
         if block_type not in ALLOWED_BLOCK_TYPES:
             raise HTTPException(
-                status_code=422, detail=f"Unsupported Work block type: {block_type}"
+                status_code=422, detail=f"Unsupported Project block type: {block_type}"
             )
         db_session.add(
-            WorkItemBlock(
+            ProjectItemBlock(
                 block_uuid=f"wbl_{uuid4().hex}",
-                work_item_id=work.id or 0,
+                project_item_id=project.id or 0,
                 block_type=block_type,
                 data=raw.get("data") or {},
                 sort_order=index,
@@ -1109,25 +1109,25 @@ def _cover_asset_id(
     return asset.id
 
 
-def create_work(
-    payload: WorkItemCreate, current_user: PublicUser, db_session: Session
+def create_project(
+    payload: ProjectItemCreate, current_user: PublicUser, db_session: Session
 ) -> dict:
     portfolio = get_or_create_portfolio(current_user, db_session)
     if payload.idempotency_key:
         existing = db_session.exec(
-            select(WorkItem).where(
-                WorkItem.portfolio_id == portfolio.id,
-                WorkItem.source_reference == payload.idempotency_key,
+            select(ProjectItem).where(
+                ProjectItem.portfolio_id == portfolio.id,
+                ProjectItem.source_reference == payload.idempotency_key,
             )
         ).first()
         if existing:
-            return _work_dto(existing, db_session)
+            return _project_dto(existing, db_session)
     title = payload.title.strip()
     if not title:
         raise HTTPException(status_code=422, detail="Title is required")
     now = _now()
-    work = WorkItem(
-        work_uuid=f"wrk_{uuid4().hex}",
+    project = ProjectItem(
+        project_uuid=f"prj_{uuid4().hex}",
         portfolio_id=portfolio.id or 0,
         title=title,
         story_kind=payload.story_kind,
@@ -1147,72 +1147,72 @@ def create_work(
         creation_date=now,
         update_date=now,
     )
-    db_session.add(work)
+    db_session.add(project)
     db_session.flush()
-    _replace_blocks(work, payload.blocks, db_session)
+    _replace_blocks(project, payload.blocks, db_session)
     portfolio.revision += 1
     portfolio.update_date = now
     db_session.add(portfolio)
     db_session.commit()
-    db_session.refresh(work)
-    return _work_dto(work, db_session)
+    db_session.refresh(project)
+    return _project_dto(project, db_session)
 
 
-def _owner_work(
-    work_uuid: str, current_user: PublicUser, db_session: Session
-) -> tuple[Portfolio, WorkItem]:
+def _owner_project(
+    project_uuid: str, current_user: PublicUser, db_session: Session
+) -> tuple[Portfolio, ProjectItem]:
     portfolio = get_or_create_portfolio(current_user, db_session)
-    work = db_session.exec(
-        select(WorkItem).where(
-            WorkItem.work_uuid == work_uuid, WorkItem.portfolio_id == portfolio.id
+    project = db_session.exec(
+        select(ProjectItem).where(
+            ProjectItem.project_uuid == project_uuid, ProjectItem.portfolio_id == portfolio.id
         )
     ).first()
-    if not work:
-        raise HTTPException(status_code=404, detail="Work item not found")
-    return portfolio, work
+    if not project:
+        raise HTTPException(status_code=404, detail="Project item not found")
+    return portfolio, project
 
 
-def update_work(
-    work_uuid: str,
-    payload: WorkItemUpdate,
+def update_project(
+    project_uuid: str,
+    payload: ProjectItemUpdate,
     current_user: PublicUser,
     db_session: Session,
 ) -> dict:
-    portfolio, work = _owner_work(work_uuid, current_user, db_session)
-    _check_revision(work.revision, payload.revision)
+    portfolio, project = _owner_project(project_uuid, current_user, db_session)
+    _check_revision(project.revision, payload.revision)
     values = payload.model_dump(
         exclude={"revision", "blocks", "cover_asset_uuid"}, exclude_unset=True
     )
     for field, value in values.items():
-        setattr(work, field, value.strip() if isinstance(value, str) else value)
+        setattr(project, field, value.strip() if isinstance(value, str) else value)
     if payload.title is not None:
         if not payload.title.strip():
             raise HTTPException(status_code=422, detail="Title is required")
-        work.slug = _unique_slug(portfolio.id or 0, payload.title, db_session, work.id)
+        project.slug = _unique_slug(portfolio.id or 0, payload.title, db_session, project.id)
     if payload.blocks is not None:
-        _replace_blocks(work, payload.blocks, db_session)
+        _replace_blocks(project, payload.blocks, db_session)
     if "cover_asset_uuid" in payload.model_fields_set:
-        work.cover_asset_id = _cover_asset_id(
+        project.cover_asset_id = _cover_asset_id(
             payload.cover_asset_uuid, current_user.id, db_session
         )
-    work.status = PortfolioContentStatus.PUBLISHED
-    work.revision += 1
-    work.update_date = _now()
-    db_session.add(work)
+    project.status = PortfolioContentStatus.PUBLISHED
+    project.revision += 1
+    project.update_date = _now()
+    db_session.add(project)
     db_session.commit()
-    db_session.refresh(work)
-    return _work_dto(work, db_session)
+    db_session.refresh(project)
+    return _project_dto(project, db_session)
 
 
-def archive_work(
-    work_uuid: str, revision: int, current_user: PublicUser, db_session: Session
+def archive_project(
+    project_uuid: str, revision: int, current_user: PublicUser, db_session: Session
 ) -> dict:
-    _, work = _owner_work(work_uuid, current_user, db_session)
-    _check_revision(work.revision, revision)
-    work.status = PortfolioContentStatus.ARCHIVED
-    work.revision += 1
-    work.update_date = _now()
-    db_session.add(work)
+    _, project = _owner_project(project_uuid, current_user, db_session)
+    _check_revision(project.revision, revision)
+    project.status = PortfolioContentStatus.ARCHIVED
+    project.revision += 1
+    project.update_date = _now()
+    db_session.add(project)
     db_session.commit()
     return {"success": True}
 
@@ -1274,38 +1274,38 @@ def _validate_timeline(
         )
 
 
-def _replace_timeline_work_links(
+def _replace_timeline_project_links(
     entry: TimelineEntry, links: list[dict], portfolio: Portfolio, db_session: Session
 ) -> None:
     for existing in db_session.exec(
-        select(TimelineWorkLink).where(TimelineWorkLink.timeline_entry_id == entry.id)
+        select(TimelineProjectLink).where(TimelineProjectLink.timeline_entry_id == entry.id)
     ).all():
         db_session.delete(existing)
     seen: set[int] = set()
     now = _now()
     for index, raw in enumerate(links):
-        work_uuid = str(raw.get("work_uuid") or "")
-        work = db_session.exec(
-            select(WorkItem).where(
-                WorkItem.work_uuid == work_uuid,
-                WorkItem.portfolio_id == portfolio.id,
-                WorkItem.status != PortfolioContentStatus.ARCHIVED.value,
+        project_uuid = str(raw.get("project_uuid") or "")
+        project = db_session.exec(
+            select(ProjectItem).where(
+                ProjectItem.project_uuid == project_uuid,
+                ProjectItem.portfolio_id == portfolio.id,
+                ProjectItem.status != PortfolioContentStatus.ARCHIVED.value,
             )
         ).first()
-        if not work or not work.id or work.id in seen:
-            if not work:
+        if not project or not project.id or project.id in seen:
+            if not project:
                 raise HTTPException(
-                    status_code=422, detail="Linked Work item is unavailable"
+                    status_code=422, detail="Linked Project item is unavailable"
                 )
             continue
-        seen.add(work.id)
+        seen.add(project.id)
         db_session.add(
-            TimelineWorkLink(
+            TimelineProjectLink(
                 link_uuid=f"jwl_{uuid4().hex}",
                 timeline_entry_id=entry.id or 0,
-                work_item_id=work.id,
+                project_item_id=project.id,
                 relationship_label=str(
-                    raw.get("relationship_label") or "Related work"
+                    raw.get("relationship_label") or "Related project"
                 ).strip()[:120],
                 sort_order=index,
                 creation_date=now,
@@ -1393,7 +1393,7 @@ def create_timeline(
     db_session.add(entry)
     db_session.flush()
     _replace_timeline_blocks(entry, payload.blocks, db_session)
-    _replace_timeline_work_links(entry, payload.work_links, portfolio, db_session)
+    _replace_timeline_project_links(entry, payload.project_links, portfolio, db_session)
     portfolio.revision += 1
     portfolio.update_date = now
     db_session.add(portfolio)
@@ -1426,7 +1426,7 @@ def update_timeline(
     portfolio, entry = _owner_timeline(timeline_uuid, current_user, db_session)
     _check_revision(entry.revision, payload.revision)
     values = payload.model_dump(
-        exclude={"revision", "work_links", "blocks", "cover_asset_uuid"},
+        exclude={"revision", "project_links", "blocks", "cover_asset_uuid"},
         exclude_unset=True,
     )
     for field, value in values.items():
@@ -1445,8 +1445,8 @@ def update_timeline(
         entry.slug = _unique_timeline_slug(
             portfolio.id or 0, entry.title, db_session, entry.id
         )
-    if payload.work_links is not None:
-        _replace_timeline_work_links(entry, payload.work_links, portfolio, db_session)
+    if payload.project_links is not None:
+        _replace_timeline_project_links(entry, payload.project_links, portfolio, db_session)
     if payload.blocks is not None:
         _replace_timeline_blocks(entry, payload.blocks, db_session)
     if "cover_asset_uuid" in payload.model_fields_set:
@@ -1487,7 +1487,7 @@ def publish_portfolio(
         portfolio.privacy_confirmed_at = _now()
     blockers = _readiness_blockers(
         portfolio,
-        len(list(db_session.exec(_work_query(portfolio.id or 0)).all()))
+        len(list(db_session.exec(_project_query(portfolio.id or 0)).all()))
         + len(list(db_session.exec(_timeline_query(portfolio.id or 0)).all())),
     )
     if blockers:
@@ -1548,12 +1548,12 @@ def get_public_shell(org_id: int, username: str, db_session: Session) -> dict:
     return portfolio_shell(portfolio, db_session, public_only=True)
 
 
-def get_public_work(org_id: int, username: str, slug: str, db_session: Session) -> dict:
+def get_public_project(org_id: int, username: str, slug: str, db_session: Session) -> dict:
     shell = get_public_shell(org_id, username, db_session)
-    for work in shell["work"]:
-        if work["slug"] == slug:
-            return {"portfolio": shell["portfolio"], "work": work}
-    raise HTTPException(status_code=404, detail="Work item not found")
+    for project in shell["projects"]:
+        if project["slug"] == slug:
+            return {"portfolio": shell["portfolio"], "project": project}
+    raise HTTPException(status_code=404, detail="Project item not found")
 
 
 def get_public_timeline(
@@ -1580,13 +1580,13 @@ def legacy_import_preview(current_user: PublicUser, db_session: Session) -> dict
     if not isinstance(timeline, list):
         timeline = []
     portfolio = _get_portfolio(db_session, current_user.id or 0)
-    imported_work_refs = set()
+    imported_project_refs = set()
     imported_timeline_refs = set()
     if portfolio:
-        imported_work_refs = {
+        imported_project_refs = {
             item.source_reference
             for item in db_session.exec(
-                select(WorkItem).where(WorkItem.portfolio_id == portfolio.id)
+                select(ProjectItem).where(ProjectItem.portfolio_id == portfolio.id)
             ).all()
             if item.source_reference
         }
@@ -1608,20 +1608,20 @@ def legacy_import_preview(current_user: PublicUser, db_session: Session) -> dict
             else "",
             "bio": user.bio if user else "",
         },
-        "work": [
+        "projects": [
             {
-                "title": str(card.get("title") or "Untitled work"),
+                "title": str(card.get("title") or "Untitled project"),
                 "summary": str(card.get("description") or card.get("text") or ""),
                 "sourceIndex": index,
             }
             for index, card in enumerate(cards)
             if isinstance(card, dict)
-            and f"legacy:user.profile:work:{index}" not in imported_work_refs
+            and f"legacy:user.profile:project:{index}" not in imported_project_refs
         ],
         "timeline": [
             {
                 "title": str(item.get("title") or "Untitled experience"),
-                "entryType": {"work": "employment", "life": "experience"}.get(
+                "entryType": {"project": "employment", "life": "experience"}.get(
                     str(item.get("category")), "education"
                 ),
                 "organization": str(
@@ -1647,17 +1647,17 @@ def execute_legacy_import(current_user: PublicUser, db_session: Session) -> dict
     preview = legacy_import_preview(current_user, db_session)
     portfolio = get_or_create_portfolio(current_user, db_session)
     imported = 0
-    for item in preview["work"]:
-        key = f"legacy:user.profile:work:{item['sourceIndex']}"
+    for item in preview["projects"]:
+        key = f"legacy:user.profile:project:{item['sourceIndex']}"
         existing = db_session.exec(
-            select(WorkItem).where(
-                WorkItem.portfolio_id == portfolio.id, WorkItem.source_reference == key
+            select(ProjectItem).where(
+                ProjectItem.portfolio_id == portfolio.id, ProjectItem.source_reference == key
             )
         ).first()
         if existing:
             continue
-        create_work(
-            WorkItemCreate(
+        create_project(
+            ProjectItemCreate(
                 title=item["title"], summary=item["summary"], idempotency_key=key
             ),
             current_user,
@@ -1691,9 +1691,9 @@ def execute_legacy_import(current_user: PublicUser, db_session: Session) -> dict
         timeline_imported += 1
     return {
         "imported": imported + timeline_imported,
-        "workImported": imported,
+        "projectImported": imported,
         "timelineImported": timeline_imported,
-        "skipped": len(preview["work"])
+        "skipped": len(preview["projects"])
         + len(preview["timeline"])
         - imported
         - timeline_imported,

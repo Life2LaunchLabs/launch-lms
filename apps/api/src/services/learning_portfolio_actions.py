@@ -11,15 +11,15 @@ from sqlmodel import Session, select
 
 from src.db.portfolio import (
     TimelineEntry,
-    TimelineWorkLink,
+    TimelineProjectLink,
     Portfolio,
     PortfolioContentStatus,
     PortfolioLink,
     PortfolioSection,
     PortfolioVisibility,
     ProfileTrait,
-    WorkItem,
-    WorkItemBlock,
+    ProjectItem,
+    ProjectItemBlock,
 )
 from src.db.media import MediaAsset
 from src.db.users import User
@@ -34,9 +34,9 @@ class PortfolioActionError(ValueError):
 
 ACTION_TYPES = {
     "set_portfolio_fields",
-    "create_work_item",
+    "create_project_item",
     "create_timeline_entry",
-    "link_work_to_timeline",
+    "link_project_to_timeline",
     "set_traits",
     "set_portfolio_links",
     "set_theme",
@@ -175,7 +175,7 @@ def _portfolio(db: Session, user: User, now: str) -> Portfolio:
     db.add(portfolio)
     db.flush()
     for index, section_type in enumerate(
-        ("identity_hero", "featured_work", "about", "instagram", "youtube")
+        ("identity_hero", "featured_project", "about", "instagram", "youtube")
     ):
         db.add(
             PortfolioSection(
@@ -251,11 +251,11 @@ def apply_portfolio_outcomes(
                     )
                 enrolled.append(badge.badge_uuid)
             receipts[action_id] = {"type": kind, "badge_uuids": enrolled}
-        elif kind == "create_work_item":
+        elif kind == "create_project_item":
             values = _mapped(action, local, WORK_FIELDS)
             title = str(values.pop("title", "") or "").strip()
             if not title:
-                raise PortfolioActionError(action_id, "title", "Work title is required")
+                raise PortfolioActionError(action_id, "title", "Project title is required")
             for date_field in ("start_date", "end_date"):
                 if date_field in values:
                     values[date_field] = _portfolio_date(values[date_field], date_field)
@@ -278,12 +278,12 @@ def apply_portfolio_outcomes(
                         "Cover image must be an image owned by the learner",
                     )
                 cover_asset_id = cover.id
-            work = WorkItem(
-                work_uuid=f"wrk_{uuid4().hex}",
+            project = ProjectItem(
+                project_uuid=f"wrk_{uuid4().hex}",
                 portfolio_id=portfolio.id or 0,
                 title=title,
                 cover_asset_id=cover_asset_id,
-                slug=_unique_slug(WorkItem, portfolio.id or 0, title, db),
+                slug=_unique_slug(ProjectItem, portfolio.id or 0, title, db),
                 status=PortfolioContentStatus.PUBLISHED,
                 visibility=PortfolioVisibility.PUBLIC,
                 source="activity",
@@ -292,14 +292,14 @@ def apply_portfolio_outcomes(
                 update_date=now,
                 **values,
             )
-            db.add(work)
+            db.add(project)
             db.flush()
             story = str(_resolve(action.get("story"), local) or "").strip()
             if story:
                 db.add(
-                    WorkItemBlock(
+                    ProjectItemBlock(
                         block_uuid=f"wkb_{uuid4().hex}",
-                        work_item_id=work.id or 0,
+                        project_item_id=project.id or 0,
                         block_type="text",
                         data={"text": story},
                         sort_order=0,
@@ -309,9 +309,9 @@ def apply_portfolio_outcomes(
                 )
             if cover_asset_uuid and cover:
                 db.add(
-                    WorkItemBlock(
+                    ProjectItemBlock(
                         block_uuid=f"wkb_{uuid4().hex}",
-                        work_item_id=work.id or 0,
+                        project_item_id=project.id or 0,
                         block_type="image",
                         data={
                             "asset_uuid": cover.asset_uuid,
@@ -323,9 +323,9 @@ def apply_portfolio_outcomes(
                         update_date=now,
                     )
                 )
-            binding = str(action.get("store_as") or "work_item_id")
-            bindings[binding] = work.work_uuid
-            receipts[action_id] = {"type": kind, "entity_uuid": work.work_uuid}
+            binding = str(action.get("store_as") or "project_item_id")
+            bindings[binding] = project.project_uuid
+            receipts[action_id] = {"type": kind, "entity_uuid": project.project_uuid}
         elif kind == "create_timeline_entry":
             values = _mapped(action, local, TIMELINE_FIELDS)
             title = str(values.pop("title", "") or "").strip()
@@ -372,10 +372,10 @@ def apply_portfolio_outcomes(
             binding = str(action.get("store_as") or "timeline_entry_id")
             bindings[binding] = timeline.timeline_uuid
             receipts[action_id] = {"type": kind, "entity_uuid": timeline.timeline_uuid}
-        elif kind == "link_work_to_timeline":
-            work_uuid = str(
-                _resolve(action.get("work"), local)
-                or bindings.get("work_item_id")
+        elif kind == "link_project_to_timeline":
+            project_uuid = str(
+                _resolve(action.get("project"), local)
+                or bindings.get("project_item_id")
                 or ""
             )
             timeline_uuid = str(
@@ -383,10 +383,10 @@ def apply_portfolio_outcomes(
                 or bindings.get("timeline_entry_id")
                 or ""
             )
-            work = db.exec(
-                select(WorkItem).where(
-                    WorkItem.portfolio_id == portfolio.id,
-                    WorkItem.work_uuid == work_uuid,
+            project = db.exec(
+                select(ProjectItem).where(
+                    ProjectItem.portfolio_id == portfolio.id,
+                    ProjectItem.project_uuid == project_uuid,
                 )
             ).first()
             timeline = db.exec(
@@ -398,25 +398,25 @@ def apply_portfolio_outcomes(
             if not timeline_uuid and action.get("optional"):
                 receipts[action_id] = {"type": kind, "skipped": True}
                 continue
-            if not work or not timeline:
+            if not project or not timeline:
                 raise PortfolioActionError(
                     action_id,
                     "bindings",
                     "Linked entities must belong to this portfolio",
                 )
             existing = db.exec(
-                select(TimelineWorkLink).where(
-                    TimelineWorkLink.work_item_id == work.id,
-                    TimelineWorkLink.timeline_entry_id == timeline.id,
+                select(TimelineProjectLink).where(
+                    TimelineProjectLink.project_item_id == project.id,
+                    TimelineProjectLink.timeline_entry_id == timeline.id,
                 )
             ).first()
             if not existing:
                 db.add(
-                    TimelineWorkLink(
+                    TimelineProjectLink(
                         link_uuid=f"jwl_{uuid4().hex}",
-                        work_item_id=work.id or 0,
+                        project_item_id=project.id or 0,
                         timeline_entry_id=timeline.id or 0,
-                        relationship_label=str(action.get("label") or "Related work"),
+                        relationship_label=str(action.get("label") or "Related project"),
                         creation_date=now,
                         update_date=now,
                     )
@@ -488,23 +488,23 @@ def apply_portfolio_outcomes(
             if isinstance(settings, dict):
                 portfolio.theme_settings = settings
         elif kind == "set_featured_content":
-            work_uuid = str(
-                _resolve(action.get("work"), local)
-                or bindings.get("work_item_id")
+            project_uuid = str(
+                _resolve(action.get("project"), local)
+                or bindings.get("project_item_id")
                 or ""
             )
-            work = db.exec(
-                select(WorkItem).where(
-                    WorkItem.portfolio_id == portfolio.id,
-                    WorkItem.work_uuid == work_uuid,
+            project = db.exec(
+                select(ProjectItem).where(
+                    ProjectItem.portfolio_id == portfolio.id,
+                    ProjectItem.project_uuid == project_uuid,
                 )
             ).first()
-            if not work:
+            if not project:
                 raise PortfolioActionError(
-                    action_id, "work", "Featured Work must belong to this portfolio"
+                    action_id, "project", "Featured Project must belong to this portfolio"
                 )
-            work.featured = True
-            db.add(work)
+            project.featured = True
+            db.add(project)
         elif kind == "confirm_privacy":
             portfolio.privacy_confirmed_at = now
         elif kind == "publish_portfolio":

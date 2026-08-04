@@ -94,7 +94,7 @@ LAUNCH_READY_ACTIVITY_UUIDS = {
     "identity": ONBOARDING_ACTIVITY_UUID,
     "profile": "learning_activity_system_onboarding_profile",
     "timeline": "learning_activity_system_onboarding_timeline",
-    "work": "learning_activity_system_onboarding_work",
+    "project": "learning_activity_system_onboarding_project",
     "traits": "learning_activity_system_onboarding_traits",
     "links": "learning_activity_system_onboarding_links",
     "badges": "learning_activity_system_onboarding_badges",
@@ -269,7 +269,7 @@ def _validate_issuer_selection(
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Sign in to work with this issuing organization",
+            detail="Sign in to project with this issuing organization",
         )
     link = db_session.exec(
         select(BadgeIssuerLearnerLink).where(
@@ -440,7 +440,7 @@ def _question_blocks(page: LearningPage) -> list[dict]:
 def _flow_context(
     db_session: Session, run: LearningRun, activity_run: LearningActivityRun
 ) -> dict:
-    from src.db.portfolio import TimelineEntry, Portfolio, WorkItem
+    from src.db.portfolio import TimelineEntry, Portfolio, ProjectItem
 
     pages = db_session.exec(
         select(LearningPage).where(LearningPage.activity_id == activity_run.activity_id)
@@ -462,9 +462,9 @@ def _flow_context(
                 "result": attempt.result,
             }
     facts = {
-        "has_work": False,
+        "has_project": False,
         "has_timeline": False,
-        "work_count": 0,
+        "project_count": 0,
         "timeline_count": 0,
         "readiness_blockers": [],
     }
@@ -473,11 +473,11 @@ def _flow_context(
             select(Portfolio).where(Portfolio.user_id == run.user_id)
         ).first()
         if portfolio:
-            facts["work_count"] = len(
+            facts["project_count"] = len(
                 db_session.exec(
-                    select(WorkItem).where(
-                        WorkItem.portfolio_id == portfolio.id,
-                        WorkItem.status != "archived",
+                    select(ProjectItem).where(
+                        ProjectItem.portfolio_id == portfolio.id,
+                        ProjectItem.status != "archived",
                     )
                 ).all()
             )
@@ -489,8 +489,8 @@ def _flow_context(
                     )
                 ).all()
             )
-            facts["has_work"], facts["has_timeline"] = (
-                facts["work_count"] > 0,
+            facts["has_project"], facts["has_timeline"] = (
+                facts["project_count"] > 0,
                 facts["timeline_count"] > 0,
             )
     data = activity_run.data or {}
@@ -1741,11 +1741,11 @@ def _ensure_launch_ready_activity(
             "creative": "Creating",
             "curious": "Thinking",
             "reliable": "Execution",
-            "collaborative": "Working With Others",
+            "collaborative": "Projecting With Others",
             "determined": "Execution",
-            "empathetic": "Working With Others",
+            "empathetic": "Projecting With Others",
             "resourceful": "Thinking",
-            "patient": "Working With Others",
+            "patient": "Projecting With Others",
             "bold": "Execution",
             "thoughtful": "Thinking",
         }
@@ -1924,7 +1924,7 @@ def _ensure_launch_ready_activity(
                 }
             elif block.get("type") == "question" and key in {
                 "timeline",
-                "work",
+                "project",
                 "traits",
                 "links",
                 "badges",
@@ -2221,7 +2221,7 @@ def ensure_onboarding_learning_badge(
 
     goal_options = [
         {"id": "higher_education", "text": "Get into school or training"},
-        {"id": "employment", "text": "Find work or an internship"},
+        {"id": "employment", "text": "Find project or an internship"},
         {"id": "self_starting", "text": "Grow something I’m building"},
         {"id": "show_people", "text": "Show people what I can do"},
         {"id": "not_sure", "text": "Figure out what comes next"},
@@ -2381,7 +2381,7 @@ def ensure_onboarding_learning_badge(
                         {
                             "id": "bio",
                             "label": "Bio",
-                            "placeholder": "Share what you’re interested in, what you’re working toward, and what you want people to know.",
+                            "placeholder": "Share what you’re interested in, what you’re projecting toward, and what you want people to know.",
                             "variant": "short_answer",
                             "height": 200,
                         },
@@ -2609,7 +2609,7 @@ def ensure_onboarding_learning_badge(
                                 },
                                 "employment": {
                                     "label": "Company or organization",
-                                    "placeholder": "Your workplace",
+                                    "placeholder": "Your projectplace",
                                 },
                                 "training": {
                                     "label": "Program or organization",
@@ -2674,7 +2674,7 @@ def ensure_onboarding_learning_badge(
             "title": "Add a picture to this experience",
             "kind": "image_upload",
             "content": {
-                "label": "A school, workspace, team, event, creation, or anything that represents this moment."
+                "label": "A school, projectspace, team, event, creation, or anything that represents this moment."
             },
             "completion": {"required": False},
         },
@@ -2782,7 +2782,7 @@ def ensure_onboarding_learning_badge(
         key="timeline",
         order=3,
         title="Add your current experience",
-        description="Show where you're learning, working, or growing now.",
+        description="Show where you're learning, projecting, or growing now.",
         pages=timeline_pages,
         outcomes=[
             {
@@ -2819,44 +2819,44 @@ def ensure_onboarding_learning_badge(
         ],
     )
 
-    work_detail_page, work_detail_block = (
-        "learning_page_system_onboarding_work_detail",
-        "blk_launch_work_detail",
+    project_detail_page, project_detail_block = (
+        "learning_page_system_onboarding_project_detail",
+        "blk_launch_project_detail",
     )
-    work_photo_page, work_photo_block = (
-        "learning_page_system_onboarding_work_photo",
-        "blk_launch_work_photo",
+    project_photo_page, project_photo_block = (
+        "learning_page_system_onboarding_project_photo",
+        "blk_launch_project_photo",
     )
-    work_timeline_page, work_timeline_block = (
-        "learning_page_system_onboarding_work_timeline",
-        "blk_launch_work_timeline",
+    project_timeline_page, project_timeline_block = (
+        "learning_page_system_onboarding_project_timeline",
+        "blk_launch_project_timeline",
     )
-    work_review_page = "learning_page_system_onboarding_work_review"
-    work_pages = [
+    project_review_page = "learning_page_system_onboarding_project_review"
+    project_pages = [
         {
-            "page_uuid": work_detail_page,
-            "block_id": work_detail_block,
-            "title": "Tell the story of your work",
+            "page_uuid": project_detail_page,
+            "block_id": project_detail_block,
+            "title": "Tell the story of your project",
             "kind": "text_input",
             "content": {
                 "inputs": [
                     {
                         "id": "title",
                         "label": "Title",
-                        "placeholder": "Name this work",
+                        "placeholder": "Name this project",
                         "variant": "single_line",
                         "height": 48,
                     },
                     {
                         "id": "tagline",
                         "label": "Tagline",
-                        "placeholder": "A short line about this work",
+                        "placeholder": "A short line about this project",
                         "variant": "single_line",
                         "height": 48,
                     },
                     {
                         "id": "start_date",
-                        "section_id": "work_dates",
+                        "section_id": "project_dates",
                         "label": "Start date (optional)",
                         "input_type": "month",
                         "variant": "single_line",
@@ -2865,7 +2865,7 @@ def ensure_onboarding_learning_badge(
                     },
                     {
                         "id": "end_date",
-                        "section_id": "work_dates",
+                        "section_id": "project_dates",
                         "label": "End date (optional)",
                         "input_type": "month",
                         "variant": "single_line",
@@ -2892,18 +2892,18 @@ def ensure_onboarding_learning_badge(
             },
         },
         {
-            "page_uuid": work_photo_page,
-            "block_id": work_photo_block,
+            "page_uuid": project_photo_page,
+            "block_id": project_photo_block,
             "title": "Cover image",
             "kind": "image_upload",
             "content": {
-                "label": "Choose the cover image that will appear on your Work card."
+                "label": "Choose the cover image that will appear on your Project card."
             },
             "completion": {"required": False},
         },
         {
-            "page_uuid": work_timeline_page,
-            "block_id": work_timeline_block,
+            "page_uuid": project_timeline_page,
+            "block_id": project_timeline_block,
             "title": "Connect this to your Timeline",
             "kind": "text_input",
             "content": {
@@ -2925,69 +2925,69 @@ def ensure_onboarding_learning_badge(
             "completion": {"inputs": {"timeline_uuid": {"required": False}}},
         },
         {
-            "page_uuid": work_review_page,
-            "block_id": "blk_launch_work_review",
-            "title": "Your work is ready to share",
-            "action_label": "Add this to my Work",
+            "page_uuid": project_review_page,
+            "block_id": "blk_launch_project_review",
+            "title": "Your project is ready to share",
+            "action_label": "Add this to my Project",
             "blocks": [
                 text_block(
-                    heading_node("Your work is ready to share"),
-                    block_id="blk_work_review_heading",
+                    heading_node("Your project is ready to share"),
+                    block_id="blk_project_review_heading",
                 ),
                 {
-                    "id": "blk_work_review_card",
+                    "id": "blk_project_review_card",
                     "type": "portfolio_preview",
                     "design": {"width": 100},
                     "content": {
-                        "variant": "work_card",
+                        "variant": "project_card",
                         "bindings": {
                             "title": {
                                 "source": "answer",
-                                "path": f"{work_detail_page}.answer.questions.{work_detail_block}.inputs.title.text",
-                                "fallback": "Your work",
+                                "path": f"{project_detail_page}.answer.questions.{project_detail_block}.inputs.title.text",
+                                "fallback": "Your project",
                             },
                             "subtitle": {
                                 "source": "answer",
-                                "path": f"{work_detail_page}.answer.questions.{work_detail_block}.inputs.tagline.text",
+                                "path": f"{project_detail_page}.answer.questions.{project_detail_block}.inputs.tagline.text",
                                 "fallback": "",
                             },
                             "summary": {
                                 "source": "answer",
-                                "path": f"{work_detail_page}.answer.questions.{work_detail_block}.inputs.story.text",
+                                "path": f"{project_detail_page}.answer.questions.{project_detail_block}.inputs.story.text",
                                 "fallback": "Your story",
                             },
                             "cover_url": {
                                 "source": "answer",
-                                "path": f"{work_photo_page}.answer.questions.{work_photo_block}.url",
+                                "path": f"{project_photo_page}.answer.questions.{project_photo_block}.url",
                                 "fallback": "",
                             },
                         },
                     },
                 },
                 {
-                    "id": "blk_work_review_details",
+                    "id": "blk_project_review_details",
                     "type": "button",
                     "design": {
                         "width": 48,
                         "variant": "secondary",
-                        "group": "work_review_actions",
+                        "group": "project_review_actions",
                     },
                     "content": {
                         "label": "Change the story",
-                        "destination_page_uuid": work_detail_page,
+                        "destination_page_uuid": project_detail_page,
                     },
                 },
                 {
-                    "id": "blk_work_review_photo",
+                    "id": "blk_project_review_photo",
                     "type": "button",
                     "design": {
                         "width": 48,
                         "variant": "secondary",
-                        "group": "work_review_actions",
+                        "group": "project_review_actions",
                     },
                     "content": {
                         "label": "Choose another cover",
-                        "destination_page_uuid": work_photo_page,
+                        "destination_page_uuid": project_photo_page,
                     },
                 },
             ],
@@ -2998,51 +2998,51 @@ def ensure_onboarding_learning_badge(
         path=path,
         badge=badge,
         org_id=owner_org.id or 0,
-        key="work",
+        key="project",
         order=4,
         title="Show something you've done",
         description="Add a project, creation, achievement, or story.",
-        pages=work_pages,
+        pages=project_pages,
         outcomes=[
             {
-                "id": "create-first-work",
-                "type": "create_work_item",
-                "store_as": "work_item_id",
+                "id": "create-first-project",
+                "type": "create_project_item",
+                "store_as": "project_item_id",
                 "fields": {
                     "story_kind": "made",
                     "title": answer(
-                        work_detail_page, work_detail_block, "inputs.title.text"
+                        project_detail_page, project_detail_block, "inputs.title.text"
                     ),
                     "subtitle": answer(
-                        work_detail_page, work_detail_block, "inputs.tagline.text"
+                        project_detail_page, project_detail_block, "inputs.tagline.text"
                     ),
                     "summary": answer(
-                        work_detail_page, work_detail_block, "inputs.story.text"
+                        project_detail_page, project_detail_block, "inputs.story.text"
                     ),
                     "start_date": answer(
-                        work_detail_page, work_detail_block, "inputs.start_date.text"
+                        project_detail_page, project_detail_block, "inputs.start_date.text"
                     ),
                     "end_date": answer(
-                        work_detail_page, work_detail_block, "inputs.end_date.text"
+                        project_detail_page, project_detail_block, "inputs.end_date.text"
                     ),
                     "featured": True,
                 },
                 "story": answer(
-                    work_detail_page, work_detail_block, "inputs.story.text"
+                    project_detail_page, project_detail_block, "inputs.story.text"
                 ),
                 "cover_asset_uuid": answer(
-                    work_photo_page, work_photo_block, "media_asset_uuid"
+                    project_photo_page, project_photo_block, "media_asset_uuid"
                 ),
             },
             {
-                "id": "link-work-to-existing-timeline",
-                "type": "link_work_to_timeline",
+                "id": "link-project-to-existing-timeline",
+                "type": "link_project_to_timeline",
                 "optional": True,
-                "work": {"$source": "binding", "key": "work_item_id"},
+                "project": {"$source": "binding", "key": "project_item_id"},
                 "timeline": answer(
-                    work_timeline_page, work_timeline_block, "inputs.timeline_uuid.text"
+                    project_timeline_page, project_timeline_block, "inputs.timeline_uuid.text"
                 ),
-                "label": "Related work",
+                "label": "Related project",
             },
         ],
     )
@@ -3292,7 +3292,7 @@ def ensure_onboarding_learning_badge(
         org_id=owner_org.id or 0,
         key="badges",
         order=7,
-        title="Choose badges to work toward",
+        title="Choose badges to project toward",
         description="Start a few badge paths that match where you want to grow.",
         pages=[
             {
@@ -3312,7 +3312,7 @@ def ensure_onboarding_learning_badge(
                     ),
                     text_block(
                         paragraph_node(
-                            "Choose a few that fit what you want to learn next. They’ll appear in your portfolio while you work toward them."
+                            "Choose a few that fit what you want to learn next. They’ll appear in your portfolio while you project toward them."
                         ),
                         block_id="blk_launch_badges_intro_value",
                     ),
@@ -3371,7 +3371,7 @@ def ensure_onboarding_learning_badge(
                     ),
                     text_block(
                         paragraph_node(
-                            "Your portfolio now has an introduction, a current experience, work you can point to, and the strengths and values that help tell your story."
+                            "Your portfolio now has an introduction, a current experience, project you can point to, and the strengths and values that help tell your story."
                         ),
                         block_id="blk_launch_done_body",
                     ),
@@ -3474,7 +3474,7 @@ def ensure_onboarding_learning_badge(
     badge.badge_metadata = {**(badge.badge_metadata or {}), "award_strategy": "portfolio_checklist"}
     badge.name = "Launch Ready"
     badge.description = "Build and launch your portfolio one useful step at a time."
-    badge.about = "A guided path for introducing yourself, sharing your timeline and work, and preparing your portfolio to publish."
+    badge.about = "A guided path for introducing yourself, sharing your timeline and project, and preparing your portfolio to publish."
     badge.criteria = "Complete the seven Launch Ready portfolio checklist items."
     db_session.add(badge)
 
@@ -4316,7 +4316,7 @@ def _validate_page_payload(page_type: LearningPageType, content: dict | None) ->
                 preview = block.get("content") or {}
                 if preview.get("variant") not in {
                     "timeline_card",
-                    "work_card",
+                    "project_card",
                     "identity_header",
                     "traits_panel",
                     "links_strip",

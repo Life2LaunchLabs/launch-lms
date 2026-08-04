@@ -23,7 +23,7 @@ class PortfolioModerationStatus(str, Enum):
     RESTRICTED = "restricted"
 
 
-class WorkStoryKind(str, Enum):
+class ProjectStoryKind(str, Enum):
     MADE = "made"
     DID = "did"
     HELPED = "helped"
@@ -79,14 +79,14 @@ class PortfolioSection(SQLModel, table=True):
     update_date: str = ""
 
 
-class WorkItem(SQLModel, table=True):
-    __tablename__ = "workitem"
-    __table_args__ = (UniqueConstraint("work_uuid"), UniqueConstraint("portfolio_id", "slug"))
+class ProjectItem(SQLModel, table=True):
+    __tablename__ = "projectitem"
+    __table_args__ = (UniqueConstraint("project_uuid"), UniqueConstraint("portfolio_id", "slug"))
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    work_uuid: str = Field(index=True)
+    project_uuid: str = Field(index=True)
     portfolio_id: int = Field(sa_column=Column(Integer, ForeignKey("portfolio.id", ondelete="CASCADE"), index=True))
-    story_kind: WorkStoryKind = Field(default=WorkStoryKind.MADE, sa_column=Column(String, nullable=False))
+    story_kind: ProjectStoryKind = Field(default=ProjectStoryKind.MADE, sa_column=Column(String, nullable=False))
     title: str
     subtitle: str = ""
     summary: str = Field(default="", sa_column=Column(Text, nullable=False))
@@ -107,12 +107,12 @@ class WorkItem(SQLModel, table=True):
     update_date: str = ""
 
 
-class WorkItemBlock(SQLModel, table=True):
-    __tablename__ = "workitemblock"
+class ProjectItemBlock(SQLModel, table=True):
+    __tablename__ = "projectitemblock"
 
     id: Optional[int] = Field(default=None, primary_key=True)
     block_uuid: str = Field(index=True, unique=True)
-    work_item_id: int = Field(sa_column=Column(Integer, ForeignKey("workitem.id", ondelete="CASCADE"), index=True))
+    project_item_id: int = Field(sa_column=Column(Integer, ForeignKey("projectitem.id", ondelete="CASCADE"), index=True))
     block_type: str
     data: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
     sort_order: int = 0
@@ -164,15 +164,15 @@ class TimelineEntryBlock(SQLModel, table=True):
     update_date: str = ""
 
 
-class TimelineWorkLink(SQLModel, table=True):
-    __tablename__ = "timelineworklink"
-    __table_args__ = (UniqueConstraint("timeline_entry_id", "work_item_id"),)
+class TimelineProjectLink(SQLModel, table=True):
+    __tablename__ = "timelineprojectlink"
+    __table_args__ = (UniqueConstraint("timeline_entry_id", "project_item_id"),)
 
     id: Optional[int] = Field(default=None, primary_key=True)
     link_uuid: str = Field(index=True, unique=True)
     timeline_entry_id: int = Field(sa_column=Column(Integer, ForeignKey("timelineentry.id", ondelete="CASCADE"), index=True))
-    work_item_id: int = Field(sa_column=Column(Integer, ForeignKey("workitem.id", ondelete="CASCADE"), index=True))
-    relationship_label: str = "Related work"
+    project_item_id: int = Field(sa_column=Column(Integer, ForeignKey("projectitem.id", ondelete="CASCADE"), index=True))
+    relationship_label: str = "Related project"
     sort_order: int = 0
     creation_date: str = ""
     update_date: str = ""
@@ -233,9 +233,9 @@ class PortfolioFeaturedBadgesUpdate(SQLModel):
     badge_uuids: list[str] = Field(default_factory=list)
 
 
-class PortfolioFeaturedWorkUpdate(SQLModel):
-    work_uuid: Optional[str] = None
-    work_uuids: Optional[list[str]] = None
+class PortfolioFeaturedProjectUpdate(SQLModel):
+    project_uuid: Optional[str] = None
+    project_uuids: Optional[list[str]] = None
 
 
 class PortfolioFeaturedTimelineUpdate(SQLModel):
@@ -257,9 +257,9 @@ class PortfolioSectionsUpdate(SQLModel):
     revision: int
 
 
-class WorkItemCreate(SQLModel):
+class ProjectItemCreate(SQLModel):
     title: str
-    story_kind: WorkStoryKind = WorkStoryKind.MADE
+    story_kind: ProjectStoryKind = ProjectStoryKind.MADE
     subtitle: str = ""
     summary: str = ""
     role_label: str = ""
@@ -272,9 +272,9 @@ class WorkItemCreate(SQLModel):
     idempotency_key: Optional[str] = None
 
 
-class WorkItemUpdate(SQLModel):
+class ProjectItemUpdate(SQLModel):
     title: Optional[str] = None
-    story_kind: Optional[WorkStoryKind] = None
+    story_kind: Optional[ProjectStoryKind] = None
     subtitle: Optional[str] = None
     summary: Optional[str] = None
     role_label: Optional[str] = None
@@ -302,7 +302,7 @@ class TimelineEntryCreate(SQLModel):
     visibility: PortfolioVisibility = PortfolioVisibility.PUBLIC
     cover_asset_uuid: Optional[str] = None
     blocks: list[dict] = Field(default_factory=list)
-    work_links: list[dict] = Field(default_factory=list)
+    project_links: list[dict] = Field(default_factory=list)
     idempotency_key: Optional[str] = None
 
 
@@ -321,7 +321,7 @@ class TimelineEntryUpdate(SQLModel):
     visibility: Optional[PortfolioVisibility] = None
     cover_asset_uuid: Optional[str] = None
     blocks: Optional[list[dict]] = None
-    work_links: Optional[list[dict]] = None
+    project_links: Optional[list[dict]] = None
     revision: int
 
 

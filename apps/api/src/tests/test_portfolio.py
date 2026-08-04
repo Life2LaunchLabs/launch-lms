@@ -19,20 +19,20 @@ from src.db.portfolio import (
     TimelineEntryBlock,
     TimelineEntryCreate,
     TimelineEntryUpdate,
-    TimelineWorkLink,
+    TimelineProjectLink,
     Portfolio,
     PortfolioFeaturedTimelineUpdate,
-    PortfolioFeaturedWorkUpdate,
+    PortfolioFeaturedProjectUpdate,
     PortfolioTraitsUpdate,
     PortfolioLink,
     ProfileTrait,
     PortfolioSection,
     PortfolioUpdate,
     PublishRequest,
-    WorkItem,
-    WorkItemBlock,
-    WorkItemCreate,
-    WorkItemUpdate,
+    ProjectItem,
+    ProjectItemBlock,
+    ProjectItemCreate,
+    ProjectItemUpdate,
 )
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
@@ -60,11 +60,11 @@ def _session():
             PortfolioSection.__table__,
             PortfolioLink.__table__,
             ProfileTrait.__table__,
-            WorkItem.__table__,
-            WorkItemBlock.__table__,
+            ProjectItem.__table__,
+            ProjectItemBlock.__table__,
             TimelineEntry.__table__,
             TimelineEntryBlock.__table__,
-            TimelineWorkLink.__table__,
+            TimelineProjectLink.__table__,
             LearningBadge.__table__,
             LearningPath.__table__,
             LearningActivity.__table__,
@@ -186,7 +186,7 @@ def test_existing_launch_ready_award_is_permanent_when_content_is_removed():
         assert state["completed"] == 0
 
 
-def test_private_by_default_and_created_work_is_public_after_portfolio_publish():
+def test_private_by_default_and_created_project_is_public_after_portfolio_publish():
     with _session() as db:
         user = _user()
         org = Organization(
@@ -211,8 +211,8 @@ def test_private_by_default_and_created_work_is_public_after_portfolio_publish()
         shell = service.get_owner_shell(_public(user), db)
         assert shell["portfolio"]["visibility"] == "private"
         assert shell["portfolio"]["username"] == "maya"
-        service.create_work(
-            WorkItemCreate(title="My first build", summary="A prototype"),
+        service.create_project(
+            ProjectItemCreate(title="My first build", summary="A prototype"),
             _public(user),
             db,
         )
@@ -230,8 +230,8 @@ def test_private_by_default_and_created_work_is_public_after_portfolio_publish()
         )
 
         public = service.get_public_shell(1, "maya", db)
-        assert len(public["work"]) == 1
-        assert public["work"][0]["title"] == "My first build"
+        assert len(public["projects"]) == 1
+        assert public["projects"][0]["title"] == "My first build"
 
 
 def test_empty_portfolio_can_publish_without_preview():
@@ -323,8 +323,8 @@ def test_public_shell_uses_allowlisted_dtos_without_internal_fields():
         )
         db.commit()
         actor = _public(user)
-        work = service.create_work(
-            WorkItemCreate(
+        project = service.create_project(
+            ProjectItemCreate(
                 title="Public build",
                 blocks=[{"block_type": "text", "data": {"text": "Built safely"}}],
             ),
@@ -363,15 +363,15 @@ def test_public_shell_uses_allowlisted_dtos_without_internal_fields():
             "source_reference",
             "visibility",
             "status",
-        }.isdisjoint(public["work"][0])
+        }.isdisjoint(public["projects"][0])
         assert {
             "id",
-            "work_item_id",
+            "project_item_id",
             "visibility",
             "creation_date",
             "update_date",
-        }.isdisjoint(public["work"][0]["blocks"][0])
-        assert public["work"][0]["work_uuid"] == work["work_uuid"]
+        }.isdisjoint(public["projects"][0]["blocks"][0])
+        assert public["projects"][0]["project_uuid"] == project["project_uuid"]
 
 
 def test_activity_timeline_outcome_assigns_only_an_owned_cover_image():
@@ -456,19 +456,19 @@ def test_activity_timeline_outcome_assigns_only_an_owned_cover_image():
             )
 
 
-def test_activity_work_outcome_persists_story_cover_and_existing_timeline_link():
+def test_activity_project_outcome_persists_story_cover_and_existing_timeline_link():
     with _session() as db:
         user = _user()
         db.add(user)
         db.commit()
         cover = MediaAsset(
-            asset_uuid="asset_work",
+            asset_uuid="asset_project",
             owner_type="user",
             owner_user_id=1,
             source_type="upload",
             media_type="image",
-            title="Work cover",
-            url="/work.jpg",
+            title="Project cover",
+            url="/project.jpg",
         )
         db.add(cover)
         db.commit()
@@ -491,21 +491,21 @@ def test_activity_work_outcome_persists_story_cover_and_existing_timeline_link()
             "version": 1,
             "actions": [
                 {
-                    "id": "work",
-                    "type": "create_work_item",
-                    "store_as": "work_item_id",
+                    "id": "project",
+                    "type": "create_project_item",
+                    "store_as": "project_item_id",
                     "fields": {
                         "title": "Community garden",
                         "subtitle": "Growing food together",
                         "story_kind": "made",
                     },
                     "story": "I planned the beds and learned how to coordinate volunteers.",
-                    "cover_asset_uuid": "asset_work",
+                    "cover_asset_uuid": "asset_project",
                 },
                 {
                     "id": "link",
-                    "type": "link_work_to_timeline",
-                    "work": {"$source": "binding", "key": "work_item_id"},
+                    "type": "link_project_to_timeline",
+                    "project": {"$source": "binding", "key": "project_item_id"},
                     "timeline": "tml_existing",
                     "optional": True,
                 },
@@ -516,13 +516,13 @@ def test_activity_work_outcome_persists_story_cover_and_existing_timeline_link()
         )
         db.commit()
 
-        work = db.exec(select(WorkItem)).one()
+        project = db.exec(select(ProjectItem)).one()
         blocks = db.exec(
-            select(WorkItemBlock)
-            .where(WorkItemBlock.work_item_id == work.id)
-            .order_by(WorkItemBlock.sort_order)
+            select(ProjectItemBlock)
+            .where(ProjectItemBlock.project_item_id == project.id)
+            .order_by(ProjectItemBlock.sort_order)
         ).all()
-        assert work.cover_asset_id == cover.id
+        assert project.cover_asset_id == cover.id
         assert [(block.block_type, block.data) for block in blocks] == [
             (
                 "text",
@@ -530,81 +530,81 @@ def test_activity_work_outcome_persists_story_cover_and_existing_timeline_link()
                     "text": "I planned the beds and learned how to coordinate volunteers."
                 },
             ),
-            ("image", {"asset_uuid": "asset_work", "url": "/work.jpg", "caption": ""}),
+            ("image", {"asset_uuid": "asset_project", "url": "/project.jpg", "caption": ""}),
         ]
         assert db.exec(
-            select(TimelineWorkLink).where(
-                TimelineWorkLink.work_item_id == work.id,
-                TimelineWorkLink.timeline_entry_id == timeline.id,
+            select(TimelineProjectLink).where(
+                TimelineProjectLink.project_item_id == project.id,
+                TimelineProjectLink.timeline_entry_id == timeline.id,
             )
         ).one()
 
 
-def test_work_idempotency_revision_conflict_and_publish_flow():
+def test_project_idempotency_revision_conflict_and_publish_flow():
     with _session() as db:
         user = _user()
         db.add(user)
         db.commit()
         actor = _public(user)
-        first = service.create_work(
-            WorkItemCreate(title="Community garden", idempotency_key="request-1"),
+        first = service.create_project(
+            ProjectItemCreate(title="Community garden", idempotency_key="request-1"),
             actor,
             db,
         )
-        second = service.create_work(
-            WorkItemCreate(title="Duplicate", idempotency_key="request-1"), actor, db
+        second = service.create_project(
+            ProjectItemCreate(title="Duplicate", idempotency_key="request-1"), actor, db
         )
-        assert first["work_uuid"] == second["work_uuid"]
+        assert first["project_uuid"] == second["project_uuid"]
 
-        updated = service.update_work(
-            first["work_uuid"],
-            WorkItemUpdate(revision=first["revision"], summary="We grew food together"),
+        updated = service.update_project(
+            first["project_uuid"],
+            ProjectItemUpdate(revision=first["revision"], summary="We grew food together"),
             actor,
             db,
         )
         assert updated["status"] == "published"
         with pytest.raises(HTTPException) as error:
-            service.update_work(
-                first["work_uuid"],
-                WorkItemUpdate(revision=first["revision"], title="Stale edit"),
+            service.update_project(
+                first["project_uuid"],
+                ProjectItemUpdate(revision=first["revision"], title="Stale edit"),
                 actor,
                 db,
             )
         assert error.value.status_code == 409
 
 
-def test_featured_work_allows_multiple_selections():
+def test_featured_projects_allows_multiple_selections():
     with _session() as db:
         user = _user()
         db.add(user)
         db.commit()
         actor = _public(user)
-        first = service.create_work(WorkItemCreate(title="First"), actor, db)
-        second = service.create_work(WorkItemCreate(title="Second"), actor, db)
+        first = service.create_project(ProjectItemCreate(title="First"), actor, db)
+        second = service.create_project(ProjectItemCreate(title="Second"), actor, db)
 
-        shell = service.update_featured_work(
-            PortfolioFeaturedWorkUpdate(work_uuid=first["work_uuid"]), actor, db
+        shell = service.update_featured_projects(
+            PortfolioFeaturedProjectUpdate(project_uuid=first["project_uuid"]), actor, db
         )
-        assert [item["title"] for item in shell["work"] if item["featured"]] == [
+        assert [item["title"] for item in shell["projects"] if item["featured"]] == [
             "First"
         ]
 
-        shell = service.update_featured_work(
-            PortfolioFeaturedWorkUpdate(
-                work_uuids=[first["work_uuid"], second["work_uuid"]]
+        shell = service.update_featured_projects(
+            PortfolioFeaturedProjectUpdate(
+                project_uuids=[first["project_uuid"], second["project_uuid"]]
             ),
             actor,
             db,
         )
-        assert {item["title"] for item in shell["work"] if item["featured"]} == {
+        assert {item["title"] for item in shell["projects"] if item["featured"]} == {
             "First",
             "Second",
         }
 
-        shell = service.update_featured_work(
-            PortfolioFeaturedWorkUpdate(work_uuid=None), actor, db
+        shell = service.update_featured_projects(
+            PortfolioFeaturedProjectUpdate(project_uuid=None), actor, db
         )
-        assert not any(item["featured"] for item in shell["work"])
+        assert not any(item["featured"] for item in shell["projects"])
 
 
 def test_featured_timeline_allows_multiple_selections():
@@ -668,7 +668,7 @@ def test_legacy_import_can_be_dismissed_without_changing_profile():
         db.refresh(user)
         assert shell["portfolio"]["has_legacy_portfolio"] is False
         assert user.profile == original
-        assert service.legacy_import_preview(actor, db)["work"]
+        assert service.legacy_import_preview(actor, db)["projects"]
 
 
 def test_portfolio_revision_conflict():
@@ -722,7 +722,7 @@ def test_header_socials_can_be_added_edited_and_removed():
         assert removed["portfolio"]["socials"] == []
 
 
-def test_timeline_current_first_links_work_and_checks_revision():
+def test_timeline_current_first_links_project_and_checks_revision():
     with _session() as db:
         user = _user()
         db.add(user)
@@ -739,7 +739,7 @@ def test_timeline_current_first_links_work_and_checks_revision():
         )
         db.add(image)
         db.commit()
-        work = service.create_work(WorkItemCreate(title="StudyMate"), actor, db)
+        project = service.create_project(ProjectItemCreate(title="StudyMate"), actor, db)
         older = service.create_timeline(
             TimelineEntryCreate(
                 title="Started school", entry_type="education", start_date="2023-09"
@@ -762,8 +762,8 @@ def test_timeline_current_first_links_work_and_checks_revision():
                         },
                     }
                 ],
-                work_links=[
-                    {"work_uuid": work["work_uuid"], "relationship_label": "Built here"}
+                project_links=[
+                    {"project_uuid": project["project_uuid"], "relationship_label": "Built here"}
                 ],
             ),
             actor,
@@ -771,7 +771,7 @@ def test_timeline_current_first_links_work_and_checks_revision():
         )
         shell = service.get_owner_shell(actor, db)
         assert shell["timeline"][0]["timeline_uuid"] == current["timeline_uuid"]
-        assert shell["timeline"][0]["work"][0]["title"] == "StudyMate"
+        assert shell["timeline"][0]["projects"][0]["title"] == "StudyMate"
         assert shell["timeline"][0]["cover_url"] == "/media/experience.jpg"
         assert shell["timeline"][0]["blocks"][0]["data"]["asset_uuid"] == "asset_experience"
         assert (
@@ -795,7 +795,7 @@ def test_legacy_timeline_import_is_repeatable():
             "timeline": [
                 {
                     "title": "Community lead",
-                    "category": "work",
+                    "category": "project",
                     "company": "Youth Lab",
                     "startDate": "2024-01",
                 }
