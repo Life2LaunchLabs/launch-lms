@@ -21,6 +21,7 @@ from src.db.portfolio import (
     JourneyEntryUpdate,
     JourneyWorkLink,
     Portfolio,
+    PortfolioFeaturedJourneyUpdate,
     PortfolioFeaturedWorkUpdate,
     PortfolioTraitsUpdate,
     PortfolioLink,
@@ -244,6 +245,28 @@ def test_empty_portfolio_can_publish_without_preview():
 
         assert published["portfolio"]["published_at"] is not None
         assert published["readiness"]["canPublish"] is True
+
+
+def test_owner_preview_uses_public_section_visibility():
+    with _session() as db:
+        user = _user()
+        db.add(user)
+        db.commit()
+        actor = _public(user)
+        service.get_owner_shell(actor, db)
+        about = db.exec(
+            select(PortfolioSection).where(PortfolioSection.section_type == "about")
+        ).one()
+        about.enabled = False
+        db.add(about)
+        db.commit()
+
+        preview = service.get_owner_shell(actor, db, mark_previewed=True)
+
+        assert "about" not in {
+            section["section_type"] for section in preview["sections"]
+        }
+        assert preview["checklist"] is None
 
 
 def test_unverified_user_cannot_publish():
@@ -550,7 +573,7 @@ def test_work_idempotency_revision_conflict_and_publish_flow():
         assert error.value.status_code == 409
 
 
-def test_featured_work_allows_exactly_one_selection():
+def test_featured_work_allows_multiple_selections():
     with _session() as db:
         user = _user()
         db.add(user)
@@ -567,16 +590,49 @@ def test_featured_work_allows_exactly_one_selection():
         ]
 
         shell = service.update_featured_work(
-            PortfolioFeaturedWorkUpdate(work_uuid=second["work_uuid"]), actor, db
+            PortfolioFeaturedWorkUpdate(
+                work_uuids=[first["work_uuid"], second["work_uuid"]]
+            ),
+            actor,
+            db,
         )
-        assert [item["title"] for item in shell["work"] if item["featured"]] == [
-            "Second"
-        ]
+        assert {item["title"] for item in shell["work"] if item["featured"]} == {
+            "First",
+            "Second",
+        }
 
         shell = service.update_featured_work(
             PortfolioFeaturedWorkUpdate(work_uuid=None), actor, db
         )
         assert not any(item["featured"] for item in shell["work"])
+
+
+def test_featured_journey_allows_multiple_selections():
+    with _session() as db:
+        user = _user()
+        db.add(user)
+        db.commit()
+        actor = _public(user)
+        first = service.create_journey(JourneyEntryCreate(title="First"), actor, db)
+        second = service.create_journey(JourneyEntryCreate(title="Second"), actor, db)
+
+        shell = service.update_featured_journey(
+            PortfolioFeaturedJourneyUpdate(
+                journey_uuids=[first["journey_uuid"], second["journey_uuid"]]
+            ),
+            actor,
+            db,
+        )
+
+        assert {item["title"] for item in shell["journey"] if item["featured"]} == {
+            "First",
+            "Second",
+        }
+        with pytest.raises(HTTPException) as error:
+            service.update_featured_journey(
+                PortfolioFeaturedJourneyUpdate(journey_uuids=["not-mine"]), actor, db
+            )
+        assert error.value.status_code == 422
 
 
 def test_legacy_import_is_repeatable_and_preserves_profile_json():

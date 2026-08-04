@@ -234,6 +234,11 @@ class PortfolioFeaturedBadgesUpdate(SQLModel):
 
 class PortfolioFeaturedWorkUpdate(SQLModel):
     work_uuid: Optional[str] = None
+    work_uuids: Optional[list[str]] = None
+
+
+class PortfolioFeaturedJourneyUpdate(SQLModel):
+    journey_uuids: list[str] = Field(default_factory=list)
 
 
 class PortfolioBadgeVisibilityUpdate(SQLModel):

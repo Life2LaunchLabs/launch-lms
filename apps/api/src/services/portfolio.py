@@ -18,6 +18,7 @@ from src.db.portfolio import (
     PortfolioTraitsUpdate,
     PortfolioBadgeVisibilityUpdate,
     PortfolioFeaturedBadgesUpdate,
+    PortfolioFeaturedJourneyUpdate,
     PortfolioFeaturedWorkUpdate,
     PortfolioSectionsUpdate,
     ProfileTrait,
@@ -56,7 +57,8 @@ DEFAULT_SECTIONS = (
     "traits",
     "current_journey",
     "featured_work",
-    "links",
+    "instagram",
+    "youtube",
 )
 ALLOWED_BLOCK_TYPES = {
     "text",
@@ -711,7 +713,15 @@ def portfolio_shell(
         },
         "work": [_work_dto(item, db_session, public_only=public_only) for item in work],
         "journey": [
-            _journey_dto(item, db_session, public_only=public_only) for item in journey
+            {
+                **_journey_dto(item, db_session, public_only=public_only),
+                "featured": item.journey_uuid
+                in set(
+                    (portfolio.theme_settings or {}).get("featured_journey_uuids")
+                    or []
+                ),
+            }
+            for item in journey
         ],
         "traits": {
             kind: [item.label for item in traits if item.trait_type == kind]
@@ -777,16 +787,22 @@ def update_featured_work(
 ) -> dict:
     portfolio = get_or_create_portfolio(current_user, db_session)
     work = list(db_session.exec(_work_query(portfolio.id or 0)).all())
-    if payload.work_uuid and not any(
-        item.work_uuid == payload.work_uuid for item in work
-    ):
+    requested = list(
+        dict.fromkeys(
+            payload.work_uuids
+            if payload.work_uuids is not None
+            else ([payload.work_uuid] if payload.work_uuid else [])
+        )
+    )
+    available = {item.work_uuid for item in work}
+    if any(work_uuid not in available for work_uuid in requested):
         raise HTTPException(
             status_code=422, detail="Only your available work can be featured"
         )
     now = _now()
     changed = False
     for item in work:
-        featured = item.work_uuid == payload.work_uuid
+        featured = item.work_uuid in requested
         if item.featured != featured:
             item.featured = featured
             item.revision += 1
@@ -799,6 +815,31 @@ def update_featured_work(
         db_session.add(portfolio)
         db_session.commit()
         db_session.refresh(portfolio)
+    return portfolio_shell(portfolio, db_session)
+
+
+def update_featured_journey(
+    payload: PortfolioFeaturedJourneyUpdate,
+    current_user: PublicUser,
+    db_session: Session,
+) -> dict:
+    portfolio = get_or_create_portfolio(current_user, db_session)
+    requested = list(dict.fromkeys(payload.journey_uuids))
+    journey = list(db_session.exec(_journey_query(portfolio.id or 0)).all())
+    available = {item.journey_uuid for item in journey}
+    if any(journey_uuid not in available for journey_uuid in requested):
+        raise HTTPException(
+            status_code=422, detail="Only your available timeline entries can be featured"
+        )
+    portfolio.theme_settings = {
+        **(portfolio.theme_settings or {}),
+        "featured_journey_uuids": requested,
+    }
+    portfolio.revision += 1
+    portfolio.update_date = _now()
+    db_session.add(portfolio)
+    db_session.commit()
+    db_session.refresh(portfolio)
     return portfolio_shell(portfolio, db_session)
 
 
@@ -922,7 +963,7 @@ def get_owner_shell(
         db_session.add(portfolio)
         db_session.commit()
         db_session.refresh(portfolio)
-    return portfolio_shell(portfolio, db_session)
+    return portfolio_shell(portfolio, db_session, public_only=mark_previewed)
 
 
 def update_portfolio(

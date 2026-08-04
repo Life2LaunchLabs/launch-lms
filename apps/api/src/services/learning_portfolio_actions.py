@@ -175,7 +175,7 @@ def _portfolio(db: Session, user: User, now: str) -> Portfolio:
     db.add(portfolio)
     db.flush()
     for index, section_type in enumerate(
-        ("identity_hero", "featured_work", "about", "links")
+        ("identity_hero", "featured_work", "about", "instagram", "youtube")
     ):
         db.add(
             PortfolioSection(

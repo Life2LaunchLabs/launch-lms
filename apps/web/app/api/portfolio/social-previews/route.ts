@@ -13,6 +13,15 @@ type SocialPreviewItem = {
   thumbnailUrl?: string
 }
 
+type SocialPreviewProfile = {
+  name: string
+  handle: string
+  description?: string
+  imageUrl?: string
+  url: string
+  stats?: { posts?: string; followers?: string; following?: string }
+}
+
 type SocialPreviewSite = 'instagram' | 'youtube'
 
 type SocialPreviewCacheEntry = {
@@ -45,12 +54,18 @@ function cleanHandle(value: string) {
 }
 
 function decodeHtml(value: string) {
-  return value
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
+  let decoded = value
+  for (let pass = 0; pass < 2; pass += 1) {
+    decoded = decoded
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;|&apos;/g, "'")
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+      .replace(/&#x([\da-f]+);/gi, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)))
+  }
+  return decoded
 }
 
 function decodeJsonString(value: string) {
@@ -142,6 +157,65 @@ function getXmlTag(entry: string, tagName: string) {
   return match ? decodeHtml(match[1].replace(/^<!\[CDATA\[/, '').replace(/\]\]>$/, '').trim()) : ''
 }
 
+function getMetaContent(page: string, property: string) {
+  const escaped = property.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const patterns = [
+    new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']+)["']`, 'i'),
+    new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${escaped}["']`, 'i'),
+  ]
+  for (const pattern of patterns) {
+    const match = pattern.exec(page)
+    if (match?.[1]) return decodeHtml(match[1])
+  }
+  return ''
+}
+
+async function getSocialProfile(site: SocialPreviewSite, handle: string): Promise<SocialPreviewProfile> {
+  const url = site === 'instagram' ? `https://www.instagram.com/${handle}/` : `https://www.youtube.com/@${handle}`
+  if (site === 'instagram') {
+    try {
+      const data = await getInstagramProfileData(handle)
+      const user = data?.data?.user || data?.graphql?.user || data?.user
+      if (user && String(user.username || '').toLowerCase() === handle.toLowerCase()) {
+        return {
+          name: String(user.full_name || user.username || `@${handle}`),
+          handle: String(user.username || handle),
+          description: String(user.biography || ''),
+          imageUrl: user.profile_pic_url_hd || user.profile_pic_url ? getProxiedInstagramImageUrl(user.profile_pic_url_hd || user.profile_pic_url) : undefined,
+          url,
+          stats: {
+            followers: String(user.edge_followed_by?.count ?? user.follower_count ?? ''),
+            following: String(user.edge_follow?.count ?? user.following_count ?? ''),
+            posts: String(user.edge_owner_to_timeline_media?.count ?? user.media_count ?? ''),
+          },
+        }
+      }
+    } catch {
+      // Fall through to public Open Graph metadata.
+    }
+  }
+  try {
+    const page = await fetchText(url)
+    const rawTitle = getMetaContent(page, 'og:title').replace(/\s*\(@[^)]+\).*$/, '').replace(/\s*[|–-]\s*(Instagram|YouTube).*$/i, '').trim()
+    const rawDescription = getMetaContent(page, 'og:description')
+    const instagramStats = site === 'instagram' ? /^([\d,.KMB]+) Followers,\s*([\d,.KMB]+) Following,\s*([\d,.KMB]+) Posts/i.exec(rawDescription) : null
+    const title = site === 'instagram' ? rawTitle.split('|')[0].trim() : rawTitle
+    const description = site === 'instagram'
+      ? rawDescription
+          .replace(/^[\d,.KMB]+ Followers,\s*[\d,.KMB]+ Following,\s*[\d,.KMB]+ Posts\s*-\s*/i, '')
+          .replace(/^See Instagram photos and videos from\s+/i, '')
+          .replace(/\s*\(@[^)]+\)\s*$/, '')
+          .replace(new RegExp(`^${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\|\\s*`, 'i'), '')
+          .trim()
+      : rawDescription
+    const image = getMetaContent(page, 'og:image')
+    const genericInstagramMetadata = site === 'instagram' && (!title || title.toLowerCase() === 'instagram')
+    return { name: genericInstagramMetadata ? `@${handle}` : title || `@${handle}`, handle, description: genericInstagramMetadata ? '' : description, imageUrl: genericInstagramMetadata ? undefined : site === 'instagram' && image ? getProxiedInstagramImageUrl(image) : image, url, stats: instagramStats ? { followers: instagramStats[1], following: instagramStats[2], posts: instagramStats[3] } : undefined }
+  } catch {
+    return { name: `@${handle}`, handle, url }
+  }
+}
+
 async function resolveYouTubeChannelId(handle: string) {
   if (YOUTUBE_CHANNEL_ID_PATTERN.test(handle)) return handle
 
@@ -187,8 +261,7 @@ function collectInstagramImageUrls(page: string) {
   const patterns = [
     /"thumbnail_src":"([^"]+)"/g,
     /"display_url":"([^"]+)"/g,
-    /"profile_pic_url_hd":"([^"]+)"/g,
-    /"profile_pic_url":"([^"]+)"/g,
+    /"image_versions2":\{"candidates":\[\{"width":\d+,"height":\d+,"url":"([^"]+)"/g,
   ]
 
   for (const pattern of patterns) {
@@ -202,6 +275,18 @@ function collectInstagramImageUrls(page: string) {
   return Array.from(urls)
 }
 
+function collectInstagramShortcodes(page: string) {
+  const shortcodes = new Set<string>()
+  const patterns = [/"shortcode":"([a-zA-Z0-9_-]+)"/g, /"code":"([a-zA-Z0-9_-]+)"/g, /\/p\/([a-zA-Z0-9_-]+)\//g, /\/reel\/([a-zA-Z0-9_-]+)\//g]
+  for (const pattern of patterns) {
+    for (const match of page.matchAll(pattern)) {
+      if (match[1]) shortcodes.add(match[1])
+      if (shortcodes.size >= 6) return Array.from(shortcodes)
+    }
+  }
+  return Array.from(shortcodes)
+}
+
 async function getInstagramPreviews(handle: string): Promise<SocialPreviewItem[]> {
   try {
     const mediaItems = await getInstagramApiPreviews(handle)
@@ -212,16 +297,40 @@ async function getInstagramPreviews(handle: string): Promise<SocialPreviewItem[]
 
   const page = await fetchText(`https://www.instagram.com/${encodeURIComponent(handle)}/`)
   const imageUrls = collectInstagramImageUrls(page)
+  const shortcodes = collectInstagramShortcodes(page)
 
   return imageUrls.slice(0, 6).map((thumbnailUrl, index) => ({
     id: `${handle}-${index}`,
     title: `Instagram preview ${index + 1}`,
-    url: `https://www.instagram.com/${handle}/`,
-    thumbnailUrl,
+    url: shortcodes[index] ? `https://www.instagram.com/p/${shortcodes[index]}/` : `https://www.instagram.com/${handle}/`,
+    thumbnailUrl: getProxiedInstagramImageUrl(thumbnailUrl),
   }))
 }
 
 async function getInstagramApiPreviews(handle: string): Promise<SocialPreviewItem[]> {
+  const data = await getInstagramProfileData(handle)
+
+  const edges = data?.data?.user?.edge_owner_to_timeline_media?.edges
+    || data?.graphql?.user?.edge_owner_to_timeline_media?.edges
+  const feedItems = data?.items || data?.data?.items
+  if (!Array.isArray(edges) && !Array.isArray(feedItems)) return []
+
+  return (Array.isArray(edges) ? edges : feedItems.map((item: any) => ({ node: item }))).slice(0, 6).map((edge: any, index: number) => {
+    const node = edge?.node || edge || {}
+    const shortcode = String(node.shortcode || node.code || '')
+    const caption = node.edge_media_to_caption?.edges?.[0]?.node?.text || ''
+    const thumbnailUrl = node.display_url || node.thumbnail_src || node.thumbnail_resources?.at(-1)?.src || node.image_versions2?.candidates?.[0]?.url || ''
+
+    return {
+      id: String(node.id || shortcode || `${handle}-${index}`),
+      title: caption || `Instagram preview ${index + 1}`,
+      url: shortcode ? `https://www.instagram.com/p/${shortcode}/` : `https://www.instagram.com/${handle}/`,
+      thumbnailUrl: getProxiedInstagramImageUrl(thumbnailUrl),
+    }
+  }).filter((item: SocialPreviewItem) => item.thumbnailUrl)
+}
+
+async function getInstagramProfileData(handle: string) {
   const url = `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(handle)}`
   let data: any
 
@@ -231,22 +340,7 @@ async function getInstagramApiPreviews(handle: string): Promise<SocialPreviewIte
     data = await fetchJsonWithCurl(url)
   }
 
-  const edges = data?.data?.user?.edge_owner_to_timeline_media?.edges
-  if (!Array.isArray(edges)) return []
-
-  return edges.slice(0, 6).map((edge: any, index: number) => {
-    const node = edge?.node || {}
-    const shortcode = String(node.shortcode || '')
-    const caption = node.edge_media_to_caption?.edges?.[0]?.node?.text || ''
-    const thumbnailUrl = node.display_url || node.thumbnail_src || node.thumbnail_resources?.at(-1)?.src || ''
-
-    return {
-      id: String(node.id || shortcode || `${handle}-${index}`),
-      title: caption || `Instagram preview ${index + 1}`,
-      url: shortcode ? `https://www.instagram.com/p/${shortcode}/` : `https://www.instagram.com/${handle}/`,
-      thumbnailUrl: getProxiedInstagramImageUrl(thumbnailUrl),
-    }
-  }).filter((item) => item.thumbnailUrl)
+  return data
 }
 
 async function getSocialPreviews(site: SocialPreviewSite, handle: string) {
@@ -327,6 +421,8 @@ function isAllowedInstagramImageUrl(value: string) {
     return url.protocol === 'https:' && (
       url.hostname === 'instagram.com' ||
       url.hostname.endsWith('.instagram.com') ||
+      url.hostname === 'cdninstagram.com' ||
+      url.hostname.endsWith('.cdninstagram.com') ||
       url.hostname === 'fbcdn.net' ||
       url.hostname.endsWith('.fbcdn.net')
     )
@@ -393,9 +489,10 @@ export async function GET(request: NextRequest) {
   }
 
   const { items, cacheStatus } = await getCachedSocialPreviews(site, handle)
+  const profile = items.length ? undefined : await getSocialProfile(site, handle)
 
   return NextResponse.json(
-    { items },
+    { items, profile },
     {
       headers: {
         'cache-control': 'public, max-age=300, stale-while-revalidate=3600',
