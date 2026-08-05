@@ -303,6 +303,30 @@ def test_traits_allow_more_than_five_labels():
         assert shell["traits"]["value"] == labels
 
 
+def test_project_current_date_mode_clears_end_date():
+    with _session() as db:
+        user = _user()
+        db.add(user)
+        db.commit()
+        actor = _public(user)
+
+        project = service.create_project(
+            ProjectItemCreate(
+                title="Ongoing build",
+                start_date="2026-03",
+                end_date="2026-07",
+                is_ongoing=True,
+            ),
+            actor,
+            db,
+        )
+
+        assert project["start_date"] == "2026-03"
+        assert project["end_date"] is None
+        assert project["date_precision"] == "month"
+        assert project["is_ongoing"] is True
+
+
 def test_public_shell_uses_allowlisted_dtos_without_internal_fields():
     with _session() as db:
         user = _user()

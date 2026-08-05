@@ -267,6 +267,7 @@ class ProjectItemCreate(SQLModel):
     featured: bool = False
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+    is_ongoing: bool = False
     cover_asset_uuid: Optional[str] = None
     blocks: list[dict] = Field(default_factory=list)
     idempotency_key: Optional[str] = None
@@ -282,6 +283,7 @@ class ProjectItemUpdate(SQLModel):
     featured: Optional[bool] = None
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+    is_ongoing: Optional[bool] = None
     cover_asset_uuid: Optional[str] = None
     blocks: Optional[list[dict]] = None
     revision: int

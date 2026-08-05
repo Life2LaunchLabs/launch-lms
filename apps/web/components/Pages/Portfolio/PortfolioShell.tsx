@@ -23,9 +23,10 @@ import { CategorizedMultiSelect, PORTFOLIO_STRENGTHS, PORTFOLIO_VALUES, type Cat
 import { TimelineView, timelineDateLabel, type TimelineEntry } from './Timeline'
 import { EXPERIENCE_TYPES, ExperienceEditorDialog } from './ExperienceEditor'
 import { ProjectEditorDialog } from './ProjectEditorDialog'
+import { MonthDateRangeField } from './MonthDateRangeField'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 
-export type Project = { project_uuid: string; slug: string; title: string; subtitle: string; summary: string; story_kind: string; status: string; featured: boolean; revision: number; start_date?: string; end_date?: string; cover_url?: string; cover_asset_uuid?: string; blocks: Array<{ block_uuid?: string; block_type: string; data: Record<string, any> }> }
+export type Project = { project_uuid: string; slug: string; title: string; subtitle: string; summary: string; story_kind: string; status: string; featured: boolean; revision: number; start_date?: string; end_date?: string; is_ongoing?: boolean; cover_url?: string; cover_asset_uuid?: string; blocks: Array<{ block_uuid?: string; block_type: string; data: Record<string, any> }> }
 type PortfolioBadge = { badge_uuid: string; name: string; description?: string; thumbnail_image?: string; status: 'earned' | 'in_progress'; progress?: { completed: number; total: number; percent: number } }
 type PortfolioSection = { section_uuid: string; section_type: string; title_override?: string; enabled: boolean; sort_order: number }
 type ChecklistItem = { key: string; label: string; supportingText: string; href: string; complete: boolean }
@@ -57,6 +58,8 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
   const [experienceEditorOpen, setExperienceEditorOpen] = useState(false)
   const [projectEditorOpen, setProjectEditorOpen] = useState(false)
   const [experienceType, setExperienceType] = useState<string>('work_career')
+  const editingExperience = shell.timeline?.find((item: TimelineEntry) => item.timeline_uuid === searchParams.get('editExperience'))
+  const editingProject = shell.projects?.find((item: Project) => item.project_uuid === searchParams.get('editProject'))
   const headerRef = useRef<HTMLElement | null>(null)
   const displayName = shell.portfolio.display_name || username || 'Your portfolio'
   const nav = useMemo(() => tabs(orgslug, username, owner, shell, preview), [orgslug, username, owner, shell, preview])
@@ -93,6 +96,8 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
       setExperienceEditorOpen(true)
     }
     if (owner && searchParams.get('newProject') === '1') setProjectEditorOpen(true)
+    if (owner && searchParams.get('editExperience')) setExperienceEditorOpen(true)
+    if (owner && searchParams.get('editProject')) setProjectEditorOpen(true)
   }, [owner, searchParams])
 
   async function experienceSaved() {
@@ -208,8 +213,8 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
     </div>
     </div>
     {owner && <HeaderEditor open={editingIdentity} onOpenChange={setEditingIdentity} shell={shell} avatarUrl={avatarUrl} displayName={displayName} socials={draftSocials} setSocials={setDraftSocials} onAvatarClick={() => setAvatarPickerOpen(true)} onSubmit={saveIdentity} busy={busy} />}
-    {owner && <ExperienceEditorDialog open={experienceEditorOpen} onOpenChange={setExperienceEditorOpen} projects={shell.projects} initialType={experienceType} onSaved={experienceSaved} />}
-    {owner && <ProjectEditorDialog open={projectEditorOpen} onOpenChange={setProjectEditorOpen} onSaved={projectSaved} />}
+    {owner && <ExperienceEditorDialog open={experienceEditorOpen} onOpenChange={setExperienceEditorOpen} projects={shell.projects} initialEntry={editingExperience} initialType={experienceType} onSaved={experienceSaved} />}
+    {owner && <ProjectEditorDialog open={projectEditorOpen} onOpenChange={setProjectEditorOpen} initialProject={editingProject} onSaved={projectSaved} />}
     {owner && <MediaPickerDialog open={avatarPickerOpen} onOpenChange={setAvatarPickerOpen} title="Update your profile image" description="Upload an image or choose one from your media library." owner={{ type: 'user', id: Number(shell.portfolio.user_id) }} mediaType="image" accessToken={token} onSave={saveAvatar} />}
   </main>
 }

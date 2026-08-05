@@ -1138,7 +1138,9 @@ def create_project(
         visibility=payload.visibility,
         featured=payload.featured,
         start_date=payload.start_date,
-        end_date=payload.end_date,
+        end_date=None if payload.is_ongoing else payload.end_date,
+        date_precision="month",
+        is_ongoing=payload.is_ongoing,
         cover_asset_id=_cover_asset_id(
             payload.cover_asset_uuid, current_user.id, db_session
         ),

@@ -13,11 +13,13 @@ import { normalizeMediaUrl } from '@services/media/media'
 import { createPortfolioProject, updatePortfolioProject } from '@services/portfolio/portfolio'
 
 import type { Project } from './PortfolioShell'
+import { MonthDateRangeField } from './MonthDateRangeField'
 
 export type ProjectDraft = {
   title: string
   start_date?: string | null
   end_date?: string | null
+  is_ongoing?: boolean
   story?: string
   images?: MediaAsset[]
   cover_asset_uuid?: string | null
@@ -42,7 +44,8 @@ export function ProjectDefinitionForm({ initialProject, initialDraft, onSubmit, 
     if (images.length && !coverUuid) return toast.error('Choose a cover image')
     setBusy(true)
     try {
-      await onSubmit({ title: String(data.get('title') || ''), start_date: String(data.get('start_date') || '') || null, end_date: String(data.get('end_date') || '') || null, story: String(data.get('story') || ''), images, cover_asset_uuid: coverUuid || null })
+      const isOngoing = data.get('is_ongoing') === 'true'
+      await onSubmit({ title: String(data.get('title') || ''), start_date: String(data.get('start_date') || '') || null, end_date: isOngoing ? null : String(data.get('end_date') || '') || null, is_ongoing: isOngoing, story: String(data.get('story') || ''), images, cover_asset_uuid: coverUuid || null })
     } finally { setBusy(false) }
   }
 
@@ -55,7 +58,7 @@ export function ProjectDefinitionForm({ initialProject, initialDraft, onSubmit, 
   return <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col overflow-hidden">
     <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
       <section className="border-b border-border pb-6"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">About</h2><label className="mt-4 grid gap-2 text-sm font-semibold">Project name<input autoFocus required name="title" defaultValue={initialDraft?.title || initialProject?.title} placeholder="What did you make, do, or lead?" className={inputClass}/></label></section>
-      <section className="border-b border-border py-6"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Date</h2><div className="mt-4 grid gap-4 sm:grid-cols-2"><label className="grid gap-2 text-sm font-semibold">Start<input type="month" name="start_date" defaultValue={(initialDraft?.start_date || initialProject?.start_date || '').slice(0, 7)} className={inputClass}/></label><label className="grid gap-2 text-sm font-semibold">End<input type="month" name="end_date" defaultValue={(initialDraft?.end_date || initialProject?.end_date || '').slice(0, 7)} className={inputClass}/></label></div></section>
+      <section className="border-b border-border py-6"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Date</h2><div className="mt-4"><MonthDateRangeField startDate={initialDraft?.start_date || initialProject?.start_date} endDate={initialDraft?.end_date || initialProject?.end_date} isCurrent={initialDraft?.is_ongoing ?? initialProject?.is_ongoing} currentFieldName="is_ongoing" /></div></section>
       <section className="border-b border-border py-6"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Description</h2><textarea name="story" defaultValue={initialStory} rows={7} placeholder="What was the goal, what did you contribute, and what happened?" className="mt-4 w-full resize-y rounded-md border border-input bg-background p-3 text-sm leading-6"/></section>
       <section className="pt-6"><div className="flex items-center justify-between gap-4"><div><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Media</h2><p className="mt-1 text-sm text-muted-foreground">Add images and choose a cover for this project.</p></div><Button type="button" variant="outline" onClick={() => setPickerOpen(true)}><Plus className="mr-2 h-4 w-4"/>Add media</Button></div>{images.length > 0 && <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">{images.map((image) => <div key={image.asset_uuid} className={`group relative overflow-hidden rounded-xl border-2 ${coverUuid === image.asset_uuid ? 'border-foreground' : 'border-transparent'}`}><button type="button" onClick={() => setCoverUuid(image.asset_uuid)} className="block aspect-square w-full"><img src={normalizeMediaUrl(image.url)} alt="" className="h-full w-full object-cover"/><span className="absolute bottom-2 left-2 rounded-full bg-black/75 px-2 py-1 text-[11px] font-semibold text-white">{coverUuid === image.asset_uuid ? 'Cover' : 'Make cover'}</span></button><button type="button" aria-label="Remove image" onClick={() => { const remaining = images.filter((item) => item.asset_uuid !== image.asset_uuid); setImages(remaining); if (coverUuid === image.asset_uuid) setCoverUuid(remaining[0]?.asset_uuid || '') }} className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/75 text-white"><Trash2 className="h-4 w-4"/></button></div>)}</div>}</section>
     </div>
@@ -70,7 +73,7 @@ export function ProjectEditorDialog({ open, onOpenChange, initialProject, initia
   async function save(draft: ProjectDraft) {
     if (!token) return
     try {
-      const body = { title: draft.title, subtitle: '', start_date: draft.start_date, end_date: draft.end_date, cover_asset_uuid: draft.cover_asset_uuid, blocks: [{ block_type: 'text', data: { text: draft.story || '' } }, ...(draft.images || []).map((image) => ({ block_type: 'image', data: { asset_uuid: image.asset_uuid, url: image.url, caption: image.title || '' } }))] }
+      const body = { title: draft.title, subtitle: '', start_date: draft.start_date, end_date: draft.end_date, is_ongoing: draft.is_ongoing, cover_asset_uuid: draft.cover_asset_uuid, blocks: [{ block_type: 'text', data: { text: draft.story || '' } }, ...(draft.images || []).map((image) => ({ block_type: 'image', data: { asset_uuid: image.asset_uuid, url: image.url, caption: image.title || '' } }))] }
       const saved = initialProject ? await updatePortfolioProject(initialProject.project_uuid, { ...body, revision: initialProject.revision }, token) : await createPortfolioProject({ ...body, idempotency_key: crypto.randomUUID() }, token)
       toast.success(initialProject ? 'Project updated' : 'Project added')
       onOpenChange(false)

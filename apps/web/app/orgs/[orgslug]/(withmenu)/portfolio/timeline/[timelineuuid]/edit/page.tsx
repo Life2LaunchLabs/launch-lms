@@ -1,6 +1,4 @@
-import { notFound, redirect } from 'next/navigation'
+import { redirect } from 'next/navigation'
 import { getServerSession } from '@/lib/auth/server'
-import { TimelineEditor } from '@components/Pages/Portfolio/Timeline'
-import { getMyPortfolio } from '@services/portfolio/portfolio'
 import { getUriWithOrg } from '@services/config/config'
-export default async function EditTimelinePage({ params }: { params: Promise<{ orgslug: string; timelineuuid: string }> }) { const { orgslug, timelineuuid } = await params; const session = await getServerSession(); const token = session?.tokens?.access_token; if (!token) redirect(getUriWithOrg(orgslug, '/')); const shell = await getMyPortfolio(token); const entry = shell.timeline.find((item: any) => item.timeline_uuid === timelineuuid); if (!entry) notFound(); return <TimelineEditor initialEntry={entry} project={shell.projects} orgslug={orgslug}/> }
+export default async function EditTimelinePage({ params }: { params: Promise<{ orgslug: string; timelineuuid: string }> }) { const { orgslug, timelineuuid } = await params; if (!(await getServerSession())?.tokens?.access_token) redirect(getUriWithOrg(orgslug, '/')); redirect(`${getUriWithOrg(orgslug, '/portfolio/timeline')}?editExperience=${encodeURIComponent(timelineuuid)}`) }
