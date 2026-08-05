@@ -11,18 +11,17 @@ dev databases where the earlier migration was already marked applied before it
 learned to normalize uppercase enum-name rows.
 """
 import json
-from typing import Sequence, Union
+from collections.abc import Sequence
 from uuid import uuid4
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy import inspect
 
-
 revision: str = "o6p7q8r9s0t1"
-down_revision: Union[str, None] = "n5o6p7q8r9s0"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "n5o6p7q8r9s0"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 LEGACY_SIMPLE_TYPES = {"info", "multiple_choice", "text_input"}
 QUESTION_KINDS = {"multiple_choice", "text_input"}

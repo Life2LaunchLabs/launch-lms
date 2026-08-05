@@ -1,16 +1,15 @@
-from typing import List
-from fastapi import APIRouter, Depends, UploadFile, Form, Request, Query, File
+import io
+
+from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, field_validator
 from sqlmodel import Session
-import io
 from src.core.events.database import get_db_session
 from src.db.courses.course_updates import (
     CourseUpdateCreate,
     CourseUpdateRead,
     CourseUpdateUpdate,
 )
-from src.db.users import PublicUser
 from src.db.courses.courses import (
     CourseCreate,
     CourseRead,
@@ -18,25 +17,48 @@ from src.db.courses.courses import (
     FullCourseRead,
     ThumbnailType,
 )
+from src.db.resource_authors import ResourceAuthorshipEnum, ResourceAuthorshipStatusEnum
+from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.security.features_utils.dependencies import require_courses_feature
+from src.services.courses.collections import assign_course_to_collection
+from src.services.courses.contributors import (
+    add_bulk_course_contributors,
+    apply_course_contributor,
+    get_course_contributors,
+    remove_bulk_course_contributors,
+    update_course_contributor,
+)
 from src.services.courses.courses import (
+    clone_course,
     create_course,
+    delete_course,
+    get_core_courses,
+    get_core_courses_progress,
     get_course,
     get_course_by_id,
     get_course_meta,
-    get_courses_orgslug,
+    get_course_user_rights,
     get_courses_count_orgslug,
-    get_core_courses,
-    get_core_courses_progress,
+    get_courses_orgslug,
     reorder_core_courses,
+    search_courses,
     update_course,
     update_course_core_background,
-    delete_course,
     update_course_thumbnail,
-    search_courses,
-    get_course_user_rights,
-    clone_course,
+)
+from src.services.courses.transfer import (
+    ImportAnalysisResponse,
+    ImportOptions,
+    ImportResult,
+    TutorImportProgressResponse,
+    analyze_import_package,
+    analyze_tutor_import_files,
+    export_course,
+    export_courses_batch,
+    get_tutor_import_progress,
+    import_courses,
+    import_tutor_courses,
 )
 from src.services.courses.updates import (
     create_update,
@@ -44,28 +66,6 @@ from src.services.courses.updates import (
     get_updates_by_course_uuid,
     update_update,
 )
-from src.services.courses.contributors import (
-    apply_course_contributor,
-    update_course_contributor,
-    get_course_contributors,
-    add_bulk_course_contributors,
-    remove_bulk_course_contributors,
-)
-from src.db.resource_authors import ResourceAuthorshipEnum, ResourceAuthorshipStatusEnum
-from src.services.courses.transfer import (
-    export_course,
-    export_courses_batch,
-    analyze_import_package,
-    import_courses,
-    analyze_tutor_import_files,
-    import_tutor_courses,
-    get_tutor_import_progress,
-    ImportOptions,
-    ImportAnalysisResponse,
-    ImportResult,
-    TutorImportProgressResponse,
-)
-from src.services.courses.collections import assign_course_to_collection
 
 
 # Request models for batch operations
@@ -75,7 +75,7 @@ class BatchExportRequest(BaseModel):
 
     SECURITY: Limited to 20 courses per request to prevent resource exhaustion.
     """
-    course_uuids: List[str]
+    course_uuids: list[str]
 
     @field_validator('course_uuids')
     @classmethod
@@ -94,7 +94,7 @@ class ImportRequest(BaseModel):
     SECURITY: Limited to 20 courses per import request.
     """
     temp_id: str
-    course_uuids: List[str]
+    course_uuids: list[str]
     name_prefix: str | None = None
     set_private: bool = True
     set_unpublished: bool = True
@@ -111,7 +111,7 @@ class ImportRequest(BaseModel):
 
 
 class CoreCourseReorderRequest(BaseModel):
-    course_uuids: List[str]
+    course_uuids: list[str]
 
     @field_validator('course_uuids')
     @classmethod
@@ -272,7 +272,7 @@ async def api_import_courses(
 async def api_analyze_tutor_import(
     request: Request,
     org_id: int,
-    tutor_files: List[UploadFile] = File(...),
+    tutor_files: list[UploadFile] = File(...),
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ) -> ImportAnalysisResponse:
@@ -457,7 +457,7 @@ async def api_get_course_by_orgslug(
     include_unpublished: bool = False,
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
-) -> List[CourseRead]:
+) -> list[CourseRead]:
     """
     Get courses by page and limit
     """
@@ -489,7 +489,7 @@ async def api_search_courses(
     limit: int = Query(default=10, ge=1, le=50, description="Items per page (max 50)"),
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
-) -> List[CourseRead]:
+) -> list[CourseRead]:
     """
     Search courses by title and description.
 
@@ -620,7 +620,7 @@ async def api_get_course_updates(
     course_uuid: str,
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
-) -> List[CourseUpdateRead]:
+) -> list[CourseUpdateRead]:
     """
     Get Course Updates by course_uuid
     """
@@ -722,7 +722,7 @@ async def api_update_course_contributor(
 async def api_add_bulk_course_contributors(
     request: Request,
     course_uuid: str,
-    usernames: List[str],
+    usernames: list[str],
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
@@ -743,7 +743,7 @@ async def api_add_bulk_course_contributors(
 async def api_remove_bulk_course_contributors(
     request: Request,
     course_uuid: str,
-    usernames: List[str],
+    usernames: list[str],
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):

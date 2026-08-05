@@ -6,11 +6,16 @@ SSO capabilities through WorkOS's unified API for SAML and OIDC.
 """
 
 import os
-from typing import Optional
+
 from workos import WorkOSClient
 from workos.exceptions import BadRequestException
 
-from .base import SSOProvider, SSOUserProfile, SSOAuthenticationError, SSOConfigurationError
+from .base import (
+    SSOAuthenticationError,
+    SSOConfigurationError,
+    SSOProvider,
+    SSOUserProfile,
+)
 
 
 class WorkOSProvider(SSOProvider):
@@ -92,7 +97,7 @@ class WorkOSProvider(SSOProvider):
 
         except Exception as e:
             raise SSOAuthenticationError(
-                f"Failed to generate WorkOS authorization URL: {str(e)}",
+                f"Failed to generate WorkOS authorization URL: {e!s}",
                 provider=self.provider_name,
                 details={"error": str(e)}
             )
@@ -136,13 +141,13 @@ class WorkOSProvider(SSOProvider):
 
         except BadRequestException as e:
             raise SSOAuthenticationError(
-                f"Invalid authorization code: {str(e)}",
+                f"Invalid authorization code: {e!s}",
                 provider=self.provider_name,
                 details={"error": str(e), "error_type": "bad_request"}
             )
         except Exception as e:
             raise SSOAuthenticationError(
-                f"Failed to authenticate with WorkOS: {str(e)}",
+                f"Failed to authenticate with WorkOS: {e!s}",
                 provider=self.provider_name,
                 details={"error": str(e)}
             )
@@ -151,7 +156,7 @@ class WorkOSProvider(SSOProvider):
         self,
         connection_config: dict,
         return_url: str
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Generate WorkOS Admin Portal link.
 
@@ -202,7 +207,7 @@ class WorkOSProvider(SSOProvider):
             }
         except Exception as e:
             raise SSOConfigurationError(
-                f"Failed to create WorkOS organization: {str(e)}",
+                f"Failed to create WorkOS organization: {e!s}",
                 provider=self.provider_name
             )
 
@@ -230,7 +235,7 @@ class WorkOSProvider(SSOProvider):
             }
         except Exception as e:
             raise SSOConfigurationError(
-                f"Failed to update WorkOS organization: {str(e)}",
+                f"Failed to update WorkOS organization: {e!s}",
                 provider=self.provider_name
             )
 

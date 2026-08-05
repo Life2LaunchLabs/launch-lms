@@ -1,8 +1,8 @@
 from datetime import datetime
-from typing import List
 from uuid import uuid4
-from sqlmodel import Session, select, or_
-from src.db.users import AnonymousUser, PublicUser
+
+from fastapi import HTTPException, Request, status
+from sqlmodel import Session, or_, select
 from src.db.collections import (
     Collection,
     CollectionCreate,
@@ -13,10 +13,10 @@ from src.db.collections import (
 from src.db.collections_courses import CollectionCourse
 from src.db.courses.courses import Course
 from src.db.organizations import Organization
-from fastapi import HTTPException, status, Request
-from src.security.rbac import check_resource_access, AccessAction
-from src.services.shared_content import owner_org_payload
+from src.db.users import AnonymousUser, PublicUser
+from src.security.rbac import AccessAction, check_resource_access
 from src.services.courses.courses import _serialize_course_read
+from src.services.shared_content import owner_org_payload
 
 
 def _replace_course_collection(
@@ -498,7 +498,7 @@ async def get_collections(
     page: int = 1,
     limit: int = 10,
     include_shared: bool = True,
-) -> List[CollectionRead]:
+) -> list[CollectionRead]:
     statement_public = (
         select(Collection)
         .where(

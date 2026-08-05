@@ -1,18 +1,21 @@
-from fastapi import HTTPException, Request
-from sqlmodel import Session, select
 from datetime import datetime
 
+from fastapi import HTTPException, Request
+from sqlmodel import Session, select
+from src.db.organizations import Organization
 from src.db.payments.payments_enrollments import (
     EnrollmentStatusEnum,
     PaymentsEnrollment,
     PaymentsEnrollmentRead,
 )
-from src.db.payments.payments_offers import PaymentsOffer
 from src.db.payments.payments_groups import PaymentsGroupSync
-from src.db.organizations import Organization
+from src.db.payments.payments_offers import PaymentsOffer
 from src.db.users import AnonymousUser, APITokenUser, InternalUser, PublicUser
 from src.services.orgs.orgs import rbac_check
-from src.services.users.usergroups import add_users_to_usergroup, remove_users_from_usergroup
+from src.services.users.usergroups import (
+    add_users_to_usergroup,
+    remove_users_from_usergroup,
+)
 
 
 async def create_enrollment(

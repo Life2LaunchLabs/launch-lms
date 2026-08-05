@@ -1,13 +1,12 @@
 import importlib
-from logging.config import fileConfig
 import os
-import alembic_postgresql_enum # noqa: F401
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-from sqlmodel import SQLModel
-from alembic import context
+from logging.config import fileConfig
 
+import alembic_postgresql_enum  # noqa: F401
+from alembic import context
 from config.config import get_launchlms_config
+from sqlalchemy import engine_from_config, pool
+from sqlmodel import SQLModel
 
 # Launch LMS config
 

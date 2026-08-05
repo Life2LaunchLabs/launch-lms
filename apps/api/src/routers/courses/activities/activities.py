@@ -1,25 +1,25 @@
-from typing import List
-from fastapi import APIRouter, Depends, UploadFile, Form, Request, Query
-from src.db.courses.activities import ActivityCreate, ActivityRead, ActivityUpdate
-from src.db.courses.activity_versions import ActivityVersionRead, ActivityStateRead
-from src.db.users import PublicUser
+
+from fastapi import APIRouter, Depends, Form, Query, Request, UploadFile
 from src.core.events.database import get_db_session
+from src.db.courses.activities import ActivityCreate, ActivityRead, ActivityUpdate
+from src.db.courses.activity_versions import ActivityStateRead, ActivityVersionRead
+from src.db.users import PublicUser
+from src.security.auth import get_current_user
 from src.services.courses.activities.activities import (
     create_activity,
-    get_activity,
+    delete_activity,
     get_activities,
+    get_activity,
     get_activityby_id,
     update_activity,
-    delete_activity,
 )
+from src.services.courses.activities.pdf import create_documentpdf_activity
 from src.services.courses.activities.versioning import (
-    get_activity_versions,
-    get_activity_version,
     get_activity_state,
+    get_activity_version,
+    get_activity_versions,
     restore_activity_version,
 )
-from src.security.auth import get_current_user
-from src.services.courses.activities.pdf import create_documentpdf_activity
 from src.services.courses.activities.video import (
     ExternalVideo,
     create_external_video_activity,
@@ -53,7 +53,7 @@ async def api_get_activity_versions(
     offset: int = Query(default=0),
     current_user: PublicUser = Depends(get_current_user),
     db_session=Depends(get_db_session),
-) -> List[ActivityVersionRead]:
+) -> list[ActivityVersionRead]:
     """
     Get version history for an activity.
     Returns versions in descending order (newest first).
@@ -150,7 +150,7 @@ async def api_get_chapter_activities(
     chapter_id: int,
     current_user: PublicUser = Depends(get_current_user),
     db_session=Depends(get_db_session),
-) -> List[ActivityRead]:
+) -> list[ActivityRead]:
     """
     Get Activities for a chapter
     """

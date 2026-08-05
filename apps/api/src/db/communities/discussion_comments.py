@@ -1,4 +1,4 @@
-from typing import Optional
+
 from sqlalchemy import Column, ForeignKey, Integer, Text
 from sqlmodel import Field, SQLModel
 from src.db.users import UserRead
@@ -11,7 +11,7 @@ class DiscussionCommentBase(SQLModel):
 class DiscussionComment(DiscussionCommentBase, table=True):
     __tablename__ = "discussioncomment"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     discussion_id: int = Field(
         sa_column=Column(Integer, ForeignKey("discussion.id", ondelete="CASCADE"))
     )
@@ -30,7 +30,7 @@ class DiscussionCommentCreate(DiscussionCommentBase):
 
 
 class DiscussionCommentUpdate(SQLModel):
-    content: Optional[str] = None
+    content: str | None = None
 
 
 class DiscussionCommentRead(DiscussionCommentBase):
@@ -44,7 +44,7 @@ class DiscussionCommentRead(DiscussionCommentBase):
 
 
 class DiscussionCommentReadWithAuthor(DiscussionCommentRead):
-    author: Optional[UserRead] = None
+    author: UserRead | None = None
 
 
 class DiscussionCommentReadWithVoteStatus(DiscussionCommentReadWithAuthor):

@@ -1,30 +1,49 @@
-from typing import Literal, Union
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlmodel import Session, select
 from src.core.events.database import get_db_session
 from src.db.payments.payments import PaymentsConfig, PaymentsConfigRead
-from src.db.users import PublicUser, APITokenUser
+from src.db.payments.payments_groups import (
+    PaymentsGroupCreate,
+    PaymentsGroupRead,
+    PaymentsGroupResource,
+    PaymentsGroupUpdate,
+    PaymentsOfferResource,
+)
+
+# New offer/enrollment imports
+from src.db.payments.payments_offers import (
+    PaymentsOfferCreate,
+    PaymentsOfferRead,
+    PaymentsOfferUpdate,
+)
+from src.db.users import APITokenUser, PublicUser
 from src.security.auth import get_current_user
 from src.services.payments.payments_config import (
-    init_payments_config,
-    get_payments_config,
     delete_payments_config,
-)
-from src.services.payments.payments_stripe import (
-    create_offer_checkout_session,
-    handle_stripe_oauth_callback,
-    generate_stripe_connect_link,
-    create_stripe_express_account_and_link,
-    refresh_stripe_express_onboarding_link,
-    get_stripe_express_dashboard_link,
+    get_payments_config,
+    init_payments_config,
 )
 from src.services.payments.payments_customers import get_customers
-from src.services.payments.webhooks.payments_webhooks import handle_stripe_webhook
-# New offer/enrollment imports
-from src.db.payments.payments_offers import PaymentsOfferCreate, PaymentsOfferRead, PaymentsOfferUpdate
-from src.db.payments.payments_groups import (
-    PaymentsGroupCreate, PaymentsGroupRead, PaymentsGroupUpdate,
-    PaymentsOfferResource, PaymentsGroupResource,
+from src.services.payments.payments_enrollments import (
+    get_user_enrollments,
+)
+from src.services.payments.payments_groups import (
+    add_offer_resource,
+    add_resource_to_group,
+    add_sync,
+    create_payments_group,
+    delete_payments_group,
+    get_payments_group,
+    list_group_resources,
+    list_offer_resources,
+    list_payments_groups,
+    list_syncs,
+    remove_offer_resource,
+    remove_resource_from_group,
+    remove_sync,
+    update_payments_group,
 )
 from src.services.payments.payments_offers import (
     create_payments_offer,
@@ -33,25 +52,15 @@ from src.services.payments.payments_offers import (
     list_payments_offers,
     update_payments_offer,
 )
-from src.services.payments.payments_enrollments import (
-    get_user_enrollments,
+from src.services.payments.payments_stripe import (
+    create_offer_checkout_session,
+    create_stripe_express_account_and_link,
+    generate_stripe_connect_link,
+    get_stripe_express_dashboard_link,
+    handle_stripe_oauth_callback,
+    refresh_stripe_express_onboarding_link,
 )
-from src.services.payments.payments_groups import (
-    create_payments_group,
-    list_payments_groups,
-    get_payments_group,
-    update_payments_group,
-    delete_payments_group,
-    add_resource_to_group,
-    remove_resource_from_group,
-    list_group_resources,
-    add_sync,
-    remove_sync,
-    list_syncs,
-    add_offer_resource,
-    remove_offer_resource,
-    list_offer_resources,
-)
+from src.services.payments.webhooks.payments_webhooks import handle_stripe_webhook
 
 router = APIRouter()
 
@@ -64,7 +73,7 @@ async def api_create_payments_config(
     request: Request,
     org_id: int,
     provider: Literal["stripe"],
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ) -> PaymentsConfig:
     return await init_payments_config(request, org_id, provider, current_user, db_session)
@@ -74,7 +83,7 @@ async def api_create_payments_config(
 async def api_get_payments_config(
     request: Request,
     org_id: int,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ) -> list[PaymentsConfigRead]:
     return await get_payments_config(request, org_id, current_user, db_session)
@@ -83,7 +92,7 @@ async def api_get_payments_config(
 async def api_delete_payments_config(
     request: Request,
     org_id: int,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     await delete_payments_config(request, org_id, current_user, db_session)
@@ -98,7 +107,7 @@ async def api_create_payments_group(
     request: Request,
     org_id: int,
     data: PaymentsGroupCreate,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ) -> PaymentsGroupRead:
     return await create_payments_group(request, org_id, data, current_user, db_session)
@@ -108,7 +117,7 @@ async def api_create_payments_group(
 async def api_list_payments_groups(
     request: Request,
     org_id: int,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ) -> list[PaymentsGroupRead]:
     return await list_payments_groups(request, org_id, current_user, db_session)
@@ -119,7 +128,7 @@ async def api_get_payments_group(
     request: Request,
     org_id: int,
     group_id: int,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ) -> PaymentsGroupRead:
     return await get_payments_group(request, org_id, group_id, current_user, db_session)
@@ -131,7 +140,7 @@ async def api_update_payments_group(
     org_id: int,
     group_id: int,
     data: PaymentsGroupUpdate,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ) -> PaymentsGroupRead:
     return await update_payments_group(request, org_id, group_id, data, current_user, db_session)
@@ -142,7 +151,7 @@ async def api_delete_payments_group(
     request: Request,
     org_id: int,
     group_id: int,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     await delete_payments_group(request, org_id, group_id, current_user, db_session)
@@ -155,7 +164,7 @@ async def api_add_group_resource(
     org_id: int,
     group_id: int,
     resource_uuid: str,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     return await add_resource_to_group(request, org_id, group_id, resource_uuid, current_user, db_session)
@@ -167,7 +176,7 @@ async def api_remove_group_resource(
     org_id: int,
     group_id: int,
     resource_uuid: str,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     await remove_resource_from_group(request, org_id, group_id, resource_uuid, current_user, db_session)
@@ -179,7 +188,7 @@ async def api_list_group_resources(
     request: Request,
     org_id: int,
     group_id: int,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ) -> list[str]:
     return await list_group_resources(request, org_id, group_id, current_user, db_session)
@@ -191,7 +200,7 @@ async def api_add_group_sync(
     org_id: int,
     group_id: int,
     usergroup_id: int,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     return await add_sync(request, org_id, group_id, usergroup_id, current_user, db_session)
@@ -203,7 +212,7 @@ async def api_remove_group_sync(
     org_id: int,
     group_id: int,
     usergroup_id: int,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     await remove_sync(request, org_id, group_id, usergroup_id, current_user, db_session)
@@ -215,7 +224,7 @@ async def api_list_group_syncs(
     request: Request,
     org_id: int,
     group_id: int,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ) -> list[dict]:
     return await list_syncs(request, org_id, group_id, current_user, db_session)
@@ -231,7 +240,7 @@ async def api_add_offer_resource(
     org_id: int,
     offer_id: int,
     resource_uuid: str,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     return await add_offer_resource(request, org_id, offer_id, resource_uuid, current_user, db_session)
@@ -243,7 +252,7 @@ async def api_remove_offer_resource(
     org_id: int,
     offer_id: int,
     resource_uuid: str,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     await remove_offer_resource(request, org_id, offer_id, resource_uuid, current_user, db_session)
@@ -255,7 +264,7 @@ async def api_list_offer_resources(
     request: Request,
     org_id: int,
     offer_id: int,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ) -> list[str]:
     return await list_offer_resources(request, org_id, offer_id, current_user, db_session)
@@ -270,7 +279,7 @@ async def api_create_payments_offer(
     request: Request,
     org_id: int,
     offer: PaymentsOfferCreate,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ) -> PaymentsOfferRead:
     return await create_payments_offer(request, org_id, offer, current_user, db_session)
@@ -282,9 +291,9 @@ async def api_list_public_offers(
     db_session: Session = Depends(get_db_session),
 ):
     """Public endpoint — lists all publicly listed offers for an org, enriched with resource metadata."""
-    from src.db.payments.payments_offers import PaymentsOffer
     from src.db.courses.courses import Course
     from src.db.organizations import Organization
+    from src.db.payments.payments_offers import PaymentsOffer
 
     org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
     org_uuid = org.org_uuid if org else ""
@@ -429,9 +438,9 @@ async def api_get_public_offer(
 ):
     """Public endpoint — offer metadata + included resources enriched with course details."""
     from fastapi import HTTPException
-    from src.db.payments.payments_offers import PaymentsOffer
     from src.db.courses.courses import Course
     from src.db.organizations import Organization
+    from src.db.payments.payments_offers import PaymentsOffer
 
     org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
     org_uuid = org.org_uuid if org else ""
@@ -498,7 +507,7 @@ async def api_get_public_offer(
 async def api_list_payments_offers(
     request: Request,
     org_id: int,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ) -> list[PaymentsOfferRead]:
     return await list_payments_offers(request, org_id, current_user, db_session)
@@ -509,7 +518,7 @@ async def api_get_payments_offer(
     request: Request,
     org_id: int,
     offer_id: int,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ) -> PaymentsOfferRead:
     return await get_payments_offer(request, org_id, offer_id, current_user, db_session)
@@ -521,7 +530,7 @@ async def api_update_payments_offer(
     org_id: int,
     offer_id: int,
     offer: PaymentsOfferUpdate,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ) -> PaymentsOfferRead:
     return await update_payments_offer(request, org_id, offer_id, offer, current_user, db_session)
@@ -532,7 +541,7 @@ async def api_delete_payments_offer(
     request: Request,
     org_id: int,
     offer_id: int,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     await delete_payments_offer(request, org_id, offer_id, current_user, db_session)
@@ -545,7 +554,7 @@ async def api_create_offer_checkout_session(
     org_id: int,
     offer_uuid: str,
     redirect_uri: str,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     from src.db.payments.payments_offers import PaymentsOffer
@@ -563,7 +572,7 @@ async def api_create_offer_checkout_session(
 async def api_get_user_enrollments(
     request: Request,
     org_id: int,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     return await get_user_enrollments(request, org_id, current_user, db_session)
@@ -574,7 +583,7 @@ async def api_create_billing_portal_session(
     request: Request,
     org_id: int,
     return_url: str,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     """
@@ -619,7 +628,7 @@ async def api_handle_stripe_webhook_connect(
 async def api_get_customers(
     request: Request,
     org_id: int,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     return await get_customers(request, org_id, current_user, db_session)
@@ -632,7 +641,7 @@ async def api_get_customers(
 @router.get("/{org_id}/stripe/overview")
 async def api_stripe_overview(
     org_id: int,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     from src.services.payments.payments_stripe_dashboard import get_stripe_overview
@@ -644,7 +653,7 @@ async def api_stripe_charges(
     org_id: int,
     limit: int = 25,
     starting_after: str | None = None,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     from src.services.payments.payments_stripe_dashboard import get_stripe_charges
@@ -655,7 +664,7 @@ async def api_stripe_charges(
 async def api_stripe_subscriptions(
     org_id: int,
     status: str = "active",
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     from src.services.payments.payments_stripe_dashboard import get_stripe_subscriptions
@@ -670,7 +679,7 @@ async def api_generate_stripe_connect_link(
     request: Request,
     org_id: int,
     redirect_uri: str,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     return await generate_stripe_connect_link(request, org_id, redirect_uri, current_user, db_session)
@@ -680,7 +689,7 @@ async def stripe_oauth_callback(
     request: Request,
     code: str,
     org_id: int,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     return await handle_stripe_oauth_callback(request, org_id, code, current_user, db_session)
@@ -695,7 +704,7 @@ async def api_stripe_express_connect_link(
     request: Request,
     org_id: int,
     redirect_uri: str,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     """Create a Stripe Express account (if not yet created) and return an onboarding link."""
@@ -715,7 +724,7 @@ async def api_stripe_express_connect_refresh(
 @router.get("/{org_id}/stripe/express/dashboard")
 async def api_stripe_express_dashboard(
     org_id: int,
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     """Return a Stripe Express hosted dashboard URL for the connected Express account."""

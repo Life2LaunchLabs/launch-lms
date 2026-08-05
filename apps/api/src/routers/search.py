@@ -1,10 +1,10 @@
-from typing import Union
-from fastapi import APIRouter, Depends, Request, Query
+
+from fastapi import APIRouter, Depends, Query, Request
 from sqlmodel import Session
 from src.core.events.database import get_db_session
-from src.db.users import PublicUser, APITokenUser
+from src.db.users import APITokenUser, PublicUser
 from src.security.auth import get_current_user
-from src.services.search.search import search_across_org, SearchResult
+from src.services.search.search import SearchResult, search_across_org
 
 router = APIRouter()
 
@@ -16,7 +16,7 @@ async def api_search_across_org(
     page: int = Query(default=1, ge=1, description="Page number"),
     limit: int = Query(default=10, ge=1, le=50, description="Items per page (max 50)"),
     db_session: Session = Depends(get_db_session),
-    current_user: Union[PublicUser, APITokenUser] = Depends(get_current_user),
+    current_user: PublicUser | APITokenUser = Depends(get_current_user),
 ) -> SearchResult:
     """
     Search across courses, collections and users within an organization.

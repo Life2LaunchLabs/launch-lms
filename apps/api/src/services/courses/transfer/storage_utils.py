@@ -9,7 +9,7 @@ Follows the same pattern as upload_content.py and frontend media.ts:
 
 import logging
 import os
-from typing import Optional
+
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 from config.config import get_launchlms_config
@@ -49,7 +49,7 @@ def is_s3_enabled() -> bool:
     return get_content_delivery_type() == "s3api"
 
 
-def read_file_content(file_path: str) -> Optional[bytes]:
+def read_file_content(file_path: str) -> bytes | None:
     """
     Read file content based on configured content delivery type.
 

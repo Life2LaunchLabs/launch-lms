@@ -7,10 +7,10 @@ Rate limits:
 - Verification resend: 5 attempts per 5 minutes per email
 """
 import ipaddress
-from typing import Optional, Tuple
+
 import redis
-from fastapi import HTTPException, Request
 from config.config import get_launchlms_config
+from fastapi import HTTPException, Request
 
 
 class RateLimitExceeded(Exception):
@@ -88,8 +88,8 @@ def check_rate_limit(
     key: str,
     max_attempts: int,
     window_seconds: int,
-    r: Optional[redis.Redis] = None
-) -> Tuple[bool, int, int]:
+    r: redis.Redis | None = None
+) -> tuple[bool, int, int]:
     """
     Check if rate limit is exceeded for a given key.
 
@@ -127,7 +127,7 @@ def check_rate_limit(
     return True, new_count, ttl if ttl > 0 else window_seconds
 
 
-def check_login_rate_limit(request: Request) -> Tuple[bool, int]:
+def check_login_rate_limit(request: Request) -> tuple[bool, int]:
     """
     Check login rate limit: 30 attempts per 5 minutes per IP.
 
@@ -146,7 +146,7 @@ def check_login_rate_limit(request: Request) -> Tuple[bool, int]:
     return is_allowed, retry_after
 
 
-def check_signup_rate_limit(request: Request) -> Tuple[bool, int]:
+def check_signup_rate_limit(request: Request) -> tuple[bool, int]:
     """
     Check signup rate limit: 10 attempts per hour per IP.
 
@@ -165,7 +165,7 @@ def check_signup_rate_limit(request: Request) -> Tuple[bool, int]:
     return is_allowed, retry_after
 
 
-def check_verification_resend_rate_limit(email: str) -> Tuple[bool, int]:
+def check_verification_resend_rate_limit(email: str) -> tuple[bool, int]:
     """
     Check verification email resend rate limit: 5 attempts per 5 minutes per email.
 
@@ -183,7 +183,7 @@ def check_verification_resend_rate_limit(email: str) -> Tuple[bool, int]:
     return is_allowed, retry_after
 
 
-def check_refresh_rate_limit(request: Request) -> Tuple[bool, int]:
+def check_refresh_rate_limit(request: Request) -> tuple[bool, int]:
     """
     Check token refresh rate limit: 60 attempts per minute per IP.
     This prevents brute-force attacks on the refresh endpoint.
@@ -203,7 +203,7 @@ def check_refresh_rate_limit(request: Request) -> Tuple[bool, int]:
     return is_allowed, retry_after
 
 
-def check_api_token_rate_limit(request: Request) -> Tuple[bool, int]:
+def check_api_token_rate_limit(request: Request) -> tuple[bool, int]:
     """
     Check API token creation/regeneration rate limit: 10 per hour per IP.
 
@@ -222,7 +222,7 @@ def check_api_token_rate_limit(request: Request) -> Tuple[bool, int]:
     return is_allowed, retry_after
 
 
-def check_password_reset_rate_limit(email: str) -> Tuple[bool, int]:
+def check_password_reset_rate_limit(email: str) -> tuple[bool, int]:
     """
     Check password reset verification rate limit: 5 attempts per 5 minutes per email.
 
@@ -240,7 +240,7 @@ def check_password_reset_rate_limit(email: str) -> Tuple[bool, int]:
     return is_allowed, retry_after
 
 
-def check_email_verification_rate_limit(email: str) -> Tuple[bool, int]:
+def check_email_verification_rate_limit(email: str) -> tuple[bool, int]:
     """
     Check email verification rate limit: 5 attempts per 5 minutes per email.
 

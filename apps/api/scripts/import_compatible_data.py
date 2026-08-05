@@ -9,7 +9,6 @@ from typing import Any
 from sqlalchemy import MetaData, Table, create_engine, func, select, text
 from sqlalchemy.dialects.postgresql import insert
 
-
 SKIP_TABLES = {"alembic_version"}
 
 

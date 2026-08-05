@@ -2,14 +2,18 @@ import logging
 from datetime import datetime
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlmodel import Session, select
 from config.config import get_launchlms_config
-from migrations.orgconfigs.orgconfigs_migrations import migrate_to_v1_1, migrate_to_v1_2, migrate_v0_to_v1
+from fastapi import APIRouter, Depends, HTTPException, Request
+from migrations.orgconfigs.orgconfigs_migrations import (
+    migrate_to_v1_1,
+    migrate_to_v1_2,
+    migrate_v0_to_v1,
+)
+from sqlmodel import Session, select
 from src.core.events.database import get_db_session
 from src.db.courses.activities import Activity
-from src.db.courses.chapter_activities import ChapterActivity
 from src.db.courses.certifications import Certifications
+from src.db.courses.chapter_activities import ChapterActivity
 from src.db.courses.courses import Course
 from src.db.organization_config import OrganizationConfig
 from src.db.trail_runs import StatusEnum, TrailRun
@@ -20,7 +24,9 @@ from src.security.auth import get_authenticated_user
 from src.security.rbac import AccessAction, check_resource_access
 from src.services.analytics import events as analytics_events
 from src.services.analytics.analytics import track
-from src.services.courses.certifications import check_course_completion_and_create_certificate
+from src.services.courses.certifications import (
+    check_course_completion_and_create_certificate,
+)
 
 logger = logging.getLogger(__name__)
 

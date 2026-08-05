@@ -13,33 +13,35 @@ from typing import Any
 from urllib.parse import quote, unquote, urlparse
 from uuid import uuid4
 
+import httpx
 from bs4 import BeautifulSoup, NavigableString, Tag
 from fastapi import HTTPException, Request, UploadFile
-import httpx
 from sqlmodel import Session, select
-
+from src.db.collections import Collection
+from src.db.collections_courses import CollectionCourse
 from src.db.courses.activities import Activity, ActivitySubTypeEnum, ActivityTypeEnum
 from src.db.courses.blocks import Block, BlockTypeEnum
 from src.db.courses.chapter_activities import ChapterActivity
 from src.db.courses.chapters import Chapter
 from src.db.courses.course_chapters import CourseChapter
 from src.db.courses.courses import Course, ThumbnailType
-from src.db.collections import Collection
-from src.db.collections_courses import CollectionCourse
 from src.db.organizations import Organization
 from src.db.resource_authors import (
     ResourceAuthor,
     ResourceAuthorshipEnum,
     ResourceAuthorshipStatusEnum,
 )
-from src.db.users import PublicUser, AnonymousUser, APITokenUser
+from src.db.users import AnonymousUser, APITokenUser, PublicUser
+from src.security.features_utils.usage import (
+    check_limits_with_usage,
+    increase_feature_usage,
+)
 from src.security.file_validation import (
     get_safe_filename,
     validate_audio_content,
     validate_image_content,
     validate_video_content,
 )
-from src.security.features_utils.usage import check_limits_with_usage, increase_feature_usage
 from src.security.rbac import AccessAction, check_resource_access
 from src.services.utils.upload_content import upload_content
 
@@ -53,7 +55,6 @@ from .models import (
     TutorImportLogEntry,
     TutorImportProgressResponse,
 )
-
 
 TEMP_TUTOR_IMPORT_DIR = "content/temp/tutor-imports"
 MAX_TUTOR_FILES = 20

@@ -1,5 +1,4 @@
 from sqlmodel import Session, create_engine
-
 from src.db.custom_domains import CustomDomain
 from src.db.learning import LearningBadge
 from src.db.organization_config import OrganizationConfig

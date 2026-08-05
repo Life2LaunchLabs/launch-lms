@@ -1,32 +1,33 @@
-from typing import List, TypeVar
+from typing import TypeVar
+
 from fastapi import Request
-from sqlmodel import Session, select, or_, text, and_, func
-from sqlalchemy import true as sa_true
 from pydantic import BaseModel, ConfigDict
-from src.db.organization_config import OrganizationConfig
-from src.db.users import PublicUser, AnonymousUser, UserRead, User, APITokenUser
-from src.db.courses.courses import Course, CourseRead
+from sqlalchemy import true as sa_true
+from sqlmodel import Session, and_, func, or_, select, text
 from src.db.collections import Collection, CollectionRead
 from src.db.communities.communities import Community, CommunityRead
+from src.db.courses.courses import Course, CourseRead
+from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization, OrganizationDiscoverRead
 from src.db.resources import ResourceChannel, ResourceChannelRead
 from src.db.user_organizations import UserOrganization
+from src.db.users import AnonymousUser, APITokenUser, PublicUser, User, UserRead
+from src.security.org_auth import is_org_member
 from src.services.courses.courses import search_courses
 from src.services.orgs.orgs import _build_discover_org_read
 from src.services.shared_content import owner_org_payload
-from src.security.org_auth import is_org_member
 
 T = TypeVar('T')
 
 class SearchResult(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    courses: List[CourseRead]
-    collections: List[CollectionRead]
-    communities: List[CommunityRead]
-    organizations: List[OrganizationDiscoverRead]
-    resource_channels: List[ResourceChannelRead]
-    users: List[UserRead]
+    courses: list[CourseRead]
+    collections: list[CollectionRead]
+    communities: list[CommunityRead]
+    organizations: list[OrganizationDiscoverRead]
+    resource_channels: list[ResourceChannelRead]
+    users: list[UserRead]
 
 def _escape_like_wildcards(query: str) -> str:
     """Escape SQL LIKE wildcards to prevent user enumeration via pattern matching."""

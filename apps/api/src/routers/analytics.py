@@ -3,31 +3,31 @@ import io
 import logging
 import re
 
+import httpx
+from config.config import get_launchlms_config
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlmodel import Session, select
-from config.config import get_launchlms_config
 from src.core.events.database import get_db_session
-from src.db.users import PublicUser, AnonymousUser, User
-from src.db.user_organizations import UserOrganization
-from src.db.roles import Role
-from src.db.courses.courses import Course
 from src.db.courses.activities import Activity
+from src.db.courses.courses import Course
+from src.db.roles import Role
 from src.db.trail_runs import TrailRun
+from src.db.user_organizations import UserOrganization
+from src.db.users import AnonymousUser, PublicUser, User
 from src.security.auth import get_current_user
-from src.security.superadmin import is_user_superadmin
 from src.security.features_utils.plan_check import get_org_plan
 from src.security.features_utils.plans import plan_meets_requirement
-import httpx
+from src.security.superadmin import is_user_superadmin
 from src.services.analytics.analytics import track
 from src.services.analytics.cache import get_cached_result, set_cached_result
 from src.services.analytics.events import ALLOWED_FRONTEND_EVENTS
 from src.services.analytics.queries import (
     ALL_QUERIES,
-    DETAIL_QUERIES,
-    COURSE_QUERIES,
     COURSE_DETAIL_QUERIES,
+    COURSE_QUERIES,
+    DETAIL_QUERIES,
 )
 
 logger = logging.getLogger(__name__)

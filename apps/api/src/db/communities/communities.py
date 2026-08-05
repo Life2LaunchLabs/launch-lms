@@ -1,55 +1,55 @@
-from typing import Optional, List
-from sqlalchemy import Column, ForeignKey, Integer, Text, JSON
+
+from sqlalchemy import JSON, Column, ForeignKey, Integer, Text
 from sqlmodel import Field, SQLModel
 
 
 class CommunityBase(SQLModel):
     name: str
-    description: Optional[str] = Field(default=None, sa_column=Column(Text))
+    description: str | None = Field(default=None, sa_column=Column(Text))
     public: bool = True
     shared: bool = False
-    thumbnail_image: Optional[str] = Field(default="")
+    thumbnail_image: str | None = Field(default="")
 
 
 class Community(CommunityBase, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     org_id: int = Field(
         sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"))
     )
-    course_id: Optional[int] = Field(
+    course_id: int | None = Field(
         default=None,
         sa_column=Column(Integer, ForeignKey("course.id", ondelete="SET NULL"))
     )
     community_uuid: str = ""
-    moderation_words: List[str] = Field(default=[], sa_column=Column(JSON, default=[]))
+    moderation_words: list[str] = Field(default=[], sa_column=Column(JSON, default=[]))
     creation_date: str = ""
     update_date: str = ""
 
 
 class CommunityCreate(CommunityBase):
     org_id: int = Field(default=None, foreign_key="organization.id")
-    course_id: Optional[int] = Field(default=None, foreign_key="course.id")
+    course_id: int | None = Field(default=None, foreign_key="course.id")
 
 
 class CommunityUpdate(SQLModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    public: Optional[bool] = None
-    shared: Optional[bool] = None
-    thumbnail_image: Optional[str] = None
-    moderation_words: Optional[List[str]] = None
+    name: str | None = None
+    description: str | None = None
+    public: bool | None = None
+    shared: bool | None = None
+    thumbnail_image: str | None = None
+    moderation_words: list[str] | None = None
 
 
 class CommunityRead(CommunityBase):
     id: int
     org_id: int = Field(default=None, foreign_key="organization.id")
-    course_id: Optional[int] = Field(default=None, foreign_key="course.id")
+    course_id: int | None = Field(default=None, foreign_key="course.id")
     community_uuid: str
-    owner_org_id: Optional[int] = None
-    owner_org_uuid: Optional[str] = None
-    owner_org_slug: Optional[str] = None
-    owner_org_name: Optional[str] = None
+    owner_org_id: int | None = None
+    owner_org_uuid: str | None = None
+    owner_org_slug: str | None = None
+    owner_org_name: str | None = None
     is_shared_from_other_org: bool = False
-    moderation_words: List[str] = []
+    moderation_words: list[str] = []
     creation_date: str
     update_date: str

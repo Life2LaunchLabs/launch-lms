@@ -1,21 +1,22 @@
-import redis
 from datetime import datetime
-from src.db.organization_config import OrganizationConfig
-from src.db.billing_usage import UsageEvent
-from src.db.user_organizations import UserOrganization
-from src.db.courses.courses import Course
-from src.db.roles import Role, RoleTypeEnum
-from sqlalchemy import or_
-from config.config import get_launchlms_config
 from typing import Literal, TypeAlias
+
+import redis
+from config.config import get_launchlms_config
 from fastapi import HTTPException
-from sqlmodel import Session, select, func
+from sqlalchemy import or_
+from sqlmodel import Session, func, select
+from src.db.billing_usage import UsageEvent
+from src.db.courses.courses import Course
+from src.db.organization_config import OrganizationConfig
+from src.db.roles import Role, RoleTypeEnum
+from src.db.user_organizations import UserOrganization
 from src.security.features_utils.plans import (
     PlanLevel,
-    get_plan_limit,
     get_ai_credit_limit,
-    plan_meets_requirement,
+    get_plan_limit,
     get_required_plan_for_feature,
+    plan_meets_requirement,
 )
 
 FeatureSet: TypeAlias = Literal[

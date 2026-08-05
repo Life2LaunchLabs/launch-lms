@@ -1,11 +1,10 @@
-import secrets
 import hashlib
-from typing import List, Optional
-from uuid import uuid4
+import secrets
 from datetime import datetime
-from sqlmodel import Session, select
-from fastapi import HTTPException, Request, status
+from uuid import uuid4
 
+from fastapi import HTTPException, Request, status
+from sqlmodel import Session, select
 from src.db.api_tokens import (
     APIToken,
     APITokenCreate,
@@ -14,17 +13,16 @@ from src.db.api_tokens import (
     APITokenUpdate,
 )
 from src.db.organizations import Organization
-from src.db.users import PublicUser
 from src.db.roles import Rights
+from src.db.users import PublicUser
+from src.security.org_auth import (
+    get_user_org_role,
+    require_org_membership,
+    require_org_role_permission,
+)
 from src.security.rbac.rbac import (
     authorization_verify_if_user_is_anon,
 )
-from src.security.org_auth import (
-    require_org_membership,
-    require_org_role_permission,
-    get_user_org_role,
-)
-
 
 # Token generation constants
 TOKEN_PREFIX = "lh_"
@@ -187,7 +185,7 @@ async def list_api_tokens(
     db_session: Session,
     org_id: int,
     current_user: PublicUser,
-) -> List[APITokenRead]:
+) -> list[APITokenRead]:
     """List all API tokens for an organization."""
     # VERIFICATION 1: User must be authenticated
     await authorization_verify_if_user_is_anon(current_user.id)
@@ -399,7 +397,7 @@ async def regenerate_api_token(
 async def validate_api_token_for_auth(
     token: str,
     db_session: Session,
-) -> Optional[APIToken]:
+) -> APIToken | None:
     """
     Validate an API token for authentication purposes.
     Updates last_used_at on successful validation.
@@ -454,8 +452,8 @@ async def validate_api_token_for_auth(
 
 
 async def validate_rights_structure(
-    rights: Optional[Rights | dict],
-    user_rights: Optional[Rights | dict],
+    rights: Rights | dict | None,
+    user_rights: Rights | dict | None,
 ) -> None:
     """
     Validate the rights structure and ensure token rights don't exceed user rights.

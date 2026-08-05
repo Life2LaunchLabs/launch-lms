@@ -1,16 +1,27 @@
 import logging
 from typing import Any, Literal
+
+import stripe
+from config.config import get_launchlms_config
 from fastapi import HTTPException, Request
 from sqlmodel import Session, select
-import stripe
-
-from config.config import get_launchlms_config
-from src.db.payments.payments import PaymentsConfig, PaymentsConfigUpdate, PaymentsModeEnum
+from src.db.payments.payments import (
+    PaymentsConfig,
+    PaymentsConfigUpdate,
+    PaymentsModeEnum,
+)
 from src.db.payments.payments_enrollments import EnrollmentStatusEnum
-from src.db.payments.payments_offers import OfferPriceTypeEnum, OfferTypeEnum, PaymentsOffer
-from src.services.payments.payments_config import get_payments_config, update_payments_config
-from src.services.payments.provider_interface import IPaymentProvider
+from src.db.payments.payments_offers import (
+    OfferPriceTypeEnum,
+    OfferTypeEnum,
+    PaymentsOffer,
+)
 from src.db.users import AnonymousUser, APITokenUser, InternalUser, PublicUser
+from src.services.payments.payments_config import (
+    get_payments_config,
+    update_payments_config,
+)
+from src.services.payments.provider_interface import IPaymentProvider
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +166,7 @@ class StripePaymentProvider(IPaymentProvider):
 
             return updated_product
         except stripe.StripeError as e:
-            raise HTTPException(status_code=400, detail=f"Error updating Stripe product: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"Error updating Stripe product: {e!s}")
 
     async def archive_product(
         self,
@@ -172,7 +183,7 @@ class StripePaymentProvider(IPaymentProvider):
         try:
             return stripe.Product.modify(product_id, active=False, stripe_account=stripe_acc_id)
         except stripe.StripeError as e:
-            raise HTTPException(status_code=400, detail=f"Error archiving Stripe product: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"Error archiving Stripe product: {e!s}")
 
     # ------------------------------------------------------------------
     # Checkout
@@ -188,7 +199,10 @@ class StripePaymentProvider(IPaymentProvider):
         db_session: Session,
     ) -> dict[str, str]:
         """Create a Stripe checkout session for a PaymentsOffer."""
-        from src.services.payments.payments_enrollments import create_enrollment, delete_enrollment
+        from src.services.payments.payments_enrollments import (
+            create_enrollment,
+            delete_enrollment,
+        )
 
         creds = await self._get_credentials()
         stripe.api_key = creds["stripe_secret_key"]
@@ -233,7 +247,7 @@ class StripePaymentProvider(IPaymentProvider):
         except stripe.StripeError as e:
             if enrollment and enrollment.id:
                 await delete_enrollment(request, org_id, enrollment.id, InternalUser(), db_session)
-            raise HTTPException(status_code=400, detail=f"Error creating/retrieving customer: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"Error creating/retrieving customer: {e!s}")
 
         is_subscription = offer.offer_type == OfferTypeEnum.SUBSCRIPTION
 
@@ -283,7 +297,7 @@ class StripePaymentProvider(IPaymentProvider):
         except stripe.StripeError as e:
             if enrollment and enrollment.id:
                 await delete_enrollment(request, org_id, enrollment.id, InternalUser(), db_session)
-            logger.error(f"Error creating offer checkout session: {str(e)}")
+            logger.error(f"Error creating offer checkout session: {e!s}")
             raise HTTPException(status_code=400, detail=str(e))
 
     # ------------------------------------------------------------------
@@ -326,7 +340,9 @@ class StripePaymentProvider(IPaymentProvider):
         webhook_type: str,
         db_session: Session,
     ) -> dict[str, Any]:
-        from src.services.payments.utils.stripe_utils import get_org_id_from_stripe_account
+        from src.services.payments.utils.stripe_utils import (
+            get_org_id_from_stripe_account,
+        )
 
         creds = await self._get_credentials()
         webhook_secret = creds.get(f"stripe_webhook_{webhook_type}_secret")
@@ -420,7 +436,9 @@ class StripePaymentProvider(IPaymentProvider):
                 enrollment_id_str = metadata.get("enrollment_id")
 
                 if enrollment_id_str:
-                    from src.services.payments.payments_enrollments import update_enrollment_status
+                    from src.services.payments.payments_enrollments import (
+                        update_enrollment_status,
+                    )
                     enrollment_id = int(enrollment_id_str)
                     if session.get("mode") == "subscription":
                         if session.get("subscription"):
@@ -443,7 +461,9 @@ class StripePaymentProvider(IPaymentProvider):
                 metadata = event_data.get("metadata", {})
                 enrollment_id_str = metadata.get("enrollment_id")
                 if enrollment_id_str:
-                    from src.services.payments.payments_enrollments import update_enrollment_status
+                    from src.services.payments.payments_enrollments import (
+                        update_enrollment_status,
+                    )
                     await update_enrollment_status(
                         request=request, org_id=org_id,
                         enrollment_id=int(enrollment_id_str),
@@ -455,7 +475,9 @@ class StripePaymentProvider(IPaymentProvider):
                 metadata = event_data.get("metadata", {})
                 enrollment_id_str = metadata.get("enrollment_id")
                 if enrollment_id_str:
-                    from src.services.payments.payments_enrollments import update_enrollment_status
+                    from src.services.payments.payments_enrollments import (
+                        update_enrollment_status,
+                    )
                     await update_enrollment_status(
                         request=request, org_id=org_id,
                         enrollment_id=int(enrollment_id_str),
@@ -470,8 +492,8 @@ class StripePaymentProvider(IPaymentProvider):
             return {"status": "success"}
 
         except Exception as e:
-            logger.error(f"Error processing Stripe webhook: {str(e)}")
-            raise HTTPException(status_code=400, detail=f"Error processing webhook: {str(e)}")
+            logger.error(f"Error processing Stripe webhook: {e!s}")
+            raise HTTPException(status_code=400, detail=f"Error processing webhook: {e!s}")
 
     # ------------------------------------------------------------------
     # Stripe Connect — not in IPaymentProvider (Stripe-specific OAuth flow)
@@ -587,8 +609,8 @@ class StripePaymentProvider(IPaymentProvider):
             return {"success": True, "account_id": connected_account_id}
 
         except stripe.StripeError as e:
-            logger.error(f"Error connecting Stripe account: {str(e)}")
-            raise HTTPException(status_code=400, detail=f"Error connecting Stripe account: {str(e)}")
+            logger.error(f"Error connecting Stripe account: {e!s}")
+            raise HTTPException(status_code=400, detail=f"Error connecting Stripe account: {e!s}")
 
     # ------------------------------------------------------------------
     # Express Connect — create/onboard a Stripe Express account

@@ -5,12 +5,11 @@ All org membership and admin checks go through this module.
 Superadmin bypass is baked in — superadmins pass every check automatically.
 """
 
-from typing import Optional
+
 from fastapi import HTTPException, status
 from sqlmodel import Session, select
-
-from src.db.user_organizations import UserOrganization
 from src.db.roles import Role
+from src.db.user_organizations import UserOrganization
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 
 
@@ -43,7 +42,7 @@ def is_org_admin(user_id: int, org_id: int, db_session: Session) -> bool:
     return db_session.exec(statement).first() is not None
 
 
-def get_user_org(user_id: int, org_id: int, db_session: Session) -> Optional[UserOrganization]:
+def get_user_org(user_id: int, org_id: int, db_session: Session) -> UserOrganization | None:
     """Return the UserOrganization row, or None. Does NOT check superadmin."""
     statement = select(UserOrganization).where(
         UserOrganization.user_id == user_id,
@@ -52,7 +51,7 @@ def get_user_org(user_id: int, org_id: int, db_session: Session) -> Optional[Use
     return db_session.exec(statement).first()
 
 
-def get_user_org_role(user_id: int, org_id: int, db_session: Session) -> Optional[Role]:
+def get_user_org_role(user_id: int, org_id: int, db_session: Session) -> Role | None:
     """Return the user's Role in the org, or None. Does NOT check superadmin."""
     user_org = get_user_org(user_id, org_id, db_session)
     if not user_org:

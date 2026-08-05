@@ -1,15 +1,18 @@
-from sqlmodel import Session, select
-from sqlalchemy import desc
-from src.db.courses.activities import Activity
-from src.db.courses.activity_versions import ActivityVersion, ActivityVersionRead, ActivityStateRead
-from src.db.courses.courses import Course
-from src.db.users import User, PublicUser, AnonymousUser
-from fastapi import HTTPException, Request
 from datetime import datetime
-from typing import List, Optional
 
-from src.security.rbac import check_resource_access, AccessAction
+from fastapi import HTTPException, Request
+from sqlalchemy import desc
+from sqlmodel import Session, select
+from src.db.courses.activities import Activity
+from src.db.courses.activity_versions import (
+    ActivityStateRead,
+    ActivityVersion,
+    ActivityVersionRead,
+)
+from src.db.courses.courses import Course
+from src.db.users import AnonymousUser, PublicUser, User
 from src.security.features_utils.usage import check_feature_access
+from src.security.rbac import AccessAction, check_resource_access
 
 # Maximum number of versions to keep per activity
 # Change this constant to adjust how many saves are stored
@@ -18,7 +21,7 @@ MAX_ACTIVITY_VERSIONS = 20
 
 async def create_activity_version(
     activity: Activity,
-    user_id: Optional[int],
+    user_id: int | None,
     db_session: Session,
 ) -> ActivityVersion:
     """
@@ -75,7 +78,7 @@ async def get_activity_versions(
     db_session: Session,
     limit: int = 20,
     offset: int = 0,
-) -> List[ActivityVersionRead]:
+) -> list[ActivityVersionRead]:
     """
     Gets the version history for an activity.
     Returns versions in descending order (newest first).

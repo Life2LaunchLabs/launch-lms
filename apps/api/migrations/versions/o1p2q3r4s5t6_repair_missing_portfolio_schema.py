@@ -9,16 +9,15 @@ immutable and repair those databases at a new forward-only revision.
 """
 
 import importlib
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import context, op
 from sqlalchemy import inspect
 
-
 revision: str = "o1p2q3r4s5t6"
-down_revision: Union[str, None] = "n0p1q2r3s4t5"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "n0p1q2r3s4t5"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 PORTFOLIO_TABLES = {

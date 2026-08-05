@@ -1,7 +1,7 @@
 from enum import Enum
-from typing import Optional
+
+from sqlalchemy import JSON, Column, ForeignKey, Integer
 from sqlmodel import Field, SQLModel
-from sqlalchemy import ForeignKey, JSON, Column, Integer
 
 
 class TrailStepTypeEnum(str, Enum):
@@ -11,7 +11,7 @@ class TrailStepTypeEnum(str, Enum):
 
 
 class TrailStep(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     complete: bool
     teacher_verified: bool
     grade: str
@@ -32,11 +32,11 @@ class TrailStep(SQLModel, table=True):
     org_id: int = Field(
         sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"))
     )
-    user_id: Optional[int] = Field(
+    user_id: int | None = Field(
         default=None,
         sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=True, index=True)
     )
-    guest_session_id: Optional[int] = Field(
+    guest_session_id: int | None = Field(
         default=None,
         sa_column=Column(Integer, ForeignKey("guestsession.id", ondelete="CASCADE"), nullable=True, index=True)
     )

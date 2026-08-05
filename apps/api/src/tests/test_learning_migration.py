@@ -1,11 +1,14 @@
-from src.db.courses.activities import Activity, ActivityTypeEnum, ActivitySubTypeEnum
 from src.db.collections import Collection
+from src.db.courses.activities import Activity, ActivitySubTypeEnum, ActivityTypeEnum
 from src.db.courses.courses import Course
 from src.db.learning import BadgeCollection
 from src.db.organizations import Organization
 from src.services.learning import _is_system_object
-from src.services.learning_migration import convert_activity_to_page_specs
-from src.services.learning_migration import _deterministic_collection_uuid, _legacy_deterministic_collection_uuid
+from src.services.learning_migration import (
+    _deterministic_collection_uuid,
+    _legacy_deterministic_collection_uuid,
+    convert_activity_to_page_specs,
+)
 
 
 def _course() -> Course:

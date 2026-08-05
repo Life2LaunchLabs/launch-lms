@@ -5,11 +5,11 @@ Implements a provider-agnostic architecture that supports multiple SSO providers
 (WorkOS, Keycloak, Okta, Auth0, custom SAML/OIDC) with a common interface.
 """
 
-from typing import Optional, List, Literal
-from sqlmodel import SQLModel, Field, Column, Integer, ForeignKey, JSON
 from datetime import datetime
-from pydantic import BaseModel
+from typing import Literal
 
+from pydantic import BaseModel
+from sqlmodel import JSON, Column, Field, ForeignKey, Integer, SQLModel
 
 # Supported SSO providers - extend this as new providers are added
 SSOProviderType = Literal["workos", "keycloak", "okta", "auth0", "custom_saml", "custom_oidc"]
@@ -21,25 +21,25 @@ class SSOConnectionBase(SQLModel):
     # Provider-agnostic fields
     provider: str  # SSOProviderType - "workos", "keycloak", etc.
     enabled: bool = False
-    domains: List[str] = Field(default_factory=list, sa_column=Column(JSON))
+    domains: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     auto_provision_users: bool = True
 
     # Provider-specific configuration (JSON blob)
     # WorkOS: {"connection_id": "...", "organization_id": "..."}
     # Keycloak: {"realm": "...", "client_id": "...", "client_secret": "...", "server_url": "..."}
     # Custom SAML: {"idp_entity_id": "...", "idp_sso_url": "...", "idp_certificate": "..."}
-    provider_config: Optional[dict] = Field(default_factory=dict, sa_column=Column(JSON))
+    provider_config: dict | None = Field(default_factory=dict, sa_column=Column(JSON))
 
 
 class SSOConnection(SSOConnectionBase, table=True):
     """SSO connection database table."""
     __tablename__ = "ssoconnection"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     org_id: int = Field(
         sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"))
     )
-    default_role_id: Optional[int] = Field(
+    default_role_id: int | None = Field(
         default=None,
         sa_column=Column(Integer, ForeignKey("role.id", ondelete="SET NULL"))
     )
@@ -51,7 +51,7 @@ class SSOConnectionRead(SSOConnectionBase):
     """Response model for SSO connection."""
     id: int
     org_id: int
-    default_role_id: Optional[int] = None
+    default_role_id: int | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -60,28 +60,28 @@ class SSOConnectionCreate(SQLModel):
     """Request model for creating SSO connection."""
     provider: str  # SSOProviderType
     enabled: bool = False
-    domains: List[str] = []
+    domains: list[str] = []
     auto_provision_users: bool = True
-    default_role_id: Optional[int] = None
-    provider_config: Optional[dict] = None
+    default_role_id: int | None = None
+    provider_config: dict | None = None
 
 
 class SSOConnectionUpdate(SQLModel):
     """Request model for updating SSO connection."""
-    provider: Optional[str] = None  # SSOProviderType
-    enabled: Optional[bool] = None
-    domains: Optional[List[str]] = None
-    auto_provision_users: Optional[bool] = None
-    default_role_id: Optional[int] = None
-    provider_config: Optional[dict] = None
+    provider: str | None = None  # SSOProviderType
+    enabled: bool | None = None
+    domains: list[str] | None = None
+    auto_provision_users: bool | None = None
+    default_role_id: int | None = None
+    provider_config: dict | None = None
 
 
 # Provider-specific configuration schemas (validated at runtime)
 
 class WorkOSConfig(BaseModel):
     """WorkOS-specific configuration."""
-    connection_id: Optional[str] = None
-    organization_id: Optional[str] = None
+    connection_id: str | None = None
+    organization_id: str | None = None
 
 
 class KeycloakConfig(BaseModel):
@@ -144,7 +144,7 @@ class SSOProviderInfo(BaseModel):
     description: str
     has_setup_portal: bool  # Whether provider has admin portal
     available: bool  # Whether provider is configured and available
-    config_fields: List[dict]  # Fields needed for configuration
+    config_fields: list[dict]  # Fields needed for configuration
 
 
 class SSOAuthorizationResponse(BaseModel):
@@ -156,4 +156,4 @@ class SSOAuthorizationResponse(BaseModel):
 class SSOLoginCheckResponse(BaseModel):
     """Response for checking if SSO is available for an organization."""
     sso_enabled: bool
-    provider: Optional[str] = None
+    provider: str | None = None

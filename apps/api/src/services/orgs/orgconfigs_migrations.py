@@ -15,6 +15,7 @@ if _api_root not in sys.path:
     sys.path.insert(0, _api_root)
 
 from datetime import datetime  # noqa: E402
+
 from sqlmodel import Session, select  # noqa: E402
 from src.db.organization_config import OrganizationConfig  # noqa: E402
 from src.security.features_utils.plans import PLAN_FEATURE_CONFIGS  # noqa: E402

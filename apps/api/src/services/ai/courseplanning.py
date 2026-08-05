@@ -1,19 +1,19 @@
-from typing import Optional, AsyncGenerator, List
-from uuid import uuid4
-import logging
-import redis
-import json
 import asyncio
 import base64
+import json
+import logging
 import threading
+from collections.abc import AsyncGenerator
+from uuid import uuid4
 
+import redis
 from config.config import get_launchlms_config
 from src.services.ai.base import get_gemini_client
 from src.services.ai.schemas.courseplanning import (
-    CoursePlan,
-    CoursePlanningSessionData,
-    CoursePlanningMessage,
     AttachmentData,
+    CoursePlan,
+    CoursePlanningMessage,
+    CoursePlanningSessionData,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ def get_redis_connection():
     return None
 
 
-def get_course_planning_session(session_uuid: str) -> Optional[CoursePlanningSessionData]:
+def get_course_planning_session(session_uuid: str) -> CoursePlanningSessionData | None:
     """Get an existing course planning session from Redis"""
     r = get_redis_connection()
     if not r:
@@ -100,7 +100,7 @@ def save_course_planning_session(session: CoursePlanningSessionData) -> bool:
         return False
 
 
-def build_attachment_context(attachments: List[AttachmentData]) -> str:
+def build_attachment_context(attachments: list[AttachmentData]) -> str:
     """Build context string from attachments for the AI prompt (text-based context)"""
     if not attachments:
         return ""
@@ -164,7 +164,7 @@ def build_attachment_context(attachments: List[AttachmentData]) -> str:
     return "\n".join(context_parts)
 
 
-def build_attachment_parts_dict(attachments: List[AttachmentData]) -> list:
+def build_attachment_parts_dict(attachments: list[AttachmentData]) -> list:
     """Build Gemini API parts from attachments as dictionaries.
 
     Uses dictionary format for compatibility:
@@ -183,15 +183,7 @@ def build_attachment_parts_dict(attachments: List[AttachmentData]) -> list:
                 }
             })
         # Handle images with inline data
-        elif attachment.type == 'image' and attachment.content_base64 and attachment.mime_type:
-            parts.append({
-                "inline_data": {
-                    "mime_type": attachment.mime_type,
-                    "data": attachment.content_base64
-                }
-            })
-        # Handle documents (PDF, etc.) with inline data
-        elif attachment.type == 'file' and attachment.content_base64 and attachment.mime_type:
+        elif attachment.type == 'image' and attachment.content_base64 and attachment.mime_type or attachment.type == 'file' and attachment.content_base64 and attachment.mime_type:
             parts.append({
                 "inline_data": {
                     "mime_type": attachment.mime_type,
@@ -421,8 +413,8 @@ async def generate_course_plan_stream(
     prompt: str,
     session: CoursePlanningSessionData,
     gemini_model_name: str = "gemini-2.0-flash",
-    current_plan: Optional[CoursePlan] = None,
-    attachments: Optional[List[AttachmentData]] = None
+    current_plan: CoursePlan | None = None,
+    attachments: list[AttachmentData] | None = None
 ) -> AsyncGenerator[str, None]:
     """
     Generate course plan with streaming.
@@ -492,7 +484,7 @@ IMPORTANT: You MUST incorporate the materials provided above into the course pla
 
         # Generate response with streaming using a queue for real-time chunks
         chunk_queue: asyncio.Queue = asyncio.Queue()
-        generation_error: Optional[Exception] = None
+        generation_error: Exception | None = None
         # Capture the event loop before starting the thread
         loop = asyncio.get_running_loop()
 
@@ -565,7 +557,7 @@ IMPORTANT: You MUST incorporate the materials provided above into the course pla
 
     except Exception as e:
         # Raise the exception so it's handled by the event_generator error handler
-        raise RuntimeError(f"Course planning error: {str(e)}")
+        raise RuntimeError(f"Course planning error: {e!s}")
 
 
 async def generate_activity_content_stream(
@@ -577,8 +569,8 @@ async def generate_activity_content_stream(
     course_name: str,
     course_description: str,
     gemini_model_name: str = "gemini-2.0-flash",
-    prompt: Optional[str] = None,
-    current_content: Optional[str] = None
+    prompt: str | None = None,
+    current_content: str | None = None
 ) -> AsyncGenerator[str, None]:
     """
     Generate activity content with streaming.
@@ -647,7 +639,7 @@ Please modify the content according to the user's request. Output ONLY the compl
 
         # Generate response with streaming using a queue for real-time chunks
         chunk_queue: asyncio.Queue = asyncio.Queue()
-        generation_error: Optional[Exception] = None
+        generation_error: Exception | None = None
         # Capture the event loop before starting the thread
         loop = asyncio.get_running_loop()
 
@@ -704,10 +696,10 @@ Please modify the content according to the user's request. Output ONLY the compl
 
     except Exception as e:
         # Raise the exception so it's handled by the event_generator error handler
-        raise RuntimeError(f"Activity content generation error: {str(e)}")
+        raise RuntimeError(f"Activity content generation error: {e!s}")
 
 
-def extract_plan_from_response(response: str) -> Optional[CoursePlan]:
+def extract_plan_from_response(response: str) -> CoursePlan | None:
     """Extract and parse the course plan from the AI response"""
     try:
         # Clean up the response - remove markdown code blocks if present
@@ -743,7 +735,7 @@ def extract_plan_from_response(response: str) -> Optional[CoursePlan]:
         return None
 
 
-def extract_content_from_response(response: str) -> Optional[dict]:
+def extract_content_from_response(response: str) -> dict | None:
     """Extract and parse the activity content from the AI response"""
     try:
         # Clean up the response

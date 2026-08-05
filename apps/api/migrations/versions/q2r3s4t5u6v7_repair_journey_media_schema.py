@@ -4,16 +4,15 @@ Revision ID: q2r3s4t5u6v7
 Revises: p2q3r4s5t6u7
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import context, op
 import sqlalchemy as sa
-
+from alembic import context, op
 
 revision: str = "q2r3s4t5u6v7"
-down_revision: Union[str, None] = "p2q3r4s5t6u7"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "p2q3r4s5t6u7"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

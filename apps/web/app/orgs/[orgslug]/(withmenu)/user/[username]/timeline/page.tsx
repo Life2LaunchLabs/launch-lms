@@ -1,31 +1,5 @@
-import { redirect } from 'next/navigation'
-import { getServerSession } from '@/lib/auth/server'
-import ProfileTimeline from '@components/Objects/Portfolio/ProfileTimeline'
-import { getUserByUsername } from '@services/users/users'
-
-interface UserTimelinePageProps {
-  params: Promise<{ orgslug: string; username: string }>
-}
-
-const UserTimelinePage = async ({ params }: UserTimelinePageProps) => {
-  const resolvedParams = await params
-  const session = await getServerSession()
-  const accessToken = session?.tokens?.access_token
-
-  if (!accessToken) {
-    redirect(`/orgs/${resolvedParams.orgslug}/login?redirect=/orgs/${resolvedParams.orgslug}/user/${resolvedParams.username}/timeline`)
-  }
-
-  const user = await getUserByUsername(resolvedParams.username, accessToken)
-
-  return (
-    <ProfileTimeline
-      initialUser={user}
-      orgslug={resolvedParams.orgslug}
-      profileUsername={user.username}
-      canEdit={session?.user?.username === user.username}
-    />
-  )
-}
-
-export default UserTimelinePage
+import { notFound } from 'next/navigation'
+import { PortfolioShell } from '@components/Pages/Portfolio/PortfolioShell'
+import { getOrganizationContextInfoWithoutCredentials } from '@services/organizations/orgs'
+import { getPublicPortfolio } from '@services/portfolio/portfolio'
+export default async function PublicTimelinePage({ params }: { params: Promise<{ orgslug: string; username: string }> }) { const { orgslug, username } = await params; try { const org = await getOrganizationContextInfoWithoutCredentials(orgslug, { revalidate: 0 }); return <PortfolioShell initialShell={await getPublicPortfolio(org.id, username)} orgslug={orgslug} username={username} active="timeline"/> } catch { notFound() } }

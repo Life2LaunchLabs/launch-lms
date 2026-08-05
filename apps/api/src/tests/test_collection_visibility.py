@@ -1,7 +1,6 @@
 from types import SimpleNamespace
 
 import pytest
-
 from src.db.users import AnonymousUser, PublicUser
 from src.services.courses.collections import get_collections
 

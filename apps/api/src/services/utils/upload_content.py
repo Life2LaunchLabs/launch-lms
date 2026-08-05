@@ -1,10 +1,11 @@
 import logging
-from typing import Literal, Optional
+import os
+from typing import Literal
+
 import boto3
 from botocore.exceptions import ClientError
-import os
-from fastapi import HTTPException, UploadFile
 from config.config import get_launchlms_config
+from fastapi import HTTPException, UploadFile
 from src.security.file_validation import validate_upload
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ async def upload_file(
     uuid: str,
     allowed_types: list[str],
     filename_prefix: str,
-    max_size: Optional[int] = None,
+    max_size: int | None = None,
 ) -> str:
     """
     Secure file upload with validation.
@@ -40,6 +41,7 @@ async def upload_file(
         The saved filename
     """
     from uuid import uuid4
+
     from src.security.file_validation import get_safe_filename
     
     # Validate the file
@@ -67,7 +69,7 @@ async def upload_content(
     uuid: str,  # org_uuid or user_uuid
     file_binary: bytes,
     file_and_format: str,
-    allowed_formats: Optional[list[str]] = None,
+    allowed_formats: list[str] | None = None,
 ):
     # Get LAUNCHLMS Config
     launchlms_config = get_launchlms_config()

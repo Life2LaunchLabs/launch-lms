@@ -1,7 +1,8 @@
-from fastapi import HTTPException, Request
-from sqlmodel import Session, select
 from datetime import datetime
 
+from fastapi import HTTPException, Request
+from sqlmodel import Session, select
+from src.db.organizations import Organization
 from src.db.payments.payments_groups import (
     PaymentsGroup,
     PaymentsGroupCreate,
@@ -10,7 +11,6 @@ from src.db.payments.payments_groups import (
     PaymentsGroupSync,
     PaymentsGroupUpdate,
 )
-from src.db.organizations import Organization
 from src.db.usergroups import UserGroup
 from src.db.users import AnonymousUser, APITokenUser, PublicUser
 from src.services.orgs.orgs import rbac_check
@@ -304,8 +304,8 @@ async def add_offer_resource(
     current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
 ) -> dict:
-    from src.db.payments.payments_offers import PaymentsOffer
     from src.db.payments.payments_groups import PaymentsOfferResource
+    from src.db.payments.payments_offers import PaymentsOffer
 
     org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
     if not org:

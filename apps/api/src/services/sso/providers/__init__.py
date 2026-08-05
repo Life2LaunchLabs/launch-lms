@@ -5,10 +5,14 @@ Provides a factory function for getting the appropriate SSO provider
 based on provider type, along with utilities for listing available providers.
 """
 
-from .base import SSOProvider, SSOUserProfile, SSOAuthenticationError, SSOConfigurationError
-from .workos_provider import WorkOSProvider
+from .base import (
+    SSOAuthenticationError,
+    SSOConfigurationError,
+    SSOProvider,
+    SSOUserProfile,
+)
 from .oidc_provider import CustomOIDCProvider
-
+from .workos_provider import WorkOSProvider
 
 # Registry of available SSO providers
 _PROVIDER_REGISTRY: dict[str, type[SSOProvider]] = {
@@ -136,13 +140,13 @@ def _get_provider_description(provider_id: str) -> str:
 
 # Export main classes and functions
 __all__ = [
-    "SSOProvider",
-    "SSOUserProfile",
+    "CustomOIDCProvider",
     "SSOAuthenticationError",
     "SSOConfigurationError",
+    "SSOProvider",
+    "SSOUserProfile",
     "WorkOSProvider",
-    "CustomOIDCProvider",
-    "get_sso_provider",
     "get_available_providers",
+    "get_sso_provider",
     "is_provider_available",
 ]

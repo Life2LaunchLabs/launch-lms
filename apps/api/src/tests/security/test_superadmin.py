@@ -1,9 +1,8 @@
-import pytest
 from unittest.mock import Mock, patch
 
+import pytest
 from fastapi import HTTPException
 from sqlmodel import Session
-
 from src.db.users import AnonymousUser, PublicUser
 from src.security.superadmin import require_superadmin
 

@@ -12,8 +12,9 @@ Tests cover:
 - Unknown paths require auth (safe default)
 """
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 from fastapi import HTTPException
 
 

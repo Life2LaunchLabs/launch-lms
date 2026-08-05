@@ -1,15 +1,15 @@
 import random
 from datetime import datetime, timezone
-from typing import Optional
-from fastapi import Depends, HTTPException, Request
+
 import httpx
+from fastapi import Depends, HTTPException, Request
 from sqlmodel import Session, select
 from src.core.events.database import get_db_session
 from src.db.users import User, UserCreate, UserRead
 from src.security.auth import get_current_user
-from src.services.users.users import create_user, create_user_without_org
-from src.services.security.rate_limiting import get_client_ip
 from src.services.security.account_lockout import update_login_info
+from src.services.security.rate_limiting import get_client_ip
+from src.services.users.users import create_user, create_user_without_org
 
 
 async def get_google_user_info(access_token: str):
@@ -31,7 +31,7 @@ async def signWithGoogle(
     request: Request,
     access_token: str,
     email: str,
-    org_id: Optional[int] = None,
+    org_id: int | None = None,
     current_user=Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):

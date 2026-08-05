@@ -1,7 +1,6 @@
 import pytest
 from fastapi import HTTPException
 from sqlmodel import Session, create_engine, select
-
 from src.db.audit_logs import AuditLog
 from src.db.organizations import Organization
 from src.db.roles import Role

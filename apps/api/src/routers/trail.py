@@ -3,18 +3,17 @@ from src.core.events.database import get_db_session
 from src.db.trails import TrailCreate, TrailRead
 from src.security.auth import get_current_user
 from src.security.features_utils.dependencies import require_courses_feature
+from src.services.guest_sessions import resolve_learning_actor
 from src.services.trail.trail import (
     Trail,
     add_activity_to_trail,
     add_course_to_trail,
     create_user_trail,
-    get_user_trails,
     get_user_trail_with_orgid,
-    remove_course_from_trail,
+    get_user_trails,
     remove_activity_from_trail,
+    remove_course_from_trail,
 )
-from src.services.guest_sessions import resolve_learning_actor
-
 
 router = APIRouter(dependencies=[Depends(require_courses_feature)])
 

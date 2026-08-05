@@ -1,11 +1,10 @@
 import asyncio
 import logging
 
+import httpx
+from config.config import get_launchlms_config
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-import httpx
-
-from config.config import get_launchlms_config
 from src.security.auth import get_current_user
 
 logger = logging.getLogger(__name__)

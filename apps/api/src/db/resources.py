@@ -1,5 +1,4 @@
 from enum import Enum
-from typing import Optional
 
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, Text, UniqueConstraint
 from sqlmodel import Field, SQLModel
@@ -23,14 +22,14 @@ class ResourceAccessModeEnum(str, Enum):
 
 class ResourceBase(SQLModel):
     title: str
-    description: Optional[str] = Field(default=None, sa_column=Column(Text))
+    description: str | None = Field(default=None, sa_column=Column(Text))
     resource_type: ResourceTypeEnum = ResourceTypeEnum.other
-    provider_name: Optional[str] = None
-    provider_url: Optional[str] = None
+    provider_name: str | None = None
+    provider_url: str | None = None
     external_url: str
-    cover_image_url: Optional[str] = None
-    thumbnail_image: Optional[str] = None
-    estimated_time: Optional[int] = None
+    cover_image_url: str | None = None
+    thumbnail_image: str | None = None
+    estimated_time: int | None = None
     is_featured: bool = False
     is_live: bool = False
     access_mode: ResourceAccessModeEnum = ResourceAccessModeEnum.free
@@ -44,7 +43,7 @@ class ResourceTag(ResourceTagBase, table=True):
     __tablename__ = "resourcetag"
     __table_args__ = (UniqueConstraint("org_id", "name", name="uq_resourcetag_org_name"),)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     org_id: int = Field(
         sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True)
     )
@@ -58,7 +57,7 @@ class ResourceTagCreate(ResourceTagBase):
 
 
 class ResourceTagUpdate(SQLModel):
-    name: Optional[str] = None
+    name: str | None = None
 
 
 class ResourceTagRead(ResourceTagBase):
@@ -75,7 +74,7 @@ class ResourceTagLink(SQLModel, table=True):
         UniqueConstraint("resource_id", "tag_id", name="uq_resource_tag"),
     )
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     resource_id: int = Field(
         sa_column=Column(Integer, ForeignKey("resource.id", ondelete="CASCADE"), index=True)
     )
@@ -88,12 +87,12 @@ class ResourceTagLink(SQLModel, table=True):
 class Resource(ResourceBase, table=True):
     __tablename__ = "resource"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     org_id: int = Field(
         sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True)
     )
     resource_uuid: str = Field(index=True, unique=True)
-    created_by_user_id: Optional[int] = Field(
+    created_by_user_id: int | None = Field(
         default=None,
         sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), index=True, nullable=True),
     )
@@ -106,29 +105,29 @@ class ResourceCreate(ResourceBase):
 
 
 class ResourceUpdate(SQLModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    resource_type: Optional[ResourceTypeEnum] = None
-    provider_name: Optional[str] = None
-    provider_url: Optional[str] = None
-    external_url: Optional[str] = None
-    cover_image_url: Optional[str] = None
-    estimated_time: Optional[int] = None
-    is_featured: Optional[bool] = None
-    is_live: Optional[bool] = None
-    access_mode: Optional[ResourceAccessModeEnum] = None
-    tag_uuids: Optional[list[str]] = None
+    title: str | None = None
+    description: str | None = None
+    resource_type: ResourceTypeEnum | None = None
+    provider_name: str | None = None
+    provider_url: str | None = None
+    external_url: str | None = None
+    cover_image_url: str | None = None
+    estimated_time: int | None = None
+    is_featured: bool | None = None
+    is_live: bool | None = None
+    access_mode: ResourceAccessModeEnum | None = None
+    tag_uuids: list[str] | None = None
 
 
 class ResourceRead(ResourceBase):
     id: int
     org_id: int
     resource_uuid: str
-    created_by_user_id: Optional[int] = None
-    owner_org_id: Optional[int] = None
-    owner_org_uuid: Optional[str] = None
-    owner_org_slug: Optional[str] = None
-    owner_org_name: Optional[str] = None
+    created_by_user_id: int | None = None
+    owner_org_id: int | None = None
+    owner_org_uuid: str | None = None
+    owner_org_slug: str | None = None
+    owner_org_name: str | None = None
     is_shared_from_other_org: bool = False
     creation_date: str
     update_date: str
@@ -137,18 +136,18 @@ class ResourceRead(ResourceBase):
 
 class ResourceChannelBase(SQLModel):
     name: str
-    description: Optional[str] = Field(default=None, sa_column=Column(Text))
-    thumbnail_image: Optional[str] = None
+    description: str | None = Field(default=None, sa_column=Column(Text))
+    thumbnail_image: str | None = None
     public: bool = True
     shared: bool = False
     is_starred: bool = False
-    color: Optional[str] = None
+    color: str | None = None
 
 
 class ResourceChannel(ResourceChannelBase, table=True):
     __tablename__ = "resourcechannel"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     org_id: int = Field(
         sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True)
     )
@@ -162,23 +161,23 @@ class ResourceChannelCreate(ResourceChannelBase):
 
 
 class ResourceChannelUpdate(SQLModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    thumbnail_image: Optional[str] = None
-    public: Optional[bool] = None
-    shared: Optional[bool] = None
-    is_starred: Optional[bool] = None
-    color: Optional[str] = None
+    name: str | None = None
+    description: str | None = None
+    thumbnail_image: str | None = None
+    public: bool | None = None
+    shared: bool | None = None
+    is_starred: bool | None = None
+    color: str | None = None
 
 
 class ResourceChannelRead(ResourceChannelBase):
     id: int
     org_id: int
     channel_uuid: str
-    owner_org_id: Optional[int] = None
-    owner_org_uuid: Optional[str] = None
-    owner_org_slug: Optional[str] = None
-    owner_org_name: Optional[str] = None
+    owner_org_id: int | None = None
+    owner_org_uuid: str | None = None
+    owner_org_slug: str | None = None
+    owner_org_name: str | None = None
     is_shared_from_other_org: bool = False
     creation_date: str
     update_date: str
@@ -190,7 +189,7 @@ class ResourceChannelResource(SQLModel, table=True):
         UniqueConstraint("channel_id", "resource_id", name="uq_channel_resource"),
     )
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     channel_id: int = Field(
         sa_column=Column(Integer, ForeignKey("resourcechannel.id", ondelete="CASCADE"), index=True)
     )
@@ -204,17 +203,17 @@ class ResourceChannelResource(SQLModel, table=True):
 
 class UserResourceChannelBase(SQLModel):
     name: str
-    description: Optional[str] = Field(default=None, sa_column=Column(Text))
+    description: str | None = Field(default=None, sa_column=Column(Text))
     is_default: bool = False
-    icon: Optional[str] = None
-    color: Optional[str] = None
-    icon_color: Optional[str] = None
+    icon: str | None = None
+    color: str | None = None
+    icon_color: str | None = None
 
 
 class UserResourceChannel(UserResourceChannelBase, table=True):
     __tablename__ = "userresourcechannel"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(
         sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True)
     )
@@ -240,12 +239,12 @@ class UserResourceChannelRead(UserResourceChannelBase):
 
 
 class UserSavedResourceBase(SQLModel):
-    notes: Optional[str] = Field(default=None, sa_column=Column(Text))
-    outcome_text: Optional[str] = Field(default=None, sa_column=Column(Text))
-    outcome_link: Optional[str] = None
-    outcome_file: Optional[str] = None
-    last_opened_at: Optional[str] = None
-    completed_at: Optional[str] = None
+    notes: str | None = Field(default=None, sa_column=Column(Text))
+    outcome_text: str | None = Field(default=None, sa_column=Column(Text))
+    outcome_link: str | None = None
+    outcome_file: str | None = None
+    last_opened_at: str | None = None
+    completed_at: str | None = None
     open_count: int = 0
 
 
@@ -255,7 +254,7 @@ class UserSavedResource(UserSavedResourceBase, table=True):
         UniqueConstraint("user_id", "resource_id", name="uq_user_saved_resource"),
     )
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(
         sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True)
     )
@@ -267,11 +266,11 @@ class UserSavedResource(UserSavedResourceBase, table=True):
 
 
 class UserSavedResourceUpdate(SQLModel):
-    notes: Optional[str] = None
-    outcome_text: Optional[str] = None
-    outcome_link: Optional[str] = None
-    completed_at: Optional[str] = None
-    open_count_increment: Optional[int] = None
+    notes: str | None = None
+    outcome_text: str | None = None
+    outcome_link: str | None = None
+    completed_at: str | None = None
+    open_count_increment: int | None = None
     add_to_default_channel: bool = True
     user_channel_uuids: list[str] = []
 
@@ -290,7 +289,7 @@ class UserSavedResourceChannel(SQLModel, table=True):
         UniqueConstraint("saved_resource_id", "user_channel_id", name="uq_saved_resource_channel"),
     )
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     saved_resource_id: int = Field(
         sa_column=Column(Integer, ForeignKey("usersavedresource.id", ondelete="CASCADE"), index=True)
     )
@@ -307,7 +306,7 @@ class ResourceCommentBase(SQLModel):
 class ResourceComment(ResourceCommentBase, table=True):
     __tablename__ = "resourcecomment"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     resource_id: int = Field(
         sa_column=Column(Integer, ForeignKey("resource.id", ondelete="CASCADE"), index=True)
     )
@@ -325,7 +324,7 @@ class ResourceCommentCreate(ResourceCommentBase):
 
 
 class ResourceCommentUpdate(SQLModel):
-    content: Optional[str] = None
+    content: str | None = None
 
 
 class ResourceCommentRead(ResourceCommentBase):
@@ -339,4 +338,4 @@ class ResourceCommentRead(ResourceCommentBase):
 
 
 class ResourceCommentReadWithAuthor(ResourceCommentRead):
-    author: Optional[dict] = None
+    author: dict | None = None

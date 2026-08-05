@@ -4,7 +4,6 @@ import logging
 from datetime import datetime, timezone
 
 import httpx
-
 from config.config import get_launchlms_config
 
 logger = logging.getLogger(__name__)

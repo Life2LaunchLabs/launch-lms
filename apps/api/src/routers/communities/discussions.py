@@ -1,58 +1,57 @@
-from typing import List, Dict
-from fastapi import APIRouter, Depends, Request, Query
+
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel
 from sqlmodel import Session
 from src.core.events.database import get_db_session
-from src.db.users import PublicUser
-from src.db.communities.discussions import (
-    DiscussionReadWithVoteStatus,
-    DiscussionUpdate,
-    DiscussionPinUpdate,
-    DiscussionLockUpdate,
-    DiscussionLabelInfo,
-    DISCUSSION_LABELS,
-)
-from src.db.communities.discussion_votes import DiscussionVoteRead
+from src.db.communities.discussion_comment_votes import DiscussionCommentVoteRead
 from src.db.communities.discussion_comments import (
     DiscussionCommentReadWithVoteStatus,
     DiscussionCommentUpdate,
 )
-from src.db.communities.discussion_comment_votes import DiscussionCommentVoteRead
 from src.db.communities.discussion_reactions import (
     DiscussionReactionSummary,
 )
-from src.security.auth import get_current_user
-from src.services.communities.discussions import (
-    create_discussion,
-    get_discussion,
-    get_discussions_by_community,
-    update_discussion,
-    delete_discussion,
-    pin_discussion,
-    lock_discussion,
-    DiscussionSortBy,
+from src.db.communities.discussion_votes import DiscussionVoteRead
+from src.db.communities.discussions import (
+    DISCUSSION_LABELS,
+    DiscussionLabelInfo,
+    DiscussionLockUpdate,
+    DiscussionPinUpdate,
+    DiscussionReadWithVoteStatus,
+    DiscussionUpdate,
 )
-from src.services.communities.votes import (
-    upvote_discussion,
-    remove_upvote,
-    get_user_votes_for_discussions,
+from src.db.users import PublicUser
+from src.security.auth import get_current_user
+from src.services.communities.comment_votes import (
+    remove_comment_upvote,
+    upvote_comment,
 )
 from src.services.communities.comments import (
     create_comment,
-    get_comments_by_discussion,
-    update_comment,
     delete_comment,
     get_comment_count,
+    get_comments_by_discussion,
+    update_comment,
 )
-from src.services.communities.comment_votes import (
-    upvote_comment,
-    remove_comment_upvote,
+from src.services.communities.discussions import (
+    DiscussionSortBy,
+    create_discussion,
+    delete_discussion,
+    get_discussion,
+    get_discussions_by_community,
+    lock_discussion,
+    pin_discussion,
+    update_discussion,
 )
 from src.services.communities.reactions import (
     get_reactions,
     toggle_reaction,
 )
-
+from src.services.communities.votes import (
+    get_user_votes_for_discussions,
+    remove_upvote,
+    upvote_discussion,
+)
 
 router = APIRouter()
 
@@ -65,7 +64,7 @@ class DiscussionCreateRequest(BaseModel):
 
 
 @router.get("/discussions/labels")
-async def api_get_discussion_labels() -> List[DiscussionLabelInfo]:
+async def api_get_discussion_labels() -> list[DiscussionLabelInfo]:
     """
     Get available discussion labels.
     """
@@ -107,7 +106,7 @@ async def api_get_discussions_by_community(
     label: str | None = Query(default=None),
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
-) -> List[DiscussionReadWithVoteStatus]:
+) -> list[DiscussionReadWithVoteStatus]:
     """
     Get paginated list of discussions for a community with sorting.
 
@@ -239,10 +238,10 @@ async def api_remove_upvote(
 @router.post("/discussions/votes/batch")
 async def api_get_user_votes_batch(
     request: Request,
-    discussion_uuids: List[str],
+    discussion_uuids: list[str],
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
-) -> Dict[str, bool]:
+) -> dict[str, bool]:
     """
     Batch check if user has voted for multiple discussions.
 
@@ -293,7 +292,7 @@ async def api_get_comments_by_discussion(
     limit: int = Query(default=50, ge=1, le=100),
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
-) -> List[DiscussionCommentReadWithVoteStatus]:
+) -> list[DiscussionCommentReadWithVoteStatus]:
     """
     Get paginated list of comments for a discussion.
     """
@@ -392,7 +391,7 @@ async def api_get_reactions(
     discussion_uuid: str,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
-) -> List[DiscussionReactionSummary]:
+) -> list[DiscussionReactionSummary]:
     """
     Get all reactions for a discussion, grouped by emoji.
 

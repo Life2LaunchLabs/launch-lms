@@ -6,13 +6,12 @@ grounded in course content.
 """
 
 import logging
-from typing import AsyncGenerator, Optional
+from collections.abc import AsyncGenerator
 
 from sqlalchemy import text
 from sqlmodel import Session
-
-from src.services.ai.rag.embedding_service import embed_single_text
 from src.services.ai.base import ask_ai_stream
+from src.services.ai.rag.embedding_service import embed_single_text
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +23,7 @@ def query_course_rag(
     question: str,
     org_id: int,
     db_session: Session,
-    course_id: Optional[int] = None,
+    course_id: int | None = None,
     top_k: int = TOP_K,
 ) -> dict:
     """
@@ -126,7 +125,7 @@ async def query_course_rag_stream(
     org_id: int,
     db_session: Session,
     message_history: list,
-    course_id: Optional[int] = None,
+    course_id: int | None = None,
     mode: str = "course_only",
 ) -> tuple[AsyncGenerator[str, None], list[dict]]:
     """

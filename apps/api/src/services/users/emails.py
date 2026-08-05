@@ -6,7 +6,6 @@ from src.db.organizations import OrganizationRead
 from src.db.users import UserRead
 from src.services.email.utils import send_email
 
-
 # Inline SVG logo (PLACEHOLDER: replace with your own logo SVG)
 LOGO_SVG = """<svg width="140" height="20" viewBox="0 0 1488 218" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path d="M152 37C152 56.96 148.07 76.73 140.43 95.17C132.79 113.61 121.6 130.37 107.48 144.48C93.37 158.6 76.61 169.79 58.17 177.43C39.73 185.07 19.96 189 0 189V115.94C10.37 115.94 20.63 113.9 30.21 109.93C39.79 105.96 48.49 100.15 55.82 92.82C63.15 85.49 68.97 76.79 72.93 67.21C76.9 57.63 78.94 47.37 78.94 37H152Z" fill="black"/>

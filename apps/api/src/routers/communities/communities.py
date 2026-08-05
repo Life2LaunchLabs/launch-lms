@@ -1,27 +1,25 @@
-from typing import List
+
 from fastapi import APIRouter, Depends, Request, UploadFile
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from src.core.events.database import get_db_session
-from src.db.users import PublicUser
+from src.db.communities.communities import Community, CommunityRead, CommunityUpdate
 from src.db.organizations import Organization
-from src.db.communities.communities import CommunityRead, CommunityUpdate
+from src.db.users import PublicUser
 from src.security.auth import get_current_user
+from src.security.rbac import AccessAction, check_resource_access
 from src.services.communities.communities import (
     create_community,
-    get_community,
-    get_communities_by_org,
-    get_community_by_course,
-    update_community,
     delete_community,
+    get_communities_by_org,
+    get_community,
+    get_community_by_course,
+    get_community_user_rights,
     link_community_to_course,
     unlink_community_from_course,
-    get_community_user_rights,
+    update_community,
 )
 from src.services.communities.thumbnails import upload_community_thumbnail
-from src.db.communities.communities import Community
-from src.security.rbac import check_resource_access, AccessAction
-
 
 router = APIRouter()
 
@@ -82,7 +80,7 @@ async def api_get_communities_by_org(
     limit: int = 10,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
-) -> List[CommunityRead]:
+) -> list[CommunityRead]:
     """
     Get paginated list of communities for an organization.
     """

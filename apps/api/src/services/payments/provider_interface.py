@@ -21,7 +21,6 @@ from typing import Any
 
 from fastapi import Request
 from sqlmodel import Session
-
 from src.db.users import AnonymousUser, APITokenUser, PublicUser
 
 

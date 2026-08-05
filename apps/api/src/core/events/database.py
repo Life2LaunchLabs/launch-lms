@@ -1,10 +1,12 @@
+import importlib
 import logging
 import os
-import importlib
+
 from config.config import get_launchlms_config
 from fastapi import FastAPI
-from sqlmodel import Session, create_engine
 from sqlalchemy import event
+from sqlmodel import Session, create_engine
+
 
 def import_all_models():
     # List of directories to scan for models

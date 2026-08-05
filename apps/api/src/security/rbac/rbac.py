@@ -1,22 +1,27 @@
 import logging
-from typing import Literal, Union
-from fastapi import HTTPException, status, Request
+from typing import Literal
+
+from fastapi import HTTPException, Request, status
 from sqlalchemy import null
 from sqlmodel import Session, select
 from src.db.collections import Collection
 from src.db.courses.courses import Course
-from src.db.resource_authors import ResourceAuthor, ResourceAuthorshipEnum, ResourceAuthorshipStatusEnum
+from src.db.resource_authors import (
+    ResourceAuthor,
+    ResourceAuthorshipEnum,
+    ResourceAuthorshipStatusEnum,
+)
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
-from src.db.users import APITokenUser
 from src.db.usergroup_resources import UserGroupResource
 from src.db.usergroup_user import UserGroupUser
+from src.db.users import APITokenUser
+from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.security.rbac.utils import (
-    check_element_type,
     check_course_permissions_with_own,
+    check_element_type,
     get_element_organization_id,
 )
-from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.security.superadmin import is_user_superadmin
 
 logger = logging.getLogger(__name__)
@@ -482,7 +487,7 @@ async def authorization_verify_api_token_permissions(
 
 async def authorization_verify_based_on_roles_and_authorship_or_api_token(
     request: Request,
-    current_user: Union[APITokenUser, any],
+    current_user: APITokenUser | any,
     action: Literal["read", "update", "delete", "create"],
     element_uuid: str,
     db_session: Session,

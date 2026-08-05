@@ -10,7 +10,6 @@ Plans: free → full → enterprise → master
 
 from typing import Literal
 
-
 # Plan type definition
 PlanLevel = Literal["free", "full", "enterprise", "master"]
 

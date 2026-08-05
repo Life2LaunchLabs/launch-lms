@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, Union
+
 from fastapi import HTTPException, Request
 from pydantic import BaseModel, field_validator
 from sqlmodel import Session, select
@@ -17,12 +17,12 @@ from src.services.users.usergroups import add_users_to_usergroup
 
 class JoinOrg(BaseModel):
     org_id: int
-    user_id: Union[str, int]
-    invite_code: Optional[str] = None
+    user_id: str | int
+    invite_code: str | None = None
 
     @field_validator("user_id", mode="before")
     @classmethod
-    def coerce_user_id_to_str(cls, v: Union[str, int]) -> str:
+    def coerce_user_id_to_str(cls, v: str | int) -> str:
         return str(v)
 
 

@@ -1,10 +1,11 @@
 import os
 from datetime import datetime
 from typing import Annotated
-from sqlalchemy import create_engine
-from sqlmodel import SQLModel, Session
+
 import typer
 from config.config import get_launchlms_config
+from sqlalchemy import create_engine
+from sqlmodel import Session, SQLModel
 from src.db.organizations import OrganizationCreate
 from src.db.users import UserCreate
 from src.services.setup.setup import (
@@ -74,7 +75,7 @@ def install(
 
         # Show the user how to login
         print("Installation completed ✅")
-        print("")
+        print()
         print("Login with the following credentials:")
         print("email: " + email)
         print("password: Com8com8!")
@@ -116,7 +117,7 @@ def install(
 
         # Show the user how to login
         print("Installation completed ✅")
-        print("")
+        print()
         print("Login with the following credentials:")
         print("email: " + email)
         print("password: The password you entered")
@@ -133,8 +134,8 @@ def normalize_owner_org_slug():
 
     db_session = Session(engine)
 
-    from src.db.organizations import Organization
     from sqlmodel import select
+    from src.db.organizations import Organization
 
     owner_org = db_session.exec(select(Organization).order_by(Organization.id).limit(1)).first()
     if not owner_org:

@@ -1,10 +1,9 @@
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 from sqlmodel import Session
-
 from src.core.events.database import get_db_session
 from src.db.media import (
-    MediaAssetRead,
     MediaAssetFolderUpdate,
+    MediaAssetRead,
     MediaFolderCreate,
     MediaFolderRead,
     MediaFolderUpdate,
@@ -17,16 +16,15 @@ from src.routers.users import _invalidate_session_cache
 from src.security.auth import get_current_user
 from src.services.media import (
     apply_media_asset_to_user_avatar,
-    create_media_folder,
     create_link_media_asset,
+    create_media_folder,
     delete_media_folder,
-    list_media_folders,
     list_media_assets,
-    update_media_folder,
+    list_media_folders,
     update_media_asset_folder,
+    update_media_folder,
     upload_media_asset,
 )
-
 
 router = APIRouter()
 

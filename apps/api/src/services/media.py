@@ -6,7 +6,6 @@ from uuid import uuid4
 import httpx
 from fastapi import HTTPException, UploadFile, status
 from sqlmodel import Session, select
-
 from src.db.media import (
     MediaAsset,
     MediaAssetFolderUpdate,
@@ -20,11 +19,10 @@ from src.db.media import (
 )
 from src.db.organizations import Organization
 from src.db.users import AnonymousUser, PublicUser, User
-from src.security.org_auth import require_org_admin, require_org_membership
 from src.security.file_validation import validate_upload
+from src.security.org_auth import require_org_admin, require_org_membership
 from src.services.utils.link_preview import _validate_url, fetch_link_preview
 from src.services.utils.upload_content import upload_file
-
 
 _REQUEST_HEADERS = {
     "User-Agent": "LaunchLMS Media Library/1.0",

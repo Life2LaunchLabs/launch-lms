@@ -1,28 +1,27 @@
-from typing import List, Union
-from uuid import uuid4
 from datetime import datetime
-from sqlmodel import Session, select, and_, or_
-from fastapi import HTTPException, Request
+from uuid import uuid4
 
-from src.db.users import PublicUser, AnonymousUser, APITokenUser
-from src.db.organizations import Organization
-from src.db.courses.courses import Course
-from src.security.superadmin import is_user_superadmin
+from fastapi import HTTPException, Request
+from sqlmodel import Session, and_, or_, select
 from src.db.communities.communities import (
     Community,
     CommunityCreate,
     CommunityRead,
     CommunityUpdate,
 )
+from src.db.courses.courses import Course
+from src.db.organizations import Organization
 from src.db.usergroup_resources import UserGroupResource
 from src.db.usergroup_user import UserGroupUser
+from src.db.users import AnonymousUser, APITokenUser, PublicUser
 from src.security.rbac import (
-    check_resource_access,
     AccessAction,
-    authorization_verify_if_user_is_anon,
     authorization_verify_based_on_org_admin_status,
     authorization_verify_based_on_roles,
+    authorization_verify_if_user_is_anon,
+    check_resource_access,
 )
+from src.security.superadmin import is_user_superadmin
 from src.services.shared_content import owner_org_payload
 
 
@@ -41,7 +40,7 @@ async def create_community(
     request: Request,
     org_id: int,
     community_object: CommunityCreate,
-    current_user: Union[PublicUser, AnonymousUser, APITokenUser],
+    current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
 ) -> CommunityRead:
     """
@@ -92,7 +91,7 @@ async def create_community(
 async def get_community(
     request: Request,
     community_uuid: str,
-    current_user: Union[PublicUser, AnonymousUser, APITokenUser],
+    current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
 ) -> CommunityRead:
     """
@@ -115,11 +114,11 @@ async def get_community(
 async def get_communities_by_org(
     request: Request,
     org_id: int,
-    current_user: Union[PublicUser, AnonymousUser, APITokenUser],
+    current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
     page: int = 1,
     limit: int = 10,
-) -> List[CommunityRead]:
+) -> list[CommunityRead]:
     """
     Get paginated list of communities for an organization.
 
@@ -202,7 +201,7 @@ async def get_communities_by_org(
 async def get_community_by_course(
     request: Request,
     course_uuid: str,
-    current_user: Union[PublicUser, AnonymousUser, APITokenUser],
+    current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
 ) -> CommunityRead | None:
     """
@@ -235,7 +234,7 @@ async def update_community(
     request: Request,
     community_uuid: str,
     community_object: CommunityUpdate,
-    current_user: Union[PublicUser, AnonymousUser, APITokenUser],
+    current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
 ) -> CommunityRead:
     """
@@ -280,7 +279,7 @@ async def update_community(
 async def delete_community(
     request: Request,
     community_uuid: str,
-    current_user: Union[PublicUser, AnonymousUser, APITokenUser],
+    current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
 ) -> dict:
     """
@@ -308,7 +307,7 @@ async def link_community_to_course(
     request: Request,
     community_uuid: str,
     course_uuid: str,
-    current_user: Union[PublicUser, AnonymousUser, APITokenUser],
+    current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
 ) -> CommunityRead:
     """
@@ -366,7 +365,7 @@ async def link_community_to_course(
 async def unlink_community_from_course(
     request: Request,
     community_uuid: str,
-    current_user: Union[PublicUser, AnonymousUser, APITokenUser],
+    current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
 ) -> CommunityRead:
     """
@@ -397,7 +396,7 @@ async def unlink_community_from_course(
 async def get_community_user_rights(
     request: Request,
     community_uuid: str,
-    current_user: Union[PublicUser, AnonymousUser, APITokenUser],
+    current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
 ) -> dict:
     """

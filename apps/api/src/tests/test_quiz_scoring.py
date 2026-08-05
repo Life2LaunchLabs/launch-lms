@@ -1,7 +1,9 @@
 import pytest
-
-from src.services.courses.activities.quiz.scoring import compute_scores, match_result_option
 from src.services.courses.activities.quiz.attempts import _get_active_scoring_vectors
+from src.services.courses.activities.quiz.scoring import (
+    compute_scores,
+    match_result_option,
+)
 
 
 def test_compute_scores_applies_slider_multiplier_per_vector() -> None:

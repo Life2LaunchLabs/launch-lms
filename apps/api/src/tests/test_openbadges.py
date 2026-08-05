@@ -1,15 +1,14 @@
-from starlette.requests import Request
-
 from src.db.courses.certifications import CertificateUser, Certifications
 from src.db.courses.courses import Course
-from src.db.organizations import Organization
 from src.db.organization_config import OrganizationConfig
+from src.db.organizations import Organization
 from src.db.users import User
 from src.services.courses.openbadges import (
     build_assertion_payload,
     build_badge_class_payload,
     build_issuer_payload,
 )
+from starlette.requests import Request
 
 
 def _request() -> Request:

@@ -1,7 +1,6 @@
-from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlmodel import Session
-
 from src.core.events.database import get_db_session
 from src.db.api_tokens import (
     APITokenCreate,
@@ -52,13 +51,13 @@ async def api_create_api_token(
     )
 
 
-@router.get("/{org_id}/api-tokens", response_model=List[APITokenRead])
+@router.get("/{org_id}/api-tokens", response_model=list[APITokenRead])
 async def api_list_api_tokens(
     request: Request,
     org_id: int,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
-) -> List[APITokenRead]:
+) -> list[APITokenRead]:
     """
     List all API tokens for an organization.
 

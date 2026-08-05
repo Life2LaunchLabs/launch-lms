@@ -5,8 +5,7 @@ from typing import Any
 
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
-from sqlmodel import Session, select, func
-
+from sqlmodel import Session, func, select
 from src.db.audit_logs import AuditLog
 from src.db.users import User
 from src.security.org_auth import is_org_admin

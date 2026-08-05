@@ -1,22 +1,21 @@
-from typing import List
-from uuid import uuid4
 from datetime import datetime
+from uuid import uuid4
+
 from fastapi import HTTPException, Request, UploadFile
 from sqlmodel import Session, select
-
+from src.db.courses.courses import Course
+from src.db.organizations import Organization
 from src.db.playgrounds import (
     Playground,
+    PlaygroundAccessType,
     PlaygroundCreate,
     PlaygroundRead,
     PlaygroundUpdate,
-    PlaygroundAccessType,
 )
+from src.db.user_organizations import UserOrganization
 from src.db.usergroup_resources import UserGroupResource
 from src.db.usergroup_user import UserGroupUser
-from src.db.users import PublicUser, AnonymousUser, User
-from src.db.organizations import Organization
-from src.db.user_organizations import UserOrganization
-from src.db.courses.courses import Course
+from src.db.users import AnonymousUser, PublicUser, User
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.services.utils.upload_content import upload_file
 
@@ -191,7 +190,7 @@ async def list_org_playgrounds(
     org_id: int,
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
-) -> List[PlaygroundRead]:
+) -> list[PlaygroundRead]:
     statement = select(Playground).where(Playground.org_id == org_id)
     playgrounds = db_session.exec(statement).all()
 
@@ -481,7 +480,7 @@ async def get_playground_usergroups(
     playground_uuid: str,
     current_user: PublicUser,
     db_session: Session,
-) -> List[dict]:
+) -> list[dict]:
     playground = db_session.exec(
         select(Playground).where(Playground.playground_uuid == playground_uuid)
     ).first()

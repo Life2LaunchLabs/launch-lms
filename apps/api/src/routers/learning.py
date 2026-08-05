@@ -3,7 +3,6 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile
 from fastapi.responses import StreamingResponse
-
 from src.core.events.database import get_db_session
 from src.db.learning import (
     BadgeCollectionCreate,
@@ -33,7 +32,6 @@ from src.services import learning as learning_service
 from src.services import learning_migration as learning_migration_service
 from src.services import learning_transfer as learning_transfer_service
 from src.services.guest_sessions import resolve_learning_actor
-
 
 badges_router = APIRouter()
 collections_router = APIRouter()
@@ -469,7 +467,11 @@ async def api_get_badge_class(
     if not badge:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Badge not found")
-    from src.services.learning import _get_org, _get_org_config, build_learning_badge_class_payload
+    from src.services.learning import (
+        _get_org,
+        _get_org_config,
+        build_learning_badge_class_payload,
+    )
 
     return build_learning_badge_class_payload(request, _get_org(db_session, badge.org_id), badge, _get_org_config(db_session, badge.org_id))
 
@@ -492,8 +494,8 @@ async def api_get_achievement(
     db_session=Depends(get_db_session),
 ) -> dict:
     """Open Badges 3.0 Achievement (includes the creator org profile)."""
-    from sqlmodel import select
     from fastapi import HTTPException
+    from sqlmodel import select
     from src.db.learning import LearningBadge
 
     badge = db_session.exec(select(LearningBadge).where(LearningBadge.badge_uuid == (badge_uuid if badge_uuid.startswith("badge_") else f"badge_{badge_uuid}"))).first()
@@ -511,8 +513,8 @@ async def api_get_issuer_profile(
     db_session=Depends(get_db_session),
 ) -> dict:
     """Open Badges 3.0 Profile for an issuing or creator organization."""
-    from sqlmodel import select
     from fastapi import HTTPException
+    from sqlmodel import select
     from src.db.organizations import Organization
 
     org = db_session.exec(select(Organization).where(Organization.org_uuid == org_uuid)).first()

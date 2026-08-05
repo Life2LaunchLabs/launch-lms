@@ -1,11 +1,12 @@
+import json
+from pathlib import Path
+
+from config.config import get_launchlms_config
 from fastapi import APIRouter, Depends
 from sqlmodel import Session, select
-from src.db.organizations import Organization
-from src.core.events.database import get_db_session
 from src.core.capabilities import CORE_CAPABILITIES
-from config.config import get_launchlms_config
-from pathlib import Path
-import json
+from src.core.events.database import get_db_session
+from src.db.organizations import Organization
 
 router = APIRouter()
 BUILD_INFO_PATH = Path("/app/build-info.json")

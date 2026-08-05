@@ -10,7 +10,6 @@ Provides endpoints for managing AI credits for organizations:
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, select
-
 from src.core.events.database import get_db_session
 from src.db.organizations import Organization
 from src.db.users import PublicUser
@@ -20,8 +19,7 @@ from src.security.features_utils.usage import (
     get_ai_credits_summary,
     reset_ai_credits_usage,
 )
-from src.security.org_auth import is_org_member, is_org_admin
-
+from src.security.org_auth import is_org_admin, is_org_member
 
 router = APIRouter()
 

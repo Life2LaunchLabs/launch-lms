@@ -1,18 +1,19 @@
-from typing import Literal, List
+from datetime import datetime
+from typing import Literal
 from uuid import uuid4
-from sqlmodel import Session, select, text
+
+from fastapi import HTTPException, Request
 from sqlalchemy.exc import IntegrityError
+from sqlmodel import Session, select, text
+from src.db.organizations import Organization
+from src.db.roles import Role, RoleCreate, RoleRead, RoleTypeEnum, RoleUpdate
+from src.db.users import AnonymousUser, PublicUser
+from src.security.org_auth import get_user_org_role, require_org_role_permission
 from src.security.rbac.rbac import (
     authorization_verify_based_on_roles_and_authorship,
     authorization_verify_if_user_is_anon,
 )
-from src.security.org_auth import require_org_role_permission, get_user_org_role
 from src.security.superadmin import is_user_superadmin
-from src.db.users import AnonymousUser, PublicUser
-from src.db.roles import Role, RoleCreate, RoleRead, RoleUpdate, RoleTypeEnum
-from src.db.organizations import Organization
-from fastapi import HTTPException, Request
-from datetime import datetime
 
 
 async def create_role(
@@ -254,7 +255,7 @@ async def get_roles_by_organization(
     db_session: Session,
     org_id: int,
     current_user: PublicUser,
-) -> List[RoleRead]:
+) -> list[RoleRead]:
     """
     Get all roles for a specific organization, including global roles.
     

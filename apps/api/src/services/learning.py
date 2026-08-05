@@ -7,7 +7,6 @@ from uuid import uuid4
 from fastapi import HTTPException, Request, UploadFile, status
 from sqlalchemy import func, or_
 from sqlmodel import Session, select
-
 from src.db.learning import (
     BadgeCollection,
     BadgeCollectionCreate,
@@ -35,12 +34,12 @@ from src.db.learning import (
     LearningPageCreate,
     LearningPageProgress,
     LearningPageRead,
-    LearningResponseGrade,
     LearningPageType,
     LearningPageUpdate,
     LearningPath,
     LearningPathRead,
     LearningResponseAttempt,
+    LearningResponseGrade,
     LearningResponseSubmit,
     LearningRun,
     LearningRunRead,
@@ -52,7 +51,7 @@ from src.db.learning import (
 )
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
-from src.db.portfolio import JourneyEntry, Portfolio
+from src.db.portfolio import Portfolio, TimelineEntry
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser, User
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
@@ -65,6 +64,7 @@ from src.services.courses.openbadges import (
     get_public_base_url,
 )
 from src.services.guest_sessions import LearningActor
+from src.services.learning_flow import FlowValidationError, resolve_flow, validate_flow
 from src.services.learning_page_convert import (
     STANDARD_CONTENT_VERSION,
     find_question_block,
@@ -75,7 +75,6 @@ from src.services.learning_page_convert import (
     question_block,
     text_block,
 )
-from src.services.learning_flow import FlowValidationError, resolve_flow, validate_flow
 from src.services.learning_portfolio_actions import (
     PortfolioActionError,
     _portfolio,
@@ -93,8 +92,8 @@ ONBOARDING_GOAL_PAGE_UUID = "learning_page_system_onboarding_goal"
 LAUNCH_READY_ACTIVITY_UUIDS = {
     "identity": ONBOARDING_ACTIVITY_UUID,
     "profile": "learning_activity_system_onboarding_profile",
-    "journey": "learning_activity_system_onboarding_journey",
-    "work": "learning_activity_system_onboarding_work",
+    "timeline": "learning_activity_system_onboarding_timeline",
+    "project": "learning_activity_system_onboarding_project",
     "traits": "learning_activity_system_onboarding_traits",
     "links": "learning_activity_system_onboarding_links",
     "badges": "learning_activity_system_onboarding_badges",
@@ -269,7 +268,7 @@ def _validate_issuer_selection(
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Sign in to work with this issuing organization",
+            detail="Sign in to project with this issuing organization",
         )
     link = db_session.exec(
         select(BadgeIssuerLearnerLink).where(
@@ -440,7 +439,7 @@ def _question_blocks(page: LearningPage) -> list[dict]:
 def _flow_context(
     db_session: Session, run: LearningRun, activity_run: LearningActivityRun
 ) -> dict:
-    from src.db.portfolio import JourneyEntry, Portfolio, WorkItem
+    from src.db.portfolio import Portfolio, ProjectItem, TimelineEntry
 
     pages = db_session.exec(
         select(LearningPage).where(LearningPage.activity_id == activity_run.activity_id)
@@ -462,10 +461,10 @@ def _flow_context(
                 "result": attempt.result,
             }
     facts = {
-        "has_work": False,
-        "has_journey": False,
-        "work_count": 0,
-        "journey_count": 0,
+        "has_project": False,
+        "has_timeline": False,
+        "project_count": 0,
+        "timeline_count": 0,
         "readiness_blockers": [],
     }
     if run.user_id:
@@ -473,25 +472,25 @@ def _flow_context(
             select(Portfolio).where(Portfolio.user_id == run.user_id)
         ).first()
         if portfolio:
-            facts["work_count"] = len(
+            facts["project_count"] = len(
                 db_session.exec(
-                    select(WorkItem).where(
-                        WorkItem.portfolio_id == portfolio.id,
-                        WorkItem.status != "archived",
+                    select(ProjectItem).where(
+                        ProjectItem.portfolio_id == portfolio.id,
+                        ProjectItem.status != "archived",
                     )
                 ).all()
             )
-            facts["journey_count"] = len(
+            facts["timeline_count"] = len(
                 db_session.exec(
-                    select(JourneyEntry).where(
-                        JourneyEntry.portfolio_id == portfolio.id,
-                        JourneyEntry.status != "archived",
+                    select(TimelineEntry).where(
+                        TimelineEntry.portfolio_id == portfolio.id,
+                        TimelineEntry.status != "archived",
                     )
                 ).all()
             )
-            facts["has_work"], facts["has_journey"] = (
-                facts["work_count"] > 0,
-                facts["journey_count"] > 0,
+            facts["has_project"], facts["has_timeline"] = (
+                facts["project_count"] > 0,
+                facts["timeline_count"] > 0,
             )
     data = activity_run.data or {}
     return {
@@ -640,19 +639,19 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
                         "user.portfolio.location_label": portfolio.location_label or "",
                     }
                 )
-                journeys = db_session.exec(
-                    select(JourneyEntry)
-                    .where(JourneyEntry.portfolio_id == portfolio.id)
+                timelines = db_session.exec(
+                    select(TimelineEntry)
+                    .where(TimelineEntry.portfolio_id == portfolio.id)
                     .order_by(
-                        JourneyEntry.is_current.desc(), JourneyEntry.start_date.desc()
+                        TimelineEntry.is_current.desc(), TimelineEntry.start_date.desc()
                     )  # type: ignore
                 ).all()
-                render_context["variables"]["portfolio.journey_options"] = [
-                    {"value": item.journey_uuid, "label": item.title}
-                    for item in journeys
+                render_context["variables"]["portfolio.timeline_options"] = [
+                    {"value": item.timeline_uuid, "label": item.title}
+                    for item in timelines
                 ]
             # Dynamic option collections use the same {value,label,...} contract as
-            # journey_options, so standard question blocks can consume new domain
+            # timeline_options, so standard question blocks can consume new domain
             # lists without adding one-off response shapes.
             started_badge_ids = {
                 item.badge_id
@@ -1741,11 +1740,11 @@ def _ensure_launch_ready_activity(
             "creative": "Creating",
             "curious": "Thinking",
             "reliable": "Execution",
-            "collaborative": "Working With Others",
+            "collaborative": "Projecting With Others",
             "determined": "Execution",
-            "empathetic": "Working With Others",
+            "empathetic": "Projecting With Others",
             "resourceful": "Thinking",
-            "patient": "Working With Others",
+            "patient": "Projecting With Others",
             "bold": "Execution",
             "thoughtful": "Thinking",
         }
@@ -1756,16 +1755,47 @@ def _ensure_launch_ready_activity(
             "blk_launch_values",
         )
         values = (
-            ("Personal Qualities", "Authenticity"),
-            ("Personal Qualities", "Mindfulness"),
+            ("Personal Growth", "Achievement"),
+            ("Personal Growth", "Adventure"),
+            ("Personal Growth", "Curiosity"),
+            ("Personal Growth", "Creativity"),
+            ("Personal Growth", "Growth"),
+            ("Personal Growth", "Learning"),
+            ("Personal Growth", "Excellence"),
+            ("Personal Growth", "Independence"),
+            ("Relationships", "Belonging"),
+            ("Relationships", "Compassion"),
+            ("Relationships", "Friendship"),
+            ("Relationships", "Family"),
+            ("Relationships", "Generosity"),
             ("Relationships", "Kindness"),
-            ("Relationships", "Empathy"),
-            ("Growth", "Learning"),
-            ("Growth", "Courage"),
-            ("Impact", "Service"),
-            ("Impact", "Community"),
-            ("Impact", "Justice"),
-            ("Impact", "Leadership"),
+            ("Relationships", "Love"),
+            ("Relationships", "Respect"),
+            ("Relationships", "Trust"),
+            ("Character", "Authenticity"),
+            ("Character", "Courage"),
+            ("Character", "Fairness"),
+            ("Character", "Gratitude"),
+            ("Character", "Honesty"),
+            ("Character", "Integrity"),
+            ("Character", "Responsibility"),
+            ("Character", "Perseverance"),
+            ("Lifestyle", "Balance"),
+            ("Lifestyle", "Freedom"),
+            ("Lifestyle", "Fun"),
+            ("Lifestyle", "Health"),
+            ("Lifestyle", "Joy"),
+            ("Lifestyle", "Simplicity"),
+            ("Lifestyle", "Stability"),
+            ("Lifestyle", "Wellbeing"),
+            ("Purpose & Impact", "Community"),
+            ("Purpose & Impact", "Contribution"),
+            ("Purpose & Impact", "Justice"),
+            ("Purpose & Impact", "Leadership"),
+            ("Purpose & Impact", "Nature"),
+            ("Purpose & Impact", "Service"),
+            ("Purpose & Impact", "Sustainability"),
+            ("Purpose & Impact", "Wisdom"),
         )
         pages.insert(
             1,
@@ -1775,7 +1805,7 @@ def _ensure_launch_ready_activity(
                 "title": "What matters most to you?",
                 "kind": "categorized_multi_select",
                 "content": {
-                    "label": "Choose the values you want people to understand about you.",
+                    "label": "Values are what matter most to you. They guide your decisions, influence your priorities, and help you choose the kind of life you want to build.",
                     "options": [
                         {"id": label.lower(), "text": label, "category": category}
                         for category, label in values
@@ -1892,8 +1922,8 @@ def _ensure_launch_ready_activity(
                     "reason": "This preview is generated from activity answers and rendered by the portfolio system.",
                 }
             elif block.get("type") == "question" and key in {
-                "journey",
-                "work",
+                "timeline",
+                "project",
                 "traits",
                 "links",
                 "badges",
@@ -2190,7 +2220,7 @@ def ensure_onboarding_learning_badge(
 
     goal_options = [
         {"id": "higher_education", "text": "Get into school or training"},
-        {"id": "employment", "text": "Find work or an internship"},
+        {"id": "employment", "text": "Find project or an internship"},
         {"id": "self_starting", "text": "Grow something I’m building"},
         {"id": "show_people", "text": "Show people what I can do"},
         {"id": "not_sure", "text": "Figure out what comes next"},
@@ -2350,7 +2380,7 @@ def ensure_onboarding_learning_badge(
                         {
                             "id": "bio",
                             "label": "Bio",
-                            "placeholder": "Share what you’re interested in, what you’re working toward, and what you want people to know.",
+                            "placeholder": "Share what you’re interested in, what you’re projecting toward, and what you want people to know.",
                             "variant": "short_answer",
                             "height": 200,
                         },
@@ -2493,23 +2523,23 @@ def ensure_onboarding_learning_badge(
         ],
     )
 
-    journey_kind_page, journey_kind_block = (
-        "learning_page_system_onboarding_journey_kind",
-        "blk_launch_journey_kind",
+    timeline_kind_page, timeline_kind_block = (
+        "learning_page_system_onboarding_timeline_kind",
+        "blk_launch_timeline_kind",
     )
-    journey_page, journey_block = (
-        "learning_page_system_onboarding_journey",
-        "blk_launch_journey",
+    timeline_page, timeline_block = (
+        "learning_page_system_onboarding_timeline",
+        "blk_launch_timeline",
     )
-    journey_photo_page, journey_photo_block = (
-        "learning_page_system_onboarding_journey_photo",
-        "blk_launch_journey_photo",
+    timeline_photo_page, timeline_photo_block = (
+        "learning_page_system_onboarding_timeline_photo",
+        "blk_launch_timeline_photo",
     )
-    journey_review_page = "learning_page_system_onboarding_journey_review"
-    journey_pages = [
+    timeline_review_page = "learning_page_system_onboarding_timeline_review"
+    timeline_pages = [
         {
-            "page_uuid": journey_kind_page,
-            "block_id": journey_kind_block,
+            "page_uuid": timeline_kind_page,
+            "block_id": timeline_kind_block,
             "title": "Where are you growing right now?",
             "kind": "multiple_choice",
             "content": {
@@ -2526,23 +2556,23 @@ def ensure_onboarding_learning_badge(
             "completion": {"min_selections": 1, "max_selections": 1},
         },
         {
-            "page_uuid": journey_page,
-            "block_id": journey_block,
-            "title": "Make this chapter yours",
+            "page_uuid": timeline_page,
+            "block_id": timeline_block,
+            "title": "Make this experience yours",
             "kind": "text_input",
             "content": {
                 "inputs": [
                     {
                         "id": "title",
                         "section_id": "title",
-                        "label": "What should we call this chapter?",
-                        "placeholder": "My current chapter",
+                        "label": "What should we call this experience?",
+                        "placeholder": "My current experience",
                         "variant": "single_line",
                         "height": 48,
                         "adaptive": {
                             "binding": {
                                 "source": "answer",
-                                "path": f"{journey_kind_page}.answer.questions.{journey_kind_block}.option_ids.0",
+                                "path": f"{timeline_kind_page}.answer.questions.{timeline_kind_block}.option_ids.0",
                             },
                             "values": {
                                 "education": {"placeholder": "My high school years"},
@@ -2569,7 +2599,7 @@ def ensure_onboarding_learning_badge(
                         "adaptive": {
                             "binding": {
                                 "source": "answer",
-                                "path": f"{journey_kind_page}.answer.questions.{journey_kind_block}.option_ids.0",
+                                "path": f"{timeline_kind_page}.answer.questions.{timeline_kind_block}.option_ids.0",
                             },
                             "values": {
                                 "education": {
@@ -2578,7 +2608,7 @@ def ensure_onboarding_learning_badge(
                                 },
                                 "employment": {
                                     "label": "Company or organization",
-                                    "placeholder": "Your workplace",
+                                    "placeholder": "Your projectplace",
                                 },
                                 "training": {
                                     "label": "Program or organization",
@@ -2638,71 +2668,71 @@ def ensure_onboarding_learning_badge(
             },
         },
         {
-            "page_uuid": journey_photo_page,
-            "block_id": journey_photo_block,
-            "title": "Add a picture to this chapter",
+            "page_uuid": timeline_photo_page,
+            "block_id": timeline_photo_block,
+            "title": "Add a picture to this experience",
             "kind": "image_upload",
             "content": {
-                "label": "A school, workspace, team, event, creation, or anything that represents this moment."
+                "label": "A school, projectspace, team, event, creation, or anything that represents this moment."
             },
             "completion": {"required": False},
         },
         {
-            "page_uuid": journey_review_page,
-            "block_id": "blk_launch_journey_review",
-            "title": "Here’s your current chapter",
-            "action_label": "Add to my Journey",
+            "page_uuid": timeline_review_page,
+            "block_id": "blk_launch_timeline_review",
+            "title": "Here’s your current experience",
+            "action_label": "Add to my Timeline",
             "blocks": [
                 text_block(
-                    heading_node("Here’s your current chapter"),
-                    block_id="blk_journey_review_heading",
+                    heading_node("Here’s your current experience"),
+                    block_id="blk_timeline_review_heading",
                 ),
                 text_block(
                     paragraph_node(
-                        "This is how it will appear in your Journey. You can always change it later."
+                        "This is how it will appear in your Timeline. You can always change it later."
                     ),
-                    block_id="blk_journey_review_intro",
+                    block_id="blk_timeline_review_intro",
                 ),
                 {
-                    "id": "blk_journey_review_card",
+                    "id": "blk_timeline_review_card",
                     "type": "portfolio_preview",
                     "design": {"width": 100},
                     "content": {
-                        "variant": "journey_card",
+                        "variant": "timeline_card",
                         "bindings": {
                             "entry_type": {
                                 "source": "answer",
-                                "path": f"{journey_kind_page}.answer.questions.{journey_kind_block}.option_ids.0",
+                                "path": f"{timeline_kind_page}.answer.questions.{timeline_kind_block}.option_ids.0",
                                 "fallback": "experience",
                             },
                             "title": {
                                 "source": "answer",
-                                "path": f"{journey_page}.answer.questions.{journey_block}.inputs.title.text",
-                                "fallback": "Your current chapter",
+                                "path": f"{timeline_page}.answer.questions.{timeline_block}.inputs.title.text",
+                                "fallback": "Your current experience",
                             },
                             "organization": {
                                 "source": "answer",
-                                "path": f"{journey_page}.answer.questions.{journey_block}.inputs.organization.text",
+                                "path": f"{timeline_page}.answer.questions.{timeline_block}.inputs.organization.text",
                                 "fallback": "A place where you’re growing",
                             },
                             "location_label": {
                                 "source": "answer",
-                                "path": f"{journey_page}.answer.questions.{journey_block}.inputs.location.text",
+                                "path": f"{timeline_page}.answer.questions.{timeline_block}.inputs.location.text",
                                 "fallback": "",
                             },
                             "start_date": {
                                 "source": "answer",
-                                "path": f"{journey_page}.answer.questions.{journey_block}.inputs.start_date.text",
+                                "path": f"{timeline_page}.answer.questions.{timeline_block}.inputs.start_date.text",
                                 "fallback": "",
                             },
                             "summary": {
                                 "source": "answer",
-                                "path": f"{journey_page}.answer.questions.{journey_block}.inputs.summary.text",
+                                "path": f"{timeline_page}.answer.questions.{timeline_block}.inputs.summary.text",
                                 "fallback": "Your story will appear here.",
                             },
                             "cover_url": {
                                 "source": "answer",
-                                "path": f"{journey_photo_page}.answer.questions.{journey_photo_block}.url",
+                                "path": f"{timeline_photo_page}.answer.questions.{timeline_photo_block}.url",
                                 "fallback_binding": {
                                     "source": "variable",
                                     "path": "user.avatar_image",
@@ -2713,31 +2743,31 @@ def ensure_onboarding_learning_badge(
                     },
                 },
                 {
-                    "id": "blk_journey_review_details_button",
+                    "id": "blk_timeline_review_details_button",
                     "type": "button",
                     "design": {
                         "width": 48,
                         "align": "center",
                         "variant": "secondary",
-                        "group": "journey_review_actions",
+                        "group": "timeline_review_actions",
                     },
                     "content": {
                         "label": "Change the details",
-                        "destination_page_uuid": journey_page,
+                        "destination_page_uuid": timeline_page,
                     },
                 },
                 {
-                    "id": "blk_journey_review_photo_button",
+                    "id": "blk_timeline_review_photo_button",
                     "type": "button",
                     "design": {
                         "width": 48,
                         "align": "center",
                         "variant": "secondary",
-                        "group": "journey_review_actions",
+                        "group": "timeline_review_actions",
                     },
                     "content": {
                         "label": "Choose another photo",
-                        "destination_page_uuid": journey_photo_page,
+                        "destination_page_uuid": timeline_photo_page,
                     },
                 },
             ],
@@ -2748,39 +2778,39 @@ def ensure_onboarding_learning_badge(
         path=path,
         badge=badge,
         org_id=owner_org.id or 0,
-        key="journey",
+        key="timeline",
         order=3,
-        title="Add your current chapter",
-        description="Show where you're learning, working, or growing now.",
-        pages=journey_pages,
+        title="Add your current experience",
+        description="Show where you're learning, projecting, or growing now.",
+        pages=timeline_pages,
         outcomes=[
             {
                 "id": "create-current-chapter",
-                "type": "create_journey_entry",
-                "store_as": "journey_entry_id",
+                "type": "create_timeline_entry",
+                "store_as": "timeline_entry_id",
                 "fields": {
                     "entry_type": answer(
-                        journey_kind_page,
-                        journey_kind_block,
+                        timeline_kind_page,
+                        timeline_kind_block,
                         "option_ids",
                         "experience",
                         "first",
                     ),
-                    "title": answer(journey_page, journey_block, "inputs.title.text"),
+                    "title": answer(timeline_page, timeline_block, "inputs.title.text"),
                     "organization": answer(
-                        journey_page, journey_block, "inputs.organization.text"
+                        timeline_page, timeline_block, "inputs.organization.text"
                     ),
                     "location_label": answer(
-                        journey_page, journey_block, "inputs.location.text"
+                        timeline_page, timeline_block, "inputs.location.text"
                     ),
                     "start_date": answer(
-                        journey_page, journey_block, "inputs.start_date.text"
+                        timeline_page, timeline_block, "inputs.start_date.text"
                     ),
                     "summary": answer(
-                        journey_page, journey_block, "inputs.summary.text"
+                        timeline_page, timeline_block, "inputs.summary.text"
                     ),
                     "cover_asset_uuid": answer(
-                        journey_photo_page, journey_photo_block, "media_asset_uuid"
+                        timeline_photo_page, timeline_photo_block, "media_asset_uuid"
                     ),
                     "is_current": True,
                 },
@@ -2788,44 +2818,44 @@ def ensure_onboarding_learning_badge(
         ],
     )
 
-    work_detail_page, work_detail_block = (
-        "learning_page_system_onboarding_work_detail",
-        "blk_launch_work_detail",
+    project_detail_page, project_detail_block = (
+        "learning_page_system_onboarding_project_detail",
+        "blk_launch_project_detail",
     )
-    work_photo_page, work_photo_block = (
-        "learning_page_system_onboarding_work_photo",
-        "blk_launch_work_photo",
+    project_photo_page, project_photo_block = (
+        "learning_page_system_onboarding_project_photo",
+        "blk_launch_project_photo",
     )
-    work_journey_page, work_journey_block = (
-        "learning_page_system_onboarding_work_journey",
-        "blk_launch_work_journey",
+    project_timeline_page, project_timeline_block = (
+        "learning_page_system_onboarding_project_timeline",
+        "blk_launch_project_timeline",
     )
-    work_review_page = "learning_page_system_onboarding_work_review"
-    work_pages = [
+    project_review_page = "learning_page_system_onboarding_project_review"
+    project_pages = [
         {
-            "page_uuid": work_detail_page,
-            "block_id": work_detail_block,
-            "title": "Tell the story of your work",
+            "page_uuid": project_detail_page,
+            "block_id": project_detail_block,
+            "title": "Tell the story of your project",
             "kind": "text_input",
             "content": {
                 "inputs": [
                     {
                         "id": "title",
                         "label": "Title",
-                        "placeholder": "Name this work",
+                        "placeholder": "Name this project",
                         "variant": "single_line",
                         "height": 48,
                     },
                     {
                         "id": "tagline",
                         "label": "Tagline",
-                        "placeholder": "A short line about this work",
+                        "placeholder": "A short line about this project",
                         "variant": "single_line",
                         "height": 48,
                     },
                     {
                         "id": "start_date",
-                        "section_id": "work_dates",
+                        "section_id": "project_dates",
                         "label": "Start date (optional)",
                         "input_type": "month",
                         "variant": "single_line",
@@ -2834,7 +2864,7 @@ def ensure_onboarding_learning_badge(
                     },
                     {
                         "id": "end_date",
-                        "section_id": "work_dates",
+                        "section_id": "project_dates",
                         "label": "End date (optional)",
                         "input_type": "month",
                         "variant": "single_line",
@@ -2861,102 +2891,102 @@ def ensure_onboarding_learning_badge(
             },
         },
         {
-            "page_uuid": work_photo_page,
-            "block_id": work_photo_block,
+            "page_uuid": project_photo_page,
+            "block_id": project_photo_block,
             "title": "Cover image",
             "kind": "image_upload",
             "content": {
-                "label": "Choose the cover image that will appear on your Work card."
+                "label": "Choose the cover image that will appear on your Project card."
             },
             "completion": {"required": False},
         },
         {
-            "page_uuid": work_journey_page,
-            "block_id": work_journey_block,
-            "title": "Connect this to your Journey",
+            "page_uuid": project_timeline_page,
+            "block_id": project_timeline_block,
+            "title": "Connect this to your Timeline",
             "kind": "text_input",
             "content": {
                 "inputs": [
                     {
-                        "id": "journey_uuid",
-                        "label": "Journey entry (optional)",
+                        "id": "timeline_uuid",
+                        "label": "Timeline entry (optional)",
                         "placeholder": "Don’t connect this yet",
                         "input_type": "select",
                         "variant": "single_line",
                         "height": 48,
                         "options_binding": {
                             "source": "variable",
-                            "path": "portfolio.journey_options",
+                            "path": "portfolio.timeline_options",
                         },
                     }
                 ]
             },
-            "completion": {"inputs": {"journey_uuid": {"required": False}}},
+            "completion": {"inputs": {"timeline_uuid": {"required": False}}},
         },
         {
-            "page_uuid": work_review_page,
-            "block_id": "blk_launch_work_review",
-            "title": "Your work is ready to share",
-            "action_label": "Add this to my Work",
+            "page_uuid": project_review_page,
+            "block_id": "blk_launch_project_review",
+            "title": "Your project is ready to share",
+            "action_label": "Add this to my Project",
             "blocks": [
                 text_block(
-                    heading_node("Your work is ready to share"),
-                    block_id="blk_work_review_heading",
+                    heading_node("Your project is ready to share"),
+                    block_id="blk_project_review_heading",
                 ),
                 {
-                    "id": "blk_work_review_card",
+                    "id": "blk_project_review_card",
                     "type": "portfolio_preview",
                     "design": {"width": 100},
                     "content": {
-                        "variant": "work_card",
+                        "variant": "project_card",
                         "bindings": {
                             "title": {
                                 "source": "answer",
-                                "path": f"{work_detail_page}.answer.questions.{work_detail_block}.inputs.title.text",
-                                "fallback": "Your work",
+                                "path": f"{project_detail_page}.answer.questions.{project_detail_block}.inputs.title.text",
+                                "fallback": "Your project",
                             },
                             "subtitle": {
                                 "source": "answer",
-                                "path": f"{work_detail_page}.answer.questions.{work_detail_block}.inputs.tagline.text",
+                                "path": f"{project_detail_page}.answer.questions.{project_detail_block}.inputs.tagline.text",
                                 "fallback": "",
                             },
                             "summary": {
                                 "source": "answer",
-                                "path": f"{work_detail_page}.answer.questions.{work_detail_block}.inputs.story.text",
+                                "path": f"{project_detail_page}.answer.questions.{project_detail_block}.inputs.story.text",
                                 "fallback": "Your story",
                             },
                             "cover_url": {
                                 "source": "answer",
-                                "path": f"{work_photo_page}.answer.questions.{work_photo_block}.url",
+                                "path": f"{project_photo_page}.answer.questions.{project_photo_block}.url",
                                 "fallback": "",
                             },
                         },
                     },
                 },
                 {
-                    "id": "blk_work_review_details",
+                    "id": "blk_project_review_details",
                     "type": "button",
                     "design": {
                         "width": 48,
                         "variant": "secondary",
-                        "group": "work_review_actions",
+                        "group": "project_review_actions",
                     },
                     "content": {
                         "label": "Change the story",
-                        "destination_page_uuid": work_detail_page,
+                        "destination_page_uuid": project_detail_page,
                     },
                 },
                 {
-                    "id": "blk_work_review_photo",
+                    "id": "blk_project_review_photo",
                     "type": "button",
                     "design": {
                         "width": 48,
                         "variant": "secondary",
-                        "group": "work_review_actions",
+                        "group": "project_review_actions",
                     },
                     "content": {
                         "label": "Choose another cover",
-                        "destination_page_uuid": work_photo_page,
+                        "destination_page_uuid": project_photo_page,
                     },
                 },
             ],
@@ -2967,51 +2997,51 @@ def ensure_onboarding_learning_badge(
         path=path,
         badge=badge,
         org_id=owner_org.id or 0,
-        key="work",
+        key="project",
         order=4,
         title="Show something you've done",
         description="Add a project, creation, achievement, or story.",
-        pages=work_pages,
+        pages=project_pages,
         outcomes=[
             {
-                "id": "create-first-work",
-                "type": "create_work_item",
-                "store_as": "work_item_id",
+                "id": "create-first-project",
+                "type": "create_project_item",
+                "store_as": "project_item_id",
                 "fields": {
                     "story_kind": "made",
                     "title": answer(
-                        work_detail_page, work_detail_block, "inputs.title.text"
+                        project_detail_page, project_detail_block, "inputs.title.text"
                     ),
                     "subtitle": answer(
-                        work_detail_page, work_detail_block, "inputs.tagline.text"
+                        project_detail_page, project_detail_block, "inputs.tagline.text"
                     ),
                     "summary": answer(
-                        work_detail_page, work_detail_block, "inputs.story.text"
+                        project_detail_page, project_detail_block, "inputs.story.text"
                     ),
                     "start_date": answer(
-                        work_detail_page, work_detail_block, "inputs.start_date.text"
+                        project_detail_page, project_detail_block, "inputs.start_date.text"
                     ),
                     "end_date": answer(
-                        work_detail_page, work_detail_block, "inputs.end_date.text"
+                        project_detail_page, project_detail_block, "inputs.end_date.text"
                     ),
                     "featured": True,
                 },
                 "story": answer(
-                    work_detail_page, work_detail_block, "inputs.story.text"
+                    project_detail_page, project_detail_block, "inputs.story.text"
                 ),
                 "cover_asset_uuid": answer(
-                    work_photo_page, work_photo_block, "media_asset_uuid"
+                    project_photo_page, project_photo_block, "media_asset_uuid"
                 ),
             },
             {
-                "id": "link-work-to-existing-journey",
-                "type": "link_work_to_journey",
+                "id": "link-project-to-existing-timeline",
+                "type": "link_project_to_timeline",
                 "optional": True,
-                "work": {"$source": "binding", "key": "work_item_id"},
-                "journey": answer(
-                    work_journey_page, work_journey_block, "inputs.journey_uuid.text"
+                "project": {"$source": "binding", "key": "project_item_id"},
+                "timeline": answer(
+                    project_timeline_page, project_timeline_block, "inputs.timeline_uuid.text"
                 ),
-                "label": "Related work",
+                "label": "Related project",
             },
         ],
     )
@@ -3261,7 +3291,7 @@ def ensure_onboarding_learning_badge(
         org_id=owner_org.id or 0,
         key="badges",
         order=7,
-        title="Choose badges to work toward",
+        title="Choose badges to project toward",
         description="Start a few badge paths that match where you want to grow.",
         pages=[
             {
@@ -3281,7 +3311,7 @@ def ensure_onboarding_learning_badge(
                     ),
                     text_block(
                         paragraph_node(
-                            "Choose a few that fit what you want to learn next. They’ll appear in your portfolio while you work toward them."
+                            "Choose a few that fit what you want to learn next. They’ll appear in your portfolio while you project toward them."
                         ),
                         block_id="blk_launch_badges_intro_value",
                     ),
@@ -3340,7 +3370,7 @@ def ensure_onboarding_learning_badge(
                     ),
                     text_block(
                         paragraph_node(
-                            "Your portfolio now has an introduction, a current chapter, work you can point to, and the strengths and values that help tell your story."
+                            "Your portfolio now has an introduction, a current experience, project you can point to, and the strengths and values that help tell your story."
                         ),
                         block_id="blk_launch_done_body",
                     ),
@@ -3443,7 +3473,7 @@ def ensure_onboarding_learning_badge(
     badge.badge_metadata = {**(badge.badge_metadata or {}), "award_strategy": "portfolio_checklist"}
     badge.name = "Launch Ready"
     badge.description = "Build and launch your portfolio one useful step at a time."
-    badge.about = "A guided path for introducing yourself, sharing your journey and work, and preparing your portfolio to publish."
+    badge.about = "A guided path for introducing yourself, sharing your timeline and project, and preparing your portfolio to publish."
     badge.criteria = "Complete the seven Launch Ready portfolio checklist items."
     db_session.add(badge)
 
@@ -4232,7 +4262,7 @@ def _validate_page_payload(page_type: LearningPageType, content: dict | None) ->
                 continue
             if node.get("type") == "displayBinding":
                 validate_display_binding(
-                    ((node.get("attrs") or {}).get("binding") or {})
+                    (node.get("attrs") or {}).get("binding") or {}
                 )
             validate_nodes(node.get("content"))
 
@@ -4284,8 +4314,8 @@ def _validate_page_payload(page_type: LearningPageType, content: dict | None) ->
             if block_type == "portfolio_preview":
                 preview = block.get("content") or {}
                 if preview.get("variant") not in {
-                    "journey_card",
-                    "work_card",
+                    "timeline_card",
+                    "project_card",
                     "identity_header",
                     "traits_panel",
                     "links_strip",
@@ -5230,7 +5260,7 @@ def build_learning_assertion_payload(
     recipient_email = (user.email or "").strip().lower()
     salt = f"launchlms-{award.award_uuid[-12:]}"
     identity_hash = hashlib.sha256(
-        f"{recipient_email}{salt}".encode("utf-8")
+        f"{recipient_email}{salt}".encode()
     ).hexdigest()
     payload = {
         "@context": OPEN_BADGES_CONTEXT,
@@ -5340,7 +5370,7 @@ def build_ob3_credential(
     recipient_email = (user.email or "").strip().lower()
     salt = f"launchlms-{award.award_uuid[-12:]}"
     identity_hash = hashlib.sha256(
-        f"{recipient_email}{salt}".encode("utf-8")
+        f"{recipient_email}{salt}".encode()
     ).hexdigest()
     issued_at = (
         award.issued_at.isoformat()

@@ -8,24 +8,27 @@ SECURITY: All streaming endpoints validate resource access using the RBAC system
 Anonymous users can only stream content from public+published resources.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Path
-from fastapi.responses import StreamingResponse, Response
+from fastapi import APIRouter, Depends, HTTPException, Path, Request
+from fastapi.responses import Response, StreamingResponse
 from sqlmodel import Session, select
-
-from src.db.courses.courses import Course
-from src.db.courses.activities import Activity
-from src.db.podcasts.podcasts import Podcast
-from src.db.podcasts.episodes import PodcastEpisode
-from src.db.users import AnonymousUser, PublicUser, APITokenUser
 from src.core.events.database import get_db_session
+from src.db.courses.activities import Activity
+from src.db.courses.courses import Course
+from src.db.podcasts.episodes import PodcastEpisode
+from src.db.podcasts.podcasts import Podcast
+from src.db.users import AnonymousUser, APITokenUser, PublicUser
 from src.security.auth import get_current_user
-from src.security.rbac.resource_access import ResourceAccessChecker, AccessAction, AccessContext
+from src.security.rbac.resource_access import (
+    AccessAction,
+    AccessContext,
+    ResourceAccessChecker,
+)
 from src.services.utils.video_streaming import (
-    stream_video_file,
-    parse_range_header,
-    get_file_info,
-    validate_video_path,
     CHUNK_SIZE,
+    get_file_info,
+    parse_range_header,
+    stream_video_file,
+    validate_video_path,
 )
 
 router = APIRouter()

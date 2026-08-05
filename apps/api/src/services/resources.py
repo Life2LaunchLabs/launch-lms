@@ -1,18 +1,18 @@
 import csv
 import io
 import re
+from collections.abc import Iterable
 from datetime import datetime
 from html import unescape
-from typing import Iterable, Optional
 from urllib.error import URLError
 from urllib.parse import urlparse
-from urllib.request import Request as UrlRequest, urlopen
+from urllib.request import Request as UrlRequest
+from urllib.request import urlopen
 from uuid import uuid4
 
 from fastapi import HTTPException, Request, UploadFile
 from sqlalchemy import func, or_
 from sqlmodel import Session, select
-
 from src.db.organizations import Organization
 from src.db.resources import (
     Resource,
@@ -76,11 +76,11 @@ def _parse_og_tags(html: str) -> dict[str, str]:
     return tags
 
 
-def enrich_resource_metadata(url: str) -> dict[str, Optional[str]]:
+def enrich_resource_metadata(url: str) -> dict[str, str | None]:
     parsed = urlparse(url)
     provider_name = parsed.netloc.replace("www.", "") if parsed.netloc else None
     provider_url = f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme and parsed.netloc else None
-    data: dict[str, Optional[str]] = {
+    data: dict[str, str | None] = {
         "provider_name": provider_name,
         "provider_url": provider_url,
         "title": None,
@@ -553,14 +553,14 @@ async def list_resources(
     org_id: int,
     current_user,
     db_session: Session,
-    channel_uuid: Optional[str] = None,
-    user_channel_uuid: Optional[str] = None,
-    resource_type: Optional[str] = None,
-    resource_types: Optional[str] = None,
-    tags: Optional[str] = None,
-    provider: Optional[str] = None,
-    query: Optional[str] = None,
-    access: Optional[str] = None,
+    channel_uuid: str | None = None,
+    user_channel_uuid: str | None = None,
+    resource_type: str | None = None,
+    resource_types: str | None = None,
+    tags: str | None = None,
+    provider: str | None = None,
+    query: str | None = None,
+    access: str | None = None,
     saved_only: bool = False,
     completed_only: bool = False,
     include_private: bool = False,
@@ -1020,7 +1020,7 @@ async def import_resources_csv(
     file: UploadFile,
     current_user: PublicUser,
     db_session: Session,
-    channel_uuid: Optional[str] = None,
+    channel_uuid: str | None = None,
 ) -> dict:
     _get_org_or_404(org_id, db_session)
     require_org_role_permission(current_user.id, org_id, db_session, "resources", "action_create")

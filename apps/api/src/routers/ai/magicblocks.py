@@ -1,33 +1,32 @@
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select
-import json
-
-from src.db.organizations import Organization
-from src.db.courses.courses import Course
-from src.db.courses.activities import Activity
 from src.core.events.database import get_db_session
+from src.db.courses.activities import Activity
+from src.db.courses.courses import Course
+from src.db.organizations import Organization
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
+from src.security.features_utils.plan_check import get_org_plan
+from src.security.features_utils.plans import plan_meets_requirement
 from src.security.features_utils.usage import (
     check_ai_credits,
     deduct_ai_credit,
 )
-from src.security.features_utils.plan_check import get_org_plan
-from src.security.features_utils.plans import plan_meets_requirement
 from src.services.ai.magicblocks import (
-    get_magicblock_session,
+    MAX_ITERATIONS,
     create_magicblock_session,
     generate_magicblock_stream,
-    MAX_ITERATIONS,
+    get_magicblock_session,
 )
 from src.services.ai.schemas.magicblocks import (
-    StartMagicBlockSession,
-    SendMagicBlockMessage,
-    MagicBlockSessionResponse,
     MagicBlockMessage,
+    MagicBlockSessionResponse,
+    SendMagicBlockMessage,
+    StartMagicBlockSession,
 )
-
 
 router = APIRouter()
 

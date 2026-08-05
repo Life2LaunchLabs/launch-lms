@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
 import ast
+from pathlib import Path
 
 
 def _load_metadata(path: Path) -> tuple[str | None, object]:

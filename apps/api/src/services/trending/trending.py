@@ -1,15 +1,19 @@
-from typing import Optional
+
 from fastapi import Request
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlmodel import Session, select
-
 from src.db.communities.communities import Community
 from src.db.communities.discussion_comments import DiscussionComment
 from src.db.communities.discussions import Discussion
 from src.db.courses.courses import Course
 from src.db.organizations import Organization
-from src.db.resources import Resource, ResourceChannel, ResourceChannelResource, ResourceComment
+from src.db.resources import (
+    Resource,
+    ResourceChannel,
+    ResourceChannelResource,
+    ResourceComment,
+)
 from src.db.users import AnonymousUser, APITokenUser, PublicUser
 
 
@@ -18,10 +22,10 @@ class TrendingItemRead(BaseModel):
     item_uuid: str
     title: str
     last_event_date: str
-    thumbnail_image: Optional[str] = None
-    community_name: Optional[str] = None
-    community_uuid: Optional[str] = None
-    resource_type: Optional[str] = None
+    thumbnail_image: str | None = None
+    community_name: str | None = None
+    community_uuid: str | None = None
+    resource_type: str | None = None
     org_slug: str
 
 
@@ -69,7 +73,7 @@ def _get_trending_discussions(
         .join(Community, Discussion.community_id == Community.id)
         .outerjoin(max_comment_subq, max_comment_subq.c.discussion_id == Discussion.id)
         .where(Discussion.org_id == org.id)
-        .where(Community.public == True)  # noqa: E712
+        .where(Community.public == True)
         .order_by(Discussion.creation_date.desc())
         .limit(limit)
     )
@@ -123,8 +127,8 @@ def _get_trending_resources(
         .join(ResourceChannel, ResourceChannel.id == ResourceChannelResource.channel_id)
         .outerjoin(max_comment_subq, max_comment_subq.c.resource_id == Resource.id)
         .where(Resource.org_id == org.id)
-        .where(Resource.is_live == True)  # noqa: E712
-        .where(ResourceChannel.public == True)  # noqa: E712
+        .where(Resource.is_live == True)
+        .where(ResourceChannel.public == True)
         .group_by(
             Resource.resource_uuid,
             Resource.title,
@@ -172,8 +176,8 @@ def _get_trending_courses(
             Course.creation_date,
         )
         .where(Course.org_id == org.id)
-        .where(Course.published == True)  # noqa: E712
-        .where(Course.public == True)  # noqa: E712
+        .where(Course.published == True)
+        .where(Course.public == True)
         .order_by(Course.creation_date.desc())
         .limit(limit)
     )

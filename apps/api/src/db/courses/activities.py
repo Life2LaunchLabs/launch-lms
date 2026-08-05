@@ -1,7 +1,7 @@
-from typing import Optional
+from enum import Enum
+
 from sqlalchemy import JSON, Column, ForeignKey, Integer
 from sqlmodel import Field, SQLModel
-from enum import Enum
 
 
 class ActivityTypeEnum(str, Enum):
@@ -36,17 +36,17 @@ class ActivitySubTypeEnum(str, Enum):
 
 class ActivityBase(SQLModel):
     name: str
-    description: Optional[str] = None
-    icon: Optional[str] = None
+    description: str | None = None
+    icon: str | None = None
     activity_type: ActivityTypeEnum 
     activity_sub_type: ActivitySubTypeEnum 
     content: dict = Field(default_factory=dict, sa_column=Column(JSON))
-    details: Optional[dict] = Field(default=None, sa_column=Column(JSON))
+    details: dict | None = Field(default=None, sa_column=Column(JSON))
     published: bool = False
 
 
 class Activity(ActivityBase, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     org_id: int = Field(
         sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"))
     )
@@ -59,7 +59,7 @@ class Activity(ActivityBase, table=True):
     update_date: str = ""
     # Versioning fields
     current_version: int = Field(default=1)
-    last_modified_by_id: Optional[int] = Field(
+    last_modified_by_id: int | None = Field(
         default=None,
         sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"))
     )
@@ -70,20 +70,19 @@ class ActivityCreate(ActivityBase):
     activity_type: ActivityTypeEnum = ActivityTypeEnum.TYPE_CUSTOM
     activity_sub_type: ActivitySubTypeEnum = ActivitySubTypeEnum.SUBTYPE_CUSTOM
     details: dict = Field(default_factory=dict, sa_column=Column(JSON))
-    pass
 
 
 class ActivityUpdate(SQLModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    icon: Optional[str] = None
-    content: Optional[dict] = None
-    activity_type: Optional[ActivityTypeEnum] = None
-    activity_sub_type: Optional[ActivitySubTypeEnum] = None
-    details: Optional[dict] = None
-    published: Optional[bool] = None
-    published_version: Optional[int] = None
-    version: Optional[int] = None
+    name: str | None = None
+    description: str | None = None
+    icon: str | None = None
+    content: dict | None = None
+    activity_type: ActivityTypeEnum | None = None
+    activity_sub_type: ActivitySubTypeEnum | None = None
+    details: dict | None = None
+    published: bool | None = None
+    published_version: int | None = None
+    version: int | None = None
 
 
 class ActivityRead(ActivityBase):
@@ -93,8 +92,8 @@ class ActivityRead(ActivityBase):
     activity_uuid: str
     creation_date: str
     update_date: str
-    details: Optional[dict] = Field(default=None, sa_column=Column(JSON))
+    details: dict | None = Field(default=None, sa_column=Column(JSON))
     # Versioning fields
     current_version: int = 1
-    last_modified_by_id: Optional[int] = None
-    last_modified_by_username: Optional[str] = None
+    last_modified_by_id: int | None = None
+    last_modified_by_username: str | None = None

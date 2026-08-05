@@ -3,8 +3,6 @@ from datetime import datetime
 import pytest
 from fastapi import HTTPException
 from sqlmodel import Session, create_engine, select
-from starlette.requests import Request
-
 from src.db.guest_sessions import GuestSession
 from src.db.learning import (
     BadgeIssuerAuthorization,
@@ -51,6 +49,7 @@ from src.services.learning_marketplace import (
     transition_queued_authorizations,
     update_authorization,
 )
+from starlette.requests import Request
 
 
 def _request() -> Request:

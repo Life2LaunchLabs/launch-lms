@@ -1,28 +1,28 @@
-from datetime import datetime, timedelta
 import json
 import logging
+from datetime import datetime, timedelta
 
 import redis
+from config.config import get_launchlms_config
 from fastapi import HTTPException, Request
 from sqlalchemy.orm import aliased
-from sqlmodel import Session, select, func
-from src.security.features_utils.usage import decrease_feature_usage
-from src.services.orgs.invites import send_invite_email
-from src.services.email.utils import get_base_url_from_request
-from config.config import get_launchlms_config
-from src.services.orgs.orgs import rbac_check
-from src.security.rbac.constants import ADMIN_ROLE_ID
-from src.security.org_auth import is_org_member
-from src.db.roles import Role, RoleRead
-from src.db.users import AnonymousUser, PublicUser, User, UserRead
-from src.db.user_organizations import UserOrganization
-from src.db.usergroup_user import UserGroupUser
-from src.db.usergroups import UserGroup, UserGroupRead
+from sqlmodel import Session, func, select
 from src.db.organizations import (
     Organization,
     OrganizationRead,
     OrganizationUser,
 )
+from src.db.roles import Role, RoleRead
+from src.db.user_organizations import UserOrganization
+from src.db.usergroup_user import UserGroupUser
+from src.db.usergroups import UserGroup, UserGroupRead
+from src.db.users import AnonymousUser, PublicUser, User, UserRead
+from src.security.features_utils.usage import decrease_feature_usage
+from src.security.org_auth import is_org_member
+from src.security.rbac.constants import ADMIN_ROLE_ID
+from src.services.email.utils import get_base_url_from_request
+from src.services.orgs.invites import send_invite_email
+from src.services.orgs.orgs import rbac_check
 
 
 def _get_owner_org(db_session: Session) -> Organization | None:
@@ -119,9 +119,9 @@ async def get_organization_users(
 
     # Apply status filter (verified/unverified)
     if status == "verified":
-        base_statement = base_statement.where(User.email_verified == True)  # noqa: E712
+        base_statement = base_statement.where(User.email_verified == True)
     elif status == "unverified":
-        base_statement = base_statement.where(User.email_verified == False)  # noqa: E712
+        base_statement = base_statement.where(User.email_verified == False)
 
     # Compute group membership counts when usergroup_id is provided (before applying filter)
     in_group_total = None

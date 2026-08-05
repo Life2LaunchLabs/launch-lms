@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, Request, UploadFile, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
+from src.core.events.database import get_db_session
 from src.db.courses.assignments import (
     AssignmentCreate,
     AssignmentRead,
@@ -9,7 +10,6 @@ from src.db.courses.assignments import (
     AssignmentUserSubmissionCreate,
 )
 from src.db.users import PublicUser
-from src.core.events.database import get_db_session
 from src.security.auth import get_current_user
 from src.services.courses.activities.assignments import (
     create_assignment,

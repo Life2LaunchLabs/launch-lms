@@ -6,11 +6,16 @@ compatible identity provider (Azure AD, Okta, Google Workspace, Keycloak, etc.)
 without requiring a third-party SSO broker like WorkOS.
 """
 
-import httpx
-from typing import Optional
 from urllib.parse import urlencode
 
-from .base import SSOProvider, SSOUserProfile, SSOAuthenticationError, SSOConfigurationError
+import httpx
+
+from .base import (
+    SSOAuthenticationError,
+    SSOConfigurationError,
+    SSOProvider,
+    SSOUserProfile,
+)
 
 
 class CustomOIDCProvider(SSOProvider):
@@ -82,7 +87,7 @@ class CustomOIDCProvider(SSOProvider):
 
         except httpx.HTTPError as e:
             raise SSOConfigurationError(
-                f"Failed to fetch OIDC discovery document from {discovery_url}: {str(e)}",
+                f"Failed to fetch OIDC discovery document from {discovery_url}: {e!s}",
                 provider=self.provider_name,
                 field="issuer_url"
             )
@@ -223,7 +228,7 @@ class CustomOIDCProvider(SSOProvider):
 
         except httpx.HTTPError as e:
             raise SSOAuthenticationError(
-                f"Failed to communicate with identity provider: {str(e)}",
+                f"Failed to communicate with identity provider: {e!s}",
                 provider=self.provider_name,
                 details={"error": str(e)}
             )
@@ -267,7 +272,7 @@ class CustomOIDCProvider(SSOProvider):
         self,
         connection_config: dict,
         return_url: str
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Custom OIDC doesn't have a setup portal.
 

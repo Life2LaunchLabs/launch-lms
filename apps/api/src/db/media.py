@@ -1,5 +1,4 @@
 from enum import Enum
-from typing import Optional
 
 from sqlalchemy import Column, ForeignKey, Integer, Text
 from sqlmodel import Field, SQLModel
@@ -26,27 +25,27 @@ class MediaAssetBase(SQLModel):
     media_type: MediaType
     title: str = ""
     url: str = Field(sa_column=Column(Text, nullable=False))
-    thumbnail_url: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
-    filename: Optional[str] = None
-    mime_type: Optional[str] = None
-    size_bytes: Optional[int] = None
-    folder: Optional[str] = None
+    thumbnail_url: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    filename: str | None = None
+    mime_type: str | None = None
+    size_bytes: int | None = None
+    folder: str | None = None
 
 
 class MediaAsset(MediaAssetBase, table=True):
     __tablename__ = "mediaasset"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     asset_uuid: str = Field(index=True, unique=True)
-    owner_user_id: Optional[int] = Field(
+    owner_user_id: int | None = Field(
         default=None,
         sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True, nullable=True),
     )
-    owner_org_id: Optional[int] = Field(
+    owner_org_id: int | None = Field(
         default=None,
         sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True, nullable=True),
     )
-    created_by_user_id: Optional[int] = Field(
+    created_by_user_id: int | None = Field(
         default=None,
         sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), index=True, nullable=True),
     )
@@ -57,18 +56,18 @@ class MediaAsset(MediaAssetBase, table=True):
 class MediaFolder(SQLModel, table=True):
     __tablename__ = "mediafolder"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     folder_uuid: str = Field(index=True, unique=True)
     owner_type: MediaOwnerType
-    owner_user_id: Optional[int] = Field(
+    owner_user_id: int | None = Field(
         default=None,
         sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True, nullable=True),
     )
-    owner_org_id: Optional[int] = Field(
+    owner_org_id: int | None = Field(
         default=None,
         sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True, nullable=True),
     )
-    created_by_user_id: Optional[int] = Field(
+    created_by_user_id: int | None = Field(
         default=None,
         sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), index=True, nullable=True),
     )
@@ -80,9 +79,9 @@ class MediaFolder(SQLModel, table=True):
 class MediaAssetRead(MediaAssetBase):
     id: int
     asset_uuid: str
-    owner_user_id: Optional[int] = None
-    owner_org_id: Optional[int] = None
-    created_by_user_id: Optional[int] = None
+    owner_user_id: int | None = None
+    owner_org_id: int | None = None
+    created_by_user_id: int | None = None
     creation_date: str
     update_date: str
 
@@ -91,9 +90,9 @@ class MediaFolderRead(SQLModel):
     id: int
     folder_uuid: str
     owner_type: MediaOwnerType
-    owner_user_id: Optional[int] = None
-    owner_org_id: Optional[int] = None
-    created_by_user_id: Optional[int] = None
+    owner_user_id: int | None = None
+    owner_org_id: int | None = None
+    created_by_user_id: int | None = None
     name: str
     creation_date: str
     update_date: str
@@ -104,8 +103,8 @@ class MediaLinkCreate(SQLModel):
     owner_id: int
     media_type: MediaType
     url: str
-    title: Optional[str] = None
-    folder: Optional[str] = None
+    title: str | None = None
+    folder: str | None = None
 
 
 class MediaFolderCreate(SQLModel):
@@ -119,4 +118,4 @@ class MediaFolderUpdate(SQLModel):
 
 
 class MediaAssetFolderUpdate(SQLModel):
-    folder: Optional[str] = None
+    folder: str | None = None

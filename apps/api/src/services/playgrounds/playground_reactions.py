@@ -1,25 +1,24 @@
-from typing import List, Union
-from uuid import uuid4
 from datetime import datetime
-from sqlmodel import Session, select
-from fastapi import HTTPException, Request
+from uuid import uuid4
 
-from src.db.users import PublicUser, AnonymousUser, User
-from src.db.playgrounds import Playground
+from fastapi import HTTPException, Request
+from sqlmodel import Session, select
 from src.db.playground_reactions import (
     PlaygroundReaction,
     PlaygroundReactionSummary,
     ReactionUser,
 )
+from src.db.playgrounds import Playground
+from src.db.users import AnonymousUser, PublicUser, User
 from src.services.playgrounds.playgrounds import _check_read_access
 
 
 async def get_playground_reactions(
     request: Request,
     playground_uuid: str,
-    current_user: Union[PublicUser, AnonymousUser],
+    current_user: PublicUser | AnonymousUser,
     db_session: Session,
-) -> List[PlaygroundReactionSummary]:
+) -> list[PlaygroundReactionSummary]:
     playground = db_session.exec(
         select(Playground).where(Playground.playground_uuid == playground_uuid)
     ).first()
@@ -75,7 +74,7 @@ async def toggle_playground_reaction(
     request: Request,
     playground_uuid: str,
     emoji: str,
-    current_user: Union[PublicUser, AnonymousUser],
+    current_user: PublicUser | AnonymousUser,
     db_session: Session,
 ) -> dict:
     if isinstance(current_user, AnonymousUser):

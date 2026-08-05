@@ -4,17 +4,16 @@ Revision ID: m4n5o6p7q8r9
 Revises: l2b0c1d2e3f4
 Create Date: 2026-07-02 00:00:00.000000
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy import inspect
 
-
 revision: str = "m4n5o6p7q8r9"
-down_revision: Union[str, None] = "l2b0c1d2e3f4"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "l2b0c1d2e3f4"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def _table_exists(inspector, table_name: str) -> bool:

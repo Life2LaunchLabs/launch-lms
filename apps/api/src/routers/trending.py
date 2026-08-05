@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, Request
 from sqlmodel import Session, select
-
 from src.core.events.database import get_db_session
 from src.db.organizations import Organization
 from src.db.users import AnonymousUser, APITokenUser, PublicUser

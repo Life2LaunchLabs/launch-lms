@@ -9,34 +9,37 @@ import os
 import random
 import secrets
 from datetime import datetime
-from typing import Optional
+
 from fastapi import HTTPException
 from sqlmodel import Session, select
-
-from src.db.users import User, UserRead
-from src.db.organizations import Organization
-from src.db.user_organizations import UserOrganization
-from src.db.roles import Role
 from src.db.organization_config import OrganizationConfig
-from src.security.features_utils.usage import check_limits_with_usage, increase_feature_usage
-from src.security.security import security_hash_password
-from src.services.users.emails import send_account_creation_email
-
+from src.db.organizations import Organization
+from src.db.roles import Role
 from src.db.sso import (
+    SSOAuthorizationResponse,
     SSOConnection,
     SSOConnectionCreate,
     SSOConnectionUpdate,
-    SSOAuthorizationResponse,
 )
+from src.db.user_organizations import UserOrganization
+from src.db.users import User, UserRead
+from src.security.features_utils.usage import (
+    check_limits_with_usage,
+    increase_feature_usage,
+)
+from src.security.security import security_hash_password
+from src.services.users.emails import send_account_creation_email
+
 from .providers import (
-    get_sso_provider,
-    get_available_providers as get_providers,
-    is_provider_available,
-    SSOUserProfile,
     SSOAuthenticationError,
     SSOConfigurationError,
+    SSOUserProfile,
+    get_sso_provider,
+    is_provider_available,
 )
-
+from .providers import (
+    get_available_providers as get_providers,
+)
 
 # State storage for SSO flows (in production, use Redis)
 _sso_states: dict[str, dict] = {}
@@ -92,7 +95,7 @@ def get_sso_redirect_uri() -> str:
 async def get_sso_connection(
     org_id: int,
     db_session: Session
-) -> Optional[SSOConnection]:
+) -> SSOConnection | None:
     """
     Get SSO connection configuration for an organization.
 
@@ -111,7 +114,7 @@ async def get_sso_connection(
 async def get_sso_connection_by_org_slug(
     org_slug: str,
     db_session: Session
-) -> Optional[SSOConnection]:
+) -> SSOConnection | None:
     """
     Get SSO connection configuration by organization slug.
 
@@ -718,7 +721,7 @@ async def get_provider_setup_url(
     org_id: int,
     return_url: str,
     db_session: Session
-) -> Optional[str]:
+) -> str | None:
     """
     Get setup URL for provider's admin portal (if supported).
 

@@ -1,14 +1,15 @@
 from typing import Literal
+
 from fastapi import HTTPException, Request
-from sqlmodel import Session, select, func
+from sqlmodel import Session, func, select
+from src.db.organizations import Organization
 from src.db.payments.payments import (
     PaymentProviderEnum,
     PaymentsConfig,
-    PaymentsConfigUpdate,
     PaymentsConfigRead,
+    PaymentsConfigUpdate,
 )
-from src.db.users import PublicUser, AnonymousUser, InternalUser, APITokenUser
-from src.db.organizations import Organization
+from src.db.users import AnonymousUser, APITokenUser, InternalUser, PublicUser
 from src.services.orgs.orgs import rbac_check
 
 
@@ -141,8 +142,11 @@ async def delete_payments_config(
 
     # Guard: block disconnect when active subscriptions exist
     try:
-        from src.db.payments.payments_offers import PaymentsOffer, OfferTypeEnum
-        from src.db.payments.payments_enrollments import PaymentsEnrollment, EnrollmentStatusEnum
+        from src.db.payments.payments_enrollments import (
+            EnrollmentStatusEnum,
+            PaymentsEnrollment,
+        )
+        from src.db.payments.payments_offers import OfferTypeEnum, PaymentsOffer
 
         active_sub_count = db_session.exec(
             select(func.count(PaymentsEnrollment.id))

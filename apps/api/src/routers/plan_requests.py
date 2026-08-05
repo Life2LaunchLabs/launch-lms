@@ -8,16 +8,15 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
-
 from src.core.events.database import get_db_session
 from src.db.organizations import Organization
 from src.db.plan_requests import PlanRequest, PlanRequestCreate, PlanRequestRead
+from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser
 from src.security.auth import get_current_user
 from src.security.features_utils.packs import is_valid_package
 from src.security.features_utils.plans import PLAN_HIERARCHY
 from src.security.rbac.constants import ADMIN_ROLE_ID
-from src.db.user_organizations import UserOrganization
 
 router = APIRouter()
 

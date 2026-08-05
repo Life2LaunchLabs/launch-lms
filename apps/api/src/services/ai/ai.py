@@ -1,23 +1,23 @@
-from typing import Tuple, Dict, Any
+from typing import Any
+
 from fastapi import Depends, HTTPException, Request
 from sqlmodel import Session, select
+from src.core.events.database import get_db_session
+from src.db.courses.activities import Activity, ActivityRead
+from src.db.courses.courses import Course, CourseRead
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
+from src.db.users import PublicUser
+from src.security.auth import get_current_user
 from src.security.features_utils.usage import (
     check_ai_credits,
     deduct_ai_credit,
 )
-from src.db.courses.courses import Course, CourseRead
-from src.core.events.database import get_db_session
-from src.db.users import PublicUser
-from src.db.courses.activities import Activity, ActivityRead
-from src.security.auth import get_current_user
 from src.services.ai.base import (
     ask_ai,
     get_chat_session_history,
     save_message_to_history,
 )
-
 from src.services.ai.schemas.ai import (
     ActivityAIChatSessionResponse,
     SendActivityAIChatMessage,
@@ -302,7 +302,7 @@ def ai_send_activity_chat_message(
 def _get_activity_and_course_info(
     activity_uuid: str,
     db_session: Session,
-) -> Tuple[ActivityRead, CourseRead, Organization, str, str]:
+) -> tuple[ActivityRead, CourseRead, Organization, str, str]:
     """
     Helper function to get activity, course, and organization info with AI model.
     Returns: (activity, course, org, ai_model, ai_friendly_text)
@@ -400,7 +400,7 @@ async def ai_start_activity_chat_session_stream(
     chat_session_object: StartActivityAIChatSession,
     current_user: PublicUser,
     db_session: Session,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Start a new AI Chat session with streaming response.
     Returns context needed for streaming.
@@ -440,7 +440,7 @@ async def ai_send_activity_chat_message_stream(
     chat_session_object: SendActivityAIChatMessage,
     current_user: PublicUser,
     db_session: Session,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Send a message in an existing AI Chat session with streaming response.
     Returns context needed for streaming.

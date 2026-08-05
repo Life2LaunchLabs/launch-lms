@@ -3,7 +3,6 @@ from unittest.mock import Mock, patch
 import pytest
 from fastapi import HTTPException
 from sqlmodel import Session
-
 from src.db.roles import Role, RoleTypeEnum
 from src.db.user_organizations import UserOrganization
 from src.security.org_auth import require_org_role_permission

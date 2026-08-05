@@ -1,17 +1,21 @@
-from sqlmodel import Session, select
-from src.db.courses.courses import Course
-from src.db.courses.chapters import Chapter
-from src.db.courses.activities import ActivityCreate, Activity, ActivityRead, ActivityUpdate
-from src.db.courses.chapter_activities import ChapterActivity
-from src.db.users import AnonymousUser, PublicUser, User
-from fastapi import HTTPException, Request
-from uuid import uuid4
-from datetime import datetime
-
 import asyncio
 import logging
+from datetime import datetime
+from uuid import uuid4
 
-from src.security.rbac import check_resource_access, AccessAction
+from fastapi import HTTPException, Request
+from sqlmodel import Session, select
+from src.db.courses.activities import (
+    Activity,
+    ActivityCreate,
+    ActivityRead,
+    ActivityUpdate,
+)
+from src.db.courses.chapter_activities import ChapterActivity
+from src.db.courses.chapters import Chapter
+from src.db.courses.courses import Course
+from src.db.users import AnonymousUser, PublicUser, User
+from src.security.rbac import AccessAction, check_resource_access
 from src.services.courses.activities.versioning import create_activity_version
 
 logger = logging.getLogger(__name__)
@@ -217,8 +221,8 @@ async def update_activity(
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
 ):
-    import logging
     import json
+    import logging
     logger = logging.getLogger(__name__)
 
     statement = select(Activity).where(Activity.activity_uuid == activity_uuid)

@@ -12,9 +12,9 @@ class FlowValidationError(ValueError):
 
 ALLOWED_FACTS = {
     "has_work",
-    "has_journey",
+    "has_timeline",
     "work_count",
-    "journey_count",
+    "timeline_count",
     "readiness_blockers",
 }
 ALLOWED_CONTEXT = {"mode", "bindings"}

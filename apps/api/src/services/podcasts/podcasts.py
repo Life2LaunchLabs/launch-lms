@@ -1,41 +1,45 @@
-from typing import List
+from datetime import datetime
 from uuid import uuid4
-from sqlmodel import Session, select, or_, and_, func
-from src.db.usergroup_resources import UserGroupResource
-from src.db.usergroup_user import UserGroupUser
+
+from fastapi import HTTPException, Request, UploadFile, status
+from sqlmodel import Session, and_, func, or_, select
+from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
-from src.db.roles import Role
-from src.db.user_organizations import UserOrganization
-from src.security.features_utils.usage import (
-    check_limits_with_usage,
-    check_feature_access,
-    decrease_feature_usage,
-    increase_feature_usage,
-)
-from src.db.resource_authors import ResourceAuthor, ResourceAuthorshipEnum, ResourceAuthorshipStatusEnum
-from src.db.users import PublicUser, AnonymousUser, User, UserRead, APITokenUser
+from src.db.podcasts.episodes import PodcastEpisode
 from src.db.podcasts.podcasts import (
+    AuthorWithRole,
     Podcast,
     PodcastCreate,
     PodcastRead,
-    PodcastUpdate,
     PodcastReadWithEpisodeCount,
-    AuthorWithRole,
+    PodcastUpdate,
 )
-from src.db.podcasts.episodes import PodcastEpisode
+from src.db.resource_authors import (
+    ResourceAuthor,
+    ResourceAuthorshipEnum,
+    ResourceAuthorshipStatusEnum,
+)
+from src.db.roles import Role
+from src.db.user_organizations import UserOrganization
+from src.db.usergroup_resources import UserGroupResource
+from src.db.usergroup_user import UserGroupUser
+from src.db.users import AnonymousUser, APITokenUser, PublicUser, User, UserRead
+from src.security.features_utils.usage import (
+    check_feature_access,
+    check_limits_with_usage,
+    decrease_feature_usage,
+    increase_feature_usage,
+)
+from src.security.rbac import (
+    AccessAction,
+    check_resource_access,
+)
+from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.security.rbac.rbac import (
     authorization_verify_based_on_org_admin_status,
 )
-from src.security.rbac import (
-    check_resource_access,
-    AccessAction,
-)
-from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.security.superadmin import is_user_superadmin
 from src.services.podcasts.thumbnails import upload_podcast_thumbnail
-from fastapi import HTTPException, Request, UploadFile, status
-from datetime import datetime
-from src.db.organization_config import OrganizationConfig
 
 
 def _is_podcasts_feature_enabled(org_id: int, db_session: Session) -> bool:
@@ -265,7 +269,7 @@ async def get_podcasts_orgslug(
     page: int = 1,
     limit: int = 10,
     include_unpublished: bool = False,
-) -> List[PodcastReadWithEpisodeCount]:
+) -> list[PodcastReadWithEpisodeCount]:
     offset = (page - 1) * limit
 
     # Get organization

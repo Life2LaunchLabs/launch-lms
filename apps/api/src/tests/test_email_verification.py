@@ -5,7 +5,6 @@ from unittest.mock import patch
 import pytest
 from fastapi import HTTPException
 from sqlmodel import Session, create_engine, select
-
 from src.db.organizations import Organization
 from src.db.users import User
 from src.services.users.email_verification import (
@@ -289,11 +288,10 @@ async def test_resend_verification_email_rate_limited(
     with patch(
         "src.services.users.email_verification.check_verification_resend_rate_limit",
         return_value=(False, 600),
-    ):
-        with pytest.raises(HTTPException) as exc_info:
-            await resend_verification_email(
-                None, db_session, "user1@example.com", org_id=None
-            )
+    ), pytest.raises(HTTPException) as exc_info:
+        await resend_verification_email(
+            None, db_session, "user1@example.com", org_id=None
+        )
 
     assert exc_info.value.status_code == 429
 

@@ -3,14 +3,21 @@ from io import BytesIO
 import pytest
 from fastapi import HTTPException, UploadFile
 from sqlmodel import Session, SQLModel, create_engine, select
-
-from src.db.media import MediaAsset, MediaAssetFolderUpdate, MediaFolder, MediaFolderCreate, MediaFolderUpdate, MediaLinkCreate, MediaOwnerType, MediaType
+from src.db.media import (
+    MediaAsset,
+    MediaAssetFolderUpdate,
+    MediaFolder,
+    MediaFolderCreate,
+    MediaFolderUpdate,
+    MediaLinkCreate,
+    MediaOwnerType,
+    MediaType,
+)
 from src.db.organizations import Organization
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
 from src.services import media as media_service
-
 
 PNG_BYTES = (
     b"\x89PNG\r\n\x1a\n"

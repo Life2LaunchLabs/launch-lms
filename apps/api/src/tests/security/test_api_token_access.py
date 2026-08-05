@@ -7,8 +7,11 @@ from accessing certain endpoints while allowing access to others.
 
 import pytest
 from fastapi import HTTPException
-from src.security.api_token_utils import require_non_api_token_user, reject_api_token_access
-from src.db.users import AnonymousUser, PublicUser, APITokenUser
+from src.db.users import AnonymousUser, APITokenUser, PublicUser
+from src.security.api_token_utils import (
+    reject_api_token_access,
+    require_non_api_token_user,
+)
 
 
 class TestAPITokenAccessControl:
