@@ -3,15 +3,15 @@ from src.core.events.database import get_db_session
 from src.db.courses.quiz import QuizAttemptSubmit, QuizResultRead
 from src.db.users import AnonymousUser, PublicUser
 from src.security.auth import get_current_user
-from src.services.guest_sessions import resolve_learning_actor
 from src.services.courses.activities.quiz.attempts import (
     get_my_latest_result,
     submit_quiz_attempt,
     update_quiz_categories,
+    update_quiz_results,
     update_quiz_scoring,
     update_quiz_settings,
-    update_quiz_results,
 )
+from src.services.guest_sessions import resolve_learning_actor
 
 router = APIRouter()
 

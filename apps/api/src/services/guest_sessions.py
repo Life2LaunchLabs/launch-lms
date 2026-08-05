@@ -4,21 +4,19 @@ from uuid import uuid4
 
 from fastapi import Request, Response
 from sqlmodel import Session, select
-
 from src.db.courses.quiz import QuizAttempt
 from src.db.guest_sessions import GuestSession
-from src.db.trail_runs import TrailRun
-from src.db.trail_steps import TrailStep
-from src.db.trails import Trail
-from src.db.users import AnonymousUser, PublicUser
 from src.db.learning import (
     LearningActivityRun,
     LearningPageProgress,
     LearningResponseAttempt,
     LearningRun,
 )
+from src.db.trail_runs import TrailRun
+from src.db.trail_steps import TrailStep
+from src.db.trails import Trail
+from src.db.users import AnonymousUser, PublicUser
 from src.security.cookies import get_cookie_domain_for_request, is_request_secure
-
 
 GUEST_SESSION_COOKIE_NAME = "guest_session_cookie"
 
@@ -49,7 +47,7 @@ def set_guest_session_cookie(response: Response, request: Request, guest_session
         secure=is_request_secure(request),
         samesite="lax",
         domain=get_cookie_domain_for_request(request),
-        expires=int(60 * 60 * 24 * 30),
+        expires=(60 * 60 * 24 * 30),
     )
 
 

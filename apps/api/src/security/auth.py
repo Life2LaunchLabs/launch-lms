@@ -1,17 +1,16 @@
-from typing import Optional, Union
+from datetime import datetime, timedelta, timezone
+
+import jwt
+from config.config import get_launchlms_config
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import OAuth2PasswordBearer
+from jwt.exceptions import PyJWTError
+from pydantic import BaseModel
 from sqlmodel import Session
 from src.core.events.database import get_db_session
 from src.db.users import AnonymousUser, APITokenUser, PublicUser, User, UserRead
-from src.services.users.users import security_get_user
-from config.config import get_launchlms_config
-from pydantic import BaseModel
-from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import OAuth2PasswordBearer
-import jwt
-from jwt.exceptions import PyJWTError
-from datetime import datetime, timedelta, timezone
-from src.services.users.users import security_verify_password
 from src.security.security import ALGORITHM, SECRET_KEY
+from src.services.users.users import security_get_user, security_verify_password
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
@@ -27,7 +26,7 @@ JWT_COOKIE_DOMAIN = get_launchlms_config().hosting_config.cookie_config.domain
 JWT_COOKIE_NAME = "access_token_cookie"
 
 
-def extract_jwt_from_request(request: Request) -> Optional[str]:
+def extract_jwt_from_request(request: Request) -> str | None:
     """Extract JWT token from Authorization header or cookies.
 
     Authorization header takes precedence over cookies to ensure
@@ -46,7 +45,7 @@ def extract_jwt_from_request(request: Request) -> Optional[str]:
     return None
 
 
-def decode_jwt(token: str) -> Optional[dict]:
+def decode_jwt(token: str) -> dict | None:
     """
     Decode and validate a JWT token.
 
@@ -143,7 +142,7 @@ def create_refresh_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 
-def decode_refresh_token(token: str) -> Optional[dict]:
+def decode_refresh_token(token: str) -> dict | None:
     """
     Decode and validate a refresh JWT token.
 
@@ -170,7 +169,7 @@ def decode_refresh_token(token: str) -> Optional[dict]:
 async def get_current_user(
     request: Request,
     db_session: Session = Depends(get_db_session),
-) -> Union[PublicUser, APITokenUser, AnonymousUser]:
+) -> PublicUser | APITokenUser | AnonymousUser:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -221,7 +220,7 @@ async def non_public_endpoint(current_user: UserRead | AnonymousUser):
 async def get_authenticated_user(
     request: Request,
     db_session: Session = Depends(get_db_session),
-) -> Union[PublicUser, APITokenUser]:
+) -> PublicUser | APITokenUser:
     """
     Dependency that requires authentication.
 
@@ -249,7 +248,7 @@ async def get_authenticated_user(
 async def validate_api_token(
     token: str,
     db_session: Session,
-) -> Optional[APITokenUser]:
+) -> APITokenUser | None:
     """
     Validate an API token and return an APITokenUser if valid.
 

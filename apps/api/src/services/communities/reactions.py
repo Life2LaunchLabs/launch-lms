@@ -1,26 +1,29 @@
-from typing import List, Union
-from uuid import uuid4
 from datetime import datetime
-from sqlmodel import Session, select
-from fastapi import HTTPException, Request
+from uuid import uuid4
 
-from src.db.users import PublicUser, AnonymousUser, APITokenUser, User
+from fastapi import HTTPException, Request
+from sqlmodel import Session, select
 from src.db.communities.communities import Community
-from src.db.communities.discussions import Discussion
 from src.db.communities.discussion_reactions import (
     DiscussionReaction,
     DiscussionReactionSummary,
     ReactionUser,
 )
-from src.security.rbac import check_resource_access, AccessAction, authorization_verify_if_user_is_anon
+from src.db.communities.discussions import Discussion
+from src.db.users import AnonymousUser, APITokenUser, PublicUser, User
+from src.security.rbac import (
+    AccessAction,
+    authorization_verify_if_user_is_anon,
+    check_resource_access,
+)
 
 
 async def get_reactions(
     request: Request,
     discussion_uuid: str,
-    current_user: Union[PublicUser, AnonymousUser, APITokenUser],
+    current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
-) -> List[DiscussionReactionSummary]:
+) -> list[DiscussionReactionSummary]:
     """
     Get all reactions for a discussion, grouped by emoji.
 
@@ -106,7 +109,7 @@ async def toggle_reaction(
     request: Request,
     discussion_uuid: str,
     emoji: str,
-    current_user: Union[PublicUser, AnonymousUser, APITokenUser],
+    current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
 ) -> dict:
     """

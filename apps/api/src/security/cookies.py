@@ -1,6 +1,5 @@
-from fastapi import Request
-
 from config.config import get_launchlms_config
+from fastapi import Request
 from src.services.dev.dev import isDevModeEnabled
 
 

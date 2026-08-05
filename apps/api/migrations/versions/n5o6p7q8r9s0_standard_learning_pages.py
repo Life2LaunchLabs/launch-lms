@@ -13,18 +13,17 @@ src/services/learning_page_convert.py so this migration never imports app code.
 Content downgrade is a documented no-op (pre-release dev data only).
 """
 import json
-from typing import Sequence, Union
+from collections.abc import Sequence
 from uuid import uuid4
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy import inspect
 
-
 revision: str = "n5o6p7q8r9s0"
-down_revision: Union[str, None] = "m4n5o6p7q8r9"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "m4n5o6p7q8r9"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 LEGACY_SIMPLE_TYPES = {"info", "multiple_choice", "text_input"}
 QUESTION_KINDS = {"multiple_choice", "text_input"}

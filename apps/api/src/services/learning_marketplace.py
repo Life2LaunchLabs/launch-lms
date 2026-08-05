@@ -10,7 +10,6 @@ from uuid import uuid4
 
 from fastapi import HTTPException, Request, status
 from sqlmodel import Session, select
-
 from src.db.learning import (
     BadgeIssuerAuthorization,
     BadgeIssuerAuthorizationRead,
@@ -24,8 +23,8 @@ from src.db.learning import (
     LearningBadgeRead,
     LearningBadgeStatus,
 )
-from src.db.organizations import Organization
 from src.db.organization_config import OrganizationConfig
+from src.db.organizations import Organization
 from src.db.plan_requests import PlanRequest
 from src.db.users import AnonymousUser, PublicUser, User
 from src.security.features_utils.resolve import resolve_feature
@@ -181,9 +180,9 @@ async def browse_marketplace_badges(
     that org's authorization status so the UI can show request/track state.
     """
     statement = select(LearningBadge).where(
-        LearningBadge.marketplace_listed == True,  # noqa: E712
+        LearningBadge.marketplace_listed == True,
         LearningBadge.status == LearningBadgeStatus.PUBLISHED,
-        LearningBadge.public == True,  # noqa: E712
+        LearningBadge.public == True,
     )
     badges = db_session.exec(statement).all()
     if query:

@@ -1,7 +1,7 @@
-from sqlmodel import SQLModel, Field, Column, BigInteger, ForeignKey, JSON
-from typing import Optional
 from datetime import datetime
 from enum import Enum
+
+from sqlmodel import JSON, BigInteger, Column, Field, ForeignKey, SQLModel
 
 
 class EnrollmentStatusEnum(str, Enum):
@@ -20,7 +20,7 @@ class PaymentsEnrollmentBase(SQLModel):
 
 class PaymentsEnrollment(PaymentsEnrollmentBase, table=True):
     __table_args__ = {'extend_existing': True}
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     offer_id: int = Field(
         sa_column=Column(BigInteger, ForeignKey("paymentsoffer.id", ondelete="CASCADE"))
     )

@@ -1,6 +1,7 @@
 from fastapi import HTTPException
-from sqlmodel import Session
 from sqlalchemy import text
+from sqlmodel import Session
+
 
 async def check_database_health(db_session: Session) -> bool:
     result = db_session.exec(text("SELECT 1"))

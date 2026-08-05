@@ -1,28 +1,29 @@
-from datetime import datetime
 import json
-import secrets
 import logging
-import redis
+import secrets
 import string
 import uuid
+from datetime import datetime
+
+import redis
+from config.config import get_launchlms_config
 from fastapi import HTTPException, Request
 from pydantic import EmailStr
 from sqlmodel import Session, select
 from src.db.organizations import Organization, OrganizationRead
-from src.security.security import security_hash_password
-from config.config import get_launchlms_config
-from src.services.users.emails import (
-    send_password_reset_email,
-    send_password_reset_email_platform,
-)
-from src.services.email.utils import get_base_url_from_request
 from src.db.users import (
     AnonymousUser,
     PublicUser,
     User,
     UserRead,
 )
+from src.security.security import security_hash_password
+from src.services.email.utils import get_base_url_from_request
 from src.services.security.password_validation import validate_password_complexity
+from src.services.users.emails import (
+    send_password_reset_email,
+    send_password_reset_email_platform,
+)
 
 
 def _get_redis_connection():

@@ -1,25 +1,33 @@
-import logging
-from datetime import datetime
 import json
+import logging
 import os
-from pathlib import Path
 import re
+from datetime import datetime
+from pathlib import Path
 from uuid import uuid4
+
 import boto3
 from botocore.exceptions import ClientError
+from config.config import get_launchlms_config
 from fastapi import HTTPException
 from sqlmodel import Session, select
-from config.config import get_launchlms_config
 from src.db.organization_config import (
     OrganizationConfig,
     OrganizationConfigV2Base,
 )
 from src.db.organizations import Organization, OrganizationCreate
-from src.db.roles import DashboardPermission, Permission, PermissionsWithOwn, Rights, Role, RoleTypeEnum
+from src.db.roles import (
+    DashboardPermission,
+    Permission,
+    PermissionsWithOwn,
+    Rights,
+    Role,
+    RoleTypeEnum,
+)
 from src.db.user_organizations import UserOrganization
 from src.db.users import User, UserCreate, UserRead
-from src.security.security import security_hash_password
 from src.security.rbac.constants import ADMIN_ROLE_ID
+from src.security.security import security_hash_password
 from src.services.utils.upload_content import ensure_directory_exists
 
 

@@ -4,17 +4,18 @@ FastAPI dependencies for feature flag checks and admin authorization.
 These dependencies can be added to routers or individual endpoints
 to check if features are enabled before processing requests.
 """
+from typing import Literal
+
 from fastapi import Depends, HTTPException, Path, Request
 from sqlmodel import Session, select
 from src.core.events.database import get_db_session
+from src.db.courses.courses import Course
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
-from src.db.courses.courses import Course
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser
 from src.security.auth import get_current_user
 from src.security.rbac.constants import ADMIN_ROLE_ID
-from typing import Literal
 
 FeatureName = Literal[
     "courses",

@@ -1,21 +1,21 @@
 from datetime import datetime
-from typing import Optional
+
 from sqlalchemy import JSON, Column, ForeignKey, Integer
 from sqlmodel import Field, SQLModel
 
 
 class QuizAttempt(SQLModel, table=True):
     """Records one attempt of a quiz by a user."""
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     attempt_uuid: str = Field(default="", index=True)
     activity_id: int = Field(
         sa_column=Column(Integer, ForeignKey("activity.id", ondelete="CASCADE"), index=True)
     )
-    user_id: Optional[int] = Field(
+    user_id: int | None = Field(
         default=None,
         sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=True, index=True)
     )
-    guest_session_id: Optional[int] = Field(
+    guest_session_id: int | None = Field(
         default=None,
         sa_column=Column(Integer, ForeignKey("guestsession.id", ondelete="CASCADE"), nullable=True, index=True)
     )
@@ -26,14 +26,14 @@ class QuizAttempt(SQLModel, table=True):
         sa_column=Column(Integer, ForeignKey("course.id", ondelete="CASCADE"))
     )
     started_at: datetime = Field(default_factory=datetime.utcnow)
-    completed_at: Optional[datetime] = Field(default=None)
+    completed_at: datetime | None = Field(default=None)
     creation_date: str = ""
     update_date: str = ""
 
 
 class QuizAnswer(SQLModel, table=True):
     """One answer within an attempt (one row per question answered)."""
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     attempt_id: int = Field(
         sa_column=Column(Integer, ForeignKey("quizattempt.id", ondelete="CASCADE"), index=True)
     )
@@ -46,7 +46,7 @@ class QuizAnswer(SQLModel, table=True):
 
 class QuizResult(SQLModel, table=True):
     """Computed result for a completed attempt (1:1 with QuizAttempt)."""
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     attempt_id: int = Field(
         sa_column=Column(Integer, ForeignKey("quizattempt.id", ondelete="CASCADE"), unique=True)
     )
@@ -71,10 +71,10 @@ class QuizAttemptRead(SQLModel):
     id: int
     attempt_uuid: str
     activity_id: int
-    user_id: Optional[int]
-    guest_session_id: Optional[int] = None
+    user_id: int | None
+    guest_session_id: int | None = None
     started_at: datetime
-    completed_at: Optional[datetime]
+    completed_at: datetime | None
 
 
 class QuizResultRead(SQLModel):

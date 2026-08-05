@@ -4,10 +4,10 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from urllib.parse import urlparse
 
-from pydantic import EmailStr
-from fastapi import Request
 import resend
 from config.config import get_launchlms_config
+from fastapi import Request
+from pydantic import EmailStr
 
 logger = logging.getLogger(__name__)
 

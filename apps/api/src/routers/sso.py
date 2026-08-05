@@ -5,42 +5,40 @@ Provides endpoints for SSO configuration (admin) and authentication (public).
 """
 
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
-from sqlmodel import Session, select
-from pydantic import BaseModel
 
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from pydantic import BaseModel
+from sqlmodel import Session, select
 from src.core.events.database import get_db_session
-from src.db.users import PublicUser, UserRead
-from src.db.organizations import Organization
 from src.db.organization_config import OrganizationConfig
+from src.db.organizations import Organization
+from src.db.sso import (
+    SSOAuthorizationResponse,
+    SSOConnectionCreate,
+    SSOConnectionRead,
+    SSOConnectionUpdate,
+    SSOLoginCheckResponse,
+    SSOProviderInfo,
+)
+from src.db.users import PublicUser, UserRead
 from src.security.auth import (
-    get_current_user,
+    JWT_ACCESS_TOKEN_EXPIRES,
     create_access_token,
     create_refresh_token,
-    JWT_ACCESS_TOKEN_EXPIRES,
+    get_current_user,
 )
 from src.services.orgs.orgs import rbac_check
-
-from src.db.sso import (
-    SSOConnectionCreate,
-    SSOConnectionUpdate,
-    SSOConnectionRead,
-    SSOAuthorizationResponse,
-    SSOProviderInfo,
-    SSOLoginCheckResponse,
-)
 from src.services.sso import (
-    get_sso_connection,
-    create_sso_connection,
-    update_sso_connection,
-    delete_sso_connection,
-    initiate_sso_login,
-    handle_sso_callback,
-    get_provider_setup_url,
     check_sso_enabled,
+    create_sso_connection,
+    delete_sso_connection,
     get_available_providers,
+    get_provider_setup_url,
+    get_sso_connection,
+    handle_sso_callback,
+    initiate_sso_login,
+    update_sso_connection,
 )
-
 
 router = APIRouter()
 
@@ -92,9 +90,10 @@ async def verify_org_admin_and_enterprise_plan(
     await rbac_check(request, org.org_uuid, current_user, "update", session)
 
 
-def get_token_expiry_ms() -> Optional[int]:
+def get_token_expiry_ms() -> int | None:
     """Get the token expiry timestamp in milliseconds for frontend use."""
     from datetime import datetime, timezone
+
     from src.services.dev.dev import isDevModeEnabled
 
     if isDevModeEnabled() or JWT_ACCESS_TOKEN_EXPIRES is None:
@@ -106,6 +105,7 @@ def get_token_expiry_ms() -> Optional[int]:
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str):
     """Helper to set authentication cookies."""
     from datetime import timedelta
+
     from config.config import get_launch_lms_config
 
     cookie_domain = get_launch_lms_config().hosting_config.cookie_config.domain
@@ -347,18 +347,18 @@ class SSOErrorResponse(BaseModel):
     error: str
     error_code: str
     error_description: str
-    provider: Optional[str] = None
-    details: Optional[dict] = None
+    provider: str | None = None
+    details: dict | None = None
 
 
 @router.get("/callback")
 async def sso_callback(
     *,
     response: Response,
-    code: Optional[str] = Query(None, description="Authorization code from IdP"),
-    state: Optional[str] = Query(None, description="State parameter for CSRF verification"),
-    error: Optional[str] = Query(None, description="Error code from IdP"),
-    error_description: Optional[str] = Query(None, description="Error description from IdP"),
+    code: str | None = Query(None, description="Authorization code from IdP"),
+    state: str | None = Query(None, description="State parameter for CSRF verification"),
+    error: str | None = Query(None, description="Error code from IdP"),
+    error_description: str | None = Query(None, description="Error description from IdP"),
     session: Session = Depends(get_db_session),
 ):
     """

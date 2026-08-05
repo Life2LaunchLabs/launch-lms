@@ -1,19 +1,20 @@
 import json
+
 from fastapi import HTTPException, Request
 from sqlmodel import Session, select
 from src.db.organization_config import OrganizationConfig
 from src.db.users import PublicUser
-from src.security.rbac.rbac import authorization_verify_if_user_is_anon
-from src.security.features_utils.usage import (
-    _get_actual_usage,
-    _get_actual_admin_seat_count,
-    _get_redis_client,
-    get_purchased_member_seats,
-)
 from src.security.features_utils.plans import (
     PlanLevel,
     get_plan_limit,
 )
+from src.security.features_utils.usage import (
+    _get_actual_admin_seat_count,
+    _get_actual_usage,
+    _get_redis_client,
+    get_purchased_member_seats,
+)
+from src.security.rbac.rbac import authorization_verify_if_user_is_anon
 
 # Cache TTL in seconds (30 seconds)
 USAGE_CACHE_TTL = 30
@@ -91,7 +92,10 @@ async def get_org_usage_and_limits(
             detail="Organization config not found",
         )
 
-    from src.security.features_utils.resolve import resolve_feature, _get_plan_from_config
+    from src.security.features_utils.resolve import (
+        _get_plan_from_config,
+        resolve_feature,
+    )
 
     config = org_config.config or {}
     org_plan: PlanLevel = _get_plan_from_config(config)

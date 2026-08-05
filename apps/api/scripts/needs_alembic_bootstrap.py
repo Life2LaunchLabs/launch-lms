@@ -4,7 +4,6 @@ import sys
 
 from sqlalchemy import create_engine, inspect, text
 
-
 BOOTSTRAP_EXIT_CODE = 10
 FRESH_DB_EXIT_CODE = 11
 LEGACY_TABLES = {

@@ -1,7 +1,6 @@
 import pytest
 from fastapi import HTTPException
 from sqlmodel import Session, create_engine
-
 from src.db.news import NewsArticle, NewsArticleCreate
 from src.db.organizations import Organization
 from src.db.roles import Role

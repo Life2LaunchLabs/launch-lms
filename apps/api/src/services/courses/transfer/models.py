@@ -2,7 +2,7 @@
 Pydantic models for course transfer (export/import)
 """
 
-from typing import Optional
+
 from pydantic import BaseModel
 
 
@@ -25,7 +25,7 @@ class ImportCourseInfo(BaseModel):
     """Information about a course found in an import package"""
     course_uuid: str
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     chapters_count: int = 0
     activities_count: int = 0
     has_thumbnail: bool = False
@@ -42,10 +42,10 @@ class ImportAnalysisResponse(BaseModel):
 class ImportOptions(BaseModel):
     """Options for importing courses"""
     course_uuids: list[str]  # Which courses to import from the package
-    name_prefix: Optional[str] = None  # Prefix to add to course names
+    name_prefix: str | None = None  # Prefix to add to course names
     set_private: bool = True  # Make imported courses private
     set_unpublished: bool = True  # Make imported courses unpublished
-    collection_uuid: Optional[str] = None  # Collection to assign imported courses to
+    collection_uuid: str | None = None  # Collection to assign imported courses to
 
 
 class ImportCourseResult(BaseModel):
@@ -54,14 +54,14 @@ class ImportCourseResult(BaseModel):
     new_uuid: str
     name: str
     success: bool
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class ImportMigrationCandidate(BaseModel):
     """Imported legacy course that can be converted to a new learning badge."""
     course_uuid: str
     name: str
-    collection_uuid: Optional[str] = None
+    collection_uuid: str | None = None
 
 
 class ImportResult(BaseModel):
@@ -78,8 +78,8 @@ class TutorImportLogEntry(BaseModel):
     timestamp: str
     level: str = "info"
     message: str
-    course_name: Optional[str] = None
-    activity_name: Optional[str] = None
+    course_name: str | None = None
+    activity_name: str | None = None
 
 
 class TutorImportProgressResponse(BaseModel):
@@ -87,7 +87,7 @@ class TutorImportProgressResponse(BaseModel):
     status: str = "pending"
     total_media: int = 0
     completed_media: int = 0
-    current_media_name: Optional[str] = None
-    current_course_name: Optional[str] = None
-    message: Optional[str] = None
+    current_media_name: str | None = None
+    current_course_name: str | None = None
+    message: str | None = None
     logs: list[TutorImportLogEntry] = []

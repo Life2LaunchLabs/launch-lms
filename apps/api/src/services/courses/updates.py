@@ -1,6 +1,6 @@
 from datetime import datetime
-from typing import List
 from uuid import uuid4
+
 from fastapi import HTTPException, Request, status
 from sqlmodel import Session, col, select
 from src.db.courses.course_updates import (
@@ -12,7 +12,7 @@ from src.db.courses.course_updates import (
 from src.db.courses.courses import Course
 from src.db.organizations import Organization
 from src.db.users import AnonymousUser, PublicUser
-from src.security.rbac import check_resource_access, AccessAction
+from src.security.rbac import AccessAction, check_resource_access
 
 
 async def create_update(
@@ -131,7 +131,7 @@ async def get_updates_by_course_uuid(
     course_uuid: str,
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
-) -> List[CourseUpdateRead]:
+) -> list[CourseUpdateRead]:
     # FInd if course exists
     statement = select(Course).where(Course.course_uuid == course_uuid)
     course = db_session.exec(statement).first()

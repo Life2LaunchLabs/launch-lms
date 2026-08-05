@@ -2,21 +2,21 @@ import json
 import secrets
 import string
 import uuid
-from typing import Optional
-from pydantic import EmailStr
-import redis
 from datetime import date, datetime, time, timedelta
-from sqlmodel import Session, select
-from src.services.email.utils import send_email
+
+import redis
 from config.config import get_launchlms_config
-from src.services.orgs.orgs import rbac_check
-from src.db.users import AnonymousUser, PublicUser, UserRead
+from fastapi import HTTPException, Request
+from pydantic import EmailStr
+from sqlmodel import Session, select
 from src.db.organizations import (
     Organization,
     OrganizationRead,
 )
 from src.db.usergroups import UserGroup
-from fastapi import HTTPException, Request
+from src.db.users import AnonymousUser, PublicUser, UserRead
+from src.services.email.utils import send_email
+from src.services.orgs.orgs import rbac_check
 
 
 async def create_invite_code(
@@ -24,9 +24,9 @@ async def create_invite_code(
     org_id: int,
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
-    usergroup_id: Optional[int] = None,
-    display_name: Optional[str] = None,
-    expiry_date: Optional[str] = None,
+    usergroup_id: int | None = None,
+    display_name: str | None = None,
+    expiry_date: str | None = None,
 ):
     # Redis init
     LH_CONFIG = get_launchlms_config()

@@ -1,12 +1,23 @@
 from fastapi import APIRouter, Depends, Query
 from sqlmodel import Session
-
 from src.core.events.database import get_db_session
-from src.db.portfolio import TimelineEntryCreate, TimelineEntryUpdate, PortfolioBadgeVisibilityUpdate, PortfolioFeaturedBadgesUpdate, PortfolioFeaturedTimelineUpdate, PortfolioFeaturedProjectUpdate, PortfolioSectionsUpdate, PortfolioTraitsUpdate, PortfolioUpdate, PublishRequest, ProjectItemCreate, ProjectItemUpdate
+from src.db.portfolio import (
+    PortfolioBadgeVisibilityUpdate,
+    PortfolioFeaturedBadgesUpdate,
+    PortfolioFeaturedProjectUpdate,
+    PortfolioFeaturedTimelineUpdate,
+    PortfolioSectionsUpdate,
+    PortfolioTraitsUpdate,
+    PortfolioUpdate,
+    ProjectItemCreate,
+    ProjectItemUpdate,
+    PublishRequest,
+    TimelineEntryCreate,
+    TimelineEntryUpdate,
+)
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.services import portfolio as portfolio_service
-
 
 router = APIRouter()
 public_router = APIRouter()

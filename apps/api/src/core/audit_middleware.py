@@ -2,13 +2,11 @@ from datetime import datetime, timezone
 
 from fastapi import Request
 from sqlmodel import Session, select
-
 from src.core.events.database import engine
 from src.db.organizations import Organization
 from src.security.auth import decode_jwt, extract_jwt_from_request
 from src.services.audit_logs import record_audit_log, resolve_user_snapshot
 from src.services.users.users import security_get_user
-
 
 AUDITED_PREFIXES = (
     "/api/v1/orgs",

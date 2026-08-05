@@ -2,7 +2,6 @@ import logging
 
 from fastapi import APIRouter, Depends, Request, status
 from sqlmodel import Session
-
 from src.core.capabilities import CORE_CAPABILITIES
 from src.core.events.database import get_db_session
 from src.db.organizations import OrganizationCreate
@@ -67,7 +66,6 @@ async def list_global_roles(db_session: Session = Depends(get_db_session)):
 @router.get("/overview")
 async def platform_overview(db_session: Session = Depends(get_db_session)):
     from sqlmodel import func, select
-
     from src.db.learning import LearningBadge
     from src.db.organizations import Organization
     from src.db.plan_requests import PlanRequest
@@ -203,7 +201,6 @@ async def get_org_badges(
     db_session: Session = Depends(get_db_session),
 ):
     from sqlmodel import func, select
-
     from src.db.learning import LearningBadge
 
     statement = select(LearningBadge).where(LearningBadge.org_id == org_id).order_by(

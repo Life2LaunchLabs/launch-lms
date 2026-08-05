@@ -4,17 +4,16 @@ Revision ID: t2u3v4w5x6y7
 Revises: s1t2u3v4w5x6, o2p3q4r5s6t7
 Create Date: 2026-03-31 00:00:00.000000
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy import inspect
 
-
 revision: str = "t2u3v4w5x6y7"
-down_revision: Union[str, tuple[str, str], None] = ("s1t2u3v4w5x6", "o2p3q4r5s6t7")
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | tuple[str, str] | None = ("s1t2u3v4w5x6", "o2p3q4r5s6t7")
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def _table_exists(inspector, table_name: str) -> bool:

@@ -8,7 +8,6 @@ identity providers.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 @dataclass
@@ -21,10 +20,10 @@ class SSOUserProfile:
     """
 
     email: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    avatar_url: Optional[str] = None
-    provider_user_id: Optional[str] = None  # Provider's unique ID for the user
+    first_name: str | None = None
+    last_name: str | None = None
+    avatar_url: str | None = None
+    provider_user_id: str | None = None  # Provider's unique ID for the user
     raw_attributes: dict = field(default_factory=dict)  # Full provider response for debugging
 
 
@@ -45,7 +44,6 @@ class SSOProvider(ABC):
         Returns:
             Provider name string (e.g., 'workos', 'keycloak', 'okta')
         """
-        pass
 
     @property
     @abstractmethod
@@ -56,7 +54,6 @@ class SSOProvider(ABC):
         Returns:
             True if provider supports admin portal links
         """
-        pass
 
     @abstractmethod
     async def get_authorization_url(
@@ -76,7 +73,6 @@ class SSOProvider(ABC):
         Returns:
             Full authorization URL to redirect the user to
         """
-        pass
 
     @abstractmethod
     async def handle_callback(
@@ -97,14 +93,13 @@ class SSOProvider(ABC):
         Raises:
             SSOAuthenticationError: If authentication fails
         """
-        pass
 
     @abstractmethod
     async def get_setup_url(
         self,
         connection_config: dict,
         return_url: str
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Get admin portal URL for configuring the IdP.
 
@@ -118,7 +113,6 @@ class SSOProvider(ABC):
         Returns:
             Setup portal URL, or None if not supported
         """
-        pass
 
     @abstractmethod
     def validate_config(self, config: dict) -> bool:
@@ -134,7 +128,6 @@ class SSOProvider(ABC):
         Raises:
             ValueError: If configuration is invalid with details
         """
-        pass
 
     def get_config_fields(self) -> list[dict]:
         """
@@ -151,7 +144,7 @@ class SSOProvider(ABC):
 class SSOAuthenticationError(Exception):
     """Exception raised when SSO authentication fails."""
 
-    def __init__(self, message: str, provider: str, details: Optional[dict] = None):
+    def __init__(self, message: str, provider: str, details: dict | None = None):
         self.message = message
         self.provider = provider
         self.details = details or {}
@@ -161,7 +154,7 @@ class SSOAuthenticationError(Exception):
 class SSOConfigurationError(Exception):
     """Exception raised when SSO configuration is invalid."""
 
-    def __init__(self, message: str, provider: str, field: Optional[str] = None):
+    def __init__(self, message: str, provider: str, field: str | None = None):
         self.message = message
         self.provider = provider
         self.field = field

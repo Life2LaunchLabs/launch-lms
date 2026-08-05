@@ -1,11 +1,11 @@
-from sqlmodel import SQLModel, Field, Column, BigInteger, ForeignKey, String
-from typing import Optional
 from datetime import datetime
+
+from sqlmodel import BigInteger, Column, Field, ForeignKey, SQLModel, String
 
 
 class PaymentsGroup(SQLModel, table=True):
     __table_args__ = {'extend_existing': True}
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     org_id: int = Field(
         sa_column=Column(BigInteger, ForeignKey("organization.id", ondelete="CASCADE"))
     )
@@ -17,7 +17,7 @@ class PaymentsGroup(SQLModel, table=True):
 
 class PaymentsGroupResource(SQLModel, table=True):
     __table_args__ = {'extend_existing': True}
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     payments_group_id: int = Field(
         sa_column=Column(BigInteger, ForeignKey("paymentsgroup.id", ondelete="CASCADE"))
     )
@@ -32,7 +32,7 @@ class PaymentsGroupResource(SQLModel, table=True):
 class PaymentsGroupSync(SQLModel, table=True):
     """Links a PaymentsGroup to a UserGroup for automatic sync on enrollment activation."""
     __table_args__ = {'extend_existing': True}
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     payments_group_id: int = Field(
         sa_column=Column(BigInteger, ForeignKey("paymentsgroup.id", ondelete="CASCADE"))
     )
@@ -44,7 +44,7 @@ class PaymentsGroupSync(SQLModel, table=True):
 class PaymentsOfferResource(SQLModel, table=True):
     """Direct resource link on an offer (for simple single-course sales, no group needed)."""
     __table_args__ = {'extend_existing': True}
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     offer_id: int = Field(
         sa_column=Column(BigInteger, ForeignKey("paymentsoffer.id", ondelete="CASCADE"))
     )

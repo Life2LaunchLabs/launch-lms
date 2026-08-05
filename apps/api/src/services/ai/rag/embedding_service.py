@@ -9,7 +9,6 @@ import logging
 from datetime import datetime
 
 from sqlmodel import Session, select
-
 from src.db.course_embeddings import CourseEmbedding
 from src.services.ai.base import get_gemini_client
 from src.services.ai.rag.content_extraction import extract_all_course_content

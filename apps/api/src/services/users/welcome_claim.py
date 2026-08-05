@@ -12,7 +12,6 @@ import json
 import secrets
 
 from sqlmodel import Session, select
-
 from src.db.users import User
 from src.services.users.email_verification import (
     TOKEN_TTL_SECONDS,

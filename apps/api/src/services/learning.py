@@ -7,7 +7,6 @@ from uuid import uuid4
 from fastapi import HTTPException, Request, UploadFile, status
 from sqlalchemy import func, or_
 from sqlmodel import Session, select
-
 from src.db.learning import (
     BadgeCollection,
     BadgeCollectionCreate,
@@ -35,12 +34,12 @@ from src.db.learning import (
     LearningPageCreate,
     LearningPageProgress,
     LearningPageRead,
-    LearningResponseGrade,
     LearningPageType,
     LearningPageUpdate,
     LearningPath,
     LearningPathRead,
     LearningResponseAttempt,
+    LearningResponseGrade,
     LearningResponseSubmit,
     LearningRun,
     LearningRunRead,
@@ -52,7 +51,7 @@ from src.db.learning import (
 )
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
-from src.db.portfolio import TimelineEntry, Portfolio
+from src.db.portfolio import Portfolio, TimelineEntry
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser, User
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
@@ -65,6 +64,7 @@ from src.services.courses.openbadges import (
     get_public_base_url,
 )
 from src.services.guest_sessions import LearningActor
+from src.services.learning_flow import FlowValidationError, resolve_flow, validate_flow
 from src.services.learning_page_convert import (
     STANDARD_CONTENT_VERSION,
     find_question_block,
@@ -75,7 +75,6 @@ from src.services.learning_page_convert import (
     question_block,
     text_block,
 )
-from src.services.learning_flow import FlowValidationError, resolve_flow, validate_flow
 from src.services.learning_portfolio_actions import (
     PortfolioActionError,
     _portfolio,
@@ -440,7 +439,7 @@ def _question_blocks(page: LearningPage) -> list[dict]:
 def _flow_context(
     db_session: Session, run: LearningRun, activity_run: LearningActivityRun
 ) -> dict:
-    from src.db.portfolio import TimelineEntry, Portfolio, ProjectItem
+    from src.db.portfolio import Portfolio, ProjectItem, TimelineEntry
 
     pages = db_session.exec(
         select(LearningPage).where(LearningPage.activity_id == activity_run.activity_id)
@@ -4263,7 +4262,7 @@ def _validate_page_payload(page_type: LearningPageType, content: dict | None) ->
                 continue
             if node.get("type") == "displayBinding":
                 validate_display_binding(
-                    ((node.get("attrs") or {}).get("binding") or {})
+                    (node.get("attrs") or {}).get("binding") or {}
                 )
             validate_nodes(node.get("content"))
 
@@ -5261,7 +5260,7 @@ def build_learning_assertion_payload(
     recipient_email = (user.email or "").strip().lower()
     salt = f"launchlms-{award.award_uuid[-12:]}"
     identity_hash = hashlib.sha256(
-        f"{recipient_email}{salt}".encode("utf-8")
+        f"{recipient_email}{salt}".encode()
     ).hexdigest()
     payload = {
         "@context": OPEN_BADGES_CONTEXT,
@@ -5371,7 +5370,7 @@ def build_ob3_credential(
     recipient_email = (user.email or "").strip().lower()
     salt = f"launchlms-{award.award_uuid[-12:]}"
     identity_hash = hashlib.sha256(
-        f"{recipient_email}{salt}".encode("utf-8")
+        f"{recipient_email}{salt}".encode()
     ).hexdigest()
     issued_at = (
         award.issued_at.isoformat()

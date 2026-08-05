@@ -7,11 +7,12 @@ to protect against Cross-Site Request Forgery attacks.
 
 import logging
 import re
-from typing import Callable
+from collections.abc import Callable
+
+from config.config import get_launchlms_config
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
-from config.config import get_launchlms_config
 
 logger = logging.getLogger(__name__)
 

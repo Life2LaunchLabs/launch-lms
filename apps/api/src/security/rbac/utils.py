@@ -1,4 +1,4 @@
-from typing import Optional
+
 from fastapi import HTTPException, status
 from sqlmodel import Session, select
 
@@ -108,7 +108,7 @@ async def get_id_identifier_of_element(element_uuid):
 async def get_element_organization_id(
     element_uuid: str,
     db_session: Session,
-) -> Optional[int]:
+) -> int | None:
     """
     Get the organization ID that an element belongs to.
 
@@ -123,10 +123,10 @@ async def get_element_organization_id(
         Optional[int]: The organization ID, or None if not applicable
     """
     # Import models here to avoid circular imports
-    from src.db.courses.courses import Course
-    from src.db.courses.chapters import Chapter
-    from src.db.courses.activities import Activity
     from src.db.collections import Collection
+    from src.db.courses.activities import Activity
+    from src.db.courses.chapters import Chapter
+    from src.db.courses.courses import Course
     from src.db.organizations import Organization
     from src.db.roles import Role
     from src.db.usergroups import UserGroup

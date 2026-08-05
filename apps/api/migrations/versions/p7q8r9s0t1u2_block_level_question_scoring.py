@@ -11,17 +11,16 @@ the grading engine still falls back to page level for imported legacy data).
 Downgrade is a documented no-op (pre-release dev data only).
 """
 import json
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy import inspect
 
-
 revision: str = "p7q8r9s0t1u2"
-down_revision: Union[str, None] = "o6p7q8r9s0t1"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "o6p7q8r9s0t1"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def _load_json(raw):

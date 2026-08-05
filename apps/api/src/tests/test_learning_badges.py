@@ -1,21 +1,19 @@
-from starlette.requests import Request
-
+import pytest
+from fastapi import HTTPException
 from src.db.learning import (
     LearningAwardSource,
     LearningBadge,
     LearningBadgeAward,
     LearningBadgeCreate,
     LearningBadgeStatus,
-    LearningPath,
     LearningPage,
     LearningPageType,
+    LearningPath,
 )
-from src.db.organizations import Organization
 from src.db.organization_config import OrganizationConfig
+from src.db.organizations import Organization
 from src.db.users import User
-from fastapi import HTTPException
-import pytest
-
+from src.services import learning as learning_service
 from src.services.learning import (
     LAUNCH_READY_ACTIVITY_UUIDS,
     LAUNCH_READY_DEFAULT_IMAGES,
@@ -28,15 +26,15 @@ from src.services.learning import (
     build_learning_badge_class_payload,
     create_badge,
 )
-from src.services import learning as learning_service
 from src.services.learning_page_convert import (
     convert_legacy_page,
     find_question_block,
     link_variant_sources_to_question_blocks,
+    paragraph_node,
     question_block,
     text_block,
-    paragraph_node,
 )
+from starlette.requests import Request
 
 
 class _FakeSession:

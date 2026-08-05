@@ -5,10 +5,9 @@ Revises: t2u3v4w5x6y7
 Create Date: 2026-04-14 12:00:00.000000
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
-
 
 revision = 'u3v4w5x6y7z'
 down_revision = 't2u3v4w5x6y7'

@@ -1,4 +1,5 @@
-from typing import Literal, Optional
+from typing import Literal
+
 from sqlalchemy import BigInteger, Column, ForeignKey
 from sqlmodel import Field, SQLModel
 
@@ -6,13 +7,13 @@ from sqlmodel import Field, SQLModel
 class PlanRequestBase(SQLModel):
     request_type: str = "plan_upgrade"  # "plan_upgrade" | "package_add"
     requested_value: str = ""  # plan name (e.g. "full") or package id (e.g. "analytics")
-    message: Optional[str] = None
+    message: str | None = None
 
 
 class PlanRequest(PlanRequestBase, table=True):
     __tablename__ = "plan_request"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     org_id: int = Field(
         sa_column=Column(BigInteger, ForeignKey("organization.id", ondelete="CASCADE"))
     )
@@ -25,7 +26,7 @@ class PlanRequest(PlanRequestBase, table=True):
 class PlanRequestCreate(SQLModel):
     request_type: Literal["plan_upgrade", "package_add"] = "plan_upgrade"
     requested_value: str = ""
-    message: Optional[str] = None
+    message: str | None = None
 
 
 class PlanRequestRead(SQLModel):
@@ -34,7 +35,7 @@ class PlanRequestRead(SQLModel):
     request_uuid: str
     request_type: str
     requested_value: str
-    message: Optional[str]
+    message: str | None
     status: str
     creation_date: str
     update_date: str
@@ -42,4 +43,4 @@ class PlanRequestRead(SQLModel):
 
 class PlanRequestUpdate(SQLModel):
     status: Literal["pending", "approved", "denied"]
-    message: Optional[str] = None
+    message: str | None = None

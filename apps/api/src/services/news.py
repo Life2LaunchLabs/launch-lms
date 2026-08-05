@@ -5,7 +5,6 @@ from uuid import uuid4
 from fastapi import HTTPException, status
 from sqlalchemy import or_
 from sqlmodel import Session, select
-
 from src.db.news import (
     NewsArticle,
     NewsArticleCreate,
@@ -174,7 +173,7 @@ async def update_article(
     article = _ensure_article_in_org(article_uuid, org_id, db_session)
     updates = article_data.model_dump(exclude_unset=True)
 
-    if "slug" in updates and updates["slug"]:
+    if updates.get("slug"):
         updates["slug"] = _slugify(updates["slug"])
     if updates.get("status") == NewsArticleStatus.published and not (
         updates.get("published_at") or article.published_at

@@ -1,13 +1,15 @@
+from fastapi import HTTPException, Request
 from sqlmodel import Session, select
-from src.security.rbac.rbac import authorization_verify_if_user_is_author
-from src.db.users import PublicUser, AnonymousUser
-from src.db.payments.payments_groups import PaymentsGroupResource, PaymentsOfferResource
-from src.db.payments.payments_enrollments import PaymentsEnrollment, EnrollmentStatusEnum
-from src.db.payments.payments_offers import PaymentsOffer
 from src.db.courses.activities import Activity
 from src.db.courses.courses import Course
-from fastapi import HTTPException, Request
-
+from src.db.payments.payments_enrollments import (
+    EnrollmentStatusEnum,
+    PaymentsEnrollment,
+)
+from src.db.payments.payments_groups import PaymentsGroupResource, PaymentsOfferResource
+from src.db.payments.payments_offers import PaymentsOffer
+from src.db.users import AnonymousUser, PublicUser
+from src.security.rbac.rbac import authorization_verify_if_user_is_author
 
 PAID_STATUSES = {EnrollmentStatusEnum.ACTIVE, EnrollmentStatusEnum.COMPLETED}
 

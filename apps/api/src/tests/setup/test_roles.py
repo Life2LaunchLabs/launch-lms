@@ -1,10 +1,10 @@
 import pytest
 from pydantic import ValidationError
 from src.db.roles import (
-    Rights,
+    DashboardPermission,
     Permission,
     PermissionsWithOwn,
-    DashboardPermission,
+    Rights,
 )
 
 

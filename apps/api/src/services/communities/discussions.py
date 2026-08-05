@@ -1,27 +1,26 @@
-from typing import List, Union, Optional
-from uuid import uuid4
 from datetime import datetime, timezone
 from enum import Enum
-from sqlmodel import Session, select
-from fastapi import HTTPException, Request
+from uuid import uuid4
 
-from src.db.users import PublicUser, AnonymousUser, APITokenUser, User, UserRead
+from fastapi import HTTPException, Request
+from sqlmodel import Session, select
 from src.db.communities.communities import Community
-from src.services.analytics.analytics import track
-from src.services.analytics import events as analytics_events
+from src.db.communities.discussion_votes import DiscussionVote
 from src.db.communities.discussions import (
+    DISCUSSION_LABELS,
     Discussion,
     DiscussionReadWithVoteStatus,
     DiscussionUpdate,
-    DISCUSSION_LABELS,
 )
-from src.db.communities.discussion_votes import DiscussionVote
+from src.db.users import AnonymousUser, APITokenUser, PublicUser, User, UserRead
 from src.security.rbac import (
-    check_resource_access,
     AccessAction,
-    authorization_verify_if_user_is_anon,
     authorization_verify_based_on_org_admin_status,
+    authorization_verify_if_user_is_anon,
+    check_resource_access,
 )
+from src.services.analytics import events as analytics_events
+from src.services.analytics.analytics import track
 from src.services.communities.moderation import validate_discussion_content
 
 
@@ -72,9 +71,9 @@ async def create_discussion(
     title: str,
     content: str,
     label: str,
-    current_user: Union[PublicUser, AnonymousUser, APITokenUser],
+    current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
-    emoji: Optional[str] = None,
+    emoji: str | None = None,
 ) -> DiscussionReadWithVoteStatus:
     """
     Create a new discussion in a community.
@@ -162,7 +161,7 @@ async def create_discussion(
 async def get_discussion(
     request: Request,
     discussion_uuid: str,
-    current_user: Union[PublicUser, AnonymousUser, APITokenUser],
+    current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
 ) -> DiscussionReadWithVoteStatus:
     """
@@ -208,13 +207,13 @@ async def get_discussion(
 async def get_discussions_by_community(
     request: Request,
     community_uuid: str,
-    current_user: Union[PublicUser, AnonymousUser, APITokenUser],
+    current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
     sort_by: DiscussionSortBy = DiscussionSortBy.RECENT,
     page: int = 1,
     limit: int = 10,
-    label: Optional[str] = None,
-) -> List[DiscussionReadWithVoteStatus]:
+    label: str | None = None,
+) -> list[DiscussionReadWithVoteStatus]:
     """
     Get paginated list of discussions for a community with sorting.
     Pinned discussions are always returned first.
@@ -334,7 +333,7 @@ async def update_discussion(
     request: Request,
     discussion_uuid: str,
     discussion_object: DiscussionUpdate,
-    current_user: Union[PublicUser, AnonymousUser, APITokenUser],
+    current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
 ) -> DiscussionReadWithVoteStatus:
     """
@@ -432,7 +431,7 @@ async def pin_discussion(
     request: Request,
     discussion_uuid: str,
     is_pinned: bool,
-    current_user: Union[PublicUser, AnonymousUser, APITokenUser],
+    current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
 ) -> DiscussionReadWithVoteStatus:
     """
@@ -495,7 +494,7 @@ async def lock_discussion(
     request: Request,
     discussion_uuid: str,
     is_locked: bool,
-    current_user: Union[PublicUser, AnonymousUser, APITokenUser],
+    current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
 ) -> DiscussionReadWithVoteStatus:
     """
@@ -557,7 +556,7 @@ async def lock_discussion(
 async def delete_discussion(
     request: Request,
     discussion_uuid: str,
-    current_user: Union[PublicUser, AnonymousUser, APITokenUser],
+    current_user: PublicUser | AnonymousUser | APITokenUser,
     db_session: Session,
 ) -> dict:
     """

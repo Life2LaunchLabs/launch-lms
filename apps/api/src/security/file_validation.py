@@ -5,7 +5,7 @@ Validates file types and content to prevent unrestricted uploads (CWE-434).
 """
 
 import re
-from typing import List, Optional, Tuple
+
 from fastapi import HTTPException, UploadFile
 
 
@@ -142,9 +142,9 @@ FILE_TYPES = {
 
 def validate_upload(
     file: UploadFile,
-    allowed_types: List[str],
-    max_size: Optional[int] = None
-) -> Tuple[str, bytes]:
+    allowed_types: list[str],
+    max_size: int | None = None
+) -> tuple[str, bytes]:
     """
     Validate uploaded file for security and type compliance.
     

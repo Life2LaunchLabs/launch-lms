@@ -17,19 +17,27 @@ Access Rules:
 """
 
 import logging
-from typing import Union, Optional
+
 from fastapi import HTTPException, Request, status
 from sqlmodel import Session, select
-
-from src.db.users import AnonymousUser, PublicUser, APITokenUser
-from src.db.resource_authors import ResourceAuthor, ResourceAuthorshipEnum, ResourceAuthorshipStatusEnum
+from src.db.resource_authors import (
+    ResourceAuthor,
+    ResourceAuthorshipEnum,
+    ResourceAuthorshipStatusEnum,
+)
 from src.db.usergroup_resources import UserGroupResource
 from src.db.usergroup_user import UserGroupUser
-from src.security.rbac.types import AccessAction, AccessContext, AccessDecision, ResourceConfig
-from src.security.rbac.config import get_resource_config, RESOURCE_CONFIGS
+from src.db.users import AnonymousUser, APITokenUser, PublicUser
+from src.security.rbac.config import RESOURCE_CONFIGS, get_resource_config
 from src.security.rbac.rbac import (
-    authorization_verify_based_on_roles,
     authorization_verify_based_on_org_admin_status,
+    authorization_verify_based_on_roles,
+)
+from src.security.rbac.types import (
+    AccessAction,
+    AccessContext,
+    AccessDecision,
+    ResourceConfig,
 )
 from src.services.shared_content import can_access_shared_resource
 
@@ -67,7 +75,7 @@ class ResourceAccessChecker:
         self,
         request: Request,
         db_session: Session,
-        current_user: Union[PublicUser, AnonymousUser, APITokenUser],
+        current_user: PublicUser | AnonymousUser | APITokenUser,
     ):
         self.request = request
         self.db_session = db_session
@@ -633,7 +641,7 @@ class ResourceAccessChecker:
         self,
         resource_uuid: str,
         config: ResourceConfig,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Resolve the parent resource UUID for child resources.
 
@@ -678,7 +686,7 @@ class ResourceAccessChecker:
         self,
         parent_id: int,
         parent_config: ResourceConfig,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Look up parent resource UUID by its ID."""
         if parent_config.resource_type == "courses":
             from src.db.courses.courses import Course
@@ -863,7 +871,7 @@ class ResourceAccessChecker:
 async def check_resource_access(
     request: Request,
     db_session: Session,
-    current_user: Union[PublicUser, AnonymousUser, APITokenUser],
+    current_user: PublicUser | AnonymousUser | APITokenUser,
     resource_uuid: str,
     action: AccessAction,
     context: AccessContext = AccessContext.PUBLIC_VIEW,

@@ -1,6 +1,23 @@
-from typing import List, Literal, Optional, Union
-from fastapi import APIRouter, Depends, Request, UploadFile, Query
+from typing import Literal
+
+from fastapi import APIRouter, Depends, Query, Request, UploadFile
 from sqlmodel import Session
+from src.core.events.database import get_db_session
+from src.db.organization_config import (
+    AuthBrandingConfig,
+    BadgeIssuerConfig,
+    OrganizationConfigBase,
+    SeoOrgConfig,
+)
+from src.db.organizations import (
+    OrganizationCreate,
+    OrganizationDiscoverRead,
+    OrganizationRead,
+    OrganizationUpdate,
+)
+from src.db.users import AnonymousUser, PublicUser
+from src.security.auth import get_authenticated_user, get_current_user
+from src.security.features_utils.dependencies import require_org_admin
 from src.services.orgs.invites import (
     create_invite_code,
     delete_invite_code,
@@ -8,6 +25,43 @@ from src.services.orgs.invites import (
     get_invite_codes,
 )
 from src.services.orgs.join import JoinOrg, join_org
+from src.services.orgs.orgs import (
+    create_org,
+    create_org_with_config,
+    delete_org,
+    get_discoverable_org_by_slug,
+    get_organization_by_slug,
+    get_organization_by_uuid,
+    get_orgs_by_user,
+    get_orgs_by_user_admin,
+    list_discoverable_orgs,
+    update_org,
+    update_org_ai_config,
+    update_org_auth_branding_config,
+    update_org_badge_issuer_config,
+    update_org_boards_config,
+    update_org_collections_config,
+    update_org_color_config,
+    update_org_communities_config,
+    update_org_courses_config,
+    update_org_dark_color_config,
+    update_org_favicon,
+    update_org_footer_text_config,
+    update_org_hide_org_name_config,
+    update_org_landing,
+    update_org_logo,
+    update_org_payments_config,
+    update_org_playgrounds_config,
+    update_org_podcasts_config,
+    update_org_preview,
+    update_org_resources_config,
+    update_org_seo_config,
+    update_org_signup_mechanism,
+    update_org_thumbnail,
+    upload_org_auth_background_service,
+    upload_org_landing_content_service,
+    upload_org_og_image_service,
+)
 from src.services.orgs.users import (
     get_list_of_invited_users,
     get_organization_users,
@@ -18,56 +72,6 @@ from src.services.orgs.users import (
     remove_user_from_org,
     update_user_role,
 )
-from src.db.organization_config import OrganizationConfigBase
-from src.db.users import AnonymousUser, PublicUser
-from src.db.organizations import (
-    OrganizationCreate,
-    OrganizationDiscoverRead,
-    OrganizationRead,
-    OrganizationUpdate,
-)
-from src.core.events.database import get_db_session
-from src.security.auth import get_current_user, get_authenticated_user
-from src.security.features_utils.dependencies import require_org_admin
-from src.services.orgs.orgs import (
-    create_org,
-    create_org_with_config,
-    delete_org,
-    get_organization_by_uuid,
-    get_organization_by_slug,
-    get_orgs_by_user,
-    get_orgs_by_user_admin,
-    get_discoverable_org_by_slug,
-    list_discoverable_orgs,
-    update_org,
-    update_org_logo,
-    update_org_preview,
-    update_org_signup_mechanism,
-    update_org_ai_config,
-    update_org_communities_config,
-    update_org_payments_config,
-    update_org_collections_config,
-    update_org_courses_config,
-    update_org_podcasts_config,
-    update_org_resources_config,
-    update_org_boards_config,
-    update_org_playgrounds_config,
-    update_org_color_config,
-    update_org_dark_color_config,
-    update_org_footer_text_config,
-    update_org_hide_org_name_config,
-    update_org_thumbnail,
-    update_org_landing,
-    upload_org_landing_content_service,
-    update_org_auth_branding_config,
-    update_org_badge_issuer_config,
-    upload_org_auth_background_service,
-    update_org_seo_config,
-    upload_org_og_image_service,
-    update_org_favicon,
-)
-from src.db.organization_config import AuthBrandingConfig, SeoOrgConfig, BadgeIssuerConfig
-
 
 router = APIRouter()
 
@@ -128,7 +132,7 @@ async def api_discover_orgs(
     query: str = Query(default="", max_length=200),
     current_user: PublicUser | AnonymousUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
-) -> List[OrganizationDiscoverRead]:
+) -> list[OrganizationDiscoverRead]:
     """
     List discoverable organizations for the public organizations experience.
     """
@@ -164,11 +168,11 @@ async def api_get_org_users(
     page: int = Query(default=1, ge=1, description="Page number"),
     limit: int = Query(default=20, ge=1, le=100, description="Items per page (max 100)"),
     search: str = "",
-    usergroup_id: Optional[int] = Query(default=None, description="Filter by usergroup membership"),
-    usergroup_filter: Optional[Literal["in_group", "not_in_group"]] = Query(default=None, description="Membership filter: 'in_group' or 'not_in_group'"),
-    sort_order: Optional[Literal["asc", "desc"]] = Query(default="desc", description="Sort order for join date"),
-    role_id: Optional[int] = Query(default=None, description="Filter by role ID"),
-    status: Optional[Literal["verified", "unverified"]] = Query(default=None, description="Filter by verification status"),
+    usergroup_id: int | None = Query(default=None, description="Filter by usergroup membership"),
+    usergroup_filter: Literal["in_group", "not_in_group"] | None = Query(default=None, description="Membership filter: 'in_group' or 'not_in_group'"),
+    sort_order: Literal["asc", "desc"] | None = Query(default="desc", description="Sort order for join date"),
+    role_id: int | None = Query(default=None, description="Filter by role ID"),
+    status: Literal["verified", "unverified"] | None = Query(default=None, description="Filter by verification status"),
     current_user: PublicUser = Depends(get_authenticated_user),
     db_session: Session = Depends(get_db_session),
 ):
@@ -220,7 +224,7 @@ async def api_update_user_role(
 async def api_remove_batch_users_from_org(
     request: Request,
     org_id: int,
-    user_ids: List[int] = Query(..., description="List of user IDs to remove"),
+    user_ids: list[int] = Query(..., description="List of user IDs to remove"),
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
@@ -292,8 +296,8 @@ async def api_get_org_signup_mechanism(
 async def api_update_org_ai_config(
     request: Request,
     org_id: int,
-    ai_enabled: Optional[bool] = None,
-    copilot_enabled: Optional[bool] = None,
+    ai_enabled: bool | None = None,
+    copilot_enabled: bool | None = None,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
@@ -590,9 +594,9 @@ async def api_upload_org_og_image(
 async def api_create_invite_code(
     request: Request,
     org_id: int,
-    usergroup_id: Optional[int] = None,
-    display_name: Optional[str] = None,
-    expiry_date: Optional[str] = None,
+    usergroup_id: int | None = None,
+    display_name: str | None = None,
+    expiry_date: str | None = None,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
@@ -794,9 +798,9 @@ async def api_user_orgs(
     request: Request,
     page: int,
     limit: int,
-    current_user: Union[PublicUser, AnonymousUser] = Depends(get_current_user),
+    current_user: PublicUser | AnonymousUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
-) -> List[OrganizationRead]:
+) -> list[OrganizationRead]:
     """
     Get orgs by page and limit by current user
     """
@@ -811,9 +815,9 @@ async def api_user_orgs_admin(
     request: Request,
     page: int,
     limit: int,
-    current_user: Union[PublicUser, AnonymousUser] = Depends(get_current_user),
+    current_user: PublicUser | AnonymousUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
-) -> List[OrganizationRead]:
+) -> list[OrganizationRead]:
     """
     Get orgs by page and limit by current user
     """

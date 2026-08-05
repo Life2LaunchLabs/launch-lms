@@ -1,12 +1,11 @@
-from typing import Optional
-from fastapi import HTTPException, Request
-from sqlmodel import Session, select
-from sqlalchemy import text
 
-from src.db.courses.courses import Course, CourseRead, AuthorWithRole
+from fastapi import HTTPException, Request
+from sqlalchemy import text
+from sqlmodel import Session, select
+from src.db.courses.courses import AuthorWithRole, Course, CourseRead
 from src.db.organizations import Organization, OrganizationRead
-from src.db.users import User, UserRead
 from src.db.resource_authors import ResourceAuthor
+from src.db.users import User, UserRead
 
 
 def _get_sort_expression(salt: str):
@@ -134,7 +133,7 @@ async def search_orgs_for_explore(
     request: Request,
     db_session: Session,
     search_query: str,
-    label: Optional[str] = None,
+    label: str | None = None,
     page: int = 1,
     limit: int = 10,
     salt: str = "",

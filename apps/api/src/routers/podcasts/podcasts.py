@@ -1,30 +1,30 @@
-from typing import List, Optional
+
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from sqlmodel import Session
+from src.core.events.database import get_db_session
+from src.db.podcasts.episodes import PodcastEpisodeRead
 from src.db.podcasts.podcasts import (
     PodcastRead,
-    PodcastUpdate,
     PodcastReadWithEpisodeCount,
+    PodcastUpdate,
 )
-from src.services.podcasts.podcasts import (
-    get_podcast,
-    get_podcast_meta,
-    get_podcasts_orgslug,
-    get_podcasts_count_orgslug,
-    create_podcast,
-    update_podcast,
-    update_podcast_thumbnail,
-    delete_podcast,
-    get_podcast_user_rights,
-)
+from src.security.auth import get_current_user
 from src.services.podcasts.episodes import (
-    get_episodes_by_podcast,
     create_episode,
+    get_episodes_by_podcast,
     reorder_episodes,
 )
-from src.db.podcasts.episodes import PodcastEpisodeRead
-from src.core.events.database import get_db_session
-from src.security.auth import get_current_user
+from src.services.podcasts.podcasts import (
+    create_podcast,
+    delete_podcast,
+    get_podcast,
+    get_podcast_meta,
+    get_podcast_user_rights,
+    get_podcasts_count_orgslug,
+    get_podcasts_orgslug,
+    update_podcast,
+    update_podcast_thumbnail,
+)
 
 router = APIRouter()
 
@@ -34,11 +34,11 @@ async def api_create_podcast(
     request: Request,
     org_id: int,
     name: str = Form(...),
-    description: Optional[str] = Form(None),
-    about: Optional[str] = Form(None),
-    tags: Optional[str] = Form(None),
+    description: str | None = Form(None),
+    about: str | None = Form(None),
+    tags: str | None = Form(None),
     public: bool = Form(False),
-    thumbnail: Optional[UploadFile] = File(None),
+    thumbnail: UploadFile | None = File(None),
     current_user=Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
@@ -85,7 +85,7 @@ async def api_get_podcast_meta(
     return result
 
 
-@router.get("/org_slug/{org_slug}/page/{page}/limit/{limit}", response_model=List[PodcastReadWithEpisodeCount])
+@router.get("/org_slug/{org_slug}/page/{page}/limit/{limit}", response_model=list[PodcastReadWithEpisodeCount])
 async def api_get_podcasts_orgslug(
     request: Request,
     org_slug: str,
@@ -171,7 +171,7 @@ async def api_get_podcast_rights(
 
 
 # Episode endpoints nested under podcast
-@router.get("/{podcast_uuid}/episodes", response_model=List[PodcastEpisodeRead])
+@router.get("/{podcast_uuid}/episodes", response_model=list[PodcastEpisodeRead])
 async def api_get_podcast_episodes(
     request: Request,
     podcast_uuid: str,
@@ -202,11 +202,11 @@ async def api_create_episode(
     request: Request,
     podcast_uuid: str,
     title: str = Form(...),
-    description: Optional[str] = Form(None),
-    duration_seconds: Optional[int] = Form(0),
+    description: str | None = Form(None),
+    duration_seconds: int | None = Form(0),
     published: bool = Form(False),
-    audio: Optional[UploadFile] = File(None),
-    thumbnail: Optional[UploadFile] = File(None),
+    audio: UploadFile | None = File(None),
+    thumbnail: UploadFile | None = File(None),
     current_user=Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
@@ -235,7 +235,7 @@ async def api_create_episode(
 async def api_reorder_episodes(
     request: Request,
     podcast_uuid: str,
-    episode_orders: List[dict],
+    episode_orders: list[dict],
     current_user=Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):

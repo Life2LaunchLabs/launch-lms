@@ -5,9 +5,8 @@ Revises: u3v4w5x6y7z
 Create Date: 2026-04-15 10:30:00.000000
 """
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 revision = "r1s2t3u4v5w6"
 down_revision = "u3v4w5x6y7z"

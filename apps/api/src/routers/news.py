@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
-
 from src.core.events.database import get_db_session
 from src.db.news import NewsArticleCreate, NewsArticleUpdate
 from src.db.users import PublicUser
@@ -15,7 +14,6 @@ from src.services.news import (
     unpublish_article,
     update_article,
 )
-
 
 router = APIRouter()
 

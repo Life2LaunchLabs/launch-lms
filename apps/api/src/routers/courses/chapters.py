@@ -1,4 +1,4 @@
-from typing import List
+
 from fastapi import APIRouter, Depends, Request
 from src.core.events.database import get_db_session
 from src.db.courses.chapters import (
@@ -7,6 +7,7 @@ from src.db.courses.chapters import (
     ChapterUpdate,
     ChapterUpdateOrder,
 )
+from src.security.auth import get_current_user
 from src.services.courses.chapters import (
     DEPRECEATED_get_course_chapters,
     create_chapter,
@@ -16,9 +17,7 @@ from src.services.courses.chapters import (
     reorder_chapters_and_activities,
     update_chapter,
 )
-
 from src.services.users.users import PublicUser
-from src.security.auth import get_current_user
 
 router = APIRouter()
 
@@ -88,7 +87,7 @@ async def api_get_chapter_by(
     limit: int,
     current_user: PublicUser = Depends(get_current_user),
     db_session=Depends(get_db_session),
-) -> List[ChapterRead]:
+) -> list[ChapterRead]:
     """
     Get Course Chapters by page and limit
     """

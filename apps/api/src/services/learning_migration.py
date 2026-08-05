@@ -1,23 +1,31 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from copy import deepcopy
 from typing import Any
 from urllib.parse import urlparse
 
 from fastapi import HTTPException, Request
 from sqlmodel import Session, select
-
 from src.db.collections import Collection
 from src.db.collections_courses import CollectionCourse
 from src.db.courses.activities import Activity, ActivityTypeEnum
+from src.db.courses.certifications import CertificateUser, Certifications
 from src.db.courses.chapter_activities import ChapterActivity
 from src.db.courses.chapters import Chapter
 from src.db.courses.course_chapters import CourseChapter
-from src.db.courses.certifications import CertificateUser, Certifications
 from src.db.courses.courses import Course
-from src.db.learning import BadgeCollection, LearningActivity, LearningAwardSource, LearningBadge, LearningBadgeAward, LearningBadgeStatus, LearningPage, LearningPageType
+from src.db.learning import (
+    BadgeCollection,
+    LearningActivity,
+    LearningAwardSource,
+    LearningBadge,
+    LearningBadgeAward,
+    LearningBadgeStatus,
+    LearningPage,
+    LearningPageType,
+)
 from src.db.organizations import Organization
 from src.db.users import AnonymousUser, PublicUser
 from src.services.learning import _get_path_for_badge, _require_org_admin
@@ -29,7 +37,6 @@ from src.services.learning_page_convert import (
     rich_text_nodes_to_blocks,
     text_block,
 )
-
 
 MIGRATION_SYSTEM_TYPE = "legacy_badge_migration"
 UNSUPPORTED_ACTIVITY_TYPES = {

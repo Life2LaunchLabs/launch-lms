@@ -6,12 +6,12 @@ Provides dependency functions to enforce plan requirements at the router level.
 
 from fastapi import Depends, HTTPException, Request
 from sqlmodel import Session, select
-
 from src.core.events.database import get_db_session
-from src.db.organization_config import OrganizationConfig
 from src.db.communities.communities import Community
+from src.db.organization_config import OrganizationConfig
 from src.db.resources import Resource, ResourceChannel, ResourceComment
 from src.security.features_utils.plans import PlanLevel, plan_meets_requirement
+
 
 def get_org_plan(org_id: int, db_session: Session) -> PlanLevel:
     """
@@ -222,7 +222,7 @@ def require_plan_for_certifications(required_plan: PlanLevel, feature_name: str)
 
         # Try user_certification_uuid -> certification -> course -> org_id
         if org_id is None and "user_certification_uuid" in path_params:
-            from src.db.courses.certifications import Certifications, CertificateUser
+            from src.db.courses.certifications import CertificateUser, Certifications
             from src.db.courses.courses import Course
             statement = select(CertificateUser).where(
                 CertificateUser.user_certification_uuid == path_params["user_certification_uuid"]

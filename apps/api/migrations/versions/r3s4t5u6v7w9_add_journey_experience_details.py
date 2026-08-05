@@ -4,14 +4,12 @@ Revision ID: r3s4t5u6v7w9
 Revises: q2r3s4t5u6v7
 """
 
-from typing import Union
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 revision: str = "r3s4t5u6v7w9"
-down_revision: Union[str, None] = "q2r3s4t5u6v7"
+down_revision: str | None = "q2r3s4t5u6v7"
 branch_labels = None
 depends_on = None
 

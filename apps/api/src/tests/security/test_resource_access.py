@@ -5,19 +5,22 @@ This module tests the ResourceAccessChecker class and related functionality
 for the unified RBAC system.
 """
 
-import pytest
 from unittest.mock import Mock
+
+import pytest
 from fastapi import HTTPException, Request
 from sqlmodel import Session
-
-from src.security.rbac.types import AccessAction, AccessContext, AccessDecision
+from src.db.users import AnonymousUser, APITokenUser, PublicUser
 from src.security.rbac.config import (
     RESOURCE_CONFIGS,
     get_resource_config,
     get_resource_type,
 )
-from src.security.rbac.resource_access import ResourceAccessChecker, check_resource_access
-from src.db.users import AnonymousUser, PublicUser, APITokenUser
+from src.security.rbac.resource_access import (
+    ResourceAccessChecker,
+    check_resource_access,
+)
+from src.security.rbac.types import AccessAction, AccessContext, AccessDecision
 
 
 class TestResourceConfig:

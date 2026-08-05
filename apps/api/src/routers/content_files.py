@@ -12,21 +12,20 @@ SECURITY:
 """
 
 import os
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import StreamingResponse, Response
-from pathlib import Path
+from fastapi.responses import Response, StreamingResponse
 from sqlmodel import Session, select
-
 from src.core.events.database import get_db_session
 from src.db.courses.courses import Course
 from src.db.podcasts.podcasts import Podcast
-from src.db.users import AnonymousUser, PublicUser, APITokenUser
 from src.db.user_organizations import UserOrganization
+from src.db.users import AnonymousUser, APITokenUser, PublicUser
 from src.security.auth import get_current_user
 from src.services.courses.transfer.storage_utils import (
-    get_storage_client,
     get_s3_bucket_name,
+    get_storage_client,
 )
 
 router = APIRouter()
@@ -128,7 +127,9 @@ async def _check_content_access(
             # Optional paid-access gating for public courses.
             if not isinstance(current_user, APITokenUser):
                 try:
-                    from src.services.payments.payments_access import check_course_paid_access
+                    from src.services.payments.payments_access import (
+                        check_course_paid_access,
+                    )
                 except ModuleNotFoundError:
                     return
                 try:

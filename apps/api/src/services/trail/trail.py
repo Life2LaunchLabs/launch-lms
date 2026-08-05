@@ -1,10 +1,8 @@
 from datetime import datetime
-from typing import List
 from uuid import uuid4
 
 from fastapi import HTTPException, Request, status
 from sqlmodel import Session, func, select
-
 from src.db.courses.activities import Activity
 from src.db.courses.chapter_activities import ChapterActivity
 from src.db.courses.courses import Course
@@ -13,7 +11,9 @@ from src.db.trail_steps import TrailStep
 from src.db.trails import Trail, TrailCreate, TrailRead
 from src.services.analytics import events as analytics_events
 from src.services.analytics.analytics import track
-from src.services.courses.certifications import check_course_completion_and_create_certificate
+from src.services.courses.certifications import (
+    check_course_completion_and_create_certificate,
+)
 from src.services.guest_sessions import LearningActor
 
 
@@ -45,7 +45,7 @@ def _ensure_guest_course_access(course: Course, actor: LearningActor) -> None:
 
 def _build_trail_read(
     trail: Trail,
-    trail_runs_raw: List[TrailRun],
+    trail_runs_raw: list[TrailRun],
     db_session: Session,
     actor: LearningActor,
     with_course_info: bool = True,

@@ -1,21 +1,18 @@
 import json
 import logging
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 from uuid import uuid4
-from sqlmodel import Session, select, func
+
+from fastapi import HTTPException, Request, UploadFile, status
+from sqlmodel import Session, func, select
 from src.db.organization_config import (
+    AuthBrandingConfig,
+    BadgeIssuerConfig,
     OrganizationConfig,
     OrganizationConfigBase,
-    BadgeIssuerConfig,
+    SeoOrgConfig,
 )
-from src.security.rbac.rbac import (
-    authorization_verify_based_on_org_admin_status,
-    authorization_verify_if_user_is_anon,
-)
-from src.security.rbac.constants import ADMIN_ROLE_ID
-from src.db.users import AnonymousUser, APITokenUser, InternalUser, PublicUser
-from src.db.user_organizations import UserOrganization
 from src.db.organizations import (
     Organization,
     OrganizationCreate,
@@ -23,10 +20,22 @@ from src.db.organizations import (
     OrganizationRead,
     OrganizationUpdate,
 )
-from fastapi import HTTPException, UploadFile, status, Request
-
-from src.services.orgs.uploads import upload_org_logo, upload_org_preview, upload_org_thumbnail, upload_org_landing_content, upload_org_auth_background, upload_org_og_image, upload_org_favicon
-from src.db.organization_config import AuthBrandingConfig, SeoOrgConfig
+from src.db.user_organizations import UserOrganization
+from src.db.users import AnonymousUser, APITokenUser, InternalUser, PublicUser
+from src.security.rbac.constants import ADMIN_ROLE_ID
+from src.security.rbac.rbac import (
+    authorization_verify_based_on_org_admin_status,
+    authorization_verify_if_user_is_anon,
+)
+from src.services.orgs.uploads import (
+    upload_org_auth_background,
+    upload_org_favicon,
+    upload_org_landing_content,
+    upload_org_logo,
+    upload_org_og_image,
+    upload_org_preview,
+    upload_org_thumbnail,
+)
 
 
 def _build_org_read_with_resolved(org, org_config) -> OrganizationRead:
@@ -718,7 +727,7 @@ async def list_discoverable_orgs(
     )
 
     if isinstance(current_user, AnonymousUser):
-        statement = statement.where(Organization.explore == True)  # noqa: E712
+        statement = statement.where(Organization.explore == True)
 
     if query.strip():
         pattern = f"%{query.strip()}%"
@@ -879,11 +888,11 @@ async def update_org_signup_mechanism(
 
 async def update_org_ai_config(
     request: Request,
-    ai_enabled: Optional[bool],
+    ai_enabled: bool | None,
     org_id: int,
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
-    copilot_enabled: Optional[bool] = None,
+    copilot_enabled: bool | None = None,
 ):
     statement = select(Organization).where(Organization.id == org_id)
     result = db_session.exec(statement)

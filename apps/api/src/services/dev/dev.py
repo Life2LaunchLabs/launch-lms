@@ -1,5 +1,5 @@
-from fastapi import HTTPException
 from config.config import get_launchlms_config
+from fastapi import HTTPException
 
 
 def isDevModeEnabled():

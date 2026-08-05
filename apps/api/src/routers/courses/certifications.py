@@ -1,4 +1,4 @@
-from typing import List
+
 from fastapi import APIRouter, Depends, Request
 from sqlmodel import Session
 from src.core.events.database import get_db_session
@@ -11,16 +11,16 @@ from src.db.users import AnonymousUser, PublicUser
 from src.security.auth import get_current_user
 from src.services.courses.certifications import (
     create_certification,
+    delete_certification,
+    get_all_user_certificates,
+    get_certificate_by_user_certification_uuid,
     get_certification,
     get_certifications_by_course,
-    update_certification,
-    delete_certification,
-    get_user_certificates_for_course,
-    get_certificate_by_user_certification_uuid,
-    get_all_user_certificates,
-    get_open_badges_issuer_by_org_uuid,
-    get_open_badges_badge_class_by_course_uuid,
     get_open_badges_assertion_by_uuid,
+    get_open_badges_badge_class_by_course_uuid,
+    get_open_badges_issuer_by_org_uuid,
+    get_user_certificates_for_course,
+    update_certification,
 )
 
 router = APIRouter()
@@ -62,7 +62,7 @@ async def api_get_certifications_by_course(
     course_uuid: str,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
-) -> List[CertificationRead]:
+) -> list[CertificationRead]:
     """
     Get all certifications for a specific course
     """
@@ -108,7 +108,7 @@ async def api_get_user_certificates_for_course(
     course_uuid: str,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
-) -> List[dict]:
+) -> list[dict]:
     """
     Get all certificates for the current user in a specific course with certification details
     """
@@ -173,7 +173,7 @@ async def api_get_all_user_certificates(
     request: Request,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
-) -> List[dict]:
+) -> list[dict]:
     """
     Get all certificates obtained by the current user with complete linked information
     """

@@ -7,49 +7,47 @@ from fastapi import HTTPException, status
 from sqlalchemy import inspect
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
-
-from src.db.portfolio import (
-    Portfolio,
-    PortfolioContentStatus,
-    PortfolioModerationStatus,
-    PortfolioSection,
-    PortfolioLink,
-    PortfolioUpdate,
-    PortfolioTraitsUpdate,
-    PortfolioBadgeVisibilityUpdate,
-    PortfolioFeaturedBadgesUpdate,
-    PortfolioFeaturedTimelineUpdate,
-    PortfolioFeaturedProjectUpdate,
-    PortfolioSectionsUpdate,
-    ProfileTrait,
-    PortfolioVisibility,
-    PublishRequest,
-    TimelineEntry,
-    TimelineEntryBlock,
-    TimelineEntryCreate,
-    TimelineEntryUpdate,
-    TimelineProjectLink,
-    ProjectItem,
-    ProjectItemBlock,
-    ProjectItemCreate,
-    ProjectItemUpdate,
-)
-from src.db.media import MediaAsset
-from src.db.user_organizations import UserOrganization
-from src.db.users import AnonymousUser, PublicUser, User
 from src.db.learning import (
     LearningActivity,
     LearningActivityRun,
+    LearningAwardSource,
     LearningBadge,
     LearningBadgeAward,
     LearningPage,
     LearningPageProgress,
     LearningRun,
     LearningRunStatus,
-    LearningAwardSource,
 )
+from src.db.media import MediaAsset
+from src.db.portfolio import (
+    Portfolio,
+    PortfolioBadgeVisibilityUpdate,
+    PortfolioContentStatus,
+    PortfolioFeaturedBadgesUpdate,
+    PortfolioFeaturedProjectUpdate,
+    PortfolioFeaturedTimelineUpdate,
+    PortfolioLink,
+    PortfolioModerationStatus,
+    PortfolioSection,
+    PortfolioSectionsUpdate,
+    PortfolioTraitsUpdate,
+    PortfolioUpdate,
+    PortfolioVisibility,
+    ProfileTrait,
+    ProjectItem,
+    ProjectItemBlock,
+    ProjectItemCreate,
+    ProjectItemUpdate,
+    PublishRequest,
+    TimelineEntry,
+    TimelineEntryBlock,
+    TimelineEntryCreate,
+    TimelineEntryUpdate,
+    TimelineProjectLink,
+)
+from src.db.user_organizations import UserOrganization
+from src.db.users import AnonymousUser, PublicUser, User
 from src.services.learning import ONBOARDING_ACTIVITY_UUID, ONBOARDING_BADGE_UUID
-
 
 DEFAULT_SECTIONS = (
     "about",

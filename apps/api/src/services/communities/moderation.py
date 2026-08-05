@@ -1,9 +1,9 @@
-import re
 import json
-from typing import List, Optional, Tuple, Any
+import re
+from typing import Any
+
 from fastapi import HTTPException, status
 from sqlmodel import Session, select
-
 from src.db.communities.communities import Community
 
 
@@ -51,8 +51,8 @@ def parse_content_for_moderation(content: str) -> str:
 
 def check_content_moderation(
     content: str,
-    moderation_words: List[str],
-) -> Tuple[bool, Optional[str]]:
+    moderation_words: list[str],
+) -> tuple[bool, str | None]:
     """
     Check if content contains any moderation words.
 

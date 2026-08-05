@@ -5,9 +5,8 @@ Revises: r7s8t9u0v1w2_add_payments_mode
 Create Date: 2026-03-31
 """
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "s1t2u3v4w5x6"

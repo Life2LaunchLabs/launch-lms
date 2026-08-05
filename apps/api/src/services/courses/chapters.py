@@ -1,9 +1,8 @@
 from datetime import datetime
-from typing import List
 from uuid import uuid4
+
+from fastapi import HTTPException, Request, status
 from sqlmodel import Session, select
-from src.db.users import AnonymousUser, PublicUser
-from src.db.courses.course_chapters import CourseChapter
 from src.db.courses.activities import Activity, ActivityRead
 from src.db.courses.chapter_activities import ChapterActivity
 from src.db.courses.chapters import (
@@ -13,10 +12,10 @@ from src.db.courses.chapters import (
     ChapterUpdate,
     ChapterUpdateOrder,
 )
+from src.db.courses.course_chapters import CourseChapter
 from src.db.courses.courses import Course
-from fastapi import HTTPException, status, Request
-from src.security.rbac import check_resource_access, AccessAction
-
+from src.db.users import AnonymousUser, PublicUser
+from src.security.rbac import AccessAction, check_resource_access
 
 ####################################################
 # CRUD
@@ -225,7 +224,7 @@ async def get_course_chapters(
     with_unpublished_activities: bool,
     page: int = 1,
     limit: int = 10,
-) -> List[ChapterRead]:
+) -> list[ChapterRead]:
 
     statement = select(Course).where(Course.id == course_id)
     course = db_session.exec(statement).first()

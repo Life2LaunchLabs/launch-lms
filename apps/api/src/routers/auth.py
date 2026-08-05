@@ -1,8 +1,11 @@
-from datetime import timedelta, datetime, timezone
-from typing import Literal, Optional
-from fastapi import Depends, APIRouter, HTTPException, Response, status, Request, Form
+from datetime import datetime, timedelta, timezone
+from typing import Literal
+
+from config.config import get_launchlms_config
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr
 from sqlmodel import Session, select
+from src.core.events.database import get_db_session
 from src.db.collections import Collection
 from src.db.collections_courses import CollectionCourse
 from src.db.courses.activities import Activity, ActivitySubTypeEnum, ActivityTypeEnum
@@ -10,50 +13,48 @@ from src.db.courses.chapter_activities import ChapterActivity
 from src.db.courses.chapters import Chapter
 from src.db.courses.course_chapters import CourseChapter
 from src.db.courses.courses import Course
-from src.db.organizations import Organization
 from src.db.organization_config import OrganizationConfig
+from src.db.organizations import Organization
 from src.db.users import AnonymousUser, User, UserCreate, UserRead
-from src.core.events.database import get_db_session
-from config.config import get_launchlms_config
 from src.security.auth import (
+    JWT_ACCESS_TOKEN_EXPIRES,
+    JWT_COOKIE_NAME,
+    JWT_REFRESH_COOKIE_NAME,
     authenticate_user,
-    get_current_user,
     create_access_token,
     create_refresh_token,
     decode_refresh_token,
     extract_jwt_from_request,
-    JWT_ACCESS_TOKEN_EXPIRES,
-    JWT_REFRESH_COOKIE_NAME,
-    JWT_COOKIE_NAME,
+    get_current_user,
 )
 from src.security.cookies import get_cookie_domain_for_request, is_request_secure
-from src.services.guest_sessions import transfer_guest_session_data_to_user
-from src.services.shared_content import owner_org_payload
-from src.services.learning import ensure_onboarding_learning_badge
 from src.services.auth.utils import signWithGoogle
 from src.services.dev.dev import isDevModeEnabled
-from src.services.security.rate_limiting import (
-    check_login_rate_limit,
-    check_refresh_rate_limit,
-    check_email_verification_rate_limit,
-    get_client_ip,
-)
+from src.services.guest_sessions import transfer_guest_session_data_to_user
+from src.services.learning import ensure_onboarding_learning_badge
 from src.services.security.account_lockout import (
     check_account_locked,
+    format_lockout_message,
     record_failed_login,
     reset_failed_attempts,
     update_login_info,
-    format_lockout_message,
+)
+from src.services.security.rate_limiting import (
+    check_email_verification_rate_limit,
+    check_login_rate_limit,
+    check_refresh_rate_limit,
+    get_client_ip,
+)
+from src.services.shared_content import owner_org_payload
+from src.services.users.email_verification import (
+    invalidate_verification_tokens,
+    resend_verification_email,
+    verify_email_token,
 )
 from src.services.users.welcome_claim import resolve_welcome_claim
-from src.services.users.email_verification import (
-    verify_email_token,
-    resend_verification_email,
-    invalidate_verification_tokens,
-)
 
 
-def get_token_expiry_ms() -> Optional[int]:
+def get_token_expiry_ms() -> int | None:
     """Get the token expiry timestamp in milliseconds for frontend use."""
     if isDevModeEnabled() or JWT_ACCESS_TOKEN_EXPIRES is None:
         return None  # No expiry in dev mode
@@ -74,7 +75,7 @@ ONBOARDING_GOALS = {"higher_education", "employment", "self_starting", "not_sure
 class WelcomeSignupRequest(BaseModel):
     email: EmailStr
     password: str
-    quiz_result: Optional[dict] = None
+    quiz_result: dict | None = None
 
 
 class WelcomeSignupEmailCheckRequest(BaseModel):
@@ -335,7 +336,7 @@ def _ensure_onboarding_content(db_session: Session) -> tuple[Organization, Cours
     return owner_org, course, chapter, activity
 
 
-def _extract_onboarding_answers(quiz_result: Optional[dict]) -> dict:
+def _extract_onboarding_answers(quiz_result: dict | None) -> dict:
     answers = quiz_result or {}
     result_json = answers.get("result_json", answers) if isinstance(answers, dict) else {}
     raw_answers = result_json.get("answers", []) if isinstance(result_json, dict) else []
@@ -862,7 +863,7 @@ async def third_party_login(
     request: Request,
     response: Response,
     body: ThirdPartyLogin,
-    org_id: Optional[int] = None,
+    org_id: int | None = None,
     current_user: AnonymousUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
@@ -967,7 +968,7 @@ async def api_verify_email(
 
 class ResendVerificationRequest(BaseModel):
     email: EmailStr
-    org_id: Optional[int] = None
+    org_id: int | None = None
 
 
 @router.post("/resend-verification")

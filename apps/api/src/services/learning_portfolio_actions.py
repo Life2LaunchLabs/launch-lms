@@ -8,10 +8,9 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 from sqlmodel import Session, select
-
+from src.db.learning import LearningBadge, LearningPath, LearningRun, LearningRunStatus
+from src.db.media import MediaAsset
 from src.db.portfolio import (
-    TimelineEntry,
-    TimelineProjectLink,
     Portfolio,
     PortfolioContentStatus,
     PortfolioLink,
@@ -20,10 +19,10 @@ from src.db.portfolio import (
     ProfileTrait,
     ProjectItem,
     ProjectItemBlock,
+    TimelineEntry,
+    TimelineProjectLink,
 )
-from src.db.media import MediaAsset
 from src.db.users import User
-from src.db.learning import LearningBadge, LearningPath, LearningRun, LearningRunStatus
 
 
 class PortfolioActionError(ValueError):

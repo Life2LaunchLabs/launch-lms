@@ -9,14 +9,13 @@ import json
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Literal, Optional
+from typing import Literal
 
 import redis
+from config.config import get_launchlms_config
 from fastapi import HTTPException
 from pydantic import BaseModel, EmailStr
 from sqlmodel import Session, func, or_, select
-
-from config.config import get_launchlms_config
 from src.db.audit_logs import AuditLog
 from src.db.organizations import Organization
 from src.db.roles import Role
@@ -43,18 +42,18 @@ class GlobalUserCreate(BaseModel):
     password: str
     first_name: str = ""
     last_name: str = ""
-    org_id: Optional[int] = None
-    role_id: Optional[int] = None
+    org_id: int | None = None
+    role_id: int | None = None
 
 
 class GlobalUserUpdate(BaseModel):
-    username: Optional[str] = None
-    email: Optional[EmailStr] = None
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    bio: Optional[str] = None
-    email_verified: Optional[bool] = None
-    is_superadmin: Optional[bool] = None
+    username: str | None = None
+    email: EmailStr | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    bio: str | None = None
+    email_verified: bool | None = None
+    is_superadmin: bool | None = None
 
 
 class MembershipUpdate(BaseModel):
@@ -66,14 +65,14 @@ class SetPasswordPayload(BaseModel):
 
 
 class ResetLinkPayload(BaseModel):
-    org_id: Optional[int] = None
+    org_id: int | None = None
 
 
 class BatchUserAction(BaseModel):
     user_ids: list[int]
     action: Literal["add_to_org", "remove_from_org", "verify_email", "delete"]
-    org_id: Optional[int] = None
-    role_id: Optional[int] = None
+    org_id: int | None = None
+    role_id: int | None = None
 
 
 # ============================================================================

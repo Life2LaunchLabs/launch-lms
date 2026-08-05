@@ -1,9 +1,8 @@
-from typing import Optional
+from enum import Enum
+
 from pydantic import BaseModel
 from sqlalchemy import JSON, Column, ForeignKey, Integer
 from sqlmodel import Field, SQLModel
-from enum import Enum
-
 from src.db.trail_steps import TrailStep
 
 
@@ -20,7 +19,7 @@ class StatusEnum(str, Enum):
 
 class TrailRun(SQLModel, table=True):
     __table_args__ = {"extend_existing": True}
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     data: dict = Field(default_factory=dict, sa_column=Column(JSON))
     status: StatusEnum = StatusEnum.STATUS_IN_PROGRESS
     # foreign keys
@@ -33,11 +32,11 @@ class TrailRun(SQLModel, table=True):
     org_id: int = Field(
         sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"))
     )
-    user_id: Optional[int] = Field(
+    user_id: int | None = Field(
         default=None,
         sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=True, index=True)
     )
-    guest_session_id: Optional[int] = Field(
+    guest_session_id: int | None = Field(
         default=None,
         sa_column=Column(Integer, ForeignKey("guestsession.id", ondelete="CASCADE"), nullable=True, index=True)
     )
@@ -52,28 +51,28 @@ class TrailRunCreate(SQLModel):
     trail_id: int
     course_id: int
     org_id: int
-    user_id: Optional[int] = None
-    guest_session_id: Optional[int] = None
+    user_id: int | None = None
+    guest_session_id: int | None = None
     creation_date: str
     update_date: str
 
 
 # trick because Lists are not supported in SQLModel (runs: list[TrailStep] )
 class TrailRunRead(BaseModel):
-    id: Optional[int] = None
+    id: int | None = None
     data: dict = Field(default_factory=dict)
     status: StatusEnum = StatusEnum.STATUS_IN_PROGRESS
     # foreign keys
-    trail_id: Optional[int] = None
-    course_id: Optional[int] = None
-    org_id: Optional[int] = None
-    user_id: Optional[int] = None
-    guest_session_id: Optional[int] = None
+    trail_id: int | None = None
+    course_id: int | None = None
+    org_id: int | None = None
+    user_id: int | None = None
+    guest_session_id: int | None = None
     # course object
-    course: Optional[dict] = None
+    course: dict | None = None
     # timestamps
-    creation_date: Optional[str] = None
-    update_date: Optional[str] = None
+    creation_date: str | None = None
+    update_date: str | None = None
     # number of activities in course
     course_total_steps: int = 0
     steps: list[TrailStep] = Field(default_factory=list)

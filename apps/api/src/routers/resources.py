@@ -1,9 +1,7 @@
-from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from sqlmodel import Session
-
 from src.core.events.database import get_db_session
 from src.db.resources import (
     ResourceChannelCreate,
@@ -26,10 +24,10 @@ from src.services.resources import (
     create_resource,
     create_tag,
     create_user_channel,
-    delete_tag,
     delete_channel,
     delete_comment,
     delete_resource,
+    delete_tag,
     get_resource,
     import_resources_csv,
     list_channel_resources,
@@ -40,16 +38,15 @@ from src.services.resources import (
     remove_resource_from_channel,
     save_resource_for_user,
     unsave_resource_for_user,
-    update_tag,
     update_channel,
     update_comment,
     update_resource,
+    update_tag,
     update_user_channel,
     upload_channel_thumbnail,
     upload_resource_thumbnail,
     upload_saved_resource_outcome_file,
 )
-
 
 router = APIRouter()
 
@@ -161,14 +158,14 @@ async def api_upload_channel_thumbnail(
 async def api_list_resources(
     request: Request,
     org_id: int,
-    channel_uuid: Optional[str] = None,
-    user_channel_uuid: Optional[str] = None,
-    resource_type: Optional[str] = None,
-    resource_types: Optional[str] = None,
-    tags: Optional[str] = None,
-    provider: Optional[str] = None,
-    query: Optional[str] = None,
-    access: Optional[str] = None,
+    channel_uuid: str | None = None,
+    user_channel_uuid: str | None = None,
+    resource_type: str | None = None,
+    resource_types: str | None = None,
+    tags: str | None = None,
+    provider: str | None = None,
+    query: str | None = None,
+    access: str | None = None,
     saved_only: bool = False,
     completed_only: bool = False,
     include_private: bool = False,
@@ -394,7 +391,7 @@ async def api_delete_comment(
 async def api_import_resources_csv(
     request: Request,
     org_id: int,
-    channel_uuid: Optional[str] = None,
+    channel_uuid: str | None = None,
     file: UploadFile = File(...),
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),

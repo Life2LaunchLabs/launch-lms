@@ -6,9 +6,9 @@ from datetime import datetime
 from uuid import uuid4
 
 from fastapi import HTTPException, Request
-from sqlmodel import Session, select, func
-
+from sqlmodel import Session, func, select
 from src.db.courses.activities import Activity
+from src.db.courses.courses import Course
 from src.db.courses.quiz import (
     QuizAnswer,
     QuizAttempt,
@@ -16,16 +16,14 @@ from src.db.courses.quiz import (
     QuizResult,
     QuizResultRead,
 )
-from src.db.courses.courses import Course
 from src.db.users import AnonymousUser, PublicUser
 from src.security.rbac import AccessAction, check_resource_access
-from src.services.guest_sessions import LearningActor
 from src.services.courses.activities.quiz.scoring import (
     compute_result_bundle,
     compute_scores,
 )
+from src.services.guest_sessions import LearningActor
 from src.services.trail.trail import add_activity_to_trail
-
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 

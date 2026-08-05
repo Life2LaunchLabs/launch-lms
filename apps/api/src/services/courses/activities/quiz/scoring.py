@@ -35,8 +35,8 @@ Answer format (from QuizAnswerInput):
 """
 
 from __future__ import annotations
-import math
 
+import math
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 

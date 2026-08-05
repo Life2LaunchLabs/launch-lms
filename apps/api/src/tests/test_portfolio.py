@@ -1,7 +1,6 @@
 import pytest
 from fastapi import HTTPException
 from sqlmodel import Session, SQLModel, create_engine, select
-
 from src.db.learning import (
     LearningActivity,
     LearningActivityRun,
@@ -15,24 +14,24 @@ from src.db.learning import (
 from src.db.media import MediaAsset
 from src.db.organizations import Organization
 from src.db.portfolio import (
+    Portfolio,
+    PortfolioFeaturedProjectUpdate,
+    PortfolioFeaturedTimelineUpdate,
+    PortfolioLink,
+    PortfolioSection,
+    PortfolioTraitsUpdate,
+    PortfolioUpdate,
+    ProfileTrait,
+    ProjectItem,
+    ProjectItemBlock,
+    ProjectItemCreate,
+    ProjectItemUpdate,
+    PublishRequest,
     TimelineEntry,
     TimelineEntryBlock,
     TimelineEntryCreate,
     TimelineEntryUpdate,
     TimelineProjectLink,
-    Portfolio,
-    PortfolioFeaturedTimelineUpdate,
-    PortfolioFeaturedProjectUpdate,
-    PortfolioTraitsUpdate,
-    PortfolioLink,
-    ProfileTrait,
-    PortfolioSection,
-    PortfolioUpdate,
-    PublishRequest,
-    ProjectItem,
-    ProjectItemBlock,
-    ProjectItemCreate,
-    ProjectItemUpdate,
 )
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization

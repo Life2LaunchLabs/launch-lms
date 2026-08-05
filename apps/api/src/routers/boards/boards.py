@@ -1,34 +1,43 @@
 import hmac
 import os
-from typing import List
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response, UploadFile, File
+
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Header,
+    HTTPException,
+    Request,
+    Response,
+    UploadFile,
+)
 from sqlmodel import Session
 from src.core.events.database import get_db_session
 from src.db.boards import (
     BoardCreate,
+    BoardMemberBatchCreate,
+    BoardMemberCreate,
+    BoardMemberRead,
     BoardRead,
     BoardUpdate,
-    BoardMemberCreate,
-    BoardMemberBatchCreate,
-    BoardMemberRead,
 )
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.security.features_utils.dependencies import require_boards_feature
 from src.services.boards.boards import (
-    create_board,
-    get_board,
-    get_boards_by_org,
-    update_board,
-    delete_board,
     add_board_member,
     add_board_members_batch,
-    remove_board_member,
     check_board_membership,
+    create_board,
+    delete_board,
+    get_board,
     get_board_members,
-    update_board_thumbnail,
+    get_boards_by_org,
     get_ydoc_state,
+    remove_board_member,
     store_ydoc_state,
+    update_board,
+    update_board_thumbnail,
 )
 
 router = APIRouter(dependencies=[Depends(require_boards_feature)])
@@ -61,7 +70,7 @@ async def api_get_boards_by_org(
     org_id: int,
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
-) -> List[BoardRead]:
+) -> list[BoardRead]:
     return await get_boards_by_org(request, org_id, current_user, db_session)
 
 
@@ -102,7 +111,7 @@ async def api_get_board_members(
     board_uuid: str,
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
-) -> List[BoardMemberRead]:
+) -> list[BoardMemberRead]:
     return await get_board_members(request, board_uuid, current_user, db_session)
 
 
@@ -135,7 +144,7 @@ async def api_add_board_members_batch(
     batch_object: BoardMemberBatchCreate,
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
-) -> List[BoardMemberRead]:
+) -> list[BoardMemberRead]:
     return await add_board_members_batch(request, board_uuid, batch_object, current_user, db_session)
 
 

@@ -4,17 +4,16 @@ Account lockout service for protecting against brute force attacks.
 Locks account after 10 failed login attempts for 5 minutes.
 """
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Tuple
+
 from sqlmodel import Session
 from src.db.users import User
-
 
 # Configuration
 MAX_FAILED_ATTEMPTS = 10
 LOCKOUT_DURATION_MINUTES = 5
 
 
-def check_account_locked(user: User) -> Tuple[bool, Optional[int]]:
+def check_account_locked(user: User) -> tuple[bool, int | None]:
     """
     Check if a user account is currently locked.
 
@@ -48,7 +47,7 @@ def check_account_locked(user: User) -> Tuple[bool, Optional[int]]:
         return False, None
 
 
-def record_failed_login(user: User, db_session: Session) -> Tuple[bool, Optional[int]]:
+def record_failed_login(user: User, db_session: Session) -> tuple[bool, int | None]:
     """
     Record a failed login attempt and lock account if threshold is reached.
 
@@ -63,8 +62,8 @@ def record_failed_login(user: User, db_session: Session) -> Tuple[bool, Optional
     Returns:
         Tuple of (is_now_locked, lockout_duration_seconds)
     """
-    from sqlmodel import select
     from sqlalchemy import update
+    from sqlmodel import select
 
     # SECURITY FIX: Use atomic increment to prevent race conditions
     # This ensures that even concurrent requests will correctly increment the counter

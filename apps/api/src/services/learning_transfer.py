@@ -10,8 +10,14 @@ from uuid import uuid4
 
 from fastapi import HTTPException, Request, UploadFile
 from sqlmodel import Session, select
-
-from src.db.learning import BadgeCollection, LearningActivity, LearningBadge, LearningBadgeStatus, LearningPage, LearningPath
+from src.db.learning import (
+    BadgeCollection,
+    LearningActivity,
+    LearningBadge,
+    LearningBadgeStatus,
+    LearningPage,
+    LearningPath,
+)
 from src.db.users import AnonymousUser, PublicUser
 from src.services import learning as learning_service
 from src.services.courses.transfer.import_service import (
@@ -23,8 +29,10 @@ from src.services.courses.transfer.import_service import (
     validate_zip,
 )
 from src.services.courses.transfer.models import ImportOptions
-from src.services.learning_page_convert import convert_legacy_page, link_variant_sources_to_question_blocks
-
+from src.services.learning_page_convert import (
+    convert_legacy_page,
+    link_variant_sources_to_question_blocks,
+)
 
 LEARNING_EXPORT_FORMAT = "launch-lms-badge-export"
 LEGACY_COURSE_EXPORT_FORMAT = "launch-lms-course-export"

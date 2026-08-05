@@ -12,7 +12,6 @@ from fastapi import HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm.attributes import flag_modified
 from sqlmodel import Session, func, select
-
 from src.db.custom_domains import CustomDomain
 from src.db.learning import LearningBadge
 from src.db.organization_config import OrganizationConfig, OrganizationConfigV2Base
@@ -21,9 +20,9 @@ from src.db.plan_requests import PlanRequest, PlanRequestUpdate
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
-from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.security.features_utils.packs import AVAILABLE_PACKAGES
 from src.security.features_utils.plans import plan_meets_requirement
+from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 
 logger = logging.getLogger(__name__)
 

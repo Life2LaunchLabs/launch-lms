@@ -1,16 +1,16 @@
-from typing import Optional, AsyncGenerator
-from uuid import uuid4
-import logging
-import redis
-import json
 import asyncio
+import json
+import logging
+from collections.abc import AsyncGenerator
+from uuid import uuid4
 
+import redis
 from config.config import get_launchlms_config
 from src.services.ai.base import get_gemini_client
 from src.services.ai.schemas.magicblocks import (
     MagicBlockContext,
-    MagicBlockSessionData,
     MagicBlockMessage,
+    MagicBlockSessionData,
 )
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ def get_redis_connection():
     return None
 
 
-def get_magicblock_session(session_uuid: str) -> Optional[MagicBlockSessionData]:
+def get_magicblock_session(session_uuid: str) -> MagicBlockSessionData | None:
     """Get an existing MagicBlock session from Redis"""
     r = get_redis_connection()
     if not r:
@@ -198,7 +198,7 @@ async def generate_magicblock_stream(
     prompt: str,
     session: MagicBlockSessionData,
     gemini_model_name: str = "gemini-2.0-flash",
-    current_html: Optional[str] = None
+    current_html: str | None = None
 ) -> AsyncGenerator[str, None]:
     """
     Generate MagicBlock HTML content with streaming.
@@ -273,7 +273,7 @@ Please modify the HTML code above according to the user's request. Output ONLY t
         save_magicblock_session(session)
 
     except Exception as e:
-        yield f"Error: {str(e)}"
+        yield f"Error: {e!s}"
 
 
 def extract_html_from_response(response: str) -> str:

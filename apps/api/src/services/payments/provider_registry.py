@@ -11,13 +11,13 @@ To register a new provider:
   2. Create ee/services/payments/payments_<name>.py implementing IPaymentProvider
   3. Add a branch in get_provider() below
 """
-from functools import lru_cache
+from functools import cache
 
 from src.db.payments.payments import PaymentProviderEnum
 from src.services.payments.provider_interface import IPaymentProvider
 
 
-@lru_cache(maxsize=None)
+@cache
 def _stripe_provider() -> IPaymentProvider:
     from src.services.payments.payments_stripe import StripePaymentProvider
     return StripePaymentProvider()

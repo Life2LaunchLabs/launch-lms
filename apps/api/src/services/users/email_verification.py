@@ -4,21 +4,21 @@ Email verification service for verifying user email addresses.
 Uses Redis to store verification tokens with 1-hour TTL.
 Supports both org-based and org-less (platform) signups.
 """
-from datetime import datetime, timezone
 import json
 import secrets
+from datetime import datetime, timezone
+
 import redis
+from config.config import get_launchlms_config
 from fastapi import HTTPException, Request
 from pydantic import EmailStr
 from sqlmodel import Session, select
 from src.db.organizations import Organization, OrganizationRead
 from src.db.users import User, UserRead
-from config.config import get_launchlms_config
-from src.services.users.emails import send_email_verification_email
+from src.services.dev.dev import isDevModeEnabled
 from src.services.email.utils import get_base_url_from_request
 from src.services.security.rate_limiting import check_verification_resend_rate_limit
-from src.services.dev.dev import isDevModeEnabled
-
+from src.services.users.emails import send_email_verification_email
 
 # Token expiration time in seconds (1 hour)
 TOKEN_TTL_SECONDS = 60 * 60

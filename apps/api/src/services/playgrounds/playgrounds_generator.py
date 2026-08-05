@@ -1,16 +1,16 @@
-from typing import Optional, AsyncGenerator
-from uuid import uuid4
-import logging
-import redis
-import json
 import asyncio
+import json
+import logging
+from collections.abc import AsyncGenerator
+from uuid import uuid4
 
+import redis
 from config.config import get_launchlms_config
 from src.services.ai.base import get_gemini_client
 from src.services.playgrounds.schemas.playgrounds_generator import (
     PlaygroundContext,
-    PlaygroundSessionData,
     PlaygroundMessage,
+    PlaygroundSessionData,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,7 @@ def get_redis_connection():
     return None
 
 
-def get_playground_session(session_uuid: str) -> Optional[PlaygroundSessionData]:
+def get_playground_session(session_uuid: str) -> PlaygroundSessionData | None:
     r = get_redis_connection()
     if not r:
         return None
@@ -83,7 +83,7 @@ def save_playground_session(session: PlaygroundSessionData) -> bool:
 
 def build_playground_system_prompt(
     context: PlaygroundContext,
-    course_context: Optional[str] = None,
+    course_context: str | None = None,
 ) -> str:
     base_prompt = f"""You are an expert interactive content creator for educational playgrounds.
 
@@ -193,8 +193,8 @@ async def generate_playground_stream(
     prompt: str,
     session: PlaygroundSessionData,
     gemini_model_name: str = "gemini-2.0-flash",
-    current_html: Optional[str] = None,
-    course_context: Optional[str] = None,
+    current_html: str | None = None,
+    course_context: str | None = None,
 ) -> AsyncGenerator[str, None]:
     try:
         client = get_gemini_client()
@@ -259,7 +259,7 @@ Please modify the HTML code above according to the user's request. Output ONLY t
         save_playground_session(session)
 
     except Exception as e:
-        yield f"Error: {str(e)}"
+        yield f"Error: {e!s}"
 
 
 def extract_html_from_response(response: str) -> str:

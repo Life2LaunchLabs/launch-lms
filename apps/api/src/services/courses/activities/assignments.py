@@ -1,8 +1,8 @@
 from datetime import datetime
 from uuid import uuid4
+
 from fastapi import HTTPException, Request, UploadFile
 from sqlmodel import Session, select
-
 from src.db.courses.activities import Activity
 from src.db.courses.assignments import (
     Assignment,
@@ -26,25 +26,27 @@ from src.db.courses.courses import Course
 from src.db.organizations import Organization
 from src.db.trail_runs import TrailRun
 from src.db.trail_steps import TrailStep
-from src.db.users import AnonymousUser, PublicUser, User, APITokenUser
+from src.db.users import AnonymousUser, APITokenUser, PublicUser, User
 from src.security.features_utils.usage import (
     check_limits_with_usage,
     decrease_feature_usage,
     increase_feature_usage,
 )
 from src.security.rbac import (
+    AccessAction,
     authorization_verify_based_on_roles,
     check_resource_access,
-    AccessAction,
 )
+from src.services.analytics import events as analytics_events
+from src.services.analytics.analytics import track
 from src.services.courses.activities.uploads.sub_file import upload_submission_file
 from src.services.courses.activities.uploads.tasks_ref_files import (
     upload_reference_file,
 )
+from src.services.courses.certifications import (
+    check_course_completion_and_create_certificate,
+)
 from src.services.trail.trail import check_trail_presence
-from src.services.courses.certifications import check_course_completion_and_create_certificate
-from src.services.analytics.analytics import track
-from src.services.analytics import events as analytics_events
 
 
 def _block_api_tokens(current_user: PublicUser | AnonymousUser | APITokenUser) -> None:

@@ -1,7 +1,8 @@
 import logging
-from typing import Callable
-from fastapi import FastAPI
+from collections.abc import Callable
+
 from config.config import LaunchLMSConfig, get_launchlms_config
+from fastapi import FastAPI
 from src.core.events.autoinstall import auto_install
 from src.core.events.content import check_content_directory
 from src.core.events.database import close_database, connect_to_db

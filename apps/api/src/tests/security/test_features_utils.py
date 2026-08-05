@@ -1,13 +1,14 @@
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 from fastapi import HTTPException
 from sqlmodel import Session
+from src.db.organization_config import OrganizationConfig
 from src.security.features_utils.usage import (
     check_limits_with_usage,
-    increase_feature_usage,
     decrease_feature_usage,
+    increase_feature_usage,
 )
-from src.db.organization_config import OrganizationConfig
 
 
 class TestFeaturesUtils:

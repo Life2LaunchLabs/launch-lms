@@ -4,13 +4,13 @@ Utility functions for API token access control.
 This module is separate from auth.py to avoid circular imports.
 """
 
-from typing import Union
+
 from fastapi import HTTPException, status
 from src.db.users import AnonymousUser, APITokenUser, PublicUser
 
 
 def reject_api_token_access(
-    current_user: Union[PublicUser, APITokenUser, AnonymousUser]
+    current_user: PublicUser | APITokenUser | AnonymousUser
 ) -> None:
     """
     Reject access if the current user is an API token.
@@ -32,8 +32,8 @@ def reject_api_token_access(
 
 
 async def require_non_api_token_user(
-    current_user: Union[PublicUser, APITokenUser, AnonymousUser]
-) -> Union[PublicUser, AnonymousUser]:
+    current_user: PublicUser | APITokenUser | AnonymousUser
+) -> PublicUser | AnonymousUser:
     """
     FastAPI dependency that rejects API token access.
 

@@ -4,8 +4,10 @@ Central feature resolution logic (v2 config).
 5-layer resolution: plan config → overrides → packages → admin toggles.
 """
 
-from src.security.features_utils.plans import FEATURE_PLAN_REQUIREMENTS, get_plan_feature_config
-
+from src.security.features_utils.plans import (
+    FEATURE_PLAN_REQUIREMENTS,
+    get_plan_feature_config,
+)
 
 # Features that are always on (no admin toggle — cannot be disabled)
 ALWAYS_ON_FEATURES = {"courses", "storage", "usergroups", "assignments"}
@@ -72,7 +74,10 @@ def _is_feature_enabled_by_package(feature: str, config: dict, plan: str) -> boo
     Check if a feature is enabled via a package add-on.
     Packages are only active if the org's plan meets the package's min_plan.
     """
-    from src.security.features_utils.packs import AVAILABLE_PACKAGES, get_features_enabled_by_packages
+    from src.security.features_utils.packs import (
+        AVAILABLE_PACKAGES,
+        get_features_enabled_by_packages,
+    )
     from src.security.features_utils.plans import plan_meets_requirement
 
     packages = _get_packages(config)

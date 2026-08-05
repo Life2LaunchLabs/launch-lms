@@ -1,9 +1,16 @@
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel
-from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlmodel import Field, SQLModel
 
 
@@ -49,16 +56,16 @@ class BadgeIssuerAuthorizationStatus(str, Enum):
 
 class LearningBadgeBase(SQLModel):
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
-    collection_id: Optional[int] = Field(default=None, sa_column=Column(Integer, ForeignKey("badgecollection.id", ondelete="SET NULL"), nullable=True, index=True))
+    collection_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("badgecollection.id", ondelete="SET NULL"), nullable=True, index=True))
     name: str
-    description: Optional[str] = ""
-    about: Optional[str] = ""
-    criteria: Optional[str] = ""
-    thumbnail_image: Optional[str] = ""
+    description: str | None = ""
+    about: str | None = ""
+    criteria: str | None = ""
+    thumbnail_image: str | None = ""
     public: bool = True
     status: LearningBadgeStatus = Field(default=LearningBadgeStatus.DRAFT, sa_column=Column(String, nullable=False))
     protected: bool = False
-    system_type: Optional[str] = None
+    system_type: str | None = None
     direct_conferral_enabled: bool = True
     marketplace_listed: bool = False
     badge_metadata: dict = Field(default_factory=dict, sa_column=Column("metadata", JSON))
@@ -67,7 +74,7 @@ class LearningBadgeBase(SQLModel):
 class LearningBadge(LearningBadgeBase, table=True):
     __table_args__ = (UniqueConstraint("badge_uuid"),)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     badge_uuid: str = Field(default="", index=True)
     creation_date: str = ""
     update_date: str = ""
@@ -75,35 +82,35 @@ class LearningBadge(LearningBadgeBase, table=True):
 
 class LearningBadgeCreate(SQLModel):
     org_id: int
-    collection_id: Optional[int] = None
+    collection_id: int | None = None
     name: str
-    description: Optional[str] = ""
-    about: Optional[str] = ""
-    criteria: Optional[str] = ""
-    thumbnail_image: Optional[str] = ""
+    description: str | None = ""
+    about: str | None = ""
+    criteria: str | None = ""
+    thumbnail_image: str | None = ""
     public: bool = True
     status: LearningBadgeStatus = LearningBadgeStatus.DRAFT
     protected: bool = False
-    system_type: Optional[str] = None
+    system_type: str | None = None
     direct_conferral_enabled: bool = True
     marketplace_listed: bool = False
     badge_metadata: dict = Field(default_factory=dict)
 
 
 class LearningBadgeUpdate(SQLModel):
-    collection_id: Optional[int] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
-    about: Optional[str] = None
-    criteria: Optional[str] = None
-    thumbnail_image: Optional[str] = None
-    public: Optional[bool] = None
-    status: Optional[LearningBadgeStatus] = None
-    protected: Optional[bool] = None
-    system_type: Optional[str] = None
-    direct_conferral_enabled: Optional[bool] = None
-    marketplace_listed: Optional[bool] = None
-    badge_metadata: Optional[dict] = None
+    collection_id: int | None = None
+    name: str | None = None
+    description: str | None = None
+    about: str | None = None
+    criteria: str | None = None
+    thumbnail_image: str | None = None
+    public: bool | None = None
+    status: LearningBadgeStatus | None = None
+    protected: bool | None = None
+    system_type: str | None = None
+    direct_conferral_enabled: bool | None = None
+    marketplace_listed: bool | None = None
+    badge_metadata: dict | None = None
 
 
 class LearningBadgeRead(LearningBadgeBase):
@@ -116,7 +123,7 @@ class LearningBadgeRead(LearningBadgeBase):
 class LearningBadgeNotificationSignup(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("badge_id", "user_id"),)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     signup_uuid: str = Field(default="", index=True)
     badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
@@ -128,18 +135,18 @@ class LearningBadgeNotificationSignup(SQLModel, table=True):
 class BadgeCollectionBase(SQLModel):
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     name: str
-    description: Optional[str] = ""
-    thumbnail_image: Optional[str] = ""
+    description: str | None = ""
+    thumbnail_image: str | None = ""
     public: bool = True
     hidden: bool = False
     protected: bool = False
-    system_type: Optional[str] = None
+    system_type: str | None = None
 
 
 class BadgeCollection(BadgeCollectionBase, table=True):
     __table_args__ = (UniqueConstraint("collection_uuid"),)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     collection_uuid: str = Field(default="", index=True)
     creation_date: str = ""
     update_date: str = ""
@@ -148,22 +155,22 @@ class BadgeCollection(BadgeCollectionBase, table=True):
 class BadgeCollectionCreate(SQLModel):
     org_id: int
     name: str
-    description: Optional[str] = ""
-    thumbnail_image: Optional[str] = ""
+    description: str | None = ""
+    thumbnail_image: str | None = ""
     public: bool = True
     hidden: bool = False
     protected: bool = False
-    system_type: Optional[str] = None
+    system_type: str | None = None
 
 
 class BadgeCollectionUpdate(SQLModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    thumbnail_image: Optional[str] = None
-    public: Optional[bool] = None
-    hidden: Optional[bool] = None
-    protected: Optional[bool] = None
-    system_type: Optional[str] = None
+    name: str | None = None
+    description: str | None = None
+    thumbnail_image: str | None = None
+    public: bool | None = None
+    hidden: bool | None = None
+    protected: bool | None = None
+    system_type: str | None = None
 
 
 class BadgeCollectionRead(BadgeCollectionBase):
@@ -179,7 +186,7 @@ class BadgeIssuerAuthorization(SQLModel, table=True):
 
     __table_args__ = (UniqueConstraint("badge_id", "issuer_org_id"), UniqueConstraint("authorization_uuid"))
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     authorization_uuid: str = Field(default="", index=True)
     badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
     creator_org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
@@ -188,10 +195,10 @@ class BadgeIssuerAuthorization(SQLModel, table=True):
     # When true the issuer accepts submissions from any learner; when false only
     # learners with a BadgeIssuerLearnerLink can select this issuer.
     open_to_all: bool = False
-    message: Optional[str] = ""
-    requested_by_user_id: Optional[int] = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
-    decided_by_user_id: Optional[int] = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
-    decided_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    message: str | None = ""
+    requested_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    decided_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    decided_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
     creation_date: str = ""
     update_date: str = ""
 
@@ -201,14 +208,14 @@ class BadgeIssuerLearnerLink(SQLModel, table=True):
 
     __table_args__ = (UniqueConstraint("authorization_id", "user_id"), UniqueConstraint("link_uuid"))
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     link_uuid: str = Field(default="", index=True)
     authorization_id: int = Field(sa_column=Column(Integer, ForeignKey("badgeissuerauthorization.id", ondelete="CASCADE"), index=True))
     badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
     issuer_org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True))
-    created_by_user_id: Optional[int] = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
-    note: Optional[str] = ""
+    created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    note: str | None = ""
     creation_date: str = ""
     update_date: str = ""
 
@@ -221,49 +228,49 @@ class BadgeIssuerAuthorizationRead(BaseModel):
     issuer_org_id: int
     status: BadgeIssuerAuthorizationStatus
     open_to_all: bool
-    message: Optional[str] = ""
-    requested_by_user_id: Optional[int] = None
-    decided_by_user_id: Optional[int] = None
-    decided_at: Optional[datetime] = None
+    message: str | None = ""
+    requested_by_user_id: int | None = None
+    decided_by_user_id: int | None = None
+    decided_at: datetime | None = None
     creation_date: str
     update_date: str
-    badge: Optional[dict] = None
-    creator_org: Optional[dict] = None
-    issuer_org: Optional[dict] = None
+    badge: dict | None = None
+    creator_org: dict | None = None
+    issuer_org: dict | None = None
 
 
 class IssuerAuthorizationRequest(SQLModel):
     badge_uuid: str
     issuer_org_id: int
-    message: Optional[str] = ""
+    message: str | None = ""
 
 
 class IssuerAuthorizationInvite(SQLModel):
     badge_uuid: str
     issuer_org_slug: str
-    message: Optional[str] = ""
+    message: str | None = ""
 
 
 class IssuerAuthorizationUpdate(SQLModel):
-    open_to_all: Optional[bool] = None
+    open_to_all: bool | None = None
 
 
 class IssuerLearnerLinkCreate(SQLModel):
     badge_uuid: str
     issuer_org_id: int
     user_id: int
-    note: Optional[str] = ""
+    note: str | None = ""
 
 
 class LearningPath(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("badge_id"), UniqueConstraint("path_uuid"))
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     path_uuid: str = Field(default="", index=True)
     badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
-    title: Optional[str] = ""
-    description: Optional[str] = ""
+    title: str | None = ""
+    description: str | None = ""
     creation_date: str = ""
     update_date: str = ""
 
@@ -273,9 +280,9 @@ class LearningActivityBase(SQLModel):
     badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     title: str
-    description: Optional[str] = ""
-    thumbnail_image: Optional[str] = ""
-    icon: Optional[str] = None
+    description: str | None = ""
+    thumbnail_image: str | None = ""
+    icon: str | None = None
     order: int = 1
     required: bool = True
     published: bool = False
@@ -285,7 +292,7 @@ class LearningActivityBase(SQLModel):
 class LearningActivity(LearningActivityBase, table=True):
     __table_args__ = (UniqueConstraint("activity_uuid"),)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     activity_uuid: str = Field(default="", index=True)
     creation_date: str = ""
     update_date: str = ""
@@ -294,23 +301,23 @@ class LearningActivity(LearningActivityBase, table=True):
 class LearningActivityCreate(SQLModel):
     badge_uuid: str
     title: str
-    description: Optional[str] = ""
-    thumbnail_image: Optional[str] = ""
-    icon: Optional[str] = None
+    description: str | None = ""
+    thumbnail_image: str | None = ""
+    icon: str | None = None
     required: bool = True
     published: bool = False
     settings: dict = Field(default_factory=dict)
 
 
 class LearningActivityUpdate(SQLModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    thumbnail_image: Optional[str] = None
-    icon: Optional[str] = None
-    order: Optional[int] = None
-    required: Optional[bool] = None
-    published: Optional[bool] = None
-    settings: Optional[dict] = None
+    title: str | None = None
+    description: str | None = None
+    thumbnail_image: str | None = None
+    icon: str | None = None
+    order: int | None = None
+    required: bool | None = None
+    published: bool | None = None
+    settings: dict | None = None
 
 
 class LearningActivityRead(LearningActivityBase):
@@ -338,7 +345,7 @@ class LearningPageBase(SQLModel):
 class LearningPage(LearningPageBase, table=True):
     __table_args__ = (UniqueConstraint("page_uuid"),)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     page_uuid: str = Field(default="", index=True)
     creation_date: str = ""
     update_date: str = ""
@@ -356,14 +363,14 @@ class LearningPageCreate(SQLModel):
 
 
 class LearningPageUpdate(SQLModel):
-    page_type: Optional[LearningPageType] = None
-    title: Optional[str] = None
-    order: Optional[int] = None
-    required: Optional[bool] = None
-    content: Optional[dict] = None
-    design: Optional[dict] = None
-    scoring: Optional[dict] = None
-    completion: Optional[dict] = None
+    page_type: LearningPageType | None = None
+    title: str | None = None
+    order: int | None = None
+    required: bool | None = None
+    content: dict | None = None
+    design: dict | None = None
+    scoring: dict | None = None
+    completion: dict | None = None
 
 
 class LearningPageRead(LearningPageBase):
@@ -377,7 +384,7 @@ class LearningVariableBase(SQLModel):
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     key: str
     label: str
-    description: Optional[str] = ""
+    description: str | None = ""
     value_type: LearningVariableValueType = LearningVariableValueType.TEXT
     options: list = Field(default_factory=list, sa_column=Column(JSON))
 
@@ -385,7 +392,7 @@ class LearningVariableBase(SQLModel):
 class LearningVariable(LearningVariableBase, table=True):
     __table_args__ = (UniqueConstraint("variable_uuid"), UniqueConstraint("org_id", "key"))
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     variable_uuid: str = Field(default="", index=True)
     creation_date: str = ""
     update_date: str = ""
@@ -395,16 +402,16 @@ class LearningVariableCreate(SQLModel):
     org_id: int
     key: str
     label: str
-    description: Optional[str] = ""
+    description: str | None = ""
     value_type: LearningVariableValueType = LearningVariableValueType.TEXT
     options: list = Field(default_factory=list)
 
 
 class LearningVariableUpdate(SQLModel):
-    label: Optional[str] = None
-    description: Optional[str] = None
-    value_type: Optional[LearningVariableValueType] = None
-    options: Optional[list] = None
+    label: str | None = None
+    description: str | None = None
+    value_type: LearningVariableValueType | None = None
+    options: list | None = None
 
 
 class LearningVariableRead(LearningVariableBase):
@@ -417,18 +424,18 @@ class LearningVariableRead(LearningVariableBase):
 class LearningRun(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("run_uuid"),)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     run_uuid: str = Field(default="", index=True)
     badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
     path_id: int = Field(sa_column=Column(Integer, ForeignKey("learningpath.id", ondelete="CASCADE"), index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     # Org the learner is earning the badge under; None means the badge's creator org.
-    issuing_org_id: Optional[int] = Field(default=None, sa_column=Column(Integer, ForeignKey("organization.id", ondelete="SET NULL"), nullable=True, index=True))
-    user_id: Optional[int] = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=True, index=True))
-    guest_session_id: Optional[int] = Field(default=None, sa_column=Column(Integer, ForeignKey("guestsession.id", ondelete="CASCADE"), nullable=True, index=True))
+    issuing_org_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("organization.id", ondelete="SET NULL"), nullable=True, index=True))
+    user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=True, index=True))
+    guest_session_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("guestsession.id", ondelete="CASCADE"), nullable=True, index=True))
     status: LearningRunStatus = LearningRunStatus.IN_PROGRESS
     started_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(DateTime, nullable=False))
-    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    completed_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
     data: dict = Field(default_factory=dict, sa_column=Column(JSON))
     creation_date: str = ""
     update_date: str = ""
@@ -437,58 +444,58 @@ class LearningRun(SQLModel, table=True):
 class LearningActivityRun(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("run_id", "activity_id"),)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     run_id: int = Field(sa_column=Column(Integer, ForeignKey("learningrun.id", ondelete="CASCADE"), index=True))
     activity_id: int = Field(sa_column=Column(Integer, ForeignKey("learningactivity.id", ondelete="CASCADE"), index=True))
     status: LearningRunStatus = LearningRunStatus.IN_PROGRESS
     started_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(DateTime, nullable=False))
-    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    completed_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
     data: dict = Field(default_factory=dict, sa_column=Column(JSON))
 
 
 class LearningPageProgress(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("run_id", "page_id"),)
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     run_id: int = Field(sa_column=Column(Integer, ForeignKey("learningrun.id", ondelete="CASCADE"), index=True))
-    activity_run_id: Optional[int] = Field(default=None, sa_column=Column(Integer, ForeignKey("learningactivityrun.id", ondelete="CASCADE"), nullable=True, index=True))
+    activity_run_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningactivityrun.id", ondelete="CASCADE"), nullable=True, index=True))
     page_id: int = Field(sa_column=Column(Integer, ForeignKey("learningpage.id", ondelete="CASCADE"), index=True))
     complete: bool = False
-    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    completed_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
     data: dict = Field(default_factory=dict, sa_column=Column(JSON))
     creation_date: str = ""
     update_date: str = ""
 
 
 class LearningResponseAttempt(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     attempt_uuid: str = Field(default="", index=True)
     run_id: int = Field(sa_column=Column(Integer, ForeignKey("learningrun.id", ondelete="CASCADE"), index=True))
     page_id: int = Field(sa_column=Column(Integer, ForeignKey("learningpage.id", ondelete="CASCADE"), index=True))
-    user_id: Optional[int] = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=True, index=True))
-    guest_session_id: Optional[int] = Field(default=None, sa_column=Column(Integer, ForeignKey("guestsession.id", ondelete="CASCADE"), nullable=True, index=True))
+    user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=True, index=True))
+    guest_session_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("guestsession.id", ondelete="CASCADE"), nullable=True, index=True))
     answer: dict = Field(default_factory=dict, sa_column=Column(JSON))
-    is_correct: Optional[bool] = None
-    score: Optional[float] = None
-    feedback_key: Optional[str] = None
+    is_correct: bool | None = None
+    score: float | None = None
+    feedback_key: str | None = None
     submitted_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(DateTime, nullable=False))
-    graded_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    graded_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
     result: dict = Field(default_factory=dict, sa_column=Column(JSON))
 
 
 class LearningBadgeAward(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("award_uuid"), UniqueConstraint("badge_id", "user_id"))
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     award_uuid: str = Field(default="", index=True)
     badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
-    run_id: Optional[int] = Field(default=None, sa_column=Column(Integer, ForeignKey("learningrun.id", ondelete="SET NULL"), nullable=True, index=True))
+    run_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningrun.id", ondelete="SET NULL"), nullable=True, index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     # Org that issued the award; None means the badge's creator org issued it.
-    issuing_org_id: Optional[int] = Field(default=None, sa_column=Column(Integer, ForeignKey("organization.id", ondelete="SET NULL"), nullable=True, index=True))
+    issuing_org_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("organization.id", ondelete="SET NULL"), nullable=True, index=True))
     user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True))
     source: LearningAwardSource = LearningAwardSource.PATH_COMPLETION
-    conferred_by_user_id: Optional[int] = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    conferred_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     issued_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(DateTime, nullable=False))
     evidence: dict = Field(default_factory=dict, sa_column=Column(JSON))
     creation_date: str = ""
@@ -501,16 +508,16 @@ class LearningRunRead(BaseModel):
     badge_id: int
     path_id: int
     org_id: int
-    issuing_org_id: Optional[int] = None
-    user_id: Optional[int] = None
-    guest_session_id: Optional[int] = None
+    issuing_org_id: int | None = None
+    user_id: int | None = None
+    guest_session_id: int | None = None
     status: LearningRunStatus
     started_at: datetime
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
     page_progress: list[dict] = []
     attempts: list[dict] = []
-    award: Optional[dict] = None
-    navigation: Optional[dict] = None
+    award: dict | None = None
+    navigation: dict | None = None
     render_context: dict = Field(default_factory=dict)
 
 
@@ -518,7 +525,7 @@ class LearningPathRead(BaseModel):
     path: dict
     badge: LearningBadgeRead
     activities: list[LearningActivityRead]
-    run: Optional[LearningRunRead] = None
+    run: LearningRunRead | None = None
 
 
 class LearningPageComplete(SQLModel):
@@ -535,13 +542,13 @@ class LearningResponseSubmit(SQLModel):
 
 class LearningResponseGrade(SQLModel):
     score: float
-    feedback: Optional[str] = ""
+    feedback: str | None = ""
 
 
 class LearningAwardCreate(SQLModel):
     badge_uuid: str
     user_id: int
-    issuing_org_id: Optional[int] = None
+    issuing_org_id: int | None = None
     evidence: dict = Field(default_factory=dict)
 
 

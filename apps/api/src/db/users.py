@@ -1,7 +1,8 @@
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
+
 from pydantic import BaseModel, EmailStr
-from sqlmodel import Field, SQLModel
 from sqlalchemy import JSON, Column, Index
+from sqlmodel import Field, SQLModel
 from src.db.roles import RoleRead
 
 if TYPE_CHECKING:
@@ -14,10 +15,10 @@ class UserBase(SQLModel):
     first_name: str
     last_name: str
     email: EmailStr
-    avatar_image: Optional[str] = ""
-    bio: Optional[str] = ""
-    details: Optional[dict] = Field(default_factory=dict, sa_column=Column(JSON))
-    profile: Optional[dict] = Field(default_factory=dict, sa_column=Column(JSON))
+    avatar_image: str | None = ""
+    bio: str | None = ""
+    details: dict | None = Field(default_factory=dict, sa_column=Column(JSON))
+    profile: dict | None = Field(default_factory=dict, sa_column=Column(JSON))
 
 class UserCreate(UserBase):
     first_name: str = ""
@@ -31,13 +32,13 @@ class UserSignupCreate(UserCreate):
 
 class UserUpdate(UserBase):
     username: str
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
     email: str
-    avatar_image: Optional[str] = ""
-    bio: Optional[str] = ""
-    details: Optional[dict] = Field(default_factory=dict)
-    profile: Optional[dict] = Field(default_factory=dict)
+    avatar_image: str | None = ""
+    bio: str | None = ""
+    details: dict | None = Field(default_factory=dict)
+    profile: dict | None = Field(default_factory=dict)
 
 
 class UserUpdatePassword(SQLModel):
@@ -49,8 +50,8 @@ class UserRead(UserBase):
     id: int
     user_uuid: str
     email_verified: bool = False
-    last_login_at: Optional[str] = None
-    signup_method: Optional[str] = None
+    last_login_at: str | None = None
+    signup_method: str | None = None
     is_superadmin: bool = False
 
 
@@ -59,8 +60,8 @@ class UserReadPublic(UserBase):
     id: int
     user_uuid: str
     email_verified: bool = False
-    avatar_image: Optional[str] = ""
-    bio: Optional[str] = ""
+    avatar_image: str | None = ""
+    bio: str | None = ""
 
 
 class PublicUser(UserRead):
@@ -97,7 +98,7 @@ class APITokenUser(SQLModel):
     user_uuid: str = "apitoken_user"  # Will be set to token_uuid
     username: str = "api_token"
     org_id: int  # CRITICAL: Organization scope - token can only access this org
-    rights: Optional[dict] = None  # Token's rights/permissions
+    rights: dict | None = None  # Token's rights/permissions
     token_name: str = ""
     created_by_user_id: int = 0  # User who created the token
 
@@ -107,16 +108,16 @@ class User(UserBase, table=True):
         Index("ix_user_email", "email"),
         {"extend_existing": True},
     )
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     password: str = ""
     user_uuid: str = Field(default="", index=True)
     email_verified: bool = False
-    email_verified_at: Optional[str] = None
+    email_verified_at: str | None = None
     failed_login_attempts: int = 0
-    locked_until: Optional[str] = None
-    last_login_at: Optional[str] = None
-    last_login_ip: Optional[str] = None
-    signup_method: Optional[str] = None
+    locked_until: str | None = None
+    last_login_at: str | None = None
+    last_login_ip: str | None = None
+    signup_method: str | None = None
     is_superadmin: bool = Field(default=False)
     creation_date: str = ""
     update_date: str = ""

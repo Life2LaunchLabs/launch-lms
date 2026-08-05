@@ -1,13 +1,14 @@
-from typing import Optional, Dict, Any, AsyncGenerator
-from uuid import uuid4
-from datetime import datetime, timezone
-import logging
-import redis
-import json
 import asyncio
-from google import genai
+import json
+import logging
+from collections.abc import AsyncGenerator
+from datetime import datetime, timezone
+from typing import Any
+from uuid import uuid4
 
+import redis
 from config.config import get_launchlms_config
+from google import genai
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ def ask_ai(
     text_reference: str,
     message_for_the_prompt: str,
     gemini_model_name: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Process an AI query using Google Gen AI SDK with course content as context
     """
@@ -73,9 +74,9 @@ def ask_ai(
         }
 
     except Exception as e:
-        raise Exception(f"Error processing AI request: {str(e)}")
+        raise Exception(f"Error processing AI request: {e!s}")
 
-def get_chat_session_history(aichat_uuid: Optional[str] = None) -> Dict[str, Any]:
+def get_chat_session_history(aichat_uuid: str | None = None) -> dict[str, Any]:
     """Get or create a new chat session history using Redis"""
     session_id = aichat_uuid if aichat_uuid else f"aichat_{uuid4()}"
     
@@ -108,7 +109,7 @@ def get_chat_session_history(aichat_uuid: Optional[str] = None) -> Dict[str, Any
         "aichat_uuid": session_id
     }
 
-def save_message_to_history(aichat_uuid: str, user_message: str, ai_response: str, user_id: Optional[int] = None, course_uuid: Optional[str] = None, sources: Optional[list] = None, mode: str = "course_only", org_id: Optional[int] = None):
+def save_message_to_history(aichat_uuid: str, user_message: str, ai_response: str, user_id: int | None = None, course_uuid: str | None = None, sources: list | None = None, mode: str = "course_only", org_id: int | None = None):
     """Save a message exchange to Redis history. Auto-creates session metadata on first message."""
     LH_CONFIG = get_launchlms_config()
     redis_conn_string = LH_CONFIG.redis_config.redis_connection_string
@@ -172,7 +173,7 @@ def _get_redis():
     return redis.from_url(conn)
 
 
-def save_chat_session_meta(aichat_uuid: str, user_id: int, title: str, course_uuid: Optional[str] = None, mode: str = "course_only", org_id: Optional[int] = None):
+def save_chat_session_meta(aichat_uuid: str, user_id: int, title: str, course_uuid: str | None = None, mode: str = "course_only", org_id: int | None = None):
     """Store session metadata and add to user's session index."""
     r = _get_redis()
     if not r:
@@ -196,7 +197,7 @@ def save_chat_session_meta(aichat_uuid: str, user_id: int, title: str, course_uu
         logger.error("Failed to save chat session meta: %s", e, exc_info=True)
 
 
-def update_chat_session_meta(aichat_uuid: str, user_id: int, title: Optional[str] = None, favorite: Optional[bool] = None) -> Optional[dict]:
+def update_chat_session_meta(aichat_uuid: str, user_id: int, title: str | None = None, favorite: bool | None = None) -> dict | None:
     """Update title and/or favorite flag on a session. Returns updated meta or None."""
     r = _get_redis()
     if not r:
@@ -227,7 +228,7 @@ def update_chat_session_meta(aichat_uuid: str, user_id: int, title: Optional[str
         return None
 
 
-def get_user_chat_sessions(user_id: int, org_id: Optional[int] = None) -> list[dict]:
+def get_user_chat_sessions(user_id: int, org_id: int | None = None) -> list[dict]:
     """Return all chat sessions for a user, newest first. Optionally filter by org_id."""
     r = _get_redis()
     if not r:
@@ -262,7 +263,7 @@ def get_user_chat_sessions(user_id: int, org_id: Optional[int] = None) -> list[d
         return []
 
 
-def get_chat_messages(aichat_uuid: str, user_id: int) -> Optional[list[dict]]:
+def get_chat_messages(aichat_uuid: str, user_id: int) -> list[dict] | None:
     """Get messages for a chat session, validating ownership. Returns None if not owned."""
     r = _get_redis()
     if not r:
@@ -389,7 +390,7 @@ async def ask_ai_stream(
                 await asyncio.sleep(0.01)
 
     except Exception as e:
-        yield f"Error: {str(e)}"
+        yield f"Error: {e!s}"
 
 
 async def generate_follow_up_suggestions(

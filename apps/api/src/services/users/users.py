@@ -2,25 +2,13 @@ import logging
 from datetime import datetime, timezone
 from typing import Literal
 from uuid import uuid4
+
+from config.config import get_launchlms_config
 from fastapi import HTTPException, Request, UploadFile, status
 from sqlmodel import Session, select
-from config.config import get_launchlms_config
-from src.security.features_utils.usage import (
-    check_limits_with_usage,
-    increase_feature_usage,
-)
-from src.services.users.usergroups import add_users_to_usergroup
-from src.services.users.emails import (
-    send_account_creation_email,
-)
-from src.services.orgs.invites import get_invite_code
-from src.services.users.avatars import upload_avatar, upload_profile_cover, upload_profile_featured_image
-from src.db.roles import Role, RoleRead
-from src.security.rbac.rbac import (
-    authorization_verify_based_on_roles_and_authorship,
-    authorization_verify_if_user_is_anon,
-)
 from src.db.organizations import Organization, OrganizationRead
+from src.db.roles import Role, RoleRead
+from src.db.user_organizations import UserOrganization
 from src.db.users import (
     AnonymousUser,
     InternalUser,
@@ -34,12 +22,29 @@ from src.db.users import (
     UserUpdate,
     UserUpdatePassword,
 )
-from src.db.user_organizations import UserOrganization
+from src.security.features_utils.usage import (
+    check_limits_with_usage,
+    increase_feature_usage,
+)
+from src.security.rbac.rbac import (
+    authorization_verify_based_on_roles_and_authorship,
+    authorization_verify_if_user_is_anon,
+)
 from src.security.security import security_hash_password, security_verify_password
-from src.services.security.password_validation import validate_password_complexity
-from src.services.analytics.analytics import track
 from src.services.analytics import events as analytics_events
+from src.services.analytics.analytics import track
 from src.services.dev.dev import isDevModeEnabled
+from src.services.orgs.invites import get_invite_code
+from src.services.security.password_validation import validate_password_complexity
+from src.services.users.avatars import (
+    upload_avatar,
+    upload_profile_cover,
+    upload_profile_featured_image,
+)
+from src.services.users.emails import (
+    send_account_creation_email,
+)
+from src.services.users.usergroups import add_users_to_usergroup
 
 logger = logging.getLogger(__name__)
 
@@ -430,7 +435,7 @@ async def update_user_avatar(
         except Exception as e:
             raise HTTPException(
                 status_code=400,
-                detail=f"Avatar upload failed: {str(e)}",
+                detail=f"Avatar upload failed: {e!s}",
             )
 
     # Update user in database
@@ -473,7 +478,7 @@ async def update_user_profile_cover(
         except Exception as e:
             raise HTTPException(
                 status_code=400,
-                detail=f"Profile cover upload failed: {str(e)}",
+                detail=f"Profile cover upload failed: {e!s}",
             )
 
     db_session.add(user)
@@ -512,7 +517,7 @@ async def upload_user_profile_featured_image(
     except Exception as e:
         raise HTTPException(
             status_code=400,
-            detail=f"Featured image upload failed: {str(e)}",
+            detail=f"Featured image upload failed: {e!s}",
         )
 
     return {

@@ -2,14 +2,12 @@ import hashlib
 from typing import Any
 
 from fastapi import Request
-
-from src.db.organizations import Organization
+from src.db.courses.certifications import CertificateUser, Certifications
 from src.db.courses.courses import Course
-from src.db.courses.certifications import Certifications, CertificateUser
 from src.db.organization_config import OrganizationConfig
+from src.db.organizations import Organization
 from src.db.users import User
 from src.services.email.utils import get_base_url_from_request
-
 
 OPEN_BADGES_CONTEXT = "https://w3id.org/openbadges/v2"
 DEFAULT_BADGE_CRITERIA_TEXT = "Complete all required activities in this course."
@@ -139,7 +137,7 @@ def build_assertion_payload(
     badge_class = build_badge_class_payload(request, org, course, certification, org_config)
     recipient_email = (user.email or "").strip().lower()
     salt = f"launchlms-{certificate_user.user_certification_uuid[-12:]}"
-    identity_hash = hashlib.sha256(f"{recipient_email}{salt}".encode("utf-8")).hexdigest()
+    identity_hash = hashlib.sha256(f"{recipient_email}{salt}".encode()).hexdigest()
     support_url = (certification.config or {}).get("badge_support_url")
 
     assertion: dict[str, Any] = {

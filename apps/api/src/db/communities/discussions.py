@@ -1,8 +1,7 @@
-from typing import Optional
-from sqlalchemy import Column, ForeignKey, Integer, Text, Boolean, String
+
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text
 from sqlmodel import Field, SQLModel
 from src.db.users import UserRead
-
 
 # Available discussion labels
 DISCUSSION_LABELS = [
@@ -16,13 +15,13 @@ DISCUSSION_LABELS = [
 
 class DiscussionBase(SQLModel):
     title: str
-    content: Optional[str] = Field(default=None, sa_column=Column(Text))
-    label: Optional[str] = Field(default="general", sa_column=Column(String(50)))
-    emoji: Optional[str] = Field(default=None, sa_column=Column(String(50)))
+    content: str | None = Field(default=None, sa_column=Column(Text))
+    label: str | None = Field(default="general", sa_column=Column(String(50)))
+    emoji: str | None = Field(default=None, sa_column=Column(String(50)))
 
 
 class Discussion(DiscussionBase, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     community_id: int = Field(
         sa_column=Column(Integer, ForeignKey("community.id", ondelete="CASCADE"))
     )
@@ -43,19 +42,19 @@ class Discussion(DiscussionBase, table=True):
 
 class DiscussionCreate(SQLModel):
     title: str
-    content: Optional[str] = None
-    label: Optional[str] = "general"
-    emoji: Optional[str] = None
+    content: str | None = None
+    label: str | None = "general"
+    emoji: str | None = None
     community_id: int = Field(default=None, foreign_key="community.id")
     org_id: int = Field(default=None, foreign_key="organization.id")
     author_id: int = Field(default=None, foreign_key="user.id")
 
 
 class DiscussionUpdate(SQLModel):
-    title: Optional[str] = None
-    content: Optional[str] = None
-    label: Optional[str] = None
-    emoji: Optional[str] = None
+    title: str | None = None
+    content: str | None = None
+    label: str | None = None
+    emoji: str | None = None
 
 
 class DiscussionPinUpdate(SQLModel):
@@ -69,9 +68,9 @@ class DiscussionLockUpdate(SQLModel):
 class DiscussionRead(SQLModel):
     id: int
     title: str
-    content: Optional[str] = None
-    label: Optional[str] = "general"
-    emoji: Optional[str] = None
+    content: str | None = None
+    label: str | None = "general"
+    emoji: str | None = None
     community_id: int = Field(default=None, foreign_key="community.id")
     org_id: int = Field(default=None, foreign_key="organization.id")
     author_id: int = Field(default=None, foreign_key="user.id")
@@ -85,7 +84,7 @@ class DiscussionRead(SQLModel):
 
 
 class DiscussionReadWithAuthor(DiscussionRead):
-    author: Optional[UserRead] = None
+    author: UserRead | None = None
 
 
 class DiscussionReadWithVoteStatus(DiscussionReadWithAuthor):

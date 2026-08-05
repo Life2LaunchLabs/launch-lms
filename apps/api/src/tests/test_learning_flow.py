@@ -1,6 +1,10 @@
 import pytest
-
-from src.services.learning_flow import FlowValidationError, evaluate_condition, resolve_flow, validate_flow
+from src.services.learning_flow import (
+    FlowValidationError,
+    evaluate_condition,
+    resolve_flow,
+    validate_flow,
+)
 
 
 def _flow():
