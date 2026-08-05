@@ -11,9 +11,6 @@ from src.db.learning import (
     LearningResponseAttempt,
     LearningRun,
 )
-from src.db.trail_runs import TrailRun
-from src.db.trail_steps import TrailStep
-from src.db.trails import Trail
 from src.db.users import AnonymousUser, PublicUser
 from src.security.cookies import get_cookie_domain_for_request, is_request_secure
 

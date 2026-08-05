@@ -2,7 +2,7 @@ import logging
 from datetime import datetime
 
 from config.config import get_launchlms_config
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from migrations.orgconfigs.orgconfigs_migrations import (
     migrate_to_v1_1,
     migrate_to_v1_2,

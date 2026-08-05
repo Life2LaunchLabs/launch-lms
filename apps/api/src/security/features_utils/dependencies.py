@@ -9,7 +9,6 @@ from typing import Literal
 from fastapi import Depends, HTTPException, Path, Request
 from sqlmodel import Session, select
 from src.core.events.database import get_db_session
-from src.db.courses.courses import Course
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.user_organizations import UserOrganization

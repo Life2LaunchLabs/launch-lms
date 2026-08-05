@@ -64,7 +64,12 @@ from src.services.badge_openbadges import (
     get_public_base_url,
 )
 from src.services.guest_sessions import LearningActor
-from src.services.learning_flow import FlowValidationError, resolve_flow, validate_flow
+from src.services.learning_flow import (
+    FlowValidationError,
+    append_page_to_flow,
+    resolve_flow,
+    validate_flow,
+)
 from src.services.learning_page_convert import (
     STANDARD_CONTENT_VERSION,
     find_question_block,
@@ -74,12 +79,6 @@ from src.services.learning_page_convert import (
     paragraph_node,
     question_block,
     text_block,
-)
-from src.services.learning_flow import (
-    FlowValidationError,
-    append_page_to_flow,
-    resolve_flow,
-    validate_flow,
 )
 from src.services.learning_portfolio_actions import (
     PortfolioActionError,

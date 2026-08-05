@@ -19,7 +19,7 @@ from src.security.auth import get_current_user
 from src.security.rbac.resource_access import (
     AccessAction,
     AccessContext,
-    ResourceAccessChecker,
+    check_resource_access,
 )
 from src.services.utils.video_streaming import (
     CHUNK_SIZE,
@@ -64,8 +64,7 @@ async def _verify_podcast_episode_access(
         raise HTTPException(status_code=404, detail="Podcast not found or episode doesn't belong to podcast")
 
     # RBAC check - verify user can read this podcast
-    checker = ResourceAccessChecker(request, db_session, current_user)
-    decision = await checker.check_access(podcast_uuid, AccessAction.READ, AccessContext.PUBLIC_VIEW)
+    await check_resource_access(request, db_session, current_user, podcast_uuid, AccessAction.READ, AccessContext.PUBLIC_VIEW)
 @router.get("/audio/{org_uuid}/{podcast_uuid}/{episode_uuid}/{filename:path}")
 async def stream_podcast_audio(
     request: Request,
