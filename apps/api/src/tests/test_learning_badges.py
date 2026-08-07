@@ -374,6 +374,28 @@ def test_text_input_rejects_word_limit_violation():
         raise AssertionError("Expected word limit validation")
 
 
+def test_numeric_input_keeps_a_numeric_local_value_for_flow_rules():
+    page = _standard_page(
+        "learning_page_age",
+        question=_text_question(
+            [{"id": "age", "label": "How old are you?", "input_type": "number"}]
+        ),
+        completion={"inputs": {"age": {"required": True}}},
+        scoring={"mode": "completion", "points": 1},
+    )
+
+    _is_correct, _score, _feedback_key, result = _grade_answer(
+        page, {"inputs": {"age": {"text": "17"}}}
+    )
+
+    assert result["inputs"]["age"] == {
+        "text": "17",
+        "word_count": 1,
+        "value_type": "number",
+        "value": 17,
+    }
+
+
 def test_text_input_variables_extract_from_configured_inputs():
     page = _standard_page(
         "learning_page_variables",

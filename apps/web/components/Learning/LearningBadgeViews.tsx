@@ -1807,7 +1807,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
                   </select>
                 ) : isSingleLine ? (
                   <input
-                    type={input.input_type === 'month' ? 'month' : input.input_type === 'url' ? 'url' : 'text'}
+                    type={input.input_type === 'month' ? 'month' : input.input_type === 'url' ? 'url' : input.input_type === 'number' ? 'number' : 'text'}
                     value={editable ? input.placeholder || '' : value}
                     onChange={(event) => editable ? updateInputConfig(input.id, { placeholder: event.target.value }) : updateTextInput(input.id, event.target.value)}
                     placeholder={editable ? 'Placeholder' : input.placeholder}

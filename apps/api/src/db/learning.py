@@ -24,6 +24,7 @@ class LearningVariableValueType(str, Enum):
     NUMBER = "number"
     BOOLEAN = "boolean"
     OPTION = "option"
+    MULTIPLE_CHOICE = "multiple_choice"
     IMAGE = "image"
 
 

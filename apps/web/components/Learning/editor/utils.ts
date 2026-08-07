@@ -100,6 +100,7 @@ export function createQuestionBlock(kind: 'multiple_choice' | 'categorized_multi
           label: 'Response',
           placeholder: '',
           variant: 'short_answer',
+          input_type: 'text',
           width: 'full',
           height: 160,
         },

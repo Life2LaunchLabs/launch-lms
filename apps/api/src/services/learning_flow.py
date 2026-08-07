@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import json
 from copy import deepcopy
+from dataclasses import dataclass
 from typing import Any
 
 
@@ -135,7 +136,7 @@ def evaluate_condition(
                 _value(condition.get("right"), context),
             )
             if op == "exists":
-                result = left is not None
+                result = left not in (None, "", [], {})
             elif left is None:
                 result = False
             elif op == "eq":
@@ -191,12 +192,14 @@ def validate_flow(
     for node_id, node in by_id.items():
         if node.get("type") == "complete":
             terminals.add(node_id)
+        elif node.get("type") in {"split", "join"}:
+            continue
         elif node.get("type") == "page" and node.get("page_uuid") in page_uuids:
             page_nodes.add(str(node.get("page_uuid")))
         else:
             raise FlowValidationError(f"Flow node {node_id} is invalid")
-    if not terminals:
-        raise FlowValidationError("Flow needs a completion node")
+    if len(terminals) != 1:
+        raise FlowValidationError("Flow needs one unique completion node")
     outgoing: dict[str, list[dict]] = {node_id: [] for node_id in by_id}
     for index, edge in enumerate(edges):
         if (
@@ -208,6 +211,23 @@ def validate_flow(
         validate_condition(edge.get("condition"), f"edges[{index}].condition")
         edge["priority"] = int(edge.get("priority", 0))
         outgoing[edge["from"]].append(edge)
+
+    incoming_counts = {node_id: 0 for node_id in by_id}
+    for edge in edges:
+        incoming_counts[str(edge["to"])] += 1
+    for node_id, node in by_id.items():
+        if node.get("type") == "join" and (
+            incoming_counts[node_id] < 2 or len(outgoing[node_id]) != 1
+        ):
+            raise FlowValidationError(
+                f"Flow join {node_id} needs at least two inputs and one continuation"
+            )
+
+    page_node_by_uuid = {
+        str(node.get("page_uuid")): node_id
+        for node_id, node in by_id.items()
+        if node.get("type") == "page"
+    }
     seen: set[str] = set()
     stack: set[str] = set()
 
@@ -223,6 +243,30 @@ def validate_flow(
         seen.add(node_id)
 
     visit(entry)
+    for node_id, node_edges in outgoing.items():
+        if len(node_edges) < 2:
+            continue
+        defaults = [edge for edge in node_edges if not edge.get("condition")]
+        if len(defaults) != 1:
+            raise FlowValidationError(f"Flow split {node_id} needs one default path")
+        signatures: set[str] = set()
+        for edge in node_edges:
+            condition = edge.get("condition")
+            if not condition:
+                continue
+            signature = json.dumps(condition, sort_keys=True, separators=(",", ":"))
+            if signature in signatures:
+                raise FlowValidationError(f"Flow split {node_id} has duplicate rules")
+            signatures.add(signature)
+            left = condition.get("left") or {}
+            key = str(left.get("key") or "")
+            if not key:
+                raise FlowValidationError(f"Flow split {node_id} has an incomplete rule")
+            if condition.get("op") != "exists" and condition.get("right") in (
+                None,
+                "",
+            ):
+                raise FlowValidationError(f"Flow split {node_id} has an incomplete rule")
     unreachable = sorted(set(by_id) - seen)
     if unreachable:
         raise FlowValidationError(f"Unreachable flow nodes: {', '.join(unreachable)}")
@@ -231,6 +275,37 @@ def validate_flow(
         raise FlowValidationError(
             f"Required pages missing from flow: {', '.join(missing)}"
         )
+
+    def reaches(from_id: str, target_id: str, checked: set[str] | None = None) -> bool:
+        if from_id == target_id:
+            return True
+        checked = checked or set()
+        if from_id in checked:
+            return False
+        checked.add(from_id)
+        return any(
+            reaches(str(edge["to"]), target_id, checked.copy())
+            for edge in outgoing[from_id]
+        )
+
+    for node_id, node_edges in outgoing.items():
+        if len(node_edges) < 2:
+            continue
+        for edge in node_edges:
+            condition = edge.get("condition") or {}
+            left = condition.get("left") or {}
+            if left.get("source") != "answer":
+                continue
+            source_page_uuid = str(left.get("key") or "").split(".", 1)[0]
+            source_node_id = page_node_by_uuid.get(source_page_uuid)
+            if (
+                source_node_id
+                and source_node_id != node_id
+                and reaches(node_id, source_node_id)
+            ):
+                raise FlowValidationError(
+                    f"Flow split {node_id} references a question answered after the split"
+                )
     for node_id in seen - terminals:
         if not outgoing[node_id]:
             raise FlowValidationError(f"Flow node {node_id} cannot reach completion")
@@ -261,7 +336,8 @@ def resolve_flow(flow: dict, context: dict) -> ResolvedFlow:
         node_ids.append(node_id)
         if node.get("type") == "complete":
             return ResolvedFlow(node_ids, pages, True, trace)
-        pages.append(node["page_uuid"])
+        if node.get("type") == "page":
+            pages.append(node["page_uuid"])
         candidates = sorted(
             outgoing.get(node_id, []),
             key=lambda item: int(item.get("priority", 0)),

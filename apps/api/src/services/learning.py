@@ -500,9 +500,38 @@ def _flow_context(
                 facts["timeline_count"] > 0,
             )
     data = activity_run.data or {}
+    variables = dict(data.get("variables") or {})
+    if run.user_id:
+        user = db_session.get(User, run.user_id)
+        if user:
+            variables.update(
+                {
+                    "user.username": user.username,
+                    "user.email": user.email,
+                    "user.email_verified": user.email_verified,
+                    "user.first_name": user.first_name,
+                    "user.last_name": user.last_name,
+                    "user.bio": user.bio,
+                    "user.avatar_image": user.avatar_image,
+                }
+            )
+            details = user.details if isinstance(user.details, dict) else {}
+
+            def add_nested(prefix: str, value) -> None:
+                if isinstance(value, dict):
+                    for nested_key, nested_value in value.items():
+                        add_nested(f"{prefix}.{nested_key}", nested_value)
+                else:
+                    variables[prefix] = value
+
+            add_nested("user.details.variables", details.get("variables") or {})
+            add_nested("user.details.onboarding", details.get("onboarding") or {})
+            if portfolio:
+                for key in ("display_name", "headline", "short_bio", "location_label"):
+                    variables[f"user.portfolio.{key}"] = getattr(portfolio, key, None)
     return {
         "answers": answers,
-        "variables": data.get("variables") or {},
+        "variables": variables,
         "facts": facts,
         "context": {
             "mode": data.get("mode") or "create",
@@ -862,6 +891,9 @@ def _validate_text_answer(
 
     for item in configured_inputs:
         input_id = str(item.get("id") or "response")
+        input_type = str(
+            item.get("input_type") or item.get("inputType") or "text"
+        )
         rules = completion_inputs.get(input_id) or {}
         value = inputs.get(input_id) or {}
         text = str(value.get("text") or "").strip()
@@ -874,11 +906,22 @@ def _validate_text_answer(
             raise HTTPException(
                 status_code=422, detail="Required text response is missing"
             )
-        if text and words < min_words:
+        if input_type == "number" and text:
+            try:
+                numeric_value = float(text)
+                if numeric_value.is_integer():
+                    numeric_value = int(numeric_value)
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=422, detail="Enter a valid number"
+                ) from exc
+        else:
+            numeric_value = None
+        if input_type != "number" and text and words < min_words:
             raise HTTPException(
                 status_code=422, detail=f"Response must be at least {min_words} word(s)"
             )
-        if max_words and words > max_words:
+        if input_type != "number" and max_words and words > max_words:
             raise HTTPException(
                 status_code=422,
                 detail=f"Response must be no more than {max_words} word(s)",
@@ -887,7 +930,8 @@ def _validate_text_answer(
         results[input_id] = {
             "text": text,
             "word_count": words,
-            "value_type": "text",
+            "value_type": "number" if input_type == "number" else "text",
+            **({"value": numeric_value} if input_type == "number" and text else {}),
             **(
                 {"rich_text": value.get("rich_text")}
                 if value.get("rich_text") is not None
@@ -966,12 +1010,22 @@ def _extract_learning_variables(page: LearningPage, result: dict) -> list[dict]:
                 continue
             inputs = sub_result.get("inputs") or {}
             for input_id, answer in inputs.items():
-                value = str((answer or {}).get("text") or "").strip()
+                value_type = str((answer or {}).get("value_type") or "text")
+                value = (
+                    (answer or {}).get("value")
+                    if value_type == "number"
+                    else str((answer or {}).get("text") or "").strip()
+                )
                 for binding in _normalize_bindings(input_bindings.get(input_id)):
                     variables.append(
                         {
                             "target": str(binding.get("target") or ""),
                             "value": value,
+                            **(
+                                {"value_type": value_type}
+                                if value_type != "text"
+                                else {}
+                            ),
                             "source": {
                                 "page_uuid": page.page_uuid,
                                 "block_id": block_id,
@@ -1086,6 +1140,8 @@ def _is_variable_value_type_compatible(expected: str, actual: str, value) -> boo
         return actual == "image" and bool(str(value or "").strip())
     if actual == "image":
         return False
+    if expected == "multiple_choice":
+        return actual in ("option", "multiple_choice")
     return expected in ("text", "number", "boolean", "option")
 
 

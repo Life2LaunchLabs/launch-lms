@@ -118,7 +118,15 @@ import {
 import { DEVICE_FRAMES, MOBILE_FRAME_CAP } from './constants'
 import { PageListPanel } from './PageListPanel'
 import { VariablePathPicker } from './VariablePathPicker'
-import VisualFlowEditor, { appendPageToFlow, createLinearFlow } from './VisualFlowEditor'
+import VisualFlowEditor, {
+  appendPageToFlow,
+  createLinearFlow,
+  ensureSplitNodes,
+  getFlowIssues,
+  insertPageIntoFlow,
+  normalizeJoinNodes,
+  type FlowInsertion,
+} from './VisualFlowEditor'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import type { MediaAsset } from '@services/media/library'
 import { TimelineCardView, type TimelineEntry } from '@components/Pages/Portfolio/Timeline'
@@ -169,12 +177,21 @@ export default function LearningActivityEditor({
   const activitySaveTimerRef = React.useRef<NodeJS.Timeout | null>(null)
   const pendingPagePatchesRef = React.useRef<Record<string, any>>({})
   const pendingActivityPatchRef = React.useRef<Record<string, any>>({})
+  const invalidFlowRef = React.useRef(false)
 
   const selectedPage = pages.find((page) => page.page_uuid === selection.pageUuid) || pages[0]
   const selectedBlock = selectedPage ? getEditorBlocks(selectedPage, variantKey).find((block) => block.id === selection.blockId) || null : null
   const frame = DEVICE_FRAMES[device]
   const frameShellHeight = device === 'mobile' ? frame.height + MOBILE_FRAME_CAP * 2 : frame.height
   const gradingSettings = getActivityGradingSettings(activityState)
+  const currentFlowIssues = React.useMemo(
+    () => getFlowIssues(activityState.settings?.flow, pages),
+    [activityState.settings?.flow, pages],
+  )
+
+  React.useEffect(() => {
+    invalidFlowRef.current = currentFlowIssues.length > 0
+  }, [currentFlowIssues])
 
   React.useEffect(() => {
     setVariantKey('default')
@@ -249,9 +266,13 @@ export default function LearningActivityEditor({
   }, [accessToken, activityState.activity_uuid])
 
   React.useEffect(() => {
-    const flush = () => {
+    const flush = (event?: BeforeUnloadEvent) => {
       void flushPendingPages()
       void flushPendingActivity()
+      if (invalidFlowRef.current && event) {
+        event.preventDefault()
+        event.returnValue = ''
+      }
     }
     window.addEventListener('beforeunload', flush)
     return () => {
@@ -492,7 +513,7 @@ export default function LearningActivityEditor({
     if (variantKey === key) setVariantKey('default')
   }
 
-  const addPage = async (pageType: LearningPageType = 'standard') => {
+  const addPage = async (pageType: LearningPageType = 'standard', insertion?: FlowInsertion) => {
     try {
       await saveBeforeAction()
       const content = pageType === 'video'
@@ -507,13 +528,20 @@ export default function LearningActivityEditor({
         scoring: {},
         completion: {},
       }, accessToken)
-      setPages((current) => [...current, page])
-      setActivityState((current: any) => {
-        const flow = appendPageToFlow(current.settings?.flow, page)
-        return flow ? { ...current, settings: { ...(current.settings || {}), flow } } : current
-      })
+      const nextPages = [...pages, page]
+      setPages(nextPages)
+      const currentFlow = activityState.settings?.flow
+      const flow = insertion && currentFlow
+        ? insertPageIntoFlow(currentFlow, page, insertion)
+        : appendPageToFlow(currentFlow, page)
+      if (flow) {
+        const settings = { ...(activityState.settings || {}), flow }
+        setActivityState((current: any) => ({ ...current, settings }))
+        if (!getFlowIssues(flow, nextPages).length) scheduleActivitySave({ settings })
+      }
       setSelection({ pageUuid: page.page_uuid, blockId: null })
       setLastSavedAt(new Date())
+      return page
     } catch (error: any) {
       toast.error(error?.message || 'Failed to add page')
     }
@@ -562,20 +590,6 @@ export default function LearningActivityEditor({
     }
   }
 
-  const reorderPages = async (nextPages: any[]) => {
-    const ordered = withSequentialOrder(nextPages)
-    setPages(ordered)
-    setSaveState('saving')
-    try {
-      await persistPageOrder(ordered)
-      setLastSavedAt(new Date())
-      setSaveState('saved')
-    } catch (error: any) {
-      setSaveState('error')
-      toast.error(error?.message || 'Failed to reorder pages')
-    }
-  }
-
   const persistPageOrder = async (orderedPages: any[]) => {
     await Promise.all(orderedPages.map((page, index) => updateLearningPage(page.page_uuid, { order: index + 1 }, accessToken)))
   }
@@ -600,6 +614,12 @@ export default function LearningActivityEditor({
   const patchFlowSettings = (flow: any) => {
     const settings = { ...(activityState.settings || {}), flow }
     setActivityState((current: any) => ({ ...current, settings }))
+    const issues = getFlowIssues(flow, pages)
+    invalidFlowRef.current = issues.length > 0
+    if (issues.length) {
+      setSaveState('dirty')
+      return
+    }
     scheduleActivitySave({ settings })
   }
 
@@ -631,6 +651,7 @@ export default function LearningActivityEditor({
   }
 
   const goBack = async () => {
+    if (invalidFlowRef.current && !confirm('This flow still has warnings and has not been saved. Leave and discard the invalid flow draft?')) return
     try {
       await saveBeforeAction()
       router.back()
@@ -640,6 +661,10 @@ export default function LearningActivityEditor({
   }
 
   const publishActivity = async () => {
+    if (invalidFlowRef.current) {
+      toast.error('Fix the flow warnings before publishing')
+      return
+    }
     const nextPublished = !activityState.published
     setPublishing(true)
     try {
@@ -863,11 +888,14 @@ export default function LearningActivityEditor({
         <ActivityFlowView
           activity={activityState}
           pages={pages}
+          learningVariables={learningVariables}
           trusted={badge?.system_type === 'onboarding' || badge?.protected === true}
           onSelectPage={(pageUuid: string) => { setSelection({ pageUuid, blockId: null }); setViewMode('editor') }}
           onPatchFlow={patchFlowSettings}
           onPatchActivity={patchActivityBasics}
           onConvertVariants={convertVariants}
+          onAddPage={(insertion: FlowInsertion) => addPage('standard', insertion)}
+          onCreateVariableKey={createVariableFromKey}
         />
       ) : (
         <div className="flex min-h-0 flex-1">
@@ -879,7 +907,8 @@ export default function LearningActivityEditor({
               onAddPage={addPage}
               onDuplicatePage={duplicatePage}
               onRemovePage={removePage}
-              onReorderPages={reorderPages}
+              flow={activityState.settings?.flow || createLinearFlow(pages)}
+              onChangeFlow={patchFlowSettings}
             />
             <PanelResizeHandle side="right" onPointerDown={(event) => resizePanel('left', event)} />
           </div>
@@ -997,12 +1026,14 @@ export default function LearningActivityEditor({
   )
 }
 
-function ActivityFlowView({ activity, pages, onSelectPage, onPatchFlow, onConvertVariants }: any) {
-  const flow = activity.settings?.flow
-  if (!flow) {
-    return <div className="flex min-h-0 flex-1 items-center justify-center bg-gray-50 p-8"><div className="max-w-md rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm"><GitBranch size={24} className="mx-auto text-gray-700"/><h2 className="mt-4 text-lg font-bold">Turn page order into a visual flow</h2><p className="mt-2 text-sm leading-6 text-gray-500">Start with the current page order, then add decision points, rearrange paths, and draw merge connections directly on the canvas.</p><button onClick={() => onPatchFlow(createLinearFlow(pages))} className="mt-6 h-10 rounded-lg bg-gray-950 px-4 text-sm font-bold text-white hover:bg-black">Open visual flow</button>{pages.some((page: any) => page.content?.variants) && <div className="mt-5 border-t border-gray-100 pt-5"><p className="text-xs text-gray-500">This activity also has legacy page variants.</p><div className="mt-2 flex flex-wrap justify-center gap-2">{pages.filter((page: any) => page.content?.variants).map((page: any) => <button key={page.page_uuid} onClick={() => onConvertVariants(page)} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900">Convert {page.title}</button>)}</div></div>}</div></div>
-  }
-  return <VisualFlowEditor flow={flow} pages={pages} onChange={onPatchFlow} onSelectPage={onSelectPage}/>
+function ActivityFlowView({ activity, pages, learningVariables, onSelectPage, onPatchFlow, onAddPage, onCreateVariableKey }: any) {
+  const sourceFlow = activity.settings?.flow || createLinearFlow(pages)
+  const flow = React.useMemo(() => normalizeJoinNodes(ensureSplitNodes(sourceFlow)), [sourceFlow])
+  React.useEffect(() => {
+    if (!activity.settings?.flow || flow !== sourceFlow) onPatchFlow(flow)
+  }, [activity.settings?.flow, flow, onPatchFlow, sourceFlow]) // Initialise and migrate legacy page-owned splits.
+  const issues = React.useMemo(() => getFlowIssues(flow, pages, learningVariables), [flow, learningVariables, pages])
+  return <VisualFlowEditor flow={flow} pages={pages} learningVariables={learningVariables} issues={issues} onChange={onPatchFlow} onSelectPage={onSelectPage} onAddPage={onAddPage} onCreateVariableKey={onCreateVariableKey}/>
 }
 
 function LegacyActivityFlowView({ activity, pages, trusted, onSelectPage, onPatchFlow, onPatchActivity, onConvertVariants }: any) {
@@ -1697,6 +1728,7 @@ function TextInputBlockCanvas({ block, page, selected: _selected, readOnly, onPa
               )}
               {singleLine ? (
                 <input
+                  type={input.input_type === 'number' ? 'number' : 'text'}
                   readOnly={readOnly}
                   value={input.placeholder || ''}
                   onChange={(event) => patchInput(input.id, { placeholder: event.target.value })}
@@ -2432,11 +2464,12 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
             <>
               <div>
                 <FieldLabel>Store answer in</FieldLabel>
+                <p className="mb-2 text-[11px] leading-4 text-gray-500">Also write this local quiz response to a user-level variable.</p>
                 <VariablePathPicker
                   value={activeBinding?.target || ''}
                   variables={learningVariables}
-                  acceptedTypes={['text', 'number', 'boolean', 'option']}
-                  createValueType="text"
+                  acceptedTypes={['text', 'number', 'boolean', 'option', 'multiple_choice']}
+                  createValueType="multiple_choice"
                   onBind={setMcqVariableTarget}
                   onCreateVariableKey={onCreateVariableKey}
                 />
@@ -2541,18 +2574,21 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
                     Required
                   </label>
                   <select
-                    value={input.variant === 'single_line' || Number(input.height) <= 56 ? 'single_line' : 'short_answer'}
+                    value={input.input_type === 'number' ? 'number' : input.variant === 'single_line' || Number(input.height) <= 56 ? 'single_line' : 'short_answer'}
                     onChange={(event) => {
                       const variant = event.target.value
                       patchInput(input.id, {
-                        variant,
-                        height: variant === 'single_line' ? 48 : Math.max(120, Number(input.height) || 160),
+                        input_type: variant === 'number' ? 'number' : 'text',
+                        variant: variant === 'number' ? 'single_line' : variant,
+                        height: variant === 'single_line' || variant === 'number' ? 48 : Math.max(120, Number(input.height) || 160),
                       })
+                      if (variant === 'number') patchInputRule(input.id, { min_words: 0, max_words: 0 })
                     }}
                     className="h-8 rounded-lg border border-gray-200 px-2 text-xs font-bold outline-none focus:border-[var(--org-primary-color)]"
                   >
                     <option value="single_line">Single line</option>
                     <option value="short_answer">Multi line</option>
+                    <option value="number">Number</option>
                   </select>
                   <label className="block text-[10px] font-bold uppercase text-gray-400">
                     Min words
@@ -2599,11 +2635,12 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
                 return (
                   <div key={input.id}>
                     <FieldLabel>{sideBySide ? `Store "${input.label || 'Response'}" in` : 'Store answer in'}</FieldLabel>
+                    <p className="mb-2 text-[11px] leading-4 text-gray-500">Also write this local quiz response to a user-level variable.</p>
                     <VariablePathPicker
                       value={binding?.target || ''}
                       variables={learningVariables}
-                      acceptedTypes={['text', 'number', 'boolean', 'option']}
-                      createValueType="text"
+                      acceptedTypes={input.input_type === 'number' ? ['number'] : ['text', 'boolean', 'option']}
+                      createValueType={input.input_type === 'number' ? 'number' : 'text'}
                       onBind={(target: string) => {
                         const nextInputs = { ...inputBindings }
                         if (!target) delete nextInputs[input.id]
@@ -2818,29 +2855,47 @@ function VariableRegistry({ variables = [], onPatchVariable, onDeleteVariable }:
       {sorted.map((variable: any) => {
         const key = String(variable.key || '')
         const depth = Math.max(0, key.split('.').length - 1)
+        const valueType = variable.value_type || variable.valueType || 'text'
+        const options = Array.isArray(variable.options) ? variable.options.map((option: any, index: number) => ({ id: String(option?.id || option?.value || `option_${index + 1}`), text: String(option?.text || option?.label || '') })) : []
+        const patchOption = (id: string, text: string) => onPatchVariable(variable, { options: options.map((option: any) => option.id === id ? { ...option, text } : option) })
         return (
-          <div key={variable.variable_uuid || key} className="grid grid-cols-[1fr_10rem_2.5rem] items-center gap-2 border-b border-gray-100 p-3 last:border-b-0">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-gray-800" style={{ paddingLeft: depth * 14 }}>{key}</p>
-              <input
-                value={variable.label || ''}
-                onChange={(event) => onPatchVariable(variable, { label: event.target.value })}
-                placeholder="Label"
-                className="mt-1 h-8 w-full rounded-lg border border-gray-200 px-2 text-xs outline-none focus:border-[var(--org-primary-color)]"
-              />
+          <div key={variable.variable_uuid || key} className="border-b border-gray-100 p-3 last:border-b-0">
+            <div className="grid grid-cols-[1fr_10rem_2.5rem] items-center gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-gray-800" style={{ paddingLeft: depth * 14 }}>{key}</p>
+                <input
+                  value={variable.label || ''}
+                  onChange={(event) => onPatchVariable(variable, { label: event.target.value })}
+                  placeholder="Label"
+                  className="mt-1 h-8 w-full rounded-lg border border-gray-200 px-2 text-xs outline-none focus:border-[var(--org-primary-color)]"
+                />
+              </div>
+              <select
+                value={valueType}
+                onChange={(event) => onPatchVariable(variable, { value_type: event.target.value })}
+                className="h-9 rounded-lg border border-gray-200 px-2 text-xs font-bold outline-none focus:border-[var(--org-primary-color)]"
+              >
+                <option value="text">Text</option>
+                <option value="number">Number</option>
+                <option value="boolean">Boolean</option>
+                <option value="multiple_choice">Multiple choice</option>
+                <option value="option">Option</option>
+                <option value="image">Image</option>
+              </select>
+              <IconButton title="Delete variable" onClick={() => onDeleteVariable(variable)}><Trash2 size={15} /></IconButton>
             </div>
-            <select
-              value={variable.value_type || variable.valueType || 'text'}
-              onChange={(event) => onPatchVariable(variable, { value_type: event.target.value })}
-              className="h-9 rounded-lg border border-gray-200 px-2 text-xs font-bold outline-none focus:border-[var(--org-primary-color)]"
-            >
-              <option value="text">Text</option>
-              <option value="number">Number</option>
-              <option value="boolean">Boolean</option>
-              <option value="option">Option</option>
-              <option value="image">Image</option>
-            </select>
-            <IconButton title="Delete variable" onClick={() => onDeleteVariable(variable)}><Trash2 size={15} /></IconButton>
+            {valueType === 'multiple_choice' && (
+              <div className="mt-3 space-y-2 rounded-lg bg-gray-50 p-2">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Choices</p>
+                {options.map((option: any) => (
+                  <div key={option.id} className="flex items-center gap-2">
+                    <input value={option.text} onChange={(event) => patchOption(option.id, event.target.value)} placeholder="Option label" className="h-8 min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-2 text-xs outline-none focus:border-[var(--org-primary-color)]" />
+                    <IconButton title="Remove option" onClick={() => onPatchVariable(variable, { options: options.filter((item: any) => item.id !== option.id) })}><Trash2 size={13} /></IconButton>
+                  </div>
+                ))}
+                <button type="button" onClick={() => onPatchVariable(variable, { options: [...options, { id: `option_${Date.now()}`, text: `Option ${options.length + 1}` }] })} className="flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-gray-300 bg-white text-xs font-bold text-gray-600 hover:border-gray-400"><Plus size={13} />Add choice</button>
+              </div>
+            )}
           </div>
         )
       })}
