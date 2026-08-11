@@ -8,21 +8,20 @@ import { useOrg } from '@components/Contexts/OrgContext';
 import { BookCopy, SquareLibrary, Users, Search, MessageCircle, LibraryBig, Building2 } from 'lucide-react';
 import Link from 'next/link';
 import {
-  getCollectionThumbnailMediaDirectory,
   getCommunityThumbnailMediaDirectory,
-  getCourseThumbnailMediaDirectory,
   getOrgLogoMediaDirectory,
   getOrgThumbnailMediaDirectory,
   getResourceThumbnailMediaDirectory,
   getUserAvatarMediaDirectory,
 } from '@services/media/media';
 import { getUriWithOrg, routePaths } from '@services/config/config';
-import { removeCoursePrefix } from '@components/Objects/Thumbnails/CourseThumbnail';
 import UserAvatar from '@components/Objects/UserAvatar';
 import { useTranslation } from 'react-i18next';
 import { Community } from '@services/communities/communities';
 import { Resource } from '@services/resources/resources';
 import { DiscoverOrganization } from '@services/organizations/orgs';
+
+const removeBadgePrefix = (value: string) => value.replace(/^badge_/, '')
 
 // Types from SearchBar component
 interface User {
@@ -46,7 +45,7 @@ interface Author {
   update_date: string;
 }
 
-interface Course {
+interface Badge {
   name: string;
   description: string;
   about: string;
@@ -58,7 +57,7 @@ interface Course {
   id: number;
   org_id: number;
   authors: Author[];
-  course_uuid: string;
+  badge_uuid: string;
   creation_date: string;
   update_date: string;
   owner_org_uuid?: string | null;
@@ -66,13 +65,13 @@ interface Course {
   is_shared_from_other_org?: boolean;
 }
 
-interface Collection {
+interface BadgeCollection {
   name: string;
   public: boolean;
   shared?: boolean;
   description: string;
   id: number;
-  courses: Course[];
+  badges: Badge[];
   collection_uuid: string;
   thumbnail_image?: string | null;
   creation_date: string;
@@ -83,21 +82,21 @@ interface Collection {
 }
 
 interface SearchResults {
-  courses: Course[];
-  collections: Collection[];
+  badges: Badge[];
+  badge_collections: BadgeCollection[];
   communities: Community[];
   organizations: DiscoverOrganization[];
   resources: Resource[];
   users: User[];
-  total_courses: number;
-  total_collections: number;
+  total_badges: number;
+  total_badge_collections: number;
   total_communities: number;
   total_organizations: number;
   total_resources: number;
   total_users: number;
 }
 
-type ContentType = 'all' | 'courses' | 'collections' | 'communities' | 'organizations' | 'resources' | 'users';
+type ContentType = 'all' | 'badges' | 'badge_collections' | 'communities' | 'organizations' | 'resources' | 'users';
 
 function SearchPage() {
   const { t } = useTranslation();
@@ -108,14 +107,14 @@ function SearchPage() {
   
   // Search state
   const [searchResults, setSearchResults] = useState<SearchResults>({
-    courses: [],
-    collections: [],
+    badges: [],
+    badge_collections: [],
       communities: [],
       organizations: [],
       resources: [],
       users: [],
-      total_courses: 0,
-      total_collections: 0,
+      total_badges: 0,
+      total_badge_collections: 0,
       total_communities: 0,
       total_organizations: 0,
       total_resources: 0,
@@ -160,14 +159,14 @@ function SearchPage() {
     const fetchResults = async () => {
       if (!query.trim()) {
         setSearchResults({
-          courses: [],
-          collections: [],
+          badges: [],
+          badge_collections: [],
           communities: [],
           organizations: [],
           resources: [],
           users: [],
-          total_courses: 0,
-          total_collections: 0,
+          total_badges: 0,
+          total_badge_collections: 0,
           total_communities: 0,
           total_organizations: 0,
           total_resources: 0,
@@ -191,14 +190,14 @@ function SearchPage() {
         const results = response.data;
         
         setSearchResults({
-          courses: results.courses || [],
-          collections: results.collections || [],
+          badges: results.badges || [],
+          badge_collections: results.badge_collections || [],
           communities: results.communities || [],
           organizations: results.organizations || [],
           resources: results.resources || [],
           users: results.users || [],
-          total_courses: results.courses?.length || 0,
-          total_collections: results.collections?.length || 0,
+          total_badges: results.badges?.length || 0,
+          total_badge_collections: results.badge_collections?.length || 0,
           total_communities: results.communities?.length || 0,
           total_organizations: results.organizations?.length || 0,
           total_resources: results.resources?.length || 0,
@@ -206,14 +205,14 @@ function SearchPage() {
         });
       } catch {
         setSearchResults({
-          courses: [],
-          collections: [],
+          badges: [],
+          badge_collections: [],
           communities: [],
           organizations: [],
           resources: [],
           users: [],
-          total_courses: 0,
-          total_collections: 0,
+          total_badges: 0,
+          total_badge_collections: 0,
           total_communities: 0,
           total_organizations: 0,
           total_resources: 0,
@@ -227,16 +226,16 @@ function SearchPage() {
   }, [query, page, org?.slug, session?.data?.tokens?.access_token]);
 
   const totalResults =
-    searchResults.total_courses +
-    searchResults.total_collections +
+    searchResults.total_badges +
+    searchResults.total_badge_collections +
     searchResults.total_communities +
     searchResults.total_organizations +
     searchResults.total_resources +
     searchResults.total_users;
   const visibleResultsByType: Record<ContentType, number> = {
     all: totalResults,
-    courses: searchResults.total_courses,
-    collections: searchResults.total_collections,
+    badges: searchResults.total_badges,
+    badge_collections: searchResults.total_badge_collections,
     communities: searchResults.total_communities,
     organizations: searchResults.total_organizations,
     resources: searchResults.total_resources,
@@ -245,8 +244,8 @@ function SearchPage() {
   const totalPages = Math.ceil((visibleResultsByType[selectedType] || 0) / perPage);
   const filterLabels: Record<ContentType, string> = {
     all: t('common.search'),
-    courses: t('courses.courses'),
-    collections: t('collections.collections'),
+    badges: t('badges.badges'),
+    badge_collections: t('badge_collections.badge_collections'),
     communities: 'Communities',
     organizations: 'Organizations',
     resources: 'Resources',
@@ -353,8 +352,8 @@ function SearchPage() {
             {/* Filters */}
             <div className="flex items-center gap-2 overflow-x-auto pb-2">
               <FilterButton type="all" count={totalResults} icon={Search} />
-              <FilterButton type="courses" count={searchResults.total_courses} icon={BookCopy} />
-              <FilterButton type="collections" count={searchResults.total_collections} icon={SquareLibrary} />
+              <FilterButton type="badges" count={searchResults.total_badges} icon={BookCopy} />
+              <FilterButton type="badge_collections" count={searchResults.total_badge_collections} icon={SquareLibrary} />
               <FilterButton type="communities" count={searchResults.total_communities} icon={MessageCircle} />
               <FilterButton type="organizations" count={searchResults.total_organizations} icon={Building2} />
               <FilterButton type="resources" count={searchResults.total_resources} icon={LibraryBig} />
@@ -379,25 +378,25 @@ function SearchPage() {
             <EmptyState />
           ) : (
             <div className="space-y-12">
-              {/* Courses Grid */}
-              {(selectedType === 'all' || selectedType === 'courses') && searchResults.courses.length > 0 && (
+              {/* Badges Grid */}
+              {(selectedType === 'all' || selectedType === 'badges') && searchResults.badges.length > 0 && (
                 <div>
                   <h2 className="text-lg font-medium text-foreground/80 mb-4 flex items-center gap-2">
                     <BookCopy size={20} className="text-foreground/60" />
-                    {t('courses.courses')} ({searchResults.courses.length})
+                    {t('badges.badges')} ({searchResults.badges.length})
                   </h2>
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {searchResults.courses.map((course) => (
+                    {searchResults.badges.map((badge) => (
                       <Link
-                        key={course.course_uuid}
-                        href={getUriWithOrg(org?.slug, routePaths.org.course(removeCoursePrefix(course.course_uuid)))}
+                        key={badge.badge_uuid}
+                        href={getUriWithOrg(org?.slug, routePaths.org.badgeDetail(removeBadgePrefix(badge.badge_uuid)))}
                         className="bg-card rounded-xl nice-shadow hover:shadow-md transition-all overflow-hidden group"
                       >
                         <div className="relative h-48">
-                          {course.thumbnail_image ? (
+                          {badge.thumbnail_image ? (
                             <img
-                              src={getCourseThumbnailMediaDirectory(course.owner_org_uuid || org?.org_uuid, course.course_uuid, course.thumbnail_image)}
-                              alt={course.name}
+                              src={badge.thumbnail_image}
+                              alt={badge.name}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             />
                           ) : (
@@ -407,26 +406,26 @@ function SearchPage() {
                           )}
                         </div>
                         <div className="p-4">
-                          <h3 className="text-sm font-medium text-foreground/80 mb-1">{course.name}</h3>
-                          <p className="text-xs text-foreground/50 line-clamp-2">{course.description}</p>
-                          {course.owner_org_name && (
+                          <h3 className="text-sm font-medium text-foreground/80 mb-1">{badge.name}</h3>
+                          <p className="text-xs text-foreground/50 line-clamp-2">{badge.description}</p>
+                          {badge.owner_org_name && (
                             <p className="mt-2 text-xs text-foreground/40">
-                              {course.is_shared_from_other_org ? `Shared from ${course.owner_org_name}` : course.owner_org_name}
+                              {badge.is_shared_from_other_org ? `Shared from ${badge.owner_org_name}` : badge.owner_org_name}
                             </p>
                           )}
-                          {course.authors && course.authors.length > 0 && (
+                          {badge.authors && badge.authors.length > 0 && (
                             <div className="flex items-center gap-2 mt-3">
                               <UserAvatar
                                 width={20}
-                                avatar_url={course.authors[0].user.avatar_image ? getUserAvatarMediaDirectory(course.authors[0].user.user_uuid, course.authors[0].user.avatar_image) : ''}
-                                predefined_avatar={course.authors[0].user.avatar_image ? undefined : 'empty'}
-                                userId={course.authors[0].user.id.toString()}
+                                avatar_url={badge.authors[0].user.avatar_image ? getUserAvatarMediaDirectory(badge.authors[0].user.user_uuid, badge.authors[0].user.avatar_image) : ''}
+                                predefined_avatar={badge.authors[0].user.avatar_image ? undefined : 'empty'}
+                                userId={badge.authors[0].user.id.toString()}
                                 showProfilePopup={false}
                                 rounded="rounded-full"
                                 backgroundColor="bg-muted"
                               />
                               <span className="text-xs text-foreground/40">
-                                {course.authors[0].user.first_name} {course.authors[0].user.last_name}
+                                {badge.authors[0].user.first_name} {badge.authors[0].user.last_name}
                               </span>
                             </div>
                           )}
@@ -437,25 +436,25 @@ function SearchPage() {
                 </div>
               )}
 
-              {/* Collections Grid */}
-              {(selectedType === 'all' || selectedType === 'collections') && searchResults.collections.length > 0 && (
+              {/* Badge BadgeCollections Grid */}
+              {(selectedType === 'all' || selectedType === 'badge_collections') && searchResults.badge_collections.length > 0 && (
                 <div>
                   <h2 className="text-lg font-medium text-foreground/80 mb-4 flex items-center gap-2">
                     <SquareLibrary size={20} className="text-foreground/60" />
-                    {t('collections.collections')} ({searchResults.collections.length})
+                    {t('badge_collections.badge_collections')} ({searchResults.badge_collections.length})
                   </h2>
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {searchResults.collections.map((collection) => (
+                    {searchResults.badge_collections.map((badgeCollection) => (
                       <Link
-                        key={collection.collection_uuid}
-                        href={getUriWithOrg(org?.slug, routePaths.org.collection(collection.collection_uuid.replace('collection_', '')))}
+                        key={badgeCollection.collection_uuid}
+                        href={getUriWithOrg(org?.slug, `/badges?collection=${badgeCollection.collection_uuid}`)}
                         className="flex items-start gap-4 p-4 bg-card rounded-xl nice-shadow hover:shadow-md transition-all"
                       >
                         <div className="w-12 h-12 bg-foreground/10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
-                          {collection.thumbnail_image && (collection.owner_org_uuid || org?.org_uuid) ? (
+                          {badgeCollection.thumbnail_image && (badgeCollection.owner_org_uuid || org?.org_uuid) ? (
                             <img
-                              src={getCollectionThumbnailMediaDirectory(collection.owner_org_uuid || org?.org_uuid, collection.collection_uuid, collection.thumbnail_image)}
-                              alt={collection.name}
+                              src={badgeCollection.thumbnail_image}
+                              alt={badgeCollection.name}
                               className="w-full h-full object-cover"
                             />
                           ) : (
@@ -463,11 +462,11 @@ function SearchPage() {
                           )}
                         </div>
                         <div>
-                          <h3 className="text-sm font-medium text-foreground/80 mb-1">{collection.name}</h3>
-                          <p className="text-xs text-foreground/50 line-clamp-2">{collection.description}</p>
-                          {collection.owner_org_name && (
+                          <h3 className="text-sm font-medium text-foreground/80 mb-1">{badgeCollection.name}</h3>
+                          <p className="text-xs text-foreground/50 line-clamp-2">{badgeCollection.description}</p>
+                          {badgeCollection.owner_org_name && (
                             <p className="mt-2 text-xs text-foreground/40">
-                              {collection.is_shared_from_other_org ? `Shared from ${collection.owner_org_name}` : collection.owner_org_name}
+                              {badgeCollection.is_shared_from_other_org ? `Shared from ${badgeCollection.owner_org_name}` : badgeCollection.owner_org_name}
                             </p>
                           )}
                         </div>

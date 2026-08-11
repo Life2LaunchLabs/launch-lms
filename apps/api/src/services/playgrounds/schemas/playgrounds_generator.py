@@ -5,8 +5,6 @@ from pydantic import BaseModel
 class PlaygroundContext(BaseModel):
     playground_name: str
     playground_description: str
-    course_uuid: str | None = None
-    course_name: str | None = None
 
 
 class StartPlaygroundSession(BaseModel):

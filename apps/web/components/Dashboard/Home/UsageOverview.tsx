@@ -49,7 +49,7 @@ function getBarPercent(usage: number, limit: number | 'unlimited'): number {
 }
 
 const METER_ICONS: Record<string, React.ComponentType<any>> = {
-  Courses: BookOpen,
+  Badges: BookOpen,
   Members: Users,
   'Admin Seats': ShieldCheck,
 }
@@ -78,7 +78,7 @@ export default function UsageOverview() {
 
   const meters = features
     ? [
-        { label: 'Courses', ...features.courses },
+        { label: 'Badges', ...features.badges },
         { label: 'Members', ...features.members },
         { label: 'Admin Seats', ...features.admin_seats },
       ]
@@ -88,11 +88,11 @@ export default function UsageOverview() {
   const orgFeatures = org?.config?.config?.resolved_features || org?.config?.config?.features
   const enabledFeatures = [
     {
-      key: 'courses',
+      key: 'badges',
       label: 'Badges',
       icon: BookOpen,
-      enabled: orgFeatures?.courses?.enabled !== false,
-      href: '/admin/courses',
+      enabled: orgFeatures?.badges?.enabled !== false,
+      href: '/admin/badges',
     },
     {
       key: 'communities',

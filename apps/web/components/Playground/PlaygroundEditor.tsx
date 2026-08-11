@@ -22,16 +22,10 @@ import PlaygroundOptionsModal from './PlaygroundOptionsModal'
 import { startPlaygroundSession, iteratePlayground } from '@services/playgrounds/generator'
 import { updatePlayground, Playground } from '@services/playgrounds/playgrounds'
 
-interface Course {
-  course_uuid: string
-  name: string
-}
-
 interface PlaygroundEditorProps {
   playground: Playground
   orgslug: string
   accessToken: string
-  orgCourses?: Course[]
 }
 
 type Message = { role: 'user' | 'model'; content: string }
@@ -75,7 +69,6 @@ export default function PlaygroundEditor({
   playground: initialPlayground,
   orgslug,
   accessToken,
-  orgCourses = [],
 }: PlaygroundEditorProps) {
   const [playground, setPlayground] = useState(initialPlayground)
   const [title, setTitle] = useState(initialPlayground.name)
@@ -89,7 +82,6 @@ export default function PlaygroundEditor({
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saved'>('idle')
   const [optionsOpen, setOptionsOpen] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
-  const [selectedCourseUuid, setSelectedCourseUuid] = useState<string>('')
   const [titleFocused, setTitleFocused] = useState(false)
   const [isSavingTitle, setIsSavingTitle] = useState(false)
   const [titleSaveStatus, setTitleSaveStatus] = useState<'idle' | 'saved'>('idle')
@@ -98,8 +90,6 @@ export default function PlaygroundEditor({
   const MAX_ITERATIONS = 10
 
   const titleDirty = title !== playground.name
-
-  const selectedCourse = orgCourses.find((c) => c.course_uuid === selectedCourseUuid) || null
 
   // Auto-save title on blur
   const handleTitleBlur = useCallback(async () => {
@@ -169,8 +159,6 @@ export default function PlaygroundEditor({
           {
             playground_name: title,
             playground_description: playground.description || '',
-            course_uuid: selectedCourseUuid || undefined,
-            course_name: selectedCourse?.name || undefined,
           },
           accessToken,
           onChunk,
@@ -190,7 +178,7 @@ export default function PlaygroundEditor({
         )
       }
     },
-    [isStreaming, sessionUuid, playground, title, html, accessToken, selectedCourseUuid, selectedCourse]
+    [isStreaming, sessionUuid, playground, title, html, accessToken]
   )
 
   const handleSave = async () => {
@@ -408,10 +396,6 @@ export default function PlaygroundEditor({
               maxIterations={MAX_ITERATIONS}
               onSend={handleSend}
               disabled={false}
-              orgCourses={orgCourses}
-              selectedCourseUuid={selectedCourseUuid}
-              onCourseChange={setSelectedCourseUuid}
-              sessionStarted={sessionUuid !== null}
             />
           </div>
         )}

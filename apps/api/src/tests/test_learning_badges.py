@@ -2,6 +2,7 @@ import pytest
 from fastapi import HTTPException
 from src.db.learning import (
     LearningAwardSource,
+    LearningActivity,
     LearningBadge,
     LearningBadgeAward,
     LearningBadgeCreate,
@@ -268,6 +269,76 @@ def test_multiple_choice_grading_uses_correct_option_ids():
     assert result["page_uuid"] == "learning_page_123"
 
 
+def test_activity_grading_is_inferred_from_scored_questions(monkeypatch):
+    activity = LearningActivity(
+        id=1,
+        path_id=1,
+        badge_id=10,
+        org_id=1,
+        activity_uuid="learning_activity_inferred_grading",
+        title="Quiz",
+        settings={"grading": {"mode": "completion", "minimum_score_percent": 70}},
+    )
+    monkeypatch.setattr(
+        learning_service,
+        "_activity_score_summary",
+        lambda *_args: {
+            "score": 6,
+            "max_score": 10,
+            "score_percent": 60,
+            "pending_manual_grades": 0,
+        },
+    )
+
+    passed, result = learning_service._activity_meets_completion_rules(
+        object(), object(), activity
+    )
+
+    assert passed is False
+    assert result["grading"]["mode"] == "pass_fail"
+
+
+def test_activity_without_scored_questions_uses_completion(monkeypatch):
+    activity = LearningActivity(
+        id=1,
+        path_id=1,
+        badge_id=10,
+        org_id=1,
+        activity_uuid="learning_activity_inferred_completion",
+        title="Reading",
+        settings={"grading": {"mode": "pass_fail"}},
+    )
+    monkeypatch.setattr(
+        learning_service,
+        "_activity_score_summary",
+        lambda *_args: {
+            "score": 0,
+            "max_score": 0,
+            "score_percent": 100,
+            "pending_manual_grades": 0,
+        },
+    )
+
+    passed, result = learning_service._activity_meets_completion_rules(
+        object(), object(), activity
+    )
+
+    assert passed is True
+    assert result["grading"]["mode"] == "completion"
+
+
+def test_question_with_scoring_switched_off_does_not_enable_pass_fail():
+    page = _standard_page(
+        "learning_page_scoring_off",
+        question=_mcq(),
+        scoring={"mode": "off", "points": 10, "correct_option_ids": ["b"]},
+    )
+
+    assert learning_service._question_block_points(
+        page, find_question_block(page.content)
+    ) == 0
+
+
 def test_multiple_choice_grading_requires_exact_multi_select_match():
     page = _standard_page(
         "learning_page_multi",
@@ -282,6 +353,31 @@ def test_multiple_choice_grading_requires_exact_multi_select_match():
     assert score == 5
     assert feedback_key == "correct"
     assert result["option_ids"] == ["c", "a"]
+
+
+def test_multiple_choice_select_all_scoring_accounts_for_omissions_and_false_positives():
+    page = _standard_page(
+        "learning_page_any_correct",
+        question=_mcq([{"id": "a", "text": "A"}, {"id": "b", "text": "B"}, {"id": "c", "text": "C"}]),
+        completion={"min_selections": 1, "max_selections": 2},
+        scoring={
+            "mode": "points",
+            "points": 3,
+            "correct_option_ids": ["a", "c"],
+            "score_policy": "any_correct",
+        },
+    )
+
+    first = _grade_answer(page, {"option_id": "a"})
+    second = _grade_answer(page, {"option_id": "c"})
+    incorrect = _grade_answer(page, {"option_id": "b"})
+    mixed = _grade_answer(page, {"option_ids": ["a", "b"]})
+
+    assert first[:2] == (False, 1.5)
+    assert second[:2] == (False, 1.5)
+    assert incorrect[:2] == (False, 0.0)
+    assert mixed[:2] == (False, 0.0)
+    assert first[3]["score_policy"] == "select_all"
 
 
 def test_multiple_choice_grading_rejects_too_few_selections():
@@ -372,6 +468,55 @@ def test_text_input_rejects_word_limit_violation():
         assert error.status_code == 422
     else:
         raise AssertionError("Expected word limit validation")
+
+
+@pytest.mark.parametrize(
+    ("validation", "valid_value", "invalid_value"),
+    [
+        ("name", "María O'Neil", "12345"),
+        ("email", "learner@example.com", "learner@invalid"),
+        ("phone", "+1 (415) 555-0123", "call-me"),
+        ("url", "https://example.com/profile", "example dot com"),
+    ],
+)
+def test_text_input_validation_presets(validation, valid_value, invalid_value):
+    page = _standard_page(
+        "learning_page_validated_text",
+        question=_text_question([{"id": "response", "label": "Response"}]),
+        completion={"inputs": {"response": {"required": True, "validation": validation}}},
+        scoring={"mode": "completion", "points": 1},
+    )
+
+    result = _grade_answer(
+        page, {"inputs": {"response": {"text": valid_value}}}
+    )
+    assert result[0] is True
+
+    with pytest.raises(HTTPException) as exc:
+        _grade_answer(page, {"inputs": {"response": {"text": invalid_value}}})
+    assert exc.value.status_code == 422
+
+
+def test_numeric_input_keeps_a_numeric_local_value_for_flow_rules():
+    page = _standard_page(
+        "learning_page_age",
+        question=_text_question(
+            [{"id": "age", "label": "How old are you?", "input_type": "number"}]
+        ),
+        completion={"inputs": {"age": {"required": True}}},
+        scoring={"mode": "completion", "points": 1},
+    )
+
+    _is_correct, _score, _feedback_key, result = _grade_answer(
+        page, {"inputs": {"age": {"text": "17"}}}
+    )
+
+    assert result["inputs"]["age"] == {
+        "text": "17",
+        "word_count": 1,
+        "value_type": "number",
+        "value": 17,
+    }
 
 
 def test_text_input_variables_extract_from_configured_inputs():

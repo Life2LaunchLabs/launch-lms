@@ -8,7 +8,7 @@ from sqlmodel import Field, SQLModel
 # v1 Feature models (kept for backward compat with existing code imports)
 # ============================================================================
 
-class CourseOrgConfig(BaseModel):
+class BadgeOrgConfig(BaseModel):
     enabled: bool = True
     limit: int = 10
 
@@ -36,11 +36,6 @@ class AIOrgConfig(BaseModel):
     model: str = ""
 
 
-class AssignmentOrgConfig(BaseModel):
-    enabled: bool = False
-    limit: int = 10
-
-
 class PaymentOrgConfig(BaseModel):
     enabled: bool = False
 
@@ -54,7 +49,7 @@ class CommunitiesOrgConfig(BaseModel):
     enabled: bool = True
 
 
-class CollectionsOrgConfig(BaseModel):
+class BadgeCollectionsOrgConfig(BaseModel):
     enabled: bool = True
 
 
@@ -94,16 +89,15 @@ class ResourcesOrgConfig(BaseModel):
 
 
 class OrgFeatureConfig(BaseModel):
-    courses: CourseOrgConfig = CourseOrgConfig()
+    badges: BadgeOrgConfig = BadgeOrgConfig()
+    badge_collections: BadgeCollectionsOrgConfig = BadgeCollectionsOrgConfig()
     members: MemberOrgConfig = MemberOrgConfig()
     usergroups: UserGroupOrgConfig = UserGroupOrgConfig()
     storage: StorageOrgConfig = StorageOrgConfig()
     ai: AIOrgConfig = AIOrgConfig()
-    assignments: AssignmentOrgConfig = AssignmentOrgConfig()
     payments: PaymentOrgConfig = PaymentOrgConfig()
     discussions: DiscussionOrgConfig = DiscussionOrgConfig()
     communities: CommunitiesOrgConfig = CommunitiesOrgConfig()
-    collections: CollectionsOrgConfig = CollectionsOrgConfig()
     analytics: AnalyticsOrgConfig = AnalyticsOrgConfig()
     collaboration: CollaborationOrgConfig = CollaborationOrgConfig()
     api: APIOrgConfig = APIOrgConfig()
@@ -137,7 +131,7 @@ class AdminToggles(BaseModel):
     api: FeatureAdminToggle = FeatureAdminToggle()
     boards: FeatureAdminToggle = FeatureAdminToggle()
     collaboration: FeatureAdminToggle = FeatureAdminToggle()
-    collections: FeatureAdminToggle = FeatureAdminToggle()
+    badge_collections: FeatureAdminToggle = FeatureAdminToggle()
     communities: FeatureAdminToggle = FeatureAdminToggle()
     members: MembersAdminToggle = MembersAdminToggle()
     payments: FeatureAdminToggle = FeatureAdminToggle()

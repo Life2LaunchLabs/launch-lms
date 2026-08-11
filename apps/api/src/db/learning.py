@@ -24,6 +24,7 @@ class LearningVariableValueType(str, Enum):
     NUMBER = "number"
     BOOLEAN = "boolean"
     OPTION = "option"
+    MULTIPLE_CHOICE = "multiple_choice"
     IMAGE = "image"
 
 
@@ -69,6 +70,8 @@ class LearningBadgeBase(SQLModel):
     direct_conferral_enabled: bool = True
     marketplace_listed: bool = False
     badge_metadata: dict = Field(default_factory=dict, sa_column=Column("metadata", JSON))
+    deleted_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True, index=True))
+
 
 
 class LearningBadge(LearningBadgeBase, table=True):
@@ -141,6 +144,8 @@ class BadgeCollectionBase(SQLModel):
     hidden: bool = False
     protected: bool = False
     system_type: str | None = None
+    deleted_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True, index=True))
+
 
 
 class BadgeCollection(BadgeCollectionBase, table=True):
@@ -307,6 +312,23 @@ class LearningActivityCreate(SQLModel):
     required: bool = True
     published: bool = False
     settings: dict = Field(default_factory=dict)
+
+
+class LearningActivityImportPage(SQLModel):
+    title: str
+    required: bool = True
+    content: dict = Field(default_factory=dict)
+    design: dict = Field(default_factory=dict)
+    scoring: dict = Field(default_factory=dict)
+    completion: dict = Field(default_factory=dict)
+
+
+class LearningActivityImport(SQLModel):
+    badge_uuid: str
+    title: str
+    description: str | None = ""
+    settings: dict = Field(default_factory=dict)
+    pages: list[LearningActivityImportPage]
 
 
 class LearningActivityUpdate(SQLModel):

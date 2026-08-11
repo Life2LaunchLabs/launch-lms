@@ -3,8 +3,6 @@ import { getAPIUrl } from '@services/config/config'
 interface PlaygroundContext {
   playground_name: string
   playground_description: string
-  course_uuid?: string
-  course_name?: string
 }
 
 interface StreamChunk {

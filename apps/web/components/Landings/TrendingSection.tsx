@@ -7,7 +7,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getTrendingItems, TrendingItem } from '@services/trending/trending'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { getCourseThumbnailMediaDirectory, getResourceThumbnailMediaDirectory } from '@services/media/media'
+import { getResourceThumbnailMediaDirectory } from '@services/media/media'
 import { Activity, BookOpen, FileText, MessageSquare } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -50,9 +50,6 @@ function itemHref(item: TrendingItem, orgslug: string): string {
   if (item.item_type === 'resource') {
     return getUriWithOrg(orgslug, routePaths.org.resource(stripPrefix(item.item_uuid, 'resource_')))
   }
-  if (item.item_type === 'course') {
-    return getUriWithOrg(orgslug, routePaths.org.course(stripPrefix(item.item_uuid, 'course_')))
-  }
   return '#'
 }
 
@@ -60,7 +57,6 @@ function TypeBadge({ type }: { type: TrendingItem['item_type'] }) {
   const cfg = {
     discussion: { label: 'Discussion', color: 'bg-violet-100 text-violet-700', Icon: MessageSquare },
     resource: { label: 'Resource', color: 'bg-blue-100 text-blue-700', Icon: FileText },
-    course: { label: 'Course', color: 'bg-emerald-100 text-emerald-700', Icon: BookOpen },
   }[type]
 
   return (
@@ -73,9 +69,6 @@ function TypeBadge({ type }: { type: TrendingItem['item_type'] }) {
 
 function thumbnailUrl(item: TrendingItem, orgUUID: string): string | null {
   if (!item.thumbnail_image) return null
-  if (item.item_type === 'course') {
-    return getCourseThumbnailMediaDirectory(orgUUID, item.item_uuid, item.thumbnail_image)
-  }
   if (item.item_type === 'resource') {
     return getResourceThumbnailMediaDirectory(orgUUID, item.item_uuid, item.thumbnail_image)
   }

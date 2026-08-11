@@ -9,6 +9,7 @@ from src.db.learning import (
     BadgeCollectionRead,
     BadgeCollectionUpdate,
     LearningActivityCreate,
+    LearningActivityImport,
     LearningActivityRead,
     LearningActivityUpdate,
     LearningAwardCreate,
@@ -29,7 +30,6 @@ from src.db.learning import (
 )
 from src.security.auth import get_current_user
 from src.services import learning as learning_service
-from src.services import learning_migration as learning_migration_service
 from src.services import learning_transfer as learning_transfer_service
 from src.services.guest_sessions import resolve_learning_actor
 
@@ -40,7 +40,6 @@ pages_router = APIRouter()
 runs_router = APIRouter()
 responses_router = APIRouter()
 awards_router = APIRouter()
-migrations_router = APIRouter()
 imports_router = APIRouter()
 variables_router = APIRouter()
 
@@ -64,6 +63,16 @@ async def api_list_badges(
     db_session=Depends(get_db_session),
 ) -> list[LearningBadgeRead]:
     return await learning_service.list_badges(request, org_id, current_user, db_session, admin=admin)
+
+
+@badges_router.get("/trash/")
+async def api_list_deleted_badges(
+    request: Request,
+    org_id: int = Query(...),
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> list[LearningBadgeRead]:
+    return await learning_service.list_deleted_badges(request, org_id, current_user, db_session)
 
 
 @badges_router.get("/{badge_uuid}")
@@ -118,6 +127,16 @@ async def api_delete_badge(
     return await learning_service.delete_badge(request, badge_uuid, current_user, db_session)
 
 
+@badges_router.post("/{badge_uuid}/restore")
+async def api_restore_badge(
+    request: Request,
+    badge_uuid: str,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> LearningBadgeRead:
+    return await learning_service.restore_badge(request, badge_uuid, current_user, db_session)
+
+
 @badges_router.get("/{badge_uuid}/path")
 async def api_get_badge_path(
     request: Request,
@@ -152,6 +171,16 @@ async def api_list_collections(
     return await learning_service.list_collections(request, org_id, current_user, db_session, admin=admin)
 
 
+@collections_router.get("/trash/")
+async def api_list_deleted_collections(
+    request: Request,
+    org_id: int = Query(...),
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> list[BadgeCollectionRead]:
+    return await learning_service.list_deleted_collections(request, org_id, current_user, db_session)
+
+
 @collections_router.put("/{collection_uuid}")
 async def api_update_collection(
     request: Request,
@@ -184,6 +213,16 @@ async def api_delete_collection(
     return await learning_service.delete_collection(request, collection_uuid, current_user, db_session)
 
 
+@collections_router.post("/{collection_uuid}/restore")
+async def api_restore_collection(
+    request: Request,
+    collection_uuid: str,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> BadgeCollectionRead:
+    return await learning_service.restore_collection(request, collection_uuid, current_user, db_session)
+
+
 @collections_router.get("/{collection_uuid}/export")
 async def api_export_collection(
     request: Request,
@@ -209,6 +248,16 @@ async def api_create_activity(
     db_session=Depends(get_db_session),
 ) -> LearningActivityRead:
     return await learning_service.create_activity(request, activity, current_user, db_session)
+
+
+@activities_router.post("/import")
+async def api_import_activity(
+    request: Request,
+    activity: LearningActivityImport,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> LearningActivityRead:
+    return await learning_service.import_activity(request, activity, current_user, db_session)
 
 
 @activities_router.put("/{activity_uuid}")
@@ -532,57 +581,6 @@ async def api_get_award(
     db_session=Depends(get_db_session),
 ) -> dict:
     return await learning_service.get_award(request, award_uuid, db_session)
-
-
-@migrations_router.get("/course/{course_uuid}/preview")
-async def api_preview_course_migration(
-    request: Request,
-    course_uuid: str,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> dict:
-    return learning_migration_service.preview_course_migration(request, course_uuid, current_user, db_session)
-
-
-@migrations_router.post("/course/{course_uuid}/convert")
-async def api_convert_course_migration(
-    request: Request,
-    course_uuid: str,
-    target_collection_uuid: str | None = Query(None),
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> dict:
-    target_collection = None
-    if target_collection_uuid:
-        from sqlmodel import select
-        from src.db.learning import BadgeCollection
-
-        target_collection = db_session.exec(select(BadgeCollection).where(BadgeCollection.collection_uuid == target_collection_uuid)).first()
-        if not target_collection:
-            from fastapi import HTTPException
-            raise HTTPException(status_code=404, detail="Target badge collection not found")
-        learning_service._require_org_admin(db_session, current_user, target_collection.org_id)
-    return learning_migration_service.convert_course_migration(request, course_uuid, current_user, db_session, target_collection=target_collection)
-
-
-@migrations_router.get("/collection/{collection_uuid}/preview")
-async def api_preview_collection_migration(
-    request: Request,
-    collection_uuid: str,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> dict:
-    return learning_migration_service.preview_collection_migration(request, collection_uuid, current_user, db_session)
-
-
-@migrations_router.post("/collection/{collection_uuid}/convert")
-async def api_convert_collection_migration(
-    request: Request,
-    collection_uuid: str,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> dict:
-    return learning_migration_service.convert_collection_migration(request, collection_uuid, current_user, db_session)
 
 
 @imports_router.post("/analyze")

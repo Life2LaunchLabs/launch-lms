@@ -16,7 +16,7 @@ import { Label } from '@components/ui/label';
 import currencyCodes from 'currency-codes';
 import useSWR from 'swr';
 import { BookOpen, X, Plus, Layers } from 'lucide-react';
-import { getOrgCourses } from '@services/courses/courses';
+import { getLearningBadges } from '@services/learning/learning';
 
 const validationSchema = Yup.object().shape({
   name: Yup.string().required('Name is required'),
@@ -63,8 +63,11 @@ const CreateOfferForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => 
 
   // Courses for the direct course picker
   const { data: courses } = useSWR(
-    org && token ? [`/courses/org`, org.slug, token] : null,
-    ([, slug, t]: any) => getOrgCourses(slug, null, t, true)
+    org && token ? [`/badges/org`, org.id, token] : null,
+    async ([, orgId, t]: any) => {
+      const response = await getLearningBadges(orgId, t, true)
+      return Array.isArray(response) ? response : response?.data || []
+    }
   );
 
   const initialValues: OfferFormValues = {
@@ -201,7 +204,7 @@ const CreateOfferForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => 
             <div className="border rounded-md p-3 space-y-3 bg-gray-50">
               <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Access</p>
               <p className="text-xs text-gray-500">
-                Add individual courses directly, or link to a Payment Group to grant access to a bundle of resources.
+                Add individual badges directly, or link to a Payment Group to grant access to a bundle of resources.
                 You can use both at the same time.
               </p>
 
@@ -212,7 +215,7 @@ const CreateOfferForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => 
                   <ul className="mb-1 space-y-0.5">
                     {values.resource_uuids.map((uuid) => {
                       const course = (courses ?? []).find(
-                        (c: any) => `course_${c.course_uuid?.replace('course_', '')}` === uuid
+                        (c: any) => c.badge_uuid === uuid
                       );
                       return (
                         <li key={uuid} className="flex items-center justify-between bg-white rounded px-2 py-1 text-xs border">
@@ -254,11 +257,11 @@ const CreateOfferForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => 
                   <SelectContent>
                     {(courses ?? [])
                       .filter((c: any) => {
-                        const uuid = `course_${c.course_uuid?.replace('course_', '')}`;
+                        const uuid = c.badge_uuid;
                         return !values.resource_uuids.includes(uuid);
                       })
                       .map((c: any) => {
-                        const uuid = `course_${c.course_uuid?.replace('course_', '')}`;
+                        const uuid = c.badge_uuid;
                         return (
                           <SelectItem key={uuid} value={uuid}>
                             {c.name}

@@ -12,7 +12,7 @@ const FEATURE_COPY: Record<
     description: string
   }
 > = {
-  courses: {
+  badges: {
     eyebrow: 'About Badges',
     title: 'Dive into our curated collection of badges.',
     description:

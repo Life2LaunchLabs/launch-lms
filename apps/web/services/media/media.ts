@@ -69,36 +69,6 @@ export function getVideoBlockStreamUrl(
   return `${getApiUrl()}api/v1/stream/block/${orgUUID}/${courseUUID}/${activityUUID}/${blockUUID}/${filename}`
 }
 
-/**
- * Get the streaming URL for an audio block.
- * Uses the optimized streaming endpoint with proper Range request support.
- */
-export function getAudioBlockStreamUrl(
-  orgUUID: string,
-  courseUUID: string,
-  activityUUID: string,
-  blockUUID: string,
-  filename: string
-) {
-  return `${getApiUrl()}api/v1/stream/block/audio/${orgUUID}/${courseUUID}/${activityUUID}/${blockUUID}/${filename}`
-}
-
-export function getCourseThumbnailMediaDirectory(
-  orgUUID: string,
-  courseUUID: string,
-  fileId: string
-) {
-  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/orgs/${orgUUID}/courses/${courseUUID}/thumbnails/${fileId}`)
-}
-
-export function getCourseCoreBackgroundMediaDirectory(
-  orgUUID: string,
-  courseUUID: string,
-  fileId: string
-) {
-  return getCourseThumbnailMediaDirectory(orgUUID, courseUUID, fileId)
-}
-
 export function getBoardThumbnailMediaDirectory(
   orgUUID: string,
   boardUUID: string,
@@ -147,14 +117,6 @@ export function getResourceOutcomeMediaDirectory(
   return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/users/${userUUID}/resources/${resourceUUID}/outcomes/${fileId}`)
 }
 
-export function getCollectionThumbnailMediaDirectory(
-  orgUUID: string,
-  collectionUUID: string,
-  fileId: string
-) {
-  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/orgs/${orgUUID}/collections/${collectionUUID}/thumbnails/${fileId}`)
-}
-
 export function getOrgLandingMediaDirectory(orgUUID: string, fileId: string) {
   return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/orgs/${orgUUID}/landing/${fileId}`)
 }
@@ -169,77 +131,6 @@ export function getUserProfileCoverMediaDirectory(userUUID: string, fileId: stri
 
 export function getUserProfileFeaturedMediaDirectory(userUUID: string, fileId: string) {
   return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/users/${userUUID}/profile_featured/${fileId}`)
-}
-
-export function getActivityBlockMediaDirectory(
-  orgUUID: string,
-  courseId: string,
-  activityId: string,
-  blockId: any,
-  fileId: any,
-  type: string
-) {
-  if (typeof fileId === 'string' && isStoredMediaUrl(fileId)) {
-    return resolveMediaFileId(fileId)
-  }
-  if (type == 'pdfBlock') {
-    let uri = `${getMediaUrl()}content/orgs/${orgUUID}/courses/${courseId}/activities/${activityId}/dynamic/blocks/pdfBlock/${blockId}/${fileId}`
-    return uri
-  }
-  if (type == 'videoBlock') {
-    let uri = `${getMediaUrl()}content/orgs/${orgUUID}/courses/${courseId}/activities/${activityId}/dynamic/blocks/videoBlock/${blockId}/${fileId}`
-    return uri
-  }
-  if (type == 'imageBlock') {
-    let uri = `${getMediaUrl()}content/orgs/${orgUUID}/courses/${courseId}/activities/${activityId}/dynamic/blocks/imageBlock/${blockId}/${fileId}`
-    return uri
-  }
-  if (type == 'audioBlock') {
-    let uri = `${getMediaUrl()}content/orgs/${orgUUID}/courses/${courseId}/activities/${activityId}/dynamic/blocks/audioBlock/${blockId}/${fileId}`
-    return uri
-  }
-}
-
-export function getTaskRefFileDir(
-  orgUUID: string,
-  courseUUID: string,
-  activityUUID: string,
-  assignmentUUID: string,
-  assignmentTaskUUID: string,
-  fileID : string
-
-) {
-  let uri = `${getMediaUrl()}content/orgs/${orgUUID}/courses/${courseUUID}/activities/${activityUUID}/assignments/${assignmentUUID}/tasks/${assignmentTaskUUID}/${fileID}`
-  return uri
-}
-
-export function getTaskFileSubmissionDir(
-  orgUUID: string,
-  courseUUID: string,
-  activityUUID: string,
-  assignmentUUID: string,
-  assignmentTaskUUID: string,
-  fileSubID : string
-) {
-  let uri = `${getMediaUrl()}content/orgs/${orgUUID}/courses/${courseUUID}/activities/${activityUUID}/assignments/${assignmentUUID}/tasks/${assignmentTaskUUID}/subs/${fileSubID}`
-  return uri
-}
-
-export function getActivityMediaDirectory(
-  orgUUID: string,
-  courseUUID: string,
-  activityUUID: string,
-  fileId: string,
-  activityType: string
-) {
-  if (activityType == 'video') {
-    let uri = `${getMediaUrl()}content/orgs/${orgUUID}/courses/${courseUUID}/activities/${activityUUID}/video/${fileId}`
-    return uri
-  }
-  if (activityType == 'documentpdf') {
-    let uri = `${getMediaUrl()}content/orgs/${orgUUID}/courses/${courseUUID}/activities/${activityUUID}/documentpdf/${fileId}`
-    return uri
-  }
 }
 
 export function getOrgLogoMediaDirectory(orgUUID: string, fileId: string) {

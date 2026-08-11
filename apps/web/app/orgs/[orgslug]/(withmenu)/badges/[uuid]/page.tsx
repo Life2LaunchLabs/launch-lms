@@ -5,9 +5,8 @@ import { getOrgOgImageMediaDirectory, normalizeMediaUrl } from '@services/media/
 import { getServerSession } from '@/lib/auth/server'
 import { buildPageTitle, getCanonicalUrl, getOrgSeoConfig } from '@/lib/seo/utils'
 import { notFound, redirect } from 'next/navigation'
-import CourseClient from '../../course/[courseuuid]/course'
+import LearningBadgeOverview from '@components/Learning/LearningBadgeOverview'
 import { getLearningPath } from '@services/learning/learning'
-import { learningPathToLegacyCourse } from '@services/learning/legacyAdapters'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 
 type MetadataProps = {
@@ -29,7 +28,7 @@ export async function generateMetadata(props: MetadataProps): Promise<Metadata> 
       true,
       { revalidate: 0, tags: ['courses'] },
     )
-    const course = learningPathToLegacyCourse(badgePath, org)
+    const course = badgePath.badge
     const seoConfig = getOrgSeoConfig(org)
     const seo = course.seo || {}
     const defaultTitle = buildPageTitle(course.name, org.name, seoConfig)
@@ -77,17 +76,10 @@ const BadgePage = async (props: MetadataProps) => {
     if (run) {
       redirect(getUriWithOrg(orgslug, routePaths.org.badgePath(uuid)))
     }
-    const org = await getOrganizationContextInfo(orgslug, {
-      revalidate: 1800,
-      tags: ['organizations'],
-    })
     return (
-      <CourseClient
-        courseuuid={uuid}
+      <LearningBadgeOverview
         orgslug={orgslug}
-        course={learningPathToLegacyCourse(badgePath, org)}
-        access_token={session?.tokens?.access_token}
-        learningBadgePath={badgePath}
+        badgePath={badgePath}
       />
     )
   } catch (error: any) {

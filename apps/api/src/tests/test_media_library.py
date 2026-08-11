@@ -152,6 +152,57 @@ async def test_org_admin_can_create_org_media_but_member_cannot(monkeypatch):
         assert exc.value.status_code == 403
 
 
+def test_google_forms_image_url_allowlist_is_narrow():
+    assert media_service.is_google_forms_image_url(
+        "https://docs.google.com/forms-images-rt/example/image.png"
+    )
+    assert media_service.is_google_forms_image_url(
+        "https://lh3.googleusercontent.com/example/image.png"
+    )
+    assert not media_service.is_google_forms_image_url(
+        "https://docs.google.com/document/d/example"
+    )
+    assert not media_service.is_google_forms_image_url(
+        "https://example.com/forms-images-rt/image.png"
+    )
+    assert not media_service.is_google_forms_image_url(
+        "http://docs.google.com/forms-images-rt/image.png"
+    )
+
+
+@pytest.mark.asyncio
+async def test_google_forms_image_is_copied_into_org_library(monkeypatch):
+    monkeypatch.setattr(media_service, "upload_file", _fake_upload_file)
+
+    async def fake_download(url):
+        assert url == "https://docs.google.com/forms-images-rt/example/image.png"
+        return "image/png", PNG_BYTES
+
+    monkeypatch.setattr(media_service, "_download_google_forms_image", fake_download)
+
+    with _session() as db:
+        admin = _user(1, "admin")
+        org = _org()
+        db.add(admin)
+        db.add(org)
+        db.add(UserOrganization(user_id=admin.id, org_id=org.id, role_id=1, creation_date="", update_date=""))
+        db.commit()
+
+        asset = await media_service.copy_google_forms_image_to_library(
+            "https://docs.google.com/forms-images-rt/example/image.png",
+            org.id,
+            _public(admin),
+            db,
+            title="Rubric",
+        )
+
+        assert asset.owner_org_id == org.id
+        assert asset.source_type == "upload"
+        assert asset.folder == "Google Forms"
+        assert asset.title == "Rubric"
+        assert asset.url == "/content/orgs/org-1/media/stored-avatar.png"
+
+
 @pytest.mark.asyncio
 async def test_link_creation_accepts_direct_image_and_youtube(monkeypatch):
     async def fake_verified_direct_media(url, media_type):

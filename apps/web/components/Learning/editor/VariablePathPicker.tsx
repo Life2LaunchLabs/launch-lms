@@ -1,5 +1,7 @@
 'use client'
 
+/* eslint-disable no-unused-vars */
+
 import React from 'react'
 import { AlertCircle, Check, ChevronRight, CornerDownLeft, FolderPlus, Plus, Variable, X } from 'lucide-react'
 
@@ -28,12 +30,22 @@ const SEGMENT_PATTERN = /^[a-z][a-z0-9_]*$/
 
 type PathNode = {
   name: string
+  label?: string
   path: string
   target?: string
   value_type?: string
   builtin?: boolean
   isLeaf: boolean
   children: Map<string, PathNode>
+}
+
+function humanizeSegment(value: string) {
+  if (value === 'this_activity') return 'This Activity'
+  return value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+function nodeDisplayName(node: PathNode) {
+  return node.label || humanizeSegment(node.name.replace(/__.+$/, ''))
 }
 
 function buildTree(variables: any[], sessionFolders: Set<string>): PathNode {
@@ -44,6 +56,7 @@ function buildTree(variables: any[], sessionFolders: Set<string>): PathNode {
     if (!node) {
       node = {
         name,
+        label: humanizeSegment(name),
         path: parent.path ? `${parent.path}.${name}` : name,
         isLeaf: false,
         children: new Map(),
@@ -82,7 +95,8 @@ function buildTree(variables: any[], sessionFolders: Set<string>): PathNode {
   })
 
   variables.forEach((variable: any) => {
-    const segments = String(variable.key || '').split('.').filter(Boolean)
+    const displayPath = String(variable.path || variable.key || '')
+    const segments = displayPath.split('.').filter(Boolean)
     if (!segments.length) return
     let parent = root
     segments.slice(0, -1).forEach((segment) => {
@@ -97,7 +111,8 @@ function buildTree(variables: any[], sessionFolders: Set<string>): PathNode {
       children: new Map(),
     }
     leaf.isLeaf = true
-    leaf.target = `user.details.variables.${variable.key}`
+    leaf.label = String(variable.label || name)
+    leaf.target = String(variable.target || `user.details.variables.${variable.key}`)
     leaf.value_type = String(variable.value_type || variable.valueType || 'text')
     parent.children.set(name, leaf)
   })
@@ -122,6 +137,18 @@ function resolveFolder(root: PathNode, prefixSegments: string[]): PathNode | nul
   return node
 }
 
+function displaySegments(root: PathNode, path: string) {
+  const labels: string[] = []
+  let node = root
+  for (const segment of path.split('.').filter(Boolean)) {
+    const next = node.children.get(segment)
+    if (!next) return path.split('.').filter(Boolean).map(humanizeSegment)
+    labels.push(nodeDisplayName(next))
+    node = next
+  }
+  return labels
+}
+
 export function targetToDisplayPath(target: string): string {
   if (!target) return ''
   const profileLeaf = PROFILE_LEAVES.find((leaf) => leaf.target === target)
@@ -131,16 +158,22 @@ export function targetToDisplayPath(target: string): string {
   return String(target).replace(/^user\.details\.variables\./, '')
 }
 
-export function VariablePathPicker({ value, variables = [], onBind, onCreateVariableKey, acceptedTypes, createValueType }: {
+function targetDisplayPath(target: string, variables: any[]): string {
+  const supplied = variables.find((variable) => String(variable.target || `user.details.variables.${variable.key}`) === target)
+  return supplied ? String(supplied.path || supplied.key || '') : targetToDisplayPath(target)
+}
+
+export function VariablePathPicker({ value, variables = [], onBind, onCreateVariableKey, acceptedTypes, createValueType, allowCreate = true }: {
   value: string
   variables: any[]
-  onBind: (target: string) => void
-  onCreateVariableKey: (key: string, valueType?: string) => Promise<any>
+  onBind: (_target: string) => void
+  onCreateVariableKey: (_key: string, _valueType?: string) => Promise<any>
   acceptedTypes?: string[]
   createValueType?: string
+  allowCreate?: boolean
 }) {
   const [open, setOpen] = React.useState(false)
-  const [text, setText] = React.useState(() => targetToDisplayPath(value))
+  const [text, setText] = React.useState(() => targetDisplayPath(value, variables))
   const [highlight, setHighlight] = React.useState(0)
   const [creating, setCreating] = React.useState(false)
   const [dropUp, setDropUp] = React.useState(false)
@@ -159,8 +192,8 @@ export function VariablePathPicker({ value, variables = [], onBind, onCreateVari
   }, [open, text])
 
   React.useEffect(() => {
-    if (!open) setText(targetToDisplayPath(value))
-  }, [value, open])
+    if (!open) setText(targetDisplayPath(value, variables))
+  }, [value, variables, open])
 
   React.useEffect(() => {
     if (!open) return
@@ -175,7 +208,7 @@ export function VariablePathPicker({ value, variables = [], onBind, onCreateVari
     return () => document.removeEventListener('mousedown', onDocDown, true)
   }, [open])
 
-  const accepted = React.useMemo(() => new Set(acceptedTypes?.length ? acceptedTypes : ['text', 'number', 'boolean', 'option', 'image']), [acceptedTypes])
+  const accepted = React.useMemo(() => new Set(acceptedTypes?.length ? acceptedTypes : ['text', 'number', 'boolean', 'option', 'multiple_choice', 'image']), [acceptedTypes])
   const root = React.useMemo(() => buildTree(variables, sessionFolders), [variables, sessionFolders])
 
   const lastDot = text.lastIndexOf('.')
@@ -186,15 +219,23 @@ export function VariablePathPicker({ value, variables = [], onBind, onCreateVari
 
   const nodes = folder
     ? Array.from(folder.children.values())
-      .filter((node) => node.name.toLowerCase().startsWith(term.toLowerCase()))
+      .filter((node) => node.name.toLowerCase().startsWith(term.toLowerCase()) || nodeDisplayName(node).toLowerCase().startsWith(term.toLowerCase()))
       .filter((node) => !node.isLeaf || node.children.size > 0 || accepted.has(String(node.value_type || 'text')))
-      .sort((a, b) => Number(a.isLeaf) - Number(b.isLeaf) || a.name.localeCompare(b.name))
+      .sort((a, b) => {
+        const rootRank = (node: PathNode) => node.path === 'this_activity' ? -1 : 0
+        return rootRank(a) - rootRank(b) || Number(a.isLeaf) - Number(b.isLeaf) || nodeDisplayName(a).localeCompare(nodeDisplayName(b))
+      })
     : []
   const rawExactNode = folder?.children.get(term) || null
   const exactNode = rawExactNode && (!rawExactNode.isLeaf || rawExactNode.children.size > 0 || accepted.has(String(rawExactNode.value_type || 'text'))) ? rawExactNode : null
   const termIsValidSegment = SEGMENT_PATTERN.test(term)
-  const canCreateHere = Boolean(folder) && !folder?.builtin && !exactNode && termIsValidSegment && term.length > 0
-  const boundDisplay = targetToDisplayPath(value)
+  const canCreateHere = allowCreate && Boolean(folder) && !folder?.builtin && !exactNode && termIsValidSegment && term.length > 0
+  const boundDisplay = targetDisplayPath(value, variables)
+  const prefixDisplay = folder && prefixSegments.length ? displaySegments(root, prefixText).join(' / ') : ''
+  const closedDisplay = displaySegments(root, boundDisplay).join(' / ')
+  const inputValue = open ? exactNode?.isLeaf && exactNode.target ? nodeDisplayName(exactNode) : term : closedDisplay
+  const highlightedLabel = nodes[highlight] ? nodeDisplayName(nodes[highlight]) : ''
+  const infill = open && term && highlightedLabel.toLowerCase().startsWith(term.toLowerCase()) ? highlightedLabel.slice(term.length) : ''
 
   React.useEffect(() => {
     setHighlight(0)
@@ -254,6 +295,9 @@ export function VariablePathPicker({ value, variables = [], onBind, onCreateVari
         event.preventDefault()
         autocomplete()
       }
+    } else if (event.key === 'Backspace' && !term && prefixSegments.length) {
+      event.preventDefault()
+      setText(prefixSegments.join('.'))
     } else if (event.key === 'Enter') {
       event.preventDefault()
       if (exactNode?.target) bindNode(exactNode)
@@ -267,16 +311,22 @@ export function VariablePathPicker({ value, variables = [], onBind, onCreateVari
     <div ref={wrapperRef} className="relative">
       <div className={`flex h-9 items-center gap-1 rounded-lg border bg-white pl-2 pr-1 ${folder || !open ? 'border-gray-200 focus-within:border-[var(--org-primary-color)]' : 'border-red-300'}`}>
         <Variable size={14} className="shrink-0 text-gray-400" />
-        <input
-          ref={inputRef}
-          value={text}
-          onFocus={() => setOpen(true)}
-          onChange={(event) => setText(event.target.value.toLowerCase())}
-          onKeyDown={onKeyDown}
-          placeholder="Choose or create a variable"
-          spellCheck={false}
-          className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-gray-400"
-        />
+        {open && prefixDisplay && <span className="shrink-0 text-xs text-gray-400">{prefixDisplay} /</span>}
+        <span className="relative grid min-w-0 flex-1 items-center">
+          <span aria-hidden="true" className="pointer-events-none col-start-1 row-start-1 flex min-w-0 overflow-hidden whitespace-pre text-xs">
+            <span className="invisible">{inputValue}</span><span className="text-gray-300">{infill}</span>
+          </span>
+          <input
+            ref={inputRef}
+            value={inputValue}
+            onFocus={(event) => { setOpen(true); window.requestAnimationFrame(() => event.currentTarget.select()) }}
+            onChange={(event) => setText(prefixText ? `${prefixText}.${event.target.value.toLowerCase()}` : event.target.value.toLowerCase())}
+            onKeyDown={onKeyDown}
+            placeholder={allowCreate ? 'Choose or create a variable' : 'Choose a variable'}
+            spellCheck={false}
+            className="col-start-1 row-start-1 min-w-0 bg-transparent text-xs outline-none placeholder:text-gray-400"
+          />
+        </span>
         {exactNode?.target && open && (
           <button
             type="button"
@@ -307,7 +357,7 @@ export function VariablePathPicker({ value, variables = [], onBind, onCreateVari
           {!folder ? (
             <div className="flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-red-600">
               <AlertCircle size={13} />
-              “{prefixText}” isn’t a folder
+              “{displaySegments(root, prefixText).join(' / ')}” not found
             </div>
           ) : (
             <>
@@ -319,7 +369,7 @@ export function VariablePathPicker({ value, variables = [], onBind, onCreateVari
                     onMouseDown={(event) => { event.preventDefault(); pickNode(node) }}
                     className={`flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs ${index === highlight ? 'bg-gray-100' : ''}`}
                   >
-                    <span className="min-w-0 flex-1 truncate font-medium text-gray-800">{node.name}</span>
+                    <span className="min-w-0 flex-1 truncate font-medium text-gray-800">{nodeDisplayName(node)}</span>
                     {node.builtin && !node.isLeaf && <span className="text-[9px] font-bold uppercase text-gray-300">built-in</span>}
                     {!node.isLeaf || node.children.size > 0 ? (
                       <ChevronRight size={13} className="shrink-0 text-gray-400" />
@@ -337,7 +387,7 @@ export function VariablePathPicker({ value, variables = [], onBind, onCreateVari
                 ))}
                 {!nodes.length && !canCreateHere && (
                   <div className="px-3 py-2.5 text-xs font-medium text-gray-400">
-                    {term && !termIsValidSegment ? 'Use lowercase letters, digits and underscores' : 'Nothing here yet'}
+                    {!allowCreate ? 'No matching variables' : term && !termIsValidSegment ? 'Use lowercase letters, digits and underscores' : 'Nothing here yet'}
                   </div>
                 )}
               </div>

@@ -196,7 +196,7 @@ def install_default_elements(db_session: Session):
         role_type=RoleTypeEnum.TYPE_GLOBAL,
         role_uuid="role_global_admin",
         rights=Rights(
-            courses=PermissionsWithOwn(
+            badges=PermissionsWithOwn(
                 action_create=True,
                 action_read=True,
                 action_read_own=True,
@@ -217,7 +217,7 @@ def install_default_elements(db_session: Session):
                 action_update=True,
                 action_delete=True,
             ),
-            collections=Permission(
+            badge_collections=Permission(
                 action_create=True,
                 action_read=True,
                 action_update=True,
@@ -229,13 +229,7 @@ def install_default_elements(db_session: Session):
                 action_update=True,
                 action_delete=True,
             ),
-            coursechapters=Permission(
-                action_create=True,
-                action_read=True,
-                action_update=True,
-                action_delete=True,
-            ),
-            activities=Permission(
+            learning_activities=Permission(
                 action_create=True,
                 action_read=True,
                 action_update=True,
@@ -319,7 +313,7 @@ def install_default_elements(db_session: Session):
         role_type=RoleTypeEnum.TYPE_GLOBAL,
         role_uuid="role_global_maintainer",
         rights=Rights(
-            courses=PermissionsWithOwn(
+            badges=PermissionsWithOwn(
                 action_create=True,
                 action_read=True,
                 action_read_own=True,
@@ -340,7 +334,7 @@ def install_default_elements(db_session: Session):
                 action_update=True,
                 action_delete=True,
             ),
-            collections=Permission(
+            badge_collections=Permission(
                 action_create=True,
                 action_read=True,
                 action_update=True,
@@ -352,13 +346,7 @@ def install_default_elements(db_session: Session):
                 action_update=False,
                 action_delete=False,
             ),
-            coursechapters=Permission(
-                action_create=True,
-                action_read=True,
-                action_update=True,
-                action_delete=True,
-            ),
-            activities=Permission(
+            learning_activities=Permission(
                 action_create=True,
                 action_read=True,
                 action_update=True,
@@ -442,7 +430,7 @@ def install_default_elements(db_session: Session):
         role_type=RoleTypeEnum.TYPE_GLOBAL,
         role_uuid="role_global_instructor",
         rights=Rights(
-            courses=PermissionsWithOwn(
+            badges=PermissionsWithOwn(
                 action_create=True,
                 action_read=True,
                 action_read_own=True,
@@ -463,7 +451,7 @@ def install_default_elements(db_session: Session):
                 action_update=False,
                 action_delete=False,
             ),
-            collections=Permission(
+            badge_collections=Permission(
                 action_create=True,
                 action_read=True,
                 action_update=False,
@@ -475,13 +463,7 @@ def install_default_elements(db_session: Session):
                 action_update=False,
                 action_delete=False,
             ),
-            coursechapters=Permission(
-                action_create=True,
-                action_read=True,
-                action_update=False,
-                action_delete=False,
-            ),
-            activities=Permission(
+            learning_activities=Permission(
                 action_create=True,
                 action_read=True,
                 action_update=False,
@@ -565,7 +547,7 @@ def install_default_elements(db_session: Session):
         role_uuid="role_global_user",
         id=4,
         rights=Rights(
-            courses=PermissionsWithOwn(
+            badges=PermissionsWithOwn(
                 action_create=False,
                 action_read=True,
                 action_read_own=True,
@@ -586,7 +568,7 @@ def install_default_elements(db_session: Session):
                 action_update=False,
                 action_delete=False,
             ),
-            collections=Permission(
+            badge_collections=Permission(
                 action_create=False,
                 action_read=True,
                 action_update=False,
@@ -598,13 +580,7 @@ def install_default_elements(db_session: Session):
                 action_update=False,
                 action_delete=False,
             ),
-            coursechapters=Permission(
-                action_create=False,
-                action_read=True,
-                action_update=False,
-                action_delete=False,
-            ),
-            activities=Permission(
+            learning_activities=Permission(
                 action_create=False,
                 action_read=True,
                 action_update=False,

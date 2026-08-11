@@ -669,9 +669,6 @@ LIMIT 200
 DETAIL_QUERIES: dict[str, tuple[str, int]] = {
     "detail_live_users": (DETAIL_LIVE_USERS, 0),
     "detail_signups": (DETAIL_SIGNUPS, 30),
-    "detail_enrollments": (DETAIL_ENROLLMENTS, 30),
-    "detail_completions": (DETAIL_COMPLETIONS, 30),
-    "learner_engagement_score": (LEARNER_ENGAGEMENT_SCORE, 30),
 }
 
 # ---------------------------------------------------------------------------
@@ -681,10 +678,7 @@ DETAIL_QUERIES: dict[str, tuple[str, int]] = {
 CORE_QUERIES: dict[str, tuple[str, int]] = {
     "live_users": (LIVE_USERS, 0),
     "daily_active_users": (DAILY_ACTIVE_USERS, 30),
-    "top_courses": (TOP_COURSES, 30),
-    "enrollment_funnel": (ENROLLMENT_FUNNEL, 30),
     "event_counts": (EVENT_COUNTS, 30),
-    "activity_engagement": (ACTIVITY_ENGAGEMENT, 30),
     "visitors_by_country": (VISITORS_BY_COUNTRY, 30),
     "visitors_by_device": (VISITORS_BY_DEVICE, 30),
     "visitors_by_referrer": (VISITORS_BY_REFERRER, 30),
@@ -692,19 +686,12 @@ CORE_QUERIES: dict[str, tuple[str, int]] = {
 }
 
 ADVANCED_QUERIES: dict[str, tuple[str, int]] = {
-    "course_dropoff": (COURSE_DROPOFF, 90),
     "cohort_retention": (COHORT_RETENTION, 90),
-    "time_to_completion": (TIME_TO_COMPLETION, 180),
     "peak_usage_hours": (PEAK_USAGE_HOURS, 30),
-    "content_type_effectiveness": (CONTENT_TYPE_EFFECTIVENESS, 30),
     "new_vs_returning": (NEW_VS_RETURNING, 30),
-    "completion_velocity": (COMPLETION_VELOCITY, 90),
     "community_correlation": (COMMUNITY_CORRELATION, 90),
-    "user_progress_snapshot": (USER_PROGRESS_SNAPSHOT, 90),
     "search_effectiveness": (SEARCH_EFFECTIVENESS, 30),
-    "certification_rate": (CERTIFICATION_RATE, 90),
     "org_growth_trend": (ORG_GROWTH_TREND, 90),
-    "course_rating_by_completion": (COURSE_RATING_BY_COMPLETION, 90),
 }
 
 # ---------------------------------------------------------------------------

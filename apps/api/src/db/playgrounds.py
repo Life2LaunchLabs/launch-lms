@@ -16,7 +16,7 @@ class PlaygroundBase(SQLModel):
     thumbnail_image: str | None = None
     access_type: PlaygroundAccessType = PlaygroundAccessType.AUTHENTICATED
     published: bool = False
-    course_uuid: str | None = None  # Optional course link (for RAG)
+
     html_content: str | None = Field(
         default=None, sa_column=Column(Text, nullable=True)
     )
@@ -28,10 +28,7 @@ class Playground(PlaygroundBase, table=True):
         sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True)
     )
     playground_uuid: str = Field(default="", index=True)
-    course_id: int | None = Field(
-        default=None,
-        sa_column=Column(Integer, ForeignKey("course.id", ondelete="SET NULL"), nullable=True),
-    )
+    
     created_by: int | None = Field(
         default=None,
         sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True),
@@ -46,7 +43,6 @@ class PlaygroundRead(PlaygroundBase):
     org_uuid: str | None = None
     org_slug: str | None = None
     playground_uuid: str
-    course_id: int | None = None
     created_by: int | None = None
     author_username: str | None = None
     author_first_name: str | None = None
@@ -62,7 +58,6 @@ class PlaygroundCreate(SQLModel):
     description: str | None = None
     thumbnail_image: str | None = None
     access_type: PlaygroundAccessType = PlaygroundAccessType.AUTHENTICATED
-    course_uuid: str | None = None
     html_content: str | None = None
 
 
@@ -72,5 +67,4 @@ class PlaygroundUpdate(SQLModel):
     thumbnail_image: str | None = None
     access_type: PlaygroundAccessType | None = None
     published: bool | None = None
-    course_uuid: str | None = None
     html_content: str | None = None

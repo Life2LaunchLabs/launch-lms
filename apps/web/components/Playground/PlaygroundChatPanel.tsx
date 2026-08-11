@@ -1,16 +1,11 @@
 'use client'
 
 import React, { useRef, useEffect } from 'react'
-import { PaperPlaneTilt, Sparkle, CircleNotch, BookOpen, Brain } from '@phosphor-icons/react'
+import { PaperPlaneTilt, Sparkle, CircleNotch } from '@phosphor-icons/react'
 
 interface Message {
   role: 'user' | 'model'
   content: string
-}
-
-interface Course {
-  course_uuid: string
-  name: string
 }
 
 interface PlaygroundChatPanelProps {
@@ -20,10 +15,6 @@ interface PlaygroundChatPanelProps {
   maxIterations: number
   onSend: (prompt: string) => void
   disabled?: boolean
-  orgCourses?: Course[]
-  selectedCourseUuid?: string
-  onCourseChange?: (uuid: string) => void
-  sessionStarted?: boolean
 }
 
 const SUGGESTION_CHIPS = [
@@ -44,13 +35,8 @@ export default function PlaygroundChatPanel({
   maxIterations,
   onSend,
   disabled,
-  orgCourses = [],
-  selectedCourseUuid = '',
-  onCourseChange,
-  sessionStarted = false,
 }: PlaygroundChatPanelProps) {
   const [input, setInput] = React.useState('')
-  const [sourceMode, setSourceMode] = React.useState<'ai' | 'course'>('ai')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -72,14 +58,6 @@ export default function PlaygroundChatPanel({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
-    }
-  }
-
-  const handleSourceMode = (mode: 'ai' | 'course') => {
-    setSourceMode(mode)
-    if (mode === 'ai') onCourseChange?.('')
-    else if (mode === 'course' && orgCourses.length > 0 && !selectedCourseUuid) {
-      onCourseChange?.(orgCourses[0].course_uuid)
     }
   }
 
@@ -111,52 +89,6 @@ export default function PlaygroundChatPanel({
           </span>
         </div>
 
-        {/* Source toggle — only shown before session starts and when courses exist */}
-        {orgCourses.length > 0 && !sessionStarted && (
-          <div className="mt-3 space-y-2">
-            <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Source</p>
-            <div className="flex gap-1.5">
-              <button
-                onClick={() => handleSourceMode('ai')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  sourceMode === 'ai'
-                    ? 'bg-neutral-800 text-white nice-shadow'
-                    : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'
-                }`}
-              >
-                <Brain size={12} weight="bold" />
-                AI Knowledge
-              </button>
-              <button
-                onClick={() => handleSourceMode('course')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  sourceMode === 'course'
-                    ? 'bg-sky-600 text-white nice-shadow'
-                    : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'
-                }`}
-              >
-                <BookOpen size={12} weight="bold" />
-                Course
-              </button>
-            </div>
-
-            {/* Course dropdown — only when Course mode is active */}
-            {sourceMode === 'course' && (
-              <select
-                value={selectedCourseUuid}
-                onChange={(e) => onCourseChange?.(e.target.value)}
-                className="w-full mt-1 px-3 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-              >
-                {orgCourses.map((c) => (
-                  <option key={c.course_uuid} value={c.course_uuid}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-        )}
-
         {iterationCount > 0 && (
           <div className="flex items-center gap-0.5 mt-2.5">
             {Array.from({ length: maxIterations }).map((_, i) => (
@@ -176,17 +108,11 @@ export default function PlaygroundChatPanel({
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center px-4 gap-2">
             <div className="w-10 h-10 rounded-xl bg-neutral-100 nice-shadow flex items-center justify-center">
-              {sourceMode === 'course'
-                ? <BookOpen size={20} weight="fill" className="text-sky-500" />
-                : <Sparkle size={20} weight="fill" className="text-neutral-400" />
-              }
+              <Sparkle size={20} weight="fill" className="text-neutral-400" />
             </div>
             <p className="text-sm font-semibold text-neutral-600">Describe what to create</p>
             <p className="text-xs text-neutral-400">
-              {sourceMode === 'course'
-                ? 'Content will be grounded in your course material'
-                : 'Type a prompt or pick a suggestion below'
-              }
+              Type a prompt or pick a suggestion below
             </p>
           </div>
         ) : (
@@ -223,8 +149,8 @@ export default function PlaygroundChatPanel({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Suggestion chips — only in AI mode */}
-      {messages.length === 0 && sourceMode === 'ai' && (
+      {/* Suggestions before the first prompt. */}
+      {messages.length === 0 && (
         <div className="px-4 pb-3 flex flex-wrap gap-1.5 flex-shrink-0">
           {SUGGESTION_CHIPS.map((chip) => (
             <button

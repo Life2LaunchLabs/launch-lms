@@ -6,14 +6,17 @@ import { Extension } from '@tiptap/core'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
+import YouTube from 'react-youtube'
 import {
   AlignCenter,
   AlignLeft,
   AlignRight,
+  AlertTriangle,
   ArrowLeft,
   Bold,
   Check,
   ChevronDown,
+  ChevronRight,
   Columns2,
   Copy,
   Eye,
@@ -32,9 +35,11 @@ import {
   Monitor,
   MousePointer2,
   MousePointerClick,
+  Pencil,
   Plus,
   Quote,
   Smartphone,
+  TextCursorInput,
   Trash2,
   Upload,
   Video,
@@ -77,9 +82,10 @@ import {
   LearningActivitySurface,
   LearningPageContent,
 } from '@components/Learning/LearningBadgeViews'
-import type { ActivityGradingMode, DeviceMode, EditorViewMode, SaveState, Selection } from './types'
+import type { DeviceMode, EditorViewMode, SaveState, Selection } from './types'
 import {
   EMPTY_PARAGRAPH,
+  activityHasScoredQuestions,
   blockLabel,
   cloneBlocksWithFreshIds,
   cloneJson,
@@ -96,6 +102,7 @@ import {
   getPageBlocks,
   getTextBlockNodes,
   getEnabledVariantKeys,
+  getQuestionConfigurationIssue,
   getVariantKeyList,
   getVariantSource,
   getVariantSourceOptions,
@@ -118,8 +125,17 @@ import {
 import { DEVICE_FRAMES, MOBILE_FRAME_CAP } from './constants'
 import { PageListPanel } from './PageListPanel'
 import { VariablePathPicker } from './VariablePathPicker'
-import VisualFlowEditor, { createLinearFlow } from './VisualFlowEditor'
+import VisualFlowEditor, {
+  appendPageToFlow,
+  createLinearFlow,
+  ensureSplitNodes,
+  getFlowIssues,
+  insertPageIntoFlow,
+  normalizeJoinNodes,
+  type FlowInsertion,
+} from './VisualFlowEditor'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
+import type { MediaAsset } from '@services/media/library'
 import { TimelineCardView, type TimelineEntry } from '@components/Pages/Portfolio/Timeline'
 
 export default function LearningActivityEditor({
@@ -157,22 +173,49 @@ export default function LearningActivityEditor({
   const [publishing, setPublishing] = React.useState(false)
   const [previewOpen, setPreviewOpen] = React.useState(false)
   const [uploadingBlockId, setUploadingBlockId] = React.useState<string | null>(null)
+  const [selectingVideoPageUuid, setSelectingVideoPageUuid] = React.useState<string | null>(null)
   const [hoveredBlockId, setHoveredBlockId] = React.useState<string | null>(null)
   const [draggingBlockId, setDraggingBlockId] = React.useState<string | null>(null)
   const [activeTextEditor, setActiveTextEditor] = React.useState<any>(null)
   const blockElsRef = React.useRef<Map<string, HTMLElement>>(new Map())
+  const blockClipboardRef = React.useRef<LearningBlock | null>(null)
   const canvasRef = React.useRef<HTMLDivElement | null>(null)
   const mediaInputRef = React.useRef<HTMLInputElement | null>(null)
   const saveTimerRef = React.useRef<NodeJS.Timeout | null>(null)
   const activitySaveTimerRef = React.useRef<NodeJS.Timeout | null>(null)
   const pendingPagePatchesRef = React.useRef<Record<string, any>>({})
   const pendingActivityPatchRef = React.useRef<Record<string, any>>({})
+  const invalidFlowRef = React.useRef(false)
+  const legacyTextLabelPageUuidsRef = React.useRef<string[]>(
+    (activity.pages || [])
+      .filter((page: any) => {
+        const stacks = [
+          page.content?.blocks,
+          ...Object.values(page.content?.variants?.overrides || {}).map((override: any) => override?.blocks),
+        ]
+        return stacks.some((blocks: any) => Array.isArray(blocks) && blocks.some((block: any) => (
+          block?.type === 'question'
+          && block?.kind === 'text_input'
+          && Object.prototype.hasOwnProperty.call(block.content || {}, 'label')
+        )))
+      })
+      .map((page: any) => page.page_uuid),
+  )
 
   const selectedPage = pages.find((page) => page.page_uuid === selection.pageUuid) || pages[0]
   const selectedBlock = selectedPage ? getEditorBlocks(selectedPage, variantKey).find((block) => block.id === selection.blockId) || null : null
   const frame = DEVICE_FRAMES[device]
   const frameShellHeight = device === 'mobile' ? frame.height + MOBILE_FRAME_CAP * 2 : frame.height
   const gradingSettings = getActivityGradingSettings(activityState)
+  const hasScoredQuestions = activityHasScoredQuestions(pages)
+  const currentFlowIssues = React.useMemo(
+    () => getFlowIssues(activityState.settings?.flow, pages),
+    [activityState.settings?.flow, pages],
+  )
+
+  React.useEffect(() => {
+    invalidFlowRef.current = currentFlowIssues.length > 0
+  }, [currentFlowIssues])
 
   React.useEffect(() => {
     setVariantKey('default')
@@ -247,9 +290,13 @@ export default function LearningActivityEditor({
   }, [accessToken, activityState.activity_uuid])
 
   React.useEffect(() => {
-    const flush = () => {
+    const flush = (event?: BeforeUnloadEvent) => {
       void flushPendingPages()
       void flushPendingActivity()
+      if (invalidFlowRef.current && event) {
+        event.preventDefault()
+        event.returnValue = ''
+      }
     }
     window.addEventListener('beforeunload', flush)
     return () => {
@@ -266,6 +313,15 @@ export default function LearningActivityEditor({
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(() => void flushPendingPages(), 800)
   }, [flushPendingPages])
+
+  React.useEffect(() => {
+    const pageUuids = legacyTextLabelPageUuidsRef.current
+    legacyTextLabelPageUuidsRef.current = []
+    pageUuids.forEach((pageUuid) => {
+      const page = pages.find((item) => item.page_uuid === pageUuid)
+      if (page) schedulePageSave(pageUuid, { content: page.content })
+    })
+  }, [pages, schedulePageSave])
 
   const scheduleActivitySave = React.useCallback((patch: any) => {
     pendingActivityPatchRef.current = mergePatch(pendingActivityPatchRef.current, patch)
@@ -357,6 +413,46 @@ export default function LearningActivityEditor({
     setBlocks(selectedPage.page_uuid, nextBlocks)
     setSelection({ pageUuid: selectedPage.page_uuid, blockId: clone.id })
   }
+
+  const copySelectedBlock = React.useCallback(() => {
+    if (!selectedBlock || selectedBlock.system?.locked) return false
+    blockClipboardRef.current = cloneJson(selectedBlock)
+    toast.success('Block copied')
+    return true
+  }, [selectedBlock])
+
+  const pasteCopiedBlock = React.useCallback(() => {
+    const copiedBlock = blockClipboardRef.current
+    if (!copiedBlock || !selectedPage || selectedPage.page_type !== 'standard') return false
+    if (copiedBlock.type === 'question' && selectedPage.content?.variants) {
+      toast.error('Variant pages cannot contain question blocks')
+      return true
+    }
+    const blocks = getEditorBlocks(selectedPage, variantKey)
+    const selectedIndex = selection.blockId
+      ? blocks.findIndex((block) => block.id === selection.blockId)
+      : -1
+    const clone = { ...cloneJson(copiedBlock), id: createBlockId() } as LearningBlock
+    const nextBlocks = [...blocks]
+    nextBlocks.splice(selectedIndex >= 0 ? selectedIndex + 1 : blocks.length, 0, clone)
+    setBlocks(selectedPage.page_uuid, nextBlocks)
+    setSelection({ pageUuid: selectedPage.page_uuid, blockId: clone.id })
+    toast.success('Block pasted')
+    return true
+  }, [selectedPage, selection.blockId, setBlocks, variantKey])
+
+  React.useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (viewMode !== 'editor' || event.altKey || (!event.ctrlKey && !event.metaKey)) return
+      const target = event.target as HTMLElement | null
+      if (target?.closest('input, textarea, [contenteditable="true"], [role="textbox"]')) return
+      const key = event.key.toLowerCase()
+      if (key === 'c' && copySelectedBlock()) event.preventDefault()
+      if (key === 'v' && pasteCopiedBlock()) event.preventDefault()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [copySelectedBlock, pasteCopiedBlock, viewMode])
 
   const moveBlockTo = React.useCallback((blockId: string, toIndex: number) => {
     if (!selectedPage) return
@@ -490,7 +586,7 @@ export default function LearningActivityEditor({
     if (variantKey === key) setVariantKey('default')
   }
 
-  const addPage = async (pageType: LearningPageType = 'standard') => {
+  const addPage = async (pageType: LearningPageType = 'standard', insertion?: FlowInsertion) => {
     try {
       await saveBeforeAction()
       const content = pageType === 'video'
@@ -505,9 +601,20 @@ export default function LearningActivityEditor({
         scoring: {},
         completion: {},
       }, accessToken)
-      setPages((current) => [...current, page])
+      const nextPages = [...pages, page]
+      setPages(nextPages)
+      const currentFlow = activityState.settings?.flow
+      const flow = insertion && currentFlow
+        ? insertPageIntoFlow(currentFlow, page, insertion)
+        : appendPageToFlow(currentFlow, page)
+      if (flow) {
+        const settings = { ...(activityState.settings || {}), flow }
+        setActivityState((current: any) => ({ ...current, settings }))
+        if (!getFlowIssues(flow, nextPages).length) scheduleActivitySave({ settings })
+      }
       setSelection({ pageUuid: page.page_uuid, blockId: null })
       setLastSavedAt(new Date())
+      return page
     } catch (error: any) {
       toast.error(error?.message || 'Failed to add page')
     }
@@ -531,6 +638,10 @@ export default function LearningActivityEditor({
       nextPages.splice(sourceIndex + 1, 0, duplicate)
       const ordered = withSequentialOrder(nextPages)
       setPages(ordered)
+      setActivityState((current: any) => {
+        const flow = appendPageToFlow(current.settings?.flow, duplicate)
+        return flow ? { ...current, settings: { ...(current.settings || {}), flow } } : current
+      })
       setSelection({ pageUuid: duplicate.page_uuid, blockId: null })
       await persistPageOrder(ordered)
       setLastSavedAt(new Date())
@@ -552,20 +663,6 @@ export default function LearningActivityEditor({
     }
   }
 
-  const reorderPages = async (nextPages: any[]) => {
-    const ordered = withSequentialOrder(nextPages)
-    setPages(ordered)
-    setSaveState('saving')
-    try {
-      await persistPageOrder(ordered)
-      setLastSavedAt(new Date())
-      setSaveState('saved')
-    } catch (error: any) {
-      setSaveState('error')
-      toast.error(error?.message || 'Failed to reorder pages')
-    }
-  }
-
   const persistPageOrder = async (orderedPages: any[]) => {
     await Promise.all(orderedPages.map((page, index) => updateLearningPage(page.page_uuid, { order: index + 1 }, accessToken)))
   }
@@ -576,9 +673,12 @@ export default function LearningActivityEditor({
   }
 
   const patchGradingSettings = (patch: Record<string, any>) => {
+    const currentGrading = { ...(activityState.settings?.grading || {}) }
+    delete currentGrading.mode
     const settings = {
       ...(activityState.settings || {}),
       grading: {
+        ...currentGrading,
         ...gradingSettings,
         ...patch,
       },
@@ -590,6 +690,12 @@ export default function LearningActivityEditor({
   const patchFlowSettings = (flow: any) => {
     const settings = { ...(activityState.settings || {}), flow }
     setActivityState((current: any) => ({ ...current, settings }))
+    const issues = getFlowIssues(flow, pages)
+    invalidFlowRef.current = issues.length > 0
+    if (issues.length) {
+      setSaveState('dirty')
+      return
+    }
     scheduleActivitySave({ settings })
   }
 
@@ -621,6 +727,7 @@ export default function LearningActivityEditor({
   }
 
   const goBack = async () => {
+    if (invalidFlowRef.current && !confirm('This flow still has warnings and has not been saved. Leave and discard the invalid flow draft?')) return
     try {
       await saveBeforeAction()
       router.back()
@@ -630,6 +737,10 @@ export default function LearningActivityEditor({
   }
 
   const publishActivity = async () => {
+    if (invalidFlowRef.current) {
+      toast.error('Fix the flow warnings before publishing')
+      return
+    }
     const nextPublished = !activityState.published
     setPublishing(true)
     try {
@@ -682,6 +793,20 @@ export default function LearningActivityEditor({
       },
     } as Partial<LearningImageBlock>)
     setUploadingBlockId(null)
+  }
+
+  const handleVideoAssetPicked = (asset: MediaAsset) => {
+    if (!selectingVideoPageUuid) return
+    const page = pages.find((item) => item.page_uuid === selectingVideoPageUuid)
+    if (!page) return
+    patchPage(selectingVideoPageUuid, {
+      content: {
+        ...(page.content || {}),
+        video_url: asset.url,
+        video_asset_uuid: asset.asset_uuid,
+      },
+    })
+    setSelectingVideoPageUuid(null)
   }
 
   const createVariableFromKey = async (rawKey: string, valueType = 'text') => {
@@ -792,6 +917,18 @@ export default function LearningActivityEditor({
         mediaType="image"
         accessToken={accessToken}
       />
+      <MediaPickerDialog
+        open={Boolean(selectingVideoPageUuid)}
+        onOpenChange={(open) => {
+          if (!open) setSelectingVideoPageUuid(null)
+        }}
+        title="Choose video"
+        description="Upload a video, add an external link, or choose one from the media library."
+        onSave={handleVideoAssetPicked}
+        owner={{ type: 'org', id: Number(badge?.org_id) }}
+        mediaType="video"
+        accessToken={accessToken}
+      />
       <EditorHeader
         badgeName={badge.name}
         activity={activityState}
@@ -814,6 +951,7 @@ export default function LearningActivityEditor({
         <ActivitySettingsView
           activity={activityState}
           gradingSettings={gradingSettings}
+          hasScoredQuestions={hasScoredQuestions}
           learningVariables={learningVariables}
           variableDraftKey={variableDraftKey}
           setVariableDraftKey={setVariableDraftKey}
@@ -827,11 +965,14 @@ export default function LearningActivityEditor({
         <ActivityFlowView
           activity={activityState}
           pages={pages}
+          learningVariables={learningVariables}
           trusted={badge?.system_type === 'onboarding' || badge?.protected === true}
           onSelectPage={(pageUuid: string) => { setSelection({ pageUuid, blockId: null }); setViewMode('editor') }}
           onPatchFlow={patchFlowSettings}
           onPatchActivity={patchActivityBasics}
           onConvertVariants={convertVariants}
+          onAddPage={(insertion: FlowInsertion) => addPage('standard', insertion)}
+          onCreateVariableKey={createVariableFromKey}
         />
       ) : (
         <div className="flex min-h-0 flex-1">
@@ -843,7 +984,8 @@ export default function LearningActivityEditor({
               onAddPage={addPage}
               onDuplicatePage={duplicatePage}
               onRemovePage={removePage}
-              onReorderPages={reorderPages}
+              flow={activityState.settings?.flow || createLinearFlow(pages)}
+              onChangeFlow={patchFlowSettings}
             />
             <PanelResizeHandle side="right" onPointerDown={(event) => resizePanel('left', event)} />
           </div>
@@ -907,6 +1049,7 @@ export default function LearningActivityEditor({
                     onDuplicateBlock={duplicateBlock}
                     onRemoveBlock={removeBlock}
                     onRequestImageUpload={requestImageUpload}
+                    onRequestVideo={() => selectedPage && setSelectingVideoPageUuid(selectedPage.page_uuid)}
                   />
                 </div>
               </div>
@@ -938,15 +1081,14 @@ export default function LearningActivityEditor({
               block={selectedBlock}
               pages={pages}
               variantKey={variantKey}
-              setVariantKey={setVariantKey}
-              onSelectVariant={selectVariant}
-              onDisableVariant={disableVariant}
               onToggleSideBySide={() => selectedBlock && toggleSideBySide(selectedBlock.id)}
               learningVariables={learningVariables}
               onCreateVariableKey={createVariableFromKey}
               onPatchPage={patchSelectedPage}
               onPatchBlock={patchBlock}
+              onSelectBlock={(blockId: string | null) => selectedPage && setSelection({ pageUuid: selectedPage.page_uuid, blockId })}
               onRequestImageUpload={requestImageUpload}
+              onRequestVideo={() => selectedPage && setSelectingVideoPageUuid(selectedPage.page_uuid)}
             />
           </div>
         </div>
@@ -959,12 +1101,14 @@ export default function LearningActivityEditor({
   )
 }
 
-function ActivityFlowView({ activity, pages, onSelectPage, onPatchFlow, onConvertVariants }: any) {
-  const flow = activity.settings?.flow
-  if (!flow) {
-    return <div className="flex min-h-0 flex-1 items-center justify-center bg-gray-50 p-8"><div className="max-w-md rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm"><GitBranch size={24} className="mx-auto text-gray-700"/><h2 className="mt-4 text-lg font-bold">Turn page order into a visual flow</h2><p className="mt-2 text-sm leading-6 text-gray-500">Start with the current page order, then add decision points, rearrange paths, and draw merge connections directly on the canvas.</p><button onClick={() => onPatchFlow(createLinearFlow(pages))} className="mt-6 h-10 rounded-lg bg-gray-950 px-4 text-sm font-bold text-white hover:bg-black">Open visual flow</button>{pages.some((page: any) => page.content?.variants) && <div className="mt-5 border-t border-gray-100 pt-5"><p className="text-xs text-gray-500">This activity also has legacy page variants.</p><div className="mt-2 flex flex-wrap justify-center gap-2">{pages.filter((page: any) => page.content?.variants).map((page: any) => <button key={page.page_uuid} onClick={() => onConvertVariants(page)} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900">Convert {page.title}</button>)}</div></div>}</div></div>
-  }
-  return <VisualFlowEditor flow={flow} pages={pages} onChange={onPatchFlow} onSelectPage={onSelectPage}/>
+function ActivityFlowView({ activity, pages, learningVariables, onSelectPage, onPatchFlow, onAddPage, onCreateVariableKey }: any) {
+  const sourceFlow = activity.settings?.flow || createLinearFlow(pages)
+  const flow = React.useMemo(() => normalizeJoinNodes(ensureSplitNodes(sourceFlow)), [sourceFlow])
+  React.useEffect(() => {
+    if (!activity.settings?.flow || flow !== sourceFlow) onPatchFlow(flow)
+  }, [activity.settings?.flow, flow, onPatchFlow, sourceFlow]) // Initialise and migrate legacy page-owned splits.
+  const issues = React.useMemo(() => getFlowIssues(flow, pages, learningVariables), [flow, learningVariables, pages])
+  return <VisualFlowEditor flow={flow} pages={pages} learningVariables={learningVariables} issues={issues} onChange={onPatchFlow} onSelectPage={onSelectPage} onAddPage={onAddPage} onCreateVariableKey={onCreateVariableKey}/>
 }
 
 function LegacyActivityFlowView({ activity, pages, trusted, onSelectPage, onPatchFlow, onPatchActivity, onConvertVariants }: any) {
@@ -1075,10 +1219,6 @@ function CanvasToolbar({ selectedPage, pages, variantKey, onSelectVariant, onAdd
               <ListChecks size={16} className="mr-2" />
               Multiple choice
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onAddQuestion('categorized_multi_select')}>
-              <ListChecks size={16} className="mr-2" />
-              Categorized multi-select
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onAddQuestion('text_input')}>
               <FileText size={16} className="mr-2" />
               Text input
@@ -1123,6 +1263,7 @@ function CanvasFrame({
   onPatchBlock,
   onInsertBlock,
   onRequestImageUpload,
+  onRequestVideo,
   registerBlockEl,
   onHoverBlock,
   onTextEditorReady,
@@ -1168,7 +1309,7 @@ function CanvasFrame({
             className="h-full"
           >
             {page.page_type === 'video' ? (
-              <VideoCanvasPage page={page} onPatchPage={onPatchPage} />
+              <VideoCanvasPage page={page} onRequestVideo={onRequestVideo} onPatchPage={onPatchPage} />
             ) : (
               <StandardCanvasPage
                 page={page}
@@ -1511,15 +1652,10 @@ function McqBlockCanvas({ block, page, selected, readOnly, onPatch }: any) {
     })
   }
   const toggleCorrect = (id: string) => {
-    const maxSelections = Math.max(1, Number(completion.max_selections ?? 1))
     const next = new Set(correctIds)
     if (next.has(id)) next.delete(id)
-    else {
-      if (maxSelections <= 1) next.clear()
-      else if (next.size >= maxSelections) return
-      next.add(id)
-    }
-    onPatch({ scoring: { ...scoring, mode: 'points', score_policy: 'exact_match', correct_option_ids: Array.from(next) } })
+    else next.add(id)
+    onPatch({ scoring: { ...scoring, mode: 'points', score_policy: 'select_all', correct_option_ids: Array.from(next) } })
   }
 
   return (
@@ -1535,6 +1671,12 @@ function McqBlockCanvas({ block, page, selected, readOnly, onPatch }: any) {
           className="w-full resize-none overflow-hidden bg-transparent text-lg font-bold leading-7 text-gray-900 outline-none placeholder:text-gray-300"
         />
       )}
+      {!readOnly && !isVariableMode && scoring.mode !== 'off' && Number(scoring.points ?? 1) > 0 && correctIds.size === 0 ? (
+        <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          No correct answers are selected. Learners cannot receive points for this question.
+        </div>
+      ) : null}
       {options.map((option: any, index: number) => {
         const correct = !isVariableMode && correctIds.has(option.id)
         return (
@@ -1658,6 +1800,7 @@ function TextInputBlockCanvas({ block, page, selected: _selected, readOnly, onPa
               )}
               {singleLine ? (
                 <input
+                  type={input.input_type === 'number' ? 'number' : 'text'}
                   readOnly={readOnly}
                   value={input.placeholder || ''}
                   onChange={(event) => patchInput(input.id, { placeholder: event.target.value })}
@@ -1886,10 +2029,6 @@ function InlineInsertMenu({ onInsert, canAddQuestion, alwaysVisible = false }: {
                 <ListChecks size={15} className="mr-2" />
                 Multiple choice
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onInsert('categorized_multi_select')}>
-                <ListChecks size={15} className="mr-2" />
-                Categorized multi-select
-              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onInsert('text_input')}>
                 <FileText size={15} className="mr-2" />
                 Text input
@@ -1909,28 +2048,57 @@ function InlineInsertMenu({ onInsert, canAddQuestion, alwaysVisible = false }: {
 
 // The surrounding LearningActivitySurface already draws the theater chrome
 // (progress bar, footer) for video pages — this is just the editable body.
-function VideoCanvasPage({ page, onPatchPage }: any) {
+function VideoCanvasPage({ page, onRequestVideo, onPatchPage }: any) {
   const videoUrl = page.content?.video_url || ''
+  const youtubeId = getEditorYouTubeId(videoUrl)
+  const storeDuration = (rawDuration: number) => {
+    const duration = Math.round(rawDuration || 0)
+    if (duration > 0 && duration !== Number(page.content?.video_duration_seconds || 0)) {
+      onPatchPage({ content: { ...(page.content || {}), video_duration_seconds: duration } })
+    }
+  }
   return (
     <div className="flex w-full max-w-3xl flex-col gap-4 px-6 text-white">
       <div className="flex aspect-video w-full items-center justify-center rounded-xl border border-white/10 bg-white/5 text-center">
-        {videoUrl ? (
-          <div className="px-6">
-            <Video size={42} className="mx-auto mb-3 text-white/60" />
-            <p className="break-all text-sm font-bold text-white/80">{videoUrl}</p>
+        {videoUrl && youtubeId ? (
+          <div className="pointer-events-none aspect-video h-full max-w-full overflow-hidden rounded-xl">
+            <YouTube
+              videoId={youtubeId}
+              className="h-full"
+              iframeClassName="h-full w-full"
+              opts={{ height: '100%', width: '100%', playerVars: { controls: 0, playsinline: 1 } }}
+              onReady={(event: any) => storeDuration(event.target?.getDuration?.() || 0)}
+            />
           </div>
+        ) : videoUrl ? (
+          <video
+            src={videoUrl}
+            className="h-full w-full rounded-xl object-contain"
+            muted
+            preload="metadata"
+            onLoadedMetadata={(event) => {
+              storeDuration(event.currentTarget.duration)
+            }}
+          />
         ) : (
-          <p className="text-sm font-bold text-white/50">Paste a video URL below</p>
+          <p className="text-sm font-bold text-white/50">Upload a video or add an external link</p>
         )}
       </div>
-      <input
-        value={videoUrl}
-        onChange={(event) => onPatchPage({ content: { ...(page.content || {}), video_url: event.target.value } })}
-        placeholder="Video URL"
-        className="h-10 w-full rounded-lg border border-white/10 bg-white/10 px-3 text-sm text-white outline-none placeholder:text-white/40"
-      />
+      <button
+        type="button"
+        onClick={onRequestVideo}
+        className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/10 px-3 text-sm font-bold text-white hover:bg-white/15"
+      >
+        <Upload size={16} />
+        {videoUrl ? 'Change video' : 'Choose video'}
+      </button>
     </div>
   )
+}
+
+function getEditorYouTubeId(url: string) {
+  const match = String(url || '').match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([^?&/]+)/)
+  return match?.[1] || ''
 }
 
 function CanvasControls({ zoom, setZoom, handMode, setHandMode }: any) {
@@ -1955,21 +2123,46 @@ function InspectorPanel({
   block,
   pages,
   variantKey,
-  setVariantKey,
-  onSelectVariant,
-  onDisableVariant,
   onToggleSideBySide,
   learningVariables,
   onCreateVariableKey,
   onPatchPage,
   onPatchBlock,
+  onSelectBlock,
   onRequestImageUpload,
+  onRequestVideo,
 }: any) {
+  const title = block
+    ? getInspectorBlockTitle(block)
+    : String(page?.title || 'Untitled page')
+  const patchTitle = (value: string) => {
+    if (!block) {
+      onPatchPage({ title: value })
+      return
+    }
+    const content = block.content || {}
+    if (block.type === 'question' && block.kind === 'text_input') {
+      const inputs = normalizeQuestionInputs(content.inputs)
+      onPatchBlock(block.id, { content: { ...content, inputs: inputs.map((input, index) => index === 0 ? { ...input, label: value } : input) } })
+    } else if (block.type === 'question' || block.type === 'button') onPatchBlock(block.id, { content: { ...content, label: value } })
+    else if (block.type === 'image') onPatchBlock(block.id, { content: { ...content, alt: value } })
+    else onPatchBlock(block.id, { content: { ...content, editor_title: value } })
+  }
   return (
     <aside className="h-full w-full overflow-y-auto border-l border-gray-200 bg-white">
-      <div className="border-b border-gray-100 px-5 py-4">
-        <p className="text-[11px] font-bold uppercase text-gray-500">{block ? block.type : page?.page_type || 'Page'}</p>
-        <p className="mt-1 truncate text-base font-bold">{block ? blockLabel(block) : page?.title || 'Untitled page'}</p>
+      <div className="border-b border-gray-200 px-4 py-4">
+        <div className="flex items-start gap-2">
+          {block ? (
+            <button type="button" onClick={() => onSelectBlock(null)} title="Back to page settings" className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900">
+              <ArrowLeft size={17} />
+            </button>
+          ) : (
+            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center text-gray-500">
+              {page?.page_type === 'video' ? <Video size={17} /> : <FileText size={17} />}
+            </span>
+          )}
+          <EditableInspectorTitle value={title} fallback={block ? blockLabel(block) : 'Untitled page'} onChange={patchTitle} />
+        </div>
       </div>
       {block ? (
         <BlockInspector
@@ -1984,46 +2177,137 @@ function InspectorPanel({
           onRequestImageUpload={onRequestImageUpload}
         />
       ) : (
-        <PageInspector page={page} pages={pages} variantKey={variantKey} setVariantKey={setVariantKey} onSelectVariant={onSelectVariant} onDisableVariant={onDisableVariant} onPatchPage={onPatchPage} />
+        <PageInspector page={page} variantKey={variantKey} onPatchPage={onPatchPage} onSelectBlock={onSelectBlock} onRequestVideo={onRequestVideo} />
       )}
     </aside>
   )
 }
 
-function PageInspector({ page, onPatchPage }: any) {
+function getInspectorBlockTitle(block: any): string {
+  if (block?.type === 'question' && block.kind === 'text_input') {
+    return String(block.content?.inputs?.[0]?.label || block.content?.editor_title || blockLabel(block))
+  }
+  return String(block?.content?.label || block?.content?.editor_title || block?.content?.alt || blockLabel(block))
+}
+
+function EditableInspectorTitle({ value, fallback, onChange }: { value: string; fallback: string; onChange: (value: string) => void }) {
+  const [editing, setEditing] = React.useState(false)
+  return (
+    <div className="min-w-0 flex-1">
+      {editing ? (
+        <AutoGrowTextarea
+          autoFocus
+          value={value}
+          minRows={1}
+          onChange={(event) => onChange(event.target.value)}
+          onBlur={() => setEditing(false)}
+          onKeyDown={(event) => { if (event.key === 'Escape') setEditing(false) }}
+          className="min-h-8 w-full resize-none overflow-hidden rounded-md border border-gray-200 px-2 py-1 text-base font-bold leading-6 outline-none focus:border-[var(--org-primary-color)]"
+        />
+      ) : (
+        <button type="button" onClick={() => setEditing(true)} className="group/title flex w-full items-start gap-2 rounded-md px-2 py-1 text-left hover:bg-gray-50">
+          <span className="min-w-0 flex-1 whitespace-normal break-words text-base font-bold leading-6">{value || fallback}</span>
+          <Pencil size={14} className="mt-1 shrink-0 text-gray-400 opacity-0 transition group-hover/title:opacity-100" />
+        </button>
+      )}
+    </div>
+  )
+}
+
+function PageInspector({ page, variantKey, onPatchPage, onSelectBlock, onRequestVideo }: any) {
   if (!page) return null
   const design = page.design || {}
   const patchDesign = (patch: any) => onPatchPage({ design: { ...design, ...patch } })
+  const blocks = getEditorBlocks(page, variantKey)
   return (
-    <div className="space-y-6 p-5">
-      <InspectorSection label="Page">
-        <TextField label="Title" value={page.title || ''} onChange={(value) => onPatchPage({ title: value })} />
+    <div>
+      <div className="p-5">
+        <InspectorSection label="Settings">
         <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm">
           <span className="font-bold text-gray-700">Required</span>
           <input type="checkbox" checked={page.required !== false} onChange={(event) => onPatchPage({ required: event.target.checked })} />
         </label>
-      </InspectorSection>
-      {page.page_type !== 'video' && (
-        <InspectorSection label="Appearance">
+        {page.page_type !== 'video' && (
           <ColorField
             label="Background accent"
             value={design.background_accent_color || ''}
             fallback="#f8fafc"
             onChange={(value) => patchDesign({ background_accent_color: value })}
           />
-        </InspectorSection>
-      )}
-      {page.page_type === 'video' && (
-        <InspectorSection label="Video">
-          <TextField label="URL" value={page.content?.video_url || ''} onChange={(value) => onPatchPage({ content: { ...(page.content || {}), video_url: value } })} />
+        )}
+        {page.page_type === 'video' && (
+          <>
+          <button type="button" onClick={onRequestVideo} className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-gray-200 text-sm font-bold hover:bg-gray-50">
+            <Upload size={16} />
+            {page.content?.video_url ? 'Change video' : 'Choose video'}
+          </button>
+          {page.content?.video_url && <p className="break-all text-xs text-gray-500">{page.content.video_url}</p>}
           <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm">
             <span className="font-bold text-gray-700">Allow scrubbing</span>
             <input type="checkbox" checked={page.content?.allow_scrubbing !== false} onChange={(event) => onPatchPage({ content: { ...(page.content || {}), allow_scrubbing: event.target.checked } })} />
           </label>
+          </>
+        )}
         </InspectorSection>
-      )}
+      </div>
+      <div className="border-t border-gray-200 p-5">
+        <InspectorSection label="Blocks">
+          {blocks.length ? (
+            <div className="space-y-2">
+              {blocks.map((block: any) => (
+                <PageBlockListItem key={block.id} page={page} block={block} onSelect={() => onSelectBlock(block.id)} />
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-lg border border-dashed border-gray-300 p-3 text-xs text-gray-500">No blocks on this page.</p>
+          )}
+        </InspectorSection>
+      </div>
     </div>
   )
+}
+
+function PageBlockListItem({ page, block, onSelect }: any) {
+  const issue = getQuestionConfigurationIssue(page, block)
+  const title = block.type === 'text' ? getTextBlockListTitle(block) : getInspectorBlockTitle(block)
+  const Icon = block.type === 'question'
+    ? block.kind === 'text_input' ? TextCursorInput : block.kind === 'image_upload' ? Upload : ListChecks
+    : block.type === 'image' ? ImageIcon : block.type === 'button' ? MousePointerClick : FileText
+  return (
+    <button type="button" onClick={onSelect} className="flex w-full items-center gap-3 rounded-lg border border-gray-200 bg-white p-2.5 text-left transition hover:border-gray-300 hover:bg-gray-50">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500"><Icon size={15} /></span>
+      <span className="min-w-0 flex-1">
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span title={title} className="block min-w-0 flex-1 truncate text-sm font-bold leading-5">{title}</span>
+          {issue ? <span title={issue} className="mt-0.5 shrink-0 text-amber-600"><AlertTriangle size={14} /></span> : null}
+        </span>
+        <span className="mt-0.5 block text-xs text-gray-500">{blockLabel(block)}</span>
+      </span>
+      <ChevronRight size={15} className="shrink-0 text-gray-400" />
+    </button>
+  )
+}
+
+function getTextBlockListTitle(block: any): string {
+  const title = getTextBlockNodes(block)
+    .map((node) => getEditorNodePlainText(node))
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return title || 'Text block'
+}
+
+function getEditorNodePlainText(node: any): string {
+  if (!node) return ''
+  if (Array.isArray(node)) return node.map(getEditorNodePlainText).join(' ')
+  if (typeof node === 'string') return node
+  if (typeof node.text === 'string') return node.text
+  if (node.type === 'hardBreak') return ' '
+  if (node.type === 'displayBinding') {
+    const binding = node.attrs?.binding || node.attrs || {}
+    return String(binding.fallback || binding.path || 'Dynamic text')
+  }
+  return getEditorNodePlainText(node.content)
 }
 
 function VariantControls({ page, pages, variantKey, setVariantKey, onSelectVariant, onDisableVariant, onPatchPage }: any) {
@@ -2273,7 +2557,7 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
     } else {
       patchQuestion({
         scoring: ['multiple_choice', 'categorized_multi_select'].includes(block.kind)
-          ? { ...scoring, mode: 'points', points: Number(scoring.points) || 1, score_policy: 'exact_match' }
+          ? { ...scoring, mode: 'points', points: Number(scoring.points) || 1, score_policy: 'select_all' }
           : { ...scoring, mode: 'completion', points: Number(scoring.points) || 1 },
         completion: { ...completion, question_mode: 'scored', variable_bindings: {} },
       })
@@ -2282,7 +2566,7 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
 
   if (block.kind === 'multiple_choice' || block.kind === 'categorized_multi_select') {
     const options = normalizeQuestionOptions(content.options)
-    const correctIds = new Set<string>(scoring.correct_option_ids || scoring.correctOptionIds || [])
+    const correctIds = new Set<string>((scoring.correct_option_ids || scoring.correctOptionIds || []).map(String))
     const minSelections = Math.max(1, Number(completion.min_selections ?? 1))
     const maxSelections = Math.max(minSelections, Number(completion.max_selections ?? 1))
     const optionBindings = variableBindings.options || {}
@@ -2310,12 +2594,8 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
     const toggleCorrect = (id: string) => {
       const next = new Set(correctIds)
       if (next.has(id)) next.delete(id)
-      else {
-        if (maxSelections <= 1) next.clear()
-        else if (next.size >= maxSelections) return
-        next.add(id)
-      }
-      patchScoring({ mode: 'points', score_policy: 'exact_match', correct_option_ids: Array.from(next) })
+      else next.add(id)
+      patchScoring({ mode: 'points', score_policy: 'select_all', correct_option_ids: Array.from(next) })
     }
     const setMcqVariableTarget = (target: string) => {
       if (!target) {
@@ -2332,6 +2612,12 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
     return (
       <>
         <InspectorSection label="Answers">
+          {questionMode === 'scored' && scoring.mode !== 'off' && Number(scoring.points ?? 1) > 0 && correctIds.size === 0 ? (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span><strong>No correct answers selected.</strong> Learners cannot receive points until this is repaired.</span>
+            </div>
+          ) : null}
           <div className="space-y-2">
             {options.map((option, index) => (
               <div key={option.id} className={`grid items-center gap-2 ${questionMode === 'scored' ? 'grid-cols-[2rem_1fr_2rem_2rem]' : 'grid-cols-[2rem_1fr_2rem]'}`}>
@@ -2366,7 +2652,6 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
             optionCount={options.length}
             onCommit={(nextMin, nextMax) => patchQuestion({
               completion: { ...completion, min_selections: nextMin, max_selections: nextMax },
-              scoring: { ...scoring, correct_option_ids: Array.from(correctIds).slice(0, nextMax) },
             })}
           />
         </InspectorSection>
@@ -2381,16 +2666,28 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
             onChange={setQuestionMode}
           />
           {questionMode === 'scored' ? (
-            <TextField label="Points" type="number" value={String(scoring.points ?? 1)} onChange={(value) => patchScoring({ mode: 'points', points: Number(value), score_policy: 'exact_match' })} />
+            <>
+              <TextField label="Points" type="number" value={String(scoring.points ?? 1)} onChange={(value) => patchScoring({ mode: 'points', points: Number(value) })} />
+              <p className="text-[11px] leading-4 text-gray-500">
+                Select-all-that-apply scoring awards partial credit for correct selections and deducts credit for incorrect selections.
+              </p>
+              {correctIds.size > maxSelections ? (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  Learners cannot select every correct answer because the selection limit is too low.
+                </div>
+              ) : null}
+            </>
           ) : (
             <>
               <div>
                 <FieldLabel>Store answer in</FieldLabel>
+                <p className="mb-2 text-[11px] leading-4 text-gray-500">Also write this local quiz response to a user-level variable.</p>
                 <VariablePathPicker
                   value={activeBinding?.target || ''}
                   variables={learningVariables}
-                  acceptedTypes={['text', 'number', 'boolean', 'option']}
-                  createValueType="text"
+                  acceptedTypes={['text', 'number', 'boolean', 'option', 'multiple_choice']}
+                  createValueType="multiple_choice"
                   onBind={setMcqVariableTarget}
                   onCreateVariableKey={onCreateVariableKey}
                 />
@@ -2489,24 +2786,47 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
                   placeholder="Placeholder"
                   className="h-9 w-full rounded-lg border border-gray-200 px-2 text-sm outline-none focus:border-[var(--org-primary-color)]"
                 />
+                <label className="block text-[10px] font-bold uppercase text-gray-400">
+                  Validation
+                  <select
+                    value={String(rule.validation || 'none')}
+                    onChange={(event) => {
+                      const validation = event.target.value
+                      patchInputRule(input.id, { validation })
+                      if (validation !== 'none') {
+                        patchInput(input.id, { input_type: 'text', variant: 'single_line', height: 48 })
+                      }
+                    }}
+                    className="mt-1 h-8 w-full rounded-lg border border-gray-200 px-2 text-xs font-bold normal-case text-gray-900 outline-none focus:border-[var(--org-primary-color)]"
+                  >
+                    <option value="none">None</option>
+                    <option value="name">Name</option>
+                    <option value="email">Email address</option>
+                    <option value="phone">Phone number</option>
+                    <option value="url">Web URL</option>
+                  </select>
+                </label>
                 <div className="grid grid-cols-2 gap-2">
                   <label className="flex items-center gap-2 text-xs font-bold text-gray-600">
                     <input type="checkbox" checked={rule.required !== false} onChange={(event) => patchInputRule(input.id, { required: event.target.checked })} />
                     Required
                   </label>
                   <select
-                    value={input.variant === 'single_line' || Number(input.height) <= 56 ? 'single_line' : 'short_answer'}
+                    value={input.input_type === 'number' ? 'number' : input.variant === 'single_line' || Number(input.height) <= 56 ? 'single_line' : 'short_answer'}
                     onChange={(event) => {
                       const variant = event.target.value
                       patchInput(input.id, {
-                        variant,
-                        height: variant === 'single_line' ? 48 : Math.max(120, Number(input.height) || 160),
+                        input_type: variant === 'number' ? 'number' : 'text',
+                        variant: variant === 'number' ? 'single_line' : variant,
+                        height: variant === 'single_line' || variant === 'number' ? 48 : Math.max(120, Number(input.height) || 160),
                       })
+                      if (variant === 'number') patchInputRule(input.id, { min_words: 0, max_words: 0 })
                     }}
                     className="h-8 rounded-lg border border-gray-200 px-2 text-xs font-bold outline-none focus:border-[var(--org-primary-color)]"
                   >
                     <option value="single_line">Single line</option>
                     <option value="short_answer">Multi line</option>
+                    <option value="number">Number</option>
                   </select>
                   <label className="block text-[10px] font-bold uppercase text-gray-400">
                     Min words
@@ -2553,11 +2873,12 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
                 return (
                   <div key={input.id}>
                     <FieldLabel>{sideBySide ? `Store "${input.label || 'Response'}" in` : 'Store answer in'}</FieldLabel>
+                    <p className="mb-2 text-[11px] leading-4 text-gray-500">Also write this local quiz response to a user-level variable.</p>
                     <VariablePathPicker
                       value={binding?.target || ''}
                       variables={learningVariables}
-                      acceptedTypes={['text', 'number', 'boolean', 'option']}
-                      createValueType="text"
+                      acceptedTypes={input.input_type === 'number' ? ['number'] : ['text', 'boolean', 'option']}
+                      createValueType={input.input_type === 'number' ? 'number' : 'text'}
                       onBind={(target: string) => {
                         const nextInputs = { ...inputBindings }
                         if (!target) delete nextInputs[input.id]
@@ -2692,6 +3013,7 @@ function formatVariableOptionLabel(key: string) {
 function ActivitySettingsView({
   activity,
   gradingSettings,
+  hasScoredQuestions,
   learningVariables,
   variableDraftKey,
   setVariableDraftKey,
@@ -2725,27 +3047,17 @@ function ActivitySettingsView({
             </label>
           </div>
         </section>
-        <section>
-          <h2 className="text-lg font-bold">Grading</h2>
-          <div className="mt-5 space-y-4">
-            <SegmentedControl
-              label="Mode"
-              value={gradingSettings.mode}
-              options={[
-                { value: 'completion', label: 'Completion' },
-                { value: 'pass_fail', label: 'Pass/fail' },
-              ]}
-              onChange={(value) => onPatchGrading({ mode: value as ActivityGradingMode })}
-            />
-            {gradingSettings.mode === 'pass_fail' && (
-              <>
-                <TextField label="Minimum score (%)" type="number" value={String(gradingSettings.minimum_score_percent ?? 70)} onChange={(value) => onPatchGrading({ minimum_score_percent: Math.max(0, Math.min(100, Number(value))) })} />
-                <TextField label="Success message" value={gradingSettings.success_message || ''} onChange={(value) => onPatchGrading({ success_message: value })} />
-                <TextField label="Failure message" value={gradingSettings.failure_message || ''} onChange={(value) => onPatchGrading({ failure_message: value })} />
-              </>
-            )}
-          </div>
-        </section>
+        {hasScoredQuestions ? (
+          <section>
+            <h2 className="text-lg font-bold">Pass/fail grading</h2>
+            <p className="mt-1 text-sm text-gray-500">Enabled automatically because this activity contains scored questions.</p>
+            <div className="mt-5 space-y-4">
+              <TextField label="Minimum score (%)" type="number" value={String(gradingSettings.minimum_score_percent ?? 70)} onChange={(value) => onPatchGrading({ minimum_score_percent: Math.max(0, Math.min(100, Number(value))) })} />
+              <TextField label="Success message" value={gradingSettings.success_message || ''} onChange={(value) => onPatchGrading({ success_message: value })} />
+              <TextField label="Failure message" value={gradingSettings.failure_message || ''} onChange={(value) => onPatchGrading({ failure_message: value })} />
+            </div>
+          </section>
+        ) : null}
         <section>
           <h2 className="text-lg font-bold">Variables</h2>
           <div className="mt-5 space-y-4">
@@ -2772,29 +3084,47 @@ function VariableRegistry({ variables = [], onPatchVariable, onDeleteVariable }:
       {sorted.map((variable: any) => {
         const key = String(variable.key || '')
         const depth = Math.max(0, key.split('.').length - 1)
+        const valueType = variable.value_type || variable.valueType || 'text'
+        const options = Array.isArray(variable.options) ? variable.options.map((option: any, index: number) => ({ id: String(option?.id || option?.value || `option_${index + 1}`), text: String(option?.text || option?.label || '') })) : []
+        const patchOption = (id: string, text: string) => onPatchVariable(variable, { options: options.map((option: any) => option.id === id ? { ...option, text } : option) })
         return (
-          <div key={variable.variable_uuid || key} className="grid grid-cols-[1fr_10rem_2.5rem] items-center gap-2 border-b border-gray-100 p-3 last:border-b-0">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-gray-800" style={{ paddingLeft: depth * 14 }}>{key}</p>
-              <input
-                value={variable.label || ''}
-                onChange={(event) => onPatchVariable(variable, { label: event.target.value })}
-                placeholder="Label"
-                className="mt-1 h-8 w-full rounded-lg border border-gray-200 px-2 text-xs outline-none focus:border-[var(--org-primary-color)]"
-              />
+          <div key={variable.variable_uuid || key} className="border-b border-gray-100 p-3 last:border-b-0">
+            <div className="grid grid-cols-[1fr_10rem_2.5rem] items-center gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-gray-800" style={{ paddingLeft: depth * 14 }}>{key}</p>
+                <input
+                  value={variable.label || ''}
+                  onChange={(event) => onPatchVariable(variable, { label: event.target.value })}
+                  placeholder="Label"
+                  className="mt-1 h-8 w-full rounded-lg border border-gray-200 px-2 text-xs outline-none focus:border-[var(--org-primary-color)]"
+                />
+              </div>
+              <select
+                value={valueType}
+                onChange={(event) => onPatchVariable(variable, { value_type: event.target.value })}
+                className="h-9 rounded-lg border border-gray-200 px-2 text-xs font-bold outline-none focus:border-[var(--org-primary-color)]"
+              >
+                <option value="text">Text</option>
+                <option value="number">Number</option>
+                <option value="boolean">Boolean</option>
+                <option value="multiple_choice">Multiple choice</option>
+                <option value="option">Option</option>
+                <option value="image">Image</option>
+              </select>
+              <IconButton title="Delete variable" onClick={() => onDeleteVariable(variable)}><Trash2 size={15} /></IconButton>
             </div>
-            <select
-              value={variable.value_type || variable.valueType || 'text'}
-              onChange={(event) => onPatchVariable(variable, { value_type: event.target.value })}
-              className="h-9 rounded-lg border border-gray-200 px-2 text-xs font-bold outline-none focus:border-[var(--org-primary-color)]"
-            >
-              <option value="text">Text</option>
-              <option value="number">Number</option>
-              <option value="boolean">Boolean</option>
-              <option value="option">Option</option>
-              <option value="image">Image</option>
-            </select>
-            <IconButton title="Delete variable" onClick={() => onDeleteVariable(variable)}><Trash2 size={15} /></IconButton>
+            {valueType === 'multiple_choice' && (
+              <div className="mt-3 space-y-2 rounded-lg bg-gray-50 p-2">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Choices</p>
+                {options.map((option: any) => (
+                  <div key={option.id} className="flex items-center gap-2">
+                    <input value={option.text} onChange={(event) => patchOption(option.id, event.target.value)} placeholder="Option label" className="h-8 min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-2 text-xs outline-none focus:border-[var(--org-primary-color)]" />
+                    <IconButton title="Remove option" onClick={() => onPatchVariable(variable, { options: options.filter((item: any) => item.id !== option.id) })}><Trash2 size={13} /></IconButton>
+                  </div>
+                ))}
+                <button type="button" onClick={() => onPatchVariable(variable, { options: [...options, { id: `option_${Date.now()}`, text: `Option ${options.length + 1}` }] })} className="flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-gray-300 bg-white text-xs font-bold text-gray-600 hover:border-gray-400"><Plus size={13} />Add choice</button>
+              </div>
+            )}
           </div>
         )
       })}

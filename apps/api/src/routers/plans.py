@@ -18,7 +18,8 @@ async def api_get_plan_limits():
     for plan_id, cfg in PLAN_FEATURE_CONFIGS.items():
         features = cfg["features"]
         result[plan_id] = {
-            "courses": features["courses"]["limit"],
+            "badges": features["badges"]["limit"],
+            "badge_collections": features["badge_collections"]["limit"],
             "members": features["members"]["limit"],
             "admin_seats": features["members"]["admin_limit"],
             "ai_credits": AI_CREDIT_LIMITS.get(plan_id, 0),

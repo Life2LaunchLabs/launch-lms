@@ -61,6 +61,16 @@ export async function deleteLearningBadgeCollection(collectionUuid: string, acce
   return errorHandling(result)
 }
 
+export async function getDeletedLearningBadgeCollections(orgId: number, accessToken?: string) {
+  const result = await fetch(`${getAPIUrl()}badge-collections/trash/?org_id=${orgId}`, RequestBodyWithAuthHeader('GET', null, null, accessToken))
+  return errorHandling(result)
+}
+
+export async function restoreLearningBadgeCollection(collectionUuid: string, accessToken?: string) {
+  const result = await fetch(`${getAPIUrl()}badge-collections/${collectionUuid}/restore`, RequestBodyWithAuthHeader('POST', null, null, accessToken))
+  return errorHandling(result)
+}
+
 export async function exportLearningBadgeCollection(collectionUuid: string, accessToken?: string) {
   const response = await fetch(
     `${getAPIUrl()}badge-collections/${collectionUuid}/export`,
@@ -93,6 +103,15 @@ export async function importLearningBadgePackage(orgId: string | number, payload
     RequestBodyWithAuthHeader('POST', payload, null, accessToken)
   )
   return errorHandling(response)
+}
+
+export function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
 }
 
 export async function getLearningBadges(
@@ -131,6 +150,16 @@ export async function deleteLearningBadge(badgeUuid: string, accessToken?: strin
     `${getAPIUrl()}badges/${badgeUuid}`,
     RequestBodyWithAuthHeader('DELETE', null, null, accessToken)
   )
+  return errorHandling(result)
+}
+
+export async function getDeletedLearningBadges(orgId: number, accessToken?: string) {
+  const result = await fetch(`${getAPIUrl()}badges/trash/?org_id=${orgId}`, RequestBodyWithAuthHeader('GET', null, null, accessToken))
+  return errorHandling(result)
+}
+
+export async function restoreLearningBadge(badgeUuid: string, accessToken?: string) {
+  const result = await fetch(`${getAPIUrl()}badges/${badgeUuid}/restore`, RequestBodyWithAuthHeader('POST', null, null, accessToken))
   return errorHandling(result)
 }
 
@@ -174,6 +203,14 @@ export async function getLearningPath(
 export async function createLearningActivity(data: any, accessToken?: string) {
   const result = await fetch(
     `${getAPIUrl()}learning-activities/`,
+    RequestBodyWithAuthHeader('POST', data, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
+export async function importLearningActivity(data: any, accessToken?: string) {
+  const result = await fetch(
+    `${getAPIUrl()}learning-activities/import`,
     RequestBodyWithAuthHeader('POST', data, null, accessToken)
   )
   return errorHandling(result)
@@ -362,39 +399,6 @@ export async function getLearningBadgeAward(awardUuid: string, accessToken?: str
   const result = await fetch(
     `${getAPIUrl()}badge-awards/${awardUuid}`,
     RequestBodyWithAuthHeader('GET', null, null, accessToken)
-  )
-  return errorHandling(result)
-}
-
-export async function previewLearningBadgeCourseMigration(courseUuid: string, accessToken?: string) {
-  const result = await fetch(
-    `${getAPIUrl()}badge-migrations/course/${courseUuid}/preview`,
-    RequestBodyWithAuthHeader('GET', null, null, accessToken)
-  )
-  return errorHandling(result)
-}
-
-export async function convertLearningBadgeCourseMigration(courseUuid: string, accessToken?: string, targetCollectionUuid?: string) {
-  const suffix = targetCollectionUuid ? `?target_collection_uuid=${encodeURIComponent(targetCollectionUuid)}` : ''
-  const result = await fetch(
-    `${getAPIUrl()}badge-migrations/course/${courseUuid}/convert${suffix}`,
-    RequestBodyWithAuthHeader('POST', null, null, accessToken)
-  )
-  return errorHandling(result)
-}
-
-export async function previewLearningBadgeCollectionMigration(collectionUuid: string, accessToken?: string) {
-  const result = await fetch(
-    `${getAPIUrl()}badge-migrations/collection/${collectionUuid}/preview`,
-    RequestBodyWithAuthHeader('GET', null, null, accessToken)
-  )
-  return errorHandling(result)
-}
-
-export async function convertLearningBadgeCollectionMigration(collectionUuid: string, accessToken?: string) {
-  const result = await fetch(
-    `${getAPIUrl()}badge-migrations/collection/${collectionUuid}/convert`,
-    RequestBodyWithAuthHeader('POST', null, null, accessToken)
   )
   return errorHandling(result)
 }

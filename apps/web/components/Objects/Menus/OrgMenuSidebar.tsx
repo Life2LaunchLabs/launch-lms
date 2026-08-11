@@ -5,14 +5,11 @@ import {
   X,
 } from '@phosphor-icons/react'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg } from '@services/config/config'
 import { getOrgLogoMediaDirectory } from '@services/media/media'
-import { swrFetcher } from '@services/utils/ts/requests'
 import { getMenuColorClasses } from '@services/utils/ts/colorUtils'
 import { usePathname } from 'next/navigation'
 import Image from 'next/image'
-import useSWR from 'swr'
 import { useTranslation } from 'react-i18next'
 import { getPrimaryOrgMenuItems } from './OrgMenuLinks'
 
@@ -25,10 +22,7 @@ interface OrgMenuSidebarProps {
 export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps) {
   const { t } = useTranslation()
   const org = useOrg() as any
-  const session = useLHSession() as any
-  const access_token = session?.data?.tokens?.access_token
   const pathname = usePathname()
-  const orgID = org?.id
   const config = org?.config?.config
   const rf = config?.resolved_features
   const primaryColor = config?.customization?.general?.color || config?.general?.color || ''
@@ -39,13 +33,6 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
     onClose()
   }, [pathname])
 
-  // Trail data for active courses
-  const isCoursesEnabled = rf?.courses?.enabled
-  const { data: trail } = useSWR(
-    isCoursesEnabled && orgID && access_token ? `${getAPIUrl()}trail/org/${orgID}/trail` : null,
-    (url) => swrFetcher(url, access_token),
-    { revalidateOnFocus: false }
-  )
 
   const navItems = getPrimaryOrgMenuItems({
     pathname,
@@ -127,50 +114,6 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
           {/* Divider */}
           <hr className="mx-4 border-border" />
 
-          {/* Active courses */}
-          {session?.status === 'authenticated' && trail?.runs?.length > 0 && (
-            <div className="px-3 py-3">
-              <p className="px-3 text-[11px] text-muted-foreground font-semibold uppercase tracking-wider mb-2">
-                Active Badges
-              </p>
-              <div className="flex flex-col gap-0.5">
-                {trail.runs.map((run: any) => {
-                  const courseId = run.course.course_uuid.replace('course_', '')
-                  const isActiveCourse =
-                    pathname?.includes(`/badges/${courseId}`) ||
-                    pathname?.includes(`/course/${courseId}/activity/`)
-                  const progress = run.course_total_steps > 0
-                    ? Math.round((run.steps.length / run.course_total_steps) * 100)
-                    : 0
-                  return (
-                    <div key={run.course.course_uuid} className="relative">
-                      {isActiveCourse && (
-                        <span className="absolute left-0 top-2 bottom-2 w-[3px] bg-gray-400 rounded-r-full" />
-                      )}
-                      <Link
-                        href={getUriWithOrg(orgslug, routePaths.org.course(courseId))}
-                        className={`flex flex-col px-3 py-2 rounded-lg text-sm transition-colors ${
-                          isActiveCourse
-                            ? 'bg-muted text-foreground'
-                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                        }`}
-                      >
-                        <span className={`truncate leading-snug ${isActiveCourse ? 'font-semibold' : 'font-medium'}`}>
-                          {run.course.name}
-                        </span>
-                        <div className="mt-1.5 h-1 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gray-400 rounded-full transition-all"
-                            style={{ width: `${progress}%` }}
-                          />
-                        </div>
-                      </Link>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </>

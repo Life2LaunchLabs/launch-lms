@@ -2,12 +2,12 @@ import type { CSSProperties } from 'react'
 import {
   findQuestionBlocks,
   getBlockCompletion,
+  getBlockScoring,
   type LearningBlock,
   type LearningImageBlock,
   type LearningQuestionBlock,
   type LearningTextBlock,
 } from '@components/Learning/schema'
-import type { ActivityGradingMode } from './types'
 
 export const EMPTY_PARAGRAPH = { type: 'paragraph' }
 
@@ -59,7 +59,7 @@ export function createQuestionBlock(kind: 'multiple_choice' | 'categorized_multi
       scoring: {
         mode: 'points',
         points: 1,
-        score_policy: 'exact_match',
+        score_policy: 'select_all',
         correct_option_ids: [options[0].id],
       },
       completion: {
@@ -100,6 +100,7 @@ export function createQuestionBlock(kind: 'multiple_choice' | 'categorized_multi
           label: 'Response',
           placeholder: '',
           variant: 'short_answer',
+          input_type: 'text',
           width: 'full',
           height: 160,
         },
@@ -151,7 +152,7 @@ export function normalizeQuestionInputs(inputs: any[]): Array<{
       return {
         id,
         section_id: String(input?.section_id || input?.sectionId || id),
-        label: String(input?.label || `Response ${index + 1}`),
+        label: input?.label == null ? `Response ${index + 1}` : String(input.label),
         placeholder: String(input?.placeholder || ''),
         variant: String(input?.variant || input?.type || 'short_answer'),
         width: String(input?.width || 'full'),
@@ -231,7 +232,9 @@ export function normalizeInitialPages(pages: any[]) {
       })
     }
 
-    blocks = blocks.flatMap((block: any) => splitTextInputBlock(block))
+    blocks = blocks
+      .map((block: any) => migrateTextInputBlockLabel(block))
+      .flatMap((block: any) => splitTextInputBlock(block))
     blocks = blocks.map((block: any) => {
       if (block?.type !== 'text') return block
       const nodes = getTextBlockNodes(block)
@@ -251,9 +254,38 @@ export function normalizeInitialPages(pages: any[]) {
         ...(page.content || {}),
         version: page.content?.version || 2,
         blocks,
+        ...(page.content?.variants ? {
+          variants: {
+            ...page.content.variants,
+            overrides: Object.fromEntries(
+              Object.entries(page.content.variants.overrides || {}).map(([key, override]: [string, any]) => [
+                key,
+                {
+                  ...(override || {}),
+                  blocks: Array.isArray(override?.blocks)
+                    ? override.blocks.map((block: any) => migrateTextInputBlockLabel(block))
+                    : [],
+                },
+              ]),
+            ),
+          },
+        } : {}),
       },
     }
   })
+}
+
+// Text-input blocks are layout containers. Older blocks sometimes stored a
+// prompt on content.label; move it onto the first actual input question.
+export function migrateTextInputBlockLabel(block: any): any {
+  if (block?.type !== 'question' || block?.kind !== 'text_input' || !Object.prototype.hasOwnProperty.call(block.content || {}, 'label')) return block
+  const content = block.content || {}
+  const legacyLabel = String(content.label || '').trim()
+  const contentWithoutLabel = { ...content }
+  delete contentWithoutLabel.label
+  const inputs = Array.isArray(content.inputs) ? [...content.inputs] : []
+  if (legacyLabel && inputs.length) inputs[0] = { ...(inputs[0] || {}), label: legacyLabel }
+  return { ...block, content: { ...contentWithoutLabel, inputs } }
 }
 
 // One row is one block: legacy text_input blocks could hold many inputs grouped
@@ -339,6 +371,26 @@ export function blockLabel(block: LearningBlock) {
   return 'Multiple choice question'
 }
 
+export function getQuestionConfigurationIssue(page: any, question: any): string {
+  if (question?.type !== 'question' || !['multiple_choice', 'categorized_multi_select'].includes(question.kind)) return ''
+  const scoring = getBlockScoring(page, question)
+  const completion = getBlockCompletion(page, question)
+  const variableBindings = completion.variable_bindings || completion.variableBindings || {}
+  const hasBindings = Object.values(variableBindings.options || {}).some(Boolean)
+  const questionMode = completion.question_mode || (hasBindings ? 'variable' : 'scored')
+  const correctIds = scoring.correct_option_ids || scoring.correctOptionIds || []
+  if (questionMode === 'scored' && scoring.mode !== 'off' && Number(scoring.points ?? 1) > 0 && correctIds.length === 0) {
+    return 'No correct answers selected'
+  }
+  return ''
+}
+
+export function getPageQuestionConfigurationIssue(page: any): string {
+  return findQuestionBlocks(page)
+    .map((question) => getQuestionConfigurationIssue(page, question))
+    .find(Boolean) || ''
+}
+
 export function withSequentialOrder(pages: any[]) {
   return pages.map((page, index) => ({ ...page, order: index + 1 }))
 }
@@ -362,11 +414,36 @@ export function cloneJson<T>(value: T): T {
 export function getActivityGradingSettings(activity: any) {
   const grading = activity.settings?.grading || {}
   return {
-    mode: (grading.mode || 'completion') as ActivityGradingMode,
     minimum_score_percent: Number(grading.minimum_score_percent ?? 70),
-    success_message: grading.success_message || '',
-    failure_message: grading.failure_message || '',
+    success_message: grading.success_message || 'Activity passed.',
+    failure_message: grading.failure_message || 'You need a higher score to complete this activity.',
   }
+}
+
+export function getConfiguredQuestionPoints(page: any, question: any): number {
+  const scoring = getBlockScoring(page, question)
+  const completion = getBlockCompletion(page, question)
+  if (scoring.mode === 'off') return 0
+  const inputPoints = question.kind === 'text_input'
+    ? Object.values(completion.inputs || {})
+      .filter((rule: any) => rule && rule.points != null)
+      .map((rule: any) => Number(rule.points) || 0)
+    : []
+  const configured = scoring.mode
+    || scoring.points != null
+    || inputPoints.length > 0
+    || scoring.correct_option_ids?.length
+    || scoring.correctOptionIds?.length
+    || scoring.accepted_answers?.length
+  if (!configured) return 0
+  if (inputPoints.length) return Math.max(0, inputPoints.reduce((sum, value) => sum + value, 0))
+  return Math.max(0, Number(scoring.points ?? 1) || 0)
+}
+
+export function activityHasScoredQuestions(pages: any[]): boolean {
+  return (pages || []).some((page) => (
+    findQuestionBlocks(page).some((question) => getConfiguredQuestionPoints(page, question) > 0)
+  ))
 }
 
 export type VariantSourceOption = {

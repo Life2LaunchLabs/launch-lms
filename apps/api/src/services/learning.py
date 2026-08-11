@@ -1,7 +1,8 @@
 import hashlib
 import re
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timedelta
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from fastapi import HTTPException, Request, UploadFile, status
@@ -17,6 +18,7 @@ from src.db.learning import (
     BadgeIssuerLearnerLink,
     LearningActivity,
     LearningActivityCreate,
+    LearningActivityImport,
     LearningActivityRead,
     LearningActivityRun,
     LearningActivityUpdate,
@@ -56,7 +58,7 @@ from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser, User
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.security.superadmin import is_user_superadmin
-from src.services.courses.openbadges import (
+from src.services.badge_openbadges import (
     OPEN_BADGES_CONTEXT,
     build_issuer_payload,
     get_org_badge_issuer_config,
@@ -64,7 +66,12 @@ from src.services.courses.openbadges import (
     get_public_base_url,
 )
 from src.services.guest_sessions import LearningActor
-from src.services.learning_flow import FlowValidationError, resolve_flow, validate_flow
+from src.services.learning_flow import (
+    FlowValidationError,
+    append_page_to_flow,
+    resolve_flow,
+    validate_flow,
+)
 from src.services.learning_page_convert import (
     STANDARD_CONTENT_VERSION,
     find_question_block,
@@ -80,6 +87,10 @@ from src.services.learning_portfolio_actions import (
     _portfolio,
     apply_portfolio_outcomes,
     validate_outcomes,
+)
+from src.services.media import (
+    copy_google_forms_image_to_library,
+    is_google_forms_image_url,
 )
 from src.services.utils.upload_content import upload_file
 
@@ -286,7 +297,8 @@ def _validate_issuer_selection(
 def _get_badge(db_session: Session, badge_uuid: str) -> LearningBadge:
     badge = db_session.exec(
         select(LearningBadge).where(
-            LearningBadge.badge_uuid == _clean_uuid(badge_uuid, "badge_")
+            LearningBadge.badge_uuid == _clean_uuid(badge_uuid, "badge_"),
+            LearningBadge.deleted_at.is_(None),
         )
     ).first()
     if not badge:
@@ -380,6 +392,7 @@ def _public_badge_query(org_id: int | None = None):
     statement = select(LearningBadge).where(
         LearningBadge.public == True,
         LearningBadge.status.in_(PUBLIC_BADGE_STATUSES),
+        LearningBadge.deleted_at.is_(None),
         or_(
             LearningBadge.system_type.is_(None),  # type: ignore
             LearningBadge.system_type != LEARNING_SYSTEM_TYPE_ONBOARDING,
@@ -493,9 +506,38 @@ def _flow_context(
                 facts["timeline_count"] > 0,
             )
     data = activity_run.data or {}
+    variables = dict(data.get("variables") or {})
+    if run.user_id:
+        user = db_session.get(User, run.user_id)
+        if user:
+            variables.update(
+                {
+                    "user.username": user.username,
+                    "user.email": user.email,
+                    "user.email_verified": user.email_verified,
+                    "user.first_name": user.first_name,
+                    "user.last_name": user.last_name,
+                    "user.bio": user.bio,
+                    "user.avatar_image": user.avatar_image,
+                }
+            )
+            details = user.details if isinstance(user.details, dict) else {}
+
+            def add_nested(prefix: str, value) -> None:
+                if isinstance(value, dict):
+                    for nested_key, nested_value in value.items():
+                        add_nested(f"{prefix}.{nested_key}", nested_value)
+                else:
+                    variables[prefix] = value
+
+            add_nested("user.details.variables", details.get("variables") or {})
+            add_nested("user.details.onboarding", details.get("onboarding") or {})
+            if portfolio:
+                for key in ("display_name", "headline", "short_bio", "location_label"):
+                    variables[f"user.portfolio.{key}"] = getattr(portfolio, key, None)
     return {
         "answers": answers,
-        "variables": data.get("variables") or {},
+        "variables": variables,
         "facts": facts,
         "context": {
             "mode": data.get("mode") or "create",
@@ -855,6 +897,9 @@ def _validate_text_answer(
 
     for item in configured_inputs:
         input_id = str(item.get("id") or "response")
+        input_type = str(
+            item.get("input_type") or item.get("inputType") or "text"
+        )
         rules = completion_inputs.get(input_id) or {}
         value = inputs.get(input_id) or {}
         text = str(value.get("text") or "").strip()
@@ -862,16 +907,46 @@ def _validate_text_answer(
         min_words = max(0, _as_int(rules.get("min_words") or rules.get("minWords"), 0))
         max_words = max(0, _as_int(rules.get("max_words") or rules.get("maxWords"), 0))
         required = rules.get("required", min_words > 0)
+        validation = str(rules.get("validation") or "none").lower()
+        if validation == "none" and input_type in {"email", "url", "tel"}:
+            validation = {"tel": "phone"}.get(input_type, input_type)
 
         if required and not text:
             raise HTTPException(
                 status_code=422, detail="Required text response is missing"
             )
-        if text and words < min_words:
+        if input_type == "number" and text:
+            try:
+                numeric_value = float(text)
+                if numeric_value.is_integer():
+                    numeric_value = int(numeric_value)
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=422, detail="Enter a valid number"
+                ) from exc
+        else:
+            numeric_value = None
+        if text and validation == "name" and not re.fullmatch(
+            r"[^\W\d_](?:[^\W\d_]|[' -])*", text, flags=re.UNICODE
+        ):
+            raise HTTPException(status_code=422, detail="Enter a valid name")
+        if text and validation == "email" and not re.fullmatch(
+            r"[^@\s]+@[^@\s]+\.[^@\s]+", text
+        ):
+            raise HTTPException(status_code=422, detail="Enter a valid email address")
+        if text and validation == "phone":
+            digits = re.sub(r"\D", "", text)
+            if not re.fullmatch(r"[+()\d. -]+", text) or not 7 <= len(digits) <= 15:
+                raise HTTPException(status_code=422, detail="Enter a valid phone number")
+        if text and validation == "url":
+            parsed_url = urlparse(text)
+            if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
+                raise HTTPException(status_code=422, detail="Enter a valid URL including http:// or https://")
+        if input_type != "number" and text and words < min_words:
             raise HTTPException(
                 status_code=422, detail=f"Response must be at least {min_words} word(s)"
             )
-        if max_words and words > max_words:
+        if input_type != "number" and max_words and words > max_words:
             raise HTTPException(
                 status_code=422,
                 detail=f"Response must be no more than {max_words} word(s)",
@@ -880,7 +955,8 @@ def _validate_text_answer(
         results[input_id] = {
             "text": text,
             "word_count": words,
-            "value_type": "text",
+            "value_type": "number" if input_type == "number" else "text",
+            **({"value": numeric_value} if input_type == "number" and text else {}),
             **(
                 {"rich_text": value.get("rich_text")}
                 if value.get("rich_text") is not None
@@ -959,12 +1035,22 @@ def _extract_learning_variables(page: LearningPage, result: dict) -> list[dict]:
                 continue
             inputs = sub_result.get("inputs") or {}
             for input_id, answer in inputs.items():
-                value = str((answer or {}).get("text") or "").strip()
+                value_type = str((answer or {}).get("value_type") or "text")
+                value = (
+                    (answer or {}).get("value")
+                    if value_type == "number"
+                    else str((answer or {}).get("text") or "").strip()
+                )
                 for binding in _normalize_bindings(input_bindings.get(input_id)):
                     variables.append(
                         {
                             "target": str(binding.get("target") or ""),
                             "value": value,
+                            **(
+                                {"value_type": value_type}
+                                if value_type != "text"
+                                else {}
+                            ),
                             "source": {
                                 "page_uuid": page.page_uuid,
                                 "block_id": block_id,
@@ -1079,6 +1165,8 @@ def _is_variable_value_type_compatible(expected: str, actual: str, value) -> boo
         return actual == "image" and bool(str(value or "").strip())
     if actual == "image":
         return False
+    if expected == "multiple_choice":
+        return actual in ("option", "multiple_choice")
     return expected in ("text", "number", "boolean", "option")
 
 
@@ -1227,14 +1315,27 @@ def _grade_mcq_block(page: LearningPage, question: dict, answer: dict) -> dict:
         or scoring.get("correctOptionIds")
         or []
     }
-    is_correct = set(selected) == correct_options if correct_options else None
+    if not correct_options:
+        is_correct = None
+        score_fraction = None
+    else:
+        selected_options = set(selected)
+        true_positives = len(selected_options & correct_options)
+        false_positives = len(selected_options - correct_options)
+        is_correct = selected_options == correct_options
+        # Select-all-that-apply partial credit: omitted correct answers earn
+        # nothing, while incorrect selections cancel an earned correct choice.
+        score_fraction = max(
+            0.0, min(1.0, (true_positives - false_positives) / len(correct_options))
+        )
     points = _as_float(scoring.get("points"), 1.0)
-    score = points if is_correct else 0.0 if is_correct is not None else None
+    score = points * score_fraction if score_fraction is not None else None
     return {
         "kind": "multiple_choice",
         "selected": selected,
         "option_ids": selected,
         "correct_option_ids": sorted(correct_options),
+        "score_policy": "select_all",
         "is_correct": is_correct,
         "score": score,
         "points": points,
@@ -1442,9 +1543,7 @@ def _activity_grading_settings(activity: LearningActivity) -> dict:
     grading = settings.get("grading") or {}
     if not isinstance(grading, dict):
         grading = {}
-    mode = grading.get("mode") or settings.get("grading_mode") or "completion"
     return {
-        "mode": mode if mode in ("completion", "pass_fail") else "completion",
         "minimum_score_percent": max(
             0.0, min(100.0, _as_float(grading.get("minimum_score_percent"), 70.0))
         ),
@@ -1460,10 +1559,7 @@ def _activity_score_summary(
     db_session: Session, run: LearningRun, activity: LearningActivity
 ) -> dict:
     pages = db_session.exec(
-        select(LearningPage).where(
-            LearningPage.activity_id == activity.id,
-            LearningPage.required == True,
-        )
+        select(LearningPage).where(LearningPage.activity_id == activity.id)
     ).all()
     latest_attempts = _latest_attempts(db_session, run.id or 0)
     earned = 0.0
@@ -1499,7 +1595,16 @@ def _activity_score_summary(
 
 def _question_block_points(page: LearningPage, question: dict) -> float:
     scoring = _block_scoring(page, question)
+    if scoring.get("mode") == "off":
+        return 0.0
     points = _as_float(scoring.get("points"), 1.0)
+    configured = bool(
+        scoring.get("mode")
+        or scoring.get("points") is not None
+        or scoring.get("correct_option_ids")
+        or scoring.get("correctOptionIds")
+        or scoring.get("accepted_answers")
+    )
     if question.get("kind") == "text_input":
         completion_inputs = _block_completion(page, question).get("inputs") or {}
         input_points = [
@@ -1509,14 +1614,20 @@ def _question_block_points(page: LearningPage, question: dict) -> float:
         ]
         if input_points:
             points = sum(input_points)
+            configured = True
+    if not configured:
+        return 0.0
     return max(0.0, points)
 
 
 def _activity_meets_completion_rules(
     db_session: Session, run: LearningRun, activity: LearningActivity
 ) -> tuple[bool, dict]:
-    grading = _activity_grading_settings(activity)
     summary = _activity_score_summary(db_session, run, activity)
+    grading = {
+        **_activity_grading_settings(activity),
+        "mode": "pass_fail" if summary["max_score"] > 0 else "completion",
+    }
     if summary["pending_manual_grades"] > 0:
         return False, {
             **summary,
@@ -1524,15 +1635,8 @@ def _activity_meets_completion_rules(
             "passed": False,
             "reason": "pending_manual_grades",
         }
-    if grading["mode"] != "pass_fail":
-        return True, {**summary, "grading": grading, "passed": True}
     if summary["max_score"] <= 0:
-        return False, {
-            **summary,
-            "grading": grading,
-            "passed": False,
-            "reason": "no_scored_pages",
-        }
+        return True, {**summary, "grading": grading, "passed": True}
     passed = summary["score_percent"] >= grading["minimum_score_percent"]
     return passed, {**summary, "grading": grading, "passed": passed}
 
@@ -2267,7 +2371,7 @@ def ensure_onboarding_learning_badge(
                             "mode": "off",
                             "points": 0,
                             "correct_option_ids": [],
-                            "score_policy": "exact_match",
+                            "score_policy": "select_all",
                         },
                         completion={
                             "min_selections": 1,
@@ -3635,7 +3739,9 @@ async def list_badges(
                 detail="org_id is required for admin badge listing",
             )
         _require_org_admin(db_session, current_user, org_id)
-        statement = select(LearningBadge).where(LearningBadge.org_id == org_id)
+        statement = select(LearningBadge).where(
+            LearningBadge.org_id == org_id, LearningBadge.deleted_at.is_(None)
+        )
     else:
         statement = _public_badge_query(org_id)
     badges = db_session.exec(
@@ -3657,9 +3763,55 @@ async def delete_badge(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="System badges cannot be deleted",
         )
-    db_session.delete(badge)
+    badge.deleted_at = datetime.utcnow()
+    badge.update_date = _now()
+    db_session.add(badge)
     db_session.commit()
-    return {"detail": "Badge deleted"}
+    return {"detail": "Badge moved to trash"}
+
+
+async def list_deleted_badges(request: Request, org_id: int, current_user, db_session: Session) -> list[LearningBadgeRead]:
+    _require_org_admin(db_session, current_user, org_id)
+    cutoff = datetime.utcnow() - timedelta(days=14)
+    badges = db_session.exec(select(LearningBadge).where(
+        LearningBadge.org_id == org_id,
+        LearningBadge.deleted_at.is_not(None),
+        LearningBadge.deleted_at >= cutoff,
+    ).order_by(LearningBadge.deleted_at.desc())).all()
+    deleted_collection_ids = set(db_session.exec(select(BadgeCollection.id).where(
+        BadgeCollection.org_id == org_id,
+        BadgeCollection.deleted_at.is_not(None),
+    )).all())
+    return [
+        LearningBadgeRead(**badge.model_dump())
+        for badge in badges
+        if badge.collection_id not in deleted_collection_ids
+    ]
+
+
+async def restore_badge(request: Request, badge_uuid: str, current_user, db_session: Session) -> LearningBadgeRead:
+    badge = db_session.exec(select(LearningBadge).where(
+        LearningBadge.badge_uuid == _clean_uuid(badge_uuid, "badge_"),
+        LearningBadge.deleted_at.is_not(None),
+    )).first()
+    if not badge:
+        raise HTTPException(status_code=404, detail="Badge not found in trash")
+    _require_org_admin(db_session, current_user, badge.org_id)
+    if badge.deleted_at < datetime.utcnow() - timedelta(days=14):
+        raise HTTPException(status_code=410, detail="The 14-day restore period has expired")
+    if badge.collection_id is not None:
+        deleted_collection = db_session.exec(select(BadgeCollection).where(
+            BadgeCollection.id == badge.collection_id,
+            BadgeCollection.deleted_at.is_not(None),
+        )).first()
+        if deleted_collection:
+            raise HTTPException(status_code=409, detail="Restore the badge collection first")
+    badge.deleted_at = None
+    badge.update_date = _now()
+    db_session.add(badge)
+    db_session.commit()
+    db_session.refresh(badge)
+    return LearningBadgeRead(**badge.model_dump())
 
 
 async def create_collection(
@@ -3691,8 +3843,8 @@ async def update_collection(
 ) -> BadgeCollectionRead:
     collection = db_session.exec(
         select(BadgeCollection).where(
-            BadgeCollection.collection_uuid
-            == _clean_uuid(collection_uuid, "badge_collection_")
+            BadgeCollection.collection_uuid == _clean_uuid(collection_uuid, "badge_collection_"),
+            BadgeCollection.deleted_at.is_(None),
         )
     ).first()
     if not collection:
@@ -3722,8 +3874,8 @@ async def update_collection_thumbnail(
 ) -> BadgeCollectionRead:
     collection = db_session.exec(
         select(BadgeCollection).where(
-            BadgeCollection.collection_uuid
-            == _clean_uuid(collection_uuid, "badge_collection_")
+            BadgeCollection.collection_uuid == _clean_uuid(collection_uuid, "badge_collection_"),
+            BadgeCollection.deleted_at.is_(None),
         )
     ).first()
     if not collection:
@@ -3765,8 +3917,8 @@ async def delete_collection(
 ) -> dict:
     collection = db_session.exec(
         select(BadgeCollection).where(
-            BadgeCollection.collection_uuid
-            == _clean_uuid(collection_uuid, "badge_collection_")
+            BadgeCollection.collection_uuid == _clean_uuid(collection_uuid, "badge_collection_"),
+            BadgeCollection.deleted_at.is_(None),
         )
     ).first()
     if not collection:
@@ -3780,11 +3932,55 @@ async def delete_collection(
     badges = db_session.exec(
         select(LearningBadge).where(LearningBadge.collection_id == collection.id)
     ).all()
+    deleted_at = datetime.utcnow()
     for badge in badges:
-        db_session.delete(badge)
-    db_session.delete(collection)
+        if badge.deleted_at is None:
+            badge.deleted_at = deleted_at
+            badge.update_date = _now()
+            db_session.add(badge)
+    collection.deleted_at = deleted_at
+    collection.update_date = _now()
+    db_session.add(collection)
     db_session.commit()
-    return {"detail": "Badge collection deleted"}
+    return {"detail": "Badge collection moved to trash"}
+
+
+async def list_deleted_collections(request: Request, org_id: int, current_user, db_session: Session) -> list[BadgeCollectionRead]:
+    _require_org_admin(db_session, current_user, org_id)
+    cutoff = datetime.utcnow() - timedelta(days=14)
+    collections = db_session.exec(select(BadgeCollection).where(
+        BadgeCollection.org_id == org_id,
+        BadgeCollection.deleted_at.is_not(None),
+        BadgeCollection.deleted_at >= cutoff,
+    ).order_by(BadgeCollection.deleted_at.desc())).all()
+    return [BadgeCollectionRead(**collection.model_dump(), badges=[]) for collection in collections]
+
+
+async def restore_collection(request: Request, collection_uuid: str, current_user, db_session: Session) -> BadgeCollectionRead:
+    collection = db_session.exec(select(BadgeCollection).where(
+        BadgeCollection.collection_uuid == _clean_uuid(collection_uuid, "badge_collection_"),
+        BadgeCollection.deleted_at.is_not(None),
+    )).first()
+    if not collection:
+        raise HTTPException(status_code=404, detail="Badge collection not found in trash")
+    _require_org_admin(db_session, current_user, collection.org_id)
+    if collection.deleted_at < datetime.utcnow() - timedelta(days=14):
+        raise HTTPException(status_code=410, detail="The 14-day restore period has expired")
+    deleted_at = collection.deleted_at
+    badges = db_session.exec(select(LearningBadge).where(
+        LearningBadge.collection_id == collection.id,
+        LearningBadge.deleted_at == deleted_at,
+    )).all()
+    for badge in badges:
+        badge.deleted_at = None
+        badge.update_date = _now()
+        db_session.add(badge)
+    collection.deleted_at = None
+    collection.update_date = _now()
+    db_session.add(collection)
+    db_session.commit()
+    db_session.refresh(collection)
+    return BadgeCollectionRead(**collection.model_dump(), badges=[LearningBadgeRead(**b.model_dump()) for b in badges])
 
 
 async def list_collections(
@@ -3804,14 +4000,19 @@ async def list_collections(
             )
         _require_org_admin(db_session, current_user, org_id)
         collections = db_session.exec(
-            select(BadgeCollection).where(BadgeCollection.org_id == org_id)
+            select(BadgeCollection).where(
+                BadgeCollection.org_id == org_id, BadgeCollection.deleted_at.is_(None)
+            )
         ).all()
         badges = db_session.exec(
-            select(LearningBadge).where(LearningBadge.org_id == org_id)
+            select(LearningBadge).where(
+                LearningBadge.org_id == org_id, LearningBadge.deleted_at.is_(None)
+            )
         ).all()
     else:
         collection_statement = select(BadgeCollection).where(
-            BadgeCollection.public == True, BadgeCollection.hidden == False
+            BadgeCollection.public == True, BadgeCollection.hidden == False,
+            BadgeCollection.deleted_at.is_(None),
         )
         if org_id is not None:
             collection_statement = collection_statement.where(
@@ -3931,10 +4132,162 @@ async def create_activity(
         update_date=now,
     )
     db_session.add(page)
+    flow = (activity.settings or {}).get("flow")
+    if flow:
+        activity.settings = {
+            **(activity.settings or {}),
+            "flow": append_page_to_flow(flow, page.page_uuid),
+        }
+        activity.update_date = now
+        db_session.add(activity)
     db_session.commit()
     db_session.refresh(activity)
     db_session.refresh(page)
     return _serialize_activity(activity, [page])
+
+
+async def import_activity(
+    request: Request,
+    data: LearningActivityImport,
+    current_user: PublicUser | AnonymousUser,
+    db_session: Session,
+) -> LearningActivityRead:
+    if not data.pages:
+        raise HTTPException(status_code=422, detail="An imported activity needs at least one page")
+    if len(data.pages) > 300:
+        raise HTTPException(status_code=422, detail="An imported activity can contain at most 300 pages")
+
+    badge = _get_badge(db_session, data.badge_uuid)
+    _require_org_admin(db_session, current_user, badge.org_id)
+    path = _get_path_for_badge(db_session, badge)
+    existing = db_session.exec(
+        select(LearningActivity)
+        .where(LearningActivity.path_id == path.id)
+        .order_by(LearningActivity.order.asc())
+    ).all()  # type: ignore
+
+    import_pages = [page.model_copy(deep=True) for page in data.pages]
+    for page in import_pages:
+        for stack in iter_block_stacks(page.content or {}):
+            for block in stack:
+                if not isinstance(block, dict) or block.get("type") != "image":
+                    continue
+                block_content = block.get("content") or {}
+                source_url = str(block_content.get("src") or "").strip()
+                if not is_google_forms_image_url(source_url):
+                    continue
+                try:
+                    asset = await copy_google_forms_image_to_library(
+                        source_url,
+                        badge.org_id,
+                        current_user,  # type: ignore[arg-type]
+                        db_session,
+                        title=str(block_content.get("alt") or "Google Form image"),
+                        commit=False,
+                    )
+                except HTTPException as exc:
+                    raise HTTPException(
+                        status_code=exc.status_code,
+                        detail=f'Could not copy an image for “{page.title}”: {exc.detail}',
+                    ) from exc
+                block["content"] = {
+                    **block_content,
+                    "src": asset.url,
+                    "media_asset_uuid": asset.asset_uuid,
+                }
+
+    page_uuids = [f"learning_page_{uuid4()}" for _ in import_pages]
+    page_uuid_set = set(page_uuids)
+    for page in import_pages:
+        _validate_page_payload(LearningPageType.STANDARD, page.content)
+        _validate_page_button_destinations(page.content, page_uuid_set)
+        if any(
+            block.get("type") == "portfolio_preview"
+            for stack in iter_block_stacks(page.content or {})
+            for block in stack
+            if isinstance(block, dict)
+        ) and not _is_system_object(badge):
+            raise HTTPException(
+                status_code=403,
+                detail="Portfolio preview blocks are limited to trusted system activities",
+            )
+
+    now = _now()
+    nodes = [
+        {"id": f"page:{page_uuid}", "type": "page", "page_uuid": page_uuid}
+        for page_uuid in page_uuids
+    ] + [{"id": "complete", "type": "complete"}]
+    edges = [
+        {
+            "from": f"page:{page_uuid}",
+            "to": f"page:{page_uuids[index + 1]}" if index + 1 < len(page_uuids) else "complete",
+            "priority": 0,
+        }
+        for index, page_uuid in enumerate(page_uuids)
+    ]
+    settings = {
+        **(data.settings or {}),
+        "flow": {"version": 1, "entry": f"page:{page_uuids[0]}", "nodes": nodes, "edges": edges},
+    }
+    try:
+        validate_outcomes(
+            settings.get("outcomes"),
+            _is_system_object(badge),
+        )
+        validate_flow(
+            settings["flow"],
+            set(page_uuids),
+            {
+                page_uuid
+                for page_data, page_uuid in zip(import_pages, page_uuids)
+                if page_data.required
+            },
+        )
+    except (FlowValidationError, PortfolioActionError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    activity = LearningActivity(
+        path_id=path.id or 0,
+        badge_id=badge.id or 0,
+        org_id=badge.org_id,
+        title=data.title.strip() or "Imported Google Form",
+        description=data.description or "",
+        required=True,
+        published=False,
+        settings=settings,
+        order=(existing[-1].order + 1) if existing else 1,
+        activity_uuid=f"learning_activity_{uuid4()}",
+        creation_date=now,
+        update_date=now,
+    )
+    db_session.add(activity)
+    db_session.flush()
+
+    pages: list[LearningPage] = []
+    for index, (page_data, page_uuid) in enumerate(zip(import_pages, page_uuids)):
+        page = LearningPage(
+            activity_id=activity.id or 0,
+            badge_id=badge.id or 0,
+            org_id=badge.org_id,
+            page_type=LearningPageType.STANDARD,
+            title=page_data.title.strip() or f"Question {index + 1}",
+            required=page_data.required,
+            content=page_data.content,
+            design=page_data.design,
+            scoring=page_data.scoring,
+            completion=page_data.completion,
+            order=index + 1,
+            page_uuid=page_uuid,
+            creation_date=now,
+            update_date=now,
+        )
+        db_session.add(page)
+        pages.append(page)
+
+    db_session.commit()
+    db_session.refresh(activity)
+    for page in pages:
+        db_session.refresh(page)
+    return _serialize_activity(activity, pages)
 
 
 async def update_activity(

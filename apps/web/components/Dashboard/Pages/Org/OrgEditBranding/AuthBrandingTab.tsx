@@ -16,7 +16,7 @@ import { useTranslation } from 'react-i18next'
 import { revalidateTags } from '@services/utils/ts/requests'
 import { mutate } from 'swr'
 import { getAPIUrl } from '@services/config/config'
-import UnsplashImagePicker from '@components/Dashboard/Pages/Course/EditCourseGeneral/UnsplashImagePicker'
+import UnsplashImagePicker from '@components/Objects/Media/UnsplashImagePicker'
 import { usePlan } from '@components/Hooks/usePlan'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 

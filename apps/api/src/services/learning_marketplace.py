@@ -182,7 +182,8 @@ async def browse_marketplace_badges(
     statement = select(LearningBadge).where(
         LearningBadge.marketplace_listed == True,
         LearningBadge.status == LearningBadgeStatus.PUBLISHED,
-        LearningBadge.public == True,
+        LearningBadge.public == True,  # noqa: E712
+        LearningBadge.deleted_at.is_(None),
     )
     badges = db_session.exec(statement).all()
     if query:
@@ -634,7 +635,10 @@ async def creator_issuance_metrics(
     from src.db.learning import LearningBadgeAward
 
     _require_org_admin(db_session, current_user, org_id)
-    badges = db_session.exec(select(LearningBadge).where(LearningBadge.org_id == org_id)).all()
+    badges = db_session.exec(select(LearningBadge).where(
+        LearningBadge.org_id == org_id,
+        LearningBadge.deleted_at.is_(None),
+    )).all()
     badge_by_id = {badge.id or 0: badge for badge in badges}
     if not badge_by_id:
         return {"badges": [], "total_awards": 0}

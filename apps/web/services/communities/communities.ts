@@ -9,7 +9,6 @@ import {
 export interface Community {
   id: number
   org_id: number
-  course_id: number | null
   community_uuid: string
   name: string
   description: string | null
@@ -31,7 +30,6 @@ export interface CommunityCreate {
   description?: string | null
   public?: boolean
   shared?: boolean
-  course_id?: number | null
 }
 
 export interface CommunityUpdate {
@@ -93,19 +91,6 @@ export async function getCommunity(
   return res
 }
 
-export async function getCommunityByCourse(
-  course_uuid: string,
-  next: any,
-  access_token?: string
-) {
-  const result: any = await fetch(
-    `${getAPIUrl()}communities/course/${course_uuid}`,
-    RequestBodyWithAuthHeader('GET', null, next, access_token)
-  )
-  const res = await errorHandling(result)
-  return res
-}
-
 export async function createCommunity(
   org_id: number,
   data: CommunityCreate,
@@ -144,30 +129,6 @@ export async function deleteCommunity(
   return res
 }
 
-export async function linkCommunityToCourse(
-  community_uuid: string,
-  course_uuid: string,
-  access_token: string
-) {
-  const result: any = await fetch(
-    `${getAPIUrl()}communities/${community_uuid}/link-course/${course_uuid}`,
-    RequestBodyWithAuthHeader('PUT', null, null, access_token)
-  )
-  const res = await errorHandling(result)
-  return res
-}
-
-export async function unlinkCommunityFromCourse(
-  community_uuid: string,
-  access_token: string
-) {
-  const result: any = await fetch(
-    `${getAPIUrl()}communities/${community_uuid}/unlink-course`,
-    RequestBodyWithAuthHeader('DELETE', null, null, access_token)
-  )
-  const res = await errorHandling(result)
-  return res
-}
 
 export async function getCommunityRights(
   community_uuid: string,

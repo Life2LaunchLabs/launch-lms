@@ -58,25 +58,15 @@ export interface LandingTextAndImageSection {
   buttons: LandingButton[];
 }
 
-export interface LandingCourse {
-  course_uuid: string;
-}
-
 export type LandingQuickstartFeature =
   | 'home'
-  | 'courses'
+  | 'badges'
   | 'resources';
 
 export interface LandingQuickstartItem {
   type: 'feature' | 'collection' | 'community' | 'resource-channel';
   feature?: LandingQuickstartFeature;
   target_uuid?: string;
-}
-
-export interface LandingFeaturedCourses {
-  type: 'featured-courses';
-  courses: LandingCourse[];
-  title: string;
 }
 
 export interface LandingHeroSection {
@@ -93,11 +83,6 @@ export interface LandingHeroSection {
     size: 'small' | 'medium' | 'large';
   };
   contentAlign?: 'left' | 'center' | 'right';
-}
-
-export interface LandingInProgress {
-  type: 'in-progress';
-  title: string;
 }
 
 export interface LandingQuickstart {
@@ -117,8 +102,6 @@ export type LandingSection =
   | LandingHeroSection
   | LandingLogos
   | LandingPeople
-  | LandingFeaturedCourses
-  | LandingInProgress
   | LandingQuickstart
   | LandingTrending;
 

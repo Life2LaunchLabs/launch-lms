@@ -13,7 +13,7 @@ import { Card } from '@components/ui/card'
 import { Switch } from '@components/ui/switch'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { getUriWithOrg, routePaths, getAPIUrl } from '@services/config/config'
-import { getCourseThumbnailMediaDirectory, normalizeMediaUrl } from '@services/media/media'
+import { normalizeMediaUrl } from '@services/media/media'
 import { updateProfile } from '@services/settings/portfolio'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { cn } from '@/lib/utils'
@@ -62,7 +62,6 @@ type ProfileAchievementsSectionProps = {
   publicVisible?: boolean
   orgConfig?: any
   orgId?: string | number
-  collections?: any[]
   profile?: any
   // eslint-disable-next-line no-unused-vars
   onChange?(next: AchievementsSection): void
@@ -135,63 +134,6 @@ function getBadgeRoutes(orgslug: string, profileUsername?: string) {
   }
 }
 
-function cleanCourseUuid(courseUuid?: string | null) {
-  return String(courseUuid || '').replace('course_', '')
-}
-
-function normalizeCourseUuid(courseUuid?: string | null) {
-  const cleaned = cleanCourseUuid(courseUuid)
-  return cleaned ? `course_${cleaned}` : ''
-}
-
-function getRecommendedBadgeUuids(orgConfig: any, profile: any) {
-  const config = orgConfig?.config || orgConfig || {}
-  const onboarding = profile?.onboarding || {}
-  const goal = onboarding?.next_step || 'not_sure'
-  const storedRecommendations = Array.isArray(onboarding?.recommended_badges)
-    ? onboarding.recommended_badges
-    : []
-  const orgRecommendations =
-    config?.customization?.onboarding?.recommended_badges?.[goal] ||
-    config?.onboarding?.recommended_badges?.[goal] ||
-    []
-
-  return (storedRecommendations.length ? storedRecommendations : orgRecommendations)
-    .map((value: string) => normalizeCourseUuid(value))
-    .filter(Boolean)
-    .slice(0, 3)
-}
-
-function getCollectionCourses(collections: any[]) {
-  return (collections || []).flatMap((collection: any) =>
-    (collection.courses || []).map((course: any) => ({
-      ...course,
-      owner_org_uuid: course.owner_org_uuid || collection.owner_org_uuid,
-    }))
-  )
-}
-
-function getRecommendedBadges(orgConfig: any, profile: any, collections: any[], orgslug: string): RecommendedBadge[] {
-  const recommendedUuids = getRecommendedBadgeUuids(orgConfig, profile)
-  const courses = getCollectionCourses(collections)
-
-  return recommendedUuids
-    .map((courseUuid: string) => courses.find((course: any) => normalizeCourseUuid(course.course_uuid) === courseUuid))
-    .filter(Boolean)
-    .map((course: any) => ({
-      id: normalizeCourseUuid(course.course_uuid),
-      title: course.name || 'Recommended badge',
-      imageUrl: course.thumbnail_image
-        ? getCourseThumbnailMediaDirectory(
-            course.owner_org_uuid || course.org_uuid || '',
-            course.course_uuid,
-            course.thumbnail_image
-          )
-        : '',
-      href: getUriWithOrg(orgslug, routePaths.org.course(cleanCourseUuid(course.course_uuid))),
-    }))
-}
-
 function formatDisplayDate(value: string) {
   if (!value) return ''
   const parsed = new Date(value)
@@ -204,16 +146,13 @@ function formatDisplayDate(value: string) {
 
 function getCredentialTitle(credential: any) {
   return credential.badge_class?.name
-    || credential.certification?.config?.badge_name
-    || credential.certification?.config?.certification_name
-    || credential.course?.name
+    || credential.badge?.name
     || 'Badge'
 }
 
 function getCredentialDescription(credential: any) {
   return credential.badge_class?.description
-    || credential.certification?.config?.badge_description
-    || credential.certification?.config?.certification_description
+    || credential.badge?.description
     || ''
 }
 
@@ -224,40 +163,27 @@ function getCredentialImage(credential: any) {
       || normalizeMediaUrl(credential.issuer?.image)
       || '/empty_thumbnail.png'
   }
-  const courseThumbnailUrl = credential.course?.thumbnail_image && credential.org?.org_uuid
-    ? getCourseThumbnailMediaDirectory(
-        credential.org.org_uuid,
-        credential.course.course_uuid,
-        credential.course.thumbnail_image
-      )
-    : ''
-
-  return courseThumbnailUrl
-    || normalizeMediaUrl(credential.badge_class?.image)
-    || normalizeMediaUrl(credential.certification?.config?.badge_image_url)
+  return normalizeMediaUrl(credential.badge_class?.image)
+    || normalizeMediaUrl(credential.badge?.thumbnail_image)
     || normalizeMediaUrl(credential.issuer?.image)
     || '/empty_thumbnail.png'
 }
 
-function getCredentialCourseUuid(credential: BadgeCredential) {
-  return normalizeCourseUuid(credential.raw?.course?.course_uuid || credential.raw?.badge?.badge_uuid)
+function getCredentialBadgeUuid(credential: BadgeCredential) {
+  return String(credential.raw?.badge?.badge_uuid || '')
 }
 
 export function normalizeBadgeCredential(credential: any, orgslug: string): BadgeCredential | null {
-  const id = credential?.award?.award_uuid || credential?.certificate_user?.user_certification_uuid
+  const id = credential?.award?.award_uuid
   if (!id) return null
-  const isLearningAward = Boolean(credential?.award && credential?.badge)
-
   return {
     id,
     title: getCredentialTitle(credential),
     organization: credential.issuer?.name || credential.organization?.name || credential.org?.name || 'LaunchLMS',
-    receivedDate: credential.award?.issued_at || credential.certificate_user?.created_at || '',
+    receivedDate: credential.award?.issued_at || '',
     description: getCredentialDescription(credential),
     imageUrl: getCredentialImage(credential),
-    href: isLearningAward
-      ? getUriWithOrg(orgslug, routePaths.org.badgesVerify(id))
-      : getUriWithOrg(orgslug, routePaths.org.badgesVerify(id)),
+    href: getUriWithOrg(orgslug, routePaths.org.badgesVerify(id)),
     raw: credential,
   }
 }
@@ -652,18 +578,12 @@ export function ProfileAchievementsSection({
   publicVisible = true,
   onChange,
   onPublicVisibleChange,
-  orgConfig,
   orgId,
-  collections = [],
-  profile,
 }: ProfileAchievementsSectionProps) {
   const routes = useMemo(() => getBadgeRoutes(orgslug, profileUsername), [orgslug, profileUsername])
   const { badges: featuredBadges, isLoading: isLoadingFeatured } = useFeaturedBadges(achievements, orgslug)
   const { badges: earnedBadges, isLoading: isLoadingEarned } = useEarnedBadges(orgId, orgslug, canEdit && achievements.enabled)
-  const recommendedBadges = useMemo(
-    () => getRecommendedBadges(orgConfig, profile, collections, orgslug),
-    [collections, orgConfig, orgslug, profile]
-  )
+  const recommendedBadges: RecommendedBadge[] = []
   const badges = useMemo(() => {
     const byId = new Map<string, BadgeCredential>()
     featuredBadges.forEach((badge) => byId.set(badge.id, badge))
@@ -674,12 +594,12 @@ export function ProfileAchievementsSection({
       })
     return Array.from(byId.values()).slice(0, 3)
   }, [earnedBadges, featuredBadges])
-  const earnedCourseUuids = useMemo(
-    () => new Set(badges.map(getCredentialCourseUuid).filter(Boolean)),
+  const earnedBadgeUuids = useMemo(
+    () => new Set(badges.map(getCredentialBadgeUuid).filter(Boolean)),
     [badges]
   )
   const suggestedBadges = recommendedBadges
-    .filter((badge) => !earnedCourseUuids.has(badge.id))
+    .filter((badge) => !earnedBadgeUuids.has(badge.id))
     .slice(0, Math.max(0, 3 - badges.length))
   const displaySlots = badges.length + suggestedBadges.length
   const hasCompletedBadgeGoal = badges.length >= 3
