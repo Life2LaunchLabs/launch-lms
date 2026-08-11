@@ -2,6 +2,7 @@ import hashlib
 import re
 from copy import deepcopy
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from fastapi import HTTPException, Request, UploadFile, status
@@ -906,6 +907,9 @@ def _validate_text_answer(
         min_words = max(0, _as_int(rules.get("min_words") or rules.get("minWords"), 0))
         max_words = max(0, _as_int(rules.get("max_words") or rules.get("maxWords"), 0))
         required = rules.get("required", min_words > 0)
+        validation = str(rules.get("validation") or "none").lower()
+        if validation == "none" and input_type in {"email", "url", "tel"}:
+            validation = {"tel": "phone"}.get(input_type, input_type)
 
         if required and not text:
             raise HTTPException(
@@ -922,6 +926,22 @@ def _validate_text_answer(
                 ) from exc
         else:
             numeric_value = None
+        if text and validation == "name" and not re.fullmatch(
+            r"[^\W\d_](?:[^\W\d_]|[' -])*", text, flags=re.UNICODE
+        ):
+            raise HTTPException(status_code=422, detail="Enter a valid name")
+        if text and validation == "email" and not re.fullmatch(
+            r"[^@\s]+@[^@\s]+\.[^@\s]+", text
+        ):
+            raise HTTPException(status_code=422, detail="Enter a valid email address")
+        if text and validation == "phone":
+            digits = re.sub(r"\D", "", text)
+            if not re.fullmatch(r"[+()\d. -]+", text) or not 7 <= len(digits) <= 15:
+                raise HTTPException(status_code=422, detail="Enter a valid phone number")
+        if text and validation == "url":
+            parsed_url = urlparse(text)
+            if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
+                raise HTTPException(status_code=422, detail="Enter a valid URL including http:// or https://")
         if input_type != "number" and text and words < min_words:
             raise HTTPException(
                 status_code=422, detail=f"Response must be at least {min_words} word(s)"
@@ -1295,21 +1315,27 @@ def _grade_mcq_block(page: LearningPage, question: dict, answer: dict) -> dict:
         or scoring.get("correctOptionIds")
         or []
     }
-    score_policy = str(scoring.get("score_policy") or "exact_match")
     if not correct_options:
         is_correct = None
-    elif score_policy == "any_correct":
-        is_correct = bool(selected) and set(selected).issubset(correct_options)
+        score_fraction = None
     else:
-        is_correct = set(selected) == correct_options
+        selected_options = set(selected)
+        true_positives = len(selected_options & correct_options)
+        false_positives = len(selected_options - correct_options)
+        is_correct = selected_options == correct_options
+        # Select-all-that-apply partial credit: omitted correct answers earn
+        # nothing, while incorrect selections cancel an earned correct choice.
+        score_fraction = max(
+            0.0, min(1.0, (true_positives - false_positives) / len(correct_options))
+        )
     points = _as_float(scoring.get("points"), 1.0)
-    score = points if is_correct else 0.0 if is_correct is not None else None
+    score = points * score_fraction if score_fraction is not None else None
     return {
         "kind": "multiple_choice",
         "selected": selected,
         "option_ids": selected,
         "correct_option_ids": sorted(correct_options),
-        "score_policy": score_policy,
+        "score_policy": "select_all",
         "is_correct": is_correct,
         "score": score,
         "points": points,
@@ -1517,9 +1543,7 @@ def _activity_grading_settings(activity: LearningActivity) -> dict:
     grading = settings.get("grading") or {}
     if not isinstance(grading, dict):
         grading = {}
-    mode = grading.get("mode") or settings.get("grading_mode") or "completion"
     return {
-        "mode": mode if mode in ("completion", "pass_fail") else "completion",
         "minimum_score_percent": max(
             0.0, min(100.0, _as_float(grading.get("minimum_score_percent"), 70.0))
         ),
@@ -1535,10 +1559,7 @@ def _activity_score_summary(
     db_session: Session, run: LearningRun, activity: LearningActivity
 ) -> dict:
     pages = db_session.exec(
-        select(LearningPage).where(
-            LearningPage.activity_id == activity.id,
-            LearningPage.required == True,
-        )
+        select(LearningPage).where(LearningPage.activity_id == activity.id)
     ).all()
     latest_attempts = _latest_attempts(db_session, run.id or 0)
     earned = 0.0
@@ -1574,7 +1595,16 @@ def _activity_score_summary(
 
 def _question_block_points(page: LearningPage, question: dict) -> float:
     scoring = _block_scoring(page, question)
+    if scoring.get("mode") == "off":
+        return 0.0
     points = _as_float(scoring.get("points"), 1.0)
+    configured = bool(
+        scoring.get("mode")
+        or scoring.get("points") is not None
+        or scoring.get("correct_option_ids")
+        or scoring.get("correctOptionIds")
+        or scoring.get("accepted_answers")
+    )
     if question.get("kind") == "text_input":
         completion_inputs = _block_completion(page, question).get("inputs") or {}
         input_points = [
@@ -1584,14 +1614,20 @@ def _question_block_points(page: LearningPage, question: dict) -> float:
         ]
         if input_points:
             points = sum(input_points)
+            configured = True
+    if not configured:
+        return 0.0
     return max(0.0, points)
 
 
 def _activity_meets_completion_rules(
     db_session: Session, run: LearningRun, activity: LearningActivity
 ) -> tuple[bool, dict]:
-    grading = _activity_grading_settings(activity)
     summary = _activity_score_summary(db_session, run, activity)
+    grading = {
+        **_activity_grading_settings(activity),
+        "mode": "pass_fail" if summary["max_score"] > 0 else "completion",
+    }
     if summary["pending_manual_grades"] > 0:
         return False, {
             **summary,
@@ -1599,15 +1635,8 @@ def _activity_meets_completion_rules(
             "passed": False,
             "reason": "pending_manual_grades",
         }
-    if grading["mode"] != "pass_fail":
-        return True, {**summary, "grading": grading, "passed": True}
     if summary["max_score"] <= 0:
-        return False, {
-            **summary,
-            "grading": grading,
-            "passed": False,
-            "reason": "no_scored_pages",
-        }
+        return True, {**summary, "grading": grading, "passed": True}
     passed = summary["score_percent"] >= grading["minimum_score_percent"]
     return passed, {**summary, "grading": grading, "passed": passed}
 
@@ -2342,7 +2371,7 @@ def ensure_onboarding_learning_badge(
                             "mode": "off",
                             "points": 0,
                             "correct_option_ids": [],
-                            "score_policy": "exact_match",
+                            "score_policy": "select_all",
                         },
                         completion={
                             "min_selections": 1,

@@ -30,7 +30,7 @@ import {
   setQuestionAnswer,
   type LearningBlock,
 } from '@components/Learning/schema'
-import { EMPTY_PARAGRAPH, getTextBlockNodes } from './editor/utils'
+import { activityHasScoredQuestions, EMPTY_PARAGRAPH, getTextBlockNodes } from './editor/utils'
 import { getUriWithOrg } from '@services/config/config'
 import toast from 'react-hot-toast'
 import ReorderableList from '@components/Objects/ReorderableList'
@@ -118,8 +118,8 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
         setIndex((current) => Math.min(current + 1, pages.length - 1))
       } else {
         const grading = activity.settings?.grading || {}
-        if (grading.mode === 'pass_fail' && grading.success_message) {
-          toast.success(grading.success_message)
+        if (activityHasScoredQuestions(configuredPages)) {
+          toast.success(grading.success_message || 'Activity passed.')
         }
         const returnTo = searchParams.get('returnTo')
         if (returnTo?.startsWith('/portfolio')) {
@@ -403,19 +403,29 @@ function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editab
   }
 
   if (block.type === 'question') {
-    const resolvedBlock = !editable && block.kind === 'text_input' ? {
-      ...block,
-      content: {
-        ...(block.content || {}),
-        inputs: (block.content?.inputs || []).map((input: any) => {
-          const adaptive = input.adaptive || {}
-          const key = resolveDisplayBinding(adaptive.binding, run)
-          const values = adaptive.values?.[key] || {}
-          return { ...input, label: values.label || input.label, placeholder: values.placeholder || input.placeholder }
-        }),
-      },
-    } : block
-    const label = block.kind === 'image_upload' ? '' : String(block.content?.label || '').trim()
+    const resolvedBlock = block.kind === 'text_input' ? (() => {
+      const content = block.content || {}
+      const legacyLabel = String(content.label || '').trim()
+      const contentWithoutLabel = { ...content }
+      delete contentWithoutLabel.label
+      return {
+        ...block,
+        content: {
+          ...contentWithoutLabel,
+          inputs: (content.inputs || []).map((input: any, index: number) => {
+            const adaptive = input.adaptive || {}
+            const key = !editable ? resolveDisplayBinding(adaptive.binding, run) : ''
+            const values = !editable ? adaptive.values?.[key] || {} : {}
+            return {
+              ...input,
+              label: values.label || (index === 0 && legacyLabel ? legacyLabel : input.label),
+              placeholder: values.placeholder || input.placeholder,
+            }
+          }),
+        },
+      }
+    })() : block
+    const label = block.kind === 'image_upload' || block.kind === 'text_input' ? '' : String(block.content?.label || '').trim()
     return (
       <section className="learning-info-stack-section" style={blockStyle}>
         {label && <p className="text-lg font-bold text-foreground">{label}</p>}
@@ -1492,7 +1502,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
       const next = new Set(correctOptionIds)
       if (next.has(id)) next.delete(id)
       else next.add(id)
-      onPagePatch?.({ scoring: { ...scoring, mode: 'points', score_policy: scoring.score_policy || 'any_correct', correct_option_ids: Array.from(next) } })
+      onPagePatch?.({ scoring: { ...scoring, mode: 'points', score_policy: 'select_all', correct_option_ids: Array.from(next) } })
     }
     const toggleOption = (id: string) => {
       if (editable) return
@@ -1787,6 +1797,20 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
             const height = Math.max(48, Number(input.height) || 120)
             const isSingleLine = height <= 56 || input.variant === 'single_line'
             const value = answerInputs[input.id]?.text || ''
+            const rule = rules[input.id] || {}
+            const validation = resolveTextInputValidation(input, rule)
+            const validationError = !editable ? getTextInputValidationError(input, rule, value) : ''
+            const htmlInputType = input.input_type === 'month'
+              ? 'month'
+              : input.input_type === 'number'
+                ? 'number'
+                : validation === 'email'
+                  ? 'email'
+                  : validation === 'phone'
+                    ? 'tel'
+                    : validation === 'url'
+                      ? 'url'
+                      : 'text'
             return (
               <div key={input.id} className="relative min-w-0">
                 <div className="mb-1 flex items-center gap-2">
@@ -1807,12 +1831,14 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
                   </select>
                 ) : isSingleLine ? (
                   <input
-                    type={input.input_type === 'month' ? 'month' : input.input_type === 'url' ? 'url' : input.input_type === 'number' ? 'number' : 'text'}
+                    type={htmlInputType}
+                    autoComplete={validation === 'name' ? 'name' : validation === 'email' ? 'email' : validation === 'phone' ? 'tel' : validation === 'url' ? 'url' : undefined}
+                    aria-invalid={Boolean(validationError)}
                     value={editable ? input.placeholder || '' : value}
                     onChange={(event) => editable ? updateInputConfig(input.id, { placeholder: event.target.value }) : updateTextInput(input.id, event.target.value)}
                     placeholder={editable ? 'Placeholder' : input.placeholder}
                     style={{ height }}
-                    className="w-full rounded-xl border border-border bg-card px-4 text-foreground outline-none shadow-sm placeholder:text-muted-foreground focus:border-[var(--org-primary-color)] focus:ring-2 focus:ring-[var(--org-primary-color)]"
+                    className={`w-full rounded-xl border bg-card px-4 text-foreground outline-none shadow-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-[var(--org-primary-color)] ${validationError ? 'border-red-400' : 'border-border focus:border-[var(--org-primary-color)]'}`}
                   />
                 ) : (
                   <textarea
@@ -1821,9 +1847,11 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
                     onChange={(event) => editable ? updateInputConfig(input.id, { placeholder: event.target.value }) : updateTextInput(input.id, event.target.value)}
                     placeholder={editable ? 'Placeholder' : input.placeholder}
                     style={{ height }}
-                    className="w-full resize-none rounded-xl border border-border bg-card p-4 text-foreground outline-none shadow-sm placeholder:text-muted-foreground focus:border-[var(--org-primary-color)] focus:ring-2 focus:ring-[var(--org-primary-color)]"
+                    aria-invalid={Boolean(validationError)}
+                    className={`w-full resize-none rounded-xl border bg-card p-4 text-foreground outline-none shadow-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-[var(--org-primary-color)] ${validationError ? 'border-red-400' : 'border-border focus:border-[var(--org-primary-color)]'}`}
                   />
                 )}
+                {validationError ? <p className="mt-1 text-xs font-medium text-red-600">{validationError}</p> : null}
               </div>
             )
           })}
@@ -2348,8 +2376,42 @@ function areTextInputsComplete(inputs: any[], rules: any, answerInputs: any) {
     if (required && !text) return false
     if (text && minWords > words) return false
     if (text && Number(rule.max_words || 0) > 0 && words > Number(rule.max_words)) return false
+    if (text && getTextInputValidationError(input, rule, text)) return false
     return true
   })
+}
+
+function getTextInputValidationError(input: any, rule: any, value: string) {
+  const text = String(value || '').trim()
+  if (!text) return ''
+  const validation = resolveTextInputValidation(input, rule)
+  if (validation === 'name') {
+    const characters = Array.from(text)
+    const isLetter = (character: string) => character.toLocaleLowerCase() !== character.toLocaleUpperCase()
+    if (!isLetter(characters[0] || '') || !characters.every((character) => isLetter(character) || ["'", '-', ' '].includes(character))) return 'Enter a valid name.'
+  }
+  if (validation === 'email' && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(text)) return 'Enter a valid email address.'
+  if (validation === 'phone') {
+    const digits = text.replace(/\D/g, '')
+    if (!/^[+()\d. -]+$/.test(text) || digits.length < 7 || digits.length > 15) return 'Enter a valid phone number.'
+  }
+  if (validation === 'url') {
+    try {
+      const parsed = new URL(text)
+      if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname) return 'Enter a valid URL including http:// or https://.'
+    } catch {
+      return 'Enter a valid URL including http:// or https://.'
+    }
+  }
+  return ''
+}
+
+function resolveTextInputValidation(input: any, rule: any) {
+  if (rule?.validation) return String(rule.validation)
+  if (input?.input_type === 'email') return 'email'
+  if (input?.input_type === 'tel') return 'phone'
+  if (input?.input_type === 'url') return 'url'
+  return 'none'
 }
 
 function createLearningLocalId(prefix: string) {

@@ -159,7 +159,7 @@ export function parseGoogleFormsEditorHtml(html: string): GoogleFormsImportPrevi
         scoring: {
           mode: points > 0 ? 'points' : 'off',
           points,
-          score_policy: maxSelections === 1 || correctOptionIds.length > maxSelections ? 'any_correct' : 'exact_match',
+          score_policy: 'select_all',
           correct_option_ids: correctOptionIds,
         },
         completion: { min_selections: 1, max_selections: maxSelections },
@@ -179,10 +179,9 @@ export function parseGoogleFormsEditorHtml(html: string): GoogleFormsImportPrevi
         kind: 'text_input',
         design: {},
         content: {
-          label: questionTitle,
           inputs: [{
             id: `input_google_${itemId}`,
-            label: '',
+            label: questionTitle,
             placeholder: multiline ? 'Your answer' : 'Short answer',
             input_type: 'text',
             variant: multiline ? 'short_answer' : 'single_line',

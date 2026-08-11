@@ -3,7 +3,7 @@
 /* eslint-disable no-unused-vars */
 
 import React from 'react'
-import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, Copy, FileText, GitBranch, GripVertical, ListChecks, Plus, Trash2, Video } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, Copy, FileText, GitBranch, GripVertical, Layers3, ListChecks, Plus, TextCursorInput, Trash2, Upload, Video } from 'lucide-react'
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
 import {
   DropdownMenu,
@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@components/ui/dropdown-menu'
 import { findQuestionBlock, findQuestionBlocks, type LearningPageType } from '@components/Learning/schema'
+import { getConfiguredQuestionPoints, getPageQuestionConfigurationIssue } from './utils'
 import {
   collectPath,
   createLinearFlow,
@@ -256,14 +257,17 @@ function SidebarSplitSection({ flow, nodeId, boundaryJoinId, stackId, depth, pag
 }
 
 function SidebarPageCard({ page, pages, selectedPage, dragHandleProps, onSelectPage, onDuplicatePage, onRemovePage }: any) {
-  const question = findQuestionBlocks(page).length > 0
+  const summary = getPageSummary(page)
+  const SummaryIcon = summary.icon
   const variantIssue = getVariantIssue(page, pages)
+  const questionIssue = getPageQuestionConfigurationIssue(page)
+  const issue = variantIssue || questionIssue
   return (
     <button type="button" onClick={() => onSelectPage(page.page_uuid)} className={`group flex w-full items-center gap-2 rounded-lg border p-2 text-left transition ${selectedPage?.page_uuid === page.page_uuid ? 'border-[var(--org-primary-color)] bg-[color-mix(in_srgb,var(--org-primary-color)_8%,white)]' : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'}`}>
       <span {...dragHandleProps} className="flex h-7 w-6 shrink-0 cursor-grab items-center justify-center rounded-md text-gray-400 opacity-0 transition hover:bg-gray-100 group-hover:opacity-100 active:cursor-grabbing"><GripVertical size={15} /></span>
       <span className="min-w-0 flex-1">
-        <span className="flex min-w-0 items-center gap-1.5"><span className="block min-w-0 flex-1 truncate text-sm font-bold">{page.title || 'Untitled page'}</span>{variantIssue && <span title={variantIssue} className="shrink-0 text-amber-600"><AlertTriangle size={14} /></span>}</span>
-        <span className="mt-0.5 flex items-center gap-1 text-xs text-gray-500">{page.page_type === 'video' ? <Video size={12} /> : question ? <ListChecks size={12} /> : <FileText size={12} />}{page.page_type === 'video' ? 'Video' : question ? 'Question' : 'Info'}</span>
+        <span className="flex min-w-0 items-center gap-1.5"><span className="block min-w-0 flex-1 truncate text-sm font-bold">{page.title || 'Untitled page'}</span>{issue && <span title={issue} className="shrink-0 text-amber-600"><AlertTriangle size={14} /></span>}</span>
+        <span className="mt-0.5 flex items-center gap-1 text-xs text-gray-500"><SummaryIcon size={12} />{summary.label}{summary.points ? ` · ${formatPoints(summary.points)}` : ''}</span>
       </span>
       <DropdownMenu>
         <DropdownMenuTrigger asChild><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md opacity-0 transition hover:bg-gray-100 group-hover:opacity-100"><ChevronDown size={15} /></span></DropdownMenuTrigger>
@@ -274,6 +278,61 @@ function SidebarPageCard({ page, pages, selectedPage, dragHandleProps, onSelectP
       </DropdownMenu>
     </button>
   )
+}
+
+function getPageSummary(page: any): { label: string; points: number; icon: any } {
+  if (page?.page_type === 'video') {
+    const duration = Number(page.content?.video_duration_seconds || page.content?.videoDuration || 0)
+    return { label: duration > 0 ? `Video · ${formatRuntime(duration)}` : 'Video', points: 0, icon: Video }
+  }
+
+  const questions = findQuestionBlocks(page) as any[]
+  const inputKinds = questions.flatMap((question) => {
+    if (question.kind === 'text_input') {
+      const count = Math.max(1, Array.isArray(question.content?.inputs) ? question.content.inputs.length : 0)
+      return Array.from({ length: count }, () => 'text_input')
+    }
+    return [String(question.kind || 'question')]
+  })
+  if (!inputKinds.length) return { label: 'Info', points: 0, icon: FileText }
+
+  const uniqueKinds = new Set(inputKinds)
+  let label = `${inputKinds.length} inputs`
+  let icon: any = Layers3
+  if (uniqueKinds.size === 1) {
+    const kind = inputKinds[0]
+    if (kind === 'multiple_choice') {
+      label = inputKinds.length === 1 ? 'Multiple choice' : `${inputKinds.length} multiple choice`
+      icon = ListChecks
+    } else if (kind === 'categorized_multi_select') {
+      label = inputKinds.length === 1 ? 'Categorized multi-select' : `${inputKinds.length} categorized inputs`
+      icon = ListChecks
+    } else if (kind === 'text_input') {
+      label = inputKinds.length === 1 ? 'Text input' : `${inputKinds.length} text inputs`
+      icon = TextCursorInput
+    } else if (kind === 'image_upload') {
+      label = inputKinds.length === 1 ? 'Image upload' : `${inputKinds.length} image uploads`
+      icon = Upload
+    }
+  }
+
+  const points = questions.reduce((total, question) => total + getConfiguredQuestionPoints(page, question), 0)
+  return { label, points, icon }
+}
+
+function formatPoints(points: number) {
+  const value = Number.isInteger(points) ? String(points) : String(Number(points.toFixed(1)))
+  return `${value}${points === 1 ? 'pt' : 'pts'}`
+}
+
+function formatRuntime(seconds: number) {
+  const total = Math.max(0, Math.round(seconds))
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const remainder = total % 60
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`
+    : `${minutes}:${String(remainder).padStart(2, '0')}`
 }
 
 function getVariantIssue(page: any, pages: any[]) {
