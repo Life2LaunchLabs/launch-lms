@@ -208,6 +208,14 @@ export async function createLearningActivity(data: any, accessToken?: string) {
   return errorHandling(result)
 }
 
+export async function importLearningActivity(data: any, accessToken?: string) {
+  const result = await fetch(
+    `${getAPIUrl()}learning-activities/import`,
+    RequestBodyWithAuthHeader('POST', data, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
 export async function updateLearningActivity(activityUuid: string, data: any, accessToken?: string) {
   const result = await fetch(
     `${getAPIUrl()}learning-activities/${activityUuid}`,

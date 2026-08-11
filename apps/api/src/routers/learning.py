@@ -9,6 +9,7 @@ from src.db.learning import (
     BadgeCollectionRead,
     BadgeCollectionUpdate,
     LearningActivityCreate,
+    LearningActivityImport,
     LearningActivityRead,
     LearningActivityUpdate,
     LearningAwardCreate,
@@ -247,6 +248,16 @@ async def api_create_activity(
     db_session=Depends(get_db_session),
 ) -> LearningActivityRead:
     return await learning_service.create_activity(request, activity, current_user, db_session)
+
+
+@activities_router.post("/import")
+async def api_import_activity(
+    request: Request,
+    activity: LearningActivityImport,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> LearningActivityRead:
+    return await learning_service.import_activity(request, activity, current_user, db_session)
 
 
 @activities_router.put("/{activity_uuid}")

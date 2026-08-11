@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { Copy, ImageIcon, Loader2, Plus, Trash2 } from 'lucide-react'
+import { AlertTriangle, Copy, FileUp, ImageIcon, Loader2, Plus, Trash2 } from 'lucide-react'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg } from '@services/config/config'
@@ -11,12 +11,17 @@ import {
   createLearningActivity,
   deleteLearningActivity,
   duplicateLearningActivity,
+  importLearningActivity,
   updateLearningActivity,
 } from '@services/learning/learning'
 import toast from 'react-hot-toast'
 import { SafeImage } from '@components/Objects/SafeImage'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 import { resolveLearningActivityImage } from '@services/learning/launchReadyImages'
+import {
+  parseGoogleFormsEditorHtml,
+  type GoogleFormsImportPreview,
+} from '@components/Learning/import/googleFormsHtml'
 
 function cleanBadgeId(value: string) {
   return String(value || '').replace(/^badge_/, '')
@@ -35,6 +40,60 @@ export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: str
   const [busy, setBusy] = React.useState('')
   const [uploadingCover, setUploadingCover] = React.useState('')
   const [modalOpen, setModalOpen] = React.useState(false)
+  const [importModalOpen, setImportModalOpen] = React.useState(false)
+  const [importHtml, setImportHtml] = React.useState('')
+  const [importPreview, setImportPreview] = React.useState<GoogleFormsImportPreview | null>(null)
+  const [importError, setImportError] = React.useState('')
+
+  const previewImport = (html = importHtml) => {
+    try {
+      const preview = parseGoogleFormsEditorHtml(html)
+      setImportPreview(preview)
+      setImportError('')
+    } catch (error: any) {
+      setImportPreview(null)
+      setImportError(error?.message || 'Could not parse this Google Form HTML.')
+    }
+  }
+
+  const selectImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    const html = await file.text()
+    setImportHtml(html)
+    previewImport(html)
+    event.target.value = ''
+  }
+
+  const importGoogleForm = async () => {
+    if (!importPreview) return
+    setBusy('import')
+    try {
+      const activity = await importLearningActivity({
+        badge_uuid: badge.badge_uuid,
+        title: importPreview.title,
+        description: importPreview.description,
+        pages: importPreview.pages,
+        settings: {
+          import: {
+            source: 'google_forms_editor_html',
+            imported_at: new Date().toISOString(),
+            warnings: importPreview.warnings,
+          },
+        },
+      }, accessToken)
+      toast.success(`Imported ${importPreview.pages.length} questions`)
+      setImportModalOpen(false)
+      window.location.href = getUriWithOrg(
+        orgslug,
+        `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/learning-path/activity/${cleanActivityId(activity.activity_uuid)}/editor`
+      )
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to import Google Form')
+    } finally {
+      setBusy('')
+    }
+  }
 
   const createActivity = async () => {
     if (!title.trim()) return
@@ -112,7 +171,98 @@ export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: str
 
   return (
     <div className="px-10 pb-10 pt-6">
-      <div className="mb-5 flex justify-end">
+      <div className="mb-5 flex justify-end gap-2">
+        <Modal
+          isDialogOpen={importModalOpen}
+          onOpenChange={(open) => {
+            setImportModalOpen(open)
+            if (!open) {
+              setImportHtml('')
+              setImportPreview(null)
+              setImportError('')
+            }
+          }}
+          minHeight="no-min"
+          minWidth="lg"
+          dialogTitle="Import Google Form"
+          dialogDescription="Paste the full rendered Google Forms editor HTML or choose a saved HTML file. Each question becomes one activity page."
+          dialogContent={
+            <div className="flex max-h-[70vh] flex-col gap-4 overflow-y-auto p-2">
+              <textarea
+                value={importHtml}
+                onChange={(event) => {
+                  setImportHtml(event.target.value)
+                  setImportPreview(null)
+                  setImportError('')
+                }}
+                placeholder="Paste Google Forms editor HTML here…"
+                className="min-h-40 w-full resize-y rounded-lg border border-border px-3 py-2 font-mono text-xs outline-none focus:border-black"
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-4 py-2 text-xs font-bold hover:bg-muted">
+                  <FileUp size={15} />
+                  Choose HTML file
+                  <input type="file" accept=".html,.htm,text/html" className="hidden" onChange={selectImportFile} />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => previewImport()}
+                  disabled={!importHtml.trim()}
+                  className="rounded-lg border border-border px-4 py-2 text-xs font-bold hover:bg-muted disabled:opacity-50"
+                >
+                  Preview import
+                </button>
+              </div>
+              {importError ? (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{importError}</div>
+              ) : null}
+              {importPreview ? (
+                <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4">
+                  <div>
+                    <label className="text-xs font-bold text-muted-foreground">Activity title</label>
+                    <input
+                      value={importPreview.title}
+                      onChange={(event) => setImportPreview({ ...importPreview, title: event.target.value })}
+                      className="mt-1 w-full rounded-lg border border-border bg-white px-3 py-2 text-sm font-semibold"
+                    />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {importPreview.pages.length} questions · {importPreview.sectionCount} sections · {importPreview.totalPoints} points
+                  </p>
+                  {importPreview.warnings.length ? (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900">
+                      <div className="flex items-center gap-2 text-xs font-bold">
+                        <AlertTriangle size={15} />
+                        {importPreview.warnings.length} item{importPreview.warnings.length === 1 ? '' : 's'} need review
+                      </div>
+                      <ul className="mt-2 max-h-32 list-disc space-y-1 overflow-y-auto pl-5 text-xs">
+                        {importPreview.warnings.map((warning, index) => <li key={`${warning.code}-${warning.itemId || index}`}>{warning.message}</li>)}
+                      </ul>
+                    </div>
+                  ) : (
+                    <p className="text-xs font-semibold text-emerald-700">No repairs detected.</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">Section routing is not imported yet. Questions use a simple linear flow.</p>
+                  <button
+                    type="button"
+                    onClick={importGoogleForm}
+                    disabled={busy === 'import' || !importPreview.title.trim()}
+                    className="ml-auto flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white disabled:opacity-50"
+                  >
+                    {busy === 'import' ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
+                    Import activity
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          }
+          dialogTrigger={
+            <button className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-5 py-2 text-xs font-bold transition hover:bg-muted">
+              <FileUp className="h-4 w-4" />
+              Import Google Form
+            </button>
+          }
+        />
         <Modal
           isDialogOpen={modalOpen}
           onOpenChange={setModalOpen}

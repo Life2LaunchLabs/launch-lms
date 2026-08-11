@@ -314,6 +314,23 @@ class LearningActivityCreate(SQLModel):
     settings: dict = Field(default_factory=dict)
 
 
+class LearningActivityImportPage(SQLModel):
+    title: str
+    required: bool = True
+    content: dict = Field(default_factory=dict)
+    design: dict = Field(default_factory=dict)
+    scoring: dict = Field(default_factory=dict)
+    completion: dict = Field(default_factory=dict)
+
+
+class LearningActivityImport(SQLModel):
+    badge_uuid: str
+    title: str
+    description: str | None = ""
+    settings: dict = Field(default_factory=dict)
+    pages: list[LearningActivityImportPage]
+
+
 class LearningActivityUpdate(SQLModel):
     title: str | None = None
     description: str | None = None

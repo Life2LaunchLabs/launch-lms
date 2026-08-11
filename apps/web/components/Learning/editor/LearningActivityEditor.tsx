@@ -10,6 +10,7 @@ import {
   AlignCenter,
   AlignLeft,
   AlignRight,
+  AlertTriangle,
   ArrowLeft,
   Bold,
   Check,
@@ -1581,15 +1582,10 @@ function McqBlockCanvas({ block, page, selected, readOnly, onPatch }: any) {
     })
   }
   const toggleCorrect = (id: string) => {
-    const maxSelections = Math.max(1, Number(completion.max_selections ?? 1))
     const next = new Set(correctIds)
     if (next.has(id)) next.delete(id)
-    else {
-      if (maxSelections <= 1) next.clear()
-      else if (next.size >= maxSelections) return
-      next.add(id)
-    }
-    onPatch({ scoring: { ...scoring, mode: 'points', score_policy: 'exact_match', correct_option_ids: Array.from(next) } })
+    else next.add(id)
+    onPatch({ scoring: { ...scoring, mode: 'points', score_policy: scoring.score_policy || 'any_correct', correct_option_ids: Array.from(next) } })
   }
 
   return (
@@ -1605,6 +1601,12 @@ function McqBlockCanvas({ block, page, selected, readOnly, onPatch }: any) {
           className="w-full resize-none overflow-hidden bg-transparent text-lg font-bold leading-7 text-gray-900 outline-none placeholder:text-gray-300"
         />
       )}
+      {!readOnly && !isVariableMode && scoring.mode !== 'off' && Number(scoring.points ?? 1) > 0 && correctIds.size === 0 ? (
+        <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          No correct answers are selected. Learners cannot receive points for this question.
+        </div>
+      ) : null}
       {options.map((option: any, index: number) => {
         const correct = !isVariableMode && correctIds.has(option.id)
         return (
@@ -1708,6 +1710,17 @@ function TextInputBlockCanvas({ block, page, selected: _selected, readOnly, onPa
 
   return (
     <div className="group/inputs relative py-1">
+      {readOnly ? (
+        content.label ? <p className="mb-3 text-lg font-bold leading-7 text-gray-900">{content.label}</p> : null
+      ) : (
+        <AutoGrowTextarea
+          value={content.label || ''}
+          onChange={(event) => onPatch({ content: { ...content, label: event.target.value } })}
+          placeholder="Question label"
+          minRows={1}
+          className="mb-3 w-full resize-none overflow-hidden bg-transparent text-lg font-bold leading-7 text-gray-900 outline-none placeholder:text-gray-300"
+        />
+      )}
       <div className={`grid gap-3 ${sideBySide ? 'grid-cols-2' : 'grid-cols-1'}`}>
         {inputs.map((input: any, index: number) => {
           const height = Math.max(48, Number(input.height) || 160)
@@ -2351,7 +2364,7 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
     } else {
       patchQuestion({
         scoring: ['multiple_choice', 'categorized_multi_select'].includes(block.kind)
-          ? { ...scoring, mode: 'points', points: Number(scoring.points) || 1, score_policy: 'exact_match' }
+          ? { ...scoring, mode: 'points', points: Number(scoring.points) || 1, score_policy: scoring.score_policy || 'any_correct' }
           : { ...scoring, mode: 'completion', points: Number(scoring.points) || 1 },
         completion: { ...completion, question_mode: 'scored', variable_bindings: {} },
       })
@@ -2360,7 +2373,7 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
 
   if (block.kind === 'multiple_choice' || block.kind === 'categorized_multi_select') {
     const options = normalizeQuestionOptions(content.options)
-    const correctIds = new Set<string>(scoring.correct_option_ids || scoring.correctOptionIds || [])
+    const correctIds = new Set<string>((scoring.correct_option_ids || scoring.correctOptionIds || []).map(String))
     const minSelections = Math.max(1, Number(completion.min_selections ?? 1))
     const maxSelections = Math.max(minSelections, Number(completion.max_selections ?? 1))
     const optionBindings = variableBindings.options || {}
@@ -2388,12 +2401,8 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
     const toggleCorrect = (id: string) => {
       const next = new Set(correctIds)
       if (next.has(id)) next.delete(id)
-      else {
-        if (maxSelections <= 1) next.clear()
-        else if (next.size >= maxSelections) return
-        next.add(id)
-      }
-      patchScoring({ mode: 'points', score_policy: 'exact_match', correct_option_ids: Array.from(next) })
+      else next.add(id)
+      patchScoring({ mode: 'points', score_policy: scoring.score_policy || 'any_correct', correct_option_ids: Array.from(next) })
     }
     const setMcqVariableTarget = (target: string) => {
       if (!target) {
@@ -2410,6 +2419,12 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
     return (
       <>
         <InspectorSection label="Answers">
+          {questionMode === 'scored' && scoring.mode !== 'off' && Number(scoring.points ?? 1) > 0 && correctIds.size === 0 ? (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span><strong>No correct answers selected.</strong> Learners cannot receive points until this is repaired.</span>
+            </div>
+          ) : null}
           <div className="space-y-2">
             {options.map((option, index) => (
               <div key={option.id} className={`grid items-center gap-2 ${questionMode === 'scored' ? 'grid-cols-[2rem_1fr_2rem_2rem]' : 'grid-cols-[2rem_1fr_2rem]'}`}>
@@ -2444,7 +2459,6 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
             optionCount={options.length}
             onCommit={(nextMin, nextMax) => patchQuestion({
               completion: { ...completion, min_selections: nextMin, max_selections: nextMax },
-              scoring: { ...scoring, correct_option_ids: Array.from(correctIds).slice(0, nextMax) },
             })}
           />
         </InspectorSection>
@@ -2459,7 +2473,27 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
             onChange={setQuestionMode}
           />
           {questionMode === 'scored' ? (
-            <TextField label="Points" type="number" value={String(scoring.points ?? 1)} onChange={(value) => patchScoring({ mode: 'points', points: Number(value), score_policy: 'exact_match' })} />
+            <>
+              <TextField label="Points" type="number" value={String(scoring.points ?? 1)} onChange={(value) => patchScoring({ mode: 'points', points: Number(value) })} />
+              <SegmentedControl
+                label="Correct response"
+                value={scoring.score_policy || 'any_correct'}
+                options={[
+                  { value: 'any_correct', label: 'All selected are correct' },
+                  { value: 'exact_match', label: 'Exact set' },
+                ]}
+                onChange={(value) => patchScoring({ mode: 'points', score_policy: value })}
+              />
+              <p className="text-[11px] leading-4 text-gray-500">
+                Correct answers are independent of the selection limit. “Exact set” requires every marked answer to be selected.
+              </p>
+              {(scoring.score_policy === 'exact_match' && correctIds.size > maxSelections) ? (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  Exact match is impossible because more answers are marked correct than learners may select.
+                </div>
+              ) : null}
+            </>
           ) : (
             <>
               <div>
@@ -2547,6 +2581,7 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
   return (
     <>
       <InspectorSection label={sideBySide ? 'Inputs (side by side)' : 'Input'}>
+        <TextField label="Question label" value={String(content.label || '')} onChange={(value) => patchContent({ label: value })} />
         {inputs.length <= 2 && <label className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm">
           <span className="font-bold text-gray-700">Two inputs side by side</span>
           <input type="checkbox" checked={sideBySide} onChange={onToggleSideBySide} />

@@ -152,7 +152,7 @@ export function normalizeQuestionInputs(inputs: any[]): Array<{
       return {
         id,
         section_id: String(input?.section_id || input?.sectionId || id),
-        label: String(input?.label || `Response ${index + 1}`),
+        label: input?.label == null ? `Response ${index + 1}` : String(input.label),
         placeholder: String(input?.placeholder || ''),
         variant: String(input?.variant || input?.type || 'short_answer'),
         width: String(input?.width || 'full'),

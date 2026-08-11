@@ -1492,7 +1492,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
       const next = new Set(correctOptionIds)
       if (next.has(id)) next.delete(id)
       else next.add(id)
-      onPagePatch?.({ scoring: { ...scoring, mode: 'points', score_policy: 'exact_match', correct_option_ids: Array.from(next) } })
+      onPagePatch?.({ scoring: { ...scoring, mode: 'points', score_policy: scoring.score_policy || 'any_correct', correct_option_ids: Array.from(next) } })
     }
     const toggleOption = (id: string) => {
       if (editable) return
@@ -2286,7 +2286,7 @@ function getQuestionTextInputs(page: any) {
     return inputs.map((input: any, index: number) => ({
       id: input.id || String(index),
       section_id: input.section_id || input.sectionId || '',
-      label: input.label || `Response ${index + 1}`,
+      label: input.label == null ? `Response ${index + 1}` : String(input.label),
       placeholder: input.placeholder || '',
       variant: input.variant || 'short_answer',
       width: input.width || 'full',

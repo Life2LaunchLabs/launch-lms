@@ -17,6 +17,7 @@ from src.db.learning import (
     BadgeIssuerLearnerLink,
     LearningActivity,
     LearningActivityCreate,
+    LearningActivityImport,
     LearningActivityRead,
     LearningActivityRun,
     LearningActivityUpdate,
@@ -85,6 +86,10 @@ from src.services.learning_portfolio_actions import (
     _portfolio,
     apply_portfolio_outcomes,
     validate_outcomes,
+)
+from src.services.media import (
+    copy_google_forms_image_to_library,
+    is_google_forms_image_url,
 )
 from src.services.utils.upload_content import upload_file
 
@@ -1290,7 +1295,13 @@ def _grade_mcq_block(page: LearningPage, question: dict, answer: dict) -> dict:
         or scoring.get("correctOptionIds")
         or []
     }
-    is_correct = set(selected) == correct_options if correct_options else None
+    score_policy = str(scoring.get("score_policy") or "exact_match")
+    if not correct_options:
+        is_correct = None
+    elif score_policy == "any_correct":
+        is_correct = bool(selected) and set(selected).issubset(correct_options)
+    else:
+        is_correct = set(selected) == correct_options
     points = _as_float(scoring.get("points"), 1.0)
     score = points if is_correct else 0.0 if is_correct is not None else None
     return {
@@ -1298,6 +1309,7 @@ def _grade_mcq_block(page: LearningPage, question: dict, answer: dict) -> dict:
         "selected": selected,
         "option_ids": selected,
         "correct_option_ids": sorted(correct_options),
+        "score_policy": score_policy,
         "is_correct": is_correct,
         "score": score,
         "points": points,
@@ -4103,6 +4115,150 @@ async def create_activity(
     db_session.refresh(activity)
     db_session.refresh(page)
     return _serialize_activity(activity, [page])
+
+
+async def import_activity(
+    request: Request,
+    data: LearningActivityImport,
+    current_user: PublicUser | AnonymousUser,
+    db_session: Session,
+) -> LearningActivityRead:
+    if not data.pages:
+        raise HTTPException(status_code=422, detail="An imported activity needs at least one page")
+    if len(data.pages) > 300:
+        raise HTTPException(status_code=422, detail="An imported activity can contain at most 300 pages")
+
+    badge = _get_badge(db_session, data.badge_uuid)
+    _require_org_admin(db_session, current_user, badge.org_id)
+    path = _get_path_for_badge(db_session, badge)
+    existing = db_session.exec(
+        select(LearningActivity)
+        .where(LearningActivity.path_id == path.id)
+        .order_by(LearningActivity.order.asc())
+    ).all()  # type: ignore
+
+    import_pages = [page.model_copy(deep=True) for page in data.pages]
+    for page in import_pages:
+        for stack in iter_block_stacks(page.content or {}):
+            for block in stack:
+                if not isinstance(block, dict) or block.get("type") != "image":
+                    continue
+                block_content = block.get("content") or {}
+                source_url = str(block_content.get("src") or "").strip()
+                if not is_google_forms_image_url(source_url):
+                    continue
+                try:
+                    asset = await copy_google_forms_image_to_library(
+                        source_url,
+                        badge.org_id,
+                        current_user,  # type: ignore[arg-type]
+                        db_session,
+                        title=str(block_content.get("alt") or "Google Form image"),
+                        commit=False,
+                    )
+                except HTTPException as exc:
+                    raise HTTPException(
+                        status_code=exc.status_code,
+                        detail=f'Could not copy an image for “{page.title}”: {exc.detail}',
+                    ) from exc
+                block["content"] = {
+                    **block_content,
+                    "src": asset.url,
+                    "media_asset_uuid": asset.asset_uuid,
+                }
+
+    page_uuids = [f"learning_page_{uuid4()}" for _ in import_pages]
+    page_uuid_set = set(page_uuids)
+    for page in import_pages:
+        _validate_page_payload(LearningPageType.STANDARD, page.content)
+        _validate_page_button_destinations(page.content, page_uuid_set)
+        if any(
+            block.get("type") == "portfolio_preview"
+            for stack in iter_block_stacks(page.content or {})
+            for block in stack
+            if isinstance(block, dict)
+        ) and not _is_system_object(badge):
+            raise HTTPException(
+                status_code=403,
+                detail="Portfolio preview blocks are limited to trusted system activities",
+            )
+
+    now = _now()
+    nodes = [
+        {"id": f"page:{page_uuid}", "type": "page", "page_uuid": page_uuid}
+        for page_uuid in page_uuids
+    ] + [{"id": "complete", "type": "complete"}]
+    edges = [
+        {
+            "from": f"page:{page_uuid}",
+            "to": f"page:{page_uuids[index + 1]}" if index + 1 < len(page_uuids) else "complete",
+            "priority": 0,
+        }
+        for index, page_uuid in enumerate(page_uuids)
+    ]
+    settings = {
+        **(data.settings or {}),
+        "flow": {"version": 1, "entry": f"page:{page_uuids[0]}", "nodes": nodes, "edges": edges},
+    }
+    try:
+        validate_outcomes(
+            settings.get("outcomes"),
+            _is_system_object(badge),
+        )
+        validate_flow(
+            settings["flow"],
+            set(page_uuids),
+            {
+                page_uuid
+                for page_data, page_uuid in zip(import_pages, page_uuids)
+                if page_data.required
+            },
+        )
+    except (FlowValidationError, PortfolioActionError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    activity = LearningActivity(
+        path_id=path.id or 0,
+        badge_id=badge.id or 0,
+        org_id=badge.org_id,
+        title=data.title.strip() or "Imported Google Form",
+        description=data.description or "",
+        required=True,
+        published=False,
+        settings=settings,
+        order=(existing[-1].order + 1) if existing else 1,
+        activity_uuid=f"learning_activity_{uuid4()}",
+        creation_date=now,
+        update_date=now,
+    )
+    db_session.add(activity)
+    db_session.flush()
+
+    pages: list[LearningPage] = []
+    for index, (page_data, page_uuid) in enumerate(zip(import_pages, page_uuids)):
+        page = LearningPage(
+            activity_id=activity.id or 0,
+            badge_id=badge.id or 0,
+            org_id=badge.org_id,
+            page_type=LearningPageType.STANDARD,
+            title=page_data.title.strip() or f"Question {index + 1}",
+            required=page_data.required,
+            content=page_data.content,
+            design=page_data.design,
+            scoring=page_data.scoring,
+            completion=page_data.completion,
+            order=index + 1,
+            page_uuid=page_uuid,
+            creation_date=now,
+            update_date=now,
+        )
+        db_session.add(page)
+        pages.append(page)
+
+    db_session.commit()
+    db_session.refresh(activity)
+    for page in pages:
+        db_session.refresh(page)
+    return _serialize_activity(activity, pages)
 
 
 async def update_activity(

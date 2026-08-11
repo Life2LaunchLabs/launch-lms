@@ -1,11 +1,13 @@
-import re
 from datetime import datetime
+from io import BytesIO
+import re
 from urllib.parse import parse_qs, urljoin, urlparse
 from uuid import uuid4
 
 import httpx
 from fastapi import HTTPException, UploadFile, status
 from sqlmodel import Session, select
+from starlette.datastructures import Headers
 from src.db.media import (
     MediaAsset,
     MediaAssetFolderUpdate,
@@ -28,6 +30,13 @@ _REQUEST_HEADERS = {
     "User-Agent": "LaunchLMS Media Library/1.0",
     "Accept": "*/*",
 }
+_GOOGLE_FORMS_IMAGE_MAX_BYTES = 20 * 1024 * 1024
+_GOOGLE_FORMS_IMAGE_TYPES = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+}
 
 
 def _now() -> str:
@@ -49,6 +58,53 @@ def _upload_owner_type(owner_type: MediaOwnerType) -> str:
 
 def _default_folder_for_asset(asset: MediaAsset) -> str:
     return "Links" if asset.source_type in (MediaSourceType.link, MediaSourceType.link.value) else "Uploads"
+
+
+def is_google_forms_image_url(url: str) -> bool:
+    parsed = urlparse(str(url or "").strip())
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme != "https" or parsed.username or parsed.password:
+        return False
+    if host == "docs.google.com":
+        return parsed.path.startswith("/forms-images-rt/")
+    return host == "googleusercontent.com" or host.endswith(".googleusercontent.com")
+
+
+async def _download_google_forms_image(url: str) -> tuple[str, bytes]:
+    current_url = str(url or "").strip()
+    if not is_google_forms_image_url(current_url):
+        raise HTTPException(status_code=400, detail="Unsupported Google Forms image URL")
+
+    async with httpx.AsyncClient(follow_redirects=False, timeout=20, headers=_REQUEST_HEADERS) as client:
+        for _ in range(4):
+            async with client.stream("GET", current_url) as response:
+                if response.status_code in {301, 302, 303, 307, 308}:
+                    location = response.headers.get("location")
+                    next_url = urljoin(current_url, location or "")
+                    if not location or not is_google_forms_image_url(next_url):
+                        raise HTTPException(status_code=400, detail="Google Forms image redirected to an unsupported host")
+                    current_url = next_url
+                    continue
+                if response.status_code != 200:
+                    raise HTTPException(status_code=400, detail="Could not download a Google Forms image")
+
+                mime_type = response.headers.get("content-type", "").split(";", 1)[0].lower()
+                if mime_type not in _GOOGLE_FORMS_IMAGE_TYPES:
+                    raise HTTPException(status_code=415, detail="Google Forms returned an unsupported image type")
+                content_length = response.headers.get("content-length")
+                if content_length and content_length.isdigit() and int(content_length) > _GOOGLE_FORMS_IMAGE_MAX_BYTES:
+                    raise HTTPException(status_code=413, detail="Google Forms image is larger than 20 MB")
+
+                chunks: list[bytes] = []
+                size = 0
+                async for chunk in response.aiter_bytes():
+                    size += len(chunk)
+                    if size > _GOOGLE_FORMS_IMAGE_MAX_BYTES:
+                        raise HTTPException(status_code=413, detail="Google Forms image is larger than 20 MB")
+                    chunks.append(chunk)
+                return mime_type, b"".join(chunks)
+
+    raise HTTPException(status_code=400, detail="Google Forms image redirected too many times")
 
 
 def _get_owner_uuid(owner_type: MediaOwnerType, owner_id: int, current_user: PublicUser, db_session: Session) -> str:
@@ -384,6 +440,7 @@ async def upload_media_asset(
     db_session: Session,
     title: str | None = None,
     folder: str | None = None,
+    commit: bool = True,
 ) -> MediaAsset:
     _authorize_mutation(owner_type, owner_id, current_user, db_session)
     owner_uuid = _get_owner_uuid(owner_type, owner_id, current_user, db_session)
@@ -417,9 +474,42 @@ async def upload_media_asset(
         update_date=now,
     )
     db_session.add(asset)
-    db_session.commit()
-    db_session.refresh(asset)
+    if commit:
+        db_session.commit()
+        db_session.refresh(asset)
+    else:
+        db_session.flush()
     return asset
+
+
+async def copy_google_forms_image_to_library(
+    url: str,
+    owner_id: int,
+    current_user: PublicUser,
+    db_session: Session,
+    *,
+    title: str | None = None,
+    commit: bool = True,
+) -> MediaAsset:
+    _authorize_mutation(MediaOwnerType.org, owner_id, current_user, db_session)
+    mime_type, content = await _download_google_forms_image(url)
+    extension = _GOOGLE_FORMS_IMAGE_TYPES[mime_type]
+    upload = UploadFile(
+        filename=f"google-form-image{extension}",
+        file=BytesIO(content),
+        headers=Headers({"content-type": mime_type}),
+    )
+    return await upload_media_asset(
+        MediaOwnerType.org,
+        owner_id,
+        MediaType.image,
+        upload,
+        current_user,
+        db_session,
+        title=title or "Google Form image",
+        folder="Google Forms",
+        commit=commit,
+    )
 
 
 def apply_media_asset_to_user_avatar(

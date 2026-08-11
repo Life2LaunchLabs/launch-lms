@@ -284,6 +284,28 @@ def test_multiple_choice_grading_requires_exact_multi_select_match():
     assert result["option_ids"] == ["c", "a"]
 
 
+def test_multiple_choice_any_correct_allows_more_correct_answers_than_selections():
+    page = _standard_page(
+        "learning_page_any_correct",
+        question=_mcq([{"id": "a", "text": "A"}, {"id": "b", "text": "B"}, {"id": "c", "text": "C"}]),
+        completion={"min_selections": 1, "max_selections": 1},
+        scoring={
+            "mode": "points",
+            "points": 3,
+            "correct_option_ids": ["a", "c"],
+            "score_policy": "any_correct",
+        },
+    )
+
+    first = _grade_answer(page, {"option_id": "a"})
+    second = _grade_answer(page, {"option_id": "c"})
+    incorrect = _grade_answer(page, {"option_id": "b"})
+
+    assert first[:2] == (True, 3)
+    assert second[:2] == (True, 3)
+    assert incorrect[:2] == (False, 0.0)
+
+
 def test_multiple_choice_grading_rejects_too_few_selections():
     page = _standard_page(
         "learning_page_multi",
