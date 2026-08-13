@@ -145,6 +145,14 @@ export async function createLearningBadge(data: any, accessToken?: string) {
   return errorHandling(result)
 }
 
+export async function importOpenBadge(data: any, accessToken?: string) {
+  const result = await fetch(
+    `${getAPIUrl()}badges/import-open-badge`,
+    RequestBodyWithAuthHeader('POST', data, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
 export async function deleteLearningBadge(badgeUuid: string, accessToken?: string) {
   const result = await fetch(
     `${getAPIUrl()}badges/${badgeUuid}`,

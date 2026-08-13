@@ -7,7 +7,7 @@ import { ArrowDown, ArrowLeftRight, ArrowUp, Award, Check, ChevronDown, Clipboar
 import { motion } from 'motion/react'
 import toast from 'react-hot-toast'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
-import { SafeImage } from '@components/Objects/SafeImage'
+import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { Button } from '@components/ui/button'
 import { Switch } from '@components/ui/switch'
 import {
@@ -23,6 +23,7 @@ import { deleteLearningBadge, getLearningResponses, gradeLearningResponse, updat
 import { approveIssuerAuthorization, getIssuerAuthorizations, inviteIssuerOrg, rejectIssuerAuthorization, revokeIssuerAuthorization } from '@services/learning/marketplace'
 import CertificatePreview from '@components/Learning/BadgeCertificatePreview'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
+import Modal from '@components/Objects/StyledElements/Modal/Modal'
 
 type BadgeStatus = 'draft' | 'coming_soon' | 'published'
 
@@ -32,7 +33,7 @@ const tabs = [
   { key: 'issuers', label: 'Issuers', icon: Handshake },
   { key: 'about', label: 'About', icon: Info },
   { key: 'settings', label: 'Settings', icon: Settings },
-  { key: 'certification', label: 'Certification', icon: Award },
+  { key: 'certification', label: 'Achievement', icon: Award },
 ]
 
 function cleanBadgeId(value: string) {
@@ -55,10 +56,9 @@ export default function AdminBadgeShell({
   const accessToken = session.data?.tokens?.access_token
   const org = useOrg() as any
   const [badge, setBadge] = React.useState(initialBadge)
-  const [editingField, setEditingField] = React.useState<'name' | 'description' | null>(null)
+  const [editingField, setEditingField] = React.useState<'name' | null>(null)
   const [draftName, setDraftName] = React.useState(initialBadge.name || '')
-  const [draftDescription, setDraftDescription] = React.useState(initialBadge.description || '')
-  const [savingField, setSavingField] = React.useState<'name' | 'description' | null>(null)
+  const [savingField, setSavingField] = React.useState<'name' | null>(null)
   const [isUploading, setIsUploading] = React.useState(false)
   const [updatingStatus, setUpdatingStatus] = React.useState(false)
   const [updatingVisibility, setUpdatingVisibility] = React.useState(false)
@@ -71,16 +71,16 @@ export default function AdminBadgeShell({
     return nextBadge
   }
 
-  const saveField = async (field: 'name' | 'description') => {
+  const saveName = async () => {
     if (savingField) return
-    const value = field === 'name' ? draftName.trim() : draftDescription.trim()
-    if (field === 'name' && value.length < 3) {
+    const value = draftName.trim()
+    if (value.length < 3) {
       toast.error('Badge title must be at least 3 characters.')
       return
     }
-    setSavingField(field)
+    setSavingField('name')
     try {
-      await patchBadge(field === 'name' ? { name: value } : { description: value }, field === 'name' ? 'Title updated.' : 'Description updated.')
+      await patchBadge({ name: value }, 'Title updated.')
       setEditingField(null)
     } catch (error: any) {
       toast.error(error?.message || 'Failed to update badge.')
@@ -142,11 +142,11 @@ export default function AdminBadgeShell({
         </div>
 
         <div className="my-2 flex flex-col gap-5 py-2 md:flex-row md:items-center">
-          <div className="group relative aspect-video w-full max-w-[240px] shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+          <div className="group relative mx-auto h-40 w-40 shrink-0 overflow-visible md:mx-0 md:h-44 md:w-44">
             {imageUrl ? (
-              <SafeImage src={imageUrl} alt="Badge thumbnail" className={`h-full w-full object-cover ${isUploading ? 'animate-pulse' : ''}`} />
+              <BadgeThumbnailImage src={imageUrl} alt={`${badge.name} badge`} imageClassName={isUploading ? 'animate-pulse' : ''} />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-lime-500">
+              <div className="flex h-full w-full items-center justify-center rounded-xl border border-dashed border-border bg-muted text-lime-500">
                 <Award size={42} strokeWidth={1.5} />
               </div>
             )}
@@ -165,82 +165,76 @@ export default function AdminBadgeShell({
             </div>
           </div>
 
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 text-center md:text-left">
             <EditableHeaderField
               field="name"
               isEditing={editingField === 'name'}
               value={draftName}
               onChange={setDraftName}
               onEdit={() => setEditingField('name')}
-              onSave={() => saveField('name')}
+              onSave={saveName}
               isSaving={savingField === 'name'}
             />
-            <EditableHeaderField
-              field="description"
-              isEditing={editingField === 'description'}
-              value={draftDescription}
-              onChange={setDraftDescription}
-              onEdit={() => setEditingField('description')}
-              onSave={() => saveField('description')}
-              isSaving={savingField === 'description'}
-            />
-          </div>
-        </div>
+            <p className="mt-2 text-xs font-medium text-muted-foreground">
+              {getBadgeDateLine(badge)}
+            </p>
 
-        <div className="flex items-center gap-2 pb-3">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="gap-2 bg-card" disabled={updatingStatus}>
-                {updatingStatus ? <Loader2 className="animate-spin" /> : <StatusIcon status={currentStatus} />}
-                <span>{getStatusLabel(currentStatus)}</span>
-                <ChevronDown className="h-4 w-4" />
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2 md:justify-start">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2 bg-card" disabled={updatingStatus}>
+                    {updatingStatus ? <Loader2 className="animate-spin" /> : <StatusIcon status={currentStatus} />}
+                    <span>{getStatusLabel(currentStatus)}</span>
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={() => updateStatus('draft')}>
+                    <GlobeLock className="h-4 w-4" />
+                    Draft
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => updateStatus('coming_soon')}>
+                    <Clock className="h-4 w-4" />
+                    Coming soon
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => updateStatus('published')}>
+                    <Globe className="h-4 w-4" />
+                    Published
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <div className="inline-flex overflow-hidden rounded-md border border-border bg-card">
+                <Button
+                  type="button"
+                  variant={badge.public === true ? 'default' : 'ghost'}
+                  className={`h-10 rounded-none gap-2 px-3 ${badge.public === true ? '' : 'text-muted-foreground'}`}
+                  disabled={updatingVisibility}
+                  onClick={() => updateVisibility(true)}
+                  title="Public badges appear in learner badge lists."
+                >
+                  {updatingVisibility && badge.public !== true ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
+                  Public
+                </Button>
+                <Button
+                  type="button"
+                  variant={badge.public === false ? 'default' : 'ghost'}
+                  className={`h-10 rounded-none gap-2 px-3 ${badge.public === false ? '' : 'text-muted-foreground'}`}
+                  disabled={updatingVisibility}
+                  onClick={() => updateVisibility(false)}
+                  title="Private badges are visible only within this org."
+                >
+                  {updatingVisibility && badge.public !== false ? <Loader2 className="h-4 w-4 animate-spin" /> : <GlobeLock className="h-4 w-4" />}
+                  Private
+                </Button>
+              </div>
+              <Button asChild variant="outline" className="gap-2 bg-card">
+                <Link href={publicBadgeHref} target="_blank">
+                  <Eye className="h-4 w-4" />
+                  Preview
+                </Link>
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuItem onClick={() => updateStatus('draft')}>
-                <GlobeLock className="h-4 w-4" />
-                Draft
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => updateStatus('coming_soon')}>
-                <Clock className="h-4 w-4" />
-                Coming soon
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => updateStatus('published')}>
-                <Globe className="h-4 w-4" />
-                Published
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <div className="inline-flex overflow-hidden rounded-md border border-border bg-card">
-            <Button
-              type="button"
-              variant={badge.public === true ? 'default' : 'ghost'}
-              className={`h-10 rounded-none gap-2 px-3 ${badge.public === true ? '' : 'text-muted-foreground'}`}
-              disabled={updatingVisibility}
-              onClick={() => updateVisibility(true)}
-              title="Public badges appear in learner badge lists."
-            >
-              {updatingVisibility && badge.public !== true ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
-              Public
-            </Button>
-            <Button
-              type="button"
-              variant={badge.public === false ? 'default' : 'ghost'}
-              className={`h-10 rounded-none gap-2 px-3 ${badge.public === false ? '' : 'text-muted-foreground'}`}
-              disabled={updatingVisibility}
-              onClick={() => updateVisibility(false)}
-              title="Private badges are visible only within this org."
-            >
-              {updatingVisibility && badge.public !== false ? <Loader2 className="h-4 w-4 animate-spin" /> : <GlobeLock className="h-4 w-4" />}
-              Private
-            </Button>
+            </div>
           </div>
-          <Button asChild variant="outline" className="gap-2 bg-card">
-            <Link href={publicBadgeHref} target="_blank">
-              <Eye className="h-4 w-4" />
-              Preview
-            </Link>
-          </Button>
         </div>
 
         <div className="flex space-x-3 text-sm font-black">
@@ -788,7 +782,7 @@ function BadgeSettingsPanel({ orgslug, badge, onPatch }: { orgslug: string; badg
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <h2 className="text-lg font-bold text-foreground">Settings</h2>
         <div className="mt-4 divide-y divide-border">
-          <SettingRow title="Direct conferral" description="Allow authorized admins to issue this badge without path completion." disabled={savingKey === 'direct_conferral_enabled'} checked={badge.direct_conferral_enabled === true} onChange={(value) => toggle('direct_conferral_enabled', value, 'Conferral setting updated.')} />
+          <SettingRow title="Direct issuance" description="Allow authorized admins to create an OpenBadgeCredential without learning-path completion." disabled={savingKey === 'direct_conferral_enabled'} checked={badge.direct_conferral_enabled === true} onChange={(value) => toggle('direct_conferral_enabled', value, 'Direct issuance setting updated.')} />
         </div>
       </section>
       <section className="mt-6 max-w-4xl rounded-xl border border-red-100 bg-card p-6 shadow-xs">
@@ -808,16 +802,16 @@ function BadgeSettingsPanel({ orgslug, badge, onPatch }: { orgslug: string; badg
   )
 }
 
-const certificationTypes = [
-  { value: 'completion', label: 'Course Completion' },
-  { value: 'achievement', label: 'Achievement Based' },
-  { value: 'assessment', label: 'Assessment Based' },
-  { value: 'participation', label: 'Participation' },
-  { value: 'mastery', label: 'Skill Mastery' },
-  { value: 'professional', label: 'Professional Development' },
-  { value: 'continuing', label: 'Continuing Education' },
-  { value: 'workshop', label: 'Workshop Attendance' },
-  { value: 'specialization', label: 'Specialization' },
+const achievementTypes = [
+  { value: 'Achievement', label: 'Achievement' },
+  { value: 'Badge', label: 'Badge' },
+  { value: 'Award', label: 'Award' },
+  { value: 'Assessment', label: 'Assessment' },
+  { value: 'Certificate', label: 'Certificate' },
+  { value: 'CertificateOfCompletion', label: 'Certificate of completion' },
+  { value: 'Certification', label: 'Professional certification' },
+  { value: 'Competency', label: 'Competency' },
+  { value: 'Course', label: 'Course completion' },
 ]
 
 const certificatePatterns = [
@@ -839,30 +833,27 @@ function BadgeCertificationPanel({ badge, onPatch }: { badge: any; onPatch: (pat
   const [values, setValues] = React.useState({
     badge_name: metadata.badge_name || metadata.certification_name || badge.name || '',
     badge_description: metadata.badge_description || metadata.certification_description || badge.description || '',
-    certification_type: metadata.certification_type || 'completion',
+    achievement_type: metadata.achievement_type || getLegacyAchievementType(metadata.certification_type),
     badge_theme: metadata.badge_theme || metadata.certificate_pattern || 'professional',
-    badge_criteria_text: metadata.badge_criteria_text || badge.criteria || 'Complete all required activities in this badge learning path.',
+    badge_criteria_text: metadata.badge_criteria_text || badge.criteria || 'Meet the criteria described for this Achievement.',
     criteria_url: metadata.criteria_url || metadata.badge_criteria_url || '',
     badge_image_url: metadata.badge_image_url || badge.thumbnail_image || '',
-    badge_support_url: metadata.badge_support_url || '',
     issuer_name: metadata.issuer_name || '',
-    evidence_label: metadata.evidence_label || 'Learning path completion',
   })
   const [saving, setSaving] = React.useState(false)
+  const [previewOpen, setPreviewOpen] = React.useState(false)
 
   React.useEffect(() => {
     const nextMetadata = badge.badge_metadata || {}
     setValues({
       badge_name: nextMetadata.badge_name || nextMetadata.certification_name || badge.name || '',
       badge_description: nextMetadata.badge_description || nextMetadata.certification_description || badge.description || '',
-      certification_type: nextMetadata.certification_type || 'completion',
+      achievement_type: nextMetadata.achievement_type || getLegacyAchievementType(nextMetadata.certification_type),
       badge_theme: nextMetadata.badge_theme || nextMetadata.certificate_pattern || 'professional',
-      badge_criteria_text: nextMetadata.badge_criteria_text || badge.criteria || 'Complete all required activities in this badge learning path.',
+      badge_criteria_text: nextMetadata.badge_criteria_text || badge.criteria || 'Meet the criteria described for this Achievement.',
       criteria_url: nextMetadata.criteria_url || nextMetadata.badge_criteria_url || '',
       badge_image_url: nextMetadata.badge_image_url || badge.thumbnail_image || '',
-      badge_support_url: nextMetadata.badge_support_url || '',
       issuer_name: nextMetadata.issuer_name || '',
-      evidence_label: nextMetadata.evidence_label || 'Learning path completion',
     })
   }, [badge])
 
@@ -872,41 +863,43 @@ function BadgeCertificationPanel({ badge, onPatch }: { badge: any; onPatch: (pat
 
   const save = async () => {
     if (!values.badge_name.trim()) {
-      toast.error('Badge name is required.')
+      toast.error('Achievement name is required.')
       return
     }
     if (!values.badge_description.trim()) {
-      toast.error('Badge description is required.')
+      toast.error('Achievement description is required.')
       return
     }
     if (!values.badge_criteria_text.trim() && !values.criteria_url.trim()) {
-      toast.error('Criteria text or criteria URL is required.')
+      toast.error('A Criteria narrative or Criteria ID is required.')
       return
     }
     setSaving(true)
     try {
       await onPatch({
+        name: values.badge_name,
+        description: values.badge_description,
         criteria: values.badge_criteria_text,
+        thumbnail_image: values.badge_image_url,
         badge_metadata: {
           ...(badge.badge_metadata || {}),
           badge_name: values.badge_name,
           badge_description: values.badge_description,
           certification_name: values.badge_name,
           certification_description: values.badge_description,
-          certification_type: values.certification_type,
+          achievement_type: values.achievement_type,
+          certification_type: getCertificateType(values.achievement_type),
           badge_theme: values.badge_theme,
           certificate_pattern: values.badge_theme,
           badge_criteria_text: values.badge_criteria_text,
           criteria_url: values.criteria_url,
           badge_criteria_url: values.criteria_url,
           badge_image_url: values.badge_image_url,
-          badge_support_url: values.badge_support_url,
           issuer_name: values.issuer_name,
-          evidence_label: values.evidence_label,
         },
-      }, 'Certification settings updated.')
+      }, 'Achievement updated.')
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to update certification settings.')
+      toast.error(error?.message || 'Failed to update the Achievement.')
     } finally {
       setSaving(false)
     }
@@ -914,73 +907,142 @@ function BadgeCertificationPanel({ badge, onPatch }: { badge: any; onPatch: (pat
 
   return (
     <div className="px-10 pb-10 pt-6">
-      <div className="max-w-6xl space-y-6">
-        <section className="rounded-xl bg-card p-6 shadow-xs">
-          <h2 className="text-lg font-bold text-foreground">Preview</h2>
-          <div className="mt-5">
-            <CertificatePreview
-              certificationName={values.badge_name}
-              certificationDescription={values.badge_description}
-              certificationType={values.certification_type}
-              certificatePattern={values.badge_theme}
-              certificateInstructor={values.issuer_name}
-              certificateId="award_preview"
-              awardedDate={new Date().toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-              })}
-              badgeImageUrl={values.badge_image_url || badge.thumbnail_image}
-            />
-          </div>
-        </section>
-
-        <section className="rounded-xl bg-card p-6 shadow-xs">
-          <div className="flex flex-col gap-1">
-            <h2 className="text-lg font-bold text-foreground">Certificate Setup</h2>
-            <p className="text-sm text-muted-foreground">Configure the certificate and Open Badge metadata issued when a learner completes this path.</p>
-          </div>
-
-          <div className="mt-6 space-y-6">
-            <div className="grid gap-5 md:grid-cols-2">
-              <TextInput label="Badge name" value={values.badge_name} onChange={(value) => updateValue('badge_name', value)} maxLength={100} />
-              <SelectInput label="Badge type" value={values.certification_type} onChange={(value) => updateValue('certification_type', value)} options={certificationTypes} />
+      <div className="grid max-w-7xl gap-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start">
+        <div className="order-2 space-y-6 lg:order-1">
+          <section className="rounded-xl bg-card p-6 shadow-xs">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-lg font-bold text-foreground">Achievement</h2>
+              <p className="text-sm text-muted-foreground">Define the reusable Open Badges Achievement embedded in every OpenBadgeCredential issued for it.</p>
             </div>
 
-            <TextAreaInput label="Badge description" value={values.badge_description} onChange={(value) => updateValue('badge_description', value)} rows={4} maxLength={500} />
+            <div className="mt-6 space-y-6">
+              <div className="grid gap-5 md:grid-cols-2">
+                <TextInput label="Achievement name" value={values.badge_name} onChange={(value) => updateValue('badge_name', value)} maxLength={100} />
+                <SelectInput label="Achievement type" value={values.achievement_type} onChange={(value) => updateValue('achievement_type', value)} options={achievementTypes} />
+              </div>
 
-            <div className="grid gap-5 md:grid-cols-2">
-              <TextAreaInput label="Criteria text" value={values.badge_criteria_text} onChange={(value) => updateValue('badge_criteria_text', value)} rows={5} />
-              <div className="space-y-5">
-                <SelectInput label="Certificate presentation" value={values.badge_theme} onChange={(value) => updateValue('badge_theme', value)} options={certificatePatterns} />
-                <TextInput label="Criteria URL" value={values.criteria_url} onChange={(value) => updateValue('criteria_url', value)} placeholder="https://example.com/badge-criteria" />
-                <div className="space-y-2">
-                  <TextInput label="Badge image URL" value={values.badge_image_url} onChange={(value) => updateValue('badge_image_url', value)} placeholder="Optional override for the badge image" />
-                  <ImageMediaPicker
-                    owner={{ type: 'org', id: Number(org.id) }}
-                    title="Choose badge image"
-                    buttonText="Choose badge image"
-                    onSelect={(url) => updateValue('badge_image_url', url)}
-                  />
-                </div>
-                <TextInput label="Support URL" value={values.badge_support_url} onChange={(value) => updateValue('badge_support_url', value)} placeholder="Optional issuer support or help page" />
+              <TextAreaInput label="Achievement description" value={values.badge_description} onChange={(value) => updateValue('badge_description', value)} rows={4} maxLength={500} />
+              <TextAreaInput label="Criteria narrative" value={values.badge_criteria_text} onChange={(value) => updateValue('badge_criteria_text', value)} rows={5} />
+
+              <TextInput label="Criteria ID (URL)" value={values.criteria_url} onChange={(value) => updateValue('criteria_url', value)} placeholder="Optional public criteria page" />
+
+              <div className="space-y-2">
+                <TextInput label="Achievement image URL" value={values.badge_image_url} onChange={(value) => updateValue('badge_image_url', value)} placeholder="Image representing the Achievement" />
+                <ImageMediaPicker
+                  owner={{ type: 'org', id: Number(org.id) }}
+                  title="Choose Achievement image"
+                  buttonText="Choose Achievement image"
+                  onSelect={(url) => updateValue('badge_image_url', url)}
+                />
+              </div>
+
+              <div className="rounded-lg border border-border bg-muted/40 p-4">
+                <h3 className="text-sm font-bold text-foreground">Issuance routes in Launch LMS</h3>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">Learning-path completion and direct issuance both create an OpenBadgeCredential for this same Achievement. Evidence is attached to the individual credential at issuance.</p>
               </div>
             </div>
+          </section>
 
-            <div className="grid gap-5 md:grid-cols-2">
-              <TextInput label="Issuer display name" value={values.issuer_name} onChange={(value) => updateValue('issuer_name', value)} placeholder="Defaults to the organization issuer" />
-              <TextInput label="Evidence label" value={values.evidence_label} onChange={(value) => updateValue('evidence_label', value)} placeholder="Learning path completion" />
+          <section className="rounded-xl bg-card p-6 shadow-xs">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-lg font-bold text-foreground">Certificate presentation</h2>
+              <p className="text-sm text-muted-foreground">Customize a Launch LMS presentation of the credential. The certificate is not part of the Achievement definition and does not change issuance.</p>
             </div>
+            <div className="mt-6 grid gap-5 md:grid-cols-2">
+              <SelectInput label="Certificate theme" value={values.badge_theme} onChange={(value) => updateValue('badge_theme', value)} options={certificatePatterns} />
+              <div>
+                <TextInput label="Certificate issuer label" value={values.issuer_name} onChange={(value) => updateValue('issuer_name', value)} placeholder="Defaults to the organization issuer" />
+                <p className="mt-1.5 text-xs leading-5 text-muted-foreground">Visual override only. The verifiable credential uses the organization that actually issues each award.</p>
+              </div>
+            </div>
+          </section>
 
-            <Button onClick={save} disabled={saving} className="gap-2">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              Save certification
-            </Button>
+          <Button onClick={save} disabled={saving} className="gap-2">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            Save Achievement
+          </Button>
+        </div>
+
+        <aside className="order-1 space-y-4 lg:order-2 lg:sticky lg:top-6">
+          <div className="rounded-xl bg-card p-4 shadow-xs">
+            <h2 className="text-sm font-bold text-foreground">Certificate preview</h2>
+            <Modal
+              isDialogOpen={previewOpen}
+              onOpenChange={setPreviewOpen}
+              minWidth="lg"
+              minHeight="no-min"
+              dialogTitle="Certificate preview"
+              dialogDescription="A Launch LMS certificate is one presentation of an issued OpenBadgeCredential."
+              dialogContent={
+                <CertificatePreview
+                  certificationName={values.badge_name}
+                  certificationDescription={values.badge_description}
+                  certificationType={getCertificateType(values.achievement_type)}
+                  certificatePattern={values.badge_theme}
+                  certificateInstructor={values.issuer_name}
+                  certificateId="award_preview"
+                  awardedDate={getPreviewAwardDate()}
+                  badgeImageUrl={values.badge_image_url || badge.thumbnail_image}
+                />
+              }
+              dialogTrigger={
+                <button type="button" className="group mt-3 block w-full rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-foreground">
+                  <CertificatePreview
+                    certificationName={values.badge_name}
+                    certificationDescription={values.badge_description}
+                    certificationType={getCertificateType(values.achievement_type)}
+                    certificatePattern={values.badge_theme}
+                    certificateInstructor={values.issuer_name}
+                    certificateId="award_preview"
+                    awardedDate={getPreviewAwardDate()}
+                    badgeImageUrl={values.badge_image_url || badge.thumbnail_image}
+                  />
+                  <span className="mt-2 flex items-center justify-center gap-1.5 text-xs font-bold text-muted-foreground transition group-hover:text-foreground">
+                    <Eye className="h-3.5 w-3.5" /> Open preview
+                  </span>
+                </button>
+              }
+            />
           </div>
-        </section>
+
+          <div className="rounded-xl border border-border bg-card p-4">
+            <h3 className="text-sm font-bold text-foreground">OpenBadgeCredential fields</h3>
+            <ul className="mt-2 space-y-1.5 text-xs leading-5 text-muted-foreground">
+              <li><span className="font-semibold text-foreground">credentialSubject</span> · recipient identity</li>
+              <li><span className="font-semibold text-foreground">issuer</span> · issuing organization</li>
+              <li><span className="font-semibold text-foreground">id / validFrom</span> · credential ID and date</li>
+              <li><span className="font-semibold text-foreground">evidence</span> · recipient-specific evidence</li>
+            </ul>
+          </div>
+        </aside>
       </div>
     </div>
   )
+}
+
+function getLegacyAchievementType(value?: string) {
+  if (value === 'assessment') return 'Assessment'
+  if (value === 'mastery') return 'Competency'
+  if (value === 'professional' || value === 'continuing' || value === 'specialization') return 'Certification'
+  if (value === 'achievement') return 'Achievement'
+  if (value === 'participation' || value === 'workshop') return 'Badge'
+  return 'CertificateOfCompletion'
+}
+
+function getCertificateType(value: string) {
+  if (value === 'Assessment') return 'assessment'
+  if (value === 'Competency') return 'mastery'
+  if (value === 'Certification' || value === 'Certificate') return 'professional'
+  if (value === 'Achievement' || value === 'Award' || value === 'Badge') return 'achievement'
+  return 'completion'
+}
+
+function getPreviewAwardDate() {
+  return new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
 }
 
 function TextInput({
@@ -1132,6 +1194,22 @@ function getStatusLabel(status: BadgeStatus) {
   if (status === 'published') return 'Published'
   if (status === 'coming_soon') return 'Coming soon'
   return 'Draft'
+}
+
+function formatBadgeDate(value?: string) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function getBadgeDateLine(badge: any) {
+  const created = formatBadgeDate(badge?.creation_date)
+  const updated = formatBadgeDate(badge?.update_date)
+  if (created && updated && created !== updated) return `Created on ${created} · Updated on ${updated}`
+  if (created) return `Created on ${created}`
+  if (updated) return `Updated on ${updated}`
+  return 'Badge details'
 }
 
 function getActiveSubpage(subpage: string) {

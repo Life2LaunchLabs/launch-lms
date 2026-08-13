@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React from 'react'
-import { Award, BookCopy, BookOpen, Check, Download, FileArchive, Globe, Loader2, Pencil, Plus, Search, Settings, Trash2, Upload, X } from 'lucide-react'
+import { Award, BookCopy, BookOpen, Braces, Check, Download, FileArchive, Globe, Loader2, Pencil, Plus, Search, Settings, Trash2, Upload, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { Switch } from '@components/ui/switch'
@@ -11,6 +11,7 @@ import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg } from '@services/config/config'
 import { SafeImage } from '@components/Objects/SafeImage'
+import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import {
   analyzeLearningBadgeImportPackage,
   createLearningBadge,
@@ -18,6 +19,7 @@ import {
   deleteLearningBadgeCollection,
   exportLearningBadgeCollection,
   importLearningBadgePackage,
+  importOpenBadge,
   updateLearningBadgeCollection,
   downloadBlob,
 } from '@services/learning/learning'
@@ -213,6 +215,8 @@ function CollectionBadges({ orgslug, orgId, collection }: { orgslug: string; org
   const [name, setName] = React.useState('')
   const [description, setDescription] = React.useState('')
   const [creating, setCreating] = React.useState(false)
+  const [createMode, setCreateMode] = React.useState<'manual' | 'json'>('manual')
+  const [badgeJson, setBadgeJson] = React.useState('')
   const [deletingBadge, setDeletingBadge] = React.useState('')
   const [importOpen, setImportOpen] = React.useState(false)
   const [exporting, setExporting] = React.useState(false)
@@ -241,6 +245,32 @@ function CollectionBadges({ orgslug, orgId, collection }: { orgslug: string; org
       window.location.reload()
     } catch (error: any) {
       toast.error(error?.message || 'Failed to create badge')
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const importBadgeJson = async () => {
+    if (!badgeJson.trim() || creating) return
+    let badge: any
+    try {
+      badge = JSON.parse(badgeJson)
+    } catch {
+      toast.error('The pasted badge JSON is not valid JSON.')
+      return
+    }
+    setCreating(true)
+    try {
+      const result = await importOpenBadge({
+        org_id: orgId,
+        collection_id: collection.id,
+        badge,
+      }, accessToken)
+      toast.success(result.warnings?.length ? `Badge imported. ${result.warnings.join(' ')}` : 'Badge and image imported')
+      setModalOpen(false)
+      window.location.reload()
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to import badge JSON')
     } finally {
       setCreating(false)
     }
@@ -321,15 +351,38 @@ function CollectionBadges({ orgslug, orgId, collection }: { orgslug: string; org
             minHeight="md"
             minWidth="lg"
             dialogTitle="Create Badge"
-            dialogDescription={`Create a badge in ${collection.name}.`}
+            dialogDescription={`Create a badge in ${collection.name}, or import Open Badges JSON from Badgr/Parchment.`}
             dialogContent={
               <div className="space-y-4 p-2">
-                <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Badge name" className="w-full rounded-lg border border-border px-3 py-2 text-sm" />
-                <textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Optional badge description" rows={4} className="w-full resize-none rounded-lg border border-border px-3 py-2 text-sm" />
-                <button onClick={createBadge} disabled={creating || !name.trim()} className="ml-auto flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white disabled:opacity-50">
-                  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                  Create Badge
-                </button>
+                <div className="grid grid-cols-2 rounded-lg bg-muted p-1">
+                  <button type="button" onClick={() => setCreateMode('manual')} className={`rounded-md px-3 py-2 text-xs font-bold ${createMode === 'manual' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>
+                    Create manually
+                  </button>
+                  <button type="button" onClick={() => setCreateMode('json')} className={`flex items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-bold ${createMode === 'json' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>
+                    <Braces className="h-4 w-4" /> Paste JSON
+                  </button>
+                </div>
+                {createMode === 'manual' ? (
+                  <>
+                    <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Badge name" className="w-full rounded-lg border border-border px-3 py-2 text-sm" />
+                    <textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Optional badge description" rows={4} className="w-full resize-none rounded-lg border border-border px-3 py-2 text-sm" />
+                    <button onClick={createBadge} disabled={creating || !name.trim()} className="ml-auto flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white disabled:opacity-50">
+                      {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                      Create Badge
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <textarea value={badgeJson} onChange={(event) => setBadgeJson(event.target.value)} placeholder='Paste a BadgeClass JSON object here…' rows={13} spellCheck={false} className="w-full resize-y rounded-lg border border-border bg-card px-3 py-2 font-mono text-xs leading-5" />
+                      <p className="mt-2 text-xs leading-5 text-muted-foreground">The badge image will be downloaded into this organization’s media library. Issuer metadata is preserved with the imported badge when available.</p>
+                    </div>
+                    <button onClick={importBadgeJson} disabled={creating || !badgeJson.trim()} className="ml-auto flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white disabled:opacity-50">
+                      {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                      Import Badge
+                    </button>
+                  </>
+                )}
               </div>
             }
             dialogTrigger={
@@ -342,29 +395,31 @@ function CollectionBadges({ orgslug, orgId, collection }: { orgslug: string; org
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {filteredBadges.map((badge: any) => (
-          <Link key={badge.badge_uuid} href={getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/learning-path`)} className="group relative flex w-full flex-col overflow-hidden rounded-xl bg-card nice-shadow transition-all duration-300 hover:scale-[1.01]">
+          <div key={badge.badge_uuid} className="group relative min-w-0">
             <button
               onClick={(event) => removeBadge(event, badge)}
               disabled={deletingBadge === badge.badge_uuid}
-              className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-red-100 bg-card text-red-600 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 disabled:opacity-60"
+              className="absolute right-1 top-1 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-red-100 bg-card/95 text-red-600 opacity-0 shadow-sm transition-all hover:scale-105 group-hover:opacity-100 focus:opacity-100 disabled:opacity-60"
               title="Delete badge"
             >
               {deletingBadge === badge.badge_uuid ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
             </button>
-            <div className="relative flex aspect-video items-center justify-center overflow-hidden bg-muted text-lime-500">
-              {badge.thumbnail_image ? <img src={badge.thumbnail_image} alt="" className="h-full w-full object-cover" /> : <Award size={42} strokeWidth={1.5} />}
-            </div>
-            <div className="flex flex-col space-y-1.5 p-3">
-              <h2 className="line-clamp-1 text-base font-bold leading-tight text-foreground">{badge.name}</h2>
-              {badge.description ? <p className="min-h-[1.5rem] line-clamp-2 text-[11px] text-muted-foreground">{badge.description}</p> : null}
-              <div className="flex items-center justify-between border-t border-border pt-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{getBadgeStatusLabel(badge)}</span>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Edit</span>
+            <Link href={getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/learning-path`)} className="block rounded-xl p-2 text-center outline-none transition hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-foreground">
+              <div className="relative mx-auto flex h-32 w-32 items-center justify-center overflow-visible sm:h-36 sm:w-36">
+                {badge.thumbnail_image ? (
+                  <BadgeThumbnailImage src={badge.thumbnail_image} alt={`${badge.name} badge`} hoverScale />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center rounded-xl border border-dashed border-border bg-muted text-lime-500">
+                    <Award size={38} strokeWidth={1.5} />
+                  </div>
+                )}
               </div>
-            </div>
-          </Link>
+              <h2 className="mt-2 line-clamp-2 text-sm font-bold leading-tight text-foreground">{badge.name}</h2>
+              <p className="mt-1 text-xs font-semibold text-muted-foreground">{getBadgeStatusLabel(badge)}</p>
+            </Link>
+          </div>
         ))}
       </div>
 

@@ -27,6 +27,7 @@ from src.db.learning import (
     LearningVariableCreate,
     LearningVariableRead,
     LearningVariableUpdate,
+    OpenBadgeImport,
 )
 from src.security.auth import get_current_user
 from src.services import learning as learning_service
@@ -52,6 +53,18 @@ async def api_create_badge(
     db_session=Depends(get_db_session),
 ) -> LearningBadgeRead:
     return await learning_service.create_badge(request, badge, current_user, db_session)
+
+
+@badges_router.post("/import-open-badge")
+async def api_import_open_badge(
+    request: Request,
+    payload: OpenBadgeImport,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    from src.services.open_badges import import_open_badge
+
+    return await import_open_badge(request, payload, current_user, db_session)
 
 
 @badges_router.get("/")
