@@ -19,7 +19,7 @@ class SSOConnectionBase(SQLModel):
     """Base fields for SSO connection configuration."""
 
     # Provider-agnostic fields
-    provider: str  # SSOProviderType - "workos", "keycloak", etc.
+    provider: str = Field(index=True)  # SSOProviderType - "workos", "keycloak", etc.
     enabled: bool = False
     domains: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     auto_provision_users: bool = True
@@ -37,7 +37,12 @@ class SSOConnection(SSOConnectionBase, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     org_id: int = Field(
-        sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"))
+        sa_column=Column(
+            Integer,
+            ForeignKey("organization.id", ondelete="CASCADE"),
+            index=True,
+            unique=True,
+        )
     )
     default_role_id: int | None = Field(
         default=None,

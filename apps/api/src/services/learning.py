@@ -5595,7 +5595,8 @@ def build_learning_badge_class_payload(
         "image": image_url,
         "criteria": {
             "id": criteria_url,
-            "narrative": badge.criteria or "Complete the required badge learning path.",
+            "narrative": badge.criteria
+            or "Meet the criteria defined for this achievement.",
         },
     }
 
@@ -5692,7 +5693,7 @@ def build_ob3_achievement(
         or badge.thumbnail_image
         or f"{base_url}/logo-icon.svg"
     )
-    return {
+    achievement = {
         "id": f"{api_base}/badge-awards/achievement/{badge.badge_uuid}",
         "type": ["Achievement"],
         "creator": creator_profile,
@@ -5702,10 +5703,18 @@ def build_ob3_achievement(
         or "",
         "criteria": {
             "id": criteria_url,
-            "narrative": badge.criteria or "Complete the required badge learning path.",
+            "narrative": badge.criteria
+            or "Meet the criteria defined for this achievement.",
         },
         "image": {"id": image_url, "type": "Image"},
     }
+    achievement_type = (badge.badge_metadata or {}).get("achievement_type")
+    if achievement_type:
+        achievement["achievementType"] = achievement_type
+    achievement_version = (badge.badge_metadata or {}).get("achievement_version")
+    if achievement_version:
+        achievement["version"] = achievement_version
+    return achievement
 
 
 def build_ob3_credential(

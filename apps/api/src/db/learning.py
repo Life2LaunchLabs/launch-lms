@@ -100,6 +100,12 @@ class LearningBadgeCreate(SQLModel):
     badge_metadata: dict = Field(default_factory=dict)
 
 
+class OpenBadgeImport(SQLModel):
+    org_id: int
+    collection_id: int | None = None
+    badge: dict
+
+
 class LearningBadgeUpdate(SQLModel):
     collection_id: int | None = None
     name: str | None = None
