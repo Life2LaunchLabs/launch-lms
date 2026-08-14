@@ -36,6 +36,8 @@ export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: str
   const org = useOrg() as any
   const accessToken = session.data?.tokens?.access_token
   const badge = badgePath.badge
+  const isDraft = badge.selected_version?.state === 'draft'
+  const versionUuid = badge.selected_version?.version_uuid
   const [title, setTitle] = React.useState('')
   const [busy, setBusy] = React.useState('')
   const [uploadingCover, setUploadingCover] = React.useState('')
@@ -71,6 +73,7 @@ export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: str
     try {
       const activity = await importLearningActivity({
         badge_uuid: badge.badge_uuid,
+        version_uuid: versionUuid,
         title: importPreview.title,
         description: importPreview.description,
         pages: importPreview.pages,
@@ -99,24 +102,12 @@ export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: str
     if (!title.trim()) return
     setBusy('create')
     try {
-      await createLearningActivity({ badge_uuid: badge.badge_uuid, title: title.trim(), published: false }, accessToken)
+      await createLearningActivity({ badge_uuid: badge.badge_uuid, version_uuid: versionUuid, title: title.trim() }, accessToken)
       toast.success('Activity created')
       setModalOpen(false)
       window.location.reload()
     } catch (error: any) {
       toast.error(error?.message || 'Failed to create activity')
-    } finally {
-      setBusy('')
-    }
-  }
-
-  const togglePublish = async (activity: any) => {
-    setBusy(activity.activity_uuid)
-    try {
-      await updateLearningActivity(activity.activity_uuid, { published: !activity.published }, accessToken)
-      window.location.reload()
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to update activity')
     } finally {
       setBusy('')
     }
@@ -171,7 +162,7 @@ export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: str
 
   return (
     <div className="px-10 pb-10 pt-6">
-      <div className="mb-5 flex justify-end gap-2">
+      {isDraft ? <div className="mb-5 flex justify-end gap-2">
         <Modal
           isDialogOpen={importModalOpen}
           onOpenChange={(open) => {
@@ -295,7 +286,7 @@ export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: str
             </button>
           }
         />
-      </div>
+      </div> : <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">This published learning path is read only. Create a draft from the version toolbar to make changes.</div>}
 
       <div className="space-y-3">
         {(badgePath.activities || []).map((activity: any, index: number) => {
@@ -311,20 +302,20 @@ export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: str
               )}
             </div>
             <Link
-              href={getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/learning-path/activity/${cleanActivityId(activity.activity_uuid)}/editor`)}
+              href={`${getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/learning-path/activity/${cleanActivityId(activity.activity_uuid)}/editor`)}?version=${versionUuid || ''}`}
               className="min-w-0 flex-1"
             >
               <h2 className="truncate text-base font-bold text-foreground">{activity.title}</h2>
-              <p className="text-sm text-muted-foreground">{activity.pages?.length || 0} pages · {activity.published ? 'Published' : 'Draft'}</p>
+              <p className="text-sm text-muted-foreground">{activity.pages?.length || 0} pages</p>
             </Link>
             <ImageMediaPicker
               owner={{ type: 'org', id: Number(org?.id) }}
               onSelect={(url) => selectCover(activity, url)}
               buttonText="Cover"
               className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-bold transition hover:bg-muted"
-              disabled={uploadingCover === activity.activity_uuid}
+              disabled={!isDraft || uploadingCover === activity.activity_uuid}
             />
-            {locked ? <span className="rounded-full border border-border px-3 py-1.5 text-xs font-bold text-muted-foreground">Required</span> : <><button onClick={() => togglePublish(activity)} className="rounded-lg border border-border px-3 py-2 text-xs font-bold">{activity.published ? 'Unpublish' : 'Publish'}</button><button onClick={() => duplicateActivity(activity)} className="rounded-lg border border-border p-2"><Copy size={16} /></button><button onClick={() => removeActivity(activity)} className="rounded-lg border border-red-200 p-2 text-red-600"><Trash2 size={16} /></button></>}
+            {locked ? <span className="rounded-full border border-border px-3 py-1.5 text-xs font-bold text-muted-foreground">Required</span> : isDraft ? <><button onClick={() => duplicateActivity(activity)} className="rounded-lg border border-border p-2"><Copy size={16} /></button><button onClick={() => removeActivity(activity)} className="rounded-lg border border-red-200 p-2 text-red-600"><Trash2 size={16} /></button></> : <span className="rounded-full border border-border px-3 py-1.5 text-xs font-bold text-muted-foreground">Read only</span>}
           </div>
           )
         })}

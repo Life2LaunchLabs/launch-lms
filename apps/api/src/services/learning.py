@@ -31,6 +31,11 @@ from src.db.learning import (
     LearningBadgeRead,
     LearningBadgeStatus,
     LearningBadgeUpdate,
+    LearningBadgeVersion,
+    LearningBadgeVersionCreate,
+    LearningBadgeVersionPublish,
+    LearningBadgeVersionState,
+    LearningBadgeVersionUpdate,
     LearningPage,
     LearningPageComplete,
     LearningPageCreate,
@@ -306,14 +311,87 @@ def _get_badge(db_session: Session, badge_uuid: str) -> LearningBadge:
     return badge
 
 
-def _get_path_for_badge(db_session: Session, badge: LearningBadge) -> LearningPath:
-    path = db_session.exec(
-        select(LearningPath).where(LearningPath.badge_id == badge.id)
-    ).first()
+VERSIONED_BADGE_FIELDS = (
+    "name", "description", "about", "criteria", "thumbnail_image", "protected",
+    "system_type", "direct_conferral_enabled", "badge_metadata",
+)
+
+
+def _badge_definition(badge: LearningBadge) -> dict:
+    return {key: deepcopy(getattr(badge, key)) for key in VERSIONED_BADGE_FIELDS}
+
+
+def _get_badge_version(db_session: Session, badge: LearningBadge, version_uuid: str | None = None, *, require_published: bool = False) -> LearningBadgeVersion:
+    statement = select(LearningBadgeVersion).where(LearningBadgeVersion.badge_id == badge.id)
+    if version_uuid:
+        statement = statement.where(LearningBadgeVersion.version_uuid == _clean_uuid(version_uuid, "badge_version_"))
+    elif badge.active_version_id:
+        statement = statement.where(LearningBadgeVersion.id == badge.active_version_id)
+    else:
+        statement = statement.order_by(LearningBadgeVersion.update_date.desc())  # type: ignore
+    version = db_session.exec(statement).first()
+    if not version or (require_published and version.state != LearningBadgeVersionState.PUBLISHED):
+        raise HTTPException(status_code=404, detail="Badge version not found")
+    return version
+
+
+def _version_summary(version: LearningBadgeVersion, active_version_id: int | None = None) -> dict:
+    return {
+        **version.model_dump(exclude={"definition"}),
+        "is_active": version.id == active_version_id,
+    }
+
+
+def _versioned_badge_read(db_session: Session, badge: LearningBadge, version: LearningBadgeVersion | None = None) -> LearningBadgeRead:
+    versions = (
+        db_session.exec(
+            select(LearningBadgeVersion).where(LearningBadgeVersion.badge_id == badge.id).order_by(LearningBadgeVersion.update_date.desc())  # type: ignore
+        ).all()
+        if hasattr(db_session, "exec")
+        else ([version] if version else [])
+    )
+    payload = badge.model_dump()
+    if version:
+        payload.update(version.definition or {})
+    return LearningBadgeRead(
+        **payload,
+        selected_version=_version_summary(version, badge.active_version_id) if version else None,
+        versions=[_version_summary(item, badge.active_version_id) for item in versions],
+    )
+
+
+def _ensure_draft(version: LearningBadgeVersion) -> None:
+    if version.state != LearningBadgeVersionState.DRAFT:
+        raise HTTPException(status_code=409, detail="Published versions are read-only. Create a draft to make changes.")
+
+
+def _bump_version(version: LearningBadgeVersion) -> None:
+    version.revision += 1
+    version.update_date = _now()
+
+
+def _version_for_content(db_session: Session, version_id: int | None) -> LearningBadgeVersion | None:
+    return db_session.get(LearningBadgeVersion, version_id) if version_id else None
+
+
+def _assert_content_editable(db_session: Session, version_id: int | None) -> LearningBadgeVersion:
+    version = _version_for_content(db_session, version_id)
+    if not version:
+        raise HTTPException(status_code=409, detail="This legacy content is not attached to an editable draft.")
+    _ensure_draft(version)
+    return version
+
+
+def _get_path_for_badge(db_session: Session, badge: LearningBadge, version: LearningBadgeVersion | None = None, *, create: bool = True) -> LearningPath | None:
+    version_id = version.id if version else badge.active_version_id
+    path = db_session.exec(select(LearningPath).where(LearningPath.badge_id == badge.id, LearningPath.version_id == version_id)).first()
     if not path:
+        if not create:
+            return None
         path = LearningPath(
             path_uuid=f"path_{uuid4()}",
             badge_id=badge.id or 0,
+            version_id=version_id,
             org_id=badge.org_id,
             title=f"{badge.name} Path",
             description=badge.description or "",
@@ -637,7 +715,10 @@ def _block_completion(page: LearningPage, question: dict) -> dict:
 
 def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
     progress = db_session.exec(
-        select(LearningPage).where(LearningPage.badge_id == run.badge_id)
+        select(LearningPage).where(
+            LearningPage.badge_id == run.badge_id,
+            LearningPage.version_id == run.badge_version_id,
+        )
     ).all()
     progress_by_page = {
         item.page_id: item
@@ -1645,6 +1726,7 @@ def _has_pending_required_manual_grades(db_session: Session, run: LearningRun) -
     required_pages = db_session.exec(
         select(LearningPage).where(
             LearningPage.badge_id == run.badge_id,
+            LearningPage.version_id == run.badge_version_id,
             LearningPage.required == True,
         )
     ).all()
@@ -1709,10 +1791,13 @@ def _issue_award_if_complete(
     if _has_pending_required_manual_grades(db_session, run):
         return None
 
+    version = _version_for_content(db_session, run.badge_version_id)
+    major_version = int((version.semantic_version if version else "1.0.0").split(".")[0])
     award = db_session.exec(
         select(LearningBadgeAward).where(
             LearningBadgeAward.badge_id == run.badge_id,
             LearningBadgeAward.user_id == run.user_id,
+            LearningBadgeAward.major_version == major_version,
         )
     ).first()
     if award:
@@ -1722,6 +1807,8 @@ def _issue_award_if_complete(
     award = LearningBadgeAward(
         award_uuid=f"award_{uuid4()}",
         badge_id=run.badge_id,
+        badge_version_id=run.badge_version_id,
+        major_version=major_version,
         run_id=run.id,
         org_id=run.org_id,
         issuing_org_id=run.issuing_org_id,
@@ -1945,6 +2032,7 @@ def _ensure_launch_ready_activity(
         activity = LearningActivity(
             path_id=path.id or 0,
             badge_id=badge.id or 0,
+            version_id=path.version_id,
             org_id=org_id,
             title=title,
             description=description,
@@ -1966,6 +2054,7 @@ def _ensure_launch_ready_activity(
             badge.id or 0,
             org_id,
         )
+        activity.version_id = path.version_id
         activity.title, activity.description = title, description
         activity.thumbnail_image = (
             activity.thumbnail_image or LAUNCH_READY_DEFAULT_IMAGES[key]
@@ -2043,6 +2132,7 @@ def _ensure_launch_ready_activity(
             page = LearningPage(
                 activity_id=activity.id or 0,
                 badge_id=badge.id or 0,
+                version_id=path.version_id,
                 org_id=org_id,
                 page_type=LearningPageType.STANDARD,
                 title=spec["title"],
@@ -2066,6 +2156,7 @@ def _ensure_launch_ready_activity(
                 spec["title"],
                 content,
             )
+            page.version_id = path.version_id
             page.update_date = now
         db_session.add(page)
     desired_page_uuids = {spec["page_uuid"] for spec in pages}
@@ -2178,6 +2269,7 @@ def ensure_onboarding_learning_badge(
             protected=True,
             system_type=LEARNING_SYSTEM_TYPE_ONBOARDING,
             direct_conferral_enabled=False,
+            badge_metadata={"award_strategy": "portfolio_checklist"},
             badge_uuid=ONBOARDING_BADGE_UUID,
             creation_date=now,
             update_date=now,
@@ -2196,7 +2288,30 @@ def ensure_onboarding_learning_badge(
         badge.update_date = now
         db_session.add(badge)
 
-    path = _get_path_for_badge(db_session, badge)
+    version = db_session.exec(
+        select(LearningBadgeVersion).where(
+            LearningBadgeVersion.badge_id == badge.id,
+            LearningBadgeVersion.state == LearningBadgeVersionState.PUBLISHED,
+        )
+    ).first()
+    if not version:
+        version = LearningBadgeVersion(
+            version_uuid=f"badge_version_{uuid4()}",
+            badge_id=badge.id or 0,
+            org_id=badge.org_id,
+            state=LearningBadgeVersionState.PUBLISHED,
+            semantic_version="1.0.0",
+            title="Initial Version",
+            definition=_badge_definition(badge),
+            published_at=datetime.utcnow(),
+            creation_date=now,
+            update_date=now,
+        )
+        db_session.add(version)
+        db_session.flush()
+    badge.active_version_id = version.id
+    db_session.add(badge)
+    path = _get_path_for_badge(db_session, badge, version)
     path.org_id = owner_org.id or path.org_id
     path.update_date = now
     db_session.add(path)
@@ -2210,6 +2325,7 @@ def ensure_onboarding_learning_badge(
         activity = LearningActivity(
             path_id=path.id or 0,
             badge_id=badge.id or 0,
+            version_id=version.id,
             org_id=owner_org.id or 0,
             title="Welcome",
             description="Tell us a little about yourself.",
@@ -2229,6 +2345,7 @@ def ensure_onboarding_learning_badge(
     else:
         activity.path_id = path.id or activity.path_id
         activity.badge_id = badge.id or activity.badge_id
+        activity.version_id = version.id
         activity.org_id = owner_org.id or activity.org_id
         activity.order = 1
         activity.required = True
@@ -2253,6 +2370,7 @@ def ensure_onboarding_learning_badge(
         name_page = LearningPage(
             activity_id=activity.id or 0,
             badge_id=badge.id or 0,
+            version_id=version.id,
             org_id=owner_org.id or 0,
             page_type=LearningPageType.STANDARD,
             title="What should we call you?",
@@ -2315,6 +2433,7 @@ def ensure_onboarding_learning_badge(
     else:
         name_page.activity_id = activity.id or name_page.activity_id
         name_page.badge_id = badge.id or name_page.badge_id
+        name_page.version_id = version.id
         name_page.org_id = owner_org.id or name_page.org_id
         name_page.order = 1
         name_page.required = True
@@ -2345,6 +2464,7 @@ def ensure_onboarding_learning_badge(
         goal_page = LearningPage(
             activity_id=activity.id or 0,
             badge_id=badge.id or 0,
+            version_id=version.id,
             org_id=owner_org.id or 0,
             page_type=LearningPageType.STANDARD,
             title="What are you building toward?",
@@ -2389,6 +2509,7 @@ def ensure_onboarding_learning_badge(
     else:
         goal_page.activity_id = activity.id or goal_page.activity_id
         goal_page.badge_id = badge.id or goal_page.badge_id
+        goal_page.version_id = version.id
         goal_page.org_id = owner_org.id or goal_page.org_id
         goal_page.order = 2
         goal_page.required = True
@@ -3597,7 +3718,8 @@ async def create_badge(
     _require_org_admin(db_session, current_user, data.org_id)
     now = _now()
     badge = LearningBadge(
-        **_strip_system_fields(data.model_dump()),
+        **_strip_system_fields(data.model_dump(exclude={"status"})),
+        status=LearningBadgeStatus.DRAFT,
         badge_uuid=f"badge_{uuid4()}",
         creation_date=now,
         update_date=now,
@@ -3605,9 +3727,18 @@ async def create_badge(
     try:
         db_session.add(badge)
         db_session.flush()
+        version = LearningBadgeVersion(
+            version_uuid=f"badge_version_{uuid4()}", badge_id=badge.id or 0,
+            org_id=badge.org_id, state=LearningBadgeVersionState.DRAFT,
+            title="Initial Version", definition=_badge_definition(badge),
+            created_by_user_id=getattr(current_user, "id", None), creation_date=now, update_date=now,
+        )
+        db_session.add(version)
+        db_session.flush()
         path = LearningPath(
             path_uuid=f"path_{uuid4()}",
             badge_id=badge.id or 0,
+            version_id=version.id,
             org_id=badge.org_id,
             title=f"{badge.name} Path",
             description=badge.description or "",
@@ -3620,7 +3751,328 @@ async def create_badge(
     except Exception:
         db_session.rollback()
         raise
-    return LearningBadgeRead(**badge.model_dump())
+    return _versioned_badge_read(db_session, badge, version)
+
+
+def _replace_uuid_values(value, replacements: dict[str, str]):
+    if isinstance(value, dict):
+        return {key: _replace_uuid_values(item, replacements) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_replace_uuid_values(item, replacements) for item in value]
+    if isinstance(value, str):
+        return replacements.get(value, value)
+    return value
+
+
+def _clone_version_graph(db_session: Session, badge: LearningBadge, source: LearningBadgeVersion, target: LearningBadgeVersion) -> None:
+    source_path = _get_path_for_badge(db_session, badge, source, create=False)
+    if not source_path:
+        return
+    now = _now()
+    target_path = LearningPath(
+        path_uuid=f"path_{uuid4()}", badge_id=badge.id or 0, version_id=target.id,
+        org_id=badge.org_id, title=source_path.title, description=source_path.description,
+        creation_date=now, update_date=now,
+    )
+    db_session.add(target_path)
+    db_session.flush()
+    source_activities = db_session.exec(select(LearningActivity).where(LearningActivity.path_id == source_path.id).order_by(LearningActivity.order.asc())).all()  # type: ignore
+    page_replacements: dict[str, str] = {}
+    activity_pairs: list[tuple[LearningActivity, LearningActivity]] = []
+    for source_activity in source_activities:
+        target_activity = LearningActivity(
+            path_id=target_path.id or 0, badge_id=badge.id or 0, version_id=target.id,
+            org_id=badge.org_id, title=source_activity.title, description=source_activity.description,
+            thumbnail_image=source_activity.thumbnail_image, icon=source_activity.icon,
+            order=source_activity.order, required=source_activity.required, published=True,
+            settings=deepcopy(source_activity.settings or {}), activity_uuid=f"learning_activity_{uuid4()}",
+            creation_date=now, update_date=now,
+        )
+        target_activity.settings = {**target_activity.settings, "version_lineage_uuid": (source_activity.settings or {}).get("version_lineage_uuid") or source_activity.activity_uuid}
+        db_session.add(target_activity)
+        db_session.flush()
+        activity_pairs.append((source_activity, target_activity))
+        for source_page in db_session.exec(select(LearningPage).where(LearningPage.activity_id == source_activity.id).order_by(LearningPage.order.asc())).all():  # type: ignore
+            next_uuid = f"learning_page_{uuid4()}"
+            page_replacements[source_page.page_uuid] = next_uuid
+            target_page = LearningPage(
+                activity_id=target_activity.id or 0, badge_id=badge.id or 0, version_id=target.id,
+                org_id=badge.org_id, page_type=source_page.page_type, title=source_page.title,
+                order=source_page.order, required=source_page.required, content=deepcopy(source_page.content or {}),
+                design=deepcopy(source_page.design or {}), scoring=deepcopy(source_page.scoring or {}),
+                completion=deepcopy(source_page.completion or {}), page_uuid=next_uuid,
+                creation_date=now, update_date=now,
+            )
+            target_page.content = {**target_page.content, "version_lineage_uuid": (source_page.content or {}).get("version_lineage_uuid") or source_page.page_uuid}
+            db_session.add(target_page)
+    db_session.flush()
+    for _, target_activity in activity_pairs:
+        target_activity.settings = _replace_uuid_values(target_activity.settings, page_replacements)
+        db_session.add(target_activity)
+    target_pages = db_session.exec(select(LearningPage).where(LearningPage.version_id == target.id)).all()
+    for target_page in target_pages:
+        target_page.content = _replace_uuid_values(target_page.content, page_replacements)
+        target_page.design = _replace_uuid_values(target_page.design, page_replacements)
+        target_page.scoring = _replace_uuid_values(target_page.scoring, page_replacements)
+        target_page.completion = _replace_uuid_values(target_page.completion, page_replacements)
+        db_session.add(target_page)
+
+
+def _version_graph_summary(db_session: Session, version: LearningBadgeVersion) -> dict:
+    activities = db_session.exec(select(LearningActivity).where(LearningActivity.version_id == version.id)).all()
+    pages = db_session.exec(select(LearningPage).where(LearningPage.version_id == version.id)).all()
+    activity_items = {}
+    activity_lineage_by_id = {}
+    for item in activities:
+        settings = deepcopy(item.settings or {})
+        lineage_uuid = settings.pop("version_lineage_uuid", None) or item.activity_uuid
+        activity_items[lineage_uuid] = {
+            "title": item.title, "description": item.description, "thumbnail_image": item.thumbnail_image,
+            "icon": item.icon, "order": item.order, "required": item.required, "settings": settings,
+        }
+        activity_lineage_by_id[item.id] = lineage_uuid
+    page_items = {}
+    for item in pages:
+        content = deepcopy(item.content or {})
+        lineage_uuid = content.pop("version_lineage_uuid", None) or item.page_uuid
+        page_items[lineage_uuid] = {
+            "title": item.title, "order": item.order, "required": item.required, "page_type": item.page_type,
+            "content": content, "design": item.design, "scoring": item.scoring, "completion": item.completion,
+            "activity_lineage_uuid": activity_lineage_by_id.get(item.activity_id),
+        }
+    return {"definition": version.definition or {}, "activities": activity_items, "pages": page_items}
+
+
+def _map_diff(before: dict, after: dict) -> dict:
+    before_keys, after_keys = set(before), set(after)
+    return {
+        "added": sorted(after_keys - before_keys), "deleted": sorted(before_keys - after_keys),
+        "modified": sorted(key for key in before_keys & after_keys if before[key] != after[key]),
+    }
+
+
+_DEFINITION_FIELD_LABELS = {
+    "name": "Name",
+    "description": "Description",
+    "about": "About",
+    "criteria": "Criteria",
+    "thumbnail_image": "Badge image",
+    "achievement_type": "Achievement type",
+}
+_DEFINITION_SETTING_LABELS = {
+    "direct_conferral_enabled": "Direct issuance",
+    "badge_metadata": "Achievement and certificate settings",
+    "protected": "Protection settings",
+    "system_type": "System settings",
+}
+
+
+def _version_change_sections(previous: dict, current: dict) -> dict:
+    definition_fields = {
+        key
+        for key in set(previous["definition"]) | set(current["definition"])
+        if previous["definition"].get(key) != current["definition"].get(key)
+    }
+    before_activities = previous["activities"]
+    after_activities = current["activities"]
+    before_keys, after_keys = set(before_activities), set(after_activities)
+    added_keys = after_keys - before_keys
+    deleted_keys = before_keys - after_keys
+
+    activity_settings_changed = {
+        key
+        for key in before_keys & after_keys
+        if before_activities[key].get("settings") != after_activities[key].get("settings")
+    }
+    activity_content_changed = {
+        key
+        for key in before_keys & after_keys
+        if {k: v for k, v in before_activities[key].items() if k != "settings"}
+        != {k: v for k, v in after_activities[key].items() if k != "settings"}
+    }
+
+    page_diff = _map_diff(previous["pages"], current["pages"])
+    for change_type in ("added", "modified", "deleted"):
+        source = current["pages"] if change_type != "deleted" else previous["pages"]
+        for page_key in page_diff[change_type]:
+            activity_key = source.get(page_key, {}).get("activity_lineage_uuid")
+            if activity_key and activity_key not in added_keys and activity_key not in deleted_keys:
+                activity_content_changed.add(activity_key)
+
+    modified = [
+        after_activities[key]["title"]
+        for key in sorted(activity_content_changed)
+        if key in after_activities
+    ]
+    modified.extend(
+        f'Removed “{before_activities[key]["title"]}”' for key in sorted(deleted_keys)
+    )
+    return {
+        "achievement_definition": [
+            _DEFINITION_FIELD_LABELS.get(key, key.replace("_", " ").title())
+            for key in sorted(definition_fields - set(_DEFINITION_SETTING_LABELS))
+        ],
+        "activities_added": [after_activities[key]["title"] for key in sorted(added_keys)],
+        "activities_modified": modified,
+        "settings_changed": [
+            _DEFINITION_SETTING_LABELS[key]
+            for key in sorted(definition_fields & set(_DEFINITION_SETTING_LABELS))
+        ] + [
+            f'{after_activities[key]["title"]} activity settings'
+            for key in sorted(activity_settings_changed)
+        ],
+    }
+
+
+async def list_badge_versions(request: Request, badge_uuid: str, current_user, db_session: Session) -> list[dict]:
+    badge = _get_badge(db_session, badge_uuid)
+    _require_org_admin(db_session, current_user, badge.org_id)
+    versions = db_session.exec(select(LearningBadgeVersion).where(LearningBadgeVersion.badge_id == badge.id).order_by(LearningBadgeVersion.update_date.desc())).all()  # type: ignore
+    return [_version_summary(item, badge.active_version_id) for item in versions]
+
+
+async def create_badge_version_draft(request: Request, badge_uuid: str, data: LearningBadgeVersionCreate, current_user, db_session: Session) -> dict:
+    badge = _get_badge(db_session, badge_uuid)
+    _require_org_admin(db_session, current_user, badge.org_id)
+    title = data.title.strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="Draft title is required")
+    source = _get_badge_version(db_session, badge, data.based_on_version_uuid, require_published=True) if data.based_on_version_uuid else None
+    now = _now()
+    draft = LearningBadgeVersion(
+        version_uuid=f"badge_version_{uuid4()}", badge_id=badge.id or 0, org_id=badge.org_id,
+        state=LearningBadgeVersionState.DRAFT, title=title, description=data.description or "",
+        based_on_version_id=source.id if source else None, definition=deepcopy(source.definition if source else _badge_definition(badge)),
+        created_by_user_id=getattr(current_user, "id", None), creation_date=now, update_date=now,
+    )
+    db_session.add(draft)
+    db_session.flush()
+    if source:
+        _clone_version_graph(db_session, badge, source, draft)
+    else:
+        _get_path_for_badge(db_session, badge, draft)
+    db_session.commit()
+    db_session.refresh(draft)
+    return _version_summary(draft, badge.active_version_id)
+
+
+async def update_badge_version_draft(request: Request, badge_uuid: str, version_uuid: str, data: LearningBadgeVersionUpdate, current_user, db_session: Session) -> dict:
+    badge = _get_badge(db_session, badge_uuid)
+    _require_org_admin(db_session, current_user, badge.org_id)
+    version = _get_badge_version(db_session, badge, version_uuid)
+    _ensure_draft(version)
+    if data.expected_revision is not None and data.expected_revision != version.revision:
+        raise HTTPException(status_code=409, detail="This draft was updated by another administrator. Reload before continuing.")
+    for key, value in data.model_dump(exclude_unset=True, exclude={"expected_revision"}).items():
+        setattr(version, key, value)
+    _bump_version(version)
+    db_session.add(version)
+    db_session.commit()
+    db_session.refresh(version)
+    return _version_summary(version, badge.active_version_id)
+
+
+async def get_badge_version_diff(request: Request, badge_uuid: str, version_uuid: str, current_user, db_session: Session) -> dict:
+    badge = _get_badge(db_session, badge_uuid)
+    _require_org_admin(db_session, current_user, badge.org_id)
+    version = _get_badge_version(db_session, badge, version_uuid)
+    current = _version_graph_summary(db_session, version)
+    base = db_session.get(LearningBadgeVersion, version.based_on_version_id) if version.based_on_version_id else None
+    previous = _version_graph_summary(db_session, base) if base else {"definition": {}, "activities": {}, "pages": {}}
+    return {
+        "revision": version.revision,
+        "change_sections": _version_change_sections(previous, current),
+        "definition_fields": sorted(key for key in set(previous["definition"]) | set(current["definition"]) if previous["definition"].get(key) != current["definition"].get(key)),
+        "activities": _map_diff(previous["activities"], current["activities"]),
+        "pages": _map_diff(previous["pages"], current["pages"]),
+    }
+
+
+def _parse_semver(value: str) -> tuple[int, int, int]:
+    match = re.fullmatch(r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)", value.strip())
+    if not match:
+        raise HTTPException(status_code=422, detail="Version must use major.minor.patch format")
+    return tuple(int(item) for item in match.groups())  # type: ignore[return-value]
+
+
+async def publish_badge_version(request: Request, badge_uuid: str, version_uuid: str, data: LearningBadgeVersionPublish, current_user, db_session: Session) -> dict:
+    badge = _get_badge(db_session, badge_uuid)
+    admin = _require_org_admin(db_session, current_user, badge.org_id)
+    version = _get_badge_version(db_session, badge, version_uuid)
+    _ensure_draft(version)
+    if data.expected_revision is not None and data.expected_revision != version.revision:
+        raise HTTPException(status_code=409, detail="This draft changed before it could be published. Reload and review the diff again.")
+    parsed = _parse_semver(data.semantic_version)
+    published = db_session.exec(select(LearningBadgeVersion).where(LearningBadgeVersion.badge_id == badge.id, LearningBadgeVersion.state == LearningBadgeVersionState.PUBLISHED)).all()
+    if any(item.semantic_version == data.semantic_version for item in published):
+        raise HTTPException(status_code=409, detail="That semantic version already exists")
+    existing_versions = [_parse_semver(item.semantic_version) for item in published if item.semantic_version]
+    if existing_versions and parsed <= max(existing_versions):
+        raise HTTPException(status_code=422, detail="A new release must be greater than the latest published version")
+    definition = version.definition or {}
+    for field in ("name", "description", "criteria"):
+        if not str(definition.get(field) or "").strip():
+            raise HTTPException(status_code=422, detail=f"Achievement {field} is required")
+    now = datetime.utcnow()
+    version.state = LearningBadgeVersionState.PUBLISHED
+    version.semantic_version = data.semantic_version
+    version.title = data.title.strip() or version.title
+    version.description = data.description or ""
+    version.published_by_user_id = admin.id
+    version.published_at = now
+    version.update_date = str(now)
+    version.revision += 1
+    db_session.add(version)
+    if data.set_active or not badge.active_version_id:
+        badge.active_version_id = version.id
+        badge.status = LearningBadgeStatus.PUBLISHED
+        for key in VERSIONED_BADGE_FIELDS:
+            if key in definition:
+                setattr(badge, key, deepcopy(definition[key]))
+        badge.update_date = str(now)
+        db_session.add(badge)
+    db_session.commit()
+    db_session.refresh(version)
+    return _version_summary(version, badge.active_version_id)
+
+
+async def activate_badge_version(request: Request, badge_uuid: str, version_uuid: str, current_user, db_session: Session) -> dict:
+    badge = _get_badge(db_session, badge_uuid)
+    _require_org_admin(db_session, current_user, badge.org_id)
+    version = _get_badge_version(db_session, badge, version_uuid, require_published=True)
+    badge.active_version_id = version.id
+    for key in VERSIONED_BADGE_FIELDS:
+        if key in (version.definition or {}):
+            setattr(badge, key, deepcopy(version.definition[key]))
+    badge.status = LearningBadgeStatus.PUBLISHED
+    badge.update_date = _now()
+    db_session.add(badge)
+    db_session.commit()
+    return _version_summary(version, badge.active_version_id)
+
+
+async def deactivate_badge_version(request: Request, badge_uuid: str, version_uuid: str, current_user, db_session: Session) -> dict:
+    badge = _get_badge(db_session, badge_uuid)
+    _require_org_admin(db_session, current_user, badge.org_id)
+    version = _get_badge_version(db_session, badge, version_uuid, require_published=True)
+    if badge.active_version_id != version.id:
+        raise HTTPException(status_code=409, detail="This version is not active")
+    badge.active_version_id = None
+    badge.status = LearningBadgeStatus.DRAFT
+    badge.update_date = _now()
+    db_session.add(badge)
+    db_session.commit()
+    return _version_summary(version, badge.active_version_id)
+
+
+async def delete_badge_version_draft(request: Request, badge_uuid: str, version_uuid: str, current_user, db_session: Session) -> dict:
+    badge = _get_badge(db_session, badge_uuid)
+    _require_org_admin(db_session, current_user, badge.org_id)
+    version = _get_badge_version(db_session, badge, version_uuid)
+    _ensure_draft(version)
+    db_session.delete(version)
+    db_session.commit()
+    return {"detail": "Draft deleted"}
 
 
 async def update_badge(
@@ -3629,16 +4081,32 @@ async def update_badge(
     data: LearningBadgeUpdate,
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
+    version_uuid: str | None = None,
 ) -> LearningBadgeRead:
     badge = _get_badge(db_session, badge_uuid)
     _require_org_admin(db_session, current_user, badge.org_id)
-    for key, value in _strip_system_fields(data.model_dump(exclude_unset=True)).items():
-        setattr(badge, key, value)
+    version = _get_badge_version(db_session, badge, version_uuid)
+    definition = deepcopy(version.definition or {})
+    patch = _strip_system_fields(data.model_dump(exclude_unset=True))
+    versioned_patch = {key for key in patch if key in VERSIONED_BADGE_FIELDS}
+    if versioned_patch:
+        _ensure_draft(version)
+    for key, value in patch.items():
+        if key in VERSIONED_BADGE_FIELDS:
+            definition[key] = value
+        elif key in ("collection_id", "public", "marketplace_listed"):
+            setattr(badge, key, value)
+        elif key == "status":
+            raise HTTPException(status_code=422, detail="Publish and activate versions from the version toolbar")
+    if versioned_patch:
+        version.definition = definition
+        _bump_version(version)
+        db_session.add(version)
     badge.update_date = _now()
     db_session.add(badge)
     db_session.commit()
-    db_session.refresh(badge)
-    return LearningBadgeRead(**badge.model_dump())
+    db_session.refresh(version)
+    return _versioned_badge_read(db_session, badge, version)
 
 
 async def update_badge_thumbnail(
@@ -3647,9 +4115,12 @@ async def update_badge_thumbnail(
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
     thumbnail_file: UploadFile | None = None,
+    version_uuid: str | None = None,
 ) -> LearningBadgeRead:
     badge = _get_badge(db_session, badge_uuid)
     _require_org_admin(db_session, current_user, badge.org_id)
+    version = _get_badge_version(db_session, badge, version_uuid)
+    _ensure_draft(version)
     org = _get_org(db_session, badge.org_id)
 
     if not thumbnail_file or not thumbnail_file.filename:
@@ -3663,15 +4134,15 @@ async def update_badge_thumbnail(
         allowed_types=["image"],
         filename_prefix="thumbnail",
     )
-    badge.thumbnail_image = (
+    thumbnail_image = (
         f"/content/orgs/{org.org_uuid}/badges/{badge.badge_uuid}/thumbnails/{filename}"
     )
-    badge.update_date = _now()
-
-    db_session.add(badge)
+    version.definition = {**(version.definition or {}), "thumbnail_image": thumbnail_image}
+    _bump_version(version)
+    db_session.add(version)
     db_session.commit()
-    db_session.refresh(badge)
-    return LearningBadgeRead(**badge.model_dump())
+    db_session.refresh(version)
+    return _versioned_badge_read(db_session, badge, version)
 
 
 async def create_badge_notification_signup(
@@ -3717,10 +4188,12 @@ async def get_badge(
     badge_uuid: str,
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
+    version_uuid: str | None = None,
 ) -> LearningBadgeRead:
     badge = _get_badge(db_session, badge_uuid)
     _ensure_read_badge(db_session, badge, current_user)
-    return LearningBadgeRead(**badge.model_dump())
+    version = _get_badge_version(db_session, badge, version_uuid) if (version_uuid or badge.active_version_id) else None
+    return _versioned_badge_read(db_session, badge, version)
 
 
 async def list_badges(
@@ -4042,10 +4515,27 @@ async def get_path(
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
     actor: LearningActor | None = None,
+    version_uuid: str | None = None,
 ) -> LearningPathRead:
     badge = _get_badge(db_session, badge_uuid)
     _ensure_read_badge(db_session, badge, current_user)
-    path = _get_path_for_badge(db_session, badge)
+    desired_version = _get_badge_version(db_session, badge, version_uuid) if (version_uuid or badge.active_version_id) else _get_badge_version(db_session, badge)
+    if actor:
+        run_statement = select(LearningRun).where(
+            LearningRun.badge_id == badge.id,
+            LearningRun.badge_version_id == desired_version.id,
+        )
+        for owner_filter in _actor_filters(LearningRun, actor):
+            run_statement = run_statement.where(owner_filter)
+        pinned_run = db_session.exec(run_statement.order_by(LearningRun.started_at.desc())).first()  # type: ignore
+        version = db_session.get(LearningBadgeVersion, pinned_run.badge_version_id) if pinned_run and pinned_run.badge_version_id else desired_version
+    else:
+        version = desired_version
+    path = _get_path_for_badge(
+        db_session, badge, version, create=version.state == LearningBadgeVersionState.DRAFT
+    )
+    if not path:
+        raise HTTPException(status_code=404, detail="This Achievement has no learning path")
     activities = db_session.exec(
         select(LearningActivity)
         .where(LearningActivity.path_id == path.id)
@@ -4055,7 +4545,10 @@ async def get_path(
         activities = [activity for activity in activities if activity.published]
     pages = db_session.exec(
         select(LearningPage)
-        .where(LearningPage.badge_id == badge.id)
+        .where(
+            LearningPage.badge_id == badge.id,
+            LearningPage.version_id == version.id,
+        )
         .order_by(LearningPage.order.asc())
     ).all()  # type: ignore
     pages_by_activity: dict[int, list[LearningPage]] = {}
@@ -4071,14 +4564,19 @@ async def get_path(
         if run_obj:
             run = _serialize_run(db_session, run_obj)
         if actor.user_id is not None:
-            candidate = db_session.exec(select(LearningBadgeAward).where(LearningBadgeAward.badge_id == badge.id, LearningBadgeAward.user_id == actor.user_id)).first()
+            major_version = int((version.semantic_version or "1.0.0").split(".")[0])
+            candidate = db_session.exec(select(LearningBadgeAward).where(
+                LearningBadgeAward.badge_id == badge.id,
+                LearningBadgeAward.user_id == actor.user_id,
+                LearningBadgeAward.major_version == major_version,
+            )).first()
             if candidate and (candidate.source.value if hasattr(candidate.source, "value") else str(candidate.source)) != LearningAwardSource.PATH_COMPLETION.value:
                 non_path_award = candidate
                 if run:
                     run.award = candidate.model_dump()
     return LearningPathRead(
         path=path.model_dump(),
-        badge=LearningBadgeRead(**badge.model_dump()),
+        badge=_versioned_badge_read(db_session, badge, version),
         activities=[] if non_path_award else [
             _serialize_activity(activity, pages_by_activity.get(activity.id or 0, []))
             for activity in activities
@@ -4095,18 +4593,21 @@ async def create_activity(
 ) -> LearningActivityRead:
     badge = _get_badge(db_session, data.badge_uuid)
     _require_org_admin(db_session, current_user, badge.org_id)
-    path = _get_path_for_badge(db_session, badge)
+    version = _get_badge_version(db_session, badge, data.version_uuid)
+    _ensure_draft(version)
+    path = _get_path_for_badge(db_session, badge, version)
     existing = db_session.exec(
         select(LearningActivity)
         .where(LearningActivity.path_id == path.id)
         .order_by(LearningActivity.order.asc())
     ).all()  # type: ignore
     now = _now()
-    payload = data.model_dump(exclude={"badge_uuid"})
+    payload = data.model_dump(exclude={"badge_uuid", "version_uuid"})
     activity = LearningActivity(
         **payload,
         path_id=path.id or 0,
         badge_id=badge.id or 0,
+        version_id=version.id,
         org_id=badge.org_id,
         order=(existing[-1].order + 1) if existing else 1,
         activity_uuid=f"learning_activity_{uuid4()}",
@@ -4119,6 +4620,7 @@ async def create_activity(
     page = LearningPage(
         activity_id=activity.id or 0,
         badge_id=badge.id or 0,
+        version_id=version.id,
         org_id=badge.org_id,
         page_type=LearningPageType.STANDARD,
         title="Untitled page",
@@ -4140,6 +4642,8 @@ async def create_activity(
         }
         activity.update_date = now
         db_session.add(activity)
+    _bump_version(version)
+    db_session.add(version)
     db_session.commit()
     db_session.refresh(activity)
     db_session.refresh(page)
@@ -4159,7 +4663,9 @@ async def import_activity(
 
     badge = _get_badge(db_session, data.badge_uuid)
     _require_org_admin(db_session, current_user, badge.org_id)
-    path = _get_path_for_badge(db_session, badge)
+    version = _get_badge_version(db_session, badge, data.version_uuid)
+    _ensure_draft(version)
+    path = _get_path_for_badge(db_session, badge, version)
     existing = db_session.exec(
         select(LearningActivity)
         .where(LearningActivity.path_id == path.id)
@@ -4248,6 +4754,7 @@ async def import_activity(
     activity = LearningActivity(
         path_id=path.id or 0,
         badge_id=badge.id or 0,
+        version_id=version.id,
         org_id=badge.org_id,
         title=data.title.strip() or "Imported Google Form",
         description=data.description or "",
@@ -4267,6 +4774,7 @@ async def import_activity(
         page = LearningPage(
             activity_id=activity.id or 0,
             badge_id=badge.id or 0,
+            version_id=version.id,
             org_id=badge.org_id,
             page_type=LearningPageType.STANDARD,
             title=page_data.title.strip() or f"Question {index + 1}",
@@ -4283,6 +4791,8 @@ async def import_activity(
         db_session.add(page)
         pages.append(page)
 
+    _bump_version(version)
+    db_session.add(version)
     db_session.commit()
     db_session.refresh(activity)
     for page in pages:
@@ -4299,6 +4809,7 @@ async def update_activity(
 ) -> LearningActivityRead:
     activity = _get_activity(db_session, activity_uuid)
     _require_org_admin(db_session, current_user, activity.org_id)
+    version = _assert_content_editable(db_session, activity.version_id)
     patch = data.model_dump(exclude_unset=True)
     if _is_locked_launch_ready_activity(activity) and patch.get("published") is False:
         raise HTTPException(
@@ -4325,6 +4836,8 @@ async def update_activity(
     for key, value in patch.items():
         setattr(activity, key, value)
     activity.update_date = _now()
+    _bump_version(version)
+    db_session.add(version)
     db_session.add(activity)
     db_session.commit()
     db_session.refresh(activity)
@@ -4344,6 +4857,7 @@ async def delete_activity(
 ) -> dict:
     activity = _get_activity(db_session, activity_uuid)
     _require_org_admin(db_session, current_user, activity.org_id)
+    version = _assert_content_editable(db_session, activity.version_id)
     if _is_locked_launch_ready_activity(activity):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -4362,6 +4876,8 @@ async def delete_activity(
                 detail="Badges must keep at least one activity",
             )
     db_session.delete(activity)
+    _bump_version(version)
+    db_session.add(version)
     db_session.commit()
     return {"detail": "Learning activity deleted"}
 
@@ -4374,6 +4890,7 @@ async def duplicate_activity(
 ) -> LearningActivityRead:
     activity = _get_activity(db_session, activity_uuid)
     _require_org_admin(db_session, current_user, activity.org_id)
+    version = _assert_content_editable(db_session, activity.version_id)
     if _is_locked_launch_ready_activity(activity):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -4393,6 +4910,7 @@ async def duplicate_activity(
     clone = LearningActivity(
         path_id=activity.path_id,
         badge_id=activity.badge_id,
+        version_id=activity.version_id,
         org_id=activity.org_id,
         title=f"{activity.title} Copy",
         description=activity.description,
@@ -4413,6 +4931,7 @@ async def duplicate_activity(
         cloned_page = LearningPage(
             activity_id=clone.id or 0,
             badge_id=page.badge_id,
+            version_id=page.version_id,
             org_id=page.org_id,
             page_type=page.page_type,
             title=page.title,
@@ -4428,6 +4947,8 @@ async def duplicate_activity(
         )
         db_session.add(cloned_page)
         cloned_pages.append(cloned_page)
+    _bump_version(version)
+    db_session.add(version)
     db_session.commit()
     db_session.refresh(clone)
     for page in cloned_pages:
@@ -4444,6 +4965,7 @@ async def convert_page_variants_to_flow(
 ) -> LearningActivityRead:
     activity = _get_activity(db_session, activity_uuid)
     _require_org_admin(db_session, current_user, activity.org_id)
+    _assert_content_editable(db_session, activity.version_id)
     pages = list(
         db_session.exec(
             select(LearningPage)
@@ -4727,6 +5249,7 @@ async def create_page(
 ) -> LearningPageRead:
     activity = _get_activity(db_session, data.activity_uuid)
     _require_org_admin(db_session, current_user, activity.org_id)
+    version = _assert_content_editable(db_session, activity.version_id)
     _validate_page_payload(data.page_type, data.content)
     if any(
         block.get("type") == "portfolio_preview"
@@ -4752,6 +5275,7 @@ async def create_page(
         **payload,
         activity_id=activity.id or 0,
         badge_id=activity.badge_id,
+        version_id=activity.version_id,
         org_id=activity.org_id,
         order=(pages[-1].order + 1) if pages else 1,
         page_uuid=f"learning_page_{uuid4()}",
@@ -4759,6 +5283,8 @@ async def create_page(
         update_date=now,
     )
     db_session.add(page)
+    _bump_version(version)
+    db_session.add(version)
     db_session.commit()
     db_session.refresh(page)
     return _serialize_page(page)
@@ -4773,6 +5299,7 @@ async def update_page(
 ) -> LearningPageRead:
     page = _get_page(db_session, page_uuid)
     _require_org_admin(db_session, current_user, page.org_id)
+    version = _assert_content_editable(db_session, page.version_id)
     patch = data.model_dump(exclude_unset=True)
     if "content" in patch or "page_type" in patch:
         _validate_page_payload(
@@ -4799,6 +5326,8 @@ async def update_page(
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(page, key, value)
     page.update_date = _now()
+    _bump_version(version)
+    db_session.add(version)
     db_session.add(page)
     db_session.commit()
     db_session.refresh(page)
@@ -4813,6 +5342,7 @@ async def delete_page(
 ) -> dict:
     page = _get_page(db_session, page_uuid)
     _require_org_admin(db_session, current_user, page.org_id)
+    version = _assert_content_editable(db_session, page.version_id)
     badge = db_session.get(LearningBadge, page.badge_id)
     if badge and _is_system_object(badge):
         sibling_count = db_session.exec(
@@ -4826,6 +5356,8 @@ async def delete_page(
                 detail="Activities must keep at least one page",
             )
     db_session.delete(page)
+    _bump_version(version)
+    db_session.add(version)
     db_session.commit()
     return {"detail": "Learning page deleted"}
 
@@ -4839,6 +5371,7 @@ async def upload_page_media(
 ) -> dict:
     page = _get_page(db_session, page_uuid)
     _require_org_admin(db_session, current_user, page.org_id)
+    _assert_content_editable(db_session, page.version_id)
     org = _get_org(db_session, page.org_id)
 
     if not media_file or not media_file.filename:
@@ -5010,7 +5543,15 @@ async def start_or_resume_run(
         _validate_issuer_selection(db_session, badge, issuing_org_id, actor.user_id)
         if issuing_org_id == badge.org_id:
             issuing_org_id = None
-    path = _get_path_for_badge(db_session, badge)
+    version = _get_badge_version(db_session, badge, require_published=True)
+    path = _get_path_for_badge(db_session, badge, version, create=False)
+    if not path:
+        raise HTTPException(status_code=409, detail="This Achievement does not have a learning path")
+    activity_count = db_session.exec(
+        select(func.count(LearningActivity.id)).where(LearningActivity.path_id == path.id)
+    ).one()
+    if not activity_count:
+        raise HTTPException(status_code=409, detail="This Achievement does not have a learning path")
     statement = select(LearningRun).where(LearningRun.path_id == path.id)
     for owner_filter in _actor_filters(LearningRun, actor):
         statement = statement.where(owner_filter)
@@ -5021,6 +5562,7 @@ async def start_or_resume_run(
             run_uuid=f"learning_run_{uuid4()}",
             badge_id=badge.id or 0,
             path_id=path.id or 0,
+            badge_version_id=version.id,
             org_id=badge.org_id,
             issuing_org_id=issuing_org_id,
             user_id=actor.user_id,
@@ -5053,6 +5595,8 @@ async def complete_page(
 ) -> LearningRunRead:
     run = _get_run(db_session, data.run_uuid, actor)
     page = _get_page(db_session, data.page_uuid)
+    if page.version_id != run.badge_version_id:
+        raise HTTPException(status_code=409, detail="This page belongs to a different Achievement version")
     activity = db_session.get(LearningActivity, page.activity_id)
     if not activity:
         raise HTTPException(status_code=404, detail="Learning activity not found")
@@ -5235,6 +5779,8 @@ async def submit_response(
 ) -> LearningRunRead:
     run = _get_run(db_session, data.run_uuid, actor)
     page = _get_page(db_session, data.page_uuid)
+    if page.version_id != run.badge_version_id:
+        raise HTTPException(status_code=409, detail="This page belongs to a different Achievement version")
     if _question_block(page) is None:
         raise HTTPException(
             status_code=422,
@@ -5516,6 +6062,8 @@ async def confer_award(
     db_session: Session,
 ) -> dict:
     badge = _get_badge(db_session, data.badge_uuid)
+    version = _get_badge_version(db_session, badge, require_published=True)
+    major_version = int((version.semantic_version or "1.0.0").split(".")[0])
     issuing_org_id = (
         data.issuing_org_id if data.issuing_org_id != badge.org_id else None
     )
@@ -5541,6 +6089,7 @@ async def confer_award(
         select(LearningBadgeAward).where(
             LearningBadgeAward.badge_id == badge.id,
             LearningBadgeAward.user_id == user.id,
+            LearningBadgeAward.major_version == major_version,
         )
     ).first()
     if existing:
@@ -5549,6 +6098,8 @@ async def confer_award(
     award = LearningBadgeAward(
         award_uuid=f"award_{uuid4()}",
         badge_id=badge.id or 0,
+        badge_version_id=version.id,
+        major_version=major_version,
         org_id=badge.org_id,
         issuing_org_id=issuing_org_id,
         user_id=user.id or 0,
@@ -5780,6 +6331,14 @@ def build_award_response(
     user = db_session.exec(select(User).where(User.id == award.user_id)).first()
     if not badge or not user:
         raise HTTPException(status_code=404, detail="Badge award data not found")
+    version = _version_for_content(db_session, award.badge_version_id)
+    if version:
+        definition = deepcopy(version.definition or {})
+        definition["badge_metadata"] = {
+            **(definition.get("badge_metadata") or {}),
+            "achievement_version": version.semantic_version,
+        }
+        badge = badge.model_copy(update=definition)
     org = _get_org(db_session, badge.org_id)
     org_config = _get_org_config(db_session, badge.org_id)
     if award.issuing_org_id is not None and award.issuing_org_id != badge.org_id:
@@ -5798,7 +6357,7 @@ def build_award_response(
     )
     return {
         "award": award.model_dump(),
-        "badge": LearningBadgeRead(**badge.model_dump()).model_dump(),
+        "badge": _versioned_badge_read(db_session, badge, version).model_dump(),
         "badge_assertion": assertion,
         "badge_class": badge_class,
         "issuer": issuer,

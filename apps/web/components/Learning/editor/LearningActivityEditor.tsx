@@ -137,6 +137,7 @@ import VisualFlowEditor, {
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import type { MediaAsset } from '@services/media/library'
 import { TimelineCardView, type TimelineEntry } from '@components/Pages/Portfolio/Timeline'
+import BadgeVersionToolbar from '@components/Learning/BadgeVersionToolbar'
 
 export default function LearningActivityEditor({
   orgslug: _orgslug,
@@ -151,6 +152,7 @@ export default function LearningActivityEditor({
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
   const badge = badgePath.badge
+  const isDraft = badge.selected_version?.state === 'draft'
   const [activityState, setActivityState] = React.useState(activity)
   const [viewMode, setViewMode] = React.useState<EditorViewMode>('editor')
   const [pages, setPages] = React.useState<any[]>(() => normalizeInitialPages(activity.pages || []))
@@ -293,7 +295,7 @@ export default function LearningActivityEditor({
     const flush = (event?: BeforeUnloadEvent) => {
       void flushPendingPages()
       void flushPendingActivity()
-      if (invalidFlowRef.current && event) {
+      if ((invalidFlowRef.current || Object.keys(pendingPagePatchesRef.current).length || Object.keys(pendingActivityPatchRef.current).length) && event) {
         event.preventDefault()
         event.returnValue = ''
       }
@@ -904,6 +906,11 @@ export default function LearningActivityEditor({
 
   return (
     <div className="flex h-screen w-full min-w-0 flex-col overflow-hidden bg-gray-50 text-gray-950">
+      <div className="flex shrink-0 items-center border-b border-gray-200 bg-white px-4 py-2">
+        <BadgeVersionToolbar badge={badge} saveState={saveState === 'dirty' ? 'unsaved' : saveState} />
+      </div>
+      {!isDraft ? <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-5 py-2 text-center text-xs font-semibold text-amber-900">Published versions are immutable. Create a draft from this version to edit the activity.</div> : null}
+      <fieldset disabled={!isDraft} className={`flex min-h-0 flex-1 flex-col border-0 p-0 ${!isDraft ? '[&_[contenteditable=true]]:pointer-events-none [&_[contenteditable=true]]:select-none' : ''}`}>
       <input ref={mediaInputRef} type="file" accept="image/*" className="hidden" onChange={handleMediaPicked} />
       <MediaPickerDialog
         open={Boolean(uploadingBlockId)}
@@ -1097,6 +1104,7 @@ export default function LearningActivityEditor({
       {previewOpen && (
         <PreviewModal pages={pages} selectedPage={selectedPage} onClose={() => setPreviewOpen(false)} />
       )}
+      </fieldset>
     </div>
   )
 }

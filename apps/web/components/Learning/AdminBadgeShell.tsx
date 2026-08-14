@@ -3,19 +3,13 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React from 'react'
-import { ArrowDown, ArrowLeftRight, ArrowUp, Award, Check, ChevronDown, ClipboardCheck, Clock, Eye, GalleryVerticalEnd, Globe, GlobeLock, Handshake, Image as ImageIcon, Info, Loader2, Pencil, Plus, Settings, Trash2, X } from 'lucide-react'
+import { ArrowDown, ArrowLeftRight, ArrowUp, Award, Check, ClipboardCheck, Eye, GalleryVerticalEnd, Handshake, Image as ImageIcon, Info, Loader2, Pencil, Plus, Settings, Trash2, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import toast from 'react-hot-toast'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { Button } from '@components/ui/button'
 import { Switch } from '@components/ui/switch'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@components/ui/dropdown-menu'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg } from '@services/config/config'
@@ -24,8 +18,7 @@ import { approveIssuerAuthorization, getIssuerAuthorizations, inviteIssuerOrg, r
 import CertificatePreview from '@components/Learning/BadgeCertificatePreview'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
-
-type BadgeStatus = 'draft' | 'coming_soon' | 'published'
+import BadgeVersionToolbar from '@components/Learning/BadgeVersionToolbar'
 
 const tabs = [
   { key: 'learning-path', label: 'Learning Path', icon: GalleryVerticalEnd },
@@ -60,12 +53,16 @@ export default function AdminBadgeShell({
   const [draftName, setDraftName] = React.useState(initialBadge.name || '')
   const [savingField, setSavingField] = React.useState<'name' | null>(null)
   const [isUploading, setIsUploading] = React.useState(false)
-  const [updatingStatus, setUpdatingStatus] = React.useState(false)
-  const [updatingVisibility, setUpdatingVisibility] = React.useState(false)
   const normalizedSubpage = getActiveSubpage(activeSubpage)
 
+  React.useEffect(() => {
+    setBadge(initialBadge)
+    setDraftName(initialBadge.name || '')
+    setEditingField(null)
+  }, [initialBadge])
+
   const patchBadge = async (patch: Record<string, any>, successMessage?: string) => {
-    const nextBadge = await updateLearningBadge(badge.badge_uuid, patch, accessToken)
+    const nextBadge = await updateLearningBadge(badge.badge_uuid, patch, accessToken, badge.selected_version?.version_uuid)
     setBadge(nextBadge)
     if (successMessage) toast.success(successMessage)
     return nextBadge
@@ -89,31 +86,6 @@ export default function AdminBadgeShell({
     }
   }
 
-  const updateStatus = async (status: BadgeStatus) => {
-    if (updatingStatus) return
-    if ((badge.status || 'draft') === status) return
-    setUpdatingStatus(true)
-    try {
-      await patchBadge({ status }, 'Badge status updated.')
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to update status.')
-    } finally {
-      setUpdatingStatus(false)
-    }
-  }
-
-  const updateVisibility = async (isPublic: boolean) => {
-    if (updatingVisibility || badge.public === isPublic) return
-    setUpdatingVisibility(true)
-    try {
-      await patchBadge({ public: isPublic }, 'Access updated.')
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to update visibility.')
-    } finally {
-      setUpdatingVisibility(false)
-    }
-  }
-
   const handleThumbnailSelect = async (url: string) => {
     setIsUploading(true)
     try {
@@ -128,8 +100,8 @@ export default function AdminBadgeShell({
   }
 
   const publicBadgeHref = getUriWithOrg(orgslug, `/badges/${cleanBadgeId(badge.badge_uuid)}`)
-  const currentStatus: BadgeStatus = getBadgeStatus(badge)
   const imageUrl = badge.thumbnail_image
+  const isDraft = badge.selected_version?.state === 'draft'
 
   return (
     <div className="min-h-full w-full bg-[#f8f8f8]">
@@ -159,7 +131,7 @@ export default function AdminBadgeShell({
                 buttonSize="icon"
                 buttonVariant="secondary"
                 className="h-8 w-8 shadow-md"
-                disabled={isUploading}
+                disabled={isUploading || !isDraft}
                 onSelect={handleThumbnailSelect}
               />
             </div>
@@ -171,7 +143,7 @@ export default function AdminBadgeShell({
               isEditing={editingField === 'name'}
               value={draftName}
               onChange={setDraftName}
-              onEdit={() => setEditingField('name')}
+              onEdit={() => isDraft && setEditingField('name')}
               onSave={saveName}
               isSaving={savingField === 'name'}
             />
@@ -180,53 +152,7 @@ export default function AdminBadgeShell({
             </p>
 
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2 md:justify-start">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-2 bg-card" disabled={updatingStatus}>
-                    {updatingStatus ? <Loader2 className="animate-spin" /> : <StatusIcon status={currentStatus} />}
-                    <span>{getStatusLabel(currentStatus)}</span>
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  <DropdownMenuItem onClick={() => updateStatus('draft')}>
-                    <GlobeLock className="h-4 w-4" />
-                    Draft
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => updateStatus('coming_soon')}>
-                    <Clock className="h-4 w-4" />
-                    Coming soon
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => updateStatus('published')}>
-                    <Globe className="h-4 w-4" />
-                    Published
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <div className="inline-flex overflow-hidden rounded-md border border-border bg-card">
-                <Button
-                  type="button"
-                  variant={badge.public === true ? 'default' : 'ghost'}
-                  className={`h-10 rounded-none gap-2 px-3 ${badge.public === true ? '' : 'text-muted-foreground'}`}
-                  disabled={updatingVisibility}
-                  onClick={() => updateVisibility(true)}
-                  title="Public badges appear in learner badge lists."
-                >
-                  {updatingVisibility && badge.public !== true ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
-                  Public
-                </Button>
-                <Button
-                  type="button"
-                  variant={badge.public === false ? 'default' : 'ghost'}
-                  className={`h-10 rounded-none gap-2 px-3 ${badge.public === false ? '' : 'text-muted-foreground'}`}
-                  disabled={updatingVisibility}
-                  onClick={() => updateVisibility(false)}
-                  title="Private badges are visible only within this org."
-                >
-                  {updatingVisibility && badge.public !== false ? <Loader2 className="h-4 w-4 animate-spin" /> : <GlobeLock className="h-4 w-4" />}
-                  Private
-                </Button>
-              </div>
+              <BadgeVersionToolbar badge={badge} />
               <Button asChild variant="outline" className="gap-2 bg-card">
                 <Link href={publicBadgeHref} target="_blank">
                   <Eye className="h-4 w-4" />
@@ -242,7 +168,7 @@ export default function AdminBadgeShell({
             const Icon = tab.icon
             const isActive = normalizedSubpage === tab.key
             return (
-              <Link key={tab.key} href={getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/${tab.key}`)} replace>
+              <Link key={tab.key} href={`${getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/${tab.key}`)}?version=${badge.selected_version?.version_uuid || ''}`} replace>
                 <div className={`flex w-fit cursor-pointer space-x-4 border-black py-2 text-center transition-all ease-linear ${isActive ? 'border-b-4' : 'opacity-50 hover:opacity-75'}`}>
                   <div className="mx-2 flex items-center space-x-2.5">
                     <Icon size={16} />
@@ -259,9 +185,9 @@ export default function AdminBadgeShell({
         {normalizedSubpage === 'learning-path' ? children : null}
         {normalizedSubpage === 'grading' ? <BadgeGradingPanel badge={badge} /> : null}
         {normalizedSubpage === 'issuers' ? <BadgeIssuersPanel badge={badge} onPatch={patchBadge} /> : null}
-        {normalizedSubpage === 'about' ? <BadgeAboutPanel badge={badge} onPatch={patchBadge} /> : null}
-        {normalizedSubpage === 'settings' ? <BadgeSettingsPanel orgslug={orgslug} badge={badge} onPatch={patchBadge} /> : null}
-        {normalizedSubpage === 'certification' ? <BadgeCertificationPanel badge={badge} onPatch={patchBadge} /> : null}
+        {normalizedSubpage === 'about' ? <fieldset disabled={!isDraft}><BadgeAboutPanel badge={badge} onPatch={patchBadge} /></fieldset> : null}
+        {normalizedSubpage === 'settings' ? <BadgeSettingsPanel orgslug={orgslug} badge={badge} onPatch={patchBadge} isDraft={isDraft} /> : null}
+        {normalizedSubpage === 'certification' ? <fieldset disabled={!isDraft}><BadgeCertificationPanel badge={badge} onPatch={patchBadge} /></fieldset> : null}
       </motion.div>
     </div>
   )
@@ -743,7 +669,7 @@ function BadgeAboutPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Reco
   )
 }
 
-function BadgeSettingsPanel({ orgslug, badge, onPatch }: { orgslug: string; badge: any; onPatch: (patch: Record<string, any>, successMessage?: string) => Promise<any> }) {
+function BadgeSettingsPanel({ orgslug, badge, onPatch, isDraft }: { orgslug: string; badge: any; onPatch: (patch: Record<string, any>, successMessage?: string) => Promise<any>; isDraft: boolean }) {
   const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
@@ -782,7 +708,8 @@ function BadgeSettingsPanel({ orgslug, badge, onPatch }: { orgslug: string; badg
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <h2 className="text-lg font-bold text-foreground">Settings</h2>
         <div className="mt-4 divide-y divide-border">
-          <SettingRow title="Direct issuance" description="Allow authorized admins to create an OpenBadgeCredential without learning-path completion." disabled={savingKey === 'direct_conferral_enabled'} checked={badge.direct_conferral_enabled === true} onChange={(value) => toggle('direct_conferral_enabled', value, 'Direct issuance setting updated.')} />
+          <SettingRow title="Public visibility" description="Show this badge in public badge listings. Private badges remain available only within this organization." disabled={savingKey === 'public'} checked={badge.public === true} onChange={(value) => toggle('public', value, value ? 'Badge is now public.' : 'Badge is now private.')} />
+          <SettingRow title="Direct issuance" description={isDraft ? "Allow authorized admins to create an OpenBadgeCredential without learning-path completion." : "Create a draft version to change direct issuance."} disabled={!isDraft || savingKey === 'direct_conferral_enabled'} checked={badge.direct_conferral_enabled === true} onChange={(value) => toggle('direct_conferral_enabled', value, 'Direct issuance setting updated.')} />
         </div>
       </section>
       <section className="mt-6 max-w-4xl rounded-xl border border-red-100 bg-card p-6 shadow-xs">
@@ -1176,24 +1103,6 @@ function EditableHeaderField({
       </Button>
     </div>
   )
-}
-
-function StatusIcon({ status }: { status: BadgeStatus }) {
-  if (status === 'published') return <Globe className="h-4 w-4 text-green-700" />
-  if (status === 'coming_soon') return <Clock className="h-4 w-4 text-orange-700" />
-  return <GlobeLock className="h-4 w-4 text-yellow-700" />
-}
-
-function getBadgeStatus(badge: any): BadgeStatus {
-  const status = badge?.status
-  if (status === 'published' || status === 'coming_soon' || status === 'draft') return status
-  return 'draft'
-}
-
-function getStatusLabel(status: BadgeStatus) {
-  if (status === 'published') return 'Published'
-  if (status === 'coming_soon') return 'Coming soon'
-  return 'Draft'
 }
 
 function formatBadgeDate(value?: string) {

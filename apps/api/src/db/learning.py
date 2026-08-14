@@ -39,6 +39,11 @@ class LearningBadgeStatus(str, Enum):
     PUBLISHED = "published"
 
 
+class LearningBadgeVersionState(str, Enum):
+    DRAFT = "draft"
+    PUBLISHED = "published"
+
+
 class LearningAwardSource(str, Enum):
     PATH_COMPLETION = "path_completion"
     DIRECT_CONFERRAL = "direct_conferral"
@@ -79,6 +84,7 @@ class LearningBadge(LearningBadgeBase, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     badge_uuid: str = Field(default="", index=True)
+    active_version_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadgeversion.id", ondelete="SET NULL"), nullable=True, index=True))
     creation_date: str = ""
     update_date: str = ""
 
@@ -127,6 +133,53 @@ class LearningBadgeRead(LearningBadgeBase):
     badge_uuid: str
     creation_date: str
     update_date: str
+    active_version_id: int | None = None
+    selected_version: dict | None = None
+    versions: list[dict] = Field(default_factory=list)
+
+
+class LearningBadgeVersion(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("version_uuid"),
+        UniqueConstraint("badge_id", "semantic_version"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    version_uuid: str = Field(default="", index=True)
+    badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
+    org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
+    state: LearningBadgeVersionState = Field(default=LearningBadgeVersionState.DRAFT, sa_column=Column(String, nullable=False, index=True))
+    semantic_version: str | None = Field(default=None, nullable=True)
+    title: str = "Untitled draft"
+    description: str | None = ""
+    based_on_version_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadgeversion.id", ondelete="SET NULL"), nullable=True, index=True))
+    definition: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    revision: int = 1
+    created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    published_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    published_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    creation_date: str = ""
+    update_date: str = ""
+
+
+class LearningBadgeVersionCreate(SQLModel):
+    based_on_version_uuid: str | None = None
+    title: str
+    description: str | None = ""
+
+
+class LearningBadgeVersionUpdate(SQLModel):
+    title: str | None = None
+    description: str | None = None
+    expected_revision: int | None = None
+
+
+class LearningBadgeVersionPublish(SQLModel):
+    semantic_version: str
+    title: str
+    description: str | None = ""
+    set_active: bool = True
+    expected_revision: int | None = None
 
 
 class LearningBadgeNotificationSignup(SQLModel, table=True):
@@ -274,11 +327,12 @@ class IssuerLearnerLinkCreate(SQLModel):
 
 
 class LearningPath(SQLModel, table=True):
-    __table_args__ = (UniqueConstraint("badge_id"), UniqueConstraint("path_uuid"))
+    __table_args__ = (UniqueConstraint("path_uuid"), UniqueConstraint("badge_id", "version_id"))
 
     id: int | None = Field(default=None, primary_key=True)
     path_uuid: str = Field(default="", index=True)
     badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
+    version_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadgeversion.id", ondelete="CASCADE"), nullable=True, index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     title: str | None = ""
     description: str | None = ""
@@ -289,6 +343,7 @@ class LearningPath(SQLModel, table=True):
 class LearningActivityBase(SQLModel):
     path_id: int = Field(sa_column=Column(Integer, ForeignKey("learningpath.id", ondelete="CASCADE"), index=True))
     badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
+    version_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadgeversion.id", ondelete="CASCADE"), nullable=True, index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     title: str
     description: str | None = ""
@@ -311,6 +366,7 @@ class LearningActivity(LearningActivityBase, table=True):
 
 class LearningActivityCreate(SQLModel):
     badge_uuid: str
+    version_uuid: str | None = None
     title: str
     description: str | None = ""
     thumbnail_image: str | None = ""
@@ -331,6 +387,7 @@ class LearningActivityImportPage(SQLModel):
 
 class LearningActivityImport(SQLModel):
     badge_uuid: str
+    version_uuid: str | None = None
     title: str
     description: str | None = ""
     settings: dict = Field(default_factory=dict)
@@ -359,6 +416,7 @@ class LearningActivityRead(LearningActivityBase):
 class LearningPageBase(SQLModel):
     activity_id: int = Field(sa_column=Column(Integer, ForeignKey("learningactivity.id", ondelete="CASCADE"), index=True))
     badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
+    version_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadgeversion.id", ondelete="CASCADE"), nullable=True, index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     page_type: LearningPageType = Field(sa_column=Column(String, nullable=False))
     title: str
@@ -456,6 +514,7 @@ class LearningRun(SQLModel, table=True):
     run_uuid: str = Field(default="", index=True)
     badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
     path_id: int = Field(sa_column=Column(Integer, ForeignKey("learningpath.id", ondelete="CASCADE"), index=True))
+    badge_version_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadgeversion.id", ondelete="RESTRICT"), nullable=True, index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     # Org the learner is earning the badge under; None means the badge's creator org.
     issuing_org_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("organization.id", ondelete="SET NULL"), nullable=True, index=True))
@@ -512,11 +571,13 @@ class LearningResponseAttempt(SQLModel, table=True):
 
 
 class LearningBadgeAward(SQLModel, table=True):
-    __table_args__ = (UniqueConstraint("award_uuid"), UniqueConstraint("badge_id", "user_id"))
+    __table_args__ = (UniqueConstraint("award_uuid"), UniqueConstraint("badge_id", "user_id", "major_version"))
 
     id: int | None = Field(default=None, primary_key=True)
     award_uuid: str = Field(default="", index=True)
     badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
+    badge_version_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadgeversion.id", ondelete="RESTRICT"), nullable=True, index=True))
+    major_version: int = 1
     run_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningrun.id", ondelete="SET NULL"), nullable=True, index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     # Org that issued the award; None means the badge's creator org issued it.
@@ -535,6 +596,7 @@ class LearningRunRead(BaseModel):
     run_uuid: str
     badge_id: int
     path_id: int
+    badge_version_id: int | None = None
     org_id: int
     issuing_org_id: int | None = None
     user_id: int | None = None

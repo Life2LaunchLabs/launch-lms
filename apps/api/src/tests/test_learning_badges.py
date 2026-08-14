@@ -7,6 +7,8 @@ from src.db.learning import (
     LearningBadgeAward,
     LearningBadgeCreate,
     LearningBadgeStatus,
+    LearningBadgeVersion,
+    LearningBadgeVersionState,
     LearningPage,
     LearningPageType,
     LearningPath,
@@ -26,6 +28,8 @@ from src.services.learning import (
     build_learning_assertion_payload,
     build_learning_badge_class_payload,
     create_badge,
+    _ensure_draft,
+    _parse_semver,
 )
 from src.services.learning_page_convert import (
     convert_legacy_page,
@@ -106,6 +110,41 @@ async def test_create_badge_rolls_back_when_default_path_cannot_be_committed(mon
 
     assert session.commit_count == 1
     assert session.rollback_count == 1
+
+
+def test_published_badge_versions_are_immutable():
+    version = LearningBadgeVersion(
+        version_uuid="badge_version_release",
+        badge_id=1,
+        org_id=1,
+        state=LearningBadgeVersionState.PUBLISHED,
+        semantic_version="1.0.0",
+        title="First release",
+    )
+    with pytest.raises(HTTPException, match="Published versions are read-only"):
+        _ensure_draft(version)
+
+
+def test_draft_badge_versions_are_editable():
+    version = LearningBadgeVersion(
+        version_uuid="badge_version_draft",
+        badge_id=1,
+        org_id=1,
+        state=LearningBadgeVersionState.DRAFT,
+        title="Next release",
+    )
+    assert _ensure_draft(version) is None
+
+
+@pytest.mark.parametrize("value, expected", [("1.0.0", (1, 0, 0)), ("12.4.19", (12, 4, 19))])
+def test_badge_release_versions_use_semver(value, expected):
+    assert _parse_semver(value) == expected
+
+
+@pytest.mark.parametrize("value", ["1", "1.2", "v1.2.3", "1.2.3-beta", "01.2.3"])
+def test_badge_release_versions_reject_non_semver(value):
+    with pytest.raises(HTTPException, match="major.minor.patch"):
+        _parse_semver(value)
 
 
 def _request() -> Request:

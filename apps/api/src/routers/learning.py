@@ -16,6 +16,9 @@ from src.db.learning import (
     LearningBadgeCreate,
     LearningBadgeRead,
     LearningBadgeUpdate,
+    LearningBadgeVersionCreate,
+    LearningBadgeVersionPublish,
+    LearningBadgeVersionUpdate,
     LearningPageComplete,
     LearningPageCreate,
     LearningPageRead,
@@ -92,10 +95,11 @@ async def api_list_deleted_badges(
 async def api_get_badge(
     request: Request,
     badge_uuid: str,
+    version: str | None = Query(None),
     current_user=Depends(get_current_user),
     db_session=Depends(get_db_session),
 ) -> LearningBadgeRead:
-    return await learning_service.get_badge(request, badge_uuid, current_user, db_session)
+    return await learning_service.get_badge(request, badge_uuid, current_user, db_session, version_uuid=version)
 
 
 @badges_router.put("/{badge_uuid}")
@@ -103,21 +107,63 @@ async def api_update_badge(
     request: Request,
     badge_uuid: str,
     badge: LearningBadgeUpdate,
+    version: str | None = Query(None),
     current_user=Depends(get_current_user),
     db_session=Depends(get_db_session),
 ) -> LearningBadgeRead:
-    return await learning_service.update_badge(request, badge_uuid, badge, current_user, db_session)
+    return await learning_service.update_badge(request, badge_uuid, badge, current_user, db_session, version_uuid=version)
 
 
 @badges_router.put("/{badge_uuid}/thumbnail")
 async def api_update_badge_thumbnail(
     request: Request,
     badge_uuid: str,
+    version: str | None = Query(None),
     current_user=Depends(get_current_user),
     db_session=Depends(get_db_session),
     thumbnail: UploadFile = File(...),
 ) -> LearningBadgeRead:
-    return await learning_service.update_badge_thumbnail(request, badge_uuid, current_user, db_session, thumbnail)
+    return await learning_service.update_badge_thumbnail(request, badge_uuid, current_user, db_session, thumbnail, version_uuid=version)
+
+
+@badges_router.get("/{badge_uuid}/versions")
+async def api_list_badge_versions(request: Request, badge_uuid: str, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> list[dict]:
+    return await learning_service.list_badge_versions(request, badge_uuid, current_user, db_session)
+
+
+@badges_router.post("/{badge_uuid}/versions")
+async def api_create_badge_version(request: Request, badge_uuid: str, payload: LearningBadgeVersionCreate, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
+    return await learning_service.create_badge_version_draft(request, badge_uuid, payload, current_user, db_session)
+
+
+@badges_router.put("/{badge_uuid}/versions/{version_uuid}")
+async def api_update_badge_version(request: Request, badge_uuid: str, version_uuid: str, payload: LearningBadgeVersionUpdate, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
+    return await learning_service.update_badge_version_draft(request, badge_uuid, version_uuid, payload, current_user, db_session)
+
+
+@badges_router.get("/{badge_uuid}/versions/{version_uuid}/diff")
+async def api_get_badge_version_diff(request: Request, badge_uuid: str, version_uuid: str, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
+    return await learning_service.get_badge_version_diff(request, badge_uuid, version_uuid, current_user, db_session)
+
+
+@badges_router.post("/{badge_uuid}/versions/{version_uuid}/publish")
+async def api_publish_badge_version(request: Request, badge_uuid: str, version_uuid: str, payload: LearningBadgeVersionPublish, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
+    return await learning_service.publish_badge_version(request, badge_uuid, version_uuid, payload, current_user, db_session)
+
+
+@badges_router.post("/{badge_uuid}/versions/{version_uuid}/activate")
+async def api_activate_badge_version(request: Request, badge_uuid: str, version_uuid: str, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
+    return await learning_service.activate_badge_version(request, badge_uuid, version_uuid, current_user, db_session)
+
+
+@badges_router.post("/{badge_uuid}/versions/{version_uuid}/deactivate")
+async def api_deactivate_badge_version(request: Request, badge_uuid: str, version_uuid: str, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
+    return await learning_service.deactivate_badge_version(request, badge_uuid, version_uuid, current_user, db_session)
+
+
+@badges_router.delete("/{badge_uuid}/versions/{version_uuid}")
+async def api_delete_badge_version(request: Request, badge_uuid: str, version_uuid: str, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
+    return await learning_service.delete_badge_version_draft(request, badge_uuid, version_uuid, current_user, db_session)
 
 
 @badges_router.post("/{badge_uuid}/notification-signups")
@@ -156,11 +202,12 @@ async def api_get_badge_path(
     response: Response,
     badge_uuid: str,
     include_run: bool = Query(False),
+    version: str | None = Query(None),
     current_user=Depends(get_current_user),
     db_session=Depends(get_db_session),
 ) -> LearningPathRead:
     actor = resolve_learning_actor(request, response, current_user, db_session) if include_run else None
-    return await learning_service.get_path(request, badge_uuid, current_user, db_session, actor=actor)
+    return await learning_service.get_path(request, badge_uuid, current_user, db_session, actor=actor, version_uuid=version)
 
 
 @collections_router.post("/")
