@@ -36,7 +36,8 @@ export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: str
   const org = useOrg() as any
   const accessToken = session.data?.tokens?.access_token
   const badge = badgePath.badge
-  const isDraft = badge.selected_version?.state === 'draft'
+  const canEdit = Number(org?.id) === Number(badge.org_id)
+  const isDraft = badge.selected_version?.state === 'draft' && canEdit
   const versionUuid = badge.selected_version?.version_uuid
   const [title, setTitle] = React.useState('')
   const [busy, setBusy] = React.useState('')
@@ -286,7 +287,7 @@ export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: str
             </button>
           }
         />
-      </div> : <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">This published learning path is read only. Create a draft from the version toolbar to make changes.</div>}
+      </div> : <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">{canEdit ? 'This published learning path is read only. Create a draft from the version toolbar to make changes.' : 'This learning path is read only for authorized issuers.'}</div>}
 
       <div className="space-y-3">
         {(badgePath.activities || []).map((activity: any, index: number) => {

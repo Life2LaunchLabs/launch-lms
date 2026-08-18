@@ -39,7 +39,7 @@ const statusLabels: Record<string, string> = {
   package_denied: 'Package request denied',
 }
 
-type BadgeAdminTab = 'collections' | 'marketplace' | 'issuing' | 'grading'
+type BadgeAdminTab = 'collections' | 'marketplace'
 
 export default function IssuingAdminShell({
   orgId,
@@ -79,8 +79,6 @@ export default function IssuingAdminShell({
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }} className="overflow-x-hidden">
         {activeTab === 'collections' ? <AdminBadgesHome orgslug={orgslug} orgId={orgId} collections={collections} /> : null}
         {activeTab === 'marketplace' ? <MarketplaceBrowsePanel orgId={orgId} /> : null}
-        {activeTab === 'issuing' ? <IssuingAuthorizationsPanel orgId={orgId} /> : null}
-        {activeTab === 'grading' ? <OrgGradingQueuePanel orgId={orgId} /> : null}
       </motion.div>
     </div>
   )
@@ -250,7 +248,7 @@ function MarketplaceBrowsePanel({ orgId }: { orgId: number }) {
   )
 }
 
-function IssuingAuthorizationsPanel({ orgId }: { orgId: number }) {
+export function IssuingAuthorizationsPanel({ orgId }: { orgId: number }) {
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
   const [authorizations, setAuthorizations] = React.useState<any[]>([])
@@ -454,7 +452,7 @@ function IssuingAuthorizationsPanel({ orgId }: { orgId: number }) {
   )
 }
 
-function OrgGradingQueuePanel({ orgId }: { orgId: number }) {
+export function OrgGradingQueuePanel({ orgId }: { orgId: number }) {
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
   const [responses, setResponses] = React.useState<any[]>([])

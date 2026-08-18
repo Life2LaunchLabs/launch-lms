@@ -136,6 +136,8 @@ class LearningBadgeRead(LearningBadgeBase):
     active_version_id: int | None = None
     selected_version: dict | None = None
     versions: list[dict] = Field(default_factory=list)
+    can_edit: bool | None = None
+    access_type: str | None = None
 
 
 class LearningBadgeVersion(SQLModel, table=True):
@@ -243,6 +245,9 @@ class BadgeCollectionRead(BadgeCollectionBase):
     creation_date: str
     update_date: str
     badges: list[LearningBadgeRead] = Field(default_factory=list)
+    can_edit: bool | None = None
+    access_type: str | None = None
+    creator_org: dict | None = None
 
 
 class BadgeIssuerAuthorization(SQLModel, table=True):

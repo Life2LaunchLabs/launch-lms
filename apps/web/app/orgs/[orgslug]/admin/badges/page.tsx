@@ -3,7 +3,7 @@ import { getServerSession } from '@/lib/auth/server'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getLearningBadgeCollections } from '@services/learning/learning'
 
-const validTabs = new Set(['collections', 'marketplace', 'issuing', 'grading'])
+const validTabs = new Set(['collections', 'marketplace'])
 
 export default async function AdminBadgesPage({
   params,
@@ -23,6 +23,6 @@ export default async function AdminBadgesPage({
   } catch {
     collections = []
   }
-  const initialTab = validTabs.has(tab || '') ? tab as 'collections' | 'marketplace' | 'issuing' | 'grading' : 'collections'
+  const initialTab = validTabs.has(tab || '') ? tab as 'collections' | 'marketplace' : 'collections'
   return <IssuingAdminShell orgslug={orgslug} orgId={org.id} collections={collections} initialTab={initialTab} />
 }

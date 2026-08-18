@@ -5,6 +5,7 @@ from fastapi import HTTPException
 from sqlmodel import Session, create_engine, select
 from src.db.guest_sessions import GuestSession
 from src.db.learning import (
+    BadgeCollection,
     BadgeIssuerAuthorization,
     BadgeIssuerAuthorizationStatus,
     BadgeIssuerLearnerLink,
@@ -36,6 +37,7 @@ from src.services.learning import (
     build_ob3_credential,
     confer_award,
     grade_learning_response,
+    list_collections,
     list_learning_responses,
     start_or_resume_run,
 )
@@ -73,6 +75,7 @@ def _create_tables(engine) -> None:
         Role,
         GuestSession,
         Portfolio,
+        BadgeCollection,
         LearningBadge,
         LearningPath,
         LearningActivity,
@@ -350,6 +353,38 @@ async def test_browse_marketplace_includes_authorization_status():
         items = await browse_marketplace_badges(_request(), bob, session, issuer_org_id=2)
         assert len(items) == 1  # unlisted badge excluded
         assert items[0]["authorization"]["status"] == "requested"
+
+
+async def test_authorized_badges_appear_in_issuer_collections_without_edit_access():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _create_tables(engine)
+    with Session(engine) as session:
+        creator_org, _, alice, bob, _, badge = _setup(session)
+        collection = BadgeCollection(
+            id=1,
+            org_id=creator_org.id,
+            collection_uuid="badge_collection_creator",
+            name="Creator collection",
+            public=False,
+            creation_date=NOW,
+            update_date=NOW,
+        )
+        session.add(collection)
+        badge.collection_id = collection.id
+        badge.public = False
+        session.add(badge)
+        session.commit()
+
+        await _approved_authorization(session, alice, bob, badge)
+
+        collections = await list_collections(_request(), 2, bob, session, admin=True)
+        assert len(collections) == 1
+        assert collections[0].access_type == "authorized"
+        assert collections[0].can_edit is False
+        assert collections[0].creator_org["slug"] == "creator"
+        assert [item.badge_uuid for item in collections[0].badges] == [badge.badge_uuid]
+        assert collections[0].badges[0].can_edit is False
+
 
 
 async def test_eligible_issuers_open_to_all_and_links():

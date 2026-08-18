@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React from 'react'
-import { ArrowDown, ArrowLeftRight, ArrowUp, Award, Check, ClipboardCheck, Eye, GalleryVerticalEnd, Handshake, Image as ImageIcon, Info, Loader2, Pencil, Plus, Settings, Trash2, X } from 'lucide-react'
+import { ArrowDown, ArrowLeftRight, ArrowUp, Award, BarChart3, Check, ClipboardCheck, Eye, GalleryVerticalEnd, Handshake, Image as ImageIcon, Loader2, Megaphone, Pencil, Plus, Settings, Trash2, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import toast from 'react-hot-toast'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
@@ -21,12 +21,12 @@ import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import BadgeVersionToolbar from '@components/Learning/BadgeVersionToolbar'
 
 const tabs = [
+  { key: 'analytics', label: 'Analytics', icon: BarChart3 },
   { key: 'learning-path', label: 'Learning Path', icon: GalleryVerticalEnd },
-  { key: 'grading', label: 'Grading', icon: ClipboardCheck },
+  { key: 'definition', label: 'Definition', icon: Award },
+  { key: 'marketing', label: 'Marketing', icon: Megaphone },
   { key: 'issuers', label: 'Issuers', icon: Handshake },
-  { key: 'about', label: 'About', icon: Info },
   { key: 'settings', label: 'Settings', icon: Settings },
-  { key: 'certification', label: 'Achievement', icon: Award },
 ]
 
 function cleanBadgeId(value: string) {
@@ -48,6 +48,7 @@ export default function AdminBadgeShell({
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
   const org = useOrg() as any
+  const canEdit = Number(org?.id) === Number(initialBadge.org_id)
   const [badge, setBadge] = React.useState(initialBadge)
   const [editingField, setEditingField] = React.useState<'name' | null>(null)
   const [draftName, setDraftName] = React.useState(initialBadge.name || '')
@@ -131,7 +132,7 @@ export default function AdminBadgeShell({
                 buttonSize="icon"
                 buttonVariant="secondary"
                 className="h-8 w-8 shadow-md"
-                disabled={isUploading || !isDraft}
+                disabled={isUploading || !isDraft || !canEdit}
                 onSelect={handleThumbnailSelect}
               />
             </div>
@@ -143,7 +144,7 @@ export default function AdminBadgeShell({
               isEditing={editingField === 'name'}
               value={draftName}
               onChange={setDraftName}
-              onEdit={() => isDraft && setEditingField('name')}
+              onEdit={() => isDraft && canEdit && setEditingField('name')}
               onSave={saveName}
               isSaving={savingField === 'name'}
             />
@@ -152,7 +153,7 @@ export default function AdminBadgeShell({
             </p>
 
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2 md:justify-start">
-              <BadgeVersionToolbar badge={badge} />
+              {canEdit ? <BadgeVersionToolbar badge={badge} /> : null}
               <Button asChild variant="outline" className="gap-2 bg-card">
                 <Link href={publicBadgeHref} target="_blank">
                   <Eye className="h-4 w-4" />
@@ -164,7 +165,7 @@ export default function AdminBadgeShell({
         </div>
 
         <div className="flex space-x-3 text-sm font-black">
-          {tabs.map((tab) => {
+          {tabs.filter((tab) => canEdit || !['issuers', 'settings'].includes(tab.key)).map((tab) => {
             const Icon = tab.icon
             const isActive = normalizedSubpage === tab.key
             return (
@@ -182,18 +183,45 @@ export default function AdminBadgeShell({
       </div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }} className="overflow-x-hidden">
+        {normalizedSubpage === 'analytics' ? <BadgeAnalyticsPanel badge={badge} canEdit={canEdit} /> : null}
         {normalizedSubpage === 'learning-path' ? children : null}
-        {normalizedSubpage === 'grading' ? <BadgeGradingPanel badge={badge} /> : null}
-        {normalizedSubpage === 'issuers' ? <BadgeIssuersPanel badge={badge} onPatch={patchBadge} /> : null}
-        {normalizedSubpage === 'about' ? <fieldset disabled={!isDraft}><BadgeAboutPanel badge={badge} onPatch={patchBadge} /></fieldset> : null}
-        {normalizedSubpage === 'settings' ? <BadgeSettingsPanel orgslug={orgslug} badge={badge} onPatch={patchBadge} isDraft={isDraft} /> : null}
-        {normalizedSubpage === 'certification' ? <fieldset disabled={!isDraft}><BadgeCertificationPanel badge={badge} onPatch={patchBadge} /></fieldset> : null}
+        {normalizedSubpage === 'issuers' && canEdit ? <BadgeIssuersPanel badge={badge} onPatch={patchBadge} /> : null}
+        {normalizedSubpage === 'marketing' ? <fieldset disabled={!isDraft || !canEdit}><BadgeAboutPanel badge={badge} onPatch={patchBadge} /></fieldset> : null}
+        {normalizedSubpage === 'settings' && canEdit ? <BadgeSettingsPanel orgslug={orgslug} badge={badge} onPatch={patchBadge} isDraft={isDraft} /> : null}
+        {normalizedSubpage === 'definition' ? <fieldset disabled={!isDraft || !canEdit}><BadgeCertificationPanel badge={badge} onPatch={patchBadge} /></fieldset> : null}
       </motion.div>
     </div>
   )
 }
 
-function BadgeGradingPanel({ badge }: { badge: any }) {
+function BadgeAnalyticsPanel({ badge, canEdit }: { badge: any; canEdit: boolean }) {
+  const metadata = badge.badge_metadata || {}
+  return (
+    <div className="px-10 pb-10 pt-6">
+      <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-foreground">Badge analytics</h2>
+            <p className="mt-1 text-sm text-muted-foreground">A quick view of this badge and how it is available to learners.</p>
+          </div>
+          {!canEdit ? <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">Authorized issuer</span> : null}
+        </div>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <AnalyticsStat label="Status" value={badge.status === 'published' ? 'Published' : 'Draft'} />
+          <AnalyticsStat label="Visibility" value={badge.public ? 'Public' : 'Restricted'} />
+          <AnalyticsStat label="Direct issuance" value={badge.direct_conferral_enabled ? 'Enabled' : 'Disabled'} />
+          <AnalyticsStat label="Estimated time" value={metadata.estimated_time_label || metadata.estimated_time || 'Not set'} />
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function AnalyticsStat({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-lg border border-border bg-muted/30 p-4"><p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</p><p className="mt-2 text-sm font-bold text-foreground">{value}</p></div>
+}
+
+export function BadgeGradingPanel({ badge }: { badge: any }) {
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
   const [responses, setResponses] = React.useState<any[]>([])
@@ -338,6 +366,7 @@ const authorizationStatusStyles: Record<string, string> = {
 }
 
 function BadgeIssuersPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Record<string, any>, successMessage?: string) => Promise<any> }) {
+  const org = useOrg() as any
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
   const [authorizations, setAuthorizations] = React.useState<any[]>([])
@@ -449,6 +478,13 @@ function BadgeIssuersPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Re
         </div>
 
         <div className="mt-6 space-y-3">
+          <article className="flex flex-col gap-3 rounded-xl border border-lime-200 bg-lime-50/40 p-4 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-foreground">{org?.name || 'Your organization'}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Badge creator · automatically authorized to issue</p>
+            </div>
+            <span className="rounded-full bg-lime-100 px-3 py-1 text-xs font-bold text-lime-800">Authorized</span>
+          </article>
           {loading ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -577,7 +613,7 @@ function BadgeAboutPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Reco
   return (
     <div className="px-10 pb-10 pt-6">
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
-        <h2 className="text-lg font-bold text-foreground">About</h2>
+        <h2 className="text-lg font-bold text-foreground">Marketing</h2>
         <div className="mt-5 space-y-5">
           <div className="grid gap-4 md:grid-cols-2">
             <label className="block">
@@ -838,7 +874,7 @@ function BadgeCertificationPanel({ badge, onPatch }: { badge: any; onPatch: (pat
         <div className="order-2 space-y-6 lg:order-1">
           <section className="rounded-xl bg-card p-6 shadow-xs">
             <div className="flex flex-col gap-1">
-              <h2 className="text-lg font-bold text-foreground">Achievement</h2>
+              <h2 className="text-lg font-bold text-foreground">Definition</h2>
               <p className="text-sm text-muted-foreground">Define the reusable Open Badges Achievement embedded in every OpenBadgeCredential issued for it.</p>
             </div>
 
@@ -1123,9 +1159,10 @@ function getBadgeDateLine(badge: any) {
 
 function getActiveSubpage(subpage: string) {
   if (subpage === 'content') return 'learning-path'
-  if (subpage === 'general' || subpage === 'seo') return 'about'
+  if (subpage === 'general' || subpage === 'seo' || subpage === 'about') return 'marketing'
+  if (subpage === 'certification' || subpage === 'achievement') return 'definition'
   if (subpage === 'access' || subpage === 'contributors') return 'settings'
-  return tabs.some((tab) => tab.key === subpage) ? subpage : 'learning-path'
+  return tabs.some((tab) => tab.key === subpage) ? subpage : 'analytics'
 }
 
 function countWords(value: string) {

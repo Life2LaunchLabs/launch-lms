@@ -141,6 +141,7 @@ export const routePaths = {
         `/admin/communities/${communityUuid}/${subpage}`,
       users: {
         users: () => '/admin/users',
+        grading: () => '/admin/users/grading',
         user: (username: string) => `/admin/users/${encodeURIComponent(username)}`,
         usergroups: () => '/admin/users/groups',
         roles: () => '/admin/users/roles',

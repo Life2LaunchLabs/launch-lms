@@ -492,7 +492,20 @@ def _can_read_badge(
         _require_org_admin(db_session, current_user, badge.org_id)
         return True
     except HTTPException:
-        return False
+        pass
+    authorized_issuer_org_ids = db_session.exec(
+        select(BadgeIssuerAuthorization.issuer_org_id).where(
+            BadgeIssuerAuthorization.badge_id == badge.id,
+            BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.APPROVED,
+        )
+    ).all()
+    for issuer_org_id in authorized_issuer_org_ids:
+        try:
+            _require_org_admin(db_session, current_user, issuer_org_id)
+            return True
+        except HTTPException:
+            continue
+    return False
 
 
 def _ensure_read_badge(
@@ -4472,14 +4485,40 @@ async def list_collections(
                 detail="org_id is required for admin badge collection listing",
             )
         _require_org_admin(db_session, current_user, org_id)
-        collections = db_session.exec(
-            select(BadgeCollection).where(
-                BadgeCollection.org_id == org_id, BadgeCollection.deleted_at.is_(None)
-            )
-        ).all()
-        badges = db_session.exec(
+        owned_badges = db_session.exec(
             select(LearningBadge).where(
                 LearningBadge.org_id == org_id, LearningBadge.deleted_at.is_(None)
+            )
+        ).all()
+        authorized_badge_ids = {
+            authorization.badge_id
+            for authorization in db_session.exec(
+                select(BadgeIssuerAuthorization).where(
+                    BadgeIssuerAuthorization.issuer_org_id == org_id,
+                    BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.APPROVED,
+                )
+            ).all()
+        }
+        authorized_badges = (
+            db_session.exec(
+                select(LearningBadge).where(
+                    LearningBadge.id.in_(authorized_badge_ids),  # type: ignore
+                    LearningBadge.deleted_at.is_(None),
+                )
+            ).all()
+            if authorized_badge_ids
+            else []
+        )
+        badges_by_id = {badge.id: badge for badge in [*owned_badges, *authorized_badges]}
+        badges = list(badges_by_id.values())
+        collection_ids = {badge.collection_id for badge in authorized_badges if badge.collection_id is not None}
+        collection_access = BadgeCollection.org_id == org_id
+        if collection_ids:
+            collection_access = or_(collection_access, BadgeCollection.id.in_(collection_ids))  # type: ignore
+        collections = db_session.exec(
+            select(BadgeCollection).where(
+                collection_access,
+                BadgeCollection.deleted_at.is_(None),
             )
         ).all()
     else:
@@ -4497,13 +4536,36 @@ async def list_collections(
     for badge in badges:
         if badge.collection_id is not None:
             badges_by_collection.setdefault(badge.collection_id, []).append(badge)
+    creator_org_ids = {collection.org_id for collection in collections}
+    creator_orgs = {
+        creator.id or 0: creator
+        for creator in db_session.exec(
+            select(Organization).where(Organization.id.in_(creator_org_ids))  # type: ignore
+        ).all()
+    } if creator_org_ids else {}
     return [
         BadgeCollectionRead(
             **collection.model_dump(),
             badges=[
-                LearningBadgeRead(**badge.model_dump())
+                LearningBadgeRead(
+                    **badge.model_dump(),
+                    can_edit=(badge.org_id == org_id) if admin else None,
+                    access_type=("owned" if badge.org_id == org_id else "authorized") if admin else None,
+                )
                 for badge in badges_by_collection.get(collection.id or 0, [])
             ],
+            can_edit=(collection.org_id == org_id) if admin else None,
+            access_type=("owned" if collection.org_id == org_id else "authorized") if admin else None,
+            creator_org=(
+                {
+                    "id": creator_orgs[collection.org_id].id,
+                    "org_uuid": creator_orgs[collection.org_id].org_uuid,
+                    "name": creator_orgs[collection.org_id].name,
+                    "slug": creator_orgs[collection.org_id].slug,
+                }
+                if admin and collection.org_id in creator_orgs
+                else None
+            ),
         )
         for collection in collections
     ]

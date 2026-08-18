@@ -3,7 +3,7 @@ import UsersAdminPage from '@components/Admin/Users/UsersAdminPage'
 import OrgUserDetail from '@components/Admin/Users/OrgUserDetail'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 
-const SECTIONS = new Set(['groups', 'roles', 'signups', 'audit-logs'])
+const SECTIONS = new Set(['grading', 'groups', 'roles', 'signups', 'audit-logs'])
 
 export default async function UsersSegmentPage({
   params,

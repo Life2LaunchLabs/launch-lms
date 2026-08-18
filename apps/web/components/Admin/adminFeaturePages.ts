@@ -1,7 +1,6 @@
 import {
   ClipboardCheck,
   CreditCard,
-  Handshake,
   Library,
   LucideIcon,
   Palette,
@@ -26,8 +25,6 @@ export type AdminFeaturePage = {
 export const BADGE_ADMIN_PAGES: AdminFeaturePage[] = [
   { id: 'collections', label: 'Collections', icon: Library, href: routePaths.org.dash.badges() },
   { id: 'marketplace', label: 'Marketplace', icon: Store, href: `${routePaths.org.dash.badges()}?tab=marketplace` },
-  { id: 'issuing', label: 'Issuing', icon: Handshake, href: `${routePaths.org.dash.badges()}?tab=issuing` },
-  { id: 'grading', label: 'Grading', icon: ClipboardCheck, href: `${routePaths.org.dash.badges()}?tab=grading` },
 ]
 
 export function getUserAdminPages({
@@ -41,6 +38,7 @@ export function getUserAdminPages({
 }): AdminFeaturePage[] {
   return [
     { id: 'users', label: t('dashboard.users.settings.tabs.users'), icon: Users, href: routePaths.org.dash.users.users() },
+    { id: 'grading', label: 'Grading', icon: ClipboardCheck, href: routePaths.org.dash.users.grading() },
     ...(hasUserGroups
       ? [{ id: 'groups', label: t('dashboard.users.settings.tabs.usergroups'), icon: SquareUserRound, href: routePaths.org.dash.users.usergroups() }]
       : []),

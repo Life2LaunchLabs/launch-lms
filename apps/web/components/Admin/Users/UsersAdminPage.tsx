@@ -15,6 +15,7 @@ import { planMeetsRequirement } from '@services/plans/plans'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg } from '@services/config/config'
 import { getUserAdminPages } from '@components/Admin/adminFeaturePages'
+import { OrgGradingQueuePanel } from '@components/Learning/IssuingAdminShell'
 
 export default function UsersAdminPage({ orgslug, section }: { orgslug: string; section: string }) {
   const { t } = useTranslation()
@@ -54,6 +55,7 @@ export default function UsersAdminPage({ orgslug, section }: { orgslug: string; 
       />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 overflow-y-auto">
         {section === 'users' && <UsersTable scope="organization" />}
+        {section === 'grading' && org?.id && <OrgGradingQueuePanel orgId={Number(org.id)} />}
         {section === 'signups' && <OrgAccess />}
         {section === 'groups' && hasUserGroups && <><div className="h-6" /><OrgUserGroups /></>}
         {section === 'roles' && <><div className="h-6" /><OrgRoles /></>}
