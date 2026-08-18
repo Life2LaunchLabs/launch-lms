@@ -106,6 +106,9 @@ function CollectionHeader({ collection: initialCollection, orgId, canEdit }: { c
   const [editingName, setEditingName] = React.useState(false)
   const [draftName, setDraftName] = React.useState(initialCollection.name || '')
   const [savingName, setSavingName] = React.useState(false)
+  const [editingDescription, setEditingDescription] = React.useState(false)
+  const [draftDescription, setDraftDescription] = React.useState(initialCollection.description || '')
+  const [savingDescription, setSavingDescription] = React.useState(false)
 
   const saveName = async () => {
     const name = draftName.trim()
@@ -146,6 +149,27 @@ function CollectionHeader({ collection: initialCollection, orgId, canEdit }: { c
       toast.error(error?.message || 'Failed to update image.')
     } finally {
       setIsUploading(false)
+    }
+  }
+
+  const saveDescription = async () => {
+    if (savingDescription) return
+    setSavingDescription(true)
+    try {
+      const nextCollection = await updateLearningBadgeCollection(
+        collection.collection_uuid,
+        { description: draftDescription.trim() },
+        accessToken
+      )
+      setCollection(nextCollection)
+      setDraftDescription(nextCollection.description || '')
+      setEditingDescription(false)
+      toast.success('Collection description updated.')
+      router.refresh()
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to update collection description.')
+    } finally {
+      setSavingDescription(false)
     }
   }
 
@@ -198,7 +222,37 @@ function CollectionHeader({ collection: initialCollection, orgId, canEdit }: { c
             {savingName ? <Loader2 size={15} className="animate-spin" /> : editingName ? <Check size={15} /> : <Pencil size={15} />}
           </button> : null}
         </div>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{collection.description || 'Manage badges in this collection.'}</p>
+        <div className="group mt-2 flex max-w-3xl items-start gap-2">
+          {editingDescription ? (
+            <textarea
+              autoFocus
+              value={draftDescription}
+              onChange={(event) => setDraftDescription(event.target.value)}
+              onKeyDown={(event) => {
+                if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') void saveDescription()
+                if (event.key === 'Escape') {
+                  setDraftDescription(collection.description || '')
+                  setEditingDescription(false)
+                }
+              }}
+              rows={3}
+              className="min-w-0 flex-1 resize-y rounded-md border border-border bg-card px-3 py-2 text-sm leading-6 text-foreground outline-none focus:ring-2 focus:ring-black"
+            />
+          ) : (
+            <p className="min-w-0 flex-1 text-sm leading-6 text-muted-foreground">{collection.description || 'Manage badges in this collection.'}</p>
+          )}
+          {canEdit ? (
+            <button
+              type="button"
+              disabled={savingDescription}
+              onClick={editingDescription ? saveDescription : () => setEditingDescription(true)}
+              title={editingDescription ? 'Save description' : 'Edit description'}
+              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${editingDescription ? 'bg-green-600 text-white hover:bg-green-700' : 'opacity-0 transition-opacity hover:bg-muted group-hover:opacity-100'}`}
+            >
+              {savingDescription ? <Loader2 size={15} className="animate-spin" /> : editingDescription ? <Check size={15} /> : <Pencil size={15} />}
+            </button>
+          ) : null}
+        </div>
         <div className="mt-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
           <BookCopy size={14} />
           {(collection.badges || []).length} badges

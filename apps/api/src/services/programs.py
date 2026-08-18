@@ -19,7 +19,12 @@ from src.db.programs import (
     ProgramAssignmentCreate,
     ProgramCreate,
     ProgramObjective,
+    ProgramPhase,
+    ProgramPhaseCreate,
+    ProgramPhaseUpdate,
+    ProgramReorder,
     ProgramParticipant,
+    ProgramStatus,
     ProgramUpdate,
 )
 from src.db.usergroup_user import UserGroupUser
@@ -74,6 +79,7 @@ def _objective_dict(objective: Objective, relation: ProgramObjective | None = No
         "kind": objective.kind.value if hasattr(objective.kind, "value") else objective.kind,
         "completion_policy": objective.completion_policy.value if hasattr(objective.completion_policy, "value") else objective.completion_policy,
         "evidence_policy": objective.evidence_policy.value if hasattr(objective.evidence_policy, "value") else objective.evidence_policy,
+        "allow_learner_confirmation": objective.allow_learner_confirmation,
         "custom_fields": objective.custom_fields or [],
         "badge_id": objective.badge_id,
     }
@@ -82,6 +88,7 @@ def _objective_dict(objective: Objective, relation: ProgramObjective | None = No
             "position": relation.position,
             "target_days": relation.target_days,
             "badge_major_version": relation.badge_major_version,
+            "phase_id": relation.phase_id,
         })
     return result
 
@@ -91,28 +98,93 @@ def _program_objectives(db: Session, program: Program) -> list[dict]:
         select(ProgramObjective, Objective)
         .join(Objective, Objective.id == ProgramObjective.objective_id)
         .where(ProgramObjective.program_id == program.id)
-        .order_by(ProgramObjective.position, ProgramObjective.id)
+        .outerjoin(ProgramPhase, ProgramPhase.id == ProgramObjective.phase_id)
+        .order_by(ProgramPhase.position, ProgramObjective.position, ProgramObjective.id)
     ).all()
     return [_objective_dict(objective, relation) for relation, objective in rows]
 
 
-def _program_dict(db: Session, program: Program, *, include_objectives: bool = True) -> dict:
+def _ensure_default_phase(db: Session, program: Program) -> ProgramPhase:
+    phase = db.exec(
+        select(ProgramPhase)
+        .where(ProgramPhase.program_id == program.id)
+        .order_by(ProgramPhase.position, ProgramPhase.id)
+    ).first()
+    if phase:
+        return phase
+    now = _now_string()
+    phase = ProgramPhase(
+        phase_uuid=f"program_phase_{uuid4()}",
+        program_id=program.id,
+        name="Phase 1",
+        position=0,
+        creation_date=now,
+        update_date=now,
+    )
+    db.add(phase)
+    db.flush()
+    return phase
+
+
+def _program_phases(db: Session, program: Program) -> list[dict]:
+    phases = db.exec(
+        select(ProgramPhase)
+        .where(ProgramPhase.program_id == program.id)
+        .order_by(ProgramPhase.position, ProgramPhase.id)
+    ).all()
+    if not phases:
+        phases = [_ensure_default_phase(db, program)]
+    objectives = _program_objectives(db, program)
+    return [
+        {
+            "id": phase.id,
+            "phase_uuid": phase.phase_uuid,
+            "name": phase.name,
+            "description": phase.description,
+            "position": phase.position,
+            "target_days": phase.target_days,
+            "suggested_duration_weeks": phase.suggested_duration_weeks,
+            "objectives": [item for item in objectives if item.get("phase_id") == phase.id],
+        }
+        for phase in phases
+    ]
+
+
+def _program_dict(
+    db: Session,
+    program: Program,
+    *,
+    include_objectives: bool = True,
+    include_assignments: bool = False,
+) -> dict:
     result = {
         "id": program.id,
         "program_uuid": program.program_uuid,
         "org_id": program.org_id,
         "name": program.name,
         "description": program.description,
+        "thumbnail_image": program.thumbnail_image,
         "instructions": program.instructions,
         "status": program.status.value if hasattr(program.status, "value") else program.status,
         "version": program.version,
         "creation_date": program.creation_date,
         "update_date": program.update_date,
+        "assignment_count": len(db.exec(
+            select(ProgramAssignment).where(ProgramAssignment.program_id == program.id)
+        ).all()),
     }
     if include_objectives:
         objectives = _program_objectives(db, program)
         result["objectives"] = objectives
+        result["phases"] = _program_phases(db, program)
         result["outdated_badge_objectives"] = _outdated_badge_objectives(db, objectives)
+    if include_assignments:
+        assignments = db.exec(
+            select(ProgramAssignment)
+            .where(ProgramAssignment.program_id == program.id)
+            .order_by(ProgramAssignment.creation_date.desc(), ProgramAssignment.id.desc())
+        ).all()
+        result["assignments"] = [_assignment_summary(db, assignment) for assignment in assignments]
     return result
 
 
@@ -165,6 +237,7 @@ def create_program(db: Session, current_user: PublicUser, payload: ProgramCreate
         name=payload.name.strip(),
         description=payload.description,
         instructions=payload.instructions,
+        status=ProgramStatus.ACTIVE,
         created_by_user_id=current_user.id,
         creation_date=now,
         update_date=now,
@@ -172,6 +245,8 @@ def create_program(db: Session, current_user: PublicUser, payload: ProgramCreate
     if not program.name:
         raise HTTPException(status_code=422, detail="Program name is required")
     db.add(program)
+    db.flush()
+    _ensure_default_phase(db, program)
     db.commit()
     db.refresh(program)
     return _program_dict(db, program)
@@ -179,7 +254,11 @@ def create_program(db: Session, current_user: PublicUser, payload: ProgramCreate
 
 def get_program(db: Session, current_user: PublicUser, org_id: int, program_uuid: str) -> dict:
     require_org_admin(current_user.id, org_id, db)
-    return _program_dict(db, _program_or_404(db, program_uuid, org_id))
+    return _program_dict(
+        db,
+        _program_or_404(db, program_uuid, org_id),
+        include_assignments=True,
+    )
 
 
 def update_program(db: Session, current_user: PublicUser, org_id: int, program_uuid: str, payload: ProgramUpdate) -> dict:
@@ -198,10 +277,22 @@ def update_program(db: Session, current_user: PublicUser, org_id: int, program_u
     return _program_dict(db, program)
 
 
+def delete_program(db: Session, current_user: PublicUser, org_id: int, program_uuid: str) -> dict:
+    require_org_admin(current_user.id, org_id, db)
+    program = _program_or_404(db, program_uuid, org_id)
+    db.delete(program)
+    db.commit()
+    return {"deleted": True, "program_uuid": program_uuid}
+
+
 def list_objectives(db: Session, current_user: PublicUser, org_id: int) -> list[dict]:
     require_org_admin(current_user.id, org_id, db)
     objectives = db.exec(
-        select(Objective).where(Objective.org_id == org_id, Objective.archived == False).order_by(Objective.title)  # noqa: E712
+        select(Objective).where(
+            Objective.org_id == org_id,
+            Objective.kind == ObjectiveKind.CUSTOM,
+            Objective.archived == False,  # noqa: E712
+        ).order_by(Objective.title)
     ).all()
     return [_objective_dict(objective) for objective in objectives]
 
@@ -242,15 +333,18 @@ def add_program_objective(
             badge_id = badge.id
             badge_major = _latest_badge_major(db, badge.id)
         now = _now_string()
+        learner_can_add_evidence = any(bool(field.get("allow_student_upload")) for field in payload.custom_fields)
+        has_evidence_fields = bool(payload.custom_fields)
         objective = Objective(
             objective_uuid=f"objective_{uuid4()}",
             org_id=org_id,
             title=payload.title.strip(),
             description=payload.description,
             kind=payload.kind,
-            completion_policy=payload.completion_policy,
-            evidence_policy=payload.evidence_policy,
+            completion_policy=("either" if payload.allow_learner_confirmation else ("automatic" if payload.kind == ObjectiveKind.BADGE else "staff")),
+            evidence_policy=("both" if learner_can_add_evidence else ("staff" if has_evidence_fields else "none")),
             custom_fields=payload.custom_fields,
+            allow_learner_confirmation=payload.allow_learner_confirmation,
             badge_id=badge_id,
             created_by_user_id=current_user.id,
             creation_date=now,
@@ -266,12 +360,26 @@ def add_program_objective(
     ).first()
     if existing:
         raise HTTPException(status_code=409, detail="Objective is already in this program")
-    position = len(_program_objectives(db, program))
+    phase = None
+    if payload.phase_uuid:
+        phase = db.exec(select(ProgramPhase).where(
+            ProgramPhase.phase_uuid == payload.phase_uuid,
+            ProgramPhase.program_id == program.id,
+        )).first()
+        if not phase:
+            raise HTTPException(status_code=404, detail="Program phase not found")
+    else:
+        phase = _ensure_default_phase(db, program)
+    position = len(db.exec(select(ProgramObjective).where(
+        ProgramObjective.program_id == program.id,
+        ProgramObjective.phase_id == phase.id,
+    )).all())
     if objective.badge_id and badge_major is None:
         badge_major = _latest_badge_major(db, objective.badge_id)
     now = _now_string()
     db.add(ProgramObjective(
         program_id=program.id,
+        phase_id=phase.id,
         objective_id=objective.id,
         position=position,
         target_days=payload.target_days,
@@ -279,6 +387,117 @@ def add_program_objective(
         creation_date=now,
         update_date=now,
     ))
+    program.version += 1
+    program.update_date = now
+    db.add(program)
+    db.commit()
+    db.refresh(program)
+    return _program_dict(db, program)
+
+
+def create_program_phase(
+    db: Session,
+    current_user: PublicUser,
+    org_id: int,
+    program_uuid: str,
+    payload: ProgramPhaseCreate,
+) -> dict:
+    require_org_admin(current_user.id, org_id, db)
+    program = _program_or_404(db, program_uuid, org_id)
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Phase name is required")
+    phases = db.exec(select(ProgramPhase).where(ProgramPhase.program_id == program.id)).all()
+    now = _now_string()
+    phase = ProgramPhase(
+        phase_uuid=f"program_phase_{uuid4()}",
+        program_id=program.id,
+        name=name,
+        description=payload.description,
+        target_days=payload.target_days,
+        suggested_duration_weeks=payload.suggested_duration_weeks,
+        position=len(phases),
+        creation_date=now,
+        update_date=now,
+    )
+    db.add(phase)
+    program.version += 1
+    program.update_date = now
+    db.add(program)
+    db.commit()
+    db.refresh(program)
+    return _program_dict(db, program)
+
+
+def update_program_phase(
+    db: Session,
+    current_user: PublicUser,
+    org_id: int,
+    program_uuid: str,
+    phase_uuid: str,
+    payload: ProgramPhaseUpdate,
+) -> dict:
+    require_org_admin(current_user.id, org_id, db)
+    program = _program_or_404(db, program_uuid, org_id)
+    phase = db.exec(select(ProgramPhase).where(
+        ProgramPhase.phase_uuid == phase_uuid,
+        ProgramPhase.program_id == program.id,
+    )).first()
+    if not phase:
+        raise HTTPException(status_code=404, detail="Program phase not found")
+    changes = payload.model_dump(exclude_unset=True)
+    if "name" in changes:
+        changes["name"] = str(changes["name"] or "").strip()
+        if not changes["name"]:
+            raise HTTPException(status_code=422, detail="Phase name is required")
+    for key, value in changes.items():
+        setattr(phase, key, value)
+    now = _now_string()
+    phase.update_date = now
+    program.version += 1
+    program.update_date = now
+    db.add(phase)
+    db.add(program)
+    db.commit()
+    db.refresh(program)
+    return _program_dict(db, program)
+
+
+def reorder_program(
+    db: Session,
+    current_user: PublicUser,
+    org_id: int,
+    program_uuid: str,
+    payload: ProgramReorder,
+) -> dict:
+    require_org_admin(current_user.id, org_id, db)
+    program = _program_or_404(db, program_uuid, org_id)
+    phases = db.exec(select(ProgramPhase).where(ProgramPhase.program_id == program.id)).all()
+    phase_by_uuid = {phase.phase_uuid: phase for phase in phases}
+    objectives = db.exec(
+        select(ProgramObjective, Objective)
+        .join(Objective, Objective.id == ProgramObjective.objective_id)
+        .where(ProgramObjective.program_id == program.id)
+    ).all()
+    relation_by_uuid = {objective.objective_uuid: relation for relation, objective in objectives}
+    supplied_phase_uuids = [item.phase_uuid for item in payload.phases]
+    supplied_objective_uuids = [uuid for item in payload.phases for uuid in item.objective_uuids]
+    if set(supplied_phase_uuids) != set(phase_by_uuid):
+        raise HTTPException(status_code=422, detail="Reorder must include every program phase exactly once")
+    if len(supplied_objective_uuids) != len(set(supplied_objective_uuids)) or set(supplied_objective_uuids) != set(relation_by_uuid):
+        raise HTTPException(status_code=422, detail="Reorder must include every program objective exactly once")
+    now = _now_string()
+    for phase_position, phase_order in enumerate(payload.phases):
+        phase = phase_by_uuid[phase_order.phase_uuid]
+        phase.position = phase_position
+        phase.update_date = now
+        db.add(phase)
+        for objective_position, objective_uuid in enumerate(phase_order.objective_uuids):
+            relation = relation_by_uuid[objective_uuid]
+            relation.phase_id = phase.id
+            relation.position = objective_position
+            relation.update_date = now
+            db.add(relation)
     program.version += 1
     program.update_date = now
     db.add(program)
@@ -441,6 +660,8 @@ def _badge_award_keys(db: Session, user_ids: list[int], objectives: list[dict]) 
 
 def _assignment_summary(db: Session, assignment: ProgramAssignment) -> dict:
     program = db.get(Program, assignment.program_id)
+    group = db.get(UserGroup, assignment.usergroup_id) if assignment.usergroup_id else None
+    assigned_user = db.get(User, assignment.user_id) if assignment.user_id else None
     participants = db.exec(select(ProgramParticipant).where(ProgramParticipant.assignment_id == assignment.id)).all()
     user_ids = [participant.user_id for participant in participants]
     objective_ids = [int(item["id"]) for item in (assignment.objective_snapshot or []) if item.get("id")]
@@ -463,6 +684,18 @@ def _assignment_summary(db: Session, assignment: ProgramAssignment) -> dict:
         "start_date": assignment.start_date,
         "due_date": assignment.due_date,
         "active": assignment.active,
+        "creation_date": assignment.creation_date,
+        "cohort": ({
+            "id": group.id,
+            "uuid": group.usergroup_uuid,
+            "name": group.name,
+        } if group else None),
+        "user": ({
+            "id": assigned_user.id,
+            "username": assigned_user.username,
+            "first_name": assigned_user.first_name,
+            "last_name": assigned_user.last_name,
+        } if assigned_user else None),
         "learner_count": len(user_ids),
         "objective_count": len(objective_ids),
         "completed_count": completed,

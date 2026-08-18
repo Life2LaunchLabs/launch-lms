@@ -5,6 +5,7 @@ from src.db.learning import LearningBadgeAward
 from src.db.programs import (
     Objective,
     ObjectiveCreate,
+    ObjectiveKind,
     ObjectiveProgress,
     ObjectiveProgressStatus,
     Program,
@@ -12,6 +13,10 @@ from src.db.programs import (
     ProgramAssignmentCreate,
     ProgramCreate,
     ProgramObjective,
+    ProgramPhase,
+    ProgramPhaseCreate,
+    ProgramPhaseOrder,
+    ProgramReorder,
     ProgramParticipant,
 )
 from src.db.usergroup_user import UserGroupUser
@@ -22,8 +27,12 @@ from src.services.programs import (
     add_program_objective,
     assign_program,
     assignment_matrix,
+    create_program_phase,
     create_program,
     ensure_group_participants,
+    get_program,
+    list_objectives,
+    reorder_program,
     update_progress,
 )
 
@@ -40,6 +49,7 @@ def _tables(engine):
         UserGroupUser,
         Program,
         Objective,
+        ProgramPhase,
         ProgramObjective,
         ProgramAssignment,
         ProgramParticipant,
@@ -124,3 +134,73 @@ def test_active_rollout_keeps_its_objective_snapshot():
         second_row = session.exec(select(ProgramAssignment).where(ProgramAssignment.assignment_uuid == second["assignment_uuid"])).first()
         assert len(first_row.objective_snapshot) == 1
         assert len(second_row.objective_snapshot) == 2
+        detail = get_program(session, admin, 1, program["program_uuid"])
+        assert len(detail["assignments"]) == 2
+        assert detail["assignments"][0]["user"]["username"] == "learner"
+        assert detail["assignments"][1]["cohort"]["name"] == "Fall Studio"
+
+
+def test_program_phases_support_cross_phase_reordering_and_evidence_fields():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _tables(engine)
+    with Session(engine) as session:
+        admin = _setup(session)
+        program = create_program(session, admin, ProgramCreate(org_id=1, name="Creative Futures"))
+        first_phase = program["phases"][0]
+        program = create_program_phase(
+            session,
+            admin,
+            1,
+            program["program_uuid"],
+            ProgramPhaseCreate(name="Term 2", suggested_duration_weeks=6),
+        )
+        second_phase = program["phases"][1]
+        assert second_phase["suggested_duration_weeks"] == 6
+        program = add_program_objective(
+            session,
+            admin,
+            1,
+            program["program_uuid"],
+            ObjectiveCreate(
+                title="Community interview",
+                phase_uuid=first_phase["phase_uuid"],
+                allow_learner_confirmation=True,
+                custom_fields=[{
+                    "field_uuid": "field_1",
+                    "title": "Interview recording",
+                    "type": "media",
+                    "allow_student_upload": True,
+                    "allowed_types": ["video"],
+                }],
+            ),
+        )
+        objective_uuid = program["objectives"][0]["objective_uuid"]
+
+        reordered = reorder_program(
+            session,
+            admin,
+            1,
+            program["program_uuid"],
+            ProgramReorder(phases=[
+                ProgramPhaseOrder(phase_uuid=first_phase["phase_uuid"], objective_uuids=[]),
+                ProgramPhaseOrder(phase_uuid=second_phase["phase_uuid"], objective_uuids=[objective_uuid]),
+            ]),
+        )
+
+        assert reordered["phases"][0]["objectives"] == []
+        moved = reordered["phases"][1]["objectives"][0]
+        assert moved["objective_uuid"] == objective_uuid
+        assert moved["allow_learner_confirmation"] is True
+        assert moved["custom_fields"][0]["allowed_types"] == ["video"]
+
+        session.add(Objective(
+            objective_uuid="objective_badge_requirement",
+            org_id=1,
+            title="Badge-only requirement",
+            kind=ObjectiveKind.BADGE,
+            creation_date=NOW,
+            update_date=NOW,
+        ))
+        session.commit()
+        reusable = list_objectives(session, admin, 1)
+        assert {item["objective_uuid"] for item in reusable} == {objective_uuid}

@@ -57,8 +57,9 @@ class Program(SQLModel, table=True):
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     name: str
     description: str = ""
+    thumbnail_image: str = ""
     instructions: str = ""
-    status: ProgramStatus = Field(default=ProgramStatus.DRAFT, sa_column=Column(String, nullable=False, index=True))
+    status: ProgramStatus = Field(default=ProgramStatus.ACTIVE, sa_column=Column(String, nullable=False, index=True))
     version: int = 1
     created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     creation_date: str = ""
@@ -70,6 +71,7 @@ class ProgramObjective(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     program_id: int = Field(sa_column=Column(Integer, ForeignKey("program.id", ondelete="CASCADE"), index=True))
+    phase_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("programphase.id", ondelete="CASCADE"), nullable=True, index=True))
     objective_id: int = Field(sa_column=Column(Integer, ForeignKey("objective.id", ondelete="CASCADE"), index=True))
     position: int = 0
     target_days: int | None = None
@@ -89,6 +91,7 @@ class Objective(SQLModel, table=True):
     kind: ObjectiveKind = Field(default=ObjectiveKind.CUSTOM, sa_column=Column(String, nullable=False, index=True))
     completion_policy: CompletionPolicy = Field(default=CompletionPolicy.STAFF, sa_column=Column(String, nullable=False))
     evidence_policy: EvidencePolicy = Field(default=EvidencePolicy.NONE, sa_column=Column(String, nullable=False))
+    allow_learner_confirmation: bool = False
     custom_fields: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
     badge_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="SET NULL"), nullable=True, index=True))
     archived: bool = False
@@ -165,6 +168,7 @@ class ProgramCreate(SQLModel):
 class ProgramUpdate(SQLModel):
     name: str | None = None
     description: str | None = None
+    thumbnail_image: str | None = None
     instructions: str | None = None
     status: ProgramStatus | None = None
 
@@ -179,6 +183,46 @@ class ObjectiveCreate(SQLModel):
     custom_fields: list[dict] = Field(default_factory=list)
     badge_uuid: str | None = None
     target_days: int | None = None
+    phase_uuid: str | None = None
+    allow_learner_confirmation: bool = False
+
+
+class ProgramPhase(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("phase_uuid"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    phase_uuid: str = Field(default="", index=True)
+    program_id: int = Field(sa_column=Column(Integer, ForeignKey("program.id", ondelete="CASCADE"), index=True))
+    name: str
+    description: str = ""
+    position: int = 0
+    target_days: int | None = None
+    suggested_duration_weeks: int | None = None
+    creation_date: str = ""
+    update_date: str = ""
+
+
+class ProgramPhaseCreate(SQLModel):
+    name: str
+    description: str = ""
+    target_days: int | None = None
+    suggested_duration_weeks: int | None = None
+
+
+class ProgramPhaseUpdate(SQLModel):
+    name: str | None = None
+    description: str | None = None
+    target_days: int | None = None
+    suggested_duration_weeks: int | None = None
+
+
+class ProgramPhaseOrder(SQLModel):
+    phase_uuid: str
+    objective_uuids: list[str] = Field(default_factory=list)
+
+
+class ProgramReorder(SQLModel):
+    phases: list[ProgramPhaseOrder]
 
 
 class ProgramAssignmentCreate(SQLModel):

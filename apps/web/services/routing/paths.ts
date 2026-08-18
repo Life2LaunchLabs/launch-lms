@@ -121,6 +121,7 @@ export const routePaths = {
       badges: () => '/admin/badges',
       programs: () => '/admin/programs',
       program: (programUuid: string) => `/admin/programs/${encodeURIComponent(programUuid)}`,
+      programPage: (programUuid: string, subpage: string) => `/admin/programs/${encodeURIComponent(programUuid)}/${encodeURIComponent(subpage)}`,
       news: () => '/admin/news',
       newsNewPost: () => '/admin/news/new-post',
       newsPost: (articleUuid: string) => `/admin/news/${articleUuid}`,

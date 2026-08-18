@@ -9,6 +9,9 @@ from src.db.programs import (
     ParticipantResponse,
     ProgramAssignmentCreate,
     ProgramCreate,
+    ProgramPhaseCreate,
+    ProgramPhaseUpdate,
+    ProgramReorder,
     ProgramUpdate,
 )
 from src.db.users import PublicUser
@@ -150,6 +153,16 @@ def api_update_program(
     return service.update_program(db_session, current_user, org_id, program_uuid, payload)
 
 
+@router.delete("/{program_uuid}")
+def api_delete_program(
+    program_uuid: str,
+    org_id: int,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    return service.delete_program(db_session, current_user, org_id, program_uuid)
+
+
 @router.post("/{program_uuid}/objectives")
 def api_add_program_objective(
     program_uuid: str,
@@ -159,6 +172,40 @@ def api_add_program_objective(
     current_user: PublicUser = Depends(get_current_user),
 ):
     return service.add_program_objective(db_session, current_user, org_id, program_uuid, payload)
+
+
+@router.post("/{program_uuid}/phases")
+def api_create_program_phase(
+    program_uuid: str,
+    payload: ProgramPhaseCreate,
+    org_id: int,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    return service.create_program_phase(db_session, current_user, org_id, program_uuid, payload)
+
+
+@router.put("/{program_uuid}/phases/{phase_uuid}")
+def api_update_program_phase(
+    program_uuid: str,
+    phase_uuid: str,
+    payload: ProgramPhaseUpdate,
+    org_id: int,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    return service.update_program_phase(db_session, current_user, org_id, program_uuid, phase_uuid, payload)
+
+
+@router.put("/{program_uuid}/order")
+def api_reorder_program(
+    program_uuid: str,
+    payload: ProgramReorder,
+    org_id: int,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    return service.reorder_program(db_session, current_user, org_id, program_uuid, payload)
 
 
 @router.post("/{program_uuid}/update-badge-versions")
