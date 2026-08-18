@@ -429,6 +429,7 @@ async def add_users_to_usergroup(
 
     user_ids_array = user_ids.split(",")
 
+    linked_user_ids: list[int] = []
     for user_id in user_ids_array:
         statement = select(User).where(User.id == user_id)
         user = db_session.exec(statement).first()
@@ -456,9 +457,18 @@ async def add_users_to_usergroup(
                 )
 
                 db_session.add(usergroup_obj)
+                linked_user_ids.append(user.id)
         else:
             logging.error(f"User with id {user_id} not found")
 
+    db_session.flush()
+    if linked_user_ids:
+        # Active cohort programs automatically invite newly added learners. Their
+        # canonical objective progress is intentionally stored outside the cohort,
+        # so leaving and rejoining never erases completed work.
+        from src.services.programs import ensure_group_participants
+
+        ensure_group_participants(db_session, usergroup_id, linked_user_ids)
     db_session.commit()
 
     return "Users added to UserGroup successfully"

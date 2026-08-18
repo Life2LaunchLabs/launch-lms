@@ -18,7 +18,6 @@ import {
   ChatsCircle,
   Headphones,
   UsersThree,
-  Shield,
   ClipboardText,
   Cube,
   FolderOpen,
@@ -306,6 +305,13 @@ function DashLeftMenu() {
                 )}
               </button>
             </HoverMenu>
+
+            <MenuLink
+              href={routePaths.org.dash.programs()}
+              icon={<ClipboardText size={20} weight="fill" />}
+              label="Programs"
+              isCollapsed={isCollapsed}
+            />
 
             {showCommunities && (
               <MenuLink

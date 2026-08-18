@@ -84,6 +84,8 @@ export const routePaths = {
     resources: () => '/resources',
     podcasts: () => '/podcasts',
     badges: () => '/badges',
+    programs: () => '/badges/programs',
+    program: (participantUuid: string) => `/badges/programs/${encodeURIComponent(participantUuid)}`,
     myBadges: () => '/portfolio/badges',
     badgeDetail: (badgeUuid: string) => `/badges/${badgeUuid}`,
     badgeStatus: (courseUuid: string) => `/badges/${courseUuid}/badge`,
@@ -117,6 +119,8 @@ export const routePaths = {
       root: () => '/admin',
       analytics: () => '/admin',
       badges: () => '/admin/badges',
+      programs: () => '/admin/programs',
+      program: (programUuid: string) => `/admin/programs/${encodeURIComponent(programUuid)}`,
       news: () => '/admin/news',
       newsNewPost: () => '/admin/news/new-post',
       newsPost: (articleUuid: string) => `/admin/news/${articleUuid}`,
@@ -130,9 +134,15 @@ export const routePaths = {
       paymentsOffers: () => '/admin/payments/offers',
       paymentsGroups: () => '/admin/payments/groups',
       paymentsConfiguration: () => '/admin/payments/configuration',
-      boardSettings: (boardUuid: string, subpage: string) =>
-        '/admin',
-      boardRoot: (boardUuid: string) => '/admin',
+      boardSettings: (boardUuid: string, subpage: string) => {
+        void boardUuid
+        void subpage
+        return '/admin'
+      },
+      boardRoot: (boardUuid: string) => {
+        void boardUuid
+        return '/admin'
+      },
       resourceChannelSettings: (channelUuid: string, subpage: string) =>
         `/admin/resources/${channelUuid}/${subpage}`,
       podcastSettings: (podcastUuid: string, subpage: string) =>
@@ -148,6 +158,8 @@ export const routePaths = {
         signups: () => '/admin/users/signups',
         add: () => '/admin/users/new',
         auditLogs: () => '/admin/users/audit-logs',
+        cohort: (usergroupId: string | number) => `/admin/users/cohorts/${encodeURIComponent(String(usergroupId))}`,
+        cohortProgram: (usergroupId: string | number, assignmentUuid: string) => `/admin/users/cohorts/${encodeURIComponent(String(usergroupId))}/programs/${encodeURIComponent(assignmentUuid)}`,
       },
       orgSettings: {
         general: () => '/admin/org/settings/general',

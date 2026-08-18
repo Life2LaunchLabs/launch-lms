@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getLearningPath } from '@services/learning/learning'
 import badgesImage from 'public/landing/badges.png'
+import { LearnerProgramsCarousel } from '@components/Programs/LearnerPrograms'
 
 type BadgeStatus = 'available' | 'in_progress' | 'earned'
 type BadgePublishStatus = 'draft' | 'coming_soon' | 'published'
@@ -58,7 +59,7 @@ function getRunTimestamp(run: any, fallback?: any) {
   return Number.isFinite(timestamp) ? timestamp : 0
 }
 
-function getBadgeThumbnailSrc(badge: any, ownerOrgUuid: string) {
+function getBadgeThumbnailSrc(badge: any) {
   return badge?.thumbnail_image || ''
 }
 
@@ -126,7 +127,7 @@ function buildBadgeCatalog(collections: any[], pathsByBadgeUuid: Map<string, any
         badgeUuid,
         name: rawBadge.name || rawBadge.title || 'Untitled badge',
         description: rawBadge.description || rawBadge.about || '',
-        thumbnailSrc: getBadgeThumbnailSrc(rawBadge, ownerOrgUuid),
+        thumbnailSrc: getBadgeThumbnailSrc(rawBadge),
         ownerOrgUuid,
         ownerOrgName: rawBadge.owner_org_name || collection.owner_org_name || collection.org?.name || '',
         activityCount: progress.activityCount || getBadgeActivityCount(rawBadge),
@@ -367,6 +368,7 @@ function BadgeDiscoverContent({ orgslug, collections, choosingBadge }: BadgeDisc
           <ChevronDown className="h-5 w-5 opacity-75" aria-hidden="true" />
         </section>
       ) : null}
+      <LearnerProgramsCarousel orgslug={orgslug} />
       <BadgesHero featuredBadge={featuredBadges[0]} orgslug={orgslug} />
 
       <BadgeCarousel title="Pick up where you left off">

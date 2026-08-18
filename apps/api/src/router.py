@@ -12,6 +12,7 @@ from src.routers import (
     orgs,
     plans,
     portfolio,
+    programs,
     roles,
     search,
     stream,
@@ -70,6 +71,12 @@ v1_router.include_router(
     prefix="/usergroups",
     tags=["usergroups"],
     dependencies=[Depends(require_plan_for_usergroups("full", "User Groups"))]
+)
+v1_router.include_router(
+    programs.router,
+    prefix="/programs",
+    tags=["programs"],
+    dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 v1_router.include_router(

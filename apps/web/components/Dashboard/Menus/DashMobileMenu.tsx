@@ -7,9 +7,8 @@ import { getOrgLogoMediaDirectory } from '@services/media/media'
 import {
   BadgeDollarSign,
   Building2,
-  ClipboardCheck,
+  ClipboardList,
   FolderOpen,
-  Handshake,
   Headphones,
   Home,
   Library,
@@ -70,14 +69,9 @@ function DashMobileMenu() {
       label: 'Marketplace',
     },
     {
-      href: `${routePaths.org.dash.badges()}?tab=issuing`,
-      icon: Handshake,
-      label: 'Issuing',
-    },
-    {
-      href: `${routePaths.org.dash.badges()}?tab=grading`,
-      icon: ClipboardCheck,
-      label: 'Grading',
+      href: routePaths.org.dash.programs(),
+      icon: ClipboardList,
+      label: 'Programs',
     },
     showCommunities
       ? {

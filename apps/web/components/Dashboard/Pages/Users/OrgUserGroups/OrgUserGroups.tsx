@@ -8,7 +8,7 @@ import LaunchLMSSpinner from '@components/Objects/Loaders/LaunchLMSSpinner'
 import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import PlanRestrictedFeature from '@components/Dashboard/Shared/PlanRestricted/PlanRestrictedFeature'
-import { getAPIUrl } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { deleteUserGroup } from '@services/usergroups/usergroups'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { Pencil, SquareUserRound, Users, X, Search, Calendar } from 'lucide-react'
@@ -18,6 +18,7 @@ import useSWR, { mutate } from 'swr'
 import { useTranslation } from 'react-i18next'
 import { Badge } from '@components/ui/badge'
 import { usePlan } from '@components/Hooks/usePlan'
+import Link from 'next/link'
 
 function OrgUserGroups() {
     const { t } = useTranslation()
@@ -185,6 +186,12 @@ function OrgUserGroups() {
 
                                     {/* Actions */}
                                     <div className="flex items-center gap-2 ml-4">
+                                        <Link
+                                            href={getUriWithOrg(org.slug, routePaths.org.dash.users.cohort(usergroup.id))}
+                                            className="flex h-8 items-center gap-1.5 rounded-md bg-gray-900 px-3 text-xs font-semibold text-white transition hover:bg-black"
+                                        >
+                                            <span>Open cohort</span>
+                                        </Link>
                                         <Modal
                                             isDialogOpen={
                                                 userGroupManagementModal &&
