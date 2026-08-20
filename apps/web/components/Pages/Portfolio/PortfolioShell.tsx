@@ -26,19 +26,20 @@ import { ProjectEditorDialog } from './ProjectEditorDialog'
 import { MonthDateRangeField } from './MonthDateRangeField'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { PortfolioShareButton } from './PortfolioShareDialog'
+import TabbedPageHeader from '@components/Objects/StyledElements/Headers/TabbedPageHeader'
 
 export type Project = { project_uuid: string; slug: string; title: string; subtitle: string; summary: string; story_kind: string; status: string; featured: boolean; revision: number; start_date?: string; end_date?: string; is_ongoing?: boolean; cover_url?: string; cover_asset_uuid?: string; blocks: Array<{ block_uuid?: string; block_type: string; data: Record<string, any> }> }
 type PortfolioBadge = { badge_uuid: string; name: string; description?: string; thumbnail_image?: string; status: 'earned' | 'in_progress'; progress?: { completed: number; total: number; percent: number } }
 type PortfolioSection = { section_uuid: string; section_type: string; title_override?: string; enabled: boolean; sort_order: number }
 type ChecklistItem = { key: string; label: string; supportingText: string; href: string; complete: boolean }
-type Shell = { portfolio: Record<string, any>; projects: Project[]; timeline: TimelineEntry[]; sections?: PortfolioSection[]; traits?: { strength?: string[]; value?: string[] }; badges?: { earned: PortfolioBadge[]; inProgress: PortfolioBadge[]; featured: PortfolioBadge[]; featuredBadgeUuids: string[]; hiddenBadgeUuids: string[] }; views: Array<{ key: string; visible: boolean; itemCount: number }>; readiness: { canPublish: boolean; blockers: string[] }; checklist?: { items: ChecklistItem[]; completed: number; total: number; percent: number; nextIncomplete?: ChecklistItem | null; earned: boolean } }
+export type Shell = { portfolio: Record<string, any>; projects: Project[]; timeline: TimelineEntry[]; sections?: PortfolioSection[]; traits?: { strength?: string[]; value?: string[] }; badges?: { earned: PortfolioBadge[]; inProgress: PortfolioBadge[]; featured: PortfolioBadge[]; featuredBadgeUuids: string[]; hiddenBadgeUuids: string[] }; views: Array<{ key: string; visible: boolean; itemCount: number }>; readiness: { canPublish: boolean; blockers: string[] }; checklist?: { items: ChecklistItem[]; completed: number; total: number; percent: number; nextIncomplete?: ChecklistItem | null; earned: boolean } }
 
 type PortfolioView = 'overview' | 'timeline' | 'projects' | 'badges' | 'resume'
 
 function tabs(orgslug: string, username: string | undefined, owner: boolean, shell: Shell, preview = false) {
   const base = owner ? '/portfolio' : `/user/${username}`
   const visible = (key: string) => shell.views.some((view) => view.key === key && view.visible && (!preview || view.itemCount > 0))
-  return [{ label: 'Overview', view: 'overview', href: base, visible: true }, { label: 'Timeline', view: 'timeline', href: `${base}/timeline`, visible: visible('timeline') }, { label: 'Projects', view: 'projects', href: `${base}/projects`, visible: visible('projects') }, { label: 'Badges', view: 'badges', href: `${base}/badges`, visible: visible('badges') }, { label: 'Resume', view: 'resume', href: `${base}/resume`, visible: visible('resume') }]
+  return [{ label: 'Overview', view: 'overview', href: base, visible: true }, { label: 'Timeline', view: 'timeline', href: `${base}/timeline`, visible: visible('timeline') }, { label: 'Projects', view: 'projects', href: `${base}/projects`, visible: visible('projects') }, { label: 'Resume', view: 'resume', href: `${base}/resume`, visible: visible('resume') }]
     .filter((tab) => tab.visible).map((tab) => ({ ...tab, href: getUriWithOrg(orgslug, tab.href) }))
 }
 
@@ -49,8 +50,6 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
   const token = session?.data?.tokens?.access_token
   const [shell, setShell] = useState(initialShell)
   const [activeView, setActiveView] = useState<PortfolioView>(active)
-  const [scrolled, setScrolled] = useState(false)
-  const [stickyBounds, setStickyBounds] = useState<{ left: number; width: number } | null>(null)
   const [editingIdentity, setEditingIdentity] = useState(false)
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false)
   const [draftSocials, setDraftSocials] = useState<Array<{ type: string; url: string }>>(() => shellSocials(initialShell))
@@ -61,33 +60,20 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
   const [experienceType, setExperienceType] = useState<string>('work_career')
   const editingExperience = shell.timeline?.find((item: TimelineEntry) => item.timeline_uuid === searchParams.get('editExperience'))
   const editingProject = shell.projects?.find((item: Project) => item.project_uuid === searchParams.get('editProject'))
-  const headerRef = useRef<HTMLElement | null>(null)
   const displayName = shell.portfolio.display_name || username || 'Your portfolio'
   const nav = useMemo(() => tabs(orgslug, username, owner, shell, preview), [orgslug, username, owner, shell, preview])
-  const compact = activeView !== 'overview'
   const showLaunchGuide = Boolean(shell.checklist?.total && (!shell.portfolio.published_at || shell.checklist.completed < shell.checklist.total))
   const avatarUrl = shell.portfolio.avatar_image
     ? getUserAvatarMediaDirectory(shell.portfolio.user_uuid, shell.portfolio.avatar_image)
     : ''
 
   useEffect(() => {
-    const handleScroll = () => {
-      if (activeView !== 'overview') return
-      const bounds = headerRef.current?.getBoundingClientRect()
-      setScrolled((bounds?.bottom || 1) <= 0)
-      if (bounds) setStickyBounds({ left: bounds.left, width: bounds.width })
-    }
     const handlePopState = () => setActiveView(window.location.pathname.endsWith('/resume') ? 'resume' : window.location.pathname.endsWith('/badges') ? 'badges' : window.location.pathname.endsWith('/projects') ? 'projects' : window.location.pathname.endsWith('/timeline') ? 'timeline' : 'overview')
-    handleScroll()
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    window.addEventListener('resize', handleScroll)
     window.addEventListener('popstate', handlePopState)
     return () => {
-      window.removeEventListener('scroll', handleScroll)
-      window.removeEventListener('resize', handleScroll)
       window.removeEventListener('popstate', handlePopState)
     }
-  }, [activeView])
+  }, [])
 
   useEffect(() => {
     if (owner && searchParams.get('edit') === 'profile') setEditingIdentity(true)
@@ -176,38 +162,17 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
   return <main className={`${activeView === 'resume' ? 'h-dvh overflow-hidden' : 'min-h-screen pb-20'} bg-background text-foreground`}>
     {preview && <div className="border-b border-border px-4 py-3"><div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3"><div><span className="text-sm font-bold">Public preview</span><p className="text-xs text-muted-foreground">This is how visitors will see your portfolio.</p></div><div className="flex items-center gap-2"><Button asChild variant="outline" size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio')}><ArrowLeft className="mr-2 h-4 w-4" />Back to editing</Link></Button>{shell.portfolio.published_at ? <span className="inline-flex h-9 items-center rounded-md bg-muted px-3 text-sm font-semibold text-muted-foreground"><Globe2 className="mr-2 h-4 w-4" />Published</span> : shell.portfolio.email_verified === false ? <VerificationMenu email={shell.portfolio.email} token={token} setShell={setShell} onPublish={publish} busy={busy} /> : <Button size="sm" onClick={publish} disabled={busy}><Globe2 className="mr-2 h-4 w-4" />{busy ? 'Publishing…' : 'Publish portfolio'}</Button>}</div></div></div>}
     <div className="mx-auto max-w-5xl px-5 sm:px-8">
-    <motion.header ref={headerRef} className={`${activeView === 'overview' ? 'relative' : 'sticky top-0'} z-[var(--z-sticky-header)] border-b border-border/70 bg-background/95 backdrop-blur-xl ${compact ? 'shadow-[0_1px_0_hsl(var(--border)/.25)]' : ''}`}>
-      <motion.div layout className={`${compact ? 'py-3' : 'py-8 sm:py-12'}`}>
-        <motion.div layout className={`${compact ? 'flex items-center justify-between gap-4' : 'flex flex-col items-center gap-5 text-center sm:flex-row sm:items-center sm:text-left'}`}>
-          <motion.div layout className={`${compact ? 'flex min-w-0 items-center gap-3' : 'flex flex-col items-center gap-5 sm:flex-row'}`}>
-            <Avatar url={avatarUrl} name={displayName} compact={compact} />
-            <motion.div layout className="min-w-0">
-              <motion.h1 layout className={`${compact ? 'truncate text-base font-bold' : 'text-3xl font-black tracking-tight sm:text-5xl'}`}>{displayName}</motion.h1>
-              <AnimatePresence initial={false}>
-                {!compact && <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                  {shell.portfolio.headline && <p className="mt-2 max-w-xl text-base text-muted-foreground sm:text-lg">{shell.portfolio.headline}</p>}
-                  {shell.portfolio.location_label && <p className="mt-2 flex items-center justify-center gap-1.5 text-sm text-muted-foreground sm:justify-start"><MapPin className="h-3.5 w-3.5" />{shell.portfolio.location_label}</p>}
-                  <SocialCircles socials={shell.portfolio.socials || []} />
-                  {owner && !preview && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start"><Button variant="outline" onClick={() => setEditingIdentity(true)}><Pencil className="mr-2 h-4 w-4" />Edit</Button><Button asChild variant="outline"><Link href={getUriWithOrg(orgslug, '/portfolio/preview')}><Eye className="mr-2 h-4 w-4" />Preview</Link></Button><PortfolioShareButton orgslug={orgslug} username={username} displayName={displayName} published={Boolean(shell.portfolio.published_at)} onPublish={publish} busy={busy} />{shell.portfolio.published_at ? <Button variant="outline" onClick={unpublish} disabled={busy}><EyeOff className="mr-2 h-4 w-4" />Unpublish</Button> : shell.portfolio.email_verified === false ? <VerificationMenu email={shell.portfolio.email} token={token} setShell={setShell} onPublish={publish} busy={busy} /> : <Button onClick={publish} disabled={busy}><Globe2 className="mr-2 h-4 w-4" />Publish</Button>}</motion.div>}
-                </motion.div>}
-              </AnimatePresence>
-            </motion.div>
-          </motion.div>
-          {owner && !preview && compact && <div className="flex items-center gap-2">{showLaunchGuide && <ChecklistGauge checklist={shell.checklist} orgslug={orgslug} onPublish={publish} busy={busy} />}<PortfolioShareButton compact orgslug={orgslug} username={username} displayName={displayName} published={Boolean(shell.portfolio.published_at)} onPublish={publish} busy={busy} />{activeView === 'projects' && <Button type="button" size="sm" onClick={() => setProjectEditorOpen(true)}><Plus className="mr-1.5 h-4 w-4" />Add project</Button>}{activeView === 'timeline' && <DropdownMenu><DropdownMenuTrigger asChild><Button size="sm"><Plus className="mr-1.5 h-4 w-4" />Add experience<ChevronDown className="ml-1.5 h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-60">{EXPERIENCE_TYPES.map((type) => <DropdownMenuItem key={type.value} onSelect={() => { setExperienceType(type.value); setExperienceEditorOpen(true) }}>{type.label}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>}{activeView === 'badges' && <Button asChild size="sm"><Link href={getUriWithOrg(orgslug, '/badges?choose=1')}><Award className="mr-1.5 h-4 w-4" />Find badges</Link></Button>}{activeView === 'resume' && <Button type="button" size="sm" onClick={() => window.print()}><Printer className="mr-1.5 h-4 w-4" />Print / save PDF</Button>}</div>}
-        </motion.div>
-      </motion.div>
-      {owner && !preview && activeView === 'overview' && showLaunchGuide && <ChecklistBanner checklist={shell.checklist} orgslug={orgslug} onPublish={publish} busy={busy} />}
-      {nav.length > 1 && <nav className="flex gap-7 overflow-x-auto" aria-label="Portfolio views">{nav.map((tab) => { const view = tab.view as PortfolioView; const selected = activeView === view; return <button type="button" key={tab.label} onClick={() => changeView(view, tab.href)} className={`relative py-3 text-sm font-semibold transition-colors ${selected ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>{tab.label}{selected && <motion.span layoutId="portfolio-active-tab" className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-foreground" transition={{ type: 'spring', stiffness: 500, damping: 38 }} />}</button>})}</nav>}
-    </motion.header>
-
-    <AnimatePresence>
-      {activeView === 'overview' && scrolled && stickyBounds && <motion.header initial={reduceMotion ? false : { opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }} transition={{ duration: reduceMotion ? 0 : 0.16, ease: 'easeOut' }} style={{ left: stickyBounds.left, width: stickyBounds.width }} className="fixed top-0 z-[var(--z-sticky-header)] isolate border-b border-border/70 bg-background/95 backdrop-blur-xl before:absolute before:-inset-x-8 before:inset-y-0 before:-z-10 before:bg-background/95">
-        <div className="px-5 sm:px-8">
-          <div className="flex items-center gap-3 py-2.5"><Avatar url={avatarUrl} name={displayName} compact /><h1 className="min-w-0 flex-1 truncate text-base font-bold">{displayName}</h1>{owner && !preview && showLaunchGuide && <ChecklistGauge checklist={shell.checklist} orgslug={orgslug} onPublish={publish} busy={busy} />}{owner && !preview && <PortfolioShareButton compact orgslug={orgslug} username={username} displayName={displayName} published={Boolean(shell.portfolio.published_at)} onPublish={publish} busy={busy} />}</div>
-          {nav.length > 1 && <nav className="flex gap-7 overflow-x-auto" aria-label="Portfolio views">{nav.map((tab) => { const view = tab.view as PortfolioView; const selected = activeView === view; return <button type="button" key={tab.label} onClick={() => changeView(view, tab.href)} className={`relative shrink-0 py-2.5 text-sm font-semibold transition-colors ${selected ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>{tab.label}{selected && <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-foreground" />}</button>})}</nav>}
-        </div>
-      </motion.header>}
-    </AnimatePresence>
+    <TabbedPageHeader
+      activeTab={activeView}
+      tabs={nav.map((tab) => ({ id: tab.view as PortfolioView, label: tab.label, href: tab.href }))}
+      expanded={activeView === 'overview'}
+      ariaLabel="Portfolio views"
+      layoutId="portfolio-active-tab"
+      onTabChange={(tab) => changeView(tab.id, tab.href)}
+      betweenHeaderAndTabs={owner && !preview && activeView === 'overview' && showLaunchGuide ? <ChecklistBanner checklist={shell.checklist} orgslug={orgslug} onPublish={publish} busy={busy} /> : null}
+      fullHeader={<motion.div layout className="flex flex-col items-center gap-5 text-center sm:flex-row sm:items-center sm:text-left"><motion.div layout className="flex flex-col items-center gap-5 sm:flex-row"><Avatar url={avatarUrl} name={displayName} compact={false} /><motion.div layout className="min-w-0"><motion.h1 layout className="text-3xl font-black tracking-tight sm:text-5xl">{displayName}</motion.h1>{shell.portfolio.headline && <p className="mt-2 max-w-xl text-base text-muted-foreground sm:text-lg">{shell.portfolio.headline}</p>}{shell.portfolio.location_label && <p className="mt-2 flex items-center justify-center gap-1.5 text-sm text-muted-foreground sm:justify-start"><MapPin className="h-3.5 w-3.5" />{shell.portfolio.location_label}</p>}<SocialCircles socials={shell.portfolio.socials || []} />{owner && !preview && <div className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start"><Button variant="outline" onClick={() => setEditingIdentity(true)}><Pencil className="mr-2 h-4 w-4" />Edit</Button><Button asChild variant="outline"><Link href={getUriWithOrg(orgslug, '/portfolio/preview')}><Eye className="mr-2 h-4 w-4" />Preview</Link></Button><PortfolioShareButton orgslug={orgslug} username={username} displayName={displayName} published={Boolean(shell.portfolio.published_at)} onPublish={publish} busy={busy} />{shell.portfolio.published_at ? <Button variant="outline" onClick={unpublish} disabled={busy}><EyeOff className="mr-2 h-4 w-4" />Unpublish</Button> : shell.portfolio.email_verified === false ? <VerificationMenu email={shell.portfolio.email} token={token} setShell={setShell} onPublish={publish} busy={busy} /> : <Button onClick={publish} disabled={busy}><Globe2 className="mr-2 h-4 w-4" />Publish</Button>}</div>}</motion.div></motion.div></motion.div>}
+      compactHeader={<div className="flex items-center justify-between gap-4"><div className="flex min-w-0 items-center gap-3"><Avatar url={avatarUrl} name={displayName} compact /><h1 className="min-w-0 truncate text-base font-bold">{displayName}</h1></div>{owner && !preview && <div className="flex items-center gap-2">{showLaunchGuide && <ChecklistGauge checklist={shell.checklist} orgslug={orgslug} onPublish={publish} busy={busy} />}<PortfolioShareButton compact orgslug={orgslug} username={username} displayName={displayName} published={Boolean(shell.portfolio.published_at)} onPublish={publish} busy={busy} />{activeView === 'projects' && <Button type="button" size="sm" onClick={() => setProjectEditorOpen(true)}><Plus className="mr-1.5 h-4 w-4" />Add project</Button>}{activeView === 'timeline' && <DropdownMenu><DropdownMenuTrigger asChild><Button size="sm"><Plus className="mr-1.5 h-4 w-4" />Add experience<ChevronDown className="ml-1.5 h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-60">{EXPERIENCE_TYPES.map((type) => <DropdownMenuItem key={type.value} onSelect={() => { setExperienceType(type.value); setExperienceEditorOpen(true) }}>{type.label}</DropdownMenuItem>)}</DropdownMenuContent></DropdownMenu>}{activeView === 'badges' && <Button asChild size="sm"><Link href={getUriWithOrg(orgslug, '/badges?choose=1')}><Award className="mr-1.5 h-4 w-4" />Find badges</Link></Button>}{activeView === 'resume' && <Button type="button" size="sm" onClick={() => window.print()}><Printer className="mr-1.5 h-4 w-4" />Print / save PDF</Button>}</div>}</div>}
+    />
 
     <div className={activeView === 'resume' ? '' : 'py-8 sm:py-12'}>
       <AnimatePresence mode="wait" initial={false}>{activeView === 'overview' ? <motion.div key="overview"><Overview shell={shell} setShell={setShell} owner={owner && !preview} orgslug={orgslug} username={username} importLegacy={importLegacy} busy={busy} token={token} /></motion.div> : activeView === 'timeline' ? <motion.div key="timeline"><TimelineView entries={shell.timeline || []} owner={owner && !preview} orgslug={orgslug} username={username} onToggleFeatured={owner && !preview ? toggleFeaturedTimeline : undefined} savingUuid={savingTimelineUuid} /></motion.div> : activeView === 'badges' ? <motion.div key="badges"><BadgesView shell={shell} setShell={setShell} owner={owner && !preview} orgslug={orgslug} token={token} /></motion.div> : activeView === 'resume' ? <motion.div key="resume">{owner && !preview && !shell.projects.length && !shell.timeline.length ? <EmptyTab icon={FileText} eyebrow="Your resume" title="Build a resume from your story" description="Your resume grows automatically as you add projects, experience, strengths, and badges." examples={['Projects you’re proud of', 'Education and experience', 'Skills and strengths', 'Verified badges']} action="Add your first project" href="/portfolio/projects/new" orgslug={orgslug} /> : <ResumeView shell={shell} orgslug={orgslug} username={username} owner={owner && !preview} />}</motion.div> : <motion.div key="projects"><ProjectGrid shell={shell} setShell={setShell} owner={owner && !preview} orgslug={orgslug} username={username} token={token} /></motion.div>}</AnimatePresence>
@@ -506,7 +471,7 @@ function Overview({ shell, setShell, owner, orgslug, username, importLegacy, bus
     : type === 'instagram' || type === 'youtube' ? (shell.portfolio.socials || []).some((social: { type: string; url: string }) => social.type === type && social.url)
     : false
   const renderSection = (type: string) => type === 'about' ? <AboutSection shell={shell} setShell={setShell} owner={owner} token={token} />
-    : type === 'featured_badges' ? <section><div className="mb-4 flex items-center justify-between gap-3"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Badges</h2><Link href={getUriWithOrg(orgslug, owner ? '/portfolio/badges' : `/user/${username}/badges`)} className="text-xs font-semibold text-muted-foreground transition hover:text-foreground">View all</Link></div><div className="grid gap-3">{shell.badges.featured.map((badge: PortfolioBadge) => <SidebarBadge key={badge.badge_uuid} badge={badge} orgslug={orgslug} />)}</div></section>
+    : type === 'featured_badges' ? <section><div className="mb-4 flex items-center justify-between gap-3"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Badges</h2><Link href={getUriWithOrg(orgslug, owner ? routePaths.org.myBadges() : `/user/${username}/badges`)} className="text-xs font-semibold text-muted-foreground transition hover:text-foreground">View all</Link></div><div className="grid gap-3">{shell.badges.featured.map((badge: PortfolioBadge) => <SidebarBadge key={badge.badge_uuid} badge={badge} orgslug={orgslug} />)}</div></section>
     : type === 'traits' ? <div className="grid gap-9"><TraitCard kind="strength" initial={shell.traits?.strength || []} owner={owner} onShellChange={setShell} /><TraitCard kind="value" initial={shell.traits?.value || []} owner={owner} onShellChange={setShell} /></div>
     : type === 'current_timeline' ? <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Timeline</h2><button className="text-sm font-semibold" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, owner ? '/portfolio/timeline' : `/user/${username}/timeline`)); window.dispatchEvent(new PopStateEvent('popstate')) }}>View all</button></div>{featuredTimeline.length ? <TimelineView entries={featuredTimeline} owner={owner} orgslug={orgslug} username={username} variant="overview" /> : owner ? <button type="button" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, '/portfolio/timeline')); window.dispatchEvent(new PopStateEvent('popstate')) }} className="w-full rounded-xl border border-dashed border-border px-5 py-10 text-center text-sm font-semibold text-muted-foreground transition hover:border-foreground hover:text-foreground">Star Timeline experiences to feature them here.</button> : null}</section>
     : type === 'featured_projects' ? <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Featured project{featured.length > 1 ? 's' : ''}</h2><button className="text-sm font-semibold transition-colors hover:text-foreground" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, owner ? '/portfolio/projects' : `/user/${username}/projects`)); window.dispatchEvent(new PopStateEvent('popstate')) }}>View all</button></div>{featured.length ? <FeaturedProjectCards project={featured} owner={owner} orgslug={orgslug} username={username} /> : owner ? <button type="button" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, '/portfolio/projects')); window.dispatchEvent(new PopStateEvent('popstate')) }} className="w-full rounded-xl border border-dashed border-border px-5 py-10 text-center text-sm font-semibold text-muted-foreground transition hover:border-foreground hover:text-foreground">Star one of your projects to feature it here.</button> : null}</section>
@@ -616,6 +581,13 @@ function BadgesView({ shell, setShell, owner, orgslug, token }: { shell: Shell; 
     {inProgress.length > 0 && <section><div className="mb-5 flex items-end justify-between"><div><h2 className="text-2xl font-black">In progress</h2><p className="mt-1 text-sm text-muted-foreground">Keep going on the badge paths you’ve started.</p></div>{owner && <Button asChild variant="outline"><Link href={getUriWithOrg(orgslug, '/badges?choose=1')}>Find more badges</Link></Button>}</div><div className="flex gap-4 overflow-x-auto pb-2">{inProgress.map((badge) => <InProgressBadgeCard key={badge.badge_uuid} badge={badge} orgslug={orgslug} />)}</div></section>}
     <section><div className="mb-5"><h2 className="text-2xl font-black">Earned badges</h2>{owner && <p className="mt-1 text-sm text-muted-foreground">Star badges for your overview. Use the eye control to hide a badge from visitors.</p>}</div>{earned.length ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{earned.map((badge) => <div key={badge.badge_uuid} className={savingUuid === badge.badge_uuid ? 'pointer-events-none opacity-70' : ''}><BadgeCard badge={badge} orgslug={orgslug} featured={selected.includes(badge.badge_uuid)} hidden={hidden.includes(badge.badge_uuid)} onFeature={owner ? () => toggle(badge.badge_uuid) : undefined} onVisibility={owner ? () => toggleVisibility(badge.badge_uuid) : undefined} /></div>)}</div> : <div className="rounded-2xl border border-dashed border-border py-14 text-center"><Award className="mx-auto h-10 w-10 text-muted-foreground" /><p className="mt-3 font-semibold">Your earned badges will appear here.</p><p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">Start a badge path to practice a skill and collect evidence you can share.</p>{owner && <Button asChild className="mt-6"><Link href={getUriWithOrg(orgslug, '/badges?choose=1')}>Find a badge</Link></Button>}</div>}</section>
   </div>
+}
+
+export function PortfolioBadgesView({ initialShell, orgslug }: { initialShell: Shell; orgslug: string }) {
+  const session = useLHSession() as any
+  const token = session?.data?.tokens?.access_token
+  const [shell, setShell] = useState(initialShell)
+  return <BadgesView shell={shell} setShell={setShell} owner orgslug={orgslug} token={token} />
 }
 
 function ChecklistMenu({ checklist, orgslug, children, align = 'end' }: { checklist?: Shell['checklist']; orgslug: string; children: React.ReactNode; align?: 'start' | 'center' | 'end' }) {
