@@ -33,6 +33,18 @@ class EvidencePolicy(str, Enum):
     BOTH = "both"
 
 
+class ObjectiveStartRule(str, Enum):
+    ANY_TIME = "any_time"
+    PHASE_START = "phase_start"
+    SPECIFIC_DATE = "specific_date"
+
+
+class ObjectiveDueRule(str, Enum):
+    OPTIONAL = "optional"
+    PHASE_END = "phase_end"
+    SPECIFIC_DATE = "specific_date"
+
+
 class ParticipantStatus(str, Enum):
     INVITED = "invited"
     ACTIVE = "active"
@@ -76,6 +88,9 @@ class ProgramObjective(SQLModel, table=True):
     position: int = 0
     target_days: int | None = None
     badge_major_version: int | None = None
+    default_start_rule: ObjectiveStartRule = Field(default=ObjectiveStartRule.ANY_TIME, sa_column=Column(String, nullable=False))
+    default_due_rule: ObjectiveDueRule = Field(default=ObjectiveDueRule.OPTIONAL, sa_column=Column(String, nullable=False))
+    default_allow_late: bool = False
     creation_date: str = ""
     update_date: str = ""
 
@@ -112,6 +127,9 @@ class ProgramAssignment(SQLModel, table=True):
     program_version: int = 1
     objective_snapshot: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
     welcome_message: str = ""
+    initiate_date: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    staff_user_ids: list[int] = Field(default_factory=list, sa_column=Column(JSON))
+    schedule: dict = Field(default_factory=dict, sa_column=Column(JSON))
     start_date: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
     due_date: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
     active: bool = True
@@ -185,6 +203,22 @@ class ObjectiveCreate(SQLModel):
     target_days: int | None = None
     phase_uuid: str | None = None
     allow_learner_confirmation: bool = False
+    default_start_rule: ObjectiveStartRule = ObjectiveStartRule.ANY_TIME
+    default_due_rule: ObjectiveDueRule = ObjectiveDueRule.OPTIONAL
+    default_allow_late: bool = False
+
+
+class ProgramObjectiveScheduleUpdate(SQLModel):
+    default_start_rule: ObjectiveStartRule
+    default_due_rule: ObjectiveDueRule
+    default_allow_late: bool = False
+
+
+class ProgramObjectiveUpdate(ProgramObjectiveScheduleUpdate):
+    title: str
+    description: str = ""
+    custom_fields: list[dict] = Field(default_factory=list)
+    allow_learner_confirmation: bool = False
 
 
 class ProgramPhase(SQLModel, table=True):
@@ -229,6 +263,9 @@ class ProgramAssignmentCreate(SQLModel):
     usergroup_id: int | None = None
     user_id: int | None = None
     welcome_message: str = ""
+    initiate_date: datetime | None = None
+    staff_user_ids: list[int] = Field(default_factory=list)
+    schedule: dict = Field(default_factory=dict)
     start_date: datetime | None = None
     due_date: datetime | None = None
 

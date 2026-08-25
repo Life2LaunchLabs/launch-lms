@@ -11,6 +11,8 @@ from src.db.programs import (
     ProgramCreate,
     ProgramPhaseCreate,
     ProgramPhaseUpdate,
+    ProgramObjectiveScheduleUpdate,
+    ProgramObjectiveUpdate,
     ProgramReorder,
     ProgramUpdate,
 )
@@ -172,6 +174,34 @@ def api_add_program_objective(
     current_user: PublicUser = Depends(get_current_user),
 ):
     return service.add_program_objective(db_session, current_user, org_id, program_uuid, payload)
+
+
+@router.put("/{program_uuid}/objectives/{objective_uuid}/schedule")
+def api_update_program_objective_schedule(
+    program_uuid: str,
+    objective_uuid: str,
+    payload: ProgramObjectiveScheduleUpdate,
+    org_id: int,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    return service.update_program_objective_schedule(
+        db_session, current_user, org_id, program_uuid, objective_uuid, payload
+    )
+
+
+@router.put("/{program_uuid}/objectives/{objective_uuid}")
+def api_update_program_objective(
+    program_uuid: str,
+    objective_uuid: str,
+    payload: ProgramObjectiveUpdate,
+    org_id: int,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    return service.update_program_objective(
+        db_session, current_user, org_id, program_uuid, objective_uuid, payload
+    )
 
 
 @router.post("/{program_uuid}/phases")

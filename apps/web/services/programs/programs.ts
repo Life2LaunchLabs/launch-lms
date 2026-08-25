@@ -9,6 +9,12 @@ async function request(path: string, token: string | undefined, method = 'GET', 
   return errorHandling(response)
 }
 
+function objectiveCreateData(data: any) {
+  const schedule = data?.custom_fields?.__schedule
+  if (!schedule) return data
+  return { ...data, ...schedule, custom_fields: [...data.custom_fields] }
+}
+
 export const programsApi = {
   list: (orgId: number, token?: string) => request(`/?org_id=${orgId}`, token),
   create: (orgId: number, data: any, token?: string) => request('/', token, 'POST', { ...data, org_id: orgId }),
@@ -16,7 +22,9 @@ export const programsApi = {
   update: (orgId: number, uuid: string, data: any, token?: string) => request(`/${encodeURIComponent(uuid)}?org_id=${orgId}`, token, 'PUT', data),
   delete: (orgId: number, uuid: string, token?: string) => request(`/${encodeURIComponent(uuid)}?org_id=${orgId}`, token, 'DELETE'),
   objectives: (orgId: number, token?: string) => request(`/objectives?org_id=${orgId}`, token),
-  addObjective: (orgId: number, uuid: string, data: any, token?: string) => request(`/${encodeURIComponent(uuid)}/objectives?org_id=${orgId}`, token, 'POST', data),
+  addObjective: (orgId: number, uuid: string, data: any, token?: string) => request(`/${encodeURIComponent(uuid)}/objectives?org_id=${orgId}`, token, 'POST', objectiveCreateData(data)),
+  updateObjectiveSchedule: (orgId: number, uuid: string, objectiveUuid: string, data: any, token?: string) => request(`/${encodeURIComponent(uuid)}/objectives/${encodeURIComponent(objectiveUuid)}/schedule?org_id=${orgId}`, token, 'PUT', data),
+  updateObjective: (orgId: number, uuid: string, objectiveUuid: string, data: any, token?: string) => request(`/${encodeURIComponent(uuid)}/objectives/${encodeURIComponent(objectiveUuid)}?org_id=${orgId}`, token, 'PUT', data),
   createPhase: (orgId: number, uuid: string, data: any, token?: string) => request(`/${encodeURIComponent(uuid)}/phases?org_id=${orgId}`, token, 'POST', data),
   updatePhase: (orgId: number, uuid: string, phaseUuid: string, data: any, token?: string) => request(`/${encodeURIComponent(uuid)}/phases/${encodeURIComponent(phaseUuid)}?org_id=${orgId}`, token, 'PUT', data),
   reorder: (orgId: number, uuid: string, phases: any[], token?: string) => request(`/${encodeURIComponent(uuid)}/order?org_id=${orgId}`, token, 'PUT', { phases }),

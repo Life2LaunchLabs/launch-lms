@@ -19,6 +19,8 @@ from src.db.programs import (
     ProgramAssignmentCreate,
     ProgramCreate,
     ProgramObjective,
+    ProgramObjectiveScheduleUpdate,
+    ProgramObjectiveUpdate,
     ProgramPhase,
     ProgramPhaseCreate,
     ProgramPhaseUpdate,
@@ -31,7 +33,9 @@ from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
+from src.db.roles import Role
 from src.security.org_auth import require_org_admin, require_org_membership
+from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 
 
 def _now() -> datetime:
@@ -89,6 +93,9 @@ def _objective_dict(objective: Objective, relation: ProgramObjective | None = No
             "target_days": relation.target_days,
             "badge_major_version": relation.badge_major_version,
             "phase_id": relation.phase_id,
+            "default_start_rule": relation.default_start_rule.value if hasattr(relation.default_start_rule, "value") else relation.default_start_rule,
+            "default_due_rule": relation.default_due_rule.value if hasattr(relation.default_due_rule, "value") else relation.default_due_rule,
+            "default_allow_late": relation.default_allow_late,
         })
     return result
 
@@ -144,7 +151,7 @@ def _program_phases(db: Session, program: Program) -> list[dict]:
             "position": phase.position,
             "target_days": phase.target_days,
             "suggested_duration_weeks": phase.suggested_duration_weeks,
-            "objectives": [item for item in objectives if item.get("phase_id") == phase.id],
+            "objectives": [{**item, "program_uuid": program.program_uuid} for item in objectives if item.get("phase_id") == phase.id],
         }
         for phase in phases
     ]
@@ -384,6 +391,9 @@ def add_program_objective(
         position=position,
         target_days=payload.target_days,
         badge_major_version=badge_major,
+        default_start_rule=payload.default_start_rule,
+        default_due_rule=payload.default_due_rule,
+        default_allow_late=payload.default_allow_late,
         creation_date=now,
         update_date=now,
     ))
@@ -393,6 +403,98 @@ def add_program_objective(
     db.commit()
     db.refresh(program)
     return _program_dict(db, program)
+
+
+def update_program_objective_schedule(
+    db: Session,
+    current_user: PublicUser,
+    org_id: int,
+    program_uuid: str,
+    objective_uuid: str,
+    payload: ProgramObjectiveScheduleUpdate,
+) -> dict:
+    require_org_admin(current_user.id, org_id, db)
+    program = _program_or_404(db, program_uuid, org_id)
+    relation = db.exec(
+        select(ProgramObjective)
+        .join(Objective, Objective.id == ProgramObjective.objective_id)
+        .where(
+            ProgramObjective.program_id == program.id,
+            Objective.objective_uuid == objective_uuid,
+        )
+    ).first()
+    if not relation:
+        raise HTTPException(status_code=404, detail="Program objective not found")
+    relation.default_start_rule = payload.default_start_rule
+    relation.default_due_rule = payload.default_due_rule
+    relation.default_allow_late = payload.default_allow_late
+    now = _now_string()
+    relation.update_date = now
+    program.version += 1
+    program.update_date = now
+    db.add(relation)
+    db.add(program)
+    db.commit()
+    return _program_dict(db, program)
+
+
+def update_program_objective(
+    db: Session,
+    current_user: PublicUser,
+    org_id: int,
+    program_uuid: str,
+    objective_uuid: str,
+    payload: ProgramObjectiveUpdate,
+) -> dict:
+    require_org_admin(current_user.id, org_id, db)
+    program = _program_or_404(db, program_uuid, org_id)
+    row = db.exec(
+        select(ProgramObjective, Objective)
+        .join(Objective, Objective.id == ProgramObjective.objective_id)
+        .where(
+            ProgramObjective.program_id == program.id,
+            Objective.objective_uuid == objective_uuid,
+        )
+    ).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Program objective not found")
+    relation, objective = row
+    title = payload.title.strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="Objective title is required")
+    objective.title = title
+    objective.description = payload.description
+    if objective.kind == ObjectiveKind.CUSTOM:
+        objective.custom_fields = payload.custom_fields
+        objective.allow_learner_confirmation = payload.allow_learner_confirmation
+        learner_can_add_evidence = any(bool(field.get("allow_student_upload")) for field in payload.custom_fields)
+        objective.completion_policy = "either" if payload.allow_learner_confirmation else "staff"
+        objective.evidence_policy = "both" if learner_can_add_evidence else ("staff" if payload.custom_fields else "none")
+    relation.default_start_rule = payload.default_start_rule
+    relation.default_due_rule = payload.default_due_rule
+    relation.default_allow_late = payload.default_allow_late
+    now = _now_string()
+    objective.update_date = now
+    relation.update_date = now
+    program.version += 1
+    program.update_date = now
+    db.add(objective)
+    db.add(relation)
+    db.add(program)
+    db.commit()
+    return _program_dict(db, program)
+
+
+def _role_can_manage_programs(role: Role | None) -> bool:
+    if not role:
+        return False
+    if role.id in ADMIN_OR_MAINTAINER_ROLE_IDS:
+        return True
+    rights = role.rights if isinstance(role.rights, dict) else {}
+    return bool(
+        rights.get("dashboard", {}).get("action_access")
+        and rights.get("learning_activities", {}).get("action_update")
+    )
 
 
 def create_program_phase(
@@ -532,7 +634,67 @@ def update_badge_versions(db: Session, current_user: PublicUser, org_id: int, pr
 
 
 def _snapshot(db: Session, program: Program) -> list[dict]:
-    return _program_objectives(db, program)
+    return [
+        {**objective, "phase_uuid": phase["phase_uuid"], "phase_name": phase["name"]}
+        for phase in _program_phases(db, program)
+        for objective in phase["objectives"]
+    ]
+
+
+def _validated_schedule(program: Program, phases: list[dict], payload: ProgramAssignmentCreate) -> dict:
+    schedule = payload.schedule or {}
+    supplied_phases = schedule.get("phases") or []
+    if not supplied_phases:
+        return {
+            "phases": [],
+            "objectives": [
+                {
+                    "objective_uuid": objective["objective_uuid"],
+                    "phase_uuid": phase["phase_uuid"],
+                    "start_rule": objective.get("default_start_rule", "any_time"),
+                    "due_rule": objective.get("default_due_rule", "optional"),
+                    "allow_late": objective.get("default_allow_late", False),
+                    "start_date": None,
+                    "due_date": None,
+                    "effective_start_date": None,
+                    "effective_due_date": None,
+                }
+                for phase in phases
+                for objective in phase["objectives"]
+            ],
+        }
+    phase_by_uuid = {item.get("phase_uuid"): item for item in supplied_phases}
+    expected = {phase["phase_uuid"] for phase in phases}
+    if set(phase_by_uuid) != expected:
+        raise HTTPException(status_code=422, detail="Set start and end dates for every phase")
+    for phase in phases:
+        scheduled_phase = phase_by_uuid[phase["phase_uuid"]]
+        if not scheduled_phase.get("start_date") or not scheduled_phase.get("end_date"):
+            raise HTTPException(status_code=422, detail=f"Set both dates for {phase['name']}")
+        if scheduled_phase["end_date"] < scheduled_phase["start_date"]:
+            raise HTTPException(status_code=422, detail=f"{phase['name']} must end after it starts")
+    objective_by_uuid = {item.get("objective_uuid"): item for item in schedule.get("objectives") or []}
+    expected_objectives = {objective["objective_uuid"] for phase in phases for objective in phase["objectives"]}
+    if set(objective_by_uuid) != expected_objectives:
+        raise HTTPException(status_code=422, detail="Set scheduling rules for every objective")
+    for phase in phases:
+        scheduled_phase = phase_by_uuid[phase["phase_uuid"]]
+        for objective in phase["objectives"]:
+            rule = objective_by_uuid[objective["objective_uuid"]]
+            start_rule = rule.get("start_rule")
+            due_rule = rule.get("due_rule")
+            if start_rule not in {"any_time", "phase_start", "specific_date"}:
+                raise HTTPException(status_code=422, detail=f"Invalid start rule for {objective['title']}")
+            if due_rule not in {"optional", "phase_end", "specific_date"}:
+                raise HTTPException(status_code=422, detail=f"Invalid completion rule for {objective['title']}")
+            if start_rule == "specific_date" and not rule.get("start_date"):
+                raise HTTPException(status_code=422, detail=f"Choose a start date for {objective['title']}")
+            if due_rule == "specific_date" and not rule.get("due_date"):
+                raise HTTPException(status_code=422, detail=f"Choose a due date for {objective['title']}")
+            rule["phase_uuid"] = phase["phase_uuid"]
+            rule["effective_start_date"] = scheduled_phase["start_date"] if start_rule == "phase_start" else rule.get("start_date")
+            rule["effective_due_date"] = scheduled_phase["end_date"] if due_rule == "phase_end" else rule.get("due_date")
+    return {"phases": supplied_phases, "objectives": list(objective_by_uuid.values())}
 
 
 def ensure_group_participants(db: Session, usergroup_id: int, user_ids: list[int] | None = None) -> None:
@@ -594,6 +756,21 @@ def assign_program(
         )).first()
         if not membership:
             raise HTTPException(status_code=404, detail="User is not connected to this organization")
+    phases = _program_phases(db, program)
+    schedule = _validated_schedule(program, phases, payload)
+    staff_ids = list(dict.fromkeys(payload.staff_user_ids))
+    if not staff_ids:
+        raise HTTPException(status_code=422, detail="Assign at least one staff member")
+    if staff_ids:
+        memberships = db.exec(select(UserOrganization, Role).join(
+            Role, Role.id == UserOrganization.role_id
+        ).where(
+            UserOrganization.org_id == org_id,
+            UserOrganization.user_id.in_(staff_ids),
+        )).all()
+        eligible_ids = {membership.user_id for membership, role in memberships if _role_can_manage_programs(role)}
+        if eligible_ids != set(staff_ids):
+            raise HTTPException(status_code=422, detail="Every assigned staff member must have program management permissions")
     now = _now_string()
     assignment = ProgramAssignment(
         assignment_uuid=f"assignment_{uuid4()}",
@@ -604,6 +781,9 @@ def assign_program(
         program_version=program.version,
         objective_snapshot=_snapshot(db, program),
         welcome_message=payload.welcome_message,
+        initiate_date=payload.initiate_date or _now(),
+        staff_user_ids=staff_ids,
+        schedule=schedule,
         start_date=payload.start_date,
         due_date=payload.due_date,
         created_by_user_id=current_user.id,
@@ -681,6 +861,9 @@ def _assignment_summary(db: Session, assignment: ProgramAssignment) -> dict:
         "usergroup_id": assignment.usergroup_id,
         "user_id": assignment.user_id,
         "welcome_message": assignment.welcome_message,
+        "initiate_date": assignment.initiate_date,
+        "staff_user_ids": assignment.staff_user_ids or [],
+        "schedule": assignment.schedule or {},
         "start_date": assignment.start_date,
         "due_date": assignment.due_date,
         "active": assignment.active,
@@ -855,15 +1038,27 @@ def my_programs(db: Session, current_user: PublicUser, org_id: int) -> list[dict
         assignment = db.get(ProgramAssignment, participant.assignment_id)
         if not assignment:
             continue
+        if assignment.initiate_date:
+            initiate_date = assignment.initiate_date
+            if initiate_date.tzinfo is None:
+                initiate_date = initiate_date.replace(tzinfo=timezone.utc)
+            if initiate_date > _now():
+                continue
         program = db.get(Program, assignment.program_id)
         objective_ids = [int(item["id"]) for item in assignment.objective_snapshot or [] if item.get("id")]
         progress = _progress_map(db, org_id, [current_user.id], objective_ids)
         badge_awards = _badge_award_keys(db, [current_user.id], assignment.objective_snapshot or [])
         objectives = []
+        schedule_by_objective = {item.get("objective_uuid"): item for item in (assignment.schedule or {}).get("objectives", [])}
         for snapshot in assignment.objective_snapshot or []:
             item = progress.get((current_user.id, int(snapshot["id"])))
             earned_badge = (current_user.id, int(snapshot["id"])) in badge_awards
-            objectives.append({**snapshot, "progress": {
+            objective_schedule = schedule_by_objective.get(snapshot["objective_uuid"], {})
+            effective_start = objective_schedule.get("effective_start_date")
+            effective_due = objective_schedule.get("effective_due_date")
+            available = not effective_start or effective_start <= _now().date().isoformat()
+            late = bool(effective_due and effective_due < _now().date().isoformat())
+            objectives.append({**snapshot, "schedule": objective_schedule, "can_start": available, "is_late": late, "progress": {
                 "status": "completed" if earned_badge else ((item.status.value if hasattr(item.status, "value") else item.status) if item else "not_started"),
                 "evidence": item.evidence if item else [],
                 "staff_note": item.staff_note if item else "",
@@ -887,6 +1082,13 @@ def respond_to_invitation(db: Session, current_user: PublicUser, org_id: int, pa
     )).first()
     if not participant:
         raise HTTPException(status_code=404, detail="Program invitation not found")
+    assignment = db.get(ProgramAssignment, participant.assignment_id)
+    if assignment and assignment.initiate_date:
+        initiate_date = assignment.initiate_date
+        if initiate_date.tzinfo is None:
+            initiate_date = initiate_date.replace(tzinfo=timezone.utc)
+        if initiate_date > _now():
+            raise HTTPException(status_code=403, detail="This program invitation has not been sent yet")
     participant.status = ParticipantStatus.ACTIVE if accept else ParticipantStatus.DECLINED
     participant.responded_at = _now()
     participant.update_date = _now_string()
@@ -917,11 +1119,22 @@ def update_my_progress(
         ProgramParticipant.status == ParticipantStatus.ACTIVE,
     )).all()
     assignments = [db.get(ProgramAssignment, participant.assignment_id) for participant in participants]
-    if not any(
-        assignment and any(item.get("objective_uuid") == objective_uuid for item in assignment.objective_snapshot or [])
-        for assignment in assignments
-    ):
+    matching_assignments = [assignment for assignment in assignments if assignment and any(
+        item.get("objective_uuid") == objective_uuid for item in assignment.objective_snapshot or []
+    )]
+    if not matching_assignments:
         raise HTTPException(status_code=403, detail="This objective is not in one of your active programs")
+    today = _now().date().isoformat()
+    actionable = False
+    for assignment in matching_assignments:
+        rule = next((item for item in (assignment.schedule or {}).get("objectives", []) if item.get("objective_uuid") == objective_uuid), {})
+        starts = rule.get("effective_start_date")
+        due = rule.get("effective_due_date")
+        if (not starts or starts <= today) and (not due or due >= today or rule.get("allow_late")):
+            actionable = True
+            break
+    if not actionable:
+        raise HTTPException(status_code=403, detail="This objective is not currently open for submissions")
     completion_policy = objective.completion_policy.value if hasattr(objective.completion_policy, "value") else objective.completion_policy
     evidence_policy = objective.evidence_policy.value if hasattr(objective.evidence_policy, "value") else objective.evidence_policy
     if status == ObjectiveProgressStatus.COMPLETED and completion_policy not in {"learner", "either"}:

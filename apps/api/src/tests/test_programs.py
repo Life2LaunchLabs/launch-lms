@@ -2,6 +2,7 @@ from sqlmodel import Session, create_engine, select
 
 from src.db.organizations import Organization
 from src.db.learning import LearningBadgeAward
+from src.db.roles import Role
 from src.db.programs import (
     Objective,
     ObjectiveCreate,
@@ -18,6 +19,8 @@ from src.db.programs import (
     ProgramPhaseOrder,
     ProgramReorder,
     ProgramParticipant,
+    ProgramObjectiveScheduleUpdate,
+    ProgramObjectiveUpdate,
 )
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
@@ -34,6 +37,8 @@ from src.services.programs import (
     list_objectives,
     reorder_program,
     update_progress,
+    update_program_objective_schedule,
+    update_program_objective,
 )
 
 
@@ -44,6 +49,7 @@ def _tables(engine):
     for model in (
         Organization,
         User,
+        Role,
         UserGroup,
         UserOrganization,
         UserGroupUser,
@@ -64,7 +70,8 @@ def _setup(session: Session):
     admin_row = User(id=1, user_uuid="user_1", username="teacher", email="teacher@example.com", first_name="T", last_name="Eacher", is_superadmin=True, creation_date=NOW, update_date=NOW)
     learner = User(id=2, user_uuid="user_2", username="learner", email="learner@example.com", first_name="Lee", last_name="Arner", creation_date=NOW, update_date=NOW)
     group = UserGroup(id=1, org_id=1, usergroup_uuid="usergroup_1", name="Fall Studio", description="", creation_date=NOW, update_date=NOW)
-    session.add_all([org, admin_row, learner, group])
+    session.add_all([org, admin_row, learner, group, Role(id=1, name="Admin", role_uuid="role_admin")])
+    session.add(UserOrganization(user_id=1, org_id=1, role_id=1, creation_date=NOW, update_date=NOW))
     session.add(UserOrganization(user_id=2, org_id=1, role_id=4, creation_date=NOW, update_date=NOW))
     session.add(UserGroupUser(usergroup_id=1, user_id=2, org_id=1, creation_date=NOW, update_date=NOW))
     session.commit()
@@ -82,8 +89,8 @@ def test_objective_progress_is_shared_across_program_rollouts():
         shared_uuid = first["objectives"][0]["objective_uuid"]
         second = create_program(session, admin, ProgramCreate(org_id=1, name="Career Ready"))
         add_program_objective(session, admin, 1, second["program_uuid"], ObjectiveCreate(objective_uuid=shared_uuid))
-        first_assignment = assign_program(session, admin, 1, first["program_uuid"], ProgramAssignmentCreate(usergroup_id=1))
-        second_assignment = assign_program(session, admin, 1, second["program_uuid"], ProgramAssignmentCreate(usergroup_id=1))
+        first_assignment = assign_program(session, admin, 1, first["program_uuid"], ProgramAssignmentCreate(usergroup_id=1, staff_user_ids=[1]))
+        second_assignment = assign_program(session, admin, 1, second["program_uuid"], ProgramAssignmentCreate(usergroup_id=1, staff_user_ids=[1]))
 
         update_progress(session, admin, 1, shared_uuid, [2], ObjectiveProgressStatus.COMPLETED, "Great work", None, None)
 
@@ -101,7 +108,7 @@ def test_readding_a_cohort_member_preserves_progress_and_reinvites():
         program = create_program(session, admin, ProgramCreate(org_id=1, name="Creative Futures"))
         program = add_program_objective(session, admin, 1, program["program_uuid"], ObjectiveCreate(title="Workshop"))
         objective_uuid = program["objectives"][0]["objective_uuid"]
-        assignment = assign_program(session, admin, 1, program["program_uuid"], ProgramAssignmentCreate(usergroup_id=1))
+        assignment = assign_program(session, admin, 1, program["program_uuid"], ProgramAssignmentCreate(usergroup_id=1, staff_user_ids=[1]))
         update_progress(session, admin, 1, objective_uuid, [2], ObjectiveProgressStatus.COMPLETED, "Attended", None, None)
         participant = session.exec(select(ProgramParticipant)).first()
         participant.status = "left"
@@ -126,9 +133,9 @@ def test_active_rollout_keeps_its_objective_snapshot():
         admin = _setup(session)
         program = create_program(session, admin, ProgramCreate(org_id=1, name="Creative Futures"))
         program = add_program_objective(session, admin, 1, program["program_uuid"], ObjectiveCreate(title="Orientation"))
-        first = assign_program(session, admin, 1, program["program_uuid"], ProgramAssignmentCreate(usergroup_id=1))
+        first = assign_program(session, admin, 1, program["program_uuid"], ProgramAssignmentCreate(usergroup_id=1, staff_user_ids=[1]))
         add_program_objective(session, admin, 1, program["program_uuid"], ObjectiveCreate(title="Final reflection"))
-        second = assign_program(session, admin, 1, program["program_uuid"], ProgramAssignmentCreate(user_id=2))
+        second = assign_program(session, admin, 1, program["program_uuid"], ProgramAssignmentCreate(user_id=2, staff_user_ids=[1]))
 
         first_row = session.exec(select(ProgramAssignment).where(ProgramAssignment.assignment_uuid == first["assignment_uuid"])).first()
         second_row = session.exec(select(ProgramAssignment).where(ProgramAssignment.assignment_uuid == second["assignment_uuid"])).first()
@@ -204,3 +211,104 @@ def test_program_phases_support_cross_phase_reordering_and_evidence_fields():
         session.commit()
         reusable = list_objectives(session, admin, 1)
         assert {item["objective_uuid"] for item in reusable} == {objective_uuid}
+
+
+def test_assignment_snapshots_phase_dates_and_objective_schedule_rules():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _tables(engine)
+    with Session(engine) as session:
+        admin = _setup(session)
+        program = create_program(session, admin, ProgramCreate(org_id=1, name="Creative Futures"))
+        program = add_program_objective(
+            session, admin, 1, program["program_uuid"], ObjectiveCreate(title="Showcase")
+        )
+        objective = program["objectives"][0]
+        phase = program["phases"][0]
+        update_program_objective_schedule(
+            session,
+            admin,
+            1,
+            program["program_uuid"],
+            objective["objective_uuid"],
+            ProgramObjectiveScheduleUpdate(
+                default_start_rule="phase_start",
+                default_due_rule="specific_date",
+                default_allow_late=True,
+            ),
+        )
+
+        result = assign_program(
+            session,
+            admin,
+            1,
+            program["program_uuid"],
+            ProgramAssignmentCreate(
+                usergroup_id=1,
+                staff_user_ids=[1],
+                schedule={
+                    "phases": [{
+                        "phase_uuid": phase["phase_uuid"],
+                        "start_date": "2026-09-01",
+                        "end_date": "2026-10-15",
+                    }],
+                    "objectives": [{
+                        "objective_uuid": objective["objective_uuid"],
+                        "start_rule": "phase_start",
+                        "start_date": None,
+                        "due_rule": "specific_date",
+                        "due_date": "2026-10-10",
+                        "allow_late": True,
+                    }],
+                },
+            ),
+        )
+
+        rule = result["schedule"]["objectives"][0]
+        assert rule["effective_start_date"] == "2026-09-01"
+        assert rule["effective_due_date"] == "2026-10-10"
+        assert rule["allow_late"] is True
+        assert result["schedule"]["phases"][0]["end_date"] == "2026-10-15"
+
+
+def test_objective_details_fields_and_timing_can_be_edited_together():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _tables(engine)
+    with Session(engine) as session:
+        admin = _setup(session)
+        program = create_program(session, admin, ProgramCreate(org_id=1, name="Creative Futures"))
+        program = add_program_objective(
+            session, admin, 1, program["program_uuid"], ObjectiveCreate(title="Draft showcase")
+        )
+        objective_uuid = program["objectives"][0]["objective_uuid"]
+
+        updated = update_program_objective(
+            session,
+            admin,
+            1,
+            program["program_uuid"],
+            objective_uuid,
+            ProgramObjectiveUpdate(
+                title="Final showcase",
+                description="Share the final presentation.",
+                custom_fields=[{
+                    "field_uuid": "slides",
+                    "title": "Slides",
+                    "type": "media",
+                    "allowed_types": ["pdf"],
+                    "allow_student_upload": True,
+                }],
+                allow_learner_confirmation=True,
+                default_start_rule="phase_start",
+                default_due_rule="phase_end",
+                default_allow_late=True,
+            ),
+        )
+
+        objective = updated["objectives"][0]
+        assert objective["title"] == "Final showcase"
+        assert objective["description"] == "Share the final presentation."
+        assert objective["custom_fields"][0]["title"] == "Slides"
+        assert objective["allow_learner_confirmation"] is True
+        assert objective["default_start_rule"] == "phase_start"
+        assert objective["default_due_rule"] == "phase_end"
+        assert objective["default_allow_late"] is True
