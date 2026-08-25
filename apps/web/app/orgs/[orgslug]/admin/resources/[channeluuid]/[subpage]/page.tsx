@@ -225,7 +225,7 @@ function ResourceChannelGeneralTab({
                 <Label className="text-base">Public</Label>
                 <p className="text-sm text-gray-500">
                   Public channels are visible to all users. Restricted channels only appear
-                  for linked user groups.
+                  for linked groups.
                 </p>
               </div>
               <Switch checked={isPublic} onCheckedChange={setIsPublic} />
@@ -415,7 +415,7 @@ function ResourceChannelAccessTab({
       }
       onUpdated()
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to update user group access')
+      toast.error(error?.message || 'Failed to update group access')
     }
   }
 
@@ -461,7 +461,7 @@ function ResourceChannelAccessTab({
 
           <ConfirmationModal
             confirmationButtonText="Make Restricted"
-            confirmationMessage="Only users in linked user groups will be able to access this channel."
+            confirmationMessage="Only users in linked groups will be able to access this channel."
             dialogTitle="Make Channel Restricted?"
             dialogTrigger={
               <div className="h-[200px] w-full cursor-pointer rounded-lg bg-slate-100 transition-all hover:bg-slate-200">
@@ -474,7 +474,7 @@ function ResourceChannelAccessTab({
                   <Users className="text-slate-400" size={32} />
                   <div className="text-2xl font-bold text-slate-700">Restricted</div>
                   <div className="text-center text-sm leading-5 text-gray-400">
-                    Only users in linked user groups can access this channel.
+                    Only users in linked groups can access this channel.
                   </div>
                 </div>
               </div>
@@ -487,9 +487,9 @@ function ResourceChannelAccessTab({
         {!channel.public && (
           <>
             <div className="mb-3 flex flex-col rounded-md bg-gray-50 px-3 py-3 sm:px-5">
-              <h1 className="text-lg font-bold text-gray-800 sm:text-xl">User Groups</h1>
+              <h1 className="text-lg font-bold text-gray-800 sm:text-xl">Groups</h1>
               <h2 className="text-xs text-gray-500 sm:text-sm">
-                Link user groups to grant them access to this channel.
+                Link groups to grant them access to this channel.
               </h2>
             </div>
 
@@ -525,7 +525,7 @@ function ResourceChannelAccessTab({
 
               {usergroups.length === 0 && (
                 <div className="col-span-full rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-sm text-gray-500">
-                  No user groups are available yet.
+                  No groups are available yet.
                 </div>
               )}
             </div>

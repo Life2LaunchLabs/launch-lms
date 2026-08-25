@@ -37,8 +37,8 @@ export default function AdminFeatureHeader({
           {feature}
         </div>
 
-        <div className="flex min-w-0 items-center gap-3">
-          <nav className="flex min-w-0 items-center gap-1 overflow-x-auto" aria-label={`${feature} pages`}>
+        {(tabs.length > 1 || actions) && <div className="flex min-w-0 items-center gap-3">
+          {tabs.length > 1 && <nav className="flex min-w-0 items-center gap-1 overflow-x-auto" aria-label={`${feature} pages`}>
             {tabs.map((tab) => {
               const isActive = tab.id === activeTab
               const className = `inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] font-semibold transition-colors ${
@@ -65,9 +65,9 @@ export default function AdminFeatureHeader({
                 </button>
               )
             })}
-          </nav>
+          </nav>}
           {actions}
-        </div>
+        </div>}
       </div>
     </header>
   )

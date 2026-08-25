@@ -29,6 +29,14 @@ import { planMeetsRequirement } from '@services/plans/plans'
 
 const ITEMS_PER_PAGE = 10
 
+export type OrgUsersOverviewFilters = {
+  search: string
+  roleId: string
+  verified: 'all' | 'verified' | 'unverified'
+  active: 'all' | 'active' | 'inactive'
+  assignedToMe: boolean
+}
+
 function formatShortDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '—'
   try {
@@ -45,7 +53,7 @@ function shouldRevalidate() {
   return Math.random() < 0.5
 }
 
-function OrgUsers() {
+function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilters } = {}) {
   const { t } = useTranslation()
   const org = useOrg() as any
   const session = useLHSession() as any
@@ -63,6 +71,12 @@ function OrgUsers() {
   const [filterGroupId, setFilterGroupId] = useState<string>('')
   const [showInviteDialog, setShowInviteDialog] = useState(false)
 
+  React.useEffect(() => {
+    if (!overviewFilters) return
+    setPage(1)
+    setSelectedUserIds(new Set())
+  }, [overviewFilters])
+
   // Track whether revalidation on focus is allowed
   const revalidateRef = useRef(shouldRevalidate)
 
@@ -71,9 +85,16 @@ function OrgUsers() {
     params.append('page', page.toString())
     params.append('limit', ITEMS_PER_PAGE.toString())
     params.append('sort_order', sortOrder)
-    if (searchValue) params.append('search', searchValue)
-    if (filterRole) params.append('role_id', filterRole)
-    if (filterStatus) params.append('status', filterStatus)
+    const effectiveSearch = overviewFilters?.search ?? searchValue
+    const effectiveRole = overviewFilters?.roleId ?? filterRole
+    const effectiveStatus = overviewFilters?.verified === 'all' ? '' : (overviewFilters?.verified ?? filterStatus)
+    if (effectiveSearch) params.append('search', effectiveSearch)
+    if (effectiveRole) params.append('role_id', effectiveRole)
+    if (effectiveStatus) params.append('status', effectiveStatus)
+    if (overviewFilters?.active !== undefined && overviewFilters.active !== 'all') {
+      params.append('active', String(overviewFilters.active === 'active'))
+    }
+    if (overviewFilters?.assignedToMe) params.append('assigned_to_me', 'true')
     if (filterGroupId) {
       params.append('usergroup_id', filterGroupId)
       params.append('usergroup_filter', 'in_group')
@@ -135,7 +156,9 @@ function OrgUsers() {
   const visibleUserIds: number[] = orgUsers.map((u: any) => u.user.id)
   const allVisibleSelected = visibleUserIds.length > 0 && visibleUserIds.every((id: number) => selectedUserIds.has(id))
 
-  const hasActiveFilters = filterRole || filterStatus || (hasUserGroups && filterGroupId)
+  const hasActiveFilters = overviewFilters
+    ? Boolean(overviewFilters.search || overviewFilters.roleId || overviewFilters.verified !== 'all' || overviewFilters.active !== 'all' || overviewFilters.assignedToMe)
+    : Boolean(filterRole || filterStatus || (hasUserGroups && filterGroupId))
 
   const toggleSelectAll = () => {
     setSelectedUserIds((prev) => {
@@ -231,15 +254,15 @@ function OrgUsers() {
     <div>
       <Toast></Toast>
       <AdminDataTable
-        className="mx-8 my-6"
-        search={{ value: searchValue, onChange: handleSearchChange, placeholder: t('dashboard.users.active_users.search_placeholder') || 'Search users...' }}
-        filters={[
+        className={overviewFilters ? '' : 'mx-8 my-6'}
+        search={overviewFilters ? undefined : { value: searchValue, onChange: handleSearchChange, placeholder: t('dashboard.users.active_users.search_placeholder') || 'Search users...' }}
+        filters={overviewFilters ? [] : [
           { id: 'role', label: 'Role', value: filterRole || 'all', options: [{ value: 'all', label: 'All' }, ...(roles || []).map((role: any) => ({ value: String(role.id), label: role.name }))], onChange: handleFilterChange(setFilterRole) },
           { id: 'status', label: 'Status', value: filterStatus || 'all', options: [{ value: 'all', label: 'All' }, { value: 'verified', label: 'Verified' }, { value: 'unverified', label: 'Unverified' }], onChange: handleFilterChange(setFilterStatus) },
           ...(hasUserGroups ? [{ id: 'group', label: 'Groups', value: filterGroupId || 'all', options: [{ value: 'all', label: 'All' }, ...(usergroups || []).map((group: any) => ({ value: String(group.id), label: group.name }))], onChange: handleFilterChange(setFilterGroupId) }] : []),
         ]}
         resultLabel={`${total + pendingInvites.length} user${total + pendingInvites.length !== 1 ? 's' : ''}`}
-        actions={
+        actions={!overviewFilters ? (
           <div className="flex items-center gap-2">
             {hasActiveFilters && <button onClick={resetFilters} className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-black"><X className="h-3 w-3" />Clear</button>}
             <button
@@ -250,7 +273,7 @@ function OrgUsers() {
               Add users
             </button>
           </div>
-        }
+        ) : undefined}
       >
 
             {/* Selection Action Bar */}
@@ -296,7 +319,7 @@ function OrgUsers() {
                       <User className="w-8 h-8 text-gray-400" />
                     </div>
                     <p className="text-gray-400 text-sm font-medium">
-                      {searchValue || hasActiveFilters
+                      {(overviewFilters?.search ?? searchValue) || hasActiveFilters
                         ? t('dashboard.users.active_users.no_results') || 'No users found matching your filters'
                         : t('dashboard.users.active_users.no_users') || 'No users in this organization yet'
                       }
@@ -362,7 +385,7 @@ function OrgUsers() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {page === 1 && !searchValue && !hasActiveFilters && pendingInvites.map((invite: any) => (
+                    {page === 1 && !(overviewFilters?.search ?? searchValue) && !hasActiveFilters && pendingInvites.map((invite: any) => (
                       <tr key={`invite-${invite.email}`} className="bg-amber-50/30">
                         <td className="w-10 px-6 py-4">
                           <input type="checkbox" disabled className="h-4 w-4 cursor-not-allowed rounded border-gray-200 opacity-40" aria-label={`Invitation for ${invite.email}`} />
@@ -432,7 +455,7 @@ function OrgUsers() {
                           </Link>
                         </td>
 
-                        {/* User Groups */}
+                        {/* Groups */}
                         {hasUserGroups && <td className="px-6 py-4">
                           {user.usergroups && user.usergroups.length > 0 ? (
                             <div className="flex items-center gap-1.5 flex-wrap">

@@ -567,8 +567,8 @@
     "usergroup_filter": {
       "all_courses": "All Courses",
       "filter_by_group": "Filter by group",
-      "info_title": "User Group Filter",
-      "info_description": "Filter courses by user group to see only courses assigned to a specific group. Useful for families or teams sharing the same organization."
+      "info_title": "Group Filter",
+      "info_description": "Filter courses by group to see only courses assigned to a specific group. Useful for families or teams sharing the same organization."
     }
   },
   "communities": {
@@ -3476,7 +3476,7 @@
       "cohort_retention": {
         "title": "Retención por cohorte",
         "description": "% usuarios activos después de la semana de registro",
-        "cohort": "Cohorte",
+        "cohort": "Groupe",
         "size": "Tamaño"
       },
       "peak_usage": {
@@ -3809,13 +3809,13 @@
       "set_to_public_confirm": "Todos los miembros de la organización que hayan iniciado sesión podrán acceder a este tablero.",
       "make_board_public": "Hacer tablero público",
       "set_to_private": "Establecer como privado",
-      "set_to_private_confirm": "Solo los miembros de los UserGroups vinculados podrán acceder a este tablero.",
+      "set_to_private_confirm": "Solo los miembros de los Groups vinculados podrán acceder a este tablero.",
       "make_board_private": "Hacer tablero privado",
       "active": "Activo",
       "public_option": "Público",
       "public_description": "Todos los miembros de la organización que hayan iniciado sesión pueden acceder a este tablero",
       "private_option": "Solo usuarios",
-      "private_description": "Solo los UserGroups vinculados pueden acceder a este tablero",
+      "private_description": "Solo los Groups vinculados pueden acceder a este tablero",
       "board_set_public": "Tablero establecido como público",
       "board_set_private": "Tablero establecido como privado",
       "access_update_error": "Error al actualizar el acceso",
@@ -3828,7 +3828,7 @@
       "no_user_groups": "Aún no hay grupos de usuarios vinculados",
       "link_to_user_group": "Vincular a grupo de usuarios",
       "link_to_user_group_description": "Selecciona un grupo de usuarios para darle acceso a este tablero",
-      "link_to_usergroup_btn": "Vincular a UserGroup",
+      "link_to_usergroup_btn": "Vincular a Group",
       "user_group": "Grupo de usuarios",
       "no_user_groups_available": "No hay grupos de usuarios disponibles",
       "create_user_group": "Crear grupo de usuarios",

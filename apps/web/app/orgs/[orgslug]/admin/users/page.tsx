@@ -6,5 +6,5 @@ export default async function UsersPage({
   params: Promise<{ orgslug: string }>
 }) {
   const { orgslug } = await params
-  return <UsersAdminPage orgslug={orgslug} section="users" />
+  return <UsersAdminPage orgslug={orgslug} section="overview" />
 }

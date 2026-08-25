@@ -214,7 +214,7 @@ const predefinedRoles = {
     },
     'User Manager': {
         name: 'User Manager',
-        description: 'Can manage users and user groups',
+        description: 'Can manage users and groups',
         rights: {
             badges: { action_create: false, action_read: true, action_read_own: true, action_update: false, action_update_own: false, action_delete: false, action_delete_own: false },
             users: { action_create: true, action_read: true, action_update: true, action_delete: true },

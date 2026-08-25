@@ -72,7 +72,6 @@ import {
   getOrganizationAdminPages,
   getUserAdminPages,
 } from '@components/Admin/adminFeaturePages'
-import { planMeetsRequirement } from '@services/plans/plans'
 
 function DashLeftMenu() {
   const org = useOrg() as any
@@ -134,9 +133,7 @@ function DashLeftMenu() {
   const showPodcasts = isEnabled('podcasts')
   const showPlaygrounds = isEnabled('playgrounds')
   const showPayments = capabilities.payments && isEnabled('payments')
-  const hasUserGroups = planMeetsRequirement(plan, 'full') && (rf?.usergroups?.enabled ?? true)
-  const hasAuditLogs = rf?.audit_logs?.enabled ?? planMeetsRequirement(plan, 'enterprise')
-  const userAdminPages = getUserAdminPages({ t, hasUserGroups, hasAuditLogs })
+  const userAdminPages = getUserAdminPages()
   const organizationAdminPages = getOrganizationAdminPages(t, {
     hasSso: rf?.sso?.enabled === true,
   })

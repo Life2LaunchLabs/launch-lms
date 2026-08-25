@@ -42,7 +42,7 @@ function LinkCollectionToUserGroup({ setUserGroupModal }: Props) {
       toast.success('User group linked to collection.')
       mutate(`${getAPIUrl()}usergroups/resource/${collection.collection_uuid}?org_id=${org.id}`)
     } else {
-      toast.error(`Failed to link user group (${res.status}).`)
+      toast.error(`Failed to link group (${res.status}).`)
     }
   }
 
@@ -50,12 +50,12 @@ function LinkCollectionToUserGroup({ setUserGroupModal }: Props) {
     <div className="flex flex-col space-y-1">
       <div className="flex bg-yellow-100 text-yellow-900 mx-auto w-fit mt-3 px-4 py-2 space-x-2 text-sm rounded-full items-center">
         <Info size={19} />
-        <h1 className="font-medium">Linked user groups gain access to the collection and its courses.</h1>
+        <h1 className="font-medium">Linked groups gain access to the collection and its courses.</h1>
       </div>
       <div className="p-4 flex-row flex justify-between items-center">
         {usergroups?.length >= 1 && (
           <div className="py-1">
-            <span className="px-3 text-muted-foreground font-bold rounded-full py-1 bg-muted mx-3">User Group</span>
+            <span className="px-3 text-muted-foreground font-bold rounded-full py-1 bg-muted mx-3">Group</span>
             <select onChange={(e) => setSelectedUserGroup(e.target.value)} defaultValue={selectedUserGroup}>
               {usergroups.map((group: any) => (
                 <option key={group.id} value={group.id}>{group.name}</option>
@@ -65,13 +65,13 @@ function LinkCollectionToUserGroup({ setUserGroupModal }: Props) {
         )}
         {usergroups?.length === 0 && (
           <div className="flex space-x-3 items-center">
-            <span className="px-3 text-yellow-700 font-bold rounded-full py-1 mx-3">No user groups found.</span>
+            <span className="px-3 text-yellow-700 font-bold rounded-full py-1 mx-3">No groups found.</span>
             <Link
               className="px-3 text-blue-700 font-bold rounded-full py-1 bg-blue-100 mx-1"
               target="_blank"
               href={getUriWithOrg(org.slug, routePaths.org.dash.users.usergroups())}
             >
-              Create a user group
+              Create a group
             </Link>
           </div>
         )}

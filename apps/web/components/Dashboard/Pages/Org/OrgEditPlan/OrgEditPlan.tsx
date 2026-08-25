@@ -38,7 +38,7 @@ const PACKAGE_INFO: Record<string, { label: string; description: string; icon: R
   },
   advanced_user_management: {
     label: 'Advanced User Management',
-    description: 'Custom roles, user groups, bulk access control, and API token management.',
+    description: 'Custom roles, groups, bulk access control, and API token management.',
     icon: <UsersThree size={20} weight="fill" />,
   },
   badge_creation: {

@@ -173,6 +173,8 @@ async def api_get_org_users(
     sort_order: Literal["asc", "desc"] | None = Query(default="desc", description="Sort order for join date"),
     role_id: int | None = Query(default=None, description="Filter by role ID"),
     status: Literal["verified", "unverified"] | None = Query(default=None, description="Filter by verification status"),
+    active: bool | None = Query(default=None, description="Filter by an active program or badge assignment"),
+    assigned_to_me: bool = Query(default=False, description="Only include learners on programs assigned to the current staff user"),
     current_user: PublicUser = Depends(get_authenticated_user),
     db_session: Session = Depends(get_db_session),
 ):
@@ -187,6 +189,7 @@ async def api_get_org_users(
     return await get_organization_users(
         request, org_id, db_session, current_user, page, limit, search,
         usergroup_id, usergroup_filter, sort_order or "desc", role_id, status,
+        active, assigned_to_me,
     )
 
 

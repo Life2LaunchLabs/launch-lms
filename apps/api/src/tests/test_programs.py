@@ -30,6 +30,7 @@ from src.services.programs import (
     add_program_objective,
     assign_program,
     assignment_matrix,
+    cohort_overview,
     create_program_phase,
     create_program,
     ensure_group_participants,
@@ -145,6 +146,26 @@ def test_active_rollout_keeps_its_objective_snapshot():
         assert len(detail["assignments"]) == 2
         assert detail["assignments"][0]["user"]["username"] == "learner"
         assert detail["assignments"][1]["cohort"]["name"] == "Fall Studio"
+
+
+def test_group_overview_separates_active_and_completed_programs():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _tables(engine)
+    with Session(engine) as session:
+        admin = _setup(session)
+        active_program = create_program(session, admin, ProgramCreate(org_id=1, name="Current Program"))
+        completed_program = create_program(session, admin, ProgramCreate(org_id=1, name="Past Program"))
+        assign_program(session, admin, 1, active_program["program_uuid"], ProgramAssignmentCreate(usergroup_id=1, staff_user_ids=[1]))
+        completed = assign_program(session, admin, 1, completed_program["program_uuid"], ProgramAssignmentCreate(usergroup_id=1, staff_user_ids=[1]))
+        completed_row = session.exec(select(ProgramAssignment).where(ProgramAssignment.assignment_uuid == completed["assignment_uuid"])).one()
+        completed_row.active = False
+        session.add(completed_row)
+        session.commit()
+
+        overview = cohort_overview(session, admin, 1, 1)
+
+        assert [item["program_name"] for item in overview["programs"]] == ["Current Program"]
+        assert [item["program_name"] for item in overview["completed_programs"]] == ["Past Program"]
 
 
 def test_program_phases_support_cross_phase_reordering_and_evidence_fields():

@@ -5,17 +5,12 @@ import { motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { useMediaQuery } from 'usehooks-ts'
 import AdminFeatureHeader from '@components/Admin/AdminFeatureHeader'
-import OrgAccess from '@components/Dashboard/Pages/Users/OrgAccess/OrgAccess'
-import OrgAuditLogs from '@components/Dashboard/Pages/Org/OrgAuditLogs/OrgAuditLogs'
-import OrgRoles from '@components/Dashboard/Pages/Users/OrgRoles/OrgRoles'
-import OrgUserGroups from '@components/Dashboard/Pages/Users/OrgUserGroups/OrgUserGroups'
-import UsersTable from '@components/Admin/Platform/UsersTable'
+import UsersOverview from '@components/Admin/Users/UsersOverview'
 import { usePlan } from '@components/Hooks/usePlan'
 import { planMeetsRequirement } from '@services/plans/plans'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg } from '@services/config/config'
 import { getUserAdminPages } from '@components/Admin/adminFeaturePages'
-import { OrgGradingQueuePanel } from '@components/Learning/IssuingAdminShell'
 
 export default function UsersAdminPage({ orgslug, section }: { orgslug: string; section: string }) {
   const { t } = useTranslation()
@@ -26,9 +21,7 @@ export default function UsersAdminPage({ orgslug, section }: { orgslug: string; 
   const hasUserGroups =
     planMeetsRequirement(currentPlan, 'full')
     && (resolvedFeatures?.usergroups?.enabled ?? true)
-  const hasAuditLogs = resolvedFeatures?.audit_logs?.enabled ?? planMeetsRequirement(currentPlan, 'enterprise')
-
-  const tabs = getUserAdminPages({ t, hasUserGroups, hasAuditLogs }).map((tab) => {
+  const tabs = getUserAdminPages().map((tab) => {
     const Icon = tab.icon
     return { ...tab, icon: <Icon size={16} />, href: getUriWithOrg(orgslug, tab.href) }
   })
@@ -54,12 +47,7 @@ export default function UsersAdminPage({ orgslug, section }: { orgslug: string; 
         tabs={tabs}
       />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 overflow-y-auto">
-        {section === 'users' && <UsersTable scope="organization" />}
-        {section === 'grading' && org?.id && <OrgGradingQueuePanel orgId={Number(org.id)} />}
-        {section === 'signups' && <OrgAccess />}
-        {section === 'groups' && hasUserGroups && <><div className="h-6" /><OrgUserGroups /></>}
-        {section === 'roles' && <><div className="h-6" /><OrgRoles /></>}
-        {section === 'audit-logs' && <><div className="h-6" /><OrgAuditLogs /></>}
+        {section === 'overview' && <UsersOverview hasUserGroups={hasUserGroups} />}
       </motion.div>
     </div>
   )

@@ -51,6 +51,7 @@ function AddUserGroup(props: AddUserGroupProps) {
             if (res.status == 200) {
                 setIsSubmitting(false)
                 mutate(`${getAPIUrl()}usergroups/org/${org.id}?org_id=${org.id}`)
+                mutate(`${getAPIUrl()}usergroups/org/${org.id}/overview`)
                 props.setCreateUserGroupModal(false)
                 toast.success(t('dashboard.users.usergroups.modals.create.toasts.success'), {id:toastID})
             } else {

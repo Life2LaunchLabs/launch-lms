@@ -70,7 +70,7 @@ export default function AdminBadgeCollection({
             { label: collection.name },
           ]} />
         </div>
-        <CollectionHeader collection={collection} orgId={orgId} canEdit={canEdit} />
+        <EditableDetailHeader collection={collection} orgId={orgId} canEdit={canEdit} />
         <div className="flex space-x-0.5 text-sm font-black">
           {tabs.filter((tab) => canEdit || tab.id !== 'settings').map((tab) => {
             const Icon = tab.icon
@@ -97,7 +97,26 @@ export default function AdminBadgeCollection({
   )
 }
 
-function CollectionHeader({ collection: initialCollection, orgId, canEdit }: { collection: any; orgId: number; canEdit: boolean }) {
+export function EditableDetailHeader({
+  collection: initialCollection,
+  orgId,
+  canEdit,
+  entityName = 'Collection',
+  fallbackDescription = 'Manage badges in this collection.',
+  fallbackIcon,
+  metadata,
+  updateItem,
+}: {
+  collection: any
+  orgId: number
+  canEdit: boolean
+  entityName?: string
+  fallbackDescription?: string
+  fallbackIcon?: React.ReactNode
+  metadata?: React.ReactNode
+  // eslint-disable-next-line no-unused-vars
+  updateItem?: (data: Record<string, any>, accessToken?: string) => Promise<any>
+}) {
   const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
@@ -109,24 +128,27 @@ function CollectionHeader({ collection: initialCollection, orgId, canEdit }: { c
   const [editingDescription, setEditingDescription] = React.useState(false)
   const [draftDescription, setDraftDescription] = React.useState(initialCollection.description || '')
   const [savingDescription, setSavingDescription] = React.useState(false)
+  const persist = (data: Record<string, any>) => updateItem
+    ? updateItem(data, accessToken)
+    : updateLearningBadgeCollection(collection.collection_uuid, data, accessToken)
 
   const saveName = async () => {
     const name = draftName.trim()
     if (savingName) return
     if (name.length < 3) {
-      toast.error('Collection title must be at least 3 characters.')
+      toast.error(`${entityName} title must be at least 3 characters.`)
       return
     }
     setSavingName(true)
     try {
-      const nextCollection = await updateLearningBadgeCollection(collection.collection_uuid, { name }, accessToken)
+      const nextCollection = await persist({ name })
       setCollection(nextCollection)
       setDraftName(nextCollection.name)
       setEditingName(false)
-      toast.success('Collection title updated.')
+      toast.success(`${entityName} title updated.`)
       router.refresh()
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to update collection title.')
+      toast.error(error?.message || `Failed to update ${entityName.toLowerCase()} title.`)
     } finally {
       setSavingName(false)
     }
@@ -134,16 +156,16 @@ function CollectionHeader({ collection: initialCollection, orgId, canEdit }: { c
 
   const handleMediaSelect = async (url: string) => {
     if (!accessToken) {
-      toast.error('Please sign in to update a collection image.')
+      toast.error(`Please sign in to update a ${entityName.toLowerCase()} image.`)
       return
     }
 
     setIsUploading(true)
 
     try {
-      const nextCollection = await updateLearningBadgeCollection(collection.collection_uuid, { thumbnail_image: url }, accessToken)
+      const nextCollection = await persist({ thumbnail_image: url })
       setCollection(nextCollection)
-      toast.success('Collection cover image updated.')
+      toast.success(`${entityName} cover image updated.`)
       router.refresh()
     } catch (error: any) {
       toast.error(error?.message || 'Failed to update image.')
@@ -156,18 +178,14 @@ function CollectionHeader({ collection: initialCollection, orgId, canEdit }: { c
     if (savingDescription) return
     setSavingDescription(true)
     try {
-      const nextCollection = await updateLearningBadgeCollection(
-        collection.collection_uuid,
-        { description: draftDescription.trim() },
-        accessToken
-      )
+      const nextCollection = await persist({ description: draftDescription.trim() })
       setCollection(nextCollection)
       setDraftDescription(nextCollection.description || '')
       setEditingDescription(false)
-      toast.success('Collection description updated.')
+      toast.success(`${entityName} description updated.`)
       router.refresh()
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to update collection description.')
+      toast.error(error?.message || `Failed to update ${entityName.toLowerCase()} description.`)
     } finally {
       setSavingDescription(false)
     }
@@ -179,16 +197,16 @@ function CollectionHeader({ collection: initialCollection, orgId, canEdit }: { c
     <div className="my-2 flex flex-col gap-5 py-2 md:flex-row md:items-center">
       <div className="group relative aspect-video w-full max-w-[240px] shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
         {imageUrl ? (
-          <SafeImage src={imageUrl} alt="Collection cover" className={`h-full w-full object-cover ${isUploading ? 'animate-pulse' : ''}`} />
+          <SafeImage src={imageUrl} alt={`${entityName} cover`} className={`h-full w-full object-cover ${isUploading ? 'animate-pulse' : ''}`} />
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center text-muted-foreground">
-            <BookCopy size={32} strokeWidth={1.5} />
+            {fallbackIcon || <BookCopy size={32} strokeWidth={1.5} />}
           </div>
         )}
         <div className={`absolute right-2 top-2 z-20 opacity-0 transition-opacity group-hover:opacity-100 ${canEdit ? '' : 'hidden'}`}>
           <ImageMediaPicker
             owner={{ type: 'org', id: Number(orgId) }}
-            title="Choose collection cover image"
+            title={`Choose ${entityName.toLowerCase()} cover image`}
             buttonText=""
             buttonSize="icon"
             buttonVariant="secondary"
@@ -239,7 +257,7 @@ function CollectionHeader({ collection: initialCollection, orgId, canEdit }: { c
               className="min-w-0 flex-1 resize-y rounded-md border border-border bg-card px-3 py-2 text-sm leading-6 text-foreground outline-none focus:ring-2 focus:ring-black"
             />
           ) : (
-            <p className="min-w-0 flex-1 text-sm leading-6 text-muted-foreground">{collection.description || 'Manage badges in this collection.'}</p>
+            <p className="min-w-0 flex-1 text-sm leading-6 text-muted-foreground">{collection.description || fallbackDescription}</p>
           )}
           {canEdit ? (
             <button
@@ -254,9 +272,8 @@ function CollectionHeader({ collection: initialCollection, orgId, canEdit }: { c
           ) : null}
         </div>
         <div className="mt-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          <BookCopy size={14} />
-          {(collection.badges || []).length} badges
-          {!canEdit ? <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] text-blue-700">Authorized issuer · by {collection.creator_org?.name || 'another organization'}</span> : null}
+          {metadata || <><BookCopy size={14} />{(collection.badges || []).length} badges</>}
+          {!canEdit && entityName === 'Collection' ? <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] text-blue-700">Authorized issuer · by {collection.creator_org?.name || 'another organization'}</span> : null}
         </div>
       </div>
     </div>

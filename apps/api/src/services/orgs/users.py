@@ -13,7 +13,10 @@ from src.db.organizations import (
     OrganizationUser,
 )
 from src.db.roles import Role, RoleRead
+from src.db.learning import LearningBadge, LearningBadgeStatus
+from src.db.programs import ProgramAssignment, ProgramParticipant
 from src.db.user_organizations import UserOrganization
+from src.db.usergroup_resources import UserGroupResource
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup, UserGroupRead
 from src.db.users import AnonymousUser, PublicUser, User, UserRead
@@ -51,6 +54,8 @@ async def get_organization_users(
     sort_order: str = "desc",
     role_id: int | None = None,
     status: str | None = None,
+    active: bool | None = None,
+    assigned_to_me: bool = False,
 ):
     """
     Get paginated list of users in an organization.
@@ -122,6 +127,65 @@ async def get_organization_users(
         base_statement = base_statement.where(User.email_verified == True)
     elif status == "unverified":
         base_statement = base_statement.where(User.email_verified == False)
+
+    # Active means an active program or a published badge is currently assigned.
+    # Staff ownership lives on program assignments, so "assigned to me" narrows
+    # the result to learners on programs owned by the current staff member.
+    if active is not None or assigned_to_me:
+        active_assignments = db_session.exec(
+            select(ProgramAssignment).where(
+                ProgramAssignment.org_id == int(org_id),
+                ProgramAssignment.active == True,  # noqa: E712
+            )
+        ).all()
+        relevant_assignments = [
+            assignment for assignment in active_assignments
+            if not assigned_to_me or current_user.id in (assignment.staff_user_ids or [])
+        ]
+        assignment_ids = [assignment.id for assignment in relevant_assignments if assignment.id is not None]
+        assigned_user_ids: set[int] = {
+            int(assignment.user_id)
+            for assignment in relevant_assignments
+            if assignment.user_id is not None
+        }
+        assigned_group_ids = {
+            int(assignment.usergroup_id)
+            for assignment in relevant_assignments
+            if assignment.usergroup_id is not None
+        }
+        if assignment_ids:
+            assigned_user_ids.update(db_session.exec(
+                select(ProgramParticipant.user_id).where(
+                    ProgramParticipant.assignment_id.in_(assignment_ids)  # type: ignore[union-attr]
+                )
+            ).all())
+        if assigned_group_ids:
+            assigned_user_ids.update(db_session.exec(
+                select(UserGroupUser.user_id).where(
+                    UserGroupUser.usergroup_id.in_(assigned_group_ids)  # type: ignore[union-attr]
+                )
+            ).all())
+
+        if active is not None and not assigned_to_me:
+            badge_group_ids = set(db_session.exec(
+                select(UserGroupResource.usergroup_id)
+                .join(LearningBadge, LearningBadge.badge_uuid == UserGroupResource.resource_uuid)
+                .where(
+                    UserGroupResource.org_id == int(org_id),
+                    LearningBadge.status == LearningBadgeStatus.PUBLISHED,
+                )
+            ).all())
+            if badge_group_ids:
+                assigned_user_ids.update(db_session.exec(
+                    select(UserGroupUser.user_id).where(
+                        UserGroupUser.usergroup_id.in_(badge_group_ids)  # type: ignore[union-attr]
+                    )
+                ).all())
+
+        if active is False:
+            base_statement = base_statement.where(User.id.not_in(assigned_user_ids))
+        else:
+            base_statement = base_statement.where(User.id.in_(assigned_user_ids))
 
     # Compute group membership counts when usergroup_id is provided (before applying filter)
     in_group_total = None

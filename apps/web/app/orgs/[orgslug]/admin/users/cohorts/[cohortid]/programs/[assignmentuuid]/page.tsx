@@ -1,7 +1,7 @@
-import { Suspense } from 'react'
-import { CohortProgramMatrix } from '@components/Admin/Programs/CohortProgramAdmin'
+import { redirect } from 'next/navigation'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 
 export default async function CohortProgramPage({ params }: { params: Promise<{ orgslug: string; cohortid: string; assignmentuuid: string }> }) {
   const { orgslug, cohortid, assignmentuuid } = await params
-  return <Suspense><CohortProgramMatrix orgslug={orgslug} cohortId={Number(cohortid)} assignmentUuid={decodeURIComponent(assignmentuuid)} /></Suspense>
+  redirect(getUriWithOrg(orgslug, routePaths.org.dash.users.groupProgram(cohortid, assignmentuuid)))
 }

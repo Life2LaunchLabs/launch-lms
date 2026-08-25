@@ -3,7 +3,6 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import AddUserGroup from '@components/Objects/Modals/Dash/OrgUserGroups/AddUserGroup'
 import EditUserGroup from '@components/Objects/Modals/Dash/OrgUserGroups/EditUserGroup'
-import ManageUsers from '@components/Objects/Modals/Dash/OrgUserGroups/ManageUsers'
 import LaunchLMSSpinner from '@components/Objects/Loaders/LaunchLMSSpinner'
 import ConfirmationModal from '@components/Objects/StyledElements/ConfirmationModal/ConfirmationModal'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
@@ -26,7 +25,6 @@ function OrgUserGroups() {
     const session = useLHSession() as any
     const access_token = session?.data?.tokens?.access_token;
     const currentPlan = usePlan()
-    const [userGroupManagementModal, setUserGroupManagementModal] = React.useState(false)
     const [createUserGroupModal, setCreateUserGroupModal] = React.useState(false)
     const [editUserGroupModal, setEditUserGroupModal] = React.useState(false)
     const [selectedUserGroup, setSelectedUserGroup] = React.useState(null) as any
@@ -60,11 +58,6 @@ function OrgUserGroups() {
             toast.error(t('dashboard.users.usergroups.toasts.delete_error'), {id:toastId})
         }
 
-    }
-
-    const handleUserGroupManagementModal = (usergroup_id: any) => {
-        setSelectedUserGroup(usergroup_id)
-        setUserGroupManagementModal(!userGroupManagementModal)
     }
 
     return (
@@ -124,7 +117,7 @@ function OrgUserGroups() {
 
                 {/* Content */}
                 <div className="px-3 py-2">
-                    {/* UserGroups List */}
+                    {/* Groups list */}
                     <div className="space-y-1">
                         {isInitialLoading ? (
                             <div className="py-20 flex justify-center">
@@ -187,35 +180,18 @@ function OrgUserGroups() {
                                     {/* Actions */}
                                     <div className="flex items-center gap-2 ml-4">
                                         <Link
-                                            href={getUriWithOrg(org.slug, routePaths.org.dash.users.cohort(usergroup.id))}
+                                            href={getUriWithOrg(org.slug, routePaths.org.dash.users.group(usergroup.id))}
                                             className="flex h-8 items-center gap-1.5 rounded-md bg-gray-900 px-3 text-xs font-semibold text-white transition hover:bg-black"
                                         >
-                                            <span>Open cohort</span>
+                                            <span>Open group</span>
                                         </Link>
-                                        <Modal
-                                            isDialogOpen={
-                                                userGroupManagementModal &&
-                                                selectedUserGroup === usergroup.id
-                                            }
-                                            onOpenChange={() =>
-                                                handleUserGroupManagementModal(usergroup.id)
-                                            }
-                                            minHeight="lg"
-                                            minWidth='lg'
-                                            dialogContent={
-                                                <ManageUsers
-                                                    usergroup_id={usergroup.id}
-                                                />
-                                            }
-                                            dialogTitle={t('dashboard.users.usergroups.modals.manage_users.title')}
-                                            dialogDescription={t('dashboard.users.usergroups.modals.manage_users.description')}
-                                            dialogTrigger={
-                                                <button className="flex items-center gap-1.5 h-8 px-3 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-md text-xs font-semibold transition-all">
-                                                    <Users className="w-3.5 h-3.5" />
-                                                    <span>{t('dashboard.users.usergroups.actions.manage_users')}</span>
-                                                </button>
-                                            }
-                                        />
+                                        <Link
+                                            href={getUriWithOrg(org.slug, `/admin/users/groups/${usergroup.id}/users`)}
+                                            className="flex h-8 items-center gap-1.5 rounded-md bg-amber-50 px-3 text-xs font-semibold text-amber-700 transition-all hover:bg-amber-100"
+                                        >
+                                            <Users className="h-3.5 w-3.5" />
+                                            <span>{t('dashboard.users.usergroups.actions.manage_users')}</span>
+                                        </Link>
                                         <Modal
                                             isDialogOpen={editUserGroupModal && selectedUserGroup === usergroup.id}
                                             dialogTrigger={

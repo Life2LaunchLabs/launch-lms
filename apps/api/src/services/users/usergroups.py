@@ -7,6 +7,8 @@ from fastapi import HTTPException, Request
 from sqlmodel import Session, select
 from src.db.organizations import Organization
 from src.db.usergroup_resources import UserGroupResource
+from src.db.learning import LearningBadge, LearningBadgeStatus
+from src.db.programs import ProgramAssignment
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup, UserGroupCreate, UserGroupRead, UserGroupUpdate
 from src.db.users import (
@@ -257,6 +259,57 @@ async def read_usergroups_by_org_id(
     return usergroups
 
 
+async def read_usergroup_overview(
+    request: Request,
+    db_session: Session,
+    current_user: PublicUser | AnonymousUser,
+    org_id: int,
+) -> list[dict]:
+    """Return group cards with membership and active-assignment state."""
+    groups = await read_usergroups_by_org_id(request, db_session, current_user, org_id)
+    group_ids = [group.id for group in groups]
+    if not group_ids:
+        return []
+
+    memberships = db_session.exec(
+        select(UserGroupUser).where(UserGroupUser.usergroup_id.in_(group_ids))  # type: ignore[union-attr]
+    ).all()
+    member_counts: dict[int, int] = {}
+    for membership in memberships:
+        member_counts[membership.usergroup_id] = member_counts.get(membership.usergroup_id, 0) + 1
+
+    assignments = db_session.exec(select(ProgramAssignment).where(
+        ProgramAssignment.org_id == org_id,
+        ProgramAssignment.usergroup_id.in_(group_ids),  # type: ignore[union-attr]
+        ProgramAssignment.active == True,  # noqa: E712
+    )).all()
+    active_group_ids = {assignment.usergroup_id for assignment in assignments}
+    assigned_group_ids = {
+        assignment.usergroup_id
+        for assignment in assignments
+        if current_user.id in (assignment.staff_user_ids or [])
+    }
+    badge_group_ids = set(db_session.exec(
+        select(UserGroupResource.usergroup_id)
+        .join(LearningBadge, LearningBadge.badge_uuid == UserGroupResource.resource_uuid)
+        .where(
+            UserGroupResource.org_id == org_id,
+            LearningBadge.status == LearningBadgeStatus.PUBLISHED,
+        )
+    ).all())
+    active_group_ids.update(badge_group_ids)
+
+    return [
+        {
+            **group.model_dump(),
+            "member_count": member_counts.get(group.id, 0),
+            "active": group.id in active_group_ids,
+            "assigned_to_current_user": group.id in assigned_group_ids,
+        }
+        for group in groups
+    ]
+
+
 async def get_usergroups_by_resource(
     request: Request,
     db_session: Session,
@@ -354,6 +407,8 @@ async def update_usergroup_by_id(
         usergroup.name = usergroup_update.name
     if usergroup_update.description is not None:
         usergroup.description = usergroup_update.description
+    if usergroup_update.thumbnail_image is not None:
+        usergroup.thumbnail_image = usergroup_update.thumbnail_image
     usergroup.update_date = str(datetime.now())
 
     db_session.add(usergroup)

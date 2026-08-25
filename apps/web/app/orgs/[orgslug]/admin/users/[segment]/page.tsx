@@ -1,9 +1,8 @@
 import { notFound, redirect } from 'next/navigation'
-import UsersAdminPage from '@components/Admin/Users/UsersAdminPage'
 import OrgUserDetail from '@components/Admin/Users/OrgUserDetail'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 
-const SECTIONS = new Set(['grading', 'groups', 'roles', 'signups', 'audit-logs'])
+const HIDDEN_SECTIONS = new Set(['grading', 'roles', 'signups', 'audit-logs'])
 
 export default async function UsersSegmentPage({
   params,
@@ -17,11 +16,10 @@ export default async function UsersSegmentPage({
     redirect(getUriWithOrg(orgslug, routePaths.org.dash.users.users()))
   }
 
-  if (SECTIONS.has(decodedSegment)) {
-    return (
-      <UsersAdminPage orgslug={orgslug} section={decodedSegment} />
-    )
-  }
+  if (decodedSegment === 'groups') redirect(getUriWithOrg(orgslug, routePaths.org.dash.users.users()))
+
+  // Kept explicit while these legacy sections are reviewed for deletion.
+  if (HIDDEN_SECTIONS.has(decodedSegment)) notFound()
 
   if (!decodedSegment) notFound()
   return <OrgUserDetail username={decodedSegment} orgslug={orgslug} />

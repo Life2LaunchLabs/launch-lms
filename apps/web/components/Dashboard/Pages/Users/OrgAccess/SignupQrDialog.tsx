@@ -86,7 +86,7 @@ export default function SignupQrDialog({
                 <div className="text-xs font-medium uppercase tracking-wide text-gray-400">User group</div>
                 <div className="mt-1 inline-flex max-w-full items-center gap-1.5 rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
                   <UserSquare className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{invite.usergroup_name || 'Linked user group'}</span>
+                  <span className="truncate">{invite.usergroup_name || 'Linked group'}</span>
                 </div>
               </div>
             )}

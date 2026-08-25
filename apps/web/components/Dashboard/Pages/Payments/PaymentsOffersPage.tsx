@@ -74,7 +74,7 @@ function PaymentsOffersPage() {
           isDialogOpen={isCreateModalOpen}
           onOpenChange={setIsCreateModalOpen}
           dialogTitle="Create New Offer"
-          dialogDescription="Add a new offer linked to a UserGroup"
+          dialogDescription="Add a new offer linked to a group"
           dialogContent={<CreateOfferForm onSuccess={() => setIsCreateModalOpen(false)} />}
         />
 

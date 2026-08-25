@@ -62,7 +62,7 @@ function OrgInviteCodeGenerate(props: OrgInviteCodeGenerateProps) {
                         value={displayName}
                         maxLength={80}
                         onChange={(event) => setDisplayName(event.target.value)}
-                        placeholder="Spring cohort"
+                        placeholder="Spring group"
                         className="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                     />
                 </div>
@@ -86,7 +86,7 @@ function OrgInviteCodeGenerate(props: OrgInviteCodeGenerateProps) {
                             <UserSquare className="h-4 w-4" />
                         </div>
                         <div>
-                            <h3 className="text-sm font-semibold text-gray-900">Link to user group</h3>
+                            <h3 className="text-sm font-semibold text-gray-900">Link to group</h3>
                             <p className="mt-1 text-xs text-gray-500">Automatically add people who use this code to a group.</p>
                         </div>
                     </div>
@@ -96,7 +96,7 @@ function OrgInviteCodeGenerate(props: OrgInviteCodeGenerateProps) {
 
             {hasUserGroups && linkToUserGroup && usergroups?.length > 0 && (
                 <div className='bg-blue-50 rounded-lg p-3'>
-                    <label className='text-xs font-medium text-blue-700 mb-1.5 block'>Select User Group</label>
+                    <label className='text-xs font-medium text-blue-700 mb-1.5 block'>Select Group</label>
                     <select
                         value={usergroup_id || usergroups[0].id}
                         onChange={(e) => setUsergroup_id(Number(e.target.value))}

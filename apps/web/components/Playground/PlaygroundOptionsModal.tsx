@@ -250,7 +250,7 @@ function AccessTab({
       toast.success('User group removed')
       if (ugKey) mutate(ugKey)
     } catch {
-      toast.error('Failed to remove user group')
+      toast.error('Failed to remove group')
     }
   }
 
@@ -276,7 +276,7 @@ function AccessTab({
       type: 'restricted',
       icon: <Lock size={22} weight="duotone" className="text-amber-500" />,
       label: 'Restricted',
-      description: 'Only specific user groups you select can view.',
+      description: 'Only specific groups you select can view.',
     },
   ]
 
@@ -331,8 +331,8 @@ function AccessTab({
               onOpenChange={setLinkModalOpen}
               minWidth="no-min"
               minHeight="no-min"
-              dialogTitle="Link user group"
-              dialogDescription="Select a user group to grant access to this playground."
+              dialogTitle="Link group"
+              dialogDescription="Select a group to grant access to this playground."
               dialogContent={
                 <LinkUserGroupForm
                   playgroundUuid={playground.playground_uuid}
@@ -356,13 +356,13 @@ function AccessTab({
             {!usergroups || usergroups.length === 0 ? (
               <div className="py-8 text-center">
                 <Lock size={20} className="text-gray-300 mx-auto mb-2" />
-                <p className="text-xs text-gray-400">No user groups linked yet</p>
+                <p className="text-xs text-gray-400">No groups linked yet</p>
                 <Link
                   href={getUriWithOrg(orgslug, routePaths.org.dash.users.usergroups())}
                   target="_blank"
                   className="text-xs text-sky-600 hover:underline mt-1 inline-block"
                 >
-                  Manage user groups →
+                  Manage groups →
                 </Link>
               </div>
             ) : (
@@ -475,7 +475,7 @@ function ThumbnailTab({
   )
 }
 
-/* ── Link user group form ── */
+/* ── Link group form ── */
 function LinkUserGroupForm({
   playgroundUuid,
   orgId,
@@ -511,7 +511,7 @@ function LinkUserGroupForm({
       if (ugKey) mutate(ugKey)
       onDone()
     } catch {
-      toast.error('Failed to link user group')
+      toast.error('Failed to link group')
     }
   }
 
@@ -522,13 +522,13 @@ function LinkUserGroupForm({
   if (allGroups.length === 0) {
     return (
       <div className="py-6 text-center space-y-2">
-        <p className="text-sm text-gray-500">No user groups available.</p>
+        <p className="text-sm text-gray-500">No groups available.</p>
         <Link
           href={getUriWithOrg(orgslug, routePaths.org.dash.users.usergroups())}
           target="_blank"
           className="text-sm text-sky-600 hover:underline"
         >
-          Create a user group →
+          Create a group →
         </Link>
       </div>
     )

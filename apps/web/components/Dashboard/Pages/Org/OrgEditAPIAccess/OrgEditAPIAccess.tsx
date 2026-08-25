@@ -689,7 +689,7 @@ const PermissionsEditor: React.FC<{
     { key: 'badges', label: 'Badges', hasCrud: true },
     { key: 'learning_activities', label: 'Learning Activities', hasCrud: true },
     { key: 'badge_collections', label: 'Badge Collections', hasCrud: true },
-    { key: 'usergroups', label: 'User Groups', hasCrud: true },
+    { key: 'usergroups', label: 'Groups', hasCrud: true },
     { key: 'payments', label: 'Payments', hasCrud: true },
   ]
 

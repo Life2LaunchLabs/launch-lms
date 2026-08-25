@@ -744,11 +744,11 @@ def assign_program(
     require_org_admin(current_user.id, org_id, db)
     program = _program_or_404(db, program_uuid, org_id)
     if bool(payload.usergroup_id) == bool(payload.user_id):
-        raise HTTPException(status_code=422, detail="Choose either one cohort or one user")
+        raise HTTPException(status_code=422, detail="Choose either one group or one user")
     if payload.usergroup_id:
         group = db.get(UserGroup, payload.usergroup_id)
         if not group or group.org_id != org_id:
-            raise HTTPException(status_code=404, detail="Cohort not found")
+            raise HTTPException(status_code=404, detail="Group not found")
     else:
         membership = db.exec(select(UserOrganization).where(
             UserOrganization.org_id == org_id,
@@ -891,19 +891,21 @@ def cohort_overview(db: Session, current_user: PublicUser, org_id: int, usergrou
     require_org_admin(current_user.id, org_id, db)
     group = db.get(UserGroup, usergroup_id)
     if not group or group.org_id != org_id:
-        raise HTTPException(status_code=404, detail="Cohort not found")
+        raise HTTPException(status_code=404, detail="Group not found")
     users = db.exec(
         select(User).join(UserGroupUser, UserGroupUser.user_id == User.id).where(UserGroupUser.usergroup_id == usergroup_id)
     ).all()
     assignments = db.exec(select(ProgramAssignment).where(
         ProgramAssignment.usergroup_id == usergroup_id,
         ProgramAssignment.org_id == org_id,
-        ProgramAssignment.active == True,  # noqa: E712
     ).order_by(ProgramAssignment.due_date)).all()
+    active_assignments = [assignment for assignment in assignments if assignment.active]
+    completed_assignments = [assignment for assignment in assignments if not assignment.active]
     return {
-        "cohort": {"id": group.id, "uuid": group.usergroup_uuid, "name": group.name, "description": group.description},
+        "cohort": {"id": group.id, "uuid": group.usergroup_uuid, "name": group.name, "description": group.description, "thumbnail_image": group.thumbnail_image},
         "learner_count": len(users),
-        "programs": [_assignment_summary(db, assignment) for assignment in assignments],
+        "programs": [_assignment_summary(db, assignment) for assignment in active_assignments],
+        "completed_programs": [_assignment_summary(db, assignment) for assignment in completed_assignments],
     }
 
 

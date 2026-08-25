@@ -1,13 +1,9 @@
 import {
-  ClipboardCheck,
   CreditCard,
   Library,
   LucideIcon,
   Palette,
-  ScanEye,
   Shield,
-  ShieldAlert,
-  SquareUserRound,
   Store,
   TextIcon,
   Users,
@@ -27,26 +23,9 @@ export const BADGE_ADMIN_PAGES: AdminFeaturePage[] = [
   { id: 'marketplace', label: 'Marketplace', icon: Store, href: `${routePaths.org.dash.badges()}?tab=marketplace` },
 ]
 
-export function getUserAdminPages({
-  t,
-  hasUserGroups,
-  hasAuditLogs,
-}: {
-  t: TFunction
-  hasUserGroups: boolean
-  hasAuditLogs: boolean
-}): AdminFeaturePage[] {
+export function getUserAdminPages(): AdminFeaturePage[] {
   return [
-    { id: 'users', label: t('dashboard.users.settings.tabs.users'), icon: Users, href: routePaths.org.dash.users.users() },
-    { id: 'grading', label: 'Grading', icon: ClipboardCheck, href: routePaths.org.dash.users.grading() },
-    ...(hasUserGroups
-      ? [{ id: 'groups', label: t('dashboard.users.settings.tabs.usergroups'), icon: SquareUserRound, href: routePaths.org.dash.users.usergroups() }]
-      : []),
-    { id: 'roles', label: t('dashboard.users.settings.tabs.roles'), icon: Shield, href: routePaths.org.dash.users.roles() },
-    { id: 'signups', label: t('dashboard.users.settings.tabs.signups'), icon: ScanEye, href: routePaths.org.dash.users.signups() },
-    ...(hasAuditLogs
-      ? [{ id: 'audit-logs', label: t('dashboard.users.settings.tabs.audit_logs'), icon: ShieldAlert, href: routePaths.org.dash.users.auditLogs() }]
-      : []),
+    { id: 'overview', label: 'Overview', icon: Users, href: routePaths.org.dash.users.users() },
   ]
 }
 

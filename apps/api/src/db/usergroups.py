@@ -6,6 +6,7 @@ from sqlmodel import Field, SQLModel
 class UserGroupBase(SQLModel):
     name: str
     description: str
+    thumbnail_image: str = ""
 
 class UserGroup(UserGroupBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
@@ -22,6 +23,7 @@ class UserGroupCreate(UserGroupBase):
 class UserGroupUpdate(SQLModel):
     name: str | None = None
     description: str | None = None
+    thumbnail_image: str | None = None
 
 class UserGroupRead(UserGroupBase):
     id: int
