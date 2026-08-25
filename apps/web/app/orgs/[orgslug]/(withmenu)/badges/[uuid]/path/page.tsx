@@ -6,10 +6,12 @@ import { getLearningPath } from '@services/learning/learning'
 
 type BadgePathPageProps = {
   params: Promise<{ orgslug: string; uuid: string }>
+  searchParams?: Promise<{ assignment?: string }>
 }
 
-const BadgePathPage = async ({ params }: BadgePathPageProps) => {
+const BadgePathPage = async ({ params, searchParams }: BadgePathPageProps) => {
   const { uuid, orgslug } = await params
+  const assignment = (await searchParams)?.assignment
   const session = await getServerSession()
 
   try {
@@ -17,12 +19,15 @@ const BadgePathPage = async ({ params }: BadgePathPageProps) => {
       uuid,
       session?.tokens?.access_token ?? undefined,
       true,
-      { revalidate: 0, tags: ['learning-badges'] }
+      { revalidate: 0, tags: ['learning-badges'] },
+      undefined,
+      assignment
     )
     return (
       <LearningBadgeOverview
         orgslug={orgslug}
         badgePath={badgePath}
+        programAssignmentUuid={assignment}
       />
     )
   } catch {

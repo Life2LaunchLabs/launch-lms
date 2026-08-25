@@ -2872,6 +2872,7 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
               onChange={(value) => patchScoring({ mode: value })}
             />
             <TextField label="Points" type="number" value={String(scoring.points ?? 1)} onChange={(value) => patchScoring({ points: Number(value) })} />
+            {scoring.mode === 'manual' ? <div><FieldLabel>Rubric</FieldLabel><textarea value={scoring.rubric || ''} onChange={(event) => patchScoring({ rubric: event.target.value })} placeholder="Describe what earns full, partial, and no credit." className="min-h-28 w-full rounded-lg border border-gray-200 p-3 text-sm outline-none focus:border-[var(--org-primary-color)]" />{!String(scoring.rubric || '').trim() ? <p className="mt-1 text-xs font-bold text-amber-700">A rubric is required for manual review.</p> : null}</div> : null}
           </>
         ) : (
           <>

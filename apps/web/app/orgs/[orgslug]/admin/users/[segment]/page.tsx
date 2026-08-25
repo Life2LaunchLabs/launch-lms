@@ -1,5 +1,4 @@
 import { notFound, redirect } from 'next/navigation'
-import OrgUserDetail from '@components/Admin/Users/OrgUserDetail'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 
 const HIDDEN_SECTIONS = new Set(['grading', 'roles', 'signups', 'audit-logs'])
@@ -22,5 +21,5 @@ export default async function UsersSegmentPage({
   if (HIDDEN_SECTIONS.has(decodedSegment)) notFound()
 
   if (!decodedSegment) notFound()
-  return <OrgUserDetail username={decodedSegment} orgslug={orgslug} />
+  redirect(getUriWithOrg(orgslug, routePaths.org.dash.users.userPage(decodedSegment, 'overview')))
 }

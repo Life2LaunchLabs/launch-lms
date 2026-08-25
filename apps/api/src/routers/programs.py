@@ -6,6 +6,7 @@ from src.db.programs import (
     ObjectiveCreate,
     LearnerObjectiveUpdate,
     ObjectiveProgressUpdate,
+    ObjectiveReviewDecision,
     ParticipantResponse,
     ProgramAssignmentCreate,
     ProgramCreate,
@@ -69,6 +70,29 @@ def api_assignment_matrix(
     current_user: PublicUser = Depends(get_current_user),
 ):
     return service.assignment_matrix(db_session, current_user, org_id, assignment_uuid)
+
+
+@router.get("/assignments/{assignment_uuid}/reviews")
+def api_assignment_reviews(
+    assignment_uuid: str,
+    org_id: int,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    return service.assignment_reviews(db_session, current_user, org_id, assignment_uuid)
+
+
+@router.post("/assignments/{assignment_uuid}/reviews/objective")
+def api_review_objective(
+    assignment_uuid: str,
+    payload: ObjectiveReviewDecision,
+    org_id: int,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    return service.review_objective_submission(
+        db_session, current_user, org_id, assignment_uuid, payload
+    )
 
 
 @router.post("/progress")

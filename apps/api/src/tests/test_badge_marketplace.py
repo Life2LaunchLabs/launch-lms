@@ -9,15 +9,19 @@ from src.db.learning import (
     BadgeIssuerAuthorization,
     BadgeIssuerAuthorizationStatus,
     BadgeIssuerLearnerLink,
+    BadgeIssuerLearnerLinkStatus,
     IssuerAuthorizationInvite,
     IssuerAuthorizationRequest,
     IssuerAuthorizationUpdate,
     IssuerLearnerLinkCreate,
+    IssuerLearnerRequestCreate,
+    IssuerLearnerRequestDecision,
     LearningActivity,
     LearningActivityRun,
     LearningAwardCreate,
     LearningBadge,
     LearningBadgeAward,
+    LearningBadgeVersion,
     LearningPage,
     LearningPageProgress,
     LearningPath,
@@ -45,9 +49,11 @@ from src.services.learning_marketplace import (
     browse_marketplace_badges,
     create_learner_link,
     decide_authorization,
+    decide_learner_request,
     invite_issuer,
     list_eligible_issuers,
     request_authorization,
+    request_learner_support,
     transition_queued_authorizations,
     update_authorization,
 )
@@ -77,6 +83,7 @@ def _create_tables(engine) -> None:
         Portfolio,
         BadgeCollection,
         LearningBadge,
+        LearningBadgeVersion,
         LearningPath,
         LearningActivity,
         LearningPage,
@@ -154,6 +161,23 @@ def _create_badge(session: Session, *, badge_id: int, org_id: int, listed: bool 
         creation_date=NOW,
         update_date=NOW,
     )
+    session.add(badge)
+    session.flush()
+    version = LearningBadgeVersion(
+        id=badge_id,
+        version_uuid=f"badge_version_{badge_id}",
+        badge_id=badge_id,
+        org_id=org_id,
+        state="published",
+        semantic_version="1.0.0",
+        title=badge.name,
+        definition={},
+        creation_date=NOW,
+        update_date=NOW,
+    )
+    session.add(version)
+    session.flush()
+    badge.active_version_id = version.id
     session.add(badge)
     session.commit()
     return badge
@@ -411,11 +435,74 @@ async def test_eligible_issuers_open_to_all_and_links():
         assert [i["org"]["slug"] for i in issuers] == ["creator", "issuer"]
 
 
+async def test_open_issuer_can_accept_learner_request_and_connect_user():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _create_tables(engine)
+    with Session(engine) as session:
+        _, _, alice, bob, carol, badge = _setup(session)
+        await _approved_authorization(session, alice, bob, badge, open_to_all=True)
+
+        requested = await request_learner_support(
+            _request(),
+            IssuerLearnerRequestCreate(
+                badge_uuid=badge.badge_uuid,
+                issuer_org_id=2,
+                message="I would like support",
+            ),
+            carol,
+            session,
+        )
+        assert requested["status"] == BadgeIssuerLearnerLinkStatus.REQUESTED
+
+        accepted = await decide_learner_request(
+            _request(),
+            requested["link_uuid"],
+            True,
+            IssuerLearnerRequestDecision(),
+            bob,
+            session,
+        )
+        assert accepted["status"] == BadgeIssuerLearnerLinkStatus.ACCEPTED
+        assert accepted["staff_user_ids"] == [bob.id]
+        membership = session.exec(
+            select(UserOrganization).where(
+                UserOrganization.user_id == carol.id,
+                UserOrganization.org_id == 2,
+            )
+        ).first()
+        assert membership is not None
+
+
 async def test_run_start_with_issuer_selection():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     _create_tables(engine)
     with Session(engine) as session:
         _, _, alice, bob, carol, badge = _setup(session)
+        path = LearningPath(
+            id=1,
+            path_uuid="path_issuer_start",
+            badge_id=badge.id,
+            version_id=badge.active_version_id,
+            org_id=badge.org_id,
+            title="Issuer path",
+            creation_date=NOW,
+            update_date=NOW,
+        )
+        activity = LearningActivity(
+            id=1,
+            activity_uuid="learning_activity_issuer_start",
+            path_id=1,
+            badge_id=badge.id,
+            version_id=badge.active_version_id,
+            org_id=badge.org_id,
+            title="Activity",
+            published=True,
+            creation_date=NOW,
+            update_date=NOW,
+        )
+        session.add(path)
+        session.add(activity)
+        session.commit()
 
         # Unauthorized issuer org rejected
         with pytest.raises(HTTPException) as exc:

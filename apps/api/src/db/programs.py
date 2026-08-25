@@ -58,6 +58,7 @@ class ObjectiveProgressStatus(str, Enum):
     IN_PROGRESS = "in_progress"
     SUBMITTED = "submitted"
     READY_FOR_REVIEW = "ready_for_review"
+    FLAGGED = "flagged"
     COMPLETED = "completed"
 
 
@@ -170,6 +171,7 @@ class ObjectiveProgress(SQLModel, table=True):
     evidence: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
     learner_note: str = ""
     staff_note: str = ""
+    feedback_history: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
     completed_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
     completed_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     creation_date: str = ""
@@ -288,3 +290,10 @@ class LearnerObjectiveUpdate(SQLModel):
     status: ObjectiveProgressStatus = ObjectiveProgressStatus.SUBMITTED
     learner_note: str = ""
     evidence: list[dict] = Field(default_factory=list)
+
+
+class ObjectiveReviewDecision(SQLModel):
+    objective_uuid: str
+    user_id: int
+    action: str
+    message: str = ""

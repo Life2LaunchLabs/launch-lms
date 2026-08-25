@@ -1,7 +1,7 @@
 from sqlmodel import Session, create_engine, select
 
 from src.db.organizations import Organization
-from src.db.learning import LearningBadgeAward
+from src.db.learning import LearningBadgeAward, LearningRun
 from src.db.roles import Role
 from src.db.programs import (
     Objective,
@@ -9,6 +9,7 @@ from src.db.programs import (
     ObjectiveKind,
     ObjectiveProgress,
     ObjectiveProgressStatus,
+    ObjectiveReviewDecision,
     Program,
     ProgramAssignment,
     ProgramAssignmentCreate,
@@ -30,6 +31,7 @@ from src.services.programs import (
     add_program_objective,
     assign_program,
     assignment_matrix,
+    assignment_reviews,
     cohort_overview,
     create_program_phase,
     create_program,
@@ -37,6 +39,8 @@ from src.services.programs import (
     get_program,
     list_objectives,
     reorder_program,
+    review_objective_submission,
+    update_my_progress,
     update_progress,
     update_program_objective_schedule,
     update_program_objective,
@@ -62,6 +66,7 @@ def _tables(engine):
         ProgramParticipant,
         ObjectiveProgress,
         LearningBadgeAward,
+        LearningRun,
     ):
         model.__table__.create(engine)
 
@@ -99,6 +104,71 @@ def test_objective_progress_is_shared_across_program_rollouts():
         second_matrix = assignment_matrix(session, admin, 1, second_assignment["assignment_uuid"])
         assert first_matrix["learners"][0]["cells"][shared_uuid]["status"] == "completed"
         assert second_matrix["learners"][0]["cells"][shared_uuid]["status"] == "completed"
+
+
+def test_learner_submission_can_be_flagged_resubmitted_and_confirmed():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _tables(engine)
+    with Session(engine) as session:
+        admin = _setup(session)
+        learner = PublicUser(id=2, user_uuid="user_2", username="learner", email="learner@example.com", first_name="Lee", last_name="Arner")
+        program = create_program(session, admin, ProgramCreate(org_id=1, name="Creative Futures"))
+        program = add_program_objective(
+            session,
+            admin,
+            1,
+            program["program_uuid"],
+            ObjectiveCreate(
+                title="Portfolio",
+                allow_learner_confirmation=True,
+                custom_fields=[{
+                    "field_uuid": "work",
+                    "title": "Work",
+                    "type": "media",
+                    "allow_student_upload": True,
+                    "allowed_types": ["link"],
+                }],
+            ),
+        )
+        objective_uuid = program["objectives"][0]["objective_uuid"]
+        assignment = assign_program(
+            session,
+            admin,
+            1,
+            program["program_uuid"],
+            ProgramAssignmentCreate(usergroup_id=1, staff_user_ids=[1]),
+        )
+        participant = session.exec(select(ProgramParticipant)).one()
+        participant.status = "active"
+        session.add(participant)
+        session.commit()
+
+        submitted = update_my_progress(
+            session, learner, 1, objective_uuid, ObjectiveProgressStatus.COMPLETED,
+            "First draft", [{"type": "link", "url": "https://example.com/one"}],
+        )
+        assert submitted["status"] == "submitted"
+        queue = assignment_reviews(session, admin, 1, assignment["assignment_uuid"])
+        assert queue["objective_reviews"][0]["learner_note"] == "First draft"
+
+        flagged = review_objective_submission(
+            session, admin, 1, assignment["assignment_uuid"],
+            ObjectiveReviewDecision(objective_uuid=objective_uuid, user_id=2, action="flag", message="Add a reflection."),
+        )
+        assert flagged["status"] == "flagged"
+        assert flagged["feedback_history"][0]["message"] == "Add a reflection."
+
+        update_my_progress(
+            session, learner, 1, objective_uuid, ObjectiveProgressStatus.SUBMITTED,
+            "Second draft", [{"type": "link", "url": "https://example.com/two"}],
+        )
+        confirmed = review_objective_submission(
+            session, admin, 1, assignment["assignment_uuid"],
+            ObjectiveReviewDecision(objective_uuid=objective_uuid, user_id=2, action="confirm"),
+        )
+        assert confirmed["status"] == "completed"
+        progress = session.exec(select(ObjectiveProgress)).one()
+        assert progress.feedback_history[0]["message"] == "Add a reflection."
 
 
 def test_readding_a_cohort_member_preserves_progress_and_reinvites():

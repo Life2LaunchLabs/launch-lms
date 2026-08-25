@@ -203,11 +203,12 @@ async def api_get_badge_path(
     badge_uuid: str,
     include_run: bool = Query(False),
     version: str | None = Query(None),
+    program_assignment_uuid: str | None = Query(None),
     current_user=Depends(get_current_user),
     db_session=Depends(get_db_session),
 ) -> LearningPathRead:
     actor = resolve_learning_actor(request, response, current_user, db_session) if include_run else None
-    return await learning_service.get_path(request, badge_uuid, current_user, db_session, actor=actor, version_uuid=version)
+    return await learning_service.get_path(request, badge_uuid, current_user, db_session, actor=actor, version_uuid=version, program_assignment_uuid=program_assignment_uuid)
 
 
 @collections_router.post("/")
@@ -462,11 +463,12 @@ async def api_start_run(
     response: Response,
     badge_uuid: str,
     issuing_org_id: int | None = Query(None),
+    program_assignment_uuid: str | None = Query(None),
     current_user=Depends(get_current_user),
     db_session=Depends(get_db_session),
 ) -> LearningRunRead:
     actor = resolve_learning_actor(request, response, current_user, db_session)
-    return await learning_service.start_or_resume_run(request, badge_uuid, actor, db_session, issuing_org_id=issuing_org_id)
+    return await learning_service.start_or_resume_run(request, badge_uuid, actor, db_session, issuing_org_id=issuing_org_id, program_assignment_uuid=program_assignment_uuid)
 
 
 @runs_router.post("/complete-page")

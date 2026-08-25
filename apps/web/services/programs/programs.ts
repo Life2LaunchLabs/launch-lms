@@ -32,6 +32,8 @@ export const programsApi = {
   assign: (orgId: number, uuid: string, data: any, token?: string) => request(`/${encodeURIComponent(uuid)}/assign?org_id=${orgId}`, token, 'POST', data),
   cohort: (orgId: number, groupId: number, token?: string) => request(`/cohorts/${groupId}?org_id=${orgId}`, token),
   matrix: (orgId: number, assignmentUuid: string, token?: string) => request(`/assignments/${encodeURIComponent(assignmentUuid)}/matrix?org_id=${orgId}`, token),
+  reviews: (orgId: number, assignmentUuid: string, token?: string) => request(`/assignments/${encodeURIComponent(assignmentUuid)}/reviews?org_id=${orgId}`, token),
+  reviewObjective: (orgId: number, assignmentUuid: string, data: any, token?: string) => request(`/assignments/${encodeURIComponent(assignmentUuid)}/reviews/objective?org_id=${orgId}`, token, 'POST', data),
   updateProgress: (orgId: number, data: any, token?: string) => request(`/progress?org_id=${orgId}`, token, 'POST', data),
   user: (orgId: number, userId: number, token?: string) => request(`/users/${userId}?org_id=${orgId}`, token),
   mine: (orgId: number, token?: string) => request(`/me?org_id=${orgId}`, token),

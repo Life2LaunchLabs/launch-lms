@@ -9,6 +9,7 @@ import { LearningActivityPlayer } from '@components/Learning/LearningBadgeViews'
 
 type ChapterPageProps = {
   params: Promise<{ orgslug: string; uuid: string; chapterid: string }>
+  searchParams?: Promise<{ assignment?: string }>
 }
 
 export async function generateMetadata(props: ChapterPageProps): Promise<Metadata> {
@@ -64,6 +65,7 @@ export async function generateMetadata(props: ChapterPageProps): Promise<Metadat
 
 const BadgeChapterPage = async (props: ChapterPageProps) => {
   const params = await props.params
+  const assignment = (await props.searchParams)?.assignment
   const session = await getServerSession()
   const accessToken = session?.tokens?.access_token || null
 
@@ -72,7 +74,9 @@ const BadgeChapterPage = async (props: ChapterPageProps) => {
       params.uuid,
       accessToken || undefined,
       true,
-      { revalidate: 0, tags: ['learning-badges'] }
+      { revalidate: 0, tags: ['learning-badges'] },
+      undefined,
+      assignment
     )
     const cleanActivityId = params.chapterid.replace('learning_activity_', '')
     const activity = (badgePath.activities || []).find((item: any) => (

@@ -16,6 +16,7 @@ from src.db.learning import (
     BadgeIssuerAuthorization,
     BadgeIssuerAuthorizationStatus,
     BadgeIssuerLearnerLink,
+    BadgeIssuerLearnerLinkStatus,
     LearningActivity,
     LearningActivityCreate,
     LearningActivityImport,
@@ -59,6 +60,7 @@ from src.db.learning import (
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.portfolio import Portfolio, TimelineEntry
+from src.db.programs import ParticipantStatus, ProgramAssignment, ProgramParticipant
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser, User
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
@@ -266,11 +268,21 @@ def _get_approved_issuer_authorization(
 
 
 def _validate_issuer_selection(
-    db_session: Session, badge: LearningBadge, issuing_org_id: int, user_id: int | None
-) -> None:
+    db_session: Session,
+    badge: LearningBadge,
+    issuing_org_id: int,
+    user_id: int | None,
+    *,
+    require_accepted_request: bool = False,
+) -> BadgeIssuerLearnerLink | None:
     """Ensure a learner may run this badge under the selected issuing org."""
     if issuing_org_id == badge.org_id:
-        return
+        if require_accepted_request:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This badge requires support from a cooperating organization",
+            )
+        return None
     authorization = _get_approved_issuer_authorization(
         db_session, badge.id or 0, issuing_org_id
     )
@@ -279,8 +291,6 @@ def _validate_issuer_selection(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This organization is not authorized to issue this badge",
         )
-    if authorization.open_to_all:
-        return
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -292,11 +302,146 @@ def _validate_issuer_selection(
             BadgeIssuerLearnerLink.user_id == user_id,
         )
     ).first()
+    if link and link.status == BadgeIssuerLearnerLinkStatus.ACCEPTED:
+        return link
+    if require_accepted_request:
+        detail = (
+            "Your request is waiting for this organization to accept it"
+            if link and link.status == BadgeIssuerLearnerLinkStatus.REQUESTED
+            else "Request support from this organization before starting this badge"
+        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
+    if authorization.open_to_all:
+        return link
     if not link:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This organization only supports invited learners for this badge",
         )
+    return link
+
+
+def _badge_requires_manual_grading(
+    db_session: Session,
+    badge: LearningBadge,
+    version: LearningBadgeVersion,
+) -> bool:
+    pages = db_session.exec(
+        select(LearningPage).where(
+            LearningPage.badge_id == badge.id,
+            LearningPage.version_id == version.id,
+        )
+    ).all()
+    return any(
+        _block_scoring(page, question).get("mode") == "manual"
+        for page in pages
+        for question in _question_blocks(page)
+    )
+
+
+def _manual_enrollment_state(
+    db_session: Session,
+    badge: LearningBadge,
+    version: LearningBadgeVersion,
+    actor: LearningActor | None,
+    assignment: ProgramAssignment | None,
+) -> dict:
+    requires = _badge_requires_manual_grading(db_session, badge, version)
+    if not requires or assignment:
+        return {"requires_cooperating_org": False if not requires else True, "satisfied": True}
+    user_id = actor.user_id if actor else None
+    authorizations = db_session.exec(
+        select(BadgeIssuerAuthorization).where(
+            BadgeIssuerAuthorization.badge_id == badge.id,
+            BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.APPROVED,
+        )
+    ).all()
+    authorization_ids = [item.id or 0 for item in authorizations]
+    links = (
+        db_session.exec(
+            select(BadgeIssuerLearnerLink).where(
+                BadgeIssuerLearnerLink.user_id == user_id,
+                BadgeIssuerLearnerLink.authorization_id.in_(authorization_ids),  # type: ignore
+            )
+        ).all()
+        if user_id and authorization_ids
+        else []
+    )
+    links_by_authorization = {link.authorization_id: link for link in links}
+    issuers = []
+    accepted_link = None
+    for authorization in authorizations:
+        link = links_by_authorization.get(authorization.id or 0)
+        if link and link.status == BadgeIssuerLearnerLinkStatus.ACCEPTED:
+            accepted_link = link
+        if not authorization.open_to_all and not link:
+            continue
+        org = db_session.get(Organization, authorization.issuer_org_id)
+        if not org:
+            continue
+        issuers.append({
+            "org": {
+                "id": org.id,
+                "org_uuid": org.org_uuid,
+                "slug": org.slug,
+                "name": org.name,
+                "logo_image": org.logo_image,
+            },
+            "open_to_all": authorization.open_to_all,
+            "request_status": link.status if link else None,
+            "request_uuid": link.link_uuid if link else None,
+        })
+    return {
+        "requires_cooperating_org": True,
+        "satisfied": accepted_link is not None,
+        "accepted_issuer_org_id": accepted_link.issuer_org_id if accepted_link else None,
+        "issuers": issuers,
+    }
+
+
+def _program_assignment_context(
+    db_session: Session,
+    badge: LearningBadge,
+    actor: LearningActor,
+    assignment_uuid: str,
+) -> tuple[ProgramAssignment, ProgramParticipant]:
+    if actor.user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Sign in to start an assigned badge",
+        )
+    assignment = db_session.exec(
+        select(ProgramAssignment).where(
+            ProgramAssignment.assignment_uuid == assignment_uuid,
+            ProgramAssignment.active == True,  # noqa: E712
+        )
+    ).first()
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Program assignment not found")
+    if not any(
+        int(item.get("badge_id") or 0) == int(badge.id or 0)
+        for item in (assignment.objective_snapshot or [])
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This badge is not part of the program assignment",
+        )
+    participant = db_session.exec(
+        select(ProgramParticipant).where(
+            ProgramParticipant.assignment_id == assignment.id,
+            ProgramParticipant.user_id == actor.user_id,
+            ProgramParticipant.status.in_([
+                ParticipantStatus.ACTIVE,
+                ParticipantStatus.COMPLETED,
+            ]),
+        )
+    ).first()
+    if not participant:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accept this program before starting its badge",
+        )
+    return assignment, participant
 
 
 def _get_badge(db_session: Session, badge_uuid: str) -> LearningBadge:
@@ -830,6 +975,9 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
         path_id=run.path_id,
         org_id=run.org_id,
         issuing_org_id=run.issuing_org_id,
+        program_assignment_id=run.program_assignment_id,
+        program_participant_id=run.program_participant_id,
+        issuer_learner_link_id=run.issuer_learner_link_id,
         user_id=run.user_id,
         guest_session_id=run.guest_session_id,
         status=run.status,
@@ -4578,9 +4726,11 @@ async def get_path(
     db_session: Session,
     actor: LearningActor | None = None,
     version_uuid: str | None = None,
+    program_assignment_uuid: str | None = None,
 ) -> LearningPathRead:
     badge = _get_badge(db_session, badge_uuid)
     _ensure_read_badge(db_session, badge, current_user)
+    path_assignment = None
     desired_version = _get_badge_version(db_session, badge, version_uuid) if (version_uuid or badge.active_version_id) else _get_badge_version(db_session, badge)
     if actor:
         run_statement = select(LearningRun).where(
@@ -4589,6 +4739,13 @@ async def get_path(
         )
         for owner_filter in _actor_filters(LearningRun, actor):
             run_statement = run_statement.where(owner_filter)
+        if program_assignment_uuid:
+            path_assignment, _ = _program_assignment_context(
+                db_session, badge, actor, program_assignment_uuid
+            )
+            run_statement = run_statement.where(LearningRun.program_assignment_id == path_assignment.id)
+        else:
+            run_statement = run_statement.where(LearningRun.program_assignment_id.is_(None))
         pinned_run = db_session.exec(run_statement.order_by(LearningRun.started_at.desc())).first()  # type: ignore
         version = db_session.get(LearningBadgeVersion, pinned_run.badge_version_id) if pinned_run and pinned_run.badge_version_id else desired_version
     else:
@@ -4622,6 +4779,13 @@ async def get_path(
         statement = select(LearningRun).where(LearningRun.path_id == path.id)
         for owner_filter in _actor_filters(LearningRun, actor):
             statement = statement.where(owner_filter)
+        if program_assignment_uuid:
+            path_assignment, _ = _program_assignment_context(
+                db_session, badge, actor, program_assignment_uuid
+            )
+            statement = statement.where(LearningRun.program_assignment_id == path_assignment.id)
+        else:
+            statement = statement.where(LearningRun.program_assignment_id.is_(None))
         run_obj = db_session.exec(statement).first()
         if run_obj:
             run = _serialize_run(db_session, run_obj)
@@ -4644,6 +4808,9 @@ async def get_path(
             for activity in activities
         ],
         run=run,
+        enrollment=_manual_enrollment_state(
+            db_session, badge, version, actor, path_assignment
+        ),
     )
 
 
@@ -5595,17 +5762,47 @@ async def start_or_resume_run(
     actor: LearningActor,
     db_session: Session,
     issuing_org_id: int | None = None,
+    program_assignment_uuid: str | None = None,
 ) -> LearningRunRead:
     badge = _get_badge(db_session, badge_uuid)
     if not _is_startable_badge(badge):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Badge is not available"
         )
-    if issuing_org_id is not None:
-        _validate_issuer_selection(db_session, badge, issuing_org_id, actor.user_id)
-        if issuing_org_id == badge.org_id:
-            issuing_org_id = None
+    assignment = None
+    participant = None
+    if program_assignment_uuid:
+        assignment, participant = _program_assignment_context(
+            db_session, badge, actor, program_assignment_uuid
+        )
+        if issuing_org_id is None:
+            issuing_org_id = assignment.org_id
     version = _get_badge_version(db_session, badge, require_published=True)
+    requires_cooperating_org = _badge_requires_manual_grading(db_session, badge, version)
+    issuer_link = None
+    if assignment:
+        if issuing_org_id != badge.org_id and not _get_approved_issuer_authorization(
+            db_session, badge.id or 0, issuing_org_id or 0
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="The assignment organization is not authorized to issue this badge",
+            )
+    elif issuing_org_id is not None:
+        issuer_link = _validate_issuer_selection(
+            db_session,
+            badge,
+            issuing_org_id,
+            actor.user_id,
+            require_accepted_request=requires_cooperating_org,
+        )
+    elif requires_cooperating_org:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Choose a cooperating organization and wait for it to accept your request before starting",
+        )
+    if issuing_org_id == badge.org_id:
+        issuing_org_id = None
     path = _get_path_for_badge(db_session, badge, version, create=False)
     if not path:
         raise HTTPException(status_code=409, detail="This Achievement does not have a learning path")
@@ -5617,6 +5814,10 @@ async def start_or_resume_run(
     statement = select(LearningRun).where(LearningRun.path_id == path.id)
     for owner_filter in _actor_filters(LearningRun, actor):
         statement = statement.where(owner_filter)
+    if assignment:
+        statement = statement.where(LearningRun.program_assignment_id == assignment.id)
+    else:
+        statement = statement.where(LearningRun.program_assignment_id.is_(None))
     run = db_session.exec(statement).first()
     if not run:
         now = _now()
@@ -5627,6 +5828,9 @@ async def start_or_resume_run(
             badge_version_id=version.id,
             org_id=badge.org_id,
             issuing_org_id=issuing_org_id,
+            program_assignment_id=assignment.id if assignment else None,
+            program_participant_id=participant.id if participant else None,
+            issuer_learner_link_id=issuer_link.id if issuer_link else None,
             user_id=actor.user_id,
             guest_session_id=actor.guest_session_id,
             creation_date=now,
@@ -5642,6 +5846,7 @@ async def start_or_resume_run(
     ):
         # Learner picked (or switched) an issuer after starting; future grading goes to them
         run.issuing_org_id = issuing_org_id
+        run.issuer_learner_link_id = issuer_link.id if issuer_link else None
         run.update_date = _now()
         db_session.add(run)
         db_session.commit()
@@ -5811,24 +6016,6 @@ async def complete_page(
     db_session.commit()
     db_session.refresh(run)
     _issue_award_if_complete(request, db_session, run)
-    if (
-        path_can_finish
-        and required_pages
-        and all(
-            (required_page.id or 0) in completed_page_ids
-            for required_page in required_pages
-        )
-    ):
-        result = (activity_run.data or {}).get("completion_result") or {}
-        if not result.get("passed", True):
-            grading = result.get("grading") or {}
-            detail = (
-                grading.get("failure_message")
-                or "You need a higher score to complete this activity."
-            )
-            if result.get("reason") == "pending_manual_grades":
-                detail = "This activity is waiting for manual grading."
-            raise HTTPException(status_code=422, detail=detail)
     db_session.refresh(run)
     return _serialize_run(db_session, run)
 
@@ -5956,6 +6143,17 @@ async def list_learning_responses(
         else {}
     )
     run_ids = {attempt.run_id for attempt in attempts}
+    activity_ids = {page.activity_id for page in page_by_id.values()}
+    activities = (
+        {
+            item.id or 0: item
+            for item in db_session.exec(
+                select(LearningActivity).where(LearningActivity.id.in_(activity_ids))
+            ).all()  # type: ignore
+        }
+        if activity_ids
+        else {}
+    )
     user_ids = {attempt.user_id for attempt in attempts if attempt.user_id is not None}
     runs = (
         {
@@ -5994,6 +6192,9 @@ async def list_learning_responses(
             if page_by_id.get(attempt.page_id)
             else None,
             "badge": badge_summary(page_by_id.get(attempt.page_id)),
+            "activity": activities.get(page_by_id[attempt.page_id].activity_id).model_dump()
+            if page_by_id.get(attempt.page_id) and activities.get(page_by_id[attempt.page_id].activity_id)
+            else None,
             "run": runs.get(attempt.run_id).model_dump()
             if runs.get(attempt.run_id)
             else None,
@@ -6030,9 +6231,30 @@ async def grade_learning_response(
     if not page:
         raise HTTPException(status_code=404, detail="Learning page not found")
     grading_run = db_session.get(LearningRun, attempt.run_id)
-    admin = _require_org_admin(
-        db_session, current_user, _effective_issuing_org_id(grading_run, page.org_id)
+    assignment = (
+        db_session.get(ProgramAssignment, grading_run.program_assignment_id)
+        if grading_run and grading_run.program_assignment_id
+        else None
     )
+    issuer_link = (
+        db_session.get(BadgeIssuerLearnerLink, grading_run.issuer_learner_link_id)
+        if grading_run and grading_run.issuer_learner_link_id
+        else None
+    )
+    user = _require_user(current_user)
+    if assignment and (
+        user.id in (assignment.staff_user_ids or []) or is_user_superadmin(user.id, db_session)
+    ):
+        admin = user
+    elif issuer_link and (
+        user.id in (issuer_link.staff_user_ids or [])
+        or is_user_superadmin(user.id, db_session)
+    ):
+        admin = user
+    else:
+        admin = _require_org_admin(
+            db_session, current_user, _effective_issuing_org_id(grading_run, page.org_id)
+        )
 
     max_score = (
         _as_float((attempt.result or {}).get("max_score"), 0.0)
@@ -6042,7 +6264,29 @@ async def grade_learning_response(
         )
         or _as_float((page.scoring or {}).get("points"), 1.0)
     )
-    score = max(0.0, min(max_score, float(data.score)))
+    result = dict(attempt.result or {})
+    question_results = dict(result.get("questions") or {})
+    if question_results and data.question_scores:
+        for question_id, question_result in question_results.items():
+            if question_result.get("grading_status") != "pending":
+                continue
+            question_max = _as_float(
+                question_result.get("max_score"),
+                _as_float(question_result.get("points"), 0.0),
+            )
+            question_score = max(
+                0.0,
+                min(question_max, _as_float(data.question_scores.get(question_id), 0.0)),
+            )
+            question_results[question_id] = {
+                **question_result,
+                "score": question_score,
+                "is_correct": question_score >= question_max if question_max > 0 else None,
+                "grading_status": "graded",
+            }
+        score = sum(_as_float(item.get("score"), 0.0) for item in question_results.values())
+    else:
+        score = max(0.0, min(max_score, float(data.score)))
     now = datetime.utcnow()
     attempt.score = score
     attempt.graded_at = now
@@ -6055,7 +6299,8 @@ async def grade_learning_response(
         else "graded"
     )
     attempt.result = {
-        **(attempt.result or {}),
+        **result,
+        **({"questions": question_results} if question_results else {}),
         "grading_status": "graded",
         "score": score,
         "max_score": max_score,

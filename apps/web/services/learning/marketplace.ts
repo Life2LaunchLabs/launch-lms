@@ -149,6 +149,30 @@ export async function createIssuerLearnerLink(
   return errorHandling(result)
 }
 
+export async function requestIssuerLearnerSupport(
+  data: { badge_uuid: string; issuer_org_id: number; message?: string },
+  accessToken?: string
+) {
+  const result = await fetch(
+    `${getAPIUrl()}badge-marketplace/learner-requests`,
+    RequestBodyWithAuthHeader('POST', data, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
+export async function decideIssuerLearnerRequest(
+  linkUuid: string,
+  decision: 'accept' | 'reject',
+  data: { staff_user_ids?: number[]; note?: string },
+  accessToken?: string
+) {
+  const result = await fetch(
+    `${getAPIUrl()}badge-marketplace/learner-requests/${linkUuid}/${decision}`,
+    RequestBodyWithAuthHeader('POST', data, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
 export async function deleteIssuerLearnerLink(linkUuid: string, accessToken?: string) {
   const result = await fetch(
     `${getAPIUrl()}badge-marketplace/learner-links/${linkUuid}`,

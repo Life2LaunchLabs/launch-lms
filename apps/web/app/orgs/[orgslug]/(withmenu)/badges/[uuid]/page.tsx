@@ -11,6 +11,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string; uuid: string }>
+  searchParams?: Promise<{ assignment?: string }>
 }
 
 export async function generateMetadata(props: MetadataProps): Promise<Metadata> {
@@ -60,6 +61,7 @@ export async function generateMetadata(props: MetadataProps): Promise<Metadata> 
 
 const BadgePage = async (props: MetadataProps) => {
   const { uuid, orgslug } = await props.params
+  const assignment = (await props.searchParams)?.assignment
   const session = await getServerSession()
 
   try {
@@ -67,19 +69,22 @@ const BadgePage = async (props: MetadataProps) => {
       uuid,
       session?.tokens?.access_token ?? undefined,
       true,
-      { revalidate: 0, tags: ['learning-badges'] }
+      { revalidate: 0, tags: ['learning-badges'] },
+      undefined,
+      assignment
     )
     const run = badgePath.run
     if (run?.award || run?.status === 'completed' || run?.completed_at) {
-      redirect(getUriWithOrg(orgslug, routePaths.org.badgeStatus(uuid)))
+      redirect(getUriWithOrg(orgslug, `${routePaths.org.badgeStatus(uuid)}${assignment ? `?assignment=${encodeURIComponent(assignment)}` : ''}`))
     }
     if (run) {
-      redirect(getUriWithOrg(orgslug, routePaths.org.badgePath(uuid)))
+      redirect(getUriWithOrg(orgslug, `${routePaths.org.badgePath(uuid)}${assignment ? `?assignment=${encodeURIComponent(assignment)}` : ''}`))
     }
     return (
       <LearningBadgeOverview
         orgslug={orgslug}
         badgePath={badgePath}
+        programAssignmentUuid={assignment}
       />
     )
   } catch (error: any) {

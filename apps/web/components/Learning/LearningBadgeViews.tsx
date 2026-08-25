@@ -40,11 +40,30 @@ import { ProjectCardView, type Project } from '@components/Pages/Portfolio/Portf
 import { normalizeMediaUrl } from '@services/media/media'
 import { CategorizedMultiSelect } from '@components/Portfolio/CategorizedMultiSelect'
 
+function getSubmittedActivityStatus(run: any, activity: any): 'pending' | 'failed' | 'completed' {
+  const pageIds = new Set((activity.pages || []).map((page: any) => page.page_uuid))
+  const latestByPage = new Map<string, any>()
+  for (const attempt of (run?.attempts || []).filter((item: any) => pageIds.has(item.page_uuid))) {
+    const prior = latestByPage.get(attempt.page_uuid)
+    if (!prior || new Date(attempt.submitted_at).getTime() >= new Date(prior.submitted_at).getTime()) {
+      latestByPage.set(attempt.page_uuid, attempt)
+    }
+  }
+  const attempts = Array.from(latestByPage.values())
+  if (attempts.some((attempt: any) => attempt.result?.grading_status === 'pending')) return 'pending'
+  const scored = attempts.filter((attempt: any) => Number(attempt.result?.max_score || 0) > 0)
+  const score = scored.reduce((total: number, attempt: any) => total + Number(attempt.score ?? attempt.result?.score ?? 0), 0)
+  const max = scored.reduce((total: number, attempt: any) => total + Number(attempt.result?.max_score || 0), 0)
+  const minimum = Number(activity.settings?.grading?.minimum_score_percent ?? 70)
+  return max > 0 && (score / max) * 100 < minimum ? 'failed' : 'completed'
+}
+
 export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgslug: string; badgePath: any; activity: any }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
+  const programAssignmentUuid = searchParams.get('assignment') || undefined
   const badge = badgePath.badge
   const configuredPages = activity.pages || []
   const [run, setRun] = React.useState<any>(badgePath.run)
@@ -70,10 +89,15 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
   }, [orgslug, router, searchParams])
 
   React.useEffect(() => {
-    startLearningRun(badge.badge_uuid, accessToken)
+    startLearningRun(
+      badge.badge_uuid,
+      accessToken,
+      badgePath?.enrollment?.accepted_issuer_org_id,
+      programAssignmentUuid
+    )
       .then(setRun)
       .catch(() => null)
-  }, [badge.badge_uuid, accessToken])
+  }, [badge.badge_uuid, badgePath?.enrollment?.accepted_issuer_org_id, accessToken, programAssignmentUuid])
 
   React.useEffect(() => {
     setUnlocked(Boolean(page) && !isQuestionResponseRequired(page))
@@ -119,7 +143,14 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
       } else {
         const grading = activity.settings?.grading || {}
         if (activityHasScoredQuestions(configuredPages)) {
-          toast.success(grading.success_message || 'Activity passed.')
+          const resultStatus = getSubmittedActivityStatus(nextRun, activity)
+          if (resultStatus === 'pending') {
+            toast.success('Activity submitted for review.')
+          } else if (resultStatus === 'failed') {
+            toast.error(grading.failure_message || 'Activity finished. Review your answers and try again when you are ready.')
+          } else {
+            toast.success(grading.success_message || 'Activity passed.')
+          }
         }
         const returnTo = searchParams.get('returnTo')
         if (returnTo?.startsWith('/portfolio')) {

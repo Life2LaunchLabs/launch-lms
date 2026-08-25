@@ -203,10 +203,12 @@ export async function getLearningPath(
   accessToken?: string,
   includeRun = false,
   next?: any,
-  versionUuid?: string
+  versionUuid?: string,
+  programAssignmentUuid?: string
 ) {
   const search = new URLSearchParams({ include_run: String(includeRun) })
   if (versionUuid) search.set('version', versionUuid)
+  if (programAssignmentUuid) search.set('program_assignment_uuid', programAssignmentUuid)
   const result = await fetch(
     `${getAPIUrl()}badges/${badgeUuid}/path?${search.toString()}`,
     RequestBodyWithAuthHeader('GET', null, next, accessToken)
@@ -362,11 +364,12 @@ export async function deleteLearningVariable(variableUuid: string, accessToken?:
   return errorHandling(result)
 }
 
-export async function startLearningRun(badgeUuid: string, accessToken?: string, issuingOrgId?: string | number) {
+export async function startLearningRun(badgeUuid: string, accessToken?: string, issuingOrgId?: string | number, programAssignmentUuid?: string) {
   const search = new URLSearchParams()
   if (issuingOrgId !== undefined && issuingOrgId !== null && issuingOrgId !== '') {
     search.set('issuing_org_id', String(issuingOrgId))
   }
+  if (programAssignmentUuid) search.set('program_assignment_uuid', programAssignmentUuid)
   const query = search.toString()
   const result = await fetch(
     `${getAPIUrl()}learning-runs/start/${badgeUuid}${query ? `?${query}` : ''}`,
@@ -412,7 +415,7 @@ export async function getLearningResponses(
   return errorHandling(result)
 }
 
-export async function gradeLearningResponse(attemptUuid: string, data: { score: number; feedback?: string }, accessToken?: string) {
+export async function gradeLearningResponse(attemptUuid: string, data: { score: number; feedback?: string; question_scores?: Record<string, number> }, accessToken?: string) {
   const result = await fetch(
     `${getAPIUrl()}learning-responses/${attemptUuid}/grade`,
     RequestBodyWithAuthHeader('POST', data, null, accessToken)

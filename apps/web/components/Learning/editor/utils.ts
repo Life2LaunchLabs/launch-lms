@@ -372,14 +372,17 @@ export function blockLabel(block: LearningBlock) {
 }
 
 export function getQuestionConfigurationIssue(page: any, question: any): string {
-  if (question?.type !== 'question' || !['multiple_choice', 'categorized_multi_select'].includes(question.kind)) return ''
+  if (question?.type !== 'question') return ''
   const scoring = getBlockScoring(page, question)
   const completion = getBlockCompletion(page, question)
   const variableBindings = completion.variable_bindings || completion.variableBindings || {}
   const hasBindings = Object.values(variableBindings.options || {}).some(Boolean)
   const questionMode = completion.question_mode || (hasBindings ? 'variable' : 'scored')
   const correctIds = scoring.correct_option_ids || scoring.correctOptionIds || []
-  if (questionMode === 'scored' && scoring.mode !== 'off' && Number(scoring.points ?? 1) > 0 && correctIds.length === 0) {
+  if (questionMode === 'scored' && scoring.mode === 'manual' && !String(scoring.rubric || '').trim()) {
+    return 'Manual review needs a rubric'
+  }
+  if (['multiple_choice', 'categorized_multi_select'].includes(question.kind) && questionMode === 'scored' && scoring.mode !== 'off' && Number(scoring.points ?? 1) > 0 && correctIds.length === 0) {
     return 'No correct answers selected'
   }
   return ''

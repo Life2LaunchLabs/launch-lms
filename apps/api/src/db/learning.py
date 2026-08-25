@@ -60,6 +60,12 @@ class BadgeIssuerAuthorizationStatus(str, Enum):
     PACKAGE_DENIED = "package_denied"
 
 
+class BadgeIssuerLearnerLinkStatus(str, Enum):
+    REQUESTED = "requested"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+
+
 class LearningBadgeBase(SQLModel):
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     collection_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("badgecollection.id", ondelete="SET NULL"), nullable=True, index=True))
@@ -283,7 +289,13 @@ class BadgeIssuerLearnerLink(SQLModel, table=True):
     badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
     issuer_org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True))
+    status: BadgeIssuerLearnerLinkStatus = Field(default=BadgeIssuerLearnerLinkStatus.ACCEPTED, sa_column=Column(String, nullable=False, index=True))
+    requested_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    decided_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    decided_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    staff_user_ids: list[int] = Field(default_factory=list, sa_column=Column(JSON))
+    message: str | None = ""
     note: str | None = ""
     creation_date: str = ""
     update_date: str = ""
@@ -328,6 +340,17 @@ class IssuerLearnerLinkCreate(SQLModel):
     badge_uuid: str
     issuer_org_id: int
     user_id: int
+    note: str | None = ""
+
+
+class IssuerLearnerRequestCreate(SQLModel):
+    badge_uuid: str
+    issuer_org_id: int
+    message: str | None = ""
+
+
+class IssuerLearnerRequestDecision(SQLModel):
+    staff_user_ids: list[int] = Field(default_factory=list)
     note: str | None = ""
 
 
@@ -523,6 +546,9 @@ class LearningRun(SQLModel, table=True):
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     # Org the learner is earning the badge under; None means the badge's creator org.
     issuing_org_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("organization.id", ondelete="SET NULL"), nullable=True, index=True))
+    program_assignment_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("programassignment.id", ondelete="SET NULL"), nullable=True, index=True))
+    program_participant_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("programparticipant.id", ondelete="SET NULL"), nullable=True, index=True))
+    issuer_learner_link_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("badgeissuerlearnerlink.id", ondelete="SET NULL"), nullable=True, index=True))
     user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=True, index=True))
     guest_session_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("guestsession.id", ondelete="CASCADE"), nullable=True, index=True))
     status: LearningRunStatus = LearningRunStatus.IN_PROGRESS
@@ -604,6 +630,9 @@ class LearningRunRead(BaseModel):
     badge_version_id: int | None = None
     org_id: int
     issuing_org_id: int | None = None
+    program_assignment_id: int | None = None
+    program_participant_id: int | None = None
+    issuer_learner_link_id: int | None = None
     user_id: int | None = None
     guest_session_id: int | None = None
     status: LearningRunStatus
@@ -621,6 +650,7 @@ class LearningPathRead(BaseModel):
     badge: LearningBadgeRead
     activities: list[LearningActivityRead]
     run: LearningRunRead | None = None
+    enrollment: dict = Field(default_factory=dict)
 
 
 class LearningPageComplete(SQLModel):
@@ -638,6 +668,7 @@ class LearningResponseSubmit(SQLModel):
 class LearningResponseGrade(SQLModel):
     score: float
     feedback: str | None = ""
+    question_scores: dict[str, float] = Field(default_factory=dict)
 
 
 class LearningAwardCreate(SQLModel):

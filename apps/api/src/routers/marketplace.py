@@ -6,6 +6,8 @@ from src.db.learning import (
     IssuerAuthorizationRequest,
     IssuerAuthorizationUpdate,
     IssuerLearnerLinkCreate,
+    IssuerLearnerRequestCreate,
+    IssuerLearnerRequestDecision,
 )
 from src.security.auth import get_current_user
 from src.services import learning_marketplace as marketplace_service
@@ -139,6 +141,44 @@ async def api_create_learner_link(
     db_session=Depends(get_db_session),
 ) -> dict:
     return await marketplace_service.create_learner_link(request, payload, current_user, db_session)
+
+
+@router.post("/learner-requests")
+async def api_request_learner_support(
+    request: Request,
+    payload: IssuerLearnerRequestCreate,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    return await marketplace_service.request_learner_support(
+        request, payload, current_user, db_session
+    )
+
+
+@router.post("/learner-requests/{link_uuid}/accept")
+async def api_accept_learner_request(
+    request: Request,
+    link_uuid: str,
+    payload: IssuerLearnerRequestDecision,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    return await marketplace_service.decide_learner_request(
+        request, link_uuid, True, payload, current_user, db_session
+    )
+
+
+@router.post("/learner-requests/{link_uuid}/reject")
+async def api_reject_learner_request(
+    request: Request,
+    link_uuid: str,
+    payload: IssuerLearnerRequestDecision,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    return await marketplace_service.decide_learner_request(
+        request, link_uuid, False, payload, current_user, db_session
+    )
 
 
 @router.delete("/learner-links/{link_uuid}")

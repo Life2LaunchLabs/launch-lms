@@ -14,6 +14,7 @@ import {
   acceptIssuerInvite,
   browseMarketplaceBadges,
   createIssuerLearnerLink,
+  decideIssuerLearnerRequest,
   deleteIssuerLearnerLink,
   getIssuerAuthorizations,
   getIssuerLearnerLinks,
@@ -339,6 +340,19 @@ export function IssuingAuthorizationsPanel({ orgId }: { orgId: number }) {
     }
   }
 
+  const decideRequest = async (link: any, decision: 'accept' | 'reject') => {
+    setActingOn(link.link_uuid)
+    try {
+      await decideIssuerLearnerRequest(link.link_uuid, decision, {}, accessToken)
+      toast.success(decision === 'accept' ? 'Learner accepted and assigned to you.' : 'Request declined.')
+      await load()
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to update learner request.')
+    } finally {
+      setActingOn('')
+    }
+  }
+
   return (
     <div className="px-10 pb-10 pt-6">
       <section className="rounded-xl bg-card p-6 shadow-xs">
@@ -353,13 +367,27 @@ export function IssuingAuthorizationsPanel({ orgId }: { orgId: number }) {
           </Button>
         </div>
 
+        {links.some((link) => link.status === 'requested') ? (
+          <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-4">
+            <p className="text-xs font-black uppercase tracking-wide text-blue-800">Learner requests</p>
+            <div className="mt-3 space-y-2">
+              {links.filter((link) => link.status === 'requested').map((link) => (
+                <div key={link.link_uuid} className="flex flex-col gap-3 rounded-lg bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div><p className="text-sm font-bold text-foreground">{link.user ? ([link.user.first_name, link.user.last_name].filter(Boolean).join(' ') || link.user.username || link.user.email) : `User ${link.user_id}`}</p><p className="text-xs text-muted-foreground">{link.badge?.name || 'Badge'}{link.message ? ` · ${link.message}` : ''}</p></div>
+                  <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => void decideRequest(link, 'reject')} disabled={actingOn === link.link_uuid}>Decline</Button><Button size="sm" onClick={() => void decideRequest(link, 'accept')} disabled={actingOn === link.link_uuid}><Check className="mr-1 h-4 w-4" /> Accept</Button></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         <div className="mt-6 space-y-4">
           {loading ? (
             <div className="flex items-center justify-center py-16 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin" />
             </div>
           ) : authorizations.length ? authorizations.map((authorization) => {
-            const authorizationLinks = links.filter((link) => link.authorization_id === authorization.id)
+            const authorizationLinks = links.filter((link) => link.authorization_id === authorization.id && link.status === 'accepted')
             return (
               <article key={authorization.authorization_uuid} className="rounded-xl border border-border p-4">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
