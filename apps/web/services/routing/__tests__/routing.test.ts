@@ -30,6 +30,7 @@ test('route manifest builds key dashboard and owner routes', () => {
   assert.equal(routePaths.org.dash.users.usergroups(), '/admin/users')
   assert.equal(routePaths.org.dash.users.group(2), '/admin/users/groups/2')
   assert.equal(routePaths.org.dash.users.groupProgram(2, 'assignment_1'), '/admin/users/groups/2/programs/assignment_1/progress')
+  assert.equal(routePaths.org.dash.users.user('learner'), '/admin/users/user/learner')
   assert.equal(routePaths.org.dash.users.userPage('learner', 'review'), '/admin/users/user/learner/review')
   assert.equal(routePaths.owner.platform.organization(42), '/admin/platform/orgs/42')
   assert.equal(routePaths.auth.login({ next: '/' }), '/login?next=%2F')
