@@ -9,7 +9,7 @@ from sqlmodel import Session, func, select
 from src.db.billing_usage import UsageEvent
 from src.db.learning import BadgeCollection, LearningBadge
 from src.db.organization_config import OrganizationConfig
-from src.db.organization_invitations import OrganizationInvitation
+from src.db.organization_invitations import OrganizationInvitation, OrganizationJoinLink
 from src.db.roles import Role, RoleTypeEnum
 from src.db.user_organizations import UserOrganization
 from src.security.features_utils.plans import (
@@ -83,7 +83,13 @@ def _get_actual_member_count(org_id: int, db_session: Session) -> int:
             OrganizationInvitation.expires_at > datetime.utcnow(),
         )
     ).one()
-    return member_count + invitation_count
+    links = db_session.exec(select(OrganizationJoinLink).where(
+        OrganizationJoinLink.org_id == org_id,
+        OrganizationJoinLink.status == "active",
+        OrganizationJoinLink.expires_at > datetime.utcnow(),
+    )).all()
+    link_reservations = sum(max(0, link.max_redemptions - link.redemption_count) for link in links)
+    return member_count + invitation_count + link_reservations
 
 
 def _get_actual_badge_count(org_id: int, db_session: Session) -> int:

@@ -11,9 +11,10 @@ from src.security.features_utils.usage import (
     check_limits_with_usage,
     increase_feature_usage,
 )
-from src.services.orgs.invites import get_invite_code
+from src.services.orgs.invites import get_invite_code, redeem_join_link
 from src.services.orgs.orgs import get_org_join_mechanism
 from src.services.users.usergroups import add_users_to_usergroup
+from src.services.orgs.invitation_security import audit_invitation_acceptance, validate_invitation_acceptance
 
 
 class JoinOrg(BaseModel):
@@ -97,6 +98,7 @@ async def join_org(
                 status_code=400,
                 detail="This invitation is invalid, expired, or belongs to another email address",
             )
+        validate_invitation_acceptance(invitation, db_session)
     if args.invite_code:
         inviteCode = await get_invite_code(
             request, org.id, args.invite_code, current_user, db_session
@@ -138,8 +140,13 @@ async def join_org(
                 invitation.accepted_at = datetime.utcnow()
                 invitation.updated_at = datetime.utcnow()
                 db_session.add(invitation)
+            elif inviteCode:
+                redeem_join_link(db_session, inviteCode["invite_code_uuid"], str(user.email))
             db_session.add(user_organization)
             db_session.commit()
+
+            if invitation:
+                audit_invitation_acceptance(invitation, int(user.id), request, db_session)
 
             from src.routers.users import _invalidate_session_cache
             _invalidate_session_cache(user.id)
@@ -185,8 +192,13 @@ async def join_org(
                 invitation.accepted_at = datetime.utcnow()
                 invitation.updated_at = datetime.utcnow()
                 db_session.add(invitation)
+            elif inviteCode:
+                redeem_join_link(db_session, inviteCode["invite_code_uuid"], str(user.email))
             db_session.add(user_organization)
             db_session.commit()
+
+            if invitation:
+                audit_invitation_acceptance(invitation, int(user.id), request, db_session)
 
             from src.routers.users import _invalidate_session_cache
             _invalidate_session_cache(user.id)

@@ -103,8 +103,9 @@ export default function UsersOverview({ hasUserGroups }: { hasUserGroups: boolea
     (url) => swrFetcher(url, token),
     { revalidateOnFocus: false }
   )
-  const pendingInvitationTotal = (invitations || []).length
-  const filteredPendingInvitationTotal = (invitations || []).filter((invite: any) => {
+  const pendingInvitations = (invitations || []).filter((invite: any) => invite.pending)
+  const pendingInvitationTotal = pendingInvitations.length
+  const filteredPendingInvitationTotal = pendingInvitations.filter((invite: any) => {
     if (search && !String(invite.email).toLowerCase().includes(search.trim().toLowerCase())) return false
     if (roleId && String(invite.role?.id) !== roleId) return false
     if (verified !== 'all' || usersAssignedToMe) return false

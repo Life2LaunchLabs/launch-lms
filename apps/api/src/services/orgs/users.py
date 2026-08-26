@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from fastapi import HTTPException, Request
@@ -8,11 +8,14 @@ from sqlalchemy import or_
 from sqlalchemy.orm import aliased
 from sqlmodel import Session, func, select
 from src.db.organization_invitations import (
+    InvitePreviewResponse,
     InviteRecipientResult,
     InviteUsersRequest,
     InviteUsersResponse,
     OrganizationInvitation,
 )
+from src.db.audit_logs import AuditLog
+from src.db.organization_config import OrganizationConfig
 from src.db.organizations import (
     Organization,
     OrganizationRead,
@@ -33,6 +36,7 @@ from src.security.features_utils.usage import (
     increase_feature_usage,
     is_role_dashboard_enabled,
 )
+from src.security.features_utils.plans import plan_meets_requirement
 from src.security.org_auth import get_user_org, is_org_member
 from src.security.rbac.constants import ADMIN_ROLE_ID
 from src.services.email.utils import get_base_url_from_request
@@ -58,6 +62,52 @@ def is_valid_email(email: str) -> bool:
         return True
     except ValidationError:
         return False
+
+
+def _invitation_policy(org_id: int, db_session: Session) -> dict[str, int | bool]:
+    config = db_session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)).first()
+    raw = config.config if config and isinstance(config.config, dict) else {}
+    plan = raw.get("plan") if str(raw.get("config_version", "1.0")).startswith("2") else raw.get("cloud", {}).get("plan")
+    paid = plan_meets_requirement(str(plan or "free"), "full")
+    enterprise = plan_meets_requirement(str(plan or "free"), "enterprise")
+    return {
+        "csv": paid,
+        "batch": 500 if enterprise else (100 if paid else 10),
+        "daily": 5000 if enterprise else (500 if paid else 25),
+        "pending": 5000 if enterprise else (500 if paid else 30),
+    }
+
+
+def _recipient_results(org_id: int, emails: list[str], db_session: Session) -> list[InviteRecipientResult]:
+    now = datetime.utcnow()
+    seen: set[str] = set()
+    results: list[InviteRecipientResult] = []
+    for raw_email in emails:
+        entered_email = raw_email.strip()
+        try:
+            validated_email = str(_email_adapter.validate_python(entered_email))
+        except ValidationError:
+            results.append(InviteRecipientResult(email=entered_email, status="invalid", detail="Enter a valid email address"))
+            continue
+        normalized = normalize_email(validated_email)
+        if normalized in seen:
+            results.append(InviteRecipientResult(email=validated_email, status="duplicate", detail="Duplicate in this batch"))
+            continue
+        seen.add(normalized)
+        target_user = db_session.exec(select(User).where(func.lower(User.email) == normalized)).first()
+        if target_user and db_session.exec(select(UserOrganization).where(
+            UserOrganization.org_id == org_id, UserOrganization.user_id == target_user.id,
+        )).first():
+            results.append(InviteRecipientResult(email=validated_email, status="already_member"))
+            continue
+        pending = db_session.exec(select(OrganizationInvitation).where(
+            OrganizationInvitation.org_id == org_id,
+            OrganizationInvitation.email_normalized == normalized,
+            OrganizationInvitation.status == "pending",
+            OrganizationInvitation.expires_at > now,
+        )).first()
+        results.append(InviteRecipientResult(email=validated_email, status="already_invited" if pending else "ready"))
+    return results
 
 
 def _get_owner_org(db_session: Session) -> Organization | None:
@@ -613,6 +663,53 @@ async def update_user_role(
     return {"detail": "User role updated"}
 
 
+async def preview_batch_users(
+    request: Request,
+    org_id: int,
+    invite_request: InviteUsersRequest,
+    db_session: Session,
+    current_user: PublicUser | AnonymousUser,
+) -> InvitePreviewResponse:
+    org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    await rbac_check(request, org.org_uuid, current_user, "create", db_session)
+    policy = _invitation_policy(org_id, db_session)
+    if invite_request.source == "csv" and not policy["csv"]:
+        raise HTTPException(status_code=403, detail="CSV invitations require a paid plan")
+    if invite_request.source not in {"manual", "csv", "api"}:
+        raise HTTPException(status_code=400, detail="Unsupported invitation source")
+    if len(invite_request.emails) > int(policy["batch"]):
+        raise HTTPException(status_code=400, detail=f"This plan allows {policy['batch']} recipients per batch")
+    role = db_session.exec(select(Role).where(
+        Role.id == invite_request.role_id,
+        or_(Role.org_id == org.id, Role.org_id.is_(None)),
+    )).first()
+    if not role:
+        raise HTTPException(status_code=400, detail="Role is not available in this organization")
+    if is_role_dashboard_enabled(role):
+        inviter_membership = get_user_org(current_user.id, org.id, db_session)
+        from src.security.superadmin import is_user_superadmin
+        if not is_user_superadmin(current_user.id, db_session) and (
+            not inviter_membership or inviter_membership.role_id != ADMIN_ROLE_ID
+        ):
+            raise HTTPException(status_code=403, detail="Only organization administrators can invite staff or administrators")
+    if invite_request.usergroup_id and invite_request.new_usergroup_name:
+        raise HTTPException(status_code=400, detail="Choose an existing group or create a new one, not both")
+    if invite_request.usergroup_id:
+        if is_role_dashboard_enabled(role):
+            raise HTTPException(status_code=400, detail="Groups can only be assigned with learner invitations")
+        if not db_session.exec(select(UserGroup).where(
+            UserGroup.id == invite_request.usergroup_id, UserGroup.org_id == org.id,
+        )).first():
+            raise HTTPException(status_code=400, detail="Group is not available in this organization")
+    if invite_request.new_usergroup_name is not None and not invite_request.new_usergroup_name.strip():
+        raise HTTPException(status_code=400, detail="New group name is required")
+    if invite_request.new_usergroup_name and is_role_dashboard_enabled(role):
+        raise HTTPException(status_code=400, detail="Groups can only be assigned with learner invitations")
+    return InvitePreviewResponse(results=_recipient_results(org_id, invite_request.emails, db_session))
+
+
 async def invite_batch_users(
     request: Request,
     org_id: int,
@@ -633,6 +730,76 @@ async def invite_batch_users(
         raise HTTPException(status_code=401, detail="Authentication required")
 
     await rbac_check(request, org.org_uuid, current_user, "create", db_session)
+
+    policy = _invitation_policy(org.id, db_session)
+    if invite_request.source == "csv" and not policy["csv"]:
+        raise HTTPException(status_code=403, detail="CSV invitations require a paid plan")
+    if invite_request.source not in {"manual", "csv", "api"}:
+        raise HTTPException(status_code=400, detail="Unsupported invitation source")
+    if len(invite_request.emails) > int(policy["batch"]):
+        raise HTTPException(status_code=400, detail=f"This plan allows {policy['batch']} recipients per batch")
+
+    day_ago = datetime.utcnow() - timedelta(days=1)
+    daily_limit = int(policy["daily"])
+    try:
+        org_created = datetime.fromisoformat(org.creation_date.replace("Z", "+00:00")) if org.creation_date else None
+        if org_created and org_created.tzinfo:
+            org_created = org_created.astimezone(timezone.utc).replace(tzinfo=None)
+        if org_created and org_created > datetime.utcnow() - timedelta(days=7):
+            daily_limit = max(5, daily_limit // 2)
+    except ValueError:
+        pass
+
+    # Reduce throughput for established organizations whose invitations are
+    # overwhelmingly ignored. This is intentionally based on aggregate status,
+    # not recipient identity, to avoid exposing account existence.
+    month_ago = datetime.utcnow() - timedelta(days=30)
+    recent_total = db_session.exec(select(func.count()).where(
+        OrganizationInvitation.org_id == org.id,
+        OrganizationInvitation.created_at > month_ago,
+    )).one()
+    recent_accepted = db_session.exec(select(func.count()).where(
+        OrganizationInvitation.org_id == org.id,
+        OrganizationInvitation.created_at > month_ago,
+        OrganizationInvitation.status == "accepted",
+    )).one()
+    if recent_total >= 50 and recent_accepted / recent_total < 0.05:
+        daily_limit = min(daily_limit, 10)
+
+    sent_today = db_session.exec(select(func.count()).where(
+        OrganizationInvitation.org_id == org.id,
+        OrganizationInvitation.created_at > day_ago,
+    )).one()
+    sent_by_user = db_session.exec(select(func.count()).where(
+        OrganizationInvitation.created_by_user_id == current_user.id,
+        OrganizationInvitation.created_at > day_ago,
+    )).one()
+    platform_sent = db_session.exec(select(func.count()).where(
+        OrganizationInvitation.created_at > day_ago,
+    )).one()
+    active_pending = db_session.exec(select(func.count()).where(
+        OrganizationInvitation.org_id == org.id,
+        OrganizationInvitation.status == "pending",
+        OrganizationInvitation.expires_at > datetime.utcnow(),
+    )).one()
+    preview_results = _recipient_results(org.id, invite_request.emails, db_session)
+    prospective = sum(result.status == "ready" for result in preview_results)
+    if sent_today + prospective > daily_limit:
+        raise HTTPException(status_code=429, detail="Organization invitation limit reached for the last 24 hours")
+    if sent_by_user + prospective > daily_limit:
+        raise HTTPException(status_code=429, detail="Your invitation limit was reached for the last 24 hours")
+    if platform_sent + prospective > 50_000:
+        raise HTTPException(status_code=429, detail="Platform invitation capacity is temporarily limited")
+    if request.client:
+        batches_from_ip = db_session.exec(select(func.count()).where(
+            AuditLog.action == "invitation.create",
+            AuditLog.ip_address == request.client.host,
+            AuditLog.created_at > (datetime.now(timezone.utc) - timedelta(days=1)).isoformat(),
+        )).one()
+        if batches_from_ip >= 100:
+            raise HTTPException(status_code=429, detail="Invitation rate limit reached for this network")
+    if active_pending + prospective > int(policy["pending"]):
+        raise HTTPException(status_code=429, detail="Active pending invitation limit reached")
 
     role = db_session.exec(
         select(Role).where(
@@ -747,6 +914,8 @@ async def invite_batch_users(
             usergroup_id=usergroup_id,
             target_user_id=target_user.id if target_user else None,
             created_by_user_id=current_user.id,
+            source=invite_request.source,
+            batch_uuid=invite_request.batch_uuid,
             expires_at=expires_at,
             created_at=now,
             updated_at=now,
@@ -773,7 +942,9 @@ async def invite_batch_users(
         except Exception:
             logging.exception("Failed to send organization invitation to %s", invitation.email)
             invitation.email_sent = False
+        invitation.delivery_status = "delivered" if invitation.email_sent else "delivery_failed"
         invitation.delivery_attempts = 1
+        invitation.last_sent_at = datetime.utcnow()
         invitation.updated_at = datetime.utcnow()
     db_session.commit()
 
@@ -782,6 +953,19 @@ async def invite_batch_users(
     if is_role_dashboard_enabled(role):
         for _invitation in new_invitations:
             increase_feature_usage("admin_seats", org.id, db_session)
+
+    if new_invitations:
+        from src.services.audit_logs import record_audit_log
+        record_audit_log(
+            db_session,
+            action="invitation.create",
+            resource="organization_invitation",
+            status_code=200,
+            org_id=org.id,
+            user_id=current_user.id,
+            ip_address=request.client.host if request.client else None,
+            request_metadata={"count": len(new_invitations), "source": invite_request.source, "batch_uuid": invite_request.batch_uuid},
+        )
 
     return InviteUsersResponse(created=len(new_invitations), results=results, usergroup_id=usergroup_id)
 
@@ -805,12 +989,15 @@ async def get_list_of_invited_users(
 
     now = datetime.utcnow()
     invitations = db_session.exec(
-        select(OrganizationInvitation).where(
-            OrganizationInvitation.org_id == org_id,
-            OrganizationInvitation.status == "pending",
-            OrganizationInvitation.expires_at > now,
-        ).order_by(OrganizationInvitation.created_at.desc())
+        select(OrganizationInvitation).where(OrganizationInvitation.org_id == org_id)
+        .order_by(OrganizationInvitation.created_at.desc())
     ).all()
+    for invitation in invitations:
+        if invitation.status == "pending" and invitation.expires_at <= now:
+            invitation.status = "expired"
+            invitation.updated_at = now
+            db_session.add(invitation)
+    db_session.commit()
     role_ids = {invitation.role_id for invitation in invitations}
     roles = db_session.exec(select(Role).where(Role.id.in_(role_ids))).all() if role_ids else []
     role_map = {role.id: role for role in roles}
@@ -821,9 +1008,14 @@ async def get_list_of_invited_users(
     return [{
         "invitation_uuid": invitation.invitation_uuid,
         "email": invitation.email,
-        "pending": True,
+        "pending": invitation.status == "pending" and invitation.expires_at > now,
         "status": invitation.status,
         "email_sent": invitation.email_sent,
+        "delivery_status": invitation.delivery_status,
+        "source": invitation.source,
+        "batch_uuid": invitation.batch_uuid,
+        "delivery_attempts": invitation.delivery_attempts,
+        "last_sent_at": invitation.last_sent_at.isoformat() if invitation.last_sent_at else None,
         "created_at": invitation.created_at.isoformat(),
         "expires_at": invitation.expires_at.isoformat(),
         "role": RoleRead.model_validate(role_map[invitation.role_id]).model_dump() if invitation.role_id in role_map else None,
@@ -864,6 +1056,7 @@ async def remove_invited_user(
 
     role = db_session.exec(select(Role).where(Role.id == invitation.role_id)).first()
     invitation.status = "revoked"
+    invitation.revoked_at = datetime.utcnow()
     invitation.updated_at = datetime.utcnow()
     db_session.add(invitation)
     db_session.commit()
@@ -872,4 +1065,58 @@ async def remove_invited_user(
     if role and is_role_dashboard_enabled(role):
         decrease_feature_usage("admin_seats", org_id, db_session)
 
+    from src.services.audit_logs import record_audit_log
+    record_audit_log(
+        db_session, action="invitation.revoke", resource="organization_invitation", status_code=200,
+        org_id=org_id, user_id=current_user.id,
+        ip_address=request.client.host if request.client else None,
+        request_metadata={"invitation_uuid": invitation.invitation_uuid},
+    )
+
     return {"detail": "Invitation revoked"}
+
+
+async def resend_invited_user(
+    request: Request,
+    org_id: int,
+    invitation_uuid: str,
+    db_session: Session,
+    current_user: PublicUser | AnonymousUser,
+):
+    org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    await rbac_check(request, org.org_uuid, current_user, "update", db_session)
+    invitation = db_session.exec(select(OrganizationInvitation).where(
+        OrganizationInvitation.org_id == org_id,
+        OrganizationInvitation.invitation_uuid == invitation_uuid,
+        OrganizationInvitation.status == "pending",
+        OrganizationInvitation.expires_at > datetime.utcnow(),
+    )).first()
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Active invitation not found")
+    if invitation.delivery_attempts >= 5:
+        raise HTTPException(status_code=429, detail="This invitation has reached its resend limit")
+    if invitation.last_sent_at and invitation.last_sent_at > datetime.utcnow() - timedelta(minutes=10):
+        raise HTTPException(status_code=429, detail="Wait 10 minutes before resending this invitation")
+    inviter = db_session.exec(select(User).where(User.id == current_user.id)).first()
+    if not inviter:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    invitation.email_sent = bool(send_direct_invitation_email(
+        OrganizationRead.model_validate(org), UserRead.model_validate(inviter), invitation.email,
+        invitation.invitation_uuid, get_base_url_from_request(request),
+    ))
+    invitation.delivery_status = "delivered" if invitation.email_sent else "delivery_failed"
+    invitation.delivery_attempts += 1
+    invitation.last_sent_at = datetime.utcnow()
+    invitation.updated_at = datetime.utcnow()
+    db_session.add(invitation)
+    db_session.commit()
+    from src.services.audit_logs import record_audit_log
+    record_audit_log(
+        db_session, action="invitation.resend", resource="organization_invitation", status_code=200,
+        org_id=org_id, user_id=current_user.id,
+        ip_address=request.client.host if request.client else None,
+        request_metadata={"invitation_uuid": invitation.invitation_uuid, "delivery_attempts": invitation.delivery_attempts},
+    )
+    return {"detail": "Invitation resent", "delivery_attempts": invitation.delivery_attempts}

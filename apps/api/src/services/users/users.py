@@ -35,7 +35,8 @@ from src.security.security import security_hash_password, security_verify_passwo
 from src.services.analytics import events as analytics_events
 from src.services.analytics.analytics import track
 from src.services.dev.dev import isDevModeEnabled
-from src.services.orgs.invites import get_invite_code
+from src.services.orgs.invites import get_invite_code, redeem_join_link
+from src.services.orgs.invitation_security import audit_invitation_acceptance, validate_invitation_acceptance
 from src.services.security.password_validation import validate_password_complexity
 from src.services.users.avatars import (
     upload_avatar,
@@ -242,6 +243,9 @@ async def create_user_with_invite(
 
     if invitation is None:
         check_limits_with_usage("members", org_id, db_session)
+        # Reserve one redemption before account/membership creation; create_user's
+        # transaction commits both together and a failed request rolls both back.
+        redeem_join_link(db_session, inviteCode["invite_code_uuid"], str(user_object.email))
 
     user = await create_user(
         request,
@@ -292,6 +296,7 @@ async def create_user_with_organization_invitation(
             status_code=403,
             detail="This invitation is invalid, expired, or belongs to another email address",
         )
+    validate_invitation_acceptance(invitation, db_session)
 
     user = await create_user(
         request,
@@ -303,6 +308,8 @@ async def create_user_with_organization_invitation(
         membership_role_id=invitation.role_id,
         reserved_invitation_id=invitation.id,
     )
+
+    audit_invitation_acceptance(invitation, int(user.id), request, db_session)
 
     if invitation.usergroup_id:
         await add_users_to_usergroup(
