@@ -12,9 +12,9 @@ import { Button } from '@components/ui/button'
 import { Switch } from '@components/ui/switch'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { deleteLearningBadge, getLearningResponses, gradeLearningResponse, updateLearningBadge } from '@services/learning/learning'
-import { approveIssuerAuthorization, getIssuerAuthorizations, inviteIssuerOrg, rejectIssuerAuthorization, revokeIssuerAuthorization } from '@services/learning/marketplace'
+import { approveIssuerAuthorization, getIssuerAuthorizations, getIssuerBadgeMetrics, inviteIssuerOrg, rejectIssuerAuthorization, revokeIssuerAuthorization, updateIssuerAuthorization } from '@services/learning/marketplace'
 import CertificatePreview from '@components/Learning/BadgeCertificatePreview'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
@@ -103,6 +103,9 @@ export default function AdminBadgeShell({
   const publicBadgeHref = getUriWithOrg(orgslug, `/badges/${cleanBadgeId(badge.badge_uuid)}`)
   const imageUrl = badge.thumbnail_image
   const isDraft = badge.selected_version?.state === 'draft'
+  const visibleTabs = canEdit
+    ? tabs
+    : tabs.filter((tab) => ['analytics', 'definition', 'settings'].includes(tab.key))
 
   return (
     <div className="min-h-full w-full bg-[#f8f8f8]">
@@ -165,7 +168,7 @@ export default function AdminBadgeShell({
         </div>
 
         <div className="flex space-x-3 text-sm font-black">
-          {tabs.filter((tab) => canEdit || !['issuers', 'settings'].includes(tab.key)).map((tab) => {
+          {visibleTabs.map((tab) => {
             const Icon = tab.icon
             const isActive = normalizedSubpage === tab.key
             return (
@@ -183,18 +186,21 @@ export default function AdminBadgeShell({
       </div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }} className="overflow-x-hidden">
-        {normalizedSubpage === 'analytics' ? <BadgeAnalyticsPanel badge={badge} canEdit={canEdit} /> : null}
-        {normalizedSubpage === 'learning-path' ? children : null}
+        {normalizedSubpage === 'analytics' ? <BadgeAnalyticsPanel badge={badge} canEdit={canEdit} issuerOrgId={Number(org?.id)} orgslug={orgslug} /> : null}
+        {normalizedSubpage === 'learning-path' && canEdit ? children : null}
         {normalizedSubpage === 'issuers' && canEdit ? <BadgeIssuersPanel badge={badge} onPatch={patchBadge} /> : null}
-        {normalizedSubpage === 'marketing' ? <fieldset disabled={!isDraft || !canEdit}><BadgeAboutPanel badge={badge} onPatch={patchBadge} /></fieldset> : null}
-        {normalizedSubpage === 'settings' && canEdit ? <BadgeSettingsPanel orgslug={orgslug} badge={badge} onPatch={patchBadge} isDraft={isDraft} /> : null}
-        {normalizedSubpage === 'definition' ? <fieldset disabled={!isDraft || !canEdit}><BadgeCertificationPanel badge={badge} onPatch={patchBadge} /></fieldset> : null}
+        {normalizedSubpage === 'marketing' && canEdit ? <fieldset disabled={!isDraft}><BadgeAboutPanel badge={badge} onPatch={patchBadge} /></fieldset> : null}
+        {normalizedSubpage === 'settings' ? (canEdit
+          ? <BadgeSettingsPanel orgslug={orgslug} badge={badge} onPatch={patchBadge} isDraft={isDraft} />
+          : <IssuerBadgeSettingsPanel orgslug={orgslug} badge={badge} issuerOrgId={Number(org?.id)} />) : null}
+        {normalizedSubpage === 'definition' ? <BadgeCertificationPanel badge={badge} onPatch={patchBadge} readOnly={!isDraft || !canEdit} /> : null}
       </motion.div>
     </div>
   )
 }
 
-function BadgeAnalyticsPanel({ badge, canEdit }: { badge: any; canEdit: boolean }) {
+function BadgeAnalyticsPanel({ badge, canEdit, issuerOrgId, orgslug }: { badge: any; canEdit: boolean; issuerOrgId: number; orgslug: string }) {
+  if (!canEdit) return <IssuerBadgeAnalyticsPanel badge={badge} issuerOrgId={issuerOrgId} orgslug={orgslug} />
   const metadata = badge.badge_metadata || {}
   return (
     <div className="px-10 pb-10 pt-6">
@@ -212,6 +218,78 @@ function BadgeAnalyticsPanel({ badge, canEdit }: { badge: any; canEdit: boolean 
           <AnalyticsStat label="Direct issuance" value={badge.direct_conferral_enabled ? 'Enabled' : 'Disabled'} />
           <AnalyticsStat label="Estimated time" value={metadata.estimated_time_label || metadata.estimated_time || 'Not set'} />
         </div>
+      </section>
+    </div>
+  )
+}
+
+function IssuerBadgeAnalyticsPanel({ badge, issuerOrgId, orgslug }: { badge: any; issuerOrgId: number; orgslug: string }) {
+  const session = useLHSession() as any
+  const accessToken = session.data?.tokens?.access_token
+  const [metrics, setMetrics] = React.useState<any>(null)
+  const [loading, setLoading] = React.useState(true)
+
+  const load = React.useCallback(async () => {
+    setLoading(true)
+    try {
+      const response = await getIssuerBadgeMetrics(issuerOrgId, badge.badge_uuid, accessToken)
+      setMetrics(response?.success ? response.data : response)
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to load badge analytics.')
+    } finally {
+      setLoading(false)
+    }
+  }, [accessToken, badge.badge_uuid, issuerOrgId])
+
+  React.useEffect(() => {
+    void load()
+  }, [load])
+
+  return (
+    <div className="px-10 pb-10 pt-6">
+      <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-foreground">Your organization’s activity</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Issuance and program usage for this badge in your organization only.</p>
+          </div>
+          <Button variant="outline" onClick={() => void load()} disabled={loading} className="gap-2 bg-card">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart3 className="h-4 w-4" />}
+            Refresh
+          </Button>
+        </div>
+
+        {loading && !metrics ? (
+          <div className="flex items-center justify-center py-16 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>
+        ) : (
+          <>
+            <div className="mt-6 grid gap-4 sm:grid-cols-3">
+              <AnalyticsStat label="Issued by your org" value={String(metrics?.issued_count || 0)} />
+              <AnalyticsStat label="Used in programs" value={String(metrics?.programs?.length || 0)} />
+              <AnalyticsStat label="Learner access" value={metrics?.authorization?.open_to_all ? 'Open to all' : 'Invited learners'} />
+            </div>
+
+            <div className="mt-8">
+              <h3 className="text-sm font-bold text-foreground">Programs using this badge</h3>
+              <div className="mt-3 space-y-3">
+                {metrics?.programs?.length ? metrics.programs.map((program: any) => (
+                  <Link key={program.program_uuid} href={getUriWithOrg(orgslug, routePaths.org.dash.program(program.program_uuid))} className="flex items-center justify-between gap-4 rounded-lg border border-border p-4 transition hover:border-foreground/30 hover:bg-muted/30">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-foreground">{program.name}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{program.assignment_count} {program.assignment_count === 1 ? 'assignment' : 'assignments'}</p>
+                    </div>
+                    <span className="rounded-full bg-muted px-3 py-1 text-xs font-bold capitalize text-muted-foreground">{program.status}</span>
+                  </Link>
+                )) : (
+                  <div className="rounded-lg border border-dashed border-border py-10 text-center">
+                    <p className="text-sm font-semibold text-muted-foreground">Not used in any programs</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Add this badge as a program objective when you’re ready to use it.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </section>
     </div>
   )
@@ -379,7 +457,8 @@ function BadgeIssuersPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Re
   const load = React.useCallback(async () => {
     setLoading(true)
     try {
-      const data = await getIssuerAuthorizations(badge.org_id, 'creator', accessToken, badge.badge_uuid)
+      const response = await getIssuerAuthorizations(badge.org_id, 'creator', accessToken, badge.badge_uuid)
+      const data = response?.success ? response.data : response
       setAuthorizations(Array.isArray(data) ? data : [])
     } catch (error: any) {
       toast.error(error?.message || 'Failed to load issuer authorizations.')
@@ -765,6 +844,100 @@ function BadgeSettingsPanel({ orgslug, badge, onPatch, isDraft }: { orgslug: str
   )
 }
 
+function IssuerBadgeSettingsPanel({ orgslug, badge, issuerOrgId }: { orgslug: string; badge: any; issuerOrgId: number }) {
+  const router = useRouter()
+  const session = useLHSession() as any
+  const accessToken = session.data?.tokens?.access_token
+  const [authorization, setAuthorization] = React.useState<any>(null)
+  const [loading, setLoading] = React.useState(true)
+  const [saving, setSaving] = React.useState(false)
+  const [releasing, setReleasing] = React.useState(false)
+
+  const load = React.useCallback(async () => {
+    setLoading(true)
+    try {
+      const response = await getIssuerAuthorizations(issuerOrgId, 'issuer', accessToken, badge.badge_uuid)
+      const data = response?.success ? response.data : response
+      setAuthorization(Array.isArray(data) ? data.find((item: any) => item.status === 'approved') || null : null)
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to load issuer settings.')
+    } finally {
+      setLoading(false)
+    }
+  }, [accessToken, badge.badge_uuid, issuerOrgId])
+
+  React.useEffect(() => {
+    void load()
+  }, [load])
+
+  const toggleOpenToAll = async (value: boolean) => {
+    if (!authorization || saving) return
+    setSaving(true)
+    try {
+      const updated = await updateIssuerAuthorization(authorization.authorization_uuid, { open_to_all: value }, accessToken)
+      setAuthorization(updated)
+      toast.success(value ? 'This badge is now open to all learners.' : 'This badge is now limited to invited learners.')
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to update learner access.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const release = async () => {
+    if (!authorization || releasing) return
+    if (!confirm(`Release “${badge.name}”? It will be removed from your badge library and your organization will no longer be able to issue it.`)) return
+    setReleasing(true)
+    try {
+      await revokeIssuerAuthorization(authorization.authorization_uuid, accessToken)
+      toast.success('Badge authorization released.')
+      router.push(getUriWithOrg(orgslug, routePaths.org.dash.badges()))
+      router.refresh()
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to release badge authorization.')
+      setReleasing(false)
+    }
+  }
+
+  return (
+    <div className="px-10 pb-10 pt-6">
+      <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
+        <h2 className="text-lg font-bold text-foreground">Issuer settings</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Settings that apply only to your organization’s use of this badge.</p>
+        {loading ? (
+          <div className="flex items-center justify-center py-14 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>
+        ) : authorization ? (
+          <div className="mt-5 divide-y divide-border">
+            <SettingRow
+              title="Open to all learners"
+              description="Allow any learner to choose your organization for delivery and grading. Turn this off to limit access to learners your team accepts or adds."
+              disabled={saving}
+              checked={authorization.open_to_all === true}
+              onChange={(value) => void toggleOpenToAll(value)}
+            />
+          </div>
+        ) : (
+          <p className="mt-5 rounded-lg bg-muted p-4 text-sm text-muted-foreground">No active issuing authorization was found.</p>
+        )}
+      </section>
+
+      <section className="mt-6 max-w-4xl rounded-xl border border-red-100 bg-card p-6 shadow-xs">
+        <h2 className="text-lg font-bold text-red-700">Release authorization</h2>
+        <div className="mt-4 flex items-start justify-between gap-6">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Remove from your library</h3>
+            <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">Your organization will stop appearing as an issuer and will no longer be able to deliver, grade, or issue this badge. Existing credentials remain valid.</p>
+          </div>
+          <button onClick={() => void release()} disabled={!authorization || releasing} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-xs font-bold text-red-700 disabled:opacity-50">
+            {releasing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            Release
+          </button>
+        </div>
+      </section>
+    </div>
+  )
+}
+
 const achievementTypes = [
   { value: 'Achievement', label: 'Achievement' },
   { value: 'Badge', label: 'Badge' },
@@ -790,7 +963,7 @@ const certificatePatterns = [
   { value: 'modern', label: 'Modern' },
 ]
 
-function BadgeCertificationPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Record<string, any>, successMessage?: string) => Promise<any> }) {
+function BadgeCertificationPanel({ badge, onPatch, readOnly = false }: { badge: any; onPatch: (patch: Record<string, any>, successMessage?: string) => Promise<any>; readOnly?: boolean }) {
   const org = useOrg() as any
   const metadata = badge.badge_metadata || {}
   const [values, setValues] = React.useState({
@@ -875,28 +1048,28 @@ function BadgeCertificationPanel({ badge, onPatch }: { badge: any; onPatch: (pat
           <section className="rounded-xl bg-card p-6 shadow-xs">
             <div className="flex flex-col gap-1">
               <h2 className="text-lg font-bold text-foreground">Definition</h2>
-              <p className="text-sm text-muted-foreground">Define the reusable Open Badges Achievement embedded in every OpenBadgeCredential issued for it.</p>
+              <p className="text-sm text-muted-foreground">{readOnly ? 'Read-only Achievement definition supplied by the badge creator.' : 'Define the reusable Open Badges Achievement embedded in every OpenBadgeCredential issued for it.'}</p>
             </div>
 
             <div className="mt-6 space-y-6">
               <div className="grid gap-5 md:grid-cols-2">
-                <TextInput label="Achievement name" value={values.badge_name} onChange={(value) => updateValue('badge_name', value)} maxLength={100} />
-                <SelectInput label="Achievement type" value={values.achievement_type} onChange={(value) => updateValue('achievement_type', value)} options={achievementTypes} />
+                <TextInput label="Achievement name" value={values.badge_name} onChange={(value) => updateValue('badge_name', value)} maxLength={100} readOnly={readOnly} />
+                <SelectInput label="Achievement type" value={values.achievement_type} onChange={(value) => updateValue('achievement_type', value)} options={achievementTypes} readOnly={readOnly} />
               </div>
 
-              <TextAreaInput label="Achievement description" value={values.badge_description} onChange={(value) => updateValue('badge_description', value)} rows={4} maxLength={500} />
-              <TextAreaInput label="Criteria narrative" value={values.badge_criteria_text} onChange={(value) => updateValue('badge_criteria_text', value)} rows={5} />
+              <TextAreaInput label="Achievement description" value={values.badge_description} onChange={(value) => updateValue('badge_description', value)} rows={4} maxLength={500} readOnly={readOnly} />
+              <TextAreaInput label="Criteria narrative" value={values.badge_criteria_text} onChange={(value) => updateValue('badge_criteria_text', value)} rows={5} readOnly={readOnly} />
 
-              <TextInput label="Criteria ID (URL)" value={values.criteria_url} onChange={(value) => updateValue('criteria_url', value)} placeholder="Optional public criteria page" />
+              <TextInput label="Criteria ID (URL)" value={values.criteria_url} onChange={(value) => updateValue('criteria_url', value)} placeholder="Optional public criteria page" readOnly={readOnly} />
 
               <div className="space-y-2">
-                <TextInput label="Achievement image URL" value={values.badge_image_url} onChange={(value) => updateValue('badge_image_url', value)} placeholder="Image representing the Achievement" />
-                <ImageMediaPicker
+                <TextInput label="Achievement image URL" value={values.badge_image_url} onChange={(value) => updateValue('badge_image_url', value)} placeholder="Image representing the Achievement" readOnly={readOnly} />
+                {!readOnly ? <ImageMediaPicker
                   owner={{ type: 'org', id: Number(org.id) }}
                   title="Choose Achievement image"
                   buttonText="Choose Achievement image"
                   onSelect={(url) => updateValue('badge_image_url', url)}
-                />
+                /> : null}
               </div>
 
               <div className="rounded-lg border border-border bg-muted/40 p-4">
@@ -912,18 +1085,18 @@ function BadgeCertificationPanel({ badge, onPatch }: { badge: any; onPatch: (pat
               <p className="text-sm text-muted-foreground">Customize a Launch LMS presentation of the credential. The certificate is not part of the Achievement definition and does not change issuance.</p>
             </div>
             <div className="mt-6 grid gap-5 md:grid-cols-2">
-              <SelectInput label="Certificate theme" value={values.badge_theme} onChange={(value) => updateValue('badge_theme', value)} options={certificatePatterns} />
+              <SelectInput label="Certificate theme" value={values.badge_theme} onChange={(value) => updateValue('badge_theme', value)} options={certificatePatterns} readOnly={readOnly} />
               <div>
-                <TextInput label="Certificate issuer label" value={values.issuer_name} onChange={(value) => updateValue('issuer_name', value)} placeholder="Defaults to the organization issuer" />
+                <TextInput label="Certificate issuer label" value={values.issuer_name} onChange={(value) => updateValue('issuer_name', value)} placeholder="Defaults to the organization issuer" readOnly={readOnly} />
                 <p className="mt-1.5 text-xs leading-5 text-muted-foreground">Visual override only. The verifiable credential uses the organization that actually issues each award.</p>
               </div>
             </div>
           </section>
 
-          <Button onClick={save} disabled={saving} className="gap-2">
+          {!readOnly ? <Button onClick={save} disabled={saving} className="gap-2">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
             Save Achievement
-          </Button>
+          </Button> : null}
         </div>
 
         <aside className="order-1 space-y-4 lg:order-2 lg:sticky lg:top-6">
@@ -1014,23 +1187,27 @@ function TextInput({
   onChange,
   placeholder,
   maxLength,
+  readOnly = false,
 }: {
   label: string
   value: string
   onChange: (value: string) => void
   placeholder?: string
   maxLength?: number
+  readOnly?: boolean
 }) {
   return (
     <label className="block">
       <span className="text-xs font-bold uppercase text-muted-foreground">{label}</span>
-      <input
+      {readOnly ? (
+        <div className="mt-1 min-h-10 whitespace-pre-wrap py-2 text-sm text-foreground">{value || <span className="text-muted-foreground">Not set</span>}</div>
+      ) : <input
         value={value}
         maxLength={maxLength}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         className="mt-2 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black"
-      />
+      />}
     </label>
   )
 }
@@ -1041,23 +1218,27 @@ function TextAreaInput({
   onChange,
   rows,
   maxLength,
+  readOnly = false,
 }: {
   label: string
   value: string
   onChange: (value: string) => void
   rows: number
   maxLength?: number
+  readOnly?: boolean
 }) {
   return (
     <label className="block">
       <span className="text-xs font-bold uppercase text-muted-foreground">{label}</span>
-      <textarea
+      {readOnly ? (
+        <div className="mt-1 min-h-10 whitespace-pre-wrap py-2 text-sm leading-6 text-foreground">{value || <span className="text-muted-foreground">Not set</span>}</div>
+      ) : <textarea
         value={value}
         rows={rows}
         maxLength={maxLength}
         onChange={(event) => onChange(event.target.value)}
         className="mt-2 w-full resize-none rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black"
-      />
+      />}
     </label>
   )
 }
@@ -1067,16 +1248,21 @@ function SelectInput({
   value,
   onChange,
   options,
+  readOnly = false,
 }: {
   label: string
   value: string
   onChange: (value: string) => void
   options: Array<{ value: string; label: string }>
+  readOnly?: boolean
 }) {
+  const selectedLabel = options.find((option) => option.value === value)?.label || value
   return (
     <label className="block">
       <span className="text-xs font-bold uppercase text-muted-foreground">{label}</span>
-      <select
+      {readOnly ? (
+        <div className="mt-1 min-h-10 py-2 text-sm text-foreground">{selectedLabel || <span className="text-muted-foreground">Not set</span>}</div>
+      ) : <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className="mt-2 h-10 w-full rounded-lg border border-border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-black"
@@ -1084,7 +1270,7 @@ function SelectInput({
         {options.map((option) => (
           <option key={option.value} value={option.value}>{option.label}</option>
         ))}
-      </select>
+      </select>}
     </label>
   )
 }

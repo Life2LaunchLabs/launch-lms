@@ -46,17 +46,13 @@ const PACKAGE_INFO: Record<string, { label: string; description: string; icon: R
     description: 'Publish your badges to the marketplace and authorize other organizations to issue them.',
     icon: <Certificate size={20} weight="fill" />,
   },
-  badge_issuing: {
-    label: 'Badge Issuing',
-    description: 'Browse the badge marketplace, request authorization to issue badges, and grade your learners.',
-    icon: <CheckCircle size={20} weight="fill" />,
-  },
 }
 
 const PLAN_FEATURES: Record<PlanLevel, string[]> = {
-  free: ['Up to 5 badges', '1 badge collection', '1 admin seat', '5 GB storage', 'Basic badge features'],
+  free: ['Unlimited badges in your library', 'Badge issuing included', '1 badge collection', '1 admin seat', '5 GB storage'],
   full: [
-    'Up to 20 badges',
+    'Unlimited badges in your library',
+    'Badge issuing included',
     '5 badge collections',
     '3 admin seats',
     '20 GB storage',
@@ -79,7 +75,6 @@ const PLAN_FEATURES: Record<PlanLevel, string[]> = {
     'Custom roles',
     'AI features included',
     'Analytics included',
-    'Badge issuing included',
     'SSO',
     'Audit logs',
   ],

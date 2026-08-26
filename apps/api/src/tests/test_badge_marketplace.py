@@ -20,6 +20,7 @@ from src.db.learning import (
     LearningActivityRun,
     LearningAwardCreate,
     LearningBadge,
+    LearningBadgeCreate,
     LearningBadgeAward,
     LearningBadgeVersion,
     LearningPage,
@@ -33,6 +34,7 @@ from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.plan_requests import PlanRequest
 from src.db.portfolio import Portfolio
+from src.db.programs import Objective, ObjectiveKind, Program, ProgramAssignment, ProgramObjective
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
@@ -40,6 +42,7 @@ from src.services.guest_sessions import LearningActor
 from src.services.learning import (
     build_ob3_credential,
     confer_award,
+    create_badge,
     grade_learning_response,
     list_collections,
     list_learning_responses,
@@ -51,10 +54,10 @@ from src.services.learning_marketplace import (
     decide_authorization,
     decide_learner_request,
     invite_issuer,
+    issuer_badge_metrics,
     list_eligible_issuers,
     request_authorization,
     request_learner_support,
-    transition_queued_authorizations,
     update_authorization,
 )
 from starlette.requests import Request
@@ -94,6 +97,10 @@ def _create_tables(engine) -> None:
         LearningBadgeAward,
         BadgeIssuerAuthorization,
         BadgeIssuerLearnerLink,
+        Program,
+        Objective,
+        ProgramObjective,
+        ProgramAssignment,
     ):
         model.__table__.create(engine)
 
@@ -115,7 +122,11 @@ def _create_org(session: Session, *, org_id: int, slug: str, plan: str = "enterp
     session.add(
         OrganizationConfig(
             org_id=org_id,
-            config={"config_version": "2.0", "plan": plan},
+            config={
+                "config_version": "2.0",
+                "plan": plan,
+                "packages": ["badge_creation"] if plan != "free" else [],
+            },
             creation_date=NOW,
             update_date=NOW,
         )
@@ -247,7 +258,7 @@ async def test_unlisted_badge_cannot_be_requested():
         assert exc.value.status_code == 422
 
 
-async def test_badge_issuing_requires_package():
+async def test_badge_issuing_is_available_on_free_plan():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     _create_tables(engine)
     with Session(engine) as session:
@@ -255,20 +266,32 @@ async def test_badge_issuing_requires_package():
         _create_org(session, org_id=2, slug="issuer", plan="free")
         bob = _create_user(session, user_id=2, username="bob", org_id=2)
         badge = _create_badge(session, badge_id=1, org_id=1)
-        with pytest.raises(HTTPException) as exc:
-            await request_authorization(_request(), IssuerAuthorizationRequest(badge_uuid=badge.badge_uuid, issuer_org_id=2), bob, session)
-        assert exc.value.status_code == 403
-
-        # full plan + badge_issuing package unlocks it
-        config = session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == 2)).first()
-        config.config = {"config_version": "2.0", "plan": "full", "packages": ["badge_issuing"]}
-        session.add(config)
-        session.commit()
         result = await request_authorization(_request(), IssuerAuthorizationRequest(badge_uuid=badge.badge_uuid, issuer_org_id=2), bob, session)
         assert result.status == BadgeIssuerAuthorizationStatus.REQUESTED
 
 
-async def test_authorization_request_queues_while_issuing_package_is_pending():
+async def test_badge_creation_requires_badge_publishing_package():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _create_tables(engine)
+    with Session(engine) as session:
+        _create_org(session, org_id=1, slug="creator", plan="free")
+        alice = _create_user(session, user_id=1, username="alice", org_id=1)
+
+        with pytest.raises(HTTPException) as exc:
+            await create_badge(_request(), LearningBadgeCreate(org_id=1, name="Blocked"), alice, session)
+        assert exc.value.status_code == 403
+        assert "Badge Publishing" in str(exc.value.detail)
+
+        config = session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == 1)).one()
+        config.config = {"config_version": "2.0", "plan": "full", "packages": ["badge_creation"]}
+        session.add(config)
+        session.commit()
+
+        badge = await create_badge(_request(), LearningBadgeCreate(org_id=1, name="Allowed"), alice, session)
+        assert badge.name == "Allowed"
+
+
+async def test_legacy_pending_issuing_package_does_not_queue_free_request():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     _create_tables(engine)
     with Session(engine) as session:
@@ -293,21 +316,12 @@ async def test_authorization_request_queues_while_issuing_package_is_pending():
             bob,
             session,
         )
-        assert result.status == BadgeIssuerAuthorizationStatus.QUEUED
+        assert result.status == BadgeIssuerAuthorizationStatus.REQUESTED
         items = await browse_marketplace_badges(_request(), bob, session, issuer_org_id=2)
-        assert items[0]["issuing_access"] == "pending"
-
-        config = session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == 2)).one()
-        config.config = {"config_version": "2.0", "plan": "full", "packages": ["badge_issuing"]}
-        session.add(config)
-        assert transition_queued_authorizations(session, 2) == 1
-        session.commit()
-
-        authorization = session.exec(select(BadgeIssuerAuthorization)).one()
-        assert authorization.status == BadgeIssuerAuthorizationStatus.REQUESTED
+        assert items[0]["issuing_access"] == "active"
 
 
-async def test_marketplace_marks_requests_unavailable_without_package_or_pending_request():
+async def test_marketplace_marks_free_plan_issuing_access_active():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     _create_tables(engine)
     with Session(engine) as session:
@@ -317,10 +331,10 @@ async def test_marketplace_marks_requests_unavailable_without_package_or_pending
         _create_badge(session, badge_id=1, org_id=1)
 
         items = await browse_marketplace_badges(_request(), bob, session, issuer_org_id=2)
-        assert items[0]["issuing_access"] == "unavailable"
+        assert items[0]["issuing_access"] == "active"
 
 
-async def test_creator_does_not_see_queued_authorization():
+async def test_creator_sees_free_plan_authorization_request():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     _create_tables(engine)
     with Session(engine) as session:
@@ -349,9 +363,89 @@ async def test_creator_does_not_see_queued_authorization():
         from src.services.learning_marketplace import list_authorizations
         creator_items = await list_authorizations(_request(), 1, "creator", alice, session)
         issuer_items = await list_authorizations(_request(), 2, "issuer", bob, session)
-        assert creator_items == []
+        assert len(creator_items) == 1
         assert len(issuer_items) == 1
-        assert issuer_items[0].status == BadgeIssuerAuthorizationStatus.QUEUED
+        assert creator_items[0].status == BadgeIssuerAuthorizationStatus.REQUESTED
+        assert issuer_items[0].status == BadgeIssuerAuthorizationStatus.REQUESTED
+
+
+async def test_creator_view_promotes_legacy_free_plan_queued_request():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _create_tables(engine)
+    with Session(engine) as session:
+        _create_org(session, org_id=1, slug="creator")
+        _create_org(session, org_id=2, slug="issuer", plan="free")
+        alice = _create_user(session, user_id=1, username="alice", org_id=1)
+        badge = _create_badge(session, badge_id=1, org_id=1)
+        session.add(BadgeIssuerAuthorization(
+            authorization_uuid="issuer_auth_legacy_queued",
+            badge_id=badge.id or 0,
+            creator_org_id=1,
+            issuer_org_id=2,
+            status=BadgeIssuerAuthorizationStatus.QUEUED,
+            creation_date=NOW,
+            update_date=NOW,
+        ))
+        session.commit()
+
+        from src.services.learning_marketplace import list_authorizations
+        creator_items = await list_authorizations(_request(), 1, "creator", alice, session)
+
+        assert len(creator_items) == 1
+        assert creator_items[0].status == BadgeIssuerAuthorizationStatus.REQUESTED
+
+
+async def test_issuer_badge_metrics_are_scoped_to_issuer_and_include_programs():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _create_tables(engine)
+    with Session(engine) as session:
+        _, _, alice, bob, carol, badge = _setup(session)
+        await _approved_authorization(session, alice, bob, badge, open_to_all=True)
+        program = Program(id=1, program_uuid="program_1", org_id=2, name="Issuer Program", creation_date=NOW, update_date=NOW)
+        objective = Objective(
+            id=1,
+            objective_uuid="objective_1",
+            org_id=2,
+            title="Earn the badge",
+            kind=ObjectiveKind.BADGE,
+            badge_id=badge.id,
+            creation_date=NOW,
+            update_date=NOW,
+        )
+        session.add(program)
+        session.add(objective)
+        session.add(ProgramObjective(id=1, program_id=1, objective_id=1, creation_date=NOW, update_date=NOW))
+        session.add(ProgramAssignment(
+            id=1,
+            assignment_uuid="assignment_1",
+            org_id=2,
+            program_id=1,
+            user_id=carol.id,
+            creation_date=NOW,
+            update_date=NOW,
+        ))
+        session.add(LearningBadgeAward(
+            award_uuid="award_issuer_1",
+            badge_id=badge.id or 0,
+            org_id=1,
+            issuing_org_id=2,
+            user_id=carol.id,
+            issued_at=datetime(2026, 1, 2),
+            creation_date=NOW,
+            update_date=NOW,
+        ))
+        session.commit()
+
+        metrics = await issuer_badge_metrics(_request(), 2, badge.badge_uuid, bob, session)
+
+        assert metrics["issued_count"] == 1
+        assert metrics["authorization"]["open_to_all"] is True
+        assert metrics["programs"] == [{
+            "program_uuid": "program_1",
+            "name": "Issuer Program",
+            "status": "active",
+            "assignment_count": 1,
+        }]
 
 
 async def test_invite_flow():

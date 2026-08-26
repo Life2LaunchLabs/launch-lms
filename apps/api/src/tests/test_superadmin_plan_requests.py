@@ -118,7 +118,7 @@ def test_package_approval_requires_active_minimum_plan(db_session: Session):
     assert org_config.config["packages"] == ["badge_issuing"]
 
 
-def test_denied_issuing_package_clears_queued_authorizations(db_session: Session):
+def test_legacy_queued_authorization_advances_when_issuing_package_is_denied(db_session: Session):
     org = _create_org(db_session)
     db_session.add(
         OrganizationConfig(
@@ -155,7 +155,7 @@ def test_denied_issuing_package_clears_queued_authorizations(db_session: Session
     update_plan_request(db_session, "package_add", PlanRequestUpdate(status="denied"))
 
     authorization = db_session.exec(select(BadgeIssuerAuthorization)).one()
-    assert authorization.status == BadgeIssuerAuthorizationStatus.PACKAGE_DENIED
+    assert authorization.status == BadgeIssuerAuthorizationStatus.REQUESTED
 
 
 def test_get_single_org_config_raises_when_duplicates_exist(db_session: Session):

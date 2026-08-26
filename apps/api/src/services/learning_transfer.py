@@ -192,6 +192,7 @@ async def analyze_badge_import_package(
     db_session: Session,
 ) -> dict:
     learning_service._require_org_admin(db_session, current_user, org_id)
+    learning_service._require_badge_creation_access(db_session, current_user, org_id)
     content = await zip_file.read()
     if len(content) > MAX_PACKAGE_SIZE:
         raise HTTPException(status_code=413, detail=f"Package too large. Maximum size is {MAX_PACKAGE_SIZE / 1024 / 1024:.0f}MB")

@@ -64,6 +64,7 @@ from src.db.programs import ParticipantStatus, ProgramAssignment, ProgramPartici
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser, User
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
+from src.security.features_utils.resolve import resolve_feature
 from src.security.superadmin import is_user_superadmin
 from src.services.badge_openbadges import (
     OPEN_BADGES_CONTEXT,
@@ -3877,6 +3878,7 @@ async def create_badge(
     db_session: Session,
 ) -> LearningBadgeRead:
     _require_org_admin(db_session, current_user, data.org_id)
+    _require_badge_creation_access(db_session, current_user, data.org_id)
     now = _now()
     badge = LearningBadge(
         **_strip_system_fields(data.model_dump(exclude={"status"})),
@@ -3913,6 +3915,25 @@ async def create_badge(
         db_session.rollback()
         raise
     return _versioned_badge_read(db_session, badge, version)
+
+
+def _require_badge_creation_access(
+    db_session: Session,
+    current_user: PublicUser | AnonymousUser,
+    org_id: int,
+) -> None:
+    """Require Badge Publishing access before creating or importing a badge."""
+    if isinstance(current_user, PublicUser) and is_user_superadmin(current_user.id, db_session):
+        return
+    org_config = db_session.exec(
+        select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)
+    ).first()
+    config = org_config.config if org_config and org_config.config else {}
+    if not resolve_feature("marketplace_publishing", config, org_id).get("enabled"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Badge Publishing is not enabled for this organization. Add the Badge Publishing package to create badges.",
+        )
 
 
 def _replace_uuid_values(value, replacements: dict[str, str]):

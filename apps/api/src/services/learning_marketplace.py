@@ -29,6 +29,7 @@ from src.db.learning import (
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.plan_requests import PlanRequest
+from src.db.programs import Objective, Program, ProgramAssignment, ProgramObjective
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser, User
 from src.security.features_utils.resolve import resolve_feature
@@ -458,6 +459,21 @@ async def list_authorizations(
     _require_org_admin(db_session, current_user, org_id)
     statement = select(BadgeIssuerAuthorization)
     if perspective == "creator":
+        # Promote legacy queued requests as soon as the creator checks them. Badge
+        # issuing is now included on every plan, so these no longer need to wait
+        # for an add-on decision.
+        queued = db_session.exec(
+            select(BadgeIssuerAuthorization).where(
+                BadgeIssuerAuthorization.creator_org_id == org_id,
+                BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.QUEUED,
+            )
+        ).all()
+        transitioned = sum(
+            transition_queued_authorizations(db_session, issuer_org_id)
+            for issuer_org_id in {authorization.issuer_org_id for authorization in queued}
+        )
+        if transitioned:
+            db_session.commit()
         statement = statement.where(
             BadgeIssuerAuthorization.creator_org_id == org_id,
             BadgeIssuerAuthorization.status.notin_([
@@ -804,4 +820,63 @@ async def creator_issuance_metrics(
             if badge_id in badge_by_id
         ],
         "total_awards": len(awards),
+    }
+
+
+async def issuer_badge_metrics(
+    request: Request,
+    org_id: int,
+    badge_uuid: str,
+    current_user: PublicUser | AnonymousUser,
+    db_session: Session,
+) -> dict:
+    """Issuance and program usage for one authorized issuer and badge."""
+    from src.db.learning import LearningBadgeAward
+
+    _require_org_admin(db_session, current_user, org_id)
+    badge = _get_badge(db_session, badge_uuid)
+    authorization = db_session.exec(
+        select(BadgeIssuerAuthorization).where(
+            BadgeIssuerAuthorization.badge_id == badge.id,
+            BadgeIssuerAuthorization.issuer_org_id == org_id,
+            BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.APPROVED,
+        )
+    ).first()
+    if not authorization:
+        raise HTTPException(status_code=404, detail="Active issuer authorization not found")
+
+    awards = db_session.exec(
+        select(LearningBadgeAward).where(
+            LearningBadgeAward.badge_id == badge.id,
+            LearningBadgeAward.issuing_org_id == org_id,
+        )
+    ).all()
+    programs = db_session.exec(
+        select(Program)
+        .join(ProgramObjective, ProgramObjective.program_id == Program.id)
+        .join(Objective, Objective.id == ProgramObjective.objective_id)
+        .where(Program.org_id == org_id, Objective.badge_id == badge.id)
+        .distinct()
+        .order_by(Program.name)
+    ).all()
+    program_ids = [program.id or 0 for program in programs]
+    assignment_counts = {program_id: 0 for program_id in program_ids}
+    if program_ids:
+        for assignment in db_session.exec(
+            select(ProgramAssignment).where(ProgramAssignment.program_id.in_(program_ids))  # type: ignore
+        ).all():
+            assignment_counts[assignment.program_id] = assignment_counts.get(assignment.program_id, 0) + 1
+
+    return {
+        "authorization": _serialize_authorization(db_session, authorization).model_dump(),
+        "issued_count": len(awards),
+        "programs": [
+            {
+                "program_uuid": program.program_uuid,
+                "name": program.name,
+                "status": program.status,
+                "assignment_count": assignment_counts.get(program.id or 0, 0),
+            }
+            for program in programs
+        ],
     }

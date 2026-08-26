@@ -199,3 +199,16 @@ async def api_creator_issuance_metrics(
     db_session=Depends(get_db_session),
 ) -> dict:
     return await marketplace_service.creator_issuance_metrics(request, org_id, current_user, db_session)
+
+
+@router.get("/metrics/issuer")
+async def api_issuer_badge_metrics(
+    request: Request,
+    org_id: int = Query(...),
+    badge_uuid: str = Query(...),
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    return await marketplace_service.issuer_badge_metrics(
+        request, org_id, badge_uuid, current_user, db_session
+    )

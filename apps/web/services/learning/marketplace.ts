@@ -188,3 +188,16 @@ export async function getCreatorIssuanceMetrics(orgId: string | number, accessTo
   )
   return getResponseMetadata(result)
 }
+
+export async function getIssuerBadgeMetrics(
+  orgId: string | number,
+  badgeUuid: string,
+  accessToken?: string
+) {
+  const search = new URLSearchParams({ org_id: String(orgId), badge_uuid: badgeUuid })
+  const result = await fetch(
+    `${getAPIUrl()}badge-marketplace/metrics/issuer?${search.toString()}`,
+    RequestBodyWithAuthHeader('GET', null, null, accessToken)
+  )
+  return getResponseMetadata(result)
+}

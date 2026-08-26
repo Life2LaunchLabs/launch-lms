@@ -38,7 +38,6 @@ const packageOptions = [
   { id: 'ai', label: 'AI features' },
   { id: 'advanced_user_management', label: 'Advanced users' },
   { id: 'badge_creation', label: 'Badge publishing' },
-  { id: 'badge_issuing', label: 'Badge issuing' },
 ]
 
 type PlanChoice = 'free' | 'full' | 'enterprise'

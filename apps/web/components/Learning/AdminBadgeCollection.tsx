@@ -9,6 +9,7 @@ import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { Switch } from '@components/ui/switch'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg } from '@services/config/config'
 import { SafeImage } from '@components/Objects/SafeImage'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
@@ -282,7 +283,9 @@ export function EditableDetailHeader({
 
 function CollectionBadges({ orgslug, orgId, collection, canEdit }: { orgslug: string; orgId: number; collection: any; canEdit: boolean }) {
   const session = useLHSession() as any
+  const org = useOrg() as any
   const accessToken = session.data?.tokens?.access_token
+  const canCreateBadges = org?.config?.config?.resolved_features?.marketplace_publishing?.enabled === true
   const [search, setSearch] = React.useState('')
   const [modalOpen, setModalOpen] = React.useState(false)
   const [name, setName] = React.useState('')
@@ -412,7 +415,7 @@ function CollectionBadges({ orgslug, orgId, collection, canEdit }: { orgslug: st
             dialogDescription={`Import badges into ${collection.name}.`}
             dialogContent={<LearningBadgeImport orgId={orgId} collection={collection} accessToken={accessToken} />}
             dialogTrigger={
-              <button className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-xs font-bold text-foreground nice-shadow transition-colors hover:bg-muted">
+              <button disabled={!canCreateBadges} title={canCreateBadges ? undefined : 'Badge Publishing package required'} className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-xs font-bold text-foreground nice-shadow transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50">
                 <Upload className="h-4 w-4" />
                 Import
               </button>
@@ -459,7 +462,7 @@ function CollectionBadges({ orgslug, orgId, collection, canEdit }: { orgslug: st
               </div>
             }
             dialogTrigger={
-              <button className="flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white nice-shadow transition-transform hover:scale-105">
+              <button disabled={!canCreateBadges} title={canCreateBadges ? undefined : 'Badge Publishing package required'} className="flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white nice-shadow transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100">
                 <Plus className="h-4 w-4" />
                 New Badge
               </button>
