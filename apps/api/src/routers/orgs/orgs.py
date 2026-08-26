@@ -15,6 +15,7 @@ from src.db.organizations import (
     OrganizationRead,
     OrganizationUpdate,
 )
+from src.db.organization_invitations import InviteUsersRequest, InviteUsersResponse
 from src.db.users import AnonymousUser, PublicUser
 from src.security.auth import get_authenticated_user, get_current_user
 from src.security.features_utils.dependencies import require_org_admin
@@ -593,6 +594,8 @@ async def api_upload_org_og_image(
 
 
 # Invites related routes
+# Legacy shared invite-code endpoints. No current admin UI calls these; retain
+# temporarily for already-issued inviteCode URLs and remove with that fallback.
 @router.post("/{org_id}/invites")
 async def api_create_invite_code(
     request: Request,
@@ -660,12 +663,11 @@ async def api_delete_invite_code(
     )
 
 
-@router.post("/{org_id}/invites/users/batch")
+@router.post("/{org_id}/invites/users/batch", response_model=InviteUsersResponse)
 async def api_invite_batch_users(
     request: Request,
     org_id: int,
-    emails: str,
-    invite_code_uuid: str,
+    invite_request: InviteUsersRequest,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
@@ -673,7 +675,7 @@ async def api_invite_batch_users(
     Invite batch users by emails
     """
     return await invite_batch_users(
-        request, org_id, emails, invite_code_uuid, db_session, current_user
+        request, org_id, invite_request, db_session, current_user
     )
 
 
@@ -690,18 +692,18 @@ async def api_get_org_users_invites(
     return await get_list_of_invited_users(request, org_id, db_session, current_user)
 
 
-@router.delete("/{org_id}/invites/users/{email}")
+@router.delete("/{org_id}/invites/users/{invitation_uuid}")
 async def api_delete_org_users_invites(
     request: Request,
     org_id: int,
-    email: str,
+    invitation_uuid: str,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     """
     Delete org users invites
     """
-    return await remove_invited_user(request, org_id, email, db_session, current_user)
+    return await remove_invited_user(request, org_id, invitation_uuid, db_session, current_user)
 
 
 @router.get("/slug/{org_slug}")

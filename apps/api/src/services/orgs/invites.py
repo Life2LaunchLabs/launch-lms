@@ -1,7 +1,9 @@
 import json
+import html
 import secrets
 import string
 import uuid
+from urllib.parse import quote
 from datetime import date, datetime, time, timedelta
 
 import redis
@@ -19,6 +21,9 @@ from src.services.email.utils import send_email
 from src.services.orgs.orgs import rbac_check
 
 
+# Legacy shared signup-link compatibility. Direct person invitations use
+# OrganizationInvitation tokens instead. Keep this block only until old
+# inviteCode URLs have expired or a replacement QR-link model is shipped.
 async def create_invite_code(
     request: Request,
     org_id: int,
@@ -59,15 +64,6 @@ async def create_invite_code(
         raise HTTPException(
             status_code=500,
             detail="Could not connect to Redis",
-        )
-
-    # Check if this org has more than 6 invite codes (use scan_iter to avoid blocking Redis)
-    invite_codes = list(r.scan_iter(match=f"org_invite_code_*:org:{org.org_uuid}:code:*", count=100))
-
-    if len(invite_codes) >= 6:
-        raise HTTPException(
-            status_code=400,
-            detail="Organization has reached the maximum number of invite codes",
         )
 
     # Validate usergroup exists if provided
@@ -310,56 +306,27 @@ async def delete_invite_code(
     return keys
 
 
-def send_invite_email(
+def send_direct_invitation_email(
     org: OrganizationRead,
-    invite_code_uuid: str,
     user: UserRead,
     email: EmailStr,
+    invitation_token: str,
     base_url: str,
 ):
-    LH_CONFIG = get_launchlms_config()
-    redis_conn_string = LH_CONFIG.redis_config.redis_connection_string
-
-    if not redis_conn_string:
-        raise HTTPException(
-            status_code=500,
-            detail="Redis connection string not found",
-        )
-
-    # Connect to Redis
-    r = redis.Redis.from_url(redis_conn_string)
-
-    if not r:
-        raise HTTPException(
-            status_code=500,
-            detail="Could not connect to Redis",
-        )
-
-    # Get invite code (use scan_iter to avoid blocking Redis)
-    invite = list(r.scan_iter(match=f"{invite_code_uuid}:org:{org.org_uuid}:code:*", count=10))  # type: ignore
-
-    # Send email
-    if invite:
-        invite = r.get(invite[0])
-        invite = json.loads(invite)  # type: ignore
-
-        # send email
-        send_email(
-            to=email,
-            subject=f"You have been invited to {org.name}",
-            body=f"""
+    """Send a recipient-specific invitation without a managed signup code."""
+    signup_url = f"{base_url}/signup?invitation={quote(invitation_token, safe='')}"
+    send_email(
+        to=email,
+        subject=f"You have been invited to {org.name}",
+        body=f"""
 <html>
     <body>
-        <p>Hello {email}</p>
-        <p>You have been invited to {org.name} by @{user.username}. Your invite code is {invite['invite_code']}.</p>
-        <p>Click <a href="{base_url}/signup?inviteCode={invite['invite_code']}">here</a> to sign up.</p>
-        <p>Thank you</p>
+        <p>Hello {html.escape(str(email))}</p>
+        <p>You have been invited to {html.escape(org.name)} by @{html.escape(user.username)}.</p>
+        <p><a href="{signup_url}">Review invitation</a></p>
+        <p>This invitation expires in 60 days.</p>
     </body>
 </html>
 """,
-        )
-
-        return True
-
-    else:
-        return False
+    )
+    return True

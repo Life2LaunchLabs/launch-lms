@@ -13,7 +13,7 @@ import { AlertTriangle, ArrowLeft } from 'lucide-react'
 import { SiGoogle } from '@icons-pack/react-simple-icons'
 import Link from 'next/link'
 import { Button } from '@components/ui/button'
-import { signup } from '@services/auth/auth'
+import { signup, signUpWithInvitation, signUpWithInviteCode } from '@services/auth/auth'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useAuth } from '@components/Contexts/AuthContext'
 import { getUriWithOrg } from '@services/config/config'
@@ -74,6 +74,8 @@ function OpenSignUpComponent({
   const [error, setError] = React.useState('')
   const nextUrl = searchParams.get('next')
   const inviteBadge = searchParams.get('inviteBadge')
+  const inviteCode = searchParams.get('inviteCode')
+  const invitationToken = searchParams.get('invitation')
   const createOrgRedirect = getUriWithOrg(org?.slug, '/signup/org')
   const postSignupUrl =
     postSignupUrlOverride || nextUrl || (createOrgMode ? createOrgRedirect : inviteBadge ? `/badges?inviteBadge=${encodeURIComponent(inviteBadge)}` : '/')
@@ -93,7 +95,11 @@ function OpenSignUpComponent({
     onSubmit: async (values) => {
       setError('')
       setIsSubmitting(true)
-      let res = await signup(values)
+      let res = invitationToken
+        ? await signUpWithInvitation(values, invitationToken)
+        : inviteCode
+          ? await signUpWithInviteCode(values, inviteCode)
+          : await signup(values)
       let result = await res.json()
       if (res.status == 200) {
         const callbackUrl = postSignupUrl
@@ -171,7 +177,7 @@ function OpenSignUpComponent({
           setIsSubmitting(false)
           return
         }
-      } catch (_) {
+      } catch {
         setEmailError(t('common.something_went_wrong'))
         setIsSubmitting(false)
         return

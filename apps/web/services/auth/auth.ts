@@ -1,11 +1,6 @@
 import { getAPIUrl } from '@services/config/config'
 import { RequestBody, getResponseMetadata } from '@services/utils/ts/requests'
 
-interface LoginAndGetTokenResponse {
-  access_token: 'string'
-  token_type: 'string'
-}
-
 // ⚠️ mvp phase code
 // TODO : everything in this file need to be refactored including security issues fix
 
@@ -228,6 +223,7 @@ export async function signup(body: NewAccountBody): Promise<any> {
   return res
 }
 
+/** @deprecated Compatibility for already-issued inviteCode URLs. */
 export async function signUpWithInviteCode(
   body: NewAccountBody,
   invite_code: string
@@ -248,6 +244,22 @@ export async function signUpWithInviteCode(
   )
 
   return res
+}
+
+export async function signUpWithInvitation(
+  body: NewAccountBody,
+  invitationToken: string
+): Promise<any> {
+  return fetch(
+    `${getAPIUrl()}users/${body.org_id}/invitation/${encodeURIComponent(invitationToken)}`,
+    {
+      method: 'POST',
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(body),
+      redirect: 'follow',
+      credentials: 'include',
+    }
+  )
 }
 
 // Email Verification
@@ -281,7 +293,7 @@ export async function verifyEmail(
         error: data.detail || 'Verification failed',
       }
     }
-  } catch (error) {
+  } catch {
     return {
       success: false,
       error: 'An error occurred during verification',
@@ -316,7 +328,7 @@ export async function resendVerificationEmail(
         error: data.detail || 'Failed to resend verification email',
       }
     }
-  } catch (error) {
+  } catch {
     return {
       success: false,
       error: 'An error occurred',

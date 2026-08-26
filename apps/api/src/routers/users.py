@@ -40,6 +40,7 @@ from src.services.users.users import (
     authorize_user_action,
     create_user,
     create_user_with_invite,
+    create_user_with_organization_invitation,
     create_user_without_org,
     delete_user_by_id,
     get_user_session,
@@ -196,6 +197,7 @@ async def api_create_user_with_orgid(
         return user
 
 
+# Legacy shared invite-code signup retained for already-issued links.
 @router.post("/{org_id}/invite/{invite_code}", response_model=UserRead, tags=["users"])
 async def api_create_user_with_orgid_and_invite(
     *,
@@ -211,26 +213,45 @@ async def api_create_user_with_orgid_and_invite(
     Create User with Org ID and invite code
     """
 
-    # TODO: This is temporary, logic should be moved to service
-    if (
-        await get_org_join_mechanism(request, org_id, current_user, db_session)
-        == "inviteOnly"
-    ):
-        user = await create_user_with_invite(
-            request, db_session, current_user, user_object, org_id, invite_code
-        )
-        transfer_guest_session_data_to_user(
-            request=request,
-            response=response,
-            db_session=db_session,
-            user=PublicUser.model_validate(user),
-        )
-        return user
-    else:
-        raise HTTPException(
-            status_code=403,
-            detail="This organization does not require an invite code",
-        )
+    # Direct invitations are valid for both open and invite-only organizations.
+    user = await create_user_with_invite(
+        request, db_session, current_user, user_object, org_id, invite_code
+    )
+    transfer_guest_session_data_to_user(
+        request=request,
+        response=response,
+        db_session=db_session,
+        user=PublicUser.model_validate(user),
+    )
+    return user
+
+
+@router.post("/{org_id}/invitation/{invitation_token}", response_model=UserRead, tags=["users"])
+async def api_create_user_with_organization_invitation(
+    *,
+    request: Request,
+    response: Response,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+    user_object: UserSignupCreate,
+    invitation_token: str,
+    org_id: int,
+) -> UserRead:
+    user = await create_user_with_organization_invitation(
+        request,
+        db_session,
+        current_user,
+        user_object,
+        org_id,
+        invitation_token,
+    )
+    transfer_guest_session_data_to_user(
+        request=request,
+        response=response,
+        db_session=db_session,
+        user=PublicUser.model_validate(user),
+    )
+    return user
 
 
 @router.post("/", response_model=UserRead, tags=["users"])

@@ -164,6 +164,7 @@ export async function joinOrg(
     org_id: number
     user_id: string
     invite_code?: string
+    invitation_token?: string
   },
   next: any,
   access_token?: string

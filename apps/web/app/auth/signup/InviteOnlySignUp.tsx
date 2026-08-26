@@ -11,7 +11,7 @@ import FormLayout, {
 import * as Form from '@radix-ui/react-form'
 import { AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
-import { signUpWithInviteCode } from '@services/auth/auth'
+import { signUpWithInvitation, signUpWithInviteCode } from '@services/auth/auth'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useAuth } from '@components/Contexts/AuthContext'
 import { useTranslation } from 'react-i18next'
@@ -48,6 +48,7 @@ const validate = (values: any, t: any) => {
 
 interface InviteOnlySignUpProps {
   inviteCode: string
+  invitationToken: string
 }
 
 function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
@@ -77,7 +78,9 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
     onSubmit: async (values) => {
       setError('')
       setIsSubmitting(true)
-      let res = await signUpWithInviteCode(values, props.inviteCode)
+      let res = props.invitationToken
+        ? await signUpWithInvitation(values, props.invitationToken)
+        : await signUpWithInviteCode(values, props.inviteCode)
       let result = await res.json()
       if (res.status == 200) {
         const callbackUrl = postSignupUrl

@@ -98,9 +98,21 @@ export default function UsersOverview({ hasUserGroups }: { hasUserGroups: boolea
     (url) => swrFetcher(url, token),
     { revalidateOnFocus: false }
   )
+  const { data: invitations } = useSWR(
+    org && token ? `${getAPIUrl()}orgs/${org.id}/invites/users` : null,
+    (url) => swrFetcher(url, token),
+    { revalidateOnFocus: false }
+  )
+  const pendingInvitationTotal = (invitations || []).length
+  const filteredPendingInvitationTotal = (invitations || []).filter((invite: any) => {
+    if (search && !String(invite.email).toLowerCase().includes(search.trim().toLowerCase())) return false
+    if (roleId && String(invite.role?.id) !== roleId) return false
+    if (verified !== 'all' || usersAssignedToMe) return false
+    return true
+  }).length
   const groupTotal = (groups || []).length
-  const userFilteredTotal = filteredUserCount?.total || 0
-  const userTotal = totalUserCount?.total || 0
+  const userFilteredTotal = (filteredUserCount?.total || 0) + filteredPendingInvitationTotal
+  const userTotal = (totalUserCount?.total || 0) + pendingInvitationTotal
 
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-8 px-8 py-6">

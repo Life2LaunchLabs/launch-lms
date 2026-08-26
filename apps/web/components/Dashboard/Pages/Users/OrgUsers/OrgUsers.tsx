@@ -10,6 +10,7 @@ import Link from 'next/link'
 import AdminDataTable from '@components/Admin/AdminDataTable'
 import { Pagination } from '@components/Admin/Platform/shared'
 import { removeUserFromOrg, removeUsersFromOrg, updateUserRole } from '@services/organizations/orgs'
+import { revokeUserInvitation } from '@services/organizations/invites'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { LogOut, Shield, User, Crown, Users, CheckCircle2, XCircle, Mail, Globe, ArrowUp, ArrowDown, X, UserPlus } from 'lucide-react'
 import React, { useState, useRef } from 'react'
@@ -148,7 +149,17 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
   )
 
   const orgUsers = data?.items || []
-  const pendingInvites = invitedUsers?.filter((invite: any) => invite.pending) || []
+  const pendingInvites = (invitedUsers?.filter((invite: any) => invite.pending) || []).filter((invite: any) => {
+    const effectiveSearch = (overviewFilters?.search ?? searchValue).trim().toLowerCase()
+    const effectiveRole = overviewFilters?.roleId ?? filterRole
+    const effectiveStatus = overviewFilters?.verified === 'all' ? '' : (overviewFilters?.verified ?? filterStatus)
+    if (effectiveSearch && !String(invite.email).toLowerCase().includes(effectiveSearch)) return false
+    if (effectiveRole && String(invite.role?.id) !== effectiveRole) return false
+    if (effectiveStatus) return false
+    if (overviewFilters?.assignedToMe) return false
+    if (filterGroupId && String(invite.usergroup?.id) !== filterGroupId) return false
+    return true
+  })
   const total = data?.total || 0
   const isInitialLoading = !data && isValidating
   const isPageTransitioning = !!data && isValidating
@@ -230,6 +241,17 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
       toast.success(`${ids.length} user(s) removed successfully`, {id:toastId});
     } else {
       toast.error('Error removing users', {id:toastId});
+    }
+  }
+
+  const handleRevokeInvitation = async (invitationUuid: string) => {
+    const toastId = toast.loading('Revoking invitation…')
+    const res = await revokeUserInvitation(org.id, invitationUuid, access_token)
+    if (res.status === 200) {
+      await Promise.all([mutateInvitedUsers(), mutate(usersUrl)])
+      toast.success('Invitation revoked and seat released', { id: toastId })
+    } else {
+      toast.error(res.data?.detail || 'Could not revoke invitation', { id: toastId })
     }
   }
 
@@ -385,8 +407,8 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {page === 1 && !(overviewFilters?.search ?? searchValue) && !hasActiveFilters && pendingInvites.map((invite: any) => (
-                      <tr key={`invite-${invite.email}`} className="bg-amber-50/30">
+                    {page === 1 && pendingInvites.map((invite: any) => (
+                      <tr key={invite.invitation_uuid} className="bg-amber-50/30">
                         <td className="w-10 px-6 py-4">
                           <input type="checkbox" disabled className="h-4 w-4 cursor-not-allowed rounded border-gray-200 opacity-40" aria-label={`Invitation for ${invite.email}`} />
                         </td>
@@ -401,16 +423,16 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
                             </div>
                           </div>
                         </td>
-                        {hasUserGroups && <td className="px-6 py-4 text-xs text-gray-400">—</td>}
-                        <td className="px-6 py-4 text-xs text-gray-400">—</td>
+                        {hasUserGroups && <td className="px-6 py-4">{invite.usergroup ? <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-600"><Users className="h-3 w-3" />{invite.usergroup.name}</span> : <span className="text-xs text-gray-400">—</span>}</td>}
+                        <td className="px-6 py-4 text-xs text-gray-500">Invited {formatShortDate(invite.created_at)}</td>
                         <td className="px-6 py-4">
                           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700">
                             <Mail className="h-3 w-3" />
-                            Invite sent
+                            Pending
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-xs text-gray-400">—</td>
-                        <td className="px-6 py-4 text-right text-xs text-gray-400">Awaiting signup</td>
+                        <td className="px-6 py-4"><span className="inline-flex items-center gap-1.5 rounded-md bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700">{String(invite.role?.name || 'User').toLowerCase().includes('admin') ? <Crown className="h-3.5 w-3.5 text-indigo-600" /> : String(invite.role?.name || '').toLowerCase().match(/maintainer|instructor|staff/) ? <Shield className="h-3.5 w-3.5 text-emerald-600" /> : <User className="h-3.5 w-3.5 text-gray-500" />}{invite.role?.name || 'User'}</span></td>
+                        <td className="px-6 py-4 text-right"><ConfirmationModal confirmationButtonText="Revoke invitation" confirmationMessage={`Revoke the invitation for ${invite.email}? The reserved seat will be released.`} dialogTitle="Revoke invitation" dialogTrigger={<button className="inline-flex h-8 items-center gap-1.5 rounded-md bg-white px-3 text-xs font-medium text-gray-600 nice-shadow transition hover:bg-rose-50 hover:text-rose-600"><X className="h-3.5 w-3.5" />Revoke</button>} functionToExecute={() => handleRevokeInvitation(invite.invitation_uuid)} status="warning" /></td>
                       </tr>
                     ))}
                     {orgUsers?.map((user: any) => (
