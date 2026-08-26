@@ -9,7 +9,10 @@ import {
   getOrgLogoMediaDirectory,
   getOrgThumbnailMediaDirectory,
 } from '@services/media/media'
-import { getUriWithOrg } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg } from '@services/config/config'
+import useSWR from 'swr'
+import { swrFetcher } from '@services/utils/ts/requests'
+import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { DiscoverOrganization } from '@services/organizations/orgs'
 
 interface OrganizationDetailClientProps {
@@ -21,6 +24,10 @@ export default function OrganizationDetailClient({
   organization,
   currentOrgslug,
 }: OrganizationDetailClientProps) {
+  const session = useLHSession() as any
+  const token = session?.data?.tokens?.access_token
+  const { data: adminOrganizations } = useSWR(token ? `${getAPIUrl()}orgs/user_admin/page/1/limit/100` : null, (url) => swrFetcher(url, token), { revalidateOnFocus: false })
+  const canAdmin = Array.isArray(adminOrganizations) && adminOrganizations.some((item: any) => item.slug === organization.slug)
   const heroImage = organization.thumbnail_image
     ? getOrgThumbnailMediaDirectory(organization.org_uuid, organization.thumbnail_image)
     : null
@@ -32,7 +39,7 @@ export default function OrganizationDetailClient({
     <GeneralWrapperStyled>
       <div className="space-y-6">
         <Link
-          href={getUriWithOrg(currentOrgslug, '/organizations')}
+          href={getUriWithOrg(currentOrgslug, '/account/organizations')}
           className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -116,6 +123,7 @@ export default function OrganizationDetailClient({
                     organization={organization}
                     currentOrgslug={currentOrgslug}
                     showOpen={false}
+                    canAdmin={canAdmin}
                   />
                 </div>
               </div>

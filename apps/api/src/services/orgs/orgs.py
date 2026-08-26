@@ -20,13 +20,14 @@ from src.db.organizations import (
     OrganizationRead,
     OrganizationUpdate,
 )
+from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, APITokenUser, InternalUser, PublicUser
-from src.security.rbac.constants import ADMIN_ROLE_ID
 from src.security.rbac.rbac import (
     authorization_verify_based_on_org_admin_status,
     authorization_verify_if_user_is_anon,
 )
+from src.security.features_utils.usage import is_role_dashboard_enabled
 from src.services.orgs.uploads import (
     upload_org_auth_background,
     upload_org_favicon,
@@ -618,29 +619,46 @@ async def get_orgs_by_user_admin(
     user_id: str,
     page: int = 1,
     limit: int = 10,
+    is_superadmin: bool = False,
 ) -> list[OrganizationRead]:
-    # Join Organization, UserOrganization and OrganizationConfig in a single query
+    # Return every organization where the user's role can open the dashboard,
+    # not only organizations where the role happens to use the built-in admin ID.
+    if is_superadmin:
+        statement = (
+            select(Organization, OrganizationConfig)
+            .outerjoin(OrganizationConfig, OrganizationConfig.org_id == Organization.id)
+            .order_by(Organization.name.asc())
+            .offset((page - 1) * limit)
+            .limit(limit)
+        )
+        return [
+            OrganizationRead(
+                **org.model_dump(),
+                config=OrganizationConfig.model_validate(org_config) if org_config else {},
+            )
+            for org, org_config in db_session.exec(statement).all()
+        ]
+
     statement = (
-        select(Organization, OrganizationConfig)
-        .join(UserOrganization)
-        .outerjoin(OrganizationConfig)
+        select(Organization, OrganizationConfig, Role)
+        .select_from(Organization)
+        .join(UserOrganization, UserOrganization.org_id == Organization.id)
+        .join(Role, Role.id == UserOrganization.role_id)
+        .outerjoin(OrganizationConfig, OrganizationConfig.org_id == Organization.id)
         .where(
             UserOrganization.user_id == user_id,
-            UserOrganization.role_id == ADMIN_ROLE_ID,  # Only where the user is admin
             UserOrganization.org_id == Organization.id,
-            OrganizationConfig.org_id == Organization.id
         )
-        .offset((page - 1) * limit)
-        .limit(limit)
     )
 
     # Execute single query to get all data
     result = db_session.exec(statement)
-    org_data = result.all()
+    authorized_org_data = [row for row in result.all() if is_role_dashboard_enabled(row[2])]
+    org_data = authorized_org_data[(page - 1) * limit:page * limit]
 
     # Process results in memory
     orgsWithConfig = []
-    for org, org_config in org_data:
+    for org, org_config, _role in org_data:
         config = OrganizationConfig.model_validate(org_config) if org_config else {}
         org_read = OrganizationRead(**org.model_dump(), config=config)
         orgsWithConfig.append(org_read)

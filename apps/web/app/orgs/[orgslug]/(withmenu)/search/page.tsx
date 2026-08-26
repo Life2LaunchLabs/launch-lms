@@ -646,9 +646,6 @@ function SearchPage() {
                             {user.first_name} {user.last_name}
                           </h3>
                           <p className="text-xs text-foreground/50">@{user.username}</p>
-                          {user.details?.title?.text && (
-                            <p className="text-xs text-foreground/40 mt-1">{user.details.title.text}</p>
-                          )}
                         </div>
                       </Link>
                     ))}

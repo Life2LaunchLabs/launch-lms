@@ -2,25 +2,21 @@ import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { Metadata } from 'next'
 import { getServerSession } from '@/lib/auth/server'
 import { getOrgThumbnailMediaDirectory } from '@services/media/media'
-import AccountClient from '@components/Objects/Account/AccountClient'
 import { redirect } from 'next/navigation'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { getOwnerOrgSlugServer } from '@services/org/ownerOrgServer'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string; subpage: string }>
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-const VALID_SUBPAGES = ['security', 'purchases', 'organizations', 'org-admin', 'preferences']
-const PROFILE_SUBPAGES = ['general', 'profile', 'badges']
+const LEGACY_ACCOUNT_SUBPAGES = ['security', 'purchases', 'general']
+const PROFILE_SUBPAGES = ['profile', 'badges']
 
 const getSubpageTitle = (subpage: string): string => {
   const titles: Record<string, string> = {
-    'security': 'Security',
-    'purchases': 'Purchases',
+    'messages': 'Messages',
     'organizations': 'Organizations',
-    'org-admin': 'Org Admin',
     'preferences': 'Appearance',
   }
   return titles[subpage] || 'Account'
@@ -62,38 +58,25 @@ export async function generateMetadata(props: MetadataProps): Promise<Metadata> 
 const AccountSubPage = async (props: { params: Promise<{ orgslug: string; subpage: string }> }) => {
   const params = await props.params
   const session = await getServerSession()
-  const ownerOrgslug = await getOwnerOrgSlugServer()
 
   // Redirect to login if not authenticated
   if (!session) {
     redirect(getUriWithOrg(params.orgslug, routePaths.org.root()))
   }
 
-  if (params.subpage === 'org-admin' && params.orgslug !== ownerOrgslug) {
-    redirect(getUriWithOrg(ownerOrgslug, routePaths.owner.account.orgAdmin()))
-  }
-
   if (PROFILE_SUBPAGES.includes(params.subpage)) {
     redirect(getUriWithOrg(params.orgslug, routePaths.org.portfolioEdit()))
   }
 
-  // Redirect to general if invalid subpage
-  if (!VALID_SUBPAGES.includes(params.subpage)) {
-    redirect(getUriWithOrg(params.orgslug, routePaths.owner.account.security()))
+  if (LEGACY_ACCOUNT_SUBPAGES.includes(params.subpage)) {
+    redirect(getUriWithOrg(params.orgslug, routePaths.owner.account.root()))
   }
 
-  const org = await getOrganizationContextInfo(params.orgslug, {
-    revalidate: 1800,
-    tags: ['organizations'],
-  })
+  if (params.subpage === 'org-admin') {
+    redirect(getUriWithOrg(params.orgslug, routePaths.owner.account.organizations()))
+  }
 
-  return (
-    <AccountClient
-      orgslug={params.orgslug}
-      org_id={org.id}
-      subpage={params.subpage}
-    />
-  )
+  redirect(getUriWithOrg(params.orgslug, routePaths.owner.account.root()))
 }
 
 export default AccountSubPage

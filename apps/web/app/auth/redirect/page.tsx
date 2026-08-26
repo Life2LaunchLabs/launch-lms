@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
+import { EXPERIENCE_PREFERENCE_KEY } from '@components/Auth/ExperiencePreferenceTracker'
 
 export default function AuthRedirectPage() {
   const session = useLHSession() as any
@@ -32,18 +33,17 @@ export default function AuthRedirectPage() {
 
     if (!Array.isArray(adminOrgs)) return
 
-    if (adminOrgs.length === 1) {
-      window.location.href = getUriWithOrg(adminOrgs[0].slug, routePaths.org.dash.root())
-      return
+    let preference: { side?: string; orgslug?: string } = {}
+    try { preference = JSON.parse(window.localStorage.getItem(EXPERIENCE_PREFERENCE_KEY) || '{}') } catch { /* Ignore malformed legacy state. */ }
+    if (preference.side === 'admin') {
+      const target = adminOrgs.find((organization: any) => organization.slug === preference.orgslug) || adminOrgs[0]
+      if (target) {
+        window.location.href = getUriWithOrg(target.slug, routePaths.org.dash.root())
+        return
+      }
     }
-
-    if (adminOrgs.length > 1) {
-      window.location.href = getUriWithOrg(ownerOrgSlug, routePaths.owner.account.orgAdmin())
-      return
-    }
-
-    window.location.href = getUriWithOrg(ownerOrgSlug, routePaths.owner.root())
-  }, [adminOrgs, session?.status])
+    window.location.href = getUriWithOrg(preference.orgslug || ownerOrgSlug, routePaths.owner.root())
+  }, [adminOrgs, ownerOrgSlug, session?.status])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">

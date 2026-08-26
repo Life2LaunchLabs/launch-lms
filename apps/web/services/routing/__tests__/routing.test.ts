@@ -37,9 +37,9 @@ test('route manifest builds key dashboard and owner routes', () => {
 
 test('route manifest builds auth, account, and public org paths used by navigation surfaces', () => {
   assert.equal(routePaths.auth.signup({ mode: 'create-org' }), '/signup?mode=create-org')
-  assert.equal(routePaths.owner.account.orgAdmin(), '/account/org-admin')
-  assert.equal(routePaths.owner.account.security(), '/account/security')
-  assert.equal(routePaths.owner.account.purchases(), '/account/purchases')
+  assert.equal(routePaths.owner.account.root(), '/account')
+  assert.equal(routePaths.owner.account.security(), '/account')
+  assert.equal(routePaths.owner.account.messages(), '/account/messages')
   assert.equal(routePaths.owner.account.organizations(), '/account/organizations')
   assert.equal(routePaths.owner.account.badges(), '/account/badges')
   assert.equal(routePaths.org.portfolio(), '/portfolio')
@@ -70,8 +70,8 @@ test('navigation manifest smoke test keeps representative routes absolute and un
   const navigationRoutes = [
     routePaths.org.portfolio(),
     routePaths.org.news(),
-    routePaths.owner.account.security(),
-    routePaths.owner.account.orgAdmin(),
+    routePaths.owner.account.root(),
+    routePaths.owner.account.messages(),
     routePaths.org.root(),
     routePaths.org.badges(),
     routePaths.org.search(),
@@ -110,6 +110,23 @@ test('request policy redirects authenticated org root to portfolio', () => {
 
   assert.equal(decision.action, 'redirect')
   assert.equal(decision.destination, 'https://acme.launchlms.test/portfolio')
+})
+
+test('request policy rewrites nested account tabs to the current organization', () => {
+  for (const pathname of ['/account/messages', '/account/organizations', '/account/preferences']) {
+    const decision = resolveRequestRouting({
+      requestUrl: `https://launchlms.test${pathname}`,
+      pathname,
+      search: '',
+      host: 'launchlms.test',
+      hasSession: true,
+      instanceInfo,
+      resolvedCustomDomainOrgSlug: null,
+      orgSubdomainAccess: null,
+    })
+    assert.equal(decision.action, 'rewrite')
+    assert.equal(decision.destination, `/orgs/default${pathname}`)
+  }
 })
 
 test('request policy rewrites unauthenticated org root to the landing page', () => {

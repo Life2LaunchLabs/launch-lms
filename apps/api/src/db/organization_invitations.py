@@ -103,6 +103,10 @@ class InvitePreviewResponse(BaseModel):
     results: list[InviteRecipientResult]
 
 
+class InvitationResponseRequest(BaseModel):
+    accept: bool
+
+
 class CreateJoinLinkRequest(BaseModel):
     display_name: str
     usergroup_id: int | None = None

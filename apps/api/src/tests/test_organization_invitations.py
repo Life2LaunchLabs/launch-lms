@@ -20,6 +20,7 @@ from src.security.features_utils.usage import (
 from src.services.orgs import users as org_users_service
 from src.services.orgs import invites as org_invites_service
 from src.services.orgs import join as join_service
+from src.services.orgs import orgs as orgs_service
 from src.services.orgs.join import JoinOrg
 from src.services.users import users as user_service
 
@@ -82,6 +83,50 @@ def test_direct_invitation_does_not_require_shared_invite_code(session: Session)
     assert columns["invite_code_uuid"]["nullable"] is True
     session.add(_invitation(invite_code_uuid=None))
     session.commit()
+
+
+def test_recipient_can_list_view_and_decline_organization_invitation(session: Session, monkeypatch):
+    _seed(session)
+    invitation = _invitation(
+        email="existing@example.com",
+        email_normalized="existing@example.com",
+        target_user_id=2,
+        usergroup_id=1,
+    )
+    session.add(invitation)
+    session.commit()
+    current_user = PublicUser(id=2, user_uuid="user_2", username="existing", email="existing@example.com", first_name="E", last_name="Xisting")
+
+    messages = org_users_service.get_my_organization_invitations(current_user, session)
+    assert len(messages) == 1
+    assert messages[0]["unread"] is True
+    assert messages[0]["organization"]["slug"] == "studio"
+    assert messages[0]["usergroup"]["name"] == "Blue group"
+
+    result = org_users_service.mark_my_organization_invitations_viewed(current_user, session)
+    session.refresh(invitation)
+    assert result["updated"] == 1
+    assert invitation.viewed_at is not None
+
+    monkeypatch.setattr(org_users_service, "decrease_feature_usage", lambda *_args, **_kwargs: True)
+    request = Request({"type": "http", "scheme": "https", "server": ("studio.example.com", 443), "path": "/", "headers": []})
+    org_users_service.decline_my_organization_invitation(request, invitation.invitation_uuid, current_user, session)
+    session.refresh(invitation)
+    assert invitation.status == "declined"
+    assert org_users_service.get_my_organization_invitations(current_user, session) == []
+
+
+@pytest.mark.asyncio
+async def test_dashboard_organization_list_includes_non_admin_roles_with_access(session: Session):
+    _seed(session)
+    session.add(Role(id=2, name="Maintainer", role_uuid="role_global_maintainer", rights={"dashboard": {"action_access": True}}))
+    session.add(UserOrganization(user_id=2, org_id=1, role_id=2, creation_date=NOW.isoformat(), update_date=NOW.isoformat()))
+    session.commit()
+    request = Request({"type": "http", "scheme": "https", "server": ("studio.example.com", 443), "path": "/", "headers": []})
+
+    organizations = await orgs_service.get_orgs_by_user_admin(request, session, "2", 1, 100)
+
+    assert [organization.slug for organization in organizations] == ["studio"]
 
 
 @pytest.mark.asyncio

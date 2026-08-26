@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
-import { MapPin, Building2, Globe, Briefcase, GraduationCap, Link, Users, Calendar, Lightbulb, Loader2, ExternalLink } from 'lucide-react'
+import { Loader2, ExternalLink } from 'lucide-react'
 import { getUser } from '@services/users/users'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { Button } from '@/components/ui/button'
@@ -18,27 +18,7 @@ type UserData = {
   username: string
   bio?: string
   avatar_image?: string
-  details?: {
-    [key: string]: {
-      id: string
-      label: string
-      icon: string
-      text: string
-    }
-  }
 }
-
-const ICON_MAP = {
-  'briefcase': Briefcase,
-  'graduation-cap': GraduationCap,
-  'map-pin': MapPin,
-  'building-2': Building2,
-  'speciality': Lightbulb,
-  'globe': Globe,
-  'link': Link,
-  'users': Users,
-  'calendar': Calendar,
-} as const
 
 const UserProfilePopup = ({ children, userId }: UserProfilePopupProps) => {
   const session = useLHSession() as any
@@ -67,12 +47,6 @@ const UserProfilePopup = ({ children, userId }: UserProfilePopupProps) => {
 
     fetchUserData()
   }, [userId, session?.data?.tokens?.access_token])
-
-  const IconComponent = ({ iconName }: { iconName: string }) => {
-    const IconElement = ICON_MAP[iconName as keyof typeof ICON_MAP]
-    if (!IconElement) return null
-    return <IconElement className="w-4 h-4 text-muted-foreground" />
-  }
 
   return (
     <HoverCard openDelay={100} closeDelay={150}>
@@ -135,20 +109,6 @@ const UserProfilePopup = ({ children, userId }: UserProfilePopupProps) => {
               </div>
             </div>
 
-            {/* Details */}
-            {userData.details && Object.values(userData.details).length > 0 && (
-              <div className="px-5 pb-4 space-y-2.5 border-t border-border pt-3.5">
-                {Object.values(userData.details).map((detail) => (
-                  <div key={detail.id} className="flex items-center gap-2.5">
-                    <IconComponent iconName={detail.icon} />
-                    <div className="flex flex-col">
-                      <span className="text-xs text-muted-foreground">{detail.label}</span>
-                      <span className="text-sm text-muted-foreground">{detail.text}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         ) : null}
       </HoverCardContent>
@@ -156,4 +116,4 @@ const UserProfilePopup = ({ children, userId }: UserProfilePopupProps) => {
   )
 }
 
-export default UserProfilePopup 
+export default UserProfilePopup

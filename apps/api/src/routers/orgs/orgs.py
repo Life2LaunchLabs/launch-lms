@@ -15,7 +15,7 @@ from src.db.organizations import (
     OrganizationRead,
     OrganizationUpdate,
 )
-from src.db.organization_invitations import CreateJoinLinkRequest, InvitePreviewResponse, InviteUsersRequest, InviteUsersResponse
+from src.db.organization_invitations import CreateJoinLinkRequest, InvitationResponseRequest, InvitePreviewResponse, InviteUsersRequest, InviteUsersResponse
 from src.db.users import AnonymousUser, PublicUser
 from src.security.auth import get_authenticated_user, get_current_user
 from src.security.features_utils.dependencies import require_org_admin
@@ -64,9 +64,13 @@ from src.services.orgs.orgs import (
     upload_org_og_image_service,
 )
 from src.services.orgs.users import (
+    decline_my_organization_invitation,
+    get_my_organization_invitations,
+    get_my_pending_invitation,
     get_list_of_invited_users,
     get_organization_users,
     invite_batch_users,
+    mark_my_organization_invitations_viewed,
     preview_batch_users,
     resend_invited_user,
     leave_current_user_from_org,
@@ -83,6 +87,47 @@ feature_config_router = APIRouter(
     tags=["Feature Configuration"],
     dependencies=[Depends(require_org_admin)],
 )
+
+
+@router.get("/invitations/me")
+async def api_get_my_organization_invitations(
+    current_user: PublicUser = Depends(get_authenticated_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return get_my_organization_invitations(current_user, db_session)
+
+
+@router.post("/invitations/me/viewed")
+async def api_mark_my_organization_invitations_viewed(
+    current_user: PublicUser = Depends(get_authenticated_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return mark_my_organization_invitations_viewed(current_user, db_session)
+
+
+@router.post("/invitations/me/{invitation_uuid}/respond")
+async def api_respond_to_my_organization_invitation(
+    request: Request,
+    invitation_uuid: str,
+    payload: InvitationResponseRequest,
+    current_user: PublicUser = Depends(get_authenticated_user),
+    db_session: Session = Depends(get_db_session),
+):
+    invitation = get_my_pending_invitation(invitation_uuid, current_user, db_session)
+    if not payload.accept:
+        return decline_my_organization_invitation(
+            request, invitation_uuid, current_user, db_session
+        )
+    return await join_org(
+        request,
+        JoinOrg(
+            org_id=invitation.org_id,
+            user_id=current_user.id,
+            invitation_token=invitation.invitation_uuid,
+        ),
+        current_user,
+        db_session,
+    )
 
 
 @router.post("/")
@@ -891,7 +936,8 @@ async def api_user_orgs_admin(
     """
     # API tokens cannot access organization endpoints
     return await get_orgs_by_user_admin(
-        request, db_session, str(current_user.id), page, limit
+        request, db_session, str(current_user.id), page, limit,
+        is_superadmin=bool(getattr(current_user, "is_superadmin", False)),
     )
 
 

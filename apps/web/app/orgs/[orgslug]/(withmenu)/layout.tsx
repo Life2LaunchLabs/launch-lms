@@ -11,6 +11,7 @@ const PodcastPlayer = dynamic(() => import('@components/Objects/Podcasts/Podcast
 import { PageViewTracker } from '@components/Analytics/PageViewTracker'
 import { usePathname } from 'next/navigation'
 import { GuestHeader } from '@components/Objects/Menus/GuestHeader'
+import ExperiencePreferenceTracker from '@components/Auth/ExperiencePreferenceTracker'
 
 function OrgFooter() {
   const org = useOrg() as any
@@ -65,6 +66,7 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
       style={{ backgroundColor: 'var(--org-page-background)' }}
     >
       <PageViewTracker />
+      {session?.status === 'authenticated' ? <ExperiencePreferenceTracker side="user" orgslug={orgslug} /> : null}
       <OrgJoinBanner />
       {showGuestHeader && (
         <div className="print:hidden">

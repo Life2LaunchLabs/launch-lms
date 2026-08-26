@@ -41,12 +41,12 @@ export const routePaths = {
       withQuery('/login', params),
     account: {
       root: () => '/account',
-      general: () => '/account/general',
-      security: () => '/account/security',
-      purchases: () => '/account/purchases',
+      general: () => '/account',
+      security: () => '/account',
+      messages: () => '/account/messages',
       organizations: () => '/account/organizations',
+      preferences: () => '/account/preferences',
       badges: () => '/account/badges',
-      orgAdmin: () => '/account/org-admin',
     },
     platform: {
       overview: () => '/admin/platform',

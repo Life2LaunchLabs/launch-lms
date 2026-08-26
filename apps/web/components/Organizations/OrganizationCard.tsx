@@ -8,16 +8,21 @@ import {
   getOrgLogoMediaDirectory,
   getOrgThumbnailMediaDirectory,
 } from '@services/media/media'
-import { DiscoverOrganization } from '@services/organizations/orgs'
+import { DiscoverOrganization, OrganizationInvitation } from '@services/organizations/orgs'
+import OrganizationMembershipActions from '@components/Organizations/OrganizationMembershipActions'
 
 interface OrganizationCardProps {
   organization: DiscoverOrganization
   currentOrgslug: string
+  invitation?: OrganizationInvitation | null
+  canAdmin?: boolean
 }
 
 export default function OrganizationCard({
   organization,
   currentOrgslug,
+  invitation,
+  canAdmin = false,
 }: OrganizationCardProps) {
   const imageSrc = organization.thumbnail_image
     ? getOrgThumbnailMediaDirectory(organization.org_uuid, organization.thumbnail_image)
@@ -26,10 +31,8 @@ export default function OrganizationCard({
       : null
 
   return (
-    <Link
-      href={getUriWithOrg(currentOrgslug, `/organization/${organization.slug}`)}
-      className="group block overflow-hidden rounded-2xl border border-border bg-card nice-shadow transition-all hover:-translate-y-0.5 hover:shadow-md"
-    >
+    <article className="group overflow-hidden rounded-2xl border border-border bg-card nice-shadow transition-all hover:-translate-y-0.5 hover:shadow-md">
+      <Link href={getUriWithOrg(currentOrgslug, `/organization/${organization.slug}`)} className="block">
       <div className="relative h-44 overflow-hidden bg-gradient-to-br from-muted via-card to-slate-200">
         {imageSrc ? (
           <img
@@ -46,6 +49,7 @@ export default function OrganizationCard({
         )}
 
         <div className="absolute left-4 top-4 flex gap-2">
+          {invitation ? <span className="rounded-full bg-blue-600 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">Invited</span> : null}
           <span className="rounded-full bg-card/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             {organization.is_member ? 'Member' : 'Organization'}
           </span>
@@ -72,7 +76,7 @@ export default function OrganizationCard({
           </p>
         </div>
 
-        <div className="flex items-center justify-between border-t border-border pt-3 text-sm text-muted-foreground">
+        <div className="flex items-center justify-between pt-3 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             <span>{organization.member_count} members</span>
@@ -82,6 +86,8 @@ export default function OrganizationCard({
           </span>
         </div>
       </div>
-    </Link>
+      </Link>
+      {(invitation || canAdmin) ? <div className="border-t border-border px-5 py-4"><OrganizationMembershipActions organization={organization} currentOrgslug={currentOrgslug} compact showOpen={false} invitation={invitation} canAdmin={canAdmin} /></div> : null}
+    </article>
   )
 }

@@ -201,6 +201,38 @@ export interface DiscoverOrganization {
   member_count: number
 }
 
+export interface OrganizationInvitation {
+  invitation_uuid: string
+  org_id: number
+  created_at: string
+  expires_at: string
+  viewed_at?: string | null
+  unread: boolean
+  organization: DiscoverOrganization
+  role?: { id: number; name: string; role_uuid?: string } | null
+  usergroup?: { id: number; name: string } | null
+}
+
+export async function respondToOrganizationInvitation(
+  invitationUuid: string,
+  accept: boolean,
+  accessToken: string
+) {
+  const result = await fetch(
+    `${getAPIUrl()}orgs/invitations/me/${encodeURIComponent(invitationUuid)}/respond`,
+    RequestBodyWithAuthHeader('POST', { accept }, null, accessToken)
+  )
+  return getResponseMetadata(result)
+}
+
+export async function markOrganizationInvitationsViewed(accessToken: string) {
+  const result = await fetch(
+    `${getAPIUrl()}orgs/invitations/me/viewed`,
+    RequestBodyWithAuthHeader('POST', {}, null, accessToken)
+  )
+  return getResponseMetadata(result)
+}
+
 export async function getDiscoverOrganizations(
   args: { page?: number; limit?: number; query?: string },
   next?: any,

@@ -1,13 +1,10 @@
 import React from 'react'
 import {
-  House,
   User,
   SealCheck,
   FolderOpen,
   Newspaper,
-  Question,
 } from '@phosphor-icons/react'
-import type { TFunction } from 'i18next'
 
 export const KNOWN_SUBPATHS = [
   '/badges',
@@ -33,8 +30,6 @@ export interface OrgMenuNavItem {
   active: boolean
   show: boolean
   onboardingFeature?: 'badges' | 'resources'
-  kind?: 'link' | 'action'
-  actionKey?: 'help'
 }
 
 function isFeatureEnabled(resolvedFeatures: any, feature: string) {
@@ -44,11 +39,9 @@ function isFeatureEnabled(resolvedFeatures: any, feature: string) {
 export function getPrimaryOrgMenuItems({
   pathname,
   resolvedFeatures,
-  t,
 }: {
   pathname?: string | null
   resolvedFeatures: any
-  t: TFunction
 }): OrgMenuNavItem[] {
   const isHome = !KNOWN_SUBPATHS.some((subpath) => pathname?.includes(subpath))
   const isOnPortfolio = pathname?.includes('/portfolio')
@@ -86,25 +79,6 @@ export function getPrimaryOrgMenuItems({
       icon: <Newspaper size={18} weight="fill" />,
       active: Boolean(isOnNews),
       show: true,
-    },
-  ]
-}
-
-export function getAdministrativeOrgMenuItems({
-  t,
-  isHelpOpen,
-}: {
-  t: TFunction
-  isHelpOpen: boolean
-}): OrgMenuNavItem[] {
-  return [
-    {
-      label: t('common.help'),
-      icon: <Question size={18} weight="fill" />,
-      active: isHelpOpen,
-      show: true,
-      kind: 'action',
-      actionKey: 'help',
     },
   ]
 }

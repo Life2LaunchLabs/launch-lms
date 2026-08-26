@@ -1,8 +1,8 @@
-import { redirect } from 'next/navigation'
+import AccountRoute from '@components/Objects/Account/AccountRoute'
 
 const AccountPage = async (props: { params: Promise<{ orgslug: string }> }) => {
   const params = await props.params
-  redirect(`/${params.orgslug}/account/security`)
+  return <AccountRoute orgslug={params.orgslug} tab="account" />
 }
 
 export default AccountPage

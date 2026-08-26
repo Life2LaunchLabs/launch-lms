@@ -6,7 +6,7 @@ import React, { useEffect, useRef, useState } from 'react'
 
 export type TabbedPageHeaderTab<T extends string = string> = {
   id: T
-  label: string
+  label: React.ReactNode
   href: string
 }
 

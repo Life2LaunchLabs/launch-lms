@@ -64,6 +64,124 @@ def is_valid_email(email: str) -> bool:
         return False
 
 
+def _my_pending_invitation_statement(current_user: PublicUser):
+    return select(OrganizationInvitation).where(
+        or_(
+            OrganizationInvitation.target_user_id == current_user.id,
+            OrganizationInvitation.email_normalized == normalize_email(str(current_user.email)),
+        ),
+        OrganizationInvitation.status == "pending",
+        OrganizationInvitation.expires_at > datetime.utcnow(),
+    )
+
+
+def get_my_pending_invitation(
+    invitation_uuid: str,
+    current_user: PublicUser,
+    db_session: Session,
+) -> OrganizationInvitation:
+    invitation = db_session.exec(
+        _my_pending_invitation_statement(current_user).where(
+            OrganizationInvitation.invitation_uuid == invitation_uuid
+        )
+    ).first()
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+    return invitation
+
+
+def get_my_organization_invitations(
+    current_user: PublicUser,
+    db_session: Session,
+) -> list[dict]:
+    invitations = db_session.exec(
+        _my_pending_invitation_statement(current_user).order_by(
+            OrganizationInvitation.created_at.desc()
+        )
+    ).all()
+    if not invitations:
+        return []
+
+    org_ids = {invitation.org_id for invitation in invitations}
+    role_ids = {invitation.role_id for invitation in invitations}
+    group_ids = {invitation.usergroup_id for invitation in invitations if invitation.usergroup_id}
+    organizations = db_session.exec(select(Organization).where(Organization.id.in_(org_ids))).all()
+    roles = db_session.exec(select(Role).where(Role.id.in_(role_ids))).all()
+    groups = db_session.exec(select(UserGroup).where(UserGroup.id.in_(group_ids))).all() if group_ids else []
+    org_map = {org.id: org for org in organizations}
+    role_map = {role.id: role for role in roles}
+    group_map = {group.id: group for group in groups}
+
+    return [
+        {
+            "invitation_uuid": invitation.invitation_uuid,
+            "org_id": invitation.org_id,
+            "created_at": invitation.created_at.isoformat(),
+            "expires_at": invitation.expires_at.isoformat(),
+            "viewed_at": invitation.viewed_at.isoformat() if invitation.viewed_at else None,
+            "unread": invitation.viewed_at is None,
+            "organization": OrganizationRead.model_validate(org_map[invitation.org_id]).model_dump()
+            if invitation.org_id in org_map else None,
+            "role": RoleRead.model_validate(role_map[invitation.role_id]).model_dump()
+            if invitation.role_id in role_map else None,
+            "usergroup": UserGroupRead.model_validate(group_map[invitation.usergroup_id]).model_dump()
+            if invitation.usergroup_id in group_map else None,
+        }
+        for invitation in invitations
+    ]
+
+
+def mark_my_organization_invitations_viewed(
+    current_user: PublicUser,
+    db_session: Session,
+) -> dict:
+    invitations = db_session.exec(_my_pending_invitation_statement(current_user)).all()
+    now = datetime.utcnow()
+    updated = 0
+    for invitation in invitations:
+        if invitation.viewed_at is None:
+            invitation.viewed_at = now
+            invitation.updated_at = now
+            db_session.add(invitation)
+            updated += 1
+    db_session.commit()
+    return {"detail": "Invitations marked as viewed", "updated": updated}
+
+
+def decline_my_organization_invitation(
+    request: Request,
+    invitation_uuid: str,
+    current_user: PublicUser,
+    db_session: Session,
+) -> dict:
+    invitation = get_my_pending_invitation(invitation_uuid, current_user, db_session)
+    now = datetime.utcnow()
+    invitation.status = "declined"
+    invitation.viewed_at = invitation.viewed_at or now
+    invitation.declined_at = now
+    invitation.updated_at = now
+    db_session.add(invitation)
+    db_session.commit()
+
+    decrease_feature_usage("members", invitation.org_id, db_session)
+    role = db_session.exec(select(Role).where(Role.id == invitation.role_id)).first()
+    if role and is_role_dashboard_enabled(role):
+        decrease_feature_usage("admin_seats", invitation.org_id, db_session)
+
+    from src.services.audit_logs import record_audit_log
+    record_audit_log(
+        db_session,
+        action="invitation.decline",
+        resource="organization_invitation",
+        status_code=200,
+        org_id=invitation.org_id,
+        user_id=current_user.id,
+        ip_address=request.client.host if request.client else None,
+        request_metadata={"invitation_uuid": invitation.invitation_uuid},
+    )
+    return {"detail": "Invitation declined"}
+
+
 def _invitation_policy(org_id: int, db_session: Session) -> dict[str, int | bool]:
     config = db_session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)).first()
     raw = config.config if config and isinstance(config.config, dict) else {}

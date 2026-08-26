@@ -22,7 +22,6 @@ import {
   Cube,
   FolderOpen,
   Newspaper,
-  ShoppingBag,
   UserCircle,
   ChartPieSlice,
   Tray,
@@ -594,16 +593,12 @@ function DashLeftMenu() {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href={getUriWithOrg(getDefaultOrg(), routePaths.owner.account.security())} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
+              <Link href={getUriWithOrg(getDefaultOrg(), routePaths.owner.account.root())} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
                 <Gear size={16} weight="fill" />
                 <span>{t('common.settings')}</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href={getUriWithOrg(getDefaultOrg(), routePaths.owner.account.purchases())} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
-                <ShoppingBag size={16} weight="fill" />
-                <span>{t('account.purchases')}</span>
-              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-white/[0.08]" />
             <DropdownMenuItem

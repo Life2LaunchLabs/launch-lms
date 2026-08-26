@@ -2,16 +2,14 @@
 import React, { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
-import { swrFetcher } from '@services/utils/ts/requests'
-import useSWR from 'swr'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getOrgLogoMediaDirectory } from '@services/media/media'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { SearchBar } from '@components/Objects/Search/SearchBar'
 import { usePathname } from 'next/navigation'
 import { useTranslation } from 'react-i18next'
-import { Buildings, CaretDown, Question, SidebarSimple, SignOut, User } from '@phosphor-icons/react'
+import { Buildings, CaretDown, Envelope, Question, SidebarSimple, SignOut, Sun, User } from '@phosphor-icons/react'
 import { FeedbackModal } from '@components/Objects/Modals/FeedbackModal'
 import { useJoinBannerVisible, JOIN_BANNER_HEIGHT } from '@components/Objects/Banners/OrgJoinBanner'
 import { GuestHeader } from '@components/Objects/Menus/GuestHeader'
@@ -31,13 +29,10 @@ import {
 } from '@components/ui/dropdown-menu'
 import { signOut } from '@components/Contexts/AuthContext'
 import UserAvatar from '@components/Objects/UserAvatar'
-import {
-  getAdministrativeOrgMenuItems,
-  getPrimaryOrgMenuItems,
-  OrgMenuNavItem,
-} from './OrgMenuLinks'
+import { getPrimaryOrgMenuItems, OrgMenuNavItem } from './OrgMenuLinks'
 import { cn } from '@/lib/utils'
 import { Z_INDEX } from '@/lib/z-index'
+import useOrganizationInvitations from '@components/Hooks/useOrganizationInvitations'
 
 const DESKTOP_NAV_COLLAPSED_WIDTH = '44px'
 const DESKTOP_NAV_EXPANDED_WIDTH = '264px'
@@ -55,14 +50,7 @@ export const OrgMenu = (props: { orgslug: string }) => {
   })
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false)
   const { isVisible: isJoinBannerVisible } = useJoinBannerVisible()
-  const accessToken = session?.data?.tokens?.access_token
-  const { data: adminOrgs } = useSWR(
-    accessToken ? `${getAPIUrl()}orgs/user_admin/page/1/limit/100` : null,
-    (url) => swrFetcher(url, accessToken),
-    { revalidateOnFocus: false, revalidateOnMount: true }
-  )
-  const hasAdminOrgs = Array.isArray(adminOrgs) && adminOrgs.length > 0
-  const adminPanelHref = getUriWithOrg(getDefaultOrg(), routePaths.owner.account.orgAdmin())
+  const { unreadCount } = useOrganizationInvitations()
   const topOffset = isJoinBannerVisible ? JOIN_BANNER_HEIGHT : 0
   const config = org?.config?.config
   const resolvedFeatures = config?.resolved_features
@@ -80,12 +68,6 @@ export const OrgMenu = (props: { orgslug: string }) => {
   const primaryNavItems = getPrimaryOrgMenuItems({
     pathname,
     resolvedFeatures,
-    t,
-  }).filter((item) => item.show)
-
-  const adminNavItems = getAdministrativeOrgMenuItems({
-    t,
-    isHelpOpen: feedbackModalOpen,
   }).filter((item) => item.show)
 
   const isDesktopNavExpanded = isDesktopExpanded
@@ -246,25 +228,8 @@ export const OrgMenu = (props: { orgslug: string }) => {
             </div>
 
             <div className={cn('mt-auto flex flex-col pt-6', isDesktopNavExpanded ? 'items-stretch' : 'items-center')}>
-              <nav className={cn('flex flex-col gap-1', isDesktopNavExpanded ? 'items-stretch' : 'items-center')}>
-                {adminNavItems.filter((item) => item.actionKey !== 'help').map((item) => (
-                  <SidebarItem
-                    key={item.href || item.label}
-                    item={item}
-                    orgslug={orgslug}
-                    muted
-                    isExpanded={isDesktopNavExpanded}
-                    onAction={(actionKey) => {
-                      if (actionKey === 'help') {
-                        setFeedbackModalOpen(true)
-                      }
-                    }}
-                  />
-                ))}
-              </nav>
-
               <div className="mt-6">
-                <DesktopAccountLink orgslug={orgslug} onHelp={() => setFeedbackModalOpen(true)} hasAdminOrgs={hasAdminOrgs} adminPanelHref={adminPanelHref} isExpanded={isDesktopNavExpanded} />
+                <DesktopAccountLink orgslug={orgslug} onHelp={() => setFeedbackModalOpen(true)} isExpanded={isDesktopNavExpanded} unreadCount={unreadCount} />
               </div>
             </div>
           </div>
@@ -290,11 +255,9 @@ export const OrgMenu = (props: { orgslug: string }) => {
             />
           ))}
           <MobileMoreMenu
-            adminNavItems={adminNavItems}
             orgslug={orgslug}
             onHelp={() => setFeedbackModalOpen(true)}
-            hasAdminOrgs={hasAdminOrgs}
-            adminPanelHref={adminPanelHref}
+            unreadCount={unreadCount}
           />
         </div>
       </nav>
@@ -315,7 +278,6 @@ function SidebarItem({
   orgslug,
   muted = false,
   isExpanded = false,
-  onAction,
 }: SidebarItemProps) {
   const baseClass = item.active
     ? 'bg-foreground/[0.07] text-foreground shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]'
@@ -346,25 +308,15 @@ function SidebarItem({
     </>
   )
 
-  const element =
-    item.kind === 'action' ? (
-      <button
-        type="button"
-        onClick={() => onAction?.(item.actionKey)}
-        aria-label={item.label}
-        className={sharedClass}
-      >
-        {content}
-      </button>
-    ) : (
-      <Link
-        href={getUriWithOrg(orgslug, item.href || '/')}
-        aria-label={item.label}
-        className={sharedClass}
-      >
-        {content}
-      </Link>
-    )
+  const element = (
+    <Link
+      href={getUriWithOrg(orgslug, item.href || '/')}
+      aria-label={item.label}
+      className={sharedClass}
+    >
+      {content}
+    </Link>
+  )
 
   if (isExpanded) {
     return element
@@ -387,24 +339,21 @@ type SidebarItemProps = {
   orgslug: string
   muted?: boolean
   isExpanded?: boolean
-  onAction?: React.Dispatch<string | undefined>
 }
 
 function DesktopAccountLink({
   orgslug,
   onHelp,
-  hasAdminOrgs,
-  adminPanelHref,
   isExpanded,
+  unreadCount,
 }: {
   orgslug: string
   onHelp: () => void
-  hasAdminOrgs: boolean
-  adminPanelHref: string
   isExpanded: boolean
+  unreadCount: number
 }) {
   const session = useLHSession() as any
-  const accountHref = getUriWithOrg(orgslug, routePaths.owner.account.security())
+  const accountHref = getUriWithOrg(orgslug, routePaths.owner.account.root())
 
   return (
     <DropdownMenu modal={false}>
@@ -423,7 +372,7 @@ function DesktopAccountLink({
                 )}
               >
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center">
-                  <UserAvatar border="border-2" rounded="rounded-xl" width={34} />
+                  <span className="relative"><UserAvatar border="border-2" rounded="rounded-xl" width={34} />{unreadCount > 0 ? <span className="absolute -right-1.5 -top-1.5 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[9px] font-black leading-none text-white ring-2 ring-background">{unreadCount > 9 ? '9+' : unreadCount}</span> : null}</span>
                 </div>
                 <div className={cn('min-w-0 flex-1 text-left leading-tight', isExpanded ? 'block' : 'hidden')}>
                   <p className="truncate text-sm font-semibold text-foreground capitalize">
@@ -459,20 +408,29 @@ function DesktopAccountLink({
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {hasAdminOrgs && (
-          <DropdownMenuItem asChild>
-            <Link href={adminPanelHref} className="flex items-center gap-2">
-              <Buildings size={16} weight="fill" />
-              <span>Admin panel</span>
-            </Link>
-          </DropdownMenuItem>
-        )}
         <DropdownMenuItem asChild>
           <Link href={accountHref} className="flex items-center gap-2">
-            <User size={16} weight="fill" />
-            <span>Account settings</span>
+            <User size={16} weight="fill" /><span>Account</span>
           </Link>
         </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={getUriWithOrg(orgslug, routePaths.owner.account.messages())} className="flex items-center gap-2">
+            <Envelope size={16} weight="fill" />
+            <span className="flex-1">Messages</span>
+            {unreadCount > 0 ? <span className="flex min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-black text-white">{unreadCount}</span> : null}
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={getUriWithOrg(orgslug, routePaths.owner.account.organizations())} className="flex items-center gap-2">
+            <Buildings size={16} weight="fill" /><span>Organizations</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={getUriWithOrg(orgslug, routePaths.owner.account.preferences())} className="flex items-center gap-2">
+            <Sun size={16} weight="fill" /><span>Appearance</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={onHelp}
           className="flex items-center gap-2"
@@ -480,7 +438,6 @@ function DesktopAccountLink({
           <Question size={16} weight="fill" />
           <span>Help &amp; feedback</span>
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => signOut({ callbackUrl: '/' })}
           className="flex items-center gap-2 text-red-600 focus:text-red-600"
@@ -516,17 +473,13 @@ function MobileNavItem({
 }
 
 function MobileMoreMenu({
-  adminNavItems,
   orgslug,
   onHelp,
-  hasAdminOrgs,
-  adminPanelHref,
+  unreadCount,
 }: {
-  adminNavItems: OrgMenuNavItem[]
   orgslug: string
   onHelp: () => void
-  hasAdminOrgs: boolean
-  adminPanelHref: string
+  unreadCount: number
 }) {
   return (
     <DropdownMenu>
@@ -536,58 +489,28 @@ function MobileMoreMenu({
           aria-label="More"
           className="flex h-12 flex-1 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-foreground/[0.08] hover:text-foreground"
         >
-          <User size={20} weight="bold" />
+          <span className="relative"><User size={20} weight="bold" />{unreadCount > 0 ? <span className="absolute -right-2 -top-2 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[9px] font-black text-white">{unreadCount > 9 ? '9+' : unreadCount}</span> : null}</span>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" side="top" className="mb-3 w-48 rounded-2xl p-2">
-        {adminNavItems.map((item) => {
-          if (item.kind === 'action') {
-            return (
-              <DropdownMenuItem
-                key={item.label}
-                onClick={onHelp}
-                className="flex items-center gap-3 rounded-xl px-3 py-2"
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </DropdownMenuItem>
-            )
-          }
-
-          return (
-            <DropdownMenuItem key={item.href} asChild>
-              <Link
-                href={getUriWithOrg(orgslug, item.href || '/')}
-                className="flex items-center gap-3 rounded-xl px-3 py-2"
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </Link>
-            </DropdownMenuItem>
-          )
-        })}
-
-        {hasAdminOrgs && (
-          <DropdownMenuItem asChild>
-            <Link
-              href={adminPanelHref}
-              className="flex items-center gap-3 rounded-xl px-3 py-2"
-            >
-              <Buildings size={18} weight="fill" />
-              <span>Admin panel</span>
-            </Link>
-          </DropdownMenuItem>
-        )}
         <DropdownMenuItem asChild>
-          <Link
-            href={getUriWithOrg(orgslug, routePaths.owner.account.security())}
-            className="flex items-center gap-3 rounded-xl px-3 py-2"
-          >
-            <UserAvatar border="border-2" rounded="rounded-full" width={18} shadow="" />
-            <span>Account</span>
+          <Link href={getUriWithOrg(orgslug, routePaths.owner.account.root())} className="flex items-center gap-3 rounded-xl px-3 py-2">
+            <User size={18} weight="fill" /><span>Account</span>
           </Link>
         </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={getUriWithOrg(orgslug, routePaths.owner.account.messages())} className="flex items-center gap-3 rounded-xl px-3 py-2">
+            <Envelope size={18} weight="fill" /><span className="flex-1">Messages</span>{unreadCount > 0 ? <span className="flex min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-black text-white">{unreadCount}</span> : null}
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={getUriWithOrg(orgslug, routePaths.owner.account.organizations())} className="flex items-center gap-3 rounded-xl px-3 py-2"><Buildings size={18} weight="fill" /><span>Organizations</span></Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={getUriWithOrg(orgslug, routePaths.owner.account.preferences())} className="flex items-center gap-3 rounded-xl px-3 py-2"><Sun size={18} weight="fill" /><span>Appearance</span></Link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={onHelp} className="flex items-center gap-3 rounded-xl px-3 py-2"><Question size={18} weight="fill" /><span>Help &amp; feedback</span></DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => signOut({ callbackUrl: '/' })}
           className="flex items-center gap-3 rounded-xl px-3 py-2 text-red-600 focus:text-red-600"

@@ -1,109 +1,36 @@
 'use client'
 
 import React from 'react'
-import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
-import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
-import { AccountSidebar } from '@components/Objects/Account/AccountSidebar'
-import { AccountActionsMobile } from '@components/Objects/Account/AccountActionsMobile'
-import { User } from 'lucide-react'
-import { getUriWithOrg } from '@services/config/config'
-import { useMediaQuery } from 'usehooks-ts'
-import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { useTranslation } from 'react-i18next'
+import AccountPageShell, { AccountPageTab } from '@components/Objects/Account/AccountPageShell'
+import AccountGeneral from '@components/Objects/Account/subpages/AccountGeneral'
 import AccountSecurity from '@components/Objects/Account/subpages/AccountSecurity'
-import AccountPurchases from '@components/Objects/Account/subpages/AccountPurchases'
-import AccountOrgAdmin from '@components/Objects/Account/subpages/AccountOrgAdmin'
+import AccountMessages from '@components/Objects/Account/subpages/AccountMessages'
 import AccountOrganizations from '@components/Objects/Account/subpages/AccountOrganizations'
 import AccountPreferences from '@components/Objects/Account/subpages/AccountPreferences'
 
 interface AccountClientProps {
   orgslug: string
-  org_id: number
   subpage: string
 }
 
-const getSubpageTitle = (subpage: string, t: any): string => {
-  const titles: Record<string, string> = {
-    'security': t('account.security'),
-    'purchases': t('account.purchases'),
-    'organizations': 'Organizations',
-    'org-admin': 'Org Admin',
-    'preferences': 'Appearance',
-  }
-  return titles[subpage] || t('account.title')
-}
-
-const AccountClient = ({ orgslug, org_id, subpage }: AccountClientProps) => {
-  const isMobile = useMediaQuery('(max-width: 768px)')
-  const session = useLHSession() as any
-  const user = session?.data?.user
-  const { t } = useTranslation()
-
+const AccountClient = ({ orgslug, subpage }: AccountClientProps) => {
   const renderSubpage = () => {
     switch (subpage) {
-      case 'security':
-        return <AccountSecurity />
-      case 'purchases':
-        return <AccountPurchases orgId={org_id} orgslug={orgslug} />
+      case 'messages':
+        return <AccountMessages orgslug={orgslug} />
       case 'organizations':
         return <AccountOrganizations orgslug={orgslug} />
-      case 'org-admin':
-        return <AccountOrgAdmin />
       case 'preferences':
         return <AccountPreferences />
       default:
-        return <AccountSecurity />
+        return <div className="space-y-6"><AccountGeneral /><AccountSecurity /></div>
     }
   }
 
   return (
-    <>
-      <GeneralWrapperStyled>
-        {/* Breadcrumbs */}
-        <div className="pb-4">
-          <Breadcrumbs
-            items={[
-              {
-                label: t('account.title'),
-                href: getUriWithOrg(orgslug, '/account'),
-                icon: <User size={14} />,
-              },
-              { label: getSubpageTitle(subpage, t) },
-            ]}
-          />
-        </div>
-
-        {/* Layout - Sidebar Left, Content Right */}
-        <div className="flex flex-col md:flex-row gap-6 pt-2">
-          {/* Left Sidebar - User Info (Desktop only) */}
-          <div className="hidden md:block w-full md:w-72 lg:w-80 flex-shrink-0">
-            <div className="sticky top-24">
-              <AccountSidebar orgslug={orgslug} currentSubpage={subpage} />
-            </div>
-          </div>
-
-          {/* Main Content */}
-          <div className="flex-1 min-w-0">
-            {/* Mobile only shows user name */}
-            <div className="md:hidden mb-4">
-              <h1 className="text-xl font-bold text-foreground">
-                {user?.first_name} {user?.last_name}
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">@{user?.username}</p>
-            </div>
-
-            {isMobile && (
-              <div className="mb-4">
-                <AccountActionsMobile orgslug={orgslug} currentSubpage={subpage} />
-              </div>
-            )}
-
-            {/* Subpage Content */}
-            {renderSubpage()}
-          </div>
-        </div>
-      </GeneralWrapperStyled>
-    </>
+    <AccountPageShell orgslug={orgslug} activeTab={(subpage || 'account') as AccountPageTab}>
+      {renderSubpage()}
+    </AccountPageShell>
   )
 }
 
