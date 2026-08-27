@@ -29,6 +29,7 @@ from src.db.usergroups import UserGroup
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
 from src.services.programs import (
+    _badge_award_keys,
     add_program_objective,
     assign_program,
     assignment_matrix,
@@ -111,6 +112,27 @@ def test_objective_progress_is_shared_across_program_rollouts():
         second_matrix = assignment_matrix(session, admin, 1, second_assignment["assignment_uuid"])
         assert first_matrix["learners"][0]["cells"][shared_uuid]["status"] == "completed"
         assert second_matrix["learners"][0]["cells"][shared_uuid]["status"] == "completed"
+
+
+def test_badge_objective_can_accept_an_earlier_major_award():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _tables(engine)
+    with Session(engine) as session:
+        _setup(session)
+        session.add(LearningBadgeAward(
+            award_uuid="award_v1", badge_id=12, major_version=1,
+            org_id=1, user_id=2, creation_date=NOW, update_date=NOW,
+        ))
+        session.commit()
+        objective = {
+            "id": 7,
+            "badge_id": 12,
+            "badge_major_version": 2,
+            "accept_previous_major_versions": True,
+        }
+        assert _badge_award_keys(session, [2], [objective]) == {(2, 7)}
+        objective["accept_previous_major_versions"] = False
+        assert _badge_award_keys(session, [2], [objective]) == set()
 
 
 def test_learner_submission_can_be_flagged_resubmitted_and_confirmed():

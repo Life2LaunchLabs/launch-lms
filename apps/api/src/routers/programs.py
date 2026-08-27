@@ -310,10 +310,17 @@ def api_reorder_program(
 def api_update_badge_versions(
     program_uuid: str,
     org_id: int,
+    accept_previous_major_versions: bool = False,
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
-    return service.update_badge_versions(db_session, current_user, org_id, program_uuid)
+    return service.update_badge_versions(
+        db_session,
+        current_user,
+        org_id,
+        program_uuid,
+        accept_previous_major_versions,
+    )
 
 
 @router.post("/{program_uuid}/assign")

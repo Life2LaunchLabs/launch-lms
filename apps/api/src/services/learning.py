@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 from fastapi import HTTPException, Request, UploadFile, status
-from sqlalchemy import func, or_
+from sqlalchemy import func, inspect, or_
 from sqlmodel import Session, select
 from src.db.learning import (
     BadgeCollection,
@@ -348,8 +348,6 @@ def _manual_enrollment_state(
     assignment: ProgramAssignment | None,
 ) -> dict:
     requires = _badge_requires_manual_grading(db_session, badge, version)
-    if not requires or assignment:
-        return {"requires_cooperating_org": False if not requires else True, "satisfied": True}
     user_id = actor.user_id if actor else None
     authorizations = db_session.exec(
         select(BadgeIssuerAuthorization).where(
@@ -370,11 +368,13 @@ def _manual_enrollment_state(
     )
     links_by_authorization = {link.authorization_id: link for link in links}
     issuers = []
-    accepted_link = None
+    accepted_links = []
     for authorization in authorizations:
         link = links_by_authorization.get(authorization.id or 0)
         if link and link.status == BadgeIssuerLearnerLinkStatus.ACCEPTED:
-            accepted_link = link
+            accepted_links.append(link)
+        if authorization.issuer_org_id == badge.org_id:
+            continue
         if not authorization.open_to_all and not link:
             continue
         org = db_session.get(Organization, authorization.issuer_org_id)
@@ -392,12 +392,95 @@ def _manual_enrollment_state(
             "request_status": link.status if link else None,
             "request_uuid": link.link_uuid if link else None,
         })
+    program_orgs = _program_cooperating_orgs(db_session, badge, user_id)
+    accepted_org_ids = list(dict.fromkeys([
+        *[link.issuer_org_id for link in accepted_links],
+        *[item["org_id"] for item in program_orgs],
+    ]))
+    if assignment and assignment.org_id not in accepted_org_ids:
+        accepted_org_ids.insert(0, assignment.org_id)
+    collaborations_by_org: dict[int, dict] = {
+        link.issuer_org_id: {
+            "org": {
+                "id": (link_org := _get_org(db_session, link.issuer_org_id)).id,
+                "org_uuid": link_org.org_uuid,
+                "slug": link_org.slug,
+                "name": link_org.name,
+                "logo_image": link_org.logo_image,
+            },
+            "link_uuid": link.link_uuid,
+            "source": "direct",
+        }
+        for link in accepted_links
+    }
+    for item in program_orgs:
+        collaborations_by_org[item["org_id"]] = {
+            "org": item["org"],
+            "link_uuid": item.get("link_uuid"),
+            "source": "program",
+            "assignment_uuid": item["assignment_uuid"],
+        }
     return {
-        "requires_cooperating_org": True,
-        "satisfied": accepted_link is not None,
-        "accepted_issuer_org_id": accepted_link.issuer_org_id if accepted_link else None,
+        "requires_cooperating_org": requires,
+        "satisfied": not requires or bool(accepted_org_ids),
+        "accepted_issuer_org_id": accepted_org_ids[0] if accepted_org_ids else None,
+        "active_cooperating_org_ids": accepted_org_ids,
+        "collaborations": list(collaborations_by_org.values()),
+        "program_collaborations": program_orgs,
         "issuers": issuers,
     }
+
+
+def _program_cooperating_orgs(
+    db_session: Session,
+    badge: LearningBadge,
+    user_id: int | None,
+) -> list[dict]:
+    if user_id is None:
+        return []
+    # Some service-level tests intentionally build only the learning tables.
+    if not inspect(db_session.get_bind()).has_table(ProgramParticipant.__tablename__):
+        return []
+    participants = db_session.exec(select(ProgramParticipant).where(
+        ProgramParticipant.user_id == user_id,
+        ProgramParticipant.status.in_([ParticipantStatus.ACTIVE, ParticipantStatus.COMPLETED]),
+    )).all()
+    results: list[dict] = []
+    for participant in participants:
+        assignment = db_session.get(ProgramAssignment, participant.assignment_id)
+        if not assignment or not assignment.active or not any(
+            int(item.get("badge_id") or 0) == int(badge.id or 0)
+            for item in (assignment.objective_snapshot or [])
+        ):
+            continue
+        if assignment.org_id != badge.org_id and not _get_approved_issuer_authorization(
+            db_session, badge.id or 0, assignment.org_id
+        ):
+            continue
+        collaboration = db_session.exec(select(BadgeIssuerLearnerLink).where(
+            BadgeIssuerLearnerLink.badge_id == badge.id,
+            BadgeIssuerLearnerLink.user_id == user_id,
+            BadgeIssuerLearnerLink.issuer_org_id == assignment.org_id,
+        )).first()
+        if collaboration and collaboration.status != BadgeIssuerLearnerLinkStatus.ACCEPTED:
+            continue
+        org = db_session.get(Organization, assignment.org_id)
+        if not org:
+            continue
+        results.append({
+            "org_id": assignment.org_id,
+            "org": {
+                "id": org.id,
+                "org_uuid": org.org_uuid,
+                "slug": org.slug,
+                "name": org.name,
+                "logo_image": org.logo_image,
+            },
+            "assignment_uuid": assignment.assignment_uuid,
+            "staff_user_ids": assignment.staff_user_ids or [],
+            "link_uuid": collaboration.link_uuid if collaboration else None,
+        })
+    return results
 
 
 def _program_assignment_context(
@@ -445,6 +528,35 @@ def _program_assignment_context(
     return assignment, participant
 
 
+def _assignment_badge_major(
+    assignment: ProgramAssignment, badge: LearningBadge
+) -> int | None:
+    return next(
+        (
+            int(item.get("badge_major_version") or 1)
+            for item in (assignment.objective_snapshot or [])
+            if int(item.get("badge_id") or 0) == int(badge.id or 0)
+        ),
+        None,
+    )
+
+
+def _published_badge_version_for_major(
+    db_session: Session, badge: LearningBadge, major_version: int
+) -> LearningBadgeVersion:
+    versions = db_session.exec(select(LearningBadgeVersion).where(
+        LearningBadgeVersion.badge_id == badge.id,
+        LearningBadgeVersion.state == LearningBadgeVersionState.PUBLISHED,
+    )).all()
+    matching = [item for item in versions if _version_major(item) == major_version]
+    if not matching:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Badge major version {major_version} is no longer available",
+        )
+    return max(matching, key=lambda item: item.semantic_version or "")
+
+
 def _get_badge(db_session: Session, badge_uuid: str) -> LearningBadge:
     badge = db_session.exec(
         select(LearningBadge).where(
@@ -455,6 +567,41 @@ def _get_badge(db_session: Session, badge_uuid: str) -> LearningBadge:
     if not badge:
         raise HTTPException(status_code=404, detail="Badge not found")
     return badge
+
+
+def _version_major(version: LearningBadgeVersion | None) -> int:
+    try:
+        return int(str(version.semantic_version if version else "1.0.0").split(".")[0])
+    except (TypeError, ValueError):
+        return 1
+
+
+def _actor_run_for_badge_major(
+    db_session: Session,
+    badge: LearningBadge,
+    actor: LearningActor,
+    major_version: int,
+) -> LearningRun | None:
+    statement = select(LearningRun).where(LearningRun.badge_id == badge.id)
+    for owner_filter in _actor_filters(LearningRun, actor):
+        statement = statement.where(owner_filter)
+    candidates = db_session.exec(
+        statement.order_by(LearningRun.started_at.desc())  # type: ignore
+    ).all()
+    version_ids = {item.badge_version_id for item in candidates if item.badge_version_id}
+    versions = {
+        item.id: item
+        for item in db_session.exec(
+            select(LearningBadgeVersion).where(LearningBadgeVersion.id.in_(version_ids))  # type: ignore
+        ).all()
+    } if version_ids else {}
+    return next(
+        (
+            item for item in candidates
+            if _version_major(versions.get(item.badge_version_id)) == major_version
+        ),
+        None,
+    )
 
 
 VERSIONED_BADGE_FIELDS = (
@@ -1984,6 +2131,17 @@ def _issue_award_if_complete(
     run.status = LearningRunStatus.COMPLETED
     run.completed_at = now
     run.update_date = str(now)
+    links = db_session.exec(select(BadgeIssuerLearnerLink).where(
+        BadgeIssuerLearnerLink.badge_id == run.badge_id,
+        BadgeIssuerLearnerLink.user_id == run.user_id,
+        BadgeIssuerLearnerLink.status == BadgeIssuerLearnerLinkStatus.ACCEPTED,
+    )).all()
+    for link in links:
+        link.status = BadgeIssuerLearnerLinkStatus.COMPLETED
+        link.end_reason = "badge_completed"
+        link.ended_at = now
+        link.update_date = str(now)
+        db_session.add(link)
     db_session.add(run)
     db_session.add(award)
     db_session.commit()
@@ -4754,20 +4912,18 @@ async def get_path(
     path_assignment = None
     desired_version = _get_badge_version(db_session, badge, version_uuid) if (version_uuid or badge.active_version_id) else _get_badge_version(db_session, badge)
     if actor:
-        run_statement = select(LearningRun).where(
-            LearningRun.badge_id == badge.id,
-            LearningRun.badge_version_id == desired_version.id,
-        )
-        for owner_filter in _actor_filters(LearningRun, actor):
-            run_statement = run_statement.where(owner_filter)
         if program_assignment_uuid:
             path_assignment, _ = _program_assignment_context(
                 db_session, badge, actor, program_assignment_uuid
             )
-            run_statement = run_statement.where(LearningRun.program_assignment_id == path_assignment.id)
-        else:
-            run_statement = run_statement.where(LearningRun.program_assignment_id.is_(None))
-        pinned_run = db_session.exec(run_statement.order_by(LearningRun.started_at.desc())).first()  # type: ignore
+            required_major = _assignment_badge_major(path_assignment, badge)
+            if required_major is not None:
+                desired_version = _published_badge_version_for_major(
+                    db_session, badge, required_major
+                )
+        pinned_run = _actor_run_for_badge_major(
+            db_session, badge, actor, _version_major(desired_version)
+        )
         version = db_session.get(LearningBadgeVersion, pinned_run.badge_version_id) if pinned_run and pinned_run.badge_version_id else desired_version
     else:
         version = desired_version
@@ -4797,17 +4953,13 @@ async def get_path(
     run = None
     non_path_award = None
     if actor:
-        statement = select(LearningRun).where(LearningRun.path_id == path.id)
-        for owner_filter in _actor_filters(LearningRun, actor):
-            statement = statement.where(owner_filter)
         if program_assignment_uuid:
             path_assignment, _ = _program_assignment_context(
                 db_session, badge, actor, program_assignment_uuid
             )
-            statement = statement.where(LearningRun.program_assignment_id == path_assignment.id)
-        else:
-            statement = statement.where(LearningRun.program_assignment_id.is_(None))
-        run_obj = db_session.exec(statement).first()
+        run_obj = _actor_run_for_badge_major(
+            db_session, badge, actor, _version_major(version)
+        )
         if run_obj:
             run = _serialize_run(db_session, run_obj)
         if actor.user_id is not None:
@@ -5798,7 +5950,13 @@ async def start_or_resume_run(
         )
         if issuing_org_id is None:
             issuing_org_id = assignment.org_id
-    version = _get_badge_version(db_session, badge, require_published=True)
+    version = (
+        _published_badge_version_for_major(
+            db_session, badge, _assignment_badge_major(assignment, badge) or 1
+        )
+        if assignment
+        else _get_badge_version(db_session, badge, require_published=True)
+    )
     requires_cooperating_org = _badge_requires_manual_grading(db_session, badge, version)
     issuer_link = None
     if assignment:
@@ -5818,10 +5976,13 @@ async def start_or_resume_run(
             require_accepted_request=requires_cooperating_org,
         )
     elif requires_cooperating_org:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Choose a cooperating organization and wait for it to accept your request before starting",
-        )
+        enrollment = _manual_enrollment_state(db_session, badge, version, actor, None)
+        issuing_org_id = enrollment.get("accepted_issuer_org_id")
+        if issuing_org_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Choose a cooperating organization and wait for it to accept your request before starting",
+            )
     if issuing_org_id == badge.org_id:
         issuing_org_id = None
     path = _get_path_for_badge(db_session, badge, version, create=False)
@@ -5832,13 +5993,14 @@ async def start_or_resume_run(
     ).one()
     if not activity_count:
         raise HTTPException(status_code=409, detail="This Achievement does not have a learning path")
+    existing_major_run = _actor_run_for_badge_major(
+        db_session, badge, actor, _version_major(version)
+    )
+    if existing_major_run:
+        return _serialize_run(db_session, existing_major_run)
     statement = select(LearningRun).where(LearningRun.path_id == path.id)
     for owner_filter in _actor_filters(LearningRun, actor):
         statement = statement.where(owner_filter)
-    if assignment:
-        statement = statement.where(LearningRun.program_assignment_id == assignment.id)
-    else:
-        statement = statement.where(LearningRun.program_assignment_id.is_(None))
     run = db_session.exec(statement).first()
     if not run:
         now = _now()
@@ -5857,18 +6019,6 @@ async def start_or_resume_run(
             creation_date=now,
             update_date=now,
         )
-        db_session.add(run)
-        db_session.commit()
-        db_session.refresh(run)
-    elif (
-        issuing_org_id is not None
-        and run.issuing_org_id != issuing_org_id
-        and run.status != LearningRunStatus.COMPLETED
-    ):
-        # Learner picked (or switched) an issuer after starting; future grading goes to them
-        run.issuing_org_id = issuing_org_id
-        run.issuer_learner_link_id = issuer_link.id if issuer_link else None
-        run.update_date = _now()
         db_session.add(run)
         db_session.commit()
         db_session.refresh(run)
@@ -6102,6 +6252,53 @@ async def submit_response(
     return _serialize_run(db_session, run)
 
 
+def _cooperating_org_ids_for_run(
+    db_session: Session, run: LearningRun | None
+) -> set[int]:
+    if not run:
+        return set()
+    badge = db_session.get(LearningBadge, run.badge_id)
+    if not badge:
+        return set()
+    org_ids = {run.issuing_org_id if run.issuing_org_id is not None else badge.org_id}
+    if run.user_id is not None:
+        org_ids.update(
+            link.issuer_org_id
+            for link in db_session.exec(select(BadgeIssuerLearnerLink).where(
+                BadgeIssuerLearnerLink.badge_id == run.badge_id,
+                BadgeIssuerLearnerLink.user_id == run.user_id,
+                BadgeIssuerLearnerLink.status == BadgeIssuerLearnerLinkStatus.ACCEPTED,
+            )).all()
+        )
+        org_ids.update(
+            item["org_id"]
+            for item in _program_cooperating_orgs(db_session, badge, run.user_id)
+        )
+    return org_ids
+
+
+def _cooperating_staff_ids_for_run(
+    db_session: Session, run: LearningRun | None, org_id: int
+) -> set[int]:
+    if not run or run.user_id is None:
+        return set()
+    staff_ids: set[int] = set()
+    links = db_session.exec(select(BadgeIssuerLearnerLink).where(
+        BadgeIssuerLearnerLink.badge_id == run.badge_id,
+        BadgeIssuerLearnerLink.user_id == run.user_id,
+        BadgeIssuerLearnerLink.issuer_org_id == org_id,
+        BadgeIssuerLearnerLink.status == BadgeIssuerLearnerLinkStatus.ACCEPTED,
+    )).all()
+    for link in links:
+        staff_ids.update(link.staff_user_ids or [])
+    badge = db_session.get(LearningBadge, run.badge_id)
+    if badge:
+        for item in _program_cooperating_orgs(db_session, badge, run.user_id):
+            if item["org_id"] == org_id:
+                staff_ids.update(item.get("staff_user_ids") or [])
+    return staff_ids
+
+
 async def list_learning_responses(
     request: Request,
     current_user: PublicUser | AnonymousUser,
@@ -6113,13 +6310,12 @@ async def list_learning_responses(
     grading_status: str | None = "pending",
 ) -> list[dict]:
     _require_org_admin(db_session, current_user, org_id)
-    # The perspective org sees attempts for runs it is responsible for grading:
-    # runs explicitly issued under it, plus (for creator orgs) runs with no issuer set.
+    # Progress is learner-owned. Every active cooperating organization sees the
+    # same attempts, irrespective of the route or program that started the run.
     statement = (
         select(LearningResponseAttempt)
         .join(LearningPage, LearningResponseAttempt.page_id == LearningPage.id)  # type: ignore
         .join(LearningRun, LearningResponseAttempt.run_id == LearningRun.id)  # type: ignore
-        .where(func.coalesce(LearningRun.issuing_org_id, LearningPage.org_id) == org_id)
         .order_by(LearningResponseAttempt.submitted_at.desc())  # type: ignore
     )
     if badge_uuid:
@@ -6134,6 +6330,17 @@ async def list_learning_responses(
         )
 
     attempts = db_session.exec(statement).all()
+    run_ids_for_access = {attempt.run_id for attempt in attempts}
+    access_runs = {
+        item.id or 0: item
+        for item in db_session.exec(
+            select(LearningRun).where(LearningRun.id.in_(run_ids_for_access))  # type: ignore
+        ).all()
+    } if run_ids_for_access else {}
+    attempts = [
+        attempt for attempt in attempts
+        if org_id in _cooperating_org_ids_for_run(db_session, access_runs.get(attempt.run_id))
+    ]
     if grading_status and grading_status != "all":
         attempts = [
             attempt
@@ -6244,7 +6451,7 @@ async def grade_learning_response(
         select(LearningResponseAttempt).where(
             LearningResponseAttempt.attempt_uuid
             == _clean_uuid(attempt_uuid, "learning_attempt_")
-        )
+        ).with_for_update()
     ).first()
     if not attempt:
         raise HTTPException(status_code=404, detail="Learning response not found")
@@ -6252,6 +6459,11 @@ async def grade_learning_response(
     if not page:
         raise HTTPException(status_code=404, detail="Learning page not found")
     grading_run = db_session.get(LearningRun, attempt.run_id)
+    if (attempt.result or {}).get("grading_status") == "graded":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This response has already received its authoritative grade",
+        )
     assignment = (
         db_session.get(ProgramAssignment, grading_run.program_assignment_id)
         if grading_run and grading_run.program_assignment_id
@@ -6263,19 +6475,39 @@ async def grade_learning_response(
         else None
     )
     user = _require_user(current_user)
+    grading_org_id = None
     if assignment and (
         user.id in (assignment.staff_user_ids or []) or is_user_superadmin(user.id, db_session)
     ):
         admin = user
+        grading_org_id = assignment.org_id
     elif issuer_link and (
         user.id in (issuer_link.staff_user_ids or [])
         or is_user_superadmin(user.id, db_session)
     ):
         admin = user
+        grading_org_id = issuer_link.issuer_org_id
     else:
-        admin = _require_org_admin(
-            db_session, current_user, _effective_issuing_org_id(grading_run, page.org_id)
-        )
+        admin = None
+        for candidate_org_id in _cooperating_org_ids_for_run(db_session, grading_run):
+            assigned_staff = _cooperating_staff_ids_for_run(
+                db_session, grading_run, candidate_org_id
+            )
+            if user.id in assigned_staff or is_user_superadmin(user.id, db_session):
+                admin = user
+                grading_org_id = candidate_org_id
+                break
+            membership = db_session.exec(select(UserOrganization).where(
+                UserOrganization.user_id == user.id,
+                UserOrganization.org_id == candidate_org_id,
+                UserOrganization.role_id.in_(ADMIN_OR_MAINTAINER_ROLE_IDS),  # type: ignore
+            )).first()
+            if membership:
+                admin = user
+                grading_org_id = candidate_org_id
+                break
+        if admin is None:
+            raise HTTPException(status_code=403, detail="You are not assigned to grade this learner's badge")
 
     max_score = (
         _as_float((attempt.result or {}).get("max_score"), 0.0)
@@ -6327,6 +6559,13 @@ async def grade_learning_response(
         "max_score": max_score,
         "feedback": data.feedback or "",
         "graded_by_user_id": admin.id,
+        "graded_by_org_id": grading_org_id,
+        "graded_by": {
+            "user_id": admin.id,
+            "staff_name": " ".join(filter(None, [admin.first_name, admin.last_name])) or admin.username,
+            "org_id": grading_org_id,
+            "org_name": (_get_org(db_session, grading_org_id).name if grading_org_id else None),
+        },
         "graded_at": now.isoformat(),
     }
     db_session.add(attempt)

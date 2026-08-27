@@ -64,6 +64,8 @@ class BadgeIssuerLearnerLinkStatus(str, Enum):
     REQUESTED = "requested"
     ACCEPTED = "accepted"
     REJECTED = "rejected"
+    ENDED = "ended"
+    COMPLETED = "completed"
 
 
 class LearningBadgeBase(SQLModel):
@@ -297,6 +299,9 @@ class BadgeIssuerLearnerLink(SQLModel, table=True):
     staff_user_ids: list[int] = Field(default_factory=list, sa_column=Column(JSON))
     message: str | None = ""
     note: str | None = ""
+    end_reason: str | None = None
+    ended_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    ended_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
     creation_date: str = ""
     update_date: str = ""
 

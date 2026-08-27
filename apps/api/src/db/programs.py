@@ -90,6 +90,7 @@ class ProgramObjective(SQLModel, table=True):
     position: int = 0
     target_days: int | None = None
     badge_major_version: int | None = None
+    accept_previous_major_versions: bool = False
     default_start_rule: ObjectiveStartRule = Field(default=ObjectiveStartRule.ANY_TIME, sa_column=Column(String, nullable=False))
     default_due_rule: ObjectiveDueRule = Field(default=ObjectiveDueRule.OPTIONAL, sa_column=Column(String, nullable=False))
     default_allow_late: bool = False

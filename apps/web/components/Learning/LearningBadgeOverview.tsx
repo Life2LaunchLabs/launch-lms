@@ -8,7 +8,7 @@ import { Award, CheckCircle2, ChevronRight, Clock3, Circle, RotateCcw, Search } 
 import { SafeImage } from '@components/Objects/SafeImage'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg } from '@services/config/config'
-import { requestIssuerLearnerSupport } from '@services/learning/marketplace'
+import { deleteIssuerLearnerLink, requestIssuerLearnerSupport } from '@services/learning/marketplace'
 
 export default function LearningBadgeOverview({ orgslug, badgePath, programAssignmentUuid }: { orgslug: string; badgePath: any; programAssignmentUuid?: string }) {
   const router = useRouter()
@@ -19,7 +19,9 @@ export default function LearningBadgeOverview({ orgslug, badgePath, programAssig
   const enrollment = badgePath?.enrollment || {}
   const [issuerSearch, setIssuerSearch] = React.useState('')
   const [requesting, setRequesting] = React.useState<number | null>(null)
+  const [removing, setRemoving] = React.useState<string | null>(null)
   const issuers = (enrollment.issuers || []).filter((item: any) => item.org?.name?.toLowerCase().includes(issuerSearch.toLowerCase()))
+  const pathBlocked = Boolean(enrollment.requires_cooperating_org && !enrollment.satisfied)
 
   const requestSupport = async (issuerOrgId: number) => {
     setRequesting(issuerOrgId)
@@ -31,6 +33,19 @@ export default function LearningBadgeOverview({ orgslug, badgePath, programAssig
       toast.error(error?.message || 'Could not send your request.')
     } finally {
       setRequesting(null)
+    }
+  }
+
+  const removeCollaboration = async (linkUuid: string) => {
+    setRemoving(linkUuid)
+    try {
+      await deleteIssuerLearnerLink(linkUuid, session.data?.tokens?.access_token)
+      toast.success('Organization removed from this badge. Your progress is preserved.')
+      router.refresh()
+    } catch (error: any) {
+      toast.error(error?.message || 'Could not end this collaboration.')
+    } finally {
+      setRemoving(null)
     }
   }
 
@@ -51,6 +66,7 @@ export default function LearningBadgeOverview({ orgslug, badgePath, programAssig
           </div>
         </div>
       </section>
+      {(enrollment.collaborations || []).length ? <section className="mt-6 rounded-2xl bg-card p-5 shadow-sm"><h2 className="text-sm font-black uppercase tracking-wider text-muted-foreground">Cooperating organizations</h2><div className="mt-3 space-y-2">{enrollment.collaborations.map((item: any) => <div key={item.org.id} className="flex items-center justify-between gap-4 rounded-xl border border-border px-4 py-3"><div><p className="text-sm font-bold text-foreground">{item.org.name}</p><p className="text-xs text-muted-foreground">{item.source === 'program' ? 'Connected through your program' : 'Direct badge collaboration'}</p></div>{item.link_uuid ? <button type="button" disabled={removing === item.link_uuid} onClick={() => void removeCollaboration(item.link_uuid)} className="rounded-lg border border-border px-3 py-2 text-xs font-bold text-muted-foreground hover:bg-muted disabled:opacity-50">{removing === item.link_uuid ? 'Removing…' : 'Remove'}</button> : null}</div>)}</div></section> : null}
       {enrollment.requires_cooperating_org && !enrollment.satisfied ? (
         <section className="mt-8 rounded-2xl bg-card p-6 shadow-sm">
           <h2 className="text-xl font-black text-foreground">Choose a cooperating organization</h2>
@@ -72,17 +88,18 @@ export default function LearningBadgeOverview({ orgslug, badgePath, programAssig
       ) : null}
       <section className="mt-8">
         <h2 className="text-xl font-black text-foreground">Learning path</h2>
+        {pathBlocked ? <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Your learning path and progress remain visible. Activities are read-only until a cooperating organization joins you on this badge.</p> : null}
         <div className="mt-4 space-y-3">
-          {(!enrollment.requires_cooperating_org || enrollment.satisfied) ? activities.map((activity: any, index: number) => {
+          {activities.map((activity: any, index: number) => {
             const state = getActivityState(badgePath?.run, activity)
             const StateIcon = state.icon
-            return <Link key={activity.activity_uuid} href={getUriWithOrg(orgslug, `/badges/${badge.badge_uuid}/chapter/${activity.activity_uuid}${programAssignmentUuid ? `?assignment=${encodeURIComponent(programAssignmentUuid)}` : ''}`)} className="flex items-center gap-4 rounded-xl bg-card p-4 shadow-sm transition hover:-translate-y-0.5">
+            return <Link key={activity.activity_uuid} aria-disabled={pathBlocked} onClick={pathBlocked ? (event) => event.preventDefault() : undefined} href={getUriWithOrg(orgslug, `/badges/${badge.badge_uuid}/chapter/${activity.activity_uuid}${programAssignmentUuid ? `?assignment=${encodeURIComponent(programAssignmentUuid)}` : ''}`)} className={`flex items-center gap-4 rounded-xl bg-card p-4 shadow-sm transition ${pathBlocked ? 'cursor-not-allowed opacity-55 grayscale' : 'hover:-translate-y-0.5'}`}>
               <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black ${state.tone}`}><StateIcon size={16} />{state.status === 'not_started' ? <span className="sr-only">{index + 1}</span> : null}</span>
               <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-bold text-foreground">{activity.title}</h3><span className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase ${state.badgeTone}`}>{state.label}</span></div><p className="mt-0.5 line-clamp-1 text-sm text-muted-foreground">{state.detail || activity.description || `${activity.pages?.length || 0} pages`}</p>{state.breakdown.length ? <div className="mt-2 flex flex-wrap gap-1.5">{state.breakdown.map((item: any) => <span key={item.pageUuid} title={item.feedback || item.label} className="rounded-md bg-muted px-2 py-1 text-[10px] font-bold text-muted-foreground">{item.label}: {item.score}/{item.max}{item.feedback ? ' · comment' : ''}</span>)}</div> : null}</div>
               <ChevronRight className="text-muted-foreground" size={20} />
             </Link>
-          }) : null}
-          {(!enrollment.requires_cooperating_org || enrollment.satisfied) && !activities.length ? <div className="rounded-xl border-2 border-dashed border-border p-10 text-center text-sm text-muted-foreground">No learning activities are available yet.</div> : null}
+          })}
+          {!activities.length ? <div className="rounded-xl border-2 border-dashed border-border p-10 text-center text-sm text-muted-foreground">No learning activities are available yet.</div> : null}
         </div>
       </section>
     </main>

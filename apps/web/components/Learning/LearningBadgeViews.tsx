@@ -156,7 +156,8 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
         if (returnTo?.startsWith('/portfolio')) {
           router.push(getUriWithOrg(orgslug, returnTo))
         } else {
-          router.back()
+          router.replace(getUriWithOrg(orgslug, `/badges/${badge.badge_uuid}/path${programAssignmentUuid ? `?assignment=${encodeURIComponent(programAssignmentUuid)}` : ''}`))
+          router.refresh()
         }
       }
     } catch (error: any) {

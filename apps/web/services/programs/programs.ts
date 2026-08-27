@@ -50,7 +50,7 @@ export const programsApi = {
   createPhase: (orgId: number, uuid: string, data: any, token?: string) => request(`/${encodeURIComponent(uuid)}/phases?org_id=${orgId}`, token, 'POST', data),
   updatePhase: (orgId: number, uuid: string, phaseUuid: string, data: any, token?: string) => request(`/${encodeURIComponent(uuid)}/phases/${encodeURIComponent(phaseUuid)}?org_id=${orgId}`, token, 'PUT', data),
   reorder: (orgId: number, uuid: string, phases: any[], token?: string) => request(`/${encodeURIComponent(uuid)}/order?org_id=${orgId}`, token, 'PUT', { phases }),
-  updateBadgeVersions: (orgId: number, uuid: string, token?: string) => request(`/${encodeURIComponent(uuid)}/update-badge-versions?org_id=${orgId}`, token, 'POST'),
+  updateBadgeVersions: (orgId: number, uuid: string, acceptPrevious: boolean, token?: string) => request(`/${encodeURIComponent(uuid)}/update-badge-versions?org_id=${orgId}&accept_previous_major_versions=${acceptPrevious}`, token, 'POST'),
   assign: (orgId: number, uuid: string, data: any, token?: string) => request(`/${encodeURIComponent(uuid)}/assign?org_id=${orgId}`, token, 'POST', data),
   cohort: (orgId: number, groupId: number, token?: string) => request(`/cohorts/${groupId}?org_id=${orgId}`, token),
   matrix: (orgId: number, assignmentUuid: string, token?: string) => request(`/assignments/${encodeURIComponent(assignmentUuid)}/matrix?org_id=${orgId}`, token),

@@ -457,7 +457,9 @@ async def list_authorizations(
     status_filter: str | None = None,
 ) -> list[BadgeIssuerAuthorizationRead]:
     _require_org_admin(db_session, current_user, org_id)
-    statement = select(BadgeIssuerAuthorization)
+    statement = select(BadgeIssuerAuthorization).where(
+        BadgeIssuerAuthorization.creator_org_id != BadgeIssuerAuthorization.issuer_org_id
+    )
     if perspective == "creator":
         # Promote legacy queued requests as soon as the creator checks them. Badge
         # issuing is now included on every plan, so these no longer need to wait
@@ -540,6 +542,8 @@ async def list_eligible_issuers(
         }
 
     for authorization in authorizations:
+        if authorization.issuer_org_id == badge.org_id:
+            continue
         via_link = (authorization.id or 0) in linked_authorization_ids
         if not authorization.open_to_all and not via_link:
             continue
@@ -577,6 +581,22 @@ async def create_learner_link(
         )
     ).first()
     if existing:
+        if existing.status in {
+            BadgeIssuerLearnerLinkStatus.ENDED,
+            BadgeIssuerLearnerLinkStatus.COMPLETED,
+            BadgeIssuerLearnerLinkStatus.REJECTED,
+        }:
+            existing.status = BadgeIssuerLearnerLinkStatus.ACCEPTED
+            existing.staff_user_ids = list(dict.fromkeys([*(existing.staff_user_ids or []), admin.id]))
+            existing.decided_by_user_id = admin.id
+            existing.decided_at = datetime.utcnow()
+            existing.end_reason = None
+            existing.ended_by_user_id = None
+            existing.ended_at = None
+            existing.update_date = _now()
+            db_session.add(existing)
+            db_session.commit()
+            db_session.refresh(existing)
         return _serialize_learner_link(db_session, existing)
 
     now = _now()
@@ -625,12 +645,19 @@ async def request_learner_support(
     ).first()
     now = _now()
     if existing:
-        if existing.status == BadgeIssuerLearnerLinkStatus.REJECTED:
+        if existing.status in {
+            BadgeIssuerLearnerLinkStatus.REJECTED,
+            BadgeIssuerLearnerLinkStatus.ENDED,
+            BadgeIssuerLearnerLinkStatus.COMPLETED,
+        }:
             existing.status = BadgeIssuerLearnerLinkStatus.REQUESTED
             existing.message = data.message or ""
             existing.requested_by_user_id = learner.id
             existing.decided_by_user_id = None
             existing.decided_at = None
+            existing.end_reason = None
+            existing.ended_by_user_id = None
+            existing.ended_at = None
             existing.update_date = now
             db_session.add(existing)
             db_session.commit()
@@ -692,6 +719,9 @@ async def decide_learner_request(
     link.decided_by_user_id = admin.id
     link.decided_at = datetime.utcnow()
     link.note = data.note or ""
+    link.end_reason = None
+    link.ended_by_user_id = None
+    link.ended_at = None
     link.update_date = _now()
     if accepted:
         membership = db_session.exec(
@@ -717,6 +747,7 @@ async def decide_learner_request(
 def _serialize_learner_link(db_session: Session, link: BadgeIssuerLearnerLink) -> dict:
     user = db_session.get(User, link.user_id)
     badge = db_session.get(LearningBadge, link.badge_id)
+    org = db_session.get(Organization, link.issuer_org_id)
     return {
         **link.model_dump(),
         "user": {
@@ -727,6 +758,8 @@ def _serialize_learner_link(db_session: Session, link: BadgeIssuerLearnerLink) -
             "last_name": user.last_name,
         } if user else None,
         "badge": _badge_summary(badge) if badge else None,
+        "organization": _org_summary(org) if org else None,
+        "active": link.status == BadgeIssuerLearnerLinkStatus.ACCEPTED,
     }
 
 
@@ -757,10 +790,21 @@ async def delete_learner_link(
     ).first()
     if not link:
         raise HTTPException(status_code=404, detail="Learner link not found")
-    _require_org_admin(db_session, current_user, link.issuer_org_id)
-    db_session.delete(link)
+    user = _require_user(current_user)
+    if user.id == link.user_id:
+        reason = "ended_by_learner"
+    else:
+        _require_org_admin(db_session, current_user, link.issuer_org_id)
+        reason = "ended_by_organization"
+    link.status = BadgeIssuerLearnerLinkStatus.ENDED
+    link.end_reason = reason
+    link.ended_by_user_id = user.id
+    link.ended_at = datetime.utcnow()
+    link.update_date = _now()
+    db_session.add(link)
     db_session.commit()
-    return {"detail": "Learner link removed"}
+    db_session.refresh(link)
+    return _serialize_learner_link(db_session, link)
 
 
 async def creator_issuance_metrics(

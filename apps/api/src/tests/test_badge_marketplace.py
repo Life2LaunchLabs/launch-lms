@@ -34,7 +34,7 @@ from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.plan_requests import PlanRequest
 from src.db.portfolio import Portfolio
-from src.db.programs import Objective, ObjectiveKind, Program, ProgramAssignment, ProgramObjective
+from src.db.programs import Objective, ObjectiveKind, ParticipantStatus, Program, ProgramAssignment, ProgramObjective, ProgramParticipant
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
@@ -101,6 +101,7 @@ def _create_tables(engine) -> None:
         Objective,
         ProgramObjective,
         ProgramAssignment,
+        ProgramParticipant,
     ):
         model.__table__.create(engine)
 
@@ -663,6 +664,56 @@ async def test_grading_routed_to_issuing_org():
         graded = await grade_learning_response(_request(), attempt.attempt_uuid, LearningResponseGrade(score=4, feedback="ok"), bob, session)
         assert graded["result"]["grading_status"] == "graded"
         assert graded["result"]["graded_by_user_id"] == bob.id
+        assert graded["result"]["graded_by"]["org_name"] == "Issuer"
+        with pytest.raises(HTTPException) as exc:
+            await grade_learning_response(_request(), attempt.attempt_uuid, LearningResponseGrade(score=1), bob, session)
+        assert exc.value.status_code == 409
+
+
+async def test_program_and_direct_routes_resume_one_shared_badge_run():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _create_tables(engine)
+    with Session(engine) as session:
+        _, _, alice, bob, carol, badge = _setup(session)
+        await _approved_authorization(session, alice, bob, badge)
+        path = LearningPath(
+            id=1, path_uuid="path_shared", badge_id=badge.id,
+            version_id=badge.active_version_id, org_id=badge.org_id,
+            title="Shared path", creation_date=NOW, update_date=NOW,
+        )
+        activity = LearningActivity(
+            id=1, activity_uuid="learning_activity_shared", path_id=1,
+            badge_id=badge.id, version_id=badge.active_version_id,
+            org_id=badge.org_id, title="Activity", published=True,
+            creation_date=NOW, update_date=NOW,
+        )
+        program = Program(
+            id=1, program_uuid="program_1", slug="program-1", org_id=2,
+            name="Program", creation_date=NOW, update_date=NOW,
+        )
+        assignment = ProgramAssignment(
+            id=1, assignment_uuid="assignment_1", org_id=2, program_id=1,
+            objective_snapshot=[{"id": 1, "badge_id": badge.id, "badge_major_version": 1}],
+            staff_user_ids=[bob.id], creation_date=NOW, update_date=NOW,
+        )
+        participant = ProgramParticipant(
+            id=1, participant_uuid="participant_1", assignment_id=1, org_id=2,
+            user_id=carol.id, status=ParticipantStatus.ACTIVE,
+            creation_date=NOW, update_date=NOW,
+        )
+        session.add_all([path, activity, program, assignment, participant])
+        session.commit()
+
+        program_run = await start_or_resume_run(
+            _request(), badge.badge_uuid, LearningActor(user=carol), session,
+            program_assignment_uuid=assignment.assignment_uuid,
+        )
+        direct_run = await start_or_resume_run(
+            _request(), badge.badge_uuid, LearningActor(user=carol), session,
+        )
+
+        assert direct_run.run_uuid == program_run.run_uuid
+        assert len(session.exec(select(LearningRun)).all()) == 1
 
 
 async def test_grading_defaults_to_creator_org():

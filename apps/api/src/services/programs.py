@@ -8,6 +8,10 @@ from fastapi import HTTPException
 from sqlmodel import Session, select
 
 from src.db.learning import (
+    BadgeIssuerAuthorization,
+    BadgeIssuerAuthorizationStatus,
+    BadgeIssuerLearnerLink,
+    BadgeIssuerLearnerLinkStatus,
     LearningActivity,
     LearningBadge,
     LearningBadgeAward,
@@ -113,6 +117,7 @@ def _objective_dict(objective: Objective, relation: ProgramObjective | None = No
             "position": relation.position,
             "target_days": relation.target_days,
             "badge_major_version": relation.badge_major_version,
+            "accept_previous_major_versions": relation.accept_previous_major_versions,
             "phase_id": relation.phase_id,
             "default_start_rule": relation.default_start_rule.value if hasattr(relation.default_start_rule, "value") else relation.default_start_rule,
             "default_due_rule": relation.default_due_rule.value if hasattr(relation.default_due_rule, "value") else relation.default_due_rule,
@@ -245,7 +250,42 @@ def _outdated_badge_objectives(db: Session, objectives: list[dict]) -> list[dict
             continue
         latest = _latest_badge_major(db, badge_id)
         if latest > pinned:
-            outdated.append({**objective, "latest_badge_major_version": latest})
+            versions = db.exec(select(LearningBadgeVersion).where(
+                LearningBadgeVersion.badge_id == badge_id,
+                LearningBadgeVersion.state == "published",
+            )).all()
+            prior_version = next(
+                (item for item in versions if _major(item.semantic_version) == int(pinned)),
+                None,
+            )
+            latest_version = next(
+                (item for item in versions if _major(item.semantic_version) == latest),
+                None,
+            )
+            earlier_holders = {
+                award.user_id
+                for award in db.exec(select(LearningBadgeAward).where(
+                    LearningBadgeAward.badge_id == badge_id,
+                    LearningBadgeAward.major_version < latest,
+                )).all()
+            }
+            outdated.append({
+                **objective,
+                "latest_badge_major_version": latest,
+                "earlier_version_holder_count": len(earlier_holders),
+                "version_comparison": {
+                    "previous": {
+                        "semantic_version": prior_version.semantic_version if prior_version else f"{pinned}.x",
+                        "title": prior_version.title if prior_version else "Earlier version",
+                        "description": prior_version.description if prior_version else "",
+                    },
+                    "latest": {
+                        "semantic_version": latest_version.semantic_version if latest_version else f"{latest}.x",
+                        "title": latest_version.title if latest_version else "New version",
+                        "description": latest_version.description if latest_version else "",
+                    },
+                },
+            })
     return outdated
 
 
@@ -640,7 +680,13 @@ def reorder_program(
     return _program_dict(db, program)
 
 
-def update_badge_versions(db: Session, current_user: PublicUser, org_id: int, program_uuid: str) -> dict:
+def update_badge_versions(
+    db: Session,
+    current_user: PublicUser,
+    org_id: int,
+    program_uuid: str,
+    accept_previous_major_versions: bool = False,
+) -> dict:
     require_org_admin(current_user.id, org_id, db)
     program = _program_or_404(db, program_uuid, org_id)
     relations = db.exec(
@@ -653,6 +699,7 @@ def update_badge_versions(db: Session, current_user: PublicUser, org_id: int, pr
             latest = _latest_badge_major(db, objective.badge_id)
             if latest != relation.badge_major_version:
                 relation.badge_major_version = latest
+                relation.accept_previous_major_versions = accept_previous_major_versions
                 relation.update_date = _now_string()
                 db.add(relation)
                 changed = True
@@ -853,22 +900,29 @@ def _progress_map(db: Session, org_id: int, user_ids: list[int], objective_ids: 
 
 
 def _badge_award_keys(db: Session, user_ids: list[int], objectives: list[dict]) -> set[tuple[int, int]]:
-    badge_objectives = {
-        (int(item["badge_id"]), int(item.get("badge_major_version") or 1)): int(item["id"])
+    badge_objectives = [
+        item
         for item in objectives
         if item.get("badge_id") and item.get("id")
-    }
+    ]
     if not user_ids or not badge_objectives:
         return set()
     awards = db.exec(select(LearningBadgeAward).where(
         LearningBadgeAward.user_id.in_(user_ids),
-        LearningBadgeAward.badge_id.in_([key[0] for key in badge_objectives]),
+        LearningBadgeAward.badge_id.in_([int(item["badge_id"]) for item in badge_objectives]),
     )).all()
-    return {
-        (award.user_id, badge_objectives[(award.badge_id, award.major_version)])
-        for award in awards
-        if (award.badge_id, award.major_version) in badge_objectives
-    }
+    completed: set[tuple[int, int]] = set()
+    for award in awards:
+        for objective in badge_objectives:
+            required_major = int(objective.get("badge_major_version") or 1)
+            if award.badge_id != int(objective["badge_id"]):
+                continue
+            if award.major_version == required_major or (
+                objective.get("accept_previous_major_versions")
+                and award.major_version < required_major
+            ):
+                completed.add((award.user_id, int(objective["id"])))
+    return completed
 
 
 def _assignment_summary(db: Session, assignment: ProgramAssignment) -> dict:
@@ -1088,9 +1142,16 @@ def _assignment_activity_reviews(
     assignment: ProgramAssignment,
     users: dict[int, User],
 ) -> list[dict]:
-    runs = db.exec(
-        select(LearningRun).where(LearningRun.program_assignment_id == assignment.id)
-    ).all()
+    participant_ids = set(users)
+    badge_ids = {
+        int(item["badge_id"])
+        for item in (assignment.objective_snapshot or [])
+        if item.get("badge_id")
+    }
+    runs = db.exec(select(LearningRun).where(
+        LearningRun.user_id.in_(participant_ids),  # type: ignore
+        LearningRun.badge_id.in_(badge_ids),  # type: ignore
+    )).all() if participant_ids and badge_ids else []
     if not runs:
         return []
     run_ids = [run.id for run in runs if run.id]
@@ -1235,12 +1296,25 @@ def review_objective_submission(
         raise HTTPException(status_code=409, detail="This submission is no longer waiting for review")
     now = _now()
     history = list(progress.feedback_history or [])
+    organization = db.get(Organization, org_id)
+    attribution = {
+        "staff_user_id": current_user.id,
+        "staff_name": " ".join(filter(None, [current_user.first_name, current_user.last_name])) or current_user.username,
+        "org_id": org_id,
+        "org_name": organization.name if organization else "Unknown organization",
+    }
     if payload.action == "confirm":
         progress.status = ObjectiveProgressStatus.COMPLETED
         progress.completed_at = now
         progress.completed_by_user_id = current_user.id
         if payload.message.strip():
             progress.staff_note = payload.message.strip()
+            history.append({
+                "message": payload.message.strip(),
+                "action": "confirmed",
+                "created_at": now.isoformat(),
+                **attribution,
+            })
     else:
         message = payload.message.strip()
         progress.status = ObjectiveProgressStatus.FLAGGED
@@ -1249,8 +1323,9 @@ def review_objective_submission(
         progress.completed_by_user_id = None
         history.append({
             "message": message,
+            "action": "flagged",
             "created_at": now.isoformat(),
-            "staff_user_id": current_user.id,
+            **attribution,
         })
     progress.feedback_history = history
     progress.update_date = now.isoformat()
@@ -1617,8 +1692,73 @@ def respond_to_invitation(db: Session, current_user: PublicUser, org_id: int, pa
     participant.responded_at = _now()
     participant.update_date = _now_string()
     db.add(participant)
+    if accept and assignment:
+        _activate_program_badge_collaborations(db, assignment, participant, current_user.id)
     db.commit()
     return {"participant_uuid": participant.participant_uuid, "status": response_status.value}
+
+
+def _activate_program_badge_collaborations(
+    db: Session,
+    assignment: ProgramAssignment,
+    participant: ProgramParticipant,
+    decided_by_user_id: int,
+) -> None:
+    """Accepting a program activates its org on each authorized badge objective."""
+    badge_ids = {
+        int(item["badge_id"])
+        for item in (assignment.objective_snapshot or [])
+        if item.get("badge_id")
+    }
+    if not badge_ids:
+        return
+    badges = db.exec(select(LearningBadge).where(LearningBadge.id.in_(badge_ids))).all()  # type: ignore
+    for badge in badges:
+        authorization = db.exec(select(BadgeIssuerAuthorization).where(
+            BadgeIssuerAuthorization.badge_id == badge.id,
+            BadgeIssuerAuthorization.issuer_org_id == assignment.org_id,
+            BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.APPROVED,
+        )).first()
+        if not authorization and badge.org_id == assignment.org_id:
+            now = _now()
+            authorization = BadgeIssuerAuthorization(
+                authorization_uuid=f"issuer_authorization_{uuid4()}",
+                badge_id=badge.id or 0,
+                creator_org_id=badge.org_id,
+                issuer_org_id=assignment.org_id,
+                status=BadgeIssuerAuthorizationStatus.APPROVED,
+                decided_by_user_id=decided_by_user_id,
+                decided_at=now,
+                creation_date=now.isoformat(),
+                update_date=now.isoformat(),
+            )
+            db.add(authorization)
+            db.flush()
+        if not authorization:
+            continue
+        link = db.exec(select(BadgeIssuerLearnerLink).where(
+            BadgeIssuerLearnerLink.authorization_id == authorization.id,
+            BadgeIssuerLearnerLink.user_id == participant.user_id,
+        )).first()
+        now = _now()
+        if not link:
+            link = BadgeIssuerLearnerLink(
+                link_uuid=f"issuer_link_{uuid4()}",
+                authorization_id=authorization.id or 0,
+                badge_id=badge.id or 0,
+                issuer_org_id=assignment.org_id,
+                user_id=participant.user_id,
+                creation_date=now.isoformat(),
+            )
+        link.status = BadgeIssuerLearnerLinkStatus.ACCEPTED
+        link.staff_user_ids = list(dict.fromkeys([*(link.staff_user_ids or []), *(assignment.staff_user_ids or [])]))
+        link.decided_by_user_id = decided_by_user_id
+        link.decided_at = now
+        link.end_reason = None
+        link.ended_by_user_id = None
+        link.ended_at = None
+        link.update_date = now.isoformat()
+        db.add(link)
 
 
 def update_my_progress(
