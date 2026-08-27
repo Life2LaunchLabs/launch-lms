@@ -134,6 +134,22 @@ def api_my_programs(
     return service.my_programs(db_session, current_user, org_id)
 
 
+@router.get("/me/all")
+def api_my_program_summaries(
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    return service.my_program_summaries(db_session, current_user)
+
+
+@router.post("/invitations/me/viewed")
+def api_mark_my_program_invitations_viewed(
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    return service.mark_my_program_invitations_viewed(db_session, current_user)
+
+
 @router.post("/me/progress")
 def api_update_my_progress(
     payload: LearnerObjectiveUpdate,

@@ -20,6 +20,7 @@ import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { programsApi } from '@services/programs/programs'
 import ProgramObjectiveEditorRow from './ProgramObjectiveEditorRow'
+import ProgramAssignmentModal from './ProgramAssignmentModal'
 import { cn } from '@/lib/utils'
 
 type ProgramSubpage = 'objectives' | 'assignments' | 'settings'
@@ -73,7 +74,7 @@ function ProgramDetail({ orgslug, orgId, token, programUuid, activeSubpage }: { 
       <ProgramHeader orgId={orgId} token={token} program={program} refresh={refresh} />
       <div className="flex space-x-3 text-sm font-black">{programTabs.map((tab) => { const Icon = tab.icon; const active = activeSubpage === tab.key; return <Link key={tab.key} href={getUriWithOrg(orgslug, routePaths.org.dash.programPage(programUuid, tab.key))}><div className={cn('flex w-fit cursor-pointer space-x-4 border-black py-2 text-center transition-all ease-linear', active ? 'border-b-4' : 'opacity-50 hover:opacity-75')}><div className="mx-2 flex items-center space-x-2.5"><Icon size={16} /><div>{tab.label}</div></div></div></Link> })}</div>
     </div>
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }}>{activeSubpage === 'objectives' && <ProgramObjectives orgId={orgId} token={token} program={program} refresh={refresh} />}{activeSubpage === 'assignments' && <ProgramAssignments orgslug={orgslug} orgId={orgId} token={token} program={program} refresh={refresh} />}{activeSubpage === 'settings' && <ProgramSettings orgslug={orgslug} orgId={orgId} token={token} program={program} refresh={refresh} />}</motion.div>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }}>{activeSubpage === 'objectives' && <ProgramObjectives orgId={orgId} token={token} program={program} refresh={refresh} />}{activeSubpage === 'assignments' && <ProgramAssignments orgslug={orgslug} program={program} refresh={refresh} />}{activeSubpage === 'settings' && <ProgramSettings orgslug={orgslug} orgId={orgId} token={token} program={program} refresh={refresh} />}</motion.div>
   </div>
 }
 
@@ -241,16 +242,20 @@ function ObjectiveCoreEditor({ title, setTitle, instructions, setInstructions, a
 
 function ObjectiveDetails({ objective }: { objective: any }) { return <div className="mt-3 space-y-2 border-t border-border pt-3"><p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">What this collects</p>{objective.custom_fields?.length ? objective.custom_fields.map((field: EvidenceField) => <div key={field.field_uuid} className="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-2 text-xs"><span>{field.type === 'media' ? <Upload size={13} /> : <FileText size={13} />}</span><span className="font-semibold">{field.title}</span><span className="ml-auto text-[10px] text-muted-foreground">{field.allow_student_upload ? 'Learner + staff' : 'Staff only'}</span></div>) : <p className="text-xs text-muted-foreground">No evidence fields.</p>}<p className="text-xs text-muted-foreground">{objective.allow_learner_confirmation ? 'Learners and staff can confirm completion.' : 'Staff confirms completion.'}</p></div> }
 
-function AssignProgramModal({ orgslug, program }: any) {
-  return <Link href={getUriWithOrg(orgslug, routePaths.org.dash.programAssignmentNew(program.program_uuid))} className="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-xs font-bold text-white"><Send size={15} />Assign to…</Link>
+function AssignProgramModal({ program }: any) {
+  return <ProgramAssignmentModal
+    initialProgramUuids={[program.program_uuid]}
+    onAssigned={program.refresh}
+    trigger={<button className="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-xs font-bold text-white"><Send size={15} />Assign to…</button>}
+  />
 }
 
-function ProgramAssignments({ orgslug, orgId, token, program, refresh }: any) {
+function ProgramAssignments({ orgslug, program, refresh }: any) {
   const assignments = program.assignments || []
   const active = assignments.filter((assignment: any) => assignment.active)
   const inactive = assignments.filter((assignment: any) => !assignment.active)
   const programWithRefresh = { ...program, refresh }
-  return <div className="px-10 pb-10 pt-6"><div className="mx-auto max-w-5xl"><div className="mb-5 flex justify-end"><AssignProgramModal orgslug={orgslug} orgId={orgId} token={token} program={programWithRefresh} /></div>{active.length ? <AssignmentSection title="Active" assignments={active} orgslug={orgslug} /> : <div className="rounded-xl border border-dashed border-border bg-card py-12 text-center"><Users className="mx-auto text-gray-300" size={34} /><p className="mt-3 text-sm font-semibold text-muted-foreground">This program has no active assignments.</p></div>}{inactive.length ? <div className="mt-8"><AssignmentSection title="Past" assignments={inactive} orgslug={orgslug} /></div> : null}</div></div>
+  return <div className="px-10 pb-10 pt-6"><div className="mx-auto max-w-5xl"><div className="mb-5 flex justify-end"><AssignProgramModal program={programWithRefresh} /></div>{active.length ? <AssignmentSection title="Active" assignments={active} orgslug={orgslug} /> : <div className="rounded-xl border border-dashed border-border bg-card py-12 text-center"><Users className="mx-auto text-gray-300" size={34} /><p className="mt-3 text-sm font-semibold text-muted-foreground">This program has no active assignments.</p></div>}{inactive.length ? <div className="mt-8"><AssignmentSection title="Past" assignments={inactive} orgslug={orgslug} /></div> : null}</div></div>
 }
 
 function AssignmentSection({ title, assignments, orgslug }: any) {

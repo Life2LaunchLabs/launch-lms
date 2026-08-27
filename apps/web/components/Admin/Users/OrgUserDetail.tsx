@@ -4,7 +4,7 @@ import Link from 'next/link'
 import React from 'react'
 import useSWR, { mutate } from 'swr'
 import toast from 'react-hot-toast'
-import { Award, CalendarDays, CheckCircle2, ChevronRight, ClipboardCheck, Flag, Layers3, Loader2, Mail, Shield, UserRound, Users } from 'lucide-react'
+import { Award, CalendarDays, CheckCircle2, ChevronRight, ClipboardCheck, Flag, Layers3, Loader2, Mail, Plus, Shield, UserRound, Users } from 'lucide-react'
 import PageLoading from '@components/Objects/Loaders/PageLoading'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
@@ -17,6 +17,7 @@ import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { programsApi } from '@services/programs/programs'
 import { cn } from '@/lib/utils'
 import { ActivityAggregateGradeForm } from '@components/Admin/Programs/CohortProgramAdmin'
+import ProgramAssignmentModal from '@components/Admin/Programs/ProgramAssignmentModal'
 
 function formatDate(value?: string | null) {
   if (!value) return '—'
@@ -74,51 +75,16 @@ export default function OrgUserDetail({ username, orgslug, activeSubpage = 'over
 }
 
 function UserProgramsPanel({ userId, orgId, orgslug, accessToken }: { userId: number; orgId: number; orgslug: string; accessToken?: string }) {
-  const [open, setOpen] = React.useState(false)
-  const [programUuid, setProgramUuid] = React.useState('')
-  const [welcome, setWelcome] = React.useState('')
-  const [saving, setSaving] = React.useState(false)
   const userProgramsKey = orgId && accessToken ? `${getAPIUrl()}programs/users/${userId}?org_id=${orgId}` : null
   const { data, mutate: refreshUserPrograms } = useSWR(
     userProgramsKey,
     (url: string) => swrFetcher(url, accessToken),
     { revalidateOnFocus: false }
   )
-  const { data: availablePrograms } = useSWR(
-    orgId && accessToken ? `${getAPIUrl()}programs/?org_id=${orgId}` : null,
-    (url: string) => swrFetcher(url, accessToken),
-    { revalidateOnFocus: false }
-  )
   const programs = data?.programs || []
-  const invite = async () => {
-    if (!programUuid || saving) return
-    setSaving(true)
-    try {
-      await fetch(
-        `${getAPIUrl()}programs/${encodeURIComponent(programUuid)}/assign?org_id=${orgId}`,
-        {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json', ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
-          body: JSON.stringify({ user_id: userId, welcome_message: welcome }),
-        }
-      ).then(async (response) => {
-        if (!response.ok) throw new Error((await response.json())?.detail || 'Could not send the invitation.')
-        return response.json()
-      })
-      await refreshUserPrograms()
-      setOpen(false)
-      setWelcome('')
-      toast.success('Program invitation sent.')
-    } catch (error: any) {
-      toast.error(error?.message || 'Could not send the invitation.')
-    } finally {
-      setSaving(false)
-    }
-  }
   return (
     <section className="rounded-xl border border-gray-100 bg-white p-5 nice-shadow">
-      <div className="flex items-center justify-between gap-4"><div><h2 className="flex items-center gap-2 text-sm font-bold text-gray-900"><Layers3 size={17} />Programs and groups</h2><p className="mt-1 text-xs text-gray-500">Everything this learner is involved in within your organization.</p></div><div className="flex items-center gap-2"><span className="rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-black text-gray-500">{programs.length} active</span><Modal isDialogOpen={open} onOpenChange={setOpen} minHeight="no-min" minWidth="md" dialogTitle="Invite to a program" dialogDescription="This is a direct invitation outside of a group." dialogTrigger={<button className="rounded-lg bg-black px-3 py-2 text-xs font-bold text-white">Invite to program</button>} dialogContent={<div className="space-y-4 p-2"><label className="block text-xs font-bold text-gray-600"><span className="mb-2 block">Program</span><select value={programUuid} onChange={(event) => setProgramUuid(event.target.value)} className="h-11 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm"><option value="">Choose a program</option>{(availablePrograms || []).map((program: any) => <option key={program.program_uuid} value={program.program_uuid}>{program.name}</option>)}</select></label><label className="block text-xs font-bold text-gray-600"><span className="mb-2 block">Welcome message</span><textarea value={welcome} onChange={(event) => setWelcome(event.target.value)} className="min-h-24 w-full rounded-lg border border-gray-200 p-3 text-sm" placeholder="Optional context for this learner" /></label><button onClick={() => void invite()} disabled={!programUuid || saving} className="ml-auto flex items-center gap-2 rounded-lg bg-black px-5 py-2.5 text-xs font-bold text-white disabled:opacity-40">{saving && <Loader2 className="animate-spin" size={15} />}Send invitation</button></div>} /></div></div>
+      <div className="flex items-center justify-between gap-4"><div><h2 className="flex items-center gap-2 text-sm font-bold text-gray-900"><Layers3 size={17} />Programs and groups</h2><p className="mt-1 text-xs text-gray-500">Everything this learner is involved in within your organization.</p></div><div className="flex items-center gap-2"><span className="rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-black text-gray-500">{programs.length} active</span><ProgramAssignmentModal initialUserIds={[userId]} onAssigned={refreshUserPrograms} trigger={<button className="inline-flex items-center gap-1.5 rounded-lg bg-black px-3 py-2 text-xs font-bold text-white"><Plus size={14} />Assign programs</button>} /></div></div>
       {programs.length ? <div className="mt-4 grid gap-3 md:grid-cols-2">{programs.map((program: any) => {
         const href = program.cohort ? getUriWithOrg(orgslug, routePaths.org.dash.users.cohortProgram(program.cohort.id, program.assignment_uuid)) + `?focusUser=${userId}` : getUriWithOrg(orgslug, routePaths.org.dash.program(program.program_uuid))
         return <Link key={program.participant_uuid} href={href} className="group rounded-lg border border-gray-200 p-4 transition hover:border-blue-300"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-black text-gray-900 group-hover:text-blue-700">{program.program_name}</p><p className="mt-1 text-xs text-gray-500">{program.cohort?.name || 'Direct invitation'} · {String(program.invitation_status).replaceAll('_', ' ')}</p></div><ChevronRight size={16} className="text-gray-300 group-hover:text-blue-600" /></div><div className="mt-3 flex items-center gap-3"><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-blue-600" style={{ width: `${program.progress_percent}%` }} /></div><span className="text-[10px] font-black text-gray-500">{program.progress_percent}%</span></div></Link>

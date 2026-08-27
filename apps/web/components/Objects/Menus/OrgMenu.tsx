@@ -33,6 +33,7 @@ import { getPrimaryOrgMenuItems, OrgMenuNavItem } from './OrgMenuLinks'
 import { cn } from '@/lib/utils'
 import { Z_INDEX } from '@/lib/z-index'
 import useOrganizationInvitations from '@components/Hooks/useOrganizationInvitations'
+import useProgramInvitations from '@components/Hooks/useProgramInvitations'
 
 const DESKTOP_NAV_COLLAPSED_WIDTH = '44px'
 const DESKTOP_NAV_EXPANDED_WIDTH = '264px'
@@ -50,7 +51,9 @@ export const OrgMenu = (props: { orgslug: string }) => {
   })
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false)
   const { isVisible: isJoinBannerVisible } = useJoinBannerVisible()
-  const { unreadCount } = useOrganizationInvitations()
+  const { unreadCount: organizationUnreadCount } = useOrganizationInvitations()
+  const { unreadCount: programUnreadCount } = useProgramInvitations()
+  const unreadCount = organizationUnreadCount + programUnreadCount
   const topOffset = isJoinBannerVisible ? JOIN_BANNER_HEIGHT : 0
   const config = org?.config?.config
   const resolvedFeatures = config?.resolved_features

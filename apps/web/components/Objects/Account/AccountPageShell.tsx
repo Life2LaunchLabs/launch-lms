@@ -6,6 +6,7 @@ import TabbedPageHeader from '@components/Objects/StyledElements/Headers/TabbedP
 import UserAvatar from '@components/Objects/UserAvatar'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import useOrganizationInvitations from '@components/Hooks/useOrganizationInvitations'
+import useProgramInvitations from '@components/Hooks/useProgramInvitations'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 
 export type AccountPageTab = 'account' | 'messages' | 'organizations' | 'preferences'
@@ -13,7 +14,9 @@ export type AccountPageTab = 'account' | 'messages' | 'organizations' | 'prefere
 export default function AccountPageShell({ orgslug, activeTab, children }: { orgslug: string; activeTab: AccountPageTab; children: React.ReactNode }) {
   const session = useLHSession() as any
   const user = session?.data?.user
-  const { unreadCount } = useOrganizationInvitations()
+  const { unreadCount: organizationUnreadCount } = useOrganizationInvitations()
+  const { unreadCount: programUnreadCount } = useProgramInvitations()
+  const unreadCount = organizationUnreadCount + programUnreadCount
   const messageLabel = <span className="inline-flex items-center gap-1.5">Messages{unreadCount > 0 ? <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-black leading-none text-white">{unreadCount}</span> : null}</span>
   const tabs = [
     { id: 'account' as const, label: 'Account', href: getUriWithOrg(orgslug, routePaths.owner.account.root()) },

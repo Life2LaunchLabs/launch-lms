@@ -2,20 +2,20 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { BarChart3, CalendarDays, Check, ChevronRight, Layers3, Loader2, Plus, Search, Settings, Trash2, Users } from 'lucide-react'
+import { BarChart3, CalendarDays, Check, ChevronRight, Layers3, Loader2, Plus, Settings, Trash2, Users } from 'lucide-react'
 import { motion } from 'motion/react'
 import useSWR from 'swr'
 import toast from 'react-hot-toast'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { EditableDetailHeader } from '@components/Learning/AdminBadgeCollection'
 import ManageUsers from '@components/Objects/Modals/Dash/OrgUserGroups/ManageUsers'
-import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { deleteUserGroup, updateUserGroup } from '@services/usergroups/usergroups'
 import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
 import React from 'react'
+import ProgramAssignmentModal from '@components/Admin/Programs/ProgramAssignmentModal'
 
 const tabs = [
   { id: 'programs', label: 'Programs', icon: Layers3 },
@@ -82,7 +82,7 @@ export default function GroupAdminDetail({ orgslug, groupId, subpage = 'programs
       </div>
       <div className="h-6" />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }}>
-        {activeSubpage === 'programs' ? <GroupPrograms orgslug={orgslug} groupId={groupId} programs={data.programs || []} completedPrograms={data.completed_programs || []} /> : null}
+        {activeSubpage === 'programs' ? <GroupPrograms orgslug={orgslug} groupId={groupId} programs={data.programs || []} completedPrograms={data.completed_programs || []} refresh={mutate} /> : null}
         {activeSubpage === 'users' ? <div className="px-10 pb-10"><section className="rounded-xl bg-card p-6 shadow-xs"><ManageUsers usergroup_id={groupId} embedded /></section></div> : null}
         {activeSubpage === 'settings' ? <GroupSettings orgslug={orgslug} group={group} /> : null}
         {activeSubpage === 'reports' ? <div className="min-h-64" /> : null}
@@ -91,13 +91,13 @@ export default function GroupAdminDetail({ orgslug, groupId, subpage = 'programs
   )
 }
 
-function GroupPrograms({ orgslug, groupId, programs, completedPrograms }: { orgslug: string; groupId: number; programs: any[]; completedPrograms: any[] }) {
+function GroupPrograms({ orgslug, groupId, programs, completedPrograms, refresh }: { orgslug: string; groupId: number; programs: any[]; completedPrograms: any[]; refresh: () => Promise<any> }) {
   return (
     <div className="space-y-10 px-10 pb-10">
       <section>
       <div className="mb-4 flex items-center justify-between">
         <div><h2 className="text-lg font-bold text-foreground">Active programs</h2><p className="mt-1 text-sm text-muted-foreground">Programs currently assigned to this group.</p></div>
-        <AssignProgramPicker orgslug={orgslug} groupId={groupId} assignedPrograms={programs} />
+        <ProgramAssignmentModal initialGroupIds={[groupId]} onAssigned={refresh} trigger={<button className="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2.5 text-xs font-bold text-white nice-shadow"><Plus size={15} />Assign programs</button>} />
       </div>
       {programs.length ? <ProgramCards orgslug={orgslug} groupId={groupId} programs={programs} /> : (
         <div className="rounded-xl border-2 border-dashed border-border bg-card py-16 text-center"><Layers3 className="mx-auto h-9 w-9 text-gray-300" /><p className="mt-3 text-sm text-muted-foreground">No programs are assigned to this group yet.</p></div>
@@ -116,44 +116,6 @@ function ProgramCards({ orgslug, groupId, programs, completed = false }: { orgsl
       <div className="mt-3 flex items-center justify-between text-xs font-semibold text-muted-foreground"><span>{program.progress_percent}% complete</span><span className="inline-flex items-center gap-1"><CalendarDays size={13} />{program.due_date ? `${completed ? 'Ended' : 'Due'} ${new Date(program.due_date).toLocaleDateString()}` : 'Self paced'}</span></div>
     </Link>
   ))}</div>
-}
-
-function AssignProgramPicker({ orgslug, groupId, assignedPrograms }: { orgslug: string; groupId: number; assignedPrograms: any[] }) {
-  const router = useRouter()
-  const org = useOrg() as any
-  const session = useLHSession() as any
-  const token = session?.data?.tokens?.access_token
-  const orgId = Number(org?.id)
-  const [open, setOpen] = React.useState(false)
-  const [search, setSearch] = React.useState('')
-  const key = open && orgId && token ? `${getAPIUrl()}programs/?org_id=${orgId}` : null
-  const { data: programs, isLoading } = useSWR(key, (url) => swrFetcher(url, token), { revalidateOnFocus: false })
-  const activeProgramIds = React.useMemo(() => new Set(assignedPrograms.map((program) => program.program_uuid)), [assignedPrograms])
-  const visiblePrograms = (programs || []).filter((program: any) => `${program.name} ${program.description || ''}`.toLowerCase().includes(search.trim().toLowerCase()))
-
-  const chooseProgram = (programUuid: string) => {
-    setOpen(false)
-    router.push(`${getUriWithOrg(orgslug, routePaths.org.dash.programAssignmentNew(programUuid))}?groupId=${groupId}`)
-  }
-
-  return <Modal
-    isDialogOpen={open}
-    onOpenChange={(next) => { setOpen(next); if (!next) setSearch('') }}
-    minHeight="sm"
-    minWidth="sm"
-    dialogTitle="Assign a program"
-    dialogDescription="Choose a program to begin a new assignment for this group."
-    dialogTrigger={<button className="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2.5 text-xs font-bold text-white nice-shadow"><Plus size={15} />Assign a program</button>}
-    dialogContent={<div className="space-y-4">
-      <div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search programs" className="h-10 w-full rounded-lg border border-border pl-10 pr-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" /></div>
-      <div className="max-h-80 space-y-2 overflow-y-auto">
-        {isLoading ? <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div> : visiblePrograms.length ? visiblePrograms.map((program: any) => {
-          const alreadyAssigned = activeProgramIds.has(program.program_uuid)
-          return <button key={program.program_uuid} disabled={alreadyAssigned} onClick={() => chooseProgram(program.program_uuid)} className="flex w-full items-center justify-between gap-4 rounded-xl border border-border p-4 text-left transition hover:border-blue-300 hover:bg-blue-50/40 disabled:cursor-not-allowed disabled:opacity-50"><div className="min-w-0"><p className="truncate text-sm font-black">{program.name}</p><p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{program.description || 'No description'}</p></div>{alreadyAssigned ? <span className="shrink-0 text-[10px] font-black uppercase text-muted-foreground">Active</span> : <ChevronRight className="shrink-0 text-muted-foreground" size={17} />}</button>
-        }) : <div className="py-12 text-center text-sm text-muted-foreground">{search ? 'No programs match your search.' : 'No programs are available.'}</div>}
-      </div>
-    </div>}
-  />
 }
 
 function GroupSettings({ orgslug, group }: { orgslug: string; group: any }) {

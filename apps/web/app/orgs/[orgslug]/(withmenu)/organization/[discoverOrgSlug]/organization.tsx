@@ -2,18 +2,20 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Building2, Globe2, Mail, Users } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { ArrowLeft, Building2, Check, ChevronRight, Globe2, Layers3, Loader2, Mail, Users, X } from 'lucide-react'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import OrganizationMembershipActions from '@components/Organizations/OrganizationMembershipActions'
 import {
   getOrgLogoMediaDirectory,
   getOrgThumbnailMediaDirectory,
 } from '@services/media/media'
-import { getAPIUrl, getUriWithOrg } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import useSWR from 'swr'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { DiscoverOrganization } from '@services/organizations/orgs'
+import useProgramInvitations, { ProgramInvitation } from '@components/Hooks/useProgramInvitations'
 
 interface OrganizationDetailClientProps {
   organization: DiscoverOrganization
@@ -27,6 +29,9 @@ export default function OrganizationDetailClient({
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token
   const { data: adminOrganizations } = useSWR(token ? `${getAPIUrl()}orgs/user_admin/page/1/limit/100` : null, (url) => swrFetcher(url, token), { revalidateOnFocus: false })
+  const { programs, isLoading: programsLoading, respond } = useProgramInvitations()
+  const [busy, setBusy] = React.useState<string | null>(null)
+  const organizationPrograms = programs.filter((item) => item.organization.slug === organization.slug)
   const canAdmin = Array.isArray(adminOrganizations) && adminOrganizations.some((item: any) => item.slug === organization.slug)
   const heroImage = organization.thumbnail_image
     ? getOrgThumbnailMediaDirectory(organization.org_uuid, organization.thumbnail_image)
@@ -34,6 +39,18 @@ export default function OrganizationDetailClient({
   const logoImage = organization.logo_image
     ? getOrgLogoMediaDirectory(organization.org_uuid, organization.logo_image)
     : null
+
+  const respondToInvitation = async (invitation: ProgramInvitation, accept: boolean) => {
+    setBusy(invitation.participant_uuid)
+    try {
+      await respond(invitation, accept)
+      toast.success(accept ? 'Program accepted.' : 'Program invitation declined.')
+    } catch (error: any) {
+      toast.error(error?.message || 'Could not update the program invitation.')
+    } finally {
+      setBusy(null)
+    }
+  }
 
   return (
     <GeneralWrapperStyled>
@@ -139,6 +156,18 @@ export default function OrganizationDetailClient({
             )}
           </div>
         </div>
+        {token ? <section className="rounded-[28px] border border-border bg-card p-6 nice-shadow md:p-8">
+          <div><p className="text-xs font-black uppercase tracking-wider text-muted-foreground">Learning relationship</p><h2 className="mt-1 text-xl font-black text-foreground">Your programs with {organization.name}</h2><p className="mt-1 text-sm text-muted-foreground">Direct and group assignments appear here from invitation through completion.</p></div>
+          {programsLoading ? <div className="flex justify-center py-12"><Loader2 className="animate-spin text-muted-foreground" /></div> : organizationPrograms.length ? <div className="mt-5 space-y-3">{organizationPrograms.map((item) => {
+            const invited = item.status === 'invited'
+            const statusLabel = invited ? 'Invited' : item.assignment.active ? 'Active' : 'Completed'
+            return <article key={item.participant_uuid} className="flex flex-col gap-4 rounded-2xl border border-border p-4 sm:flex-row sm:items-center">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-lime-100 text-lime-800"><Layers3 size={20} /></span>
+              <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-black text-foreground">{item.program.name}</h3><span className={invited ? 'rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black uppercase text-blue-700' : 'rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-black uppercase text-green-700'}>{statusLabel}</span></div><p className="mt-1 text-xs text-muted-foreground">{item.group?.name ? `Assigned through ${item.group.name}` : 'Assigned directly'}{item.assignment.due_date ? ` · Due ${new Date(item.assignment.due_date).toLocaleDateString()}` : ''}</p>{invited && item.assignment.welcome_message ? <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{item.assignment.welcome_message}</p> : null}</div>
+              {invited ? <div className="grid shrink-0 grid-cols-2 gap-2"><button disabled={busy === item.participant_uuid} onClick={() => void respondToInvitation(item, false)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-black text-muted-foreground disabled:opacity-50"><X size={14} />Decline</button><button disabled={busy === item.participant_uuid} onClick={() => void respondToInvitation(item, true)} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-foreground px-3 text-xs font-black text-background disabled:opacity-50">{busy === item.participant_uuid ? <Loader2 className="animate-spin" size={14} /> : <Check size={14} />}Accept</button></div> : <Link href={getUriWithOrg(item.organization.slug, routePaths.org.program(item.participant_uuid))} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-black hover:bg-muted">Open program<ChevronRight size={14} /></Link>}
+            </article>
+          })}</div> : <div className="mt-5 rounded-2xl border border-dashed border-border px-5 py-10 text-center"><Layers3 className="mx-auto text-muted-foreground" size={28} /><p className="mt-2 text-sm font-semibold text-muted-foreground">You don’t have any programs with this organization yet.</p></div>}
+        </section> : null}
       </div>
     </GeneralWrapperStyled>
   )

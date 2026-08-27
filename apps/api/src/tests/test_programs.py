@@ -38,6 +38,8 @@ from src.services.programs import (
     ensure_group_participants,
     get_program,
     list_objectives,
+    mark_my_program_invitations_viewed,
+    my_program_summaries,
     reorder_program,
     review_objective_submission,
     update_my_progress,
@@ -216,6 +218,29 @@ def test_active_rollout_keeps_its_objective_snapshot():
         assert len(detail["assignments"]) == 2
         assert detail["assignments"][0]["user"]["username"] == "learner"
         assert detail["assignments"][1]["cohort"]["name"] == "Fall Studio"
+
+
+def test_direct_and_group_program_invitations_are_available_in_learner_inbox():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _tables(engine)
+    with Session(engine) as session:
+        admin = _setup(session)
+        learner = PublicUser(id=2, user_uuid="user_2", username="learner", email="learner@example.com", first_name="Lee", last_name="Arner")
+        group_program = create_program(session, admin, ProgramCreate(org_id=1, name="Group Program"))
+        direct_program = create_program(session, admin, ProgramCreate(org_id=1, name="Direct Program"))
+        assign_program(session, admin, 1, group_program["program_uuid"], ProgramAssignmentCreate(usergroup_id=1, staff_user_ids=[1]))
+        assign_program(session, admin, 1, direct_program["program_uuid"], ProgramAssignmentCreate(user_id=2, staff_user_ids=[1]))
+
+        invitations = my_program_summaries(session, learner)
+
+        assert {item["program"]["name"] for item in invitations} == {"Group Program", "Direct Program"}
+        assert all(item["status"] == "invited" and item["unread"] for item in invitations)
+        assert {item["group"]["name"] if item["group"] else None for item in invitations} == {"Fall Studio", None}
+        assert all(item["organization"]["slug"] == "studio" for item in invitations)
+
+        result = mark_my_program_invitations_viewed(session, learner)
+        assert result["updated"] == 2
+        assert all(not item["unread"] for item in my_program_summaries(session, learner))
 
 
 def test_group_overview_separates_active_and_completed_programs():

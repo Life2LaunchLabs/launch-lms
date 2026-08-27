@@ -151,6 +151,7 @@ class ProgramParticipant(SQLModel, table=True):
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True))
     status: ParticipantStatus = Field(default=ParticipantStatus.INVITED, sa_column=Column(String, nullable=False, index=True))
+    viewed_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
     responded_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
     creation_date: str = ""
     update_date: str = ""

@@ -15,6 +15,7 @@ from src.db.learning import (
     LearningResponseAttempt,
     LearningRun,
 )
+from src.db.organizations import Organization
 from src.db.programs import (
     Objective,
     ObjectiveCreate,
@@ -738,6 +739,7 @@ def ensure_group_participants(db: Session, usergroup_id: int, user_ids: list[int
             if existing:
                 if existing.status == ParticipantStatus.LEFT:
                     existing.status = ParticipantStatus.INVITED
+                    existing.viewed_at = None
                     existing.update_date = now
                     db.add(existing)
                 continue
@@ -1341,7 +1343,7 @@ def my_programs(db: Session, current_user: PublicUser, org_id: int) -> list[dict
             initiate_date = assignment.initiate_date
             if initiate_date.tzinfo is None:
                 initiate_date = initiate_date.replace(tzinfo=timezone.utc)
-            if initiate_date > _now():
+            if initiate_date.date() > _now().date():
                 continue
         program = db.get(Program, assignment.program_id)
         objective_ids = [int(item["id"]) for item in assignment.objective_snapshot or [] if item.get("id")]
@@ -1375,6 +1377,90 @@ def my_programs(db: Session, current_user: PublicUser, org_id: int) -> list[dict
     return result
 
 
+def my_program_summaries(db: Session, current_user: PublicUser) -> list[dict]:
+    participants = db.exec(
+        select(ProgramParticipant).where(
+            ProgramParticipant.user_id == current_user.id,
+            ProgramParticipant.status.in_([ParticipantStatus.INVITED, ParticipantStatus.ACTIVE]),
+        )
+    ).all()
+    result = []
+    for participant in participants:
+        assignment = db.get(ProgramAssignment, participant.assignment_id)
+        if not assignment:
+            continue
+        if assignment.initiate_date:
+            initiate_date = assignment.initiate_date
+            if initiate_date.tzinfo is None:
+                initiate_date = initiate_date.replace(tzinfo=timezone.utc)
+            if initiate_date.date() > _now().date():
+                continue
+        program = db.get(Program, assignment.program_id)
+        organization = db.get(Organization, assignment.org_id)
+        group = db.get(UserGroup, assignment.usergroup_id) if assignment.usergroup_id else None
+        if not program or not organization:
+            continue
+        status = participant.status.value if hasattr(participant.status, "value") else participant.status
+        result.append({
+            "participant_uuid": participant.participant_uuid,
+            "org_id": assignment.org_id,
+            "status": status,
+            "unread": status == ParticipantStatus.INVITED.value and participant.viewed_at is None,
+            "viewed_at": participant.viewed_at.isoformat() if participant.viewed_at else None,
+            "created_at": participant.creation_date,
+            "organization": {
+                "id": organization.id,
+                "org_uuid": organization.org_uuid,
+                "name": organization.name,
+                "slug": organization.slug,
+                "logo_image": organization.logo_image,
+            },
+            "program": {
+                "program_uuid": program.program_uuid,
+                "name": program.name,
+                "description": program.description,
+                "thumbnail_image": program.thumbnail_image,
+            },
+            "group": {"id": group.id, "name": group.name} if group else None,
+            "assignment": {
+                "assignment_uuid": assignment.assignment_uuid,
+                "welcome_message": assignment.welcome_message,
+                "initiate_date": assignment.initiate_date,
+                "start_date": assignment.start_date,
+                "due_date": assignment.due_date,
+                "active": assignment.active,
+            },
+        })
+    return sorted(result, key=lambda item: item["created_at"] or "", reverse=True)
+
+
+def mark_my_program_invitations_viewed(db: Session, current_user: PublicUser) -> dict:
+    participants = db.exec(
+        select(ProgramParticipant).where(
+            ProgramParticipant.user_id == current_user.id,
+            ProgramParticipant.status == ParticipantStatus.INVITED,
+            ProgramParticipant.viewed_at.is_(None),
+        )
+    ).all()
+    now = _now()
+    updated = 0
+    for participant in participants:
+        assignment = db.get(ProgramAssignment, participant.assignment_id)
+        if not assignment:
+            continue
+        initiate_date = assignment.initiate_date
+        if initiate_date and initiate_date.tzinfo is None:
+            initiate_date = initiate_date.replace(tzinfo=timezone.utc)
+        if initiate_date and initiate_date.date() > now.date():
+            continue
+        participant.viewed_at = now
+        participant.update_date = now.isoformat()
+        db.add(participant)
+        updated += 1
+    db.commit()
+    return {"detail": "Program invitations marked as viewed", "updated": updated}
+
+
 def respond_to_invitation(db: Session, current_user: PublicUser, org_id: int, participant_uuid: str, accept: bool) -> dict:
     require_org_membership(current_user.id, org_id, db)
     participant = db.exec(select(ProgramParticipant).where(
@@ -1389,9 +1475,10 @@ def respond_to_invitation(db: Session, current_user: PublicUser, org_id: int, pa
         initiate_date = assignment.initiate_date
         if initiate_date.tzinfo is None:
             initiate_date = initiate_date.replace(tzinfo=timezone.utc)
-        if initiate_date > _now():
+        if initiate_date.date() > _now().date():
             raise HTTPException(status_code=403, detail="This program invitation has not been sent yet")
     participant.status = ParticipantStatus.ACTIVE if accept else ParticipantStatus.DECLINED
+    participant.viewed_at = participant.viewed_at or _now()
     participant.responded_at = _now()
     participant.update_date = _now_string()
     db.add(participant)
