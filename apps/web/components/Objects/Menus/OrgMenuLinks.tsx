@@ -4,10 +4,12 @@ import {
   SealCheck,
   FolderOpen,
   Newspaper,
+  ClipboardText,
 } from '@phosphor-icons/react'
 
 export const KNOWN_SUBPATHS = [
   '/badges',
+  '/plans',
   '/badge',
   '/podcasts',
   '/communities',
@@ -46,6 +48,7 @@ export function getPrimaryOrgMenuItems({
   const isHome = !KNOWN_SUBPATHS.some((subpath) => pathname?.includes(subpath))
   const isOnPortfolio = pathname?.includes('/portfolio')
   const isOnBadges = !isOnPortfolio && pathname?.includes('/badges')
+  const isOnPlans = pathname?.includes('/plans')
   const isOnResources = pathname?.includes('/resources') || pathname?.includes('/resource/')
   const isOnNews = pathname?.includes('/news')
 
@@ -64,6 +67,13 @@ export function getPrimaryOrgMenuItems({
       active: Boolean(isOnBadges),
       show: isFeatureEnabled(resolvedFeatures, 'badges'),
       onboardingFeature: 'badges',
+    },
+    {
+      href: '/plans',
+      label: 'Plans',
+      icon: <ClipboardText size={18} weight="fill" />,
+      active: Boolean(isOnPlans),
+      show: true,
     },
     {
       href: '/resources',

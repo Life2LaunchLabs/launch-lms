@@ -812,6 +812,9 @@ def ensure_group_participants(db: Session, usergroup_id: int, user_ids: list[int
                 creation_date=now,
                 update_date=now,
             ))
+        db.flush()
+        from src.services.planning import materialize_assignment_plans
+        materialize_assignment_plans(db, int(assignment.id))
 
 
 def assign_program(
@@ -884,6 +887,9 @@ def assign_program(
             creation_date=now,
             update_date=now,
         ))
+    db.flush()
+    from src.services.planning import materialize_assignment_plans
+    materialize_assignment_plans(db, int(assignment.id))
     db.commit()
     return _assignment_summary(db, assignment)
 

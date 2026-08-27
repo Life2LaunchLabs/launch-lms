@@ -5,12 +5,10 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import BadgeDiscoverPage from '@components/Badges/BadgeDiscoverPage'
 import BadgesPageShell, { type BadgesPageTab } from '@components/Badges/BadgesPageShell'
 import { PortfolioBadgesView, type Shell } from '@components/Pages/Portfolio/PortfolioShell'
-import LearnerProgramsPage from '@components/Programs/LearnerPrograms'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 
 function tabForPath(pathname: string): BadgesPageTab {
   if (pathname.endsWith('/badges/my-badges')) return 'my-badges'
-  if (pathname.endsWith('/programs') || pathname.endsWith('/badges/programs')) return 'programs'
   return 'discover'
 }
 
@@ -38,7 +36,7 @@ export default function BadgesHub({
 
   function changeTab(tab: BadgesPageTab) {
     if (tab === activeTab) return
-    const href = getUriWithOrg(orgslug, tab === 'discover' ? routePaths.org.badges() : tab === 'my-badges' ? routePaths.org.myBadges() : routePaths.org.programs())
+    const href = getUriWithOrg(orgslug, tab === 'discover' ? routePaths.org.badges() : routePaths.org.myBadges())
     if (tab === 'my-badges' && !initialPortfolio) {
       window.location.assign(href)
       return
@@ -55,9 +53,7 @@ export default function BadgesHub({
           <motion.div key="discover"><BadgeDiscoverPage orgslug={orgslug} collections={collections} choosingBadge={choosingBadge} /></motion.div>
         ) : activeTab === 'my-badges' && initialPortfolio ? (
           <motion.div key="my-badges"><PortfolioBadgesView initialShell={initialPortfolio} orgslug={orgslug} /></motion.div>
-        ) : (
-          <motion.div key="programs"><LearnerProgramsPage orgslug={orgslug} embedded /></motion.div>
-        )}
+        ) : null}
       </AnimatePresence>
     </BadgesPageShell>
   )

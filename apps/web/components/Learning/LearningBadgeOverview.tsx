@@ -12,7 +12,7 @@ import { findQuestionBlocks } from '@components/Learning/schema'
 import { getUriWithOrg } from '@services/config/config'
 import { deleteIssuerLearnerLink, requestIssuerLearnerSupport } from '@services/learning/marketplace'
 
-export default function LearningBadgeOverview({ orgslug, badgePath, programAssignmentUuid }: { orgslug: string; badgePath: any; programAssignmentUuid?: string }) {
+export default function LearningBadgeOverview({ orgslug, badgePath, programAssignmentUuid, planObjectiveUuid }: { orgslug: string; badgePath: any; programAssignmentUuid?: string; planObjectiveUuid?: string }) {
   const router = useRouter()
   const session = useLHSession() as any
   const badge = badgePath?.badge || {}
@@ -95,7 +95,8 @@ export default function LearningBadgeOverview({ orgslug, badgePath, programAssig
           {activities.map((activity: any, index: number) => {
             const state = getActivityState(badgePath?.run, activity)
             const StateIcon = state.icon
-            const href = getUriWithOrg(orgslug, `/badges/${badge.badge_uuid}/chapter/${activity.activity_uuid}${programAssignmentUuid ? `?assignment=${encodeURIComponent(programAssignmentUuid)}` : ''}`)
+            const contextQuery = planObjectiveUuid ? `?planObjective=${encodeURIComponent(planObjectiveUuid)}` : programAssignmentUuid ? `?assignment=${encodeURIComponent(programAssignmentUuid)}` : ''
+            const href = getUriWithOrg(orgslug, `/badges/${badge.badge_uuid}/chapter/${activity.activity_uuid}${contextQuery}`)
             return <div key={activity.activity_uuid} className={`flex items-start gap-4 rounded-xl bg-card p-4 shadow-sm ${pathBlocked ? 'opacity-55 grayscale' : ''}`}>
               <Link aria-disabled={pathBlocked} onClick={pathBlocked ? (event) => event.preventDefault() : undefined} href={href} className={pathBlocked ? 'cursor-not-allowed' : 'transition hover:scale-105'}><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black ${state.tone}`}><StateIcon size={16} />{state.status === 'not_started' ? <span className="sr-only">{index + 1}</span> : null}</span></Link>
               <div className="min-w-0 flex-1"><Link aria-disabled={pathBlocked} onClick={pathBlocked ? (event) => event.preventDefault() : undefined} href={href} className={pathBlocked ? 'cursor-not-allowed' : 'group'}><h3 className="font-bold text-foreground group-hover:underline">{activity.title}</h3><p className="mt-0.5 line-clamp-1 text-sm text-muted-foreground">{activity.description || `${activity.pages?.length || 0} pages`}</p></Link>{state.status === 'failed' || state.status === 'pending' ? <ActivityResultsButton run={badgePath?.run} activity={activity} /> : null}</div>

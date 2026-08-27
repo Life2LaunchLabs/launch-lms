@@ -6,7 +6,7 @@ import TabbedPageHeader from '@components/Objects/StyledElements/Headers/TabbedP
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import badgesImage from 'public/landing/badges.png'
 
-export type BadgesPageTab = 'discover' | 'my-badges' | 'programs'
+export type BadgesPageTab = 'discover' | 'my-badges'
 
 export default function BadgesPageShell({
   orgslug,
@@ -22,7 +22,6 @@ export default function BadgesPageShell({
   const tabs = [
     { id: 'discover' as const, label: 'Discover', href: getUriWithOrg(orgslug, routePaths.org.badges()) },
     { id: 'my-badges' as const, label: 'My badges', href: getUriWithOrg(orgslug, routePaths.org.myBadges()) },
-    { id: 'programs' as const, label: 'Programs', href: getUriWithOrg(orgslug, routePaths.org.programs()) },
   ]
 
   return (

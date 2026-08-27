@@ -60,6 +60,7 @@ from src.db.learning import (
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.portfolio import Portfolio, TimelineEntry
+from src.db.planning import Plan, PlanObjective, PlanStatus
 from src.db.programs import ParticipantStatus, ProgramAssignment, ProgramParticipant
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser, User
@@ -526,6 +527,29 @@ def _program_assignment_context(
             detail="Accept this program before starting its badge",
         )
     return assignment, participant
+
+
+def _plan_objective_context(
+    db_session: Session,
+    badge: LearningBadge,
+    actor: LearningActor,
+    objective_uuid: str,
+) -> tuple[Plan, PlanObjective]:
+    if actor.user_id is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sign in to start a plan badge")
+    row = db_session.exec(
+        select(Plan, PlanObjective)
+        .join(PlanObjective, PlanObjective.plan_id == Plan.id)
+        .where(
+            PlanObjective.objective_uuid == objective_uuid,
+            PlanObjective.badge_id == badge.id,
+            Plan.subject_user_id == actor.user_id,
+            Plan.status == PlanStatus.ACTIVE,
+        )
+    ).first()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This badge is not an active objective in one of your plans")
+    return row
 
 
 def _assignment_badge_major(
@@ -1125,6 +1149,8 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
         issuing_org_id=run.issuing_org_id,
         program_assignment_id=run.program_assignment_id,
         program_participant_id=run.program_participant_id,
+        plan_id=run.plan_id,
+        plan_objective_id=run.plan_objective_id,
         issuer_learner_link_id=run.issuer_learner_link_id,
         user_id=run.user_id,
         guest_session_id=run.guest_session_id,
@@ -1162,14 +1188,14 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
 def _as_int(value, default: int = 0) -> int:
     try:
         return int(value)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return default
 
 
 def _as_float(value, default: float = 0.0) -> float:
     try:
         return float(value)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         return default
 
 
@@ -4906,13 +4932,18 @@ async def get_path(
     actor: LearningActor | None = None,
     version_uuid: str | None = None,
     program_assignment_uuid: str | None = None,
+    plan_objective_uuid: str | None = None,
 ) -> LearningPathRead:
     badge = _get_badge(db_session, badge_uuid)
     _ensure_read_badge(db_session, badge, current_user)
     path_assignment = None
     desired_version = _get_badge_version(db_session, badge, version_uuid) if (version_uuid or badge.active_version_id) else _get_badge_version(db_session, badge)
     if actor:
-        if program_assignment_uuid:
+        if plan_objective_uuid:
+            _, plan_objective = _plan_objective_context(db_session, badge, actor, plan_objective_uuid)
+            if plan_objective.badge_major_version:
+                desired_version = _published_badge_version_for_major(db_session, badge, plan_objective.badge_major_version)
+        elif program_assignment_uuid:
             path_assignment, _ = _program_assignment_context(
                 db_session, badge, actor, program_assignment_uuid
             )
@@ -5936,6 +5967,7 @@ async def start_or_resume_run(
     db_session: Session,
     issuing_org_id: int | None = None,
     program_assignment_uuid: str | None = None,
+    plan_objective_uuid: str | None = None,
 ) -> LearningRunRead:
     badge = _get_badge(db_session, badge_uuid)
     if not _is_startable_badge(badge):
@@ -5944,14 +5976,22 @@ async def start_or_resume_run(
         )
     assignment = None
     participant = None
-    if program_assignment_uuid:
+    plan = None
+    plan_objective = None
+    if plan_objective_uuid:
+        plan, plan_objective = _plan_objective_context(db_session, badge, actor, plan_objective_uuid)
+        if issuing_org_id is None:
+            issuing_org_id = plan.source_org_id
+    elif program_assignment_uuid:
         assignment, participant = _program_assignment_context(
             db_session, badge, actor, program_assignment_uuid
         )
         if issuing_org_id is None:
             issuing_org_id = assignment.org_id
     version = (
-        _published_badge_version_for_major(
+        _published_badge_version_for_major(db_session, badge, plan_objective.badge_major_version or 1)
+        if plan_objective
+        else _published_badge_version_for_major(
             db_session, badge, _assignment_badge_major(assignment, badge) or 1
         )
         if assignment
@@ -5993,8 +6033,10 @@ async def start_or_resume_run(
     ).one()
     if not activity_count:
         raise HTTPException(status_code=409, detail="This Achievement does not have a learning path")
-    existing_major_run = _actor_run_for_badge_major(
-        db_session, badge, actor, _version_major(version)
+    existing_major_run = (
+        db_session.exec(select(LearningRun).where(LearningRun.plan_objective_id == plan_objective.id)).first()
+        if plan_objective
+        else _actor_run_for_badge_major(db_session, badge, actor, _version_major(version))
     )
     if existing_major_run:
         return _serialize_run(db_session, existing_major_run)
@@ -6013,6 +6055,8 @@ async def start_or_resume_run(
             issuing_org_id=issuing_org_id,
             program_assignment_id=assignment.id if assignment else None,
             program_participant_id=participant.id if participant else None,
+            plan_id=plan.id if plan else None,
+            plan_objective_id=plan_objective.id if plan_objective else None,
             issuer_learner_link_id=issuer_link.id if issuer_link else None,
             user_id=actor.user_id,
             guest_session_id=actor.guest_session_id,
@@ -6476,7 +6520,16 @@ async def grade_learning_response(
     )
     user = _require_user(current_user)
     grading_org_id = None
-    if assignment and (
+    plan_context = db_session.get(Plan, grading_run.plan_id) if grading_run and grading_run.plan_id else None
+    if plan_context:
+        from src.services.planning import capabilities_for
+
+        if "review_badge_submissions" in capabilities_for(db_session, plan_context, user.id) or is_user_superadmin(user.id, db_session):
+            admin = user
+            grading_org_id = plan_context.source_org_id or grading_run.org_id
+        else:
+            admin = None
+    elif assignment and (
         user.id in (assignment.staff_user_ids or []) or is_user_superadmin(user.id, db_session)
     ):
         admin = user
@@ -6506,8 +6559,8 @@ async def grade_learning_response(
                 admin = user
                 grading_org_id = candidate_org_id
                 break
-        if admin is None:
-            raise HTTPException(status_code=403, detail="You are not assigned to grade this learner's badge")
+    if admin is None:
+        raise HTTPException(status_code=403, detail="You are not assigned to grade this learner's badge")
 
     max_score = (
         _as_float((attempt.result or {}).get("max_score"), 0.0)

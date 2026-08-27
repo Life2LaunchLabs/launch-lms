@@ -553,6 +553,8 @@ class LearningRun(SQLModel, table=True):
     issuing_org_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("organization.id", ondelete="SET NULL"), nullable=True, index=True))
     program_assignment_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("programassignment.id", ondelete="SET NULL"), nullable=True, index=True))
     program_participant_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("programparticipant.id", ondelete="SET NULL"), nullable=True, index=True))
+    plan_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("plan.id", ondelete="SET NULL"), nullable=True, index=True))
+    plan_objective_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("planobjective.id", ondelete="SET NULL"), nullable=True, index=True))
     issuer_learner_link_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("badgeissuerlearnerlink.id", ondelete="SET NULL"), nullable=True, index=True))
     user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=True, index=True))
     guest_session_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("guestsession.id", ondelete="CASCADE"), nullable=True, index=True))
@@ -637,6 +639,8 @@ class LearningRunRead(BaseModel):
     issuing_org_id: int | None = None
     program_assignment_id: int | None = None
     program_participant_id: int | None = None
+    plan_id: int | None = None
+    plan_objective_id: int | None = None
     issuer_learner_link_id: int | None = None
     user_id: int | None = None
     guest_session_id: int | None = None

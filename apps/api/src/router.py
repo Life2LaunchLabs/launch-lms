@@ -11,6 +11,7 @@ from src.routers import (
     news,
     orgs,
     plans,
+    planning,
     portfolio,
     programs,
     roles,
@@ -76,6 +77,12 @@ v1_router.include_router(
     programs.router,
     prefix="/programs",
     tags=["programs"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    planning.router,
+    prefix="/planning",
+    tags=["planning"],
     dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(auth.router, prefix="/auth", tags=["auth"])

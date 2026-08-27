@@ -204,11 +204,13 @@ export async function getLearningPath(
   includeRun = false,
   next?: any,
   versionUuid?: string,
-  programAssignmentUuid?: string
+  programAssignmentUuid?: string,
+  planObjectiveUuid?: string
 ) {
   const search = new URLSearchParams({ include_run: String(includeRun) })
   if (versionUuid) search.set('version', versionUuid)
   if (programAssignmentUuid) search.set('program_assignment_uuid', programAssignmentUuid)
+  if (planObjectiveUuid) search.set('plan_objective_uuid', planObjectiveUuid)
   const result = await fetch(
     `${getAPIUrl()}badges/${badgeUuid}/path?${search.toString()}`,
     RequestBodyWithAuthHeader('GET', null, next, accessToken)
@@ -364,12 +366,13 @@ export async function deleteLearningVariable(variableUuid: string, accessToken?:
   return errorHandling(result)
 }
 
-export async function startLearningRun(badgeUuid: string, accessToken?: string, issuingOrgId?: string | number, programAssignmentUuid?: string) {
+export async function startLearningRun(badgeUuid: string, accessToken?: string, issuingOrgId?: string | number, programAssignmentUuid?: string, planObjectiveUuid?: string) {
   const search = new URLSearchParams()
   if (issuingOrgId !== undefined && issuingOrgId !== null && issuingOrgId !== '') {
     search.set('issuing_org_id', String(issuingOrgId))
   }
   if (programAssignmentUuid) search.set('program_assignment_uuid', programAssignmentUuid)
+  if (planObjectiveUuid) search.set('plan_objective_uuid', planObjectiveUuid)
   const query = search.toString()
   const result = await fetch(
     `${getAPIUrl()}learning-runs/start/${badgeUuid}${query ? `?${query}` : ''}`,

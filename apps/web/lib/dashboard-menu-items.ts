@@ -34,6 +34,13 @@ export const DASHBOARD_MENU_ITEMS: DashboardMenuItem[] = [
     labelKey: 'common.badges',
   },
   {
+    id: 'plans',
+    href: '/admin/plans',
+    icon: BookOpen,
+    labelKey: 'common.plans.label',
+    featureKey: 'managed_plans',
+  },
+  {
     id: 'resources',
     href: '/admin/resources',
     icon: FolderOpen,

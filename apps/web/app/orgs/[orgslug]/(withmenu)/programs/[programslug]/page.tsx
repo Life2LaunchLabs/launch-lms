@@ -1,6 +1,7 @@
-import LearnerProgramsPage from '@components/Programs/LearnerPrograms'
+import { redirect } from 'next/navigation'
+import { getUriWithOrg } from '@services/config/config'
 
-export default async function ProgramPage({ params }: { params: Promise<{ orgslug: string; programslug: string }> }) {
-  const { orgslug, programslug } = await params
-  return <LearnerProgramsPage orgslug={orgslug} programSlug={decodeURIComponent(programslug)} />
+export default async function LegacyProgramPage({ params }: { params: Promise<{ orgslug: string; programslug: string }> }) {
+  const { orgslug } = await params
+  redirect(getUriWithOrg(orgslug, '/plans'))
 }

@@ -64,6 +64,7 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
   const programAssignmentUuid = searchParams.get('assignment') || undefined
+  const planObjectiveUuid = searchParams.get('planObjective') || undefined
   const badge = badgePath.badge
   const configuredPages = activity.pages || []
   const [run, setRun] = React.useState<any>(badgePath.run)
@@ -99,11 +100,12 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
       badge.badge_uuid,
       accessToken,
       badgePath?.enrollment?.accepted_issuer_org_id,
-      programAssignmentUuid
+      programAssignmentUuid,
+      planObjectiveUuid
     )
       .then(setRun)
       .catch(() => null)
-  }, [badge.badge_uuid, badgePath?.enrollment?.accepted_issuer_org_id, accessToken, programAssignmentUuid])
+  }, [badge.badge_uuid, badgePath?.enrollment?.accepted_issuer_org_id, accessToken, programAssignmentUuid, planObjectiveUuid])
 
   React.useEffect(() => {
     setUnlocked(Boolean(page) && !isQuestionResponseRequired(page))

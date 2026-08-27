@@ -1,6 +1,7 @@
-import BadgesHubPage from '@components/Badges/BadgesHubPage'
+import { redirect } from 'next/navigation'
+import { getUriWithOrg } from '@services/config/config'
 
-export default async function ProgramsPage({ params }: { params: Promise<{ orgslug: string }> }) {
+export default async function LegacyProgramsPage({ params }: { params: Promise<{ orgslug: string }> }) {
   const { orgslug } = await params
-  return <BadgesHubPage orgslug={orgslug} initialTab="programs" />
+  redirect(getUriWithOrg(orgslug, '/plans'))
 }
