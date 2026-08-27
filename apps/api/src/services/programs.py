@@ -1204,6 +1204,13 @@ def _assignment_activity_reviews(
         badge = badges.get(run.badge_id) if run else None
         if not run or not activity or not user:
             continue
+        history_rows = [
+            (pages[attempt.page_id], attempt)
+            for attempt in attempts
+            if attempt.run_id == run_id
+            and attempt.page_id in pages
+            and pages[attempt.page_id].activity_id == activity_id
+        ]
         auto_score = sum(
             float(attempt.score or 0)
             for _, attempt in rows
@@ -1239,6 +1246,10 @@ def _assignment_activity_reviews(
                 **attempt.model_dump(),
                 "page": page.model_dump(),
             } for page, attempt in rows],
+            "attempt_history": [{
+                **attempt.model_dump(),
+                "page": page.model_dump(),
+            } for page, attempt in history_rows],
             "pending_attempt_uuids": [attempt.attempt_uuid for _, attempt in pending],
             "auto_score": auto_score,
             "pending_max_score": pending_max,

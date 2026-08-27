@@ -670,6 +670,43 @@ async def test_grading_routed_to_issuing_org():
         assert exc.value.status_code == 409
 
 
+async def test_grading_preserves_activity_and_question_feedback():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _create_tables(engine)
+    with Session(engine) as session:
+        _, _, alice, _, carol, badge = _setup(session)
+        attempt = _create_gradable_attempt(session, badge=badge, user=carol, issuing_org_id=None)
+        attempt.result = {
+            "grading_status": "pending",
+            "max_score": 5,
+            "questions": {
+                "reflection": {
+                    "grading_status": "pending",
+                    "max_score": 5,
+                    "kind": "text_input",
+                },
+            },
+        }
+        session.add(attempt)
+        session.commit()
+
+        graded = await grade_learning_response(
+            _request(),
+            attempt.attempt_uuid,
+            LearningResponseGrade(
+                score=4,
+                feedback="Strong activity overall.",
+                question_scores={"reflection": 4},
+                question_feedback={"reflection": "Add one concrete example."},
+            ),
+            alice,
+            session,
+        )
+
+        assert graded["result"]["feedback"] == "Strong activity overall."
+        assert graded["result"]["questions"]["reflection"]["feedback"] == "Add one concrete example."
+
+
 async def test_program_and_direct_routes_resume_one_shared_badge_run():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     _create_tables(engine)

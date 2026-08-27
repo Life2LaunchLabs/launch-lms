@@ -86,7 +86,20 @@ function getPathActivityProgress(path: any) {
 
   const completedActivities = activities.filter((activity: any) => {
     const requiredPages = (activity.pages || []).filter((page: any) => page.required !== false)
-    return requiredPages.length > 0 && requiredPages.every((page: any) => completePages.has(page.page_uuid))
+    if (!requiredPages.length || !requiredPages.every((page: any) => completePages.has(page.page_uuid))) return false
+    const pageIds = new Set((activity.pages || []).map((page: any) => page.page_uuid))
+    const latestByPage = new Map<string, any>()
+    for (const attempt of (run?.attempts || []).filter((item: any) => pageIds.has(item.page_uuid))) {
+      const prior = latestByPage.get(attempt.page_uuid)
+      if (!prior || new Date(attempt.submitted_at).getTime() >= new Date(prior.submitted_at).getTime()) latestByPage.set(attempt.page_uuid, attempt)
+    }
+    const latestAttempts = Array.from(latestByPage.values())
+    if (latestAttempts.some((attempt: any) => attempt.result?.grading_status === 'pending')) return false
+    const scored = latestAttempts.filter((attempt: any) => attempt.result?.grading_status === 'graded' && Number(attempt.result?.max_score || 0) > 0)
+    const score = scored.reduce((total: number, attempt: any) => total + Number(attempt.score ?? attempt.result?.score ?? 0), 0)
+    const max = scored.reduce((total: number, attempt: any) => total + Number(attempt.result?.max_score || 0), 0)
+    const minimum = Number(activity.settings?.grading?.minimum_score_percent ?? 70)
+    return max <= 0 || (score / max) * 100 >= minimum
   })
   const progressPercent = activities.length
     ? Math.round((completedActivities.length / activities.length) * 100)

@@ -5,6 +5,8 @@ import { Award, Check, ClipboardCheck, Handshake, Loader2, Plus, Search, Trash2 
 import { motion } from 'motion/react'
 import toast from 'react-hot-toast'
 import AdminFeatureHeader from '@components/Admin/AdminFeatureHeader'
+import { ActivityAggregateGradeForm } from '@components/Admin/Programs/CohortProgramAdmin'
+import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { SafeImage } from '@components/Objects/SafeImage'
 import { Button } from '@components/ui/button'
 import { Switch } from '@components/ui/switch'
@@ -486,12 +488,14 @@ export function OrgGradingQueuePanel({ orgId }: { orgId: number }) {
   const [responses, setResponses] = React.useState<any[]>([])
   const [loading, setLoading] = React.useState(true)
   const [saving, setSaving] = React.useState('')
-  const [drafts, setDrafts] = React.useState<Record<string, { score: string; feedback: string }>>({})
+  const [active, setActive] = React.useState<any>(null)
+  const [feedback, setFeedback] = React.useState('')
+  const [questionScores, setQuestionScores] = React.useState<Record<string, string>>({})
 
   const load = React.useCallback(async () => {
     setLoading(true)
     try {
-      const data = await getLearningResponses({ org_id: orgId, grading_status: 'pending' }, accessToken)
+      const data = await getLearningResponses({ org_id: orgId, grading_status: 'all' }, accessToken)
       setResponses(Array.isArray(data) ? data : [])
     } catch (error: any) {
       toast.error(error?.message || 'Failed to load responses.')
@@ -504,15 +508,27 @@ export function OrgGradingQueuePanel({ orgId }: { orgId: number }) {
     void load()
   }, [load])
 
-  const saveGrade = async (response: any) => {
-    const draft = drafts[response.attempt_uuid] || { score: '', feedback: '' }
-    const maxScore = Number(response.result?.max_score ?? response.page?.scoring?.points ?? 1)
-    const score = Math.max(0, Math.min(maxScore, Number(draft.score || 0)))
-    setSaving(response.attempt_uuid)
+  const reviewGroups = React.useMemo(() => buildOrgReviewGroups(responses), [responses])
+  const openReview = (review: any) => {
+    const next: Record<string, string> = {}
+    ;(review.attempts || []).forEach((attempt: any) => Object.entries(attempt.result?.questions || {}).forEach(([id, result]: any) => { if (result?.grading_status === 'pending') next[`${attempt.attempt_uuid}:${id}`] = '' }))
+    setQuestionScores(next)
+    setFeedback('')
+    setActive(review)
+  }
+  const saveGrade = async (questionFeedback: Record<string, string>) => {
+    if (!active || Object.values(questionScores).some((value) => value === '')) return
+    setSaving(active.review_id)
     try {
-      await gradeLearningResponse(response.attempt_uuid, { score, feedback: draft.feedback }, accessToken)
-      toast.success('Response graded.')
+      await Promise.all((active.attempts || []).filter((attempt: any) => attempt.result?.grading_status === 'pending').map((attempt: any) => {
+        const scores = Object.fromEntries(Object.entries(questionScores).filter(([key]) => key.startsWith(`${attempt.attempt_uuid}:`)).map(([key, value]) => [key.slice(attempt.attempt_uuid.length + 1), Number(value)]))
+        const total = Object.entries(attempt.result?.questions || {}).reduce((sum: number, [id, result]: any) => sum + (result.grading_status === 'pending' ? Number(scores[id] || 0) : Number(result.score || 0)), 0)
+        const notes = Object.fromEntries(Object.entries(questionFeedback).filter(([key, value]) => key.startsWith(`${attempt.attempt_uuid}:`) && value.trim()).map(([key, value]) => [key.slice(attempt.attempt_uuid.length + 1), value.trim()]))
+        return gradeLearningResponse(attempt.attempt_uuid, { score: total, question_scores: scores, question_feedback: notes, feedback }, accessToken)
+      }))
+      toast.success('Activity graded.')
       await load()
+      setActive(null)
     } catch (error: any) {
       toast.error(error?.message || 'Failed to save grade.')
     } finally {
@@ -539,60 +555,11 @@ export function OrgGradingQueuePanel({ orgId }: { orgId: number }) {
             <div className="flex items-center justify-center py-16 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin" />
             </div>
-          ) : responses.length ? responses.map((response) => {
-            const draft = drafts[response.attempt_uuid] || { score: '', feedback: '' }
-            const inputs = response.result?.inputs || response.answer?.inputs || {}
-            const maxScore = Number(response.result?.max_score ?? response.page?.scoring?.points ?? 1)
-            const learner = response.user
-              ? [response.user.first_name, response.user.last_name].filter(Boolean).join(' ') || response.user.username || response.user.email
+          ) : reviewGroups.length ? reviewGroups.map((review) => {
+            const learner = review.user
+              ? [review.user.first_name, review.user.last_name].filter(Boolean).join(' ') || review.user.username || review.user.email
               : 'Guest learner'
-
-            return (
-              <article key={response.attempt_uuid} className="rounded-xl border border-border p-4">
-                <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                  <div>
-                    <p className="text-sm font-bold text-foreground">{response.badge?.name ? `${response.badge.name} · ` : ''}{response.page?.title || 'Text response'}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{learner} · {new Date(response.submitted_at).toLocaleString()}</p>
-                  </div>
-                  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">Pending</span>
-                </div>
-
-                <div className="mt-4 space-y-3">
-                  {Object.entries(inputs).map(([inputId, value]: any) => (
-                    <div key={inputId} className="rounded-lg bg-muted p-3">
-                      <p className="text-xs font-bold uppercase text-muted-foreground">{inputId}</p>
-                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">{value?.text || 'No response text.'}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-4 grid gap-3 md:grid-cols-[160px_1fr_auto] md:items-end">
-                  <label className="block text-xs font-bold uppercase text-muted-foreground">
-                    Score / {maxScore}
-                    <input
-                      type="number"
-                      min={0}
-                      max={maxScore}
-                      value={draft.score}
-                      onChange={(event) => setDrafts((current) => ({ ...current, [response.attempt_uuid]: { ...draft, score: event.target.value } }))}
-                      className="mt-2 h-10 w-full rounded-lg border border-border px-3 text-sm normal-case text-foreground outline-none focus:ring-2 focus:ring-black"
-                    />
-                  </label>
-                  <label className="block text-xs font-bold uppercase text-muted-foreground">
-                    Feedback
-                    <input
-                      value={draft.feedback}
-                      onChange={(event) => setDrafts((current) => ({ ...current, [response.attempt_uuid]: { ...draft, feedback: event.target.value } }))}
-                      className="mt-2 h-10 w-full rounded-lg border border-border px-3 text-sm normal-case text-foreground outline-none focus:ring-2 focus:ring-black"
-                    />
-                  </label>
-                  <Button onClick={() => void saveGrade(response)} disabled={saving === response.attempt_uuid || draft.score === ''} className="gap-2">
-                    {saving === response.attempt_uuid ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                    Save grade
-                  </Button>
-                </div>
-              </article>
-            )
+            return <button key={review.review_id} type="button" onClick={() => openReview(review)} className="flex w-full items-center justify-between gap-4 rounded-xl border border-border p-4 text-left transition hover:border-blue-300"><div><p className="text-sm font-bold text-foreground">{review.badge?.name ? `${review.badge.name} · ` : ''}{review.activity?.title || 'Activity submission'}</p><p className="mt-1 text-xs text-muted-foreground">{learner} · {new Date(review.submitted_at).toLocaleString()}</p></div><span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-800">{review.pending_question_count} to grade</span></button>
           }) : (
             <div className="rounded-xl border border-dashed border-border py-16 text-center">
               <p className="text-sm font-semibold text-muted-foreground">No pending responses</p>
@@ -601,6 +568,29 @@ export function OrgGradingQueuePanel({ orgId }: { orgId: number }) {
           )}
         </div>
       </section>
+      <Modal isDialogOpen={Boolean(active)} onOpenChange={(open) => !open && setActive(null)} minWidth="lg" dialogTitle={active?.activity?.title || 'Grade activity'} dialogDescription={active?.badge?.name || ''} dialogContent={active ? <ActivityAggregateGradeForm review={active} scores={questionScores} setScores={setQuestionScores} feedback={feedback} setFeedback={setFeedback} saving={saving === active.review_id} onConfirm={(notes: Record<string, string>) => void saveGrade(notes)} /> : <div />} />
     </div>
   )
+}
+
+function buildOrgReviewGroups(responses: any[]) {
+  const groups = new Map<string, any[]>()
+  for (const response of responses) {
+    const key = `${response.run?.run_uuid || response.run_id}:${response.activity?.id || response.page?.activity_id}`
+    groups.set(key, [...(groups.get(key) || []), response])
+  }
+  return Array.from(groups.entries()).flatMap(([key, history]) => {
+    history.sort((left, right) => new Date(left.submitted_at).getTime() - new Date(right.submitted_at).getTime())
+    const latestByPage = new Map<number, any>()
+    for (const attempt of history) latestByPage.set(attempt.page_id, attempt)
+    const latest = Array.from(latestByPage.values())
+    const pending = latest.filter((attempt) => attempt.result?.grading_status === 'pending')
+    if (!pending.length) return []
+    const pendingQuestions = pending.flatMap((attempt) => Object.values(attempt.result?.questions || {}).filter((result: any) => result?.grading_status === 'pending')) as any[]
+    const autoScore = latest.reduce((sum, attempt) => sum + (attempt.result?.grading_status === 'graded' ? Number(attempt.score || 0) : Object.values(attempt.result?.questions || {}).reduce((questionSum: number, result: any) => questionSum + (result?.grading_status === 'graded' ? Number(result.score || 0) : 0), 0)), 0)
+    const maxScore = latest.reduce((sum, attempt) => sum + Number(attempt.result?.max_score || 0), 0)
+    const pendingMax = pendingQuestions.reduce((sum, result) => sum + Number(result.max_score ?? result.points ?? 0), 0)
+    const current = latest[0]
+    return [{ review_id: key, attempts: latest, attempt_history: history, auto_score: autoScore, max_score: maxScore, pending_max_score: pendingMax, pending_question_count: pendingQuestions.length, minimum_score_percent: Number(current.activity?.settings?.grading?.minimum_score_percent ?? 70), submitted_at: pending.reduce((value, item) => new Date(item.submitted_at).getTime() > new Date(value).getTime() ? item.submitted_at : value, pending[0].submitted_at), user: current.user, badge: current.badge, activity: current.activity }]
+  })
 }

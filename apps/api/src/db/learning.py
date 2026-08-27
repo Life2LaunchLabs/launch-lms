@@ -674,6 +674,7 @@ class LearningResponseGrade(SQLModel):
     score: float
     feedback: str | None = ""
     question_scores: dict[str, float] = Field(default_factory=dict)
+    question_feedback: dict[str, str] = Field(default_factory=dict)
 
 
 class LearningAwardCreate(SQLModel):

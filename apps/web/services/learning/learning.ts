@@ -415,7 +415,7 @@ export async function getLearningResponses(
   return errorHandling(result)
 }
 
-export async function gradeLearningResponse(attemptUuid: string, data: { score: number; feedback?: string; question_scores?: Record<string, number> }, accessToken?: string) {
+export async function gradeLearningResponse(attemptUuid: string, data: { score: number; feedback?: string; question_scores?: Record<string, number>; question_feedback?: Record<string, string> }, accessToken?: string) {
   const result = await fetch(
     `${getAPIUrl()}learning-responses/${attemptUuid}/grade`,
     RequestBodyWithAuthHeader('POST', data, null, accessToken)

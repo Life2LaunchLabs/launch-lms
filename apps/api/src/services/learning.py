@@ -6536,6 +6536,7 @@ async def grade_learning_response(
                 "score": question_score,
                 "is_correct": question_score >= question_max if question_max > 0 else None,
                 "grading_status": "graded",
+                "feedback": data.question_feedback.get(question_id, "").strip(),
             }
         score = sum(_as_float(item.get("score"), 0.0) for item in question_results.values())
     else:

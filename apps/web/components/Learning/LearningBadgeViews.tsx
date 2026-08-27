@@ -67,6 +67,12 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
   const badge = badgePath.badge
   const configuredPages = activity.pages || []
   const [run, setRun] = React.useState<any>(badgePath.run)
+  const [retakeBaselineAttemptIds] = React.useState<Set<string>>(() => {
+    const isRetake = badgePath.run && getSubmittedActivityStatus(badgePath.run, activity) === 'failed'
+    return new Set(
+      isRetake ? (badgePath.run?.attempts || []).map((attempt: any) => attempt.attempt_uuid) : []
+    )
+  })
   const [index, setIndex] = React.useState(0)
   const [unlocked, setUnlocked] = React.useState(false)
   const [answer, setAnswer] = React.useState<any>({})
@@ -101,9 +107,11 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
 
   React.useEffect(() => {
     setUnlocked(Boolean(page) && !isQuestionResponseRequired(page))
-    const prior = (run?.attempts || []).filter((item: any) => item.page_uuid === page?.page_uuid).at(-1)
+    const prior = (run?.attempts || [])
+      .filter((item: any) => item.page_uuid === page?.page_uuid && !retakeBaselineAttemptIds.has(item.attempt_uuid))
+      .at(-1)
     setAnswer(prior?.answer || {})
-  }, [page?.content, page?.page_type, page?.page_uuid, run?.attempts])
+  }, [page?.content, page?.page_type, page?.page_uuid, retakeBaselineAttemptIds, run?.attempts])
 
   const navigateToPage = React.useCallback((pageUuid: string) => {
     const destination = pages.findIndex((item: any) => item.page_uuid === pageUuid)
